@@ -3384,6 +3384,7 @@
                 "wall_wood",
                 "wall_stone"
               ],
+              "roof": "roof",
               "roofColors": [
                 "#b5533a",
                 "#5a636b",
@@ -3463,22 +3464,20 @@
                   "fixedWall": "#f0f0ea",
                   "hospitalRoof": "#2f7e50",
                   "materials": [
-                    "wall_wood",
-                    "wall_stone",
-                    "wall_brick"
+                    "wall_brick",
+                    "wall_wood"
                   ],
+                  "roof": "roof",
                   "roofColors": [
                     "#8a4b2f",
-                    "#6b4a2b",
-                    "#7a5230",
-                    "#5c4433"
+                    "#7a4326",
+                    "#6b4a2b"
                   ],
                   "storeRoof": "#235a96",
                   "wallColors": [
                     "#c9a66b",
-                    "#d8c79a",
                     "#b08d5b",
-                    "#e8dcc0"
+                    "#d8c79a"
                   ]
                 },
                 "grid": {
@@ -3554,21 +3553,19 @@
                   "fixedWall": "#f0f0ea",
                   "hospitalRoof": "#2f7e50",
                   "materials": [
-                    "wall_stone",
-                    "wall_brick"
+                    "wall_plaster"
                   ],
+                  "roof": "flat_roof",
                   "roofColors": [
                     "#4a4f55",
-                    "#5a636b",
                     "#3f464c",
-                    "#6b7378"
+                    "#5a636b"
                   ],
                   "storeRoof": "#235a96",
                   "wallColors": [
-                    "#d6d9dc",
-                    "#b9bfc4",
-                    "#8a9199",
-                    "#eceff1"
+                    "#e8ecef",
+                    "#d3d8dc",
+                    "#bcc3c9"
                   ]
                 },
                 "grid": {
@@ -3644,21 +3641,19 @@
                   "fixedWall": "#f0f0ea",
                   "hospitalRoof": "#2f7e50",
                   "materials": [
-                    "wall_wood",
-                    "wall_brick"
+                    "wall_wood"
                   ],
+                  "roof": "roof",
                   "roofColors": [
-                    "#7d6a3a",
-                    "#946f3c",
-                    "#8a5a2b",
-                    "#6f7a3a"
+                    "#c9a84f",
+                    "#b8963f",
+                    "#d8bc6a"
                   ],
                   "storeRoof": "#235a96",
                   "wallColors": [
-                    "#f2e0b0",
-                    "#e8b98a",
-                    "#cfe0a8",
-                    "#f6efdc"
+                    "#f4e3b6",
+                    "#efc9a0",
+                    "#e8d9a8"
                   ]
                 },
                 "grid": {
@@ -3734,21 +3729,19 @@
                   "fixedWall": "#f0f0ea",
                   "hospitalRoof": "#2f7e50",
                   "materials": [
-                    "wall_wood",
                     "wall_stone"
                   ],
+                  "roof": "roof_slate",
                   "roofColors": [
-                    "#3d454f",
-                    "#4b545e",
                     "#2f3640",
-                    "#59636d"
+                    "#262c34",
+                    "#3d454f"
                   ],
                   "storeRoof": "#235a96",
                   "wallColors": [
                     "#eef2f6",
-                    "#d8e1e8",
-                    "#c3ccd4",
-                    "#b0b9c1"
+                    "#dde6ee",
+                    "#c9d4de"
                   ]
                 },
                 "grid": {
@@ -3824,21 +3817,19 @@
                   "fixedWall": "#f0f0ea",
                   "hospitalRoof": "#2f7e50",
                   "materials": [
-                    "wall_stone",
-                    "wall_brick"
+                    "wall_plaster"
                   ],
+                  "roof": "roof",
                   "roofColors": [
-                    "#b5533a",
-                    "#a8462f",
                     "#c2603f",
-                    "#93402c"
+                    "#b5533a",
+                    "#a8462f"
                   ],
                   "storeRoof": "#235a96",
                   "wallColors": [
+                    "#faf3e4",
                     "#f4ecd8",
-                    "#efe0c0",
-                    "#e6d3ae",
-                    "#faf3e4"
+                    "#efe0c0"
                   ]
                 },
                 "grid": {
@@ -3914,21 +3905,19 @@
                   "fixedWall": "#f0f0ea",
                   "hospitalRoof": "#2f7e50",
                   "materials": [
-                    "wall_brick",
-                    "wall_stone"
+                    "wall_brick"
                   ],
+                  "roof": "roof_slate",
                   "roofColors": [
                     "#8f4a33",
-                    "#7a4a2c",
-                    "#9c6b3a",
-                    "#5f5a52"
+                    "#6f6a60",
+                    "#7a4a2c"
                   ],
                   "storeRoof": "#235a96",
                   "wallColors": [
                     "#c98f5c",
                     "#b87d4a",
-                    "#d9a877",
-                    "#a86b3d"
+                    "#d9a877"
                   ]
                 },
                 "grid": {
@@ -4018,6 +4007,7 @@
                 "wall_wood",
                 "wall_stone"
               ],
+              "roof": "roof",
               "roofColors": [
                 "#b5533a",
                 "#5a636b",
@@ -4097,22 +4087,20 @@
                   "fixedWall": "#f0f0ea",
                   "hospitalRoof": "#2f7e50",
                   "materials": [
-                    "wall_wood",
-                    "wall_stone",
-                    "wall_brick"
+                    "wall_brick",
+                    "wall_wood"
                   ],
+                  "roof": "roof",
                   "roofColors": [
                     "#8a4b2f",
-                    "#6b4a2b",
-                    "#7a5230",
-                    "#5c4433"
+                    "#7a4326",
+                    "#6b4a2b"
                   ],
                   "storeRoof": "#235a96",
                   "wallColors": [
                     "#c9a66b",
-                    "#d8c79a",
                     "#b08d5b",
-                    "#e8dcc0"
+                    "#d8c79a"
                   ]
                 },
                 "grid": {
@@ -4188,21 +4176,19 @@
                   "fixedWall": "#f0f0ea",
                   "hospitalRoof": "#2f7e50",
                   "materials": [
-                    "wall_stone",
-                    "wall_brick"
+                    "wall_plaster"
                   ],
+                  "roof": "flat_roof",
                   "roofColors": [
                     "#4a4f55",
-                    "#5a636b",
                     "#3f464c",
-                    "#6b7378"
+                    "#5a636b"
                   ],
                   "storeRoof": "#235a96",
                   "wallColors": [
-                    "#d6d9dc",
-                    "#b9bfc4",
-                    "#8a9199",
-                    "#eceff1"
+                    "#e8ecef",
+                    "#d3d8dc",
+                    "#bcc3c9"
                   ]
                 },
                 "grid": {
@@ -4278,21 +4264,19 @@
                   "fixedWall": "#f0f0ea",
                   "hospitalRoof": "#2f7e50",
                   "materials": [
-                    "wall_wood",
-                    "wall_brick"
+                    "wall_wood"
                   ],
+                  "roof": "roof",
                   "roofColors": [
-                    "#7d6a3a",
-                    "#946f3c",
-                    "#8a5a2b",
-                    "#6f7a3a"
+                    "#c9a84f",
+                    "#b8963f",
+                    "#d8bc6a"
                   ],
                   "storeRoof": "#235a96",
                   "wallColors": [
-                    "#f2e0b0",
-                    "#e8b98a",
-                    "#cfe0a8",
-                    "#f6efdc"
+                    "#f4e3b6",
+                    "#efc9a0",
+                    "#e8d9a8"
                   ]
                 },
                 "grid": {
@@ -4368,21 +4352,19 @@
                   "fixedWall": "#f0f0ea",
                   "hospitalRoof": "#2f7e50",
                   "materials": [
-                    "wall_wood",
                     "wall_stone"
                   ],
+                  "roof": "roof_slate",
                   "roofColors": [
-                    "#3d454f",
-                    "#4b545e",
                     "#2f3640",
-                    "#59636d"
+                    "#262c34",
+                    "#3d454f"
                   ],
                   "storeRoof": "#235a96",
                   "wallColors": [
                     "#eef2f6",
-                    "#d8e1e8",
-                    "#c3ccd4",
-                    "#b0b9c1"
+                    "#dde6ee",
+                    "#c9d4de"
                   ]
                 },
                 "grid": {
@@ -4458,21 +4440,19 @@
                   "fixedWall": "#f0f0ea",
                   "hospitalRoof": "#2f7e50",
                   "materials": [
-                    "wall_stone",
-                    "wall_brick"
+                    "wall_plaster"
                   ],
+                  "roof": "roof",
                   "roofColors": [
-                    "#b5533a",
-                    "#a8462f",
                     "#c2603f",
-                    "#93402c"
+                    "#b5533a",
+                    "#a8462f"
                   ],
                   "storeRoof": "#235a96",
                   "wallColors": [
+                    "#faf3e4",
                     "#f4ecd8",
-                    "#efe0c0",
-                    "#e6d3ae",
-                    "#faf3e4"
+                    "#efe0c0"
                   ]
                 },
                 "grid": {
@@ -4548,21 +4528,19 @@
                   "fixedWall": "#f0f0ea",
                   "hospitalRoof": "#2f7e50",
                   "materials": [
-                    "wall_brick",
-                    "wall_stone"
+                    "wall_brick"
                   ],
+                  "roof": "roof_slate",
                   "roofColors": [
                     "#8f4a33",
-                    "#7a4a2c",
-                    "#9c6b3a",
-                    "#5f5a52"
+                    "#6f6a60",
+                    "#7a4a2c"
                   ],
                   "storeRoof": "#235a96",
                   "wallColors": [
                     "#c98f5c",
                     "#b87d4a",
-                    "#d9a877",
-                    "#a86b3d"
+                    "#d9a877"
                   ]
                 },
                 "grid": {

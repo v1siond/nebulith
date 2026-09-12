@@ -54,6 +54,9 @@ describe('parseGeneratorCatalog — the live /api/generators body', () => {
 
   it('reads the building material + colour palette the page declared as five consts', () => {
     expect(findGenerator(LIVE, 'settlement', 'town')!.config.buildings).toEqual({
+      // `roof` since 2026-09-11: a look names the roof its houses lay, because the shape is baked into the
+      // composition and colours alone could never make a tropical town read as one.
+      roof: 'roof',
       materials: ['wall_brick', 'wall_wood', 'wall_stone'],
       roofColors: ['#b5533a', '#5a636b', '#5c4433', '#4a6a7a'],
       wallColors: ['#9e4b3b', '#c9a66b', '#e8dcc0', '#8a8580', '#a89f7a'],

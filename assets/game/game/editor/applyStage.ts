@@ -101,7 +101,10 @@ export function applyStageToGrid(stage: StageData, grid: IsometricGrid, building
     // NOT re-derived from b.length: b.length is the grid COL-SPAN, which for an east/west-facing plot is the
     // DEPTH, not the facade length — deriving the kind from it asks for a non-existent composition
     // (hospital_4 / big_house_4 / temple_4) → 0 cells stamped → a foundation with NO building (Image #42).
-    const cells = stampBuildingKind(grid, b.kind, b.col, anchorRow, stage.zone, b.facing, material, roofColor, wallColor)
+    // The ROOF the generator's look names, residential only: a store and a hospital keep their identity, the
+    // same rule that stops them picking a wall material.
+    const roofTile = residential ? palette?.roof : undefined
+    const cells = stampBuildingKind(grid, b.kind, b.col, anchorRow, stage.zone, b.facing, material, roofColor, wallColor, roofTile)
     // SAY SO WHEN NOTHING LANDS. `stampBuildingKind` returns a cell COUNT and every caller threw it away, so
     // a whole town of buildings could fail to stamp without a single word in the console — which is exactly
     // what happened when a composed kind was installed into one art style and read from another. A plot with

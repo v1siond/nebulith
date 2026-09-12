@@ -40,6 +40,37 @@ const WALL_MAT = /^wall_(stone|brick|wood|plaster)_/
 // `wall_*` material piece. Windows / doors / awnings / storefront glass keep their OWN colour. An absent
 // override → the tile's authored colour stands, so a colour-less stamp is byte-identical to before.
 const isRoofLabel = (label: string): boolean => label.startsWith('roof') || label === 'flat_roof' || label === 'parapet'
+
+/**
+ * THE RESIDENTIAL ROOFS A PALETTE MAY SWAP BETWEEN, and the cap each one wears.
+ *
+ * A roof is two tiles: the body and the ridge cap above it. `house_4` is `roof` + `roof_top`, `house_5` is
+ * `roof_slate` + `roof_top_slate`. Swapping only the body would leave a gable ridge sitting on a flat deck,
+ * so the cap moves with it, and a FLAT roof has no ridge at all (the one flat-roofed composition in the
+ * catalog pairs its deck with a store lip, not a gable cap), so that cell is dropped instead of substituted.
+ *
+ * `roof_store` and `roof_hospital` are absent on purpose: those two buildings keep their identity, the same
+ * rule that already stops them picking a wall material from the palette.
+ */
+const ROOF_CAPS: Readonly<Record<string, string | null>> = {
+  roof: 'roof_top',
+  roof_slate: 'roof_top_slate',
+  flat_roof: null,
+}
+
+/**
+ * What a roof cell's label becomes when the generator's palette names a roof.
+ *
+ * `undefined` leaves the cell exactly as authored (nothing served, an unknown target, or a fixed-identity
+ * roof). A string is the label to lay. `null` means this cell is not laid at all, which is how a flat deck
+ * loses the ridge the composition drew.
+ */
+export function roofSwap(label: string, roofTile: string | undefined): string | null | undefined {
+  if (!roofTile || !(roofTile in ROOF_CAPS)) return undefined
+  if (label in ROOF_CAPS) return roofTile
+  const caps = Object.values(ROOF_CAPS).filter((cap): cap is string => cap !== null)
+  return caps.includes(label) ? ROOF_CAPS[roofTile] : undefined
+}
 const isWallLabel = (label: string): boolean => label.startsWith('wall_')
 
 /** The per-cell RENDER fields a composition cell contributes to the tile placed in it. */
@@ -133,7 +164,7 @@ function cellSettings(comp: Composition, cell: CompositionCell, tile: ResolvedTi
   return { ...behavior, ...(display ? { display } : {}), ...(badge ? { badge } : {}) }
 }
 
-export function stampComposition(grid: IsometricGrid, kind: string, anchorCol: number, anchorRow: number, zone: ZoneId, variant = 0, rotation = 0, material?: string, roofColor?: string, wallColor?: string): number {
+export function stampComposition(grid: IsometricGrid, kind: string, anchorCol: number, anchorRow: number, zone: ZoneId, variant = 0, rotation = 0, material?: string, roofColor?: string, wallColor?: string, roofTile?: string): number {
   const comp = resolveComposition(styleCatalog('ascii'), kind)
   if (!comp) return 0
   // ONE global rule for EVERY composition (building, tree, fountain, lamp): it stacks ON TOP of whatever already
@@ -170,7 +201,7 @@ export function stampComposition(grid: IsometricGrid, kind: string, anchorCol: n
         cells[j + 1].walkable === cells[i].walkable
       )
         j++
-      if (stampRun(grid, comp, kind, cells[i], j - i + 1, anchorCol, anchorRow, w, h, rotation, zone, variant, material, roofColor, wallColor, baseLevel)) placed += j - i + 1
+      if (stampRun(grid, comp, kind, cells[i], j - i + 1, anchorCol, anchorRow, w, h, rotation, zone, variant, material, roofColor, wallColor, roofTile, baseLevel)) placed += j - i + 1
       i = j + 1
     }
   }
@@ -196,6 +227,7 @@ function stampRun(
   material: string | undefined,
   roofColor: string | undefined,
   wallColor: string | undefined,
+  roofTile: string | undefined,
   baseLevel: number,
 ): boolean {
   const off = rotation ? rotateFootprintOffset(c.dx, c.dy, w, h, rotation) : { dx: c.dx, dy: c.dy }
@@ -206,7 +238,11 @@ function stampRun(
   // just PLACES its cells; the grass/road floor already in the cell STAYS beneath as its own stacked tile. A
   // LEVEL-0 wall/trunk/rim tile coexists with the floor at level 0 (the floor is a thin ground slab, the wall a
   // block on it); higher levels (roof, upper wall) stack above. The floor is only removed by an explicit CLEAR.
-  const label = material ? c.label.replace(WALL_MAT, `${material}_`) : c.label
+  // THE ROOF the palette named, body and cap together. `null` is a cap a flat deck does not wear, so the cell
+  // is not laid at all rather than substituted.
+  const roofed = roofSwap(c.label, roofTile)
+  if (roofed === null) return false
+  const label = roofed ?? (material ? c.label.replace(WALL_MAT, `${material}_`) : c.label)
   const tile = resolveTile(styleCatalog('ascii'), zone, label, variant)
   // Colour SETTING = the filter the renderer tints the baked tile to. A roof/wall material override recolours
   // just those cells; otherwise an AUTHORED per-cell `settings.color` wins (MAP-MODEL §8: "colour is a setting
@@ -236,14 +272,14 @@ function stampRun(
  *  the FACADE length at plan time. Re-deriving the kind from a building's grid col-span instead is wrong for an
  *  east/west-facing plot (whose col-span is the DEPTH, not the facade length) and asks for a non-existent
  *  composition (`hospital_4`), stamping 0 cells → a foundation with NO building (the Image #42 orphan). */
-export function stampBuildingKind(grid: IsometricGrid, kind: string, anchorCol: number, anchorRow: number, zone: ZoneId, facing: Facing, material?: string, roofColor?: string, wallColor?: string): number {
-  return stampComposition(grid, kind, anchorCol, anchorRow, zone, 0, facingRotation(facing), material, roofColor, wallColor)
+export function stampBuildingKind(grid: IsometricGrid, kind: string, anchorCol: number, anchorRow: number, zone: ZoneId, facing: Facing, material?: string, roofColor?: string, wallColor?: string, roofTile?: string): number {
+  return stampComposition(grid, kind, anchorCol, anchorRow, zone, 0, facingRotation(facing), material, roofColor, wallColor, roofTile)
 }
 
 /** Stamp a building selected by (type, length) — the MANUAL/editor path where `length` IS the facade length
  *  the user picked. For a GENERATED building use {@link stampBuildingKind} with its authoritative `kind` (see
  *  the orphan-foundation note above). Returns the number of cells placed (0 if the (type,length) composition
  *  isn't in the loaded tileset). */
-export function stampBuildingComposition(grid: IsometricGrid, type: BuildingType, length: number, anchorCol: number, anchorRow: number, zone: ZoneId, facing: Facing, material?: string, roofColor?: string, wallColor?: string): number {
-  return stampBuildingKind(grid, buildingCompositionKind(type, length), anchorCol, anchorRow, zone, facing, material, roofColor, wallColor)
+export function stampBuildingComposition(grid: IsometricGrid, type: BuildingType, length: number, anchorCol: number, anchorRow: number, zone: ZoneId, facing: Facing, material?: string, roofColor?: string, wallColor?: string, roofTile?: string): number {
+  return stampBuildingKind(grid, buildingCompositionKind(type, length), anchorCol, anchorRow, zone, facing, material, roofColor, wallColor, roofTile)
 }

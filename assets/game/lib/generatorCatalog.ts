@@ -60,6 +60,16 @@ export interface GeneratorNature {
 
 /** The per-building material + colour roll: residential picks from the lists, civic buildings are fixed. */
 export interface GeneratorBuildings {
+  /**
+   * The ROOF TILE a residential building lays: `roof` (a gable), `roof_slate`, `flat_roof`.
+   *
+   * Alexander, 2026-09-11: *"I picked a tropical city and had nothing different than a regular one ... the
+   * material of houses should be different, walls different, roof different"*. The roof SHAPE is baked into
+   * each composition (`house_5` is slate, `house_4` a gable, `store_5` a flat deck), so colours alone could
+   * never make a look read as a look. Absent → every building keeps the roof its composition was authored
+   * with, which is what every map did before this existed.
+   */
+  roof?: string
   materials: readonly string[]
   roofColors: readonly string[]
   wallColors: readonly string[]
@@ -393,9 +403,11 @@ function parseBuildings(v: unknown): GeneratorBuildings | undefined {
   const storeRoof = str(v.storeRoof)
   const hospitalRoof = str(v.hospitalRoof)
   const fixedWall = str(v.fixedWall)
+  const roof = str(v.roof)
   if (!materials || !roofColors || !wallColors) return undefined
   if (storeRoof === undefined || hospitalRoof === undefined || fixedWall === undefined) return undefined
-  return { materials, roofColors, wallColors, storeRoof, hospitalRoof, fixedWall }
+  // `roof` is optional: a payload from before it existed parses exactly as it used to.
+  return { materials, roofColors, wallColors, storeRoof, hospitalRoof, fixedWall, ...(roof ? { roof } : {}) }
 }
 
 function parseSettlement(v: unknown): GeneratorSettlement | undefined {
