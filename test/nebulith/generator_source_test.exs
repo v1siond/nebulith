@@ -339,6 +339,29 @@ defmodule Nebulith.GeneratorSourceTest do
       assert generator(cats, "forest", "forest_meadow").config["buildings"] == nil
     end
 
+    test "every settlement look owns its own material and its own roof", %{categories: cats} do
+      # Alexander, 2026-09-11: *"I picked a tropical city and had nothing different than a regular one ... the
+      # material of houses should be different, walls different, roof different"* and *"each settlement
+      # variation should have their own flavor and clear differences"*. A look that shares its family AND its
+      # roof with another look is the bug he reported, so this refuses to let two of them match.
+      town = generator(cats, "settlement", "town_default")
+
+      looks =
+        for look <- town.children do
+          b = look.config["buildings"]
+          assert b["roof"] in ~w(roof roof_slate flat_roof), "#{look.key} lays #{inspect(b["roof"])}"
+          assert b["materials"] != [], "#{look.key} states no materials"
+          {look.name, hd(b["materials"]), b["roof"]}
+        end
+
+      assert length(looks) == 6
+      # no two looks share BOTH their dominant wall family and their roof
+      pairs = Enum.map(looks, fn {_name, material, roof} -> {material, roof} end)
+      assert length(Enum.uniq(pairs)) == length(pairs), "two looks are the same material on the same roof: #{inspect(looks)}"
+      # and the plaster family is actually used by something, since it was sitting unused
+      assert Enum.any?(looks, fn {_n, material, _r} -> material == "wall_plaster" end)
+    end
+
     test "SIZES are absent on purpose — a building's footprint is composition data", %{categories: cats} do
       for category <- cats, g <- category.generators do
         refute Map.has_key?(g.config, "buildingSizes")

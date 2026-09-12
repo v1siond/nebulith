@@ -154,7 +154,17 @@ defmodule Nebulith.Catalog.GeneratorSource do
 
   # The per-building material + colour roll. Residential buildings pick a material and a roof/wall
   # tone by a position hash; a store and a hospital are FIXED so they read as civic at a glance.
+  # A LOOK IS A MATERIAL AND A ROOF, not a hex nudge. Alexander, 2026-09-11: *"I picked a tropical city and had
+  # nothing different than a regular one ... the material of houses should be different, walls different, roof
+  # different"*, and *"each settlement variation should have their own flavor and clear differences"*.
+  #
+  # He was right and the reason was in here: every look carried colours only, and the ROOF TILE is baked into
+  # the composition (`house_5` is slate, `house_4` and `big_house_6` are gables, `store_5` is a flat deck), so
+  # no palette could change a roof's shape. `roof` names the body tile a residential building lays, and the
+  # stamper swaps its cap with it. Four wall families exist (brick, plaster, stone, wood), so each look below
+  # owns a DIFFERENT one, and the colours are pulled far apart rather than sitting a few percent from each other.
   @building_palette %{
+    "roof" => "roof",
     "materials" => ["wall_brick", "wall_wood", "wall_stone"],
     "roofColors" => ["#b5533a", "#5a636b", "#5c4433", "#4a6a7a"],
     "wallColors" => ["#9e4b3b", "#c9a66b", "#e8dcc0", "#8a8580", "#a89f7a"],
@@ -398,9 +408,10 @@ defmodule Nebulith.Catalog.GeneratorSource do
       key: "traditional", name: "Traditional", position: 0,
       description: "Timber and stone, warm roofs, trees between the lots.",
       buildings: %{
-        "materials" => ["wall_wood", "wall_stone", "wall_brick"],
-        "roofColors" => ["#8a4b2f", "#6b4a2b", "#7a5230", "#5c4433"],
-        "wallColors" => ["#c9a66b", "#d8c79a", "#b08d5b", "#e8dcc0"]
+        "roof" => "roof",
+        "materials" => ["wall_brick", "wall_wood"],
+        "roofColors" => ["#8a4b2f", "#7a4326", "#6b4a2b"],
+        "wallColors" => ["#c9a66b", "#b08d5b", "#d8c79a"]
       },
       settlement: %{"natureMultiplier" => 1.3}
     },
@@ -408,9 +419,11 @@ defmodule Nebulith.Catalog.GeneratorSource do
       key: "modern", name: "Modern", position: 1,
       description: "Concrete, glass and flat grey roofs, wide streets, little green.",
       buildings: %{
-        "materials" => ["wall_stone", "wall_brick"],
-        "roofColors" => ["#4a4f55", "#5a636b", "#3f464c", "#6b7378"],
-        "wallColors" => ["#d6d9dc", "#b9bfc4", "#8a9199", "#eceff1"]
+        # Flat decks and plaster: the one look that is not a pitched roof at all.
+        "roof" => "flat_roof",
+        "materials" => ["wall_plaster"],
+        "roofColors" => ["#4a4f55", "#3f464c", "#5a636b"],
+        "wallColors" => ["#e8ecef", "#d3d8dc", "#bcc3c9"]
       },
       settlement: %{"natureMultiplier" => 0.5, "roadWidth" => 5, "plazaSize" => 7}
     },
@@ -418,9 +431,11 @@ defmodule Nebulith.Catalog.GeneratorSource do
       key: "tropical", name: "Tropical", position: 2,
       description: "Timber and palm thatch, bright walls, green everywhere.",
       buildings: %{
-        "materials" => ["wall_wood", "wall_brick"],
-        "roofColors" => ["#7d6a3a", "#946f3c", "#8a5a2b", "#6f7a3a"],
-        "wallColors" => ["#f2e0b0", "#e8b98a", "#cfe0a8", "#f6efdc"]
+        # Timber and straw. A thatch roof tile does not exist yet, so the gable wears straw until it does.
+        "roof" => "roof",
+        "materials" => ["wall_wood"],
+        "roofColors" => ["#c9a84f", "#b8963f", "#d8bc6a"],
+        "wallColors" => ["#f4e3b6", "#efc9a0", "#e8d9a8"]
       },
       settlement: %{"natureMultiplier" => 1.8}
     },
@@ -428,9 +443,10 @@ defmodule Nebulith.Catalog.GeneratorSource do
       key: "snowy", name: "Snowy", position: 3,
       description: "Pale walls under dark steep roofs, and almost nothing growing.",
       buildings: %{
-        "materials" => ["wall_wood", "wall_stone"],
-        "roofColors" => ["#3d454f", "#4b545e", "#2f3640", "#59636d"],
-        "wallColors" => ["#eef2f6", "#d8e1e8", "#c3ccd4", "#b0b9c1"]
+        "roof" => "roof_slate",
+        "materials" => ["wall_stone"],
+        "roofColors" => ["#2f3640", "#262c34", "#3d454f"],
+        "wallColors" => ["#eef2f6", "#dde6ee", "#c9d4de"]
       },
       settlement: %{"natureMultiplier" => 0.35}
     },
@@ -438,9 +454,11 @@ defmodule Nebulith.Catalog.GeneratorSource do
       key: "mediterranean", name: "Mediterranean", position: 4,
       description: "Cream walls and terracotta roofs packed tight around a small square.",
       buildings: %{
-        "materials" => ["wall_stone", "wall_brick"],
-        "roofColors" => ["#b5533a", "#a8462f", "#c2603f", "#93402c"],
-        "wallColors" => ["#f4ecd8", "#efe0c0", "#e6d3ae", "#faf3e4"]
+        # Whitewash and terracotta: the same plaster the modern city uses, and nothing else about it matches.
+        "roof" => "roof",
+        "materials" => ["wall_plaster"],
+        "roofColors" => ["#c2603f", "#b5533a", "#a8462f"],
+        "wallColors" => ["#faf3e4", "#f4ecd8", "#efe0c0"]
       },
       settlement: %{"natureMultiplier" => 0.8, "lotGap" => [1, 1], "plazaSize" => 4}
     },
@@ -448,9 +466,11 @@ defmodule Nebulith.Catalog.GeneratorSource do
       key: "andean", name: "Andean", position: 5,
       description: "Adobe walls and tin roofs stepping up the slope.",
       buildings: %{
-        "materials" => ["wall_brick", "wall_stone"],
-        "roofColors" => ["#8f4a33", "#7a4a2c", "#9c6b3a", "#5f5a52"],
-        "wallColors" => ["#c98f5c", "#b87d4a", "#d9a877", "#a86b3d"]
+        # Adobe and tin. A real adobe wall family is next through the bake pipeline; brick in ochre until then.
+        "roof" => "roof_slate",
+        "materials" => ["wall_brick"],
+        "roofColors" => ["#8f4a33", "#6f6a60", "#7a4a2c"],
+        "wallColors" => ["#c98f5c", "#b87d4a", "#d9a877"]
       },
       settlement: %{"natureMultiplier" => 0.7, "lotGap" => [1, 1]}
     }
