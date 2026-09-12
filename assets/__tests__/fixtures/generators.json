@@ -197,6 +197,27 @@
             {
               "choices": [
                 {
+                  "key": "flat",
+                  "label": "Not cut (painted on the ground)"
+                },
+                {
+                  "key": "1",
+                  "label": "One block down"
+                },
+                {
+                  "key": "2",
+                  "label": "Two blocks down"
+                }
+              ],
+              "default": "1",
+              "key": "depth",
+              "label": "How deep the channel is cut",
+              "requires": "river",
+              "type": "choice"
+            },
+            {
+              "choices": [
+                {
                   "key": "random",
                   "label": "Random"
                 },
@@ -399,6 +420,27 @@
                 {
                   "choices": [
                     {
+                      "key": "flat",
+                      "label": "Not cut (painted on the ground)"
+                    },
+                    {
+                      "key": "1",
+                      "label": "One block down"
+                    },
+                    {
+                      "key": "2",
+                      "label": "Two blocks down"
+                    }
+                  ],
+                  "default": "1",
+                  "key": "depth",
+                  "label": "How deep the channel is cut",
+                  "requires": "river",
+                  "type": "choice"
+                },
+                {
+                  "choices": [
+                    {
                       "key": "random",
                       "label": "Random"
                     },
@@ -476,9 +518,9 @@
                   }
                 },
                 "nature": {
-                  "canopy": 0.55,
+                  "canopy": 0.6,
                   "flowers": 0.04,
-                  "groundCover": 0.4,
+                  "groundCover": 0.5,
                   "tallGrass": 0.12
                 },
                 "palette": {
@@ -498,15 +540,23 @@
                 "trees": [
                   {
                     "kind": "tree_column",
-                    "weight": 40
+                    "weight": 35
                   },
                   {
                     "kind": "tree_tall",
-                    "weight": 30
+                    "weight": 28
                   },
                   {
-                    "kind": "bush",
-                    "weight": 30
+                    "kind": "tree",
+                    "weight": 20
+                  },
+                  {
+                    "kind": "tree_big",
+                    "weight": 10
+                  },
+                  {
+                    "kind": "tree_sapling",
+                    "weight": 7
                   }
                 ],
                 "units": {
@@ -606,6 +656,27 @@
                   "label": "A crossing joined to the paths",
                   "requires": "river",
                   "type": "toggle"
+                },
+                {
+                  "choices": [
+                    {
+                      "key": "flat",
+                      "label": "Not cut (painted on the ground)"
+                    },
+                    {
+                      "key": "1",
+                      "label": "One block down"
+                    },
+                    {
+                      "key": "2",
+                      "label": "Two blocks down"
+                    }
+                  ],
+                  "default": "1",
+                  "key": "depth",
+                  "label": "How deep the channel is cut",
+                  "requires": "river",
+                  "type": "choice"
                 },
                 {
                   "choices": [
@@ -821,6 +892,27 @@
                 {
                   "choices": [
                     {
+                      "key": "flat",
+                      "label": "Not cut (painted on the ground)"
+                    },
+                    {
+                      "key": "1",
+                      "label": "One block down"
+                    },
+                    {
+                      "key": "2",
+                      "label": "Two blocks down"
+                    }
+                  ],
+                  "default": "1",
+                  "key": "depth",
+                  "label": "How deep the channel is cut",
+                  "requires": "river",
+                  "type": "choice"
+                },
+                {
+                  "choices": [
+                    {
                       "key": "random",
                       "label": "Random"
                     },
@@ -898,7 +990,7 @@
                   }
                 },
                 "nature": {
-                  "canopy": 0.35,
+                  "canopy": 0.4,
                   "flowers": 0.04,
                   "groundCover": 0.2,
                   "tallGrass": 0.12
@@ -917,6 +1009,66 @@
                   "waterDeep": "#2a5f8a",
                   "waterShallow": "#8ccbe8"
                 },
+                "subZones": [
+                  {
+                    "canopy": 1.7,
+                    "floor": "#5c6e3d",
+                    "formation": {
+                      "lattice": 7,
+                      "spacing": 1,
+                      "understory": 0.8
+                    },
+                    "key": "stand",
+                    "name": "Tree stand",
+                    "trees": [
+                      {
+                        "kind": "tree_column",
+                        "weight": 30
+                      },
+                      {
+                        "kind": "tree_tall",
+                        "weight": 25
+                      },
+                      {
+                        "kind": "tree",
+                        "weight": 25
+                      },
+                      {
+                        "kind": "tree_sapling",
+                        "weight": 20
+                      }
+                    ],
+                    "undergrowth": 0.9,
+                    "weight": 3
+                  },
+                  {
+                    "canopy": 0.06,
+                    "floor": "#8b9a5a",
+                    "formation": {
+                      "lattice": 3,
+                      "spacing": 5,
+                      "understory": 0.3
+                    },
+                    "key": "meadow",
+                    "name": "Open meadow",
+                    "trees": [
+                      {
+                        "kind": "tree_gnarled",
+                        "weight": 60
+                      },
+                      {
+                        "kind": "tree_round",
+                        "weight": 25
+                      },
+                      {
+                        "kind": "bush_round",
+                        "weight": 15
+                      }
+                    ],
+                    "undergrowth": 0.4,
+                    "weight": 2
+                  }
+                ],
                 "trees": [
                   {
                     "kind": "tree",
@@ -931,7 +1083,7 @@
                     "weight": 25
                   },
                   {
-                    "kind": "bush_round",
+                    "kind": "tree_gnarled",
                     "weight": 20
                   }
                 ],
@@ -1001,6 +1153,26 @@
                 {
                   "choices": [
                     {
+                      "key": "random",
+                      "label": "Random"
+                    },
+                    {
+                      "key": "stand",
+                      "label": "Tree stand"
+                    },
+                    {
+                      "key": "meadow",
+                      "label": "Open meadow"
+                    }
+                  ],
+                  "default": "random",
+                  "key": "region",
+                  "label": "Region",
+                  "type": "choice"
+                },
+                {
+                  "choices": [
+                    {
                       "key": "none",
                       "label": "No river"
                     },
@@ -1036,6 +1208,27 @@
                 {
                   "choices": [
                     {
+                      "key": "flat",
+                      "label": "Not cut (painted on the ground)"
+                    },
+                    {
+                      "key": "1",
+                      "label": "One block down"
+                    },
+                    {
+                      "key": "2",
+                      "label": "Two blocks down"
+                    }
+                  ],
+                  "default": "1",
+                  "key": "depth",
+                  "label": "How deep the channel is cut",
+                  "requires": "river",
+                  "type": "choice"
+                },
+                {
+                  "choices": [
+                    {
                       "key": "random",
                       "label": "Random"
                     },
@@ -1063,7 +1256,7 @@
                   "type": "choice"
                 }
               ],
-              "description": "Stands of trees broken by open meadow.",
+              "description": "Closed stands of trees with open meadow between them.",
               "key": "forest_woodland_glades",
               "layout": "woodland",
               "children": [],
@@ -1420,6 +1613,27 @@
             {
               "choices": [
                 {
+                  "key": "flat",
+                  "label": "Not cut (painted on the ground)"
+                },
+                {
+                  "key": "1",
+                  "label": "One block down"
+                },
+                {
+                  "key": "2",
+                  "label": "Two blocks down"
+                }
+              ],
+              "default": "1",
+              "key": "depth",
+              "label": "How deep the channel is cut",
+              "requires": "river",
+              "type": "choice"
+            },
+            {
+              "choices": [
+                {
                   "key": "random",
                   "label": "Random"
                 },
@@ -1713,6 +1927,27 @@
                   "label": "A crossing joined to the paths",
                   "requires": "river",
                   "type": "toggle"
+                },
+                {
+                  "choices": [
+                    {
+                      "key": "flat",
+                      "label": "Not cut (painted on the ground)"
+                    },
+                    {
+                      "key": "1",
+                      "label": "One block down"
+                    },
+                    {
+                      "key": "2",
+                      "label": "Two blocks down"
+                    }
+                  ],
+                  "default": "1",
+                  "key": "depth",
+                  "label": "How deep the channel is cut",
+                  "requires": "river",
+                  "type": "choice"
                 },
                 {
                   "choices": [
@@ -2055,6 +2290,27 @@
                 {
                   "choices": [
                     {
+                      "key": "flat",
+                      "label": "Not cut (painted on the ground)"
+                    },
+                    {
+                      "key": "1",
+                      "label": "One block down"
+                    },
+                    {
+                      "key": "2",
+                      "label": "Two blocks down"
+                    }
+                  ],
+                  "default": "1",
+                  "key": "depth",
+                  "label": "How deep the channel is cut",
+                  "requires": "river",
+                  "type": "choice"
+                },
+                {
+                  "choices": [
+                    {
                       "key": "random",
                       "label": "Random"
                     },
@@ -2137,18 +2393,18 @@
                   "groundCover": 0.5
                 },
                 "palette": {
-                  "bank": "#6b5f3c",
-                  "canopy": "#2e6b32",
-                  "canopyAlt": "#3f8a3c",
-                  "floor": "#2f4a2a",
-                  "floorAlt": "#38552f",
-                  "litter": "#46442a",
+                  "bank": "#e8d6a6",
+                  "canopy": "#4f9147",
+                  "canopyAlt": "#68ab56",
+                  "floor": "#7c8a4e",
+                  "floorAlt": "#8c9a5b",
+                  "litter": "#9a8d5a",
                   "swamp": "#3a8278",
-                  "trail": "#57502f",
-                  "undergrowth": "#25532a",
-                  "water": "#3f86b0",
-                  "waterDeep": "#23547e",
-                  "waterShallow": "#86c5e2"
+                  "trail": "#cdb684",
+                  "undergrowth": "#618c48",
+                  "water": "#2aa8c0",
+                  "waterDeep": "#1a7891",
+                  "waterShallow": "#86e0ea"
                 },
                 "subZones": [
                   {
@@ -2217,15 +2473,19 @@
                 "trees": [
                   {
                     "kind": "tree_palm",
-                    "weight": 50
+                    "weight": 55
                   },
                   {
                     "kind": "tree_round",
-                    "weight": 25
+                    "weight": 20
                   },
                   {
                     "kind": "bush_round",
-                    "weight": 25
+                    "weight": 15
+                  },
+                  {
+                    "kind": "tree_stub",
+                    "weight": 10
                   }
                 ],
                 "units": {
@@ -2349,6 +2609,27 @@
                 {
                   "choices": [
                     {
+                      "key": "flat",
+                      "label": "Not cut (painted on the ground)"
+                    },
+                    {
+                      "key": "1",
+                      "label": "One block down"
+                    },
+                    {
+                      "key": "2",
+                      "label": "Two blocks down"
+                    }
+                  ],
+                  "default": "1",
+                  "key": "depth",
+                  "label": "How deep the channel is cut",
+                  "requires": "river",
+                  "type": "choice"
+                },
+                {
+                  "choices": [
+                    {
                       "key": "random",
                       "label": "Random"
                     },
@@ -2376,7 +2657,7 @@
                   "type": "choice"
                 }
               ],
-              "description": "Jungle ringed by water, heavy with palms.",
+              "description": "Palms over pale sand, ringed by shallow turquoise water.",
               "key": "forest_jungle_island",
               "layout": "jungle",
               "children": [],
@@ -2691,6 +2972,27 @@
                 {
                   "choices": [
                     {
+                      "key": "flat",
+                      "label": "Not cut (painted on the ground)"
+                    },
+                    {
+                      "key": "1",
+                      "label": "One block down"
+                    },
+                    {
+                      "key": "2",
+                      "label": "Two blocks down"
+                    }
+                  ],
+                  "default": "1",
+                  "key": "depth",
+                  "label": "How deep the channel is cut",
+                  "requires": "river",
+                  "type": "choice"
+                },
+                {
+                  "choices": [
+                    {
                       "key": "random",
                       "label": "Random"
                     },
@@ -2911,6 +3213,27 @@
             {
               "choices": [
                 {
+                  "key": "flat",
+                  "label": "Not cut (painted on the ground)"
+                },
+                {
+                  "key": "1",
+                  "label": "One block down"
+                },
+                {
+                  "key": "2",
+                  "label": "Two blocks down"
+                }
+              ],
+              "default": "1",
+              "key": "depth",
+              "label": "How deep the channel is cut",
+              "requires": "river",
+              "type": "choice"
+            },
+            {
+              "choices": [
+                {
                   "key": "random",
                   "label": "Random"
                 },
@@ -3100,6 +3423,27 @@
                   "label": "A crossing joined to the paths",
                   "requires": "river",
                   "type": "toggle"
+                },
+                {
+                  "choices": [
+                    {
+                      "key": "flat",
+                      "label": "Not cut (painted on the ground)"
+                    },
+                    {
+                      "key": "1",
+                      "label": "One block down"
+                    },
+                    {
+                      "key": "2",
+                      "label": "Two blocks down"
+                    }
+                  ],
+                  "default": "1",
+                  "key": "depth",
+                  "label": "How deep the channel is cut",
+                  "requires": "river",
+                  "type": "choice"
                 },
                 {
                   "choices": [
@@ -3310,6 +3654,27 @@
                   "label": "A crossing joined to the paths",
                   "requires": "river",
                   "type": "toggle"
+                },
+                {
+                  "choices": [
+                    {
+                      "key": "flat",
+                      "label": "Not cut (painted on the ground)"
+                    },
+                    {
+                      "key": "1",
+                      "label": "One block down"
+                    },
+                    {
+                      "key": "2",
+                      "label": "Two blocks down"
+                    }
+                  ],
+                  "default": "1",
+                  "key": "depth",
+                  "label": "How deep the channel is cut",
+                  "requires": "river",
+                  "type": "choice"
                 },
                 {
                   "choices": [
