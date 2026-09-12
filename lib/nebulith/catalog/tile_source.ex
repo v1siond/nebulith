@@ -2703,6 +2703,27 @@ defmodule Nebulith.Catalog.TileSource do
       #   is a 3×3 GRID of 9 `water_c` cells; only the CENTER ROW of 3 animates (Alexander: "in the 9 blocks
       #   version, the 3 in the center are the ones to animate"), the other 6 are STATIC blue water.
       # A basin is a standalone ornament → the `props` bucket (same category vocabulary as tiles, MAP-MODEL §8).
+      # BRIDGES ARE COMPOSITIONS, like a tree or a building. Alexander, 2026-09-12, in capitals after asking
+      # twice: *"AND THE BRIDGES ARE STILL NOT BRIDGES COMPOSITIONS / we should have actual BRIDGE"*, with a
+      # wooden arch (#59), a steel truss (#60) and a sheet of ten variations (#61).
+      #
+      # What a crossing was until now: ONE FLAT TILE laid per cell. Measured in the running app, a wood crossing
+      # came out as 87 cells of flat `rgba(120,90,50,0.95)` floor, which is the whole of *"not a real bridge"*
+      # and of *"all the other bridges ahve the same coloring issue"*: a big colour patch, no structure.
+      #
+      # A bridge is a DECK you walk on with RAILS either side, so it reads as built from any angle. Three spans
+      # each (3 / 5 / 7 cells), the same way `house_3`/`house_4`/`house_5` are the one composer called at fixed
+      # sizes: the generator picks the span that fits its channel. Every tile here already exists, so none of
+      # this needs new art. The steel truss of #60 does, and it is not attempted here.
+      "bridge_wood_3" => %{footprint_w: 3, footprint_h: 3, category: "props", cells: bridge_cells("wooden_planks", "post", 3)},
+      "bridge_wood_5" => %{footprint_w: 5, footprint_h: 3, category: "props", cells: bridge_cells("wooden_planks", "post", 5)},
+      "bridge_wood_7" => %{footprint_w: 7, footprint_h: 3, category: "props", cells: bridge_cells("wooden_planks", "post", 7)},
+      "bridge_stone_3" => %{footprint_w: 3, footprint_h: 3, category: "props", cells: bridge_cells("cobblestone", "pillar", 3)},
+      "bridge_stone_5" => %{footprint_w: 5, footprint_h: 3, category: "props", cells: bridge_cells("cobblestone", "pillar", 5)},
+      "bridge_stone_7" => %{footprint_w: 7, footprint_h: 3, category: "props", cells: bridge_cells("cobblestone", "pillar", 7)},
+      "bridge_plank_3" => %{footprint_w: 3, footprint_h: 3, category: "props", cells: bridge_cells("bridge", "post", 3)},
+      "bridge_plank_5" => %{footprint_w: 5, footprint_h: 3, category: "props", cells: bridge_cells("bridge", "post", 5)},
+      "bridge_plank_7" => %{footprint_w: 7, footprint_h: 3, category: "props", cells: bridge_cells("bridge", "post", 7)},
       "well" => %{footprint_w: 5, footprint_h: 3, category: "props", cells: well_cells()},
       "fountain" => %{footprint_w: 5, footprint_h: 5, category: "props", cells: fountain_cells()},
       # LIGHT POSTS — a composition, NOT a single lamp tile (Alexander: "light posts should be a composition of a
@@ -2896,6 +2917,38 @@ defmodule Nebulith.Catalog.TileSource do
 
   # The SMALL well: a 5×3 basin with a 1×3 LINE of 3 water cells (dy 1, dx 1..3), ALL animated (desynced by
   # column index dx-1 = 0..2).
+  # ONE bridge, at a given span: a walkable DECK down the middle with a RAIL either side.
+  #
+  # `dy 1` is the deck, `dy 0` and `dy 2` the rails, so the footprint is span x 3 and you cross along +dx. The
+  # deck is the ONLY walkable row, which is what makes a bridge a bridge rather than a slab: you are on it, not
+  # on the water, and the rails read as structure from every camera angle.
+  #
+  # The rails are the SAME tile at two heights: a tall POST at each end (the abutment), a low run between them
+  # (the handrail). One cell per (dx,dy) on purpose, never a post and a rail in the same block, because the
+  # backend sweep refuses two cells sharing a block and it was right to.
+  #
+  # `scaleZ` thins the rail so it sits on the deck's edge instead of filling its whole cell, the same setting a
+  # door uses to be a panel in a wall rather than a cube.
+  defp bridge_cells(deck_label, rail_label, span) do
+    deck = for dx <- 0..(span - 1), do: %{dx: dx, dy: 1, level: 0, label: deck_label, walkable: true}
+
+    rails =
+      for dx <- 0..(span - 1), dy <- [0, 2] do
+        abutment? = dx == 0 or dx == span - 1
+
+        %{
+          dx: dx,
+          dy: dy,
+          level: 0,
+          label: rail_label,
+          walkable: false,
+          settings: %{"scaleY" => if(abutment?, do: 1.15, else: 0.45), "scaleZ" => 0.3}
+        }
+      end
+
+    deck ++ rails
+  end
+
   defp well_cells do
     w = 5
     h = 3
