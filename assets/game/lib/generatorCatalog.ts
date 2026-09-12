@@ -19,6 +19,7 @@
  * The catalog is the DATA behind the Generate panel (§4.6): season chips, map-type cards and the
  * per-type layouts are all read from here, so adding a generator is a seed row and nothing else.
  */
+import type { MixEntry } from '@/engine/buildingTypes'
 import { NEBULITH_API } from './nebulithApi'
 
 // ── the served shapes ────────────────────────────────────────────────────────
@@ -90,6 +91,12 @@ export interface GeneratorSettlement {
   bigHouseRange: readonly [number, number]
   houseWidths: readonly number[]
   natureMultiplier: number
+  /**
+   * WHICH BUILDINGS THIS PLACE IS MADE OF, served per place. Optional on purpose: a recipe that names no mix
+   * keeps the planner's own default list, so an older payload still parses instead of the whole settlement
+   * tuning coming back undefined.
+   */
+  mix?: readonly MixEntry[]
 }
 
 /** Everything one generator is tuned by. Every section is OPTIONAL: a forest carries no settlement
@@ -427,10 +434,31 @@ function parseSettlement(v: unknown): GeneratorSettlement | undefined {
   if (plazaSize === undefined || roadWidth === undefined || setback === undefined) return undefined
   if (maxPerFrontage === undefined || buildingCap === undefined || natureMultiplier === undefined) return undefined
   if (!lotGap || !houseRange || !bigHouseRange || !houseWidths) return undefined
+  const mix = parseMix(v.mix)
   return {
     plazaSize, roadWidth, setback, lotGap, maxPerFrontage,
     buildingCap, houseRange, bigHouseRange, houseWidths, natureMultiplier,
+    ...(mix ? { mix } : {}),
   }
+}
+
+/**
+ * The served building MIX: one `{type, count}` per building this place demands.
+ *
+ * A malformed entry drops the WHOLE mix rather than half of it, because a place built from half its list is a
+ * place that quietly stopped being itself. Nothing is invented here: an unknown type name passes straight
+ * through, and the planner then skips it when the backend serves no footprint for it.
+ */
+function parseMix(v: unknown): readonly MixEntry[] | undefined {
+  if (!Array.isArray(v) || v.length === 0) return undefined
+  const out: MixEntry[] = []
+  for (const entry of v) {
+    if (!isObject(entry) || typeof entry.type !== 'string') return undefined
+    const count = numPair(entry.count)
+    if (!count) return undefined
+    out.push({ type: entry.type as MixEntry['type'], count })
+  }
+  return out
 }
 
 /** Each config section stands alone: an unparseable one is simply absent, so a typo in the settlement

@@ -103,10 +103,17 @@ function genSeeded(opts: Parameters<typeof generateStage>[0], seed: number): Sta
 // did not fit the top street; the rescue searches the streets in random order (so a rescued building can still
 // land on an east/west street, which the foundation-orphan test samples), and this town comes out with its store,
 // hospital, temple and 12 houses.
+// Relocked 2026-09-11, the three SETTLEMENT cases: which buildings a place is made of is now served per place
+// instead of a fixed store+hospital+temple plus an office range. Alexander: *"there's not a single difference
+// between any of the settlements ... all you did was change colors, when everything should've changed like having
+// different types of settlements implies having different objects"*, and *"cities have more skycrappers, towns
+// have more houses"*. A town now plans a church, stables, a barn and a smithy; a city plans towers and apartment
+// blocks. The temple landmark stays in every settlement, as it always was. A deliberate generation change, so the
+// digests move; the five non-settlement cases below are untouched.
 const BASELINE: Record<string, string> = {
-  'town|autumn|40x40|1': 'c17be222',
-  'town|summer|50x40|7': '973a9388',
-  'city|summer|56x44|3': 'd747d9b8',
+  'town|autumn|40x40|1': '28ab1a1b',
+  'town|summer|50x40|7': '25e9c59c',
+  'city|summer|56x44|3': '7ae509e0',
   'forest|summer|30x24|42': 'f243961a',
   'cave|autumn|40x30|99': '77075081',
   'temple|winter|36x30|5': 'c3a336a9',

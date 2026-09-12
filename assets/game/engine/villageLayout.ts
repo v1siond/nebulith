@@ -12,7 +12,7 @@
  * distribution, facing, and no-overlap are all unit-testable. The stage generator carves the
  * roads, stamps each building ORIENTED by its facing, then fills nature around it.
  */
-import { type BuildingType } from './buildingTypes'
+import { type BuildingType, type MixEntry } from './buildingTypes'
 import { clamp, randIntWith as randInt } from '@/lib/math'
 
 export type Rng = () => number
@@ -75,9 +75,38 @@ export interface VillageLayout {
 // a denser street grid). The [min, max] count of each.
 const HOUSE_RANGE: Record<Settlement, [number, number]> = { town: [4, 6], city: [7, 11] }
 const BIG_RANGE: Record<Settlement, [number, number]> = { town: [1, 3], city: [3, 5] }
-// A few OFFICES/apartments per settlement so a street mixes flat-roof blocks in with the gabled houses
-// (a city packs in more). Guaranteed-essential store/hospital still come first in the fill.
-const OFFICE_RANGE: Record<Settlement, [number, number]> = { town: [1, 2], city: [3, 6] }
+// WHICH BUILDINGS A PLACE IS MADE OF. Alexander, 2026-09-11: *"there's not a single difference between any of
+// the settlements ... all you did was change colors, when everything should've changed like having different
+// types of settlements implies having different objects"*, and *"cities have more skycrappers, towns have more
+// houses"*.
+//
+// This replaced a fixed `['store', 'hospital', 'temple']` seed plus a per-settlement office range, which is why
+// every place built the identical set of buildings in different colours. It is the DEFAULT list now, and the
+// served one (`settlement.mix`, per place) wins, so a town of stables and a city of towers is a data difference.
+//
+// Houses are not here: they are the FILLER every leftover frontage takes, counted by `houseRange`. Big-houses
+// are not here either, `resolveTuning` appends them from `bigHouseRange` so that served number stays the one
+// place they are counted.
+const MIX_BASE: Record<Settlement, readonly MixEntry[]> = {
+  town: [
+    { type: 'store', count: [1, 1] },
+    { type: 'hospital', count: [1, 1] },
+    { type: 'temple', count: [1, 1] },
+    { type: 'church', count: [1, 1] },
+    { type: 'stable', count: [1, 2] },
+    { type: 'barn', count: [1, 2] },
+    { type: 'smithy', count: [1, 1] },
+  ],
+  city: [
+    { type: 'store', count: [1, 1] },
+    { type: 'hospital', count: [1, 1] },
+    { type: 'temple', count: [1, 1] },
+    { type: 'cathedral', count: [1, 1] },
+    { type: 'tower', count: [2, 4] },
+    { type: 'apartment', count: [3, 6] },
+    { type: 'office', count: [2, 4] },
+  ],
+}
 // Street GRID per settlement: H horizontal × V vertical FULL-SPAN streets that cross into blocks
 // (a real neighborhood grid, not a couple of stubs). Clamped by map size in planRoads so each block
 // still fits a row of lots between streets. A city's grid is far denser than a town's → many more
@@ -158,6 +187,7 @@ export interface SettlementTuning {
   houseRange?: readonly [number, number]
   bigHouseRange?: readonly [number, number]
   houseWidths?: readonly number[]
+  mix?: readonly MixEntry[]
 }
 
 /** The tuning with every value settled — served first, this file's default second. */
@@ -171,9 +201,15 @@ interface Tuning {
   houseRange: readonly [number, number]
   bigHouseRange: readonly [number, number]
   houseWidths: readonly number[]
+  /** Every building this place demands, big-houses included. `demandedBuildings` rolls a count from each. */
+  mix: readonly MixEntry[]
 }
 
 function resolveTuning(settlement: Settlement, served?: SettlementTuning): Tuning {
+  // Settled FIRST because the mix is built on top of it: big-houses are counted by this one served number, so
+  // appending them here keeps `bigHouseRange` the single place they come from instead of a second list to keep
+  // in step with it.
+  const bigHouseRange = served?.bigHouseRange ?? BIG_RANGE[settlement]
   return {
     plazaSize: served?.plazaSize ?? PLAZA_SIZE[settlement],
     setback: served?.setback ?? SETBACK,
@@ -182,7 +218,8 @@ function resolveTuning(settlement: Settlement, served?: SettlementTuning): Tunin
     maxPerFrontage: served?.maxPerFrontage ?? MAX_PER_FRONTAGE[settlement],
     buildingCap: served?.buildingCap ?? BUILDING_CAP[settlement],
     houseRange: served?.houseRange ?? HOUSE_RANGE[settlement],
-    bigHouseRange: served?.bigHouseRange ?? BIG_RANGE[settlement],
+    bigHouseRange,
+    mix: [...(served?.mix ?? MIX_BASE[settlement]), { type: 'big-house', count: bigHouseRange }],
     // No default: with nothing served there is nothing to randomize FROM, and `plotWidth` then takes the
     // type's own default size rather than a spread invented here.
     houseWidths: served?.houseWidths ?? [],
@@ -219,17 +256,27 @@ const plotDepth = (type: BuildingType, len: number, sizes: BuildingSizes): numbe
  * houses + big buildings scaled by size, shuffled so a street isn't a fixed order. Pure.
  */
 export function buildingMix(settlement: Settlement, rng: Rng, tuning: Tuning = resolveTuning(settlement)): BuildingType[] {
-  const rest: BuildingType[] = []
+  const houses: BuildingType[] = []
   const [hl, hh] = tuning.houseRange
-  for (let i = randInt(rng, hl, hh); i > 0; i--) rest.push('house')
-  const [bl, bh] = tuning.bigHouseRange
-  for (let i = randInt(rng, bl, bh); i > 0; i--) rest.push('big-house')
-  for (let i = rest.length - 1; i > 0; i--) {
-    const j = Math.floor(rng() * (i + 1))
-    ;[rest[i], rest[j]] = [rest[j], rest[i]]
+  for (let i = randInt(rng, hl, hh); i > 0; i--) houses.push('house')
+  // The demanded buildings FIRST, in the order the mix names them, so the round-robin always reaches the
+  // guaranteed essentials (store + hospital lead every list) before the houses fill what is left.
+  return [...demandedBuildings(rng, tuning), ...houses]
+}
+
+/**
+ * The buildings this place DEMANDS, one roll per entry in its mix.
+ *
+ * The ONE place a mix becomes a list of types, read by both `buildingMix` and the fill in `placePlots`. They
+ * used to disagree: `placePlots` built its own `['store', 'hospital', 'temple']` + offices while `buildingMix`
+ * was left talking to nobody but its test, which is exactly how a served option ends up changing nothing.
+ */
+export function demandedBuildings(rng: Rng, tuning: Tuning): BuildingType[] {
+  const out: BuildingType[] = []
+  for (const entry of tuning.mix) {
+    for (let i = randInt(rng, entry.count[0], entry.count[1]); i > 0; i--) out.push(entry.type)
   }
-  // store + hospital FIRST so the round-robin always reaches the guaranteed essentials.
-  return ['store', 'hospital', ...rest]
+  return out
 }
 
 /** Evenly-spaced positions for `n` full-span 2-wide streets along a `span`, clamped so each leaves a
@@ -408,11 +455,11 @@ export function placePlots(roads: boolean[][], frontages: Frontage[], cols: numb
   const cap = tuning.buildingCap
   const maxPer = tuning.maxPerFrontage
   const [gapLo, gapHi] = tuning.lotGap
-  // Civic essentials — every settlement gets a store + hospital, and a grand TEMPLE landmark (the
-  // round-robin fill places the temple wherever its bigger footprint fits, else it stays pending).
-  const pending: BuildingType[] = ['store', 'hospital', 'temple']
-  for (let i = randInt(rng, ...tuning.bigHouseRange); i > 0; i--) pending.push('big-house')
-  for (let i = randInt(rng, ...OFFICE_RANGE[settlement]); i > 0; i--) pending.push('office')
+  // WHAT THIS PLACE IS MADE OF, from its served mix: the store and hospital every settlement has, then the
+  // buildings that make it itself (a town's stables and smithy, a city's towers and blocks), then its
+  // big-houses. The round-robin fill below places each wherever its footprint fits and leaves anything that
+  // does not fit pending, exactly as it did for the old fixed trio.
+  const pending: BuildingType[] = demandedBuildings(rng, tuning)
 
   // Store + hospital ALWAYS go on the TOP horizontal street, facing FRONT (south = door toward the
   // viewer) — good civic practice and it guarantees their labeled fronts show in 2D. Place them there

@@ -24,7 +24,7 @@ describe('parseGeneratorCatalog — the live /api/generators body', () => {
 
   it('reads each category\'s generators, in menu order', () => {
     expect(findCategory(LIVE, 'forest')!.generators.map(g => g.key)).toEqual(['forest_woodland', 'forest_jungle', 'forest_meadow'])
-    expect(findCategory(LIVE, 'settlement')!.generators.map(g => g.key)).toEqual(['town_traditional', 'city_modern', 'city_tropical', 'town_snowy', 'city_mediterranean', 'town_andean', 'town_swamp'])
+    expect(findCategory(LIVE, 'settlement')!.generators.map(g => g.key)).toEqual(['town_traditional', 'city_modern', 'town_swamp'])
   })
 
   it('reads the grid range the town rolls — the numbers templates.tsx used to hardcode', () => {
@@ -66,15 +66,41 @@ describe('parseGeneratorCatalog — the live /api/generators body', () => {
     })
   })
 
-  it('reads the settlement tuning that lives in villageLayout as ten consts', () => {
+  it("reads the settlement tuning that lives in villageLayout as consts, and the MIX that makes a place itself", () => {
     expect(findGenerator(LIVE, 'settlement', 'traditional_town')!.config.settlement).toEqual({
       plazaSize: 5, roadWidth: 4, setback: 1, lotGap: [1, 2], maxPerFrontage: 6,
       buildingCap: 18, houseRange: [4, 6], bigHouseRange: [1, 3],
       houseWidths: [3, 3, 4, 4, 4, 5], natureMultiplier: 1.3,
+      mix: [
+        { type: 'store', count: [1, 1] },
+        { type: 'hospital', count: [1, 1] },
+        { type: 'temple', count: [1, 1] },
+        { type: 'church', count: [1, 1] },
+        { type: 'stable', count: [1, 2] },
+        { type: 'barn', count: [1, 2] },
+        { type: 'smithy', count: [1, 1] },
+      ],
     })
     expect(findGenerator(LIVE, 'settlement', 'modern_city')!.config.settlement).toMatchObject({
       plazaSize: 7, maxPerFrontage: 99, buildingCap: 72, natureMultiplier: 0.5,
     })
+  })
+
+  /**
+   * Alexander, 2026-09-11: *"there's not a single difference between any of the settlements ... all you did was
+   * change colors"*, and *"cities have more skycrappers, towns have more houses"*. The mix is the served answer,
+   * so this asserts it SURVIVES the parse: a dropped key here would put every place back to the same buildings.
+   */
+  it('a town and a city are served DIFFERENT buildings, and the parse keeps them', () => {
+    const town = findGenerator(LIVE, 'settlement', 'traditional_town')!.config.settlement!.mix!.map(e => e.type)
+    const city = findGenerator(LIVE, 'settlement', 'modern_city')!.config.settlement!.mix!.map(e => e.type)
+
+    expect(town).toContain('stable')
+    expect(town).not.toContain('tower')
+    expect(city).toContain('tower')
+    expect(city).toContain('apartment')
+    expect(city).not.toContain('stable')
+    expect(town).not.toEqual(city)
   })
 
   it('leaves a config section the backend omits UNDEFINED — a cave has no settlement or buildings', () => {
@@ -120,10 +146,6 @@ describe('categoryLayouts — a map type\'s shapes are DATA, not a `key === fore
     expect(categoryLayouts(LIVE, 'settlement')).toEqual([
       { id: 'traditional_town', label: 'Traditional town' },
       { id: 'modern_city', label: 'Modern city' },
-      { id: 'tropical_city', label: 'Tropical city' },
-      { id: 'snowy_town', label: 'Snowy town' },
-      { id: 'mediterranean_city', label: 'Mediterranean city' },
-      { id: 'andean_town', label: 'Andean town' },
       { id: 'swamp_village', label: 'Swamp village' },
     ])
     expect(categoryLayouts(LIVE, 'cave')).toEqual([])

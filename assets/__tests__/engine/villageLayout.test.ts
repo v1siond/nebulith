@@ -71,6 +71,54 @@ describe('villageLayout — buildingMix scales by settlement', () => {
   })
 })
 
+/**
+ * WHAT A PLACE IS MADE OF. Alexander, 2026-09-11: *"there's not a single difference between any of the
+ * settlements, tow is the same a traditional town, same buildings, same evrything / all you did was change
+ * colors, when everything should've changed like having different types of settlements implies having different
+ * objects"*, with a town of *"wood houses and elements, stables"* against a city of *"skycrappers"*.
+ *
+ * A look used to be a palette, so the answer to "which buildings" was the same list everywhere. These pin the
+ * list itself, per place, because that is the difference he asked for.
+ */
+describe('villageLayout: a town and a city are made of different buildings', () => {
+  const mixOf = (settlement: 'town' | 'city') => new Set(buildingMix(settlement, seededRng(11)))
+
+  it("a town builds the town's own things, and never a tower", () => {
+    const town = mixOf('town')
+    expect(town.has('stable')).toBe(true)
+    expect(town.has('barn')).toBe(true)
+    expect(town.has('church')).toBe(true)
+    expect(town.has('tower')).toBe(false)
+    expect(town.has('apartment')).toBe(false)
+  })
+
+  it('a city stacks blocks and towers, and never a stable', () => {
+    const city = mixOf('city')
+    expect(city.has('tower')).toBe(true)
+    expect(city.has('apartment')).toBe(true)
+    expect(city.has('cathedral')).toBe(true)
+    expect(city.has('stable')).toBe(false)
+    expect(city.has('barn')).toBe(false)
+  })
+
+  it('the two lists overlap only on what every settlement has', () => {
+    const town = mixOf('town')
+    const city = mixOf('city')
+    const shared = [...town].filter(t => city.has(t)).sort()
+    expect(shared).toEqual(['big-house', 'hospital', 'house', 'store', 'temple'])
+  })
+
+  it('the mix it plans from is the one it is GIVEN, so a place is data and not a branch', () => {
+    const mix = buildingMix('town', seededRng(3), {
+      plazaSize: 5, setback: 1, roadWidth: 4, lotGap: [1, 2], maxPerFrontage: 6, buildingCap: 18,
+      houseRange: [1, 1], bigHouseRange: [0, 0], houseWidths: [4],
+      mix: [{ type: 'store', count: [1, 1] }, { type: 'tower', count: [2, 2] }],
+    })
+    expect(mix.filter(t => t === 'tower')).toHaveLength(2)
+    expect(mix).not.toContain('stable') // the default town list is NOT consulted when one is given
+  })
+})
+
 describe('villageLayout — planVillage', () => {
   it('is deterministic for the same seed', () => {
     expect(planVillage(40, 30, seededRng(7), SIZES)).toEqual(planVillage(40, 30, seededRng(7), SIZES))
