@@ -1548,6 +1548,24 @@ function layoutWoodland(ctx: ArchetypeContext, opts: ForestBuild = {}): void {
   const floor = zonePalette(zone)?.groundTypes[0] ?? ''
   forEachCell(cols, rows, (col, row) => { ground[row][col] = floor })
 
+  // 0a · THE REGIONS. Alexander, 2026-09-11: *"woodland with meadow is the same as mountain forest..."*, and
+  //      then 2026-09-12: *"fix 105 properly"*.
+  //
+  //      I gave glades its stands and meadows and reported the ticket done, and it did NOTHING: only
+  //      `layoutJungle` ever called `partitionSubZones`, so a woodland's served regions were parsed and
+  //      dropped. Served-and-ignored, the exact defect I keep finding elsewhere, this time mine.
+  //
+  //      Both forest layouts share the one mechanism now. `subZoneCanopyField` runs `woodlandCanopyField`
+  //      once per region, so a map with no regions takes the same single call it always did.
+  const zones = leadRegion(ctx, ctx.subZones)
+  const zoneAt = partitionSubZones(ctx, zones)
+  paintSubZoneFloors(ctx, zoneAt)
+
+  // 0b · RELIEF: a region may stand ABOVE the rest of the map. Alexander, 2026-09-12: *"we need to have
+  //      support for different levels of terrain, relieve in spanish"*. A region that states no level is flat,
+  //      so every existing template is unmoved.
+  raiseRegions(ctx, zoneAt)
+
   // 0 · THE RIVER, if this variant has one — carved BEFORE anything is planted, so its cells are already
   //     spoken for. It joins `open` (the not-plantable mask) rather than getting its own check, which is why
   //     the canopy pass below needs no river branch at all: water is simply somewhere a tree cannot go.
@@ -1627,9 +1645,13 @@ function layoutWoodland(ctx: ArchetypeContext, opts: ForestBuild = {}): void {
   //     So: score EVERY plantable cell with spatially-coherent noise, then take the lowest-scoring
   //     `target` of them. Coverage is exact by construction, and it clumps because neighbouring cells
   //     score alike. Nothing is random-walked and nothing terminates early.
-  const field = woodlandCanopyField(ctx, open, canopy, ctx.formation)
+  const field = zones.length > 0
+    ? subZoneCanopyField(ctx, open, canopy, zoneAt, zones)
+    : woodlandCanopyField(ctx, open, canopy, ctx.formation)
   for (const { col, row } of field) {
-    const kind: LivingTreeKind | 'tree_dead' = ctx.rand() < 0.06 ? 'tree_dead' : pickLivingTree(ctx.rand(), ctx.treeMix)
+    // A region's OWN species where it states them, the template's otherwise: a stand of columns beside a
+    // meadow of gnarled singles is the difference you can actually see.
+    const kind: LivingTreeKind | 'tree_dead' = ctx.rand() < 0.06 ? 'tree_dead' : pickLivingTree(ctx.rand(), zoneAt[row][col]?.trees ?? ctx.treeMix)
     trees.push({ col, row, kind, variant: massVariant(col, row) })
     collision[row][col] = true // the trunk blocks; the canopy is walkable overhead, as everywhere else
   }
@@ -1643,7 +1665,7 @@ function layoutWoodland(ctx: ArchetypeContext, opts: ForestBuild = {}): void {
   //      and no amount of canopy tuning produces that, because it is not about the canopy. A formation that
   //      states no understory runs nothing here, so an ordinary wood is unchanged.
   if (ctx.formation?.understory !== undefined) {
-    plantUndergrowth(ctx, open, water, ctx.palette)
+    plantUndergrowth(ctx, open, water, ctx.palette, zoneAt)
     // Undergrowth BLOCKS, so this pinches the floor into islands (363 on one seed). They are joined in step
     // 7, AFTER the river is bridged — see there for why the order matters.
   }
@@ -1736,6 +1758,9 @@ function layoutJungle(ctx: ArchetypeContext, opts: ForestBuild = {}): void {
   const zones = leadRegion(ctx, ctx.subZones)
   const zoneAt = partitionSubZones(ctx, zones)
   paintSubZoneFloors(ctx, zoneAt)
+  // ONE mechanism for both forests: a jungle plateau is the same idea as a wooded ridge. No region serves a
+  // level yet, so this is inert until one does.
+  raiseRegions(ctx, zoneAt)
 
   const open = new Set<string>()
 
@@ -2320,6 +2345,22 @@ function carveJungleCreek(ctx: ArchetypeContext, pal: GeneratorPalette | undefin
 }
 
 /**
+ * RAISE A REGION, so a map has more than one level of ground.
+ *
+ * Alexander, 2026-09-12: *"we need to have support for different levels of terrain, relieve in spanish"*.
+ *
+ * A region states its own `level` and every cell in it stands there. The step between two regions becomes a
+ * CLIFF, drawn by `drawGridSkirt`, which keys on the elevation differing and never on the floor differing.
+ * A region stating no level is flat, so nothing changes for a template that does not ask.
+ */
+function raiseRegions(ctx: ArchetypeContext, zoneAt: (GeneratorSubZone | undefined)[][]): void {
+  forEachCell(ctx.cols, ctx.rows, (col, row) => {
+    const level = zoneAt[row][col]?.level
+    if (level) ctx.elevation[row][col] = level
+  })
+}
+
+/**
  * HOW DEEP THIS MAP CUTS ITS CHANNEL, in levels, from the served `depth` option.
  *
  * Alexander, 2026-09-11: *"we need the river without water, which is negative height compared to walking
@@ -2349,7 +2390,10 @@ function digChannel(ctx: ArchetypeContext, water: ReadonlySet<string>): void {
   if (depth === 0) return
   for (const key of water) {
     const { col, row } = toCell(key)
-    if (inBounds(col, row, ctx.cols, ctx.rows)) ctx.elevation[row][col] = -depth
+    // RELATIVE to whatever the ground already stands at, so a river crossing a raised region cuts into THAT
+    // region rather than snapping to an absolute depth. At level 0 the two are identical, which is every map
+    // that states no relief.
+    if (inBounds(col, row, ctx.cols, ctx.rows)) ctx.elevation[row][col] -= depth
   }
 }
 

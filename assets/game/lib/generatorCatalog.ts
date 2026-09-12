@@ -185,6 +185,12 @@ export interface GeneratorSubZone {
   pools?: number
   /** the share of the region carrying fallen masonry (ruins) */
   stone?: number
+  /**
+   * This region's own ELEVATION in levels: 0 the walking floor, positive standing above it. The step between
+   * two regions is a cliff. Alexander, 2026-09-12: *"we need to have support for different levels of terrain,
+   * relieve in spanish"*.
+   */
+  level?: number
   /** this region's own tree distribution — a swamp is spaced like a pasture, dense growth is a wall */
   formation?: GeneratorFormation
   /** which species grow in this region — the swamp is cypress, whatever the rest of the jungle is */
@@ -545,7 +551,7 @@ function parseSubZones(v: unknown): readonly GeneratorSubZone[] | undefined {
     const row: GeneratorSubZone = { key, weight }
     const name = str(raw.name)
     if (name) row.name = name
-    for (const k of ['canopy', 'undergrowth', 'pools', 'stone'] as const) {
+    for (const k of ['canopy', 'undergrowth', 'pools', 'stone', 'level'] as const) {
       const n = num(raw[k])
       if (n !== undefined) row[k] = n
     }
