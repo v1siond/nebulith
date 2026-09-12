@@ -488,7 +488,19 @@ defmodule Nebulith.Catalog.GeneratorSource do
       # cypress standing IN the water, well apart — his image #13
       "formation" => %{"lattice" => 5, "spacing" => 3, "understory" => 0.7},
       # the cypress IS the swamp — image #13
-      "trees" => [%{"kind" => "tree_cypress", "weight" => 60}, %{"kind" => "bush_round", "weight" => 25}, %{"kind" => "tree_round", "weight" => 15}]
+      "trees" => [%{"kind" => "tree_cypress", "weight" => 60}, %{"kind" => "bush_round", "weight" => 25}, %{"kind" => "tree_round", "weight" => 15}],
+      # WHAT BLOOMS HERE. Alexander, 2026-09-12: *"does that look like a swamp to you?? where have you seen
+      # swamps with white flowers??"*. A region could already state its SPECIES (`trees` above) and had no way
+      # to state its BLOOMS, so a swamp planted the season's set, and summer's carries `✽ #f4f4ec`, a near
+      # white. Measured in a swamp jungle before this: whites among the blooms, exactly as he saw.
+      #
+      # These colours are a PROPOSAL, not a derivation: his instruction was negative (no white), so the set is
+      # muted swamp growth (iris violet, dull marsh gold, a blue green sedge) for his eye to accept or replace.
+      "flowers" => [
+        %{"char" => "✾", "color" => "#7b5fa8"},
+        %{"char" => "❋", "color" => "#4f8f7a"},
+        %{"char" => "✿", "color" => "#b89a3c"}
+      ]
     },
     %{
       "key" => "ruins",
