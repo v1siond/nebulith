@@ -1603,7 +1603,11 @@ defmodule Nebulith.Catalog.TileSource do
 
     framed =
       for {key, tileset_id} <- [{"ascii", ascii_id}, {"emoji", emoji_id}], label <- @water_bands ++ @water_effects do
-        frames = frame_images(key, label, [nil, nil, nil], static)
+        # FOUR frames, not three. The wave art has a 32px period in a 128px tile, and each frame shifts it by
+        # 8px, so four frames advance the pattern exactly ONE period and the loop closes on itself. With three
+        # frames the loop jumped back a third of a period every cycle, which is the flicker he reported:
+        # *"animation is bad too"* (2026-09-12).
+        frames = frame_images(key, label, [nil, nil, nil, nil], static)
         # Only when there is more than one picture to swap between: a single frame is a still, and writing one
         # would claim an animation that cannot play.
         if length(frames) > 1 do
