@@ -174,6 +174,19 @@ export interface StageData {
    *  `undefined` at a cell = use the ground tile's own DB colour (groundTileColor). applyStageToGrid +
    *  stageToTemplate read it so live + saved maps carry the same gradient. */
   floorColors: (string | undefined)[][]
+  /**
+   * PER-CELL ELEVATION, in levels, 0 being the walking floor and NEGATIVE being dug out.
+   *
+   * Alexander, 2026-09-11: *"we need the river without water, which is negative height compared to walking
+   * floor / then inside that we put water with X height it can be < 1, but not walkable"*, and *"we have the
+   * grid height precisely to deal with things like this we need to implement relieve/relief"*.
+   *
+   * The grid has carried a per-cell height since the beginning and it has always been all zeros, because
+   * `applyStageToGrid` wrote 0 into every cell of every generate and the save path wrote a field of zeros.
+   * This is where a generator says otherwise. Absent, or absent at a cell, means flat, which is what every
+   * template does today, so nothing changes for one that does not ask.
+   */
+  elevation?: number[][]
   connectors: Connector[]
   spawn: { col: number; row: number }
   /** THE WAYS THROUGH THIS MAP as they were planned, before anything was planted (see `pathNetwork`), or null
@@ -4744,7 +4757,9 @@ function anchorAssets(stage: StageData, kind: string, anchorCol: number, anchorR
  *  Terrain height stays 0 — blocks are collision, not elevation. */
 export function stageToTemplate(stage: StageData, name: string): StageTemplatePayload {
   const groundData = stage.ground.map(r => [...r])
-  const heightData = stage.collision.map(r => r.map(() => 0))
+  // RELIEF SURVIVES A SAVE. This was a field of zeros, so a dug channel was flat again the moment you
+  // reloaded. `elevation` absent → zeros, exactly as before.
+  const heightData = stage.collision.map((r, row) => r.map((_, col) => stage.elevation?.[row]?.[col] ?? 0))
   const paint = stagePaint(stage)
   paint.ground.forEach(g => {
     groundData[g.row][g.col] = g.type

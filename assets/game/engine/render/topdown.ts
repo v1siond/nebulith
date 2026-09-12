@@ -476,6 +476,16 @@ export function render2D(params: Render2DParams) {
         if (gdv.image) drawStyledImage(ctx, gdv.image, p.x, p.y - elevH, cell * 1.02)
         ctx.fillStyle = darkenColor(fillBg, 0.6)
         ctx.fillRect(p.x - tileW / 2, p.y + tileH / 2 - elevH, tileW, elevH)
+      } else if (cellHeight < 0) {
+        // DUG OUT. Only positive elevation was ever drawn, so a channel below the walking floor rendered as
+        // nothing at all in this view. The floor sits lower by its depth, and the CUT FACE shows above it,
+        // darker, which is what makes a channel read as a channel rather than as a blue stripe.
+        const drop = -cellHeight * heightScale
+        ctx.fillStyle = fillBg
+        ctx.fillRect(p.x - tileW / 2, p.y - tileH / 2 + drop, tileW, tileH)
+        if (gdv.image) drawStyledImage(ctx, gdv.image, p.x, p.y + drop, cell * 1.02)
+        ctx.fillStyle = darkenColor(fillBg, 0.4)
+        ctx.fillRect(p.x - tileW / 2, p.y - tileH / 2, tileW, drop)
       }
     }
   }

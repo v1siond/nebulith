@@ -32,7 +32,9 @@ export function applyStageToGrid(stage: StageData, grid: IsometricGrid, building
         if (floorColor) grid.setGround(c, r, kind, floorColor)
         else placeGround(grid, c, r, kind)
       }
-      grid.setHeight(c, r, 0)
+      // RELIEF. This wrote 0 unconditionally, which is why the grid's per-cell height has been all zeros on
+      // every map ever generated. A generator that states none still gets 0, so a flat template is unchanged.
+      grid.setHeight(c, r, stage.elevation?.[r]?.[c] ?? 0)
       grid.setCollision(c, r, !!stage.collision[r]?.[c])
     }
   }

@@ -39,3 +39,51 @@ describe('compressGround — runs follow the road direction', () => {
     expect(cell.depth ?? 1).toBe(1) // stays a plain per-cell floor
   })
 })
+
+/**
+ * A RUN MAY NOT SPAN A STEP.
+ *
+ * Alexander, 2026-09-11: *"we have the grid height precisely to deal with things like this we need to implement
+ * relieve/relief"*. Relief lives in the grid's per-cell height, and a merge that ignores it would quietly erase
+ * the thing: the two floors either side of a dug channel's lip are the same tile in the same colour, so without
+ * the elevation clause they collapse into ONE z-width block spanning both levels and the step vanishes.
+ *
+ * The second test is the one that matters as much: it would be easy to satisfy the first by breaking merging
+ * altogether, and then every optimisation ticket regresses silently.
+ */
+describe('compressGround — a run stops at a change in elevation', () => {
+  test('two floors either side of a step do NOT merge', () => {
+    const g = grid()
+    for (let c = 2; c <= 7; c++) g.setGround(c, 5, 'road')
+    for (let c = 5; c <= 7; c++) g.setHeight(c, 5, -1) // the far half is dug out
+    g.compressGround()
+
+    const high = g.floorAt(2, 5)!
+    const low = g.floorAt(5, 5)!
+    expect(high).not.toBe(low) // two runs, not one spanning the step
+    expect(high.depth).toBe(3) // cols 2..4 at level 0
+    expect(low.depth).toBe(3) // cols 5..7 at level -1
+  })
+
+  test('a run at ONE elevation still merges, dug or raised', () => {
+    for (const level of [-2, -1, 0, 3]) {
+      const g = grid()
+      for (let c = 2; c <= 7; c++) {
+        g.setGround(c, 5, 'road')
+        g.setHeight(c, 5, level)
+      }
+      g.compressGround()
+      expect({ level, depth: g.floorAt(2, 5)!.depth }).toEqual({ level, depth: 6 })
+    }
+  })
+
+  test('a single dug cell in the middle of a road breaks it into two runs', () => {
+    const g = grid()
+    for (let c = 0; c < 12; c++) g.setGround(c, 5, 'road')
+    g.setHeight(5, 5, -1)
+    g.compressGround()
+
+    const runs = new Set(Array.from({ length: 12 }, (_, c) => g.floorAt(c, 5)))
+    expect(runs.size).toBe(3) // cols 0..4, the dug cell, then 6..11
+  })
+})

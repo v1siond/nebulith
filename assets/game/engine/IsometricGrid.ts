@@ -274,8 +274,12 @@ export class IsometricGrid {
     const remove = new Set<GridAsset>()
     const used = new Set<GridAsset>() // floors already merged into a run (anchor or consumed member)
     // A neighbour joins the seed run only if it's an UNCLAIMED, un-merged floor of the SAME tile + colour.
+    // ...and at the SAME ELEVATION. Without that last clause a merge would swallow relief: two floors either
+    // side of a dug channel's lip are the same tile in the same colour, so they would collapse into one
+    // z-width block spanning both levels and the step would disappear from the map.
     const joins = (g: GridAsset | undefined, seed: GridAsset): g is GridAsset =>
       !!g && !used.has(g) && (g.depth ?? 1) <= 1 && g.tileKey === seed.tileKey && (g.color ?? '') === (seed.color ?? '')
+      && (this.height[g.row]?.[g.col] ?? 0) === (this.height[seed.row]?.[seed.col] ?? 0)
     for (let r = 0; r < this.rows; r++) {
       let c = 0
       while (c < this.cols) {
