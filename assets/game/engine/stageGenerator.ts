@@ -2162,6 +2162,14 @@ function floodSwampPools(ctx: ArchetypeContext, zoneAt: (GeneratorSubZone | unde
   forEachCell(cols, rows, (col, row) => {
     const share = zoneAt[row][col]?.pools
     if (share === undefined) return
+    // NOT THE CREEK. The creek is carved first and blocks its cells; a pool blob painted over the top of it
+    // left cells reading as swamp-green standing water while behaving as river. Measured on a swamp jungle:
+    // 21 swamp-toned cells, 9 of them blocked, and one `water` label carrying two different tones.
+    //
+    // Alexander, 2026-09-12: *"water looks weird and is inconsistent"*. This is one of the ways it was: the
+    // tone said puddle and the collision said channel. A pool is standing water in a hollow, so it takes only
+    // cells the channel has not already claimed, and swamp tone now means exactly one thing.
+    if (isWaterGround(ground[row][col])) return
     if (shadeNoise(Math.floor(col / SWAMP_POOL_PATCH) * 1.9 + Math.floor(row / SWAMP_POOL_PATCH) * 2.7) > share * 2) return
     candidate.add(`${col},${row}`)
   })
@@ -2179,7 +2187,15 @@ function floodSwampPools(ctx: ArchetypeContext, zoneAt: (GeneratorSubZone | unde
   for (const key of pools) {
     const { col, row } = toCell(key)
     ground[row][col] = 'water'
-    collision[row][col] = true
+    // NO COLLISION. Alexander, 2026-09-12, on the green water: *"I can't walk throug the green one, even when
+    // the floor makes it seems like I should, specially considering the floor is at the same level"*, and
+    // earlier: *"we still want to be able to use water outside of rivers, usually i'l be like water puddles,
+    // walkable"*.
+    //
+    // A pool is not a channel. `carveChannel` cuts its bed BELOW the walking floor and `digChannel` writes that
+    // elevation, which is what makes a river something you go around. A pool sits AT ground level, so the map
+    // said walkable and the collision grid said otherwise. The river keeps its bands (see settleWaterDepth);
+    // this stamps a wet floor and nothing more.
     if (pal?.water) floorColors[row][col] = varyIntensity(pal.water, 0.4)
   }
   return pools
@@ -2686,6 +2702,17 @@ function woodlandCanopyField(ctx: ArchetypeContext, open: Set<string>, canopy: n
   for (let row = 1; row < rows - 1; row++) {
     for (let col = 1; col < cols - 1; col++) {
       if (open.has(`${col},${row}`) || collision[row][col]) continue
+      // NOT IN WATER, said out loud instead of relied upon.
+      //
+      // This used to exclude a pool only because a pool happened to be BLOCKED. The moment a pool at ground
+      // level stopped blocking (his *"I can't walk throug the green one, even when the floor makes it seems
+      // like I should"*), canopy started planting on the water: measured 23 to 209 trees standing in pools
+      // across eight seeds, and their trunks took the cells the ruin's rubble needed, so a seeded ruin lost
+      // its fallen blocks.
+      //
+      // Collision says whether you can WALK there. It is not a description of what is in the cell, and using
+      // it as one is why this broke. Every sibling guard here already asks the ground directly.
+      if (isWaterGround(ctx.ground[row][col])) continue
       scored.push({ col, row, n: noiseAt(col, row) })
     }
   }
@@ -2835,11 +2862,20 @@ function settleWaterDepth(ctx: ArchetypeContext, pal: GeneratorPalette | undefin
   const { ground, collision, floorColors } = ctx
   const depth = waterDepth(ctx, pools)
   const wadeable = wadeableShallows(ctx, depth)
+  // FROZEN OVER. Alexander, 2026-09-12: *"in winter, rivers are ice and we can walk over them, which mean, we
+  // just remove collissions and add the ice physics we haven't developed yet"*. `frozen_water` already exists as
+  // a label in both styles, named for exactly this, so the season lays a different TILE rather than the same
+  // water with an exception bolted on.
+  //
+  // HONEST ABOUT WHERE THIS BELONGS: reading the season here is the same shape of frontend conditional the data
+  // audit indicts elsewhere. The durable home is a served answer on the tile, which is also what makes the ice
+  // physics possible later. It reads the zone for now because nothing serves it yet.
+  const frozen = ctx.zone === 'winter'
   for (const [key, d] of depth) {
     const { col, row } = toCell(key)
     const band = waterBand(d, wadeable.has(key))
-    ground[row][col] = band.label
-    collision[row][col] = !band.walkable
+    ground[row][col] = frozen ? 'frozen_water' : band.label
+    collision[row][col] = frozen ? false : !band.walkable
     const tone = pal?.[band.tone]
     if (tone) floorColors[row][col] = tone
   }

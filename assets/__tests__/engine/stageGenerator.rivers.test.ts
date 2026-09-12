@@ -13,7 +13,13 @@
  *   · around  — runs round the map inset from its edges, leaving the way in open
  *   · random  — one of those three, picked per seed, and genuinely more than one across seeds
  *
- * And one thing no course may do, whatever it looks like: make water walkable.
+ * And one thing no course may do, whatever it looks like: make its CHANNEL walkable past the shallows.
+ *
+ * A POOL IS NOT A CHANNEL, and this file used to treat them as one thing. Alexander, 2026-09-12: *"I can't walk
+ * throug the green one, even when the floor makes it seems like I should, specially considering the floor is at
+ * the same level"*, with *"we still want to be able to use water outside of rivers, usually i'l be like water
+ * puddles, walkable"*. A channel is CUT below the walking floor, which is what makes it something you go around.
+ * A pool sits at ground level and you walk through it.
  */
 import '@/__tests__/helpers/installTilesetSeed'
 import { FLAT_FLOOR, generateStage, resolveCrossing, resolveRiverCourse } from '@/engine/stageGenerator'
@@ -225,8 +231,12 @@ describe('water by depth: wade the shallows, the rest blocks', () => {
   it.each(['through', 'divides', 'around', 'random'])('%s: only the shallow band is walkable', course => {
     for (const layout of ['woodland', 'meadow', 'jungle'] as const) {
       const s = grow(layout, course, 3)
-      const walkableDeep = waterCells(s).filter(([c, r]) => s.ground[r][c] !== 'water_shallow' && !s.collision[r][c])
-      const blockedShallow = waterCells(s).filter(([c, r]) => s.ground[r][c] === 'water_shallow' && s.collision[r][c])
+      // THE CHANNEL ONLY. A jungle also carries swamp pools, and a pool at ground level is walkable on purpose
+      // now, so counting it here measured the wrong thing. Pools are the cells wearing the served swamp tone.
+      const pal = findGenerator(CATALOG, 'forest', layout)!.config.palette
+      const channel = waterCells(s).filter(([c, r]) => !(pal?.swamp && s.floorColors[r][c] === pal.swamp))
+      const walkableDeep = channel.filter(([c, r]) => s.ground[r][c] !== 'water_shallow' && !s.collision[r][c])
+      const blockedShallow = channel.filter(([c, r]) => s.ground[r][c] === 'water_shallow' && s.collision[r][c])
       expect({ layout, course, walkableDeep: walkableDeep.length, blockedShallow: blockedShallow.length })
         .toEqual({ layout, course, walkableDeep: 0, blockedShallow: 0 })
     }
@@ -249,12 +259,58 @@ describe('water by depth: wade the shallows, the rest blocks', () => {
     expect([...tone('water_deep')]).toEqual([pal.waterDeep])
   })
 
-  it('a swamp pool stays blocking and turns blue-green, never the floor-green it used to be', () => {
+  /**
+   * A POOL IS WALKABLE, and it used to be blocked. Alexander, 2026-09-12, looking at the green water: *"I can't
+   * walk throug the green one, even when the floor makes it seems like I should, specially considering the floor
+   * is at the same level"*.
+   *
+   * The cause was that `waterDepth` skips pool cells (`!pools.has(...)`), so a pool never reached the depth
+   * bands that decide walkability and kept the flat block `floodSwampPools` stamped. The river's shallows went
+   * through the bands and were wadeable; the pool beside them never did. Same water, two rules.
+   */
+  it('a swamp pool is WALKABLE and still turns blue-green, never the floor-green it used to be', () => {
     const config = findGenerator(CATALOG, 'forest', 'jungle')!.config
     const s = grow('jungle', 'none', 7)
     const pools = waterCells(s).filter(([c, r]) => s.floorColors[r][c] === config.palette!.swamp)
     expect(pools.length).toBeGreaterThan(0)
-    expect(pools.every(([c, r]) => s.collision[r][c])).toBe(true)
+    expect(pools.every(([c, r]) => !s.collision[r][c])).toBe(true)
+    // and it is still WET, not repainted as floor: the ground label stays water
+    expect(pools.every(([c, r]) => s.ground[r][c].includes('water'))).toBe(true)
+  })
+
+  /**
+   * FROZEN OVER. Alexander, 2026-09-12: *"in winter, rivers are ice and we can walk over them, which mean, we
+   * just remove collissions and add the ice physics we haven't developed yet"*. The ice physics do not exist
+   * yet; walking over it does.
+   */
+  it('a WINTER river is ice, and you walk over it', () => {
+    const config = findGenerator(CATALOG, 'forest', 'woodland')!.config
+    const orig = Math.random
+    Math.random = makeRng(5)
+    const s = (() => {
+      try {
+        return generateStage({
+          zone: 'winter', variant: 'forest', layout: 'woodland', cols: 60, rows: 40,
+          nature: config.nature, palette: config.palette, formation: config.formation,
+          treeMix: config.trees, options: { river: 'divides', crossing: false },
+        })
+      } finally { Math.random = orig }
+    })()
+    // Scanned by the ICE label, not through `waterCells`: that helper matches the channel's three labels
+    // (`water` / `water_shallow` / `water_deep`) and so cannot see a frozen river at all.
+    const ice: Array<[number, number]> = []
+    s.ground.forEach((row, r) => row.forEach((t, c) => { if (t === 'frozen_water') ice.push([c, r]) }))
+    expect(ice.length).toBeGreaterThan(0)
+    // the whole course freezes: no cell is left as open water
+    expect(waterCells(s)).toEqual([])
+    expect(ice.every(([c, r]) => !s.collision[r][c])).toBe(true)
+  })
+
+  it('and a SUMMER river still blocks past its shallows, so the season is the only difference', () => {
+    const s = grow('woodland', 'divides', 5)
+    const deep = waterCells(s).filter(([c, r]) => s.ground[r][c] === 'water_deep')
+    expect(deep.length).toBeGreaterThan(0)
+    expect(deep.every(([c, r]) => s.collision[r][c])).toBe(true)
   })
 })
 
