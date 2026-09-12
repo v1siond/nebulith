@@ -689,6 +689,11 @@ interface ArchetypeContext {
    *  paint the season gradient + earth/cobble/river patches here; every other archetype leaves it undefined
    *  and the render falls back to the ground tile's own DB colour. */
   floorColors: (string | undefined)[][]
+  /**
+   * PER-CELL ELEVATION in levels, 0 the walking floor, NEGATIVE dug out. Written by a pass, read by the
+   * stamp and by the save. See `StageData.elevation`.
+   */
+  elevation: number[][]
   /** Every cell laid as a crossing deck. The depth pass has to tell a deck from a bank, and the tile no longer
    *  says which (a dirt-path crossing is the flat floor). */
   decks: Set<string>
@@ -859,6 +864,9 @@ export function generateStage(opts: GenerateOptions): StageData {
   const ground = makeGrid(cols, rows, () => palette?.groundTypes[0] ?? '')
   const collision = makeGrid(cols, rows, () => false)
   const floorColors = makeGrid<string | undefined>(cols, rows, () => undefined)
+  // Flat until a pass digs or raises. Alexander, 2026-09-11: *"we have the grid height precisely to deal with
+  // things like this we need to implement relieve/relief"*.
+  const elevation = makeGrid(cols, rows, () => 0)
   const buildings: PlacedBuilding[] = []
   const props: StageProp[] = []
   const trees: TreeAnchor[] = []
@@ -873,7 +881,7 @@ export function generateStage(opts: GenerateOptions): StageData {
     decor: layerRng(opts.seeds, 'decor'),
   }
   // Single-pass archetypes (forest/cave/temple/boss) read `ctx.rand`; the layout rng is their source.
-  const ctx: ArchetypeContext = { zone, ground, collision, floorColors, buildings, props, trees, compositions, cols, rows, layout, options: opts.options, nature: opts.nature, settlement: opts.settlement, palette: opts.palette, subZones: opts.subZones, formation: opts.formation, treeMix: opts.treeMix, crossings: opts.crossings, decks: new Set<string>(), buildingSizes: opts.buildingSizes, rand: rngs.layout }
+  const ctx: ArchetypeContext = { zone, ground, collision, floorColors, elevation, buildings, props, trees, compositions, cols, rows, layout, options: opts.options, nature: opts.nature, settlement: opts.settlement, palette: opts.palette, subZones: opts.subZones, formation: opts.formation, treeMix: opts.treeMix, crossings: opts.crossings, decks: new Set<string>(), buildingSizes: opts.buildingSizes, rand: rngs.layout }
   ARCHETYPES[variant]?.(ctx, rngs)
   flattenFloors(ctx, FLOOR_MATERIALS[variant]?.(ctx) ?? [])
   addTerrainTransitions(ctx) // blended shorelines / lava banks over the painted ground
@@ -886,6 +894,7 @@ export function generateStage(opts: GenerateOptions): StageData {
     ground,
     collision,
     floorColors,
+    elevation,
     buildings,
     props,
     trees,
@@ -1403,6 +1412,7 @@ function carveRiver(ctx: ArchetypeContext, course: RiverCourse, pal: GeneratorPa
     const water = paintMeadowRiver(ctx)
     // A template that serves its own water colour wears it here too, not the meadow's blue.
     if (pal?.water) for (const key of water) { const { col, row } = toCell(key); ctx.floorColors[row][col] = varyIntensity(pal.water, 0.44) }
+    digChannel(ctx, water) // the one course that does not come through carveChannel
     return water
   }
   // `divides` is wide and nearly straight across the middle, so it reads as a barrier; `through` meanders.
@@ -2309,6 +2319,40 @@ function carveJungleCreek(ctx: ArchetypeContext, pal: GeneratorPalette | undefin
   return carveChannel(ctx, pal, { half: JUNGLE.creekHalf * (wide ? 1.8 : 1), swing: 0.26 })
 }
 
+/**
+ * HOW DEEP THIS MAP CUTS ITS CHANNEL, in levels, from the served `depth` option.
+ *
+ * Alexander, 2026-09-11: *"we need the river without water, which is negative height compared to walking
+ * floor / then inside that we put water with X height it can be < 1, but not walkable"*, and *"river depth is
+ * confgiuravble ... we want to control everyhting"*.
+ *
+ * A gated choice takes `none` when its dependency is off, so a map with no river, or one serving no depth at
+ * all, is NOT CUT and reads exactly as it always did. That also keeps his other case honest: *"we still want
+ * to be able to use water outside of rivers, usually i'l be like water puddles, walkable"*. A puddle is not a
+ * channel, so nothing digs it.
+ */
+const CHANNEL_DEPTH: Readonly<Record<string, number>> = { '1': 1, '2': 2 }
+
+function channelDepth(ctx: ArchetypeContext): number {
+  const served = ctx.options?.depth
+  return typeof served === 'string' ? CHANNEL_DEPTH[served] ?? 0 : 0
+}
+
+/**
+ * CUT THE CHANNEL: every bed cell drops below the walking floor.
+ *
+ * Collision is NOT touched here. `carveChannel` already blocks a water cell, and a second opinion about
+ * walkability in a second place is how the ten `=== 'water'` conditionals came to exist.
+ */
+function digChannel(ctx: ArchetypeContext, water: ReadonlySet<string>): void {
+  const depth = channelDepth(ctx)
+  if (depth === 0) return
+  for (const key of water) {
+    const { col, row } = toCell(key)
+    if (inBounds(col, row, ctx.cols, ctx.rows)) ctx.elevation[row][col] = -depth
+  }
+}
+
 /** The shape of a channel: how wide, how far it wanders, and optionally which way it must run. */
 interface ChannelShape {
   half: number
@@ -2352,6 +2396,8 @@ function carveChannel(ctx: ArchetypeContext, pal: GeneratorPalette | undefined, 
       water.add(`${col},${row}`)
     }
   }
+  // Every channel-carved course comes through here: `through`, `divides`, and the jungle's creek.
+  digChannel(ctx, water)
   return water
 }
 
@@ -3344,6 +3390,10 @@ function layDeck(ctx: ArchetypeContext, deck: Set<string>, tone: string | undefi
     ground[row][col] = style?.tile ?? 'bridge'
     collision[row][col] = false
     ctx.decks.add(key)
+    // A DECK SPANS THE CHANNEL, it does not lie in the bottom of it. The dig runs inside `carveChannel`, which
+    // is before any crossing is laid, so a deck cell was still carrying the bed's negative elevation and a
+    // bridge came out sunk in the water. Measured on a `divides` river: 14 of its cells.
+    ctx.elevation[row][col] = 0
     // A served crossing wears its own colour (or the tile it names in `colorOf`), written over whatever the
     // cell wore as water. The classic deck keeps the caller's tone, and with no tone leaves the colour alone:
     // a default here would be a hardcoded fallback for a SERVED value.
