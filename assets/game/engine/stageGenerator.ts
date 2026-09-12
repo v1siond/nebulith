@@ -155,6 +155,18 @@ export interface CompositionAnchor {
   col: number
   row: number
   variant?: number
+  /**
+   * CW QUARTER-TURNS (0-3) this composition is stamped at, the same rotation a building gets from
+   * `facingRotation(facing)`. Absent means 0, which is every composition recorded before bridges existed, so
+   * nothing that was unrotated changes.
+   *
+   * A bridge needs it: it is authored span x 3 running along +dx, so a river crossed on the other axis has to
+   * turn. The stamp has always supported rotation (`stampComposition`'s 7th argument, which is how a house
+   * faces its road); it was the ANCHOR that could not express one, and both readers hardcoded 0. Threading it
+   * through `applyStageToGrid` alone would have left a placed bridge straightening itself on reload, so the
+   * save path (`stageToTemplate` -> `anchorAssets`) reads the same field.
+   */
+  rotation?: number
 }
 
 export interface StageData {
@@ -5031,7 +5043,10 @@ export function stageToTemplate(stage: StageData, name: string): StageTemplatePa
     // composition's top-left anchor.
     assetsData.push(...anchorAssets(stage, b.kind, b.col, b.row - (b.height - 1), 0, facingRotation(b.facing)))
   }
-  for (const c of stage.compositions) assetsData.push(...anchorAssets(stage, c.kind, c.col, c.row, c.variant ?? 0, 0))
+  // …and the anchor's own rotation, so a SAVED bridge lies the way it was generated. This passed 0, which
+  // would have straightened every bridge on reload while the live map showed it correctly: the worst kind of
+  // half-wired field, because only a save-and-reload would reveal it.
+  for (const c of stage.compositions) assetsData.push(...anchorAssets(stage, c.kind, c.col, c.row, c.variant ?? 0, c.rotation ?? 0))
 
   return {
     name,

@@ -125,7 +125,10 @@ export function applyStageToGrid(stage: StageData, grid: IsometricGrid, building
   // A FOUNTAIN is just TILES too: stamp each recorded composition ANCHOR (the plaza fountain — rim +
   // water + jets) through the SAME path, so it's per-cell backend tiles, not a special drawer/prop — lifted
   // onto its floor block the same way (0 on a flat plaza, so town fountains are unchanged).
-  for (const c of stage.compositions ?? []) stampComposition(grid, c.kind, c.col, c.row, stage.zone, c.variant ?? 0, 0)
+  // ROTATION comes from the anchor now. It was hardcoded 0 here, which was true while the only anchored
+  // compositions were fountains and wells (square, and never turned). A bridge is span x 3 and has to lie
+  // ACROSS its river, so it records the quarter-turns it needs and the save path reads the same field.
+  for (const c of stage.compositions ?? []) stampComposition(grid, c.kind, c.col, c.row, stage.zone, c.variant ?? 0, c.rotation ?? 0)
   // MERGE THE GROUND into z-width runs — the "optimized footprints" pass. Alexander, 2026-09-09: *"we must
   // have FOOTPRINTS for each map … instead of using 16 tiles to do a grass zone, we can use less, maybe even
   // 1 if there's no flowers and it's plain grass"*, and 2026-09-10: *"let's turn it on first."*

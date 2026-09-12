@@ -268,6 +268,15 @@ export interface GeneratorChoice {
 export interface GeneratorCrossing {
   tile: string
   colorOf?: string
+  /**
+   * The COMPOSITION this kind of crossing builds, without its span: `bridge_wood`, and the generator appends
+   * the span it needs (`bridge_wood_5`), the same shape as `house_3`/`house_4`/`house_5`.
+   *
+   * Absent means this crossing is not a structure. A dirt path names none on purpose, because Alexander called
+   * that one *"a dirt pathway"* (#62) rather than a bridge. `tile` stays for both: it is what a crossing lays
+   * when no composition of the needed span is loaded, which keeps a map generating rather than leaving a gap.
+   */
+  composition?: string
 }
 
 /** What an option holds: a toggle is on/off, a choice is the key of the picked value. */
@@ -504,8 +513,16 @@ function parseCrossings(v: unknown): Readonly<Record<string, GeneratorCrossing>>
   const out: Record<string, GeneratorCrossing> = {}
   for (const [key, raw] of Object.entries(v)) {
     if (!isObject(raw) || !str(raw.tile)) continue
+    const entry: GeneratorCrossing = { tile: str(raw.tile)! }
     const colorOf = str(raw.colorOf)
-    out[key] = colorOf ? { tile: str(raw.tile)!, colorOf } : { tile: str(raw.tile)! }
+    if (colorOf) entry.colorOf = colorOf
+    // THE COMPOSITION, read here or it is dead data. The backend began naming one per bridge kind on
+    // 2026-09-12; a parser that lists its keys by hand drops any new served field silently, which
+    // `parseSettlement` and `parseBuildings` have each done before. Built up field by field rather than as a
+    // nested ternary so the next served key cannot be forgotten the same way.
+    const composition = str(raw.composition)
+    if (composition) entry.composition = composition
+    out[key] = entry
   }
   return Object.keys(out).length > 0 ? out : undefined
 }

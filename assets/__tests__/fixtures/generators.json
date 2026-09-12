@@ -16,13 +16,16 @@
                 "tile": "floor"
               },
               "planks": {
-                "tile": "wooden_planks"
+                "tile": "wooden_planks",
+                "composition": "bridge_plank"
               },
               "stone": {
-                "tile": "cobblestone"
+                "tile": "cobblestone",
+                "composition": "bridge_stone"
               },
               "wood": {
-                "tile": "bridge"
+                "tile": "bridge",
+                "composition": "bridge_wood"
               }
             },
             "formation": {
@@ -255,13 +258,16 @@
                     "tile": "floor"
                   },
                   "planks": {
-                    "tile": "wooden_planks"
+                    "tile": "wooden_planks",
+                    "composition": "bridge_plank"
                   },
                   "stone": {
-                    "tile": "cobblestone"
+                    "tile": "cobblestone",
+                    "composition": "bridge_stone"
                   },
                   "wood": {
-                    "tile": "bridge"
+                    "tile": "bridge",
+                    "composition": "bridge_wood"
                   }
                 },
                 "formation": {
@@ -483,13 +489,16 @@
                     "tile": "floor"
                   },
                   "planks": {
-                    "tile": "wooden_planks"
+                    "tile": "wooden_planks",
+                    "composition": "bridge_plank"
                   },
                   "stone": {
-                    "tile": "cobblestone"
+                    "tile": "cobblestone",
+                    "composition": "bridge_stone"
                   },
                   "wood": {
-                    "tile": "bridge"
+                    "tile": "bridge",
+                    "composition": "bridge_wood"
                   }
                 },
                 "formation": {
@@ -719,13 +728,16 @@
                     "tile": "floor"
                   },
                   "planks": {
-                    "tile": "wooden_planks"
+                    "tile": "wooden_planks",
+                    "composition": "bridge_plank"
                   },
                   "stone": {
-                    "tile": "cobblestone"
+                    "tile": "cobblestone",
+                    "composition": "bridge_stone"
                   },
                   "wood": {
-                    "tile": "bridge"
+                    "tile": "bridge",
+                    "composition": "bridge_wood"
                   }
                 },
                 "formation": {
@@ -1057,13 +1069,16 @@
                     "tile": "floor"
                   },
                   "planks": {
-                    "tile": "wooden_planks"
+                    "tile": "wooden_planks",
+                    "composition": "bridge_plank"
                   },
                   "stone": {
-                    "tile": "cobblestone"
+                    "tile": "cobblestone",
+                    "composition": "bridge_stone"
                   },
                   "wood": {
-                    "tile": "bridge"
+                    "tile": "bridge",
+                    "composition": "bridge_wood"
                   }
                 },
                 "formation": {
@@ -1379,13 +1394,16 @@
                 "tile": "floor"
               },
               "planks": {
-                "tile": "wooden_planks"
+                "tile": "wooden_planks",
+                "composition": "bridge_plank"
               },
               "stone": {
-                "tile": "cobblestone"
+                "tile": "cobblestone",
+                "composition": "bridge_stone"
               },
               "wood": {
-                "tile": "bridge"
+                "tile": "bridge",
+                "composition": "bridge_wood"
               }
             },
             "formation": {
@@ -1761,13 +1779,16 @@
                     "tile": "floor"
                   },
                   "planks": {
-                    "tile": "wooden_planks"
+                    "tile": "wooden_planks",
+                    "composition": "bridge_plank"
                   },
                   "stone": {
-                    "tile": "cobblestone"
+                    "tile": "cobblestone",
+                    "composition": "bridge_stone"
                   },
                   "wood": {
-                    "tile": "bridge"
+                    "tile": "bridge",
+                    "composition": "bridge_wood"
                   }
                 },
                 "formation": {
@@ -2084,13 +2105,16 @@
                     "tile": "floor"
                   },
                   "planks": {
-                    "tile": "wooden_planks"
+                    "tile": "wooden_planks",
+                    "composition": "bridge_plank"
                   },
                   "stone": {
-                    "tile": "cobblestone"
+                    "tile": "cobblestone",
+                    "composition": "bridge_stone"
                   },
                   "wood": {
-                    "tile": "bridge"
+                    "tile": "bridge",
+                    "composition": "bridge_wood"
                   }
                 },
                 "formation": {
@@ -2439,13 +2463,16 @@
                     "tile": "floor"
                   },
                   "planks": {
-                    "tile": "wooden_planks"
+                    "tile": "wooden_planks",
+                    "composition": "bridge_plank"
                   },
                   "stone": {
-                    "tile": "cobblestone"
+                    "tile": "cobblestone",
+                    "composition": "bridge_stone"
                   },
                   "wood": {
-                    "tile": "bridge"
+                    "tile": "bridge",
+                    "composition": "bridge_wood"
                   }
                 },
                 "formation": {
@@ -2754,13 +2781,16 @@
                     "tile": "floor"
                   },
                   "planks": {
-                    "tile": "wooden_planks"
+                    "tile": "wooden_planks",
+                    "composition": "bridge_plank"
                   },
                   "stone": {
-                    "tile": "cobblestone"
+                    "tile": "cobblestone",
+                    "composition": "bridge_stone"
                   },
                   "wood": {
-                    "tile": "bridge"
+                    "tile": "bridge",
+                    "composition": "bridge_wood"
                   }
                 },
                 "formation": {
@@ -3123,13 +3153,16 @@
                 "tile": "floor"
               },
               "planks": {
-                "tile": "wooden_planks"
+                "tile": "wooden_planks",
+                "composition": "bridge_plank"
               },
               "stone": {
-                "tile": "cobblestone"
+                "tile": "cobblestone",
+                "composition": "bridge_stone"
               },
               "wood": {
-                "tile": "bridge"
+                "tile": "bridge",
+                "composition": "bridge_wood"
               }
             },
             "formation": {
@@ -3341,13 +3374,16 @@
                     "tile": "floor"
                   },
                   "planks": {
-                    "tile": "wooden_planks"
+                    "tile": "wooden_planks",
+                    "composition": "bridge_plank"
                   },
                   "stone": {
-                    "tile": "cobblestone"
+                    "tile": "cobblestone",
+                    "composition": "bridge_stone"
                   },
                   "wood": {
-                    "tile": "bridge"
+                    "tile": "bridge",
+                    "composition": "bridge_wood"
                   }
                 },
                 "formation": {
@@ -3560,13 +3596,16 @@
                     "tile": "floor"
                   },
                   "planks": {
-                    "tile": "wooden_planks"
+                    "tile": "wooden_planks",
+                    "composition": "bridge_plank"
                   },
                   "stone": {
-                    "tile": "cobblestone"
+                    "tile": "cobblestone",
+                    "composition": "bridge_stone"
                   },
                   "wood": {
-                    "tile": "bridge"
+                    "tile": "bridge",
+                    "composition": "bridge_wood"
                   }
                 },
                 "formation": {
