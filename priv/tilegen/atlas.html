@@ -10,6 +10,11 @@
   treats every result identically (Alexander, 2026-09-08: "all art styles use image tiles ... but that
   doesn't mean the tiles are generated in the same way"):
 
+    * DRAWN ART:      `svg`, an inline SVG string scaled to the cell. For a tile no font can draw:
+                        water with waves on it, a foam shoreline piece, a ripple. Alexander, 2026-09-12:
+                        "fix the water look ... look for isometric water and copy it, you usually need
+                        border and animation". A glyph cannot be a wave, so this is the authoring shape
+                        that lets water exist at all. It wins over every other shape.
     * ONE MARK      — `glyph` (ascii) or `emoji`. A terrain slab, a wall piece, a weapon.
     * A GRID OF MARKS — `art`, an ARRAY OF ROWS composed into a figure:
                           ["  O", " /|\", " / \"]
@@ -56,6 +61,13 @@
       }
       /* A composed figure: pre-wrap keeps the leading spaces that carry the shape, and `left` text-align
          puts every row on ONE origin (centring per row would shear the silhouette). */
+      /* DRAWN ART fills the whole cell: an SVG authors its own 128x128 viewBox, so it needs no font
+         metrics and no centring maths. */
+      .svg {
+        width: 128px;
+        height: 128px;
+        display: block;
+      }
       .art {
         color: #ffffff;
         font-family: "DejaVu Sans Mono", Consolas, monospace;
@@ -105,10 +117,22 @@
       // one, else the style's single mark. `art` wins over `glyph` so a unit row can keep a glyph as its
       // catalog preview while the BAKED picture is the figure.
       function makeMark(tile) {
+        // DRAWN ART wins: a tile authored as SVG is one no font can draw, so there is nothing to fall back to.
+        if (typeof tile.svg === "string" && tile.svg.length > 0) return svgMark(tile.svg);
         const rows = Array.isArray(tile.art) ? tile.art : null;
         if (rows && rows.length > 0) return artMark(rows);
         if (tile.mode === "emoji") return emojiMark(tile.emoji || "");
         return glyphMark(tile.glyph || "");
+      }
+
+      // Inline SVG, authored in tiles.json and dropped straight into the cell. The markup is repo-authored
+      // data read off disk by bake.mjs, never user input, and this page is loaded from file:// for one
+      // screenshot per cell.
+      function svgMark(svg) {
+        const el = document.createElement("div");
+        el.className = "svg";
+        el.innerHTML = svg;
+        return el;
       }
 
       function artMark(rows) {

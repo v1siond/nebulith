@@ -176,7 +176,8 @@
     "label": "water_shallow",
     "mode": "ascii",
     "style": "ascii",
-    "glyph": "⌱"
+    "glyph": "⌱",
+    "svg": "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 128 128\"><rect width=\"128\" height=\"128\" fill=\"#a8a8a8\"/><g fill=\"none\" stroke-linecap=\"round\"><path d=\"M-32 20 q 9 -5 18 0 q 9 -5 18 0 q 9 -5 18 0 q 9 -5 18 0 q 9 -5 18 0 q 9 -5 18 0\" stroke=\"#ffffff\" stroke-width=\"4\" opacity=\"0.95\"/> <path d=\"M-21 44 q 8 -4 16 0 q 8 -4 16 0 q 8 -4 16 0 q 8 -4 16 0 q 8 -4 16 0 q 8 -4 16 0\" stroke=\"#ffffff\" stroke-width=\"3\" opacity=\"0.83\"/> <path d=\"M-10 68 q 9 -5 18 0 q 9 -5 18 0 q 9 -5 18 0 q 9 -5 18 0 q 9 -5 18 0 q 9 -5 18 0\" stroke=\"#ffffff\" stroke-width=\"4\" opacity=\"0.71\"/> <path d=\"M1 92 q 8 -4 16 0 q 8 -4 16 0 q 8 -4 16 0 q 8 -4 16 0 q 8 -4 16 0 q 8 -4 16 0\" stroke=\"#ffffff\" stroke-width=\"3\" opacity=\"0.59\"/> <path d=\"M12 114 q 9 -5 18 0 q 9 -5 18 0 q 9 -5 18 0 q 9 -5 18 0 q 9 -5 18 0 q 9 -5 18 0\" stroke=\"#ffffff\" stroke-width=\"4\" opacity=\"0.47\"/> <path d=\"M-18 29 q 9 -3 18 0 q 9 -3 18 0 q 9 -3 18 0 q 9 -3 18 0 q 9 -3 18 0 q 9 -3 18 0\" stroke=\"#6a6a6a\" stroke-width=\"2\" opacity=\"0.55\"/> <path d=\"M-7 53 q 8 -2 16 0 q 8 -2 16 0 q 8 -2 16 0 q 8 -2 16 0 q 8 -2 16 0 q 8 -2 16 0\" stroke=\"#6a6a6a\" stroke-width=\"2\" opacity=\"0.55\"/> <path d=\"M4 77 q 9 -3 18 0 q 9 -3 18 0 q 9 -3 18 0 q 9 -3 18 0 q 9 -3 18 0 q 9 -3 18 0\" stroke=\"#6a6a6a\" stroke-width=\"2\" opacity=\"0.55\"/></g></svg>"
   },
   {
     "label": "crypt_floor",
@@ -410,7 +411,8 @@
     "label": "water",
     "mode": "ascii",
     "style": "ascii",
-    "glyph": "~"
+    "glyph": "~",
+    "svg": "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 128 128\"><rect width=\"128\" height=\"128\" fill=\"#8e8e8e\"/><g fill=\"none\" stroke-linecap=\"round\"><path d=\"M-32 26 q 15 -7 30 0 q 15 -7 30 0 q 15 -7 30 0 q 15 -7 30 0 q 15 -7 30 0 q 15 -7 30 0\" stroke=\"#ffffff\" stroke-width=\"4\" opacity=\"0.95\"/> <path d=\"M-21 58 q 13 -6 26 0 q 13 -6 26 0 q 13 -6 26 0 q 13 -6 26 0 q 13 -6 26 0 q 13 -6 26 0\" stroke=\"#ffffff\" stroke-width=\"3\" opacity=\"0.83\"/> <path d=\"M-10 92 q 17 -8 34 0 q 17 -8 34 0 q 17 -8 34 0 q 17 -8 34 0 q 17 -8 34 0 q 17 -8 34 0\" stroke=\"#ffffff\" stroke-width=\"4\" opacity=\"0.71\"/> <path d=\"M1 118 q 11 -5 22 0 q 11 -5 22 0 q 11 -5 22 0 q 11 -5 22 0 q 11 -5 22 0 q 11 -5 22 0\" stroke=\"#ffffff\" stroke-width=\"3\" opacity=\"0.59\"/> <path d=\"M-18 35 q 15 -5 30 0 q 15 -5 30 0 q 15 -5 30 0 q 15 -5 30 0 q 15 -5 30 0 q 15 -5 30 0\" stroke=\"#4d4d4d\" stroke-width=\"2\" opacity=\"0.55\"/> <path d=\"M-7 67 q 13 -4 26 0 q 13 -4 26 0 q 13 -4 26 0 q 13 -4 26 0 q 13 -4 26 0 q 13 -4 26 0\" stroke=\"#4d4d4d\" stroke-width=\"2\" opacity=\"0.55\"/> <path d=\"M4 101 q 17 -6 34 0 q 17 -6 34 0 q 17 -6 34 0 q 17 -6 34 0 q 17 -6 34 0 q 17 -6 34 0\" stroke=\"#4d4d4d\" stroke-width=\"2\" opacity=\"0.55\"/></g></svg>"
   },
   {
     "label": "meadow",
@@ -721,7 +723,8 @@
     "label": "water_deep",
     "mode": "ascii",
     "style": "ascii",
-    "glyph": "≈"
+    "glyph": "≈",
+    "svg": "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 128 128\"><rect width=\"128\" height=\"128\" fill=\"#6e6e6e\"/><g fill=\"none\" stroke-linecap=\"round\"><path d=\"M-32 34 q 22 -4 44 0 q 22 -4 44 0 q 22 -4 44 0 q 22 -4 44 0 q 22 -4 44 0 q 22 -4 44 0\" stroke=\"#d6d6d6\" stroke-width=\"4\" opacity=\"0.95\"/> <path d=\"M-21 74 q 20 -3 40 0 q 20 -3 40 0 q 20 -3 40 0 q 20 -3 40 0 q 20 -3 40 0 q 20 -3 40 0\" stroke=\"#d6d6d6\" stroke-width=\"3\" opacity=\"0.83\"/> <path d=\"M-10 110 q 23 -4 46 0 q 23 -4 46 0 q 23 -4 46 0 q 23 -4 46 0 q 23 -4 46 0 q 23 -4 46 0\" stroke=\"#d6d6d6\" stroke-width=\"4\" opacity=\"0.71\"/> <path d=\"M-18 43 q 22 -2 44 0 q 22 -2 44 0 q 22 -2 44 0 q 22 -2 44 0 q 22 -2 44 0 q 22 -2 44 0\" stroke=\"#3a3a3a\" stroke-width=\"2\" opacity=\"0.55\"/> <path d=\"M-7 83 q 20 -2 40 0 q 20 -2 40 0 q 20 -2 40 0 q 20 -2 40 0 q 20 -2 40 0 q 20 -2 40 0\" stroke=\"#3a3a3a\" stroke-width=\"2\" opacity=\"0.55\"/> <path d=\"M4 119 q 23 -2 46 0 q 23 -2 46 0 q 23 -2 46 0 q 23 -2 46 0 q 23 -2 46 0 q 23 -2 46 0\" stroke=\"#3a3a3a\" stroke-width=\"2\" opacity=\"0.55\"/></g></svg>"
   },
   {
     "label": "tatami",
@@ -1423,7 +1426,8 @@
     "label": "decor_ripple",
     "mode": "ascii",
     "style": "ascii",
-    "glyph": "⌣"
+    "glyph": "⌣",
+    "svg": "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 128 128\"><ellipse cx=\"64\" cy=\"64\" rx=\"18\" ry=\"9\" fill=\"none\" stroke=\"#ffffff\" stroke-width=\"5\" opacity=\"0.95\"/><ellipse cx=\"64\" cy=\"64\" rx=\"34\" ry=\"17\" fill=\"none\" stroke=\"#d8d8d8\" stroke-width=\"4\" opacity=\"0.70\"/><ellipse cx=\"64\" cy=\"64\" rx=\"50\" ry=\"26\" fill=\"none\" stroke=\"#d8d8d8\" stroke-width=\"3\" opacity=\"0.45\"/></svg>"
   },
   {
     "label": "decor_shell",
@@ -3783,5 +3787,257 @@
     "mode": "emoji",
     "style": "emoji",
     "emoji": "🌿"
+  },
+  {
+    "label": "water_f1",
+    "mode": "ascii",
+    "style": "ascii",
+    "svg": "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 128 128\"><rect width=\"128\" height=\"128\" fill=\"#8e8e8e\"/><g fill=\"none\" stroke-linecap=\"round\"><path d=\"M-22 26 q 15 -7 30 0 q 15 -7 30 0 q 15 -7 30 0 q 15 -7 30 0 q 15 -7 30 0 q 15 -7 30 0\" stroke=\"#ffffff\" stroke-width=\"4\" opacity=\"0.95\"/> <path d=\"M-11 58 q 13 -6 26 0 q 13 -6 26 0 q 13 -6 26 0 q 13 -6 26 0 q 13 -6 26 0 q 13 -6 26 0\" stroke=\"#ffffff\" stroke-width=\"3\" opacity=\"0.83\"/> <path d=\"M0 92 q 17 -8 34 0 q 17 -8 34 0 q 17 -8 34 0 q 17 -8 34 0 q 17 -8 34 0 q 17 -8 34 0\" stroke=\"#ffffff\" stroke-width=\"4\" opacity=\"0.71\"/> <path d=\"M11 118 q 11 -5 22 0 q 11 -5 22 0 q 11 -5 22 0 q 11 -5 22 0 q 11 -5 22 0 q 11 -5 22 0\" stroke=\"#ffffff\" stroke-width=\"3\" opacity=\"0.59\"/> <path d=\"M-8 35 q 15 -5 30 0 q 15 -5 30 0 q 15 -5 30 0 q 15 -5 30 0 q 15 -5 30 0 q 15 -5 30 0\" stroke=\"#4d4d4d\" stroke-width=\"2\" opacity=\"0.55\"/> <path d=\"M3 67 q 13 -4 26 0 q 13 -4 26 0 q 13 -4 26 0 q 13 -4 26 0 q 13 -4 26 0 q 13 -4 26 0\" stroke=\"#4d4d4d\" stroke-width=\"2\" opacity=\"0.55\"/> <path d=\"M14 101 q 17 -6 34 0 q 17 -6 34 0 q 17 -6 34 0 q 17 -6 34 0 q 17 -6 34 0 q 17 -6 34 0\" stroke=\"#4d4d4d\" stroke-width=\"2\" opacity=\"0.55\"/></g></svg>",
+    "glyph": "~"
+  },
+  {
+    "label": "water_f2",
+    "mode": "ascii",
+    "style": "ascii",
+    "svg": "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 128 128\"><rect width=\"128\" height=\"128\" fill=\"#8e8e8e\"/><g fill=\"none\" stroke-linecap=\"round\"><path d=\"M-12 26 q 15 -7 30 0 q 15 -7 30 0 q 15 -7 30 0 q 15 -7 30 0 q 15 -7 30 0 q 15 -7 30 0\" stroke=\"#ffffff\" stroke-width=\"4\" opacity=\"0.95\"/> <path d=\"M-1 58 q 13 -6 26 0 q 13 -6 26 0 q 13 -6 26 0 q 13 -6 26 0 q 13 -6 26 0 q 13 -6 26 0\" stroke=\"#ffffff\" stroke-width=\"3\" opacity=\"0.83\"/> <path d=\"M10 92 q 17 -8 34 0 q 17 -8 34 0 q 17 -8 34 0 q 17 -8 34 0 q 17 -8 34 0 q 17 -8 34 0\" stroke=\"#ffffff\" stroke-width=\"4\" opacity=\"0.71\"/> <path d=\"M21 118 q 11 -5 22 0 q 11 -5 22 0 q 11 -5 22 0 q 11 -5 22 0 q 11 -5 22 0 q 11 -5 22 0\" stroke=\"#ffffff\" stroke-width=\"3\" opacity=\"0.59\"/> <path d=\"M2 35 q 15 -5 30 0 q 15 -5 30 0 q 15 -5 30 0 q 15 -5 30 0 q 15 -5 30 0 q 15 -5 30 0\" stroke=\"#4d4d4d\" stroke-width=\"2\" opacity=\"0.55\"/> <path d=\"M13 67 q 13 -4 26 0 q 13 -4 26 0 q 13 -4 26 0 q 13 -4 26 0 q 13 -4 26 0 q 13 -4 26 0\" stroke=\"#4d4d4d\" stroke-width=\"2\" opacity=\"0.55\"/> <path d=\"M24 101 q 17 -6 34 0 q 17 -6 34 0 q 17 -6 34 0 q 17 -6 34 0 q 17 -6 34 0 q 17 -6 34 0\" stroke=\"#4d4d4d\" stroke-width=\"2\" opacity=\"0.55\"/></g></svg>",
+    "glyph": "~"
+  },
+  {
+    "label": "water",
+    "mode": "emoji",
+    "style": "emoji",
+    "svg": "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 128 128\"><rect width=\"128\" height=\"128\" fill=\"#3f8fc9\"/><g fill=\"none\" stroke-linecap=\"round\"><path d=\"M-32 26 q 15 -7 30 0 q 15 -7 30 0 q 15 -7 30 0 q 15 -7 30 0 q 15 -7 30 0 q 15 -7 30 0\" stroke=\"#a6dcf2\" stroke-width=\"4\" opacity=\"0.95\"/> <path d=\"M-21 58 q 13 -6 26 0 q 13 -6 26 0 q 13 -6 26 0 q 13 -6 26 0 q 13 -6 26 0 q 13 -6 26 0\" stroke=\"#a6dcf2\" stroke-width=\"3\" opacity=\"0.83\"/> <path d=\"M-10 92 q 17 -8 34 0 q 17 -8 34 0 q 17 -8 34 0 q 17 -8 34 0 q 17 -8 34 0 q 17 -8 34 0\" stroke=\"#a6dcf2\" stroke-width=\"4\" opacity=\"0.71\"/> <path d=\"M1 118 q 11 -5 22 0 q 11 -5 22 0 q 11 -5 22 0 q 11 -5 22 0 q 11 -5 22 0 q 11 -5 22 0\" stroke=\"#a6dcf2\" stroke-width=\"3\" opacity=\"0.59\"/> <path d=\"M-18 35 q 15 -5 30 0 q 15 -5 30 0 q 15 -5 30 0 q 15 -5 30 0 q 15 -5 30 0 q 15 -5 30 0\" stroke=\"#27618f\" stroke-width=\"2\" opacity=\"0.55\"/> <path d=\"M-7 67 q 13 -4 26 0 q 13 -4 26 0 q 13 -4 26 0 q 13 -4 26 0 q 13 -4 26 0 q 13 -4 26 0\" stroke=\"#27618f\" stroke-width=\"2\" opacity=\"0.55\"/> <path d=\"M4 101 q 17 -6 34 0 q 17 -6 34 0 q 17 -6 34 0 q 17 -6 34 0 q 17 -6 34 0 q 17 -6 34 0\" stroke=\"#27618f\" stroke-width=\"2\" opacity=\"0.55\"/></g></svg>",
+    "emoji": "🟦"
+  },
+  {
+    "label": "water_f1",
+    "mode": "emoji",
+    "style": "emoji",
+    "svg": "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 128 128\"><rect width=\"128\" height=\"128\" fill=\"#3f8fc9\"/><g fill=\"none\" stroke-linecap=\"round\"><path d=\"M-22 26 q 15 -7 30 0 q 15 -7 30 0 q 15 -7 30 0 q 15 -7 30 0 q 15 -7 30 0 q 15 -7 30 0\" stroke=\"#a6dcf2\" stroke-width=\"4\" opacity=\"0.95\"/> <path d=\"M-11 58 q 13 -6 26 0 q 13 -6 26 0 q 13 -6 26 0 q 13 -6 26 0 q 13 -6 26 0 q 13 -6 26 0\" stroke=\"#a6dcf2\" stroke-width=\"3\" opacity=\"0.83\"/> <path d=\"M0 92 q 17 -8 34 0 q 17 -8 34 0 q 17 -8 34 0 q 17 -8 34 0 q 17 -8 34 0 q 17 -8 34 0\" stroke=\"#a6dcf2\" stroke-width=\"4\" opacity=\"0.71\"/> <path d=\"M11 118 q 11 -5 22 0 q 11 -5 22 0 q 11 -5 22 0 q 11 -5 22 0 q 11 -5 22 0 q 11 -5 22 0\" stroke=\"#a6dcf2\" stroke-width=\"3\" opacity=\"0.59\"/> <path d=\"M-8 35 q 15 -5 30 0 q 15 -5 30 0 q 15 -5 30 0 q 15 -5 30 0 q 15 -5 30 0 q 15 -5 30 0\" stroke=\"#27618f\" stroke-width=\"2\" opacity=\"0.55\"/> <path d=\"M3 67 q 13 -4 26 0 q 13 -4 26 0 q 13 -4 26 0 q 13 -4 26 0 q 13 -4 26 0 q 13 -4 26 0\" stroke=\"#27618f\" stroke-width=\"2\" opacity=\"0.55\"/> <path d=\"M14 101 q 17 -6 34 0 q 17 -6 34 0 q 17 -6 34 0 q 17 -6 34 0 q 17 -6 34 0 q 17 -6 34 0\" stroke=\"#27618f\" stroke-width=\"2\" opacity=\"0.55\"/></g></svg>",
+    "emoji": "🟦"
+  },
+  {
+    "label": "water_f2",
+    "mode": "emoji",
+    "style": "emoji",
+    "svg": "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 128 128\"><rect width=\"128\" height=\"128\" fill=\"#3f8fc9\"/><g fill=\"none\" stroke-linecap=\"round\"><path d=\"M-12 26 q 15 -7 30 0 q 15 -7 30 0 q 15 -7 30 0 q 15 -7 30 0 q 15 -7 30 0 q 15 -7 30 0\" stroke=\"#a6dcf2\" stroke-width=\"4\" opacity=\"0.95\"/> <path d=\"M-1 58 q 13 -6 26 0 q 13 -6 26 0 q 13 -6 26 0 q 13 -6 26 0 q 13 -6 26 0 q 13 -6 26 0\" stroke=\"#a6dcf2\" stroke-width=\"3\" opacity=\"0.83\"/> <path d=\"M10 92 q 17 -8 34 0 q 17 -8 34 0 q 17 -8 34 0 q 17 -8 34 0 q 17 -8 34 0 q 17 -8 34 0\" stroke=\"#a6dcf2\" stroke-width=\"4\" opacity=\"0.71\"/> <path d=\"M21 118 q 11 -5 22 0 q 11 -5 22 0 q 11 -5 22 0 q 11 -5 22 0 q 11 -5 22 0 q 11 -5 22 0\" stroke=\"#a6dcf2\" stroke-width=\"3\" opacity=\"0.59\"/> <path d=\"M2 35 q 15 -5 30 0 q 15 -5 30 0 q 15 -5 30 0 q 15 -5 30 0 q 15 -5 30 0 q 15 -5 30 0\" stroke=\"#27618f\" stroke-width=\"2\" opacity=\"0.55\"/> <path d=\"M13 67 q 13 -4 26 0 q 13 -4 26 0 q 13 -4 26 0 q 13 -4 26 0 q 13 -4 26 0 q 13 -4 26 0\" stroke=\"#27618f\" stroke-width=\"2\" opacity=\"0.55\"/> <path d=\"M24 101 q 17 -6 34 0 q 17 -6 34 0 q 17 -6 34 0 q 17 -6 34 0 q 17 -6 34 0 q 17 -6 34 0\" stroke=\"#27618f\" stroke-width=\"2\" opacity=\"0.55\"/></g></svg>",
+    "emoji": "🟦"
+  },
+  {
+    "label": "water_shallow_f1",
+    "mode": "ascii",
+    "style": "ascii",
+    "svg": "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 128 128\"><rect width=\"128\" height=\"128\" fill=\"#a8a8a8\"/><g fill=\"none\" stroke-linecap=\"round\"><path d=\"M-22 20 q 9 -5 18 0 q 9 -5 18 0 q 9 -5 18 0 q 9 -5 18 0 q 9 -5 18 0 q 9 -5 18 0\" stroke=\"#ffffff\" stroke-width=\"4\" opacity=\"0.95\"/> <path d=\"M-11 44 q 8 -4 16 0 q 8 -4 16 0 q 8 -4 16 0 q 8 -4 16 0 q 8 -4 16 0 q 8 -4 16 0\" stroke=\"#ffffff\" stroke-width=\"3\" opacity=\"0.83\"/> <path d=\"M0 68 q 9 -5 18 0 q 9 -5 18 0 q 9 -5 18 0 q 9 -5 18 0 q 9 -5 18 0 q 9 -5 18 0\" stroke=\"#ffffff\" stroke-width=\"4\" opacity=\"0.71\"/> <path d=\"M11 92 q 8 -4 16 0 q 8 -4 16 0 q 8 -4 16 0 q 8 -4 16 0 q 8 -4 16 0 q 8 -4 16 0\" stroke=\"#ffffff\" stroke-width=\"3\" opacity=\"0.59\"/> <path d=\"M22 114 q 9 -5 18 0 q 9 -5 18 0 q 9 -5 18 0 q 9 -5 18 0 q 9 -5 18 0 q 9 -5 18 0\" stroke=\"#ffffff\" stroke-width=\"4\" opacity=\"0.47\"/> <path d=\"M-8 29 q 9 -3 18 0 q 9 -3 18 0 q 9 -3 18 0 q 9 -3 18 0 q 9 -3 18 0 q 9 -3 18 0\" stroke=\"#6a6a6a\" stroke-width=\"2\" opacity=\"0.55\"/> <path d=\"M3 53 q 8 -2 16 0 q 8 -2 16 0 q 8 -2 16 0 q 8 -2 16 0 q 8 -2 16 0 q 8 -2 16 0\" stroke=\"#6a6a6a\" stroke-width=\"2\" opacity=\"0.55\"/> <path d=\"M14 77 q 9 -3 18 0 q 9 -3 18 0 q 9 -3 18 0 q 9 -3 18 0 q 9 -3 18 0 q 9 -3 18 0\" stroke=\"#6a6a6a\" stroke-width=\"2\" opacity=\"0.55\"/></g></svg>",
+    "glyph": "~"
+  },
+  {
+    "label": "water_shallow_f2",
+    "mode": "ascii",
+    "style": "ascii",
+    "svg": "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 128 128\"><rect width=\"128\" height=\"128\" fill=\"#a8a8a8\"/><g fill=\"none\" stroke-linecap=\"round\"><path d=\"M-12 20 q 9 -5 18 0 q 9 -5 18 0 q 9 -5 18 0 q 9 -5 18 0 q 9 -5 18 0 q 9 -5 18 0\" stroke=\"#ffffff\" stroke-width=\"4\" opacity=\"0.95\"/> <path d=\"M-1 44 q 8 -4 16 0 q 8 -4 16 0 q 8 -4 16 0 q 8 -4 16 0 q 8 -4 16 0 q 8 -4 16 0\" stroke=\"#ffffff\" stroke-width=\"3\" opacity=\"0.83\"/> <path d=\"M10 68 q 9 -5 18 0 q 9 -5 18 0 q 9 -5 18 0 q 9 -5 18 0 q 9 -5 18 0 q 9 -5 18 0\" stroke=\"#ffffff\" stroke-width=\"4\" opacity=\"0.71\"/> <path d=\"M21 92 q 8 -4 16 0 q 8 -4 16 0 q 8 -4 16 0 q 8 -4 16 0 q 8 -4 16 0 q 8 -4 16 0\" stroke=\"#ffffff\" stroke-width=\"3\" opacity=\"0.59\"/> <path d=\"M32 114 q 9 -5 18 0 q 9 -5 18 0 q 9 -5 18 0 q 9 -5 18 0 q 9 -5 18 0 q 9 -5 18 0\" stroke=\"#ffffff\" stroke-width=\"4\" opacity=\"0.47\"/> <path d=\"M2 29 q 9 -3 18 0 q 9 -3 18 0 q 9 -3 18 0 q 9 -3 18 0 q 9 -3 18 0 q 9 -3 18 0\" stroke=\"#6a6a6a\" stroke-width=\"2\" opacity=\"0.55\"/> <path d=\"M13 53 q 8 -2 16 0 q 8 -2 16 0 q 8 -2 16 0 q 8 -2 16 0 q 8 -2 16 0 q 8 -2 16 0\" stroke=\"#6a6a6a\" stroke-width=\"2\" opacity=\"0.55\"/> <path d=\"M24 77 q 9 -3 18 0 q 9 -3 18 0 q 9 -3 18 0 q 9 -3 18 0 q 9 -3 18 0 q 9 -3 18 0\" stroke=\"#6a6a6a\" stroke-width=\"2\" opacity=\"0.55\"/></g></svg>",
+    "glyph": "~"
+  },
+  {
+    "label": "water_deep_f1",
+    "mode": "ascii",
+    "style": "ascii",
+    "svg": "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 128 128\"><rect width=\"128\" height=\"128\" fill=\"#6e6e6e\"/><g fill=\"none\" stroke-linecap=\"round\"><path d=\"M-22 34 q 22 -4 44 0 q 22 -4 44 0 q 22 -4 44 0 q 22 -4 44 0 q 22 -4 44 0 q 22 -4 44 0\" stroke=\"#d6d6d6\" stroke-width=\"4\" opacity=\"0.95\"/> <path d=\"M-11 74 q 20 -3 40 0 q 20 -3 40 0 q 20 -3 40 0 q 20 -3 40 0 q 20 -3 40 0 q 20 -3 40 0\" stroke=\"#d6d6d6\" stroke-width=\"3\" opacity=\"0.83\"/> <path d=\"M0 110 q 23 -4 46 0 q 23 -4 46 0 q 23 -4 46 0 q 23 -4 46 0 q 23 -4 46 0 q 23 -4 46 0\" stroke=\"#d6d6d6\" stroke-width=\"4\" opacity=\"0.71\"/> <path d=\"M-8 43 q 22 -2 44 0 q 22 -2 44 0 q 22 -2 44 0 q 22 -2 44 0 q 22 -2 44 0 q 22 -2 44 0\" stroke=\"#3a3a3a\" stroke-width=\"2\" opacity=\"0.55\"/> <path d=\"M3 83 q 20 -2 40 0 q 20 -2 40 0 q 20 -2 40 0 q 20 -2 40 0 q 20 -2 40 0 q 20 -2 40 0\" stroke=\"#3a3a3a\" stroke-width=\"2\" opacity=\"0.55\"/> <path d=\"M14 119 q 23 -2 46 0 q 23 -2 46 0 q 23 -2 46 0 q 23 -2 46 0 q 23 -2 46 0 q 23 -2 46 0\" stroke=\"#3a3a3a\" stroke-width=\"2\" opacity=\"0.55\"/></g></svg>",
+    "glyph": "~"
+  },
+  {
+    "label": "water_deep_f2",
+    "mode": "ascii",
+    "style": "ascii",
+    "svg": "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 128 128\"><rect width=\"128\" height=\"128\" fill=\"#6e6e6e\"/><g fill=\"none\" stroke-linecap=\"round\"><path d=\"M-12 34 q 22 -4 44 0 q 22 -4 44 0 q 22 -4 44 0 q 22 -4 44 0 q 22 -4 44 0 q 22 -4 44 0\" stroke=\"#d6d6d6\" stroke-width=\"4\" opacity=\"0.95\"/> <path d=\"M-1 74 q 20 -3 40 0 q 20 -3 40 0 q 20 -3 40 0 q 20 -3 40 0 q 20 -3 40 0 q 20 -3 40 0\" stroke=\"#d6d6d6\" stroke-width=\"3\" opacity=\"0.83\"/> <path d=\"M10 110 q 23 -4 46 0 q 23 -4 46 0 q 23 -4 46 0 q 23 -4 46 0 q 23 -4 46 0 q 23 -4 46 0\" stroke=\"#d6d6d6\" stroke-width=\"4\" opacity=\"0.71\"/> <path d=\"M2 43 q 22 -2 44 0 q 22 -2 44 0 q 22 -2 44 0 q 22 -2 44 0 q 22 -2 44 0 q 22 -2 44 0\" stroke=\"#3a3a3a\" stroke-width=\"2\" opacity=\"0.55\"/> <path d=\"M13 83 q 20 -2 40 0 q 20 -2 40 0 q 20 -2 40 0 q 20 -2 40 0 q 20 -2 40 0 q 20 -2 40 0\" stroke=\"#3a3a3a\" stroke-width=\"2\" opacity=\"0.55\"/> <path d=\"M24 119 q 23 -2 46 0 q 23 -2 46 0 q 23 -2 46 0 q 23 -2 46 0 q 23 -2 46 0 q 23 -2 46 0\" stroke=\"#3a3a3a\" stroke-width=\"2\" opacity=\"0.55\"/></g></svg>",
+    "glyph": "~"
+  },
+  {
+    "label": "water_shallow",
+    "mode": "emoji",
+    "style": "emoji",
+    "svg": "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 128 128\"><rect width=\"128\" height=\"128\" fill=\"#8ccbe8\"/><g fill=\"none\" stroke-linecap=\"round\"><path d=\"M-32 20 q 9 -5 18 0 q 9 -5 18 0 q 9 -5 18 0 q 9 -5 18 0 q 9 -5 18 0 q 9 -5 18 0\" stroke=\"#e6f7ff\" stroke-width=\"4\" opacity=\"0.95\"/> <path d=\"M-21 44 q 8 -4 16 0 q 8 -4 16 0 q 8 -4 16 0 q 8 -4 16 0 q 8 -4 16 0 q 8 -4 16 0\" stroke=\"#e6f7ff\" stroke-width=\"3\" opacity=\"0.83\"/> <path d=\"M-10 68 q 9 -5 18 0 q 9 -5 18 0 q 9 -5 18 0 q 9 -5 18 0 q 9 -5 18 0 q 9 -5 18 0\" stroke=\"#e6f7ff\" stroke-width=\"4\" opacity=\"0.71\"/> <path d=\"M1 92 q 8 -4 16 0 q 8 -4 16 0 q 8 -4 16 0 q 8 -4 16 0 q 8 -4 16 0 q 8 -4 16 0\" stroke=\"#e6f7ff\" stroke-width=\"3\" opacity=\"0.59\"/> <path d=\"M12 114 q 9 -5 18 0 q 9 -5 18 0 q 9 -5 18 0 q 9 -5 18 0 q 9 -5 18 0 q 9 -5 18 0\" stroke=\"#e6f7ff\" stroke-width=\"4\" opacity=\"0.47\"/> <path d=\"M-18 29 q 9 -3 18 0 q 9 -3 18 0 q 9 -3 18 0 q 9 -3 18 0 q 9 -3 18 0 q 9 -3 18 0\" stroke=\"#5aa8cf\" stroke-width=\"2\" opacity=\"0.55\"/> <path d=\"M-7 53 q 8 -2 16 0 q 8 -2 16 0 q 8 -2 16 0 q 8 -2 16 0 q 8 -2 16 0 q 8 -2 16 0\" stroke=\"#5aa8cf\" stroke-width=\"2\" opacity=\"0.55\"/> <path d=\"M4 77 q 9 -3 18 0 q 9 -3 18 0 q 9 -3 18 0 q 9 -3 18 0 q 9 -3 18 0 q 9 -3 18 0\" stroke=\"#5aa8cf\" stroke-width=\"2\" opacity=\"0.55\"/></g></svg>",
+    "emoji": "🟦"
+  },
+  {
+    "label": "water_shallow_f1",
+    "mode": "emoji",
+    "style": "emoji",
+    "svg": "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 128 128\"><rect width=\"128\" height=\"128\" fill=\"#8ccbe8\"/><g fill=\"none\" stroke-linecap=\"round\"><path d=\"M-22 20 q 9 -5 18 0 q 9 -5 18 0 q 9 -5 18 0 q 9 -5 18 0 q 9 -5 18 0 q 9 -5 18 0\" stroke=\"#e6f7ff\" stroke-width=\"4\" opacity=\"0.95\"/> <path d=\"M-11 44 q 8 -4 16 0 q 8 -4 16 0 q 8 -4 16 0 q 8 -4 16 0 q 8 -4 16 0 q 8 -4 16 0\" stroke=\"#e6f7ff\" stroke-width=\"3\" opacity=\"0.83\"/> <path d=\"M0 68 q 9 -5 18 0 q 9 -5 18 0 q 9 -5 18 0 q 9 -5 18 0 q 9 -5 18 0 q 9 -5 18 0\" stroke=\"#e6f7ff\" stroke-width=\"4\" opacity=\"0.71\"/> <path d=\"M11 92 q 8 -4 16 0 q 8 -4 16 0 q 8 -4 16 0 q 8 -4 16 0 q 8 -4 16 0 q 8 -4 16 0\" stroke=\"#e6f7ff\" stroke-width=\"3\" opacity=\"0.59\"/> <path d=\"M22 114 q 9 -5 18 0 q 9 -5 18 0 q 9 -5 18 0 q 9 -5 18 0 q 9 -5 18 0 q 9 -5 18 0\" stroke=\"#e6f7ff\" stroke-width=\"4\" opacity=\"0.47\"/> <path d=\"M-8 29 q 9 -3 18 0 q 9 -3 18 0 q 9 -3 18 0 q 9 -3 18 0 q 9 -3 18 0 q 9 -3 18 0\" stroke=\"#5aa8cf\" stroke-width=\"2\" opacity=\"0.55\"/> <path d=\"M3 53 q 8 -2 16 0 q 8 -2 16 0 q 8 -2 16 0 q 8 -2 16 0 q 8 -2 16 0 q 8 -2 16 0\" stroke=\"#5aa8cf\" stroke-width=\"2\" opacity=\"0.55\"/> <path d=\"M14 77 q 9 -3 18 0 q 9 -3 18 0 q 9 -3 18 0 q 9 -3 18 0 q 9 -3 18 0 q 9 -3 18 0\" stroke=\"#5aa8cf\" stroke-width=\"2\" opacity=\"0.55\"/></g></svg>",
+    "emoji": "🟦"
+  },
+  {
+    "label": "water_shallow_f2",
+    "mode": "emoji",
+    "style": "emoji",
+    "svg": "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 128 128\"><rect width=\"128\" height=\"128\" fill=\"#8ccbe8\"/><g fill=\"none\" stroke-linecap=\"round\"><path d=\"M-12 20 q 9 -5 18 0 q 9 -5 18 0 q 9 -5 18 0 q 9 -5 18 0 q 9 -5 18 0 q 9 -5 18 0\" stroke=\"#e6f7ff\" stroke-width=\"4\" opacity=\"0.95\"/> <path d=\"M-1 44 q 8 -4 16 0 q 8 -4 16 0 q 8 -4 16 0 q 8 -4 16 0 q 8 -4 16 0 q 8 -4 16 0\" stroke=\"#e6f7ff\" stroke-width=\"3\" opacity=\"0.83\"/> <path d=\"M10 68 q 9 -5 18 0 q 9 -5 18 0 q 9 -5 18 0 q 9 -5 18 0 q 9 -5 18 0 q 9 -5 18 0\" stroke=\"#e6f7ff\" stroke-width=\"4\" opacity=\"0.71\"/> <path d=\"M21 92 q 8 -4 16 0 q 8 -4 16 0 q 8 -4 16 0 q 8 -4 16 0 q 8 -4 16 0 q 8 -4 16 0\" stroke=\"#e6f7ff\" stroke-width=\"3\" opacity=\"0.59\"/> <path d=\"M32 114 q 9 -5 18 0 q 9 -5 18 0 q 9 -5 18 0 q 9 -5 18 0 q 9 -5 18 0 q 9 -5 18 0\" stroke=\"#e6f7ff\" stroke-width=\"4\" opacity=\"0.47\"/> <path d=\"M2 29 q 9 -3 18 0 q 9 -3 18 0 q 9 -3 18 0 q 9 -3 18 0 q 9 -3 18 0 q 9 -3 18 0\" stroke=\"#5aa8cf\" stroke-width=\"2\" opacity=\"0.55\"/> <path d=\"M13 53 q 8 -2 16 0 q 8 -2 16 0 q 8 -2 16 0 q 8 -2 16 0 q 8 -2 16 0 q 8 -2 16 0\" stroke=\"#5aa8cf\" stroke-width=\"2\" opacity=\"0.55\"/> <path d=\"M24 77 q 9 -3 18 0 q 9 -3 18 0 q 9 -3 18 0 q 9 -3 18 0 q 9 -3 18 0 q 9 -3 18 0\" stroke=\"#5aa8cf\" stroke-width=\"2\" opacity=\"0.55\"/></g></svg>",
+    "emoji": "🟦"
+  },
+  {
+    "label": "water_deep",
+    "mode": "emoji",
+    "style": "emoji",
+    "svg": "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 128 128\"><rect width=\"128\" height=\"128\" fill=\"#2a5f8a\"/><g fill=\"none\" stroke-linecap=\"round\"><path d=\"M-32 34 q 22 -4 44 0 q 22 -4 44 0 q 22 -4 44 0 q 22 -4 44 0 q 22 -4 44 0 q 22 -4 44 0\" stroke=\"#6fa8cc\" stroke-width=\"4\" opacity=\"0.95\"/> <path d=\"M-21 74 q 20 -3 40 0 q 20 -3 40 0 q 20 -3 40 0 q 20 -3 40 0 q 20 -3 40 0 q 20 -3 40 0\" stroke=\"#6fa8cc\" stroke-width=\"3\" opacity=\"0.83\"/> <path d=\"M-10 110 q 23 -4 46 0 q 23 -4 46 0 q 23 -4 46 0 q 23 -4 46 0 q 23 -4 46 0 q 23 -4 46 0\" stroke=\"#6fa8cc\" stroke-width=\"4\" opacity=\"0.71\"/> <path d=\"M-18 43 q 22 -2 44 0 q 22 -2 44 0 q 22 -2 44 0 q 22 -2 44 0 q 22 -2 44 0 q 22 -2 44 0\" stroke=\"#18415f\" stroke-width=\"2\" opacity=\"0.55\"/> <path d=\"M-7 83 q 20 -2 40 0 q 20 -2 40 0 q 20 -2 40 0 q 20 -2 40 0 q 20 -2 40 0 q 20 -2 40 0\" stroke=\"#18415f\" stroke-width=\"2\" opacity=\"0.55\"/> <path d=\"M4 119 q 23 -2 46 0 q 23 -2 46 0 q 23 -2 46 0 q 23 -2 46 0 q 23 -2 46 0 q 23 -2 46 0\" stroke=\"#18415f\" stroke-width=\"2\" opacity=\"0.55\"/></g></svg>",
+    "emoji": "🟦"
+  },
+  {
+    "label": "water_deep_f1",
+    "mode": "emoji",
+    "style": "emoji",
+    "svg": "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 128 128\"><rect width=\"128\" height=\"128\" fill=\"#2a5f8a\"/><g fill=\"none\" stroke-linecap=\"round\"><path d=\"M-22 34 q 22 -4 44 0 q 22 -4 44 0 q 22 -4 44 0 q 22 -4 44 0 q 22 -4 44 0 q 22 -4 44 0\" stroke=\"#6fa8cc\" stroke-width=\"4\" opacity=\"0.95\"/> <path d=\"M-11 74 q 20 -3 40 0 q 20 -3 40 0 q 20 -3 40 0 q 20 -3 40 0 q 20 -3 40 0 q 20 -3 40 0\" stroke=\"#6fa8cc\" stroke-width=\"3\" opacity=\"0.83\"/> <path d=\"M0 110 q 23 -4 46 0 q 23 -4 46 0 q 23 -4 46 0 q 23 -4 46 0 q 23 -4 46 0 q 23 -4 46 0\" stroke=\"#6fa8cc\" stroke-width=\"4\" opacity=\"0.71\"/> <path d=\"M-8 43 q 22 -2 44 0 q 22 -2 44 0 q 22 -2 44 0 q 22 -2 44 0 q 22 -2 44 0 q 22 -2 44 0\" stroke=\"#18415f\" stroke-width=\"2\" opacity=\"0.55\"/> <path d=\"M3 83 q 20 -2 40 0 q 20 -2 40 0 q 20 -2 40 0 q 20 -2 40 0 q 20 -2 40 0 q 20 -2 40 0\" stroke=\"#18415f\" stroke-width=\"2\" opacity=\"0.55\"/> <path d=\"M14 119 q 23 -2 46 0 q 23 -2 46 0 q 23 -2 46 0 q 23 -2 46 0 q 23 -2 46 0 q 23 -2 46 0\" stroke=\"#18415f\" stroke-width=\"2\" opacity=\"0.55\"/></g></svg>",
+    "emoji": "🟦"
+  },
+  {
+    "label": "water_deep_f2",
+    "mode": "emoji",
+    "style": "emoji",
+    "svg": "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 128 128\"><rect width=\"128\" height=\"128\" fill=\"#2a5f8a\"/><g fill=\"none\" stroke-linecap=\"round\"><path d=\"M-12 34 q 22 -4 44 0 q 22 -4 44 0 q 22 -4 44 0 q 22 -4 44 0 q 22 -4 44 0 q 22 -4 44 0\" stroke=\"#6fa8cc\" stroke-width=\"4\" opacity=\"0.95\"/> <path d=\"M-1 74 q 20 -3 40 0 q 20 -3 40 0 q 20 -3 40 0 q 20 -3 40 0 q 20 -3 40 0 q 20 -3 40 0\" stroke=\"#6fa8cc\" stroke-width=\"3\" opacity=\"0.83\"/> <path d=\"M10 110 q 23 -4 46 0 q 23 -4 46 0 q 23 -4 46 0 q 23 -4 46 0 q 23 -4 46 0 q 23 -4 46 0\" stroke=\"#6fa8cc\" stroke-width=\"4\" opacity=\"0.71\"/> <path d=\"M2 43 q 22 -2 44 0 q 22 -2 44 0 q 22 -2 44 0 q 22 -2 44 0 q 22 -2 44 0 q 22 -2 44 0\" stroke=\"#18415f\" stroke-width=\"2\" opacity=\"0.55\"/> <path d=\"M13 83 q 20 -2 40 0 q 20 -2 40 0 q 20 -2 40 0 q 20 -2 40 0 q 20 -2 40 0 q 20 -2 40 0\" stroke=\"#18415f\" stroke-width=\"2\" opacity=\"0.55\"/> <path d=\"M24 119 q 23 -2 46 0 q 23 -2 46 0 q 23 -2 46 0 q 23 -2 46 0 q 23 -2 46 0 q 23 -2 46 0\" stroke=\"#18415f\" stroke-width=\"2\" opacity=\"0.55\"/></g></svg>",
+    "emoji": "🟦"
+  },
+  {
+    "label": "shore_t",
+    "mode": "ascii",
+    "style": "ascii",
+    "svg": "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 128 128\"><path d=\"M0 0 h128 v34 q-32 10 -64 0 t-64 0 z\" fill=\"#ffffff\" opacity=\"0.92\"/><path d=\"M0 0 h128 v34 q-32 10 -64 0 t-64 0 z\" fill=\"none\" stroke=\"#9a9a9a\" stroke-width=\"3\" opacity=\"0.7\"/></svg>",
+    "glyph": "░"
+  },
+  {
+    "label": "shore_b",
+    "mode": "ascii",
+    "style": "ascii",
+    "svg": "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 128 128\"><path d=\"M0 128 h128 v-34 q-32 -10 -64 0 t-64 0 z\" fill=\"#ffffff\" opacity=\"0.92\"/><path d=\"M0 128 h128 v-34 q-32 -10 -64 0 t-64 0 z\" fill=\"none\" stroke=\"#9a9a9a\" stroke-width=\"3\" opacity=\"0.7\"/></svg>",
+    "glyph": "░"
+  },
+  {
+    "label": "shore_l",
+    "mode": "ascii",
+    "style": "ascii",
+    "svg": "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 128 128\"><path d=\"M0 0 v128 h34 q10 -32 0 -64 t0 -64 z\" fill=\"#ffffff\" opacity=\"0.92\"/><path d=\"M0 0 v128 h34 q10 -32 0 -64 t0 -64 z\" fill=\"none\" stroke=\"#9a9a9a\" stroke-width=\"3\" opacity=\"0.7\"/></svg>",
+    "glyph": "░"
+  },
+  {
+    "label": "shore_r",
+    "mode": "ascii",
+    "style": "ascii",
+    "svg": "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 128 128\"><path d=\"M128 0 v128 h-34 q-10 -32 0 -64 t0 -64 z\" fill=\"#ffffff\" opacity=\"0.92\"/><path d=\"M128 0 v128 h-34 q-10 -32 0 -64 t0 -64 z\" fill=\"none\" stroke=\"#9a9a9a\" stroke-width=\"3\" opacity=\"0.7\"/></svg>",
+    "glyph": "░"
+  },
+  {
+    "label": "shore_tl",
+    "mode": "ascii",
+    "style": "ascii",
+    "svg": "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 128 128\"><path d=\"M0 0 h44 q-8 36 -44 44 z\" fill=\"#ffffff\" opacity=\"0.92\"/><path d=\"M0 0 h44 q-8 36 -44 44 z\" fill=\"none\" stroke=\"#9a9a9a\" stroke-width=\"3\" opacity=\"0.7\"/></svg>",
+    "glyph": "░"
+  },
+  {
+    "label": "shore_tr",
+    "mode": "ascii",
+    "style": "ascii",
+    "svg": "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 128 128\"><path d=\"M128 0 h-44 q8 36 44 44 z\" fill=\"#ffffff\" opacity=\"0.92\"/><path d=\"M128 0 h-44 q8 36 44 44 z\" fill=\"none\" stroke=\"#9a9a9a\" stroke-width=\"3\" opacity=\"0.7\"/></svg>",
+    "glyph": "░"
+  },
+  {
+    "label": "shore_bl",
+    "mode": "ascii",
+    "style": "ascii",
+    "svg": "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 128 128\"><path d=\"M0 128 h44 q-8 -36 -44 -44 z\" fill=\"#ffffff\" opacity=\"0.92\"/><path d=\"M0 128 h44 q-8 -36 -44 -44 z\" fill=\"none\" stroke=\"#9a9a9a\" stroke-width=\"3\" opacity=\"0.7\"/></svg>",
+    "glyph": "░"
+  },
+  {
+    "label": "shore_br",
+    "mode": "ascii",
+    "style": "ascii",
+    "svg": "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 128 128\"><path d=\"M128 128 h-44 q8 -36 44 -44 z\" fill=\"#ffffff\" opacity=\"0.92\"/><path d=\"M128 128 h-44 q8 -36 44 -44 z\" fill=\"none\" stroke=\"#9a9a9a\" stroke-width=\"3\" opacity=\"0.7\"/></svg>",
+    "glyph": "░"
+  },
+  {
+    "label": "shore_t",
+    "mode": "emoji",
+    "style": "emoji",
+    "svg": "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 128 128\"><path d=\"M0 0 h128 v34 q-32 10 -64 0 t-64 0 z\" fill=\"#eaf8ff\" opacity=\"0.92\"/><path d=\"M0 0 h128 v34 q-32 10 -64 0 t-64 0 z\" fill=\"none\" stroke=\"#5aa8cf\" stroke-width=\"3\" opacity=\"0.7\"/></svg>",
+    "emoji": "░"
+  },
+  {
+    "label": "shore_b",
+    "mode": "emoji",
+    "style": "emoji",
+    "svg": "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 128 128\"><path d=\"M0 128 h128 v-34 q-32 -10 -64 0 t-64 0 z\" fill=\"#eaf8ff\" opacity=\"0.92\"/><path d=\"M0 128 h128 v-34 q-32 -10 -64 0 t-64 0 z\" fill=\"none\" stroke=\"#5aa8cf\" stroke-width=\"3\" opacity=\"0.7\"/></svg>",
+    "emoji": "░"
+  },
+  {
+    "label": "shore_l",
+    "mode": "emoji",
+    "style": "emoji",
+    "svg": "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 128 128\"><path d=\"M0 0 v128 h34 q10 -32 0 -64 t0 -64 z\" fill=\"#eaf8ff\" opacity=\"0.92\"/><path d=\"M0 0 v128 h34 q10 -32 0 -64 t0 -64 z\" fill=\"none\" stroke=\"#5aa8cf\" stroke-width=\"3\" opacity=\"0.7\"/></svg>",
+    "emoji": "░"
+  },
+  {
+    "label": "shore_r",
+    "mode": "emoji",
+    "style": "emoji",
+    "svg": "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 128 128\"><path d=\"M128 0 v128 h-34 q-10 -32 0 -64 t0 -64 z\" fill=\"#eaf8ff\" opacity=\"0.92\"/><path d=\"M128 0 v128 h-34 q-10 -32 0 -64 t0 -64 z\" fill=\"none\" stroke=\"#5aa8cf\" stroke-width=\"3\" opacity=\"0.7\"/></svg>",
+    "emoji": "░"
+  },
+  {
+    "label": "shore_tl",
+    "mode": "emoji",
+    "style": "emoji",
+    "svg": "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 128 128\"><path d=\"M0 0 h44 q-8 36 -44 44 z\" fill=\"#eaf8ff\" opacity=\"0.92\"/><path d=\"M0 0 h44 q-8 36 -44 44 z\" fill=\"none\" stroke=\"#5aa8cf\" stroke-width=\"3\" opacity=\"0.7\"/></svg>",
+    "emoji": "░"
+  },
+  {
+    "label": "shore_tr",
+    "mode": "emoji",
+    "style": "emoji",
+    "svg": "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 128 128\"><path d=\"M128 0 h-44 q8 36 44 44 z\" fill=\"#eaf8ff\" opacity=\"0.92\"/><path d=\"M128 0 h-44 q8 36 44 44 z\" fill=\"none\" stroke=\"#5aa8cf\" stroke-width=\"3\" opacity=\"0.7\"/></svg>",
+    "emoji": "░"
+  },
+  {
+    "label": "shore_bl",
+    "mode": "emoji",
+    "style": "emoji",
+    "svg": "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 128 128\"><path d=\"M0 128 h44 q-8 -36 -44 -44 z\" fill=\"#eaf8ff\" opacity=\"0.92\"/><path d=\"M0 128 h44 q-8 -36 -44 -44 z\" fill=\"none\" stroke=\"#5aa8cf\" stroke-width=\"3\" opacity=\"0.7\"/></svg>",
+    "emoji": "░"
+  },
+  {
+    "label": "shore_br",
+    "mode": "emoji",
+    "style": "emoji",
+    "svg": "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 128 128\"><path d=\"M128 128 h-44 q8 -36 44 -44 z\" fill=\"#eaf8ff\" opacity=\"0.92\"/><path d=\"M128 128 h-44 q8 -36 44 -44 z\" fill=\"none\" stroke=\"#5aa8cf\" stroke-width=\"3\" opacity=\"0.7\"/></svg>",
+    "emoji": "░"
+  },
+  {
+    "label": "decor_ripple_f1",
+    "mode": "ascii",
+    "style": "ascii",
+    "svg": "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 128 128\"><ellipse cx=\"64\" cy=\"64\" rx=\"21\" ry=\"10\" fill=\"none\" stroke=\"#ffffff\" stroke-width=\"5\" opacity=\"0.84\"/><ellipse cx=\"64\" cy=\"64\" rx=\"39\" ry=\"20\" fill=\"none\" stroke=\"#d8d8d8\" stroke-width=\"4\" opacity=\"0.59\"/><ellipse cx=\"64\" cy=\"64\" rx=\"57\" ry=\"29\" fill=\"none\" stroke=\"#d8d8d8\" stroke-width=\"3\" opacity=\"0.34\"/></svg>",
+    "glyph": "⌣"
+  },
+  {
+    "label": "decor_ripple_f2",
+    "mode": "ascii",
+    "style": "ascii",
+    "svg": "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 128 128\"><ellipse cx=\"64\" cy=\"64\" rx=\"24\" ry=\"12\" fill=\"none\" stroke=\"#ffffff\" stroke-width=\"5\" opacity=\"0.73\"/><ellipse cx=\"64\" cy=\"64\" rx=\"44\" ry=\"22\" fill=\"none\" stroke=\"#d8d8d8\" stroke-width=\"4\" opacity=\"0.48\"/><ellipse cx=\"64\" cy=\"64\" rx=\"64\" ry=\"33\" fill=\"none\" stroke=\"#d8d8d8\" stroke-width=\"3\" opacity=\"0.23\"/></svg>",
+    "glyph": "⌣"
+  },
+  {
+    "label": "decor_ripple",
+    "mode": "emoji",
+    "style": "emoji",
+    "svg": "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 128 128\"><ellipse cx=\"64\" cy=\"64\" rx=\"18\" ry=\"9\" fill=\"none\" stroke=\"#f2fbff\" stroke-width=\"5\" opacity=\"0.95\"/><ellipse cx=\"64\" cy=\"64\" rx=\"34\" ry=\"17\" fill=\"none\" stroke=\"#bfe6f5\" stroke-width=\"4\" opacity=\"0.70\"/><ellipse cx=\"64\" cy=\"64\" rx=\"50\" ry=\"26\" fill=\"none\" stroke=\"#bfe6f5\" stroke-width=\"3\" opacity=\"0.45\"/></svg>",
+    "emoji": "⌣"
+  },
+  {
+    "label": "decor_ripple_f1",
+    "mode": "emoji",
+    "style": "emoji",
+    "svg": "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 128 128\"><ellipse cx=\"64\" cy=\"64\" rx=\"21\" ry=\"10\" fill=\"none\" stroke=\"#f2fbff\" stroke-width=\"5\" opacity=\"0.84\"/><ellipse cx=\"64\" cy=\"64\" rx=\"39\" ry=\"20\" fill=\"none\" stroke=\"#bfe6f5\" stroke-width=\"4\" opacity=\"0.59\"/><ellipse cx=\"64\" cy=\"64\" rx=\"57\" ry=\"29\" fill=\"none\" stroke=\"#bfe6f5\" stroke-width=\"3\" opacity=\"0.34\"/></svg>",
+    "emoji": "⌣"
+  },
+  {
+    "label": "decor_ripple_f2",
+    "mode": "emoji",
+    "style": "emoji",
+    "svg": "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 128 128\"><ellipse cx=\"64\" cy=\"64\" rx=\"24\" ry=\"12\" fill=\"none\" stroke=\"#f2fbff\" stroke-width=\"5\" opacity=\"0.73\"/><ellipse cx=\"64\" cy=\"64\" rx=\"44\" ry=\"22\" fill=\"none\" stroke=\"#bfe6f5\" stroke-width=\"4\" opacity=\"0.48\"/><ellipse cx=\"64\" cy=\"64\" rx=\"64\" ry=\"33\" fill=\"none\" stroke=\"#bfe6f5\" stroke-width=\"3\" opacity=\"0.23\"/></svg>",
+    "emoji": "⌣"
   }
 ]

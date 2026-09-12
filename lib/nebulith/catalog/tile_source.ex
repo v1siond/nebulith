@@ -17,6 +17,11 @@ defmodule Nebulith.Catalog.TileSource do
 
   alias Nebulith.Catalog
   alias Nebulith.Catalog.BuildingCompositions
+  # `seed_frame_rows/4` reads a base row with `Repo.get_by(Tile, ...)`. Without this alias `Tile` is the atom
+  # `Elixir.Tile`, which does not exist, and Elixir does NOT warn, because the module is passed as a VALUE,
+  # never called or expanded as a struct. So it compiled clean and raised UndefinedFunctionError the moment the
+  # seed ran, which is exactly what it did: the whole water-look seed aborted and wrote nothing.
+  alias Nebulith.Catalog.Tile
   alias Nebulith.Catalog.Tileset
   alias Nebulith.Repo
 
@@ -104,6 +109,15 @@ defmodule Nebulith.Catalog.TileSource do
     seed_autotile_pieces(ascii_id, emoji_id)
     seed_tree_pieces(ascii_id, emoji_id, ascii["palettes"])
     seed_parity_tiles(ascii_id, emoji_id)
+    # AFTER every seeder that OWNS a label, because `seed_water_look/0` copies a FRAME ROW from a base tile and
+    # a base that does not exist yet seeds nothing. `decor_ripple` is exactly that case: ascii gets it from
+    # `seed_decor_tiles/1` near the top, its emoji twin arrives from a later list, and running this at its old
+    # place (straight after `seed_water_color/0`) created `decor_ripple_f1`/`_f2` in ascii ONLY, a catalog of
+    # 373 ascii against 371 emoji rows, caught by the two 1:1-vocabulary tests rather than by the seeder.
+    #
+    # It also has to stay AHEAD of the normalizers below, so the frame rows it writes get their per-label facts
+    # and colours agreed like every other row. This spot is the only one that satisfies both.
+    seed_water_look()
     seed_compositions(ascii["compositions"])
     seed_new_compositions()
     seed_building_compositions()
@@ -1124,8 +1138,12 @@ defmodule Nebulith.Catalog.TileSource do
     %{label: "tree_top_right", emoji: "🍃", image_url: "/tiles/emoji/leaf_center.png", color: "#5fae4f"},
     %{label: "tropical_grass", emoji: "🟩", image_url: "/tiles/emoji/sq_green.png", color: "#32c850"},
     %{label: "volcanic_rock", emoji: "⬛", image_url: "/tiles/emoji/sq_black.png", color: "#644632"},
-    %{label: "water_deep", emoji: "🟦", image_url: "/tiles/emoji/sq_blue.png", color: "#1144aa"},
-    %{label: "water_shallow", emoji: "🟦", image_url: "/tiles/emoji/sq_blue.png", color: "#4488dd"},
+    # THE BANDS HAVE THEIR OWN ART NOW. Both pointed at `sq_blue.png`, a flat rounded square, so a river came
+    # out as three flat tones with no texture in any band: Alexander, 2026-09-12, *"water looks weird and is
+    # inconsistent"* and *"the middle river is super weird"*. Authored as drawn art in `tiles.json` (the new
+    # `svg` shape) and baked per style, so shallow reads busy and bright and deep reads calm and dark.
+    %{label: "water_deep", emoji: "🟦", image_url: "/tiles/emoji/water_deep.png", color: "#1144aa"},
+    %{label: "water_shallow", emoji: "🟦", image_url: "/tiles/emoji/water_shallow.png", color: "#4488dd"},
     %{label: "whitewash", emoji: "⬜", image_url: "/tiles/emoji/sq_white.png", color: "#fffffa"},
     %{label: "wooden_planks", emoji: "🟫", image_url: "/tiles/emoji/sq_brown.png", color: "#aa8250"},
     %{label: "zen_garden", emoji: "⬜", image_url: "/tiles/emoji/sq_white.png", color: "#dcd7c8"},
@@ -1278,21 +1296,6 @@ defmodule Nebulith.Catalog.TileSource do
   end
 
   @doc """
-  Upserts the FLAT `floor` ground tile in BOTH styles: the meadow's flat floor, for every other template.
-
-  Alexander, 2026-09-11: *"look how we handle the floor in meadow, just using different colors and only using
-  the floor tiles as ornaments, that's how we wanna do it on all other templates too"*. A cave, a temple, a
-  town plaza or a snowy wood lays this tile and writes the material's colour on it as per-cell STATE, which
-  leaves the textured tiles (cave floor, moss, stone) for ornaments.
-
-  Built exactly like `meadow`: the ascii picture is a sparse white glyph (`⸪`, baked by priv/tilegen) that the
-  cell's colour tints, and the emoji picture is the same flat white square. Its own label because a cave floor
-  is not a meadow, and the label is what names it in the editor.
-
-  Height 0.0, level with the live terrain it stands in for. Idempotent upsert by [tileset_id, label]. Called by
-  seed/0 and by the migration that adds it to an existing DB, runnable standalone.
-  """
-  @doc """
   WHAT GROWS ON THE FLOOR: walkable long grass, and a thicket you cannot push through.
 
   Alexander, 2026-09-11: *"some collisions are actually dumb lol, we are using collissions in flowers / like, I
@@ -1372,6 +1375,25 @@ defmodule Nebulith.Catalog.TileSource do
     end
   end
 
+  @doc """
+  Upserts the FLAT `floor` ground tile in BOTH styles: the meadow's flat floor, for every other template.
+
+  Alexander, 2026-09-11: *"look how we handle the floor in meadow, just using different colors and only using
+  the floor tiles as ornaments, that's how we wanna do it on all other templates too"*. A cave, a temple, a
+  town plaza or a snowy wood lays this tile and writes the material's colour on it as per-cell STATE, which
+  leaves the textured tiles (cave floor, moss, stone) for ornaments.
+
+  Built exactly like `meadow`: the ascii picture is a sparse white glyph (`⸪`, baked by priv/tilegen) that the
+  cell's colour tints, and the emoji picture is the same flat white square. Its own label because a cave floor
+  is not a meadow, and the label is what names it in the editor.
+
+  Height 0.0, level with the live terrain it stands in for. Idempotent upsert by [tileset_id, label]. Called by
+  seed/0 and by the migration that adds it to an existing DB, runnable standalone.
+
+  This doc was STRANDED above `seed_growth` (two `@doc` blocks back to back, the second winning and the first
+  warning "redefining @doc attribute"), so it documented nothing and the compiler said so on every build. It
+  belongs here, on the function it describes. The warning predates this session: HEAD carries it too.
+  """
   def seed_floor do
     ascii_id = ensure_tileset("ascii", "ASCII").id
     emoji_id = ensure_tileset("emoji", "Emoji").id
@@ -1474,6 +1496,23 @@ defmodule Nebulith.Catalog.TileSource do
   ascii twin is IMAGE-BACKED too (`/tiles/ascii/water.png`, baked from its `~` glyph) — MAP-MODEL §8 forbids
   `image_url: nil` + a raw glyph, and an image-less tile misses the renderer's cube-sprite cache entirely.
   Idempotent upsert by [tileset_id, label]. Runnable standalone.
+
+  ## Why the height is 0.5 and not 1.0
+
+  Alexander, 2026-09-12, on his Image #50: *"the water level should be below the river channel border"*.
+
+  It was 1.0, and the doc here used to justify that as "a raised block like the land it sits beside". That was
+  the bug. The iso render lifts one ELEVATION level by `cellSize * isoScale * 0.4` but draws one BLOCK of tile
+  height as `cellSize * isoScale * 0.639` (`tileW * ISO_BLOCK_H_FRAC`). They are different units. So a channel
+  cut one level down (−0.4) carrying a height-1.0 surface (+0.639) put the water 0.239 ABOVE the walking floor:
+  the river stood proud of its own bank, which is what his screenshot shows.
+
+  The surface sits below the rim only while `0.639 * height < 0.4`, i.e. height < 0.626. 0.5 rises 0.32 and
+  leaves the water 0.08 below the bank, keeping a visible side face, which his Image #52 needs, since the rule
+  there is *"top is one color and bottom is another color"* and a height-0 tile has no bottom to colour.
+
+  This is the ONE place the number lives: `@height_authority` is emoji, so `normalize_tile_heights/0` copies
+  the emoji row's height onto ascii, and a single value keeps both styles honest.
   """
   def seed_water_color do
     ascii_id = ensure_tileset("ascii", "ASCII").id
@@ -1486,10 +1525,16 @@ defmodule Nebulith.Catalog.TileSource do
         emoji: "🟦",
         color_role: nil,
         blocking: false,
-        height: 1.0,
+        # A SURFACE, not a block. See the moduledoc above: one elevation level drops 0.4 and one block of tile
+        # height rises 0.639, so 1.0 in a 1-deep channel floated the water 0.239 above its own bank.
+        height: 0.5,
         category: "terrain",
         title: "Water",
-        image_url: "/tiles/emoji/baked/water.png",
+        # Its OWN picture, drawn art baked from `tiles.json`. This used to write `/tiles/emoji/baked/water.png`
+        # on every seed, which was an 854 byte BLANK: tintedImage multiplies the sprite by the tint, so a white
+        # picture rendered as a flat block of colour. It also fought `point_tiles_at_own_image/0`, which repoints
+        # a tile at its own image and was overwritten again by the next seed.
+        image_url: "/tiles/emoji/water.png",
         settings: %{"color" => @water_color} |> merge_behavior("water")
       })
 
@@ -1500,7 +1545,9 @@ defmodule Nebulith.Catalog.TileSource do
         glyph: "~",
         color_role: nil,
         blocking: false,
-        height: 1.0,
+        # Kept equal to the emoji row on purpose: height is a fact about the LABEL, not the picture, and
+        # `normalize_tile_heights/0` would overwrite a disagreement here from the emoji authority anyway.
+        height: 0.5,
         category: "terrain",
         title: "Water",
         image_url: "/tiles/ascii/water.png",
@@ -1515,6 +1562,180 @@ defmodule Nebulith.Catalog.TileSource do
 
     IO.puts("seeded color-only water ground tile (ascii + emoji)")
     :ok
+  end
+
+  @doc """
+  THE WATER LOOK: frame pictures for the three bands, and a foam SHORELINE family.
+
+  Alexander, 2026-09-12: *"fix the water look, it has to be more water realistic, look for isometric water and
+  copy it, you usually need border and animation"*.
+
+  Two halves, both data:
+
+    * ANIMATION. Each band carries `frames` (`<label>.png`, `_f1`, `_f2`) and `frameMs`, the same shape the 67
+      animated unit tiles already use, built by `frame_images/4` so a frame with no baked picture is dropped
+      rather than served as a broken path. The frontend plays it through `spriteFrame`, the playback that used
+      to be stubbed.
+    * BORDER. `shore_*`, the 8 edge and corner pieces, named the way `canopy_*` and `wall_stone_*` already are.
+      NOT `water_*`: `water_c` is the fountain's water and colliding with it would silently repoint a live
+      tile. There is no `_c` piece because the centre of water is the water tile itself.
+
+  Height 0 and non-blocking: a shore piece is a flat overlay on the LAND side of the bank, and what blocks is
+  decided by collision, never by a picture.
+  """
+  @water_frame_ms 1200
+  # ONLY `water`. This was `~w(water water_shallow water_deep)`, which baked and seeded frame pictures for all
+  # three bands, and a generated floor never draws two of them. A floor resolves its art through `groundKind`,
+  # which collapses every water label to the kind `water`, so `water_shallow`/`water_deep` rows supply the
+  # LABEL and the walkability and nothing visual at all. Animating them was art nobody could ever see.
+  @water_bands ~w(water)
+  # THE SPLASH a unit leaves standing in floor-level water. Alexander, 2026-09-12: *"add interaction with floor
+  # level water, we must the effect of units walking on top"*. It rides the same frame rails as the bands: the
+  # renderer derives it from where a unit IS, so nothing about it is stamped into a saved map.
+  @water_effects ~w(decor_ripple)
+
+  def seed_water_look do
+    static = Path.join(:code.priv_dir(:nebulith), "static")
+    ascii_id = ensure_tileset("ascii", "ASCII").id
+    emoji_id = ensure_tileset("emoji", "Emoji").id
+
+    seed_shore_pieces(ascii_id, emoji_id)
+
+    framed =
+      for {key, tileset_id} <- [{"ascii", ascii_id}, {"emoji", emoji_id}], label <- @water_bands ++ @water_effects do
+        frames = frame_images(key, label, [nil, nil, nil], static)
+        # Only when there is more than one picture to swap between: a single frame is a still, and writing one
+        # would claim an animation that cannot play.
+        if length(frames) > 1 do
+          # EVERY FRAME IS A TILE. `frames` carries picture PATHS, but the animation's `tileId` is resolved by
+          # looking the LABEL up in that style's catalog, so a frame label with no row resolves to nothing and
+          # the loop silently plays its base picture forever. Seeding the rows is what makes the animation real.
+          seed_frame_rows(tileset_id, key, label, length(frames))
+          # The frame LABELS, in the same order as the pictures: frame 0 is the label itself, then _f1, _f2.
+          labels = Enum.map(0..(length(frames) - 1), fn 0 -> label; i -> "#{label}_f#{i}" end)
+          Catalog.put_tile_setting(tileset_id, label, "frames", frames)
+          Catalog.put_tile_setting(tileset_id, label, "frameMs", @water_frame_ms)
+          # TWO envelopes, because the engine resolves the two kinds through different paths and one cannot
+          # carry the other: the SPRITE loop swaps the frame pictures (the current), while the SETTINGS track
+          # holds the surface translucent. `resolveAssetAnimation` returns null when only a sprite is in scope
+          # (its own comment says so), so the opacity has to be its own settings-kind animation.
+          Catalog.put_tile_setting(tileset_id, label, "animations", [
+            water_ripple(key, labels),
+            water_translucence()
+          ])
+          {key, label, length(frames)}
+        end
+      end
+      |> Enum.reject(&is_nil/1)
+
+    IO.puts("water look: #{length(framed)} animated water tile(s), 8 shore pieces per style")
+    :ok
+  end
+
+  # One row per FRAME picture, copied from the base tile so the two styles agree on everything but the picture
+  # (the `normalize_label_facts` rule). A frame tile is never placed by hand: it exists so a `tileId` resolves.
+  #
+  # IT RAISES when the base row is missing, and that is the point. This used to carry a `base != nil` guard in
+  # the comprehension, which turned a missing row into SILENCE: `decor_ripple` exists in ascii from
+  # `seed_decor_tiles` but its emoji twin is seeded by a different list, so on a fresh seed the emoji base was
+  # absent here and only ascii got `_f1`/`_f2`. The catalog came out with 373 ascii and 371 emoji rows, and the
+  # two 1:1-vocabulary tests are what noticed, not this code. A frame set has to be symmetric across styles or
+  # it is a bug, so the failure belongs at the seam that creates it.
+  defp seed_frame_rows(tileset_id, style, base_label, count) do
+    base =
+      Repo.get_by(Tile, tileset_id: tileset_id, label: base_label) ||
+        raise "seed_frame_rows: no `#{base_label}` row in #{style} to copy frames from. " <>
+                "Every style must own the label BEFORE its frames are seeded, or the vocabularies diverge."
+
+    for i <- 1..(count - 1) do
+      label = "#{base_label}_f#{i}"
+
+      {:ok, _} =
+        Catalog.upsert_tile(%{
+          tileset_id: tileset_id,
+          label: label,
+          glyph: base.glyph,
+          emoji: base.emoji,
+          color_role: base.color_role,
+          blocking: base.blocking,
+          height: base.height,
+          category: base.category,
+          title: "#{base.title || base_label} frame #{i}",
+          image_url: "/tiles/#{style}/#{label}.png",
+          settings: Map.take(base.settings || %{}, ["color", "colors"])
+        })
+    end
+  end
+
+  # WATER IS NOT SOLID. Alexander, 2026-09-12: *"in general water is kind of like a semi transparent tile too,
+  # is not solid"*, with his two reference images.
+  #
+  # Authored as a SETTINGS animation carrying a FLAT `opacity` track rather than as a new tile setting, because
+  # that is the one alpha the renderer already applies unconditionally: every view multiplies by
+  # `resolveAssetAnimation(...).opacity`. A plain `settings.opacity` would be read by NOTHING. The only reader
+  # of a tile's render behaviour is `tileRenderBehavior`, which forwards fadeNear/cutawayRoof/minAlpha/display/
+  # collision and nothing else, and the draw consults those solely while a hero is nearby. Checked before
+  # writing this, because seeding a setting no reader consumes is exactly the mistake that made the first pass
+  # at this animation play nothing at all.
+  #
+  # `from` equals `to` on purpose: a CONSTANT, not a fade. The interpolator returns the same value at every t.
+  #
+  # 0.8 is a starting point for his :3000 verdict, not a derived number. He asked for "semi transparent" and
+  # did not say how much, so this is the one value here that is a proposal rather than a measurement.
+  defp water_translucence do
+    %{
+      "id" => "water_translucence",
+      "name" => "translucence",
+      "kind" => "settings",
+      "durationMs" => @water_frame_ms,
+      "loop" => true,
+      "priority" => 0,
+      "trigger" => %{"on" => "load"},
+      "tracks" => [%{"setting" => "opacity", "from" => 0.8, "to" => 0.8}]
+    }
+  end
+
+  # The ambient loop itself, as the engine's own sprite envelope: a tile carries its animation as DATA, so the
+  # renderer plays what the backend authored instead of a hardcoded cycle.
+  defp water_ripple(style, labels) do
+    %{
+      "id" => "water_ripple",
+      "name" => "ripple",
+      "kind" => "sprite",
+      "durationMs" => @water_frame_ms,
+      "loop" => true,
+      "trigger" => %{"on" => "load"},
+      # STYLE-QUALIFIED LABELS, not paths. `settings.frames` carries picture PATHS (the shape the 67 animated
+      # unit tiles use), but a sprite frame's `tileId` is resolved by `visualForTileId`, which splits on ":"
+      # and looks the label up in that style's catalog. Handing it a path would resolve to nothing and the
+      # ripple would never play, which is exactly the kind of served-and-ignored data this codebase keeps
+      # finding.
+      "frames" => Enum.map(labels, fn label -> %{"tileId" => "#{style}:#{label}"} end)
+    }
+  end
+
+  defp seed_shore_pieces(ascii_id, emoji_id) do
+    for %{label: label} = piece <- rim_or_wall_pieces("shore", "░", "#eaf8ff", "terrain"),
+        {tileset_id, style} <- [{ascii_id, "ascii"}, {emoji_id, "emoji"}] do
+      {:ok, _} =
+        Catalog.upsert_tile(%{
+          tileset_id: tileset_id,
+          label: label,
+          glyph: piece.glyph,
+          emoji: piece.emoji,
+          color_role: nil,
+          blocking: false,
+          height: 0.0,
+          category: "terrain",
+          title: shore_title(label),
+          image_url: "/tiles/#{style}/#{label}.png",
+          settings: %{"color" => piece.color}
+        })
+    end
+  end
+
+  defp shore_title(label) do
+    "Shore " <> (label |> String.replace_prefix("shore_", "") |> String.upcase())
   end
 
   defp seed_emoji_tiles(emoji, tileset_id) do
