@@ -396,6 +396,55 @@ defmodule Nebulith.Catalog.GeneratorSource do
     }
   ]
 
+  # THE MOUNTAIN'S SUB-ZONES, and the first regions that stand at DIFFERENT HEIGHTS. Alexander, 2026-09-11:
+  # *"mountain forest is not a real mountain forest, I mean it doesn't even have mountain nor relieve sections,
+  # when we can construct them withn cells easily... it doesn't have cliff, nor anything, it's basically just a
+  # meadow"*, and 2026-09-12: *"we need to have support for different levels of terrain, relieve in spanish"*.
+  #
+  # `level` is what makes this a mountain instead of a colour change: the cells of a region stand at that level
+  # and the step down to the next region is drawn as a cliff face. A ridge at 3 over a slope at 1 is a two-level
+  # wall, the slope down to the vale is one. Nothing else in the catalog states a level, so nothing else moves.
+  #
+  # NO "stone" here on purpose: in this pipeline stone means RUINS (a platform with columns on it), which is a
+  # jungle thing. A bare ridge is bare.
+  @mountain_sub_zones [
+    %{
+      "key" => "ridge",
+      "name" => "Exposed ridge",
+      "weight" => 2,
+      "level" => 3,
+      # the treeline: almost nothing grows up here, which is why the rock reads as rock
+      "canopy" => 0.14,
+      "undergrowth" => 0.25,
+      "floor" => "#8a8d76",
+      "formation" => %{"lattice" => 3, "spacing" => 4, "understory" => 0.2},
+      "trees" => [%{"kind" => "tree_stub", "weight" => 55}, %{"kind" => "tree_conifer", "weight" => 45}]
+    },
+    %{
+      "key" => "slope",
+      "name" => "Wooded slope",
+      "weight" => 3,
+      "level" => 1,
+      "canopy" => 0.32,
+      "undergrowth" => 0.5,
+      "floor" => "#5f7047",
+      "formation" => %{"lattice" => 10, "spacing" => 0, "understory" => 0.6},
+      "trees" => [%{"kind" => "tree_conifer", "weight" => 65}, %{"kind" => "tree_tall", "weight" => 20}, %{"kind" => "tree_stub", "weight" => 15}]
+    },
+    %{
+      "key" => "vale",
+      "name" => "Sheltered vale",
+      "weight" => 2,
+      "level" => 0,
+      # the bottom is where the water and the soil end up, so it is the thickest part of the map
+      "canopy" => 0.45,
+      "undergrowth" => 0.8,
+      "floor" => "#47603a",
+      "formation" => %{"lattice" => 7, "spacing" => 0, "understory" => 1.1},
+      "trees" => [%{"kind" => "tree_conifer", "weight" => 45}, %{"kind" => "tree_tall", "weight" => 25}, %{"kind" => "tree_broadleaf", "weight" => 20}, %{"kind" => "tree_sapling", "weight" => 10}]
+    }
+  ]
+
   @jungle_sub_zones [
     %{
       "key" => "open",
@@ -560,9 +609,11 @@ defmodule Nebulith.Catalog.GeneratorSource do
       %{
         category: "forest", parent: "forest_woodland", key: "forest_woodland_mountain", name: "Mountain forest",
         layout: "woodland", position: 2,
-        description: "Conifers in patches over open hillside.",
+        description: "Conifers over a hillside that actually climbs: ridges, slopes and sheltered vales.",
         config: %{"formation" => @formations["clumped"], "nature" => %{"canopy" => 0.28},
-                  "trees" => [%{"kind" => "tree_conifer", "weight" => 70}, %{"kind" => "tree_tall", "weight" => 15}, %{"kind" => "tree_stub", "weight" => 15}]}
+                  "subZones" => sub_zones(@mountain_sub_zones, %{"ridge" => 2, "slope" => 3, "vale" => 2}),
+                  "trees" => [%{"kind" => "tree_conifer", "weight" => 70}, %{"kind" => "tree_tall", "weight" => 15}, %{"kind" => "tree_stub", "weight" => 15}]},
+        options: @way_options ++ region_options(@mountain_sub_zones, ~w(ridge slope vale)) ++ @water_options
       },
       # image #12 again — woodland broken by open meadow sections
       %{

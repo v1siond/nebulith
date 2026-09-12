@@ -79,7 +79,9 @@ defmodule Nebulith.GeneratorSourceTest do
       assert length(layouts) == 3
 
       for g <- cats["forest"].generators do
-        # A jungle also offers its REGION picker, since it is the one kind split into regions.
+        # This walks the three PARENT rows only. A jungle offers its region picker there; the woodland and
+        # meadow parents do not, because the woodland rows that have regions are its CHILDREN (glades, and the
+        # mountain forest), and each of those states its own options.
         expected =
           if g.key == "forest_jungle",
             do: ~w(exits pathways region river crossing depth bridge),
@@ -589,6 +591,33 @@ defmodule Nebulith.GeneratorSourceTest do
       weights = Map.new(swamp.config["subZones"], &{&1["key"], &1["weight"]})
       assert weights["swamp"] > weights["dense"] and weights["dense"] > weights["open"]
       refute Map.has_key?(weights, "ruins")
+    end
+
+    test "a mountain forest is built at THREE LEVELS, which is what makes it a mountain", %{forest: f} do
+      # Alexander, 2026-09-11: *"mountain forest is not a real mountain forest, I mean it doesn't even have
+      # mountain nor relieve sections, when we can construct them withn cells easily... it doesn't have cliff,
+      # nor anything, it's basically just a meadow"*. It was a meadow because every cell stood at 0.
+      woodland = Enum.find(f.generators, &(&1.key == "forest_woodland"))
+      mountain = Enum.find(woodland.children, &(&1.key == "forest_woodland_mountain"))
+      levels = Map.new(mountain.config["subZones"], &{&1["key"], &1["level"]})
+
+      assert levels == %{"ridge" => 3, "slope" => 1, "vale" => 0}
+      # Three DISTINCT levels, or the regions are just three colours of flat ground.
+      assert length(Enum.uniq(Map.values(levels))) == 3
+      # The ridge is bare and the vale is thick, which is the other half of reading as a mountain.
+      canopies = Map.new(mountain.config["subZones"], &{&1["key"], &1["canopy"]})
+      assert canopies["vale"] > canopies["slope"] and canopies["slope"] > canopies["ridge"]
+      # A ridge is bare rock, NOT a ruin: stone means a platform with columns in this pipeline.
+      refute Enum.any?(mountain.config["subZones"], &Map.has_key?(&1, "stone"))
+    end
+
+    test "no OTHER template states a level, so relief turns up only where it was asked for", %{forest: f} do
+      levelled =
+        for type <- f.generators, child <- [type | type.children], z <- child.config["subZones"] || [],
+            z["level"] not in [nil, 0],
+            do: child.key
+
+      assert Enum.uniq(levelled) == ["forest_woodland_mountain"]
     end
 
     test "deleting a type takes its subtypes with it" do
