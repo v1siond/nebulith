@@ -337,12 +337,12 @@ defmodule Nebulith.GeneratorSourceTest do
                "mix" => [
                  %{"type" => "store", "count" => [1, 1]},
                  %{"type" => "hospital", "count" => [1, 1]},
-                 %{"type" => "house", "count" => [1, 3]},
                  %{"type" => "temple", "count" => [1, 1]},
                  %{"type" => "church", "count" => [1, 1]},
                  %{"type" => "stable", "count" => [1, 2]},
                  %{"type" => "barn", "count" => [1, 2]},
-                 %{"type" => "smithy", "count" => [1, 1]}
+                 %{"type" => "smithy", "count" => [1, 1]},
+                 %{"type" => "house", "count" => [1, 3]}
                ],
                "streets" => "path_stone"
              }

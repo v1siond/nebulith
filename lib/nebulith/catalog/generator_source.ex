@@ -736,8 +736,8 @@ defmodule Nebulith.Catalog.GeneratorSource do
         config: %{
           "grid" => @city_grid,
           "settlement" => settlement(plaza: 7, lot_gap: [1, 1], max_per_frontage: 99, cap: 72,
-                                     houses: [7, 11], nature_mult: 0.5,
-                                     mix: [{"temple", 1, 1}, {"house", 2, 2}, {"tower", 3, 5}, {"apartment", 4, 7}, {"office", 2, 4}],
+                                     houses: [7, 11], demanded_houses: {3, 5}, nature_mult: 0.5,
+                                     mix: [{"temple", 1, 1}, {"tower", 3, 5}, {"apartment", 4, 7}, {"office", 2, 4}],
                                      streets: "road"),
           "nature" => @outdoor_nature,
           "units" => townsfolk(14),
@@ -969,7 +969,7 @@ defmodule Nebulith.Catalog.GeneratorSource do
       # seven is a wide house.
       "houseWidths" => [3, 3, 4, 4, 4, 5, 6],
       "natureMultiplier" => Keyword.fetch!(opts, :nature_mult),
-      "mix" => mix(Keyword.fetch!(opts, :mix)),
+      "mix" => mix(Keyword.fetch!(opts, :mix), Keyword.get(opts, :demanded_houses, {1, 3})),
       # WHAT THIS PLACE PAVES ITS STREETS WITH. Alexander, 2026-09-11: *"a town doesn't have roads, it has
       # pathways of stone, cities do have pathways a skycraoppers"*.
       #
@@ -993,7 +993,7 @@ defmodule Nebulith.Catalog.GeneratorSource do
   # Store and hospital are not in the lists because every settlement has them: that pair is the guaranteed civic
   # minimum and it was already true before this. Houses are not here either, they are counted by `houseRange`
   # above, and a wide house is now just a house with a bigger footprint. What a row names makes it ITSELF.
-  defp mix(entries) do
+  defp mix(entries, demanded_houses \\ {1, 3}) do
     # ONE ENTRY PER TYPE. A row that names a type the essentials already carry (a beach town wanting more than
     # one store) used to emit it twice, which reads as a mistake in the served data and makes the count hard to
     # see. The counts ADD instead, so the list says what it means: a seafront asks for two or three stores.
@@ -1002,7 +1002,13 @@ defmodule Nebulith.Catalog.GeneratorSource do
     # row test caught. `houseRange` looked like the place to put that count back and it was not: only
     # `buildingMix` reads it and nothing calls `buildingMix`. The mix is what `placePlots` demands from, so the
     # count lives here, beside the other two things every settlement has.
-    [{"store", 1, 1}, {"hospital", 1, 1}, {"house", 1, 3} | entries]
+    #
+    # LAST, exactly where the `big-house` entry used to sit. Each entry costs one rng draw, so any other
+    # position shifts every later draw and moves generated maps for no reason: measured, house-third moved one
+    # of the three locked settlement digests, house-last leaves all seven byte-identical.
+    {house_lo, house_hi} = demanded_houses
+
+    ([{"store", 1, 1}, {"hospital", 1, 1} | entries] ++ [{"house", house_lo, house_hi}])
     |> Enum.reduce([], fn {type, lo, hi}, acc ->
       case Enum.find_index(acc, fn {t, _, _} -> t == type end) do
         nil -> acc ++ [{type, lo, hi}]
