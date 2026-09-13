@@ -1513,6 +1513,25 @@ export function drawGridSkirt(
     ctx.fill()
   }
 
+  /** The two BACK faces, rising from this cell's top up to a taller neighbour behind it. `col` is the -col
+   *  boundary (the L to T edge), `row` the -row one (T to R). The mirror of `wall`, which drops from the
+   *  two front faces; together they close a step from either side. */
+  const backWall = (p: { x: number; y: number }, side: 'col' | 'row', color: string, rise: number): void => {
+    if (rise <= 0) return
+    const l = { x: p.x - tileW, y: p.y }
+    const t = { x: p.x, y: p.y - tileH }
+    const r = { x: p.x + tileW, y: p.y }
+    const [from, to] = side === 'col' ? [l, t] : [t, r]
+    ctx.fillStyle = color
+    ctx.beginPath()
+    ctx.moveTo(from.x, from.y)
+    ctx.lineTo(to.x, to.y)
+    ctx.lineTo(to.x, to.y - rise)
+    ctx.lineTo(from.x, from.y - rise)
+    ctx.closePath()
+    ctx.fill()
+  }
+
   for (let row = r0; row <= r1; row++) {
     for (let col = c0; col <= c1; col++) {
       const floor = grid.floorAt(col, row)
@@ -1550,6 +1569,35 @@ export function drawGridSkirt(
       if (cliffRight > 0) wall(top, 'right', body, cliffRight * heightStep)
       if (openLeft) wall(top, 'left', body, slabDrop)
       if (openRight) wall(top, 'right', body, slabDrop)
+
+      // THE FAR SIDE OF A TRENCH. Alexander, 2026-09-13, on a dug river: *"dio you see those dark blue
+      // sections?? I want them OUT, removed, they make no sense"*.
+      //
+      // They are not a colour and not a tile: they are the CANVAS. `#1a1a2e` is what `render` clears with,
+      // and it was showing through the map. Measured on a woodland with a two-block channel: 124,260 clear
+      // pixels INSIDE the drawn map, and 173 dug cells every one of which is water, so the data was right
+      // and nothing was drawing the hole shut.
+      //
+      // The cliffs above only face +col and +row, the two sides the camera sees on a cell that stands ABOVE
+      // its neighbour. A trench is the opposite case: you are looking INTO it, and the wall you see is the
+      // FAR bank's back face, on -col and -row. Nothing ever drew those, because on a flat map they are
+      // hidden by the neighbour itself and it costs nothing to skip them. Dig a channel and they are the
+      // only thing between you and the background.
+      //
+      // The wall wears the colour of the bank it belongs to, read from that neighbour's own floor, never
+      // shaded here: a bank with no colour draws nothing rather than inventing one.
+      const backWallTo = (dc: number, dr: number, side: 'col' | 'row'): void => {
+        const nCol = col + dc
+        const nRow = row + dr
+        if (nCol < 0 || nRow < 0 || nCol >= grid.cols || nRow >= grid.rows) return
+        const rise = grid.getHeight(nCol, nRow) - here
+        if (rise <= 0) return
+        const bankBody = grid.floorAt(nCol, nRow)?.sideColor
+        if (!bankBody) return
+        backWall(top, side, bankBody, rise * heightStep)
+      }
+      backWallTo(-1, 0, 'col')
+      backWallTo(0, -1, 'row')
     }
   }
 }
