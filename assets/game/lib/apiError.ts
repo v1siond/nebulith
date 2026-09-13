@@ -52,16 +52,44 @@ export async function apiFailure(response: Response, fallback: string): Promise<
   return new ApiError(served ?? fallback, response.status, response.statusText)
 }
 
-/** The API's own `error` string, or null when the body is empty, not JSON, or shaped differently. */
+/**
+ * The server's own message, or null when the body carries none.
+ *
+ * TWO SHAPES, because the backend only ever sends one of them and this only ever read the other. Phoenix
+ * renders every failure through `ChangesetJSON`/`ErrorJSON` as `errors` (PLURAL, an object), measured live:
+ *
+ *     POST /api/templates (blank name)   422  {"errors":{"name":["can't be blank"]}}
+ *     GET  /api/templates/does-not-exist 404  {"errors":{"detail":"Not Found"}}
+ *
+ * and a grep for a singular `"error"` key across `lib/nebulith_web/` finds none. So this returned null for
+ * EVERY real backend failure and the caller's generic sentence was all anyone ever saw: a blank name, a bad
+ * size, a conflict and a dead database all read "This map could not be saved". The `error` branch stays,
+ * harmlessly, for anything that does speak it.
+ */
 async function serverMessage(response: Response): Promise<string | null> {
   try {
     const body: unknown = await response.json()
-    if (body && typeof body === 'object' && 'error' in body) {
-      const served = (body as { error: unknown }).error
-      if (typeof served === 'string' && served.length > 0) return served
-    }
-    return null
+    if (!body || typeof body !== 'object') return null
+
+    const single = (body as { error?: unknown }).error
+    if (typeof single === 'string' && single.length > 0) return single
+
+    return flattenErrors((body as { errors?: unknown }).errors)
   } catch {
     return null
   }
+}
+
+/** `{name: ["can't be blank"]}` becomes `name: can't be blank`; `{detail: "Not Found"}` becomes `Not Found`.
+ *  A bare `detail` is the server's own sentence, so it is passed through without a field prefix. */
+function flattenErrors(errors: unknown): string | null {
+  if (!errors || typeof errors !== 'object') return null
+  const parts: string[] = []
+  for (const [field, value] of Object.entries(errors as Record<string, unknown>)) {
+    const messages = Array.isArray(value) ? value : [value]
+    const text = messages.filter((m): m is string => typeof m === 'string' && m.length > 0).join(', ')
+    if (!text) continue
+    parts.push(field === 'detail' ? text : `${field}: ${text}`)
+  }
+  return parts.length > 0 ? parts.join('; ') : null
 }
