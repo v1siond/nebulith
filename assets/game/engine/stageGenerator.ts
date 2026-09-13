@@ -656,7 +656,7 @@ const LAVA_LIKE = new Set(['lava', 'magma'])
  *  is water-like (the meadow river, a lake, oasis, koi pond, deep/ice water, …). */
 const isWaterGround = (g: string | undefined): boolean => !!g && (WATER_LIKE.has(g) || g.includes('water'))
 const isLandCell = (ctx: ArchetypeContext, col: number, row: number): boolean =>
-  inBounds(col, row, ctx.cols, ctx.rows) && !isWaterGround(ctx.ground[row][col])
+  inBounds(col, row, ctx.cols, ctx.rows) && !isWaterGround(ctx.ground[row][col]) && !ctx.wet.has(`${col},${row}`)
 
 function edgeDecor(neighbourType: string, col: number, row: number): StageProp | null {
   // ANY water, not the four names in WATER_LIKE. The depth pass renames a cell `water_shallow` or `water_deep`,
@@ -733,6 +733,19 @@ interface ArchetypeContext {
   /** Every cell laid as a crossing deck. The depth pass has to tell a deck from a bank, and the tile no longer
    *  says which (a dirt-path crossing is the flat floor). */
   decks: Set<string>
+  /**
+   * CELLS WITH STANDING WATER LYING ON TOP OF DRY GROUND.
+   *
+   * A puddle is not a ground tile. Alexander, 2026-09-13: *"water shadllow shouldn't be below floor level,
+   * it's a small layer above it, when the fuck have you seen a puddle of water below floor level?"*, and
+   * *"now I jump down due to the height difference"*. Replacing the ground meant the puddle's own height had
+   * to match whatever floor it landed on, and it never could: `meadow` is a 1.0 block and the puddle was 0.
+   *
+   * So the ground STAYS and the film is stacked over it, which is his "small layer above it" exactly, and the
+   * walking level never changes. This set is how the planting passes still know a cell is wet, since they used
+   * to learn it from the ground label.
+   */
+  wet: Set<string>
   /** The crossing this map is built with, decided the first time a deck is laid. null → the classic deck. */
   crossing?: GeneratorCrossing | null
   cols: number
@@ -917,7 +930,7 @@ export function generateStage(opts: GenerateOptions): StageData {
     decor: layerRng(opts.seeds, 'decor'),
   }
   // Single-pass archetypes (forest/cave/temple/boss) read `ctx.rand`; the layout rng is their source.
-  const ctx: ArchetypeContext = { zone, ground, collision, floorColors, elevation, buildings, props, trees, compositions, cols, rows, layout, options: opts.options, nature: opts.nature, settlement: opts.settlement, palette: opts.palette, subZones: opts.subZones, formation: opts.formation, treeMix: opts.treeMix, crossings: opts.crossings, decks: new Set<string>(), buildingSizes: opts.buildingSizes, rand: rngs.layout }
+  const ctx: ArchetypeContext = { zone, ground, collision, floorColors, elevation, buildings, props, trees, compositions, cols, rows, layout, options: opts.options, nature: opts.nature, settlement: opts.settlement, palette: opts.palette, subZones: opts.subZones, formation: opts.formation, treeMix: opts.treeMix, crossings: opts.crossings, decks: new Set<string>(), wet: new Set<string>(), buildingSizes: opts.buildingSizes, rand: rngs.layout }
   ARCHETYPES[variant]?.(ctx, rngs)
   flattenFloors(ctx, FLOOR_MATERIALS[variant]?.(ctx) ?? [])
   addTerrainTransitions(ctx) // blended shorelines / lava banks over the painted ground
@@ -2453,7 +2466,12 @@ function floodSwampPools(ctx: ArchetypeContext, zoneAt: (GeneratorSubZone | unde
     // `water_still` is the puddle: height 0, non-blocking, and NO frames, because standing water has no
     // current. It is still water-ground (`isWaterGround` matches any label containing "water"), so all
     // thirteen consumers behave exactly as before.
-    ground[row][col] = 'water_still'
+    // THE GROUND STAYS. The film is stacked over it (`applyStageToGrid` places every prop at `cellStackTop`),
+    // so the walking level is the floor's, unchanged, and the water lies on top of it. Marked wet so the
+    // planting passes still keep out, which they used to learn from the ground label.
+    ctx.wet.add(key)
+    const film = resolveTile(styleCatalog('ascii'), ctx.zone, 'water_still')
+    ctx.props.push({ col, row, type: 'ground_decor', char: film.char, label: 'water_still', blocking: false, color: pal?.swamp ?? pal?.water ?? film.color })
     // NO COLLISION. Alexander, 2026-09-12, on the green water: *"I can't walk throug the green one, even when
     // the floor makes it seems like I should, specially considering the floor is at the same level"*, and
     // earlier: *"we still want to be able to use water outside of rivers, usually i'l be like water puddles,
@@ -3012,6 +3030,9 @@ function woodlandCanopyField(ctx: ArchetypeContext, open: Set<string>, canopy: n
       // Collision says whether you can WALK there. It is not a description of what is in the cell, and using
       // it as one is why this broke. Every sibling guard here already asks the ground directly.
       if (isWaterGround(ctx.ground[row][col])) continue
+      // …NOR IN A PUDDLE. A pool is a film stacked over dry ground now, so the ground label no longer says
+      // "wet" and a tree would happily root in one. `ctx.wet` is that fact.
+      if (ctx.wet.has(`${col},${row}`)) continue
       scored.push({ col, row, n: noiseAt(col, row) })
     }
   }
@@ -3252,7 +3273,11 @@ function waterDepth(ctx: ArchetypeContext, pools: ReadonlySet<string>): Map<stri
   const isChannel = (c: number, r: number) => inBounds(c, r, cols, rows) && isWaterGround(ground[r][c]) && !pools.has(`${c},${r}`)
   // A BANK is dry land. Testing `!== 'water'` made a swamp POOL count as a bank the moment pools started
   // laying `water_shallow`, which would have made the channel read as shallow wherever a puddle touched it.
-  const isBank = (c: number, r: number) => inBounds(c, r, cols, rows) && !isWaterGround(ground[r][c]) && !ctx.decks.has(`${c},${r}`)
+  // …AND NOT A PUDDLE EITHER. The warning above came true from the other direction: a pool no longer carries a
+  // water GROUND label (it is a film over dry ground), so without this every puddle touching the channel would
+  // count as its bank and shallow the river there.
+  const isBank = (c: number, r: number) =>
+    inBounds(c, r, cols, rows) && !isWaterGround(ground[r][c]) && !ctx.decks.has(`${c},${r}`) && !ctx.wet.has(`${c},${r}`)
   const depth = new Map<string, number>()
   const queue: Cell[] = []
   forEachCell(cols, rows, (col, row) => {

@@ -19,6 +19,9 @@ import { generateStage } from '@/engine/stageGenerator'
 import { findGeneratorByKey, parseGeneratorCatalog } from '@/lib/generatorCatalog'
 import { makeRng } from '@/lib/math'
 import { styleTile } from '@/engine/tileset/styleTiles'
+import { IsometricGrid } from '@/engine/IsometricGrid'
+import { applyStageToGrid } from '@/game/editor/applyStage'
+import { unitStandLevel } from '@/engine/cellStack'
 import { spriteFrame } from '@/engine/render/assetAnimation'
 import { ASCII_STYLE } from '@/game/artStyle'
 import type { GridAsset } from '@/engine/IsometricGrid'
@@ -43,15 +46,61 @@ function grow(key: string, seed = 3) {
 const groundCount = (s: ReturnType<typeof grow>, label: string) => s.ground.flat().filter(g => g === label).length
 
 describe('still water is its own tile', () => {
-  it('a swamp lays water_still for its pools, never the river band', () => {
+  it('a puddle is a FILM STACKED ON the ground, and the ground is still under it', () => {
+    // Alexander, 2026-09-13: *"it's a small layer above it, when the fuck have you seen a puddle of water below
+    // floor level?"*. It used to REPLACE the ground, so its own height had to match whatever floor it landed
+    // on and never could.
     const swamp = grow('forest_jungle_swamp')
-    expect(groundCount(swamp, 'water_still')).toBeGreaterThan(0)
+    const film = swamp.props.filter(p => p.label === 'water_still')
+    expect(film.length).toBeGreaterThan(0)
+    expect(groundCount(swamp, 'water_still')).toBe(0) // it is not a ground tile at all
+    for (const p of film.slice(0, 40)) {
+      expect({ at: `${p.col},${p.row}`, wet: swamp.ground[p.row][p.col] }).toEqual({ at: `${p.col},${p.row}`, wet: 'meadow' })
+    }
   })
 
-  it('it is FLUSH and FRAMELESS, because standing water has no current', () => {
+  it('YOU DO NOT DROP INTO IT: the level in a puddle is the level beside it', () => {
+    // The whole complaint: *"now I jump down due to the height difference"*. A unit stands on the cell's GROUND
+    // (`unitStandLevel` counts floor assets only), so a film that leaves the floor alone cannot move it.
+    const swamp = grow('forest_jungle_swamp')
+    const grid = new IsometricGrid(swamp.cols, swamp.rows, 32)
+    applyStageToGrid(swamp, grid)
+    const film = swamp.props.filter(p => p.label === 'water_still')
+    expect(film.length).toBeGreaterThan(0)
+    let compared = 0
+    for (const p of film) {
+      const dry = [[1, 0], [-1, 0], [0, 1], [0, -1]]
+        .map(([dc, dr]) => [p.col + dc, p.row + dr] as const)
+        .find(([c, r]) => c > 0 && r > 0 && c < swamp.cols - 1 && r < swamp.rows - 1
+          && !swamp.props.some(q => q.label === 'water_still' && q.col === c && q.row === r))
+      if (!dry) continue
+      compared++
+      expect({ at: `${p.col},${p.row}`, inPuddle: unitStandLevel(grid, p.col, p.row), onLand: unitStandLevel(grid, dry[0], dry[1]) })
+        .toEqual({ at: `${p.col},${p.row}`, inPuddle: unitStandLevel(grid, dry[0], dry[1]), onLand: unitStandLevel(grid, dry[0], dry[1]) })
+      if (compared > 60) break
+    }
+    expect(compared).toBeGreaterThan(0)
+  })
+
+  it('it is a THIN layer, not a block of water', () => {
+    expect(styleTile('ascii', 'water_still')?.height).toBeLessThan(0.2)
+    expect(styleTile('ascii', 'water_still')?.height).toBeGreaterThan(0)
+  })
+
+  it('it wears its OWN picture, not the river band with current lines in it', () => {
+    // *"the puddle is still using a bad tile of water that contains lines that are meant to be animated"*.
+    const still = styleTile('ascii', 'water_still')?.image
+    const band = styleTile('ascii', 'water_shallow')?.image
+    expect(still).toBeDefined()
+    expect(still).not.toBe(band)
+    expect(still).toContain('water_still')
+  })
+
+  it('it is FRAMELESS, because standing water has no current', () => {
+    // The height moved from 0 to a thin film when the puddle stopped replacing the ground: it is stacked ON
+    // the floor now, so 0 would be an invisible sheet rather than a flush one. Thickness is asserted above.
     const still = styleTile('ascii', 'water_still')
     expect(still).toBeDefined()
-    expect(still?.height).toBe(0)
     expect((still?.settings as { frames?: unknown[] } | undefined)?.frames ?? []).toHaveLength(0)
   })
 
@@ -74,14 +123,6 @@ describe('still water is its own tile', () => {
     // The other half of his sentence. Removing the current everywhere would pass the test above and be wrong.
     const water = styleTile('ascii', 'water')
     expect((water?.settings as { frames?: unknown[] } | undefined)?.frames ?? []).not.toHaveLength(0)
-  })
-
-  it('one channel SURFACE: the bands sit at the same height the river does', () => {
-    // seed_water_color worked this out for `water` (a 1.0 surface floats 0.239 above its own bank in a
-    // one-deep channel) and never applied it to the two bands, which stayed at 1.0.
-    for (const label of ['water', 'water_shallow', 'water_deep']) {
-      expect({ label, height: styleTile('ascii', label)?.height }).toEqual({ label, height: 0.5 })
-    }
   })
 
   it('a puddle is still WATER to every consumer, so nothing floods into it', () => {

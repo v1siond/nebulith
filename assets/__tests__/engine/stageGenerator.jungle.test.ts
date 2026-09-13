@@ -221,7 +221,16 @@ describe('the jungle is PARTITIONED into sub-zones — regions inside one map', 
     //
     // The intent of this case is unchanged: a regioned swamp holds MORE standing water than a region-less
     // jungle. Only the ruler was wrong, and it was wrong in the same way four places in the generator were.
-    const wet = (stage: { ground: string[][] }) => stage.ground.flat().filter(t => t.includes('water')).length
+    // WET WHEREVER IT LIVES. A pool stopped being a ground tile on 2026-09-13 and became a FILM stacked over
+    // the ground, because as a ground tile its height could never match the floor it landed on and Alexander
+    // fell into every puddle: *"now I jump down due to the height difference"*. So the channel is still in the
+    // ground and the pools are in the props, and counting only one of them measures half the water.
+    //
+    // Same lesson as the comment above, one layer further out: the intent of this case has not changed, only
+    // where the answer is kept.
+    const wet = (stage: { ground: string[][]; props: Array<{ label?: string }> }) =>
+      stage.ground.flat().filter(t => t.includes('water')).length +
+      stage.props.filter(p => p.label === 'water_still').length
     expect(wet(s)).toBeGreaterThan(wet(dry))
   })
 

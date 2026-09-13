@@ -38,6 +38,7 @@ describe("a tile's served height is what it is by default", () => {
     // is real and it is evidence for the perspective work: a non-flat ground tile is exactly the shape of
     // *"the floor is height 0, but it's showing on top of the tall grass which has height 1"*. When that lands,
     // this list should shrink to nothing or the rule should change on purpose.
+    // `water_still` is NOT here: a puddle stopped being ground and is a `props` film now.
     const KNOWN_NOT_FLAT = ['water', 'water_deep', 'water_shallow']
     const standing = ground.filter(([, t]) => resolveTileHeight(t, undefined) !== 0)
     expect(standing.map(([label]) => label).sort()).toEqual(KNOWN_NOT_FLAT)

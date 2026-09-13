@@ -2468,7 +2468,7 @@
           "glyph": "≈",
           "color_role": null,
           "blocking": false,
-          "height": 0.5,
+          "height": 1.0,
           "image_url": "/tiles/ascii/water_deep.png",
           "settings": {
             "variants": {
@@ -3892,7 +3892,7 @@
           "glyph": "~",
           "color_role": null,
           "blocking": false,
-          "height": 0.5,
+          "height": 1.0,
           "image_url": "/tiles/ascii/water_shallow.png",
           "settings": {
             "variants": {
@@ -3913,14 +3913,15 @@
         },
         "water_still": {
           "title": "Still water",
-          "category": "terrain",
+          "category": "props",
           "settings": {
             "color": null,
-            "animations": []
+            "animations": [],
+            "stackAt": 0
           },
-          "height": 0.0,
+          "height": 0.05,
           "glyph": "⌱",
-          "image_url": "/tiles/ascii/water_shallow.png",
+          "image_url": "/tiles/ascii/water_still.png",
           "blocking": false,
           "color_role": null,
           "emoji": null
@@ -22820,8 +22821,8 @@
           "glyph": null,
           "color_role": null,
           "blocking": false,
-          "height": 0.5,
-          "image_url": "/tiles/emoji/sq_blue.png",
+          "height": 1.0,
+          "image_url": "/tiles/emoji/water_deep.png",
           "settings": {
             "color": "#1144aa"
           }
@@ -23939,22 +23940,23 @@
           "glyph": null,
           "color_role": null,
           "blocking": false,
-          "height": 0.5,
-          "image_url": "/tiles/emoji/sq_blue.png",
+          "height": 1.0,
+          "image_url": "/tiles/emoji/water_shallow.png",
           "settings": {
             "color": "#4488dd"
           }
         },
         "water_still": {
           "title": "Still water",
-          "category": "terrain",
+          "category": "props",
           "settings": {
             "color": "#4488dd",
-            "animations": []
+            "animations": [],
+            "stackAt": 0
           },
-          "height": 0.0,
+          "height": 0.05,
           "glyph": null,
-          "image_url": "/tiles/emoji/water_shallow.png",
+          "image_url": "/tiles/emoji/water_still.png",
           "blocking": false,
           "color_role": null,
           "emoji": "🟦"

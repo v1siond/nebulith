@@ -290,13 +290,17 @@ describe('water by depth: wade the shallows, the rest blocks', () => {
    * through the bands and were wadeable; the pool beside them never did. Same water, two rules.
    */
   it('a swamp pool is WALKABLE and still turns blue-green, never the floor-green it used to be', () => {
+    // A POOL IS A FILM NOW, not a ground tile. It stopped replacing the ground on 2026-09-13 because its own
+    // height could never match the floor it landed on, so Alexander dropped into every one of them. The pool
+    // is therefore a prop carrying the swamp tone, sitting over ground that is left alone.
     const config = findGenerator(CATALOG, 'forest', 'jungle')!.config
     const s = grow('jungle', 'none', 7)
-    const pools = waterCells(s).filter(([c, r]) => s.floorColors[r][c] === config.palette!.swamp)
+    const pools = s.props.filter(p => p.label === 'water_still')
     expect(pools.length).toBeGreaterThan(0)
-    expect(pools.every(([c, r]) => !s.collision[r][c])).toBe(true)
-    // and it is still WET, not repainted as floor: the ground label stays water
-    expect(pools.every(([c, r]) => s.ground[r][c].includes('water'))).toBe(true)
+    expect(pools.every(p => p.color === config.palette!.swamp)).toBe(true)
+    expect(pools.every(p => !s.collision[p.row][p.col])).toBe(true)
+    // …and the GROUND under it is untouched, which is the whole point of the change.
+    expect(pools.every(p => !s.ground[p.row][p.col].includes('water'))).toBe(true)
   })
 
   /**
