@@ -2707,16 +2707,16 @@ defmodule Nebulith.Catalog.TileSource do
       # hand-tuned green tree (trunk H3.15/zoom0.6, leaf H2/zoom1.35) is the CENTER; the variants spread a
       # believable range: tall/small trunks, skinny/thick trunks, ROUND canopies (shape: circle), and trunkless
       # BUSHES (leaf only). Down from 3 cells to 2 (bush: 1) — the optimization the ticket asked for.
-      "tree" => tree_comp(%{trunk_h: 3.15, trunk_zoom: 0.6, trunk_w: 1.0, leaf_h: 2.0, leaf_zoom: 1.35}),
-      "tree_tall" => tree_comp(%{trunk_h: 4.4, trunk_zoom: 0.6, trunk_w: 0.85, leaf_h: 2.0, leaf_zoom: 1.35}),
-      "tree_stub" => tree_comp(%{trunk_h: 1.7, trunk_zoom: 0.6, trunk_w: 1.2, leaf_h: 1.0, leaf_zoom: 1.35}),
+      "tree" => tree_comp(%{trunk_h: 3.15, trunk_zoom: 0.6, trunk_w: 1.0, leaf_h: 2.0, leaf_zoom: 1.35, shape: "circle"}),
+      "tree_tall" => tree_comp(%{trunk_h: 4.4, trunk_zoom: 0.6, trunk_w: 0.85, leaf_h: 2.0, leaf_zoom: 1.35, shape: "circle"}),
+      "tree_stub" => tree_comp(%{trunk_h: 1.7, trunk_zoom: 0.6, trunk_w: 1.2, leaf_h: 1.0, leaf_zoom: 1.35, shape: "circle"}),
       "tree_round" =>
         tree_comp(%{trunk_h: 3.15, trunk_zoom: 0.6, trunk_w: 1.0, leaf_h: 2.0, leaf_zoom: 1.35, shape: "circle"}),
       # SIZE variants (Alexander #46): tree_small = a genuinely SMALL tree (short trunk + small canopy, was a
       # confusing legacy 5×3), tree_big = a LARGE tree (tall trunk + broad canopy). Both respect the trunk<leaf
       # dimension guard. Canopy WIDTH (leaf_zoom) is the main size read: 0.95 small vs 1.35 default vs 1.9 big.
-      "tree_small" => tree_comp(%{trunk_h: 1.9, trunk_zoom: 0.5, trunk_w: 1.0, leaf_h: 1.2, leaf_zoom: 0.95}),
-      "tree_big" => tree_comp(%{trunk_h: 4.2, trunk_zoom: 0.7, trunk_w: 1.0, leaf_h: 2.8, leaf_zoom: 1.9}),
+      "tree_small" => tree_comp(%{trunk_h: 1.9, trunk_zoom: 0.5, trunk_w: 1.0, leaf_h: 1.2, leaf_zoom: 0.95, shape: "circle"}),
+      "tree_big" => tree_comp(%{trunk_h: 4.2, trunk_zoom: 0.7, trunk_w: 1.0, leaf_h: 2.8, leaf_zoom: 1.9, shape: "circle"}),
       "bush" => bush_comp(%{leaf_h: 1.2, leaf_zoom: 1.35}),
       "bush_round" => bush_comp(%{leaf_h: 1.2, leaf_zoom: 1.35, shape: "circle"}),
       # MORE SPECIES, FROM THE SAME BASE. Alexander, 2026-09-11: *"we're using the same for all forest
@@ -2725,10 +2725,14 @@ defmodule Nebulith.Catalog.TileSource do
       # passes the trunk-thinner-than-leaves guard and stamps through the same two-tile path. Only `square` and
       # `circle` crowns are drawable today, so the silhouette comes from the proportions, not a new shape.
       #
+      # STILL SQUARE, and on purpose. Alexander, 2026-09-12: a canopy that is a CUBE reads wrong, so every
+      # round-crowned species above now says so. A conifer and a cypress are NOT round, they are cones, and
+      # `circle` would be just as wrong the other way. The renderer draws `square` and `circle` and nothing
+      # else, so these two keep the box until a cone exists. Filed rather than fudged.
       # conifer: a tall narrow crown on a thin trunk (his image #12, the hillside conifers)
       "tree_conifer" => tree_comp(%{trunk_h: 3.8, trunk_zoom: 0.45, trunk_w: 0.8, leaf_h: 3.4, leaf_zoom: 0.9}),
       # column: a long straight bare trunk with the crown held high (image #11's beech stand, #15's giants)
-      "tree_column" => tree_comp(%{trunk_h: 5.0, trunk_zoom: 0.5, trunk_w: 0.8, leaf_h: 2.2, leaf_zoom: 1.2}),
+      "tree_column" => tree_comp(%{trunk_h: 5.0, trunk_zoom: 0.5, trunk_w: 0.8, leaf_h: 2.2, leaf_zoom: 1.2, shape: "circle"}),
       # broadleaf: short trunk under a wide, low, round crown
       "tree_broadleaf" =>
         tree_comp(%{trunk_h: 2.4, trunk_zoom: 0.55, trunk_w: 1.1, leaf_h: 1.7, leaf_zoom: 1.75, shape: "circle"}),
@@ -2744,7 +2748,7 @@ defmodule Nebulith.Catalog.TileSource do
       "tree_palm" =>
         tree_comp(%{trunk_h: 4.6, trunk_zoom: 0.4, trunk_w: 0.7, leaf_h: 1.0, leaf_zoom: 1.15, shape: "circle"}),
       # sapling: new growth, the smallest tree there is
-      "tree_sapling" => tree_comp(%{trunk_h: 1.2, trunk_zoom: 0.35, trunk_w: 0.8, leaf_h: 0.9, leaf_zoom: 0.7}),
+      "tree_sapling" => tree_comp(%{trunk_h: 1.2, trunk_zoom: 0.35, trunk_w: 0.8, leaf_h: 0.9, leaf_zoom: 0.7, shape: "circle"}),
       # TWO water variants of the town-square basin, both COMPOSITIONS assembled from AUTOTILE PIECES
       # (TILESET-AUTHORING §3), not one fill: a rim of the RIGHT edge/corner piece per cell (`fountain_tl/tr/
       # bl/br` corners + `fountain_t/b/l/r` sides) around a `water_c` (blue water) interior. Every cell blocks
