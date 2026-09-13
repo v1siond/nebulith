@@ -85,7 +85,8 @@
           "image_url": "/tiles/ascii/bush.png",
           "settings": {
             "colors": {},
-            "position": "single"
+            "position": "single",
+            "stackAt": 0
           }
         },
         "chicken": {
@@ -700,7 +701,8 @@
           "image_url": "/tiles/ascii/flower.png",
           "settings": {
             "colors": {},
-            "position": "single"
+            "position": "single",
+            "stackAt": 0
           }
         },
         "zombie": {
@@ -812,7 +814,8 @@
               "spring": "#f2d84a",
               "summer": "#f2d84a",
               "winter": "#f2d84a"
-            }
+            },
+            "stackAt": 0
           }
         },
         "roof": {
@@ -1054,7 +1057,8 @@
               "spring": "#f2c33a",
               "summer": "#f2c33a",
               "winter": "#f2c33a"
-            }
+            },
+            "stackAt": 0
           }
         },
         "ogre": {
@@ -1444,7 +1448,8 @@
               "spring": "#d13b3b",
               "summer": "#d13b3b",
               "winter": "#d13b3b"
-            }
+            },
+            "stackAt": 0
           }
         },
         "path": {
@@ -1479,7 +1484,8 @@
               "spring": "#d24a4a",
               "summer": "#d24a4a",
               "winter": "#d24a4a"
-            }
+            },
+            "stackAt": 0
           }
         },
         "deer": {
@@ -2651,7 +2657,8 @@
               "spring": "#d0552a",
               "summer": "#d0552a",
               "winter": "#d0552a"
-            }
+            },
+            "stackAt": 0
           }
         },
         "path_dirt": {
@@ -4115,7 +4122,8 @@
               "spring": "#4fa03f",
               "summer": "#4fa03f",
               "winter": "#4fa03f"
-            }
+            },
+            "stackAt": 0
           }
         },
         "outback_red": {
@@ -4614,7 +4622,8 @@
               "spring": "#9c6a7a",
               "summer": "#9c6a7a",
               "winter": "#9c6a7a"
-            }
+            },
+            "stackAt": 0
           }
         },
         "hedgehog": {
@@ -5717,7 +5726,8 @@
               "spring": "#c8742f",
               "summer": "#c8742f",
               "winter": "#c8742f"
-            }
+            },
+            "stackAt": 0
           }
         },
         "sand": {
@@ -6134,7 +6144,8 @@
               "spring": "#d9b25f",
               "summer": "#d9b25f",
               "winter": "#d9b25f"
-            }
+            },
+            "stackAt": 0
           }
         },
         "gravel": {
@@ -6181,7 +6192,8 @@
               "spring": "#e5527a",
               "summer": "#e5527a",
               "winter": "#e5527a"
-            }
+            },
+            "stackAt": 0
           }
         },
         "police-officer": {
@@ -7591,7 +7603,8 @@
               "spring": "#3c9a3a",
               "summer": "#3c9a3a",
               "winter": "#3c9a3a"
-            }
+            },
+            "stackAt": 0
           }
         },
         "olive_grove": {
@@ -7749,7 +7762,8 @@
               "spring": "#e05a7a",
               "summer": "#e05a7a",
               "winter": "#e05a7a"
-            }
+            },
+            "stackAt": 0
           }
         },
         "wall_brick_b": {
@@ -8389,7 +8403,8 @@
           "image_url": "/tiles/ascii/mushroom.png",
           "settings": {
             "colors": {},
-            "position": "single"
+            "position": "single",
+            "stackAt": 0
           }
         },
         "guard": {
@@ -8616,7 +8631,8 @@
               "spring": "#3fa03f",
               "summer": "#3fa03f",
               "winter": "#3fa03f"
-            }
+            },
+            "stackAt": 0
           }
         },
         "koi_pond": {
@@ -9337,7 +9353,8 @@
               "spring": "#e57ba0",
               "summer": "#e57ba0",
               "winter": "#e57ba0"
-            }
+            },
+            "stackAt": 0
           }
         },
         "torch": {
@@ -20935,7 +20952,8 @@
           "height": 1,
           "image_url": "/tiles/emoji/baked/bush.png",
           "settings": {
-            "color": "#4fa03f"
+            "color": "#4fa03f",
+            "stackAt": 0
           }
         },
         "chicken": {
@@ -21431,7 +21449,8 @@
           "height": 0,
           "image_url": "/tiles/emoji/baked/flower.png",
           "settings": {
-            "color": "#e785b5"
+            "color": "#e785b5",
+            "stackAt": 0
           }
         },
         "zombie": {
@@ -21532,7 +21551,8 @@
               "spring": "#f2d84a",
               "summer": "#f2d84a",
               "winter": "#f2d84a"
-            }
+            },
+            "stackAt": 0
           }
         },
         "roof": {
@@ -21766,7 +21786,8 @@
               "spring": "#f2c33a",
               "summer": "#f2c33a",
               "winter": "#f2c33a"
-            }
+            },
+            "stackAt": 0
           }
         },
         "ogre": {
@@ -22086,7 +22107,8 @@
               "spring": "#d13b3b",
               "summer": "#d13b3b",
               "winter": "#d13b3b"
-            }
+            },
+            "stackAt": 0
           }
         },
         "path": {
@@ -22121,7 +22143,8 @@
               "spring": "#d24a4a",
               "summer": "#d24a4a",
               "winter": "#d24a4a"
-            }
+            },
+            "stackAt": 0
           }
         },
         "deer": {
@@ -23003,7 +23026,8 @@
               "spring": "#d0552a",
               "summer": "#d0552a",
               "winter": "#d0552a"
-            }
+            },
+            "stackAt": 0
           }
         },
         "path_dirt": {
@@ -24177,7 +24201,8 @@
               "spring": "#4fa03f",
               "summer": "#4fa03f",
               "winter": "#4fa03f"
-            }
+            },
+            "stackAt": 0
           }
         },
         "outback_red": {
@@ -24569,7 +24594,8 @@
               "spring": "#9c6a7a",
               "summer": "#9c6a7a",
               "winter": "#9c6a7a"
-            }
+            },
+            "stackAt": 0
           }
         },
         "hedgehog": {
@@ -25494,7 +25520,8 @@
               "spring": "#c8742f",
               "summer": "#c8742f",
               "winter": "#c8742f"
-            }
+            },
+            "stackAt": 0
           }
         },
         "sand": {
@@ -25787,7 +25814,8 @@
               "spring": "#d9b25f",
               "summer": "#d9b25f",
               "winter": "#d9b25f"
-            }
+            },
+            "stackAt": 0
           }
         },
         "gravel": {
@@ -25822,7 +25850,8 @@
               "spring": "#e5527a",
               "summer": "#e5527a",
               "winter": "#e5527a"
-            }
+            },
+            "stackAt": 0
           }
         },
         "police-officer": {
@@ -26931,7 +26960,8 @@
               "spring": "#3c9a3a",
               "summer": "#3c9a3a",
               "winter": "#3c9a3a"
-            }
+            },
+            "stackAt": 0
           }
         },
         "olive_grove": {
@@ -27049,7 +27079,8 @@
               "spring": "#e05a7a",
               "summer": "#e05a7a",
               "winter": "#e05a7a"
-            }
+            },
+            "stackAt": 0
           }
         },
         "wall_brick_b": {
@@ -27562,7 +27593,8 @@
           "height": 1,
           "image_url": "/tiles/emoji/baked/mushroom.png",
           "settings": {
-            "color": "#d24a4a"
+            "color": "#d24a4a",
+            "stackAt": 0
           }
         },
         "guard": {
@@ -27743,7 +27775,8 @@
               "spring": "#3fa03f",
               "summer": "#3fa03f",
               "winter": "#3fa03f"
-            }
+            },
+            "stackAt": 0
           }
         },
         "koi_pond": {
@@ -28335,7 +28368,8 @@
               "spring": "#e57ba0",
               "summer": "#e57ba0",
               "winter": "#e57ba0"
-            }
+            },
+            "stackAt": 0
           }
         },
         "torch": {

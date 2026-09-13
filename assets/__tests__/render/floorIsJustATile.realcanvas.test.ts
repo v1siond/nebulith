@@ -38,10 +38,19 @@ const PCOL = 10, PROW = 10, ACOL = 12, AROW = 10
 const player = (): PlayerState => ({ x: PCOL * CELL, z: PROW * CELL, moving: false } as PlayerState)
 
 /** Any emoji tile that carries a baked image — a concrete standing block to paint over a floor. */
+/**
+ * An image-backed tile that is a STANDING BLOCK, which is what every test below actually needs.
+ *
+ * This used to take the first image-backed non-unit tile and hope. It happened to be one for a long time, then
+ * `bush` gained `stackAt: 0` (a ground plant draws a block tall and holds nothing up, ticket 2's follow-up) and
+ * the one-block-gap test started measuring a zero gap on a tile that is, correctly, not a surface. Say what the
+ * test needs instead of picking whatever sorts first.
+ */
 function anImageTileKey(): string {
-  const hit = Object.entries(styleTiles('emoji')).find(([, t]) => t.image && t.category !== 'units')
-  if (!hit) throw new Error('fixture has no image-backed non-unit emoji tile')
-  return hit[0]
+  const standing = Object.entries(styleTiles('emoji')).find(([, t]) =>
+    t.image && t.category !== 'units' && (t.settings as { stackAt?: number } | undefined)?.stackAt !== 0)
+  if (!standing) throw new Error('fixture has no image-backed non-unit emoji tile that stacks')
+  return standing[0]
 }
 
 const newGrid = (): IsometricGrid => new IsometricGrid({ cols: 30, rows: 30, cellSize: CELL, isoScale: ISO })

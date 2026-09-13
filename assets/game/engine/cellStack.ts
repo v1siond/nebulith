@@ -201,7 +201,34 @@ export function unitStandLevel(grid: IsometricGrid, col: number, row: number): n
  *  so content stacks on top of it (a flat walk-over surface still lifts what stands on it). Non-act-as-tile →
  *  its plain height, so the lego model is byte-identical. */
 function stackContribution(a: GridAsset): number {
-  return assetActsAsTile(a) ? Math.max(1, assetBlocks(a)) : assetBlocks(a)
+  const occupies = assetActsAsTile(a) ? Math.max(1, assetBlocks(a)) : assetBlocks(a)
+  return occupies * assetStackAt(a)
+}
+
+/**
+ * WHERE IN THE CELL the next thing stands: 1 is this tile's TOP face (the default, and what every tile did
+ * before this existed), 0 is its BOTTOM face, and anything between is a fraction of its height.
+ *
+ * Alexander, 2026-09-13, looking at a woodland where every tree floated a block above the blooms: *"all trees
+ * are located above the high grass, instead of at floor level"*, and *"the high grass doesn't have collissions
+ * and has height but elements don't stack on top ... like a y stack position, which goes from the top face to
+ * the bottom face of the cell"*.
+ *
+ * He also guessed the cause exactly. A cell stacks by each tile's own HEIGHT, and `flower`, `clover`, `wheat`
+ * and `bush` are all authored a full block tall in the live catalog so they draw as standing billboards. That
+ * same block was then counted as a SURFACE, so a tree stamped onto a flowered cell started one level up. How
+ * tall a thing DRAWS and whether you can stand on it are two different questions, and they shared one number.
+ *
+ * Read the SAME data path as height and act-as-tile: a per-instance override wins, else the DB tile's own
+ * `settings.stackAt`, else 1. Clamped, because a negative would sink the stack into the floor.
+ */
+function assetStackAt(a: GridAsset): number {
+  const perInstance = (a.settings as { stackAt?: number } | undefined)?.stackAt
+  const slug = a.type === FLOOR_TYPE ? (a.tileKey ?? DEFAULT_FLOOR_SLUG) : (a.label ?? a.type)
+  const tile = styleTile('ascii', slug) ?? styleTile('emoji', slug)
+  const served = (tile?.settings as { stackAt?: number } | undefined)?.stackAt
+  const value = perInstance ?? served
+  return typeof value === 'number' && value >= 0 && value <= 1 ? value : 1
 }
 
 /** Does this placed tile ACT AS A TILE — i.e. "does the cell behave as if a tile was already inside it", so the
