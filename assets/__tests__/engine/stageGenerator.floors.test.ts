@@ -72,7 +72,11 @@ describe('a season whose ground is textured lays it as colour, not tiles', () =>
     expect(cellsWhere(s, g => g === FLAT_FLOOR).filter(([c, r]) => !s.floorColors[r][c])).toEqual([])
     const trail = zonePalette('winter')!.trail
     expect(count(s, trail)).toBe(0)
-    const trailCells = cellsWhere(s, g => g === FLAT_FLOOR).filter(([c, r]) => s.floorColors[r][c] === groundTileColor(trail, c, r))
+    // THE COLOUR THE GENERATOR ACTUALLY PAINTS WITH: the template's served trail where it states one, else
+    // the trail tile's own. Reading only the tile's colour asserted half the rule, and until the ascii `path`
+    // row was given a colour that half resolved to GRASS, so this counted the field and called it a path.
+    const paint = findGenerator(CATALOG, 'forest', 'woodland')?.config.palette?.trail ?? groundTileColor(trail, 0, 0)
+    const trailCells = cellsWhere(s, g => g === FLAT_FLOOR).filter(([c, r]) => s.floorColors[r][c] === paint)
     expect(trailCells.length).toBeGreaterThan(0)
   })
 })

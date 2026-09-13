@@ -25,6 +25,14 @@ const ZONE = 'summer' as const
 const LAYOUTS: Array<[ForestLayout]> = [['woodland'], ['jungle'], ['meadow']]
 const key = (c: { col: number; row: number }) => `${c.col},${c.row}`
 
+/** What a layout PAINTS its trails with: the colour its template serves, else the trail tile's own.
+ *  The same precedence `layoutWoodland` uses, read from the same served config, so the test cannot drift
+ *  from the generator the way the old oracle did (it compared against a fallback that returned GRASS, so it
+ *  passed while the woodland had no visible path at all). */
+const trailPaint = (layout: ForestLayout, col: number, row: number): string =>
+  findGenerator(CATALOG, 'forest', layout)?.config.palette?.trail
+  ?? groundTileColor(zonePalette(ZONE)!.trail, col, row)
+
 /** A forest built from its served template, the way the editor builds it, with the ways the person picked. */
 function grow(layout: ForestLayout, ways: Record<string, string> | undefined, seed = 7): StageData {
   const config = findGenerator(CATALOG, 'forest', layout)?.config
@@ -100,12 +108,11 @@ describe('the ways the generator serves reach the map it builds', () => {
 
 describe('a path is something you can SEE, not just walk', () => {
   it('a woodland paves its ways with the trail the season serves', () => {
-    const trail = zonePalette(ZONE)!.trail
     const s = grow('woodland', { exits: '3', pathways: '3' })
     for (const gate of s.routes!.gates) {
       const { col, row } = gate.inside
       expect(s.ground[row][col]).toBe(FLAT_FLOOR)
-      expect(s.floorColors[row][col]).toBe(groundTileColor(trail, col, row))
+      expect(s.floorColors[row][col]).toBe(trailPaint('woodland', col, row))
     }
   })
 

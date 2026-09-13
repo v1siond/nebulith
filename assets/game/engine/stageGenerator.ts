@@ -1602,7 +1602,44 @@ function plannedRoutes(ctx: ArchetypeContext): RoutePlan | null {
   const ways = resolveWays(ctx.options, ctx.rand)
   if (!ways) return null
   ctx.routes = planRoutes(ctx.cols, ctx.rows, ways, ctx.rand, WOODLAND.pathWidth)
+  markExits(ctx, ctx.routes)
   return ctx.routes
+}
+
+/** Which way a gate's composition is turned. A composition is authored SOUTH-FACING (the convention
+ *  `depthDir` and building rotation already use), so each side is that many quarter turns from south. */
+const GATE_ROTATION: Readonly<Record<string, number>> = { south: 0, west: 1, north: 2, east: 3 }
+
+/** The gate a place shows at its edges. One per KIND of place, so walking out of a wood and walking into a
+ *  jungle are told apart by the marker, which is the point of the family. `exit_gate` is the default. */
+const EXIT_GATE_BY_LAYOUT: Readonly<Record<string, string>> = { jungle: 'exit_gate_deep_forest' }
+const DEFAULT_EXIT_GATE = 'exit_gate'
+
+/**
+ * MARK EVERY WAY OUT.
+ *
+ * Alexander, 2026-09-13: *"it's really important to have visual indicators of the exit, like maybe we always
+ * put a light or something"*, and *"we can ut a few trees at the sides of the exit/entrance pathway with the
+ * visual indicator selected"*, and on why it is a family rather than one thing: *"we need many types, because
+ * we'll have many different zones ... going into a deeper jungle exit would have a lot of trees outside"*.
+ *
+ * The gate itself is DATA (`exit_gate*` in the catalog): a lit marker at the mouth with trees down both sides
+ * of the way through. This only decides WHERE one goes and WHICH WAY it faces, so a new kind of exit is a new
+ * composition and no change here. The marker is centred on the gate's own inside cell, which is the middle of
+ * the 3-wide pathway, so the flanks land on the two cells that frame it.
+ */
+function markExits(ctx: ArchetypeContext, plan: RoutePlan): void {
+  const kind = EXIT_GATE_BY_LAYOUT[ctx.layout ?? ''] ?? DEFAULT_EXIT_GATE
+  if (resolveComposition(styleCatalog('ascii'), kind) === null) return // not authored for this style: no gate, no guess
+  for (const gate of plan.gates) {
+    ctx.compositions.push({
+      kind,
+      col: gate.inside.col - 1, // the marker sits at dx 1, so the anchor is one cell back along the mouth
+      row: gate.inside.row,
+      variant: 0,
+      rotation: GATE_ROTATION[gate.side] ?? 0,
+    })
+  }
 }
 
 /**
@@ -3417,6 +3454,42 @@ function flowField(ctx: ArchetypeContext, water: ReadonlySet<string>): Map<strin
   }
   return flow
 }
+/** How many channel cells in get a rock, as a share. Sparse on purpose: *"a few rocks here and there"*. */
+const RIVER_ROCK_SHARE = 0.035
+/** A rock never sits on the bank edge, or it reads as part of the shore instead of standing in the water. */
+const ROCK_MIN_WATER_NEIGHBOURS = 4
+
+/**
+ * A FEW ROCKS IN THE RIVER.
+ *
+ * Alexander, 2026-09-13, with three reference images, one of them a river with rocks and a bridge: *"we should
+ * have a few rocks here and there in middle of the river too, with collission of water animation, that'd help"*.
+ *
+ * The cell STAYS WATER. That is the whole point of the note: the rock is something standing IN the river, so
+ * the water keeps its label, its colour and its current, and the rock is a prop on top of it that you cannot
+ * walk through. Every other prop pass refuses a water cell (`isLandCell`, and rightly, a flower has no
+ * business floating), so this pushes directly rather than going through `placeProp`.
+ *
+ * Only well-inside cells qualify: a rock needs water on all four sides or it reads as a lump of the bank.
+ */
+function strewRiverRocks(ctx: ArchetypeContext, channel: ReadonlySet<string>): void {
+  const rock = resolveTile(styleCatalog('ascii'), ctx.zone, 'rock')
+  const midstream = [...channel].filter(key => {
+    const { col, row } = toCell(key)
+    return FLOW_STEPS.filter(([dc, dr]) => channel.has(`${col + dc},${row + dr}`)).length >= ROCK_MIN_WATER_NEIGHBOURS
+  })
+  for (const key of midstream) {
+    if (ctx.rand() >= RIVER_ROCK_SHARE) continue
+    const { col, row } = toCell(key)
+    // ONLY WHERE THE WATER ALREADY BLOCKS. A rock is solid, and dropping a fresh blocker into a channel can
+    // sever the map: placing them freely broke "however dense it gets, the jungle is ONE place" eight times
+    // over, and pinched a wadeable ford shut. Standing one in water you could not cross anyway adds the look
+    // he asked for and cannot change what connects to what.
+    if (!ctx.collision[row][col]) continue
+    ctx.props.push({ col, row, type: 'rock', char: rock.char, label: 'rock', blocking: true, color: rock.color })
+  }
+}
+
 /**
  * SETTLE THE WATER BY DEPTH, once the map is otherwise finished.
  *
@@ -3443,6 +3516,7 @@ function settleWaterDepth(ctx: ArchetypeContext, pal: GeneratorPalette | undefin
     if (isWaterGround(ground[row][col]) && !pools.has(`${col},${row}`)) channel.add(`${col},${row}`)
   })
   for (const [key, dir] of flowField(ctx, channel)) ctx.flow.set(key, dir)
+  strewRiverRocks(ctx, channel)
   const wadeable = wadeableShallows(ctx, depth)
   // FROZEN OVER. Alexander, 2026-09-12: *"in winter, rivers are ice and we can walk over them, which mean, we
   // just remove collissions and add the ice physics we haven't developed yet"*. `frozen_water` already exists as
@@ -4155,9 +4229,24 @@ function recordBridgeSpan(
  * Pure, and takes `authored` as a predicate, so the choice can be tested without a tileset.
  */
 export function chooseBridgeSpan(waterWidth: number, runLength: number, authored: (span: number) => boolean): number | null {
-  const needed = Math.max(MIN_BRIDGE_SPAN, waterWidth + 2)
-  for (let span = needed; span <= runLength; span++) if (authored(span)) return span
-  for (let span = runLength; span >= MIN_BRIDGE_SPAN; span--) if (authored(span)) return span
+  // JUST THE BRIDGE. Alexander, 2026-09-13, with a picture: *"bridge wood zone is almost as long and big as
+  // the rivr, that's terrible, we just need the actual bridge connecting"*.
+  //
+  // What it wants is the water plus one landing on each bank, and nothing else. What it did was fall back to
+  // `runLength`, the length of the whole DECK RUN, and count DOWN from there: a path that meets the river at
+  // an angle has a long run, so a two-cell creek got a seven-cell bridge. The run is a limit, not a target.
+  //
+  // So it searches OUTWARD from what is needed and takes the CLOSEST authored span, up only as far as the run
+  // allows and down only as far as a bridge still reads as one.
+  const needed = Math.max(MIN_BRIDGE_SPAN, Math.min(waterWidth + 2, Math.max(MIN_BRIDGE_SPAN, runLength)))
+  for (let out = 0; out <= runLength; out++) {
+    const longer = needed + out
+    if (longer <= runLength && authored(longer)) return longer
+    const shorter = needed - out
+    // Still bounded by the run: a bridge longer than the deck it sits on is not a bridge, which is what the
+    // "too short for even the minimum" case asserts.
+    if (shorter >= MIN_BRIDGE_SPAN && shorter <= runLength && authored(shorter)) return shorter
+  }
   return null
 }
 
@@ -4168,6 +4257,16 @@ function layDeck(ctx: ArchetypeContext, deck: Set<string>, tone: string | undefi
   for (const key of deck) {
     const { col, row } = toCell(key)
     if (!inBounds(col, row, cols, rows)) continue
+    // NOT YET: THE WATER DOES NOT STAY UNDER THE DECK. Alexander, 2026-09-13: *"the bridge should look like
+    // it's above the water"*, and he is right, but keeping the cell wet here is not the way to get there.
+    //
+    // Tried and reverted, measured: leaving the deck cells as water broke four documented invariants at once.
+    // `divides` went from one crossing to two (the wadeable shallows the extra water created became a second
+    // way over), and "the river is cut below the walking floor" failed, because a deck cell is forced to
+    // elevation 0 while a river cell is dug below it. Those two facts cannot both hold on one cell.
+    //
+    // The real fix is for the deck COMPOSITION to be lifted to the bank's level over a cell that stays river,
+    // which is a change to how the stamp picks its level, not to what the ground says. Ticket 105.
     ground[row][col] = style?.tile ?? 'bridge'
     collision[row][col] = false
     ctx.decks.add(key)

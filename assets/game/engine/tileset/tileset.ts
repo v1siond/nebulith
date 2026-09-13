@@ -196,9 +196,24 @@ const EMPTY_GROUND: ResolvedGround = { char: ' ', fg: 'transparent', bg: 'transp
 /** Resolve a GROUND tile's glyph + fg + base fill from a LOADED tileset — the data-driven twin of the
  *  inline `GROUND_COLORS[type]` + noise-variant selection in drawIsoGroundLayer. Pure; deterministic
  *  per (type, col, row). Grass's per-cell shade is applied by the caller (unchanged), so bg is the base. */
-export function resolveGroundTile(tileset: { terrain: Record<string, GroundTile> }, tileType: string, col: number, row: number): ResolvedGround {
-  const g = tileset.terrain[tileType] ?? tileset.terrain.grass
-  if (!g) return EMPTY_GROUND // terrain not loaded yet (empty tileset) → draw nothing, don't crash on a missing tile
+export function resolveGroundTile(
+  tileset: { terrain: Record<string, GroundTile>; tiles?: Record<string, { color?: string; char?: string }> },
+  tileType: string,
+  col: number,
+  row: number,
+): ResolvedGround {
+  const g = tileset.terrain[tileType]
+  if (!g) {
+    // NOT GRASS. This read `?? tileset.terrain.grass`, and that one fallback is why Alexander's woodland had
+    // no visible paths: `path` has no `variants` entry, so every trail cell resolved to the GRASS variant and
+    // was painted the exact colour of the field it crossed. A hardcoded fallback for loaded data is the thing
+    // the compliance rule forbids, and here it was quietly overwriting a real served colour.
+    //
+    // A label with no terrain VARIANT still has a TILE, and that tile owns a colour. Use it. Only a label the
+    // catalog does not know at all comes back empty, which is the honest answer and draws nothing.
+    const tile = tileset.tiles?.[tileType]
+    return tile?.color ? { char: tile.char ?? '', fg: tile.color, bg: tile.color } : EMPTY_GROUND
+  }
   const noiseVal = Math.sin(col * 0.3 + row * 0.5) * Math.cos(col * 0.7 - row * 0.2)
   const colorIdx = noiseVal > 0 ? 0 : 1
   return {

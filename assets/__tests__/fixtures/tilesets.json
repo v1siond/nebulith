@@ -39,7 +39,8 @@
                 " L   J"
               ]
             ],
-            "collision": []
+            "collision": [],
+            "color": "#8a5f3a"
           }
         },
         "dove": {
@@ -73,7 +74,8 @@
                 " /vv\\"
               ]
             ],
-            "collision": []
+            "collision": [],
+            "color": "#e8e8e8"
           }
         },
         "bush": {
@@ -89,7 +91,8 @@
             "colors": {},
             "position": "single",
             "stackAt": 0,
-            "collision": []
+            "collision": [],
+            "color": "#4fa03f"
           }
         },
         "chicken": {
@@ -123,7 +126,8 @@
                 " (~~)"
               ]
             ],
-            "collision": []
+            "collision": [],
+            "color": "#d8663a"
           }
         },
         "ember": {
@@ -150,7 +154,8 @@
                 "rgba(255, 180, 30, 0.92)"
               ]
             },
-            "collision": []
+            "collision": [],
+            "color": "#d2691e"
           }
         },
         "piercing-shot": {
@@ -172,7 +177,8 @@
               "summer": "#cfd8e3",
               "winter": "#cfd8e3"
             },
-            "collision": []
+            "collision": [],
+            "color": "#cfd8e3"
           }
         },
         "wall_wood_c": {
@@ -202,7 +208,8 @@
                 "w": 1,
                 "h": 1
               }
-            ]
+            ],
+            "color": "#8a5a2b"
           }
         },
         "tree_edge_right": {
@@ -267,7 +274,8 @@
                 "w": 1,
                 "h": 1
               }
-            ]
+            ],
+            "color": "#5fae4f"
           }
         },
         "factory": {
@@ -289,7 +297,8 @@
               "summer": "#8a8a8a",
               "winter": "#8a8a8a"
             },
-            "collision": []
+            "collision": [],
+            "color": "#8a8a8a"
           }
         },
         "wooden_planks": {
@@ -316,7 +325,8 @@
                 "rgba(160, 120, 70, 0.88)"
               ]
             },
-            "collision": []
+            "collision": [],
+            "color": "#aa8250"
           }
         },
         "cliff_face": {
@@ -343,7 +353,8 @@
                 "rgba(120, 88, 16, 0.85)"
               ]
             },
-            "collision": []
+            "collision": [],
+            "color": "#8b6914"
           }
         },
         "shallow-water": {
@@ -370,7 +381,8 @@
                 "rgba(85, 153, 238, 0.8)"
               ]
             },
-            "collision": []
+            "collision": [],
+            "color": "#4a90e2"
           }
         },
         "tent": {
@@ -392,7 +404,8 @@
               "summer": "#7a9a5a",
               "winter": "#7a9a5a"
             },
-            "collision": []
+            "collision": [],
+            "color": "#7a9a5a"
           }
         },
         "trunk_top": {
@@ -421,7 +434,8 @@
                 "w": 1,
                 "h": 1
               }
-            ]
+            ],
+            "color": "#7a5a3a"
           }
         },
         "stairs": {
@@ -448,7 +462,8 @@
                 "rgba(136, 119, 85, 0.8)"
               ]
             },
-            "collision": []
+            "collision": [],
+            "color": "#998866"
           }
         },
         "red_earth": {
@@ -475,7 +490,8 @@
                 "rgba(170, 90, 50, 0.88)"
               ]
             },
-            "collision": []
+            "collision": [],
+            "color": "#b4643c"
           }
         },
         "mountain": {
@@ -498,7 +514,8 @@
               "winter": "#8fa6b8"
             },
             "position": "single",
-            "collision": []
+            "collision": [],
+            "color": "#8d8d97"
           }
         },
         "wall_brick_c": {
@@ -528,7 +545,8 @@
                 "w": 1,
                 "h": 1
               }
-            ]
+            ],
+            "color": "#9e4b3b"
           }
         },
         "wall_plaster_b": {
@@ -558,7 +576,8 @@
                 "w": 1,
                 "h": 1
               }
-            ]
+            ],
+            "color": "#f0f0ea"
           }
         },
         "dragon": {
@@ -594,7 +613,8 @@
                 "  d   b"
               ]
             ],
-            "collision": []
+            "collision": [],
+            "color": "#4a9a5a"
           }
         },
         "run": {
@@ -616,7 +636,8 @@
               "summer": "#d9a066",
               "winter": "#d9a066"
             },
-            "collision": []
+            "collision": [],
+            "color": "#d9a066"
           }
         },
         "wall_plaster_t": {
@@ -646,7 +667,8 @@
                 "w": 1,
                 "h": 1
               }
-            ]
+            ],
+            "color": "#f0f0ea"
           }
         },
         "turtle": {
@@ -682,7 +704,8 @@
                 " '   '"
               ]
             ],
-            "collision": []
+            "collision": [],
+            "color": "#4f8f5a"
           }
         },
         "deep-water": {
@@ -709,7 +732,8 @@
                 "rgba(0, 51, 170, 0.85)"
               ]
             },
-            "collision": []
+            "collision": [],
+            "color": "#1c5fa8"
           }
         },
         "window": {
@@ -733,7 +757,8 @@
             },
             "fadeNear": true,
             "position": "single",
-            "collision": []
+            "collision": [],
+            "color": "#7fb4d8"
           }
         },
         "stadium": {
@@ -755,7 +780,8 @@
               "summer": "#9a9a8a",
               "winter": "#9a9a8a"
             },
-            "collision": []
+            "collision": [],
+            "color": "#9a9a8a"
           }
         },
         "flower": {
@@ -771,7 +797,8 @@
             "colors": {},
             "position": "single",
             "stackAt": 0,
-            "collision": []
+            "collision": [],
+            "color": "#e785b5"
           }
         },
         "zombie": {
@@ -807,7 +834,8 @@
                 " J  L"
               ]
             ],
-            "collision": []
+            "collision": [],
+            "color": "#6a8f5a"
           }
         },
         "canopy_r": {
@@ -864,7 +892,8 @@
                 "#9fbccb"
               ]
             },
-            "collision": []
+            "collision": [],
+            "color": "#5fae4f"
           }
         },
         "blossom": {
@@ -887,7 +916,8 @@
               "winter": "#f2d84a"
             },
             "stackAt": 0,
-            "collision": []
+            "collision": [],
+            "color": "#f2d84a"
           }
         },
         "roof": {
@@ -911,7 +941,8 @@
             },
             "cutawayRoof": true,
             "position": "single",
-            "collision": []
+            "collision": [],
+            "color": "#c8443c"
           }
         },
         "colorful_tile": {
@@ -938,7 +969,8 @@
                 "rgba(50, 200, 255, 0.92)"
               ]
             },
-            "collision": []
+            "collision": [],
+            "color": "#ffc832"
           }
         },
         "wall_brick_tl": {
@@ -968,7 +1000,8 @@
                 "w": 1,
                 "h": 1
               }
-            ]
+            ],
+            "color": "#9e4b3b"
           }
         },
         "decor_spark": {
@@ -985,7 +1018,8 @@
               "lava": "#e6661f",
               "winter": "#ccdbe7"
             },
-            "collision": []
+            "collision": [],
+            "color": "#ccdbe7"
           }
         },
         "leaf_center": {
@@ -1043,7 +1077,8 @@
               ]
             },
             "position": "single",
-            "collision": []
+            "collision": [],
+            "color": "#5fae4f"
           }
         },
         "canopy_t": {
@@ -1100,7 +1135,8 @@
                 "#9fbccb"
               ]
             },
-            "collision": []
+            "collision": [],
+            "color": "#5fae4f"
           }
         },
         "well": {
@@ -1122,7 +1158,8 @@
               "summer": "#9bc4d8",
               "winter": "#9bc4d8"
             },
-            "collision": []
+            "collision": [],
+            "color": "#9bc4d8"
           }
         },
         "sunflower": {
@@ -1145,7 +1182,8 @@
               "winter": "#f2c33a"
             },
             "stackAt": 0,
-            "collision": []
+            "collision": [],
+            "color": "#f2c33a"
           }
         },
         "ogre": {
@@ -1181,7 +1219,8 @@
                 " J  L"
               ]
             ],
-            "collision": []
+            "collision": [],
+            "color": "#d0402a"
           }
         },
         "witch": {
@@ -1217,7 +1256,8 @@
                 " / \\~"
               ]
             ],
-            "collision": []
+            "collision": [],
+            "color": "#9a5ac0"
           }
         },
         "tree_stem_bottom": {
@@ -1247,7 +1287,8 @@
                 "w": 1,
                 "h": 1
               }
-            ]
+            ],
+            "color": "#7a5a3a"
           }
         },
         "crate": {
@@ -1262,7 +1303,8 @@
           "settings": {
             "colors": {},
             "position": "single",
-            "collision": []
+            "collision": [],
+            "color": "#b5793a"
           }
         },
         "birch_forest": {
@@ -1289,7 +1331,8 @@
                 "rgba(170, 190, 150, 0.88)"
               ]
             },
-            "collision": []
+            "collision": [],
+            "color": "#b4c8a0"
           }
         },
         "spill": {
@@ -1312,7 +1355,8 @@
               "winter": "#bfe8f5"
             },
             "position": "single",
-            "collision": []
+            "collision": [],
+            "color": "#5bbcff"
           }
         },
         "road_center": {
@@ -1339,7 +1383,8 @@
                 "rgba(140, 142, 150, 0.8)"
               ]
             },
-            "collision": []
+            "collision": [],
+            "color": "#9698a0"
           }
         },
         "wall_brick_l": {
@@ -1369,7 +1414,8 @@
                 "w": 1,
                 "h": 1
               }
-            ]
+            ],
+            "color": "#9e4b3b"
           }
         },
         "lightning": {
@@ -1391,7 +1437,8 @@
               "summer": "#7ad7ff",
               "winter": "#7ad7ff"
             },
-            "collision": []
+            "collision": [],
+            "color": "#7ad7ff"
           }
         },
         "fountain_tr": {
@@ -1420,7 +1467,8 @@
                 "w": 1,
                 "h": 1
               }
-            ]
+            ],
+            "color": "#cbc4b0"
           }
         },
         "wall_plaster_tr": {
@@ -1450,7 +1498,8 @@
                 "w": 1,
                 "h": 1
               }
-            ]
+            ],
+            "color": "#f0f0ea"
           }
         },
         "parapet": {
@@ -1480,7 +1529,8 @@
                 "w": 1,
                 "h": 1
               }
-            ]
+            ],
+            "color": "#8b9098"
           }
         },
         "wall_wood_b": {
@@ -1510,7 +1560,8 @@
                 "w": 1,
                 "h": 1
               }
-            ]
+            ],
+            "color": "#8a5a2b"
           }
         },
         "robot": {
@@ -1544,7 +1595,8 @@
                 " ][ ]["
               ]
             ],
-            "collision": []
+            "collision": [],
+            "color": "#9aa6b2"
           }
         },
         "frost": {
@@ -1571,7 +1623,8 @@
                 "rgba(195, 225, 250, 0.85)"
               ]
             },
-            "collision": []
+            "collision": [],
+            "color": "#d2ebff"
           }
         },
         "rose": {
@@ -1594,7 +1647,8 @@
               "winter": "#d13b3b"
             },
             "stackAt": 0,
-            "collision": []
+            "collision": [],
+            "color": "#d13b3b"
           }
         },
         "path": {
@@ -1609,7 +1663,8 @@
           "settings": {
             "colors": {},
             "position": "single",
-            "collision": []
+            "collision": [],
+            "color": "#9c7b4d"
           }
         },
         "red-mushroom": {
@@ -1632,7 +1687,8 @@
               "winter": "#d24a4a"
             },
             "stackAt": 0,
-            "collision": []
+            "collision": [],
+            "color": "#d24a4a"
           }
         },
         "deer": {
@@ -1668,7 +1724,8 @@
                 " L   J"
               ]
             ],
-            "collision": []
+            "collision": [],
+            "color": "#a9763f"
           }
         },
         "troll": {
@@ -1704,7 +1761,8 @@
                 " L  J"
               ]
             ],
-            "collision": []
+            "collision": [],
+            "color": "#7a6a4a"
           }
         },
         "npc": {
@@ -1731,7 +1789,8 @@
                 " / \\"
               ]
             ],
-            "collision": []
+            "collision": [],
+            "color": "#d9a066"
           }
         },
         "water_jet": {
@@ -1760,7 +1819,8 @@
                 "w": 1,
                 "h": 1
               }
-            ]
+            ],
+            "color": "#dff0ff"
           }
         },
         "bat": {
@@ -1794,7 +1854,8 @@
                 " \\vvv/"
               ]
             ],
-            "collision": []
+            "collision": [],
+            "color": "#5a4a5a"
           }
         },
         "ancient_stone": {
@@ -1821,7 +1882,8 @@
                 "rgba(130, 120, 90, 0.88)"
               ]
             },
-            "collision": []
+            "collision": [],
+            "color": "#8c8264"
           }
         },
         "gold_tile": {
@@ -1848,7 +1910,8 @@
                 "rgba(255, 210, 80, 0.92)"
               ]
             },
-            "collision": []
+            "collision": [],
+            "color": "#ffdc64"
           }
         },
         "hazard": {
@@ -1863,7 +1926,8 @@
           "settings": {
             "colors": {},
             "position": "single",
-            "collision": []
+            "collision": [],
+            "color": "#d0402a"
           }
         },
         "obsidian": {
@@ -1890,7 +1954,8 @@
                 "rgba(70, 50, 70, 0.88)"
               ]
             },
-            "collision": []
+            "collision": [],
+            "color": "#503c50"
           }
         },
         "tree_top_right": {
@@ -1955,7 +2020,8 @@
                 "w": 1,
                 "h": 1
               }
-            ]
+            ],
+            "color": "#5fae4f"
           }
         },
         "roof_top_slate": {
@@ -1978,7 +2044,8 @@
               "winter": "#4a4f57"
             },
             "fadeNear": true,
-            "collision": []
+            "collision": [],
+            "color": "#4a4f57"
           }
         },
         "courtyard_stone": {
@@ -2005,7 +2072,8 @@
                 "rgba(210, 200, 180, 0.88)"
               ]
             },
-            "collision": []
+            "collision": [],
+            "color": "#dcd2be"
           }
         },
         "skeleton": {
@@ -2043,7 +2111,8 @@
                 " d b"
               ]
             ],
-            "collision": []
+            "collision": [],
+            "color": "#e8e8e8"
           }
         },
         "japanese-castle": {
@@ -2065,7 +2134,8 @@
               "summer": "#d9c8a8",
               "winter": "#d9c8a8"
             },
-            "collision": []
+            "collision": [],
+            "color": "#d9c8a8"
           }
         },
         "honeybee": {
@@ -2099,7 +2169,8 @@
                 "  ' '"
               ]
             ],
-            "collision": []
+            "collision": [],
+            "color": "#e5b53a"
           }
         },
         "spider": {
@@ -2135,7 +2206,8 @@
                 "  \\   /"
               ]
             ],
-            "collision": []
+            "collision": [],
+            "color": "#3a3a3a"
           }
         },
         "fountain_bl": {
@@ -2164,7 +2236,8 @@
                 "w": 1,
                 "h": 1
               }
-            ]
+            ],
+            "color": "#cbc4b0"
           }
         },
         "wall_brick_t": {
@@ -2194,7 +2267,8 @@
                 "w": 1,
                 "h": 1
               }
-            ]
+            ],
+            "color": "#9e4b3b"
           }
         },
         "tree_edge_left": {
@@ -2259,7 +2333,8 @@
                 "w": 1,
                 "h": 1
               }
-            ]
+            ],
+            "color": "#5fae4f"
           }
         },
         "mountain-slope": {
@@ -2286,7 +2361,8 @@
                 "rgba(138, 138, 148, 0.88)"
               ]
             },
-            "collision": []
+            "collision": [],
+            "color": "#8d8d97"
           }
         },
         "elder": {
@@ -2320,7 +2396,8 @@
                 " / \\|"
               ]
             ],
-            "collision": []
+            "collision": [],
+            "color": "#cabfc0"
           }
         },
         "frog": {
@@ -2356,7 +2433,8 @@
                 " L   J"
               ]
             ],
-            "collision": []
+            "collision": [],
+            "color": "#5fa03f"
           }
         },
         "girl": {
@@ -2390,7 +2468,8 @@
                 " /\\ "
               ]
             ],
-            "collision": []
+            "collision": [],
+            "color": "#e5a0b0"
           }
         },
         "fountain_tl": {
@@ -2419,7 +2498,8 @@
                 "w": 1,
                 "h": 1
               }
-            ]
+            ],
+            "color": "#cbc4b0"
           }
         },
         "grass_tall": {
@@ -2446,7 +2526,8 @@
                 "rgba(112, 164, 56, 0.92)"
               ]
             },
-            "collision": []
+            "collision": [],
+            "color": "#78ac3c"
           }
         },
         "cobblestone": {
@@ -2473,7 +2554,8 @@
                 "rgba(187, 170, 153, 0.8)"
               ]
             },
-            "collision": []
+            "collision": [],
+            "color": "#b9b2a3"
           }
         },
         "house-garden": {
@@ -2495,7 +2577,8 @@
               "summer": "#b5793a",
               "winter": "#b5793a"
             },
-            "collision": []
+            "collision": [],
+            "color": "#b5793a"
           }
         },
         "trunk": {
@@ -2518,7 +2601,8 @@
               "winter": "#8fa3b5"
             },
             "position": "single",
-            "collision": []
+            "collision": [],
+            "color": "#7a5a3a"
           }
         },
         "wall_stone_r": {
@@ -2548,7 +2632,8 @@
                 "w": 1,
                 "h": 1
               }
-            ]
+            ],
+            "color": "#8f8b82"
           }
         },
         "child": {
@@ -2582,7 +2667,8 @@
                 " ' '"
               ]
             ],
-            "collision": []
+            "collision": [],
+            "color": "#e5b878"
           }
         },
         "wall_stone_br": {
@@ -2612,7 +2698,8 @@
                 "w": 1,
                 "h": 1
               }
-            ]
+            ],
+            "color": "#8f8b82"
           }
         },
         "mage": {
@@ -2646,7 +2733,8 @@
                 " \\|/"
               ]
             ],
-            "collision": []
+            "collision": [],
+            "color": "#7a5ac0"
           }
         },
         "russian_red": {
@@ -2673,7 +2761,8 @@
                 "rgba(160, 40, 30, 0.92)"
               ]
             },
-            "collision": []
+            "collision": [],
+            "color": "#b43228"
           }
         },
         "tower": {
@@ -2695,7 +2784,8 @@
               "summer": "#d0553a",
               "winter": "#d0553a"
             },
-            "collision": []
+            "collision": [],
+            "color": "#d0553a"
           }
         },
         "water_deep": {
@@ -2722,7 +2812,8 @@
                 "rgba(0, 51, 170, 0.85)"
               ]
             },
-            "collision": []
+            "collision": [],
+            "color": "#1144aa"
           }
         },
         "road": {
@@ -2749,7 +2840,8 @@
                 "rgba(108, 110, 118, 0.85)"
               ]
             },
-            "collision": []
+            "collision": [],
+            "color": "#3d3d44"
           }
         },
         "hospital": {
@@ -2771,7 +2863,8 @@
               "summer": "#e05a5a",
               "winter": "#e05a5a"
             },
-            "collision": []
+            "collision": [],
+            "color": "#e05a5a"
           }
         },
         "wall_plaster_c": {
@@ -2801,7 +2894,8 @@
                 "w": 1,
                 "h": 1
               }
-            ]
+            ],
+            "color": "#f0f0ea"
           }
         },
         "zen_garden": {
@@ -2828,7 +2922,8 @@
                 "rgba(210, 205, 190, 0.88)"
               ]
             },
-            "collision": []
+            "collision": [],
+            "color": "#dcd7c8"
           }
         },
         "snag": {
@@ -2851,7 +2946,8 @@
               "winter": "#8fa3b5"
             },
             "position": "single",
-            "collision": []
+            "collision": [],
+            "color": "#7a5a3a"
           }
         },
         "sheep": {
@@ -2887,7 +2983,8 @@
                 " '   '"
               ]
             ],
-            "collision": []
+            "collision": [],
+            "color": "#e8e4dc"
           }
         },
         "maple-leaf": {
@@ -2910,7 +3007,8 @@
               "winter": "#d0552a"
             },
             "stackAt": 0,
-            "collision": []
+            "collision": [],
+            "color": "#d0552a"
           }
         },
         "path_dirt": {
@@ -2937,7 +3035,8 @@
                 "rgba(153, 136, 102, 0.8)"
               ]
             },
-            "collision": []
+            "collision": [],
+            "color": "#aa9977"
           }
         },
         "palm-tree": {
@@ -2959,7 +3058,8 @@
               "summer": "#4f9d5a",
               "winter": "#4f9d5a"
             },
-            "collision": []
+            "collision": [],
+            "color": "#4f9d5a"
           }
         },
         "princess": {
@@ -2993,7 +3093,8 @@
                 " /\\ "
               ]
             ],
-            "collision": []
+            "collision": [],
+            "color": "#e585b5"
           }
         },
         "canopy_l": {
@@ -3050,7 +3151,8 @@
                 "#9fbccb"
               ]
             },
-            "collision": []
+            "collision": [],
+            "color": "#5fae4f"
           }
         },
         "ghost": {
@@ -3088,7 +3190,8 @@
                 " `~~~'"
               ]
             ],
-            "collision": []
+            "collision": [],
+            "color": "#e0e0f0"
           }
         },
         "canopy_b": {
@@ -3145,7 +3248,8 @@
                 "#9fbccb"
               ]
             },
-            "collision": []
+            "collision": [],
+            "color": "#5fae4f"
           }
         },
         "moss": {
@@ -3160,7 +3264,8 @@
           "settings": {
             "colors": {},
             "position": "single",
-            "collision": []
+            "collision": [],
+            "color": "#4a6b3a"
           }
         },
         "red_lacquer": {
@@ -3187,7 +3292,8 @@
                 "rgba(200, 50, 40, 0.92)"
               ]
             },
-            "collision": []
+            "collision": [],
+            "color": "#dc3c32"
           }
         },
         "canopy_br": {
@@ -3244,7 +3350,8 @@
                 "#9fbccb"
               ]
             },
-            "collision": []
+            "collision": [],
+            "color": "#5fae4f"
           }
         },
         "leaf_right": {
@@ -3302,7 +3409,8 @@
               ]
             },
             "position": "single",
-            "collision": []
+            "collision": [],
+            "color": "#5fae4f"
           }
         },
         "brick": {
@@ -3325,7 +3433,8 @@
               "winter": "#b0603a"
             },
             "fadeNear": true,
-            "collision": []
+            "collision": [],
+            "color": "#b0603a"
           }
         },
         "old-woman": {
@@ -3359,7 +3468,8 @@
                 " /\\ |"
               ]
             ],
-            "collision": []
+            "collision": [],
+            "color": "#d0c0c8"
           }
         },
         "bamboo_floor": {
@@ -3386,7 +3496,8 @@
                 "rgba(170, 190, 90, 0.88)"
               ]
             },
-            "collision": []
+            "collision": [],
+            "color": "#b4c864"
           }
         },
         "wall_plaster_br": {
@@ -3416,7 +3527,8 @@
                 "w": 1,
                 "h": 1
               }
-            ]
+            ],
+            "color": "#f0f0ea"
           }
         },
         "grey-alien": {
@@ -3452,7 +3564,8 @@
                 " ' '"
               ]
             ],
-            "collision": []
+            "collision": [],
+            "color": "#8fd18a"
           }
         },
         "wolf": {
@@ -3486,7 +3599,8 @@
                 " > ^ <"
               ]
             ],
-            "collision": []
+            "collision": [],
+            "color": "#8a8a9a"
           }
         },
         "prince": {
@@ -3520,7 +3634,8 @@
                 " / \\"
               ]
             ],
-            "collision": []
+            "collision": [],
+            "color": "#d0a83a"
           }
         },
         "magma": {
@@ -3547,7 +3662,8 @@
                 "rgba(255, 130, 20, 0.92)"
               ]
             },
-            "collision": []
+            "collision": [],
+            "color": "#ff961e"
           }
         },
         "dirt-path": {
@@ -3574,7 +3690,8 @@
                 "rgba(153, 136, 102, 0.8)"
               ]
             },
-            "collision": []
+            "collision": [],
+            "color": "#9c7b4d"
           }
         },
         "hieroglyph_floor": {
@@ -3601,7 +3718,8 @@
                 "rgba(250, 200, 90, 0.92)"
               ]
             },
-            "collision": []
+            "collision": [],
+            "color": "#ffd264"
           }
         },
         "canopy_bl": {
@@ -3658,7 +3776,8 @@
                 "#9fbccb"
               ]
             },
-            "collision": []
+            "collision": [],
+            "color": "#5fae4f"
           }
         },
         "sand_dune": {
@@ -3685,7 +3804,8 @@
                 "rgba(250, 220, 160, 0.88)"
               ]
             },
-            "collision": []
+            "collision": [],
+            "color": "#ffe6aa"
           }
         },
         "wall_brick_bl": {
@@ -3715,7 +3835,8 @@
                 "w": 1,
                 "h": 1
               }
-            ]
+            ],
+            "color": "#9e4b3b"
           }
         },
         "owl": {
@@ -3749,7 +3870,8 @@
                 " \\___/"
               ]
             ],
-            "collision": []
+            "collision": [],
+            "color": "#a98f6a"
           }
         },
         "dog": {
@@ -3785,7 +3907,8 @@
                 " b   d"
               ]
             ],
-            "collision": []
+            "collision": [],
+            "color": "#b5854a"
           }
         },
         "beach-sand": {
@@ -3812,7 +3935,8 @@
                 "rgba(250, 210, 140, 0.88)"
               ]
             },
-            "collision": []
+            "collision": [],
+            "color": "#e2c86b"
           }
         },
         "woman": {
@@ -3846,7 +3970,8 @@
                 " /\\ "
               ]
             ],
-            "collision": []
+            "collision": [],
+            "color": "#d96a9a"
           }
         },
         "wall_plaster_tl": {
@@ -3876,7 +4001,8 @@
                 "w": 1,
                 "h": 1
               }
-            ]
+            ],
+            "color": "#f0f0ea"
           }
         },
         "pine-tree": {
@@ -3898,7 +4024,8 @@
               "summer": "#2f8f3f",
               "winter": "#2f8f3f"
             },
-            "collision": []
+            "collision": [],
+            "color": "#2f8f3f"
           }
         },
         "marble": {
@@ -3925,7 +4052,8 @@
                 "rgba(245, 243, 240, 0.88)"
               ]
             },
-            "collision": []
+            "collision": [],
+            "color": "#faf8f5"
           }
         },
         "school": {
@@ -3947,7 +4075,8 @@
               "summer": "#d0a83a",
               "winter": "#d0a83a"
             },
-            "collision": []
+            "collision": [],
+            "color": "#d0a83a"
           }
         },
         "bank": {
@@ -3969,7 +4098,8 @@
               "summer": "#6a8f5a",
               "winter": "#6a8f5a"
             },
-            "collision": []
+            "collision": [],
+            "color": "#6a8f5a"
           }
         },
         "cherry-blossom": {
@@ -3991,7 +4121,8 @@
               "summer": "#e785b5",
               "winter": "#e785b5"
             },
-            "collision": []
+            "collision": [],
+            "color": "#e785b5"
           }
         },
         "dark-grass": {
@@ -4018,7 +4149,8 @@
                 "rgba(80, 140, 62, 0.88)"
               ]
             },
-            "collision": []
+            "collision": [],
+            "color": "#3c7a2f"
           }
         },
         "tatami": {
@@ -4045,7 +4177,8 @@
                 "rgba(190, 180, 140, 0.88)"
               ]
             },
-            "collision": []
+            "collision": [],
+            "color": "#c8be96"
           }
         },
         "fist": {
@@ -4067,7 +4200,8 @@
               "summer": "#f0b070",
               "winter": "#f0b070"
             },
-            "collision": []
+            "collision": [],
+            "color": "#f0b070"
           }
         },
         "wall_plaster_r": {
@@ -4097,7 +4231,8 @@
                 "w": 1,
                 "h": 1
               }
-            ]
+            ],
+            "color": "#f0f0ea"
           }
         },
         "coral": {
@@ -4124,7 +4259,8 @@
                 "rgba(255, 130, 160, 0.92)"
               ]
             },
-            "collision": []
+            "collision": [],
+            "color": "#e06a5a"
           }
         },
         "grey-wolf": {
@@ -4158,7 +4294,8 @@
                 " > w <"
               ]
             ],
-            "collision": []
+            "collision": [],
+            "color": "#8a8f9a"
           }
         },
         "arrow": {
@@ -4180,7 +4317,8 @@
               "summer": "#ffe9a8",
               "winter": "#ffe9a8"
             },
-            "collision": []
+            "collision": [],
+            "color": "#ffe9a8"
           }
         },
         "wall_wood_t": {
@@ -4210,7 +4348,8 @@
                 "w": 1,
                 "h": 1
               }
-            ]
+            ],
+            "color": "#8a5a2b"
           }
         },
         "water_shallow": {
@@ -4237,14 +4376,15 @@
                 "rgba(85, 153, 238, 0.8)"
               ]
             },
-            "collision": []
+            "collision": [],
+            "color": "#4488dd"
           }
         },
         "water_still": {
           "title": "Still water",
           "category": "props",
           "settings": {
-            "color": null,
+            "color": "#4488dd",
             "animations": [
               {
                 "durationMs": 1200,
@@ -4294,7 +4434,8 @@
               "summer": "#b0a89a",
               "winter": "#b0a89a"
             },
-            "collision": []
+            "collision": [],
+            "color": "#b0a89a"
           }
         },
         "duck": {
@@ -4328,7 +4469,8 @@
                 " (~~)"
               ]
             ],
-            "collision": []
+            "collision": [],
+            "color": "#6a8f4a"
           }
         },
         "mosque": {
@@ -4350,7 +4492,8 @@
               "summer": "#8aa88a",
               "winter": "#8aa88a"
             },
-            "collision": []
+            "collision": [],
+            "color": "#8aa88a"
           }
         },
         "fountain_br": {
@@ -4379,7 +4522,8 @@
                 "w": 1,
                 "h": 1
               }
-            ]
+            ],
+            "color": "#cbc4b0"
           }
         },
         "frozen_water": {
@@ -4406,7 +4550,8 @@
                 "rgba(140, 200, 245, 0.82)"
               ]
             },
-            "collision": []
+            "collision": [],
+            "color": "#a0d2fa"
           }
         },
         "tree_bottom_left": {
@@ -4471,7 +4616,8 @@
                 "w": 1,
                 "h": 1
               }
-            ]
+            ],
+            "color": "#5fae4f"
           }
         },
         "tree": {
@@ -4486,7 +4632,8 @@
           "settings": {
             "colors": {},
             "position": "single",
-            "collision": []
+            "collision": [],
+            "color": "#2f8f3f"
           }
         },
         "shrub": {
@@ -4509,7 +4656,8 @@
               "winter": "#4fa03f"
             },
             "stackAt": 0,
-            "collision": []
+            "collision": [],
+            "color": "#4fa03f"
           }
         },
         "outback_red": {
@@ -4536,7 +4684,8 @@
                 "rgba(210, 110, 50, 0.88)"
               ]
             },
-            "collision": []
+            "collision": [],
+            "color": "#dc783c"
           }
         },
         "old-man": {
@@ -4570,7 +4719,8 @@
                 " / \\|"
               ]
             ],
-            "collision": []
+            "collision": [],
+            "color": "#c8c8c8"
           }
         },
         "prairie": {
@@ -4597,7 +4747,8 @@
                 "rgba(190, 180, 120, 0.88)"
               ]
             },
-            "collision": []
+            "collision": [],
+            "color": "#c8be82"
           }
         },
         "ice-slash": {
@@ -4619,7 +4770,8 @@
               "summer": "#7fd0ff",
               "winter": "#7fd0ff"
             },
-            "collision": []
+            "collision": [],
+            "color": "#7fd0ff"
           }
         },
         "whitewash": {
@@ -4646,7 +4798,8 @@
                 "rgba(250, 250, 245, 0.92)"
               ]
             },
-            "collision": []
+            "collision": [],
+            "color": "#fffffa"
           }
         },
         "butterfly": {
@@ -4680,7 +4833,8 @@
                 "\\/ \\/"
               ]
             ],
-            "collision": []
+            "collision": [],
+            "color": "#6a9ad8"
           }
         },
         "crystal": {
@@ -4707,7 +4861,8 @@
                 "rgba(180, 130, 250, 0.92)"
               ]
             },
-            "collision": []
+            "collision": [],
+            "color": "#b48cff"
           }
         },
         "door": {
@@ -4731,7 +4886,8 @@
             },
             "fadeNear": true,
             "position": "single",
-            "collision": []
+            "collision": [],
+            "color": "#5a3a22"
           }
         },
         "wall_stone_b": {
@@ -4761,7 +4917,8 @@
                 "w": 1,
                 "h": 1
               }
-            ]
+            ],
+            "color": "#8f8b82"
           }
         },
         "boar": {
@@ -4797,7 +4954,8 @@
                 " '   '"
               ]
             ],
-            "collision": []
+            "collision": [],
+            "color": "#7a6a5a"
           }
         },
         "canopy_c": {
@@ -4854,7 +5012,8 @@
                 "#9fbccb"
               ]
             },
-            "collision": []
+            "collision": [],
+            "color": "#5fae4f"
           }
         },
         "snow_path": {
@@ -4881,7 +5040,8 @@
                 "rgba(200, 215, 230, 0.82)"
               ]
             },
-            "collision": []
+            "collision": [],
+            "color": "#d2dceb"
           }
         },
         "tree_interior": {
@@ -4946,7 +5106,8 @@
                 "w": 1,
                 "h": 1
               }
-            ]
+            ],
+            "color": "#5fae4f"
           }
         },
         "seashell": {
@@ -4968,7 +5129,8 @@
               "summer": "#f0c8a8",
               "winter": "#f0c8a8"
             },
-            "collision": []
+            "collision": [],
+            "color": "#f0c8a8"
           }
         },
         "heal-glow": {
@@ -4990,7 +5152,8 @@
               "summer": "#8effa0",
               "winter": "#8effa0"
             },
-            "collision": []
+            "collision": [],
+            "color": "#8effa0"
           }
         },
         "bridge": {
@@ -5017,7 +5180,8 @@
                 "rgba(170, 119, 51, 0.85)"
               ]
             },
-            "collision": []
+            "collision": [],
+            "color": "#bb8844"
           }
         },
         "wilted-flower": {
@@ -5040,7 +5204,8 @@
               "winter": "#9c6a7a"
             },
             "stackAt": 0,
-            "collision": []
+            "collision": [],
+            "color": "#9c6a7a"
           }
         },
         "hedgehog": {
@@ -5076,7 +5241,8 @@
                 " '   '"
               ]
             ],
-            "collision": []
+            "collision": [],
+            "color": "#a98f6a"
           }
         },
         "axe": {
@@ -5097,7 +5263,8 @@
               "scale": 1.7
             },
             "position": "single",
-            "collision": []
+            "collision": [],
+            "color": "#8a5a2a"
           }
         },
         "dart": {
@@ -5119,7 +5286,8 @@
               "summer": "#ffe9a8",
               "winter": "#ffe9a8"
             },
-            "collision": []
+            "collision": [],
+            "color": "#ffe9a8"
           }
         },
         "seaweed": {
@@ -5146,7 +5314,8 @@
                 "rgba(50, 170, 110, 0.88)"
               ]
             },
-            "collision": []
+            "collision": [],
+            "color": "#3cb478"
           }
         },
         "cat": {
@@ -5182,7 +5351,8 @@
                 " '   '"
               ]
             ],
-            "collision": []
+            "collision": [],
+            "color": "#c8964a"
           }
         },
         "torii-gate": {
@@ -5204,7 +5374,8 @@
               "summer": "#d0402a",
               "winter": "#d0402a"
             },
-            "collision": []
+            "collision": [],
+            "color": "#d0402a"
           }
         },
         "wall_wood_tl": {
@@ -5234,7 +5405,8 @@
                 "w": 1,
                 "h": 1
               }
-            ]
+            ],
+            "color": "#8a5a2b"
           }
         },
         "path_stone": {
@@ -5261,7 +5433,8 @@
                 "rgba(187, 170, 153, 0.8)"
               ]
             },
-            "collision": []
+            "collision": [],
+            "color": "#ccbbaa"
           }
         },
         "elf": {
@@ -5295,7 +5468,8 @@
                 " / \\"
               ]
             ],
-            "collision": []
+            "collision": [],
+            "color": "#6ac07a"
           }
         },
         "roof_slate": {
@@ -5325,7 +5499,8 @@
                 "w": 1,
                 "h": 1
               }
-            ]
+            ],
+            "color": "#4a4f57"
           }
         },
         "roof_top": {
@@ -5349,7 +5524,8 @@
             },
             "fadeNear": true,
             "position": "single",
-            "collision": []
+            "collision": [],
+            "color": "#c8443c"
           }
         },
         "wall_brick_br": {
@@ -5379,7 +5555,8 @@
                 "w": 1,
                 "h": 1
               }
-            ]
+            ],
+            "color": "#9e4b3b"
           }
         },
         "canopy_tl": {
@@ -5436,7 +5613,8 @@
                 "#9fbccb"
               ]
             },
-            "collision": []
+            "collision": [],
+            "color": "#5fae4f"
           }
         },
         "crypt_floor": {
@@ -5463,7 +5641,8 @@
                 "rgba(90, 85, 80, 0.88)"
               ]
             },
-            "collision": []
+            "collision": [],
+            "color": "#645f5a"
           }
         },
         "derelict-house": {
@@ -5485,7 +5664,8 @@
               "summer": "#8a7a5f",
               "winter": "#8a7a5f"
             },
-            "collision": []
+            "collision": [],
+            "color": "#8a7a5f"
           }
         },
         "oasis": {
@@ -5512,7 +5692,8 @@
                 "rgba(40, 170, 190, 0.88)"
               ]
             },
-            "collision": []
+            "collision": [],
+            "color": "#32b4c8"
           }
         },
         "goblin": {
@@ -5548,7 +5729,8 @@
                 " d b"
               ]
             ],
-            "collision": []
+            "collision": [],
+            "color": "#c8443c"
           }
         },
         "fountain_l": {
@@ -5577,7 +5759,8 @@
                 "w": 1,
                 "h": 1
               }
-            ]
+            ],
+            "color": "#cbc4b0"
           }
         },
         "tree_crown": {
@@ -5642,7 +5825,8 @@
                 "w": 1,
                 "h": 1
               }
-            ]
+            ],
+            "color": "#5fae4f"
           }
         },
         "decor_grit": {
@@ -5658,7 +5842,8 @@
             "colors": {
               "desert": "#bba360"
             },
-            "collision": []
+            "collision": [],
+            "color": "#bba360"
           }
         },
         "grass-field": {
@@ -5685,7 +5870,8 @@
                 "rgba(146, 188, 78, 0.9)"
               ]
             },
-            "collision": []
+            "collision": [],
+            "color": "#5faf4a"
           }
         },
         "wall_stone_bl": {
@@ -5715,7 +5901,8 @@
                 "w": 1,
                 "h": 1
               }
-            ]
+            ],
+            "color": "#8f8b82"
           }
         },
         "cow": {
@@ -5751,7 +5938,8 @@
                 " L   J"
               ]
             ],
-            "collision": []
+            "collision": [],
+            "color": "#c9b8a8"
           }
         },
         "desert": {
@@ -5778,7 +5966,8 @@
                 "rgba(220, 180, 120, 0.88)"
               ]
             },
-            "collision": []
+            "collision": [],
+            "color": "#d9b45f"
           }
         },
         "volcanic_rock": {
@@ -5805,7 +5994,8 @@
                 "rgba(90, 60, 45, 0.88)"
               ]
             },
-            "collision": []
+            "collision": [],
+            "color": "#644632"
           }
         },
         "tree_leaf": {
@@ -5870,7 +6060,8 @@
                 "w": 1,
                 "h": 1
               }
-            ]
+            ],
+            "color": "#5fae4f"
           }
         },
         "canopy_tr": {
@@ -5927,7 +6118,8 @@
                 "#9fbccb"
               ]
             },
-            "collision": []
+            "collision": [],
+            "color": "#5fae4f"
           }
         },
         "wall_stone_c": {
@@ -5957,7 +6149,8 @@
                 "w": 1,
                 "h": 1
               }
-            ]
+            ],
+            "color": "#8f8b82"
           }
         },
         "pumpkin": {
@@ -5991,7 +6184,8 @@
                 " \\___/"
               ]
             ],
-            "collision": []
+            "collision": [],
+            "color": "#e5842a"
           }
         },
         "tree_top": {
@@ -6056,7 +6250,8 @@
                 "w": 1,
                 "h": 1
               }
-            ]
+            ],
+            "color": "#5fae4f"
           }
         },
         "peak": {
@@ -6086,7 +6281,8 @@
                 "w": 1,
                 "h": 1
               }
-            ]
+            ],
+            "color": "#8d8d97"
           }
         },
         "tree_snag": {
@@ -6116,7 +6312,8 @@
                 "w": 1,
                 "h": 1
               }
-            ]
+            ],
+            "color": "#7a5a3a"
           }
         },
         "walk": {
@@ -6138,7 +6335,8 @@
               "summer": "#d9a066",
               "winter": "#d9a066"
             },
-            "collision": []
+            "collision": [],
+            "color": "#d9a066"
           }
         },
         "fountain_r": {
@@ -6167,7 +6365,8 @@
                 "w": 1,
                 "h": 1
               }
-            ]
+            ],
+            "color": "#cbc4b0"
           }
         },
         "snow": {
@@ -6194,7 +6393,8 @@
                 "rgba(230, 240, 250, 0.90)"
               ]
             },
-            "collision": []
+            "collision": [],
+            "color": "#e2ecf5"
           }
         },
         "nova": {
@@ -6216,7 +6416,8 @@
               "summer": "#c08cff",
               "winter": "#c08cff"
             },
-            "collision": []
+            "collision": [],
+            "color": "#c08cff"
           }
         },
         "plaza": {
@@ -6243,7 +6444,8 @@
                 "rgba(240, 230, 210, 0.85)"
               ]
             },
-            "collision": []
+            "collision": [],
+            "color": "#cabfa6"
           }
         },
         "fallen-leaf": {
@@ -6266,7 +6468,8 @@
               "winter": "#c8742f"
             },
             "stackAt": 0,
-            "collision": []
+            "collision": [],
+            "color": "#c8742f"
           }
         },
         "sand": {
@@ -6293,7 +6496,8 @@
                 "rgba(250, 210, 140, 0.88)"
               ]
             },
-            "collision": []
+            "collision": [],
+            "color": "#e2c86b"
           }
         },
         "decor_dot": {
@@ -6309,7 +6513,8 @@
             "colors": {
               "autumn": "#a06a2c"
             },
-            "collision": []
+            "collision": [],
+            "color": "#a06a2c"
           }
         },
         "roof_top_store": {
@@ -6332,7 +6537,8 @@
               "winter": "#235a96"
             },
             "fadeNear": true,
-            "collision": []
+            "collision": [],
+            "color": "#235a96"
           }
         },
         "sand_trap": {
@@ -6359,7 +6565,8 @@
                 "rgba(186, 154, 84, 0.88)"
               ]
             },
-            "collision": []
+            "collision": [],
+            "color": "#c8a860"
           }
         },
         "volcano": {
@@ -6386,7 +6593,8 @@
                 "rgba(255, 130, 20, 0.92)"
               ]
             },
-            "collision": []
+            "collision": [],
+            "color": "#b5372a"
           }
         },
         "sandstone": {
@@ -6413,7 +6621,8 @@
                 "rgba(220, 180, 120, 0.88)"
               ]
             },
-            "collision": []
+            "collision": [],
+            "color": "#e6be82"
           }
         },
         "wooden-door": {
@@ -6436,7 +6645,8 @@
               "winter": "#5a3a22"
             },
             "fadeNear": true,
-            "collision": []
+            "collision": [],
+            "color": "#5a3a22"
           }
         },
         "shield": {
@@ -6457,7 +6667,8 @@
               "scale": 1.7
             },
             "position": "single",
-            "collision": []
+            "collision": [],
+            "color": "#3f5f8f"
           }
         },
         "connector": {
@@ -6479,7 +6690,8 @@
               "summer": "#8a7bd8",
               "winter": "#8a7bd8"
             },
-            "collision": []
+            "collision": [],
+            "color": "#8a7bd8"
           }
         },
         "basalt": {
@@ -6506,7 +6718,8 @@
                 "rgba(90, 48, 40, 0.75)"
               ]
             },
-            "collision": []
+            "collision": [],
+            "color": "#6e3a30"
           }
         },
         "decor_flower": {
@@ -6522,7 +6735,8 @@
             "colors": {
               "spring": "#c79bb4"
             },
-            "collision": []
+            "collision": [],
+            "color": "#c79bb4"
           }
         },
         "bow": {
@@ -6543,7 +6757,8 @@
               "scale": 1.7
             },
             "position": "single",
-            "collision": []
+            "collision": [],
+            "color": "#a9743a"
           }
         },
         "eucalyptus": {
@@ -6570,7 +6785,8 @@
                 "rgba(110, 150, 120, 0.88)"
               ]
             },
-            "collision": []
+            "collision": [],
+            "color": "#78a082"
           }
         },
         "road_edge": {
@@ -6597,7 +6813,8 @@
                 "rgba(86, 88, 96, 0.75)"
               ]
             },
-            "collision": []
+            "collision": [],
+            "color": "#60626a"
           }
         },
         "gun": {
@@ -6618,7 +6835,8 @@
               "scale": 1.7
             },
             "position": "single",
-            "collision": []
+            "collision": [],
+            "color": "#5a6b70"
           }
         },
         "ice_cracked": {
@@ -6645,7 +6863,8 @@
                 "rgba(160, 220, 250, 0.92)"
               ]
             },
-            "collision": []
+            "collision": [],
+            "color": "#b4e6ff"
           }
         },
         "person": {
@@ -6679,7 +6898,8 @@
                 " / \\"
               ]
             ],
-            "collision": []
+            "collision": [],
+            "color": "#d9a066"
           }
         },
         "wheat": {
@@ -6702,7 +6922,8 @@
               "winter": "#d9b25f"
             },
             "stackAt": 0,
-            "collision": []
+            "collision": [],
+            "color": "#d9b25f"
           }
         },
         "gravel": {
@@ -6729,7 +6950,8 @@
                 "rgba(138, 126, 110, 0.82)"
               ]
             },
-            "collision": []
+            "collision": [],
+            "color": "#7c6a52"
           }
         },
         "hibiscus": {
@@ -6752,7 +6974,8 @@
               "winter": "#e5527a"
             },
             "stackAt": 0,
-            "collision": []
+            "collision": [],
+            "color": "#e5527a"
           }
         },
         "police-officer": {
@@ -6786,7 +7009,8 @@
                 " / \\"
               ]
             ],
-            "collision": []
+            "collision": [],
+            "color": "#4a6ac0"
           }
         },
         "ninja": {
@@ -6820,7 +7044,8 @@
                 " / \\"
               ]
             ],
-            "collision": []
+            "collision": [],
+            "color": "#3a3a4a"
           }
         },
         "wall_wood_br": {
@@ -6850,7 +7075,8 @@
                 "w": 1,
                 "h": 1
               }
-            ]
+            ],
+            "color": "#8a5a2b"
           }
         },
         "sakura_petals": {
@@ -6877,7 +7103,8 @@
                 "rgba(255, 180, 200, 0.92)"
               ]
             },
-            "collision": []
+            "collision": [],
+            "color": "#ffc8dc"
           }
         },
         "savanna": {
@@ -6904,7 +7131,8 @@
                 "rgba(190, 170, 90, 0.88)"
               ]
             },
-            "collision": []
+            "collision": [],
+            "color": "#c8b464"
           }
         },
         "decor_pebbles": {
@@ -6923,7 +7151,8 @@
               "lava": "#56382e",
               "winter": "#c8d6e2"
             },
-            "collision": []
+            "collision": [],
+            "color": "#b0894e"
           }
         },
         "ice": {
@@ -6950,7 +7179,8 @@
                 "rgba(130, 210, 250, 0.92)"
               ]
             },
-            "collision": []
+            "collision": [],
+            "color": "#a8d8f0"
           }
         },
         "temple_floor": {
@@ -6977,7 +7207,8 @@
                 "rgba(194, 180, 146, 0.88)"
               ]
             },
-            "collision": []
+            "collision": [],
+            "color": "#cec09e"
           }
         },
         "pyramid_stone": {
@@ -7004,7 +7235,8 @@
                 "rgba(220, 190, 140, 0.88)"
               ]
             },
-            "collision": []
+            "collision": [],
+            "color": "#e6c896"
           }
         },
         "water_c": {
@@ -7033,7 +7265,8 @@
                 "w": 1,
                 "h": 1
               }
-            ]
+            ],
+            "color": "#2f7fc9"
           }
         },
         "dead_grass": {
@@ -7060,7 +7293,8 @@
                 "rgba(130, 120, 80, 0.82)"
               ]
             },
-            "collision": []
+            "collision": [],
+            "color": "#8c825a"
           }
         },
         "decor_blossom": {
@@ -7076,7 +7310,8 @@
             "colors": {
               "spring": "#c4b061"
             },
-            "collision": []
+            "collision": [],
+            "color": "#c4b061"
           }
         },
         "tropical_grass": {
@@ -7103,7 +7338,8 @@
                 "rgba(40, 190, 70, 0.88)"
               ]
             },
-            "collision": []
+            "collision": [],
+            "color": "#32c850"
           }
         },
         "department-store": {
@@ -7125,7 +7361,8 @@
               "summer": "#b05a8a",
               "winter": "#b05a8a"
             },
-            "collision": []
+            "collision": [],
+            "color": "#b05a8a"
           }
         },
         "pig": {
@@ -7161,7 +7398,8 @@
                 " '   '"
               ]
             ],
-            "collision": []
+            "collision": [],
+            "color": "#e59ab0"
           }
         },
         "cactus": {
@@ -7183,7 +7421,8 @@
               "summer": "#4a8f3f",
               "winter": "#4a8f3f"
             },
-            "collision": []
+            "collision": [],
+            "color": "#4a8f3f"
           }
         },
         "wall_wood_bl": {
@@ -7213,7 +7452,8 @@
                 "w": 1,
                 "h": 1
               }
-            ]
+            ],
+            "color": "#8a5a2b"
           }
         },
         "boy": {
@@ -7247,7 +7487,8 @@
                 " / \\"
               ]
             ],
-            "collision": []
+            "collision": [],
+            "color": "#e0b060"
           }
         },
         "lava": {
@@ -7274,7 +7515,8 @@
                 "rgba(255, 180, 30, 0.92)"
               ]
             },
-            "collision": []
+            "collision": [],
+            "color": "#ff5a1f"
           }
         },
         "altar": {
@@ -7289,7 +7531,8 @@
           "settings": {
             "colors": {},
             "position": "single",
-            "collision": []
+            "collision": [],
+            "color": "#ffe7a8"
           }
         },
         "tree_leaf_top": {
@@ -7347,7 +7590,8 @@
               ]
             },
             "position": "single",
-            "collision": []
+            "collision": [],
+            "color": "#5fae4f"
           }
         },
         "snail": {
@@ -7381,7 +7625,8 @@
                 " (@@@) "
               ]
             ],
-            "collision": []
+            "collision": [],
+            "color": "#c8a06a"
           }
         },
         "autumn": {
@@ -7408,7 +7653,8 @@
                 "rgba(156, 104, 58, 0.8)"
               ]
             },
-            "collision": []
+            "collision": [],
+            "color": "#b5732f"
           }
         },
         "pillar": {
@@ -7423,7 +7669,8 @@
           "settings": {
             "colors": {},
             "position": "single",
-            "collision": []
+            "collision": [],
+            "color": "#cbb68c"
           }
         },
         "post": {
@@ -7452,7 +7699,8 @@
                 "w": 1,
                 "h": 1
               }
-            ]
+            ],
+            "color": "#43474d"
           }
         },
         "staff": {
@@ -7473,7 +7721,8 @@
               "scale": 1.7
             },
             "position": "single",
-            "collision": []
+            "collision": [],
+            "color": "#c9a0ff"
           }
         },
         "enemy": {
@@ -7502,7 +7751,8 @@
                 " \" \""
               ]
             ],
-            "collision": []
+            "collision": [],
+            "color": "#b45ac0"
           }
         },
         "goat": {
@@ -7538,7 +7788,8 @@
                 " '   '"
               ]
             ],
-            "collision": []
+            "collision": [],
+            "color": "#b8a888"
           }
         },
         "decor_clover": {
@@ -7554,7 +7805,8 @@
             "colors": {
               "summer": "#2a722a"
             },
-            "collision": []
+            "collision": [],
+            "color": "#5aaf5a"
           }
         },
         "leaf_top": {
@@ -7612,7 +7864,8 @@
               ]
             },
             "position": "single",
-            "collision": []
+            "collision": [],
+            "color": "#5fae4f"
           }
         },
         "cave_moss": {
@@ -7639,7 +7892,8 @@
                 "rgba(70, 130, 60, 0.88)"
               ]
             },
-            "collision": []
+            "collision": [],
+            "color": "#508c46"
           }
         },
         "wall_stone_tl": {
@@ -7669,7 +7923,8 @@
                 "w": 1,
                 "h": 1
               }
-            ]
+            ],
+            "color": "#8f8b82"
           }
         },
         "tree_bottom": {
@@ -7734,7 +7989,8 @@
                 "w": 1,
                 "h": 1
               }
-            ]
+            ],
+            "color": "#5fae4f"
           }
         },
         "ice_water": {
@@ -7761,7 +8017,8 @@
                 "rgba(100, 185, 245, 0.85)"
               ]
             },
-            "collision": []
+            "collision": [],
+            "color": "#78c8ff"
           }
         },
         "guard-flash": {
@@ -7783,7 +8040,8 @@
               "summer": "#9fd3ff",
               "winter": "#9fd3ff"
             },
-            "collision": []
+            "collision": [],
+            "color": "#9fd3ff"
           }
         },
         "houses": {
@@ -7805,7 +8063,8 @@
               "summer": "#c86b4d",
               "winter": "#c86b4d"
             },
-            "collision": []
+            "collision": [],
+            "color": "#c86b4d"
           }
         },
         "key": {
@@ -7820,7 +8079,8 @@
           "settings": {
             "colors": {},
             "position": "single",
-            "collision": []
+            "collision": [],
+            "color": "#ffd24a"
           }
         },
         "cliff": {
@@ -7847,7 +8107,8 @@
                 "rgba(243, 191, 54, 0.85)"
               ]
             },
-            "collision": []
+            "collision": [],
+            "color": "#ffd43a"
           }
         },
         "rabbit": {
@@ -7883,7 +8144,8 @@
                 " '   '"
               ]
             ],
-            "collision": []
+            "collision": [],
+            "color": "#d8cbb8"
           }
         },
         "ash": {
@@ -7910,7 +8172,8 @@
                 "rgba(128, 82, 64, 0.55)"
               ]
             },
-            "collision": []
+            "collision": [],
+            "color": "#96604a"
           }
         },
         "wall_wood_tr": {
@@ -7940,7 +8203,8 @@
                 "w": 1,
                 "h": 1
               }
-            ]
+            ],
+            "color": "#8a5a2b"
           }
         },
         "adult": {
@@ -7974,7 +8238,8 @@
                 " / \\"
               ]
             ],
-            "collision": []
+            "collision": [],
+            "color": "#d9a066"
           }
         },
         "terracotta": {
@@ -8001,7 +8266,8 @@
                 "rgba(210, 130, 90, 0.88)"
               ]
             },
-            "collision": []
+            "collision": [],
+            "color": "#dc8c64"
           }
         },
         "cave_floor": {
@@ -8028,7 +8294,8 @@
                 "rgba(120, 110, 100, 0.88)"
               ]
             },
-            "collision": []
+            "collision": [],
+            "color": "#82786e"
           }
         },
         "flat_roof": {
@@ -8051,7 +8318,8 @@
               "winter": "#8b9098"
             },
             "cutawayRoof": true,
-            "collision": []
+            "collision": [],
+            "color": "#8b9098"
           }
         },
         "wall_stone_t": {
@@ -8081,7 +8349,8 @@
                 "w": 1,
                 "h": 1
               }
-            ]
+            ],
+            "color": "#8f8b82"
           }
         },
         "wall_wood_r": {
@@ -8111,7 +8380,8 @@
                 "w": 1,
                 "h": 1
               }
-            ]
+            ],
+            "color": "#8a5a2b"
           }
         },
         "wall_stone_tr": {
@@ -8141,7 +8411,8 @@
                 "w": 1,
                 "h": 1
               }
-            ]
+            ],
+            "color": "#8f8b82"
           }
         },
         "bird": {
@@ -8175,7 +8446,8 @@
                 "  vv "
               ]
             ],
-            "collision": []
+            "collision": [],
+            "color": "#5a8fc8"
           }
         },
         "boulder": {
@@ -8197,7 +8469,8 @@
               "summer": "#8a8a8a",
               "winter": "#8a8a8a"
             },
-            "collision": []
+            "collision": [],
+            "color": "#8a8a8a"
           }
         },
         "oak-tree": {
@@ -8219,7 +8492,8 @@
               "summer": "#4caf50",
               "winter": "#4caf50"
             },
-            "collision": []
+            "collision": [],
+            "color": "#4caf50"
           }
         },
         "bullet": {
@@ -8241,7 +8515,8 @@
               "summer": "#d8d8d8",
               "winter": "#d8d8d8"
             },
-            "collision": []
+            "collision": [],
+            "color": "#d8d8d8"
           }
         },
         "trunk_base": {
@@ -8264,7 +8539,8 @@
               "winter": "#8fa3b5"
             },
             "position": "single",
-            "collision": []
+            "collision": [],
+            "color": "#7a5a3a"
           }
         },
         "clover": {
@@ -8287,7 +8563,8 @@
               "winter": "#3c9a3a"
             },
             "stackAt": 0,
-            "collision": []
+            "collision": [],
+            "color": "#3c9a3a"
           }
         },
         "olive_grove": {
@@ -8314,7 +8591,8 @@
                 "rgba(70, 110, 45, 0.82)"
               ]
             },
-            "collision": []
+            "collision": [],
+            "color": "#507832"
           }
         },
         "wizard": {
@@ -8350,7 +8628,8 @@
                 " / \\|"
               ]
             ],
-            "collision": []
+            "collision": [],
+            "color": "#6a4ab0"
           }
         },
         "sword": {
@@ -8371,7 +8650,8 @@
               "scale": 1.7
             },
             "position": "single",
-            "collision": []
+            "collision": [],
+            "color": "#d8d8d8"
           }
         },
         "convenience-store": {
@@ -8393,7 +8673,8 @@
               "summer": "#4a9ac8",
               "winter": "#4a9ac8"
             },
-            "collision": []
+            "collision": [],
+            "color": "#4a9ac8"
           }
         },
         "fox": {
@@ -8429,7 +8710,8 @@
                 " '   '"
               ]
             ],
-            "collision": []
+            "collision": [],
+            "color": "#e0863a"
           }
         },
         "tulip": {
@@ -8452,7 +8734,8 @@
               "winter": "#e05a7a"
             },
             "stackAt": 0,
-            "collision": []
+            "collision": [],
+            "color": "#e05a7a"
           }
         },
         "wall_brick_b": {
@@ -8482,7 +8765,8 @@
                 "w": 1,
                 "h": 1
               }
-            ]
+            ],
+            "color": "#9e4b3b"
           }
         },
         "awning": {
@@ -8512,7 +8796,8 @@
                 "w": 1,
                 "h": 1
               }
-            ]
+            ],
+            "color": "#b64a34"
           }
         },
         "decor_shell": {
@@ -8528,7 +8813,8 @@
             "colors": {
               "beach": "#cfe6ee"
             },
-            "collision": []
+            "collision": [],
+            "color": "#cfe6ee"
           }
         },
         "bolt": {
@@ -8550,7 +8836,8 @@
               "summer": "#ffe9a8",
               "winter": "#ffe9a8"
             },
-            "collision": []
+            "collision": [],
+            "color": "#ffe9a8"
           }
         },
         "wall_plaster_bl": {
@@ -8580,7 +8867,8 @@
                 "w": 1,
                 "h": 1
               }
-            ]
+            ],
+            "color": "#f0f0ea"
           }
         },
         "snow_deep": {
@@ -8607,7 +8895,8 @@
                 "rgba(245, 250, 255, 0.92)"
               ]
             },
-            "collision": []
+            "collision": [],
+            "color": "#ffffff"
           }
         },
         "tree_stem": {
@@ -8637,7 +8926,8 @@
                 "w": 1,
                 "h": 1
               }
-            ]
+            ],
+            "color": "#7a5a3a"
           }
         },
         "snowy-peak": {
@@ -8664,7 +8954,8 @@
                 "rgba(245, 250, 255, 0.92)"
               ]
             },
-            "collision": []
+            "collision": [],
+            "color": "#cfd8e3"
           }
         },
         "classical-building": {
@@ -8686,7 +8977,8 @@
               "summer": "#cbb68c",
               "winter": "#cbb68c"
             },
-            "collision": []
+            "collision": [],
+            "color": "#cbb68c"
           }
         },
         "snowflake": {
@@ -8713,7 +9005,8 @@
                 "rgba(195, 225, 250, 0.85)"
               ]
             },
-            "collision": []
+            "collision": [],
+            "color": "#eaf4ff"
           }
         },
         "display_window": {
@@ -8743,7 +9036,8 @@
                 "w": 1,
                 "h": 1
               }
-            ]
+            ],
+            "color": "#86bcd6"
           }
         },
         "grass": {
@@ -8770,7 +9064,8 @@
                 "rgba(146, 188, 78, 0.9)"
               ]
             },
-            "collision": []
+            "collision": [],
+            "color": "#5faf4a"
           }
         },
         "dead-tree": {
@@ -8792,7 +9087,8 @@
               "summer": "#8a6f4a",
               "winter": "#8a6f4a"
             },
-            "collision": []
+            "collision": [],
+            "color": "#8a6f4a"
           }
         },
         "wall_wood_l": {
@@ -8822,7 +9118,8 @@
                 "w": 1,
                 "h": 1
               }
-            ]
+            ],
+            "color": "#8a5a2b"
           }
         },
         "skull": {
@@ -8856,7 +9153,8 @@
                 " )|( "
               ]
             ],
-            "collision": []
+            "collision": [],
+            "color": "#d8d8d8"
           }
         },
         "man": {
@@ -8890,7 +9188,8 @@
                 " /  \\"
               ]
             ],
-            "collision": []
+            "collision": [],
+            "color": "#6a8fd9"
           }
         },
         "autumn_ground": {
@@ -8917,7 +9216,8 @@
                 "rgba(156, 104, 58, 0.8)"
               ]
             },
-            "collision": []
+            "collision": [],
+            "color": "#b07a46"
           }
         },
         "house": {
@@ -8939,7 +9239,8 @@
               "summer": "#c8443c",
               "winter": "#c8443c"
             },
-            "collision": []
+            "collision": [],
+            "color": "#c8443c"
           }
         },
         "grave_dirt": {
@@ -8966,7 +9267,8 @@
                 "rgba(90, 75, 55, 0.82)"
               ]
             },
-            "collision": []
+            "collision": [],
+            "color": "#645541"
           }
         },
         "inca_stone": {
@@ -8993,7 +9295,8 @@
                 "rgba(150, 140, 120, 0.88)"
               ]
             },
-            "collision": []
+            "collision": [],
+            "color": "#a09682"
           }
         },
         "water": {
@@ -9071,14 +9374,16 @@
                 }
               }
             ],
-            "collision": []
+            "collision": [],
+            "color": "#4f93b3"
           }
         },
         "water_f1": {
           "title": "Water frame 1",
           "category": "terrain",
           "settings": {
-            "collision": []
+            "collision": [],
+            "color": "#4f93b3"
           },
           "height": 0.5,
           "glyph": "⌼",
@@ -9091,7 +9396,8 @@
           "title": "Water frame 2",
           "category": "terrain",
           "settings": {
-            "collision": []
+            "collision": [],
+            "color": "#4f93b3"
           },
           "height": 0.5,
           "glyph": "⌽",
@@ -9104,7 +9410,8 @@
           "title": "Water frame 3",
           "category": "terrain",
           "settings": {
-            "collision": []
+            "collision": [],
+            "color": "#4f93b3"
           },
           "height": 0.5,
           "glyph": "⌿",
@@ -9134,7 +9441,8 @@
             },
             "fadeNear": true,
             "position": "single",
-            "collision": []
+            "collision": [],
+            "color": "#b0603a"
           }
         },
         "fire-slash": {
@@ -9156,7 +9464,8 @@
               "summer": "#ff7a2a",
               "winter": "#ff7a2a"
             },
-            "collision": []
+            "collision": [],
+            "color": "#ff7a2a"
           }
         },
         "vampire": {
@@ -9192,7 +9501,8 @@
                 " d b"
               ]
             ],
-            "collision": []
+            "collision": [],
+            "color": "#8a4a6a"
           }
         },
         "trunk_bottom": {
@@ -9221,7 +9531,8 @@
                 "w": 1,
                 "h": 1
               }
-            ]
+            ],
+            "color": "#7a5a3a"
           }
         },
         "fountain_t": {
@@ -9250,7 +9561,8 @@
                 "w": 1,
                 "h": 1
               }
-            ]
+            ],
+            "color": "#cbc4b0"
           }
         },
         "mushroom": {
@@ -9266,7 +9578,8 @@
             "colors": {},
             "position": "single",
             "stackAt": 0,
-            "collision": []
+            "collision": [],
+            "color": "#d24a4a"
           }
         },
         "guard": {
@@ -9300,7 +9613,8 @@
                 " / \\"
               ]
             ],
-            "collision": []
+            "collision": [],
+            "color": "#c8443c"
           }
         },
         "wood-log": {
@@ -9322,7 +9636,8 @@
               "summer": "#a9793f",
               "winter": "#a9793f"
             },
-            "collision": []
+            "collision": [],
+            "color": "#a9793f"
           }
         },
         "alien": {
@@ -9358,7 +9673,8 @@
                 " ' '"
               ]
             ],
-            "collision": []
+            "collision": [],
+            "color": "#b45ac0"
           }
         },
         "desert_road": {
@@ -9385,7 +9701,8 @@
                 "rgba(190, 160, 110, 0.82)"
               ]
             },
-            "collision": []
+            "collision": [],
+            "color": "#c8aa78"
           }
         },
         "hotel": {
@@ -9407,7 +9724,8 @@
               "summer": "#c89a4a",
               "winter": "#c89a4a"
             },
-            "collision": []
+            "collision": [],
+            "color": "#c89a4a"
           }
         },
         "seafloor": {
@@ -9434,7 +9752,8 @@
                 "rgba(90, 140, 170, 0.82)"
               ]
             },
-            "collision": []
+            "collision": [],
+            "color": "#6496b4"
           }
         },
         "glass-window": {
@@ -9457,7 +9776,8 @@
               "winter": "#7fb4d8"
             },
             "fadeNear": true,
-            "collision": []
+            "collision": [],
+            "color": "#7fb4d8"
           }
         },
         "roof_hospital": {
@@ -9487,7 +9807,8 @@
                 "w": 1,
                 "h": 1
               }
-            ]
+            ],
+            "color": "#2f7e50"
           }
         },
         "shamrock": {
@@ -9510,7 +9831,8 @@
               "winter": "#3fa03f"
             },
             "stackAt": 0,
-            "collision": []
+            "collision": [],
+            "color": "#3fa03f"
           }
         },
         "koi_pond": {
@@ -9537,7 +9859,8 @@
                 "rgba(90, 170, 190, 0.88)"
               ]
             },
-            "collision": []
+            "collision": [],
+            "color": "#64b4c8"
           }
         },
         "autumn_leaves": {
@@ -9564,7 +9887,8 @@
                 "rgba(190, 90, 40, 0.85)"
               ]
             },
-            "collision": []
+            "collision": [],
+            "color": "#d2782d"
           }
         },
         "ladybug": {
@@ -9598,7 +9922,8 @@
                 "((:.:))"
               ]
             ],
-            "collision": []
+            "collision": [],
+            "color": "#d13b3b"
           }
         },
         "boss": {
@@ -9634,7 +9959,8 @@
                 " J   L"
               ]
             ],
-            "collision": []
+            "collision": [],
+            "color": "#c0392b"
           }
         },
         "rooftop_unit": {
@@ -9664,7 +9990,8 @@
                 "w": 1,
                 "h": 1
               }
-            ]
+            ],
+            "color": "#616870"
           }
         },
         "trunk_mid": {
@@ -9693,7 +10020,8 @@
                 "w": 1,
                 "h": 1
               }
-            ]
+            ],
+            "color": "#7a5a3a"
           }
         },
         "office-building": {
@@ -9715,7 +10043,8 @@
               "summer": "#7f8c9a",
               "winter": "#7f8c9a"
             },
-            "collision": []
+            "collision": [],
+            "color": "#7f8c9a"
           }
         },
         "sapling": {
@@ -9737,7 +10066,8 @@
               "summer": "#7cc36a",
               "winter": "#7cc36a"
             },
-            "collision": []
+            "collision": [],
+            "color": "#7cc36a"
           }
         },
         "rune_floor": {
@@ -9764,7 +10094,8 @@
                 "rgba(80, 180, 250, 0.92)"
               ]
             },
-            "collision": []
+            "collision": [],
+            "color": "#64c8ff"
           }
         },
         "wall_brick_tr": {
@@ -9794,7 +10125,8 @@
                 "w": 1,
                 "h": 1
               }
-            ]
+            ],
+            "color": "#9e4b3b"
           }
         },
         "decor_ripple": {
@@ -9810,7 +10142,8 @@
             "colors": {
               "beach": "#bfe0ec"
             },
-            "collision": []
+            "collision": [],
+            "color": "#8fc7e0"
           }
         },
         "tree_bottom_right": {
@@ -9875,7 +10208,8 @@
                 "w": 1,
                 "h": 1
               }
-            ]
+            ],
+            "color": "#5fae4f"
           }
         },
         "roof_top_hospital": {
@@ -9898,7 +10232,8 @@
               "winter": "#2f7e50"
             },
             "fadeNear": true,
-            "collision": []
+            "collision": [],
+            "color": "#2f7e50"
           }
         },
         "player": {
@@ -9925,7 +10260,8 @@
                 " /\\ "
               ]
             ],
-            "collision": []
+            "collision": [],
+            "color": "#ffcf3a"
           }
         },
         "adobe": {
@@ -9952,7 +10288,8 @@
                 "rgba(190, 150, 110, 0.88)"
               ]
             },
-            "collision": []
+            "collision": [],
+            "color": "#c8a078"
           }
         },
         "wall_plaster_l": {
@@ -9982,7 +10319,8 @@
                 "w": 1,
                 "h": 1
               }
-            ]
+            ],
+            "color": "#f0f0ea"
           }
         },
         "rock": {
@@ -10009,7 +10347,8 @@
                 "rgba(120, 66, 48, 0.8)"
               ]
             },
-            "collision": []
+            "collision": [],
+            "color": "#8a8a8a"
           }
         },
         "cavefloor": {
@@ -10024,7 +10363,8 @@
           "settings": {
             "colors": {},
             "position": "single",
-            "collision": []
+            "collision": [],
+            "color": "#3f3a34"
           }
         },
         "guardian": {
@@ -10060,7 +10400,8 @@
                 " |_|"
               ]
             ],
-            "collision": []
+            "collision": [],
+            "color": "#8a8f80"
           }
         },
         "horse": {
@@ -10096,7 +10437,8 @@
                 " L   J"
               ]
             ],
-            "collision": []
+            "collision": [],
+            "color": "#a9793f"
           }
         },
         "fountain": {
@@ -10118,7 +10460,8 @@
               "summer": "#4a90e2",
               "winter": "#4a90e2"
             },
-            "collision": []
+            "collision": [],
+            "color": "#4a90e2"
           }
         },
         "wall_stone_l": {
@@ -10148,7 +10491,8 @@
                 "w": 1,
                 "h": 1
               }
-            ]
+            ],
+            "color": "#8f8b82"
           }
         },
         "leaf_left": {
@@ -10206,7 +10550,8 @@
               ]
             },
             "position": "single",
-            "collision": []
+            "collision": [],
+            "color": "#5fae4f"
           }
         },
         "mud_hut": {
@@ -10233,7 +10578,8 @@
                 "rgba(150, 120, 80, 0.88)"
               ]
             },
-            "collision": []
+            "collision": [],
+            "color": "#a0825a"
           }
         },
         "roof_store": {
@@ -10263,7 +10609,8 @@
                 "w": 1,
                 "h": 1
               }
-            ]
+            ],
+            "color": "#235a96"
           }
         },
         "potted-plant": {
@@ -10285,7 +10632,8 @@
               "summer": "#5a9a4a",
               "winter": "#5a9a4a"
             },
-            "collision": []
+            "collision": [],
+            "color": "#5a9a4a"
           }
         },
         "bouquet": {
@@ -10308,7 +10656,8 @@
               "winter": "#e57ba0"
             },
             "stackAt": 0,
-            "collision": []
+            "collision": [],
+            "color": "#e57ba0"
           }
         },
         "torch": {
@@ -10323,7 +10672,8 @@
           "settings": {
             "colors": {},
             "position": "single",
-            "collision": []
+            "collision": [],
+            "color": "#ff8a3a"
           }
         },
         "lamp": {
@@ -10338,7 +10688,8 @@
           "settings": {
             "colors": {},
             "position": "single",
-            "collision": []
+            "collision": [],
+            "color": "#ffd24a"
           }
         },
         "wall_brick_r": {
@@ -10368,7 +10719,8 @@
                 "w": 1,
                 "h": 1
               }
-            ]
+            ],
+            "color": "#9e4b3b"
           }
         },
         "cleave": {
@@ -10390,7 +10742,8 @@
               "summer": "#e6ebf3",
               "winter": "#e6ebf3"
             },
-            "collision": []
+            "collision": [],
+            "color": "#e6ebf3"
           }
         },
         "fountain_b": {
@@ -10419,7 +10772,8 @@
                 "w": 1,
                 "h": 1
               }
-            ]
+            ],
+            "color": "#cbc4b0"
           }
         },
         "castle": {
@@ -10441,7 +10795,8 @@
               "summer": "#9a8a7a",
               "winter": "#9a8a7a"
             },
-            "collision": []
+            "collision": [],
+            "color": "#9a8a7a"
           }
         },
         "construction-worker": {
@@ -10475,7 +10830,8 @@
                 " / \\"
               ]
             ],
-            "collision": []
+            "collision": [],
+            "color": "#e5b03a"
           }
         },
         "spanish_tile": {
@@ -10502,7 +10858,8 @@
                 "rgba(250, 190, 140, 0.88)"
               ]
             },
-            "collision": []
+            "collision": [],
+            "color": "#ffc896"
           }
         },
         "tree_top_left": {
@@ -10567,7 +10924,8 @@
                 "w": 1,
                 "h": 1
               }
-            ]
+            ],
+            "color": "#5fae4f"
           }
         },
         "pampas": {
@@ -10594,7 +10952,8 @@
                 "rgba(170, 190, 140, 0.88)"
               ]
             },
-            "collision": []
+            "collision": [],
+            "color": "#b4c896"
           }
         },
         "meadow": {
@@ -10615,7 +10974,8 @@
                 "#bcd67e"
               ]
             },
-            "collision": []
+            "collision": [],
+            "color": "#a4ac48"
           },
           "height": 0.0,
           "glyph": "⁘",
@@ -10642,7 +11002,8 @@
                 "#7a5c3e"
               ]
             },
-            "collision": []
+            "collision": [],
+            "color": "#7a5c3e"
           },
           "height": 0.0,
           "glyph": "⸪",

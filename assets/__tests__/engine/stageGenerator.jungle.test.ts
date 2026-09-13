@@ -92,12 +92,25 @@ describe('a jungle is structurally a different place from a woodland', () => {
   })
 
   it('lays NO trails — a jungle has no roads, a woodland paves its corridors', () => {
-    // A trail is flat floor in the trail tile's colour now (the meadow's way), so it is found by its colour.
+    // A DEGENERATE ORACLE LIVED HERE, and it is why he was looking at a woodland with no visible paths.
+    //
+    // It counted cells whose colour equalled `groundTileColor(zonePalette(zone).trail)`, and that call falls
+    // back to the season's GROUND colour when it cannot resolve the label. So both sides of the comparison
+    // were the grass colour and this counted GRASS, reporting hundreds of trails on a map that had none you
+    // could see. The test passed for years while the feature did not exist.
+    //
+    // A trail is now found the way an eye finds one: flat floor wearing the SERVED trail colour, which is a
+    // different colour from the field around it. If the two are ever equal again there is no path, and this
+    // says so instead of counting the field.
     const trail = (s: ReturnType<typeof jungle>) => {
-      const tile = zonePalette(s.zone)?.trail ?? ''
+      // The template's served trail colour, else the trail TILE's own: the SAME precedence the generator
+      // uses. `s.palette` is not echoed back on the stage, so the served value is read from the config the
+      // stage was grown from, exactly like the generator read it.
+      const paint = WOOD_PAL.trail ?? groundTileColor(zonePalette(s.zone)?.trail ?? '', 0, 0)
+      if (!paint) return 0
       let n = 0
       s.ground.forEach((row, r) => row.forEach((g, c) => {
-        if (g === FLAT_FLOOR && s.floorColors[r][c] === groundTileColor(tile, c, r)) n++
+        if (g === FLAT_FLOOR && s.floorColors[r][c] === paint) n++
       }))
       return n
     }
