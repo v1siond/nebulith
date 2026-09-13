@@ -464,6 +464,18 @@ defmodule Nebulith.Catalog.GeneratorSource do
     }
   ]
 
+  # A JUNGLE'S OWN BLOOMS. Measured 2026-09-13: the shared `open`, `dense` and `ruins` regions stated none, so
+  # every jungle variant that did not override them fell through to the SEASON's set, and summer's carries
+  # `✽ #f4f4ec`, the near-white Alexander has rejected twice. A rainforest floor is not a daisy meadow.
+  #
+  # Like the swamp's and the island's, these colours are a PROPOSAL rather than a derivation: heliconia red,
+  # orchid violet and a waxy cream-yellow, for his eye to accept or replace.
+  @jungle_blooms [
+    %{"char" => "✿", "color" => "#c2513f"},
+    %{"char" => "✾", "color" => "#8d5fa8"},
+    %{"char" => "❋", "color" => "#c9b063"}
+  ]
+
   # The swamp's blooms, named once because the swamp VARIANT gives them to its other regions too (ticket 27).
   # These colours are a PROPOSAL, not a derivation: his instruction was negative (no white), so the set is
   # muted swamp growth (iris violet, dull marsh gold, a blue green sedge) for his eye to accept or replace.
@@ -483,7 +495,8 @@ defmodule Nebulith.Catalog.GeneratorSource do
       "floor" => "#3f5f33",
       # an open region reads as individual trees on visible ground — his image #12
       "formation" => %{"lattice" => 9, "spacing" => 3, "understory" => 0.5},
-      "trees" => [%{"kind" => "tree_palm", "weight" => 30}, %{"kind" => "tree_round", "weight" => 30}, %{"kind" => "tree_big", "weight" => 20}, %{"kind" => "bush_round", "weight" => 20}]
+      "trees" => [%{"kind" => "tree_palm", "weight" => 30}, %{"kind" => "tree_round", "weight" => 30}, %{"kind" => "tree_big", "weight" => 20}, %{"kind" => "bush_round", "weight" => 20}],
+      "flowers" => @jungle_blooms
     },
     %{
       "key" => "dense",
@@ -494,7 +507,8 @@ defmodule Nebulith.Catalog.GeneratorSource do
       "floor" => "#24381f",
       # wall to wall, nothing between — his image #14
       "formation" => %{"lattice" => 13, "spacing" => 0, "understory" => 1.3},
-      "trees" => [%{"kind" => "tree_giant", "weight" => 25}, %{"kind" => "tree_big", "weight" => 25}, %{"kind" => "bush", "weight" => 25}, %{"kind" => "tree_round", "weight" => 25}]
+      "trees" => [%{"kind" => "tree_giant", "weight" => 25}, %{"kind" => "tree_big", "weight" => 25}, %{"kind" => "bush", "weight" => 25}, %{"kind" => "tree_round", "weight" => 25}],
+      "flowers" => @jungle_blooms
     },
     %{
       "key" => "swamp",
@@ -528,7 +542,8 @@ defmodule Nebulith.Catalog.GeneratorSource do
       # the trees have taken the ruins back, but unevenly — clumps with open stone between
       "stone" => 0.16,
       "formation" => %{"lattice" => 8, "spacing" => 2, "understory" => 0.6},
-      "trees" => [%{"kind" => "tree_round", "weight" => 30}, %{"kind" => "bush", "weight" => 30}, %{"kind" => "tree_stub", "weight" => 20}, %{"kind" => "tree_sapling", "weight" => 20}]
+      "trees" => [%{"kind" => "tree_round", "weight" => 30}, %{"kind" => "bush", "weight" => 30}, %{"kind" => "tree_stub", "weight" => 20}, %{"kind" => "tree_sapling", "weight" => 20}],
+      "flowers" => @jungle_blooms
     }
   ]
 
