@@ -1815,6 +1815,46 @@ defmodule Nebulith.Catalog.TileSource do
   # reads as a statement about the vocabulary rather than a string literal in a loop.
   @transposed_water ~w(water_y water_y_f1 water_y_f2 water_y_f3)
 
+  @bridge_tiles [
+    {"bridge_deck", "Bridge deck", "#a8794a"},
+    {"bridge_rail", "Bridge rail", "#8a6a45"}
+  ]
+
+  @doc """
+  THE BRIDGE'S OWN TWO TILES, solid to the edge.
+
+  Alexander, 2026-09-13, on a rendered crossing: *"why do we have those white boxes in middle? what the fuck
+  are those squished black boxes??"*. Neither the colour nor the height was the cause. `post.png` and
+  `sq_brown.png` (which `wooden_planks` uses) are ROUNDED SQUARES with a transparent margin, 31% of the tile,
+  so every block extruded from them shows its own dark interior through the gap. That is the open crate, and
+  it would happen to anything built from those tiles, not just a bridge.
+
+  `bridge_deck` and `bridge_rail` are authored FULL BLEED, measured at 0% transparent, so a block made of
+  them is a solid body. Colour stays a per-cell setting, which is what lets one pair of tiles serve the
+  wooden, plank and stone crossings instead of three pairs of pictures.
+  """
+  def seed_bridge_tiles do
+    for tileset <- Catalog.list_tilesets(), {label, title, color} <- @bridge_tiles do
+      {:ok, _} =
+        Catalog.upsert_tile(%{
+          tileset_id: tileset.id,
+          label: label,
+          title: title,
+          glyph: "=",
+          emoji: "🟫",
+          color_role: nil,
+          blocking: false,
+          height: 1.0,
+          category: "props",
+          image_url: "/tiles/#{tileset.key}/#{label}.png",
+          settings: %{"color" => color, "collision" => []}
+        })
+    end
+
+    IO.puts("bridge deck and rail seeded, solid to the edge")
+    :ok
+  end
+
   @doc """
   ONE CURRENT, turned per cell by the renderer, so a river flows the way it actually runs.
 
@@ -2890,7 +2930,7 @@ defmodule Nebulith.Catalog.TileSource do
   @stone_rail "#b9b2a3"
 
   @deck_thickness 0.09
-  @rail_height 0.42
+  @rail_height 0.55
   @rail_thickness 0.16
 
   defp seed_new_compositions do
@@ -3087,21 +3127,21 @@ defmodule Nebulith.Catalog.TileSource do
       # just need something like 4 cells long x whatever the river size"*, and *"river is usually 3-4 cells wide
       # or more"*. With only odd spans authored, a 4-wide river needed 4 plus a landing each side and rounded
       # straight up to 7, which is the size he rejected.
-      "bridge_wood_3" => %{footprint_w: 3, footprint_h: 3, category: "props", cells: bridge_cells("wooden_planks", "post", 3, @wood_rail)},
-      "bridge_wood_4" => %{footprint_w: 4, footprint_h: 3, category: "props", cells: bridge_cells("wooden_planks", "post", 4, @wood_rail)},
-      "bridge_wood_5" => %{footprint_w: 5, footprint_h: 3, category: "props", cells: bridge_cells("wooden_planks", "post", 5, @wood_rail)},
-      "bridge_wood_6" => %{footprint_w: 6, footprint_h: 3, category: "props", cells: bridge_cells("wooden_planks", "post", 6, @wood_rail)},
-      "bridge_wood_7" => %{footprint_w: 7, footprint_h: 3, category: "props", cells: bridge_cells("wooden_planks", "post", 7, @wood_rail)},
-      "bridge_stone_3" => %{footprint_w: 3, footprint_h: 3, category: "props", cells: bridge_cells("cobblestone", "pillar", 3, @stone_rail)},
-      "bridge_stone_4" => %{footprint_w: 4, footprint_h: 3, category: "props", cells: bridge_cells("cobblestone", "pillar", 4, @stone_rail)},
-      "bridge_stone_5" => %{footprint_w: 5, footprint_h: 3, category: "props", cells: bridge_cells("cobblestone", "pillar", 5, @stone_rail)},
-      "bridge_stone_6" => %{footprint_w: 6, footprint_h: 3, category: "props", cells: bridge_cells("cobblestone", "pillar", 6, @stone_rail)},
-      "bridge_stone_7" => %{footprint_w: 7, footprint_h: 3, category: "props", cells: bridge_cells("cobblestone", "pillar", 7, @stone_rail)},
-      "bridge_plank_3" => %{footprint_w: 3, footprint_h: 3, category: "props", cells: bridge_cells("bridge", "post", 3, @wood_rail)},
-      "bridge_plank_4" => %{footprint_w: 4, footprint_h: 3, category: "props", cells: bridge_cells("bridge", "post", 4, @wood_rail)},
-      "bridge_plank_5" => %{footprint_w: 5, footprint_h: 3, category: "props", cells: bridge_cells("bridge", "post", 5, @wood_rail)},
-      "bridge_plank_6" => %{footprint_w: 6, footprint_h: 3, category: "props", cells: bridge_cells("bridge", "post", 6, @wood_rail)},
-      "bridge_plank_7" => %{footprint_w: 7, footprint_h: 3, category: "props", cells: bridge_cells("bridge", "post", 7, @wood_rail)},
+      "bridge_wood_3" => %{footprint_w: 3, footprint_h: 3, category: "props", cells: bridge_cells("bridge_deck", "bridge_rail", 3, @wood_rail)},
+      "bridge_wood_4" => %{footprint_w: 4, footprint_h: 3, category: "props", cells: bridge_cells("bridge_deck", "bridge_rail", 4, @wood_rail)},
+      "bridge_wood_5" => %{footprint_w: 5, footprint_h: 3, category: "props", cells: bridge_cells("bridge_deck", "bridge_rail", 5, @wood_rail)},
+      "bridge_wood_6" => %{footprint_w: 6, footprint_h: 3, category: "props", cells: bridge_cells("bridge_deck", "bridge_rail", 6, @wood_rail)},
+      "bridge_wood_7" => %{footprint_w: 7, footprint_h: 3, category: "props", cells: bridge_cells("bridge_deck", "bridge_rail", 7, @wood_rail)},
+      "bridge_stone_3" => %{footprint_w: 3, footprint_h: 3, category: "props", cells: bridge_cells("bridge_deck", "bridge_rail", 3, @stone_rail)},
+      "bridge_stone_4" => %{footprint_w: 4, footprint_h: 3, category: "props", cells: bridge_cells("bridge_deck", "bridge_rail", 4, @stone_rail)},
+      "bridge_stone_5" => %{footprint_w: 5, footprint_h: 3, category: "props", cells: bridge_cells("bridge_deck", "bridge_rail", 5, @stone_rail)},
+      "bridge_stone_6" => %{footprint_w: 6, footprint_h: 3, category: "props", cells: bridge_cells("bridge_deck", "bridge_rail", 6, @stone_rail)},
+      "bridge_stone_7" => %{footprint_w: 7, footprint_h: 3, category: "props", cells: bridge_cells("bridge_deck", "bridge_rail", 7, @stone_rail)},
+      "bridge_plank_3" => %{footprint_w: 3, footprint_h: 3, category: "props", cells: bridge_cells("bridge_deck", "bridge_rail", 3, @wood_rail)},
+      "bridge_plank_4" => %{footprint_w: 4, footprint_h: 3, category: "props", cells: bridge_cells("bridge_deck", "bridge_rail", 4, @wood_rail)},
+      "bridge_plank_5" => %{footprint_w: 5, footprint_h: 3, category: "props", cells: bridge_cells("bridge_deck", "bridge_rail", 5, @wood_rail)},
+      "bridge_plank_6" => %{footprint_w: 6, footprint_h: 3, category: "props", cells: bridge_cells("bridge_deck", "bridge_rail", 6, @wood_rail)},
+      "bridge_plank_7" => %{footprint_w: 7, footprint_h: 3, category: "props", cells: bridge_cells("bridge_deck", "bridge_rail", 7, @wood_rail)},
       "well" => %{footprint_w: 5, footprint_h: 3, category: "props", cells: well_cells()},
       "fountain" => %{footprint_w: 5, footprint_h: 5, category: "props", cells: fountain_cells()},
       # LIGHT POSTS — a composition, NOT a single lamp tile (Alexander: "light posts should be a composition of a
@@ -3374,10 +3414,10 @@ defmodule Nebulith.Catalog.TileSource do
         %{dx: 0, dy: dy, level: 0, label: rail_label, walkable: false,
           settings: %{
             "scaleY" => @rail_height,
-            # NO `scaleZ` ALONGSIDE `depth`. Thickness and directional depth are two different shapes of the
-            # same block and setting both put the rail off its own deck when rendered: `depth` already says
-            # "one block extruded along this diagonal", and `scaleZ` then shrank the box it was extruding.
-            # Rendered and looked at, which is the only way this was ever going to be settled.
+            # NO `scaleZ` HERE, decided by looking at both. With it the rail lifts clear of its own deck and
+            # floats beside the bridge; without it the rail sits down but extrudes at full cell thickness and
+            # reads as a trough rather than a handrail. Neither is right, and the trough at least stays
+            # attached, so it is the one that ships while the rail shape is finished (ticket 106).
             "depth" => span,
             "depthDir" => "right-down",
             "color" => rail_color
