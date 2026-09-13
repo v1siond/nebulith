@@ -1,13 +1,17 @@
 import { IsometricGrid } from '@/engine/IsometricGrid'
 import { fillSelectionWithComposite, scaleCompositeToRegion, type CompositeTile } from '@/engine/compositeFill'
 
+/** A tile that OCCUPIES ITS WHOLE CELL. `blocking: true` used to say this; the box list says it now, which is
+ *  the only statement about walking through a tile (Alexander, 2026-09-13: the flag is gone, collisions do it). */
+const SOLID = { collision: [{ x: 0, y: 0, w: 1, h: 1 }] }
+
 // A 2×2 "well": four blocking edge tiles — the composite that was hardcoded to 4
 // cells regardless of how many the user selected.
 const WELL: CompositeTile[] = [
-  { tile: 'well_edge', char: 'O', dx: 0, dy: 0, blocking: true, type: 'decoration' },
-  { tile: 'well_edge', char: 'O', dx: 1, dy: 0, blocking: true, type: 'decoration' },
-  { tile: 'well_edge', char: 'O', dx: 0, dy: 1, blocking: true, type: 'decoration' },
-  { tile: 'well_edge', char: 'O', dx: 1, dy: 1, blocking: true, type: 'decoration' },
+  { tile: 'well_edge', char: 'O', dx: 0, dy: 0, settings: SOLID, type: 'decoration' },
+  { tile: 'well_edge', char: 'O', dx: 1, dy: 0, settings: SOLID, type: 'decoration' },
+  { tile: 'well_edge', char: 'O', dx: 0, dy: 1, settings: SOLID, type: 'decoration' },
+  { tile: 'well_edge', char: 'O', dx: 1, dy: 1, settings: SOLID, type: 'decoration' },
 ]
 
 const region = (c0: number, r0: number, w: number, h: number): Set<string> => {
@@ -52,10 +56,10 @@ describe('compositeFill — tile a composite across a multi-cell selection', () 
 
 // Distinct char per quadrant so we can verify the scale mapping.
 const QUAD: CompositeTile[] = [
-  { tile: 'q', char: 'A', dx: 0, dy: 0, blocking: true, type: 'decoration' },
-  { tile: 'q', char: 'B', dx: 1, dy: 0, blocking: true, type: 'decoration' },
-  { tile: 'q', char: 'C', dx: 0, dy: 1, blocking: true, type: 'decoration' },
-  { tile: 'q', char: 'D', dx: 1, dy: 1, blocking: true, type: 'decoration' },
+  { tile: 'q', char: 'A', dx: 0, dy: 0, settings: SOLID, type: 'decoration' },
+  { tile: 'q', char: 'B', dx: 1, dy: 0, settings: SOLID, type: 'decoration' },
+  { tile: 'q', char: 'C', dx: 0, dy: 1, settings: SOLID, type: 'decoration' },
+  { tile: 'q', char: 'D', dx: 1, dy: 1, settings: SOLID, type: 'decoration' },
 ]
 
 describe('compositeFill — scale ONE composite to span the selection', () => {

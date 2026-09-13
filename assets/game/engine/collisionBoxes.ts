@@ -8,14 +8,25 @@
  * we can modify cells to have many collisions and we can position and modify the size of those collision blocks at
  * will, unit collide with these blocks on real contact"*.
  *
- * A cell is still either blocked or not for everything that thinks in CELLS (pathing, spawning, the generator's
- * connectivity). This is the finer truth underneath, for anything that moves as a BODY: which parts of the cell are
- * solid. A tile with authored boxes uses them (as many as it likes, each positioned and sized). A tile without them
- * falls back to the size it is DRAWN at, which is already data: a standard trunk draws at 0.6 of its cell, so it
- * blocks 0.6 of its cell instead of all of it. Anything with no size of its own keeps the whole cell, so walls,
- * rocks, buildings and hand-painted collision are unchanged.
+ * THE BOX LIST IS THE ONLY STATEMENT. Alexander, 2026-09-13: *"the real fix is to fucking remove the fucking
+ * walkable and blocking properties as I've requested for ages, because we fucking have collissions which
+ * already do the fucking job"*.
+ *
+ * He is right, and until now this file was the reason it was not true: it opened with `if (!asset.blocking)
+ * return []`, so the boxes could only ever REFINE a decision the flag had already made. Measured against live
+ * at the time: 0 of 375 tiles carried a box and 72 carried `blocking: true`. The fact lived in the flag and
+ * the system that owned it was empty. The backend now writes `settings.collision` on every row
+ * (`ensure_collisions/0`, seeded from the flag so nothing moved), and the rule here is one line:
+ *
+ *     a tile is solid where its boxes are, and a tile with no boxes is not solid at all.
+ *
+ * A tile with authored boxes uses them (as many as it likes, each positioned and sized). A tile whose box is
+ * the WHOLE CELL — what the seeding writes, and what "solid" has always meant — shrinks to the size it is
+ * DRAWN at, which is already data: a standard trunk draws at 0.6 of its cell, so it occupies 0.6 of it. That
+ * keeps walls, rocks and buildings unchanged while a tree stops blocking the gap beside it.
  */
 import { resolveAssetDrawSize } from './render/assetDimensions'
+import { styleTile } from './tileset/styleTiles'
 import type { GridAsset } from './IsometricGrid'
 
 /** A solid box inside one cell, in cell fractions with the cell's top-left as the origin. */
@@ -28,17 +39,40 @@ export const MIN_BOX_SIDE = 0.2
 
 const clamp01 = (n: number) => Math.max(MIN_BOX_SIDE, Math.min(1, n))
 
+/** Is this the plain "all of it" box the seeding writes, rather than a shape somebody authored? */
+const isWholeCell = (boxes: readonly CollisionBox[]): boolean =>
+  boxes.length === 1 && boxes[0].x === 0 && boxes[0].y === 0 && boxes[0].w === 1 && boxes[0].h === 1
+
+/**
+ * The boxes this asset DECLARES, before any shrink: a per-instance list wins, else the DB tile's own. Read
+ * through the same path as height, stackAt and act-as-tile, so collision is a tile fact like any other and
+ * cannot drift from them.
+ */
+function declaredBoxes(asset: GridAsset): readonly CollisionBox[] {
+  const perInstance = asset.settings?.collision
+  if (Array.isArray(perInstance)) return perInstance
+  const slug = asset.label ?? asset.tileKey ?? asset.type
+  const tile = styleTile('ascii', slug) ?? styleTile('emoji', slug)
+  const served = (tile?.settings as { collision?: CollisionBox[] } | undefined)?.collision
+  return Array.isArray(served) ? served : []
+}
+
 /** What this asset makes solid, in cell fractions. Empty when it does not block at all. */
 export function boxesForAsset(asset: GridAsset): readonly CollisionBox[] {
-  if (!asset.blocking) return []
-  const authored = asset.settings?.collision
-  if (authored && authored.length > 0) return authored
-  // The GROUND footprint it is drawn with: width across, thickness into the screen (assetDimensions' overhead view).
+  const declared = declaredBoxes(asset)
+  if (declared.length === 0) return []
+  if (!isWholeCell(declared)) return declared // an authored shape is used verbatim, never second-guessed
+  // "All of it" means all of what it DRAWS: width across, thickness into the screen (assetDimensions' overhead).
   const { w, h } = resolveAssetDrawSize(1, asset, 'overhead')
   if (!(w > 0) || !(h > 0) || (w >= 1 && h >= 1)) return [FULL_CELL]
   const bw = clamp01(w)
   const bh = clamp01(h)
   return [{ x: (1 - bw) / 2, y: (1 - bh) / 2, w: bw, h: bh }]
+}
+
+/** Does this asset make ANYTHING solid? The single question the cell grid asks, replacing `asset.blocking`. */
+export function assetIsSolid(asset: GridAsset): boolean {
+  return declaredBoxes(asset).length > 0
 }
 
 /** Every solid box in one cell. */

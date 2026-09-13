@@ -17,6 +17,7 @@ import { styleCatalog } from '@/engine/tileset/styleTiles'
 import { stampComposition } from '@/game/runtime/composition'
 import { IsometricGrid } from '@/engine/IsometricGrid'
 import { useSeedTileset } from '@/__tests__/helpers/tilesetSeed'
+import { assetIsSolid } from '@/engine/collisionBoxes'
 
 describe('lamp_post composition — a tall thin post + a single bulb, shaped by backend per-cell settings', () => {
   useSeedTileset() // install the captured backend tileset (lamp_post cells carry the tuned settings)
@@ -60,7 +61,7 @@ describe('lamp_post composition — a tall thin post + a single bulb, shaped by 
     expect(post.scaleY).toBeCloseTo(7, 5)
     expect(post.scale).toBeCloseTo(0.3, 5)
     expect(post.heightLevel).toBe(0)
-    expect(post.blocking).toBe(true)
+    expect(assetIsSolid(post)).toBe(true) // it occupies its cell, which is the only way a tile says "solid" now
 
     // BULB — a single centered billboard (settings.display), zoomed 0.6, lifted onto the post top via pose.dy;
     // walkable overhead, and NOT height-stretched (only the post carries a scaleY).

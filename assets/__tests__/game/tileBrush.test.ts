@@ -16,6 +16,10 @@ import { clearGroundTile, placeGroundTile, removeTopAsset, removeAssetAtLevel, s
 import { tileSlug } from '@/game/editor/tilePlacement'
 import { captureMapSnapshot, restoreMapSnapshot } from '@/game/editor/mapSnapshot'
 
+/** A tile that OCCUPIES ITS WHOLE CELL. `blocking: true` used to say this; the box list says it now, which is
+ *  the only statement about walking through a tile (Alexander, 2026-09-13: the flag is gone, collisions do it). */
+const SOLID = { collision: [{ x: 0, y: 0, w: 1, h: 1 }] }
+
 const EMOJI = tilesForStyle('emoji')
 const byId = (id: string): TileDef => {
   const t = Object.values(EMOJI).flat().find(x => x.id === id)
@@ -78,7 +82,7 @@ describe('stackAssetTile — nature/buildings stack as cell assets (ON TOP of th
 
   test('stacking on top of a pre-existing generator asset (no heightLevel) lands at level 1', () => {
     const g = makeGrid()
-    g.placeAsset(['🌲'], 2, 2, { type: 'tree', blocking: true }) // heightLevel undefined (→ 0)
+    g.placeAsset(['🌲'], 2, 2, { type: 'tree', settings: SOLID }) // heightLevel undefined (→ 0)
     stackAssetTile(g, 2, 2, byId('emoji:oak-tree'))
     const placed = nonFloor(g, 2, 2)
     expect(placed).toHaveLength(2)
@@ -352,7 +356,7 @@ describe('removeTopAsset — ⌥Alt remove + collision recompute', () => {
     const g = makeGrid()
     // Painted tiles are always walkable; a BLOCKING asset only ever comes from authored per-cell DATA (a
     // stamped composition cell), so we place it directly the way stampComposition does — blocking is DATA.
-    g.placeAsset(['🧱'], 2, 2, { type: 'wall', blocking: true, heightLevel: 0 })
+    g.placeAsset(['🧱'], 2, 2, { type: 'wall', settings: SOLID, heightLevel: 0 })
     stackAssetTile(g, 2, 2, byId('emoji:rose')) // a painted (walkable) tile on top (level 1)
     expect(g.isBlocked(2, 2)).toBe(true)
 
@@ -448,7 +452,7 @@ describe('removeAssetAtLevel — ⌥Alt removes the block you POINT at, not blin
   test('re-derives collision: removing the only blocking (authored) asset unblocks the cell even if a walkable tile stays', () => {
     const g = makeGrid()
     stackAssetTile(g, 2, 2, byId('emoji:rose'))                                   // painted, walkable (level 1)
-    g.placeAsset(['🧱'], 2, 2, { type: 'wall', blocking: true, heightLevel: 2 })  // authored blocker (level 2, top)
+    g.placeAsset(['🧱'], 2, 2, { type: 'wall', settings: SOLID, heightLevel: 2 })  // authored blocker (level 2, top)
     expect(g.isBlocked(2, 2)).toBe(true)
     removeAssetAtLevel(g, 2, 2, 2) // remove the blocker specifically
     expect(g.isBlocked(2, 2)).toBe(false)

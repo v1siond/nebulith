@@ -10,14 +10,15 @@
  * Pure placement logic (kept out of the editor component so it's unit-testable):
  * it mutates the grid via placeAsset, no React state.
  */
-import type { IsometricGrid } from './IsometricGrid'
+import type { AssetSettings, IsometricGrid } from './IsometricGrid'
 
 export interface CompositeTile {
   tile: string
   char: string
   dx: number
   dy: number
-  blocking: boolean
+  /** What this cell of the composite occupies, in cell fractions. Absent → its catalog row decides. */
+  settings?: AssetSettings
   type: string
   color?: string
   bgColor?: string
@@ -53,7 +54,7 @@ export function fillSelectionWithComposite(
     grid.removeAssetsWhere(a => a.col === col && a.row === row) // replace
     grid.placeAsset([tile.char], col, row, {
       type: tile.type,
-      blocking: tile.blocking,
+      settings: tile.settings,
       color: tile.color,
       bgColor: tile.bgColor,
       height: tile.height ?? 0,
@@ -95,7 +96,7 @@ export function scaleCompositeToRegion(
       grid.removeAssetsWhere(a => a.col === col && a.row === row)
       grid.placeAsset([tile.char], col, row, {
         type: tile.type,
-        blocking: tile.blocking,
+        settings: tile.settings,
         color: tile.color,
         bgColor: tile.bgColor,
         height: tile.height ?? 0,

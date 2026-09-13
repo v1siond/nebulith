@@ -9,6 +9,10 @@
 import { IsometricGrid } from '@/engine/IsometricGrid'
 import { copyTiles, pasteTiles } from '@/game/editor/clipboard'
 
+/** A tile that OCCUPIES ITS WHOLE CELL. `blocking: true` used to say this; the box list says it now, which is
+ *  the only statement about walking through a tile (Alexander, 2026-09-13: the flag is gone, collisions do it). */
+const SOLID = { collision: [{ x: 0, y: 0, w: 1, h: 1 }] }
+
 const makeGrid = () => new IsometricGrid({ cols: 32, rows: 32, cellSize: 32, isoScale: 1.4 })
 
 describe('copyTiles / pasteTiles — reproduce a multi-block selection at a new anchor', () => {
@@ -18,7 +22,7 @@ describe('copyTiles / pasteTiles — reproduce a multi-block selection at a new 
     g.setGround(1, 2, 'water') // a floor patch we expect to travel with the clip
     const tree = g.placeAsset(['🌲'], 1, 1, { type: 'tree', heightLevel: 1, color: '#3a5' })
     tree.label = 'tree_top'
-    const wall = g.placeAsset(['🧱'], 2, 1, { type: 'wall', heightLevel: 1, blocking: true, color: '#987' })
+    const wall = g.placeAsset(['🧱'], 2, 1, { type: 'wall', heightLevel: 1, settings: SOLID, color: '#987' })
     wall.scaleY = 3 // a tall wall: ONE asset spanning levels 1..3 (collapsed vertical run)
     wall.label = 'wall'
     wall.settings = { fadeNear: true }
@@ -86,7 +90,7 @@ describe('copyTiles / pasteTiles — reproduce a multi-block selection at a new 
 
   test('re-derives collision: pasting a BLOCKING tile blocks the target cell', () => {
     const g = makeGrid()
-    g.placeAsset(['🧱'], 1, 1, { type: 'wall', heightLevel: 1, blocking: true })
+    g.placeAsset(['🧱'], 1, 1, { type: 'wall', heightLevel: 1, settings: SOLID })
     expect(g.isBlocked(5, 5)).toBe(false)
 
     pasteTiles(g, copyTiles(g, ['1,1,1']), 5, 5)
@@ -97,9 +101,9 @@ describe('copyTiles / pasteTiles — reproduce a multi-block selection at a new 
   test('re-derives collision: replacing the only blocker with a WALKABLE tile unblocks the cell', () => {
     const g = makeGrid()
     // source: a walkable flower
-    g.placeAsset(['🌼'], 1, 1, { type: 'flower', heightLevel: 1, blocking: false })
+    g.placeAsset(['🌼'], 1, 1, { type: 'flower', heightLevel: 1, settings: { collision: [] } })
     // target already has a blocking rock at level 1
-    g.placeAsset(['🪨'], 8, 8, { type: 'rock', heightLevel: 1, blocking: true })
+    g.placeAsset(['🪨'], 8, 8, { type: 'rock', heightLevel: 1, settings: SOLID })
     expect(g.isBlocked(8, 8)).toBe(true)
 
     pasteTiles(g, copyTiles(g, ['1,1,1']), 8, 8) // replaces the rock with the walkable flower

@@ -1,5 +1,9 @@
 import { IsometricGrid } from '@/engine/IsometricGrid'
 
+/** A tile that OCCUPIES ITS WHOLE CELL. `blocking: true` used to say this; the box list says it now, which is
+ *  the only statement about walking through a tile (Alexander, 2026-09-13: the flag is gone, collisions do it). */
+const SOLID = { collision: [{ x: 0, y: 0, w: 1, h: 1 }] }
+
 const mkGrid = () => new IsometricGrid({ cols: 10, rows: 10, cellSize: 16, isoScale: 1.4 })
 
 describe('IsometricGrid — blocks are collision, not elevation', () => {
@@ -8,8 +12,8 @@ describe('IsometricGrid — blocks are collision, not elevation', () => {
     grid.placeComposite(
       'house',
       [
-        { tile: 'wall', char: '#', dx: 0, dy: 0, height: 2, blocking: true, type: 'building' },
-        { tile: 'wall', char: '#', dx: 1, dy: 0, height: 2, blocking: true, type: 'building' },
+        { tile: 'wall', char: '#', dx: 0, dy: 0, height: 2, settings: SOLID, type: 'building' },
+        { tile: 'wall', char: '#', dx: 1, dy: 0, height: 2, settings: SOLID, type: 'building' },
       ],
       3,
       4,
@@ -24,7 +28,7 @@ describe('IsometricGrid — blocks are collision, not elevation', () => {
 
   it('placeTile sets collision for a blocking asset regardless of its height level', () => {
     const grid = mkGrid()
-    grid.placeTile('wall', '#', 2, 2, 3, { blocking: true, type: 'building' }) // heightLevel 3
+    grid.placeTile('wall', '#', 2, 2, 3, { settings: SOLID, type: 'building' }) // heightLevel 3
     expect(grid.isBlocked(2, 2)).toBe(true)
   })
 

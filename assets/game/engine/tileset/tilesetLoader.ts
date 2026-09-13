@@ -42,6 +42,9 @@ interface ApiTile {
     // tile so a stamp can read it (walls/roof fade/cutaway near the hero); any tile may carry these.
     fadeNear?: boolean
     cutawayRoof?: boolean
+    /** WHAT THIS TILE OCCUPIES inside its cell, in cell fractions. The only statement about walking through
+     *  it: a non-empty list is solid, an empty one is not. Written on every row by `ensure_collisions/0`. */
+    collision?: Array<{ x: number; y: number; w: number; h: number }>
   }
 }
 
@@ -91,13 +94,27 @@ function absoluteFrames(settings: Record<string, unknown> | undefined): Record<s
  * `char` takes the glyph OR the emoji, because they are the same thing: the mark the style's picture was
  * baked from.
  */
+/** Does this tile occupy any part of its cell? A tile is solid where its boxes are, and one with no boxes is
+ *  not solid at all: an empty list SAYS "nothing here", which is why the backend writes it rather than
+ *  leaving the key off. See `collisionBoxes.ts` for the box model itself. */
+function occupiesItsCell(tile: ApiTile): boolean {
+  const boxes = tile.settings?.collision
+  return Array.isArray(boxes) && boxes.length > 0
+}
+
 function toStyleTile(label: string, tile: ApiTile): StyleTile {
   return {
     label,
     title: tile.title ?? undefined,
     category: tile.category,
     height: tile.height,
-    walkable: !tile.blocking,
+    // WALKABILITY IS THE BOX LIST, and this one line is the whole frontend's notion of it. Alexander,
+    // 2026-09-13: *"the real fix is to fucking remove the fucking walkable and blocking properties as I've
+    // requested for ages, because we fucking have collissions which already do the fucking job"*. It read
+    // `!tile.blocking`, so every one of the ~86 `walkable` checks downstream was really asking the flag.
+    // The backend writes `settings.collision` on every row now (`ensure_collisions/0`), so they ask the
+    // boxes instead, and the flag has no readers left.
+    walkable: !occupiesItsCell(tile),
     image: abs(tile.image_url),
     char: tile.glyph || tile.emoji || '',
     color: tile.settings?.color,

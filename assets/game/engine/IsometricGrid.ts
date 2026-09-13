@@ -8,7 +8,7 @@
  *   grid.render(ctx, cameraX, cameraZ)
  */
 import type { Animation } from './animation/tileAnimation'
-import { worldPointBlocked } from './collisionBoxes'
+import { assetIsSolid, worldPointBlocked } from './collisionBoxes'
 import type { AnimationCycle } from './animationCycles'
 import type { CellAnimation } from './cellAnimation'
 import { assetRectExtents, type DepthDir, type ThicknessReach } from './render/isoBlock'
@@ -557,10 +557,9 @@ export class IsometricGrid {
     this.assets.push(asset)
     this.cellIndex = null
 
-    // If blocking, update collision grid
-    if (options.blocking) {
-      this.setCollision(col, row, true)
-    }
+    // WHAT IT OCCUPIES DECIDES, not a flag beside it. `assetIsSolid` reads the tile's own collision boxes
+    // (per-instance, else the DB row), which is the single statement about walking through a tile now.
+    if (assetIsSolid(asset)) this.setCollision(col, row, true)
     return asset
   }
 
@@ -604,31 +603,31 @@ export class IsometricGrid {
     heightLevel: number,
     options: {
       type?: string
-      blocking?: boolean
+      /** What this tile occupies inside its cell. Absent → the tile's own catalog row decides. */
+      settings?: AssetSettings
       color?: string
       bgColor?: string
     } = {}
   ) {
     if (col < 0 || col >= this.cols || row < 0 || row >= this.rows) return
 
-    this.assets.push({
+    const placed: GridAsset = {
       art: [char],
       col,
       row,
       type: options.type ?? 'tile',
-      blocking: options.blocking ?? false,
+      settings: options.settings,
       color: options.color ?? '#ffffff',
       bgColor: options.bgColor,
       heightLevel,
       tileKey,
-    })
+    }
+    this.assets.push(placed)
     this.cellIndex = null
 
-    // Blocks are collision, independent of elevation: a blocking asset marks its
-    // cell blocked regardless of visual height level.
-    if (options.blocking) {
-      this.setCollision(col, row, true)
-    }
+    // Collision is independent of elevation: what a tile occupies marks its cell regardless of how high it
+    // is stacked. The decision is the box list (`assetIsSolid`), the same one `placeAsset` asks.
+    if (assetIsSolid(placed)) this.setCollision(col, row, true)
   }
 
   // Place a composite asset (multi-tile structure)
@@ -642,7 +641,7 @@ export class IsometricGrid {
       height: number
       color?: string
       bgColor?: string
-      blocking?: boolean
+      settings?: AssetSettings
       type?: string
     }>,
     col: number,
@@ -667,7 +666,7 @@ export class IsometricGrid {
         t.height,
         {
           type: t.type ?? assetKey,
-          blocking: t.blocking ?? false,
+          settings: t.settings,
           color: options.colorOverride ?? t.color,
           bgColor: t.bgColor,
         }

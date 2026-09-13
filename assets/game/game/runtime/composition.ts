@@ -286,13 +286,19 @@ function stampRun(
   // cell, while a roof or a rooftop unit five levels up must not seal the floor beneath it (a flat-roof shop's
   // crown sits over the middle of its own room and punched a blocked hole in the shop floor). The tile keeps
   // its own truthful `blocking` DATA either way — a roof blocks as a block, nothing stands on it.
-  const asset = grid.placeAsset([tile.char], col, row, { type: kind, blocking: !c.walkable && !!grounded, color, baseShadow: grounded })
-  asset.blocking = !c.walkable
+  const asset = grid.placeAsset([tile.char], col, row, { type: kind, color, baseShadow: grounded })
   asset.label = label
   // Every render field the cell shapes — its own HEIGHT, stack level, zoom/z-index, scale axes, z-width,
   // pose/shape/light, behavior settings + apex signage, animations — through the ONE shared mapping the SAVE
   // path uses too, so the live stamp and a reloaded save can never diverge.
   Object.assign(asset, compositionCellRender(comp, c, tile, span, rotation, baseLevel))
+  // A CELL MAY OVERRIDE WHAT IT OCCUPIES — an open doorway in a wall is the case this exists for. It used to
+  // say so with `walkable`, a flag beside the tile; it says so with a box list now, which is the only
+  // statement about walking through a tile. Written AFTER the render mapping so it cannot be clobbered by it,
+  // and only at the GROUND course, for the reason in the note above: the collision map is 2D, so a roof five
+  // levels up must not seal the floor beneath it.
+  if (grounded) asset.settings = { ...asset.settings, collision: c.walkable ? [] : [{ x: 0, y: 0, w: 1, h: 1 }] }
+  if (grounded && !c.walkable) grid.setCollision(col, row, true)
   if (flatten) {
     asset.scaleY = 1
     asset.heightLevel = (comp.cells.reduce((lowest, x) => (isRoofLabel(x.label) ? Math.min(lowest, x.level ?? 0) : lowest), Infinity) || 0) + baseLevel

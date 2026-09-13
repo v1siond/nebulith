@@ -6,7 +6,15 @@
 import { boxesForAsset, worldPointBlocked, FULL_CELL, MIN_BOX_SIDE, type BoxGrid } from '@/engine/collisionBoxes'
 import type { GridAsset } from '@/engine/IsometricGrid'
 
-const asset = (patch: Partial<GridAsset> = {}): GridAsset => ({ art: [''], col: 1, row: 1, type: 'tree', blocking: true, ...patch } as GridAsset)
+/**
+ * A tile that OCCUPIES ITS WHOLE CELL, which is what `blocking: true` used to mean and what
+ * `ensure_collisions/0` now writes for every solid row. Saying it in the data is the point: a tile is solid
+ * where its boxes are, and one with no boxes is not solid at all (Alexander, 2026-09-13, on removing the
+ * flag: *"we fucking have collissions which already do the fucking job"*).
+ */
+const WHOLE_CELL = [{ x: 0, y: 0, w: 1, h: 1 }]
+const asset = (patch: Partial<GridAsset> = {}): GridAsset =>
+  ({ art: [''], col: 1, row: 1, type: 'tree', settings: { collision: WHOLE_CELL }, ...patch } as GridAsset)
 
 /** A 3-cell-wide strip: cell 1 holds `at1`, the rest is clear. Cell size 16, like the editor's default. */
 function grid(at1: GridAsset[], blocked = new Set([1])): BoxGrid {
@@ -41,8 +49,9 @@ describe('what a tile makes solid', () => {
     expect(boxesForAsset(asset({ scale: 0.6, settings: { collision: boxes } }))).toEqual(boxes)
   })
 
-  it('a tile that does not block makes nothing solid', () => {
-    expect(boxesForAsset(asset({ blocking: false }))).toEqual([])
+  it('a tile that declares no boxes makes nothing solid', () => {
+    expect(boxesForAsset(asset({ settings: { collision: [] } }))).toEqual([])
+    expect(boxesForAsset(asset({ settings: undefined }))).toEqual([]) // and neither does one that says nothing
   })
 })
 

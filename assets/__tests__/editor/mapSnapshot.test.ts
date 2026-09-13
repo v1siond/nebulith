@@ -8,6 +8,10 @@ import { DEFAULT_FLOOR_SLUG, IsometricGrid } from '@/engine/IsometricGrid'
 import { captureMapSnapshot, restoreMapSnapshot } from '@/game/editor/mapSnapshot'
 import type { Entity } from '@/game/types'
 
+/** A tile that OCCUPIES ITS WHOLE CELL. `blocking: true` used to say this; the box list says it now, which is
+ *  the only statement about walking through a tile (Alexander, 2026-09-13: the flag is gone, collisions do it). */
+const SOLID = { collision: [{ x: 0, y: 0, w: 1, h: 1 }] }
+
 const mkGrid = () => new IsometricGrid({ cols: 6, rows: 6, cellSize: 16, isoScale: 1.4 })
 const ent = (id: string, col: number, row: number): Entity => ({ id, kind: 'enemy', col, row }) as unknown as Entity
 
@@ -16,7 +20,7 @@ describe('mapSnapshot — capture/restore the exact map (grid + entities)', () =
     const grid = mkGrid()
     grid.setGround(1, 1, 'water')
     grid.setHeight(2, 2, 3)
-    grid.placeAsset(['A'], 0, 0, { type: 'house', blocking: true }) // blocking → collision at (0,0)
+    grid.placeAsset(['A'], 0, 0, { type: 'house', settings: SOLID }) // blocking → collision at (0,0)
     const entities: Entity[] = [ent('e1', 4, 4)]
 
     const snap = captureMapSnapshot(grid, entities)

@@ -16,6 +16,7 @@ import { IsometricGrid } from '@/engine/IsometricGrid'
 import type { Facing } from '@/engine/villageLayout'
 import { stampBuildingComposition, stampComposition } from '@/game/runtime/composition'
 import { unitStandLevel } from '@/engine/cellStack'
+import { assetIsSolid } from '@/engine/collisionBoxes'
 
 const mkGrid = () => new IsometricGrid({ cols: 24, rows: 24, cellSize: 16, isoScale: 1.4 })
 const ANCHOR = 10
@@ -39,7 +40,9 @@ function blockedCells(grid: IsometricGrid): Set<string> {
 function groundBlockingCells(grid: IsometricGrid): Set<string> {
   const out = new Set<string>()
   for (const a of grid.assets) {
-    if (a.blocking && (a.heightLevel ?? 0) <= unitStandLevel(grid, a.col, a.row)) out.add(`${a.col},${a.row}`)
+    // ASK WHAT IT OCCUPIES, not a flag beside it: `assetIsSolid` reads the tile's collision boxes, which is
+    // the only statement about walking through a tile since `blocking` was removed (2026-09-13).
+    if (assetIsSolid(a) && (a.heightLevel ?? 0) <= unitStandLevel(grid, a.col, a.row)) out.add(`${a.col},${a.row}`)
   }
   return out
 }

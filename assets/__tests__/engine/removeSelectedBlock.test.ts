@@ -12,6 +12,10 @@
 import { IsometricGrid } from '@/engine/IsometricGrid'
 import { removeSelectedBlock } from '@/game/editor/selectionEdit'
 
+/** A tile that OCCUPIES ITS WHOLE CELL. `blocking: true` used to say this; the box list says it now, which is
+ *  the only statement about walking through a tile (Alexander, 2026-09-13: the flag is gone, collisions do it). */
+const SOLID = { collision: [{ x: 0, y: 0, w: 1, h: 1 }] }
+
 const makeGrid = () => new IsometricGrid({ cols: 8, rows: 8, cellSize: 32, isoScale: 1.4 })
 const nonFloor = (g: IsometricGrid) => g.assets.filter(a => a.type !== 'floor')
 
@@ -87,7 +91,7 @@ describe('removeSelectedBlock: removes the SELECTED tile(s) by stack slot, the f
   test('re-derives collision: removing the only blocker unblocks the cell', () => {
     const g = makeGrid()
     g.setGround(5, 5, 'grass') // slot 0
-    g.placeAsset(['🏠'], 5, 5, { type: 'house', heightLevel: 1, blocking: true }) // slot 1
+    g.placeAsset(['🏠'], 5, 5, { type: 'house', heightLevel: 1, settings: SOLID }) // slot 1
     g.placeAsset(['🍃'], 5, 5, { type: 'leaf', heightLevel: 2 }) // slot 2
     expect(g.isBlocked(5, 5)).toBe(true)
 
@@ -100,7 +104,7 @@ describe('removeSelectedBlock: removes the SELECTED tile(s) by stack slot, the f
   test('collision stays blocked when a blocker remains after the removal', () => {
     const g = makeGrid()
     g.setGround(5, 5, 'grass') // slot 0
-    g.placeAsset(['🏠'], 5, 5, { type: 'house', heightLevel: 1, blocking: true }) // slot 1
+    g.placeAsset(['🏠'], 5, 5, { type: 'house', heightLevel: 1, settings: SOLID }) // slot 1
     g.placeAsset(['🍃'], 5, 5, { type: 'leaf', heightLevel: 2 }) // slot 2
     expect(g.isBlocked(5, 5)).toBe(true)
 

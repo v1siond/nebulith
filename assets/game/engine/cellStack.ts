@@ -15,6 +15,7 @@ import { FLOOR_TYPE, DEFAULT_FLOOR_SLUG, type IsometricGrid, type GridAsset } fr
 import type { TilePose } from './tileset/pose'
 import { resolveTileHeight } from './tileset/tileHeight'
 import { depthCells } from './render/isoBlock'
+import { assetIsSolid } from './collisionBoxes'
 
 /** Which store a TileEntry projects from — lets a consumer/mutator route back to the right setter/store.
  *  There is NO `floor` source: the floor is a plain `type:'floor'` ASSET, so it projects as `asset` exactly
@@ -82,7 +83,7 @@ export interface TileEntry {
   color?: string | null
   /** per-instance sprite opacity (GridAsset.opacity). absent = fully opaque (the renderer uses `opacity ?? 1`). */
   opacity?: number
-  /** does this tile block movement (GridAsset.blocking). See deriveCellCollision. */
+  /** does this tile occupy part of its cell (from its collision boxes). See deriveCellCollision. */
   collision?: boolean
   /** which store this entry came from (always `asset` for grid tiles; `entity` for a character). */
   source: TileSource
@@ -114,7 +115,9 @@ function assetEntry(a: GridAsset): TileEntry {
     scaleY: a.scaleY,
     color: a.color ?? null,
     opacity: a.opacity,
-    collision: a.blocking ?? false,
+    // WHAT IT OCCUPIES, asked once. `assetIsSolid` reads the tile's collision boxes (per-instance, else its
+    // catalog row), which is the only statement about walking through a tile since the flag was removed.
+    collision: assetIsSolid(a),
     heightLevel: a.heightLevel ?? 0,
     art: a.art,
     type: a.type,
@@ -152,8 +155,8 @@ export function assetStackIndexer(grid: IsometricGrid): (asset: GridAsset) => nu
   }
 }
 
-/** Cell collision in the stack model = ANY tile in the stack blocks. The OR of the assets' blocking flags
- *  (a floor tile is blocking:false by default, so it never blocks unless the user opts it in like any tile). */
+/** Cell collision in the stack model = ANY tile in the stack occupies part of it. The OR of what the assets
+ *  declare through their collision boxes (a floor declares none, so it never blocks unless given some). */
 export function deriveCellCollision(stack: TileEntry[]): boolean {
   return stack.some(t => t.collision === true)
 }

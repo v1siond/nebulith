@@ -38,7 +38,8 @@
                 "(#####)",
                 " L   J"
               ]
-            ]
+            ],
+            "collision": []
           }
         },
         "dove": {
@@ -71,7 +72,8 @@
                 " (o<",
                 " /vv\\"
               ]
-            ]
+            ],
+            "collision": []
           }
         },
         "bush": {
@@ -86,7 +88,8 @@
           "settings": {
             "colors": {},
             "position": "single",
-            "stackAt": 0
+            "stackAt": 0,
+            "collision": []
           }
         },
         "chicken": {
@@ -119,7 +122,8 @@
                 " (o<",
                 " (~~)"
               ]
-            ]
+            ],
+            "collision": []
           }
         },
         "ember": {
@@ -145,7 +149,8 @@
                 "rgba(255, 200, 50, 0.95)",
                 "rgba(255, 180, 30, 0.92)"
               ]
-            }
+            },
+            "collision": []
           }
         },
         "piercing-shot": {
@@ -166,7 +171,8 @@
               "spring": "#cfd8e3",
               "summer": "#cfd8e3",
               "winter": "#cfd8e3"
-            }
+            },
+            "collision": []
           }
         },
         "wall_wood_c": {
@@ -188,7 +194,15 @@
               "summer": "#8a5a2b",
               "winter": "#8a5a2b"
             },
-            "fadeNear": true
+            "fadeNear": true,
+            "collision": [
+              {
+                "x": 0,
+                "y": 0,
+                "w": 1,
+                "h": 1
+              }
+            ]
           }
         },
         "tree_edge_right": {
@@ -245,7 +259,15 @@
                 "#9fbccb"
               ]
             },
-            "position": "right"
+            "position": "right",
+            "collision": [
+              {
+                "x": 0,
+                "y": 0,
+                "w": 1,
+                "h": 1
+              }
+            ]
           }
         },
         "factory": {
@@ -266,7 +288,8 @@
               "spring": "#8a8a8a",
               "summer": "#8a8a8a",
               "winter": "#8a8a8a"
-            }
+            },
+            "collision": []
           }
         },
         "wooden_planks": {
@@ -292,7 +315,8 @@
                 "rgba(170, 130, 80, 0.90)",
                 "rgba(160, 120, 70, 0.88)"
               ]
-            }
+            },
+            "collision": []
           }
         },
         "cliff_face": {
@@ -318,7 +342,8 @@
                 "rgba(139, 105, 20, 0.9)",
                 "rgba(120, 88, 16, 0.85)"
               ]
-            }
+            },
+            "collision": []
           }
         },
         "shallow-water": {
@@ -344,7 +369,8 @@
                 "rgba(68, 136, 221, 0.85)",
                 "rgba(85, 153, 238, 0.8)"
               ]
-            }
+            },
+            "collision": []
           }
         },
         "tent": {
@@ -365,7 +391,8 @@
               "spring": "#7a9a5a",
               "summer": "#7a9a5a",
               "winter": "#7a9a5a"
-            }
+            },
+            "collision": []
           }
         },
         "trunk_top": {
@@ -386,7 +413,15 @@
               "spring": "#7a5a3a",
               "summer": "#6b4a2b",
               "winter": "#8fa3b5"
-            }
+            },
+            "collision": [
+              {
+                "x": 0,
+                "y": 0,
+                "w": 1,
+                "h": 1
+              }
+            ]
           }
         },
         "stairs": {
@@ -412,7 +447,8 @@
                 "rgba(153, 136, 102, 0.85)",
                 "rgba(136, 119, 85, 0.8)"
               ]
-            }
+            },
+            "collision": []
           }
         },
         "red_earth": {
@@ -438,7 +474,8 @@
                 "rgba(180, 100, 60, 0.90)",
                 "rgba(170, 90, 50, 0.88)"
               ]
-            }
+            },
+            "collision": []
           }
         },
         "mountain": {
@@ -460,7 +497,8 @@
               "summer": "#7d7d7d",
               "winter": "#8fa6b8"
             },
-            "position": "single"
+            "position": "single",
+            "collision": []
           }
         },
         "wall_brick_c": {
@@ -482,7 +520,15 @@
               "summer": "#9e4b3b",
               "winter": "#9e4b3b"
             },
-            "fadeNear": true
+            "fadeNear": true,
+            "collision": [
+              {
+                "x": 0,
+                "y": 0,
+                "w": 1,
+                "h": 1
+              }
+            ]
           }
         },
         "wall_plaster_b": {
@@ -504,7 +550,15 @@
               "summer": "#f0f0ea",
               "winter": "#f0f0ea"
             },
-            "fadeNear": true
+            "fadeNear": true,
+            "collision": [
+              {
+                "x": 0,
+                "y": 0,
+                "w": 1,
+                "h": 1
+              }
+            ]
           }
         },
         "dragon": {
@@ -539,7 +593,8 @@
                 "</ \\|/ \\>",
                 "  d   b"
               ]
-            ]
+            ],
+            "collision": []
           }
         },
         "run": {
@@ -560,7 +615,8 @@
               "spring": "#d9a066",
               "summer": "#d9a066",
               "winter": "#d9a066"
-            }
+            },
+            "collision": []
           }
         },
         "wall_plaster_t": {
@@ -582,7 +638,15 @@
               "summer": "#f0f0ea",
               "winter": "#f0f0ea"
             },
-            "fadeNear": true
+            "fadeNear": true,
+            "collision": [
+              {
+                "x": 0,
+                "y": 0,
+                "w": 1,
+                "h": 1
+              }
+            ]
           }
         },
         "turtle": {
@@ -617,7 +681,8 @@
                 "((###))",
                 " '   '"
               ]
-            ]
+            ],
+            "collision": []
           }
         },
         "deep-water": {
@@ -643,7 +708,8 @@
                 "rgba(17, 68, 170, 0.9)",
                 "rgba(0, 51, 170, 0.85)"
               ]
-            }
+            },
+            "collision": []
           }
         },
         "window": {
@@ -666,7 +732,8 @@
               "winter": "#dff0ff"
             },
             "fadeNear": true,
-            "position": "single"
+            "position": "single",
+            "collision": []
           }
         },
         "stadium": {
@@ -687,7 +754,8 @@
               "spring": "#9a9a8a",
               "summer": "#9a9a8a",
               "winter": "#9a9a8a"
-            }
+            },
+            "collision": []
           }
         },
         "flower": {
@@ -702,7 +770,8 @@
           "settings": {
             "colors": {},
             "position": "single",
-            "stackAt": 0
+            "stackAt": 0,
+            "collision": []
           }
         },
         "zombie": {
@@ -737,7 +806,8 @@
                 "\\|~|/",
                 " J  L"
               ]
-            ]
+            ],
+            "collision": []
           }
         },
         "canopy_r": {
@@ -793,7 +863,8 @@
                 "#e8f2fa",
                 "#9fbccb"
               ]
-            }
+            },
+            "collision": []
           }
         },
         "blossom": {
@@ -815,7 +886,8 @@
               "summer": "#f2d84a",
               "winter": "#f2d84a"
             },
-            "stackAt": 0
+            "stackAt": 0,
+            "collision": []
           }
         },
         "roof": {
@@ -838,7 +910,8 @@
               "winter": "#4a6a8a"
             },
             "cutawayRoof": true,
-            "position": "single"
+            "position": "single",
+            "collision": []
           }
         },
         "colorful_tile": {
@@ -864,7 +937,8 @@
                 "rgba(255, 200, 50, 0.95)",
                 "rgba(50, 200, 255, 0.92)"
               ]
-            }
+            },
+            "collision": []
           }
         },
         "wall_brick_tl": {
@@ -886,7 +960,15 @@
               "summer": "#9e4b3b",
               "winter": "#9e4b3b"
             },
-            "fadeNear": true
+            "fadeNear": true,
+            "collision": [
+              {
+                "x": 0,
+                "y": 0,
+                "w": 1,
+                "h": 1
+              }
+            ]
           }
         },
         "decor_spark": {
@@ -902,7 +984,8 @@
             "colors": {
               "lava": "#e6661f",
               "winter": "#ccdbe7"
-            }
+            },
+            "collision": []
           }
         },
         "leaf_center": {
@@ -959,7 +1042,8 @@
                 "#9fbccb"
               ]
             },
-            "position": "single"
+            "position": "single",
+            "collision": []
           }
         },
         "canopy_t": {
@@ -1015,7 +1099,8 @@
                 "#e8f2fa",
                 "#9fbccb"
               ]
-            }
+            },
+            "collision": []
           }
         },
         "well": {
@@ -1036,7 +1121,8 @@
               "spring": "#9bc4d8",
               "summer": "#9bc4d8",
               "winter": "#9bc4d8"
-            }
+            },
+            "collision": []
           }
         },
         "sunflower": {
@@ -1058,7 +1144,8 @@
               "summer": "#f2c33a",
               "winter": "#f2c33a"
             },
-            "stackAt": 0
+            "stackAt": 0,
+            "collision": []
           }
         },
         "ogre": {
@@ -1093,7 +1180,8 @@
                 "/|##|\\",
                 " J  L"
               ]
-            ]
+            ],
+            "collision": []
           }
         },
         "witch": {
@@ -1128,7 +1216,8 @@
                 " \\|/~",
                 " / \\~"
               ]
-            ]
+            ],
+            "collision": []
           }
         },
         "tree_stem_bottom": {
@@ -1150,7 +1239,15 @@
               "summer": "#6b4a2b",
               "winter": "#8fa3b5"
             },
-            "position": "single"
+            "position": "single",
+            "collision": [
+              {
+                "x": 0,
+                "y": 0,
+                "w": 1,
+                "h": 1
+              }
+            ]
           }
         },
         "crate": {
@@ -1164,7 +1261,8 @@
           "image_url": "/tiles/ascii/crate.png",
           "settings": {
             "colors": {},
-            "position": "single"
+            "position": "single",
+            "collision": []
           }
         },
         "birch_forest": {
@@ -1190,7 +1288,8 @@
                 "rgba(180, 200, 160, 0.90)",
                 "rgba(170, 190, 150, 0.88)"
               ]
-            }
+            },
+            "collision": []
           }
         },
         "spill": {
@@ -1212,7 +1311,8 @@
               "summer": "#5bbcff",
               "winter": "#bfe8f5"
             },
-            "position": "single"
+            "position": "single",
+            "collision": []
           }
         },
         "road_center": {
@@ -1238,7 +1338,8 @@
                 "rgba(150, 152, 160, 0.85)",
                 "rgba(140, 142, 150, 0.8)"
               ]
-            }
+            },
+            "collision": []
           }
         },
         "wall_brick_l": {
@@ -1260,7 +1361,15 @@
               "summer": "#9e4b3b",
               "winter": "#9e4b3b"
             },
-            "fadeNear": true
+            "fadeNear": true,
+            "collision": [
+              {
+                "x": 0,
+                "y": 0,
+                "w": 1,
+                "h": 1
+              }
+            ]
           }
         },
         "lightning": {
@@ -1281,7 +1390,8 @@
               "spring": "#7ad7ff",
               "summer": "#7ad7ff",
               "winter": "#7ad7ff"
-            }
+            },
+            "collision": []
           }
         },
         "fountain_tr": {
@@ -1302,7 +1412,15 @@
               "spring": "#cbc4b0",
               "summer": "#cbc4b0",
               "winter": "#cbc4b0"
-            }
+            },
+            "collision": [
+              {
+                "x": 0,
+                "y": 0,
+                "w": 1,
+                "h": 1
+              }
+            ]
           }
         },
         "wall_plaster_tr": {
@@ -1324,7 +1442,15 @@
               "summer": "#f0f0ea",
               "winter": "#f0f0ea"
             },
-            "fadeNear": true
+            "fadeNear": true,
+            "collision": [
+              {
+                "x": 0,
+                "y": 0,
+                "w": 1,
+                "h": 1
+              }
+            ]
           }
         },
         "parapet": {
@@ -1346,7 +1472,15 @@
               "summer": "#70757c",
               "winter": "#70757c"
             },
-            "cutawayRoof": true
+            "cutawayRoof": true,
+            "collision": [
+              {
+                "x": 0,
+                "y": 0,
+                "w": 1,
+                "h": 1
+              }
+            ]
           }
         },
         "wall_wood_b": {
@@ -1368,7 +1502,15 @@
               "summer": "#8a5a2b",
               "winter": "#8a5a2b"
             },
-            "fadeNear": true
+            "fadeNear": true,
+            "collision": [
+              {
+                "x": 0,
+                "y": 0,
+                "w": 1,
+                "h": 1
+              }
+            ]
           }
         },
         "robot": {
@@ -1401,7 +1543,8 @@
                 " |[]|",
                 " ][ ]["
               ]
-            ]
+            ],
+            "collision": []
           }
         },
         "frost": {
@@ -1427,7 +1570,8 @@
                 "rgba(210, 235, 255, 0.9)",
                 "rgba(195, 225, 250, 0.85)"
               ]
-            }
+            },
+            "collision": []
           }
         },
         "rose": {
@@ -1449,7 +1593,8 @@
               "summer": "#d13b3b",
               "winter": "#d13b3b"
             },
-            "stackAt": 0
+            "stackAt": 0,
+            "collision": []
           }
         },
         "path": {
@@ -1463,7 +1608,8 @@
           "image_url": "/tiles/ascii/path.png",
           "settings": {
             "colors": {},
-            "position": "single"
+            "position": "single",
+            "collision": []
           }
         },
         "red-mushroom": {
@@ -1485,7 +1631,8 @@
               "summer": "#d24a4a",
               "winter": "#d24a4a"
             },
-            "stackAt": 0
+            "stackAt": 0,
+            "collision": []
           }
         },
         "deer": {
@@ -1520,7 +1667,8 @@
                 " (   ) ",
                 " L   J"
               ]
-            ]
+            ],
+            "collision": []
           }
         },
         "troll": {
@@ -1555,7 +1703,8 @@
                 "/|##|\\",
                 " L  J"
               ]
-            ]
+            ],
+            "collision": []
           }
         },
         "npc": {
@@ -1581,7 +1730,8 @@
                 " \\|/",
                 " / \\"
               ]
-            ]
+            ],
+            "collision": []
           }
         },
         "water_jet": {
@@ -1602,7 +1752,15 @@
               "spring": "#dff0ff",
               "summer": "#dff0ff",
               "winter": "#dff0ff"
-            }
+            },
+            "collision": [
+              {
+                "x": 0,
+                "y": 0,
+                "w": 1,
+                "h": 1
+              }
+            ]
           }
         },
         "bat": {
@@ -1635,7 +1793,8 @@
                 "(o   o)",
                 " \\vvv/"
               ]
-            ]
+            ],
+            "collision": []
           }
         },
         "ancient_stone": {
@@ -1661,7 +1820,8 @@
                 "rgba(140, 130, 100, 0.90)",
                 "rgba(130, 120, 90, 0.88)"
               ]
-            }
+            },
+            "collision": []
           }
         },
         "gold_tile": {
@@ -1687,7 +1847,8 @@
                 "rgba(255, 220, 100, 0.95)",
                 "rgba(255, 210, 80, 0.92)"
               ]
-            }
+            },
+            "collision": []
           }
         },
         "hazard": {
@@ -1701,7 +1862,8 @@
           "image_url": "/tiles/ascii/hazard.png",
           "settings": {
             "colors": {},
-            "position": "single"
+            "position": "single",
+            "collision": []
           }
         },
         "obsidian": {
@@ -1727,7 +1889,8 @@
                 "rgba(80, 60, 80, 0.90)",
                 "rgba(70, 50, 70, 0.88)"
               ]
-            }
+            },
+            "collision": []
           }
         },
         "tree_top_right": {
@@ -1784,7 +1947,15 @@
                 "#9fbccb"
               ]
             },
-            "position": "top_right"
+            "position": "top_right",
+            "collision": [
+              {
+                "x": 0,
+                "y": 0,
+                "w": 1,
+                "h": 1
+              }
+            ]
           }
         },
         "roof_top_slate": {
@@ -1806,7 +1977,8 @@
               "summer": "#4a4f57",
               "winter": "#4a4f57"
             },
-            "fadeNear": true
+            "fadeNear": true,
+            "collision": []
           }
         },
         "courtyard_stone": {
@@ -1832,7 +2004,8 @@
                 "rgba(220, 210, 190, 0.90)",
                 "rgba(210, 200, 180, 0.88)"
               ]
-            }
+            },
+            "collision": []
           }
         },
         "skeleton": {
@@ -1869,7 +2042,8 @@
                 "\\|=|/",
                 " d b"
               ]
-            ]
+            ],
+            "collision": []
           }
         },
         "japanese-castle": {
@@ -1890,7 +2064,8 @@
               "spring": "#d9c8a8",
               "summer": "#d9c8a8",
               "winter": "#d9c8a8"
-            }
+            },
+            "collision": []
           }
         },
         "honeybee": {
@@ -1923,7 +2098,8 @@
                 " (===)",
                 "  ' '"
               ]
-            ]
+            ],
+            "collision": []
           }
         },
         "spider": {
@@ -1958,7 +2134,8 @@
                 " _//o\\\\_",
                 "  \\   /"
               ]
-            ]
+            ],
+            "collision": []
           }
         },
         "fountain_bl": {
@@ -1979,7 +2156,15 @@
               "spring": "#cbc4b0",
               "summer": "#cbc4b0",
               "winter": "#cbc4b0"
-            }
+            },
+            "collision": [
+              {
+                "x": 0,
+                "y": 0,
+                "w": 1,
+                "h": 1
+              }
+            ]
           }
         },
         "wall_brick_t": {
@@ -2001,7 +2186,15 @@
               "summer": "#9e4b3b",
               "winter": "#9e4b3b"
             },
-            "fadeNear": true
+            "fadeNear": true,
+            "collision": [
+              {
+                "x": 0,
+                "y": 0,
+                "w": 1,
+                "h": 1
+              }
+            ]
           }
         },
         "tree_edge_left": {
@@ -2058,7 +2251,15 @@
                 "#9fbccb"
               ]
             },
-            "position": "left"
+            "position": "left",
+            "collision": [
+              {
+                "x": 0,
+                "y": 0,
+                "w": 1,
+                "h": 1
+              }
+            ]
           }
         },
         "mountain-slope": {
@@ -2084,7 +2285,8 @@
                 "rgba(150, 150, 160, 0.9)",
                 "rgba(138, 138, 148, 0.88)"
               ]
-            }
+            },
+            "collision": []
           }
         },
         "elder": {
@@ -2117,7 +2319,8 @@
                 " \\|/|",
                 " / \\|"
               ]
-            ]
+            ],
+            "collision": []
           }
         },
         "frog": {
@@ -2152,7 +2355,8 @@
                 " \\___/",
                 " L   J"
               ]
-            ]
+            ],
+            "collision": []
           }
         },
         "girl": {
@@ -2185,7 +2389,8 @@
                 " \\|/",
                 " /\\ "
               ]
-            ]
+            ],
+            "collision": []
           }
         },
         "fountain_tl": {
@@ -2206,7 +2411,15 @@
               "spring": "#cbc4b0",
               "summer": "#cbc4b0",
               "winter": "#cbc4b0"
-            }
+            },
+            "collision": [
+              {
+                "x": 0,
+                "y": 0,
+                "w": 1,
+                "h": 1
+              }
+            ]
           }
         },
         "grass_tall": {
@@ -2232,7 +2445,8 @@
                 "rgba(120, 172, 60, 0.92)",
                 "rgba(112, 164, 56, 0.92)"
               ]
-            }
+            },
+            "collision": []
           }
         },
         "cobblestone": {
@@ -2258,7 +2472,8 @@
                 "rgba(204, 187, 170, 0.85)",
                 "rgba(187, 170, 153, 0.8)"
               ]
-            }
+            },
+            "collision": []
           }
         },
         "house-garden": {
@@ -2279,7 +2494,8 @@
               "spring": "#b5793a",
               "summer": "#b5793a",
               "winter": "#b5793a"
-            }
+            },
+            "collision": []
           }
         },
         "trunk": {
@@ -2301,7 +2517,8 @@
               "summer": "#6b4a2b",
               "winter": "#8fa3b5"
             },
-            "position": "single"
+            "position": "single",
+            "collision": []
           }
         },
         "wall_stone_r": {
@@ -2323,7 +2540,15 @@
               "summer": "#8f8b82",
               "winter": "#8f8b82"
             },
-            "fadeNear": true
+            "fadeNear": true,
+            "collision": [
+              {
+                "x": 0,
+                "y": 0,
+                "w": 1,
+                "h": 1
+              }
+            ]
           }
         },
         "child": {
@@ -2356,7 +2581,8 @@
                 " \\|/",
                 " ' '"
               ]
-            ]
+            ],
+            "collision": []
           }
         },
         "wall_stone_br": {
@@ -2378,7 +2604,15 @@
               "summer": "#8f8b82",
               "winter": "#8f8b82"
             },
-            "fadeNear": true
+            "fadeNear": true,
+            "collision": [
+              {
+                "x": 0,
+                "y": 0,
+                "w": 1,
+                "h": 1
+              }
+            ]
           }
         },
         "mage": {
@@ -2411,7 +2645,8 @@
                 " (o)",
                 " \\|/"
               ]
-            ]
+            ],
+            "collision": []
           }
         },
         "russian_red": {
@@ -2437,7 +2672,8 @@
                 "rgba(180, 50, 40, 0.95)",
                 "rgba(160, 40, 30, 0.92)"
               ]
-            }
+            },
+            "collision": []
           }
         },
         "tower": {
@@ -2458,7 +2694,8 @@
               "spring": "#d0553a",
               "summer": "#d0553a",
               "winter": "#d0553a"
-            }
+            },
+            "collision": []
           }
         },
         "water_deep": {
@@ -2484,7 +2721,8 @@
                 "rgba(17, 68, 170, 0.9)",
                 "rgba(0, 51, 170, 0.85)"
               ]
-            }
+            },
+            "collision": []
           }
         },
         "road": {
@@ -2510,7 +2748,8 @@
                 "rgba(120, 122, 130, 0.85)",
                 "rgba(108, 110, 118, 0.85)"
               ]
-            }
+            },
+            "collision": []
           }
         },
         "hospital": {
@@ -2531,7 +2770,8 @@
               "spring": "#e05a5a",
               "summer": "#e05a5a",
               "winter": "#e05a5a"
-            }
+            },
+            "collision": []
           }
         },
         "wall_plaster_c": {
@@ -2553,7 +2793,15 @@
               "summer": "#f0f0ea",
               "winter": "#f0f0ea"
             },
-            "fadeNear": true
+            "fadeNear": true,
+            "collision": [
+              {
+                "x": 0,
+                "y": 0,
+                "w": 1,
+                "h": 1
+              }
+            ]
           }
         },
         "zen_garden": {
@@ -2579,7 +2827,8 @@
                 "rgba(220, 215, 200, 0.90)",
                 "rgba(210, 205, 190, 0.88)"
               ]
-            }
+            },
+            "collision": []
           }
         },
         "snag": {
@@ -2601,7 +2850,8 @@
               "summer": "#6b4a2b",
               "winter": "#8fa3b5"
             },
-            "position": "single"
+            "position": "single",
+            "collision": []
           }
         },
         "sheep": {
@@ -2636,7 +2886,8 @@
                 "{#####}",
                 " '   '"
               ]
-            ]
+            ],
+            "collision": []
           }
         },
         "maple-leaf": {
@@ -2658,7 +2909,8 @@
               "summer": "#d0552a",
               "winter": "#d0552a"
             },
-            "stackAt": 0
+            "stackAt": 0,
+            "collision": []
           }
         },
         "path_dirt": {
@@ -2684,7 +2936,8 @@
                 "rgba(170, 153, 119, 0.85)",
                 "rgba(153, 136, 102, 0.8)"
               ]
-            }
+            },
+            "collision": []
           }
         },
         "palm-tree": {
@@ -2705,7 +2958,8 @@
               "spring": "#4f9d5a",
               "summer": "#4f9d5a",
               "winter": "#4f9d5a"
-            }
+            },
+            "collision": []
           }
         },
         "princess": {
@@ -2738,7 +2992,8 @@
                 " \\|/",
                 " /\\ "
               ]
-            ]
+            ],
+            "collision": []
           }
         },
         "canopy_l": {
@@ -2794,7 +3049,8 @@
                 "#e8f2fa",
                 "#9fbccb"
               ]
-            }
+            },
+            "collision": []
           }
         },
         "ghost": {
@@ -2831,7 +3087,8 @@
                 " /   /",
                 " `~~~'"
               ]
-            ]
+            ],
+            "collision": []
           }
         },
         "canopy_b": {
@@ -2887,7 +3144,8 @@
                 "#e8f2fa",
                 "#9fbccb"
               ]
-            }
+            },
+            "collision": []
           }
         },
         "moss": {
@@ -2901,7 +3159,8 @@
           "image_url": "/tiles/ascii/moss.png",
           "settings": {
             "colors": {},
-            "position": "single"
+            "position": "single",
+            "collision": []
           }
         },
         "red_lacquer": {
@@ -2927,7 +3186,8 @@
                 "rgba(220, 60, 50, 0.95)",
                 "rgba(200, 50, 40, 0.92)"
               ]
-            }
+            },
+            "collision": []
           }
         },
         "canopy_br": {
@@ -2983,7 +3243,8 @@
                 "#e8f2fa",
                 "#9fbccb"
               ]
-            }
+            },
+            "collision": []
           }
         },
         "leaf_right": {
@@ -3040,7 +3301,8 @@
                 "#9fbccb"
               ]
             },
-            "position": "single"
+            "position": "single",
+            "collision": []
           }
         },
         "brick": {
@@ -3062,7 +3324,8 @@
               "summer": "#b0603a",
               "winter": "#b0603a"
             },
-            "fadeNear": true
+            "fadeNear": true,
+            "collision": []
           }
         },
         "old-woman": {
@@ -3095,7 +3358,8 @@
                 " \\|/_",
                 " /\\ |"
               ]
-            ]
+            ],
+            "collision": []
           }
         },
         "bamboo_floor": {
@@ -3121,7 +3385,8 @@
                 "rgba(180, 200, 100, 0.90)",
                 "rgba(170, 190, 90, 0.88)"
               ]
-            }
+            },
+            "collision": []
           }
         },
         "wall_plaster_br": {
@@ -3143,7 +3408,15 @@
               "summer": "#f0f0ea",
               "winter": "#f0f0ea"
             },
-            "fadeNear": true
+            "fadeNear": true,
+            "collision": [
+              {
+                "x": 0,
+                "y": 0,
+                "w": 1,
+                "h": 1
+              }
+            ]
           }
         },
         "grey-alien": {
@@ -3178,7 +3451,8 @@
                 " \\|/",
                 " ' '"
               ]
-            ]
+            ],
+            "collision": []
           }
         },
         "wolf": {
@@ -3211,7 +3485,8 @@
                 "( -.- )",
                 " > ^ <"
               ]
-            ]
+            ],
+            "collision": []
           }
         },
         "prince": {
@@ -3244,7 +3519,8 @@
                 " \\|/",
                 " / \\"
               ]
-            ]
+            ],
+            "collision": []
           }
         },
         "magma": {
@@ -3270,7 +3546,8 @@
                 "rgba(255, 150, 30, 0.95)",
                 "rgba(255, 130, 20, 0.92)"
               ]
-            }
+            },
+            "collision": []
           }
         },
         "dirt-path": {
@@ -3296,7 +3573,8 @@
                 "rgba(170, 153, 119, 0.85)",
                 "rgba(153, 136, 102, 0.8)"
               ]
-            }
+            },
+            "collision": []
           }
         },
         "hieroglyph_floor": {
@@ -3322,7 +3600,8 @@
                 "rgba(255, 210, 100, 0.95)",
                 "rgba(250, 200, 90, 0.92)"
               ]
-            }
+            },
+            "collision": []
           }
         },
         "canopy_bl": {
@@ -3378,7 +3657,8 @@
                 "#e8f2fa",
                 "#9fbccb"
               ]
-            }
+            },
+            "collision": []
           }
         },
         "sand_dune": {
@@ -3404,7 +3684,8 @@
                 "rgba(255, 230, 170, 0.90)",
                 "rgba(250, 220, 160, 0.88)"
               ]
-            }
+            },
+            "collision": []
           }
         },
         "wall_brick_bl": {
@@ -3426,7 +3707,15 @@
               "summer": "#9e4b3b",
               "winter": "#9e4b3b"
             },
-            "fadeNear": true
+            "fadeNear": true,
+            "collision": [
+              {
+                "x": 0,
+                "y": 0,
+                "w": 1,
+                "h": 1
+              }
+            ]
           }
         },
         "owl": {
@@ -3459,7 +3748,8 @@
                 "(-) (-)",
                 " \\___/"
               ]
-            ]
+            ],
+            "collision": []
           }
         },
         "dog": {
@@ -3494,7 +3784,8 @@
                 " (>w<)",
                 " b   d"
               ]
-            ]
+            ],
+            "collision": []
           }
         },
         "beach-sand": {
@@ -3520,7 +3811,8 @@
                 "rgba(255, 220, 150, 0.90)",
                 "rgba(250, 210, 140, 0.88)"
               ]
-            }
+            },
+            "collision": []
           }
         },
         "woman": {
@@ -3553,7 +3845,8 @@
                 " \\|/",
                 " /\\ "
               ]
-            ]
+            ],
+            "collision": []
           }
         },
         "wall_plaster_tl": {
@@ -3575,7 +3868,15 @@
               "summer": "#f0f0ea",
               "winter": "#f0f0ea"
             },
-            "fadeNear": true
+            "fadeNear": true,
+            "collision": [
+              {
+                "x": 0,
+                "y": 0,
+                "w": 1,
+                "h": 1
+              }
+            ]
           }
         },
         "pine-tree": {
@@ -3596,7 +3897,8 @@
               "spring": "#2f8f3f",
               "summer": "#2f8f3f",
               "winter": "#2f8f3f"
-            }
+            },
+            "collision": []
           }
         },
         "marble": {
@@ -3622,7 +3924,8 @@
                 "rgba(250, 248, 245, 0.90)",
                 "rgba(245, 243, 240, 0.88)"
               ]
-            }
+            },
+            "collision": []
           }
         },
         "school": {
@@ -3643,7 +3946,8 @@
               "spring": "#d0a83a",
               "summer": "#d0a83a",
               "winter": "#d0a83a"
-            }
+            },
+            "collision": []
           }
         },
         "bank": {
@@ -3664,7 +3968,8 @@
               "spring": "#6a8f5a",
               "summer": "#6a8f5a",
               "winter": "#6a8f5a"
-            }
+            },
+            "collision": []
           }
         },
         "cherry-blossom": {
@@ -3685,7 +3990,8 @@
               "spring": "#e785b5",
               "summer": "#e785b5",
               "winter": "#e785b5"
-            }
+            },
+            "collision": []
           }
         },
         "dark-grass": {
@@ -3711,7 +4017,8 @@
                 "rgba(90, 150, 70, 0.9)",
                 "rgba(80, 140, 62, 0.88)"
               ]
-            }
+            },
+            "collision": []
           }
         },
         "tatami": {
@@ -3737,7 +4044,8 @@
                 "rgba(200, 190, 150, 0.90)",
                 "rgba(190, 180, 140, 0.88)"
               ]
-            }
+            },
+            "collision": []
           }
         },
         "fist": {
@@ -3758,7 +4066,8 @@
               "spring": "#f0b070",
               "summer": "#f0b070",
               "winter": "#f0b070"
-            }
+            },
+            "collision": []
           }
         },
         "wall_plaster_r": {
@@ -3780,7 +4089,15 @@
               "summer": "#f0f0ea",
               "winter": "#f0f0ea"
             },
-            "fadeNear": true
+            "fadeNear": true,
+            "collision": [
+              {
+                "x": 0,
+                "y": 0,
+                "w": 1,
+                "h": 1
+              }
+            ]
           }
         },
         "coral": {
@@ -3806,7 +4123,8 @@
                 "rgba(255, 150, 180, 0.95)",
                 "rgba(255, 130, 160, 0.92)"
               ]
-            }
+            },
+            "collision": []
           }
         },
         "grey-wolf": {
@@ -3839,7 +4157,8 @@
                 "( -.- )",
                 " > w <"
               ]
-            ]
+            ],
+            "collision": []
           }
         },
         "arrow": {
@@ -3860,7 +4179,8 @@
               "spring": "#ffe9a8",
               "summer": "#ffe9a8",
               "winter": "#ffe9a8"
-            }
+            },
+            "collision": []
           }
         },
         "wall_wood_t": {
@@ -3882,7 +4202,15 @@
               "summer": "#8a5a2b",
               "winter": "#8a5a2b"
             },
-            "fadeNear": true
+            "fadeNear": true,
+            "collision": [
+              {
+                "x": 0,
+                "y": 0,
+                "w": 1,
+                "h": 1
+              }
+            ]
           }
         },
         "water_shallow": {
@@ -3908,7 +4236,8 @@
                 "rgba(68, 136, 221, 0.85)",
                 "rgba(85, 153, 238, 0.8)"
               ]
-            }
+            },
+            "collision": []
           }
         },
         "water_still": {
@@ -3917,7 +4246,8 @@
           "settings": {
             "color": null,
             "animations": [],
-            "stackAt": 0
+            "stackAt": 0,
+            "collision": []
           },
           "height": 0.05,
           "glyph": "⌱",
@@ -3944,7 +4274,8 @@
               "spring": "#b0a89a",
               "summer": "#b0a89a",
               "winter": "#b0a89a"
-            }
+            },
+            "collision": []
           }
         },
         "duck": {
@@ -3977,7 +4308,8 @@
                 " (o>",
                 " (~~)"
               ]
-            ]
+            ],
+            "collision": []
           }
         },
         "mosque": {
@@ -3998,7 +4330,8 @@
               "spring": "#8aa88a",
               "summer": "#8aa88a",
               "winter": "#8aa88a"
-            }
+            },
+            "collision": []
           }
         },
         "fountain_br": {
@@ -4019,7 +4352,15 @@
               "spring": "#cbc4b0",
               "summer": "#cbc4b0",
               "winter": "#cbc4b0"
-            }
+            },
+            "collision": [
+              {
+                "x": 0,
+                "y": 0,
+                "w": 1,
+                "h": 1
+              }
+            ]
           }
         },
         "frozen_water": {
@@ -4045,7 +4386,8 @@
                 "rgba(160, 210, 250, 0.85)",
                 "rgba(140, 200, 245, 0.82)"
               ]
-            }
+            },
+            "collision": []
           }
         },
         "tree_bottom_left": {
@@ -4102,7 +4444,15 @@
                 "#9fbccb"
               ]
             },
-            "position": "bottom_left"
+            "position": "bottom_left",
+            "collision": [
+              {
+                "x": 0,
+                "y": 0,
+                "w": 1,
+                "h": 1
+              }
+            ]
           }
         },
         "tree": {
@@ -4116,7 +4466,8 @@
           "image_url": "/tiles/ascii/tree.png",
           "settings": {
             "colors": {},
-            "position": "single"
+            "position": "single",
+            "collision": []
           }
         },
         "shrub": {
@@ -4138,7 +4489,8 @@
               "summer": "#4fa03f",
               "winter": "#4fa03f"
             },
-            "stackAt": 0
+            "stackAt": 0,
+            "collision": []
           }
         },
         "outback_red": {
@@ -4164,7 +4516,8 @@
                 "rgba(220, 120, 60, 0.90)",
                 "rgba(210, 110, 50, 0.88)"
               ]
-            }
+            },
+            "collision": []
           }
         },
         "old-man": {
@@ -4197,7 +4550,8 @@
                 " \\|/_",
                 " / \\|"
               ]
-            ]
+            ],
+            "collision": []
           }
         },
         "prairie": {
@@ -4223,7 +4577,8 @@
                 "rgba(200, 190, 130, 0.90)",
                 "rgba(190, 180, 120, 0.88)"
               ]
-            }
+            },
+            "collision": []
           }
         },
         "ice-slash": {
@@ -4244,7 +4599,8 @@
               "spring": "#7fd0ff",
               "summer": "#7fd0ff",
               "winter": "#7fd0ff"
-            }
+            },
+            "collision": []
           }
         },
         "whitewash": {
@@ -4270,7 +4626,8 @@
                 "rgba(255, 255, 250, 0.95)",
                 "rgba(250, 250, 245, 0.92)"
               ]
-            }
+            },
+            "collision": []
           }
         },
         "butterfly": {
@@ -4303,7 +4660,8 @@
                 " (o) ",
                 "\\/ \\/"
               ]
-            ]
+            ],
+            "collision": []
           }
         },
         "crystal": {
@@ -4329,7 +4687,8 @@
                 "rgba(200, 150, 255, 0.95)",
                 "rgba(180, 130, 250, 0.92)"
               ]
-            }
+            },
+            "collision": []
           }
         },
         "door": {
@@ -4352,7 +4711,8 @@
               "winter": "#2a3a4a"
             },
             "fadeNear": true,
-            "position": "single"
+            "position": "single",
+            "collision": []
           }
         },
         "wall_stone_b": {
@@ -4374,7 +4734,15 @@
               "summer": "#8f8b82",
               "winter": "#8f8b82"
             },
-            "fadeNear": true
+            "fadeNear": true,
+            "collision": [
+              {
+                "x": 0,
+                "y": 0,
+                "w": 1,
+                "h": 1
+              }
+            ]
           }
         },
         "boar": {
@@ -4409,7 +4777,8 @@
                 "/(oo)\\",
                 " '   '"
               ]
-            ]
+            ],
+            "collision": []
           }
         },
         "canopy_c": {
@@ -4465,7 +4834,8 @@
                 "#e8f2fa",
                 "#9fbccb"
               ]
-            }
+            },
+            "collision": []
           }
         },
         "snow_path": {
@@ -4491,7 +4861,8 @@
                 "rgba(210, 220, 235, 0.85)",
                 "rgba(200, 215, 230, 0.82)"
               ]
-            }
+            },
+            "collision": []
           }
         },
         "tree_interior": {
@@ -4548,7 +4919,15 @@
                 "#9fbccb"
               ]
             },
-            "position": "center"
+            "position": "center",
+            "collision": [
+              {
+                "x": 0,
+                "y": 0,
+                "w": 1,
+                "h": 1
+              }
+            ]
           }
         },
         "seashell": {
@@ -4569,7 +4948,8 @@
               "spring": "#f0c8a8",
               "summer": "#f0c8a8",
               "winter": "#f0c8a8"
-            }
+            },
+            "collision": []
           }
         },
         "heal-glow": {
@@ -4590,7 +4970,8 @@
               "spring": "#8effa0",
               "summer": "#8effa0",
               "winter": "#8effa0"
-            }
+            },
+            "collision": []
           }
         },
         "bridge": {
@@ -4616,7 +4997,8 @@
                 "rgba(187, 136, 68, 0.9)",
                 "rgba(170, 119, 51, 0.85)"
               ]
-            }
+            },
+            "collision": []
           }
         },
         "wilted-flower": {
@@ -4638,7 +5020,8 @@
               "summer": "#9c6a7a",
               "winter": "#9c6a7a"
             },
-            "stackAt": 0
+            "stackAt": 0,
+            "collision": []
           }
         },
         "hedgehog": {
@@ -4673,7 +5056,8 @@
                 " (###) ",
                 " '   '"
               ]
-            ]
+            ],
+            "collision": []
           }
         },
         "axe": {
@@ -4693,7 +5077,8 @@
               "rot": 3.141592653589793,
               "scale": 1.7
             },
-            "position": "single"
+            "position": "single",
+            "collision": []
           }
         },
         "dart": {
@@ -4714,7 +5099,8 @@
               "spring": "#ffe9a8",
               "summer": "#ffe9a8",
               "winter": "#ffe9a8"
-            }
+            },
+            "collision": []
           }
         },
         "seaweed": {
@@ -4740,7 +5126,8 @@
                 "rgba(60, 180, 120, 0.90)",
                 "rgba(50, 170, 110, 0.88)"
               ]
-            }
+            },
+            "collision": []
           }
         },
         "cat": {
@@ -4775,7 +5162,8 @@
                 " (>^<)",
                 " '   '"
               ]
-            ]
+            ],
+            "collision": []
           }
         },
         "torii-gate": {
@@ -4796,7 +5184,8 @@
               "spring": "#d0402a",
               "summer": "#d0402a",
               "winter": "#d0402a"
-            }
+            },
+            "collision": []
           }
         },
         "wall_wood_tl": {
@@ -4818,7 +5207,15 @@
               "summer": "#8a5a2b",
               "winter": "#8a5a2b"
             },
-            "fadeNear": true
+            "fadeNear": true,
+            "collision": [
+              {
+                "x": 0,
+                "y": 0,
+                "w": 1,
+                "h": 1
+              }
+            ]
           }
         },
         "path_stone": {
@@ -4844,7 +5241,8 @@
                 "rgba(204, 187, 170, 0.85)",
                 "rgba(187, 170, 153, 0.8)"
               ]
-            }
+            },
+            "collision": []
           }
         },
         "elf": {
@@ -4877,7 +5275,8 @@
                 " \\|/",
                 " / \\"
               ]
-            ]
+            ],
+            "collision": []
           }
         },
         "roof_slate": {
@@ -4899,7 +5298,15 @@
               "summer": "#4a4f57",
               "winter": "#4a4f57"
             },
-            "cutawayRoof": true
+            "cutawayRoof": true,
+            "collision": [
+              {
+                "x": 0,
+                "y": 0,
+                "w": 1,
+                "h": 1
+              }
+            ]
           }
         },
         "roof_top": {
@@ -4922,7 +5329,8 @@
               "winter": "#4a6a8a"
             },
             "fadeNear": true,
-            "position": "single"
+            "position": "single",
+            "collision": []
           }
         },
         "wall_brick_br": {
@@ -4944,7 +5352,15 @@
               "summer": "#9e4b3b",
               "winter": "#9e4b3b"
             },
-            "fadeNear": true
+            "fadeNear": true,
+            "collision": [
+              {
+                "x": 0,
+                "y": 0,
+                "w": 1,
+                "h": 1
+              }
+            ]
           }
         },
         "canopy_tl": {
@@ -5000,7 +5416,8 @@
                 "#e8f2fa",
                 "#9fbccb"
               ]
-            }
+            },
+            "collision": []
           }
         },
         "crypt_floor": {
@@ -5026,7 +5443,8 @@
                 "rgba(100, 95, 90, 0.90)",
                 "rgba(90, 85, 80, 0.88)"
               ]
-            }
+            },
+            "collision": []
           }
         },
         "derelict-house": {
@@ -5047,7 +5465,8 @@
               "spring": "#8a7a5f",
               "summer": "#8a7a5f",
               "winter": "#8a7a5f"
-            }
+            },
+            "collision": []
           }
         },
         "oasis": {
@@ -5073,7 +5492,8 @@
                 "rgba(50, 180, 200, 0.90)",
                 "rgba(40, 170, 190, 0.88)"
               ]
-            }
+            },
+            "collision": []
           }
         },
         "goblin": {
@@ -5108,7 +5528,8 @@
                 "\\|Y|/",
                 " d b"
               ]
-            ]
+            ],
+            "collision": []
           }
         },
         "fountain_l": {
@@ -5129,7 +5550,15 @@
               "spring": "#cbc4b0",
               "summer": "#cbc4b0",
               "winter": "#cbc4b0"
-            }
+            },
+            "collision": [
+              {
+                "x": 0,
+                "y": 0,
+                "w": 1,
+                "h": 1
+              }
+            ]
           }
         },
         "tree_crown": {
@@ -5186,7 +5615,15 @@
                 "#9fbccb"
               ]
             },
-            "position": "single"
+            "position": "single",
+            "collision": [
+              {
+                "x": 0,
+                "y": 0,
+                "w": 1,
+                "h": 1
+              }
+            ]
           }
         },
         "decor_grit": {
@@ -5201,7 +5638,8 @@
           "settings": {
             "colors": {
               "desert": "#bba360"
-            }
+            },
+            "collision": []
           }
         },
         "grass-field": {
@@ -5227,7 +5665,8 @@
                 "rgba(154, 196, 84, 0.9)",
                 "rgba(146, 188, 78, 0.9)"
               ]
-            }
+            },
+            "collision": []
           }
         },
         "wall_stone_bl": {
@@ -5249,7 +5688,15 @@
               "summer": "#8f8b82",
               "winter": "#8f8b82"
             },
-            "fadeNear": true
+            "fadeNear": true,
+            "collision": [
+              {
+                "x": 0,
+                "y": 0,
+                "w": 1,
+                "h": 1
+              }
+            ]
           }
         },
         "cow": {
@@ -5284,7 +5731,8 @@
                 " (oo)  ",
                 " L   J"
               ]
-            ]
+            ],
+            "collision": []
           }
         },
         "desert": {
@@ -5310,7 +5758,8 @@
                 "rgba(230, 190, 130, 0.90)",
                 "rgba(220, 180, 120, 0.88)"
               ]
-            }
+            },
+            "collision": []
           }
         },
         "volcanic_rock": {
@@ -5336,7 +5785,8 @@
                 "rgba(100, 70, 50, 0.90)",
                 "rgba(90, 60, 45, 0.88)"
               ]
-            }
+            },
+            "collision": []
           }
         },
         "tree_leaf": {
@@ -5393,7 +5843,15 @@
                 "#9fbccb"
               ]
             },
-            "position": "single"
+            "position": "single",
+            "collision": [
+              {
+                "x": 0,
+                "y": 0,
+                "w": 1,
+                "h": 1
+              }
+            ]
           }
         },
         "canopy_tr": {
@@ -5449,7 +5907,8 @@
                 "#e8f2fa",
                 "#9fbccb"
               ]
-            }
+            },
+            "collision": []
           }
         },
         "wall_stone_c": {
@@ -5471,7 +5930,15 @@
               "summer": "#8f8b82",
               "winter": "#8f8b82"
             },
-            "fadeNear": true
+            "fadeNear": true,
+            "collision": [
+              {
+                "x": 0,
+                "y": 0,
+                "w": 1,
+                "h": 1
+              }
+            ]
           }
         },
         "pumpkin": {
@@ -5504,7 +5971,8 @@
                 "(<_->)",
                 " \\___/"
               ]
-            ]
+            ],
+            "collision": []
           }
         },
         "tree_top": {
@@ -5561,7 +6029,15 @@
                 "#9fbccb"
               ]
             },
-            "position": "top"
+            "position": "top",
+            "collision": [
+              {
+                "x": 0,
+                "y": 0,
+                "w": 1,
+                "h": 1
+              }
+            ]
           }
         },
         "peak": {
@@ -5583,7 +6059,15 @@
               "summer": "#e6edf2",
               "winter": "#eef6ff"
             },
-            "position": "single"
+            "position": "single",
+            "collision": [
+              {
+                "x": 0,
+                "y": 0,
+                "w": 1,
+                "h": 1
+              }
+            ]
           }
         },
         "tree_snag": {
@@ -5605,7 +6089,15 @@
               "summer": "#6b4a2b",
               "winter": "#8fa3b5"
             },
-            "position": "single"
+            "position": "single",
+            "collision": [
+              {
+                "x": 0,
+                "y": 0,
+                "w": 1,
+                "h": 1
+              }
+            ]
           }
         },
         "walk": {
@@ -5626,7 +6118,8 @@
               "spring": "#d9a066",
               "summer": "#d9a066",
               "winter": "#d9a066"
-            }
+            },
+            "collision": []
           }
         },
         "fountain_r": {
@@ -5647,7 +6140,15 @@
               "spring": "#cbc4b0",
               "summer": "#cbc4b0",
               "winter": "#cbc4b0"
-            }
+            },
+            "collision": [
+              {
+                "x": 0,
+                "y": 0,
+                "w": 1,
+                "h": 1
+              }
+            ]
           }
         },
         "snow": {
@@ -5673,7 +6174,8 @@
                 "rgba(240, 248, 255, 0.95)",
                 "rgba(230, 240, 250, 0.90)"
               ]
-            }
+            },
+            "collision": []
           }
         },
         "nova": {
@@ -5694,7 +6196,8 @@
               "spring": "#c08cff",
               "summer": "#c08cff",
               "winter": "#c08cff"
-            }
+            },
+            "collision": []
           }
         },
         "plaza": {
@@ -5720,7 +6223,8 @@
                 "rgba(252, 247, 241, 0.8)",
                 "rgba(240, 230, 210, 0.85)"
               ]
-            }
+            },
+            "collision": []
           }
         },
         "fallen-leaf": {
@@ -5742,7 +6246,8 @@
               "summer": "#c8742f",
               "winter": "#c8742f"
             },
-            "stackAt": 0
+            "stackAt": 0,
+            "collision": []
           }
         },
         "sand": {
@@ -5768,7 +6273,8 @@
                 "rgba(255, 220, 150, 0.90)",
                 "rgba(250, 210, 140, 0.88)"
               ]
-            }
+            },
+            "collision": []
           }
         },
         "decor_dot": {
@@ -5783,7 +6289,8 @@
           "settings": {
             "colors": {
               "autumn": "#a06a2c"
-            }
+            },
+            "collision": []
           }
         },
         "roof_top_store": {
@@ -5805,7 +6312,8 @@
               "summer": "#235a96",
               "winter": "#235a96"
             },
-            "fadeNear": true
+            "fadeNear": true,
+            "collision": []
           }
         },
         "sand_trap": {
@@ -5831,7 +6339,8 @@
                 "rgba(200, 168, 96, 0.90)",
                 "rgba(186, 154, 84, 0.88)"
               ]
-            }
+            },
+            "collision": []
           }
         },
         "volcano": {
@@ -5857,7 +6366,8 @@
                 "rgba(255, 150, 30, 0.95)",
                 "rgba(255, 130, 20, 0.92)"
               ]
-            }
+            },
+            "collision": []
           }
         },
         "sandstone": {
@@ -5883,7 +6393,8 @@
                 "rgba(230, 190, 130, 0.90)",
                 "rgba(220, 180, 120, 0.88)"
               ]
-            }
+            },
+            "collision": []
           }
         },
         "wooden-door": {
@@ -5905,7 +6416,8 @@
               "summer": "#5a3a22",
               "winter": "#5a3a22"
             },
-            "fadeNear": true
+            "fadeNear": true,
+            "collision": []
           }
         },
         "shield": {
@@ -5925,7 +6437,8 @@
               "rot": 3.141592653589793,
               "scale": 1.7
             },
-            "position": "single"
+            "position": "single",
+            "collision": []
           }
         },
         "connector": {
@@ -5946,7 +6459,8 @@
               "spring": "#8a7bd8",
               "summer": "#8a7bd8",
               "winter": "#8a7bd8"
-            }
+            },
+            "collision": []
           }
         },
         "basalt": {
@@ -5972,7 +6486,8 @@
                 "rgba(110, 58, 48, 0.8)",
                 "rgba(90, 48, 40, 0.75)"
               ]
-            }
+            },
+            "collision": []
           }
         },
         "decor_flower": {
@@ -5987,7 +6502,8 @@
           "settings": {
             "colors": {
               "spring": "#c79bb4"
-            }
+            },
+            "collision": []
           }
         },
         "bow": {
@@ -6007,7 +6523,8 @@
               "rot": 3.141592653589793,
               "scale": 1.7
             },
-            "position": "single"
+            "position": "single",
+            "collision": []
           }
         },
         "eucalyptus": {
@@ -6033,7 +6550,8 @@
                 "rgba(120, 160, 130, 0.90)",
                 "rgba(110, 150, 120, 0.88)"
               ]
-            }
+            },
+            "collision": []
           }
         },
         "road_edge": {
@@ -6059,7 +6577,8 @@
                 "rgba(96, 98, 106, 0.8)",
                 "rgba(86, 88, 96, 0.75)"
               ]
-            }
+            },
+            "collision": []
           }
         },
         "gun": {
@@ -6079,7 +6598,8 @@
               "rot": 3.141592653589793,
               "scale": 1.7
             },
-            "position": "single"
+            "position": "single",
+            "collision": []
           }
         },
         "ice_cracked": {
@@ -6105,7 +6625,8 @@
                 "rgba(180, 230, 255, 0.95)",
                 "rgba(160, 220, 250, 0.92)"
               ]
-            }
+            },
+            "collision": []
           }
         },
         "person": {
@@ -6138,7 +6659,8 @@
                 " \\|/",
                 " / \\"
               ]
-            ]
+            ],
+            "collision": []
           }
         },
         "wheat": {
@@ -6160,7 +6682,8 @@
               "summer": "#d9b25f",
               "winter": "#d9b25f"
             },
-            "stackAt": 0
+            "stackAt": 0,
+            "collision": []
           }
         },
         "gravel": {
@@ -6186,7 +6709,8 @@
                 "rgba(150, 138, 120, 0.85)",
                 "rgba(138, 126, 110, 0.82)"
               ]
-            }
+            },
+            "collision": []
           }
         },
         "hibiscus": {
@@ -6208,7 +6732,8 @@
               "summer": "#e5527a",
               "winter": "#e5527a"
             },
-            "stackAt": 0
+            "stackAt": 0,
+            "collision": []
           }
         },
         "police-officer": {
@@ -6241,7 +6766,8 @@
                 " \\P/",
                 " / \\"
               ]
-            ]
+            ],
+            "collision": []
           }
         },
         "ninja": {
@@ -6274,7 +6800,8 @@
                 " \\N/",
                 " / \\"
               ]
-            ]
+            ],
+            "collision": []
           }
         },
         "wall_wood_br": {
@@ -6296,7 +6823,15 @@
               "summer": "#8a5a2b",
               "winter": "#8a5a2b"
             },
-            "fadeNear": true
+            "fadeNear": true,
+            "collision": [
+              {
+                "x": 0,
+                "y": 0,
+                "w": 1,
+                "h": 1
+              }
+            ]
           }
         },
         "sakura_petals": {
@@ -6322,7 +6857,8 @@
                 "rgba(255, 200, 220, 0.95)",
                 "rgba(255, 180, 200, 0.92)"
               ]
-            }
+            },
+            "collision": []
           }
         },
         "savanna": {
@@ -6348,7 +6884,8 @@
                 "rgba(200, 180, 100, 0.90)",
                 "rgba(190, 170, 90, 0.88)"
               ]
-            }
+            },
+            "collision": []
           }
         },
         "decor_pebbles": {
@@ -6366,7 +6903,8 @@
               "desert": "#b89a58",
               "lava": "#56382e",
               "winter": "#c8d6e2"
-            }
+            },
+            "collision": []
           }
         },
         "ice": {
@@ -6392,7 +6930,8 @@
                 "rgba(150, 220, 255, 0.95)",
                 "rgba(130, 210, 250, 0.92)"
               ]
-            }
+            },
+            "collision": []
           }
         },
         "temple_floor": {
@@ -6418,7 +6957,8 @@
                 "rgba(206, 192, 158, 0.90)",
                 "rgba(194, 180, 146, 0.88)"
               ]
-            }
+            },
+            "collision": []
           }
         },
         "pyramid_stone": {
@@ -6444,7 +6984,8 @@
                 "rgba(230, 200, 150, 0.90)",
                 "rgba(220, 190, 140, 0.88)"
               ]
-            }
+            },
+            "collision": []
           }
         },
         "water_c": {
@@ -6465,7 +7006,15 @@
               "spring": "#2f7fc9",
               "summer": "#2f7fc9",
               "winter": "#2f7fc9"
-            }
+            },
+            "collision": [
+              {
+                "x": 0,
+                "y": 0,
+                "w": 1,
+                "h": 1
+              }
+            ]
           }
         },
         "dead_grass": {
@@ -6491,7 +7040,8 @@
                 "rgba(140, 130, 90, 0.85)",
                 "rgba(130, 120, 80, 0.82)"
               ]
-            }
+            },
+            "collision": []
           }
         },
         "decor_blossom": {
@@ -6506,7 +7056,8 @@
           "settings": {
             "colors": {
               "spring": "#c4b061"
-            }
+            },
+            "collision": []
           }
         },
         "tropical_grass": {
@@ -6532,7 +7083,8 @@
                 "rgba(50, 200, 80, 0.90)",
                 "rgba(40, 190, 70, 0.88)"
               ]
-            }
+            },
+            "collision": []
           }
         },
         "department-store": {
@@ -6553,7 +7105,8 @@
               "spring": "#b05a8a",
               "summer": "#b05a8a",
               "winter": "#b05a8a"
-            }
+            },
+            "collision": []
           }
         },
         "pig": {
@@ -6588,7 +7141,8 @@
                 " (oo)  ",
                 " '   '"
               ]
-            ]
+            ],
+            "collision": []
           }
         },
         "cactus": {
@@ -6609,7 +7163,8 @@
               "spring": "#4a8f3f",
               "summer": "#4a8f3f",
               "winter": "#4a8f3f"
-            }
+            },
+            "collision": []
           }
         },
         "wall_wood_bl": {
@@ -6631,7 +7186,15 @@
               "summer": "#8a5a2b",
               "winter": "#8a5a2b"
             },
-            "fadeNear": true
+            "fadeNear": true,
+            "collision": [
+              {
+                "x": 0,
+                "y": 0,
+                "w": 1,
+                "h": 1
+              }
+            ]
           }
         },
         "boy": {
@@ -6664,7 +7227,8 @@
                 " \\|/",
                 " / \\"
               ]
-            ]
+            ],
+            "collision": []
           }
         },
         "lava": {
@@ -6690,7 +7254,8 @@
                 "rgba(255, 200, 50, 0.95)",
                 "rgba(255, 180, 30, 0.92)"
               ]
-            }
+            },
+            "collision": []
           }
         },
         "altar": {
@@ -6704,7 +7269,8 @@
           "image_url": "/tiles/ascii/altar.png",
           "settings": {
             "colors": {},
-            "position": "single"
+            "position": "single",
+            "collision": []
           }
         },
         "tree_leaf_top": {
@@ -6761,7 +7327,8 @@
                 "#9fbccb"
               ]
             },
-            "position": "single"
+            "position": "single",
+            "collision": []
           }
         },
         "snail": {
@@ -6794,7 +7361,8 @@
                 " (-.-) ",
                 " (@@@) "
               ]
-            ]
+            ],
+            "collision": []
           }
         },
         "autumn": {
@@ -6820,7 +7388,8 @@
                 "rgba(176, 122, 70, 0.85)",
                 "rgba(156, 104, 58, 0.8)"
               ]
-            }
+            },
+            "collision": []
           }
         },
         "pillar": {
@@ -6834,7 +7403,8 @@
           "image_url": "/tiles/ascii/pillar.png",
           "settings": {
             "colors": {},
-            "position": "single"
+            "position": "single",
+            "collision": []
           }
         },
         "post": {
@@ -6855,7 +7425,15 @@
               "spring": "#43474d",
               "summer": "#43474d",
               "winter": "#43474d"
-            }
+            },
+            "collision": [
+              {
+                "x": 0,
+                "y": 0,
+                "w": 1,
+                "h": 1
+              }
+            ]
           }
         },
         "staff": {
@@ -6875,7 +7453,8 @@
               "rot": 3.141592653589793,
               "scale": 1.7
             },
-            "position": "single"
+            "position": "single",
+            "collision": []
           }
         },
         "enemy": {
@@ -6903,7 +7482,8 @@
                 "\\| |/",
                 " \" \""
               ]
-            ]
+            ],
+            "collision": []
           }
         },
         "goat": {
@@ -6938,7 +7518,8 @@
                 " (~~~) ",
                 " '   '"
               ]
-            ]
+            ],
+            "collision": []
           }
         },
         "decor_clover": {
@@ -6953,7 +7534,8 @@
           "settings": {
             "colors": {
               "summer": "#2a722a"
-            }
+            },
+            "collision": []
           }
         },
         "leaf_top": {
@@ -7010,7 +7592,8 @@
                 "#9fbccb"
               ]
             },
-            "position": "single"
+            "position": "single",
+            "collision": []
           }
         },
         "cave_moss": {
@@ -7036,7 +7619,8 @@
                 "rgba(80, 140, 70, 0.90)",
                 "rgba(70, 130, 60, 0.88)"
               ]
-            }
+            },
+            "collision": []
           }
         },
         "wall_stone_tl": {
@@ -7058,7 +7642,15 @@
               "summer": "#8f8b82",
               "winter": "#8f8b82"
             },
-            "fadeNear": true
+            "fadeNear": true,
+            "collision": [
+              {
+                "x": 0,
+                "y": 0,
+                "w": 1,
+                "h": 1
+              }
+            ]
           }
         },
         "tree_bottom": {
@@ -7115,7 +7707,15 @@
                 "#9fbccb"
               ]
             },
-            "position": "bottom"
+            "position": "bottom",
+            "collision": [
+              {
+                "x": 0,
+                "y": 0,
+                "w": 1,
+                "h": 1
+              }
+            ]
           }
         },
         "ice_water": {
@@ -7141,7 +7741,8 @@
                 "rgba(120, 200, 255, 0.9)",
                 "rgba(100, 185, 245, 0.85)"
               ]
-            }
+            },
+            "collision": []
           }
         },
         "guard-flash": {
@@ -7162,7 +7763,8 @@
               "spring": "#9fd3ff",
               "summer": "#9fd3ff",
               "winter": "#9fd3ff"
-            }
+            },
+            "collision": []
           }
         },
         "houses": {
@@ -7183,7 +7785,8 @@
               "spring": "#c86b4d",
               "summer": "#c86b4d",
               "winter": "#c86b4d"
-            }
+            },
+            "collision": []
           }
         },
         "key": {
@@ -7197,7 +7800,8 @@
           "image_url": "/tiles/ascii/key.png",
           "settings": {
             "colors": {},
-            "position": "single"
+            "position": "single",
+            "collision": []
           }
         },
         "cliff": {
@@ -7223,7 +7827,8 @@
                 "rgba(255, 212, 58, 0.9)",
                 "rgba(243, 191, 54, 0.85)"
               ]
-            }
+            },
+            "collision": []
           }
         },
         "rabbit": {
@@ -7258,7 +7863,8 @@
                 " (   ) ",
                 " '   '"
               ]
-            ]
+            ],
+            "collision": []
           }
         },
         "ash": {
@@ -7284,7 +7890,8 @@
                 "rgba(150, 96, 74, 0.6)",
                 "rgba(128, 82, 64, 0.55)"
               ]
-            }
+            },
+            "collision": []
           }
         },
         "wall_wood_tr": {
@@ -7306,7 +7913,15 @@
               "summer": "#8a5a2b",
               "winter": "#8a5a2b"
             },
-            "fadeNear": true
+            "fadeNear": true,
+            "collision": [
+              {
+                "x": 0,
+                "y": 0,
+                "w": 1,
+                "h": 1
+              }
+            ]
           }
         },
         "adult": {
@@ -7339,7 +7954,8 @@
                 " \\|/",
                 " / \\"
               ]
-            ]
+            ],
+            "collision": []
           }
         },
         "terracotta": {
@@ -7365,7 +7981,8 @@
                 "rgba(220, 140, 100, 0.90)",
                 "rgba(210, 130, 90, 0.88)"
               ]
-            }
+            },
+            "collision": []
           }
         },
         "cave_floor": {
@@ -7391,7 +8008,8 @@
                 "rgba(130, 120, 110, 0.90)",
                 "rgba(120, 110, 100, 0.88)"
               ]
-            }
+            },
+            "collision": []
           }
         },
         "flat_roof": {
@@ -7413,7 +8031,8 @@
               "summer": "#8b9098",
               "winter": "#8b9098"
             },
-            "cutawayRoof": true
+            "cutawayRoof": true,
+            "collision": []
           }
         },
         "wall_stone_t": {
@@ -7435,7 +8054,15 @@
               "summer": "#8f8b82",
               "winter": "#8f8b82"
             },
-            "fadeNear": true
+            "fadeNear": true,
+            "collision": [
+              {
+                "x": 0,
+                "y": 0,
+                "w": 1,
+                "h": 1
+              }
+            ]
           }
         },
         "wall_wood_r": {
@@ -7457,7 +8084,15 @@
               "summer": "#8a5a2b",
               "winter": "#8a5a2b"
             },
-            "fadeNear": true
+            "fadeNear": true,
+            "collision": [
+              {
+                "x": 0,
+                "y": 0,
+                "w": 1,
+                "h": 1
+              }
+            ]
           }
         },
         "wall_stone_tr": {
@@ -7479,7 +8114,15 @@
               "summer": "#8f8b82",
               "winter": "#8f8b82"
             },
-            "fadeNear": true
+            "fadeNear": true,
+            "collision": [
+              {
+                "x": 0,
+                "y": 0,
+                "w": 1,
+                "h": 1
+              }
+            ]
           }
         },
         "bird": {
@@ -7512,7 +8155,8 @@
                 " (o<",
                 "  vv "
               ]
-            ]
+            ],
+            "collision": []
           }
         },
         "boulder": {
@@ -7533,7 +8177,8 @@
               "spring": "#8a8a8a",
               "summer": "#8a8a8a",
               "winter": "#8a8a8a"
-            }
+            },
+            "collision": []
           }
         },
         "oak-tree": {
@@ -7554,7 +8199,8 @@
               "spring": "#4caf50",
               "summer": "#4caf50",
               "winter": "#4caf50"
-            }
+            },
+            "collision": []
           }
         },
         "bullet": {
@@ -7575,7 +8221,8 @@
               "spring": "#d8d8d8",
               "summer": "#d8d8d8",
               "winter": "#d8d8d8"
-            }
+            },
+            "collision": []
           }
         },
         "trunk_base": {
@@ -7597,7 +8244,8 @@
               "summer": "#6b4a2b",
               "winter": "#8fa3b5"
             },
-            "position": "single"
+            "position": "single",
+            "collision": []
           }
         },
         "clover": {
@@ -7619,7 +8267,8 @@
               "summer": "#3c9a3a",
               "winter": "#3c9a3a"
             },
-            "stackAt": 0
+            "stackAt": 0,
+            "collision": []
           }
         },
         "olive_grove": {
@@ -7645,7 +8294,8 @@
                 "rgba(80, 120, 50, 0.85)",
                 "rgba(70, 110, 45, 0.82)"
               ]
-            }
+            },
+            "collision": []
           }
         },
         "wizard": {
@@ -7680,7 +8330,8 @@
                 " \\|/_",
                 " / \\|"
               ]
-            ]
+            ],
+            "collision": []
           }
         },
         "sword": {
@@ -7700,7 +8351,8 @@
               "rot": 3.141592653589793,
               "scale": 1.7
             },
-            "position": "single"
+            "position": "single",
+            "collision": []
           }
         },
         "convenience-store": {
@@ -7721,7 +8373,8 @@
               "spring": "#4a9ac8",
               "summer": "#4a9ac8",
               "winter": "#4a9ac8"
-            }
+            },
+            "collision": []
           }
         },
         "fox": {
@@ -7756,7 +8409,8 @@
                 " (>v<)~",
                 " '   '"
               ]
-            ]
+            ],
+            "collision": []
           }
         },
         "tulip": {
@@ -7778,7 +8432,8 @@
               "summer": "#e05a7a",
               "winter": "#e05a7a"
             },
-            "stackAt": 0
+            "stackAt": 0,
+            "collision": []
           }
         },
         "wall_brick_b": {
@@ -7800,7 +8455,15 @@
               "summer": "#9e4b3b",
               "winter": "#9e4b3b"
             },
-            "fadeNear": true
+            "fadeNear": true,
+            "collision": [
+              {
+                "x": 0,
+                "y": 0,
+                "w": 1,
+                "h": 1
+              }
+            ]
           }
         },
         "awning": {
@@ -7822,7 +8485,15 @@
               "summer": "#b64a34",
               "winter": "#b64a34"
             },
-            "fadeNear": true
+            "fadeNear": true,
+            "collision": [
+              {
+                "x": 0,
+                "y": 0,
+                "w": 1,
+                "h": 1
+              }
+            ]
           }
         },
         "decor_shell": {
@@ -7837,7 +8508,8 @@
           "settings": {
             "colors": {
               "beach": "#cfe6ee"
-            }
+            },
+            "collision": []
           }
         },
         "bolt": {
@@ -7858,7 +8530,8 @@
               "spring": "#ffe9a8",
               "summer": "#ffe9a8",
               "winter": "#ffe9a8"
-            }
+            },
+            "collision": []
           }
         },
         "wall_plaster_bl": {
@@ -7880,7 +8553,15 @@
               "summer": "#f0f0ea",
               "winter": "#f0f0ea"
             },
-            "fadeNear": true
+            "fadeNear": true,
+            "collision": [
+              {
+                "x": 0,
+                "y": 0,
+                "w": 1,
+                "h": 1
+              }
+            ]
           }
         },
         "snow_deep": {
@@ -7906,7 +8587,8 @@
                 "rgba(255, 255, 255, 0.95)",
                 "rgba(245, 250, 255, 0.92)"
               ]
-            }
+            },
+            "collision": []
           }
         },
         "tree_stem": {
@@ -7928,7 +8610,15 @@
               "summer": "#6b4a2b",
               "winter": "#8fa3b5"
             },
-            "position": "single"
+            "position": "single",
+            "collision": [
+              {
+                "x": 0,
+                "y": 0,
+                "w": 1,
+                "h": 1
+              }
+            ]
           }
         },
         "snowy-peak": {
@@ -7954,7 +8644,8 @@
                 "rgba(255, 255, 255, 0.95)",
                 "rgba(245, 250, 255, 0.92)"
               ]
-            }
+            },
+            "collision": []
           }
         },
         "classical-building": {
@@ -7975,7 +8666,8 @@
               "spring": "#cbb68c",
               "summer": "#cbb68c",
               "winter": "#cbb68c"
-            }
+            },
+            "collision": []
           }
         },
         "snowflake": {
@@ -8001,7 +8693,8 @@
                 "rgba(210, 235, 255, 0.9)",
                 "rgba(195, 225, 250, 0.85)"
               ]
-            }
+            },
+            "collision": []
           }
         },
         "display_window": {
@@ -8023,7 +8716,15 @@
               "summer": "#86bcd6",
               "winter": "#86bcd6"
             },
-            "fadeNear": true
+            "fadeNear": true,
+            "collision": [
+              {
+                "x": 0,
+                "y": 0,
+                "w": 1,
+                "h": 1
+              }
+            ]
           }
         },
         "grass": {
@@ -8049,7 +8750,8 @@
                 "rgba(154, 196, 84, 0.9)",
                 "rgba(146, 188, 78, 0.9)"
               ]
-            }
+            },
+            "collision": []
           }
         },
         "dead-tree": {
@@ -8070,7 +8772,8 @@
               "spring": "#8a6f4a",
               "summer": "#8a6f4a",
               "winter": "#8a6f4a"
-            }
+            },
+            "collision": []
           }
         },
         "wall_wood_l": {
@@ -8092,7 +8795,15 @@
               "summer": "#8a5a2b",
               "winter": "#8a5a2b"
             },
-            "fadeNear": true
+            "fadeNear": true,
+            "collision": [
+              {
+                "x": 0,
+                "y": 0,
+                "w": 1,
+                "h": 1
+              }
+            ]
           }
         },
         "skull": {
@@ -8125,7 +8836,8 @@
                 "(-.-)",
                 " )|( "
               ]
-            ]
+            ],
+            "collision": []
           }
         },
         "man": {
@@ -8158,7 +8870,8 @@
                 " \\[]/",
                 " /  \\"
               ]
-            ]
+            ],
+            "collision": []
           }
         },
         "autumn_ground": {
@@ -8184,7 +8897,8 @@
                 "rgba(176, 122, 70, 0.85)",
                 "rgba(156, 104, 58, 0.8)"
               ]
-            }
+            },
+            "collision": []
           }
         },
         "house": {
@@ -8205,7 +8919,8 @@
               "spring": "#c8443c",
               "summer": "#c8443c",
               "winter": "#c8443c"
-            }
+            },
+            "collision": []
           }
         },
         "grave_dirt": {
@@ -8231,7 +8946,8 @@
                 "rgba(100, 85, 65, 0.85)",
                 "rgba(90, 75, 55, 0.82)"
               ]
-            }
+            },
+            "collision": []
           }
         },
         "inca_stone": {
@@ -8257,7 +8973,8 @@
                 "rgba(160, 150, 130, 0.90)",
                 "rgba(150, 140, 120, 0.88)"
               ]
-            }
+            },
+            "collision": []
           }
         },
         "water": {
@@ -8334,13 +9051,16 @@
                   "on": "load"
                 }
               }
-            ]
+            ],
+            "collision": []
           }
         },
         "water_f1": {
           "title": "Water frame 1",
           "category": "terrain",
-          "settings": {},
+          "settings": {
+            "collision": []
+          },
           "height": 0.5,
           "glyph": "⌼",
           "image_url": "/tiles/ascii/water_f1.png",
@@ -8351,7 +9071,9 @@
         "water_f2": {
           "title": "Water frame 2",
           "category": "terrain",
-          "settings": {},
+          "settings": {
+            "collision": []
+          },
           "height": 0.5,
           "glyph": "⌽",
           "image_url": "/tiles/ascii/water_f2.png",
@@ -8362,7 +9084,9 @@
         "water_f3": {
           "title": "Water frame 3",
           "category": "terrain",
-          "settings": {},
+          "settings": {
+            "collision": []
+          },
           "height": 0.5,
           "glyph": "⌿",
           "image_url": "/tiles/ascii/water_f3.png",
@@ -8390,7 +9114,8 @@
               "winter": "#aac4d8"
             },
             "fadeNear": true,
-            "position": "single"
+            "position": "single",
+            "collision": []
           }
         },
         "fire-slash": {
@@ -8411,7 +9136,8 @@
               "spring": "#ff7a2a",
               "summer": "#ff7a2a",
               "winter": "#ff7a2a"
-            }
+            },
+            "collision": []
           }
         },
         "vampire": {
@@ -8446,7 +9172,8 @@
                 "\\|V|/",
                 " d b"
               ]
-            ]
+            ],
+            "collision": []
           }
         },
         "trunk_bottom": {
@@ -8467,7 +9194,15 @@
               "spring": "#7a5a3a",
               "summer": "#6b4a2b",
               "winter": "#8fa3b5"
-            }
+            },
+            "collision": [
+              {
+                "x": 0,
+                "y": 0,
+                "w": 1,
+                "h": 1
+              }
+            ]
           }
         },
         "fountain_t": {
@@ -8488,7 +9223,15 @@
               "spring": "#cbc4b0",
               "summer": "#cbc4b0",
               "winter": "#cbc4b0"
-            }
+            },
+            "collision": [
+              {
+                "x": 0,
+                "y": 0,
+                "w": 1,
+                "h": 1
+              }
+            ]
           }
         },
         "mushroom": {
@@ -8503,7 +9246,8 @@
           "settings": {
             "colors": {},
             "position": "single",
-            "stackAt": 0
+            "stackAt": 0,
+            "collision": []
           }
         },
         "guard": {
@@ -8536,7 +9280,8 @@
                 " \\H/",
                 " / \\"
               ]
-            ]
+            ],
+            "collision": []
           }
         },
         "wood-log": {
@@ -8557,7 +9302,8 @@
               "spring": "#a9793f",
               "summer": "#a9793f",
               "winter": "#a9793f"
-            }
+            },
+            "collision": []
           }
         },
         "alien": {
@@ -8592,7 +9338,8 @@
                 " \\|/",
                 " ' '"
               ]
-            ]
+            ],
+            "collision": []
           }
         },
         "desert_road": {
@@ -8618,7 +9365,8 @@
                 "rgba(200, 170, 120, 0.85)",
                 "rgba(190, 160, 110, 0.82)"
               ]
-            }
+            },
+            "collision": []
           }
         },
         "hotel": {
@@ -8639,7 +9387,8 @@
               "spring": "#c89a4a",
               "summer": "#c89a4a",
               "winter": "#c89a4a"
-            }
+            },
+            "collision": []
           }
         },
         "seafloor": {
@@ -8665,7 +9414,8 @@
                 "rgba(100, 150, 180, 0.85)",
                 "rgba(90, 140, 170, 0.82)"
               ]
-            }
+            },
+            "collision": []
           }
         },
         "glass-window": {
@@ -8687,7 +9437,8 @@
               "summer": "#7fb4d8",
               "winter": "#7fb4d8"
             },
-            "fadeNear": true
+            "fadeNear": true,
+            "collision": []
           }
         },
         "roof_hospital": {
@@ -8709,7 +9460,15 @@
               "summer": "#2f7e50",
               "winter": "#2f7e50"
             },
-            "cutawayRoof": true
+            "cutawayRoof": true,
+            "collision": [
+              {
+                "x": 0,
+                "y": 0,
+                "w": 1,
+                "h": 1
+              }
+            ]
           }
         },
         "shamrock": {
@@ -8731,7 +9490,8 @@
               "summer": "#3fa03f",
               "winter": "#3fa03f"
             },
-            "stackAt": 0
+            "stackAt": 0,
+            "collision": []
           }
         },
         "koi_pond": {
@@ -8757,7 +9517,8 @@
                 "rgba(100, 180, 200, 0.90)",
                 "rgba(90, 170, 190, 0.88)"
               ]
-            }
+            },
+            "collision": []
           }
         },
         "autumn_leaves": {
@@ -8783,7 +9544,8 @@
                 "rgba(210, 120, 45, 0.9)",
                 "rgba(190, 90, 40, 0.85)"
               ]
-            }
+            },
+            "collision": []
           }
         },
         "ladybug": {
@@ -8816,7 +9578,8 @@
                 " (-.-) ",
                 "((:.:))"
               ]
-            ]
+            ],
+            "collision": []
           }
         },
         "boss": {
@@ -8851,7 +9614,8 @@
                 "\\|###|/",
                 " J   L"
               ]
-            ]
+            ],
+            "collision": []
           }
         },
         "rooftop_unit": {
@@ -8873,7 +9637,15 @@
               "summer": "#616870",
               "winter": "#616870"
             },
-            "cutawayRoof": true
+            "cutawayRoof": true,
+            "collision": [
+              {
+                "x": 0,
+                "y": 0,
+                "w": 1,
+                "h": 1
+              }
+            ]
           }
         },
         "trunk_mid": {
@@ -8894,7 +9666,15 @@
               "spring": "#7a5a3a",
               "summer": "#6b4a2b",
               "winter": "#8fa3b5"
-            }
+            },
+            "collision": [
+              {
+                "x": 0,
+                "y": 0,
+                "w": 1,
+                "h": 1
+              }
+            ]
           }
         },
         "office-building": {
@@ -8915,7 +9695,8 @@
               "spring": "#7f8c9a",
               "summer": "#7f8c9a",
               "winter": "#7f8c9a"
-            }
+            },
+            "collision": []
           }
         },
         "sapling": {
@@ -8936,7 +9717,8 @@
               "spring": "#7cc36a",
               "summer": "#7cc36a",
               "winter": "#7cc36a"
-            }
+            },
+            "collision": []
           }
         },
         "rune_floor": {
@@ -8962,7 +9744,8 @@
                 "rgba(100, 200, 255, 0.95)",
                 "rgba(80, 180, 250, 0.92)"
               ]
-            }
+            },
+            "collision": []
           }
         },
         "wall_brick_tr": {
@@ -8984,7 +9767,15 @@
               "summer": "#9e4b3b",
               "winter": "#9e4b3b"
             },
-            "fadeNear": true
+            "fadeNear": true,
+            "collision": [
+              {
+                "x": 0,
+                "y": 0,
+                "w": 1,
+                "h": 1
+              }
+            ]
           }
         },
         "decor_ripple": {
@@ -8999,7 +9790,8 @@
           "settings": {
             "colors": {
               "beach": "#bfe0ec"
-            }
+            },
+            "collision": []
           }
         },
         "tree_bottom_right": {
@@ -9056,7 +9848,15 @@
                 "#9fbccb"
               ]
             },
-            "position": "bottom_right"
+            "position": "bottom_right",
+            "collision": [
+              {
+                "x": 0,
+                "y": 0,
+                "w": 1,
+                "h": 1
+              }
+            ]
           }
         },
         "roof_top_hospital": {
@@ -9078,7 +9878,8 @@
               "summer": "#2f7e50",
               "winter": "#2f7e50"
             },
-            "fadeNear": true
+            "fadeNear": true,
+            "collision": []
           }
         },
         "player": {
@@ -9104,7 +9905,8 @@
                 " <#>",
                 " /\\ "
               ]
-            ]
+            ],
+            "collision": []
           }
         },
         "adobe": {
@@ -9130,7 +9932,8 @@
                 "rgba(200, 160, 120, 0.90)",
                 "rgba(190, 150, 110, 0.88)"
               ]
-            }
+            },
+            "collision": []
           }
         },
         "wall_plaster_l": {
@@ -9152,7 +9955,15 @@
               "summer": "#f0f0ea",
               "winter": "#f0f0ea"
             },
-            "fadeNear": true
+            "fadeNear": true,
+            "collision": [
+              {
+                "x": 0,
+                "y": 0,
+                "w": 1,
+                "h": 1
+              }
+            ]
           }
         },
         "rock": {
@@ -9178,7 +9989,8 @@
                 "rgba(140, 78, 56, 0.85)",
                 "rgba(120, 66, 48, 0.8)"
               ]
-            }
+            },
+            "collision": []
           }
         },
         "cavefloor": {
@@ -9192,7 +10004,8 @@
           "image_url": "/tiles/ascii/cavefloor.png",
           "settings": {
             "colors": {},
-            "position": "single"
+            "position": "single",
+            "collision": []
           }
         },
         "guardian": {
@@ -9227,7 +10040,8 @@
                 "\\|#|/",
                 " |_|"
               ]
-            ]
+            ],
+            "collision": []
           }
         },
         "horse": {
@@ -9262,7 +10076,8 @@
                 "  |||  ",
                 " L   J"
               ]
-            ]
+            ],
+            "collision": []
           }
         },
         "fountain": {
@@ -9283,7 +10098,8 @@
               "spring": "#4a90e2",
               "summer": "#4a90e2",
               "winter": "#4a90e2"
-            }
+            },
+            "collision": []
           }
         },
         "wall_stone_l": {
@@ -9305,7 +10121,15 @@
               "summer": "#8f8b82",
               "winter": "#8f8b82"
             },
-            "fadeNear": true
+            "fadeNear": true,
+            "collision": [
+              {
+                "x": 0,
+                "y": 0,
+                "w": 1,
+                "h": 1
+              }
+            ]
           }
         },
         "leaf_left": {
@@ -9362,7 +10186,8 @@
                 "#9fbccb"
               ]
             },
-            "position": "single"
+            "position": "single",
+            "collision": []
           }
         },
         "mud_hut": {
@@ -9388,7 +10213,8 @@
                 "rgba(160, 130, 90, 0.90)",
                 "rgba(150, 120, 80, 0.88)"
               ]
-            }
+            },
+            "collision": []
           }
         },
         "roof_store": {
@@ -9410,7 +10236,15 @@
               "summer": "#235a96",
               "winter": "#235a96"
             },
-            "cutawayRoof": true
+            "cutawayRoof": true,
+            "collision": [
+              {
+                "x": 0,
+                "y": 0,
+                "w": 1,
+                "h": 1
+              }
+            ]
           }
         },
         "potted-plant": {
@@ -9431,7 +10265,8 @@
               "spring": "#5a9a4a",
               "summer": "#5a9a4a",
               "winter": "#5a9a4a"
-            }
+            },
+            "collision": []
           }
         },
         "bouquet": {
@@ -9453,7 +10288,8 @@
               "summer": "#e57ba0",
               "winter": "#e57ba0"
             },
-            "stackAt": 0
+            "stackAt": 0,
+            "collision": []
           }
         },
         "torch": {
@@ -9467,7 +10303,8 @@
           "image_url": "/tiles/ascii/torch.png",
           "settings": {
             "colors": {},
-            "position": "single"
+            "position": "single",
+            "collision": []
           }
         },
         "lamp": {
@@ -9481,7 +10318,8 @@
           "image_url": "/tiles/ascii/lamp.png",
           "settings": {
             "colors": {},
-            "position": "single"
+            "position": "single",
+            "collision": []
           }
         },
         "wall_brick_r": {
@@ -9503,7 +10341,15 @@
               "summer": "#9e4b3b",
               "winter": "#9e4b3b"
             },
-            "fadeNear": true
+            "fadeNear": true,
+            "collision": [
+              {
+                "x": 0,
+                "y": 0,
+                "w": 1,
+                "h": 1
+              }
+            ]
           }
         },
         "cleave": {
@@ -9524,7 +10370,8 @@
               "spring": "#e6ebf3",
               "summer": "#e6ebf3",
               "winter": "#e6ebf3"
-            }
+            },
+            "collision": []
           }
         },
         "fountain_b": {
@@ -9545,7 +10392,15 @@
               "spring": "#cbc4b0",
               "summer": "#cbc4b0",
               "winter": "#cbc4b0"
-            }
+            },
+            "collision": [
+              {
+                "x": 0,
+                "y": 0,
+                "w": 1,
+                "h": 1
+              }
+            ]
           }
         },
         "castle": {
@@ -9566,7 +10421,8 @@
               "spring": "#9a8a7a",
               "summer": "#9a8a7a",
               "winter": "#9a8a7a"
-            }
+            },
+            "collision": []
           }
         },
         "construction-worker": {
@@ -9599,7 +10455,8 @@
                 " \\W/",
                 " / \\"
               ]
-            ]
+            ],
+            "collision": []
           }
         },
         "spanish_tile": {
@@ -9625,7 +10482,8 @@
                 "rgba(255, 200, 150, 0.90)",
                 "rgba(250, 190, 140, 0.88)"
               ]
-            }
+            },
+            "collision": []
           }
         },
         "tree_top_left": {
@@ -9682,7 +10540,15 @@
                 "#9fbccb"
               ]
             },
-            "position": "top_left"
+            "position": "top_left",
+            "collision": [
+              {
+                "x": 0,
+                "y": 0,
+                "w": 1,
+                "h": 1
+              }
+            ]
           }
         },
         "pampas": {
@@ -9708,7 +10574,8 @@
                 "rgba(180, 200, 150, 0.90)",
                 "rgba(170, 190, 140, 0.88)"
               ]
-            }
+            },
+            "collision": []
           }
         },
         "meadow": {
@@ -9728,7 +10595,8 @@
                 "#c8e08a",
                 "#bcd67e"
               ]
-            }
+            },
+            "collision": []
           },
           "height": 0.0,
           "glyph": "⁘",
@@ -9754,7 +10622,8 @@
                 "#7a5c3e",
                 "#7a5c3e"
               ]
-            }
+            },
+            "collision": []
           },
           "height": 0.0,
           "glyph": "⸪",
@@ -9773,7 +10642,8 @@
           "height": 0.0,
           "image_url": "/tiles/ascii/tall_grass.png",
           "settings": {
-            "color": "#3f8f38"
+            "color": "#3f8f38",
+            "collision": []
           }
         },
         "thicket": {
@@ -9789,7 +10659,15 @@
             "color": "#2f6b2a",
             "fadeNear": true,
             "display": "single",
-            "transparent": true
+            "transparent": true,
+            "collision": [
+              {
+                "x": 0,
+                "y": 0,
+                "w": 1,
+                "h": 1
+              }
+            ]
           }
         }
       },
@@ -20885,7 +21763,8 @@
               "spring": "#8a5f3a",
               "summer": "#8a5f3a",
               "winter": "#8a5f3a"
-            }
+            },
+            "collision": []
           }
         },
         "dove": {
@@ -20907,7 +21786,8 @@
               "spring": "#e8e8e8",
               "summer": "#e8e8e8",
               "winter": "#e8e8e8"
-            }
+            },
+            "collision": []
           }
         },
         "bush": {
@@ -20921,7 +21801,8 @@
           "image_url": "/tiles/emoji/baked/bush.png",
           "settings": {
             "color": "#4fa03f",
-            "stackAt": 0
+            "stackAt": 0,
+            "collision": []
           }
         },
         "chicken": {
@@ -20943,7 +21824,8 @@
               "spring": "#d8663a",
               "summer": "#d8663a",
               "winter": "#d8663a"
-            }
+            },
+            "collision": []
           }
         },
         "ember": {
@@ -20956,7 +21838,8 @@
           "height": 0,
           "image_url": "/tiles/emoji/baked/ember.png",
           "settings": {
-            "color": "#d2691e"
+            "color": "#d2691e",
+            "collision": []
           }
         },
         "piercing-shot": {
@@ -20978,7 +21861,8 @@
               "spring": "#cfd8e3",
               "summer": "#cfd8e3",
               "winter": "#cfd8e3"
-            }
+            },
+            "collision": []
           }
         },
         "wall_wood_c": {
@@ -21001,7 +21885,15 @@
               "spring": "#8a5a2b",
               "summer": "#8a5a2b",
               "winter": "#8a5a2b"
-            }
+            },
+            "collision": [
+              {
+                "x": 0,
+                "y": 0,
+                "w": 1,
+                "h": 1
+              }
+            ]
           }
         },
         "tree_edge_right": {
@@ -21058,7 +21950,15 @@
                 "#e8f2fa",
                 "#9fbccb"
               ]
-            }
+            },
+            "collision": [
+              {
+                "x": 0,
+                "y": 0,
+                "w": 1,
+                "h": 1
+              }
+            ]
           }
         },
         "factory": {
@@ -21080,7 +21980,8 @@
               "spring": "#8a8a8a",
               "summer": "#8a8a8a",
               "winter": "#8a8a8a"
-            }
+            },
+            "collision": []
           }
         },
         "wooden_planks": {
@@ -21093,7 +21994,8 @@
           "height": 0,
           "image_url": "/tiles/emoji/sq_brown.png",
           "settings": {
-            "color": "#aa8250"
+            "color": "#aa8250",
+            "collision": []
           }
         },
         "cliff_face": {
@@ -21106,7 +22008,8 @@
           "height": 0,
           "image_url": "/tiles/emoji/sq_brown.png",
           "settings": {
-            "color": "#8b6914"
+            "color": "#8b6914",
+            "collision": []
           }
         },
         "shallow-water": {
@@ -21119,7 +22022,8 @@
           "height": 0,
           "image_url": "/tiles/emoji/catalog/shallow-water.png",
           "settings": {
-            "color": "#4a90e2"
+            "color": "#4a90e2",
+            "collision": []
           }
         },
         "tent": {
@@ -21141,7 +22045,8 @@
               "spring": "#7a9a5a",
               "summer": "#7a9a5a",
               "winter": "#7a9a5a"
-            }
+            },
+            "collision": []
           }
         },
         "trunk_top": {
@@ -21163,7 +22068,15 @@
               "spring": "#7a5a3a",
               "summer": "#6b4a2b",
               "winter": "#8fa3b5"
-            }
+            },
+            "collision": [
+              {
+                "x": 0,
+                "y": 0,
+                "w": 1,
+                "h": 1
+              }
+            ]
           }
         },
         "stairs": {
@@ -21176,7 +22089,8 @@
           "height": 0,
           "image_url": "/tiles/emoji/sq_brown.png",
           "settings": {
-            "color": "#998866"
+            "color": "#998866",
+            "collision": []
           }
         },
         "red_earth": {
@@ -21189,7 +22103,8 @@
           "height": 0,
           "image_url": "/tiles/emoji/sq_brown.png",
           "settings": {
-            "color": "#b4643c"
+            "color": "#b4643c",
+            "collision": []
           }
         },
         "mountain": {
@@ -21211,7 +22126,8 @@
               "spring": "#8a8a8a",
               "summer": "#7d7d7d",
               "winter": "#8fa6b8"
-            }
+            },
+            "collision": []
           }
         },
         "wall_brick_c": {
@@ -21234,7 +22150,15 @@
               "spring": "#9e4b3b",
               "summer": "#9e4b3b",
               "winter": "#9e4b3b"
-            }
+            },
+            "collision": [
+              {
+                "x": 0,
+                "y": 0,
+                "w": 1,
+                "h": 1
+              }
+            ]
           }
         },
         "wall_plaster_b": {
@@ -21257,7 +22181,15 @@
               "spring": "#f0f0ea",
               "summer": "#f0f0ea",
               "winter": "#f0f0ea"
-            }
+            },
+            "collision": [
+              {
+                "x": 0,
+                "y": 0,
+                "w": 1,
+                "h": 1
+              }
+            ]
           }
         },
         "dragon": {
@@ -21279,7 +22211,8 @@
               "spring": "#4a9a5a",
               "summer": "#4a9a5a",
               "winter": "#4a9a5a"
-            }
+            },
+            "collision": []
           }
         },
         "run": {
@@ -21301,7 +22234,8 @@
               "spring": "#d9a066",
               "summer": "#d9a066",
               "winter": "#d9a066"
-            }
+            },
+            "collision": []
           }
         },
         "wall_plaster_t": {
@@ -21324,7 +22258,15 @@
               "spring": "#f0f0ea",
               "summer": "#f0f0ea",
               "winter": "#f0f0ea"
-            }
+            },
+            "collision": [
+              {
+                "x": 0,
+                "y": 0,
+                "w": 1,
+                "h": 1
+              }
+            ]
           }
         },
         "turtle": {
@@ -21346,7 +22288,8 @@
               "spring": "#4f8f5a",
               "summer": "#4f8f5a",
               "winter": "#4f8f5a"
-            }
+            },
+            "collision": []
           }
         },
         "deep-water": {
@@ -21359,7 +22302,8 @@
           "height": 0,
           "image_url": "/tiles/emoji/catalog/deep-water.png",
           "settings": {
-            "color": "#1c5fa8"
+            "color": "#1c5fa8",
+            "collision": []
           }
         },
         "window": {
@@ -21382,7 +22326,8 @@
               "spring": "#bfe0c8",
               "summer": "#a8d0e8",
               "winter": "#dff0ff"
-            }
+            },
+            "collision": []
           }
         },
         "stadium": {
@@ -21404,7 +22349,8 @@
               "spring": "#9a9a8a",
               "summer": "#9a9a8a",
               "winter": "#9a9a8a"
-            }
+            },
+            "collision": []
           }
         },
         "flower": {
@@ -21418,7 +22364,8 @@
           "image_url": "/tiles/emoji/baked/flower.png",
           "settings": {
             "color": "#e785b5",
-            "stackAt": 0
+            "stackAt": 0,
+            "collision": []
           }
         },
         "zombie": {
@@ -21440,7 +22387,8 @@
               "spring": "#6a8f5a",
               "summer": "#6a8f5a",
               "winter": "#6a8f5a"
-            }
+            },
+            "collision": []
           }
         },
         "canopy_r": {
@@ -21497,7 +22445,8 @@
                 "#e8f2fa",
                 "#9fbccb"
               ]
-            }
+            },
+            "collision": []
           }
         },
         "blossom": {
@@ -21520,7 +22469,8 @@
               "summer": "#f2d84a",
               "winter": "#f2d84a"
             },
-            "stackAt": 0
+            "stackAt": 0,
+            "collision": []
           }
         },
         "roof": {
@@ -21543,7 +22493,8 @@
               "spring": "#c06a4a",
               "summer": "#8a4a30",
               "winter": "#4a6a8a"
-            }
+            },
+            "collision": []
           }
         },
         "colorful_tile": {
@@ -21556,7 +22507,8 @@
           "height": 0,
           "image_url": "/tiles/emoji/sq_yellow.png",
           "settings": {
-            "color": "#ffc832"
+            "color": "#ffc832",
+            "collision": []
           }
         },
         "wall_brick_tl": {
@@ -21579,7 +22531,15 @@
               "spring": "#9e4b3b",
               "summer": "#9e4b3b",
               "winter": "#9e4b3b"
-            }
+            },
+            "collision": [
+              {
+                "x": 0,
+                "y": 0,
+                "w": 1,
+                "h": 1
+              }
+            ]
           }
         },
         "decor_spark": {
@@ -21596,7 +22556,8 @@
             "colors": {
               "lava": "#e6661f",
               "winter": "#ccdbe7"
-            }
+            },
+            "collision": []
           }
         },
         "leaf_center": {
@@ -21653,7 +22614,8 @@
                 "#e8f2fa",
                 "#9fbccb"
               ]
-            }
+            },
+            "collision": []
           }
         },
         "canopy_t": {
@@ -21710,7 +22672,8 @@
                 "#e8f2fa",
                 "#9fbccb"
               ]
-            }
+            },
+            "collision": []
           }
         },
         "well": {
@@ -21732,7 +22695,8 @@
               "spring": "#9bc4d8",
               "summer": "#9bc4d8",
               "winter": "#9bc4d8"
-            }
+            },
+            "collision": []
           }
         },
         "sunflower": {
@@ -21755,7 +22719,8 @@
               "summer": "#f2c33a",
               "winter": "#f2c33a"
             },
-            "stackAt": 0
+            "stackAt": 0,
+            "collision": []
           }
         },
         "ogre": {
@@ -21777,7 +22742,8 @@
               "spring": "#d0402a",
               "summer": "#d0402a",
               "winter": "#d0402a"
-            }
+            },
+            "collision": []
           }
         },
         "witch": {
@@ -21799,7 +22765,8 @@
               "spring": "#9a5ac0",
               "summer": "#9a5ac0",
               "winter": "#9a5ac0"
-            }
+            },
+            "collision": []
           }
         },
         "tree_stem_bottom": {
@@ -21821,7 +22788,15 @@
               "spring": "#7a5a3a",
               "summer": "#6b4a2b",
               "winter": "#8fa3b5"
-            }
+            },
+            "collision": [
+              {
+                "x": 0,
+                "y": 0,
+                "w": 1,
+                "h": 1
+              }
+            ]
           }
         },
         "crate": {
@@ -21834,7 +22809,8 @@
           "height": 1,
           "image_url": "/tiles/emoji/baked/crate.png",
           "settings": {
-            "color": "#b5793a"
+            "color": "#b5793a",
+            "collision": []
           }
         },
         "birch_forest": {
@@ -21847,7 +22823,8 @@
           "height": 0,
           "image_url": "/tiles/emoji/sq_yellow.png",
           "settings": {
-            "color": "#b4c8a0"
+            "color": "#b4c8a0",
+            "collision": []
           }
         },
         "spill": {
@@ -21869,7 +22846,8 @@
               "spring": "#5bbcff",
               "summer": "#5bbcff",
               "winter": "#bfe8f5"
-            }
+            },
+            "collision": []
           }
         },
         "road_center": {
@@ -21882,7 +22860,8 @@
           "height": 0,
           "image_url": "/tiles/emoji/sq_black.png",
           "settings": {
-            "color": "#9698a0"
+            "color": "#9698a0",
+            "collision": []
           }
         },
         "wall_brick_l": {
@@ -21905,7 +22884,15 @@
               "spring": "#9e4b3b",
               "summer": "#9e4b3b",
               "winter": "#9e4b3b"
-            }
+            },
+            "collision": [
+              {
+                "x": 0,
+                "y": 0,
+                "w": 1,
+                "h": 1
+              }
+            ]
           }
         },
         "lightning": {
@@ -21927,7 +22914,8 @@
               "spring": "#7ad7ff",
               "summer": "#7ad7ff",
               "winter": "#7ad7ff"
-            }
+            },
+            "collision": []
           }
         },
         "fountain_tr": {
@@ -21949,7 +22937,15 @@
               "spring": "#cbc4b0",
               "summer": "#cbc4b0",
               "winter": "#cbc4b0"
-            }
+            },
+            "collision": [
+              {
+                "x": 0,
+                "y": 0,
+                "w": 1,
+                "h": 1
+              }
+            ]
           }
         },
         "wall_plaster_tr": {
@@ -21972,7 +22968,15 @@
               "spring": "#f0f0ea",
               "summer": "#f0f0ea",
               "winter": "#f0f0ea"
-            }
+            },
+            "collision": [
+              {
+                "x": 0,
+                "y": 0,
+                "w": 1,
+                "h": 1
+              }
+            ]
           }
         },
         "parapet": {
@@ -21995,7 +22999,15 @@
               "spring": "#70757c",
               "summer": "#70757c",
               "winter": "#70757c"
-            }
+            },
+            "collision": [
+              {
+                "x": 0,
+                "y": 0,
+                "w": 1,
+                "h": 1
+              }
+            ]
           }
         },
         "wall_wood_b": {
@@ -22018,7 +23030,15 @@
               "spring": "#8a5a2b",
               "summer": "#8a5a2b",
               "winter": "#8a5a2b"
-            }
+            },
+            "collision": [
+              {
+                "x": 0,
+                "y": 0,
+                "w": 1,
+                "h": 1
+              }
+            ]
           }
         },
         "robot": {
@@ -22040,7 +23060,8 @@
               "spring": "#9aa6b2",
               "summer": "#9aa6b2",
               "winter": "#9aa6b2"
-            }
+            },
+            "collision": []
           }
         },
         "frost": {
@@ -22053,7 +23074,8 @@
           "height": 0,
           "image_url": "/tiles/emoji/sq_white.png",
           "settings": {
-            "color": "#d2ebff"
+            "color": "#d2ebff",
+            "collision": []
           }
         },
         "rose": {
@@ -22076,7 +23098,8 @@
               "summer": "#d13b3b",
               "winter": "#d13b3b"
             },
-            "stackAt": 0
+            "stackAt": 0,
+            "collision": []
           }
         },
         "path": {
@@ -22089,7 +23112,8 @@
           "height": 0,
           "image_url": "/tiles/emoji/baked/path.png",
           "settings": {
-            "color": "#9c7b4d"
+            "color": "#9c7b4d",
+            "collision": []
           }
         },
         "red-mushroom": {
@@ -22112,7 +23136,8 @@
               "summer": "#d24a4a",
               "winter": "#d24a4a"
             },
-            "stackAt": 0
+            "stackAt": 0,
+            "collision": []
           }
         },
         "deer": {
@@ -22134,7 +23159,8 @@
               "spring": "#a9763f",
               "summer": "#a9763f",
               "winter": "#a9763f"
-            }
+            },
+            "collision": []
           }
         },
         "troll": {
@@ -22156,7 +23182,8 @@
               "spring": "#7a6a4a",
               "summer": "#7a6a4a",
               "winter": "#7a6a4a"
-            }
+            },
+            "collision": []
           }
         },
         "npc": {
@@ -22169,7 +23196,8 @@
           "height": 0,
           "image_url": "/tiles/emoji/baked/npc.png",
           "settings": {
-            "color": "#d9a066"
+            "color": "#d9a066",
+            "collision": []
           }
         },
         "water_jet": {
@@ -22191,7 +23219,15 @@
               "spring": "#dff0ff",
               "summer": "#dff0ff",
               "winter": "#dff0ff"
-            }
+            },
+            "collision": [
+              {
+                "x": 0,
+                "y": 0,
+                "w": 1,
+                "h": 1
+              }
+            ]
           }
         },
         "bat": {
@@ -22213,7 +23249,8 @@
               "spring": "#5a4a5a",
               "summer": "#5a4a5a",
               "winter": "#5a4a5a"
-            }
+            },
+            "collision": []
           }
         },
         "ancient_stone": {
@@ -22226,7 +23263,8 @@
           "height": 0,
           "image_url": "/tiles/emoji/sq_brown.png",
           "settings": {
-            "color": "#8c8264"
+            "color": "#8c8264",
+            "collision": []
           }
         },
         "gold_tile": {
@@ -22239,7 +23277,8 @@
           "height": 0,
           "image_url": "/tiles/emoji/sq_yellow.png",
           "settings": {
-            "color": "#ffdc64"
+            "color": "#ffdc64",
+            "collision": []
           }
         },
         "hazard": {
@@ -22252,7 +23291,8 @@
           "height": 0,
           "image_url": "/tiles/emoji/baked/hazard.png",
           "settings": {
-            "color": "#d0402a"
+            "color": "#d0402a",
+            "collision": []
           }
         },
         "obsidian": {
@@ -22265,7 +23305,8 @@
           "height": 0,
           "image_url": "/tiles/emoji/sq_black.png",
           "settings": {
-            "color": "#503c50"
+            "color": "#503c50",
+            "collision": []
           }
         },
         "tree_top_right": {
@@ -22322,7 +23363,15 @@
                 "#e8f2fa",
                 "#9fbccb"
               ]
-            }
+            },
+            "collision": [
+              {
+                "x": 0,
+                "y": 0,
+                "w": 1,
+                "h": 1
+              }
+            ]
           }
         },
         "roof_top_slate": {
@@ -22345,7 +23394,8 @@
               "spring": "#4a4f57",
               "summer": "#4a4f57",
               "winter": "#4a4f57"
-            }
+            },
+            "collision": []
           }
         },
         "courtyard_stone": {
@@ -22358,7 +23408,8 @@
           "height": 0,
           "image_url": "/tiles/emoji/sq_white.png",
           "settings": {
-            "color": "#dcd2be"
+            "color": "#dcd2be",
+            "collision": []
           }
         },
         "skeleton": {
@@ -22380,7 +23431,8 @@
               "spring": "#e8e8e8",
               "summer": "#e8e8e8",
               "winter": "#e8e8e8"
-            }
+            },
+            "collision": []
           }
         },
         "japanese-castle": {
@@ -22402,7 +23454,8 @@
               "spring": "#d9c8a8",
               "summer": "#d9c8a8",
               "winter": "#d9c8a8"
-            }
+            },
+            "collision": []
           }
         },
         "honeybee": {
@@ -22424,7 +23477,8 @@
               "spring": "#e5b53a",
               "summer": "#e5b53a",
               "winter": "#e5b53a"
-            }
+            },
+            "collision": []
           }
         },
         "spider": {
@@ -22446,7 +23500,8 @@
               "spring": "#3a3a3a",
               "summer": "#3a3a3a",
               "winter": "#3a3a3a"
-            }
+            },
+            "collision": []
           }
         },
         "fountain_bl": {
@@ -22468,7 +23523,15 @@
               "spring": "#cbc4b0",
               "summer": "#cbc4b0",
               "winter": "#cbc4b0"
-            }
+            },
+            "collision": [
+              {
+                "x": 0,
+                "y": 0,
+                "w": 1,
+                "h": 1
+              }
+            ]
           }
         },
         "wall_brick_t": {
@@ -22491,7 +23554,15 @@
               "spring": "#9e4b3b",
               "summer": "#9e4b3b",
               "winter": "#9e4b3b"
-            }
+            },
+            "collision": [
+              {
+                "x": 0,
+                "y": 0,
+                "w": 1,
+                "h": 1
+              }
+            ]
           }
         },
         "tree_edge_left": {
@@ -22548,7 +23619,15 @@
                 "#e8f2fa",
                 "#9fbccb"
               ]
-            }
+            },
+            "collision": [
+              {
+                "x": 0,
+                "y": 0,
+                "w": 1,
+                "h": 1
+              }
+            ]
           }
         },
         "mountain-slope": {
@@ -22561,7 +23640,8 @@
           "height": 0,
           "image_url": "/tiles/emoji/catalog/mountain-slope.png",
           "settings": {
-            "color": "#8d8d97"
+            "color": "#8d8d97",
+            "collision": []
           }
         },
         "elder": {
@@ -22583,7 +23663,8 @@
               "spring": "#cabfc0",
               "summer": "#cabfc0",
               "winter": "#cabfc0"
-            }
+            },
+            "collision": []
           }
         },
         "frog": {
@@ -22605,7 +23686,8 @@
               "spring": "#5fa03f",
               "summer": "#5fa03f",
               "winter": "#5fa03f"
-            }
+            },
+            "collision": []
           }
         },
         "girl": {
@@ -22627,7 +23709,8 @@
               "spring": "#e5a0b0",
               "summer": "#e5a0b0",
               "winter": "#e5a0b0"
-            }
+            },
+            "collision": []
           }
         },
         "fountain_tl": {
@@ -22649,7 +23732,15 @@
               "spring": "#cbc4b0",
               "summer": "#cbc4b0",
               "winter": "#cbc4b0"
-            }
+            },
+            "collision": [
+              {
+                "x": 0,
+                "y": 0,
+                "w": 1,
+                "h": 1
+              }
+            ]
           }
         },
         "grass_tall": {
@@ -22662,7 +23753,8 @@
           "height": 0,
           "image_url": "/tiles/emoji/sq_green.png",
           "settings": {
-            "color": "#78ac3c"
+            "color": "#78ac3c",
+            "collision": []
           }
         },
         "cobblestone": {
@@ -22675,7 +23767,8 @@
           "height": 0,
           "image_url": "/tiles/emoji/catalog/cobblestone.png",
           "settings": {
-            "color": "#b9b2a3"
+            "color": "#b9b2a3",
+            "collision": []
           }
         },
         "house-garden": {
@@ -22697,7 +23790,8 @@
               "spring": "#b5793a",
               "summer": "#b5793a",
               "winter": "#b5793a"
-            }
+            },
+            "collision": []
           }
         },
         "trunk": {
@@ -22719,7 +23813,8 @@
               "spring": "#7a5a3a",
               "summer": "#6b4a2b",
               "winter": "#8fa3b5"
-            }
+            },
+            "collision": []
           }
         },
         "wall_stone_r": {
@@ -22742,7 +23837,15 @@
               "spring": "#8f8b82",
               "summer": "#8f8b82",
               "winter": "#8f8b82"
-            }
+            },
+            "collision": [
+              {
+                "x": 0,
+                "y": 0,
+                "w": 1,
+                "h": 1
+              }
+            ]
           }
         },
         "child": {
@@ -22764,7 +23867,8 @@
               "spring": "#e5b878",
               "summer": "#e5b878",
               "winter": "#e5b878"
-            }
+            },
+            "collision": []
           }
         },
         "wall_stone_br": {
@@ -22787,7 +23891,15 @@
               "spring": "#8f8b82",
               "summer": "#8f8b82",
               "winter": "#8f8b82"
-            }
+            },
+            "collision": [
+              {
+                "x": 0,
+                "y": 0,
+                "w": 1,
+                "h": 1
+              }
+            ]
           }
         },
         "mage": {
@@ -22809,7 +23921,8 @@
               "spring": "#7a5ac0",
               "summer": "#7a5ac0",
               "winter": "#7a5ac0"
-            }
+            },
+            "collision": []
           }
         },
         "russian_red": {
@@ -22822,7 +23935,8 @@
           "height": 0,
           "image_url": "/tiles/emoji/sq_red.png",
           "settings": {
-            "color": "#b43228"
+            "color": "#b43228",
+            "collision": []
           }
         },
         "tower": {
@@ -22844,7 +23958,8 @@
               "spring": "#d0553a",
               "summer": "#d0553a",
               "winter": "#d0553a"
-            }
+            },
+            "collision": []
           }
         },
         "water_deep": {
@@ -22857,7 +23972,8 @@
           "height": 1.0,
           "image_url": "/tiles/emoji/water_deep.png",
           "settings": {
-            "color": "#1144aa"
+            "color": "#1144aa",
+            "collision": []
           }
         },
         "road": {
@@ -22870,7 +23986,8 @@
           "height": 0,
           "image_url": "/tiles/emoji/road.png",
           "settings": {
-            "color": "#3d3d44"
+            "color": "#3d3d44",
+            "collision": []
           }
         },
         "hospital": {
@@ -22892,7 +24009,8 @@
               "spring": "#e05a5a",
               "summer": "#e05a5a",
               "winter": "#e05a5a"
-            }
+            },
+            "collision": []
           }
         },
         "wall_plaster_c": {
@@ -22915,7 +24033,15 @@
               "spring": "#f0f0ea",
               "summer": "#f0f0ea",
               "winter": "#f0f0ea"
-            }
+            },
+            "collision": [
+              {
+                "x": 0,
+                "y": 0,
+                "w": 1,
+                "h": 1
+              }
+            ]
           }
         },
         "zen_garden": {
@@ -22928,7 +24054,8 @@
           "height": 0,
           "image_url": "/tiles/emoji/sq_white.png",
           "settings": {
-            "color": "#dcd7c8"
+            "color": "#dcd7c8",
+            "collision": []
           }
         },
         "snag": {
@@ -22950,7 +24077,8 @@
               "spring": "#7a5a3a",
               "summer": "#6b4a2b",
               "winter": "#8fa3b5"
-            }
+            },
+            "collision": []
           }
         },
         "sheep": {
@@ -22972,7 +24100,8 @@
               "spring": "#e8e4dc",
               "summer": "#e8e4dc",
               "winter": "#e8e4dc"
-            }
+            },
+            "collision": []
           }
         },
         "maple-leaf": {
@@ -22995,7 +24124,8 @@
               "summer": "#d0552a",
               "winter": "#d0552a"
             },
-            "stackAt": 0
+            "stackAt": 0,
+            "collision": []
           }
         },
         "path_dirt": {
@@ -23008,7 +24138,8 @@
           "height": 0,
           "image_url": "/tiles/emoji/sq_brown.png",
           "settings": {
-            "color": "#aa9977"
+            "color": "#aa9977",
+            "collision": []
           }
         },
         "palm-tree": {
@@ -23030,7 +24161,8 @@
               "spring": "#4f9d5a",
               "summer": "#4f9d5a",
               "winter": "#4f9d5a"
-            }
+            },
+            "collision": []
           }
         },
         "princess": {
@@ -23052,7 +24184,8 @@
               "spring": "#e585b5",
               "summer": "#e585b5",
               "winter": "#e585b5"
-            }
+            },
+            "collision": []
           }
         },
         "canopy_l": {
@@ -23109,7 +24242,8 @@
                 "#e8f2fa",
                 "#9fbccb"
               ]
-            }
+            },
+            "collision": []
           }
         },
         "ghost": {
@@ -23131,7 +24265,8 @@
               "spring": "#e0e0f0",
               "summer": "#e0e0f0",
               "winter": "#e0e0f0"
-            }
+            },
+            "collision": []
           }
         },
         "canopy_b": {
@@ -23188,7 +24323,8 @@
                 "#e8f2fa",
                 "#9fbccb"
               ]
-            }
+            },
+            "collision": []
           }
         },
         "moss": {
@@ -23201,7 +24337,8 @@
           "height": 0,
           "image_url": "/tiles/emoji/baked/moss.png",
           "settings": {
-            "color": "#4a6b3a"
+            "color": "#4a6b3a",
+            "collision": []
           }
         },
         "red_lacquer": {
@@ -23214,7 +24351,8 @@
           "height": 0,
           "image_url": "/tiles/emoji/sq_red.png",
           "settings": {
-            "color": "#dc3c32"
+            "color": "#dc3c32",
+            "collision": []
           }
         },
         "canopy_br": {
@@ -23271,7 +24409,8 @@
                 "#e8f2fa",
                 "#9fbccb"
               ]
-            }
+            },
+            "collision": []
           }
         },
         "leaf_right": {
@@ -23328,7 +24467,8 @@
                 "#e8f2fa",
                 "#9fbccb"
               ]
-            }
+            },
+            "collision": []
           }
         },
         "brick": {
@@ -23350,7 +24490,8 @@
               "spring": "#b0603a",
               "summer": "#b0603a",
               "winter": "#b0603a"
-            }
+            },
+            "collision": []
           }
         },
         "old-woman": {
@@ -23372,7 +24513,8 @@
               "spring": "#d0c0c8",
               "summer": "#d0c0c8",
               "winter": "#d0c0c8"
-            }
+            },
+            "collision": []
           }
         },
         "bamboo_floor": {
@@ -23385,7 +24527,8 @@
           "height": 0,
           "image_url": "/tiles/emoji/sq_yellow.png",
           "settings": {
-            "color": "#b4c864"
+            "color": "#b4c864",
+            "collision": []
           }
         },
         "wall_plaster_br": {
@@ -23408,7 +24551,15 @@
               "spring": "#f0f0ea",
               "summer": "#f0f0ea",
               "winter": "#f0f0ea"
-            }
+            },
+            "collision": [
+              {
+                "x": 0,
+                "y": 0,
+                "w": 1,
+                "h": 1
+              }
+            ]
           }
         },
         "grey-alien": {
@@ -23430,7 +24581,8 @@
               "spring": "#8fd18a",
               "summer": "#8fd18a",
               "winter": "#8fd18a"
-            }
+            },
+            "collision": []
           }
         },
         "wolf": {
@@ -23452,7 +24604,8 @@
               "spring": "#8a8a9a",
               "summer": "#8a8a9a",
               "winter": "#8a8a9a"
-            }
+            },
+            "collision": []
           }
         },
         "prince": {
@@ -23474,7 +24627,8 @@
               "spring": "#d0a83a",
               "summer": "#d0a83a",
               "winter": "#d0a83a"
-            }
+            },
+            "collision": []
           }
         },
         "magma": {
@@ -23487,7 +24641,8 @@
           "height": 0,
           "image_url": "/tiles/emoji/sq_orange.png",
           "settings": {
-            "color": "#ff961e"
+            "color": "#ff961e",
+            "collision": []
           }
         },
         "dirt-path": {
@@ -23500,7 +24655,8 @@
           "height": 0,
           "image_url": "/tiles/emoji/catalog/dirt-path.png",
           "settings": {
-            "color": "#9c7b4d"
+            "color": "#9c7b4d",
+            "collision": []
           }
         },
         "hieroglyph_floor": {
@@ -23513,7 +24669,8 @@
           "height": 0,
           "image_url": "/tiles/emoji/sq_yellow.png",
           "settings": {
-            "color": "#ffd264"
+            "color": "#ffd264",
+            "collision": []
           }
         },
         "canopy_bl": {
@@ -23570,7 +24727,8 @@
                 "#e8f2fa",
                 "#9fbccb"
               ]
-            }
+            },
+            "collision": []
           }
         },
         "sand_dune": {
@@ -23583,7 +24741,8 @@
           "height": 0,
           "image_url": "/tiles/emoji/sq_white.png",
           "settings": {
-            "color": "#ffe6aa"
+            "color": "#ffe6aa",
+            "collision": []
           }
         },
         "wall_brick_bl": {
@@ -23606,7 +24765,15 @@
               "spring": "#9e4b3b",
               "summer": "#9e4b3b",
               "winter": "#9e4b3b"
-            }
+            },
+            "collision": [
+              {
+                "x": 0,
+                "y": 0,
+                "w": 1,
+                "h": 1
+              }
+            ]
           }
         },
         "owl": {
@@ -23628,7 +24795,8 @@
               "spring": "#a98f6a",
               "summer": "#a98f6a",
               "winter": "#a98f6a"
-            }
+            },
+            "collision": []
           }
         },
         "dog": {
@@ -23650,7 +24818,8 @@
               "spring": "#b5854a",
               "summer": "#b5854a",
               "winter": "#b5854a"
-            }
+            },
+            "collision": []
           }
         },
         "beach-sand": {
@@ -23663,7 +24832,8 @@
           "height": 0,
           "image_url": "/tiles/emoji/catalog/beach-sand.png",
           "settings": {
-            "color": "#e2c86b"
+            "color": "#e2c86b",
+            "collision": []
           }
         },
         "woman": {
@@ -23685,7 +24855,8 @@
               "spring": "#d96a9a",
               "summer": "#d96a9a",
               "winter": "#d96a9a"
-            }
+            },
+            "collision": []
           }
         },
         "wall_plaster_tl": {
@@ -23708,7 +24879,15 @@
               "spring": "#f0f0ea",
               "summer": "#f0f0ea",
               "winter": "#f0f0ea"
-            }
+            },
+            "collision": [
+              {
+                "x": 0,
+                "y": 0,
+                "w": 1,
+                "h": 1
+              }
+            ]
           }
         },
         "pine-tree": {
@@ -23730,7 +24909,8 @@
               "spring": "#2f8f3f",
               "summer": "#2f8f3f",
               "winter": "#2f8f3f"
-            }
+            },
+            "collision": []
           }
         },
         "marble": {
@@ -23743,7 +24923,8 @@
           "height": 0,
           "image_url": "/tiles/emoji/sq_white.png",
           "settings": {
-            "color": "#faf8f5"
+            "color": "#faf8f5",
+            "collision": []
           }
         },
         "school": {
@@ -23765,7 +24946,8 @@
               "spring": "#d0a83a",
               "summer": "#d0a83a",
               "winter": "#d0a83a"
-            }
+            },
+            "collision": []
           }
         },
         "bank": {
@@ -23787,7 +24969,8 @@
               "spring": "#6a8f5a",
               "summer": "#6a8f5a",
               "winter": "#6a8f5a"
-            }
+            },
+            "collision": []
           }
         },
         "cherry-blossom": {
@@ -23809,7 +24992,8 @@
               "spring": "#e785b5",
               "summer": "#e785b5",
               "winter": "#e785b5"
-            }
+            },
+            "collision": []
           }
         },
         "dark-grass": {
@@ -23822,7 +25006,8 @@
           "height": 0,
           "image_url": "/tiles/emoji/catalog/dark-grass.png",
           "settings": {
-            "color": "#3c7a2f"
+            "color": "#3c7a2f",
+            "collision": []
           }
         },
         "tatami": {
@@ -23835,7 +25020,8 @@
           "height": 0,
           "image_url": "/tiles/emoji/sq_yellow.png",
           "settings": {
-            "color": "#c8be96"
+            "color": "#c8be96",
+            "collision": []
           }
         },
         "fist": {
@@ -23860,7 +25046,8 @@
               "spring": "#f0b070",
               "summer": "#f0b070",
               "winter": "#f0b070"
-            }
+            },
+            "collision": []
           }
         },
         "wall_plaster_r": {
@@ -23883,7 +25070,15 @@
               "spring": "#f0f0ea",
               "summer": "#f0f0ea",
               "winter": "#f0f0ea"
-            }
+            },
+            "collision": [
+              {
+                "x": 0,
+                "y": 0,
+                "w": 1,
+                "h": 1
+              }
+            ]
           }
         },
         "coral": {
@@ -23896,7 +25091,8 @@
           "height": 1.0,
           "image_url": "/tiles/emoji/coral.png",
           "settings": {
-            "color": "#e06a5a"
+            "color": "#e06a5a",
+            "collision": []
           }
         },
         "grey-wolf": {
@@ -23918,7 +25114,8 @@
               "spring": "#8a8f9a",
               "summer": "#8a8f9a",
               "winter": "#8a8f9a"
-            }
+            },
+            "collision": []
           }
         },
         "arrow": {
@@ -23940,7 +25137,8 @@
               "spring": "#ffe9a8",
               "summer": "#ffe9a8",
               "winter": "#ffe9a8"
-            }
+            },
+            "collision": []
           }
         },
         "wall_wood_t": {
@@ -23963,7 +25161,15 @@
               "spring": "#8a5a2b",
               "summer": "#8a5a2b",
               "winter": "#8a5a2b"
-            }
+            },
+            "collision": [
+              {
+                "x": 0,
+                "y": 0,
+                "w": 1,
+                "h": 1
+              }
+            ]
           }
         },
         "water_shallow": {
@@ -23976,7 +25182,8 @@
           "height": 1.0,
           "image_url": "/tiles/emoji/water_shallow.png",
           "settings": {
-            "color": "#4488dd"
+            "color": "#4488dd",
+            "collision": []
           }
         },
         "water_still": {
@@ -23985,7 +25192,8 @@
           "settings": {
             "color": "#4488dd",
             "animations": [],
-            "stackAt": 0
+            "stackAt": 0,
+            "collision": []
           },
           "height": 0.05,
           "glyph": null,
@@ -24013,7 +25221,8 @@
               "spring": "#b0a89a",
               "summer": "#b0a89a",
               "winter": "#b0a89a"
-            }
+            },
+            "collision": []
           }
         },
         "duck": {
@@ -24035,7 +25244,8 @@
               "spring": "#6a8f4a",
               "summer": "#6a8f4a",
               "winter": "#6a8f4a"
-            }
+            },
+            "collision": []
           }
         },
         "mosque": {
@@ -24057,7 +25267,8 @@
               "spring": "#8aa88a",
               "summer": "#8aa88a",
               "winter": "#8aa88a"
-            }
+            },
+            "collision": []
           }
         },
         "fountain_br": {
@@ -24079,7 +25290,15 @@
               "spring": "#cbc4b0",
               "summer": "#cbc4b0",
               "winter": "#cbc4b0"
-            }
+            },
+            "collision": [
+              {
+                "x": 0,
+                "y": 0,
+                "w": 1,
+                "h": 1
+              }
+            ]
           }
         },
         "frozen_water": {
@@ -24092,7 +25311,8 @@
           "height": 0,
           "image_url": "/tiles/emoji/sq_white.png",
           "settings": {
-            "color": "#a0d2fa"
+            "color": "#a0d2fa",
+            "collision": []
           }
         },
         "tree_bottom_left": {
@@ -24149,7 +25369,15 @@
                 "#e8f2fa",
                 "#9fbccb"
               ]
-            }
+            },
+            "collision": [
+              {
+                "x": 0,
+                "y": 0,
+                "w": 1,
+                "h": 1
+              }
+            ]
           }
         },
         "tree": {
@@ -24162,7 +25390,8 @@
           "height": 1,
           "image_url": "/tiles/emoji/baked/tree.png",
           "settings": {
-            "color": "#2f8f3f"
+            "color": "#2f8f3f",
+            "collision": []
           }
         },
         "shrub": {
@@ -24185,7 +25414,8 @@
               "summer": "#4fa03f",
               "winter": "#4fa03f"
             },
-            "stackAt": 0
+            "stackAt": 0,
+            "collision": []
           }
         },
         "outback_red": {
@@ -24198,7 +25428,8 @@
           "height": 0,
           "image_url": "/tiles/emoji/sq_orange.png",
           "settings": {
-            "color": "#dc783c"
+            "color": "#dc783c",
+            "collision": []
           }
         },
         "old-man": {
@@ -24220,7 +25451,8 @@
               "spring": "#c8c8c8",
               "summer": "#c8c8c8",
               "winter": "#c8c8c8"
-            }
+            },
+            "collision": []
           }
         },
         "prairie": {
@@ -24233,7 +25465,8 @@
           "height": 0,
           "image_url": "/tiles/emoji/sq_yellow.png",
           "settings": {
-            "color": "#c8be82"
+            "color": "#c8be82",
+            "collision": []
           }
         },
         "ice-slash": {
@@ -24255,7 +25488,8 @@
               "spring": "#7fd0ff",
               "summer": "#7fd0ff",
               "winter": "#7fd0ff"
-            }
+            },
+            "collision": []
           }
         },
         "whitewash": {
@@ -24268,7 +25502,8 @@
           "height": 0,
           "image_url": "/tiles/emoji/sq_white.png",
           "settings": {
-            "color": "#fffffa"
+            "color": "#fffffa",
+            "collision": []
           }
         },
         "butterfly": {
@@ -24290,7 +25525,8 @@
               "spring": "#6a9ad8",
               "summer": "#6a9ad8",
               "winter": "#6a9ad8"
-            }
+            },
+            "collision": []
           }
         },
         "crystal": {
@@ -24303,7 +25539,8 @@
           "height": 1,
           "image_url": "/tiles/emoji/baked/crystal.png",
           "settings": {
-            "color": "#b48cff"
+            "color": "#b48cff",
+            "collision": []
           }
         },
         "door": {
@@ -24326,7 +25563,8 @@
               "spring": "#6a4220",
               "summer": "#5a3a1a",
               "winter": "#2a3a4a"
-            }
+            },
+            "collision": []
           }
         },
         "wall_stone_b": {
@@ -24349,7 +25587,15 @@
               "spring": "#8f8b82",
               "summer": "#8f8b82",
               "winter": "#8f8b82"
-            }
+            },
+            "collision": [
+              {
+                "x": 0,
+                "y": 0,
+                "w": 1,
+                "h": 1
+              }
+            ]
           }
         },
         "boar": {
@@ -24371,7 +25617,8 @@
               "spring": "#7a6a5a",
               "summer": "#7a6a5a",
               "winter": "#7a6a5a"
-            }
+            },
+            "collision": []
           }
         },
         "canopy_c": {
@@ -24428,7 +25675,8 @@
                 "#e8f2fa",
                 "#9fbccb"
               ]
-            }
+            },
+            "collision": []
           }
         },
         "snow_path": {
@@ -24441,7 +25689,8 @@
           "height": 0,
           "image_url": "/tiles/emoji/sq_white.png",
           "settings": {
-            "color": "#d2dceb"
+            "color": "#d2dceb",
+            "collision": []
           }
         },
         "tree_interior": {
@@ -24498,7 +25747,15 @@
                 "#e8f2fa",
                 "#9fbccb"
               ]
-            }
+            },
+            "collision": [
+              {
+                "x": 0,
+                "y": 0,
+                "w": 1,
+                "h": 1
+              }
+            ]
           }
         },
         "seashell": {
@@ -24520,7 +25777,8 @@
               "spring": "#f0c8a8",
               "summer": "#f0c8a8",
               "winter": "#f0c8a8"
-            }
+            },
+            "collision": []
           }
         },
         "heal-glow": {
@@ -24542,7 +25800,8 @@
               "spring": "#8effa0",
               "summer": "#8effa0",
               "winter": "#8effa0"
-            }
+            },
+            "collision": []
           }
         },
         "bridge": {
@@ -24555,7 +25814,8 @@
           "height": 0,
           "image_url": "/tiles/emoji/sq_brown.png",
           "settings": {
-            "color": "#bb8844"
+            "color": "#bb8844",
+            "collision": []
           }
         },
         "wilted-flower": {
@@ -24578,7 +25838,8 @@
               "summer": "#9c6a7a",
               "winter": "#9c6a7a"
             },
-            "stackAt": 0
+            "stackAt": 0,
+            "collision": []
           }
         },
         "hedgehog": {
@@ -24600,7 +25861,8 @@
               "spring": "#a98f6a",
               "summer": "#a98f6a",
               "winter": "#a98f6a"
-            }
+            },
+            "collision": []
           }
         },
         "axe": {
@@ -24617,7 +25879,8 @@
             "pose": {
               "flip": true,
               "scale": 1.1
-            }
+            },
+            "collision": []
           }
         },
         "dart": {
@@ -24639,7 +25902,8 @@
               "spring": "#ffe9a8",
               "summer": "#ffe9a8",
               "winter": "#ffe9a8"
-            }
+            },
+            "collision": []
           }
         },
         "seaweed": {
@@ -24652,7 +25916,8 @@
           "height": 0,
           "image_url": "/tiles/emoji/sq_green.png",
           "settings": {
-            "color": "#3cb478"
+            "color": "#3cb478",
+            "collision": []
           }
         },
         "cat": {
@@ -24674,7 +25939,8 @@
               "spring": "#c8964a",
               "summer": "#c8964a",
               "winter": "#c8964a"
-            }
+            },
+            "collision": []
           }
         },
         "torii-gate": {
@@ -24696,7 +25962,8 @@
               "spring": "#d0402a",
               "summer": "#d0402a",
               "winter": "#d0402a"
-            }
+            },
+            "collision": []
           }
         },
         "wall_wood_tl": {
@@ -24719,7 +25986,15 @@
               "spring": "#8a5a2b",
               "summer": "#8a5a2b",
               "winter": "#8a5a2b"
-            }
+            },
+            "collision": [
+              {
+                "x": 0,
+                "y": 0,
+                "w": 1,
+                "h": 1
+              }
+            ]
           }
         },
         "path_stone": {
@@ -24732,7 +26007,8 @@
           "height": 0,
           "image_url": "/tiles/emoji/sq_yellow.png",
           "settings": {
-            "color": "#ccbbaa"
+            "color": "#ccbbaa",
+            "collision": []
           }
         },
         "elf": {
@@ -24754,7 +26030,8 @@
               "spring": "#6ac07a",
               "summer": "#6ac07a",
               "winter": "#6ac07a"
-            }
+            },
+            "collision": []
           }
         },
         "roof_slate": {
@@ -24777,7 +26054,15 @@
               "spring": "#4a4f57",
               "summer": "#4a4f57",
               "winter": "#4a4f57"
-            }
+            },
+            "collision": [
+              {
+                "x": 0,
+                "y": 0,
+                "w": 1,
+                "h": 1
+              }
+            ]
           }
         },
         "roof_top": {
@@ -24800,7 +26085,8 @@
               "spring": "#c06a4a",
               "summer": "#8a4a30",
               "winter": "#4a6a8a"
-            }
+            },
+            "collision": []
           }
         },
         "wall_brick_br": {
@@ -24823,7 +26109,15 @@
               "spring": "#9e4b3b",
               "summer": "#9e4b3b",
               "winter": "#9e4b3b"
-            }
+            },
+            "collision": [
+              {
+                "x": 0,
+                "y": 0,
+                "w": 1,
+                "h": 1
+              }
+            ]
           }
         },
         "canopy_tl": {
@@ -24880,7 +26174,8 @@
                 "#e8f2fa",
                 "#9fbccb"
               ]
-            }
+            },
+            "collision": []
           }
         },
         "crypt_floor": {
@@ -24893,7 +26188,8 @@
           "height": 0,
           "image_url": "/tiles/emoji/sq_brown.png",
           "settings": {
-            "color": "#645f5a"
+            "color": "#645f5a",
+            "collision": []
           }
         },
         "derelict-house": {
@@ -24915,7 +26211,8 @@
               "spring": "#8a7a5f",
               "summer": "#8a7a5f",
               "winter": "#8a7a5f"
-            }
+            },
+            "collision": []
           }
         },
         "oasis": {
@@ -24928,7 +26225,8 @@
           "height": 0,
           "image_url": "/tiles/emoji/sq_blue.png",
           "settings": {
-            "color": "#32b4c8"
+            "color": "#32b4c8",
+            "collision": []
           }
         },
         "goblin": {
@@ -24950,7 +26248,8 @@
               "spring": "#c8443c",
               "summer": "#c8443c",
               "winter": "#c8443c"
-            }
+            },
+            "collision": []
           }
         },
         "fountain_l": {
@@ -24972,7 +26271,15 @@
               "spring": "#cbc4b0",
               "summer": "#cbc4b0",
               "winter": "#cbc4b0"
-            }
+            },
+            "collision": [
+              {
+                "x": 0,
+                "y": 0,
+                "w": 1,
+                "h": 1
+              }
+            ]
           }
         },
         "tree_crown": {
@@ -25029,7 +26336,15 @@
                 "#e8f2fa",
                 "#9fbccb"
               ]
-            }
+            },
+            "collision": [
+              {
+                "x": 0,
+                "y": 0,
+                "w": 1,
+                "h": 1
+              }
+            ]
           }
         },
         "decor_grit": {
@@ -25045,7 +26360,8 @@
             "color": "#bba360",
             "colors": {
               "desert": "#bba360"
-            }
+            },
+            "collision": []
           }
         },
         "grass-field": {
@@ -25058,7 +26374,8 @@
           "height": 0,
           "image_url": "/tiles/emoji/catalog/grass-field.png",
           "settings": {
-            "color": "#5faf4a"
+            "color": "#5faf4a",
+            "collision": []
           }
         },
         "wall_stone_bl": {
@@ -25081,7 +26398,15 @@
               "spring": "#8f8b82",
               "summer": "#8f8b82",
               "winter": "#8f8b82"
-            }
+            },
+            "collision": [
+              {
+                "x": 0,
+                "y": 0,
+                "w": 1,
+                "h": 1
+              }
+            ]
           }
         },
         "cow": {
@@ -25103,7 +26428,8 @@
               "spring": "#c9b8a8",
               "summer": "#c9b8a8",
               "winter": "#c9b8a8"
-            }
+            },
+            "collision": []
           }
         },
         "desert": {
@@ -25116,7 +26442,8 @@
           "height": 0,
           "image_url": "/tiles/emoji/catalog/desert.png",
           "settings": {
-            "color": "#d9b45f"
+            "color": "#d9b45f",
+            "collision": []
           }
         },
         "volcanic_rock": {
@@ -25129,7 +26456,8 @@
           "height": 0,
           "image_url": "/tiles/emoji/sq_black.png",
           "settings": {
-            "color": "#644632"
+            "color": "#644632",
+            "collision": []
           }
         },
         "tree_leaf": {
@@ -25186,7 +26514,15 @@
                 "#e8f2fa",
                 "#9fbccb"
               ]
-            }
+            },
+            "collision": [
+              {
+                "x": 0,
+                "y": 0,
+                "w": 1,
+                "h": 1
+              }
+            ]
           }
         },
         "canopy_tr": {
@@ -25243,7 +26579,8 @@
                 "#e8f2fa",
                 "#9fbccb"
               ]
-            }
+            },
+            "collision": []
           }
         },
         "wall_stone_c": {
@@ -25266,7 +26603,15 @@
               "spring": "#8f8b82",
               "summer": "#8f8b82",
               "winter": "#8f8b82"
-            }
+            },
+            "collision": [
+              {
+                "x": 0,
+                "y": 0,
+                "w": 1,
+                "h": 1
+              }
+            ]
           }
         },
         "pumpkin": {
@@ -25288,7 +26633,8 @@
               "spring": "#e5842a",
               "summer": "#e5842a",
               "winter": "#e5842a"
-            }
+            },
+            "collision": []
           }
         },
         "tree_top": {
@@ -25345,7 +26691,15 @@
                 "#e8f2fa",
                 "#9fbccb"
               ]
-            }
+            },
+            "collision": [
+              {
+                "x": 0,
+                "y": 0,
+                "w": 1,
+                "h": 1
+              }
+            ]
           }
         },
         "peak": {
@@ -25367,7 +26721,15 @@
               "spring": "#eef4f8",
               "summer": "#e6edf2",
               "winter": "#eef6ff"
-            }
+            },
+            "collision": [
+              {
+                "x": 0,
+                "y": 0,
+                "w": 1,
+                "h": 1
+              }
+            ]
           }
         },
         "tree_snag": {
@@ -25389,7 +26751,15 @@
               "spring": "#7a5a3a",
               "summer": "#6b4a2b",
               "winter": "#8fa3b5"
-            }
+            },
+            "collision": [
+              {
+                "x": 0,
+                "y": 0,
+                "w": 1,
+                "h": 1
+              }
+            ]
           }
         },
         "walk": {
@@ -25411,7 +26781,8 @@
               "spring": "#d9a066",
               "summer": "#d9a066",
               "winter": "#d9a066"
-            }
+            },
+            "collision": []
           }
         },
         "fountain_r": {
@@ -25433,7 +26804,15 @@
               "spring": "#cbc4b0",
               "summer": "#cbc4b0",
               "winter": "#cbc4b0"
-            }
+            },
+            "collision": [
+              {
+                "x": 0,
+                "y": 0,
+                "w": 1,
+                "h": 1
+              }
+            ]
           }
         },
         "snow": {
@@ -25446,7 +26825,8 @@
           "height": 0,
           "image_url": "/tiles/emoji/baked/snow.png",
           "settings": {
-            "color": "#e2ecf5"
+            "color": "#e2ecf5",
+            "collision": []
           }
         },
         "nova": {
@@ -25468,7 +26848,8 @@
               "spring": "#c08cff",
               "summer": "#c08cff",
               "winter": "#c08cff"
-            }
+            },
+            "collision": []
           }
         },
         "plaza": {
@@ -25481,7 +26862,8 @@
           "height": 0,
           "image_url": "/tiles/emoji/baked/plaza.png",
           "settings": {
-            "color": "#cabfa6"
+            "color": "#cabfa6",
+            "collision": []
           }
         },
         "fallen-leaf": {
@@ -25504,7 +26886,8 @@
               "summer": "#c8742f",
               "winter": "#c8742f"
             },
-            "stackAt": 0
+            "stackAt": 0,
+            "collision": []
           }
         },
         "sand": {
@@ -25517,7 +26900,8 @@
           "height": 0,
           "image_url": "/tiles/emoji/baked/sand.png",
           "settings": {
-            "color": "#e2c86b"
+            "color": "#e2c86b",
+            "collision": []
           }
         },
         "decor_dot": {
@@ -25533,7 +26917,8 @@
             "color": "#a06a2c",
             "colors": {
               "autumn": "#a06a2c"
-            }
+            },
+            "collision": []
           }
         },
         "roof_top_store": {
@@ -25556,7 +26941,8 @@
               "spring": "#235a96",
               "summer": "#235a96",
               "winter": "#235a96"
-            }
+            },
+            "collision": []
           }
         },
         "sand_trap": {
@@ -25569,7 +26955,8 @@
           "height": 0,
           "image_url": "/tiles/emoji/sq_yellow.png",
           "settings": {
-            "color": "#c8a860"
+            "color": "#c8a860",
+            "collision": []
           }
         },
         "volcano": {
@@ -25582,7 +26969,8 @@
           "height": 0,
           "image_url": "/tiles/emoji/catalog/volcano.png",
           "settings": {
-            "color": "#b5372a"
+            "color": "#b5372a",
+            "collision": []
           }
         },
         "sandstone": {
@@ -25595,7 +26983,8 @@
           "height": 0,
           "image_url": "/tiles/emoji/sq_yellow.png",
           "settings": {
-            "color": "#e6be82"
+            "color": "#e6be82",
+            "collision": []
           }
         },
         "wooden-door": {
@@ -25617,7 +27006,8 @@
               "spring": "#5a3a22",
               "summer": "#5a3a22",
               "winter": "#5a3a22"
-            }
+            },
+            "collision": []
           }
         },
         "shield": {
@@ -25630,7 +27020,8 @@
           "height": 0,
           "image_url": "/tiles/emoji/baked/shield.png",
           "settings": {
-            "color": "#3f5f8f"
+            "color": "#3f5f8f",
+            "collision": []
           }
         },
         "connector": {
@@ -25652,7 +27043,8 @@
               "spring": "#8a7bd8",
               "summer": "#8a7bd8",
               "winter": "#8a7bd8"
-            }
+            },
+            "collision": []
           }
         },
         "basalt": {
@@ -25665,7 +27057,8 @@
           "height": 0,
           "image_url": "/tiles/emoji/sq_black.png",
           "settings": {
-            "color": "#6e3a30"
+            "color": "#6e3a30",
+            "collision": []
           }
         },
         "decor_flower": {
@@ -25681,7 +27074,8 @@
             "color": "#c79bb4",
             "colors": {
               "spring": "#c79bb4"
-            }
+            },
+            "collision": []
           }
         },
         "bow": {
@@ -25697,7 +27091,8 @@
             "color": "#a9743a",
             "pose": {
               "scale": 1.1
-            }
+            },
+            "collision": []
           }
         },
         "eucalyptus": {
@@ -25710,7 +27105,8 @@
           "height": 0,
           "image_url": "/tiles/emoji/sq_green.png",
           "settings": {
-            "color": "#78a082"
+            "color": "#78a082",
+            "collision": []
           }
         },
         "road_edge": {
@@ -25723,7 +27119,8 @@
           "height": 0,
           "image_url": "/tiles/emoji/sq_black.png",
           "settings": {
-            "color": "#60626a"
+            "color": "#60626a",
+            "collision": []
           }
         },
         "gun": {
@@ -25740,7 +27137,8 @@
             "pose": {
               "flip": true,
               "scale": 1.1
-            }
+            },
+            "collision": []
           }
         },
         "ice_cracked": {
@@ -25753,7 +27151,8 @@
           "height": 0,
           "image_url": "/tiles/emoji/sq_white.png",
           "settings": {
-            "color": "#b4e6ff"
+            "color": "#b4e6ff",
+            "collision": []
           }
         },
         "person": {
@@ -25775,7 +27174,8 @@
               "spring": "#d9a066",
               "summer": "#d9a066",
               "winter": "#d9a066"
-            }
+            },
+            "collision": []
           }
         },
         "wheat": {
@@ -25798,7 +27198,8 @@
               "summer": "#d9b25f",
               "winter": "#d9b25f"
             },
-            "stackAt": 0
+            "stackAt": 0,
+            "collision": []
           }
         },
         "gravel": {
@@ -25811,7 +27212,8 @@
           "height": 0,
           "image_url": "/tiles/emoji/catalog/gravel.png",
           "settings": {
-            "color": "#7c6a52"
+            "color": "#7c6a52",
+            "collision": []
           }
         },
         "hibiscus": {
@@ -25834,7 +27236,8 @@
               "summer": "#e5527a",
               "winter": "#e5527a"
             },
-            "stackAt": 0
+            "stackAt": 0,
+            "collision": []
           }
         },
         "police-officer": {
@@ -25856,7 +27259,8 @@
               "spring": "#4a6ac0",
               "summer": "#4a6ac0",
               "winter": "#4a6ac0"
-            }
+            },
+            "collision": []
           }
         },
         "ninja": {
@@ -25878,7 +27282,8 @@
               "spring": "#3a3a4a",
               "summer": "#3a3a4a",
               "winter": "#3a3a4a"
-            }
+            },
+            "collision": []
           }
         },
         "wall_wood_br": {
@@ -25901,7 +27306,15 @@
               "spring": "#8a5a2b",
               "summer": "#8a5a2b",
               "winter": "#8a5a2b"
-            }
+            },
+            "collision": [
+              {
+                "x": 0,
+                "y": 0,
+                "w": 1,
+                "h": 1
+              }
+            ]
           }
         },
         "sakura_petals": {
@@ -25914,7 +27327,8 @@
           "height": 0,
           "image_url": "/tiles/emoji/sq_white.png",
           "settings": {
-            "color": "#ffc8dc"
+            "color": "#ffc8dc",
+            "collision": []
           }
         },
         "savanna": {
@@ -25927,7 +27341,8 @@
           "height": 0,
           "image_url": "/tiles/emoji/sq_yellow.png",
           "settings": {
-            "color": "#c8b464"
+            "color": "#c8b464",
+            "collision": []
           }
         },
         "decor_pebbles": {
@@ -25946,7 +27361,8 @@
               "desert": "#b89a58",
               "lava": "#56382e",
               "winter": "#c8d6e2"
-            }
+            },
+            "collision": []
           }
         },
         "ice": {
@@ -25959,7 +27375,8 @@
           "height": 0,
           "image_url": "/tiles/emoji/catalog/ice.png",
           "settings": {
-            "color": "#a8d8f0"
+            "color": "#a8d8f0",
+            "collision": []
           }
         },
         "temple_floor": {
@@ -25972,7 +27389,8 @@
           "height": 0,
           "image_url": "/tiles/emoji/sq_yellow.png",
           "settings": {
-            "color": "#cec09e"
+            "color": "#cec09e",
+            "collision": []
           }
         },
         "pyramid_stone": {
@@ -25985,7 +27403,8 @@
           "height": 0,
           "image_url": "/tiles/emoji/sq_yellow.png",
           "settings": {
-            "color": "#e6c896"
+            "color": "#e6c896",
+            "collision": []
           }
         },
         "water_c": {
@@ -26007,7 +27426,15 @@
               "spring": "#2f7fc9",
               "summer": "#2f7fc9",
               "winter": "#2f7fc9"
-            }
+            },
+            "collision": [
+              {
+                "x": 0,
+                "y": 0,
+                "w": 1,
+                "h": 1
+              }
+            ]
           }
         },
         "dead_grass": {
@@ -26020,7 +27447,8 @@
           "height": 0,
           "image_url": "/tiles/emoji/sq_brown.png",
           "settings": {
-            "color": "#8c825a"
+            "color": "#8c825a",
+            "collision": []
           }
         },
         "decor_blossom": {
@@ -26036,7 +27464,8 @@
             "color": "#c4b061",
             "colors": {
               "spring": "#c4b061"
-            }
+            },
+            "collision": []
           }
         },
         "tropical_grass": {
@@ -26049,7 +27478,8 @@
           "height": 0,
           "image_url": "/tiles/emoji/sq_green.png",
           "settings": {
-            "color": "#32c850"
+            "color": "#32c850",
+            "collision": []
           }
         },
         "department-store": {
@@ -26071,7 +27501,8 @@
               "spring": "#b05a8a",
               "summer": "#b05a8a",
               "winter": "#b05a8a"
-            }
+            },
+            "collision": []
           }
         },
         "pig": {
@@ -26093,7 +27524,8 @@
               "spring": "#e59ab0",
               "summer": "#e59ab0",
               "winter": "#e59ab0"
-            }
+            },
+            "collision": []
           }
         },
         "cactus": {
@@ -26115,7 +27547,8 @@
               "spring": "#4a8f3f",
               "summer": "#4a8f3f",
               "winter": "#4a8f3f"
-            }
+            },
+            "collision": []
           }
         },
         "wall_wood_bl": {
@@ -26138,7 +27571,15 @@
               "spring": "#8a5a2b",
               "summer": "#8a5a2b",
               "winter": "#8a5a2b"
-            }
+            },
+            "collision": [
+              {
+                "x": 0,
+                "y": 0,
+                "w": 1,
+                "h": 1
+              }
+            ]
           }
         },
         "boy": {
@@ -26160,7 +27601,8 @@
               "spring": "#e0b060",
               "summer": "#e0b060",
               "winter": "#e0b060"
-            }
+            },
+            "collision": []
           }
         },
         "lava": {
@@ -26173,7 +27615,8 @@
           "height": 0,
           "image_url": "/tiles/emoji/baked/lava.png",
           "settings": {
-            "color": "#ff5a1f"
+            "color": "#ff5a1f",
+            "collision": []
           }
         },
         "altar": {
@@ -26186,7 +27629,8 @@
           "height": 1,
           "image_url": "/tiles/emoji/baked/altar.png",
           "settings": {
-            "color": "#ffe7a8"
+            "color": "#ffe7a8",
+            "collision": []
           }
         },
         "tree_leaf_top": {
@@ -26243,7 +27687,8 @@
                 "#e8f2fa",
                 "#9fbccb"
               ]
-            }
+            },
+            "collision": []
           }
         },
         "snail": {
@@ -26265,7 +27710,8 @@
               "spring": "#c8a06a",
               "summer": "#c8a06a",
               "winter": "#c8a06a"
-            }
+            },
+            "collision": []
           }
         },
         "autumn": {
@@ -26278,7 +27724,8 @@
           "height": 0,
           "image_url": "/tiles/emoji/baked/autumn.png",
           "settings": {
-            "color": "#b5732f"
+            "color": "#b5732f",
+            "collision": []
           }
         },
         "pillar": {
@@ -26291,7 +27738,8 @@
           "height": 1,
           "image_url": "/tiles/emoji/baked/pillar.png",
           "settings": {
-            "color": "#cbb68c"
+            "color": "#cbb68c",
+            "collision": []
           }
         },
         "post": {
@@ -26313,7 +27761,15 @@
               "spring": "#43474d",
               "summer": "#43474d",
               "winter": "#43474d"
-            }
+            },
+            "collision": [
+              {
+                "x": 0,
+                "y": 0,
+                "w": 1,
+                "h": 1
+              }
+            ]
           }
         },
         "staff": {
@@ -26329,7 +27785,8 @@
             "color": "#c9a0ff",
             "pose": {
               "scale": 1.1
-            }
+            },
+            "collision": []
           }
         },
         "enemy": {
@@ -26342,7 +27799,8 @@
           "height": 0,
           "image_url": "/tiles/emoji/baked/enemy.png",
           "settings": {
-            "color": "#b45ac0"
+            "color": "#b45ac0",
+            "collision": []
           }
         },
         "goat": {
@@ -26364,7 +27822,8 @@
               "spring": "#b8a888",
               "summer": "#b8a888",
               "winter": "#b8a888"
-            }
+            },
+            "collision": []
           }
         },
         "decor_clover": {
@@ -26380,7 +27839,8 @@
             "color": "#5aaf5a",
             "colors": {
               "summer": "#2a722a"
-            }
+            },
+            "collision": []
           }
         },
         "leaf_top": {
@@ -26437,7 +27897,8 @@
                 "#e8f2fa",
                 "#9fbccb"
               ]
-            }
+            },
+            "collision": []
           }
         },
         "cave_moss": {
@@ -26450,7 +27911,8 @@
           "height": 0,
           "image_url": "/tiles/emoji/sq_green.png",
           "settings": {
-            "color": "#508c46"
+            "color": "#508c46",
+            "collision": []
           }
         },
         "wall_stone_tl": {
@@ -26473,7 +27935,15 @@
               "spring": "#8f8b82",
               "summer": "#8f8b82",
               "winter": "#8f8b82"
-            }
+            },
+            "collision": [
+              {
+                "x": 0,
+                "y": 0,
+                "w": 1,
+                "h": 1
+              }
+            ]
           }
         },
         "tree_bottom": {
@@ -26530,7 +28000,15 @@
                 "#e8f2fa",
                 "#9fbccb"
               ]
-            }
+            },
+            "collision": [
+              {
+                "x": 0,
+                "y": 0,
+                "w": 1,
+                "h": 1
+              }
+            ]
           }
         },
         "ice_water": {
@@ -26543,7 +28021,8 @@
           "height": 0,
           "image_url": "/tiles/emoji/sq_blue.png",
           "settings": {
-            "color": "#78c8ff"
+            "color": "#78c8ff",
+            "collision": []
           }
         },
         "guard-flash": {
@@ -26565,7 +28044,8 @@
               "spring": "#9fd3ff",
               "summer": "#9fd3ff",
               "winter": "#9fd3ff"
-            }
+            },
+            "collision": []
           }
         },
         "houses": {
@@ -26587,7 +28067,8 @@
               "spring": "#c86b4d",
               "summer": "#c86b4d",
               "winter": "#c86b4d"
-            }
+            },
+            "collision": []
           }
         },
         "key": {
@@ -26600,7 +28081,8 @@
           "height": 0,
           "image_url": "/tiles/emoji/baked/key.png",
           "settings": {
-            "color": "#ffd24a"
+            "color": "#ffd24a",
+            "collision": []
           }
         },
         "cliff": {
@@ -26613,7 +28095,8 @@
           "height": 0,
           "image_url": "/tiles/emoji/sq_yellow.png",
           "settings": {
-            "color": "#ffd43a"
+            "color": "#ffd43a",
+            "collision": []
           }
         },
         "rabbit": {
@@ -26635,7 +28118,8 @@
               "spring": "#d8cbb8",
               "summer": "#d8cbb8",
               "winter": "#d8cbb8"
-            }
+            },
+            "collision": []
           }
         },
         "ash": {
@@ -26648,7 +28132,8 @@
           "height": 0,
           "image_url": "/tiles/emoji/sq_brown.png",
           "settings": {
-            "color": "#96604a"
+            "color": "#96604a",
+            "collision": []
           }
         },
         "wall_wood_tr": {
@@ -26671,7 +28156,15 @@
               "spring": "#8a5a2b",
               "summer": "#8a5a2b",
               "winter": "#8a5a2b"
-            }
+            },
+            "collision": [
+              {
+                "x": 0,
+                "y": 0,
+                "w": 1,
+                "h": 1
+              }
+            ]
           }
         },
         "adult": {
@@ -26693,7 +28186,8 @@
               "spring": "#d9a066",
               "summer": "#d9a066",
               "winter": "#d9a066"
-            }
+            },
+            "collision": []
           }
         },
         "terracotta": {
@@ -26706,7 +28200,8 @@
           "height": 0,
           "image_url": "/tiles/emoji/sq_orange.png",
           "settings": {
-            "color": "#dc8c64"
+            "color": "#dc8c64",
+            "collision": []
           }
         },
         "cave_floor": {
@@ -26719,7 +28214,8 @@
           "height": 0,
           "image_url": "/tiles/emoji/sq_brown.png",
           "settings": {
-            "color": "#82786e"
+            "color": "#82786e",
+            "collision": []
           }
         },
         "flat_roof": {
@@ -26742,7 +28238,8 @@
               "spring": "#8b9098",
               "summer": "#8b9098",
               "winter": "#8b9098"
-            }
+            },
+            "collision": []
           }
         },
         "wall_stone_t": {
@@ -26765,7 +28262,15 @@
               "spring": "#8f8b82",
               "summer": "#8f8b82",
               "winter": "#8f8b82"
-            }
+            },
+            "collision": [
+              {
+                "x": 0,
+                "y": 0,
+                "w": 1,
+                "h": 1
+              }
+            ]
           }
         },
         "wall_wood_r": {
@@ -26788,7 +28293,15 @@
               "spring": "#8a5a2b",
               "summer": "#8a5a2b",
               "winter": "#8a5a2b"
-            }
+            },
+            "collision": [
+              {
+                "x": 0,
+                "y": 0,
+                "w": 1,
+                "h": 1
+              }
+            ]
           }
         },
         "wall_stone_tr": {
@@ -26811,7 +28324,15 @@
               "spring": "#8f8b82",
               "summer": "#8f8b82",
               "winter": "#8f8b82"
-            }
+            },
+            "collision": [
+              {
+                "x": 0,
+                "y": 0,
+                "w": 1,
+                "h": 1
+              }
+            ]
           }
         },
         "bird": {
@@ -26833,7 +28354,8 @@
               "spring": "#5a8fc8",
               "summer": "#5a8fc8",
               "winter": "#5a8fc8"
-            }
+            },
+            "collision": []
           }
         },
         "boulder": {
@@ -26855,7 +28377,8 @@
               "spring": "#8a8a8a",
               "summer": "#8a8a8a",
               "winter": "#8a8a8a"
-            }
+            },
+            "collision": []
           }
         },
         "oak-tree": {
@@ -26877,7 +28400,8 @@
               "spring": "#4caf50",
               "summer": "#4caf50",
               "winter": "#4caf50"
-            }
+            },
+            "collision": []
           }
         },
         "bullet": {
@@ -26899,7 +28423,8 @@
               "spring": "#d8d8d8",
               "summer": "#d8d8d8",
               "winter": "#d8d8d8"
-            }
+            },
+            "collision": []
           }
         },
         "trunk_base": {
@@ -26921,7 +28446,8 @@
               "spring": "#7a5a3a",
               "summer": "#6b4a2b",
               "winter": "#8fa3b5"
-            }
+            },
+            "collision": []
           }
         },
         "clover": {
@@ -26944,7 +28470,8 @@
               "summer": "#3c9a3a",
               "winter": "#3c9a3a"
             },
-            "stackAt": 0
+            "stackAt": 0,
+            "collision": []
           }
         },
         "olive_grove": {
@@ -26957,7 +28484,8 @@
           "height": 0,
           "image_url": "/tiles/emoji/sq_green.png",
           "settings": {
-            "color": "#507832"
+            "color": "#507832",
+            "collision": []
           }
         },
         "wizard": {
@@ -26979,7 +28507,8 @@
               "spring": "#6a4ab0",
               "summer": "#6a4ab0",
               "winter": "#6a4ab0"
-            }
+            },
+            "collision": []
           }
         },
         "sword": {
@@ -26996,7 +28525,8 @@
             "pose": {
               "rot": 3.141592653589793,
               "scale": 1.1
-            }
+            },
+            "collision": []
           }
         },
         "convenience-store": {
@@ -27018,7 +28548,8 @@
               "spring": "#4a9ac8",
               "summer": "#4a9ac8",
               "winter": "#4a9ac8"
-            }
+            },
+            "collision": []
           }
         },
         "fox": {
@@ -27040,7 +28571,8 @@
               "spring": "#e0863a",
               "summer": "#e0863a",
               "winter": "#e0863a"
-            }
+            },
+            "collision": []
           }
         },
         "tulip": {
@@ -27063,7 +28595,8 @@
               "summer": "#e05a7a",
               "winter": "#e05a7a"
             },
-            "stackAt": 0
+            "stackAt": 0,
+            "collision": []
           }
         },
         "wall_brick_b": {
@@ -27086,7 +28619,15 @@
               "spring": "#9e4b3b",
               "summer": "#9e4b3b",
               "winter": "#9e4b3b"
-            }
+            },
+            "collision": [
+              {
+                "x": 0,
+                "y": 0,
+                "w": 1,
+                "h": 1
+              }
+            ]
           }
         },
         "awning": {
@@ -27109,7 +28650,15 @@
               "spring": "#b64a34",
               "summer": "#b64a34",
               "winter": "#b64a34"
-            }
+            },
+            "collision": [
+              {
+                "x": 0,
+                "y": 0,
+                "w": 1,
+                "h": 1
+              }
+            ]
           }
         },
         "decor_shell": {
@@ -27125,7 +28674,8 @@
             "color": "#cfe6ee",
             "colors": {
               "beach": "#cfe6ee"
-            }
+            },
+            "collision": []
           }
         },
         "bolt": {
@@ -27147,7 +28697,8 @@
               "spring": "#ffe9a8",
               "summer": "#ffe9a8",
               "winter": "#ffe9a8"
-            }
+            },
+            "collision": []
           }
         },
         "wall_plaster_bl": {
@@ -27170,7 +28721,15 @@
               "spring": "#f0f0ea",
               "summer": "#f0f0ea",
               "winter": "#f0f0ea"
-            }
+            },
+            "collision": [
+              {
+                "x": 0,
+                "y": 0,
+                "w": 1,
+                "h": 1
+              }
+            ]
           }
         },
         "snow_deep": {
@@ -27183,7 +28742,8 @@
           "height": 0,
           "image_url": "/tiles/emoji/sq_white.png",
           "settings": {
-            "color": "#ffffff"
+            "color": "#ffffff",
+            "collision": []
           }
         },
         "tree_stem": {
@@ -27205,7 +28765,15 @@
               "spring": "#7a5a3a",
               "summer": "#6b4a2b",
               "winter": "#8fa3b5"
-            }
+            },
+            "collision": [
+              {
+                "x": 0,
+                "y": 0,
+                "w": 1,
+                "h": 1
+              }
+            ]
           }
         },
         "snowy-peak": {
@@ -27218,7 +28786,8 @@
           "height": 0,
           "image_url": "/tiles/emoji/catalog/snowy-peak.png",
           "settings": {
-            "color": "#cfd8e3"
+            "color": "#cfd8e3",
+            "collision": []
           }
         },
         "classical-building": {
@@ -27240,7 +28809,8 @@
               "spring": "#cbb68c",
               "summer": "#cbb68c",
               "winter": "#cbb68c"
-            }
+            },
+            "collision": []
           }
         },
         "snowflake": {
@@ -27253,7 +28823,8 @@
           "height": 0,
           "image_url": "/tiles/emoji/catalog/snowflake.png",
           "settings": {
-            "color": "#eaf4ff"
+            "color": "#eaf4ff",
+            "collision": []
           }
         },
         "display_window": {
@@ -27276,7 +28847,15 @@
               "spring": "#86bcd6",
               "summer": "#86bcd6",
               "winter": "#86bcd6"
-            }
+            },
+            "collision": [
+              {
+                "x": 0,
+                "y": 0,
+                "w": 1,
+                "h": 1
+              }
+            ]
           }
         },
         "grass": {
@@ -27289,7 +28868,8 @@
           "height": 0,
           "image_url": "/tiles/emoji/baked/grass.png",
           "settings": {
-            "color": "#5faf4a"
+            "color": "#5faf4a",
+            "collision": []
           }
         },
         "dead-tree": {
@@ -27311,7 +28891,8 @@
               "spring": "#8a6f4a",
               "summer": "#8a6f4a",
               "winter": "#8a6f4a"
-            }
+            },
+            "collision": []
           }
         },
         "wall_wood_l": {
@@ -27334,7 +28915,15 @@
               "spring": "#8a5a2b",
               "summer": "#8a5a2b",
               "winter": "#8a5a2b"
-            }
+            },
+            "collision": [
+              {
+                "x": 0,
+                "y": 0,
+                "w": 1,
+                "h": 1
+              }
+            ]
           }
         },
         "skull": {
@@ -27356,7 +28945,8 @@
               "spring": "#d8d8d8",
               "summer": "#d8d8d8",
               "winter": "#d8d8d8"
-            }
+            },
+            "collision": []
           }
         },
         "man": {
@@ -27378,7 +28968,8 @@
               "spring": "#6a8fd9",
               "summer": "#6a8fd9",
               "winter": "#6a8fd9"
-            }
+            },
+            "collision": []
           }
         },
         "autumn_ground": {
@@ -27391,7 +28982,8 @@
           "height": 0,
           "image_url": "/tiles/emoji/sq_brown.png",
           "settings": {
-            "color": "#b07a46"
+            "color": "#b07a46",
+            "collision": []
           }
         },
         "house": {
@@ -27413,7 +29005,8 @@
               "spring": "#c8443c",
               "summer": "#c8443c",
               "winter": "#c8443c"
-            }
+            },
+            "collision": []
           }
         },
         "grave_dirt": {
@@ -27426,7 +29019,8 @@
           "height": 0,
           "image_url": "/tiles/emoji/sq_brown.png",
           "settings": {
-            "color": "#645541"
+            "color": "#645541",
+            "collision": []
           }
         },
         "inca_stone": {
@@ -27439,7 +29033,8 @@
           "height": 0,
           "image_url": "/tiles/emoji/sq_brown.png",
           "settings": {
-            "color": "#a09682"
+            "color": "#a09682",
+            "collision": []
           }
         },
         "water": {
@@ -27503,14 +29098,16 @@
                   "on": "load"
                 }
               }
-            ]
+            ],
+            "collision": []
           }
         },
         "water_f1": {
           "title": "Water frame 1",
           "category": "terrain",
           "settings": {
-            "color": "#4f93b3"
+            "color": "#4f93b3",
+            "collision": []
           },
           "height": 0.5,
           "glyph": null,
@@ -27523,7 +29120,8 @@
           "title": "Water frame 2",
           "category": "terrain",
           "settings": {
-            "color": "#4f93b3"
+            "color": "#4f93b3",
+            "collision": []
           },
           "height": 0.5,
           "glyph": null,
@@ -27536,7 +29134,8 @@
           "title": "Water frame 3",
           "category": "terrain",
           "settings": {
-            "color": "#4f93b3"
+            "color": "#4f93b3",
+            "collision": []
           },
           "height": 0.5,
           "glyph": null,
@@ -27565,7 +29164,8 @@
               "spring": "#ddd0a8",
               "summer": "#c8a878",
               "winter": "#aac4d8"
-            }
+            },
+            "collision": []
           }
         },
         "fire-slash": {
@@ -27587,7 +29187,8 @@
               "spring": "#ff7a2a",
               "summer": "#ff7a2a",
               "winter": "#ff7a2a"
-            }
+            },
+            "collision": []
           }
         },
         "vampire": {
@@ -27609,7 +29210,8 @@
               "spring": "#8a4a6a",
               "summer": "#8a4a6a",
               "winter": "#8a4a6a"
-            }
+            },
+            "collision": []
           }
         },
         "trunk_bottom": {
@@ -27631,7 +29233,15 @@
               "spring": "#7a5a3a",
               "summer": "#6b4a2b",
               "winter": "#8fa3b5"
-            }
+            },
+            "collision": [
+              {
+                "x": 0,
+                "y": 0,
+                "w": 1,
+                "h": 1
+              }
+            ]
           }
         },
         "fountain_t": {
@@ -27653,7 +29263,15 @@
               "spring": "#cbc4b0",
               "summer": "#cbc4b0",
               "winter": "#cbc4b0"
-            }
+            },
+            "collision": [
+              {
+                "x": 0,
+                "y": 0,
+                "w": 1,
+                "h": 1
+              }
+            ]
           }
         },
         "mushroom": {
@@ -27667,7 +29285,8 @@
           "image_url": "/tiles/emoji/baked/mushroom.png",
           "settings": {
             "color": "#d24a4a",
-            "stackAt": 0
+            "stackAt": 0,
+            "collision": []
           }
         },
         "guard": {
@@ -27689,7 +29308,8 @@
               "spring": "#c8443c",
               "summer": "#c8443c",
               "winter": "#c8443c"
-            }
+            },
+            "collision": []
           }
         },
         "wood-log": {
@@ -27711,7 +29331,8 @@
               "spring": "#a9793f",
               "summer": "#a9793f",
               "winter": "#a9793f"
-            }
+            },
+            "collision": []
           }
         },
         "alien": {
@@ -27733,7 +29354,8 @@
               "spring": "#b45ac0",
               "summer": "#b45ac0",
               "winter": "#b45ac0"
-            }
+            },
+            "collision": []
           }
         },
         "desert_road": {
@@ -27746,7 +29368,8 @@
           "height": 0,
           "image_url": "/tiles/emoji/sq_yellow.png",
           "settings": {
-            "color": "#c8aa78"
+            "color": "#c8aa78",
+            "collision": []
           }
         },
         "hotel": {
@@ -27768,7 +29391,8 @@
               "spring": "#c89a4a",
               "summer": "#c89a4a",
               "winter": "#c89a4a"
-            }
+            },
+            "collision": []
           }
         },
         "seafloor": {
@@ -27781,7 +29405,8 @@
           "height": 0,
           "image_url": "/tiles/emoji/sq_blue.png",
           "settings": {
-            "color": "#6496b4"
+            "color": "#6496b4",
+            "collision": []
           }
         },
         "glass-window": {
@@ -27803,7 +29428,8 @@
               "spring": "#7fb4d8",
               "summer": "#7fb4d8",
               "winter": "#7fb4d8"
-            }
+            },
+            "collision": []
           }
         },
         "roof_hospital": {
@@ -27826,7 +29452,15 @@
               "spring": "#2f7e50",
               "summer": "#2f7e50",
               "winter": "#2f7e50"
-            }
+            },
+            "collision": [
+              {
+                "x": 0,
+                "y": 0,
+                "w": 1,
+                "h": 1
+              }
+            ]
           }
         },
         "shamrock": {
@@ -27849,7 +29483,8 @@
               "summer": "#3fa03f",
               "winter": "#3fa03f"
             },
-            "stackAt": 0
+            "stackAt": 0,
+            "collision": []
           }
         },
         "koi_pond": {
@@ -27862,7 +29497,8 @@
           "height": 0,
           "image_url": "/tiles/emoji/sq_blue.png",
           "settings": {
-            "color": "#64b4c8"
+            "color": "#64b4c8",
+            "collision": []
           }
         },
         "autumn_leaves": {
@@ -27875,7 +29511,8 @@
           "height": 0,
           "image_url": "/tiles/emoji/sq_orange.png",
           "settings": {
-            "color": "#d2782d"
+            "color": "#d2782d",
+            "collision": []
           }
         },
         "ladybug": {
@@ -27897,7 +29534,8 @@
               "spring": "#d13b3b",
               "summer": "#d13b3b",
               "winter": "#d13b3b"
-            }
+            },
+            "collision": []
           }
         },
         "boss": {
@@ -27919,7 +29557,8 @@
               "spring": "#c0392b",
               "summer": "#c0392b",
               "winter": "#c0392b"
-            }
+            },
+            "collision": []
           }
         },
         "rooftop_unit": {
@@ -27942,7 +29581,15 @@
               "spring": "#616870",
               "summer": "#616870",
               "winter": "#616870"
-            }
+            },
+            "collision": [
+              {
+                "x": 0,
+                "y": 0,
+                "w": 1,
+                "h": 1
+              }
+            ]
           }
         },
         "trunk_mid": {
@@ -27964,7 +29611,15 @@
               "spring": "#7a5a3a",
               "summer": "#6b4a2b",
               "winter": "#8fa3b5"
-            }
+            },
+            "collision": [
+              {
+                "x": 0,
+                "y": 0,
+                "w": 1,
+                "h": 1
+              }
+            ]
           }
         },
         "office-building": {
@@ -27986,7 +29641,8 @@
               "spring": "#7f8c9a",
               "summer": "#7f8c9a",
               "winter": "#7f8c9a"
-            }
+            },
+            "collision": []
           }
         },
         "sapling": {
@@ -28008,7 +29664,8 @@
               "spring": "#7cc36a",
               "summer": "#7cc36a",
               "winter": "#7cc36a"
-            }
+            },
+            "collision": []
           }
         },
         "rune_floor": {
@@ -28021,7 +29678,8 @@
           "height": 0,
           "image_url": "/tiles/emoji/sq_blue.png",
           "settings": {
-            "color": "#64c8ff"
+            "color": "#64c8ff",
+            "collision": []
           }
         },
         "wall_brick_tr": {
@@ -28044,7 +29702,15 @@
               "spring": "#9e4b3b",
               "summer": "#9e4b3b",
               "winter": "#9e4b3b"
-            }
+            },
+            "collision": [
+              {
+                "x": 0,
+                "y": 0,
+                "w": 1,
+                "h": 1
+              }
+            ]
           }
         },
         "decor_ripple": {
@@ -28060,7 +29726,8 @@
             "color": "#8fc7e0",
             "colors": {
               "beach": "#bfe0ec"
-            }
+            },
+            "collision": []
           }
         },
         "tree_bottom_right": {
@@ -28117,7 +29784,15 @@
                 "#e8f2fa",
                 "#9fbccb"
               ]
-            }
+            },
+            "collision": [
+              {
+                "x": 0,
+                "y": 0,
+                "w": 1,
+                "h": 1
+              }
+            ]
           }
         },
         "roof_top_hospital": {
@@ -28140,7 +29815,8 @@
               "spring": "#2f7e50",
               "summer": "#2f7e50",
               "winter": "#2f7e50"
-            }
+            },
+            "collision": []
           }
         },
         "player": {
@@ -28153,7 +29829,8 @@
           "height": 0,
           "image_url": "/tiles/emoji/baked/player.png",
           "settings": {
-            "color": "#ffcf3a"
+            "color": "#ffcf3a",
+            "collision": []
           }
         },
         "adobe": {
@@ -28166,7 +29843,8 @@
           "height": 0,
           "image_url": "/tiles/emoji/sq_yellow.png",
           "settings": {
-            "color": "#c8a078"
+            "color": "#c8a078",
+            "collision": []
           }
         },
         "wall_plaster_l": {
@@ -28189,7 +29867,15 @@
               "spring": "#f0f0ea",
               "summer": "#f0f0ea",
               "winter": "#f0f0ea"
-            }
+            },
+            "collision": [
+              {
+                "x": 0,
+                "y": 0,
+                "w": 1,
+                "h": 1
+              }
+            ]
           }
         },
         "rock": {
@@ -28202,7 +29888,8 @@
           "height": 1,
           "image_url": "/tiles/emoji/baked/rock.png",
           "settings": {
-            "color": "#8a8a8a"
+            "color": "#8a8a8a",
+            "collision": []
           }
         },
         "cavefloor": {
@@ -28215,7 +29902,8 @@
           "height": 0,
           "image_url": "/tiles/emoji/baked/cavefloor.png",
           "settings": {
-            "color": "#3f3a34"
+            "color": "#3f3a34",
+            "collision": []
           }
         },
         "guardian": {
@@ -28237,7 +29925,8 @@
               "spring": "#8a8f80",
               "summer": "#8a8f80",
               "winter": "#8a8f80"
-            }
+            },
+            "collision": []
           }
         },
         "horse": {
@@ -28259,7 +29948,8 @@
               "spring": "#a9793f",
               "summer": "#a9793f",
               "winter": "#a9793f"
-            }
+            },
+            "collision": []
           }
         },
         "fountain": {
@@ -28281,7 +29971,8 @@
               "spring": "#4a90e2",
               "summer": "#4a90e2",
               "winter": "#4a90e2"
-            }
+            },
+            "collision": []
           }
         },
         "wall_stone_l": {
@@ -28304,7 +29995,15 @@
               "spring": "#8f8b82",
               "summer": "#8f8b82",
               "winter": "#8f8b82"
-            }
+            },
+            "collision": [
+              {
+                "x": 0,
+                "y": 0,
+                "w": 1,
+                "h": 1
+              }
+            ]
           }
         },
         "leaf_left": {
@@ -28361,7 +30060,8 @@
                 "#e8f2fa",
                 "#9fbccb"
               ]
-            }
+            },
+            "collision": []
           }
         },
         "mud_hut": {
@@ -28374,7 +30074,8 @@
           "height": 0,
           "image_url": "/tiles/emoji/sq_brown.png",
           "settings": {
-            "color": "#a0825a"
+            "color": "#a0825a",
+            "collision": []
           }
         },
         "roof_store": {
@@ -28397,7 +30098,15 @@
               "spring": "#235a96",
               "summer": "#235a96",
               "winter": "#235a96"
-            }
+            },
+            "collision": [
+              {
+                "x": 0,
+                "y": 0,
+                "w": 1,
+                "h": 1
+              }
+            ]
           }
         },
         "potted-plant": {
@@ -28419,7 +30128,8 @@
               "spring": "#5a9a4a",
               "summer": "#5a9a4a",
               "winter": "#5a9a4a"
-            }
+            },
+            "collision": []
           }
         },
         "bouquet": {
@@ -28442,7 +30152,8 @@
               "summer": "#e57ba0",
               "winter": "#e57ba0"
             },
-            "stackAt": 0
+            "stackAt": 0,
+            "collision": []
           }
         },
         "torch": {
@@ -28455,7 +30166,8 @@
           "height": 1,
           "image_url": "/tiles/emoji/baked/torch.png",
           "settings": {
-            "color": "#ff8a3a"
+            "color": "#ff8a3a",
+            "collision": []
           }
         },
         "lamp": {
@@ -28468,7 +30180,8 @@
           "height": 1,
           "image_url": "/tiles/emoji/baked/lamp.png",
           "settings": {
-            "color": "#ffd24a"
+            "color": "#ffd24a",
+            "collision": []
           }
         },
         "wall_brick_r": {
@@ -28491,7 +30204,15 @@
               "spring": "#9e4b3b",
               "summer": "#9e4b3b",
               "winter": "#9e4b3b"
-            }
+            },
+            "collision": [
+              {
+                "x": 0,
+                "y": 0,
+                "w": 1,
+                "h": 1
+              }
+            ]
           }
         },
         "cleave": {
@@ -28513,7 +30234,8 @@
               "spring": "#e6ebf3",
               "summer": "#e6ebf3",
               "winter": "#e6ebf3"
-            }
+            },
+            "collision": []
           }
         },
         "fountain_b": {
@@ -28535,7 +30257,15 @@
               "spring": "#cbc4b0",
               "summer": "#cbc4b0",
               "winter": "#cbc4b0"
-            }
+            },
+            "collision": [
+              {
+                "x": 0,
+                "y": 0,
+                "w": 1,
+                "h": 1
+              }
+            ]
           }
         },
         "castle": {
@@ -28557,7 +30287,8 @@
               "spring": "#9a8a7a",
               "summer": "#9a8a7a",
               "winter": "#9a8a7a"
-            }
+            },
+            "collision": []
           }
         },
         "construction-worker": {
@@ -28579,7 +30310,8 @@
               "spring": "#e5b03a",
               "summer": "#e5b03a",
               "winter": "#e5b03a"
-            }
+            },
+            "collision": []
           }
         },
         "spanish_tile": {
@@ -28592,7 +30324,8 @@
           "height": 0,
           "image_url": "/tiles/emoji/sq_yellow.png",
           "settings": {
-            "color": "#ffc896"
+            "color": "#ffc896",
+            "collision": []
           }
         },
         "tree_top_left": {
@@ -28649,7 +30382,15 @@
                 "#e8f2fa",
                 "#9fbccb"
               ]
-            }
+            },
+            "collision": [
+              {
+                "x": 0,
+                "y": 0,
+                "w": 1,
+                "h": 1
+              }
+            ]
           }
         },
         "pampas": {
@@ -28662,14 +30403,16 @@
           "height": 0,
           "image_url": "/tiles/emoji/sq_yellow.png",
           "settings": {
-            "color": "#b4c896"
+            "color": "#b4c896",
+            "collision": []
           }
         },
         "meadow": {
           "title": "Meadow",
           "category": "terrain",
           "settings": {
-            "color": "#a4ac48"
+            "color": "#a4ac48",
+            "collision": []
           },
           "height": 0.0,
           "glyph": null,
@@ -28682,7 +30425,8 @@
           "title": "Floor",
           "category": "terrain",
           "settings": {
-            "color": "#7a5c3e"
+            "color": "#7a5c3e",
+            "collision": []
           },
           "height": 0.0,
           "glyph": null,
@@ -28701,7 +30445,8 @@
           "height": 0.0,
           "image_url": "/tiles/emoji/baked/tall_grass.png",
           "settings": {
-            "color": "#3f8f38"
+            "color": "#3f8f38",
+            "collision": []
           }
         },
         "thicket": {
@@ -28717,7 +30462,15 @@
             "color": "#2f6b2a",
             "fadeNear": true,
             "display": "single",
-            "transparent": true
+            "transparent": true,
+            "collision": [
+              {
+                "x": 0,
+                "y": 0,
+                "w": 1,
+                "h": 1
+              }
+            ]
           }
         }
       },
