@@ -2728,14 +2728,25 @@ defmodule Nebulith.Catalog.TileSource do
       # each (3 / 5 / 7 cells), the same way `house_3`/`house_4`/`house_5` are the one composer called at fixed
       # sizes: the generator picks the span that fits its channel. Every tile here already exists, so none of
       # this needs new art. The steel truss of #60 does, and it is not attempted here.
+      # Spans 3 to 7. The EVEN ones exist because a span has to match the river, not round up past it:
+      # Alexander, 2026-09-12, *"would a bridge be that large, when we only have to connect a small river?? we
+      # just need something like 4 cells long x whatever the river size"*, and *"river is usually 3-4 cells wide
+      # or more"*. With only odd spans authored, a 4-wide river needed 4 plus a landing each side and rounded
+      # straight up to 7, which is the size he rejected.
       "bridge_wood_3" => %{footprint_w: 3, footprint_h: 3, category: "props", cells: bridge_cells("wooden_planks", "post", 3)},
+      "bridge_wood_4" => %{footprint_w: 4, footprint_h: 3, category: "props", cells: bridge_cells("wooden_planks", "post", 4)},
       "bridge_wood_5" => %{footprint_w: 5, footprint_h: 3, category: "props", cells: bridge_cells("wooden_planks", "post", 5)},
+      "bridge_wood_6" => %{footprint_w: 6, footprint_h: 3, category: "props", cells: bridge_cells("wooden_planks", "post", 6)},
       "bridge_wood_7" => %{footprint_w: 7, footprint_h: 3, category: "props", cells: bridge_cells("wooden_planks", "post", 7)},
       "bridge_stone_3" => %{footprint_w: 3, footprint_h: 3, category: "props", cells: bridge_cells("cobblestone", "pillar", 3)},
+      "bridge_stone_4" => %{footprint_w: 4, footprint_h: 3, category: "props", cells: bridge_cells("cobblestone", "pillar", 4)},
       "bridge_stone_5" => %{footprint_w: 5, footprint_h: 3, category: "props", cells: bridge_cells("cobblestone", "pillar", 5)},
+      "bridge_stone_6" => %{footprint_w: 6, footprint_h: 3, category: "props", cells: bridge_cells("cobblestone", "pillar", 6)},
       "bridge_stone_7" => %{footprint_w: 7, footprint_h: 3, category: "props", cells: bridge_cells("cobblestone", "pillar", 7)},
       "bridge_plank_3" => %{footprint_w: 3, footprint_h: 3, category: "props", cells: bridge_cells("bridge", "post", 3)},
+      "bridge_plank_4" => %{footprint_w: 4, footprint_h: 3, category: "props", cells: bridge_cells("bridge", "post", 4)},
       "bridge_plank_5" => %{footprint_w: 5, footprint_h: 3, category: "props", cells: bridge_cells("bridge", "post", 5)},
+      "bridge_plank_6" => %{footprint_w: 6, footprint_h: 3, category: "props", cells: bridge_cells("bridge", "post", 6)},
       "bridge_plank_7" => %{footprint_w: 7, footprint_h: 3, category: "props", cells: bridge_cells("bridge", "post", 7)},
       "well" => %{footprint_w: 5, footprint_h: 3, category: "props", cells: well_cells()},
       "fountain" => %{footprint_w: 5, footprint_h: 5, category: "props", cells: fountain_cells()},
