@@ -4053,5 +4053,19 @@
     "style": "emoji",
     "svg": "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 128 128\"><ellipse cx=\"64\" cy=\"64\" rx=\"24\" ry=\"12\" fill=\"none\" stroke=\"#f2fbff\" stroke-width=\"5\" opacity=\"0.73\"/><ellipse cx=\"64\" cy=\"64\" rx=\"44\" ry=\"22\" fill=\"none\" stroke=\"#bfe6f5\" stroke-width=\"4\" opacity=\"0.48\"/><ellipse cx=\"64\" cy=\"64\" rx=\"64\" ry=\"33\" fill=\"none\" stroke=\"#bfe6f5\" stroke-width=\"3\" opacity=\"0.23\"/></svg>",
     "emoji": "⌣"
+  },
+  {
+    "label": "water_still",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "⌷",
+    "svg": "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 128 128\"><rect width=\"128\" height=\"128\" fill=\"#a8a8a8\"/><ellipse cx=\"64\" cy=\"64\" rx=\"58\" ry=\"58\" fill=\"#8e8e8e\" opacity=\"0.35\"/><ellipse cx=\"52\" cy=\"46\" rx=\"30\" ry=\"18\" fill=\"#ffffff\" opacity=\"0.45\"/><ellipse cx=\"82\" cy=\"86\" rx=\"16\" ry=\"9\" fill=\"#ffffff\" opacity=\"0.25\"/></svg>"
+  },
+  {
+    "label": "water_still",
+    "mode": "emoji",
+    "style": "emoji",
+    "glyph": "⌷",
+    "svg": "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 128 128\"><rect width=\"128\" height=\"128\" fill=\"#8ccbe8\"/><ellipse cx=\"64\" cy=\"64\" rx=\"58\" ry=\"58\" fill=\"#6bb0d6\" opacity=\"0.35\"/><ellipse cx=\"52\" cy=\"46\" rx=\"30\" ry=\"18\" fill=\"#e6f7ff\" opacity=\"0.45\"/><ellipse cx=\"82\" cy=\"86\" rx=\"16\" ry=\"9\" fill=\"#e6f7ff\" opacity=\"0.25\"/></svg>"
   }
 ]

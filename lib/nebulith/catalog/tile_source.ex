@@ -1550,9 +1550,10 @@ defmodule Nebulith.Catalog.TileSource do
   """
   def seed_water_surface do
     for tileset <- Catalog.list_tilesets() do
-      for band <- ~w(water_shallow water_deep) do
-        Catalog.set_tile_height(tileset.id, band, 0.5)
-      end
+      # THE BANDS ARE LEFT ALONE. I dropped them from 1.0 to 0.5 reasoning "one channel surface" from the
+      # comment above, and Alexander never asked for it: *"I don't even understand what 3 means"*, and *"I
+      # don't understand any of the reasoning behind these changes, it wasn't definitely what I requested nor
+      # asked for"*. He was right. It was tidying dressed up as a fix, and it is reverted.
 
       case Repo.get_by(Tile, tileset_id: tileset.id, label: "water_shallow") do
         nil ->
@@ -1564,20 +1565,37 @@ defmodule Nebulith.Catalog.TileSource do
               tileset_id: tileset.id,
               label: "water_still",
               title: "Still water",
-              glyph: shallow.glyph,
+              glyph: "⌷",
               emoji: shallow.emoji,
-              image_url: shallow.image_url,
+              # ITS OWN PICTURE. This copied the shallow band's, which is drawn as wave paths: Alexander,
+              # 2026-09-13, *"the puddle is still using a bad tile of water that contains lines that are meant
+              # to be animated, instead of having stationary water without any current lines"*. Authored in
+              # `tiles.json` as a flat sheet with a soft sheen and no directional stroke anywhere, and baked.
+              image_url: "/tiles/#{tileset.key}/water_still.png",
               color_role: shallow.color_role,
               blocking: false,
-              height: 0.0,
-              category: "terrain",
+              # A FILM, NOT A FLOOR. A puddle is *"a small layer above it"*, so it is a thin sheet the generator
+              # STACKS on the ground rather than a ground tile that replaces it. Height 0 made it a ground
+              # replacement sitting a whole block below `meadow` (1.0), which is why he fell in: *"now I jump
+              # down due to the height difference"*.
+              height: 0.05,
+              # NOT `terrain`. It stopped being ground the moment it became a film the generator stacks ON the
+              # ground, and the category is what a thing IS. It also keeps the flat-ground contract honest:
+              # `emojiTileHeight` requires every terrain tile to be 0 blocks so it occludes nothing in the
+              # depth sort, and a 0.05 film listed as terrain would be one more quiet exception to it.
+              category: "props",
               # NO `frames`, NO `animations`: a puddle does not flow. The colour is the shallow band's own, so
               # a still pool reads as water rather than as a new blue nobody chose.
               # `animations: []` is a STATEMENT, not an omission. The frontend collapses every water-ish
               # label to the kind `water` so the bands can share one picture and one set of frames, and that
               # collapse would hand a puddle the river's current. An EMPTY list says "this tile has none",
               # which is a different thing from saying nothing and inheriting.
-              settings: %{"color" => (shallow.settings || %{})["color"], "animations" => []}
+              settings: %{
+                "color" => (shallow.settings || %{})["color"],
+                "animations" => [],
+                # Nothing stands ON a puddle: whatever is in the cell sits at the floor, with the film over it.
+                "stackAt" => 0
+              }
             })
       end
     end
