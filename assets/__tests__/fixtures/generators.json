@@ -1478,7 +1478,21 @@
                   }
                 ],
                 "undergrowth": 0.5,
-                "weight": 3
+                "weight": 3,
+                "flowers": [
+                  {
+                    "char": "✿",
+                    "color": "#c2513f"
+                  },
+                  {
+                    "char": "✾",
+                    "color": "#8d5fa8"
+                  },
+                  {
+                    "char": "❋",
+                    "color": "#c9b063"
+                  }
+                ]
               },
               {
                 "canopy": 1.3,
@@ -1509,7 +1523,21 @@
                   }
                 ],
                 "undergrowth": 1.45,
-                "weight": 4
+                "weight": 4,
+                "flowers": [
+                  {
+                    "char": "✿",
+                    "color": "#c2513f"
+                  },
+                  {
+                    "char": "✾",
+                    "color": "#8d5fa8"
+                  },
+                  {
+                    "char": "❋",
+                    "color": "#c9b063"
+                  }
+                ]
               },
               {
                 "canopy": 0.85,
@@ -1583,7 +1611,21 @@
                   }
                 ],
                 "undergrowth": 0.65,
-                "weight": 2
+                "weight": 2,
+                "flowers": [
+                  {
+                    "char": "✿",
+                    "color": "#c2513f"
+                  },
+                  {
+                    "char": "✾",
+                    "color": "#8d5fa8"
+                  },
+                  {
+                    "char": "❋",
+                    "color": "#c9b063"
+                  }
+                ]
               }
             ],
             "trees": [
@@ -1878,7 +1920,21 @@
                       }
                     ],
                     "undergrowth": 0.5,
-                    "weight": 1
+                    "weight": 1,
+                    "flowers": [
+                      {
+                        "char": "✿",
+                        "color": "#c2513f"
+                      },
+                      {
+                        "char": "✾",
+                        "color": "#8d5fa8"
+                      },
+                      {
+                        "char": "❋",
+                        "color": "#c9b063"
+                      }
+                    ]
                   },
                   {
                     "canopy": 1.3,
@@ -1909,7 +1965,21 @@
                       }
                     ],
                     "undergrowth": 1.45,
-                    "weight": 5
+                    "weight": 5,
+                    "flowers": [
+                      {
+                        "char": "✿",
+                        "color": "#c2513f"
+                      },
+                      {
+                        "char": "✾",
+                        "color": "#8d5fa8"
+                      },
+                      {
+                        "char": "❋",
+                        "color": "#c9b063"
+                      }
+                    ]
                   }
                 ],
                 "trees": [
@@ -2941,7 +3011,21 @@
                       }
                     ],
                     "undergrowth": 0.5,
-                    "weight": 2
+                    "weight": 2,
+                    "flowers": [
+                      {
+                        "char": "✿",
+                        "color": "#c2513f"
+                      },
+                      {
+                        "char": "✾",
+                        "color": "#8d5fa8"
+                      },
+                      {
+                        "char": "❋",
+                        "color": "#c9b063"
+                      }
+                    ]
                   },
                   {
                     "canopy": 1.3,
@@ -2972,7 +3056,21 @@
                       }
                     ],
                     "undergrowth": 1.45,
-                    "weight": 2
+                    "weight": 2,
+                    "flowers": [
+                      {
+                        "char": "✿",
+                        "color": "#c2513f"
+                      },
+                      {
+                        "char": "✾",
+                        "color": "#8d5fa8"
+                      },
+                      {
+                        "char": "❋",
+                        "color": "#c9b063"
+                      }
+                    ]
                   },
                   {
                     "canopy": 0.55,
@@ -3004,7 +3102,21 @@
                       }
                     ],
                     "undergrowth": 0.65,
-                    "weight": 5
+                    "weight": 5,
+                    "flowers": [
+                      {
+                        "char": "✿",
+                        "color": "#c2513f"
+                      },
+                      {
+                        "char": "✾",
+                        "color": "#8d5fa8"
+                      },
+                      {
+                        "char": "❋",
+                        "color": "#c9b063"
+                      }
+                    ]
                   }
                 ],
                 "trees": [

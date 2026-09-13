@@ -63,17 +63,27 @@ describe('an island jungle grows coastal things', () => {
   })
 })
 
-describe('the variants that said nothing are untouched', () => {
-  it('a plain jungle keeps the shared regions exactly as they were', () => {
-    // The override is per variant. If this ever gains blooms, the shared list was edited by mistake and every
-    // jungle changed with it.
-    expect(region('forest_jungle', 'open').flowers).toBeUndefined()
-    expect(region('forest_jungle', 'dense').flowers).toBeUndefined()
-    expect(species('forest_jungle', 'open')).toContain('tree_palm')
-    expect(species('forest_jungle', 'dense')).toContain('tree_giant')
+describe('NO jungle anywhere falls through to the season', () => {
+  /**
+   * Measured 2026-09-13, and it is why he saw the daisies again after the swamp was fixed: giving the SWAMP
+   * variant its own regions did nothing for the plain jungle, whose shared `open`, `dense` and `ruins` still
+   * stated no blooms and so planted summer's near-white. A rainforest floor is not a daisy meadow.
+   */
+  it.each(['open', 'dense', 'ruins', 'swamp'])('the shared %s region states its own blooms', name => {
+    expect(region('forest_jungle', name).flowers ?? []).not.toHaveLength(0)
   })
 
-  it('the plain jungle STILL carries the swamp region it always had', () => {
-    expect(region('forest_jungle', 'swamp').flowers ?? []).not.toHaveLength(0)
+  it('every region of every jungle variant, with none left on the season', () => {
+    for (const key of ['forest_jungle', 'forest_jungle_swamp', 'forest_jungle_island', 'forest_jungle_dense', 'forest_jungle_ruins']) {
+      const bare = regions(key).filter(z => (z.flowers ?? []).length === 0).map(z => z.key)
+      expect({ key, bare }).toEqual({ key, bare: [] })
+    }
+  })
+
+  it('the SPECIES still differ per variant, so shared blooms did not flatten them', () => {
+    // The blooms are shared; the trees are not. Island is palms, swamp is cypress, plain is the giant.
+    expect(species('forest_jungle_island', 'open')).toContain('tree_palm')
+    expect(species('forest_jungle_swamp', 'open')).toContain('tree_cypress')
+    expect(species('forest_jungle', 'dense')).toContain('tree_giant')
   })
 })
