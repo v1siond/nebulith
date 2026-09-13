@@ -107,6 +107,7 @@ defmodule Nebulith.Catalog.TileSource do
     seed_floor_tiles(ascii_id, emoji_id)
     seed_water_color()
     seed_water_surface()
+    seed_water_current()
     seed_autotile_pieces(ascii_id, emoji_id)
     seed_tree_pieces(ascii_id, emoji_id, ascii["palettes"])
     seed_parity_tiles(ascii_id, emoji_id)
@@ -1791,6 +1792,73 @@ defmodule Nebulith.Catalog.TileSource do
 
   # The ambient loop itself, as the engine's own sprite envelope: a tile carries its animation as DATA, so the
   # renderer plays what the backend authored instead of a hardcoded cycle.
+  @doc """
+  FOUR CURRENTS, one per heading, so a river flows the way it actually runs.
+
+  Alexander, 2026-09-13: *"all water current animation is in this direction \\, but the river goes around the
+  map, there should be a current direction that goes around with the river"*, with image #9 drawing the three
+  headings on a ring.
+
+  The drift is baked into the pictures and one picture cannot know its cell's heading, so there has to be a set
+  per heading. There are only TWO baked sets, not four: a floor is drawn through `ctx.transform(eA, eB)`, so a
+  shift inside the texture lands along an iso axis, which makes the four headings ±x and ±y in texture space.
+  `water_y*` is the x set transposed, and the negatives are the same frames played in reverse.
+
+  The cell picks one by the `flow` the generator wrote (`flowField`), matched by animation id.
+  """
+  def seed_water_current do
+    for tileset <- Catalog.list_tilesets() do
+      base = Repo.get_by(Tile, tileset_id: tileset.id, label: "water")
+
+      if base do
+        # The transposed frames need rows of their own, because a sprite frame is resolved by LABEL in the
+        # style's catalog, never by path.
+        for i <- 0..3 do
+          label = if i == 0, do: "water_y", else: "water_y_f#{i}"
+
+          {:ok, _} =
+            Catalog.upsert_tile(%{
+              tileset_id: tileset.id,
+              label: label,
+              glyph: base.glyph,
+              emoji: base.emoji,
+              color_role: base.color_role,
+              blocking: base.blocking,
+              height: base.height,
+              category: base.category,
+              image_url: "/tiles/#{tileset.key}/#{label}.png",
+              settings: %{"color" => (base.settings || %{})["color"]}
+            })
+        end
+
+        x_set = ["water", "water_f1", "water_f2", "water_f3"]
+        y_set = ["water_y", "water_y_f1", "water_y_f2", "water_y_f3"]
+
+        currents =
+          [{0, x_set}, {1, y_set}, {2, Enum.reverse(x_set)}, {3, Enum.reverse(y_set)}]
+          |> Enum.map(fn {dir, labels} -> water_current(tileset.key, dir, labels) end)
+
+        Catalog.put_tile_setting(tileset.id, "water", "animations", currents ++ [water_translucence()])
+      end
+    end
+
+    IO.puts("four water currents seeded, one per heading")
+    :ok
+  end
+
+  # One heading's loop. The id is what the frontend matches a cell's `flow` against.
+  defp water_current(style, dir, labels) do
+    %{
+      "id" => "water_flow_#{dir}",
+      "name" => "current #{dir}",
+      "kind" => "sprite",
+      "durationMs" => @water_frame_ms,
+      "loop" => true,
+      "trigger" => %{"on" => "load"},
+      "frames" => Enum.map(labels, fn label -> %{"tileId" => "#{style}:#{label}"} end)
+    }
+  end
+
   defp water_ripple(style, labels) do
     %{
       "id" => "water_ripple",
