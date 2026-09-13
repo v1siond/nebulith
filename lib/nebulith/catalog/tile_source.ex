@@ -2161,8 +2161,39 @@ defmodule Nebulith.Catalog.TileSource do
         end
       end)
 
-    IO.puts("agreed #{length(written)} per-label colour maps across styles (a colour is a fact about the thing, not the picture)")
+    plain = Enum.flat_map(by_label, fn {label, tiles} -> fill_blank_color(tilesets, tiles, label) end)
+
+    IO.puts("agreed #{length(written)} per-label colour maps and #{length(plain)} plain colours across styles")
     :ok
+  end
+
+  # THE PLAIN `color` KEY, agreed the same way as the per-zone map above.
+  #
+  # Alexander, 2026-09-13: *"the pathways and exits aren't working on any template generator"*. The woodland's
+  # trail was invisible and this was the last link in the chain. `path` carries `#9c7b4d` in emoji and NOTHING
+  # in ascii, and the generator resolves a ground colour through the ASCII catalog, so `groundTileColor("path")`
+  # fell through to the season's grass. The trail was painted the exact colour of the field it crossed.
+  #
+  # The rule above only ever agreed the per-zone `colors` MAP, so a label whose colour is the single `color`
+  # key was skipped by it entirely. Same principle, same guard: copied only INTO a style that states none, and
+  # never invented where no style has one.
+  defp fill_blank_color(tilesets, tiles, label) do
+    tiles
+    |> Enum.find_value(fn tile -> (tile.settings || %{})["color"] end)
+    |> paint_blank_colors(tilesets, tiles, label)
+  end
+
+  # No style states a colour for this label: nothing to agree, and a colour is never invented here.
+  defp paint_blank_colors(canonical, _tilesets, _tiles, _label) when not is_binary(canonical), do: []
+
+  defp paint_blank_colors(canonical, tilesets, tiles, label) do
+    for tileset <- tilesets,
+        tile = Enum.find(tiles, &(&1.tileset_id == tileset.id)),
+        tile != nil,
+        is_nil((tile.settings || %{})["color"]) do
+      Catalog.put_tile_setting(tileset.id, label, "color", canonical)
+      label
+    end
   end
 
   # The label's per-zone colour map, from whichever style authored one. Nil when no style did, in which case
@@ -2852,6 +2883,16 @@ defmodule Nebulith.Catalog.TileSource do
     :ok
   end
 
+  # The rail colours. A WOODEN bridge's rail is the darker wood under its own deck (`wooden_planks` is
+  # #aa8250), and a STONE bridge's is the pillar tile's own stone. Both are the family's material said once,
+  # not a new palette: the shared `post` tile stays charcoal for the lamp post that actually wants it.
+  @wood_rail "#8a6a45"
+  @stone_rail "#b9b2a3"
+
+  @deck_thickness 0.09
+  @rail_height 0.42
+  @rail_thickness 0.16
+
   defp seed_new_compositions do
     for {name, %{footprint_w: w, footprint_h: h, cells: cells} = comp} <- compositions() do
       {:ok, _} =
@@ -3046,21 +3087,21 @@ defmodule Nebulith.Catalog.TileSource do
       # just need something like 4 cells long x whatever the river size"*, and *"river is usually 3-4 cells wide
       # or more"*. With only odd spans authored, a 4-wide river needed 4 plus a landing each side and rounded
       # straight up to 7, which is the size he rejected.
-      "bridge_wood_3" => %{footprint_w: 3, footprint_h: 3, category: "props", cells: bridge_cells("wooden_planks", "post", 3)},
-      "bridge_wood_4" => %{footprint_w: 4, footprint_h: 3, category: "props", cells: bridge_cells("wooden_planks", "post", 4)},
-      "bridge_wood_5" => %{footprint_w: 5, footprint_h: 3, category: "props", cells: bridge_cells("wooden_planks", "post", 5)},
-      "bridge_wood_6" => %{footprint_w: 6, footprint_h: 3, category: "props", cells: bridge_cells("wooden_planks", "post", 6)},
-      "bridge_wood_7" => %{footprint_w: 7, footprint_h: 3, category: "props", cells: bridge_cells("wooden_planks", "post", 7)},
-      "bridge_stone_3" => %{footprint_w: 3, footprint_h: 3, category: "props", cells: bridge_cells("cobblestone", "pillar", 3)},
-      "bridge_stone_4" => %{footprint_w: 4, footprint_h: 3, category: "props", cells: bridge_cells("cobblestone", "pillar", 4)},
-      "bridge_stone_5" => %{footprint_w: 5, footprint_h: 3, category: "props", cells: bridge_cells("cobblestone", "pillar", 5)},
-      "bridge_stone_6" => %{footprint_w: 6, footprint_h: 3, category: "props", cells: bridge_cells("cobblestone", "pillar", 6)},
-      "bridge_stone_7" => %{footprint_w: 7, footprint_h: 3, category: "props", cells: bridge_cells("cobblestone", "pillar", 7)},
-      "bridge_plank_3" => %{footprint_w: 3, footprint_h: 3, category: "props", cells: bridge_cells("bridge", "post", 3)},
-      "bridge_plank_4" => %{footprint_w: 4, footprint_h: 3, category: "props", cells: bridge_cells("bridge", "post", 4)},
-      "bridge_plank_5" => %{footprint_w: 5, footprint_h: 3, category: "props", cells: bridge_cells("bridge", "post", 5)},
-      "bridge_plank_6" => %{footprint_w: 6, footprint_h: 3, category: "props", cells: bridge_cells("bridge", "post", 6)},
-      "bridge_plank_7" => %{footprint_w: 7, footprint_h: 3, category: "props", cells: bridge_cells("bridge", "post", 7)},
+      "bridge_wood_3" => %{footprint_w: 3, footprint_h: 3, category: "props", cells: bridge_cells("wooden_planks", "post", 3, @wood_rail)},
+      "bridge_wood_4" => %{footprint_w: 4, footprint_h: 3, category: "props", cells: bridge_cells("wooden_planks", "post", 4, @wood_rail)},
+      "bridge_wood_5" => %{footprint_w: 5, footprint_h: 3, category: "props", cells: bridge_cells("wooden_planks", "post", 5, @wood_rail)},
+      "bridge_wood_6" => %{footprint_w: 6, footprint_h: 3, category: "props", cells: bridge_cells("wooden_planks", "post", 6, @wood_rail)},
+      "bridge_wood_7" => %{footprint_w: 7, footprint_h: 3, category: "props", cells: bridge_cells("wooden_planks", "post", 7, @wood_rail)},
+      "bridge_stone_3" => %{footprint_w: 3, footprint_h: 3, category: "props", cells: bridge_cells("cobblestone", "pillar", 3, @stone_rail)},
+      "bridge_stone_4" => %{footprint_w: 4, footprint_h: 3, category: "props", cells: bridge_cells("cobblestone", "pillar", 4, @stone_rail)},
+      "bridge_stone_5" => %{footprint_w: 5, footprint_h: 3, category: "props", cells: bridge_cells("cobblestone", "pillar", 5, @stone_rail)},
+      "bridge_stone_6" => %{footprint_w: 6, footprint_h: 3, category: "props", cells: bridge_cells("cobblestone", "pillar", 6, @stone_rail)},
+      "bridge_stone_7" => %{footprint_w: 7, footprint_h: 3, category: "props", cells: bridge_cells("cobblestone", "pillar", 7, @stone_rail)},
+      "bridge_plank_3" => %{footprint_w: 3, footprint_h: 3, category: "props", cells: bridge_cells("bridge", "post", 3, @wood_rail)},
+      "bridge_plank_4" => %{footprint_w: 4, footprint_h: 3, category: "props", cells: bridge_cells("bridge", "post", 4, @wood_rail)},
+      "bridge_plank_5" => %{footprint_w: 5, footprint_h: 3, category: "props", cells: bridge_cells("bridge", "post", 5, @wood_rail)},
+      "bridge_plank_6" => %{footprint_w: 6, footprint_h: 3, category: "props", cells: bridge_cells("bridge", "post", 6, @wood_rail)},
+      "bridge_plank_7" => %{footprint_w: 7, footprint_h: 3, category: "props", cells: bridge_cells("bridge", "post", 7, @wood_rail)},
       "well" => %{footprint_w: 5, footprint_h: 3, category: "props", cells: well_cells()},
       "fountain" => %{footprint_w: 5, footprint_h: 5, category: "props", cells: fountain_cells()},
       # LIGHT POSTS — a composition, NOT a single lamp tile (Alexander: "light posts should be a composition of a
@@ -3083,6 +3124,22 @@ defmodule Nebulith.Catalog.TileSource do
       # The browseable palette shows ONE "Lamp post" (category "props"); the FAILING variant is a generator-only
       # flavour (~18% of stamped lamps), so it carries NO category → it renders on the map but is NOT a duplicate
       # palette entry (Alexander #45 "remove duplicated lamp post options").
+      # WHERE A MAP LETS YOU OUT, as a thing you can SEE. Alexander, 2026-09-13: *"it's also really important
+      # to have visual indicators of the exit, like maybe we always put a light or something ... let's add exit
+      # or pathway exit objects, we can add castle doors, white light, pokemon like indicators, etc"*, and
+      # *"we can ut a few trees at the sides of the exit/entrance pathway with the visual indicator selected"*.
+      #
+      # A DEFAULT ONE NOW, MORE LATER, in his own words: *"we can have a default one for now and expand later
+      # with more types"*. So this is a FAMILY keyed by the kind of place you are walking into, and the
+      # generator asks for one by name. Two are authored here: the plain way out of a wood, and the one he
+      # described for a jungle, *"going into a deeper jungle exit would have a lot of trees outside indicating
+      # we're going deeper into de forest"*. Adding a castle door or a shrine gate is another entry, no code.
+      #
+      # THE MIDDLE STAYS WALKABLE. The gate straddles a 3-wide pathway, so the marker is a light standing at
+      # the side of the mouth and the flanks are what narrow it. A composition that blocked its own middle
+      # would seal the exit it is advertising.
+      "exit_gate" => exit_gate_composition("tree_small", 1),
+      "exit_gate_deep_forest" => exit_gate_composition("tree_conifer", 2),
       "lamp_post" => lamp_post_composition([bulb_night_lit_anim()], "props"),
       "lamp_post_failing" => lamp_post_composition([bulb_night_lit_anim(), lamp_flicker_anim()], nil)
     }
@@ -3094,6 +3151,36 @@ defmodule Nebulith.Catalog.TileSource do
   # top. `nil` → no animation (kept for callers that want a plain bulb). Everything else — structure, the tuned
   # post/bulb settings, the `light` glow pool — is IDENTICAL, so a failing lamp is a lit lamp whose bulb flickers.
   # The STRUCTURE is style-agnostic (only the baked `post`/`lamp` ART differs per style).
+  # The exit marker's own glow. WHITE, because that is what he named ("white light"), and brighter than a lamp
+  # so it reads as a way out from across the map rather than as street furniture.
+  @exit_light %{"intensity" => 1.2, "distance" => 4.0, "color" => "#eaf6ff", "on" => true}
+
+  @doc false
+  # One gate: a lit marker at the mouth with `flank_depth` rows of trees to either side of the way through.
+  # `footprint_h` is `flank_depth + 1` so a deeper flank is a deeper thicket, which is the whole difference
+  # between walking out of a wood and walking into a jungle.
+  defp exit_gate_composition(tree_label, flank_depth) do
+    width = 3
+
+    marker = [
+      %{dx: 1, dy: 0, level: 0, label: "lamp", walkable: true, scale: 0.55,
+        settings: %{"display" => "single", "pose" => %{"dy" => -1.1}, "light" => @exit_light}}
+    ]
+
+    # The flanks: trees down both edges, never in the middle column, so the way through stays open.
+    flanks =
+      for dy <- 0..(flank_depth - 1), dx <- [0, width - 1] do
+        %{dx: dx, dy: dy + 1, level: 0, label: tree_label, walkable: false}
+      end
+
+    %{
+      footprint_w: width,
+      footprint_h: flank_depth + 1,
+      category: "props",
+      cells: marker ++ flanks
+    }
+  end
+
   defp lamp_post_composition(bulb_animations, category) do
     # `light` is a real, controllable SETTING (Alexander: "control the light intensity and distance"): the bulb
     # casts a warm ground GLOW POOL at night, sized by `distance` (cells), strengthened/tinted by `intensity`/
@@ -3256,31 +3343,45 @@ defmodule Nebulith.Catalog.TileSource do
   # column index dx-1 = 0..2).
   # ONE bridge, at a given span: a walkable DECK down the middle with a RAIL either side.
   #
-  # `dy 1` is the deck, `dy 0` and `dy 2` the rails, so the footprint is span x 3 and you cross along +dx. The
-  # deck is the ONLY walkable row, which is what makes a bridge a bridge rather than a slab: you are on it, not
-  # on the water, and the rails read as structure from every camera angle.
+  # `dy 1` is the deck, `dy 0` and `dy 2` the rails, so the footprint is span x 3 and you cross along +dx.
   #
-  # The rails are the SAME tile at two heights: a tall POST at each end (the abutment), a low run between them
-  # (the handrail). One cell per (dx,dy) on purpose, never a post and a rail in the same block, because the
-  # backend sweep refuses two cells sharing a block and it was right to.
+  # THE DECK IS FLAT, AND IT HAS TO SAY SO PER CELL. Alexander, 2026-09-13: *"why do we have those white boxes
+  # in middle? what the fuck are those squished black boxes??"*. The deck tile (`wooden_planks`) is height 0 in
+  # the catalog and it made no difference, because `compositionCellRender` assigns `height: 1` to EVERY
+  # composition cell on purpose ("a tile is pure ART — it does NOT carry height"). So each plank extruded into
+  # a cube and the bridge came out a row of open crates. `scaleY` is the per-cell mechanism that already
+  # exists for exactly this (the lamp post is one cell drawn seven tall), so the deck states its own thinness.
   #
-  # `scaleZ` thins the rail so it sits on the deck's edge instead of filling its whole cell, the same setting a
-  # door uses to be a panel in a wall rather than a cube.
-  defp bridge_cells(deck_label, rail_label, span) do
-    deck = for dx <- 0..(span - 1), do: %{dx: dx, dy: 1, level: 0, label: deck_label, walkable: true}
+  # THE RAILS ARE ONE TILE EACH, NOT ONE PER CELL. Alexander, 2026-09-12: *"you can use less tiles to make the
+  # sides too, with z-width"*, with the doors as the model. A rail is a single cell given `depth: span` along
+  # the crossing axis, which is the same directional-depth a roof deck uses: two tiles for two rails at any
+  # span, instead of `2 x span` cubes. `scaleZ` keeps it a thin panel on the deck's edge rather than a wall,
+  # and `scaleY` keeps it hand height rather than a full block.
+  #
+  # A WOODEN BRIDGE HAS WOODEN RAILS. `post` is shared with the lamp post and is authored charcoal (#43474d),
+  # which is right for a lamp and wrong here, so the CELL states its colour (the per-cell `settings.color` the
+  # stamp already honours) rather than the shared tile being repainted for one caller.
+  defp bridge_cells(deck_label, rail_label, span, rail_color) do
+    deck =
+      for dx <- 0..(span - 1) do
+        %{dx: dx, dy: 1, level: 0, label: deck_label, walkable: true,
+          settings: %{"scaleY" => @deck_thickness}}
+      end
 
+    # ONE cell per side, spanning the whole crossing through z-width (`depth` + `depthDir`).
     rails =
-      for dx <- 0..(span - 1), dy <- [0, 2] do
-        abutment? = dx == 0 or dx == span - 1
-
-        %{
-          dx: dx,
-          dy: dy,
-          level: 0,
-          label: rail_label,
-          walkable: false,
-          settings: %{"scaleY" => if(abutment?, do: 1.15, else: 0.45), "scaleZ" => 0.3}
-        }
+      for dy <- [0, 2] do
+        %{dx: 0, dy: dy, level: 0, label: rail_label, walkable: false,
+          settings: %{
+            "scaleY" => @rail_height,
+            # NO `scaleZ` ALONGSIDE `depth`. Thickness and directional depth are two different shapes of the
+            # same block and setting both put the rail off its own deck when rendered: `depth` already says
+            # "one block extruded along this diagonal", and `scaleZ` then shrank the box it was extruding.
+            # Rendered and looked at, which is the only way this was ever going to be settled.
+            "depth" => span,
+            "depthDir" => "right-down",
+            "color" => rail_color
+          }}
       end
 
     deck ++ rails
