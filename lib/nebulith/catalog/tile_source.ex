@@ -1792,65 +1792,47 @@ defmodule Nebulith.Catalog.TileSource do
 
   # The ambient loop itself, as the engine's own sprite envelope: a tile carries its animation as DATA, so the
   # renderer plays what the backend authored instead of a hardcoded cycle.
+  # The frame rows the four-heading experiment created, deleted by `seed_water_current/0`. Named so the delete
+  # reads as a statement about the vocabulary rather than a string literal in a loop.
+  @transposed_water ~w(water_y water_y_f1 water_y_f2 water_y_f3)
+
   @doc """
-  FOUR CURRENTS, one per heading, so a river flows the way it actually runs.
+  ONE CURRENT, turned per cell by the renderer, so a river flows the way it actually runs.
 
-  Alexander, 2026-09-13: *"all water current animation is in this direction \\, but the river goes around the
-  map, there should be a current direction that goes around with the river"*, with image #9 drawing the three
-  headings on a ring.
+  Alexander, 2026-09-13: *"why are we doing water svg?? we should use the backend pngs, if anything is new it
+  should be backend tiles, we should build water with regular tileset animation, which doesn't use svg"*.
 
-  The drift is baked into the pictures and one picture cannot know its cell's heading, so there has to be a set
-  per heading. There are only TWO baked sets, not four: a floor is drawn through `ctx.transform(eA, eB)`, so a
-  shift inside the texture lands along an iso axis, which makes the four headings ±x and ±y in texture space.
-  `water_y*` is the x set transposed, and the negatives are the same frames played in reverse.
+  He is right, and this function is where I got it wrong. My first answer to *"there should be a current
+  direction that goes around with the river"* was to BAKE the direction in: a second frame set (`water_y*`)
+  transposed from the first, plus both played in reverse, so four frame sets and four animations, and a cell
+  chose one by id. That is eight PNGs and four animations to express a rotation.
 
-  The cell picks one by the `flow` the generator wrote (`flowField`), matched by animation id.
+  A rotation is free. A floor face is painted by mapping the unit texture square onto it with two basis
+  vectors (`ctx.transform(eA, eB)`), so turning the picture a quarter turn is permuting those two vectors:
+  `turnFaceTexture` on the frontend, driven by the cell's own `flow`. So the catalog carries what it always
+  carried, ONE water loop over `water`/`water_f1..f3`, and the eight transposed rows are deleted here.
   """
   def seed_water_current do
     for tileset <- Catalog.list_tilesets() do
-      base = Repo.get_by(Tile, tileset_id: tileset.id, label: "water")
+      # The transposed set is gone: a heading is a texture turn at draw time, not a picture. Deleting rather
+      # than leaving them is what keeps the two styles 1:1 and the editor's library free of dead art.
+      Catalog.delete_tiles_by_label(tileset.id, @transposed_water)
 
-      if base do
-        # The transposed frames need rows of their own, because a sprite frame is resolved by LABEL in the
-        # style's catalog, never by path.
-        for i <- 0..3 do
-          label = if i == 0, do: "water_y", else: "water_y_f#{i}"
-
-          {:ok, _} =
-            Catalog.upsert_tile(%{
-              tileset_id: tileset.id,
-              label: label,
-              glyph: base.glyph,
-              emoji: base.emoji,
-              color_role: base.color_role,
-              blocking: base.blocking,
-              height: base.height,
-              category: base.category,
-              image_url: "/tiles/#{tileset.key}/#{label}.png",
-              settings: %{"color" => (base.settings || %{})["color"]}
-            })
-        end
-
-        x_set = ["water", "water_f1", "water_f2", "water_f3"]
-        y_set = ["water_y", "water_y_f1", "water_y_f2", "water_y_f3"]
-
-        currents =
-          [{0, x_set}, {1, y_set}, {2, Enum.reverse(x_set)}, {3, Enum.reverse(y_set)}]
-          |> Enum.map(fn {dir, labels} -> water_current(tileset.key, dir, labels) end)
-
-        Catalog.put_tile_setting(tileset.id, "water", "animations", currents ++ [water_translucence()])
+      if Repo.get_by(Tile, tileset_id: tileset.id, label: "water") do
+        current = water_current(tileset.key, ["water", "water_f1", "water_f2", "water_f3"])
+        Catalog.put_tile_setting(tileset.id, "water", "animations", [current, water_translucence()])
       end
     end
 
-    IO.puts("four water currents seeded, one per heading")
+    IO.puts("one water current seeded; the per-heading frame sets are deleted")
     :ok
   end
 
-  # One heading's loop. The id is what the frontend matches a cell's `flow` against.
-  defp water_current(style, dir, labels) do
+  # The ambient loop. The renderer turns it per cell; there is nothing directional in the DATA.
+  defp water_current(style, labels) do
     %{
-      "id" => "water_flow_#{dir}",
-      "name" => "current #{dir}",
+      "id" => "water_flow",
+      "name" => "current",
       "kind" => "sprite",
       "durationMs" => @water_frame_ms,
       "loop" => true,
@@ -2532,15 +2514,31 @@ defmodule Nebulith.Catalog.TileSource do
   # `stackAt` is that split, and it is his own description: 1 is the top face (the default, and what every
   # tile did before), 0 is the bottom face. A plant you walk through gets 0, so whatever follows lands at its
   # feet while the picture still stands at full height.
+  #
+  # AND YOU WALK THROUGH THEM. Alexander, 2026-09-13, on the understory carpeting a swamp jungle: *"you see
+  # those small green things? I SHOULD BE ABLE TO WALK THROUGH THEM, BUT THEY FUCKING HAVE COLLISIONS, I'VE
+  # REQUESTED TO FIX THAT FOR 3 STRAIGHT SESSIONS AND IT'S STILL NOT FIXED."*
+  #
+  # He is right, and the reason it survived three sessions is that the fix was looked for in the GENERATOR
+  # every time. It was never there. `makePlant` reads the tile and writes `blocking: !tile.walkable`, so a
+  # plant blocks because its CATALOG ROW says it blocks, and `thicket` was the one plant row in the whole
+  # catalog with `blocking: true` (measured against live: every other nature tile is already false). It is
+  # also the understory of the `closed` and `understory` formations, which is exactly the swamp jungle he
+  # was standing in. One boolean, on one row, in the backend where walkability belongs.
+  #
+  # So the rule writes BOTH facts about a ground plant: it stands at your feet (`stackAt: 0`) and you pass
+  # through it (`blocking: false`). They are the same statement said twice, and keeping them in one list is
+  # what stops the next plant from arriving with one of the two missing.
   @ground_plants ~w(blossom bouquet clover flower hibiscus mushroom red-mushroom rose shamrock sunflower
-                    tulip wilted-flower wheat bush shrub fallen-leaf maple-leaf)
+                    tulip wilted-flower wheat bush shrub fallen-leaf maple-leaf thicket tall_grass)
 
   @doc "Does this label stand at ground level, so nothing stacks on top of it? The rule `ensure_ground_plants/0` writes."
   def ground_plant?(label), do: label in @ground_plants
 
   @doc """
-  Gives every ground plant `stackAt: 0`, in every tileset, writing ONLY that key
-  (`Catalog.put_tile_setting/4`) so poses and sizes tuned in the editor survive.
+  Gives every ground plant `stackAt: 0` AND `blocking: false`, in every tileset, writing ONLY those two
+  facts (`Catalog.put_tile_setting/4`, `Catalog.set_tile_blocking/3`) so poses and sizes tuned in the
+  editor survive.
 
   Runs alongside `ensure_fade_near/0` for the same reason: these labels are written by several passes and
   this has to land after all of them.
@@ -2549,10 +2547,11 @@ defmodule Nebulith.Catalog.TileSource do
     written =
       for tileset <- Catalog.list_tilesets(), tile <- Catalog.list_tiles_for(tileset.key), ground_plant?(tile.label) do
         Catalog.put_tile_setting(tileset.id, tile.label, "stackAt", 0)
+        Catalog.set_tile_blocking(tileset.id, tile.label, false)
         tile.label
       end
 
-    IO.puts("#{length(written)} ground plants stack at their base, not on their top face")
+    IO.puts("#{length(written)} ground plants stack at their base and let you walk through them")
     :ok
   end
 

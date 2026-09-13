@@ -198,6 +198,29 @@ defmodule Nebulith.Catalog do
   end
 
   @doc """
+  Deletes the (tileset_id, label) tiles by label. Returns `{deleted_count, nil}`.
+
+  A label that no longer exists in the vocabulary has to LEAVE the catalog, or the 1:1 style-parity tests and
+  the editor's tile library keep serving art nothing draws.
+  """
+  def delete_tiles_by_label(tileset_id, labels) when is_list(labels) do
+    from(t in Tile, where: t.tileset_id == ^tileset_id and t.label in ^labels)
+    |> Repo.delete_all()
+  end
+
+  @doc """
+  Sets ONLY the `blocking` column of the (tileset_id, label) tile. Pose-safe, like `set_tile_height`.
+
+  Whether you can walk through a tile is a fact about the LABEL, not about a pose or a size, so it is
+  reconciled the same surgical way: a full upsert would `replace_all` the settings and clobber every
+  editor-tuned pose on the row. Returns `{updated_count, nil}`.
+  """
+  def set_tile_blocking(tileset_id, label, blocking) do
+    from(t in Tile, where: t.tileset_id == ^tileset_id and t.label == ^label)
+    |> Repo.update_all(set: [blocking: blocking, updated_at: DateTime.truncate(DateTime.utc_now(), :second)])
+  end
+
+  @doc """
   Sets ONLY the `image_url` column. Pose-safe, like `set_tile_height`.
   """
   def set_tile_image(tileset_id, label, image_url) do
