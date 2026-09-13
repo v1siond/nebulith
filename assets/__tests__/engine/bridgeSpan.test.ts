@@ -1,0 +1,63 @@
+/**
+ * WHICH BRIDGE CROSSES THIS RIVER.
+ *
+ * Alexander, 2026-09-12, looking at a 7-cell bridge over a 4-cell river: *"would a bridge be that large, when
+ * we only have to connect a small river?? we just need something like 4 cells long x whatever the river size"*,
+ * and *"river is usually 3-4 cells wide or more"*.
+ *
+ * The span used to be chosen by walking DOWN from the landing-to-landing run and taking the first that fit, so
+ * it was always the largest bridge that would go in, whatever the water underneath was doing. It is chosen by
+ * the RIVER now: the smallest authored span that covers the water plus one landing each side.
+ *
+ * The spans the backend authors are 3, 4, 5, 6 and 7 per family, which is why `WOOD` below is that set.
+ */
+import { chooseBridgeSpan } from '@/engine/stageGenerator'
+
+/** The authored set, as `tile_source.ex` carries it and `/api/tilesets` serves it. */
+const WOOD = (span: number) => [3, 4, 5, 6, 7].includes(span)
+/** What was authored BEFORE 4 and 6 were added, kept so the odd-only case stays covered. */
+const ODD_ONLY = (span: number) => [3, 5, 7].includes(span)
+/** A long run, so the run itself never decides the answer. */
+const LONG_RUN = 20
+
+describe('chooseBridgeSpan', () => {
+  it('takes the smallest authored span that covers the water plus a landing each side', () => {
+    expect(chooseBridgeSpan(1, LONG_RUN, WOOD)).toBe(3)
+    expect(chooseBridgeSpan(2, LONG_RUN, WOOD)).toBe(4)
+    expect(chooseBridgeSpan(3, LONG_RUN, WOOD)).toBe(5)
+    expect(chooseBridgeSpan(4, LONG_RUN, WOOD)).toBe(6)
+    expect(chooseBridgeSpan(5, LONG_RUN, WOOD)).toBe(7)
+  })
+
+  it('does not hand a small river the biggest bridge that would fit, which is the whole complaint', () => {
+    // A 4-wide river on a run with room for 20. The old walk answered with the longest authored span.
+    expect(chooseBridgeSpan(4, LONG_RUN, WOOD)).toBe(6)
+    expect(chooseBridgeSpan(4, LONG_RUN, WOOD)).not.toBe(7)
+  })
+
+  it('never goes under the three-cell minimum, however narrow the water', () => {
+    expect(chooseBridgeSpan(0, LONG_RUN, WOOD)).toBe(3)
+    expect(chooseBridgeSpan(-5, LONG_RUN, WOOD)).toBe(3)
+  })
+
+  it('rounds up to the next authored size when the exact one was never drawn', () => {
+    // 3 wide wants 5, which exists in both sets. 2 wide wants 4, which the odd-only set skips, so it takes 5.
+    expect(chooseBridgeSpan(3, LONG_RUN, ODD_ONLY)).toBe(5)
+    expect(chooseBridgeSpan(2, LONG_RUN, ODD_ONLY)).toBe(5)
+  })
+
+  it('falls back to the longest that fits rather than leaving the crossing bare', () => {
+    // Nothing authored reaches 10 + 2, and a deck with no structure on it does not read as a bridge.
+    expect(chooseBridgeSpan(10, LONG_RUN, WOOD)).toBe(7)
+    // The run itself is the limit here: a 4-wide river wants 6, but only 5 cells of run exist.
+    expect(chooseBridgeSpan(4, 5, WOOD)).toBe(5)
+  })
+
+  it('answers null when the family has no authored spans at all', () => {
+    expect(chooseBridgeSpan(4, LONG_RUN, () => false)).toBeNull()
+  })
+
+  it('answers null when the run is too short for even the minimum', () => {
+    expect(chooseBridgeSpan(1, 2, WOOD)).toBeNull()
+  })
+})
