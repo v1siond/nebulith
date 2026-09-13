@@ -4245,7 +4245,26 @@
           "category": "props",
           "settings": {
             "color": null,
-            "animations": [],
+            "animations": [
+              {
+                "durationMs": 1200,
+                "id": "puddle_translucence",
+                "kind": "settings",
+                "loop": true,
+                "name": "translucence",
+                "priority": 0,
+                "tracks": [
+                  {
+                    "from": 0.72,
+                    "setting": "opacity",
+                    "to": 0.72
+                  }
+                ],
+                "trigger": {
+                  "on": "load"
+                }
+              }
+            ],
             "stackAt": 0,
             "collision": []
           },
@@ -25191,7 +25210,26 @@
           "category": "props",
           "settings": {
             "color": "#4488dd",
-            "animations": [],
+            "animations": [
+              {
+                "durationMs": 1200,
+                "id": "puddle_translucence",
+                "kind": "settings",
+                "loop": true,
+                "name": "translucence",
+                "priority": 0,
+                "tracks": [
+                  {
+                    "from": 0.72,
+                    "setting": "opacity",
+                    "to": 0.72
+                  }
+                ],
+                "trigger": {
+                  "on": "load"
+                }
+              }
+            ],
             "stackAt": 0,
             "collision": []
           },

@@ -2501,10 +2501,19 @@ function floodSwampPools(ctx: ArchetypeContext, zoneAt: (GeneratorSubZone | unde
     // elevation, which is what makes a river something you go around. A pool sits AT ground level, so the map
     // said walkable and the collision grid said otherwise. The river keeps its bands (see settleWaterDepth);
     // this stamps a wet floor and nothing more.
-    // The SAME water colour a channel wears. `varyIntensity(…, 0.4)` darkened it ~6%, so a puddle sat beside a
-    // river in a near-but-not-quite blue, one more of the mixed colours he flagged. A SWAMP pool is the one
-    // pool that legitimately differs (the served blue-green, applied by settleWaterDepth).
-    if (pal?.water) floorColors[row][col] = pal.water
+    // THE FLOOR STAYS THE FLOOR. Alexander, 2026-09-13, on a swamp jungle: *"I don't want to fucking ever see
+    // a bridge or walkable thing that looks like water, it's fucking confusing"*, and then the model, in his
+    // own words: *"we need the floor tile, which is the actual floor, then the puddle water stacked on top but
+    // walkable, and with stacking set at bottom face, then the flower stacked on the puddle"*.
+    //
+    // Three layers, and this line was collapsing the first two into one. It painted the GROUND the river's
+    // blue, so the cell was a walkable meadow wearing water: measured on a swamp jungle, 48 cells of exactly
+    // that, which is the "walkable thing that looks like water" he is pointing at. The puddle is the FILM
+    // stacked above (`water_still`, stackAt 0 so you neither step up onto it nor drop into it), and the water
+    // look belongs to that tile, not to the floor underneath it.
+    //
+    // Nothing replaces this. Leaving the ground its own colour is not a fallback, it is the absence of an
+    // override that should never have been written.
   }
   return pools
 }
@@ -4153,11 +4162,18 @@ function layDeck(ctx: ArchetypeContext, deck: Set<string>, tone: string | undefi
     // is before any crossing is laid, so a deck cell was still carrying the bed's negative elevation and a
     // bridge came out sunk in the water. Measured on a `divides` river: 14 of its cells.
     ctx.elevation[row][col] = 0
-    // A served crossing wears its own colour (or the tile it names in `colorOf`), written over whatever the
-    // cell wore as water. The classic deck keeps the caller's tone, and with no tone leaves the colour alone:
-    // a default here would be a hardcoded fallback for a SERVED value.
+    // A DECK NEVER KEEPS THE WATER'S COLOUR. Alexander, 2026-09-13: *"I don't want to fucking ever see a
+    // bridge or walkable thing that looks like water, it's fucking confusing"*.
+    //
+    // This cell was river a moment ago and `floorColors` still held the river's blue. The old branch was
+    // `else if (tone)`, so a deck with no served tone was LEFT wearing it: the tile said bridge, the colour
+    // said water, and you got a blue walkway over a blue river.
+    //
+    // Clearing it is not the hardcoded fallback the old comment worried about. An undefined override means
+    // "no override", so the bridge tile's OWN served colour shows through, which is the data doing its job.
+    // Inventing a brown here would have been the violation; leaving a stale blue was just a bug.
     if (style) floorColors[row][col] = groundTileColor(style.colorOf ?? style.tile, col, row) || undefined
-    else if (tone) floorColors[row][col] = tone
+    else floorColors[row][col] = tone
   }
 }
 
