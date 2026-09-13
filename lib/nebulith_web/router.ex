@@ -30,6 +30,15 @@ defmodule NebulithWeb.Router do
     get "/", AdminController, :index
   end
 
+  # The documentation site: an index of every markdown document in the repo, and a page per document.
+  # Deliberately NOT behind :admin, because a reference you need a login to read is not a reference.
+  scope "/docs", NebulithWeb do
+    pipe_through :browser
+
+    get "/", DocsController, :index
+    get "/:slug", DocsController, :show
+  end
+
   scope "/api", NebulithWeb do
     pipe_through :api
 

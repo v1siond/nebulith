@@ -64,7 +64,11 @@ defmodule Nebulith.MixProject do
       {:jason, "~> 1.2"},
       {:dns_cluster, "~> 0.2.0"},
       {:bandit, "~> 1.5"},
-      {:cors_plug, "~> 3.0"}
+      {:cors_plug, "~> 3.0"},
+      # Renders the repo's markdown docs into the /docs pages. Alexander, 2026-09-12: *"I'm fine with
+      # rendering different markdowns as long as we have an index of multiple markdowns each one explaining
+      # the docs for all sections of the system and api and how it works and how everything is architected"*.
+      {:earmark, "~> 1.4"}
     ]
   end
 

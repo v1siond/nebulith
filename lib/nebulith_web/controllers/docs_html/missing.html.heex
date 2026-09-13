@@ -1,0 +1,18 @@
+<Layouts.app flash={@flash}>
+  <div class="flex gap-8">
+    <.sidebar sections={@sections} />
+
+    <main class="min-w-0 flex-1">
+      <.header>
+        No document called “{@slug}”
+        <:subtitle>
+          The corpus is whatever markdown sits in the repo's <code class="font-mono">docs/</code> directory,
+          so either the name is wrong or that file is not there. Everything that does exist is listed on the
+          left.
+        </:subtitle>
+      </.header>
+
+      <a href="/docs" class="btn btn-primary btn-sm mt-6">Back to the index</a>
+    </main>
+  </div>
+</Layouts.app>

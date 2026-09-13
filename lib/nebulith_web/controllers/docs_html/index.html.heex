@@ -1,0 +1,43 @@
+<Layouts.app flash={@flash}>
+  <div class="flex gap-8">
+    <.sidebar sections={@sections} />
+
+    <main class="min-w-0 flex-1">
+      <.header>
+        Nebulith documentation
+        <:subtitle>
+          {@count} documents covering the API, the map model, the generators, the editor and how the whole
+          thing is put together. Every page is rendered from the markdown in
+          <code class="font-mono">docs/</code>, so the page and the repo cannot disagree.
+        </:subtitle>
+      </.header>
+
+      <section :for={section <- @sections} class="mt-8">
+        <h2 class="mb-3 text-lg font-bold">{section.title}</h2>
+
+        <div class="grid gap-3 sm:grid-cols-2">
+          <a
+            :for={doc <- section.docs}
+            href={"/docs/#{doc.slug}"}
+            class="rounded-box border border-base-300 bg-base-100 p-4 transition hover:border-primary hover:bg-base-200"
+          >
+            <div class="flex items-baseline justify-between gap-3">
+              <h3 class="font-semibold">{doc.title}</h3>
+              <span class="badge badge-sm badge-ghost shrink-0">
+                {div(doc.bytes, 1024)}k
+              </span>
+            </div>
+            <p :if={doc.summary != ""} class="mt-2 text-sm text-base-content/70">
+              {doc.summary}
+            </p>
+          </a>
+        </div>
+      </section>
+
+      <p :if={@count == 0} class="mt-8 rounded-box border border-warning/40 bg-warning/10 p-4 text-sm">
+        No documents found. The corpus is the repo's <code class="font-mono">docs/</code> directory, resolved
+        relative to the working directory the server was started from.
+      </p>
+    </main>
+  </div>
+</Layouts.app>

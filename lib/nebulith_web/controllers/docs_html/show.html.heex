@@ -1,0 +1,53 @@
+<Layouts.app flash={@flash}>
+  <div class="flex gap-8">
+    <.sidebar sections={@sections} current={@doc.slug} />
+
+    <main class="min-w-0 flex-1">
+      <div class="mb-4 text-sm text-base-content/60">
+        <a href="/docs" class="hover:underline">Documentation</a>
+        <span class="px-1">/</span>
+        <span>{@doc.title}</span>
+      </div>
+
+      <div class="flex gap-8">
+        <%!-- The document body. There is no Tailwind typography plugin in this project (assets/css/app.css
+              loads heroicons and daisyUI only), so `prose-*` classes would be inert and the markdown would
+              render unstyled. These child selectors do the same job with what the project already ships. --%>
+        <article class="min-w-0 flex-1 text-sm leading-relaxed
+                        [&_h1]:mt-0 [&_h1]:mb-4 [&_h1]:text-2xl [&_h1]:font-bold
+                        [&_h2]:mt-8 [&_h2]:mb-3 [&_h2]:scroll-mt-20 [&_h2]:border-b [&_h2]:border-base-300 [&_h2]:pb-1 [&_h2]:text-xl [&_h2]:font-bold
+                        [&_h3]:mt-6 [&_h3]:mb-2 [&_h3]:text-base [&_h3]:font-semibold
+                        [&_h4]:mt-4 [&_h4]:mb-2 [&_h4]:font-semibold
+                        [&_p]:my-3
+                        [&_ul]:my-3 [&_ul]:list-disc [&_ul]:pl-6
+                        [&_ol]:my-3 [&_ol]:list-decimal [&_ol]:pl-6
+                        [&_li]:my-1
+                        [&_a]:text-primary [&_a]:underline
+                        [&_strong]:font-semibold
+                        [&_code]:rounded [&_code]:bg-base-300 [&_code]:px-1 [&_code]:py-0.5 [&_code]:font-mono [&_code]:text-xs
+                        [&_pre]:my-4 [&_pre]:overflow-x-auto [&_pre]:rounded-box [&_pre]:bg-base-300 [&_pre]:p-4
+                        [&_pre_code]:bg-transparent [&_pre_code]:p-0
+                        [&_blockquote]:my-4 [&_blockquote]:border-l-4 [&_blockquote]:border-base-300 [&_blockquote]:pl-4 [&_blockquote]:text-base-content/70
+                        [&_table]:my-4 [&_table]:w-full [&_table]:text-xs
+                        [&_th]:border [&_th]:border-base-300 [&_th]:bg-base-200 [&_th]:px-2 [&_th]:py-1 [&_th]:text-left
+                        [&_td]:border [&_td]:border-base-300 [&_td]:px-2 [&_td]:py-1 [&_td]:align-top
+                        [&_hr]:my-8 [&_hr]:border-base-300">
+          <%= raw(@doc.html) %>
+        </article>
+
+        <aside :if={@doc.headings != []} class="hidden w-56 shrink-0 xl:block">
+          <p class="mb-2 text-xs font-semibold uppercase tracking-wide text-base-content/50">
+            On this page
+          </p>
+          <ul class="space-y-1 border-l border-base-300 pl-3">
+            <li :for={heading <- @doc.headings}>
+              <a href={"##{heading.anchor}"} class="block text-sm text-base-content/70 hover:text-primary">
+                {heading.text}
+              </a>
+            </li>
+          </ul>
+        </aside>
+      </div>
+    </main>
+  </div>
+</Layouts.app>
