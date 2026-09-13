@@ -1661,6 +1661,19 @@ function layoutWoodland(ctx: ArchetypeContext, opts: ForestBuild = {}): void {
     for (const key of opts.routes.cells) { open.add(key); trailCells.add(key) }
     clearings.push(opts.routes.hub, ...opts.routes.deadEnds)
     for (const centre of clearings) carveClearing(ctx, centre, open)
+    // …AND THE MOUTH OF EACH WAY. The corridor alone stopped dead at the border, so a woodland had ways you
+    // could walk and could not see (*"ONLY the meadow template generator does the pathways and exit/entrance
+    // correctly"*). These join `trailCells`, so step 2b paves them with the season's own trail rather than
+    // this pass inventing a second way to draw a path.
+    //
+    // A MOUTH IS THE WIDTH OF ITS OWN TRACK, 3 across, not the meadow's 5. Measured, after two wrong guesses:
+    // a lane is CLEARED, so it unblocks cells, and 5x11 at every gate lifted the WOODLAND's walkable share
+    // enough to break the jungle's own choked-forest test, which compares the two (`openPct(jungle) <
+    // openPct(woodland) * 0.6`). The jungle number never moved; the woodland baseline did. The meadow keeps 5
+    // because a cobble way into a clearing is that layout's design, and it has no such comparison to break.
+    const gateLanes = gateLaneCells(ctx, opts.routes, water, 1, 6)
+    clearMeadowCells(ctx, gateLanes) // nothing standing in the gateway
+    for (const key of gateLanes) { open.add(key); trailCells.add(key) }
   }
 
   const wanted = Math.max(2, Math.round((cols * rows / 1000) * WOODLAND.clearingsPerThousand))
@@ -1892,6 +1905,20 @@ function layoutJungle(ctx: ArchetypeContext, opts: ForestBuild = {}): void {
     // emergents all treat as spoken for, and a tree planted on a boardwalk is a blocked pathway.
     for (const key of opts.routes.cells) open.add(key)
     paveRoutes(ctx, opts.routes, water, pal?.trail)
+    // …AND THE MOUTH OF EACH WAY. A jungle track that stops at the border is exactly his *"nothing that
+    // indicates potential connection with other place"*. Its ways are a TONE rather than a paved tile (its
+    // test pins one tone the whole way through), so the lane is tinted to match instead of being given a
+    // ground label the rest of the track does not have.
+    //
+    // NARROWER AND SHALLOWER than the meadow's, and the reason is measured rather than aesthetic. A gate lane
+    // is CLEARED, so it unblocks cells; five wide by eleven deep at every gate moved the jungle's walkable
+    // share from under to over the woodland-gap threshold its own test defends (0.4554 against 0.4495), which
+    // is the test saying "this no longer walks like a jungle" and being right. A trodden track mouths at the
+    // width of the track: 3 across, matching `WOODLAND.pathWidth`, and half the depth.
+    const gateLanes = gateLaneCells(ctx, opts.routes, water, 1, 6)
+    clearMeadowCells(ctx, gateLanes)
+    for (const key of gateLanes) open.add(key)
+    tintCells(ctx, gateLanes, pal?.trail)
     deckRoutes(ctx, opts.routes, water, pal?.trail)
   }
 
@@ -1944,6 +1971,136 @@ function layoutJungle(ctx: ArchetypeContext, opts: ForestBuild = {}): void {
 
 /** Paint a route network in a served tone, so a way through is something you can SEE rather than merely walk.
  *  Water is skipped: a path laid over water is neither a path nor a river, water is crossed on a deck. */
+/** How coarse the bloom lattice is. Bigger than the canopy's, because flowers should come in PATCHES you can
+ *  point at rather than an even sprinkle over the whole floor. */
+const BLOOM_LATTICE = 9
+
+/**
+ * MAY A BLOOM STAND HERE? The one rule, in one place.
+ *
+ * Alexander, 2026-09-12: *"please remove those fucking flowers, the main issues is that they show up randomly,
+ * without any order in places they shouldn't be, like there's flowers in the bridge wood? makes no sense, this
+ * affects all forests templates"*.
+ *
+ * Flowers in the bridge wood happened because this rule existed in ONE of the three bloom passes.
+ * `scatterFlowers` checked the ground (roads, built floor, water) and the other two checked nothing at all,
+ * so a clearing or a light gap would plant on a deck. `ctx.decks` has always been recorded by `layDeck` and
+ * nothing consulted it.
+ */
+function canPlantBloom(ctx: ArchetypeContext, col: number, row: number): boolean {
+  if (!inBounds(col, row, ctx.cols, ctx.rows)) return false
+  if (isEdge(col, row, ctx.cols, ctx.rows)) return false
+  if (ctx.collision[row][col]) return false
+  if (ctx.decks.has(`${col},${row}`)) return false // never on a bridge or a boardwalk
+  const ground = ctx.ground[row][col]
+  if (isWaterGround(ground)) return false
+  if (BUILT_FLOOR.has(ground) || isRoadGround(ground)) return false
+  return true
+}
+
+/**
+ * PICK A CLUSTERED SHARE of the candidates: value noise on a coarse lattice, lowest-scoring taken.
+ *
+ * His choice when asked how blooms should be distributed: patches, not an even scatter. This is the SAME
+ * mechanism the canopy uses, and that function's own comment records why the alternatives fail: a per-cell
+ * roll gives an even sprinkle with no order to it, and random anchors until a count is hit gave "ruinous"
+ * distribution because the loop stops as soon as the number fills. Scoring every candidate and taking the
+ * lowest N is exact by construction and clumps because neighbours interpolate from the same lattice corners.
+ */
+function pickClustered(ctx: ArchetypeContext, candidates: readonly Cell[], share: number, lattice: number): Cell[] {
+  if (share <= 0 || candidates.length === 0) return []
+  const size = Math.max(1, Math.round(lattice))
+  const latticeCols = Math.ceil(ctx.cols / size) + 2
+  const latticeRows = Math.ceil(ctx.rows / size) + 2
+  // POSITIONAL noise, not draws from the layer rng. Pulling a lattice out of `ctx.rand()` would consume
+  // hundreds of numbers from the SHARED seeded sequence, so every later pass (the canopy above all) would
+  // land differently purely because the bloom pass ran. That is how this function first broke the jungle's
+  // choked-forest test without touching a single collision cell: the woodland's canopy moved underneath it.
+  // `shadeNoise` is the file's existing positional noise, so the patches stay reproducible per seed and cost
+  // the sequence nothing.
+  const corner: number[][] = []
+  for (let r = 0; r < latticeRows; r++) {
+    const line: number[] = []
+    for (let c = 0; c < latticeCols; c++) line.push(shadeNoise(c * 12.9898 + r * 78.233))
+    corner.push(line)
+  }
+  const smooth = (t: number) => t * t * (3 - 2 * t)
+  const noiseAt = (col: number, row: number): number => {
+    const gc = col / size
+    const gr = row / size
+    const c0 = Math.floor(gc)
+    const r0 = Math.floor(gr)
+    const tx = smooth(gc - c0)
+    const ty = smooth(gr - r0)
+    const a = corner[r0][c0] + (corner[r0][c0 + 1] - corner[r0][c0]) * tx
+    const b = corner[r0 + 1][c0] + (corner[r0 + 1][c0 + 1] - corner[r0 + 1][c0]) * tx
+    return a + (b - a) * ty
+  }
+  const scored = candidates.map(cell => ({ cell, n: noiseAt(cell.col, cell.row) }))
+  scored.sort((a, b) => a.n - b.n)
+  return scored.slice(0, Math.round(scored.length * Math.min(1, share))).map(s => s.cell)
+}
+
+/** A gate lane's half-width and how far it reaches in. The meadow's own numbers, which he has called correct:
+ *  5 cells across (wider than the 3-cell corridor, so the way MOUTHS at the border) and 11 deep. */
+const GATE_LANE_HALF = 2
+const GATE_LANE_RUN = 11
+
+/**
+ * THE CELLS OF EVERY GATE'S LANE: the mouth of each way where it meets the map edge.
+ *
+ * Alexander, 2026-09-12: *"ONLY the meadow template generator does the pathways and exit/entrance correctly,
+ * NONE of the other templates do it correctly"*.
+ *
+ * He is right, and the reason is narrow. All three forest layouts PLAN the same network (`plannedRoutes`), and
+ * all three render the corridor. What only the meadow does is render the GATES: `paintMeadowEntrance` clears
+ * and paves a wide lane running in from the edge, so the way reads as an opening. Woodland and jungle drew a
+ * 3-wide corridor that simply stopped at the border, which is a path you can walk and cannot see.
+ *
+ * This is the geometry half, shared, so both layouts get the same mouth and neither grows its own copy. What
+ * each layout DOES with the cells stays its own: the woodland folds them into `trailCells` and its existing
+ * paving handles them, the jungle tints them like the rest of its track. Water is skipped, because a lane laid
+ * over the river is a blocked stripe rather than a way (the same rule the trail paving already follows).
+ *
+ * `d` starts at -1 so the EDGE cells are included, not just the run inward from `gate.inside`.
+ */
+function gateLaneCells(
+  ctx: ArchetypeContext,
+  plan: RoutePlan,
+  water: ReadonlySet<string>,
+  half = GATE_LANE_HALF,
+  run = GATE_LANE_RUN,
+): Set<string> {
+  const { cols, rows } = ctx
+  const lane = new Set<string>()
+  for (const gate of plan.gates) {
+    // Which way the lane runs IN from its edge, and which axis it widens along.
+    const [dc, dr] =
+      gate.side === 'north' ? [0, 1] : gate.side === 'south' ? [0, -1] : gate.side === 'west' ? [1, 0] : [-1, 0]
+    const [wc, wr] = dc === 0 ? [1, 0] : [0, 1]
+    for (let d = -1; d < run; d++) {
+      for (let w = -half; w <= half; w++) {
+        const col = gate.inside.col + dc * d + wc * w
+        const row = gate.inside.row + dr * d + wr * w
+        if (!inBounds(col, row, cols, rows)) continue
+        if (water.has(`${col},${row}`)) continue
+        lane.add(`${col},${row}`)
+      }
+    }
+  }
+  return lane
+}
+
+/** Tint a set of cells, for a layout whose ways are a colour rather than a paved tile (the jungle's track). */
+function tintCells(ctx: ArchetypeContext, cells: ReadonlySet<string>, tone: string | undefined): void {
+  if (!tone) return
+  for (const key of cells) {
+    const { col, row } = toCell(key)
+    if (!inBounds(col, row, ctx.cols, ctx.rows)) continue
+    ctx.floorColors[row][col] = tone
+  }
+}
+
 function paveRoutes(ctx: ArchetypeContext, plan: RoutePlan, water: ReadonlySet<string>, tone: string | undefined): void {
   if (!tone) return
   for (const key of plan.cells) {
@@ -2449,16 +2606,20 @@ function paintJungleGaps(
 ): void {
   const lit = pal?.canopyAlt
   const flowers = ctx.nature?.flowers
+  const plantable: Cell[] = []
   for (const key of gaps) {
     const { col, row } = toCell(key)
     if (!inBounds(col, row, ctx.cols, ctx.rows)) continue
-    if (lit) ctx.floorColors[row][col] = lit
-    // The REGION standing here decides its own blooms; the season answers where a region states none. This is
-    // where a swamp's daisies came from: a light gap is the only lit ground in a jungle, so it is where the
-    // blooms are, and it had no idea which region it was in.
-    if (flowers !== undefined && ctx.rand() < flowers * 2) {
-      placeProp(ctx, makeFlower(ctx.rand, ctx.zone, col, row, zoneAt?.[row]?.[col]?.flowers))
-    }
+    if (lit) ctx.floorColors[row][col] = lit // the LIGHT reaches every gap, blooms or not
+    if (canPlantBloom(ctx, col, row)) plantable.push({ col, row })
+  }
+  if (flowers === undefined) return
+  // The REGION standing here decides its own blooms; the season answers where a region states none. This is
+  // where a swamp's daisies came from: a light gap is the only lit ground in a jungle, so it is where the
+  // blooms are, and it had no idea which region it was in. Now they also come in patches and keep off the
+  // boardwalks, which is where he found them growing out of the bridge wood.
+  for (const cell of pickClustered(ctx, plantable, Math.min(1, flowers * 2), BLOOM_LATTICE)) {
+    placeProp(ctx, makeFlower(ctx.rand, ctx.zone, cell.col, cell.row, zoneAt?.[cell.row]?.[cell.col]?.flowers))
   }
 }
 
@@ -2874,16 +3035,30 @@ function dressWoodlandClearings(
   const cover = ctx.nature?.groundCover
   const flowers = ctx.nature?.flowers
   if (cover === undefined && flowers === undefined) return
+
+  // BLOOMS COME IN PATCHES, and never on a way. Every candidate is scored on one coarse lattice and the
+  // lowest-scoring share is planted, so a clearing gets beds of flowers rather than an even dusting of them.
+  const plantable: Cell[] = []
   for (const key of open) {
     const [c, r] = key.split(',').map(Number)
-    if (!inBounds(c, r, ctx.cols, ctx.rows) || ctx.collision[r][c]) continue
-    if (flowers !== undefined && ctx.rand() < flowers) {
+    if (canPlantBloom(ctx, c, r)) plantable.push({ col: c, row: r })
+  }
+  const bloomAt = new Set<string>()
+  if (flowers !== undefined) {
+    for (const cell of pickClustered(ctx, plantable, flowers, BLOOM_LATTICE)) {
       // A clearing's blooms belong to the REGION it sits in, the same rule the jungle's gaps follow.
-      placeProp(ctx, makeFlower(ctx.rand, ctx.zone, c, r, zoneAt?.[r]?.[c]?.flowers))
-      continue
+      placeProp(ctx, makeFlower(ctx.rand, ctx.zone, cell.col, cell.row, zoneAt?.[cell.row]?.[cell.col]?.flowers))
+      bloomAt.add(`${cell.col},${cell.row}`)
     }
-    if (cover === undefined || ctx.rand() >= cover) continue
-    const decor = makeGroundDecor(ctx.zone, c, r)
+  }
+
+  // Ground cover stays an even scatter: it is texture underfoot, not an arrangement, and he has never
+  // complained about it. It simply keeps off the ways and out from under the blooms.
+  if (cover === undefined) return
+  for (const cell of plantable) {
+    if (bloomAt.has(`${cell.col},${cell.row}`)) continue
+    if (ctx.rand() >= cover) continue
+    const decor = makeGroundDecor(ctx.zone, cell.col, cell.row)
     if (decor) placeProp(ctx, decor)
   }
 }
