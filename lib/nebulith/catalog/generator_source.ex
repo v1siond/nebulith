@@ -464,6 +464,15 @@ defmodule Nebulith.Catalog.GeneratorSource do
     }
   ]
 
+  # The swamp's blooms, named once because the swamp VARIANT gives them to its other regions too (ticket 27).
+  # These colours are a PROPOSAL, not a derivation: his instruction was negative (no white), so the set is
+  # muted swamp growth (iris violet, dull marsh gold, a blue green sedge) for his eye to accept or replace.
+  @swamp_blooms [
+    %{"char" => "✾", "color" => "#7b5fa8"},
+    %{"char" => "❋", "color" => "#4f8f7a"},
+    %{"char" => "✿", "color" => "#b89a3c"}
+  ]
+
   @jungle_sub_zones [
     %{
       "key" => "open",
@@ -507,11 +516,7 @@ defmodule Nebulith.Catalog.GeneratorSource do
       #
       # These colours are a PROPOSAL, not a derivation: his instruction was negative (no white), so the set is
       # muted swamp growth (iris violet, dull marsh gold, a blue green sedge) for his eye to accept or replace.
-      "flowers" => [
-        %{"char" => "✾", "color" => "#7b5fa8"},
-        %{"char" => "❋", "color" => "#4f8f7a"},
-        %{"char" => "✿", "color" => "#b89a3c"}
-      ]
+      "flowers" => @swamp_blooms
     },
     %{
       "key" => "ruins",
@@ -564,6 +569,54 @@ defmodule Nebulith.Catalog.GeneratorSource do
   end
 
   defp sub_zones(weights), do: sub_zones(@jungle_sub_zones, weights)
+
+  @doc false
+  # THE SAME REGION, IN A DIFFERENT PLACE. `open` and `dense` are shared by every jungle variant, which is
+  # why a SWAMP's open patch grew rainforest palms under summer's near-white daisies: it was, literally, the
+  # rainforest's open patch. Alexander, 2026-09-12: *"the swamps still look fucking terrible because they have
+  # nature and flowers that don't match the swamp context"*.
+  #
+  # A variant overrides the regions it borrows. Anything it does not name is inherited unchanged, so a plain
+  # jungle is untouched.
+  defp sub_zones_in(weights, overrides) do
+    for z <- sub_zones(weights), do: Map.merge(z, Map.get(overrides, z["key"], %{}))
+  end
+
+  # A SWAMP'S own growth, reusing the bloom set the `swamp` region already authors rather than inventing a
+  # second palette for the same place. The species lean cypress, because that is what stands in this water.
+  @swamp_regions %{
+    "open" => %{
+      "trees" => [%{"kind" => "tree_cypress", "weight" => 40}, %{"kind" => "tree_round", "weight" => 30}, %{"kind" => "bush_round", "weight" => 30}],
+      "flowers" => @swamp_blooms
+    },
+    "dense" => %{
+      "trees" => [%{"kind" => "tree_cypress", "weight" => 35}, %{"kind" => "tree_giant", "weight" => 25}, %{"kind" => "bush", "weight" => 25}, %{"kind" => "tree_round", "weight" => 15}],
+      "flowers" => @swamp_blooms
+    }
+  }
+
+  # AN ISLAND IS A COAST, not the Amazon. Alexander, 2026-09-12: *"same with island forest, which is better,
+  # but still not good enough, needs to be more closely related to beaches nature"*. Its palette was already
+  # its own; its regions were still the rainforest's, so palms grew under inland blooms.
+  #
+  # Like the swamp set, these colours are a PROPOSAL rather than a derivation: shore growth, hibiscus pink,
+  # sea-holly blue and a bleached sand yellow, for his eye to accept or replace.
+  @island_blooms [
+    %{"char" => "✿", "color" => "#e2739b"},
+    %{"char" => "❋", "color" => "#6aa9c4"},
+    %{"char" => "✾", "color" => "#e0c877"}
+  ]
+
+  @island_regions %{
+    "open" => %{
+      "trees" => [%{"kind" => "tree_palm", "weight" => 55}, %{"kind" => "bush_round", "weight" => 25}, %{"kind" => "tree_round", "weight" => 20}],
+      "flowers" => @island_blooms
+    },
+    "dense" => %{
+      "trees" => [%{"kind" => "tree_palm", "weight" => 40}, %{"kind" => "tree_big", "weight" => 30}, %{"kind" => "bush", "weight" => 30}],
+      "flowers" => @island_blooms
+    }
+  }
 
   # The water options with a different starting river — an island starts ringed by water.
   defp water_options(river_default) do
@@ -669,7 +722,7 @@ defmodule Nebulith.Catalog.GeneratorSource do
         category: "forest", parent: "forest_jungle", key: "forest_jungle_swamp", name: "Swamp jungle",
         layout: "jungle", position: 1,
         description: "Mostly swamp, cypress standing in the water.",
-        config: %{"subZones" => sub_zones(%{"swamp" => 6, "dense" => 2, "open" => 1})},
+        config: %{"subZones" => sub_zones_in(%{"swamp" => 6, "dense" => 2, "open" => 1}, @swamp_regions)},
         options: @way_options ++ region_options(~w(open dense swamp)) ++ @water_options
       },
       # his words — an island: water around it, palms
@@ -685,7 +738,7 @@ defmodule Nebulith.Catalog.GeneratorSource do
         # jungle's, down to the hex. Only the tree weights differed and you cannot see a weight. An island is
         # brighter and paler than rainforest: sand where a jungle has peat, turquoise where a jungle has
         # blue-brown, and a canopy that is yellow-green rather than near-black.
-        config: %{"subZones" => sub_zones(%{"open" => 3, "dense" => 2}),
+        config: %{"subZones" => sub_zones_in(%{"open" => 3, "dense" => 2}, @island_regions),
                   "palette" => Map.merge(@jungle_palette, %{
                     "floor" => "#7c8a4e",
                     "floorAlt" => "#8c9a5b",
