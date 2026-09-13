@@ -2929,9 +2929,10 @@ defmodule Nebulith.Catalog.TileSource do
   @wood_rail "#8a6a45"
   @stone_rail "#b9b2a3"
 
+  @deck_rows [1, 2]
   @deck_thickness 0.09
   @rail_height 0.55
-  @rail_thickness 0.16
+  @rail_thickness 0.3
 
   defp seed_new_compositions do
     for {name, %{footprint_w: w, footprint_h: h, cells: cells} = comp} <- compositions() do
@@ -3127,21 +3128,21 @@ defmodule Nebulith.Catalog.TileSource do
       # just need something like 4 cells long x whatever the river size"*, and *"river is usually 3-4 cells wide
       # or more"*. With only odd spans authored, a 4-wide river needed 4 plus a landing each side and rounded
       # straight up to 7, which is the size he rejected.
-      "bridge_wood_3" => %{footprint_w: 3, footprint_h: 3, category: "props", cells: bridge_cells("bridge_deck", "bridge_rail", 3, @wood_rail)},
-      "bridge_wood_4" => %{footprint_w: 4, footprint_h: 3, category: "props", cells: bridge_cells("bridge_deck", "bridge_rail", 4, @wood_rail)},
-      "bridge_wood_5" => %{footprint_w: 5, footprint_h: 3, category: "props", cells: bridge_cells("bridge_deck", "bridge_rail", 5, @wood_rail)},
-      "bridge_wood_6" => %{footprint_w: 6, footprint_h: 3, category: "props", cells: bridge_cells("bridge_deck", "bridge_rail", 6, @wood_rail)},
-      "bridge_wood_7" => %{footprint_w: 7, footprint_h: 3, category: "props", cells: bridge_cells("bridge_deck", "bridge_rail", 7, @wood_rail)},
-      "bridge_stone_3" => %{footprint_w: 3, footprint_h: 3, category: "props", cells: bridge_cells("bridge_deck", "bridge_rail", 3, @stone_rail)},
-      "bridge_stone_4" => %{footprint_w: 4, footprint_h: 3, category: "props", cells: bridge_cells("bridge_deck", "bridge_rail", 4, @stone_rail)},
-      "bridge_stone_5" => %{footprint_w: 5, footprint_h: 3, category: "props", cells: bridge_cells("bridge_deck", "bridge_rail", 5, @stone_rail)},
-      "bridge_stone_6" => %{footprint_w: 6, footprint_h: 3, category: "props", cells: bridge_cells("bridge_deck", "bridge_rail", 6, @stone_rail)},
-      "bridge_stone_7" => %{footprint_w: 7, footprint_h: 3, category: "props", cells: bridge_cells("bridge_deck", "bridge_rail", 7, @stone_rail)},
-      "bridge_plank_3" => %{footprint_w: 3, footprint_h: 3, category: "props", cells: bridge_cells("bridge_deck", "bridge_rail", 3, @wood_rail)},
-      "bridge_plank_4" => %{footprint_w: 4, footprint_h: 3, category: "props", cells: bridge_cells("bridge_deck", "bridge_rail", 4, @wood_rail)},
-      "bridge_plank_5" => %{footprint_w: 5, footprint_h: 3, category: "props", cells: bridge_cells("bridge_deck", "bridge_rail", 5, @wood_rail)},
-      "bridge_plank_6" => %{footprint_w: 6, footprint_h: 3, category: "props", cells: bridge_cells("bridge_deck", "bridge_rail", 6, @wood_rail)},
-      "bridge_plank_7" => %{footprint_w: 7, footprint_h: 3, category: "props", cells: bridge_cells("bridge_deck", "bridge_rail", 7, @wood_rail)},
+      "bridge_wood_3" => %{footprint_w: 3, footprint_h: 4, category: "props", cells: bridge_cells("bridge_deck", "bridge_rail", 3, @wood_rail)},
+      "bridge_wood_4" => %{footprint_w: 4, footprint_h: 4, category: "props", cells: bridge_cells("bridge_deck", "bridge_rail", 4, @wood_rail)},
+      "bridge_wood_5" => %{footprint_w: 5, footprint_h: 4, category: "props", cells: bridge_cells("bridge_deck", "bridge_rail", 5, @wood_rail)},
+      "bridge_wood_6" => %{footprint_w: 6, footprint_h: 4, category: "props", cells: bridge_cells("bridge_deck", "bridge_rail", 6, @wood_rail)},
+      "bridge_wood_7" => %{footprint_w: 7, footprint_h: 4, category: "props", cells: bridge_cells("bridge_deck", "bridge_rail", 7, @wood_rail)},
+      "bridge_stone_3" => %{footprint_w: 3, footprint_h: 4, category: "props", cells: bridge_cells("bridge_deck", "bridge_rail", 3, @stone_rail)},
+      "bridge_stone_4" => %{footprint_w: 4, footprint_h: 4, category: "props", cells: bridge_cells("bridge_deck", "bridge_rail", 4, @stone_rail)},
+      "bridge_stone_5" => %{footprint_w: 5, footprint_h: 4, category: "props", cells: bridge_cells("bridge_deck", "bridge_rail", 5, @stone_rail)},
+      "bridge_stone_6" => %{footprint_w: 6, footprint_h: 4, category: "props", cells: bridge_cells("bridge_deck", "bridge_rail", 6, @stone_rail)},
+      "bridge_stone_7" => %{footprint_w: 7, footprint_h: 4, category: "props", cells: bridge_cells("bridge_deck", "bridge_rail", 7, @stone_rail)},
+      "bridge_plank_3" => %{footprint_w: 3, footprint_h: 4, category: "props", cells: bridge_cells("bridge_deck", "bridge_rail", 3, @wood_rail)},
+      "bridge_plank_4" => %{footprint_w: 4, footprint_h: 4, category: "props", cells: bridge_cells("bridge_deck", "bridge_rail", 4, @wood_rail)},
+      "bridge_plank_5" => %{footprint_w: 5, footprint_h: 4, category: "props", cells: bridge_cells("bridge_deck", "bridge_rail", 5, @wood_rail)},
+      "bridge_plank_6" => %{footprint_w: 6, footprint_h: 4, category: "props", cells: bridge_cells("bridge_deck", "bridge_rail", 6, @wood_rail)},
+      "bridge_plank_7" => %{footprint_w: 7, footprint_h: 4, category: "props", cells: bridge_cells("bridge_deck", "bridge_rail", 7, @wood_rail)},
       "well" => %{footprint_w: 5, footprint_h: 3, category: "props", cells: well_cells()},
       "fountain" => %{footprint_w: 5, footprint_h: 5, category: "props", cells: fountain_cells()},
       # LIGHT POSTS — a composition, NOT a single lamp tile (Alexander: "light posts should be a composition of a
@@ -3402,25 +3403,32 @@ defmodule Nebulith.Catalog.TileSource do
   # which is right for a lamp and wrong here, so the CELL states its colour (the per-cell `settings.color` the
   # stamp already honours) rather than the shared tile being repainted for one caller.
   defp bridge_cells(deck_label, rail_label, span, rail_color) do
+    # TWO CELLS OF DECK, so two can pass. Alexander, 2026-09-13: *"please ensure we have at least 2 cells free
+    # to walk"*. The deck was a single row down the middle, which is a plank, not a crossing. Rows 1 and 2 are
+    # the way over and rows 0 and 3 are the rails, so the footprint is span x 4.
     deck =
-      for dx <- 0..(span - 1) do
-        %{dx: dx, dy: 1, level: 0, label: deck_label, walkable: true,
+      for dx <- 0..(span - 1), dy <- @deck_rows do
+        %{dx: dx, dy: dy, level: 0, label: deck_label, walkable: true,
           settings: %{"scaleY" => @deck_thickness}}
       end
 
-    # ONE cell per side, spanning the whole crossing through z-width (`depth` + `depthDir`).
+    # ONE cell per side, spanning the whole crossing through z-width (`depth` + `depthDir`), thinned to a
+    # DOOR'S thickness: *"ensure the sides are smaller, like door thicknes, and make sure the collission is
+    # scoped to that size"*. `scaleZ` 0.3 is exactly what the `door` tile carries, so a rail is the same kind
+    # of panel a door is rather than a wall of its own invention.
+    #
+    # AND THE COLLISION IS THAT SIZE. A rail you cannot walk through should block the strip it occupies, not
+    # its whole cell, so the cell states a box of the same 0.3 across, centred like the panel it draws.
     rails =
-      for dy <- [0, 2] do
+      for dy <- [0, @deck_rows |> List.last() |> Kernel.+(1)] do
         %{dx: 0, dy: dy, level: 0, label: rail_label, walkable: false,
           settings: %{
             "scaleY" => @rail_height,
-            # NO `scaleZ` HERE, decided by looking at both. With it the rail lifts clear of its own deck and
-            # floats beside the bridge; without it the rail sits down but extrudes at full cell thickness and
-            # reads as a trough rather than a handrail. Neither is right, and the trough at least stays
-            # attached, so it is the one that ships while the rail shape is finished (ticket 106).
+            "scaleZ" => @rail_thickness,
             "depth" => span,
             "depthDir" => "right-down",
-            "color" => rail_color
+            "color" => rail_color,
+            "collision" => [%{"x" => 0.0, "y" => 0.35, "w" => 1.0, "h" => @rail_thickness}]
           }}
       end
 
