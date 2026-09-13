@@ -127,6 +127,8 @@ defmodule Nebulith.Catalog.TileSource do
     # with no per-category code branch. seed_emoji_tiles already writes the raw per-tile height; this re-applies it
     # pose-safely so a fresh full seed agrees with seed_sample.
     reconcile_tile_heights()
+    # …and the OTHER half of that sentence: the ground is flat. See flatten_ground_heights/0.
+    flatten_ground_heights()
     # …and then make every OTHER style agree, because height is DATA and the same label is the same shape in
     # every style. This used to live in seeds.exs, which meant `seed()` on its own left 32 of 358 shared
     # labels disagreeing (ascii 0.0 vs emoji 1.0) — a caller had to remember a second call for the DB to be
@@ -1984,6 +1986,8 @@ defmodule Nebulith.Catalog.TileSource do
     seed_new_compositions()
     seed_building_compositions()
     reconcile_tile_heights()
+    # …and the OTHER half of that sentence: the ground is flat. See flatten_ground_heights/0.
+    flatten_ground_heights()
     reconcile_tile_categories()
     IO.puts("reseeded sample tiles + compositions")
     :ok
@@ -2722,6 +2726,50 @@ defmodule Nebulith.Catalog.TileSource do
   `seed_emoji_tiles` would `replace_all` them — which is why `seed_sample` never calls it). Terrain is the floor
   primitive (painted onto the ground, height 0 by definition) and is intentionally left untouched. Idempotent.
   """
+  # THE GROUND IS FLAT, and until now nothing enforced it.
+  #
+  # Alexander, 2026-09-13, on a rendered bridge: *"why do we have those white boxes in middle? what the fuck
+  # are those squished black boxes?? how did you saw that and thought 'yeah this is a good bridge'??? the
+  # answer is you didnt"*. He is right that I never looked. When I did, through Playwright, the bridge was a
+  # row of open-topped cubes, and the reason was one number.
+  #
+  # `reconcile_tile_heights/0` below says in its own docstring "ground = 0, standing >= 1" and only ever did
+  # the second half: it walks `buildings walls windows doors roofs props nature` and forces `max(1.0, …)`.
+  # Nothing walked terrain/floors/roads. So `wooden_planks` (category `floors`) and `bridge` (category
+  # `roads`) sat at height 1.0 in the live database and every deck cell extruded into a block. A bridge is a
+  # deck; a deck made of cubes is a row of crates.
+  #
+  # It stayed hidden because the test fixture carries them at 0, so `emojiTileHeight`'s flat-ground assertion
+  # was green against a payload that had drifted from live. That is the fixture trap, twice in one day.
+  #
+  # THE WATER SURFACES ARE THE ONE EXCEPTION, and a deliberate one: Alexander, 2026-09-11, *"we need the river
+  # without water, which is negative height compared to walking floor / then inside that we put water with X
+  # height it can be < 1"*. They keep what they are authored with.
+  @non_flat_ground ~w(water water_f1 water_f2 water_f3 water_shallow water_deep)
+
+  @doc """
+  Flattens EVERY terrain / floor / road tile to height 0, in every tileset, except the water surfaces.
+
+  The other half of the sentence `reconcile_tile_heights/0` has always claimed. Pose-safe
+  (`Catalog.set_tile_height/3`), so editor-tuned settings survive.
+  """
+  def flatten_ground_heights do
+    flattened =
+      for tileset <- Catalog.list_tilesets(),
+          tile <- Catalog.list_tiles_for(tileset.key),
+          tile.category in ~w(terrain floors roads),
+          tile.label not in @non_flat_ground,
+          (tile.height || 0) != 0,
+          reduce: [] do
+        acc ->
+          Catalog.set_tile_height(tileset.id, tile.label, 0.0)
+          [tile.label | acc]
+      end
+
+    IO.puts("flattened #{length(flattened)} ground tiles: #{Enum.join(Enum.uniq(flattened), ", ")}")
+    :ok
+  end
+
   def reconcile_tile_heights do
     emoji_id = ensure_tileset("emoji", "Emoji").id
     emoji = read_tileset("emoji.json")
