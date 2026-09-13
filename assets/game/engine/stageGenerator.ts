@@ -1816,6 +1816,37 @@ const JUNGLE = {
 }
 
 /**
+ * HOW FAR A JUNGLE'S UNDERGROWTH HAS TO REACH so the served number means what it says.
+ *
+ * `plantUndergrowth` hits its density against the cells nothing else claimed. In a woodland that is nearly the
+ * whole map, so the reading does not matter. In a jungle it does: the creek, its two-cell banks, the light gaps
+ * and the animal tracks all join `open` before anything is planted, and measured across 12 seeds at 60x40 that
+ * set swings from 397 to 875 cells. A seed whose creek wandered therefore got a thinner jungle EVERYWHERE, and
+ * the choked-forest assertion in `stageGenerator.jungle.test.ts` failed on 8 of 12 seeds. It had been passing
+ * on seed 3 by 11 cells out of 2400, so the commit that moved it did not break it, it exposed it.
+ *
+ * The fix belongs on the UNDERGROWTH and not on the canopy, which the suite says out loud in two places:
+ * *"the undergrowth is what makes it a jungle, not just more trunks"* and *"it is a forest you can move
+ * through, not a wall"*. I tried the canopy first and it failed both, which is the suite doing its job.
+ *
+ * So groundCover reads as the share of the jungle's WALKABLE FLOOR that is choked, and the ways are simply not
+ * where it grows. This factor is that floor over what is left to plant on.
+ */
+function jungleFloorReach(ctx: ArchetypeContext, open: Set<string>): number {
+  const { cols, rows, collision, ground } = ctx
+  let floor = 0
+  let plantable = 0
+  for (let row = 1; row < rows - 1; row++) {
+    for (let col = 1; col < cols - 1; col++) {
+      if (collision[row][col] || isWaterGround(ground[row][col])) continue
+      floor++
+      if (!open.has(`${col},${row}`)) plantable++
+    }
+  }
+  return plantable === 0 ? 1 : floor / plantable
+}
+
+/**
  * THE JUNGLE. Floor → creek → light gaps → canopy → undergrowth → keep it one place.
  *
  * Ordered so each pass can simply avoid what the ones before it claimed: the creek and the gaps join `open`
@@ -1937,7 +1968,7 @@ function layoutJungle(ctx: ArchetypeContext, opts: ForestBuild = {}): void {
 
   // 5 · UNDERGROWTH between the trunks — the layer a wood does not have. Its density is the served
   //     `groundCover` scaled by the region, which is why dense growth is a wall and open canopy is not.
-  plantUndergrowth(ctx, open, water, pal, zoneAt)
+  plantUndergrowth(ctx, open, water, pal, zoneAt, jungleFloorReach(ctx, open))
 
   // 5b · RUINS where a ruins region says so: a stone platform with columns on it. The planned routes are
   //      kept out explicitly, which is what used to be done by skipping all of `open` and cost us every ruin
@@ -2789,6 +2820,10 @@ function plantUndergrowth(
   water: Set<string>,
   pal: GeneratorPalette | undefined,
   zoneAt?: (GeneratorSubZone | undefined)[][],
+  /** Multiplier on the served density. 1 means "a share of the cells nothing else claimed", which is what a
+   *  woodland wants. A jungle passes `jungleFloorReach` so its number means a share of the whole walkable
+   *  floor instead. */
+  reach = 1,
 ): void {
   const cover = ctx.nature?.groundCover
   if (cover === undefined) return
@@ -2820,7 +2855,7 @@ function plantUndergrowth(
   for (const { zone, mask } of groups) {
     const formation = zone?.formation ?? ctx.formation
     const understory = formation?.understory ?? 1
-    const density = clamp01(cover * (zone?.undergrowth ?? 1) * understory)
+    const density = clamp01(cover * (zone?.undergrowth ?? 1) * understory * reach)
     if (density <= 0) continue
     // A coarser lattice than the canopy's, so undergrowth reads as broad thickets rather than as a second
     // canopy stippled between the trunks.
