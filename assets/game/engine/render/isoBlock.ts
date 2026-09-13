@@ -190,6 +190,51 @@ export function isoBlockFaces(
  * iso projection (Kx per unit of col−row, Ky per unit of col+row): +col = (+tileW,+tileH) = right-down,
  * +row = (−tileW,+tileH) = left-down, −col = (−tileW,−tileH) = left-up, −row = (+tileW,−tileH) = right-up.
  */
+/**
+ * TURN A FACE'S TEXTURE, without moving the face.
+ *
+ * Alexander, 2026-09-13: *"why are we doing water svg?? we should use the backend pngs, if anything is new it
+ * should be backend tiles, we should build water with regular tileset animation, which doesn't use svg"*.
+ *
+ * He is right and the reason is one line of the renderer. `fillIsoFaceWithTile` paints a face by mapping the
+ * unit texture square onto it through `ctx.transform(eA, eB)` — two basis vectors. Rotating what the texture
+ * shows by a quarter turn is therefore just PERMUTING THOSE TWO VECTORS, which costs nothing and needs no art.
+ * I had instead baked a second set of water frames (`water_y*`) plus two reversals to get four headings: eight
+ * PNGs to do what a basis swap does for free. They are gone.
+ *
+ * The four turns, each covering the SAME four corners so the face is unchanged:
+ *
+ *     k=0  (a,           eA,  eB)
+ *     k=1  (a+eA,        eB, -eA)
+ *     k=2  (a+eA+eB,    -eA, -eB)
+ *     k=3  (a+eB,       -eB,  eA)
+ *
+ * Composable and exact: applying k=1 twice gives k=2, and four turns is the identity (no accumulated drift,
+ * the same property `quarterTurnCW` is built on).
+ *
+ * WHICH TURN A HEADING WANTS is not a matter of taste, it falls out of the projection. The top face is built
+ * `origin = left corner, eA -> top, eB -> bottom` (isoBlockFaces), and with `unitGroundQuad` that is
+ * `eA = (+tileW, -tileH)`, the -row step, and `eB = (+tileW, +tileH)`, the +col step. Water's art runs its
+ * wave lines along texture-x and scrolls them +x, so an unturned cell flows along `eA`, i.e. heading 3. See
+ * `textureTurnForHeading`.
+ */
+export function turnFaceTexture(origin: Pt, eA: Pt, eB: Pt, turns: number): { origin: Pt; eA: Pt; eB: Pt } {
+  const add = (p: Pt, q: Pt): Pt => ({ x: p.x + q.x, y: p.y + q.y })
+  const neg = (p: Pt): Pt => ({ x: -p.x, y: -p.y })
+  const k = ((Math.round(turns) % 4) + 4) % 4
+  if (k === 1) return { origin: add(origin, eA), eA: eB, eB: neg(eA) }
+  if (k === 2) return { origin: add(origin, add(eA, eB)), eA: neg(eA), eB: neg(eB) }
+  if (k === 3) return { origin: add(origin, eB), eA: neg(eB), eB: eA }
+  return { origin, eA, eB }
+}
+
+/** Quarter turns of a tile's TEXTURE so its along-x content runs toward `heading` (0=+col, 1=+row, 2=-col,
+ *  3=-row). Untouched art already runs along `eA`, which is heading 3, hence the +1. Pure; see
+ *  `turnFaceTexture` for the derivation. */
+export function textureTurnForHeading(heading: number): number {
+  return ((Math.round(heading) + 1) % 4 + 4) % 4
+}
+
 export type DepthDir = 'right-up' | 'left-up' | 'left-down' | 'right-down'
 
 /** Screen-space per-cell step for each direction, in tileW/tileH units (see the mapping above). */

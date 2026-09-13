@@ -3205,67 +3205,196 @@ function meadowWater(ctx: ArchetypeContext): GeneratorPalette {
 /**
  * WHICH WAY THE WATER IS GOING, per cell.
  *
- * Alexander, 2026-09-13, with a drawing: *"all water current animation is in this direction \\, but the river
- * goes around the map, there should be a current direction that goes around with the river and the tiles should
- * show correctly that current"*, and image #9 marking the three headings on a river that rings the map.
+ * Alexander, 2026-09-13, with three drawings: *"ALL FUCKING TILES USED ARE RANDOMLY ALIGNED, NONE IS THE SAME
+ * PATTERN, THE SAME DIRECTION … MOST OF THEM ARE BACKWARDS TOO, LIKE NONE OF THEM ARE TAKING INTO
+ * CONSIDERATION THE DIRECTION OF THE RIVER AROUND THE FUCKING MAP"*, and then the target, drawn:
  *
- * The scroll used to be baked INTO the four pictures (each shifts the wave paths 8px along +x), so every water
- * cell on every map drifted the same way regardless of which way its channel ran. One picture cannot know its
- * cell's direction, so the direction has to be DATA on the cell, exactly the way colour and elevation are.
+ *     what he sees        what he wants            or
+ *     | - | - |-          -------                  | | |
+ *                         ------                   | | |
+ *                         ------                   | | |
  *
- * WALKED, not guessed per cell. Taking the "most watery axis" locally gives you a tangent with no consistent
- * sign, so a ring river would flow into itself at the corners. This walks the channel as a graph instead: it
- * starts at a source (a cell with one water neighbour, i.e. an end) or, for a closed loop, at any cell, and
- * every step records the direction it was entered FROM. Downstream is therefore consistent along the whole
- * reach and round a full ring, which is what his three arrows describe.
+ * WHY IT CAME OUT SCRAMBLED. The first version walked the wet cells as a graph and gave each cell the step
+ * that REACHED it. That is right for a channel one cell wide and wrong for every real river, because a river
+ * is WIDE: the walk wanders across the channel as happily as along it, so two cells in the same cross-section
+ * get perpendicular headings. His `| - | - |-` is exactly a depth-first walk of a three-wide band.
  *
- * Returns quarter turns: 0 = +col (east), 1 = +row (south), 2 = -col, 3 = -row. Cells with no answer are
- * absent, and absent means "no current", which is what standing water gets.
+ * A cell's heading is two independent facts, and they need two different answers:
+ *
+ *   1. THE AXIS — does this stretch run along col or along row? That is a fact about the channel's SHAPE, so
+ *      measure the shape: how far the water reaches through this cell each way. A three-wide horizontal band
+ *      reaches ~40 along col and 3 along row at every one of its cells, so the whole band answers "col",
+ *      cross-section included. This is what makes his `-------` come out level.
+ *
+ *   2. THE SIGN — of the two ways along that axis, which is downstream? That is a fact about the channel as a
+ *      WHOLE, so it comes from a distance field, not from a neighbour. BFS from an EXTREMITY of the reach
+ *      makes the distance climb monotonically from one end to the other, so "downstream = the neighbour that
+ *      is farther" agrees everywhere. The extremity is found with the standard double sweep (BFS from any
+ *      cell, take the farthest; BFS again from that one), which lands on a true end of the reach rather than
+ *      the middle. Seeding in the middle would give a spring flowing out both ways.
+ *
+ * A RING IS THE ONE CASE A DISTANCE FIELD CANNOT ANSWER, and it is the case he drew (image #9, a river going
+ * around the map). Distance from any seed on a ring climbs BOTH ways and the two halves collide at the far
+ * side. A ring does not have an upstream, it CIRCULATES, so it gets the other rule: turn the vector from the
+ * ring's middle to the cell by ninety degrees and follow that around. Which rule applies is decided exactly,
+ * not by a threshold: the water is a ring when it encircles dry land (`encirclesDryLand`).
+ *
+ * Returns quarter turns: 0 = +col, 1 = +row, 2 = -col, 3 = -row. Every wet cell of a channel gets one.
  */
 const FLOW_STEPS: ReadonlyArray<readonly [number, number]> = [[1, 0], [0, 1], [-1, 0], [0, -1]]
+/** How far along one axis to look for the channel's run. A river is a handful of cells across and a map is
+ *  tens long, so this only has to see PAST the width to answer, and 12 does on every size we generate. */
+const RUN_REACH = 12
+/** Axis of a stretch: which of the two grid directions it runs along. */
+type FlowAxis = 0 | 1 // 0 = col, 1 = row
+
+const flowKey = (col: number, row: number): string => `${col},${row}`
+
+/** The water cells reachable from `start`, 4-connected. One river arm, one component. */
+function waterComponent(water: ReadonlySet<string>, start: string, seen: Set<string>): Set<string> {
+  const found = new Set<string>([start])
+  const stack = [start]
+  seen.add(start)
+  while (stack.length > 0) {
+    const { col, row } = toCell(stack.pop() as string)
+    for (const [dc, dr] of FLOW_STEPS) {
+      const k = flowKey(col + dc, row + dr)
+      if (!water.has(k) || seen.has(k)) continue
+      seen.add(k)
+      found.add(k)
+      stack.push(k)
+    }
+  }
+  return found
+}
+
+/** Every separate body of water, so two arms of the same map are each given their own current. */
+function waterComponents(water: ReadonlySet<string>): Set<string>[] {
+  const seen = new Set<string>()
+  const out: Set<string>[] = []
+  for (const key of water) if (!seen.has(key)) out.push(waterComponent(water, key, seen))
+  return out
+}
+
+/** How many cells of water lie in a straight line through this one, counting both ways along (dc,dr). */
+function runThrough(water: ReadonlySet<string>, col: number, row: number, dc: number, dr: number): number {
+  let n = 1
+  for (let s = 1; s <= RUN_REACH && water.has(flowKey(col + dc * s, row + dr * s)); s++) n++
+  for (let s = 1; s <= RUN_REACH && water.has(flowKey(col - dc * s, row - dr * s)); s++) n++
+  return n
+}
+
+/** WHICH WAY THIS STRETCH RUNS, from the water's own shape: the axis it reaches farther along. Ties go to
+ *  col, so a perfectly square pool answers consistently instead of speckling. */
+function channelAxis(water: ReadonlySet<string>, key: string): FlowAxis {
+  const { col, row } = toCell(key)
+  return runThrough(water, col, row, 1, 0) >= runThrough(water, col, row, 0, 1) ? 0 : 1
+}
+
+/** Graph distance from `from` to every cell of the component. */
+function waterDistances(component: ReadonlySet<string>, from: string): Map<string, number> {
+  const dist = new Map<string, number>([[from, 0]])
+  let frontier = [from]
+  while (frontier.length > 0) {
+    const next: string[] = []
+    for (const key of frontier) {
+      const { col, row } = toCell(key)
+      const d = (dist.get(key) as number) + 1
+      for (const [dc, dr] of FLOW_STEPS) {
+        const k = flowKey(col + dc, row + dr)
+        if (!component.has(k) || dist.has(k)) continue
+        dist.set(k, d)
+        next.push(k)
+      }
+    }
+    frontier = next
+  }
+  return dist
+}
+
+/** The cell of `dist` that is farthest from its seed. */
+function farthestFrom(dist: ReadonlyMap<string, number>): string {
+  let best = ''
+  let far = -1
+  for (const [key, d] of dist) if (d > far) { far = d; best = key }
+  return best
+}
+
+/** Does this water RING something? True when a dry cell inside its reach cannot be walked out to the map's
+ *  edge without crossing water, which is precisely what "the river goes around the map" means. Exact: a
+ *  flood of the dry cells inward from the border, no threshold and no guessing at shapes. */
+function encirclesDryLand(component: ReadonlySet<string>, cols: number, rows: number): boolean {
+  const outside = new Set<string>()
+  const stack: string[] = []
+  const consider = (col: number, row: number): void => {
+    if (col < 0 || row < 0 || col >= cols || row >= rows) return
+    const k = flowKey(col, row)
+    if (component.has(k) || outside.has(k)) return
+    outside.add(k)
+    stack.push(k)
+  }
+  for (let col = 0; col < cols; col++) { consider(col, 0); consider(col, rows - 1) }
+  for (let row = 0; row < rows; row++) { consider(0, row); consider(cols - 1, row) }
+  while (stack.length > 0) {
+    const { col, row } = toCell(stack.pop() as string)
+    for (const [dc, dr] of FLOW_STEPS) consider(col + dc, row + dr)
+  }
+  return outside.size + component.size < cols * rows
+}
+
+/** The middle of a body of water, as the average of its cells. */
+function waterMiddle(component: ReadonlySet<string>): { col: number; row: number } {
+  let col = 0
+  let row = 0
+  for (const key of component) { const c = toCell(key); col += c.col; row += c.row }
+  return { col: col / component.size, row: row / component.size }
+}
+
+/** Turn an axis and a direction along it into the heading the renderer reads. */
+const headingFor = (axis: FlowAxis, forward: boolean): number => (axis === 0 ? (forward ? 0 : 2) : (forward ? 1 : 3))
+
+/** A REACH: downstream is away from the end the distance field is seeded at, so every cell along it agrees. */
+function reachFlow(component: ReadonlySet<string>, into: Map<string, number>, water: ReadonlySet<string>): void {
+  const first = component.values().next().value as string
+  const end = farthestFrom(waterDistances(component, first)) // the double sweep: a true end, not the middle
+  const dist = waterDistances(component, end)
+  for (const key of component) {
+    const axis = channelAxis(water, key)
+    const { col, row } = toCell(key)
+    const [dc, dr] = FLOW_STEPS[axis]
+    const here = dist.get(key) ?? 0
+    const ahead = dist.get(flowKey(col + dc, row + dr))
+    const behind = dist.get(flowKey(col - dc, row - dr))
+    // Downstream is the way the distance CLIMBS. With only one neighbour on the axis, that one decides; with
+    // neither (a one-cell puddle in the reach) the reach's own orientation is all there is, so take forward.
+    const forward = ahead !== undefined && behind !== undefined ? ahead > behind
+      : ahead !== undefined ? ahead > here
+        : behind !== undefined ? behind < here
+          : true
+    into.set(key, headingFor(axis, forward))
+  }
+}
+
+/** A RING: it circulates, so downstream is the tangent around its middle. Same turn everywhere, no seam. */
+function ringFlow(component: ReadonlySet<string>, into: Map<string, number>, water: ReadonlySet<string>): void {
+  const mid = waterMiddle(component)
+  for (const key of component) {
+    const { col, row } = toCell(key)
+    const axis = channelAxis(water, key)
+    // Tangent of a clockwise turn about the middle: (dcol, drow) = (-(row - midRow), (col - midCol)).
+    const tangent = axis === 0 ? -(row - mid.row) : col - mid.col
+    into.set(key, headingFor(axis, tangent >= 0))
+  }
+}
 
 function flowField(ctx: ArchetypeContext, water: ReadonlySet<string>): Map<string, number> {
   const flow = new Map<string, number>()
-  const neighbours = (key: string): Array<{ key: string; dir: number }> => {
-    const { col, row } = toCell(key)
-    const out: Array<{ key: string; dir: number }> = []
-    FLOW_STEPS.forEach(([dc, dr], dir) => {
-      const k = `${col + dc},${row + dr}`
-      if (water.has(k)) out.push({ key: k, dir })
-    })
-    return out
-  }
-
-  // ENDS FIRST, THEN EVERYTHING ELSE. An open reach should flow from one end to the other rather than from
-  // the middle outward, so the degree-1 cells go first. But a channel is not always one 4-connected run: a
-  // wobble can jog diagonally and split it, and a closed ring has no end at all. Starting ONLY at ends left
-  // those stretches with no current: measured on `divides`, 133 of 266 wet cells had no direction. Every
-  // remaining cell is a start too, so nothing is skipped.
-  const ends = [...water].filter(k => neighbours(k).length === 1)
-  const starts = [...ends, ...water]
-  const seen = new Set<string>()
-
-  for (const start of starts) {
-    if (seen.has(start)) continue
-    const stack: string[] = [start]
-    seen.add(start)
-    while (stack.length > 0) {
-      const here = stack.pop() as string
-      for (const { key, dir } of neighbours(here)) {
-        if (seen.has(key)) continue
-        seen.add(key)
-        // The step that REACHED this cell is the way the water came, so it is this cell's heading too. The
-        // cell we came from takes the same heading, which is what makes the reach continuous rather than a
-        // field of unrelated arrows.
-        if (!flow.has(here)) flow.set(here, dir)
-        flow.set(key, dir)
-        stack.push(key)
-      }
-    }
+  for (const component of waterComponents(water)) {
+    if (encirclesDryLand(component, ctx.cols, ctx.rows)) ringFlow(component, flow, water)
+    else reachFlow(component, flow, water)
   }
   return flow
 }
-
 /**
  * SETTLE THE WATER BY DEPTH, once the map is otherwise finished.
  *

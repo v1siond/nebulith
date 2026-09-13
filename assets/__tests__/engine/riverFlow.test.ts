@@ -5,10 +5,16 @@
  * goes around the map, there should be a current direction that goes around with the river and the tiles
  * should show correctly that current"*, and image #9 marking three headings on a river that rings the map.
  *
- * THIS IS THE DATA HALF ONLY, and the tests say so. The generator now states a heading per channel cell and
- * the render projects it onto the isometric axes. The pictures still carry a fixed +x drift baked into four
- * frames, so nothing MOVES differently on screen yet: `animShiftX` offsets the tile's draw anchor, not its
- * texture, so the scroll cannot be expressed as an offset track and has to be baked per direction.
+ * The heading is DATA on the cell; the renderer turns the water's texture by it (`turnFaceTexture`), so the
+ * picture follows the channel with one baked frame set.
+ *
+ * WHAT WENT WRONG THE FIRST TIME, because it is the point of the tests below. The first field walked the wet
+ * cells as a graph and gave each cell the step that reached it. That is correct for a channel ONE cell wide
+ * and wrong for every real river, because the walk wanders across a wide channel as readily as along it. He
+ * drew the result exactly: *"WE HAVE WATER LIKE | - | - |- WHEN IT SHOULD BE ------- / ------ / ------"*.
+ *
+ * So the test that matters is not "every cell has a heading" (the broken field passed that). It is that
+ * NEIGHBOURS AGREE: a stretch of river has to come out one way, cross-section included.
  */
 import '@/__tests__/helpers/installTilesetSeed'
 import { generateStage } from '@/engine/stageGenerator'
@@ -78,5 +84,70 @@ describe('every channel cell states its heading', () => {
     const s = river('none')
     const pools = s.props.filter(p => p.label === 'water_still')
     for (const p of pools) expect({ at: `${p.col},${p.row}`, dir: s.flow?.[p.row]?.[p.col] }).toEqual({ at: `${p.col},${p.row}`, dir: undefined })
+  })
+})
+
+/**
+ * HIS DRAWING, AS A NUMBER.
+ *
+ *     what he saw          what he asked for
+ *     | - | - |-           -------
+ *                          ------
+ *                          ------
+ *
+ * Agreement between touching wet cells is the measurable form of that picture, and it is the one thing the
+ * old walk could not do: it satisfied every "has a heading" check while pointing neighbours at right angles.
+ *
+ * The floors are the measured values of the field this replaced it with, not aspirations: `divides` comes out
+ * 99.3%, `around` 95.7%, `through` 93.4% (a meandering creek genuinely turns, so it should be lowest). They
+ * sit below the measurements so ordinary generator noise does not fail the suite, and far enough above a
+ * scrambled field that a regression to the old walk cannot slip through.
+ */
+describe('a stretch of river runs ONE way, cross-section included', () => {
+  const agreement = (s: ReturnType<typeof river>): number => {
+    let agree = 0
+    let pairs = 0
+    for (const [col, row] of wetCells(s)) {
+      const here = s.flow?.[row]?.[col]
+      for (const [dc, dr] of [[1, 0], [0, 1]] as const) {
+        if (!s.ground[row + dr]?.[col + dc]?.includes('water')) continue
+        pairs++
+        if (s.flow?.[row + dr]?.[col + dc] === here) agree++
+      }
+    }
+    return pairs === 0 ? 0 : agree / pairs
+  }
+
+  it.each([['divides', 0.95], ['around', 0.9], ['through', 0.85]] as const)(
+    '%s: touching wet cells share a heading at least %f of the time',
+    (course, floor) => {
+      const measured = agreement(river(course))
+      expect({ course, ok: measured >= floor, measured: Number(measured.toFixed(3)) })
+        .toEqual({ course, ok: true, measured: Number(measured.toFixed(3)) })
+    })
+
+  it('a straight channel across the map is essentially ONE heading, not four', () => {
+    // `divides` is carved "wide and nearly straight across the middle" (swing 0.05), so there is no honest
+    // reason for it to use more than one heading. The old walk used several on the same cross-section.
+    const s = river('divides')
+    const hist = new Map<number, number>()
+    for (const [col, row] of wetCells(s)) {
+      const h = s.flow?.[row]?.[col]
+      if (h !== undefined) hist.set(h, (hist.get(h) ?? 0) + 1)
+    }
+    const total = [...hist.values()].reduce((a, b) => a + b, 0)
+    const dominant = Math.max(...hist.values())
+    expect({ share: dominant / total > 0.9, total: total > 0 }).toEqual({ share: true, total: true })
+  })
+
+  it('and that one heading lies along the channel, not across it', () => {
+    // A horizontal cut runs along COL, so its cells must read heading 0 or 2. Pointing 1/3 would mean the
+    // waves run across the river, which is the "backwards" half of his complaint.
+    const s = river('divides')
+    const across = wetCells(s).filter(([col, row]) => {
+      const h = s.flow?.[row]?.[col]
+      return h === 1 || h === 3
+    })
+    expect(across.length / wetCells(s).length).toBeLessThan(0.1)
   })
 })

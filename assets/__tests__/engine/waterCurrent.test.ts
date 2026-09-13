@@ -1,71 +1,119 @@
 /**
- * THE CURRENT RUNS THE WAY THE RIVER DOES.
+ * ONE PICTURE, TURNED PER CELL.
  *
- * Alexander, 2026-09-13, with a drawing: *"all water current animation is in this direction \\, but the river
- * goes around the map, there should be a current direction that goes around with the river and the tiles
- * should show correctly that current"*, and image #9 marking three headings on a river that rings the map.
+ * Alexander, 2026-09-13: *"why are we doing water svg?? we should use the backend pngs, if anything is new it
+ * should be backend tiles, we should build water with regular tileset animation, which doesn't use svg"*.
  *
- * The drift is baked into the pictures, so one picture can never know its cell's heading. There is a frame SET
- * per heading and the cell picks one by the `flow` the generator wrote.
+ * This file used to assert the opposite, and it was green the whole time, which is the lesson worth keeping.
+ * It checked that FOUR frame sets existed and that a cell picked one by id. Four sets is a real answer to
+ * "the current should follow the river", it is just an expensive one: the direction was baked into eight
+ * PNGs. A floor face is painted by mapping the unit texture square onto it with two basis vectors
+ * (`ctx.transform(eA, eB)`), so a quarter turn of the picture is a PERMUTATION of those two vectors and costs
+ * nothing. The catalog is back to one loop and the eight transposed rows are deleted.
  *
- * FOUR HEADINGS, TWO BAKES. A floor is drawn through `ctx.transform(eA, eB)` (`fillIsoFaceWithTile`), so a
- * shift inside the TEXTURE already lands along an iso axis: the headings are ±x and ±y in texture space.
- * `water_y*` is the x set transposed, and the negatives are the same frames played in reverse. I first tried
- * to do this with an offset track and it cannot work: `animShiftX` moves the tile's draw anchor, so an offset
- * slides the water off its own cell instead of scrolling the waves inside it.
+ * So the tests here are now about the TURN, and they are exact rather than eyeballed: a turn must cover the
+ * same face, four turns must be the identity, and the heading→turn mapping has to agree with the projection
+ * the renderer actually uses.
  */
 import '@/__tests__/helpers/installTilesetSeed'
-import { spriteFrame } from '@/engine/render/assetAnimation'
-import { ASCII_STYLE } from '@/game/artStyle'
+import { isoBlockFaces, turnFaceTexture, textureTurnForHeading, unitGroundQuad, type Pt } from '@/engine/render/isoBlock'
 import { styleTile } from '@/engine/tileset/styleTiles'
-import type { GridAsset } from '@/engine/IsometricGrid'
 
-const cell = (flow?: number): GridAsset =>
-  ({ art: [''], col: 1, row: 1, type: 'floor', tileKey: 'water', heightLevel: 0, blocking: false, placedAt: 0, flow }) as unknown as GridAsset
+const near = (a: Pt, b: Pt) => Math.abs(a.x - b.x) < 1e-9 && Math.abs(a.y - b.y) < 1e-9
+/** The four corners a (origin, eA, eB) triple paints, as a set that ignores which corner is which. */
+const corners = (t: { origin: Pt; eA: Pt; eB: Pt }): Pt[] => [
+  t.origin,
+  { x: t.origin.x + t.eA.x, y: t.origin.y + t.eA.y },
+  { x: t.origin.x + t.eB.x, y: t.origin.y + t.eB.y },
+  { x: t.origin.x + t.eA.x + t.eB.x, y: t.origin.y + t.eA.y + t.eB.y },
+]
+const sameQuad = (a: Pt[], b: Pt[]) => a.every(p => b.some(q => near(p, q))) && a.length === b.length
 
-/** The label the frame at `t` draws, which is what actually differs between headings. */
-const frameAt = (flow: number | undefined, t: number): string | undefined =>
-  spriteFrame(cell(flow), t, ASCII_STYLE, 'iso', 'day')?.image?.src?.split('/').pop()?.replace('.png', '')
+const ORIGIN: Pt = { x: 100, y: 50 }
+const EA: Pt = { x: 32, y: -16 }
+const EB: Pt = { x: 32, y: 16 }
 
-describe('a cell plays the current of its own heading', () => {
-  it('the backend serves one frame set per heading, and the transposed rows exist', () => {
-    const anims = (styleTile('ascii', 'water')?.settings as { animations?: Array<{ id: string }> } | undefined)?.animations ?? []
-    expect(anims.map(a => a.id).filter(id => id.startsWith('water_flow_')).sort())
-      .toEqual(['water_flow_0', 'water_flow_1', 'water_flow_2', 'water_flow_3'])
-    for (const label of ['water_y', 'water_y_f1', 'water_y_f2', 'water_y_f3']) {
-      expect({ label, served: styleTile('ascii', label) !== undefined }).toEqual({ label, served: true })
+describe('turning a tile turns the PICTURE, never the face', () => {
+  it.each([0, 1, 2, 3])('turn %i paints exactly the same four corners', k => {
+    const turned = turnFaceTexture(ORIGIN, EA, EB, k)
+    expect(sameQuad(corners(turned), corners({ origin: ORIGIN, eA: EA, eB: EB }))).toBe(true)
+  })
+
+  it('four turns is the identity, so a heading can never drift', () => {
+    let t = { origin: ORIGIN, eA: EA, eB: EB }
+    for (let i = 0; i < 4; i++) t = turnFaceTexture(t.origin, t.eA, t.eB, 1)
+    expect(near(t.origin, ORIGIN) && near(t.eA, EA) && near(t.eB, EB)).toBe(true)
+  })
+
+  it('turning twice by one equals turning once by two (it composes)', () => {
+    const once = turnFaceTexture(ORIGIN, EA, EB, 1)
+    const twice = turnFaceTexture(once.origin, once.eA, once.eB, 1)
+    const direct = turnFaceTexture(ORIGIN, EA, EB, 2)
+    expect(near(twice.origin, direct.origin) && near(twice.eA, direct.eA) && near(twice.eB, direct.eB)).toBe(true)
+  })
+
+  it('each turn actually CHANGES the picture, so a heading is never a no-op', () => {
+    const seen = [0, 1, 2, 3].map(k => JSON.stringify(turnFaceTexture(ORIGIN, EA, EB, k)))
+    expect(new Set(seen).size).toBe(4)
+  })
+
+  it('a negative or oversized turn wraps instead of breaking', () => {
+    expect(turnFaceTexture(ORIGIN, EA, EB, -1)).toEqual(turnFaceTexture(ORIGIN, EA, EB, 3))
+    expect(turnFaceTexture(ORIGIN, EA, EB, 5)).toEqual(turnFaceTexture(ORIGIN, EA, EB, 1))
+  })
+})
+
+/**
+ * THE MAPPING IS DERIVED, NOT CHOSEN. The renderer builds a top face as `origin = left corner, eA -> top,
+ * eB -> bottom`, so with the unit diamond `eA` is the -row step and `eB` is the +col step. Water art runs its
+ * waves along texture-x, so untouched water flows along `eA`, heading 3. Everything else follows.
+ *
+ * This test reads those vectors out of `isoBlockFaces` rather than restating them, so if the projection ever
+ * changes the mapping fails here instead of quietly pointing every river the wrong way.
+ */
+describe('a heading turns the texture toward the grid direction it names', () => {
+  const tileW = 32
+  const tileH = 16
+  const top = isoBlockFaces({ x: 0, y: 0 }, tileW, tileH, 24, 0, unitGroundQuad(tileW, tileH)).top
+  const eA = { x: top.b.x - top.a.x, y: top.b.y - top.a.y }
+  const eB = { x: top.d.x - top.a.x, y: top.d.y - top.a.y }
+  /** Screen step of one cell in each heading: 0=+col, 1=+row, 2=-col, 3=-row. */
+  const HEADING_STEP: Pt[] = [{ x: tileW, y: tileH }, { x: -tileW, y: tileH }, { x: -tileW, y: -tileH }, { x: tileW, y: -tileH }]
+
+  it.each([0, 1, 2, 3])('heading %i sends the along-x waves that way on screen', heading => {
+    // After the turn, the picture's own +x axis IS the face's first basis vector, and one basis vector spans
+    // exactly one cell step (left corner to top corner is the -row step). So this compares like with like.
+    const turned = turnFaceTexture(top.a, eA, eB, textureTurnForHeading(heading))
+    expect(near(turned.eA, HEADING_STEP[heading])).toBe(true)
+  })
+
+  it('untouched art already runs along eA, which is why the mapping is heading + 1', () => {
+    expect(textureTurnForHeading(3)).toBe(0) // heading 3 needs no turn at all
+    expect(near(eA, HEADING_STEP[3])).toBe(true) // eA is the -row step: up and to the right on screen
+    expect(near(eB, HEADING_STEP[0])).toBe(true) // eB is the +col step: down and to the right
+  })
+})
+
+describe('the catalog carries ONE water loop, and no transposed art', () => {
+  it('serves a single current, not one per heading', () => {
+    for (const style of ['ascii', 'emoji'] as const) {
+      const anims = (styleTile(style, 'water')?.settings as { animations?: Array<{ id: string }> } | undefined)?.animations ?? []
+      const currents = anims.map(a => a.id).filter(id => id.startsWith('water_flow'))
+      expect({ style, currents }).toEqual({ style, currents: ['water_flow'] })
     }
   })
 
-  it('a river running along +row draws the TRANSPOSED waves, not the same ones as +col', () => {
-    // The heart of it: two cells at the same instant, different headings, different picture.
-    const alongCol = frameAt(0, 0)
-    const alongRow = frameAt(1, 0)
-    expect(alongCol).toBeDefined()
-    expect(alongRow).toBeDefined()
-    expect(alongRow).not.toBe(alongCol)
-    expect(alongRow).toContain('water_y')
-    expect(alongCol).not.toContain('water_y')
-  })
-
-  it('the reverse headings play the SAME pictures the other way round', () => {
-    // 2 is 0 reversed and 3 is 1 reversed, which is how four headings come out of two bakes.
-    const t = 0
-    expect(frameAt(2, t)).toBe('water_f3')
-    expect(frameAt(3, t)).toBe('water_y_f3')
-    expect(frameAt(0, t)).toBe('water')
-    expect(frameAt(1, t)).toBe('water_y')
-  })
-
-  it('a cell with NO heading still flows, exactly as it did before any of this', () => {
-    expect(frameAt(undefined, 0)).toBe(frameAt(0, 0))
-  })
-
-  it('only ONE current plays per cell, never all four at once', () => {
-    // Without the pick, every water cell would run four sprite loops over each other.
-    for (const dir of [0, 1, 2, 3]) {
-      const drawn = new Set([0, 300, 600, 900].map(t => frameAt(dir, t)))
-      expect({ dir, distinct: drawn.size }).toEqual({ dir, distinct: 4 }) // its own four frames, and no more
+  it('the eight transposed rows are GONE from the vocabulary', () => {
+    for (const style of ['ascii', 'emoji'] as const) {
+      for (const label of ['water_y', 'water_y_f1', 'water_y_f2', 'water_y_f3']) {
+        expect({ style, label, served: styleTile(style, label) !== undefined }).toEqual({ style, label, served: false })
+      }
     }
+  })
+
+  it('the one loop still has all four frames, so the water still moves', () => {
+    const anims = (styleTile('emoji', 'water')?.settings as { animations?: Array<{ id: string; frames?: unknown[] }> } | undefined)?.animations ?? []
+    const flow = anims.find(a => a.id === 'water_flow')
+    expect(flow?.frames?.length).toBe(4)
   })
 })

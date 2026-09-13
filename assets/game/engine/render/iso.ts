@@ -19,7 +19,7 @@ import { drawWeather, type WeatherId } from './weather'
 import { resolveAssetDrawSize } from './assetDimensions'
 import { resolveAssetAnimation, spriteFrame } from './assetAnimation'
 import { getStack, assetStackIndexer, unitStandLevel, type TileSource } from '@/engine/cellStack'
-import { isoBlockFaces, isoDepthBox, depthCells, depthFrontExtent, isoZOffset, rotateDepthDir, spanBackmost, normalizeDepthSpan, assetRectExtents, reachGroundQuad, rotateThicknessReach, type BlockFace, type DepthDir, type ThicknessReach } from './isoBlock'
+import { isoBlockFaces, isoDepthBox, depthCells, depthFrontExtent, isoZOffset, rotateDepthDir, spanBackmost, normalizeDepthSpan, assetRectExtents, reachGroundQuad, rotateThicknessReach, turnFaceTexture, textureTurnForHeading, type BlockFace, type DepthDir, type ThicknessReach } from './isoBlock'
 import { type Orientation } from './isoOrientation'
 import { cellOrienterFor, orientCellTurn, deorientCellTurn, orientedDimsForTurn, facingForTurn, wrapTurn } from './isoTurn'
 import { resolveTileHeight, blockLayers, layerBlockScale } from '@/engine/tileset/tileHeight'
@@ -1383,7 +1383,7 @@ export function fillIsoFaceWithTile(
   origin: Pt,
   eA: Pt,
   eB: Pt,
-  tv: { char?: string; color: string; image?: ImageVisual; tintTo?: string }, // tintTo → recolour a colour-emoji GLYPH (the roof 🟥 → roof colour)
+  tv: { char?: string; color: string; image?: ImageVisual; tintTo?: string; turns?: number }, // tintTo → recolour a colour-emoji GLYPH (the roof 🟥 → roof colour); turns → quarter-turn the TEXTURE
   na: number,
   nb: number,
   tint?: string, // an editor floor-colour override → recolour the tile image (#80)
@@ -1393,8 +1393,12 @@ export function fillIsoFaceWithTile(
   const rows = Math.max(1, Math.round(nb))
   const cw = S / cols
   const ch = S / rows
+  // TURN THE PICTURE, NOT THE FACE. `turns` permutes the two basis vectors (turnFaceTexture), so the same
+  // four corners are covered and only what the texture SHOWS rotates. This is how a river's current follows
+  // its channel with ONE baked frame set instead of four (see turnFaceTexture's note). 0 → byte-identical.
+  const t = tv.turns ? turnFaceTexture(origin, eA, eB, tv.turns) : { origin, eA, eB }
   ctx.save()
-  ctx.transform(eA.x / S, eA.y / S, eB.x / S, eB.y / S, origin.x, origin.y)
+  ctx.transform(t.eA.x / S, t.eA.y / S, t.eB.x / S, t.eB.y / S, t.origin.x, t.origin.y)
   // Image tile if its raster is ready; otherwise fall back to the glyph so the face is NEVER blank. This is
   // NO LONGER a pre-load placeholder — the loader gate decodes every baked image before the first frame
   // (tilesetLoader → preloadTileImages), so on a fresh load this always takes the image path; the glyph only
@@ -1828,7 +1832,7 @@ function drawIsoTileBlockLive(
     ctx.fillStyle = colour
     fillQuad(ctx, f.a, f.b, f.c, f.d)
     if (fdv.image || fdv.char) {
-      fillIsoFaceWithTile(ctx, f.a, { x: f.b.x - f.a.x, y: f.b.y - f.a.y }, { x: f.d.x - f.a.x, y: f.d.y - f.a.y }, { char: fdv.char, color: fdv.color, image: fdv.image }, 1, 1, ftint)
+      fillIsoFaceWithTile(ctx, f.a, { x: f.b.x - f.a.x, y: f.b.y - f.a.y }, { x: f.d.x - f.a.x, y: f.d.y - f.a.y }, { char: fdv.char, color: fdv.color, image: fdv.image, turns: fdv.turns }, 1, 1, ftint)
     }
   }
 
@@ -1892,7 +1896,7 @@ function drawIsoRectBlock(
   const fillFace = (f: BlockFace, colour: string, fdv: DrawVisual, ftint?: string): void => {
     ctx.fillStyle = colour
     fillQuad(ctx, f.a, f.b, f.c, f.d)
-    if (fdv.image || fdv.char) fillIsoFaceWithTile(ctx, f.a, { x: f.b.x - f.a.x, y: f.b.y - f.a.y }, { x: f.d.x - f.a.x, y: f.d.y - f.a.y }, { char: fdv.char, color: fdv.color, image: fdv.image }, 1, 1, ftint)
+    if (fdv.image || fdv.char) fillIsoFaceWithTile(ctx, f.a, { x: f.b.x - f.a.x, y: f.b.y - f.a.y }, { x: f.d.x - f.a.x, y: f.d.y - f.a.y }, { char: fdv.char, color: fdv.color, image: fdv.image, turns: fdv.turns }, 1, 1, ftint)
   }
   fillFace({ a: dn(L), b: dn(B), c: B, d: L }, leftShade, dv, tint) // +row (front-left) wall
   fillFace({ a: dn(B), b: dn(R), c: R, d: B }, rightShade, dv, tint) // +col (front-right) wall
@@ -2366,6 +2370,12 @@ export function drawIsoAssetAscii(
   const liveFrame = spriteFrame(asset, time, style, 'iso', dayNight)
   const framed = liveFrame ? frameImage(liveFrame, adv.char, adv.image, style) : undefined
   if (framed && framed !== adv.image) adv = { ...adv, image: framed, char: '', tint: adv.tint ?? asset.color }
+  // WHICH WAY THIS CELL'S PICTURE RUNS. Alexander, 2026-09-13: *"ALL FUCKING TILES USED ARE RANDOMLY ALIGNED,
+  // NONE IS THE SAME PATTERN, THE SAME DIRECTION … DEPENDING ON THE DIRECTION IN WHICH THE RIVER IS GOING IN
+  // RELATION TO THE MAP"*. A cell's heading is DATA on the cell (`flow`, written by the generator), and it
+  // turns the TEXTURE, not the tile: the face keeps its corners, the waves rotate inside it. This is the whole
+  // of the direction system now — no per-heading art, no per-heading animation.
+  if (asset.flow) adv = { ...adv, turns: textureTurnForHeading(asset.flow) }
   const blocks = resolveTileHeight(dbTile, asset)
   // Z-WIDTH (directional depth) is a 3D BLOCK operation: setting it declares the tile a block extruded N cells
   // along a diagonal, so the iso render MUST extrude it even at base height 0. Z-Width only changes how FAR a

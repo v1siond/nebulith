@@ -46,6 +46,10 @@ export interface DrawVisual {
   tint?: string
   /** present only when the active tile is an IMAGE — draw it instead of the glyph. */
   image?: ImageVisual
+  /** Quarter turns to rotate this tile's TEXTURE inside its face, without moving the face. Set from the
+   *  cell's own data (a river cell's `flow`), so one baked frame set serves every heading — see
+   *  `turnFaceTexture`. Absent/0 → the draw is byte-identical to before. */
+  turns?: number
 }
 
 /** Resolve what to actually draw for one element. `defChar`/`defColor` are the caller's
