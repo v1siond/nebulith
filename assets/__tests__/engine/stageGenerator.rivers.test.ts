@@ -64,10 +64,13 @@ function growKind(layout: 'woodland' | 'meadow' | 'jungle', river: GeneratorOpti
 type Stage = ReturnType<typeof grow>
 
 /** Every water label the generator writes: plain water, and the shallow and deep bands of the depth pass. */
-const WATER = new Set(['water', 'water_shallow', 'water_deep'])
+/** WATER-GROUND, not a list of its names. This was a hand-written Set and it silently stopped seeing swamp
+ *  pools the moment they began laying `water_still`, which is the exact failure the generator carries a comment
+ *  about twenty lines from where it colours them: ask what the ground IS, never which of its names it wears. */
+const isWater = (g: string): boolean => g.includes('water') || g === 'oasis' || g === 'koi'
 const waterCells = (s: Stage): Array<[number, number]> => {
   const out: Array<[number, number]> = []
-  s.ground.forEach((row, r) => row.forEach((g, c) => { if (WATER.has(g)) out.push([c, r]) }))
+  s.ground.forEach((row, r) => row.forEach((g, c) => { if (isWater(g)) out.push([c, r]) }))
   return out
 }
 
@@ -319,8 +322,11 @@ describe('water by depth: wade the shallows, the rest blocks', () => {
     const ice: Array<[number, number]> = []
     s.ground.forEach((row, r) => row.forEach((t, c) => { if (t === 'frozen_water') ice.push([c, r]) }))
     expect(ice.length).toBeGreaterThan(0)
-    // the whole course freezes: no cell is left as open water
-    expect(waterCells(s)).toEqual([])
+    // The whole course freezes: no cell is left as OPEN water. `waterCells` asks what the ground IS now, and
+    // frozen water IS water, so the question has to be asked precisely rather than relying on a name list that
+    // happened to omit `frozen_water`.
+    const open = waterCells(s).filter(([c, r]) => s.ground[r][c] !== 'frozen_water')
+    expect(open).toEqual([])
     expect(ice.every(([c, r]) => !s.collision[r][c])).toBe(true)
   })
 

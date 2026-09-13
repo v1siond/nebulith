@@ -2468,7 +2468,7 @@
           "glyph": "≈",
           "color_role": null,
           "blocking": false,
-          "height": 0,
+          "height": 0.5,
           "image_url": "/tiles/ascii/water_deep.png",
           "settings": {
             "variants": {
@@ -3892,7 +3892,7 @@
           "glyph": "~",
           "color_role": null,
           "blocking": false,
-          "height": 0,
+          "height": 0.5,
           "image_url": "/tiles/ascii/water_shallow.png",
           "settings": {
             "variants": {
@@ -3910,6 +3910,20 @@
               ]
             }
           }
+        },
+        "water_still": {
+          "title": "Still water",
+          "category": "terrain",
+          "settings": {
+            "color": null,
+            "animations": []
+          },
+          "height": 0.0,
+          "glyph": "⌱",
+          "image_url": "/tiles/ascii/water_shallow.png",
+          "blocking": false,
+          "color_role": null,
+          "emoji": null
         },
         "church": {
           "title": null,
@@ -8252,7 +8266,7 @@
           "glyph": "~",
           "color_role": null,
           "blocking": false,
-          "height": 0,
+          "height": 0.5,
           "image_url": "/tiles/ascii/water.png",
           "settings": {
             "variants": {
@@ -8268,7 +8282,58 @@
                 "rgba(85, 187, 255, 0.9)",
                 "rgba(68, 170, 238, 0.85)"
               ]
-            }
+            },
+            "frames": [
+              "/tiles/ascii/water.png",
+              "/tiles/ascii/water_f1.png",
+              "/tiles/ascii/water_f2.png",
+              "/tiles/ascii/water_f3.png"
+            ],
+            "frameMs": 1200,
+            "animations": [
+              {
+                "durationMs": 1200,
+                "frames": [
+                  {
+                    "tileId": "ascii:water"
+                  },
+                  {
+                    "tileId": "ascii:water_f1"
+                  },
+                  {
+                    "tileId": "ascii:water_f2"
+                  },
+                  {
+                    "tileId": "ascii:water_f3"
+                  }
+                ],
+                "id": "water_ripple",
+                "kind": "sprite",
+                "loop": true,
+                "name": "ripple",
+                "trigger": {
+                  "on": "load"
+                }
+              },
+              {
+                "durationMs": 1200,
+                "id": "water_translucence",
+                "kind": "settings",
+                "loop": true,
+                "name": "translucence",
+                "priority": 0,
+                "tracks": [
+                  {
+                    "from": 0.8,
+                    "setting": "opacity",
+                    "to": 0.8
+                  }
+                ],
+                "trigger": {
+                  "on": "load"
+                }
+              }
+            ]
           }
         },
         "wall": {
@@ -22755,7 +22820,7 @@
           "glyph": null,
           "color_role": null,
           "blocking": false,
-          "height": 0,
+          "height": 0.5,
           "image_url": "/tiles/emoji/sq_blue.png",
           "settings": {
             "color": "#1144aa"
@@ -23874,11 +23939,25 @@
           "glyph": null,
           "color_role": null,
           "blocking": false,
-          "height": 0,
+          "height": 0.5,
           "image_url": "/tiles/emoji/sq_blue.png",
           "settings": {
             "color": "#4488dd"
           }
+        },
+        "water_still": {
+          "title": "Still water",
+          "category": "terrain",
+          "settings": {
+            "color": "#4488dd",
+            "animations": []
+          },
+          "height": 0.0,
+          "glyph": null,
+          "image_url": "/tiles/emoji/water_shallow.png",
+          "blocking": false,
+          "color_role": null,
+          "emoji": "🟦"
         },
         "church": {
           "title": "Church",
@@ -27335,10 +27414,61 @@
           "glyph": null,
           "color_role": null,
           "blocking": false,
-          "height": 0,
+          "height": 0.5,
           "image_url": "/tiles/emoji/baked/water.png",
           "settings": {
-            "color": "#4a90e2"
+            "color": "#4a90e2",
+            "frames": [
+              "/tiles/emoji/water.png",
+              "/tiles/emoji/water_f1.png",
+              "/tiles/emoji/water_f2.png",
+              "/tiles/emoji/water_f3.png"
+            ],
+            "frameMs": 1200,
+            "animations": [
+              {
+                "durationMs": 1200,
+                "frames": [
+                  {
+                    "tileId": "emoji:water"
+                  },
+                  {
+                    "tileId": "emoji:water_f1"
+                  },
+                  {
+                    "tileId": "emoji:water_f2"
+                  },
+                  {
+                    "tileId": "emoji:water_f3"
+                  }
+                ],
+                "id": "water_ripple",
+                "kind": "sprite",
+                "loop": true,
+                "name": "ripple",
+                "trigger": {
+                  "on": "load"
+                }
+              },
+              {
+                "durationMs": 1200,
+                "id": "water_translucence",
+                "kind": "settings",
+                "loop": true,
+                "name": "translucence",
+                "priority": 0,
+                "tracks": [
+                  {
+                    "from": 0.8,
+                    "setting": "opacity",
+                    "to": 0.8
+                  }
+                ],
+                "trigger": {
+                  "on": "load"
+                }
+              }
+            ]
           }
         },
         "wall": {

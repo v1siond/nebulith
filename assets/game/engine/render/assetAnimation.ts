@@ -125,9 +125,22 @@ function styleToken(style: Style): TileStyle {
  * map with `settings: absoluteFrames(tile.settings)`), so this reads served data and invents nothing.
  */
 function tileAnimations(asset: GridAsset, token: TileStyle): readonly Animation[] | undefined {
-  const key = asset.label ?? assetKind(asset)
-  const settings = styleTile(token, key)?.settings as { animations?: readonly Animation[] } | undefined
-  const animations = settings?.animations
+  const settings = (t: string | undefined) =>
+    (t === undefined ? undefined : styleTile(token, t)?.settings) as { animations?: readonly Animation[] } | undefined
+
+  // A TILE MAY DECLARE THAT IT HAS NONE, and that is different from saying nothing.
+  //
+  // Alexander, 2026-09-13: *"that is not a river is a puddle, it doesn't have current is stationary"*. The
+  // collapse below is right for the PICTURE (every water band shares one image) and it handed the puddle the
+  // river's four frames along with it. `water_still` is authored with an EMPTY `animations` list to say so, so
+  // an own row that carries the key wins outright and never falls through. A band that carries no key at all
+  // still inherits, which is what keeps a river flowing.
+  const own = settings(asset.tileKey)
+  if (own && 'animations' in own) {
+    return Array.isArray(own.animations) && own.animations.length > 0 ? own.animations : undefined
+  }
+
+  const animations = settings(asset.label ?? assetKind(asset))?.animations
   return Array.isArray(animations) && animations.length > 0 ? animations : undefined
 }
 

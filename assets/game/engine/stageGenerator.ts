@@ -2443,11 +2443,17 @@ function floodSwampPools(ctx: ArchetypeContext, zoneAt: (GeneratorSubZone | unde
     // label, so a puddle drew a 0.45-tileW slab standing PROUD of the floor with dark sides, which the eye
     // reads as a basin. One label cannot be both a sunken channel and a flush puddle.
     //
-    // `water_shallow` is height 0.0, non-blocking, and still water-ground, so all thirteen `isWaterGround`
-    // consumers behave exactly as before. That is deliberately NOT the bigger change of clearing the water
-    // label altogether: dropping it would let tall grass, ground cover, blooms, the terrain transitions and the
-    // shoreline all flood into a puddle at once.
-    ground[row][col] = 'water_shallow'
+    // A PUDDLE HAS ITS OWN LABEL. Alexander, 2026-09-13: *"the green water is using the same tile as the river
+    // water, which is bad, because that is not a river is a puddle, it doesn't have current is stationary"*.
+    //
+    // This laid `water_shallow`, which is the RIVER's wadeable edge, so a pool and a channel wore one tile. It
+    // also claimed in this very comment that the label was height 0.0, and the database has never said so: it
+    // was 1.0 in both styles, so every puddle drew as a one-block cube of water standing on the floor.
+    //
+    // `water_still` is the puddle: height 0, non-blocking, and NO frames, because standing water has no
+    // current. It is still water-ground (`isWaterGround` matches any label containing "water"), so all
+    // thirteen consumers behave exactly as before.
+    ground[row][col] = 'water_still'
     // NO COLLISION. Alexander, 2026-09-12, on the green water: *"I can't walk throug the green one, even when
     // the floor makes it seems like I should, specially considering the floor is at the same level"*, and
     // earlier: *"we still want to be able to use water outside of rivers, usually i'l be like water puddles,
