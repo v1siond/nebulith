@@ -1596,9 +1596,23 @@ defmodule Nebulith.Catalog.TileSource do
               # which is a different thing from saying nothing and inheriting.
               settings: %{
                 "color" => (shallow.settings || %{})["color"],
-                "animations" => [],
+                # NO CURRENT, BUT YOU CAN SEE THROUGH IT. Alexander, 2026-09-13, giving the three layers:
+                # *"the floor tile, which is the actual floor, then the puddle water stacked on top but
+                # walkable, and with stacking set at bottom face, then the flower stacked on the puddle ...
+                # and the puddle of water cell/tile should have some level of transparency, like real water"*.
+                #
+                # The list stays a STATEMENT rather than an omission (the frontend collapses every water-ish
+                # label to `water` so the bands can share one picture, and that collapse would hand a puddle
+                # the river's current). It now carries exactly one entry, and it is not a current: a constant
+                # opacity, expressed the only way a tile's opacity is actually read, as a settings track with
+                # `from` equal to `to`. A plain `settings.opacity` would be consumed by nothing.
+                "animations" => [water_translucence("puddle_translucence", 0.72)],
                 # Nothing stands ON a puddle: whatever is in the cell sits at the floor, with the film over it.
-                "stackAt" => 0
+                # This is his "stacking set at bottom face", and it is what lets a flower stand IN the water
+                # rather than on a shelf of it.
+                "stackAt" => 0,
+                # WHAT IT OCCUPIES: nothing. You wade a puddle, which is the whole point of it being a film.
+                "collision" => []
               }
             })
       end
@@ -1780,16 +1794,16 @@ defmodule Nebulith.Catalog.TileSource do
   #
   # 0.8 is a starting point for his :3000 verdict, not a derived number. He asked for "semi transparent" and
   # did not say how much, so this is the one value here that is a proposal rather than a measurement.
-  defp water_translucence do
+  defp water_translucence(id \\ "water_translucence", opacity \\ 0.8) do
     %{
-      "id" => "water_translucence",
+      "id" => id,
       "name" => "translucence",
       "kind" => "settings",
       "durationMs" => @water_frame_ms,
       "loop" => true,
       "priority" => 0,
       "trigger" => %{"on" => "load"},
-      "tracks" => [%{"setting" => "opacity", "from" => 0.8, "to" => 0.8}]
+      "tracks" => [%{"setting" => "opacity", "from" => opacity, "to" => opacity}]
     }
   end
 
