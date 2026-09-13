@@ -17,40 +17,53 @@ const mkGrid = () => new IsometricGrid({ cols: 14, rows: 14, cellSize: 16, isoSc
 describe('tree composition — every ascii asset is a collection of selectable DB tiles', () => {
   useSeedTileset() // the DB-equivalent tileset the runtime loads (carries the tree_small / tree_dead compositions)
 
+  /**
+   * `tree_small` is TWO cells, a trunk and a crown.
+   *
+   * It was 30 (a 5x3 canopy blob over a 3-cell trunk) and the backend cut it deliberately: *"tree_small = a
+   * genuinely SMALL tree (short trunk + small canopy, was a confusing legacy 5x3)"*, and *"Down from 3 cells
+   * to 2 (bush: 1), the optimization the ticket asked for"*. The fixture kept serving the old 30-cell shape
+   * long after the DB stopped, so these tests were pinned to a tree that no longer exists anywhere else.
+   */
+  const TREE_SMALL_CELLS = 2
+
   test('the DB tileset SERVES the tree composition (nothing hardcoded on the frontend)', () => {
     const comp = resolveComposition(styleCatalog('ascii'), 'tree_small')
     expect(comp).not.toBeNull()
-    expect(comp!.footprint).toEqual({ w: 5, h: 3 }) // the diagram: 5-wide canopy base, 3 DEEP (leaf sections repeated at dy -1/0/+1)
-    expect(comp!.cells.length).toBe(30) // 3 trunk + a 3-deep canopy (L3 5-wide + L4 3-wide + L5 crown) repeated across dy -1/0/+1
+    expect(comp!.footprint).toEqual({ w: 1, h: 1 }) // one cell wide: the canopy is one scaled crown, not a 5-wide blob
+    expect(comp!.cells.length).toBe(TREE_SMALL_CELLS) // trunk_mid + leaf_center
   })
 
   test('stampComposition stacks tree_small as per-cell heightLevel blocks (trunk column + canopy blob)', () => {
     const grid = mkGrid()
     const placed = stampComposition(grid, 'tree_small', 7, 7, 'spring', 0)
-    expect(placed).toBe(30)
+    expect(placed).toBe(TREE_SMALL_CELLS)
 
-    // Anchor column (7,7): a 3-cell TRUNK then the canopy centre up the widths — leaf, leaf, crown.
-    // The levels ARE the composition's own authored levels: the tree stands ON a FLAT ground tile, and level 0
+    // Anchor column (7,7): a trunk, then its crown resting on it. TWO tiles, each scaled to its real
+    // proportions (the trunk is scaleY 1.9 at half width, the crown scaleY 1.2 at 0.95), which is what
+    // replaced the old 30-cell stack of whole blocks.
+    //
+    // The levels ARE the composition's own authored levels: the tree stands ON a FLAT ground tile and level 0
     // is that tile's surface. It used to be +1 across the board, back when every ground was a height-1 cube
     // ("all tiles/blocks are height 1, GLOBAL"). T-140 made the ground flat and the map's thickness the GRID's,
     // so there is no block to climb. A trunk lands on the ground, not one block above it (Image #30).
     const center = getStack(grid, 7, 7).filter(t => t.type !== 'floor')
-    expect(center.map(t => t.heightLevel)).toEqual([0, 1, 2, 3, 4, 5])
-    expect(center.map(t => t.label)).toEqual(['trunk_base', 'trunk', 'trunk', 'leaf_center', 'leaf_center', 'leaf_top'])
+    expect(center.map(t => t.heightLevel)).toEqual([0, 1])
+    expect(center.map(t => t.label)).toEqual(['trunk_mid', 'leaf_center'])
 
-    // The canopy widens DOWN the levels (the diagram): its base level spans 5 cells (dx -2..2), the one above
-    // spans 3 (dx -1..1). Outermost base cells (dx ±2) carry ONE leaf; the inner cells (dx ±1) carry two.
-    expect(getStack(grid, 5, 7).filter(t => t.type !== 'floor').map(t => t.heightLevel)).toEqual([3]) // dx -2, base only
-    expect(getStack(grid, 9, 7).filter(t => t.type !== 'floor').map(t => t.heightLevel)).toEqual([3]) // dx +2, base only
-    expect(getStack(grid, 6, 7).filter(t => t.type !== 'floor').map(t => t.heightLevel)).toEqual([3, 4]) // dx -1, base + mid
-    expect(getStack(grid, 8, 7).filter(t => t.type !== 'floor').map(t => t.heightLevel)).toEqual([3, 4]) // dx +1, base + mid
+    // AND NOTHING SPILLS. The canopy used to widen down the levels across five cells (dx -2..2), which is why
+    // this test used to read four neighbours. A 1x1 tree gets its width from the crown's own scale instead, so
+    // the cells either side must be EMPTY. That is the property worth pinning: a tree occupies its own cell.
+    for (const col of [5, 6, 8, 9]) {
+      expect({ col, stacked: getStack(grid, col, 7).filter(t => t.type !== 'floor').length }).toEqual({ col, stacked: 0 })
+    }
   })
 
   test('EVERY composition tile is an independently selectable block (heightLevel set + height>=1 — the picker gate)', () => {
     const grid = mkGrid()
     stampComposition(grid, 'tree_small', 7, 7, 'spring', 0)
     const tiles = grid.assets.filter(a => a.type === 'tree_small')
-    expect(tiles.length).toBe(30)
+    expect(tiles.length).toBe(TREE_SMALL_CELLS)
     for (const a of tiles) {
       // The isoBlocksUnder picker admits a tile as a selectable BLOCK when heightLevel>=1 OR height>=1.
       expect(a.height ?? 0).toBeGreaterThanOrEqual(1)
@@ -59,7 +72,7 @@ describe('tree composition — every ascii asset is a collection of selectable D
     }
     // A canopy tile and a trunk tile at DISTINCT (cell, level) slots → each is its own selectable block.
     const slots = new Set(tiles.map(a => `${a.col},${a.row},${a.heightLevel}`))
-    expect(slots.size).toBe(30)
+    expect(slots.size).toBe(TREE_SMALL_CELLS)
   })
 
   test('glyph + colour come from the DB tile, not hardcoded frontend art', () => {
@@ -93,10 +106,11 @@ describe('tree composition — every ascii asset is a collection of selectable D
   test('the grounded trunk base casts a shadow (level-0 tiles carry baseShadow, higher ones do not)', () => {
     const grid = mkGrid()
     stampComposition(grid, 'tree_small', 7, 7, 'spring', 0)
-    const base = grid.assets.find(a => a.label === 'trunk_base')!
+    // The grounded cell is `trunk_mid` now, not `trunk_base`: the two-tile tree has one trunk piece, stretched.
+    const base = grid.assets.find(a => a.label === 'trunk_mid')!
     expect(base.baseShadow).toBe(true) // sits on the ground → casts a shadow, so the tree never looks floaty
     const canopy = grid.assets.find(a => a.label === 'leaf_center')!
-    expect(canopy.baseShadow).toBeFalsy() // level 2 → a shadow here would float at canopy height
+    expect(canopy.baseShadow).toBeFalsy() // level 1 → a shadow here would float at canopy height
   })
 
   test('tree_dead stamps a 1-wide snag column (dead wood is the same selectable model)', () => {
@@ -167,11 +181,16 @@ describe('tree composition — every ascii asset is a collection of selectable D
     }
   })
 
-  test('the round variants render a CIRCLE canopy — shape ships on the leaf cell (square by default)', () => {
-    const round = mkGrid(); stampComposition(round, 'tree_round', 7, 7, 'spring', 0)
-    expect(round.assets.find(a => a.label === 'leaf_center')!.shape).toBe('circle')
-    const square = mkGrid(); stampComposition(square, 'tree', 7, 7, 'spring', 0)
-    expect(square.assets.find(a => a.label === 'leaf_center')!.shape ?? 'square').toBe('square')
+  test('a round-crowned species renders a CIRCLE canopy, and a CONE keeps its box', () => {
+    // Alexander, 2026-09-12: a canopy that is a cube reads wrong, so every round-crowned species says circle
+    // now, the plain `tree` included. The square case moved to `tree_conifer`, which is genuinely NOT round:
+    // the renderer draws `square` and `circle` and nothing else, so a cone keeps the box until one exists.
+    for (const kind of ['tree_round', 'tree'] as const) {
+      const round = mkGrid(); stampComposition(round, kind, 7, 7, 'spring', 0)
+      expect({ kind, shape: round.assets.find(a => a.label === 'leaf_center')!.shape }).toEqual({ kind, shape: 'circle' })
+    }
+    const cone = mkGrid(); stampComposition(cone, 'tree_conifer', 7, 7, 'spring', 0)
+    expect(cone.assets.find(a => a.label === 'leaf_center')!.shape ?? 'square').toBe('square')
   })
 
   // ── DIMENSION-SANITY: the trunk is never bigger than the leaves (Alexander's rule) ─────────────────────
