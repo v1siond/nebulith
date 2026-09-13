@@ -28,7 +28,7 @@
  * thickness are the GRID's, so their tests moved with them to `gridPanel.test.tsx`. This panel takes no
  * size at all now: `onGenerate` has three arguments and the caller reads the grid.
  */
-import { render, screen, fireEvent, within } from '@testing-library/react'
+import { act, render, screen, fireEvent, within } from '@testing-library/react'
 import { GenerateControls } from '@/components/game/editorChrome'
 import { GENERATOR_LAYERS } from '@/components/game/editorConfig'
 import { EMPTY_GENERATOR_CATALOG, catalogZones, categoryLayouts, parseGeneratorCatalog } from '@/lib/generatorCatalog'
@@ -534,5 +534,59 @@ describe('the preview window shows the world to build, its size, and the options
     fireEvent.change(within(into).getByLabelText(/^kind of crossing$/i), { target: { value: 'planks' } })
     fireEvent.click(screen.getByRole('button', { name: /build this world/i }))
     expect(p.onGenerate).toHaveBeenCalledWith('spring', 'forest', expect.any(String), { exits: 'random', pathways: 'random', river: 'through', crossing: false, depth: '1', bridge: 'planks' })
+  })
+
+  /**
+   * BUILDING TAKES TIME, AND THE PANEL HAS TO SAY SO.
+   *
+   * Ticket 65 (old 38). `generateStageInEditor` is async and nothing ever showed it running, so on a big map
+   * the only feedback was the world changing when it finally landed, and a second impatient click queued an
+   * entire second build.
+   */
+  describe('while it is building', () => {
+    /** A build the test finishes by hand, so the in-flight window is a real one and not a race. */
+    const deferred = () => {
+      let settle: () => void = () => {}
+      let fail: (e: Error) => void = () => {}
+      const promise = new Promise<void>((res, rej) => { settle = res; fail = rej })
+      return { promise, settle, fail }
+    }
+
+    const startBuild = () => {
+      const d = deferred()
+      const p = props({ onGenerate: jest.fn(() => d.promise) })
+      render(<GenerateControls {...p} />)
+      fireEvent.click(screen.getByRole('button', { name: /build this world/i }))
+      return { ...d, p }
+    }
+
+    it('says so on the button, and refuses to be clicked again', async () => {
+      const { settle, p } = startBuild()
+      const busy = await screen.findByRole('button', { name: /building this world/i })
+      expect(busy).toBeDisabled()
+      expect(busy).toHaveAttribute('aria-busy', 'true')
+
+      fireEvent.click(busy) // the impatient second click
+      expect(p.onGenerate).toHaveBeenCalledTimes(1)
+
+      await act(async () => { settle() })
+      expect(await screen.findByRole('button', { name: /build this world/i })).toBeEnabled()
+    })
+
+    it('gives the button back when the build FAILS, and says so rather than swallowing it', async () => {
+      const spy = jest.spyOn(console, 'error').mockImplementation(() => {})
+      try {
+        const { fail } = startBuild()
+        await screen.findByRole('button', { name: /building this world/i })
+        await act(async () => { fail(new Error('the generator threw')) })
+        // The panel is usable again…
+        expect(await screen.findByRole('button', { name: /build this world/i })).toBeEnabled()
+        // …and the failure was REPORTED. A caught-and-dropped error would leave the user with a button that
+        // simply does nothing, which is worse than the stuck one.
+        expect(spy).toHaveBeenCalledWith('Building this world failed', expect.any(Error))
+      } finally {
+        spy.mockRestore()
+      }
+    })
   })
 })

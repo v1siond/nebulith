@@ -2188,24 +2188,34 @@
                     "name": "Open canopy",
                     "trees": [
                       {
-                        "kind": "tree_palm",
-                        "weight": 30
+                        "kind": "tree_cypress",
+                        "weight": 40
                       },
                       {
                         "kind": "tree_round",
                         "weight": 30
                       },
                       {
-                        "kind": "tree_big",
-                        "weight": 20
-                      },
-                      {
                         "kind": "bush_round",
-                        "weight": 20
+                        "weight": 30
                       }
                     ],
                     "undergrowth": 0.5,
-                    "weight": 1
+                    "weight": 1,
+                    "flowers": [
+                      {
+                        "char": "✾",
+                        "color": "#7b5fa8"
+                      },
+                      {
+                        "char": "❋",
+                        "color": "#4f8f7a"
+                      },
+                      {
+                        "char": "✿",
+                        "color": "#b89a3c"
+                      }
+                    ]
                   },
                   {
                     "canopy": 1.3,
@@ -2219,11 +2229,11 @@
                     "name": "Dense growth",
                     "trees": [
                       {
-                        "kind": "tree_giant",
-                        "weight": 25
+                        "kind": "tree_cypress",
+                        "weight": 35
                       },
                       {
-                        "kind": "tree_big",
+                        "kind": "tree_giant",
                         "weight": 25
                       },
                       {
@@ -2232,11 +2242,25 @@
                       },
                       {
                         "kind": "tree_round",
-                        "weight": 25
+                        "weight": 15
                       }
                     ],
                     "undergrowth": 1.45,
-                    "weight": 2
+                    "weight": 2,
+                    "flowers": [
+                      {
+                        "char": "✾",
+                        "color": "#7b5fa8"
+                      },
+                      {
+                        "char": "❋",
+                        "color": "#4f8f7a"
+                      },
+                      {
+                        "char": "✿",
+                        "color": "#b89a3c"
+                      }
+                    ]
                   },
                   {
                     "canopy": 0.85,
@@ -2562,23 +2586,33 @@
                     "trees": [
                       {
                         "kind": "tree_palm",
-                        "weight": 30
-                      },
-                      {
-                        "kind": "tree_round",
-                        "weight": 30
-                      },
-                      {
-                        "kind": "tree_big",
-                        "weight": 20
+                        "weight": 55
                       },
                       {
                         "kind": "bush_round",
+                        "weight": 25
+                      },
+                      {
+                        "kind": "tree_round",
                         "weight": 20
                       }
                     ],
                     "undergrowth": 0.5,
-                    "weight": 3
+                    "weight": 3,
+                    "flowers": [
+                      {
+                        "char": "✿",
+                        "color": "#e2739b"
+                      },
+                      {
+                        "char": "❋",
+                        "color": "#6aa9c4"
+                      },
+                      {
+                        "char": "✾",
+                        "color": "#e0c877"
+                      }
+                    ]
                   },
                   {
                     "canopy": 1.3,
@@ -2592,24 +2626,34 @@
                     "name": "Dense growth",
                     "trees": [
                       {
-                        "kind": "tree_giant",
-                        "weight": 25
+                        "kind": "tree_palm",
+                        "weight": 40
                       },
                       {
                         "kind": "tree_big",
-                        "weight": 25
+                        "weight": 30
                       },
                       {
                         "kind": "bush",
-                        "weight": 25
-                      },
-                      {
-                        "kind": "tree_round",
-                        "weight": 25
+                        "weight": 30
                       }
                     ],
                     "undergrowth": 1.45,
-                    "weight": 2
+                    "weight": 2,
+                    "flowers": [
+                      {
+                        "char": "✿",
+                        "color": "#e2739b"
+                      },
+                      {
+                        "char": "❋",
+                        "color": "#6aa9c4"
+                      },
+                      {
+                        "char": "✾",
+                        "color": "#e0c877"
+                      }
+                    ]
                   }
                 ],
                 "trees": [

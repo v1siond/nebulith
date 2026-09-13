@@ -5896,9 +5896,10 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
                   catalogError={generatorCatalogError}
                   zone={genZone}
                   onZone={z => setGenZone(z as ZoneId)}
-                  onGenerate={(z, v, layout, options, generatorKey) => {
-                    void generateStageInEditor(z as ZoneId, v as VariantId, layout, undefined, undefined, options, generatorKey)
-                  }}
+                  onGenerate={(z, v, layout, options, generatorKey) =>
+                    // RETURN the promise: the button shows "Building this world…" until it settles (ticket 65).
+                    generateStageInEditor(z as ZoneId, v as VariantId, layout, undefined, undefined, options, generatorKey)
+                  }
                   onApply={(z, options) => { void applyToCurrentMap(z as ZoneId, options) }}
                   onRandomizeLayer={layer => randomizeLayerInEditor(layer as LayerId)}
                   selectedCount={selectedCells.size}

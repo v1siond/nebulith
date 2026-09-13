@@ -627,7 +627,8 @@ export function GenerateControls({
    *  The SIZE is not passed: it belongs to the Grid panel now, and the caller reads it from there.
    *  Alexander, 2026-09-10: *"the template generation just uses whatever we setup on it"*. */
   /** `generatorKey` is the SUBTYPE picked below the preset, when one was — the build runs exactly that one. */
-  onGenerate: (zone: string, categoryKey: string, layout?: string, options?: Record<string, GeneratorOptionValue>, generatorKey?: string) => void
+  /** Returns a promise while the build runs, so the button can say so. A void return still works. */
+  onGenerate: (zone: string, categoryKey: string, layout?: string, options?: Record<string, GeneratorOptionValue>, generatorKey?: string) => void | Promise<void>
   /**
    * Apply the season and the options to the map that is ALREADY open, without re-rolling it.
    *
@@ -841,18 +842,37 @@ export function GenerateControls({
    */
   const archetypeOf = (gen: GeneratorDef | undefined): string => gen?.variant ?? (activeKey as string)
 
-  const generate = () => {
-    if (activeKey === null) return
-    // No size travels with this any more. The caller reads the GRID panel's numbers, which is the one place
-    // they are set, so a generate and a resize can no longer disagree about what the map's shape is.
-    if (layouts.length === 0) { onGenerate(zone, archetypeOf(activeGenerator), undefined, chosenOptions()); return }
-    const picked = layouts.some(l => l.id === layout) ? layout : layouts[0].id
-    // Random rolls HERE, on each build, so the same pick builds a different subtype every time.
-    const pool = randomParent?.children ?? []
-    const leaf = pool.length > 0 ? pool[Math.floor(Math.random() * pool.length)] : activeGenerator
-    // Only a SUBTYPE travels as a key; the type itself is what (category, layout) already names.
-    if (leaf && leaf !== presetGenerator) onGenerate(zone, archetypeOf(leaf), picked ?? undefined, chosenOptions(), leaf.key)
-    else onGenerate(zone, archetypeOf(leaf), picked ?? undefined, chosenOptions())
+  /**
+   * BUILDING, so the button can say so instead of appearing to have done nothing.
+   *
+   * Ticket 65 (old 38). Generating is async and took no visible time on a 20x20, so nothing was ever shown;
+   * at 40x40 with regions, relief and a settlement it is long enough that the only feedback was the map
+   * changing when it finally landed. A second click during that window queued a whole second build.
+   */
+  const [buildingWorld, setBuildingWorld] = useState(false)
+
+  const generate = async () => {
+    if (activeKey === null || buildingWorld) return
+    setBuildingWorld(true)
+    try {
+      // No size travels with this any more. The caller reads the GRID panel's numbers, which is the one place
+      // they are set, so a generate and a resize can no longer disagree about what the map's shape is.
+      if (layouts.length === 0) { await onGenerate(zone, archetypeOf(activeGenerator), undefined, chosenOptions()); return }
+      const picked = layouts.some(l => l.id === layout) ? layout : layouts[0].id
+      // Random rolls HERE, on each build, so the same pick builds a different subtype every time.
+      const pool = randomParent?.children ?? []
+      const leaf = pool.length > 0 ? pool[Math.floor(Math.random() * pool.length)] : activeGenerator
+      // Only a SUBTYPE travels as a key; the type itself is what (category, layout) already names.
+      if (leaf && leaf !== presetGenerator) await onGenerate(zone, archetypeOf(leaf), picked ?? undefined, chosenOptions(), leaf.key)
+      else await onGenerate(zone, archetypeOf(leaf), picked ?? undefined, chosenOptions())
+    } catch (err) {
+      // LOUD, not silent. Awaiting the build means a generator that throws now rejects here, and letting that
+      // escape would be an unhandled rejection AND a button stuck on "Building…" forever. There is no
+      // user-facing message for a failed build yet, which is its own gap and is on the ticket.
+      console.error('Building this world failed', err)
+    } finally {
+      setBuildingWorld(false)
+    }
   }
 
   // THE PICTURE FROM THE START. Alexander, 2026-09-11: *"we should see the preview of the map to generate in the
@@ -991,12 +1011,14 @@ export function GenerateControls({
           Until it is clicked nothing above has touched the open map. */}
       <button
         type="button"
-        onClick={generate}
+        onClick={() => { void generate() }}
+        disabled={buildingWorld}
+        aria-busy={buildingWorld}
         title={`Build a ${zone} ${typeLabel.toLowerCase()}${sizeDraft ? ` at ${sizeDraft.cols} × ${sizeDraft.rows}` : ''}. This replaces the open map`}
         className="b pri"
         style={{ width: '100%', margin: '16px 0 4px', padding: 13, fontSize: 15, justifyContent: 'center' }}
       >
-        ⚡ Build this world
+        {buildingWorld ? 'Building this world…' : '⚡ Build this world'}
       </button>
       {/* THE SAME MAP, WITH THE CHANGE IN IT. Build rolls a new world; this keeps the one on screen and only
           moves what you changed, because every seed is kept. Alexander, 2026-09-11: *"we need to be able to
