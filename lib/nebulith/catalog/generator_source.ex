@@ -604,7 +604,7 @@ defmodule Nebulith.Catalog.GeneratorSource do
   # second palette for the same place. The species lean cypress, because that is what stands in this water.
   @swamp_regions %{
     "open" => %{
-      "trees" => [%{"kind" => "tree_cypress", "weight" => 40}, %{"kind" => "tree_round", "weight" => 30}, %{"kind" => "bush_round", "weight" => 30}],
+      "trees" => [%{"kind" => "tree_cypress", "weight" => 40}, %{"kind" => "tree_mangrove", "weight" => 30}, %{"kind" => "bush_round", "weight" => 30}],
       "flowers" => @swamp_blooms
     },
     "dense" => %{
@@ -626,12 +626,16 @@ defmodule Nebulith.Catalog.GeneratorSource do
   ]
 
   @island_regions %{
+    # THE TROPICS, not a temperate wood with palms in it. Alexander, 2026-09-13: *"the trees variations are the
+    # same as any other forest, when they should be more tropical, like coconnuts trees, bananas, water nature,
+    # etc"*. `tree_coconut`, `tree_banana` and `tree_mangrove` are authored in `tile_source.ex` the same way
+    # every other species is, as proportions on the shared two-tile tree.
     "open" => %{
-      "trees" => [%{"kind" => "tree_palm", "weight" => 55}, %{"kind" => "bush_round", "weight" => 25}, %{"kind" => "tree_round", "weight" => 20}],
+      "trees" => [%{"kind" => "tree_coconut", "weight" => 35}, %{"kind" => "tree_palm", "weight" => 25}, %{"kind" => "tree_banana", "weight" => 25}, %{"kind" => "bush_round", "weight" => 15}],
       "flowers" => @island_blooms
     },
     "dense" => %{
-      "trees" => [%{"kind" => "tree_palm", "weight" => 40}, %{"kind" => "tree_big", "weight" => 30}, %{"kind" => "bush", "weight" => 30}],
+      "trees" => [%{"kind" => "tree_banana", "weight" => 30}, %{"kind" => "tree_coconut", "weight" => 25}, %{"kind" => "tree_mangrove", "weight" => 25}, %{"kind" => "bush", "weight" => 20}],
       "flowers" => @island_blooms
     }
   }

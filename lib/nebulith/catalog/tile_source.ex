@@ -2759,6 +2759,21 @@ defmodule Nebulith.Catalog.TileSource do
         tree_comp(%{trunk_h: 4.6, trunk_zoom: 0.4, trunk_w: 0.7, leaf_h: 1.0, leaf_zoom: 1.15, shape: "circle"}),
       # sapling: new growth, the smallest tree there is
       "tree_sapling" => tree_comp(%{trunk_h: 1.2, trunk_zoom: 0.35, trunk_w: 0.8, leaf_h: 0.9, leaf_zoom: 0.7, shape: "circle"}),
+      # THE TROPICS. Alexander, 2026-09-13: *"the trees variations are the same as any other forest, when they
+      # should be more tropical, like coconnuts trees, bananas, water nature, etc"*, and, when I called it
+      # blocked on art: *"is not blocked because it's expected that you will add the trees variations following
+      # the same pattern used to other trees, I already explained it multiple times before"*.
+      #
+      # He is right and I was wrong. A species here is proportions, not a new picture: the file says so itself
+      # a few lines up, *"the silhouette comes from the proportions, not a new shape"*. So these three are the
+      # same two-tile `tree_comp` every other species is.
+      #
+      # coconut: taller and leaner than the palm, its small crown held right at the top
+      "tree_coconut" => tree_comp(%{trunk_h: 5.4, trunk_zoom: 0.38, trunk_w: 0.65, leaf_h: 1.1, leaf_zoom: 1.3, shape: "circle"}),
+      # banana: a short fat pseudo-stem under enormous low leaves, wider than it is tall
+      "tree_banana" => tree_comp(%{trunk_h: 1.6, trunk_zoom: 0.5, trunk_w: 0.9, leaf_h: 1.6, leaf_zoom: 1.95, shape: "circle"}),
+      # mangrove: his *"water nature"* for a coast, a thick braced base under a broad low crown
+      "tree_mangrove" => tree_comp(%{trunk_h: 2.2, trunk_zoom: 0.7, trunk_w: 1.25, leaf_h: 1.5, leaf_zoom: 1.8, shape: "circle"}),
       # TWO water variants of the town-square basin, both COMPOSITIONS assembled from AUTOTILE PIECES
       # (TILESET-AUTHORING §3), not one fill: a rim of the RIGHT edge/corner piece per cell (`fountain_tl/tr/
       # bl/br` corners + `fountain_t/b/l/r` sides) around a `water_c` (blue water) interior. Every cell blocks
