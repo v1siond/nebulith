@@ -1610,10 +1610,28 @@ function plannedRoutes(ctx: ArchetypeContext): RoutePlan | null {
  *  `depthDir` and building rotation already use), so each side is that many quarter turns from south. */
 const GATE_ROTATION: Readonly<Record<string, number>> = { south: 0, west: 1, north: 2, east: 3 }
 
-/** The gate a place shows at its edges. One per KIND of place, so walking out of a wood and walking into a
- *  jungle are told apart by the marker, which is the point of the family. `exit_gate` is the default. */
+/**
+ * WHICH GATE A PLACE SHOWS, worked out rather than configured.
+ *
+ * Alexander, 2026-09-13: *"the exit type should be inferred logically too"*. The logic is what you are
+ * walking INTO: a jungle's way out should say "it gets denser that way", a wood's should just say "this is
+ * the way". So the layout picks first, and a template that names its own gate in `options.exit` overrides,
+ * which is how a new type arrives without touching this.
+ *
+ * Everything falls back to `exit_gate`, and an unauthored name falls back too rather than stamping nothing:
+ * a way out with no marker is the bug this exists to fix.
+ */
 const EXIT_GATE_BY_LAYOUT: Readonly<Record<string, string>> = { jungle: 'exit_gate_deep_forest' }
 const DEFAULT_EXIT_GATE = 'exit_gate'
+
+/** The gate for this map: the served name, else the one its layout implies, else the default. */
+function exitGateKind(ctx: ArchetypeContext): string {
+  const served = ctx.options?.exit
+  const wanted = typeof served === 'string' && served.length > 0 ? served : EXIT_GATE_BY_LAYOUT[ctx.layout ?? '']
+  const catalog = styleCatalog('ascii')
+  if (wanted && resolveComposition(catalog, wanted) !== null) return wanted
+  return DEFAULT_EXIT_GATE
+}
 
 /**
  * MARK EVERY WAY OUT.
@@ -1629,7 +1647,7 @@ const DEFAULT_EXIT_GATE = 'exit_gate'
  * the 3-wide pathway, so the flanks land on the two cells that frame it.
  */
 function markExits(ctx: ArchetypeContext, plan: RoutePlan): void {
-  const kind = EXIT_GATE_BY_LAYOUT[ctx.layout ?? ''] ?? DEFAULT_EXIT_GATE
+  const kind = exitGateKind(ctx)
   if (resolveComposition(styleCatalog('ascii'), kind) === null) return // not authored for this style: no gate, no guess
   for (const gate of plan.gates) {
     ctx.compositions.push({

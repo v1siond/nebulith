@@ -52,16 +52,49 @@ export interface RoutePlan {
   spine: Set<string>
 }
 
-/** The sides the gates take, in order, the entrance first. A third gate takes two of the remaining sides at random. */
-const GATE_SIDES: Readonly<Record<RouteCount, (rand: Rng) => Side[]>> = {
-  1: () => ['south'],
-  2: () => ['south', 'north'],
-  3: rand => {
-    const others: Side[] = ['north', 'west', 'east']
-    others.splice(randIntWith(rand, 0, others.length - 1), 1)
-    return ['south', ...others]
-  },
-  4: () => ['south', 'north', 'west', 'east'],
+/**
+ * A PATHWAY IS A STRETCH OF ROAD, and this is the definition the whole planner is built on.
+ *
+ * Alexander, 2026-09-13, before reviewing any of it: *"what does 4 pathways even mean for you? because for
+ * example, if we cross two paths like a cross, we could have 4 exits in two pathways, but if we're counting
+ * from the center out, then we'd count 4 pathways instead of 2 correctly"*, and then the rule:
+ *
+ *   *"a pathway is a stretch of road that has 1 or 2 exit / either on oposites sides of it, if 2, or at the
+ *   start of it if it's 1"*
+ *
+ * The planner used to make ONE PATH PER GATE radiating from a hub, so his cross came out as four pathways
+ * instead of two. A stretch is now the unit: a THROUGH road leaves the map on both of its ends (2 exits, on
+ * opposite sides), and a SPUR leaves on one end and stops inside (1 exit, at its start).
+ *
+ * The arithmetic falls straight out of that. For P pathways and E exits, every pathway spends 1 or 2 exits,
+ * so `P <= E <= 2P`, and given both: `E - P` of them are through roads and `2P - E` are spurs.
+ */
+const AXES: ReadonlyArray<readonly [Side, Side]> = [['south', 'north'], ['west', 'east']]
+
+/** One gate per side, so four is every side of the map and the ceiling on exits. */
+export const MAX_EXITS = 4
+
+/**
+ * How the stretches divide up. Three shapes, and every pathway is exactly one of them:
+ *
+ *   · THROUGH  two exits, on opposite sides. It crosses the map and stops nowhere.
+ *   · SPUR     one exit at its start, and it stops inside.
+ *   · BRANCH   no exit of its own. It leaves the network and stops inside.
+ *
+ * The first two are his sentence. The third is the case his sentence does not reach and the code already
+ * had: a CAVE with one mouth and two dead-end galleries (`planRoutes(1 exit, 3 pathways)`), which has more
+ * stretches than it has ways out. Rather than clamp that away, more exits than pathways builds through
+ * roads and fewer builds branches, so both his map and his cave come out of one rule.
+ */
+export function splitPathways(ways: Ways): { through: number; spurs: number; branches: number } {
+  // TOTAL FOR ANY PAIR, including the ones his rule says cannot exist. `resolveWays` keeps a served map
+  // inside `E <= 2P`, but `planRoutes` is called directly with hand-built counts (the cave, and the whole
+  // test matrix), and a combination like 4 exits on 1 pathway has to come out as SOMETHING rather than
+  // index past the end of the gate list. Capped by the pathways available and by the two opposite-side
+  // axes a map actually has; the remaining exits become spurs.
+  const through = Math.min(Math.max(0, ways.exits - ways.pathways), ways.pathways, AXES.length)
+  const gatedOnce = ways.exits - through * 2 // the stretches left holding exactly one gate
+  return { through, spurs: Math.max(0, gatedOnce), branches: Math.max(0, ways.pathways - through - gatedOnce) }
 }
 
 /** A count as served: `"random"`, `"1"` to `"4"`, or absent (an older recipe, which keeps its old map). */
@@ -79,7 +112,18 @@ export function resolveWays(options: Readonly<Record<string, unknown>> | undefin
   const exits = resolveCount(options?.exits, rand)
   const pathways = resolveCount(options?.pathways, rand)
   if (exits === null && pathways === null) return null
-  return { exits: exits ?? 1, pathways: pathways ?? exits ?? 1 }
+
+  // EXITS ARE INFERRED FROM PATHWAYS when nobody states them. Alexander: *"I also think when exits aren't
+  // specifically set, the system should infer them from the number of pathways"*. A stretch of road crosses
+  // the map unless something stops it, so the inference is two exits each, which is exactly his cross: two
+  // pathways, four exits. Capped at one gate per side.
+  const wanted = exits ?? Math.min(pathways! * 2, MAX_EXITS)
+  // …and pathways from exits, the same rule read backwards: two exits can be one road straight through.
+  const stretches = pathways ?? Math.max(1, Math.ceil(wanted / 2))
+  // At most two exits per pathway, and at most one gate per side. FEWER exits than pathways is allowed on
+  // purpose: that is the cave, where the extra stretches are galleries that stop rather than ways out.
+  const bounded = clamp(wanted, 1, Math.min(stretches * 2, MAX_EXITS))
+  return { exits: bounded as RouteCount, pathways: stretches as RouteCount }
 }
 
 /** A gate on `side`, somewhere in the middle stretch of that edge so a path never hugs a corner. */
@@ -110,8 +154,12 @@ function stepIn(side: Side, cell: RouteCell): RouteCell {
 export const DEAD_END_MARGIN = 4
 
 /**
- * Plan the network: a gate per exit, a path from each gate to the hub, and a branch out to a stop for every pathway
- * the exits do not already account for.
+ * Plan the network as STRETCHES, not spokes.
+ *
+ * `splitPathways` says how many cross the map and how many stop inside. A through road takes an opposite PAIR
+ * of sides, which is what makes two of them read as a cross rather than as four separate roads; a spur takes
+ * one remaining side and ends at a stop. Every stretch is routed via the hub, so the network stays one
+ * connected thing, which is the guarantee the layouts depend on.
  */
 export function planRoutes(cols: number, rows: number, ways: Ways, rand: Rng, width = 3): RoutePlan {
   const cells = new Set<string>()
@@ -120,19 +168,70 @@ export function planRoutes(cols: number, rows: number, ways: Ways, rand: Rng, wi
     col: clamp(Math.round(cols / 2 + (rand() - 0.5) * cols * 0.3), 2, cols - 3),
     row: clamp(Math.round(rows / 2 + (rand() - 0.5) * rows * 0.3), 2, rows - 3),
   }
-  const gates = GATE_SIDES[ways.exits](rand).map(side => gateOn(side, cols, rows, width, rand))
-  const deadEnds: RouteCell[] = []
-  for (let i = gates.length; i < ways.pathways; i++) deadEnds.push(deadEndSpot(hub, gates, deadEnds, cols, rows, rand))
 
-  for (const gate of gates) {
+  const { through, spurs, branches } = splitPathways(ways)
+  // THE WAY IN IS ALWAYS THE NEAR EDGE. `entrance` is `gates[0]` and every layout leans on it being south,
+  // so the south/north axis is laid first and south before north. Shuffling the axes broke that on the first
+  // run. What varies is which SIDES the spurs take, not where you come in.
+  const axes = AXES
+  const gates: Gate[] = []
+  const taken = new Set<Side>()
+
+  // THE THROUGH ROADS FIRST: each is one stretch from an edge to the opposite edge, past the hub.
+  for (let i = 0; i < through && i < axes.length; i++) {
+    const [a, b] = axes[i]
+    taken.add(a)
+    taken.add(b)
+    gates.push(gateOn(a, cols, rows, width, rand), gateOn(b, cols, rows, width, rand))
+  }
+  // …then the spurs, on whatever sides are still free, so two mouths never fight over one edge.
+  const rest = AXES.flat().filter(side => side !== 'south' && !taken.has(side))
+  const free = taken.has('south') ? shuffled(rest, rand) : ['south' as Side, ...shuffled(rest, rand)]
+  const deadEnds: RouteCell[] = []
+  for (let i = 0; i < spurs; i++) {
+    const side = free[i % Math.max(1, free.length)]
+    gates.push(gateOn(side, cols, rows, width, rand))
+  }
+
+  const open = (gate: Gate): void => {
     for (const c of gate.cells) cells.add(`${c.col},${c.row}`)
     // The gate's own middle cell and the step inside it are spine: a way out never pinches shut.
-    spine.add(`${gate.cells[Math.floor(gate.cells.length / 2)].col},${gate.cells[Math.floor(gate.cells.length / 2)].row}`)
+    const mid = gate.cells[Math.floor(gate.cells.length / 2)]
+    spine.add(`${mid.col},${mid.row}`)
     spine.add(`${gate.inside.col},${gate.inside.row}`)
+  }
+
+  for (let i = 0; i < through; i++) {
+    const [entry, exit] = [gates[i * 2], gates[i * 2 + 1]]
+    open(entry)
+    open(exit)
+    run(entry.inside, hub, width, cols, rows, rand, cells, spine)
+    run(hub, exit.inside, width, cols, rows, rand, cells, spine)
+  }
+  for (let i = 0; i < spurs; i++) {
+    const gate = gates[through * 2 + i]
+    open(gate)
+    // A SPUR'S ONE EXIT IS AT ITS START. It runs in to the hub, where it meets the rest of the network; a
+    // stretch that ends among the other roads has arrived somewhere and needs no stop of its own.
     run(gate.inside, hub, width, cols, rows, rand, cells, spine)
   }
-  for (const stop of deadEnds) run(hub, stop, width, cols, rows, rand, cells, spine)
+  // A BRANCH has no way out: it leaves the hub and stops, which is what makes a cave gallery a gallery.
+  for (let i = 0; i < branches; i++) {
+    const stop = deadEndSpot(hub, gates, deadEnds, cols, rows, rand)
+    deadEnds.push(stop)
+    run(hub, stop, width, cols, rows, rand, cells, spine)
+  }
   return { entrance: gates[0], gates, deadEnds, hub, cells, spine }
+}
+
+/** A copy in random order. Which axis a road takes should vary between maps, nothing more. */
+function shuffled<T>(items: readonly T[], rand: Rng): T[] {
+  const out = [...items]
+  for (let i = out.length - 1; i > 0; i--) {
+    const j = randIntWith(rand, 0, i)
+    ;[out[i], out[j]] = [out[j], out[i]]
+  }
+  return out
 }
 
 /** One winding path from `a` to `b`: waypoints pushed off the straight line, joined by right-angle legs. */
