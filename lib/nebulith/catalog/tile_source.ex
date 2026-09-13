@@ -141,6 +141,9 @@ defmodule Nebulith.Catalog.TileSource do
     ensure_distinct_glyphs()
     ensure_fade_near()
     ensure_ground_plants()
+    # LAST of the tile-fact rules, because it DERIVES from `blocking` and every rule above may still be
+    # changing it (ensure_ground_plants clears it on 38 rows).
+    ensure_collisions()
     # …and every PER-LABEL fact agrees across styles. A label owns its name, bucket, height and collision;
     # only the picture is the style's. Without this the same `grass` was "Grass" in one style and nameless
     # in the other — two engines' worth of drift in the data.
@@ -2531,6 +2534,42 @@ defmodule Nebulith.Catalog.TileSource do
   # what stops the next plant from arriving with one of the two missing.
   @ground_plants ~w(blossom bouquet clover flower hibiscus mushroom red-mushroom rose shamrock sunflower
                     tulip wilted-flower wheat bush shrub fallen-leaf maple-leaf thicket tall_grass)
+
+  # WHAT A TILE OCCUPIES, as the only statement about whether you can walk through it.
+  #
+  # Alexander, 2026-09-13: *"the real fix is to fucking remove the fucking walkable and blocking properties as
+  # I've requested for ages, because we fucking have collissions which already do the fucking job"*.
+  #
+  # He is right about where this ends up and it is worth writing down why it had not happened yet: the boxes
+  # system was built (`collisionBoxes.ts`, 2026-09-11) but NO ROW HAS EVER CARRIED ONE. Measured against live
+  # before this: 0 of 375 tiles have `settings.collision`, 72 have `blocking: true`. So the finer truth has
+  # been running entirely off the coarse flag it was meant to replace, and `boxesForAsset` opens with
+  # `if (!asset.blocking) return []`. Two switches for one fact, and the one that owns the fact is empty.
+  #
+  # This fills it, from the flag, so the world behaves IDENTICALLY the moment it lands: a tile that blocks
+  # occupies its whole cell, a tile that does not occupies nothing. From here the box list is the only thing
+  # anyone reads, a tile can be given a real shape instead of a square, and the flag has nothing left to say.
+  @whole_cell [%{"x" => 0, "y" => 0, "w" => 1, "h" => 1}]
+
+  @doc """
+  Writes `settings.collision` on EVERY tile, in every tileset, derived from the `blocking` column.
+
+  Pose-safe (`Catalog.put_tile_setting/4`), and written to walk-through rows too: an empty list SAYS "nothing
+  solid here", where an absent key only says nobody got round to it. The distinction is the whole point of
+  moving the fact into the data.
+  """
+  def ensure_collisions do
+    {solid, clear} =
+      for tileset <- Catalog.list_tilesets(), tile <- Catalog.list_tiles_for(tileset.key), reduce: {0, 0} do
+        {solid, clear} ->
+          boxes = if tile.blocking, do: @whole_cell, else: []
+          Catalog.put_tile_setting(tileset.id, tile.label, "collision", boxes)
+          if tile.blocking, do: {solid + 1, clear}, else: {solid, clear + 1}
+      end
+
+    IO.puts("#{solid} tiles occupy their cell, #{clear} occupy nothing")
+    :ok
+  end
 
   @doc "Does this label stand at ground level, so nothing stacks on top of it? The rule `ensure_ground_plants/0` writes."
   def ground_plant?(label), do: label in @ground_plants
