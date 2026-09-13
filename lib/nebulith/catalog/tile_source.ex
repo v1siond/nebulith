@@ -106,6 +106,7 @@ defmodule Nebulith.Catalog.TileSource do
     seed_meadow_tiles(ascii_id, emoji_id)
     seed_floor_tiles(ascii_id, emoji_id)
     seed_water_color()
+    seed_water_surface()
     seed_autotile_pieces(ascii_id, emoji_id)
     seed_tree_pieces(ascii_id, emoji_id, ascii["palettes"])
     seed_parity_tiles(ascii_id, emoji_id)
@@ -1528,6 +1529,63 @@ defmodule Nebulith.Catalog.TileSource do
   This is the ONE place the number lives: `@height_authority` is emoji, so `normalize_tile_heights/0` copies
   the emoji row's height onto ascii, and a single value keeps both styles honest.
   """
+  @doc """
+  ONE WATER SURFACE, and a PUDDLE that is not part of it.
+
+  Alexander, 2026-09-13: *"the green water is using the same tile as the river water, which is bad, because
+  that is not a river is a puddle, it doesn't have current is stationary"*.
+
+  Two things were wrong and both were data.
+
+  `seed_water_color/0` gave `water` a height of 0.5 with the arithmetic written out: one elevation level drops
+  0.4 and one block of tile height rises 0.639, so 1.0 in a one-deep channel floats the water above its own
+  bank. The two BAND labels never got that treatment and sat at 1.0, so a river's shallow edge and its deep
+  middle both stood proud of the channel they are in. Same surface, same height.
+
+  And a pool laid `water_shallow`, the river's own wadeable edge, so a puddle and a river wore one label. The
+  frontend even asserted in a comment that the label was height 0.0, which the database has never agreed with.
+  `water_still` is the puddle: flush with the floor at height 0, and no frames, because standing water has no
+  current. It is COPIED from the shallow row per tileset, so its art is whatever that style really has rather
+  than a path invented here.
+  """
+  def seed_water_surface do
+    for tileset <- Catalog.list_tilesets() do
+      for band <- ~w(water_shallow water_deep) do
+        Catalog.set_tile_height(tileset.id, band, 0.5)
+      end
+
+      case Repo.get_by(Tile, tileset_id: tileset.id, label: "water_shallow") do
+        nil ->
+          :ok
+
+        shallow ->
+          {:ok, _} =
+            Catalog.upsert_tile(%{
+              tileset_id: tileset.id,
+              label: "water_still",
+              title: "Still water",
+              glyph: shallow.glyph,
+              emoji: shallow.emoji,
+              image_url: shallow.image_url,
+              color_role: shallow.color_role,
+              blocking: false,
+              height: 0.0,
+              category: "terrain",
+              # NO `frames`, NO `animations`: a puddle does not flow. The colour is the shallow band's own, so
+              # a still pool reads as water rather than as a new blue nobody chose.
+              # `animations: []` is a STATEMENT, not an omission. The frontend collapses every water-ish
+              # label to the kind `water` so the bands can share one picture and one set of frames, and that
+              # collapse would hand a puddle the river's current. An EMPTY list says "this tile has none",
+              # which is a different thing from saying nothing and inheriting.
+              settings: %{"color" => (shallow.settings || %{})["color"], "animations" => []}
+            })
+      end
+    end
+
+    IO.puts("water bands share one surface height; water_still authored flush and frameless")
+    :ok
+  end
+
   def seed_water_color do
     ascii_id = ensure_tileset("ascii", "ASCII").id
     emoji_id = ensure_tileset("emoji", "Emoji").id
