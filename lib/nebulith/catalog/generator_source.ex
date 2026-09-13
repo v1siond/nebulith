@@ -774,7 +774,12 @@ defmodule Nebulith.Catalog.GeneratorSource do
                     "bank" => "#e8d6a6",
                     "trail" => "#cdb684"
                   }),
-                  "trees" => [%{"kind" => "tree_palm", "weight" => 55}, %{"kind" => "tree_round", "weight" => 20}, %{"kind" => "bush_round", "weight" => 15}, %{"kind" => "tree_stub", "weight" => 10}]},
+                  # THE WHOLE ISLAND, not just its two regions. Alexander, 2026-09-13: *"when I generate island jungles,
+                  # most of the trees are still the same used in other jungles"*. He is right and this line was why:
+                  # a cell inside `open` or `dense` takes that region's mix, and everything OUTSIDE them falls back
+                  # to THIS list, which was the generic palm-and-round set. On a map where the regions cover part of
+                  # the ground, most trees came from here.
+                  "trees" => [%{"kind" => "tree_coconut", "weight" => 30}, %{"kind" => "tree_palm", "weight" => 25}, %{"kind" => "tree_banana", "weight" => 20}, %{"kind" => "tree_mangrove", "weight" => 15}, %{"kind" => "bush_round", "weight" => 10}]},
         options: @way_options ++ region_options(~w(open dense)) ++ water_options("around")
       },
       %{
