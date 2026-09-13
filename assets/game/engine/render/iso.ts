@@ -818,21 +818,14 @@ export function render(params: IsoRenderParams) {
       const zMove = isoZOffset(obj.asset.zOffset ?? 0, viewDepthDir(obj.asset.zDir ?? 'right-up', facing), tileW, tileH)
       // Animated screen shift: `x` slides right, `y` LIFTS up (screen-space up is −Y), in tile fractions. 0 when
       // not animated → the anchor is unchanged.
-      // THE CURRENT RUNS ALONG THE CHANNEL, ON THE ISOMETRIC AXES.
-      //
-      // Alexander, 2026-09-13: *"the water current is still wrong, it's not considering the isometric angle,
-      // nor the direction of the river"*, with image #9 drawing the three headings for a river that rings the
-      // map. An animation's drift is authored in CELL units along +x; a cell that states a `flow` turns that
-      // drift onto its own heading first, and the heading is then projected the way every other cell offset
-      // is: +1 col moves (+w/2, +h/2) on screen and +1 row moves (-w/2, +h/2). Without the projection the
-      // water slides along screen X while its channel runs diagonally, which is exactly the "\" he drew.
-      //
-      // A cell with no `flow` keeps the plain screen-space offset, so every existing animation is untouched.
-      const flowDir = obj.asset.flow
-      const drift = anim ? anim.x : 0
-      const [fc, fr] = flowDir === undefined ? [0, 0] : FLOW_VECTORS[flowDir % 4]
-      const animShiftX = anim ? (flowDir === undefined ? anim.x * tileW : drift * (fc - fr) * tileW * 0.5) : 0
-      const animShiftY = anim ? (flowDir === undefined ? anim.y * tileH : drift * (fc + fr) * tileH * 0.5) : 0
+      // A CELL'S CURRENT IS NOT AN OFFSET. I first projected the flow onto the screen axes here, on the
+      // belief that the drift was a draw offset. It is not: `animShiftX` moves the tile's ANCHOR, so an offset
+      // slides the water off its own cell. `fillIsoFaceWithTile` draws a floor through `ctx.transform(eA, eB)`,
+      // so a shift inside the TEXTURE already lands along an iso axis, and the four headings are just ±x and
+      // ±y in texture space. The direction is therefore chosen by picking the animation, in `tileAnimations`,
+      // not by moving anything here.
+      const animShiftX = anim ? anim.x * tileW : 0
+      const animShiftY = anim ? anim.y * tileH : 0
       // Authored frame animation: offset/rotate/scale the asset around its cell (sway/wind).
       const ax = p.x + zMove.dx + animShiftX, ay = p.y - heightOffset - stackLift + zMove.dy - animShiftY
       const ct = assetCellTransform(obj.asset.cellAnim, time)
@@ -1553,10 +1546,6 @@ export function drawGridSkirt(
 }
 
 export const ISO_BLOCK_H_FRAC = 0.9
-
-/** The four cell headings a `flow` names, in (col, row) steps: 0 = +col, 1 = +row, 2 = -col, 3 = -row. The
- *  same order `flowField` writes in the generator. */
-const FLOW_VECTORS: ReadonlyArray<readonly [number, number]> = [[1, 0], [0, 1], [-1, 0], [0, -1]]
 
 /** Iso screen-space RISE for a stacked asset: `heightLevel` cubes up (one ISO_BLOCK_H per level). The
  *  new brush stacks assets on a cell with heightLevel 0,1,2,… so the render lifts each entry by this —

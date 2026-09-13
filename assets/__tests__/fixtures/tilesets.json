@@ -8308,10 +8308,82 @@
                     "tileId": "ascii:water_f3"
                   }
                 ],
-                "id": "water_ripple",
+                "id": "water_flow_0",
                 "kind": "sprite",
                 "loop": true,
-                "name": "ripple",
+                "name": "current 0",
+                "trigger": {
+                  "on": "load"
+                }
+              },
+              {
+                "durationMs": 1200,
+                "frames": [
+                  {
+                    "tileId": "ascii:water_y"
+                  },
+                  {
+                    "tileId": "ascii:water_y_f1"
+                  },
+                  {
+                    "tileId": "ascii:water_y_f2"
+                  },
+                  {
+                    "tileId": "ascii:water_y_f3"
+                  }
+                ],
+                "id": "water_flow_1",
+                "kind": "sprite",
+                "loop": true,
+                "name": "current 1",
+                "trigger": {
+                  "on": "load"
+                }
+              },
+              {
+                "durationMs": 1200,
+                "frames": [
+                  {
+                    "tileId": "ascii:water_f3"
+                  },
+                  {
+                    "tileId": "ascii:water_f2"
+                  },
+                  {
+                    "tileId": "ascii:water_f1"
+                  },
+                  {
+                    "tileId": "ascii:water"
+                  }
+                ],
+                "id": "water_flow_2",
+                "kind": "sprite",
+                "loop": true,
+                "name": "current 2",
+                "trigger": {
+                  "on": "load"
+                }
+              },
+              {
+                "durationMs": 1200,
+                "frames": [
+                  {
+                    "tileId": "ascii:water_y_f3"
+                  },
+                  {
+                    "tileId": "ascii:water_y_f2"
+                  },
+                  {
+                    "tileId": "ascii:water_y_f1"
+                  },
+                  {
+                    "tileId": "ascii:water_y"
+                  }
+                ],
+                "id": "water_flow_3",
+                "kind": "sprite",
+                "loop": true,
+                "name": "current 3",
                 "trigger": {
                   "on": "load"
                 }
@@ -8336,6 +8408,91 @@
               }
             ]
           }
+        },
+        "water_f1": {
+          "title": "Water frame 1",
+          "category": "terrain",
+          "settings": {},
+          "height": 0.5,
+          "glyph": "⌼",
+          "image_url": "/tiles/ascii/water_f1.png",
+          "blocking": false,
+          "color_role": null,
+          "emoji": null
+        },
+        "water_f2": {
+          "title": "Water frame 2",
+          "category": "terrain",
+          "settings": {},
+          "height": 0.5,
+          "glyph": "⌽",
+          "image_url": "/tiles/ascii/water_f2.png",
+          "blocking": false,
+          "color_role": null,
+          "emoji": null
+        },
+        "water_f3": {
+          "title": "Water frame 3",
+          "category": "terrain",
+          "settings": {},
+          "height": 0.5,
+          "glyph": "⌿",
+          "image_url": "/tiles/ascii/water_f3.png",
+          "blocking": false,
+          "color_role": null,
+          "emoji": null
+        },
+        "water_y": {
+          "title": null,
+          "category": "terrain",
+          "settings": {
+            "color": null
+          },
+          "height": 0.5,
+          "glyph": "⌵",
+          "image_url": "/tiles/ascii/water_y.png",
+          "blocking": false,
+          "color_role": null,
+          "emoji": null
+        },
+        "water_y_f1": {
+          "title": null,
+          "category": "terrain",
+          "settings": {
+            "color": null
+          },
+          "height": 0.5,
+          "glyph": "⌵",
+          "image_url": "/tiles/ascii/water_y_f1.png",
+          "blocking": false,
+          "color_role": null,
+          "emoji": null
+        },
+        "water_y_f2": {
+          "title": null,
+          "category": "terrain",
+          "settings": {
+            "color": null
+          },
+          "height": 0.5,
+          "glyph": "⌵",
+          "image_url": "/tiles/ascii/water_y_f2.png",
+          "blocking": false,
+          "color_role": null,
+          "emoji": null
+        },
+        "water_y_f3": {
+          "title": null,
+          "category": "terrain",
+          "settings": {
+            "color": null
+          },
+          "height": 0.5,
+          "glyph": "⌵",
+          "image_url": "/tiles/ascii/water_y_f3.png",
+          "blocking": false,
+          "color_role": null,
+          "emoji": null
         },
         "wall": {
           "title": "Wall",
@@ -27444,10 +27601,82 @@
                     "tileId": "emoji:water_f3"
                   }
                 ],
-                "id": "water_ripple",
+                "id": "water_flow_0",
                 "kind": "sprite",
                 "loop": true,
-                "name": "ripple",
+                "name": "current 0",
+                "trigger": {
+                  "on": "load"
+                }
+              },
+              {
+                "durationMs": 1200,
+                "frames": [
+                  {
+                    "tileId": "emoji:water_y"
+                  },
+                  {
+                    "tileId": "emoji:water_y_f1"
+                  },
+                  {
+                    "tileId": "emoji:water_y_f2"
+                  },
+                  {
+                    "tileId": "emoji:water_y_f3"
+                  }
+                ],
+                "id": "water_flow_1",
+                "kind": "sprite",
+                "loop": true,
+                "name": "current 1",
+                "trigger": {
+                  "on": "load"
+                }
+              },
+              {
+                "durationMs": 1200,
+                "frames": [
+                  {
+                    "tileId": "emoji:water_f3"
+                  },
+                  {
+                    "tileId": "emoji:water_f2"
+                  },
+                  {
+                    "tileId": "emoji:water_f1"
+                  },
+                  {
+                    "tileId": "emoji:water"
+                  }
+                ],
+                "id": "water_flow_2",
+                "kind": "sprite",
+                "loop": true,
+                "name": "current 2",
+                "trigger": {
+                  "on": "load"
+                }
+              },
+              {
+                "durationMs": 1200,
+                "frames": [
+                  {
+                    "tileId": "emoji:water_y_f3"
+                  },
+                  {
+                    "tileId": "emoji:water_y_f2"
+                  },
+                  {
+                    "tileId": "emoji:water_y_f1"
+                  },
+                  {
+                    "tileId": "emoji:water_y"
+                  }
+                ],
+                "id": "water_flow_3",
+                "kind": "sprite",
+                "loop": true,
+                "name": "current 3",
                 "trigger": {
                   "on": "load"
                 }
@@ -27472,6 +27701,97 @@
               }
             ]
           }
+        },
+        "water_f1": {
+          "title": "Water frame 1",
+          "category": "terrain",
+          "settings": {
+            "color": "#4f93b3"
+          },
+          "height": 0.5,
+          "glyph": null,
+          "image_url": "/tiles/emoji/water_f1.png",
+          "blocking": false,
+          "color_role": null,
+          "emoji": "🟦"
+        },
+        "water_f2": {
+          "title": "Water frame 2",
+          "category": "terrain",
+          "settings": {
+            "color": "#4f93b3"
+          },
+          "height": 0.5,
+          "glyph": null,
+          "image_url": "/tiles/emoji/water_f2.png",
+          "blocking": false,
+          "color_role": null,
+          "emoji": "🟦"
+        },
+        "water_f3": {
+          "title": "Water frame 3",
+          "category": "terrain",
+          "settings": {
+            "color": "#4f93b3"
+          },
+          "height": 0.5,
+          "glyph": null,
+          "image_url": "/tiles/emoji/water_f3.png",
+          "blocking": false,
+          "color_role": null,
+          "emoji": "🟦"
+        },
+        "water_y": {
+          "title": null,
+          "category": "terrain",
+          "settings": {
+            "color": "#4f93b3"
+          },
+          "height": 0.5,
+          "glyph": null,
+          "image_url": "/tiles/emoji/water_y.png",
+          "blocking": false,
+          "color_role": null,
+          "emoji": "🟦"
+        },
+        "water_y_f1": {
+          "title": null,
+          "category": "terrain",
+          "settings": {
+            "color": "#4f93b3"
+          },
+          "height": 0.5,
+          "glyph": null,
+          "image_url": "/tiles/emoji/water_y_f1.png",
+          "blocking": false,
+          "color_role": null,
+          "emoji": "🟦"
+        },
+        "water_y_f2": {
+          "title": null,
+          "category": "terrain",
+          "settings": {
+            "color": "#4f93b3"
+          },
+          "height": 0.5,
+          "glyph": null,
+          "image_url": "/tiles/emoji/water_y_f2.png",
+          "blocking": false,
+          "color_role": null,
+          "emoji": "🟦"
+        },
+        "water_y_f3": {
+          "title": null,
+          "category": "terrain",
+          "settings": {
+            "color": "#4f93b3"
+          },
+          "height": 0.5,
+          "glyph": null,
+          "image_url": "/tiles/emoji/water_y_f3.png",
+          "blocking": false,
+          "color_role": null,
+          "emoji": "🟦"
         },
         "wall": {
           "title": "Wall",

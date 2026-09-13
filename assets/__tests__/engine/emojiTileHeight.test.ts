@@ -39,7 +39,12 @@ describe("a tile's served height is what it is by default", () => {
     // *"the floor is height 0, but it's showing on top of the tall grass which has height 1"*. When that lands,
     // this list should shrink to nothing or the rule should change on purpose.
     // `water_still` is NOT here: a puddle stopped being ground and is a `props` film now.
-    const KNOWN_NOT_FLAT = ['water', 'water_deep', 'water_shallow']
+    //
+    // The `_f` rows are the CURRENT's frame pictures, and `water_y*` the transposed set that gives a river
+    // running along +row its own heading (2026-09-13). They are the same water surface wearing a different
+    // frame, so they carry the same 0.5 and belong to the same one exception, not to a new one.
+    const KNOWN_NOT_FLAT = ['water', 'water_deep', 'water_f1', 'water_f2', 'water_f3', 'water_shallow',
+      'water_y', 'water_y_f1', 'water_y_f2', 'water_y_f3']
     const standing = ground.filter(([, t]) => resolveTileHeight(t, undefined) !== 0)
     expect(standing.map(([label]) => label).sort()).toEqual(KNOWN_NOT_FLAT)
   })

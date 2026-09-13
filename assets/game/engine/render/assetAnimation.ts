@@ -135,13 +135,41 @@ function tileAnimations(asset: GridAsset, token: TileStyle): readonly Animation[
   // river's four frames along with it. `water_still` is authored with an EMPTY `animations` list to say so, so
   // an own row that carries the key wins outright and never falls through. A band that carries no key at all
   // still inherits, which is what keeps a river flowing.
+  // BOTH PATHS PICK THE HEADING. The own-row branch below was added for the puddle and it shadowed the
+  // heading pick for a whole afternoon: `water` HAS its own row, so it returned early and every cell played
+  // the last of the four currents. Resolve the list first, choose the heading once, at the end.
   const own = settings(asset.tileKey)
-  if (own && 'animations' in own) {
-    return Array.isArray(own.animations) && own.animations.length > 0 ? own.animations : undefined
-  }
+  const list = own && 'animations' in own ? own.animations : settings(asset.label ?? assetKind(asset))?.animations
+  if (!Array.isArray(list) || list.length === 0) return undefined
+  const forHeading = pickHeading(list, asset.flow)
+  return forHeading.length > 0 ? forHeading : undefined
+}
 
-  const animations = settings(asset.label ?? assetKind(asset))?.animations
-  return Array.isArray(animations) && animations.length > 0 ? animations : undefined
+/** An animation whose id ends `_flow_<n>` belongs to ONE heading. */
+const HEADING_ID = /_flow_(\d+)$/
+
+/**
+ * KEEP THE ONE CURRENT THAT MATCHES THIS CELL, and every animation that is not a current.
+ *
+ * Alexander, 2026-09-13: *"there should be a current direction that goes around with the river"*. The drift is
+ * baked into the pictures, so a heading is a whole frame SET and the tile carries four of them. Without this
+ * every cell would play all four at once.
+ *
+ * Four sets, two bakes: a floor is drawn through `ctx.transform(eA, eB)`, so a shift inside the texture lands
+ * along an iso axis and the headings are ±x and ±y in texture space. `water_y*` is the x set transposed and
+ * the negatives are the same frames reversed.
+ *
+ * A tile with no heading-specific animations is untouched, and a cell with no `flow` takes heading 0, which is
+ * the set that played before any of this existed.
+ */
+function pickHeading(animations: readonly Animation[], flow: number | undefined): readonly Animation[] {
+  const headed = animations.filter(a => HEADING_ID.test(a.id))
+  if (headed.length === 0) return animations
+  const want = String(((flow ?? 0) % 4 + 4) % 4)
+  return animations.filter(a => {
+    const m = HEADING_ID.exec(a.id)
+    return m === null || m[1] === want
+  })
 }
 
 /** A `night`-triggered animation is a CONDITION, not a one-shot: it plays ONLY while the scene is in night
