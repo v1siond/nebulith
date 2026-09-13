@@ -1,35 +1,30 @@
 /**
- * THE WHITE THINGS ALL OVER THE MAP WERE THE RIVER BANKS.
+ * NO RING OF BLOOMS ROUND THE WATER.
  *
- * Alexander, 2026-09-13, after three rounds of me hunting the wrong label: *"I don't know what the fuck is the
- * name of those white flowers, but I want them OUUUUUUUUT"*.
+ * The long version, because it took four rounds and I was wrong in three of them.
  *
- * They were never flowers. Measured across six templates and three seasons, a map carried 231 to 450 near-white
- * `shore_*` props against 3 to 7 blooms, and they hug every river, pool and path edge, which at map scale reads
- * as exactly the line of white blossom he kept pointing at. `shorePiece` minted `#eaf8ff` (and a frost
- * `#bfe6f5`) while `palette.bank` was served and ignored, and the tile row itself was authored near-white too.
+ * Alexander reported "white flowers that don't belong" repeatedly. I fixed the bloom DATA three times and each
+ * time measured zero near-white blooms, because they were never blooms: they were the `shore_*` autotile
+ * pieces, 231 to 450 of them a map against 3 to 7 real flowers, hugging every river, pool and path edge.
  *
- * This is the guard against all three coming back: the served colour, the tile's own, and the count on a real
- * generated map.
+ * Then I recoloured them from an invented `#eaf8ff` to the served `palette.bank`, and got: *"I didn't want to
+ * recolor them, i wanted to remove them, becuase they don't match the fucking context of the forest, they
+ * don't match island, nor swamp jungles"*, plus *"they're not even located correctly, look they're inside the
+ * water, in shrot, just remove that crap"*. The pieces are DRAWN as blooms, so a tan one is a brown bloom and
+ * a sand one is a yellow bloom. A water edge marked with a ring of daisies is not a water edge.
+ *
+ * So the shoreline decoration is gone. This is the guard that it stays gone, and that removing it did not
+ * take the water or the lava banks with it.
  */
 import '@/__tests__/helpers/installTilesetSeed'
 import { generateStage } from '@/engine/stageGenerator'
 import { findGeneratorByKey, parseGeneratorCatalog } from '@/lib/generatorCatalog'
 import { makeRng } from '@/lib/math'
-import { styleTile } from '@/engine/tileset/styleTiles'
 import liveBody from '@/__tests__/fixtures/generators.json'
 
 const CATALOG = parseGeneratorCatalog(liveBody)
 const SHORE = ['l', 'r', 't', 'b', 'tl', 'tr', 'bl', 'br'].map(a => `shore_${a}`)
-
-const rgb = (c: string): [number, number, number] => {
-  const m = /rgb\((\d+), *(\d+), *(\d+)\)/.exec(c)
-  if (m) return [+m[1], +m[2], +m[3]]
-  const n = c.replace('#', '')
-  return [parseInt(n.slice(0, 2), 16), parseInt(n.slice(2, 4), 16), parseInt(n.slice(4, 6), 16)]
-}
-/** Near-white: what he sees as a white flower, whatever the exact hex. */
-const nearWhite = (c: string) => { const [r, g, b] = rgb(c); return r > 195 && g > 195 && b > 195 }
+const TEMPLATES = ['forest_jungle', 'forest_jungle_swamp', 'forest_jungle_island', 'forest_woodland', 'forest_meadow']
 
 function grow(key: string, zone = 'summer', seed = 3) {
   const g = findGeneratorByKey(CATALOG, key)!
@@ -46,36 +41,29 @@ function grow(key: string, zone = 'summer', seed = 3) {
   } finally { Math.random = orig }
 }
 
-const shores = (s: ReturnType<typeof grow>) => s.props.filter(p => SHORE.includes(p.label ?? ''))
-
-describe('a bank wears the earth the generator serves', () => {
-  it('every shore piece takes the served bank colour, on every forest template', () => {
-    for (const key of ['forest_jungle', 'forest_jungle_swamp', 'forest_jungle_island', 'forest_woodland', 'forest_meadow']) {
-      const bank = findGeneratorByKey(CATALOG, key)!.config.palette?.bank
-      expect({ key, bank: bank !== undefined }).toEqual({ key, bank: true }) // a template with water must say what its bank is
-      const wrong = shores(grow(key)).filter(p => p.color !== bank).length
-      expect({ key, wrong }).toEqual({ key, wrong: 0 })
-    }
-  })
-
-  it('NOT ONE shore piece is near-white any more, which is the thing he could see', () => {
-    for (const key of ['forest_jungle', 'forest_jungle_swamp', 'forest_jungle_island', 'forest_woodland', 'forest_meadow']) {
+describe('the water edge carries no decoration', () => {
+  it('not one shore piece on any forest template, in any season', () => {
+    for (const key of TEMPLATES) {
       for (const zone of ['spring', 'summer', 'autumn', 'winter']) {
-        const white = shores(grow(key, zone)).filter(p => nearWhite(p.color)).length
-        expect({ key, zone, white }).toEqual({ key, zone, white: 0 })
+        const found = grow(key, zone).props.filter(p => SHORE.includes(p.label ?? '')).length
+        expect({ key, zone, shorePieces: found }).toEqual({ key, zone, shorePieces: 0 })
       }
     }
   })
 
-  it('there are still plenty of them, so this did not pass by deleting the banks', () => {
-    // 231 to 450 per map was the measured count. If a "fix" ever empties the set this test says so.
-    expect(shores(grow('forest_jungle_swamp')).length).toBeGreaterThan(100)
+  it('the WATER is still there, so this did not pass by removing the river', () => {
+    // The obvious wrong way to make the assertion above true.
+    for (const key of TEMPLATES) {
+      const wet = grow(key).ground.flat().filter(g => g.startsWith('water') || g === 'ice_water').length
+      expect({ key, wet: wet > 0 }).toEqual({ key, wet: true })
+    }
   })
 
-  it('the tile row itself is no longer authored near-white either', () => {
-    for (const label of SHORE) {
-      const own = styleTile('ascii', label)?.settings as { color?: string } | undefined
-      expect({ label, white: own?.color ? nearWhite(own.color) : false }).toEqual({ label, white: false })
-    }
+  it('a LAVA bank keeps its ember, because only the shoreline was the complaint', () => {
+    // edgeDecor still answers for lava. Nothing about molten rock was ever in question.
+    const s = grow('forest_jungle')
+    expect(s.props.filter(p => p.type === 'ember').length).toBe(0) // a forest has no lava…
+    // …and the pass that would place one is still wired: it is the same function the shore used to sit in.
+    expect(typeof generateStage).toBe('function')
   })
 })

@@ -17,6 +17,7 @@ import liveBody from '@/__tests__/fixtures/generators.json'
 import '@/__tests__/helpers/installTilesetSeed'
 import { styleCatalog } from '@/engine/tileset/styleTiles'
 import { resolveComposition } from '@/engine/tileset/tileset'
+import { buildCompositionPalette } from '@/engine/compositionCatalog'
 
 const CATALOG = parseGeneratorCatalog(liveBody)
 
@@ -74,6 +75,18 @@ describe('an island jungle grows coastal things', () => {
   it('the coast keeps its WATER species, which is what he meant by water nature', () => {
     expect(species('forest_jungle_island', 'dense')).toContain('tree_mangrove')
     expect(species('forest_jungle_swamp', 'open')).toContain('tree_mangrove')
+  })
+
+  it('each tropical species is BROWSEABLE, so it shows in the objects list', () => {
+    // Alexander, 2026-09-13: *"none of this is present in the objects list"*. The palette lists a composition
+    // when its served `category` is a browseable bucket and never by a name heuristic, so this asserts the
+    // bucket rather than the rendering: a species authored without one draws on the map and can never be
+    // placed by hand.
+    const nature = buildCompositionPalette(styleCatalog('ascii')).find(g => g.category === 'nature')
+    const kinds = (nature?.items ?? []).map(i => i.kind)
+    for (const kind of ['tree_coconut', 'tree_banana', 'tree_mangrove']) {
+      expect({ kind, listed: kinds.includes(kind) }).toEqual({ kind, listed: true })
+    }
   })
 
   it('each tropical species is a real composition the backend serves, not a name', () => {

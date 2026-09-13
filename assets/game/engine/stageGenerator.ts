@@ -662,8 +662,9 @@ function edgeDecor(neighbourType: string, col: number, row: number): StageProp |
   // ANY water, not the four names in WATER_LIKE. The depth pass renames a cell `water_shallow` or `water_deep`,
   // so a deep pool used to border the land with no shoreline at all, which is half of why his swamp read as
   // *"really really confusing"*: nothing marked where the water began.
-  // WATER IS A REAL TILE NOW. It used to return a single `≈` prop with a hardcoded colour whichever side the
-  // water was on; `shorePiece` picks one of the 8 baked edge/corner pieces instead. Lava keeps its ember.
+  // A WATER EDGE GETS NOTHING. It was a `≈` character, then the 8 baked `shore_*` autotile pieces, and those
+  // are drawn as BLOOMS: 231 to 450 a map, which is what he had been calling "white flowers" for four rounds.
+  // Alexander, 2026-09-13: *"just remove that crap"*. Lava keeps its ember.
   if (isWaterGround(neighbourType)) return null
   if (LAVA_LIKE.has(neighbourType)) {
     return { col, row, type: 'ember', char: '▒', blocking: false, color: '#d2691e' }
@@ -671,56 +672,7 @@ function edgeDecor(neighbourType: string, col: number, row: number): StageProp |
   return null
 }
 
-/**
- * THE SHORELINE, as real tiles instead of a character.
- *
- * Alexander, 2026-09-12: *"you usually need border and animation"*. These are the 8 baked edge and corner
- * pieces (`shore_*`, named the way `canopy_*` and `wall_stone_*` already are), picked by the SAME 9-piece
- * autotile scheme trees and buildings use, so a bank reads as a bank and a corner reads as a corner.
- *
- * There is no `_c` piece: the centre of water is the water tile itself, so a land cell with water on no side
- * is not a shore at all.
- */
-const SHORE_SUFFIX: Readonly<Record<string, string>> = {
-  'TOP-LEFT': 'tl', TOP: 't', 'TOP-RIGHT': 'tr',
-  LEFT: 'l', RIGHT: 'r',
-  'BOTTOM-LEFT': 'bl', BOTTOM: 'b', 'BOTTOM-RIGHT': 'br',
-}
 
-/**
- * The shore piece for a LAND cell that touches water, or null when it touches none.
- *
- * The LAND is the autotile mass, so an OPEN side is where the water is and the piece faces it. Out of bounds
- * counts as LAND on purpose: off-map is not water, and treating it as open made a map-edge cell pick a corner
- * piece with no water anywhere near it.
- *
- * It goes out as `ground_decor` carrying the piece's LABEL, which is the seam that draws a flat overlay sheared
- * onto the ground diamond and resolves its baked image per active style (`groundDecorImage`). A labelled prop of
- * any other type would take the labelled-tile path and stand a BLOCK up on the bank.
- */
-function shorePiece(ctx: ArchetypeContext, col: number, row: number): StageProp | null {
-  const { ground, cols, rows, zone } = ctx
-  const wet = (c: number, r: number): boolean => inBounds(c, r, cols, rows) && isWaterGround(ground[r][c])
-  if (!ORTHO.some(([dc, dr]) => wet(col + dc, row + dr))) return null
-  const notWater = (c: number, r: number): boolean => !inBounds(c, r, cols, rows) || !isWaterGround(ground[r][c])
-  const suffix = SHORE_SUFFIX[autotilePosition(notWater, col, row)]
-  if (!suffix) return null // INTERIOR: no open side, so there is no edge to draw
-  // A BANK IS THE EARTH THE WATER RUNS THROUGH, and the generator already says which earth.
-  //
-  // Alexander, 2026-09-13: *"I don't know what the fuck is the name of those white flowers, but I want them
-  // OUUUUUUUUT"*. They were not flowers. Measured across six templates and three seasons: 231 to 450 of THESE
-  // per map, every one of them near-white, hugging every river, pool and path edge, which at map scale reads
-  // as exactly the line of white blooms he has now pointed at four times.
-  //
-  // Two invented hexes did it, `#eaf8ff` and a frost `#bfe6f5`, minted here while `palette.bank` was served
-  // and ignored: tan for a woodland, peat for a jungle, pale sand for an island. Read it. When a generator
-  // serves none the tile's OWN colour stands, which is the backend's business and no longer white either.
-  //
-  // The frost tint is GONE rather than re-invented: a frozen bank wanting to read as ice is a real thing and
-  // it needs a served colour, not another literal. On the ticket.
-  const label = `shore_${suffix}`
-  return { col, row, type: 'ground_decor', char: '', label, blocking: false, color: ctx.palette?.bank ?? resolveTile(styleCatalog('ascii'), zone, label).color }
-}
 
 /** Stamp blended edges on land cells bordering water/lava. Non-blocking; never
  *  overwrites an existing prop. */
@@ -733,13 +685,15 @@ function addTerrainTransitions(ctx: ArchetypeContext): void {
       const here = ground[row][col]
       if (isWaterGround(here) || LAVA_LIKE.has(here)) continue // decorate LAND only, whatever depth the water is
       if (collision[row][col] || occupied.has(`${col},${row}`)) continue
-      // WATER first, as a positioned piece read from all four neighbours rather than the first one found.
-      const shore = shorePiece(ctx, col, row)
-      if (shore) {
-        edges.push(shore)
-        occupied.add(`${col},${row}`)
-        continue
-      }
+      // NO SHORE DECORATION. Alexander, 2026-09-13, after I recoloured them instead of removing them: *"I
+      // didn't want to recolor them, i wanted to remove them, becuase they don't match the fucking context of
+      // the forest, they don't match island, nor swamp jungles"*, and *"they're not even located correctly,
+      // look they're inside the water, in shrot, just remove that crap"*.
+      //
+      // The `shore_*` pieces are drawn as blooms, which is why he read 231 to 450 of them a map as "white
+      // flowers" through four rounds of me hunting the flower data. Recolouring them to the served bank only
+      // made them brown blooms. A water edge marked with a ring of daisies is not a water edge.
+      // Lava keeps its ember below; only the water shoreline is gone.
       for (const [dc, dr] of ORTHO) {
         const c = col + dc
         const r = row + dr

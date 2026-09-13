@@ -2736,19 +2736,23 @@
                 ],
                 "trees": [
                   {
-                    "kind": "tree_palm",
-                    "weight": 55
+                    "kind": "tree_coconut",
+                    "weight": 30
                   },
                   {
-                    "kind": "tree_round",
+                    "kind": "tree_palm",
+                    "weight": 25
+                  },
+                  {
+                    "kind": "tree_banana",
                     "weight": 20
                   },
                   {
-                    "kind": "bush_round",
+                    "kind": "tree_mangrove",
                     "weight": 15
                   },
                   {
-                    "kind": "tree_stub",
+                    "kind": "bush_round",
                     "weight": 10
                   }
                 ],

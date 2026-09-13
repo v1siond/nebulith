@@ -125,7 +125,16 @@ function genSeeded(opts: Parameters<typeof generateStage>[0], seed: number): Sta
 // *"you usually need border and animation"*. Only these two archetypes have hazard POOLS, which is why the
 // three settlements and the forest are byte-identical: the forest's river is off by default and a settlement
 // places no water at all.
-// RELOCKED 2026-09-13, cave and temple only: a bank stopped being white.
+// RELOCKED TWICE ON 2026-09-13, cave and temple only. Second time: the shoreline is GONE.
+//
+// Recolouring the shore pieces to the served bank was the wrong fix, because the pieces are DRAWN as blooms:
+// *"I didn't want to recolor them, i wanted to remove them, becuase they don't match the fucking context of
+// the forest"*, and *"just remove that crap"*. A tan bloom is still a bloom. So the water edge carries no
+// decoration at all now, and only lava keeps its ember.
+//
+// Same blast radius as the first relock and for the same reason: only the two archetypes with POOLS move.
+//
+// The first relock, kept for the record: a bank stopped being white.
 //
 // Alexander: *"I don't know what the fuck is the name of those white flowers, but I want them OUUUUUUUUT"*.
 // They were the shore pieces, 231 to 450 a map, painted with an invented `#eaf8ff` while `palette.bank` was
@@ -140,8 +149,8 @@ const BASELINE: Record<string, string> = {
   'town|summer|50x40|7': '9c0fd03a',
   'city|summer|56x44|3': 'b8a0077c',
   'forest|summer|30x24|42': 'f243961a',
-  'cave|autumn|40x30|99': 'ca46658c',
-  'temple|winter|36x30|5': '209a7e0f',
+  'cave|autumn|40x30|99': '94c7579b',
+  'temple|winter|36x30|5': 'c6258d72',
   'boss-stage|winter|36x30|11': 'e081dcd4',
 }
 
