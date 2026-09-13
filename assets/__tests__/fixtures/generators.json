@@ -3386,7 +3386,8 @@
               "swamp": "#3f8a84",
               "water": "#4a8fbf",
               "waterDeep": "#275b88",
-              "waterShallow": "#91cdea"
+              "waterShallow": "#91cdea",
+              "bank": "#c1a877"
             },
             "trees": [
               {
@@ -3608,7 +3609,8 @@
                   "swamp": "#3f8a84",
                   "water": "#4a8fbf",
                   "waterDeep": "#275b88",
-                  "waterShallow": "#91cdea"
+                  "waterShallow": "#91cdea",
+                  "bank": "#c1a877"
                 },
                 "trees": [
                   {
@@ -3831,7 +3833,8 @@
                   "swamp": "#3f8a84",
                   "water": "#4a8fbf",
                   "waterDeep": "#275b88",
-                  "waterShallow": "#91cdea"
+                  "waterShallow": "#91cdea",
+                  "bank": "#c1a877"
                 },
                 "trees": [
                   {

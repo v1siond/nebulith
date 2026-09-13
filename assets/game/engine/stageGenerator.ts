@@ -705,9 +705,21 @@ function shorePiece(ctx: ArchetypeContext, col: number, row: number): StageProp 
   const notWater = (c: number, r: number): boolean => !inBounds(c, r, cols, rows) || !isWaterGround(ground[r][c])
   const suffix = SHORE_SUFFIX[autotilePosition(notWater, col, row)]
   if (!suffix) return null // INTERIOR: no open side, so there is no edge to draw
-  // Frost keeps the winter look the character version had, as a per-cell COLOUR the render reads.
-  const icy = ORTHO.some(([dc, dr]) => inBounds(col + dc, row + dr, cols, rows) && ground[row + dr][col + dc] === 'ice_water')
-  return { col, row, type: 'ground_decor', char: '', label: `shore_${suffix}`, blocking: false, color: zone === 'winter' || icy ? '#bfe6f5' : '#eaf8ff' }
+  // A BANK IS THE EARTH THE WATER RUNS THROUGH, and the generator already says which earth.
+  //
+  // Alexander, 2026-09-13: *"I don't know what the fuck is the name of those white flowers, but I want them
+  // OUUUUUUUUT"*. They were not flowers. Measured across six templates and three seasons: 231 to 450 of THESE
+  // per map, every one of them near-white, hugging every river, pool and path edge, which at map scale reads
+  // as exactly the line of white blooms he has now pointed at four times.
+  //
+  // Two invented hexes did it, `#eaf8ff` and a frost `#bfe6f5`, minted here while `palette.bank` was served
+  // and ignored: tan for a woodland, peat for a jungle, pale sand for an island. Read it. When a generator
+  // serves none the tile's OWN colour stands, which is the backend's business and no longer white either.
+  //
+  // The frost tint is GONE rather than re-invented: a frozen bank wanting to read as ice is a real thing and
+  // it needs a served colour, not another literal. On the ticket.
+  const label = `shore_${suffix}`
+  return { col, row, type: 'ground_decor', char: '', label, blocking: false, color: ctx.palette?.bank ?? resolveTile(styleCatalog('ascii'), zone, label).color }
 }
 
 /** Stamp blended edges on land cells bordering water/lava. Non-blocking; never

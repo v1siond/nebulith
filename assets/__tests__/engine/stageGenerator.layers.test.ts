@@ -125,13 +125,23 @@ function genSeeded(opts: Parameters<typeof generateStage>[0], seed: number): Sta
 // *"you usually need border and animation"*. Only these two archetypes have hazard POOLS, which is why the
 // three settlements and the forest are byte-identical: the forest's river is off by default and a settlement
 // places no water at all.
+// RELOCKED 2026-09-13, cave and temple only: a bank stopped being white.
+//
+// Alexander: *"I don't know what the fuck is the name of those white flowers, but I want them OUUUUUUUUT"*.
+// They were the shore pieces, 231 to 450 a map, painted with an invented `#eaf8ff` while `palette.bank` was
+// served and ignored. `shorePiece` reads the served colour now and the tile row is no longer authored near
+// white either.
+//
+// The blast radius is the proof the change is what it says: only the two archetypes that hold POOLS moved.
+// The three settlements place no water, and the forest's river is off by default, so all four are byte
+// identical. Any wider spread than this and the fix had reached something it should not have.
 const BASELINE: Record<string, string> = {
   'town|autumn|40x40|1': 'affafaf3',
   'town|summer|50x40|7': '9c0fd03a',
   'city|summer|56x44|3': 'b8a0077c',
   'forest|summer|30x24|42': 'f243961a',
-  'cave|autumn|40x30|99': '7e914fbe',
-  'temple|winter|36x30|5': 'e3633777',
+  'cave|autumn|40x30|99': 'ca46658c',
+  'temple|winter|36x30|5': '209a7e0f',
   'boss-stage|winter|36x30|11': 'e081dcd4',
 }
 
