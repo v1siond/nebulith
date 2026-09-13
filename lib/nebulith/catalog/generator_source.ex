@@ -339,21 +339,32 @@ defmodule Nebulith.Catalog.GeneratorSource do
   # the other half of what tells two forests apart.
   #
   # Each of these is one of his photographs:
+  # WHICH PLANT GROWS AS THE UNDERSTORY, per formation, and it is the whole of ticket 2.
+  #
+  # Alexander, 2026-09-12: *"collissions still wrong, I'm not able to walk over the green flowers"*.
+  # Measured: of the 40 nature tiles the catalog serves, `thicket` is the ONLY one that blocks, and the
+  # undergrowth pass could plant nothing else. So every template from the meadow up grew waist-high walls
+  # wearing a plant picture, including three formations whose own notes below promise the opposite:
+  # "nothing between them", "a clear walkable floor", "clear ground between the groups".
+  #
+  # Only #14 and #15 describe a floor you cannot cross, so only those two grow the thicket. The rest grow
+  # `tall_grass`, which the catalog already authors walkable and FLAT (height 0) in both styles, and which a
+  # woodland already scatters elsewhere for exactly this purpose.
   @formations %{
     # Image #10 — a wood pasture. Big gnarled trees standing alone on open grass, wide apart, nothing
     # between them. The trees are individuals, not a canopy.
-    "scattered" => %{"lattice" => 3, "spacing" => 4, "understory" => 0.35},
+    "scattered" => %{"lattice" => 3, "spacing" => 4, "understory" => 0.35, "understoryTile" => "tall_grass"},
     # Image #11 — an even-aged beech stand. Straight trunks at regular spacing, a clear walkable floor, and
     # a broad track through it. Ordered rather than clumped.
-    "stand" => %{"lattice" => 5, "spacing" => 2, "understory" => 0.45},
+    "stand" => %{"lattice" => 5, "spacing" => 2, "understory" => 0.45, "understoryTile" => "tall_grass"},
     # Image #12 — conifers scattered in patches over an open hillside. Clear ground between the groups, so
     # a large lattice (real clumps) but a low overall density.
-    "clumped" => %{"lattice" => 10, "spacing" => 0, "understory" => 0.6},
+    "clumped" => %{"lattice" => 10, "spacing" => 0, "understory" => 0.6, "understoryTile" => "tall_grass"},
     # Image #14 — a closed canopy seen from across the valley. Wall to wall, no floor visible anywhere.
-    "closed" => %{"lattice" => 13, "spacing" => 0, "understory" => 1.25},
+    "closed" => %{"lattice" => 13, "spacing" => 0, "understory" => 1.25, "understoryTile" => "thicket"},
     # Image #15 — tall dense trunks over deep green undergrowth, with a narrow trail winding through. The
     # canopy is not the hard part here, the floor is.
-    "understory" => %{"lattice" => 7, "spacing" => 0, "understory" => 1.9},
+    "understory" => %{"lattice" => 7, "spacing" => 0, "understory" => 1.9, "understoryTile" => "thicket"},
     # Image #13 — cypress standing IN the water, well apart, buttressed bases. Spaced like a pasture but wet.
     "flooded" => %{"lattice" => 5, "spacing" => 3, "understory" => 0.7}
   }
