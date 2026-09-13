@@ -1618,7 +1618,7 @@ function plannedRoutes(ctx: ArchetypeContext): RoutePlan | null {
  *  options object — so the two never drift apart. A JUNGLE is not here: it is the same STRUCTURE at a heavier
  *  served density, so it is a preset over this builder, not a fourth code path (see FOREST_LAYOUTS). */
 function layoutWoodland(ctx: ArchetypeContext, opts: ForestBuild = {}): void {
-  const { cols, rows, collision, ground, zone, trees } = ctx
+  const { cols, rows, collision, ground, zone, trees, floorColors } = ctx
   const canopy = ctx.nature?.canopy
   if (canopy === undefined) {
     console.warn('[generate] this generator serves no `nature.canopy`, so a woodland has no tree density to build from — nothing planted')
@@ -1719,7 +1719,20 @@ function layoutWoodland(ctx: ArchetypeContext, opts: ForestBuild = {}): void {
     // neither a river nor a way over one. Water is crossed on a deck.
     // A trail never paves WATER, of any name. The exact `!== 'water'` let a trail run straight over a puddle
     // once pools began laying `water_shallow`.
-    if (inBounds(c, r, cols, rows) && !isWaterGround(ground[r][c])) ground[r][c] = trail
+    if (!inBounds(c, r, cols, rows) || isWaterGround(ground[r][c])) continue
+    ground[r][c] = trail
+    // …AND TAKE THE COLOUR WITH IT. Alexander, 2026-09-13: *"the pathways and exits aren't working on any
+    // template generator"*.
+    //
+    // Laying the TILE was not enough and this is why. The grass pass has already written a colour into
+    // `floorColors` for every cell, and `flattenFloors` prefers that existing colour over the tile's own
+    // (`floorColors[row][col] ?? groundTileColor(material)`). So all 543 trail cells were being paved
+    // correctly and then flattened back out wearing grass green: measured on a woodland, 543 cells of
+    // `rgba(96, 134, 52, 0.95)` and not one of the path tile's `#9c7b4d`. A path you cannot see is not a path.
+    //
+    // The served trail colour wins where a template states one; otherwise the grass override is CLEARED so
+    // the `path` tile's own served colour comes through. Neither branch invents a colour.
+    floorColors[r][c] = ctx.palette?.trail ?? undefined
   }
 
   // 2c · AND PLANK IT where the river runs across it. After the paving, never before: the paving skips water,
