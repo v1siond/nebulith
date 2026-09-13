@@ -3203,10 +3203,24 @@ defmodule Nebulith.Catalog.TileSource do
   defp exit_gate_composition(tree_label, flank_depth) do
     width = 3
 
-    marker = [
-      %{dx: 1, dy: 0, level: 0, label: "lamp", walkable: true, scale: 0.55,
-        settings: %{"display" => "single", "pose" => %{"dy" => -1.1}, "light" => @exit_light}}
-    ]
+    # A MARKER YOU CAN SEE IN DAYLIGHT. The gate carried only a `light`, and a light draws its glow pool at
+    # NIGHT, so by day the way out was marked by nothing at all (ticket 104). A lamp needs something holding
+    # it up anyway: the post is the thing you see from across the map, the bulb sits on top of it, and the
+    # glow is what the post adds after dark. Same two-cell shape the lamp post itself uses.
+    marker =
+      for dx <- [0, width - 1] do
+        [
+          # `bridge_rail`, NOT `post`. I reached for `post` here and put the open crate straight back: its art
+          # is a rounded square with a 31% transparent margin, so any block extruded from it shows its own
+          # dark interior and reads as a black-and-white box. `bridge_rail` is the solid full-bleed tile
+          # authored for exactly this, and the gatepost states its own colour like every other cell.
+          %{dx: dx, dy: 0, level: 0, label: "bridge_rail", walkable: false,
+            settings: %{"scaleY" => 1.6, "scaleZ" => 0.35, "color" => "#6b5f52"}},
+          %{dx: dx, dy: 0, level: 1, label: "lamp", walkable: true, scale: 0.6,
+            settings: %{"display" => "single", "pose" => %{"dy" => -1.4}, "light" => @exit_light}}
+        ]
+      end
+      |> List.flatten()
 
     # The flanks: trees down both edges, never in the middle column, so the way through stays open.
     flanks =
