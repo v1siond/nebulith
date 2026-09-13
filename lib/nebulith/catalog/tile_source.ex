@@ -1732,8 +1732,18 @@ defmodule Nebulith.Catalog.TileSource do
     }
   end
 
+  # A BANK IS EARTH, NOT SNOW. Alexander, 2026-09-13, on maps with 231 to 450 of these hugging every water
+  # edge: *"I don't know what the fuck is the name of those white flowers, but I want them OUUUUUUUUT"*. They
+  # were not flowers. They were the shore pieces, authored `#eaf8ff`, a near-white, and read at map scale as a
+  # line of white blobs along every river and pool.
+  #
+  # A generator that serves a `bank` colour overrides this per template (tan woodland, peat jungle, pale sand
+  # island). This is what a shore wears when none is served, and it is the woodland's own tan rather than a
+  # new invention.
+  @shore_color "#c1a877"
+
   defp seed_shore_pieces(ascii_id, emoji_id) do
-    for %{label: label} = piece <- rim_or_wall_pieces("shore", "░", "#eaf8ff", "terrain"),
+    for %{label: label} = piece <- rim_or_wall_pieces("shore", "░", @shore_color, "terrain"),
         {tileset_id, style} <- [{ascii_id, "ascii"}, {emoji_id, "emoji"}] do
       {:ok, _} =
         Catalog.upsert_tile(%{

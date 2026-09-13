@@ -313,6 +313,9 @@ defmodule Nebulith.Catalog.GeneratorSource do
   # The meadow's WATER, by depth. It has no floor palette of its own (its gradient is seasonal), but its river
   # is still water and owes the same reading as every other: light blue where you can wade, darker as it deepens.
   @meadow_palette %{
+    # A BANK, because the meadow serves water and served none, so its shores fell back to the tile's own
+    # colour. Same sandy tan the woodland uses: a meadow's water edge is the same trodden earth.
+    "bank" => "#c1a877",
     "water" => "#4a8fbf",
     "waterShallow" => "#91cdea",
     "waterDeep" => "#275b88",
