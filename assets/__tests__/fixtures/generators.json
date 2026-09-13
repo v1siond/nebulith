@@ -2262,7 +2262,7 @@
                         "weight": 40
                       },
                       {
-                        "kind": "tree_round",
+                        "kind": "tree_mangrove",
                         "weight": 30
                       },
                       {
@@ -2655,16 +2655,20 @@
                     "name": "Open canopy",
                     "trees": [
                       {
-                        "kind": "tree_palm",
-                        "weight": 55
+                        "kind": "tree_coconut",
+                        "weight": 35
                       },
                       {
-                        "kind": "bush_round",
+                        "kind": "tree_palm",
                         "weight": 25
                       },
                       {
-                        "kind": "tree_round",
-                        "weight": 20
+                        "kind": "tree_banana",
+                        "weight": 25
+                      },
+                      {
+                        "kind": "bush_round",
+                        "weight": 15
                       }
                     ],
                     "undergrowth": 0.5,
@@ -2696,16 +2700,20 @@
                     "name": "Dense growth",
                     "trees": [
                       {
-                        "kind": "tree_palm",
-                        "weight": 40
+                        "kind": "tree_banana",
+                        "weight": 30
                       },
                       {
-                        "kind": "tree_big",
-                        "weight": 30
+                        "kind": "tree_coconut",
+                        "weight": 25
+                      },
+                      {
+                        "kind": "tree_mangrove",
+                        "weight": 25
                       },
                       {
                         "kind": "bush",
-                        "weight": 30
+                        "weight": 20
                       }
                     ],
                     "undergrowth": 1.45,

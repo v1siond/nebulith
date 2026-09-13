@@ -24,7 +24,10 @@ const crownShapes = (kind: string): Set<string | undefined> => {
 }
 
 const ROUND = ['tree', 'tree_big', 'tree_small', 'tree_stub', 'tree_tall', 'tree_sapling', 'tree_column',
-  'tree_round', 'tree_broadleaf', 'tree_giant', 'tree_gnarled', 'tree_palm']
+  'tree_round', 'tree_broadleaf', 'tree_giant', 'tree_gnarled', 'tree_palm',
+  // The tropics, added 2026-09-13. The sweep below caught them the moment they were authored, which is what
+  // it is for: a species arriving without a crown shape is a leafy box nobody notices until he does.
+  'tree_coconut', 'tree_banana', 'tree_mangrove']
 const CONES = ['tree_conifer', 'tree_cypress']
 
 describe('tree crowns', () => {

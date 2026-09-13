@@ -14,6 +14,9 @@
  */
 import { findGeneratorByKey, parseGeneratorCatalog, type GeneratorSubZone } from '@/lib/generatorCatalog'
 import liveBody from '@/__tests__/fixtures/generators.json'
+import '@/__tests__/helpers/installTilesetSeed'
+import { styleCatalog } from '@/engine/tileset/styleTiles'
+import { resolveComposition } from '@/engine/tileset/tileset'
 
 const CATALOG = parseGeneratorCatalog(liveBody)
 
@@ -55,10 +58,29 @@ describe('an island jungle grows coastal things', () => {
     expect(region('forest_jungle_island', name).flowers ?? []).not.toHaveLength(0)
   })
 
-  it('the PALM leads every region, and the rainforest giant is nowhere in it', () => {
+  it('grows TROPICAL species, not a temperate wood with palms dropped in', () => {
+    // Alexander, 2026-09-13: *"the trees variations are the same as any other forest, when they should be
+    // more tropical, like coconnuts trees, bananas, water nature, etc"*, and, when I called it blocked on art,
+    // *"is not blocked because it's expected that you will add the trees variations following the same pattern
+    // used to other trees"*. He was right: a species is proportions on the shared two-tile tree.
+    const tropical = ['tree_coconut', 'tree_banana', 'tree_mangrove', 'tree_palm']
     for (const name of ['open', 'dense']) {
-      expect({ name, palm: species('forest_jungle_island', name).includes('tree_palm') }).toEqual({ name, palm: true })
-      expect({ name, giant: species('forest_jungle_island', name).includes('tree_giant') }).toEqual({ name, giant: false })
+      const grown = species('forest_jungle_island', name)
+      expect({ name, tropical: grown.filter(k => tropical.includes(k)).length }).toEqual({ name, tropical: 3 })
+      expect({ name, giant: grown.includes('tree_giant') }).toEqual({ name, giant: false })
+    }
+  })
+
+  it('the coast keeps its WATER species, which is what he meant by water nature', () => {
+    expect(species('forest_jungle_island', 'dense')).toContain('tree_mangrove')
+    expect(species('forest_jungle_swamp', 'open')).toContain('tree_mangrove')
+  })
+
+  it('each tropical species is a real composition the backend serves, not a name', () => {
+    // A tree mix naming a composition that does not exist plants nothing and says nothing about it.
+    for (const kind of ['tree_coconut', 'tree_banana', 'tree_mangrove']) {
+      const comp = resolveComposition(styleCatalog('ascii'), kind)
+      expect({ kind, cells: comp?.cells.length ?? 0 }).toEqual({ kind, cells: 2 })
     }
   })
 })

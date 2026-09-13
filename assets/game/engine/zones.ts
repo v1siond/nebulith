@@ -79,6 +79,8 @@ export type LivingTreeKind =
   | 'tree_conifer' | 'tree_column' | 'tree_broadleaf' | 'tree_gnarled'
   | 'tree_giant' | 'tree_cypress' | 'tree_palm' | 'tree_sapling'
   | 'bush' | 'bush_round'
+  // The tropics, 2026-09-13: *"they should be more tropical, like coconnuts trees, bananas, water nature"*.
+  | 'tree_coconut' | 'tree_banana' | 'tree_mangrove'
 
 /** Tonal rock shades so cave and arena walls are not one flat grey. */
 export function rockShades(): readonly string[] {

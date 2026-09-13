@@ -16487,6 +16487,114 @@
           },
           "title": null
         },
+        "tree_coconut": {
+          "title": null,
+          "category": "nature",
+          "cells": [
+            {
+              "label": "trunk_mid",
+              "level": 0,
+              "scale": 0.38,
+              "settings": {
+                "scaleX": 0.65,
+                "scaleY": 5.4
+              },
+              "dx": 0,
+              "dy": 0,
+              "walkable": false,
+              "zIndex": 0
+            },
+            {
+              "label": "leaf_center",
+              "level": 2,
+              "scale": 1.3,
+              "settings": {
+                "scaleY": 1.1,
+                "shape": "circle"
+              },
+              "dx": 0,
+              "dy": 0,
+              "walkable": true,
+              "zIndex": 0
+            }
+          ],
+          "footprint": {
+            "h": 1,
+            "w": 1
+          }
+        },
+        "tree_banana": {
+          "title": null,
+          "category": "nature",
+          "cells": [
+            {
+              "label": "trunk_mid",
+              "level": 0,
+              "scale": 0.5,
+              "settings": {
+                "scaleX": 0.9,
+                "scaleY": 1.6
+              },
+              "dx": 0,
+              "dy": 0,
+              "walkable": false,
+              "zIndex": 0
+            },
+            {
+              "label": "leaf_center",
+              "level": 1,
+              "scale": 1.95,
+              "settings": {
+                "scaleY": 1.6,
+                "shape": "circle"
+              },
+              "dx": 0,
+              "dy": 0,
+              "walkable": true,
+              "zIndex": 0
+            }
+          ],
+          "footprint": {
+            "h": 1,
+            "w": 1
+          }
+        },
+        "tree_mangrove": {
+          "title": null,
+          "category": "nature",
+          "cells": [
+            {
+              "label": "trunk_mid",
+              "level": 0,
+              "scale": 0.7,
+              "settings": {
+                "scaleX": 1.25,
+                "scaleY": 2.2
+              },
+              "dx": 0,
+              "dy": 0,
+              "walkable": false,
+              "zIndex": 0
+            },
+            {
+              "label": "leaf_center",
+              "level": 2,
+              "scale": 1.8,
+              "settings": {
+                "scaleY": 1.5,
+                "shape": "circle"
+              },
+              "dx": 0,
+              "dy": 0,
+              "walkable": true,
+              "zIndex": 0
+            }
+          ],
+          "footprint": {
+            "h": 1,
+            "w": 1
+          }
+        },
         "tree_sapling": {
           "category": "nature",
           "cells": [
@@ -35201,6 +35309,114 @@
             "w": 1
           },
           "title": null
+        },
+        "tree_coconut": {
+          "title": null,
+          "category": "nature",
+          "cells": [
+            {
+              "label": "trunk_mid",
+              "level": 0,
+              "scale": 0.38,
+              "settings": {
+                "scaleX": 0.65,
+                "scaleY": 5.4
+              },
+              "dx": 0,
+              "dy": 0,
+              "walkable": false,
+              "zIndex": 0
+            },
+            {
+              "label": "leaf_center",
+              "level": 2,
+              "scale": 1.3,
+              "settings": {
+                "scaleY": 1.1,
+                "shape": "circle"
+              },
+              "dx": 0,
+              "dy": 0,
+              "walkable": true,
+              "zIndex": 0
+            }
+          ],
+          "footprint": {
+            "h": 1,
+            "w": 1
+          }
+        },
+        "tree_banana": {
+          "title": null,
+          "category": "nature",
+          "cells": [
+            {
+              "label": "trunk_mid",
+              "level": 0,
+              "scale": 0.5,
+              "settings": {
+                "scaleX": 0.9,
+                "scaleY": 1.6
+              },
+              "dx": 0,
+              "dy": 0,
+              "walkable": false,
+              "zIndex": 0
+            },
+            {
+              "label": "leaf_center",
+              "level": 1,
+              "scale": 1.95,
+              "settings": {
+                "scaleY": 1.6,
+                "shape": "circle"
+              },
+              "dx": 0,
+              "dy": 0,
+              "walkable": true,
+              "zIndex": 0
+            }
+          ],
+          "footprint": {
+            "h": 1,
+            "w": 1
+          }
+        },
+        "tree_mangrove": {
+          "title": null,
+          "category": "nature",
+          "cells": [
+            {
+              "label": "trunk_mid",
+              "level": 0,
+              "scale": 0.7,
+              "settings": {
+                "scaleX": 1.25,
+                "scaleY": 2.2
+              },
+              "dx": 0,
+              "dy": 0,
+              "walkable": false,
+              "zIndex": 0
+            },
+            {
+              "label": "leaf_center",
+              "level": 2,
+              "scale": 1.8,
+              "settings": {
+                "scaleY": 1.5,
+                "shape": "circle"
+              },
+              "dx": 0,
+              "dy": 0,
+              "walkable": true,
+              "zIndex": 0
+            }
+          ],
+          "footprint": {
+            "h": 1,
+            "w": 1
+          }
         },
         "tree_sapling": {
           "category": "nature",
