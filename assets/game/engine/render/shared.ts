@@ -811,14 +811,76 @@ export function isoCameraFocus(
 /** A flat ground shadow centered at (cx, footY), sized a bit WIDER than the figure's
  *  half-width so it always reads beneath the figure instead of hiding behind it.
  *  Figure-relative = deterministic, no per-figure pixel guessing. */
-export function drawGroundShadow(ctx: CanvasRenderingContext2D, cx: number, footY: number, halfWidth: number): void {
+export function drawGroundShadow(
+  ctx: CanvasRenderingContext2D,
+  cx: number,
+  footY: number,
+  halfWidth: number,
+  /** ms, present ONLY when the feet are in water. Absent → the clean ellipse, byte-identical to before. */
+  waterTime?: number,
+): void {
   ctx.save()
   ctx.fillStyle = 'rgba(0, 0, 0, 0.32)'
+  if (waterTime === undefined) {
+    ctx.beginPath()
+    ctx.ellipse(cx, footY, halfWidth * 1.15, Math.max(2, halfWidth * 0.34), 0, 0, Math.PI * 2)
+    ctx.fill()
+    ctx.restore()
+    return
+  }
+  // A SHADOW ON WATER IS NOT A CLEAN ELLIPSE. Alexander, 2026-09-13: *"we should also see how the character
+  // shadow distorts with the water, regular water physics"*. The surface moves, so the outline breaks up: the
+  // radius is modulated around the ring and the whole thing drifts, which reads as a shadow lying on a moving
+  // surface rather than painted on it. Cheap: one path, no per-pixel work.
+  const rx = halfWidth * 1.15
+  const ry = Math.max(2, halfWidth * 0.34)
+  const t = waterTime / 420
   ctx.beginPath()
-  ctx.ellipse(cx, footY, halfWidth * 1.15, Math.max(2, halfWidth * 0.34), 0, 0, Math.PI * 2)
+  for (let i = 0; i <= WATER_SHADOW_STEPS; i++) {
+    const a = (i / WATER_SHADOW_STEPS) * Math.PI * 2
+    const wobble = 1 + 0.16 * Math.sin(a * 3 + t) + 0.09 * Math.sin(a * 5 - t * 1.4)
+    const px = cx + Math.cos(a) * rx * wobble
+    const py = footY + Math.sin(a) * ry * wobble
+    if (i === 0) ctx.moveTo(px, py)
+    else ctx.lineTo(px, py)
+  }
+  ctx.closePath()
   ctx.fill()
   ctx.restore()
 }
+
+/** How many segments the wobbled shadow ring is drawn with. Enough to read as a wavering edge, few enough
+ *  that it costs nothing next to the figure it sits under. */
+const WATER_SHADOW_STEPS = 22
+
+/**
+ * THE STEP ITSELF: rings spreading from the feet, on water only.
+ *
+ * Alexander, 2026-09-13, describing what a puddle should do: *"we should see character steps do an effect in
+ * the water"*. Two rings out of phase, each growing and fading on its own cycle, so a standing figure keeps
+ * disturbing the surface and a moving one leaves a trail of them behind.
+ *
+ * Drawn in the same iso footprint proportions as the shadow (2:1), so a ring reads as lying ON the water
+ * rather than standing up out of it.
+ */
+export function drawWaterStep(ctx: CanvasRenderingContext2D, cx: number, footY: number, halfWidth: number, time: number): void {
+  ctx.save()
+  ctx.lineWidth = Math.max(1, halfWidth * 0.09)
+  for (let ring = 0; ring < 2; ring++) {
+    const phase = ((time / STEP_RIPPLE_MS) + ring * 0.5) % 1
+    const grow = 0.35 + phase * 1.15
+    const fade = (1 - phase) * 0.5
+    if (fade <= 0.01) continue
+    ctx.strokeStyle = `rgba(235, 248, 255, ${fade.toFixed(3)})`
+    ctx.beginPath()
+    ctx.ellipse(cx, footY, halfWidth * 1.15 * grow, Math.max(2, halfWidth * 0.34) * grow, 0, 0, Math.PI * 2)
+    ctx.stroke()
+  }
+  ctx.restore()
+}
+
+/** One ripple cycle. Slow enough to read as water settling, quick enough to keep up with a walking figure. */
+const STEP_RIPPLE_MS = 1100
 
 
 export interface PlayerArmParams {

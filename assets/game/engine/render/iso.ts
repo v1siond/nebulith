@@ -14,7 +14,7 @@ import { type PlayerState, barFraction, hpFraction, playerDisplayName } from '@/
 import { type CombatState, type Entity, type Quest } from '@/game/types'
 import { resolveGroundTile, type TileShape } from '@/engine/tileset/tileset'
 import { Connector } from '@/lib/api'
-import { ASCII_FONT, COMBAT_RANGE, type DayNight, type DrawVisual, ENEMY_MOVE_MS, LIGHT, applyCellTransform, isoCameraFocus, assetCaptionByCell, terrainLabelAt, collectLampGlows, type CompositionGhost, compositionGhostColors, drawCellLabel, debugLabelColors, drawFacingGlyph, drawFigureVitals, drawGroundShadow, drawHitMarker, drawHoverRing, drawNightLighting, drawPlayerArm, drawProjectileGlyph, drawConnectorMarker, drawAttackAnimFrame, drawQuestMarker, drawRangeRing, drawSelectionRing, drawStyledImage, clipToBall, SINGLE_TILE_FRAC, enemyInAttackReach, entityAnimFrame, entityMotion, entityRenderCell, frameImage, getPlayerArt, fillTintedGlyph, idleNow, isDeadEnemy, isDebugMode, isShowCollisions, resolveDraw, resolveAssetDraw, resolveEntityDraw, assetOverride, styleTileImage, labelTileRecolor, groundDecorImage, tileImage, tintedImage, tintedGlyphSprite, treeCellSet } from './shared'
+import { ASCII_FONT, COMBAT_RANGE, type DayNight, type DrawVisual, ENEMY_MOVE_MS, LIGHT, applyCellTransform, isoCameraFocus, assetCaptionByCell, terrainLabelAt, collectLampGlows, type CompositionGhost, compositionGhostColors, drawCellLabel, debugLabelColors, drawFacingGlyph, drawFigureVitals, drawGroundShadow, drawWaterStep, drawHitMarker, drawHoverRing, drawNightLighting, drawPlayerArm, drawProjectileGlyph, drawConnectorMarker, drawAttackAnimFrame, drawQuestMarker, drawRangeRing, drawSelectionRing, drawStyledImage, clipToBall, SINGLE_TILE_FRAC, enemyInAttackReach, entityAnimFrame, entityMotion, entityRenderCell, frameImage, getPlayerArt, fillTintedGlyph, idleNow, isDeadEnemy, isDebugMode, isShowCollisions, resolveDraw, resolveAssetDraw, resolveEntityDraw, assetOverride, styleTileImage, labelTileRecolor, groundDecorImage, tileImage, tintedImage, tintedGlyphSprite, treeCellSet } from './shared'
 import { drawWeather, type WeatherId } from './weather'
 import { resolveAssetDrawSize } from './assetDimensions'
 import { resolveAssetAnimation, spriteFrame } from './assetAnimation'
@@ -746,7 +746,12 @@ export function render(params: IsoRenderParams) {
       const inHandSlash = attackAnims.find(a => a.inHand && now - a.start < a.durationMs)
       const swingP = inHandSlash ? Math.min(1, (now - inHandSlash.start) / inHandSlash.durationMs) : null
       const footY = p.y - heightOffset - (player.jumpHeight ?? 0)
-      drawIsoPlayer(ctx, p.x, footY, tileW, tileH, player, time, swingP, inHandSlash?.tint, style, playerIsTarget, playerIsHover)
+      // IS HE STANDING IN WATER? Asked of the FLOOR he is on, by its tile, which is the same way every other
+      // reader answers a question about a cell. A puddle and a wadeable shallow both count: they are the two
+      // places you can be on foot and still be in water.
+      const underfoot = grid.floorAt(obj.col, obj.row)?.tileKey ?? ''
+      const feetWet = underfoot.includes('water')
+      drawIsoPlayer(ctx, p.x, footY, tileW, tileH, player, time, swingP, inHandSlash?.tint, style, playerIsTarget, playerIsHover, feetWet)
       if (playerEntityId) recordUnitHit(obj.col, obj.row, p.x, footY, playerEntityId) // pick the hero figure (foot→head)
     } else if (obj.entity) {
       const combat = obj.entity.kind === 'enemy' ? enemyCombat.get(obj.entity.id) : undefined
@@ -1063,6 +1068,9 @@ export function drawIsoPlayer(
   style: Style = ASCII_STYLE,
   isTarget: boolean = false,
   isHover: boolean = false,
+  /** The feet are in water. Ticket 14: *"we should see character steps do an effect in the water, we should
+   *  also see how the character shadow distorts with the water, regular water physics"*. Off → unchanged. */
+  inWater: boolean = false,
 ) {
   const playerArt = getPlayerArt(player)
   const lineHeight = tileH * 1.4
@@ -1092,7 +1100,8 @@ export function drawIsoPlayer(
   const baseY = y - lineHeight * 0.5
   const groundY = baseY + tileH * 0.24
   // Ground shadow sized to the player figure (always reads; fixed — doesn't bob).
-  drawGroundShadow(ctx, x, groundY, pHalf)
+  drawGroundShadow(ctx, x, groundY, pHalf, inWater ? time : undefined)
+  if (inWater) drawWaterStep(ctx, x, groundY, pHalf, time) // rings spreading from the feet
   if (isTarget) drawSelectionRing(ctx, x, groundY, pHalf * 0.8) // red target reticle at the feet
   else if (isHover) drawHoverRing(ctx, x, groundY, pHalf * 0.8) // dim white hover reticle
 
