@@ -117,3 +117,49 @@ describe('the catalog carries ONE water loop, and no transposed art', () => {
     expect(flow?.frames?.length).toBe(4)
   })
 })
+
+/**
+ * HEADING 0 IS A HEADING.
+ *
+ * Alexander, 2026-09-13, after I had already "fixed" the current twice: *"the current is still wrong, not
+ * consistent, not aligned, it's been a lot of time and it's still fucking terrible. why it's so hard to
+ * fucking align it with the direction of the fucking channel????"*
+ *
+ * Because the renderer read the heading as `if (asset.flow)`. Heading 0 is +col, a perfectly good direction,
+ * and it is also falsy, so every +col cell skipped the turn entirely and drew a quarter turn off while the
+ * cells beside it were right. That is exactly the "some zones wrong, some right" he circled, and no amount
+ * of work on the flow FIELD could ever have fixed it: the data was correct the whole time.
+ *
+ * Found by instrumenting the real page through Playwright and counting the turns actually drawn: on a ring
+ * river with 10 cells at flow 0, the frame contained not a single `turns=1` draw. That is the check below,
+ * as a unit: the mapping must produce a REAL turn for heading 0, and a caller must not treat it as absent.
+ */
+describe('heading 0 is a heading, not a missing value', () => {
+  it('maps to a turn like any other heading', () => {
+    expect(textureTurnForHeading(0)).toBe(1)
+    expect([0, 1, 2, 3].map(textureTurnForHeading).sort()).toEqual([0, 1, 2, 3]) // a bijection, none lost
+  })
+
+  it('and that turn is NOT the identity, so skipping it is visible', () => {
+    // The bug was invisible in code review precisely because turn 0 looks like "no turn". Heading 0's turn
+    // must actually move the picture, or falling through to unturned would be harmless and nobody would look.
+    const o = { x: 0, y: 0 }, eA = { x: 32, y: -16 }, eB = { x: 32, y: 16 }
+    const turned = turnFaceTexture(o, eA, eB, textureTurnForHeading(0))
+    expect(turned.eA).not.toEqual(eA)
+  })
+
+  it('the two headings along one axis give the SAME line, opposite scroll', () => {
+    // +col and -col are one channel seen two ways: the waves lie the same, only the drift reverses. This is
+    // why the render A/B showed K=1 and K=3 identical, and it is the invariant that makes the mapping safe.
+    const o = { x: 0, y: 0 }, eA = { x: 32, y: -16 }, eB = { x: 32, y: 16 }
+    // The angle MOD 180, because a line has no arrow. Taking |x|,|y| instead collapses the two diagonals
+    // onto each other (|32,-16| and |32,16| are the same pair) and the test passes for the wrong reason.
+    const along = (h: number) => {
+      const t = turnFaceTexture(o, eA, eB, textureTurnForHeading(h))
+      return Math.round(((Math.atan2(t.eA.y, t.eA.x) * 180) / Math.PI + 180) % 180)
+    }
+    expect(along(0)).toBe(along(2))
+    expect(along(1)).toBe(along(3))
+    expect(along(0)).not.toBe(along(1))
+  })
+})

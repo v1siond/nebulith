@@ -467,6 +467,11 @@ export function render(params: IsoRenderParams) {
   const turn = wrapTurn(cameraTurn)
   const facing = facingForTurn(turn)
   const __isoT0 = perfNow() // perf probe — rolling avg of render() ms, exposed on window.__isoRenderMs
+  // QA seam, like `__isoRenderMs` and `__cameraFacing`: the live grid, so a Playwright probe can read what
+  // the renderer is ACTUALLY holding (a cell's flow, a tile's height) instead of inferring it from a
+  // screenshot. Alexander, 2026-09-13: *"we have the fucking ability to generating screenshots of ANYTHING
+  // with playwright and analyze them to validate solutions"* — this is what makes the analysis conclusive.
+  ;(globalThis as unknown as { __nebulithGrid?: unknown }).__nebulithGrid = grid
   // Clear
   ctx.fillStyle = '#1a1a2e'
   ctx.fillRect(0, 0, w, h)
@@ -2375,7 +2380,12 @@ export function drawIsoAssetAscii(
   // RELATION TO THE MAP"*. A cell's heading is DATA on the cell (`flow`, written by the generator), and it
   // turns the TEXTURE, not the tile: the face keeps its corners, the waves rotate inside it. This is the whole
   // of the direction system now — no per-heading art, no per-heading animation.
-  if (asset.flow) adv = { ...adv, turns: textureTurnForHeading(asset.flow) }
+  // `!== undefined`, NOT truthiness. HEADING 0 IS A HEADING (+col), and `if (asset.flow)` skipped every one
+  // of those cells, so they drew unturned and came out a quarter turn wrong while their neighbours were
+  // right. That is the "not consistent, not aligned" he kept seeing, and no amount of fixing the FIELD could
+  // have cured it: the data was already correct. Measured through Playwright on a ring river, 10 cells at
+  // flow 0 and not one `turns=1` draw in the whole frame.
+  if (asset.flow !== undefined) adv = { ...adv, turns: textureTurnForHeading(asset.flow) }
   const blocks = resolveTileHeight(dbTile, asset)
   // Z-WIDTH (directional depth) is a 3D BLOCK operation: setting it declares the tile a block extruded N cells
   // along a diagonal, so the iso render MUST extrude it even at base height 0. Z-Width only changes how FAR a
