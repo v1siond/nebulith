@@ -44,6 +44,14 @@ export interface GridAsset {
   row: number
   type: string
   blocking?: boolean
+  /**
+   * WHICH WAY THE WATER IN THIS CELL IS GOING, in quarter turns (0 = +col, 1 = +row, 2 = -col, 3 = -row).
+   *
+   * Alexander, 2026-09-13: *"the water current is still wrong, it's not considering the isometric angle, nor
+   * the direction of the river"*. The drift was baked into the four pictures, so one picture could never know
+   * its cell's heading and every river on every map drifted the same way. Absent = still.
+   */
+  flow?: number
   scale?: number        // uniform Zoom — multiplies every draw axis (#77/#78). Default 1.
   scaleX?: number       // Width — horizontal sprite stretch, every view (#77/#78). Default 1.
   scaleY?: number       // Height — vertical stretch, grows UP from the base; iso/2D views (#77/#78). Default 1.

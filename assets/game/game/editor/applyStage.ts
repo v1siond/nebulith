@@ -31,6 +31,13 @@ export function applyStageToGrid(stage: StageData, grid: IsometricGrid, building
         const floorColor = stage.floorColors?.[r]?.[c]
         if (floorColor) grid.setGround(c, r, kind, floorColor)
         else placeGround(grid, c, r, kind)
+        // THE CURRENT, the same way the colour travels: state the generator picked, read by the render.
+        // Alexander, 2026-09-13: *"there should be a current direction that goes around with the river"*.
+        const flow = stage.flow?.[r]?.[c]
+        if (flow !== undefined) {
+          const floor = grid.floorAt(c, r)
+          if (floor) floor.flow = flow
+        }
       }
       // RELIEF. This wrote 0 unconditionally, which is why the grid's per-cell height has been all zeros on
       // every map ever generated. A generator that states none still gets 0, so a flat template is unchanged.

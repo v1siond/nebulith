@@ -199,6 +199,14 @@ export interface StageData {
    * template does today, so nothing changes for one that does not ask.
    */
   elevation?: number[][]
+  /**
+   * PER-CELL CURRENT, in quarter turns (0 = +col, 1 = +row, 2 = -col, 3 = -row); absent means still.
+   *
+   * Alexander, 2026-09-13: *"there should be a current direction that goes around with the river and the tiles
+   * should show correctly that current"*. Carried beside `floorColors` and `elevation` because it is the same
+   * kind of thing: state the generator PICKS and the render READS.
+   */
+  flow?: (number | undefined)[][]
   connectors: Connector[]
   spawn: { col: number; row: number }
   /** THE WAYS THROUGH THIS MAP as they were planned, before anything was planted (see `pathNetwork`), or null
@@ -746,6 +754,8 @@ interface ArchetypeContext {
    * to learn it from the ground label.
    */
   wet: Set<string>
+  /** Per-cell CURRENT, in quarter turns (0 = +col, 1 = +row, 2 = -col, 3 = -row). See `flowField`. */
+  flow: Map<string, number>
   /** The crossing this map is built with, decided the first time a deck is laid. null → the classic deck. */
   crossing?: GeneratorCrossing | null
   cols: number
@@ -930,7 +940,7 @@ export function generateStage(opts: GenerateOptions): StageData {
     decor: layerRng(opts.seeds, 'decor'),
   }
   // Single-pass archetypes (forest/cave/temple/boss) read `ctx.rand`; the layout rng is their source.
-  const ctx: ArchetypeContext = { zone, ground, collision, floorColors, elevation, buildings, props, trees, compositions, cols, rows, layout, options: opts.options, nature: opts.nature, settlement: opts.settlement, palette: opts.palette, subZones: opts.subZones, formation: opts.formation, treeMix: opts.treeMix, crossings: opts.crossings, decks: new Set<string>(), wet: new Set<string>(), buildingSizes: opts.buildingSizes, rand: rngs.layout }
+  const ctx: ArchetypeContext = { zone, ground, collision, floorColors, elevation, buildings, props, trees, compositions, cols, rows, layout, options: opts.options, nature: opts.nature, settlement: opts.settlement, palette: opts.palette, subZones: opts.subZones, formation: opts.formation, treeMix: opts.treeMix, crossings: opts.crossings, decks: new Set<string>(), wet: new Set<string>(), flow: new Map<string, number>(), buildingSizes: opts.buildingSizes, rand: rngs.layout }
   ARCHETYPES[variant]?.(ctx, rngs)
   flattenFloors(ctx, FLOOR_MATERIALS[variant]?.(ctx) ?? [])
   addTerrainTransitions(ctx) // blended shorelines / lava banks over the painted ground
@@ -944,6 +954,16 @@ export function generateStage(opts: GenerateOptions): StageData {
     collision,
     floorColors,
     elevation,
+    // THE CURRENT, as a grid beside the colours. Absent everywhere means a map with no moving water, which is
+    // most of them, and `undefined` at a cell means still.
+    flow: ctx.flow.size === 0 ? undefined : (() => {
+      const grid: (number | undefined)[][] = Array.from({ length: rows }, () => new Array<number | undefined>(cols).fill(undefined))
+      for (const [key, dir] of ctx.flow) {
+        const { col, row } = toCell(key)
+        if (inBounds(col, row, cols, rows)) grid[row][col] = dir
+      }
+      return grid
+    })(),
     buildings,
     props,
     trees,
@@ -3183,6 +3203,70 @@ function meadowWater(ctx: ArchetypeContext): GeneratorPalette {
 }
 
 /**
+ * WHICH WAY THE WATER IS GOING, per cell.
+ *
+ * Alexander, 2026-09-13, with a drawing: *"all water current animation is in this direction \\, but the river
+ * goes around the map, there should be a current direction that goes around with the river and the tiles should
+ * show correctly that current"*, and image #9 marking the three headings on a river that rings the map.
+ *
+ * The scroll used to be baked INTO the four pictures (each shifts the wave paths 8px along +x), so every water
+ * cell on every map drifted the same way regardless of which way its channel ran. One picture cannot know its
+ * cell's direction, so the direction has to be DATA on the cell, exactly the way colour and elevation are.
+ *
+ * WALKED, not guessed per cell. Taking the "most watery axis" locally gives you a tangent with no consistent
+ * sign, so a ring river would flow into itself at the corners. This walks the channel as a graph instead: it
+ * starts at a source (a cell with one water neighbour, i.e. an end) or, for a closed loop, at any cell, and
+ * every step records the direction it was entered FROM. Downstream is therefore consistent along the whole
+ * reach and round a full ring, which is what his three arrows describe.
+ *
+ * Returns quarter turns: 0 = +col (east), 1 = +row (south), 2 = -col, 3 = -row. Cells with no answer are
+ * absent, and absent means "no current", which is what standing water gets.
+ */
+const FLOW_STEPS: ReadonlyArray<readonly [number, number]> = [[1, 0], [0, 1], [-1, 0], [0, -1]]
+
+function flowField(ctx: ArchetypeContext, water: ReadonlySet<string>): Map<string, number> {
+  const flow = new Map<string, number>()
+  const neighbours = (key: string): Array<{ key: string; dir: number }> => {
+    const { col, row } = toCell(key)
+    const out: Array<{ key: string; dir: number }> = []
+    FLOW_STEPS.forEach(([dc, dr], dir) => {
+      const k = `${col + dc},${row + dr}`
+      if (water.has(k)) out.push({ key: k, dir })
+    })
+    return out
+  }
+
+  // ENDS FIRST, THEN EVERYTHING ELSE. An open reach should flow from one end to the other rather than from
+  // the middle outward, so the degree-1 cells go first. But a channel is not always one 4-connected run: a
+  // wobble can jog diagonally and split it, and a closed ring has no end at all. Starting ONLY at ends left
+  // those stretches with no current: measured on `divides`, 133 of 266 wet cells had no direction. Every
+  // remaining cell is a start too, so nothing is skipped.
+  const ends = [...water].filter(k => neighbours(k).length === 1)
+  const starts = [...ends, ...water]
+  const seen = new Set<string>()
+
+  for (const start of starts) {
+    if (seen.has(start)) continue
+    const stack: string[] = [start]
+    seen.add(start)
+    while (stack.length > 0) {
+      const here = stack.pop() as string
+      for (const { key, dir } of neighbours(here)) {
+        if (seen.has(key)) continue
+        seen.add(key)
+        // The step that REACHED this cell is the way the water came, so it is this cell's heading too. The
+        // cell we came from takes the same heading, which is what makes the reach continuous rather than a
+        // field of unrelated arrows.
+        if (!flow.has(here)) flow.set(here, dir)
+        flow.set(key, dir)
+        stack.push(key)
+      }
+    }
+  }
+  return flow
+}
+
+/**
  * SETTLE THE WATER BY DEPTH, once the map is otherwise finished.
  *
  * Alexander, 2026-09-11: *"I only want light blue for walkable water, different layers of darkblue for the deeper
@@ -3200,6 +3284,14 @@ function meadowWater(ctx: ArchetypeContext): GeneratorPalette {
 function settleWaterDepth(ctx: ArchetypeContext, pal: GeneratorPalette | undefined, pools: ReadonlySet<string> = new Set()): void {
   const { ground, collision, floorColors } = ctx
   const depth = waterDepth(ctx, pools)
+
+  // WHICH WAY IT RUNS, decided once for the whole reach. Only the CHANNEL gets one: a pool is standing water
+  // and standing water has no current, which is his own distinction.
+  const channel = new Set<string>()
+  forEachCell(ctx.cols, ctx.rows, (col, row) => {
+    if (isWaterGround(ground[row][col]) && !pools.has(`${col},${row}`)) channel.add(`${col},${row}`)
+  })
+  for (const [key, dir] of flowField(ctx, channel)) ctx.flow.set(key, dir)
   const wadeable = wadeableShallows(ctx, depth)
   // FROZEN OVER. Alexander, 2026-09-12: *"in winter, rivers are ice and we can walk over them, which mean, we
   // just remove collissions and add the ice physics we haven't developed yet"*. `frozen_water` already exists as
