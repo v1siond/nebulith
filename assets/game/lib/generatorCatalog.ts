@@ -173,6 +173,12 @@ export interface GeneratorFormation {
   spacing?: number
   /** multiplies the served ground cover — how choked the floor is between the trunks */
   understory?: number
+  /**
+   * WHICH PLANT grows as that understory. Ticket 2: the pass could only ever plant `thicket`, the one tile
+   * of 40 in the nature catalog that blocks, so a meadow grew waist-high walls wearing a plant picture.
+   * Whether it blocks is the TILE's own business, read off its row; this only says which tile.
+   */
+  understoryTile?: string
 }
 
 export interface GeneratorSubZone {
@@ -575,6 +581,8 @@ function parseFormation(v: unknown): GeneratorFormation | undefined {
     const n = num(v[k])
     if (n !== undefined && n >= 0) out[k] = n
   }
+  const tile = v.understoryTile
+  if (typeof tile === 'string' && tile.length > 0) out.understoryTile = tile
   return Object.keys(out).length > 0 ? out : undefined
 }
 

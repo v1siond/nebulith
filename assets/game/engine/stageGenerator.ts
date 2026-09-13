@@ -344,18 +344,27 @@ export function pickLivingTree(rand: number, mix?: readonly GeneratorTreeWeight[
  * clover a meadow uses and then stamp `collision = true` over it, so what you saw was walkable and what you hit
  * was a wall. This is the thing that blocks, and it looks like it.
  */
-const makeThicket = (zone: ZoneId, col: number, row: number): StageProp => {
-  const tile = resolveTile(styleCatalog('ascii'), zone, 'thicket')
-  return { col, row, type: 'thicket', char: tile.char, label: 'thicket', blocking: true, color: tile.color }
+/**
+ * ONE PLANT, and the tile's own row says whether you can walk on it.
+ *
+ * Alexander, 2026-09-12: *"collissions still wrong, I'm not able to walk over the green flowers"*, and
+ * separately *"USE THE FUCKING BACKEND DATA ... IF SOMETHING IS DATA, IT MEANS WE MUST FUCKING GENERATE IT IN
+ * A WAY IT GETS STORED"*.
+ *
+ * This was two functions that differed only in a hardcoded boolean: `makeThicket` said `blocking: true` and
+ * `makeTallGrass` said `false`, neither of them asking. Measured against the live catalog, `thicket` is the
+ * ONLY one of 40 nature tiles that blocks, so the frontend was minting the single most surprising collision
+ * in the game rather than reading it.
+ */
+const makePlant = (zone: ZoneId, col: number, row: number, label: string): StageProp => {
+  const tile = resolveTile(styleCatalog('ascii'), zone, label)
+  return { col, row, type: label, char: tile.char, label, blocking: !tile.walkable, color: tile.color }
 }
 
 /** LONG GRASS you walk INTO: *"look pokemon they ahve regular grass and regular roads, but ALSO, have different
  *  type of long grass where pokemon appears, that long grass is walkable"*. Walkable, so `placeProp` leaves the
  *  cell open. */
-const makeTallGrass = (zone: ZoneId, col: number, row: number): StageProp => {
-  const tile = resolveTile(styleCatalog('ascii'), zone, 'tall_grass')
-  return { col, row, type: 'tall_grass', char: tile.char, label: 'tall_grass', blocking: false, color: tile.color }
-}
+
 
 /** How coarse the long-grass patches are, in cells: grass grows in stands, not as pepper. */
 const TALL_GRASS_PATCH = 4
@@ -374,7 +383,7 @@ function scatterTallGrass(ctx: ArchetypeContext): void {
     if (BUILT_FLOOR.has(ground[row][col]) || isRoadGround(ground[row][col])) return // keep paving and roads clear
     if (occupied.has(`${col},${row}`)) return
     if (shadeNoise(Math.floor(col / TALL_GRASS_PATCH) * 2.3 + Math.floor(row / TALL_GRASS_PATCH) * 3.7) > share) return
-    placeProp(ctx, makeTallGrass(ctx.zone, col, row))
+    placeProp(ctx, makePlant(ctx.zone, col, row, 'tall_grass'))
   })
 }
 
@@ -2859,12 +2868,23 @@ function plantUndergrowth(
     if (density <= 0) continue
     // A coarser lattice than the canopy's, so undergrowth reads as broad thickets rather than as a second
     // canopy stippled between the trunks.
+    // WHICH PLANT the understory is made of is SERVED, per formation. Three of the five formations describe
+    // a clear walkable floor in their own notes ("nothing between them", "a clear walkable floor", "clear
+    // ground between the groups") and every one of them used to grow the blocking thicket regardless, which
+    // is Alexander's *"I'm not able to walk over the green flowers"*.
+    //
+    // A REGION INHERITS ITS PARENT'S PLANT, the same way the generator tree deep-merges everything else. All
+    // 19 served sub-zone formations state an `understory` number and none states a tile, so reading only the
+    // region's own would have dropped a woodland's glades and its mountain vale straight back onto the
+    // thicket. Absent at both levels falls back to `thicket`, so a generator that says nothing anywhere
+    // behaves exactly as it did.
+    const plant = formation?.understoryTile ?? ctx.formation?.understoryTile ?? 'thicket'
     const thicket = woodlandCanopyField(ctx, mask, density, { lattice: (formation?.lattice ?? DEFAULT_CANOPY_LATTICE) + 3 })
     for (const { col, row } of thicket) {
       // A THICKET stands here, and `placeProp` blocks the cell because the thicket blocks. Stamping collision
       // was the bug: it made a clover into a wall. If the cell cannot take the thicket (water, already blocked)
       // it stays exactly as it was rather than becoming an invisible obstacle.
-      placeProp(ctx, makeThicket(ctx.zone, col, row))
+      placeProp(ctx, makePlant(ctx.zone, col, row, plant))
       if (pal?.undergrowth) floorColors[row][col] = pal.undergrowth
     }
   }

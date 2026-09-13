@@ -31,7 +31,8 @@
             "formation": {
               "lattice": 5,
               "spacing": 2,
-              "understory": 0.45
+              "understory": 0.45,
+              "understoryTile": "tall_grass"
             },
             "grid": {
               "cellSize": 16,
@@ -273,7 +274,8 @@
                 "formation": {
                   "lattice": 5,
                   "spacing": 2,
-                  "understory": 0.45
+                  "understory": 0.45,
+                  "understoryTile": "tall_grass"
                 },
                 "grid": {
                   "cellSize": 16,
@@ -504,7 +506,8 @@
                 "formation": {
                   "lattice": 7,
                   "spacing": 0,
-                  "understory": 1.9
+                  "understory": 1.9,
+                  "understoryTile": "thicket"
                 },
                 "grid": {
                   "cellSize": 16,
@@ -743,7 +746,8 @@
                 "formation": {
                   "lattice": 10,
                   "spacing": 0,
-                  "understory": 0.6
+                  "understory": 0.6,
+                  "understoryTile": "tall_grass"
                 },
                 "grid": {
                   "cellSize": 16,
@@ -1084,7 +1088,8 @@
                 "formation": {
                   "lattice": 10,
                   "spacing": 0,
-                  "understory": 0.6
+                  "understory": 0.6,
+                  "understoryTile": "tall_grass"
                 },
                 "grid": {
                   "cellSize": 16,
@@ -1409,7 +1414,8 @@
             "formation": {
               "lattice": 13,
               "spacing": 0,
-              "understory": 1.25
+              "understory": 1.25,
+              "understoryTile": "thicket"
             },
             "grid": {
               "cellSize": 16,
@@ -1808,7 +1814,8 @@
                 "formation": {
                   "lattice": 13,
                   "spacing": 0,
-                  "understory": 1.25
+                  "understory": 1.25,
+                  "understoryTile": "thicket"
                 },
                 "grid": {
                   "cellSize": 16,
@@ -2134,7 +2141,8 @@
                 "formation": {
                   "lattice": 13,
                   "spacing": 0,
-                  "understory": 1.25
+                  "understory": 1.25,
+                  "understoryTile": "thicket"
                 },
                 "grid": {
                   "cellSize": 16,
@@ -2506,7 +2514,8 @@
                 "formation": {
                   "lattice": 13,
                   "spacing": 0,
-                  "understory": 1.25
+                  "understory": 1.25,
+                  "understoryTile": "thicket"
                 },
                 "grid": {
                   "cellSize": 16,
@@ -2824,7 +2833,8 @@
                 "formation": {
                   "lattice": 13,
                   "spacing": 0,
-                  "understory": 1.25
+                  "understory": 1.25,
+                  "understoryTile": "thicket"
                 },
                 "grid": {
                   "cellSize": 16,
@@ -3196,7 +3206,8 @@
             "formation": {
               "lattice": 3,
               "spacing": 4,
-              "understory": 0.35
+              "understory": 0.35,
+              "understoryTile": "tall_grass"
             },
             "grid": {
               "cellSize": 16,
@@ -3417,7 +3428,8 @@
                 "formation": {
                   "lattice": 3,
                   "spacing": 4,
-                  "understory": 0.35
+                  "understory": 0.35,
+                  "understoryTile": "tall_grass"
                 },
                 "grid": {
                   "cellSize": 16,
@@ -3639,7 +3651,8 @@
                 "formation": {
                   "lattice": 3,
                   "spacing": 4,
-                  "understory": 0.35
+                  "understory": 0.35,
+                  "understoryTile": "tall_grass"
                 },
                 "grid": {
                   "cellSize": 16,

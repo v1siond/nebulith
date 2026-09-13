@@ -217,10 +217,17 @@ export interface ResolvedTile {
   height?: number
   /** The tile's backend `settings` blob (carries the generic `fadeNear`/`cutawayRoof` behavior keys). */
   settings?: Record<string, unknown>
+  /**
+   * Does the backend say you can walk on it. Carried here so a generator READS the answer instead of
+   * minting one, which is ticket 2: `thicket` is the only one of 40 nature tiles the catalog blocks, and
+   * `makeThicket` hardcoded that same `true` in the frontend rather than asking. Absent for an unknown
+   * label, and an unknown label must not become an invisible wall, so the fallback below states `true`.
+   */
+  walkable?: boolean
 }
 
 // Unknown label → the same visible-but-neutral fallback the hardcoded path used (never blank/throw).
-export const FALLBACK_RESOLVED: ResolvedTile = { char: '?', color: '#cccccc' }
+export const FALLBACK_RESOLVED: ResolvedTile = { char: '?', color: '#cccccc', walkable: true }
 
 /** The GENERIC render-behavior keys (`fadeNear`/`cutawayRoof`/`display`) a stamp copies from a resolved
  *  tile's `settings` onto the placed asset. Returns undefined when the tile carries none (the common case),
@@ -399,7 +406,7 @@ export interface TileSource {
 export function resolveTile(tileset: TileSource, zone: string, label: string, variant = 0): ResolvedTile {
   const tile = tileset.tiles[label]
   if (!tile) return FALLBACK_RESOLVED
-  return { char: tile.char, color: resolveTileColor(tile, zone, variant), height: tile.height, settings: tile.settings }
+  return { char: tile.char, color: resolveTileColor(tile, zone, variant), height: tile.height, settings: tile.settings, walkable: tile.walkable }
 }
 
 /** The multi-cell COMPOSITION for an asset kind from a LOADED tileset (null if none). Pure — the caller
