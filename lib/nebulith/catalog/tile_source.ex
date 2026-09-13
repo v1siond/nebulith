@@ -138,6 +138,7 @@ defmodule Nebulith.Catalog.TileSource do
     apply_unit_art()
     ensure_distinct_glyphs()
     ensure_fade_near()
+    ensure_ground_plants()
     # …and every PER-LABEL fact agrees across styles. A label owns its name, bucket, height and collision;
     # only the picture is the style's. Without this the same `grass` was "Grass" in one style and nameless
     # in the other — two engines' worth of drift in the data.
@@ -2361,6 +2362,45 @@ defmodule Nebulith.Catalog.TileSource do
                 derelict-house factory hospital hotel house house-garden houses japanese-castle mosque
                 office-building school stadium tent tower torii-gate fountain well pillar water_c water_jet
                 lamp torch)
+
+  # GROUND PLANTS: they STAND UP, and they hold nothing up.
+  #
+  # Alexander, 2026-09-13, on a woodland where every tree floated a block above the blooms: *"all trees are
+  # located above the high grass, instead of at floor level"*, and *"the high grass doesn't have collissions
+  # and has height but elements don't stack on top ... like a y stack position, which goes from the top face
+  # to the bottom face of the cell"*.
+  #
+  # He is right that it was already nearly there. A cell stacks by each tile's own HEIGHT (`cellStackTop`),
+  # and `flower`, `clover`, `wheat` and `bush` are all authored a full block tall so they draw as standing
+  # billboards. That same block was being counted as a SURFACE, so a tree or a hero landing on a flowered cell
+  # was lifted one level onto it. Height is how tall it DRAWS; it should not decide what can stand on it.
+  #
+  # `stackAt` is that split, and it is his own description: 1 is the top face (the default, and what every
+  # tile did before), 0 is the bottom face. A plant you walk through gets 0, so whatever follows lands at its
+  # feet while the picture still stands at full height.
+  @ground_plants ~w(blossom bouquet clover flower hibiscus mushroom red-mushroom rose shamrock sunflower
+                    tulip wilted-flower wheat bush shrub fallen-leaf maple-leaf)
+
+  @doc "Does this label stand at ground level, so nothing stacks on top of it? The rule `ensure_ground_plants/0` writes."
+  def ground_plant?(label), do: label in @ground_plants
+
+  @doc """
+  Gives every ground plant `stackAt: 0`, in every tileset, writing ONLY that key
+  (`Catalog.put_tile_setting/4`) so poses and sizes tuned in the editor survive.
+
+  Runs alongside `ensure_fade_near/0` for the same reason: these labels are written by several passes and
+  this has to land after all of them.
+  """
+  def ensure_ground_plants do
+    written =
+      for tileset <- Catalog.list_tilesets(), tile <- Catalog.list_tiles_for(tileset.key), ground_plant?(tile.label) do
+        Catalog.put_tile_setting(tileset.id, tile.label, "stackAt", 0)
+        tile.label
+      end
+
+    IO.puts("#{length(written)} ground plants stack at their base, not on their top face")
+    :ok
+  end
 
   @doc "Does this label fade as the hero comes close? The rule `ensure_fade_near/0` writes."
   def fades_near?(label), do: label in @fade_near or String.starts_with?(label, @fade_near_prefixes)
