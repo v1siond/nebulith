@@ -133,3 +133,90 @@ describe.each(ENCLOSED)('$gen, a map with a real border', c => {
     expect(strays).toEqual([])
   })
 })
+
+/**
+ * A RIVER MOUTH IS NOT AN EXIT.
+ *
+ * *"pathway exits aren't good, I think we're counting river exits as exits, vbut they don't count towards
+ * pathways exits. issue happens across all templates all variants"* (2026-09-14).
+ *
+ * Measured then: on every forest and every river course, asking for 2 exits gave a border with FOUR openings,
+ * two gates and two places the river ran off the map. The water was already impassable, so it was never a way
+ * out you could use; it was a hole in the treeline that read as one. Two causes, both fixed:
+ *   · the treeline skipped a cell something already blocked, and the river channel blocks, so the band stopped
+ *     at the water instead of closing over it;
+ *   · the route network was spared everywhere including where it TOUCHED the border, which left a lone cell
+ *     here and a three-cell run there, each counting as one more opening than was asked for.
+ *
+ * The rule now: inside the map the whole network is spared, and on the ring only the gates are.
+ */
+describe('the border shows exactly the openings that were asked for', () => {
+  const FORESTS = ['woodland', 'jungle', 'meadow'] as const
+  const RIVERS = ['none', 'through', 'divides', 'around'] as const
+
+  /** A gap is a cell you can see and walk through. Water with a tree standing in it is closed: the tree blocks
+   *  it and hides it, so counting water as a gap regardless of what stands on it measures nothing. */
+  function openingsOn(stage: StageData): Array<{ cells: string[]; gate: boolean }> {
+    const { collision, cols, rows } = stage
+    const treeAt = new Set(stage.trees.map(t => `${t.col},${t.row}`))
+    const gate = new Set(stage.routes!.gates.flatMap(g => g.cells.map(c => `${c.col},${c.row}`)))
+    const ring: Array<[number, number]> = []
+    for (let c = 0; c < cols; c++) ring.push([c, 0])
+    for (let r = 1; r < rows; r++) ring.push([cols - 1, r])
+    for (let c = cols - 2; c >= 0; c--) ring.push([c, rows - 1])
+    for (let r = rows - 2; r > 0; r--) ring.push([0, r])
+
+    const isGap = (c: number, r: number) => !collision[r][c] && !treeAt.has(`${c},${r}`)
+    const runs: Array<{ cells: string[]; gate: boolean }> = []
+    let cur: string[] = []
+    for (const [c, r] of ring) {
+      if (isGap(c, r)) { cur.push(`${c},${r}`); continue }
+      if (cur.length) { runs.push({ cells: cur, gate: cur.some(k => gate.has(k)) }); cur = [] }
+    }
+    if (cur.length) runs.push({ cells: cur, gate: cur.some(k => gate.has(k)) })
+    return runs
+  }
+
+  function forest(layout: (typeof FORESTS)[number], river: string, exits: number, seed = 7): StageData {
+    const config = findGenerator(CATALOG, 'forest', layout)?.config
+    expect(config).toBeDefined()
+    const orig = Math.random
+    Math.random = makeRng(seed)
+    try {
+      return generateStage({
+        zone: 'summer', variant: 'forest', layout, cols: COLS, rows: ROWS,
+        options: { exits: String(exits), pathways: '2', river, crossing: 'bridge' },
+        nature: config?.nature, palette: config?.palette, formation: config?.formation,
+        treeMix: config?.trees, subZones: config?.subZones, crossings: config?.crossings,
+      })
+    } finally { Math.random = orig }
+  }
+
+  const cases = FORESTS.flatMap(l => RIVERS.flatMap(r => [1, 2, 3, 4].map(e => [l, r, e] as const)))
+
+  it.each(cases)('%s with a %s river, %i exits: that many openings, no more', (layout, river, exits) => {
+    const openings = openingsOn(forest(layout, river, exits))
+    expect(openings).toHaveLength(exits)
+    // …and every one of them is a gate. A river mouth is not an opening at all any more.
+    expect(openings.filter(o => !o.gate)).toEqual([])
+  })
+
+  it('a river changes nothing about how many openings a map has', () => {
+    const counts = RIVERS.map(river => openingsOn(forest('woodland', river, 2)).length)
+    expect(counts).toEqual([2, 2, 2, 2])
+  })
+
+  it('the treeline closes over the river where it runs off the map', () => {
+    const stage = forest('woodland', 'through', 2)
+    const treeAt = new Set(stage.trees.map(t => `${t.col},${t.row}`))
+    const borderWater: string[] = []
+    for (let c = 0; c < stage.cols; c++) for (const r of [0, stage.rows - 1]) {
+      if (/water|swamp/.test(stage.ground[r][c])) borderWater.push(`${c},${r}`)
+    }
+    for (let r = 1; r < stage.rows - 1; r++) for (const c of [0, stage.cols - 1]) {
+      if (/water|swamp/.test(stage.ground[r][c])) borderWater.push(`${c},${r}`)
+    }
+    expect(borderWater.length).toBeGreaterThan(0) // this seed really does run its river off the map
+    for (const k of borderWater) expect(treeAt.has(k)).toBe(true)
+  })
+})

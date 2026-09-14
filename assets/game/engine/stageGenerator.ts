@@ -1642,7 +1642,15 @@ function sealForestEdge(ctx: ArchetypeContext): void {
   const plan = ctx.routes
   if (!plan) return
   const { collision, trees, cols, rows } = ctx
-  const spared = new Set<string>(plan.cells)
+  // THE BORDER OPENS AT GATES AND NOWHERE ELSE. The route network is spared so a path is not planted over on
+  // its way out, but where that network TOUCHES the border it was leaving extra holes: measured, a lone cell
+  // three along from the gate, and a three-cell run beside another gate, each counting as one more opening
+  // than was asked for. Inside the map the whole network is spared; on the ring, only the gates.
+  const spared = new Set<string>()
+  for (const key of plan.cells) {
+    const { col, row } = toCell(key)
+    if (!isEdge(col, row, cols, rows)) spared.add(key)
+  }
   for (const gate of plan.gates) {
     spared.add(`${gate.inside.col},${gate.inside.row}`)
     for (const c of gate.cells) spared.add(`${c.col},${c.row}`)
@@ -1651,7 +1659,13 @@ function sealForestEdge(ctx: ArchetypeContext): void {
     const depth = Math.min(col, row, cols - 1 - col, rows - 1 - row)
     if (depth >= EDGE_TREELINE) return               // not in the band
     if (spared.has(`${col},${row}`)) return          // a way runs through here
-    if (collision[row][col]) return                  // something already stands here
+    // A RIVER MOUTH IS NOT A WAY OUT. *"I think we're counting river exits as exits, vbut they don't count
+    // towards pathways exits"*. Measured on every forest and every river course: he asks for 2 exits and the
+    // border shows FOUR openings, two gates and two places the river runs off the map. The water is already
+    // impassable there, so it is not a way out you can use; it is a hole in the treeline that reads as one.
+    // The band closes over it, which is what a wooded bank looks like anyway.
+    const wet = isWaterGround(ctx.ground[row][col]) || ctx.wet.has(`${col},${row}`)
+    if (collision[row][col] && !wet) return          // something already stands here, and it is not the river
     trees.push({ col, row, kind: pickLivingTree(ctx.rand(), ctx.treeMix), variant: massVariant(col, row) })
     collision[row][col] = true
   })
