@@ -78,6 +78,18 @@ const reachOf = (reach: ThicknessReach, dir: DepthDir): number => {
 const MIN_SPAN = 0.05
 
 /**
+ * Does this reach map actually thin anything?
+ *
+ * A map of all 1s means "reach the whole cell each way", which is the SAME shape as no thickness at all. The
+ * renderer used to treat the mere PRESENCE of a map as "thickness is in charge now" and drop the tile's
+ * `scaleZ` squash on the floor, so a tile whose four reaches were all 1 rendered as a fat full cube while the
+ * identical tile with no map rendered squashed. Setting any one reach below 1 brought it back, which is the
+ * wrong way round and exactly what it looked like.
+ */
+export const thicknessThins = (reach: ThicknessReach | undefined): boolean =>
+  !!reach && Object.values(reach).some(v => typeof v === 'number' && v > 0 && v < 1)
+
+/**
  * THICKNESS: the block's footprint INSIDE its own cell, from four independent per-direction reaches.
  *
  * This is the same question the Footprint asks — "how far does this tile reach toward ⟨direction⟩?" — only
@@ -380,6 +392,10 @@ export function isoDepthBox(
   depth: number,
   dir: DepthDir,
   level = 0,
+  /** THICKNESS, as the ground quad it shrinks the cell to. Absent → the full unit cell, byte-identical to
+   *  before. A z-width box used to build its corners from the unit diamond unconditionally, so a tile that
+   *  asked for both a span and a thickness got the span and lost the thickness without a word. */
+  quad?: GroundQuad,
 ): DepthBoxFaces {
   const px = center.x
   const by = center.y - level * blockH // base diamond centre-y
@@ -390,14 +406,16 @@ export function isoDepthBox(
   const oy = (n - 1) * s.sy * tileH
   const o = (p: Pt): Pt => ({ x: p.x + ox, y: p.y + oy }) // push a corner to the FAR end of the sweep
 
-  // Unit-cube diamond corners: top-level (y = ty) and base-level (L/R at by, B at by+tileH).
-  const L = { x: px - tileW, y: ty }
-  const T = { x: px, y: ty - tileH }
-  const R = { x: px + tileW, y: ty }
-  const B = { x: px, y: ty + tileH }
-  const Lb = { x: px - tileW, y: by }
-  const Rb = { x: px + tileW, y: by }
-  const Bb = { x: px, y: by + tileH }
+  // The cell's ground corners: top-level (y = ty) and base-level (L/R/B at by). The quad IS the footprint, so
+  // a thinned block sweeps a thinner box; without one this is the unit diamond it always was.
+  const q = quad ?? unitGroundQuad(tileW, tileH)
+  const L = { x: px + q.l.x, y: ty + q.l.y }
+  const T = { x: px + q.t.x, y: ty + q.t.y }
+  const R = { x: px + q.r.x, y: ty + q.r.y }
+  const B = { x: px + q.b.x, y: ty + q.b.y }
+  const Lb = { x: px + q.l.x, y: by + q.l.y }
+  const Rb = { x: px + q.r.x, y: by + q.r.y }
+  const Bb = { x: px + q.b.x, y: by + q.b.y }
 
   // Per-direction hull. The LONG wall + CAP are always the two front (+col/+row) walls of the unit cube; the
   // sweep turns one into a length-spanning parallelogram and translates/keeps the other as the visible cap.

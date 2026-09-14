@@ -19,7 +19,7 @@ import { drawWeather, type WeatherId } from './weather'
 import { resolveAssetDrawSize } from './assetDimensions'
 import { resolveAssetAnimation, spriteFrame } from './assetAnimation'
 import { getStack, assetStackIndexer, unitStandLevel, type TileSource } from '@/engine/cellStack'
-import { isoBlockFaces, isoDepthBox, depthCells, depthFrontExtent, isoZOffset, rotateDepthDir, spanBackmost, normalizeDepthSpan, assetRectExtents, reachGroundQuad, rotateThicknessReach, turnFaceTexture, textureTurnForHeading, type BlockFace, type DepthDir, type ThicknessReach } from './isoBlock'
+import { isoBlockFaces, isoDepthBox, depthCells, depthFrontExtent, isoZOffset, rotateDepthDir, spanBackmost, normalizeDepthSpan, assetRectExtents, reachGroundQuad, rotateThicknessReach, thicknessThins, turnFaceTexture, textureTurnForHeading, type BlockFace, type DepthDir, type ThicknessReach } from './isoBlock'
 import { type Orientation } from './isoOrientation'
 import { cellOrienterFor, orientCellTurn, deorientCellTurn, orientedDimsForTurn, facingForTurn, wrapTurn } from './isoTurn'
 import { resolveTileHeight, blockLayers, layerBlockScale } from '@/engine/tileset/tileHeight'
@@ -1865,7 +1865,7 @@ function drawIsoTileBlockLive(
   const faceColor = tint ?? dv.tint ?? dv.color
   // The ground footprint every face is built from. Thinned along a WORLD diagonal when the tile asks for it
   // (a door flush in its wall); otherwise the full cell, so every existing block draws byte-identically.
-  const quad = thickness ? reachGroundQuad(tileW, tileH, thickness) : undefined
+  const quad = thickness && thicknessThins(thickness) ? reachGroundQuad(tileW, tileH, thickness) : undefined
   // Per-face brightness from the sun (outward screen normals of the two FRONT walls). Constant per
   // block → hoisted out of the stacking loop. Same faceLight shading the peaked roof uses.
   const leftShade = darkenColor(faceColor, faceLight(-tileH, tileW)) // front-left wall (L→B edge)
@@ -1885,11 +1885,11 @@ function drawIsoTileBlockLive(
     const shade = (role: 'left' | 'right') => (role === 'left' ? leftShade : rightShade)
     // Stack bottom→top exactly like the cube path; each level is one long box, higher levels composite over lower.
     for (let k = 0; k < n; k++) {
-      const box = isoDepthBox(center, tileW, tileH, blockH, depth, depthDir, k)
+      const box = isoDepthBox(center, tileW, tileH, blockH, depth, depthDir, k, quad)
       fillFace(box.long, shade(box.longShade), dv, tint)
       fillFace(box.cap, shade(box.capShade), dv, tint)
     }
-    const boxTop = isoDepthBox(center, tileW, tileH, blockH, depth, depthDir, n - 1).top
+    const boxTop = isoDepthBox(center, tileW, tileH, blockH, depth, depthDir, n - 1, quad).top
     if (topDv) fillFace(boxTop, topDv.tint ?? topDv.color ?? faceColor, topDv)
     else fillFace(boxTop, faceColor, dv, tint)
     return
@@ -2156,13 +2156,13 @@ type IsoShapeDrawer = (
   dv: DrawVisual, tint: string | undefined, asset: GridAsset,
 ) => void
 
-/** The tile's DIRECTIONAL thickness, or undefined when it has none.
+/** The tile's DIRECTIONAL thickness, or undefined when it does not actually thin anything.
  *
- *  Thickness only becomes a world-axis shrink once the tile says WHICH way it is thin (`thicknessDir`). A
- *  tile carrying only `scaleZ` keeps the historical screen-axis squash at the call site, so nothing that
- *  renders today changes until it is given a direction. */
+ *  A map of all 1s reaches the whole cell every way, which is the same shape as no map at all, so it answers
+ *  undefined for that too. It used to answer the map, and the call site reads "has thickness" as "scaleZ is
+ *  no longer in charge", so a tile with four 1s silently lost its squash and came out a fat cube. */
 function assetThickness(asset: GridAsset): ThicknessReach | undefined {
-  return asset.thickness && Object.keys(asset.thickness).length > 0 ? asset.thickness : undefined
+  return thicknessThins(asset.thickness) ? asset.thickness : undefined
 }
 
 const ISO_SHAPE_DRAWERS: Record<TileShape, IsoShapeDrawer> = {
@@ -2348,7 +2348,7 @@ export function drawIsoAssetAscii(
     // THICKNESS: with a `thicknessDir` the shrink happens along a WORLD axis inside the shape drawer, so the
     // screen half-height stays FULL here — applying scaleZ in both places would thin a door twice. Without a
     // direction, `scaleZ` keeps its historical screen-axis meaning.
-    const bd = tileH * (asset.thickness ? 1 : (asset.scaleZ ?? 1)) * zoom
+    const bd = tileH * (assetThickness(asset) ? 1 : (asset.scaleZ ?? 1)) * zoom
     // Height — the tile's OWN DB block-height turned into pixels: partialBlockScale draws a sub-block cell as a
     // partial slab and a standing cell as a full block, × the per-instance Height multiplier (scaleY). The
     // height VALUE is DATA (from the DB); nothing invented here.
