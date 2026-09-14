@@ -1,9 +1,9 @@
 /**
  * A CREATURE'S NUMBERS LIVE ON ITS TILE.
  *
- * The reasoning did not hold. There were nine archetypes for eight creatures — one each — plus a frontend map
- * translating creature → archetype. Reuse was the only argument for a second table and there was none. A creature's
- * stat block rides on its own tile now and arrives with the tileset.
+ * The reasoning did not hold. There were nine archetypes for eight creatures — one each — plus a frontend
+ * map translating creature → archetype. Reuse was the only argument for a second table and there was none.
+ * A creature's stat block rides on its own tile now and arrives with the tileset.
  */
 import { setStyleTile } from '@/engine/tileset/styleTiles'
 import { enemyCombat, installCombatCatalog, combatRules, statRules } from '@/game/combatCatalog'

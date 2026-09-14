@@ -1,21 +1,21 @@
 /**
  * HOW BIG A MAP CAN BE — which is to say, as big as you type.
  *
- * and *"the previous limits where caused by poor optimization."*
+ * So there is no maximum here. There were two of them before, and both were wrong for the same reason —
+ * each turned a performance characteristic into a rule about what the user is allowed to want:
  *
- * So there is no maximum here. There were two of them before, and both were wrong for the same reason — each turned a
- * performance characteristic into a rule about what the user is allowed to want:
+ *  · The GENERATOR's served range (`rows 24–35` for Meadow) was used as a cap, so a requested 40 silently
+ *    became 35. It is now only what the random roll picks from.
+ *  · An engine cap of 100 per side rejected 400 × 240 outright — and because the inputs validated against
+ *    it, the panel could not even count the cells, printing `400 × 240 = — cells`.
  *
- * · The GENERATOR's served range (`rows 24–35` for Meadow) was used as a cap, so a requested 40 silently became 35.
- * It is now only what the random roll picks from. · An engine cap of 100 per side rejected 400 × 240 outright — and
- * because the inputs validated against it, the panel could not even count the cells, printing `400 × 240 = — cells`.
+ * What remains is a structural FLOOR of one cell, because a grid with no cells is not a grid. It is stated
+ * rather than silently applied: nothing here may quietly change a number the user typed.
  *
- * What remains is a structural FLOOR of one cell, because a grid with no cells is not a grid. It is stated rather
- * than silently applied: nothing here may quietly change a number the user typed.
- *
- * A CEILING is back, at his word — Note the "for now": this is a deliberate, temporary bound while the renderer
- * catches up, not a return to the old rule. It is stated in ONE place so lifting it is a one-line change, and the
- * panel reports it rather than silently rewriting what you typed.
+ * A CEILING is back, at his word — Note the
+ * "for now": this is a deliberate, temporary bound while the renderer catches up, not a return to the old
+ * rule. It is stated in ONE place so lifting it is a one-line change, and the panel reports it rather than
+ * silently rewriting what you typed.
  */
 
 /** The open map's size, as the panel shows it. */
@@ -29,10 +29,8 @@ export interface MapSize {
 export const MAP_SIZE_MIN = 1
 export const CELL_SIZE_MIN = 1
 
-/**
- * The largest map either side may be, for now. Temporary: raise or drop this one constant when the renderer no longer
- * cares.
- */
+/** The largest map either side may be, for now. Temporary: raise or drop this one
+ *  constant when the renderer no longer cares. */
 export const MAP_SIZE_MAX = 100
 
 /** True when `n` is a real number of at least `lo`. A half-typed input (NaN) is not. */

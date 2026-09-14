@@ -9,10 +9,8 @@
 import { IsometricGrid } from '@/engine/IsometricGrid'
 import { copyTiles, pasteTiles } from '@/game/editor/clipboard'
 
-/**
- * A tile that OCCUPIES ITS WHOLE CELL. `blocking: true` used to say this; the box list says it now, which is the only
- * statement about walking through a tile.
- */
+/** A tile that OCCUPIES ITS WHOLE CELL. `blocking: true` used to say this; the box list says it now, which is
+ * the only statement about walking through a tile. */
 const SOLID = { collision: [{ x: 0, y: 0, w: 1, h: 1 }] }
 
 const makeGrid = () => new IsometricGrid({ cols: 32, rows: 32, cellSize: 32, isoScale: 1.4 })

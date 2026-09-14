@@ -1,14 +1,13 @@
 /**
  * WHERE IN A CELL THE NEXT THING STANDS.
  *
- * *"the high grass doesn't have collissions and has height but elements don't stack on top"*, and the shape of the
- * answer, which was right: *"like a y stack position, which goes from the top face to the bottom face of the cell"*.
+ * The shape of the answer, which was right:
  *
- * A cell stacks by each tile's own HEIGHT. A GENERATED bloom carries a per-instance height of 1 on purpose, from
- * `GENERATED_PROP_RENDER` (*"make flowers single transparent and slightly smaller"*), so it draws as a standing
- * billboard rather than a coloured cube. That same block was then counted as a SURFACE, so a tree stamped onto a
- * flowered cell started one level up. How tall a thing DRAWS and whether you can stand on it were one number, and
- * `stackAt` splits them: 1 is the top face (the default, unchanged), 0 is the bottom.
+ * A cell stacks by each tile's own HEIGHT. A GENERATED bloom carries a per-instance height of 1 on purpose,
+ * from `GENERATED_PROP_RENDER` (), so it draws as a
+ * standing billboard rather than a coloured cube. That same block was then counted as a SURFACE, so a tree
+ * stamped onto a flowered cell started one level up. How tall a thing DRAWS and whether you can stand on it
+ * were one number, and `stackAt` splits them: 1 is the top face (the default, unchanged), 0 is the bottom.
  */
 import '@/__tests__/helpers/installTilesetSeed'
 import { cellStackTop, unitStandLevel } from '@/engine/cellStack'

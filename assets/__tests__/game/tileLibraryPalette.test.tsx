@@ -84,10 +84,10 @@ describe('Tile Library sidebar reads ONLY the backend-loaded tileset (G3/G4)', (
     rebuildEmojiStyle()
     render(<TileLibraryBody styleId="emoji" styleName="Emoji" override={null} onPick={() => {}} />)
     expect(screen.getByTitle('Goblin')).toBeInTheDocument() // the character IS browsable here
-    // NOTE the heading: the library calls the `units` bucket "Effects", because in the PAINT palette that group holds
-    // only the fx labels (arrow, nova, fire-slash…) once characters are filtered out. The library does not filter, so
-    // a character lands under a heading that does not describe it. Asserted as-is rather than quietly renamed — it is
-    // a labelling wart worth a look, not a test to bend.
+    // NOTE the heading: the library calls the `units` bucket "Effects", because in the PAINT palette that
+    // group holds only the fx labels (arrow, nova, fire-slash…) once characters are filtered out. The library
+    // does not filter, so a character lands under a heading that does not describe it. Asserted as-is rather
+    // than quietly renamed — it is a labelling wart worth a look, not a test to bend.
     expect(screen.getByText('Effects')).toBeInTheDocument()
   })
 

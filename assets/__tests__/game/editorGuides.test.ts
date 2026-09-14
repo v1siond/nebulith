@@ -1,13 +1,14 @@
 /**
  * THE GUIDES MUST STAY TRUE — a guide that names a button wrongly is worse than no guide.
  *
- * Writing them is the easy half. The half that fails silently is keeping them true: someone renames "Change just one
- * layer" to "Rebuild one part, keep the rest" (which happened, in this very session) and the guide still cheerfully
- * tells you to click a button that no longer exists.
+ * Writing them is
+ * the easy half. The half that fails silently is keeping them true: someone renames "Change just one
+ * layer" to "Rebuild one part, keep the rest" (which happened, in this very session) and the guide still
+ * cheerfully tells you to click a button that no longer exists.
  *
- * So every `**bolded**` run in a step is treated as a CLAIM about the UI, and this suite checks each claim against
- * the source that draws the editor. It reads the component files as text on purpose: the goal is to catch a rename
- * anywhere, without having to mount the whole editor to do it.
+ * So every `**bolded**` run in a step is treated as a CLAIM about the UI, and this suite checks each claim
+ * against the source that draws the editor. It reads the component files as text on purpose: the goal is to
+ * catch a rename anywhere, without having to mount the whole editor to do it.
  */
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'

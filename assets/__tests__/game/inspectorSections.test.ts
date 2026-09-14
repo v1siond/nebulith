@@ -1,21 +1,22 @@
 /**
  * THE INSPECTOR'S SECTION MODEL (§4.7, Week 5) — now a set of MOVABLE PANELS.
  *
- * §3.10's complaint was that the inspector is one flat wall of controls. §4.7 answered with six sections named after
- * the questions people ask, three of them open by default, remembered per section in the backend's
- * `/api/editor_settings` store.
+ * §3.10's complaint was that the inspector is one flat wall of controls. §4.7 answered with six sections
+ * named after the questions people ask, three of them open by default, remembered per section in the
+ * backend's `/api/editor_settings` store.
  *
- * Two of those facts changed, and this suite is re-pointed at the new contract rather than deleted, because each
- * change was a decision.
+ * Two of those facts changed, and this suite is re-pointed at the new contract rather than deleted, because
+ * each change was a decision.
  *
- * · **Nothing opens by default.** A section is a movable panel now, so "open" means a panel appears over the map.
- * Three of them doing that on every cell click is worse than the accordion ever was. Each row keeps a summary badge,
- * so a closed section still answers its own question. · **The settings key is a new namespace.** The old
- * `inspector.section.*` values recorded which ACCORDIONS were expanded; reusing them would turn a row someone once
- * expanded into a panel opening unbidden. New meaning, new key.
+ *  · **Nothing opens by default.** A section is a movable panel now, so "open" means a panel appears over
+ *    the map. Three of them doing that on every cell click is worse than the accordion ever was. Each row
+ *    keeps a summary badge, so a closed section still answers its own question.
+ *  · **The settings key is a new namespace.** The old `inspector.section.*` values recorded which
+ *    ACCORDIONS were expanded; reusing them would turn a row someone once expanded into a panel opening
+ *    unbidden. New meaning, new key.
  *
- * The three-state read is unchanged and still the subtle part: a section never touched takes the default, one
- * explicitly closed stays closed, one explicitly opened stays open.
+ * The three-state read is unchanged and still the subtle part: a section never touched takes the default,
+ * one explicitly closed stays closed, one explicitly opened stays open.
  */
 import {
   INSPECTOR_SECTIONS,

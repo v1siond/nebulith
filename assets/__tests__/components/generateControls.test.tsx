@@ -1,29 +1,29 @@
 /**
  * THE "NEW WORLD" PANEL (was ⚡ GENERATE, §4.6).
  *
- * The menu IS the backend catalog (T-113): every season, kind of place and preset comes from a verbatim capture of
- * `/api/generators`, and the menu offers NOTHING the catalog does not carry. That is the point these tests exist to
- * hold, and it is unchanged.
+ * The menu IS the backend catalog (T-113): every season, kind of place and preset comes from a verbatim
+ * capture of `/api/generators`, and the menu offers NOTHING the catalog does not carry. That is the point
+ * these tests exist to hold, and it is unchanged.
  *
- * WHAT CHANGED, 2026-09-09, and why this suite was rewritten rather than patched. The ask was for four things and
- * each one moved a contract the old tests pinned:
+ * WHAT CHANGED, 2026-09-09, and why this suite was rewritten rather than patched. The ask was for four
+ * things and each one moved a contract the old tests pinned:
  *
- * · *"why not just a regular select??? we don't need to have the options showing with scrolling when we can use an
- * actual dropdown selector and reduce space"* — season chips and map-type cards are now native `<select>`s, so
- * `getByRole('button', {name: 'winter'})` has no subject. · *"build this world button should be at the end"* — and it
- * is named that, not "Generate world". · *"labels aren't clearly descriptive… we need clear concise labeling"* — the
- * numbered `1 · SEASON` / `4 · MAP SIZE` headings are gone; a control is labelled by what it is. · *"this shouldn't
- * be a limitation… the previous limits where caused by poor optimization"* — the size caps were deleted. ONE came
- * back on 2026-09-10 at his own request (*"let's limit maps to 100x100 for now"*), and it is held to the same
- * standard the removal was: a number is never quietly rewritten under you. Over the cap the panel SAYS so; it does
- * not silently build something else.
+ * · — season chips and map-type cards are now
+ *    native `<select>`s, so `getByRole('button', {name: 'winter'})` has no subject.
+ * · — and it is named that, not "Generate world".
+ * · — the numbered
+ *    `1 · SEASON` / `4 · MAP SIZE` headings are gone; a control is labelled by what it is.
+ * · — the size
+ * caps were deleted. ONE came back on 2026-09-10 at his own request (), and it is held to the same standard the
+  * removal was: a number is never quietly rewritten under
+ *    you. Over the cap the panel SAYS so; it does not silently build something else.
  *
- * Everything else the old suite proved is proved here too: a click selects rather than generates, the picked preset
- * id is forwarded verbatim, and a preset does not survive changing the kind of place.
+ * Everything else the old suite proved is proved here too: a click selects rather than generates, the
+ * picked preset id is forwarded verbatim, and a preset does not survive changing the kind of place.
  *
- * WHAT MOVED OUT, 2026-09-10. The matrix (columns / rows / cell pixels) and the ground thickness are the GRID's, so
- * their tests moved with them to `gridPanel.test.tsx`. This panel takes no size at all now: `onGenerate` has three
- * arguments and the caller reads the grid.
+ * WHAT MOVED OUT, 2026-09-10. The matrix (columns / rows / cell pixels) and the ground
+ * thickness are the GRID's, so their tests moved with them to `gridPanel.test.tsx`. This panel takes no
+ * size at all now: `onGenerate` has three arguments and the caller reads the grid.
  */
 import { act, render, screen, fireEvent, within } from '@testing-library/react'
 import { GenerateControls } from '@/components/game/editorChrome'
@@ -212,9 +212,8 @@ describe('variations are options on a preset, not more presets', () => {
   })
 
   it('offers HOW DEEP the channel is cut, greyed out until there is a river, and forwards it', () => {
-    // and *"river depth is confgiuravble, same as shadow, same as sun light, we want to control everyhting"*. Same
-    // shape as the crossing and its kind: served, dependent, forwarded. A variation is an option, so it gets the same
-    // coverage the other options have.
+    // and Same shape as the crossing and its kind: served, dependent, forwarded. A variation is an
+    // option, so it gets the same coverage the other options have.
     const onGenerate = setup()
     fireEvent.change(kinds(), { target: { value: 'forest' } })
     const depth = () => control(/how deep the channel is cut/i)
@@ -242,8 +241,7 @@ describe('forest > type > subtype — pick one, go deeper, or randomize', () => 
     render(<GenerateControls catalog={CATALOG} zone="spring" onZone={noop} onGenerate={onGenerate} />)
     return onGenerate
   }
-  // Labelled by the thing it picks since 2026-09-11, not by a question: his *"why do we have "which forest?"
-  // instead of "presets" or something"*.
+  // Labelled by the thing it picks, not by a question: "Preset", not "which forest?".
   const which = (name: string) => screen.getByLabelText(new RegExp(`^${name}$`, 'i')) as HTMLSelectElement
   const WOODLANDS = ['forest_woodland_beech', 'forest_woodland_dense', 'forest_woodland_mountain', 'forest_woodland_glades']
 
@@ -284,7 +282,7 @@ describe('forest > type > subtype — pick one, go deeper, or randomize', () => 
   })
 
   it('a jungle offers the REGION that leads it, and forwards the one picked', () => {
-    // *"we should just have variations, similar to "which jungle" "which region""*: a picker, not tick boxes.
+    // Variations are offered as a picker, the same as the jungle and the region, not as tick boxes.
     const onGenerate = setup()
     fireEvent.change(kinds(), { target: { value: 'forest' } })
     fireEvent.click(preset('Jungle'))
@@ -427,10 +425,11 @@ describe('the preview window shows the world to build, its size, and the options
   })
 
   /**
-   * The subject carried the CATEGORY key as the archetype. That is an archetype by coincidence for forest, cave and
-   * temple, and never was for "settlement" since town and city were merged under it, so the engine ran no pass and
-   * the preview drew an empty grid. Only settlements broke, and the one test that looked at this field asserted
-   * `CATALOG[0].key` where the key and the variant happen to be the same word, so nothing caught it.
+   * The subject carried the CATEGORY key as the archetype. That is an archetype by coincidence for forest,
+   * cave and temple, and never was for "settlement" since town and city were merged under it, so the engine
+   * ran no pass and the preview drew an empty grid. Only settlements broke, and the one test that looked at
+   * this field asserted `CATALOG[0].key` where the key and the variant happen to be the same word, so nothing
+   * caught it.
    */
   it('a settlement peeks the ROW\'s archetype, never the category key', () => {
     const p = props()
@@ -443,8 +442,8 @@ describe('the preview window shows the world to build, its size, and the options
   })
 
   /**
-   * With no window to portal into, the options fall back inline (that is the sidebar half), and nothing could ask for
-   * the window back.
+   * With no window to portal into, the options fall back inline (that is
+   * the sidebar half), and nothing could ask for the window back.
    */
   describe('the way back to the preview window', () => {
     const reopen = () => screen.getByRole('button', { name: /preview window/i })
@@ -473,8 +472,8 @@ describe('the preview window shows the world to build, its size, and the options
   })
 
   /**
-   * Building was the only way anything in this panel reached the map, and a build rolls a new world, so changing one
-   * setting cost you the map you had.
+   * Building was the only way anything in this panel
+   * reached the map, and a build rolls a new world, so changing one setting cost you the map you had.
    */
   describe('applying a change to the map that is already open', () => {
     const apply = () => screen.getByRole('button', { name: /apply to this map/i })

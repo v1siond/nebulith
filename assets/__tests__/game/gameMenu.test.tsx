@@ -5,8 +5,8 @@
  * could not tell which GAME you were editing. The stepper fixed "which level"; this fixes "which game", and
  * gathers the actions that are about the whole product rather than the map in front of you.
  *
- * §4.4 also asks for one guarantee with teeth: **"← All games confirms before leaving with unsaved
- * changes"** — §3.15 lists silently losing an unsaved map as one of its inconsistencies.
+ * §4.4 also asks for one guarantee with teeth: ** — §3.15 lists silently losing an unsaved map as one of its
+  * inconsistencies.
  */
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import { GameMenu } from '@/components/game/gameMenu'

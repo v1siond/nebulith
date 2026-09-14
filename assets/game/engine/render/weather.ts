@@ -1,20 +1,17 @@
 /**
  * WEATHER, falling ON THE MAP.
  *
- * and then: *"the rain is not interacting with the map, it shoudl be rain on top of the map only and interacting with
- * it, the rain should show landing on the flor"*.
- *
- * The first version was a screen effect: a field of streaks over the whole canvas, which is why it read as rain on
- * the monitor rather than rain on the world. It falls on the GROUND PLANE now. The renderer hands over the map's four
- * drawn corners, every drop is given a landing point on that floor, and it falls to it and leaves a ripple there. The
- * grey around the map stays dry, and so does the veil.
+ * The first version was a screen effect: a field of streaks over the whole canvas, which is why it read as rain
+ * on the monitor rather than rain on the world. It falls on the GROUND PLANE now. The renderer hands over the
+ * map's four drawn corners, every drop is given a landing point on that floor, and it falls to it and leaves a
+ * ripple there. The grey around the map stays dry, and so does the veil.
  *
  * A weather is still a row in a table: how many particles, how fast, at what slant, how long a streak, how far it
- * falls, what it leaves where it lands, and an optional veil. Snow is slower, shorter, white and barely slanted with
- * no ripple; a sandstorm is nearly sideways and tan.
+ * falls, what it leaves where it lands, and an optional veil. Snow is slower, shorter, white and barely slanted
+ * with no ripple; a sandstorm is nearly sideways and tan.
  *
- * Particles are not state. A particle's position is a function of its index and the time, so nothing is allocated per
- * frame and the same moment always draws the same rain.
+ * Particles are not state. A particle's position is a function of its index and the time, so nothing is allocated
+ * per frame and the same moment always draws the same rain.
  */
 export type WeatherId = 'clear' | 'rain'
 

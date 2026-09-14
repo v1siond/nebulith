@@ -2,11 +2,11 @@
  * THE DIALOG SYSTEM: which of a unit's dialogs it says right now.
  *
  * A unit carries many dialogs (types.ts `UnitDialog`). When the player talks to it, the most SPECIFIC one that
- * applies wins: a quest dialog (it knows where you are in a quest), then a situational one (it knows it's night, or
- * raining), then a static one (it always has something to say). Within a kind, the first in the unit's list.
+ * applies wins: a quest dialog (it knows where you are in a quest), then a situational one (it knows it's night,
+ * or raining), then a static one (it always has something to say). Within a kind, the first in the unit's list.
  *
- * The situations are a table, so a new one is a row: each names a label for the editor and the world state it reads.
- * Today they are the states the engine tracks, day or night and the weather.
+ * The situations are a table, so a new one is a row: each names a label for the editor and the world state it
+ * reads. Today they are the states the engine tracks, day or night and the weather.
  */
 import type { DayNight } from '@/engine/render'
 import type { WeatherId } from '@/engine/render/weather'

@@ -1,13 +1,8 @@
 /**
  * A PATHWAY IS A STRETCH OF ROAD.
  *
- * *"what does 4 pathways even mean for you? because for example, if we cross two paths like a cross, we could have 4
- * exits in two pathways, but if we're counting from the center out, then we'd count 4 pathways instead of 2 correctly
- * / so a pathway is a stretch of road that has 1 or 2 exit / either on oposites sides of it, if 2, or at the start of
- * it if it's 1"*
- *
- * The planner counted from the centre out: one path per gate, radiating from a hub. His cross came out as four
- * pathways. A stretch is the unit now, and these tests are his sentences.
+ * The planner counted from the centre out: one path per gate, radiating from a hub. His cross came out as
+ * four pathways. A stretch is the unit now, and these tests are his sentences.
  */
 import { MAX_EXITS, planRoutes, resolveWays, splitPathways } from '@/engine/pathNetwork'
 import { makeRng } from '@/lib/math'

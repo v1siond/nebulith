@@ -1,15 +1,15 @@
 /**
  * A BRIDGE MUST NOT LOOK LIKE WATER.
  *
- * He was right and the cause was a single `else if`. A crossing cell is river a moment before the deck is laid, so
- * `floorColors` is holding the river's blue when `layDeck` runs. `layDeck` wrote the tile (`bridge`) and the
- * elevation, then reached `else if (tone) floorColors[…] = tone` and, with no served tone, LEFT THE BLUE THERE. The
- * tile said bridge and the colour said water, so you got a blue walkway over a blue river.
+ * He was right and the cause was a single `else if`. A crossing cell is river a moment before the deck is
+ * laid, so `floorColors` is holding the river's blue when `layDeck` runs. `layDeck` wrote the tile (`bridge`)
+ * and the elevation, then reached `else if (tone) floorColors[…] = tone` and, with no served tone, LEFT THE
+ * BLUE THERE. The tile said bridge and the colour said water, so you got a blue walkway over a blue river.
  *
- * The old code carried a comment defending it ("a default here would be a hardcoded fallback for a SERVED value"),
- * which is the compliance rule pointed at the wrong thing. Clearing a STALE override is not inventing a value: an
- * undefined override means "no override", so the bridge tile's own served colour shows. Inventing a brown would have
- * been the violation.
+ * The old code carried a comment defending it ("a default here would be a hardcoded fallback for a SERVED
+ * value"), which is the compliance rule pointed at the wrong thing. Clearing a STALE override is not
+ * inventing a value: an undefined override means "no override", so the bridge tile's own served colour
+ * shows. Inventing a brown would have been the violation.
  *
  * The oracle is his sentence, measured: no cell you can walk on may wear a colour the water wears.
  */
@@ -104,7 +104,7 @@ describe('a walkable floor never wears water, whatever painted it', () => {
     const r = parseInt(hex.slice(1, 3), 16), g = parseInt(hex.slice(3, 5), 16), b = parseInt(hex.slice(5, 7), 16)
     return b > r + 30 && b >= g
   }
-  /** Wadeable water is ALLOWED to be walkable and blue: *"I only want light blue for walkable water"*. */
+  /** Wadeable water is ALLOWED to be walkable and blue: */
   const isWaterTile = (label: string) => label.includes('water')
 
   function swampJungle(seed: number) {

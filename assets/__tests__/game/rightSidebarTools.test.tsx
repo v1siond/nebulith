@@ -102,12 +102,12 @@ describe('#3 the tile-add button opens a FloatingPanel', () => {
     // The Tile ROW is the swap now — there is no button inside it to find, because there is no inside.
     const libraryBtn = screen.getByRole('button', { name: 'Tile' })
 
-    // ORDER CONFLICT, FLAGGED RATHER THAN SETTLED HERE. Deliverable #3 asked for this button BELOW the colour swatch.
-    // The later §4.7 section design — the approved mockup — puts identity first ("Tile", with the swap button that
-    // answers *what is this*), then "Appearance", which is where the colour now lives. The card follows the sections,
-    // so the button precedes the colour. That reads sensibly (pick the thing, then paint it) but it is the reverse of
-    // #3, and which one wins is a judgement call, not this test's. Asserted as-built so the file is an honest
-    // description of the card either way.
+    // ORDER CONFLICT, FLAGGED RATHER THAN SETTLED HERE. Deliverable #3 asked for this button BELOW the
+    // colour swatch. The later §4.7 section design — the approved mockup — puts identity first ("Tile", with
+    // the swap button that answers *what is this*), then "Appearance", which is where the colour now lives.
+    // The card follows the sections, so the button precedes the colour. That reads sensibly (pick the thing,
+    // then paint it) but it is the reverse of #3, and which one wins is a judgement call, not this test's.
+    // Asserted as-built so the file is an honest description of the card either way.
     expect(libraryBtn.compareDocumentPosition(colour) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
   })
 

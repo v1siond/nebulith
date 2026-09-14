@@ -45,10 +45,9 @@ export const EDITOR_RAIL: readonly RailEntry[] = [
   { id: 'characters', glyph: '☻', label: 'Characters', hint: 'add people', mode: 'unit' },
   { id: 'generate', glyph: '⚡', label: 'Generate', hint: 'build a whole world', mode: null },
   { id: 'rules', glyph: '⚑', label: 'Rules', hint: 'triggers, connections & quests', mode: null },
-  // Its OWN group: *"style is a separate group, which list all available art styles, IE: tileset art style"*. It was
-  // a `🎨 Style: ASCII` dropdown in the top bar and then a control in the view bar; neither made it a group. The rail
-  // is where groups live, so it lives here — and it is named for what it lists, a TILESET's art, rather than the bare
-  // word "Style".
+  // Its OWN group: It was a `🎨 Style: ASCII` dropdown in the top bar and then a control
+  // in the view bar; neither made it a group. The rail is where groups live, so it lives here — and it is
+  // named for what it lists, a TILESET's art, rather than the bare word "Style".
   { id: 'artstyle', glyph: '🎨', label: 'Art style', hint: 'swap the whole tileset\'s art', mode: null },
 ]
 
@@ -57,18 +56,19 @@ export const EDITOR_RAIL: readonly RailEntry[] = [
 /**
  * THE RAIL, IN BANDS — the approved redesign's left rail.
  *
- * > there's 0 sense to put art style and generate to the bottom of the sidebar, those will be usually the > first
- * options end users will play with... you aren't thinking as an end user
+ *   > there's 0 sense to put art style and generate to the bottom of the sidebar, those will be usually the
+ *   > first options end users will play with... you aren't thinking as an end user
  *
  * So the order is the journey: make the world, put things in it, make it a game. Three things changed from
  * `EDITOR_RAIL` above, each for a stated reason:
  *
- * · **`generate` leads, renamed "New world"** — it is the first thing anyone does with an empty map, and map size
- * moved into it ("I think map size should be part of generate and we should have a different label for generate"). ·
- * **`select` is gone.** Grouping by the object an action acts on showed it acts on nothing — it is the resting state
- * of the cursor. When no brush is armed, clicking selects; that needs no button. · **`artstyle` is gone from the
- * rail** — it moved to the top nav, before the game selector, because it is the skin the whole product wears rather
- * than a step in building a level.
+ *  · **`generate` leads, renamed "New world"** — it is the first thing anyone does with an empty map, and
+ *    map size moved into it ("I think map size should be part of generate and we should have a different
+ *    label for generate").
+ *  · **`select` is gone.** Grouping by the object an action acts on showed it acts on nothing — it is the
+ *    resting state of the cursor. When no brush is armed, clicking selects; that needs no button.
+ *  · **`artstyle` is gone from the rail** — it moved to the top nav, before the game selector, because it
+ *    is the skin the whole product wears rather than a step in building a level.
  *
  * `hud` is new: the player's UI (T-115 "Bartender"), which has no home in the editor today.
  */
@@ -82,10 +82,10 @@ export const EDITOR_BANDS: readonly RailBand[] = [
   {
     title: 'MAKE THE WORLD',
     items: [
-      // MAP SIZE IS BACK IN HERE, and the ground thickness is not. and separately *"let's keep thickness out of the
-      // new world section, I think it makes sense close to rotate and range, which are grid properties too in a
-      // way"*. So the numbers that REBUILD the map sit with the thing that rebuilds it, and the one that only changes
-      // how it is DRAWN sits in the view bar with the camera.
+      // MAP SIZE IS BACK IN HERE, and the ground thickness is not. reversing his own
+      // move of a few hours earlier: and separately So the numbers
+      // that REBUILD the map sit with the thing that rebuilds it, and the one that only changes how it is
+      // DRAWN sits in the view bar with the camera.
       { id: 'generate', glyph: '⚡', label: 'New world', hint: 'Season, kind of place, preset and size — then build it', mode: null },
     ],
   },

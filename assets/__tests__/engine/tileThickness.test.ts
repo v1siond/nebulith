@@ -1,13 +1,14 @@
 /**
  * A TILE CAN CARRY ITS OWN THICKNESS.
  *
- * Two different properties get confused here: - `depth` (the editor's "z-width") = how many CELLS the block spans. It
- * is clamped to ≥1 because a tile always occupies its own cell — so 0 and 1 are the same thing by definition. That is
- * not the door knob. - `scaleZ` = the block's THICKNESS along the into-screen axis. A door is a thin panel in a wall;
- * drawn at the default thickness of 1 it is a full cube, which is why it does not read as a door.
+ * Two different properties get confused here:
+ *  - `depth` (the editor's "z-width") = how many CELLS the block spans. It is clamped to ≥1 because a tile
+ *    always occupies its own cell — so 0 and 1 are the same thing by definition. That is not the door knob.
+ *  - `scaleZ` = the block's THICKNESS along the into-screen axis. A door is a thin panel in a wall; drawn at
+ *    the default thickness of 1 it is a full cube, which is why it does not read as a door.
  *
- * Thickness must be TILE data (backend), not a per-composition-cell accident: a door is thin wherever it is placed —
- * stamped by the generator, or painted by hand in the editor. A composition cell may still override.
+ * Thickness must be TILE data (backend), not a per-composition-cell accident: a door is thin wherever it is
+ * placed — stamped by the generator, or painted by hand in the editor. A composition cell may still override.
  */
 import { compositionCellRender } from '@/game/runtime/composition'
 import type { Composition, CompositionCell, ResolvedTile } from '@/engine/tileset/tileset'

@@ -2,19 +2,22 @@
  * ONE tile UI — a UNIT is configured on the EXACT SAME card as any other tile.
  *
  * "we must remove the player small card"; "the colour, etc are just the regular tile settings"; "the part that says
- * 'figure, male female, etc' that would be removed — units are just tiles, so if we want to replace a tile we should
- * use the regular replace tile button and see a list of characters to pick"; "stats would be a button that shows a
- * draggable, movable, resizable modal where we control all those extra unit settings"; "inventory and abilities must
- * be moved to the tile menu".
+  * 'figure, male female, etc' that would be removed — units are just tiles, so if we want to replace a tile we should
+  * use the regular replace tile button and see a list of characters to pick"; "stats would be a button that shows a
+  * draggable, movable, resizable modal where we control all those extra unit settings"; "inventory and abilities must
+  * be moved to the tile menu".
  *
- * What this locks (EDITOR-INTERACTION-SPEC §8 · §10 · §13): 1. PARITY — every control a selected TILE gets, a
- * selected UNIT gets too (same components, one card). 2. The FIGURE variant row is GONE; art swaps through the SAME
- * "Replace tile" button, whose library lists the character tiles. 3. Collision is ONE control — the card's
- * Blocked/Walkable toggle IS the unit's "blocks movement"; the old standalone checkbox is gone. 4. "Stats…" opens a
- * draggable/resizable FloatingPanel carrying HP/DEF/STR/INT/DODGE% + Hittable. 5. Name + Size stay as ROWS on the
- * card; Inventory & abilities is reachable from the card. 6. "Remove tile" deletes the unit (no bespoke
- * Delete/Deselect pair). 7. SOURCE GUARD — the page no longer renders the unit SelectionHeader ("▸ PLAYER (PLAYER) @
- * 32,10") nor the Delete/Deselect buttons, and wires the new seams.
+ * What this locks (EDITOR-INTERACTION-SPEC §8 · §10 · §13):
+ *   1. PARITY — every control a selected TILE gets, a selected UNIT gets too (same components, one card).
+ *   2. The FIGURE variant row is GONE; art swaps through the SAME "Replace tile" button, whose library
+ *      lists the character tiles.
+ *   3. Collision is ONE control — the card's Blocked/Walkable toggle IS the unit's "blocks movement";
+ *      the old standalone checkbox is gone.
+ *   4. "Stats…" opens a draggable/resizable FloatingPanel carrying HP/DEF/STR/INT/DODGE% + Hittable.
+ *   5. Name + Size stay as ROWS on the card; Inventory & abilities is reachable from the card.
+ *   6. "Remove tile" deletes the unit (no bespoke Delete/Deselect pair).
+ *   7. SOURCE GUARD — the page no longer renders the unit SelectionHeader ("▸ PLAYER (PLAYER) @ 32,10")
+ *      nor the Delete/Deselect buttons, and wires the new seams.
  */
 import { readFileSync } from 'fs'
 import { resolve } from 'path'
@@ -142,8 +145,8 @@ describe('a selected UNIT renders the SAME control set as a selected tile', () =
     })
     expect(screen.getByAltText('Goblin')).toBeInTheDocument() // the tile chip shows the unit's baked art
     expect(screen.getByLabelText('Goblin colour')).toBeInTheDocument()
-    // Each of these is a ROW that does its job on the first click. They used to be panels containing a single button,
-    // which is what was called out.
+    // Each of these is a ROW that does its job on the first click. They used to be panels containing a
+    // single button, which is what was called out.
     expect(screen.getByRole('button', { name: 'Character' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Animation' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Rules' })).toBeInTheDocument()
@@ -344,11 +347,11 @@ describe('the page replaces the unit menu with the tile card', () => {
 
 // ── 8. REGRESSION: "we're missing inventory option, we only added quests and stats" ──
 //
-// Reproduced on the running editor: selecting an NPC shows EXACTLY `⛊ Stats…` + `❒ Quests…` and NO inventory, because
-// the page wired `onOpenInventory` behind `isPlayer ? …: undefined`. Every unit carries a loadout (the equipment
-// panel already keys `loadouts` by entity id), so the entry point is UNIVERSAL — only quests (NPC) and attacks
-// (enemy) are kind-specific. `buildUnitModel` is the ONE place that decision lives, so the card and this test read
-// the same rule.
+// Reproduced on the running editor: selecting an NPC shows EXACTLY `⛊ Stats…` + `❒ Quests…` and NO
+// inventory, because the page wired `onOpenInventory` behind `isPlayer ? … : undefined`. Every unit
+// carries a loadout (the equipment panel already keys `loadouts` by entity id), so the entry point is
+// UNIVERSAL — only quests (NPC) and attacks (enemy) are kind-specific. `buildUnitModel` is the ONE place
+// that decision lives, so the card and this test read the same rule.
 describe('🎒 Inventory & abilities is on EVERY unit card, not the player alone', () => {
   const openers = (): jest.Mocked<UnitCardOpeners> => ({
     onPatch: jest.fn(),

@@ -13,8 +13,8 @@ import { IsometricGrid } from '@/engine/IsometricGrid'
 
 describe('generatedPropRender — per-instance standing-prop render', () => {
   test('a flower — and a scattered ground-decor bloom — renders as a small single transparent billboard', () => {
-    // flowers (and the daisy ground-decor that used to render as coloured CUBES) must be single + transparent +
-    // slightly smaller (scale < 1), NOT full-cell blocks.
+    // flowers (and the daisy ground-decor that used to render as coloured CUBES) must be
+    // single + transparent + slightly smaller (scale < 1), NOT full-cell blocks.
     const bloom = { height: 1, scale: 0.85, settings: { display: 'single', transparent: true } }
     expect(generatedPropRender('flower')).toEqual(bloom)
     expect(generatedPropRender('ground_decor')).toEqual(bloom)

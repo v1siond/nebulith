@@ -1,13 +1,10 @@
 /**
  * PATHS FIRST, IN THE MAPS THEMSELVES.
  *
- * and *"these paths aren't NOT considered when making the forests, we should always have paths firsts, and ensure the
- * rest is build around it"*. His model is two numbers: *"I expect maps to have an entrance and exit, sometimes it'll
- * be the same place to enter and leave, others we must have multiple pathways with different exists"*, and for a
- * cave, *"1 exit and 3 pathways"*.
+ * His model is two numbers: and for a cave,
  *
- * `pathNetwork.test.ts` pins the PLAN. These pin what the three forest layouts do with it: a way out you can stand
- * on, walk to, and SEE, and a map that is unchanged when the generator serves no ways at all.
+ * `pathNetwork.test.ts` pins the PLAN. These pin what the three forest layouts do with it: a way out you can
+ * stand on, walk to, and SEE, and a map that is unchanged when the generator serves no ways at all.
  */
 import '@/__tests__/helpers/installTilesetSeed'
 import { FLAT_FLOOR, generateStage, type ForestLayout, type StageData } from '@/engine/stageGenerator'

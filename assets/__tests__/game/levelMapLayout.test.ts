@@ -1,8 +1,8 @@
 /**
  * THE LEVEL MAP places levels where their DOORWAYS say they are.
  *
- * The old layout put every level on a circle by array index — the edges were right, the positions meant nothing.
- * These tests are about the positions, because that is the entire change.
+ * The old layout put every level on a circle by array index — the edges were right, the
+ * positions meant nothing. These tests are about the positions, because that is the entire change.
  */
 import {
   doorDirection,

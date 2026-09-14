@@ -23,8 +23,8 @@ export interface AssetSettings {
   fadeNear?: boolean    // near the player this tile eases translucent (walls/windows/doors/roof_top)
   cutawayRoof?: boolean // near the player this tile lifts off entirely (roof) — skipped when fully gone
   minAlpha?: number     // the LEAST opaque this tile may ever draw during a reveal. The DOOR carries a high one
-                        // so it stays opaque and obvious while the wall around it fades. Data, so the renderer needs
-                        // no name check.
+                        // so it stays opaque and obvious while the wall around it fades (
+                        // "doors should be more opaque and obvious"). Data, so the renderer needs no name check.
   badge?: { text: string; color: string } // apex signage (STORE/HOSPITAL) drawn generically, no buildingType
   display?: TileDisplay // 'single' → ONE centered tile drawn INSIDE the block (billboard at the block centre)
                         // over a plain shell; absent/'all-faces' → the tile is painted on all visible faces.
@@ -47,8 +47,8 @@ export interface GridAsset {
   /**
    * WHICH WAY THE WATER IN THIS CELL IS GOING, in quarter turns (0 = +col, 1 = +row, 2 = -col, 3 = -row).
    *
-   * The drift was baked into the four pictures, so one picture could never know its cell's heading and every river on
-   * every map drifted the same way. Absent = still.
+   * The drift was baked into the four pictures, so one picture could never know
+   * its cell's heading and every river on every map drifted the same way. Absent = still.
    */
   flow?: number
   scale?: number        // uniform Zoom — multiplies every draw axis (#77/#78). Default 1.
@@ -57,12 +57,11 @@ export interface GridAsset {
   scaleZ?: number       // THICKNESS — the fraction of its own cell the block fills (1 = a full cube, a door
                         // 0.3). With `thicknessDir` it shrinks along that WORLD axis; without one it falls back
                         // to the historical screen-axis squash. Also the overhead/top vertical stretch (#77/#78).
-  /**
-   * THICKNESS as four independent REACHES — how far the block extends toward each WORLD direction, as a fraction of
-   * its own cell (1 = all the way to that face). The same question the Footprint asks, in the smaller unit: Footprint
-   * counts whole CELLS, this measures within one. World axes, so a door stays thin toward ITS wall when the camera
-   * rotates and when the BUILDING is rotated. Absent = the legacy screen-axis `scaleZ` squash.
-   */
+  /** THICKNESS as four independent REACHES — how far the block extends toward each WORLD direction, as a
+   *  fraction of its own cell (1 = all the way to that face). The same question the Footprint asks, in the
+   *  smaller unit: Footprint counts whole CELLS, this measures within one. World axes, so a door stays thin
+   * toward ITS wall when the camera rotates and when the BUILDING is rotated ("the front of the
+   *  house", not "MY front"). Absent = the legacy screen-axis `scaleZ` squash. */
   thickness?: ThicknessReach
   depth?: number        // Directional DEPTH (blocks): >1 (with depthDir) extrudes this block into a long iso
                         // box spanning `depth` cells along a diagonal, anchored at its base cell. Default 1
@@ -141,14 +140,13 @@ export const FLOOR_TYPE = 'floor'
 /**
  * The default terrain slug a fresh grid / a repaint with no explicit type uses.
  *
- * It was `grass`, and `emoji/grass` is 🍀, so a fresh grid stamped a four-leaf clover into all 1600 cells. and
- * *"please make sure the default grid, doesn't have any tiles and it's dirt color or it's a real floor, on both emoji
- * and ascii"*.
+ * It was `grass`, and `emoji/grass` is 🍀, so a fresh grid stamped a four-leaf clover into all 1600 cells.
+ * and
  *
- * `floor` is the REAL flat floor tile that already ships (`FLAT_FLOOR` in stageGenerator, what `blankStage` has
- * always used): a sparse `⸪` mark under a flat colour rather than a repeating motif, in both styles. Its base tone is
- * now the one earth family he asked for, so a fresh grid comes up dirt-coloured, and `makeFloorAsset` derives the map
- * body from the same value.
+ * `floor` is the REAL flat floor tile that already ships (`FLAT_FLOOR` in stageGenerator, what `blankStage`
+ * has always used): a sparse `⸪` mark under a flat colour rather than a repeating motif, in both styles. Its
+ * base tone is now the one earth family he asked for, so a fresh grid comes up dirt-coloured, and
+ * `makeFloorAsset` derives the map body from the same value.
  */
 export const DEFAULT_FLOOR_SLUG = 'floor'
 
@@ -157,11 +155,9 @@ export interface GridConfig {
   rows: number
   cellSize: number
   isoScale?: number  // Default 1.4
-  /**
-   * How thick the map's BODY is, in blocks — the solid ground old RPGs have under the map. It is the GRID's
-   * height, not any tile's: floors are flat skins on top of it. Map DATA, saved with the level and served by the
-   * generator, never a render constant. 0 = no body (a paper-thin map).
-   */
+  /** How thick the map's BODY is, in blocks — the solid ground old RPGs sit on. It is the
+   *  GRID's height, not any tile's: floors are flat skins on top of it. Map DATA, saved with the level and
+   *  served by the generator, never a render constant. 0 = no body (a paper-thin map). */
   slabBlocks?: number
 }
 
@@ -264,12 +260,10 @@ export class IsometricGrid {
     return out
   }
 
-  /**
-   * The grid cells a 2-axis z-width STANDING tile (a rectangular roof/deck) covers — its whole footprint, not just
-   * the anchor. So getAssetsAtCell + cellStackTop see the deck at EVERY cell it spans, and a tile dropped on the
-   * MIDDLE of the rectangle stacks ON TOP of it, and clicking any covered cell resolves the same tile. A 1-cell tile
-   * → just its anchor.
-   */
+  /** The grid cells a 2-axis z-width STANDING tile (a rectangular roof/deck) covers — its whole footprint, not
+   *  just the anchor. So getAssetsAtCell + cellStackTop see the deck at EVERY cell it spans, and a tile dropped on
+   *  the MIDDLE of the rectangle stacks ON TOP of it (stack a smaller deck on the middle for a stepped roof),
+   *  and clicking any covered cell resolves the same tile. A 1-cell tile → just its anchor. */
   rectCoveredCells(a: GridAsset): { col: number; row: number }[] {
     const { colMinus, colPlus, rowMinus, rowPlus } = assetRectExtents(a)
     if (colMinus + colPlus + rowMinus + rowPlus === 0) return [{ col: a.col, row: a.row }]
@@ -421,10 +415,10 @@ export class IsometricGrid {
    *  ground COLOUR is per-cell STATE the map-builder writes (`color` — see setGround); renders READ it, never
    *  derive it, so a floor with no colour renders nothing (empty), never a hardcoded fallback. */
   private makeFloorAsset(col: number, row: number, slug: string, color?: string): GridAsset {
-    // NO HEIGHT PINNED HERE. A floor is a regular tile — "FLOOR ARE FUCKING TILES, ALL TILES STACK ON TOP OF ANOTHER
-    // LIKE LEGOS BY DEFAULT … THE FLOOR IS NO DIFFERENT FROM IT". Its height is the TILE's own setting, served by the
-    // backend and saved with it — not a number this factory stamps on. Pinning it here made the floor special again
-    // and, worse, put the value somewhere that never persists.
+    // NO HEIGHT PINNED HERE. A floor is a regular tile — "FLOOR ARE FUCKING TILES, ALL TILES STACK ON TOP OF
+    // ANOTHER LIKE LEGOS BY DEFAULT … THE FLOOR IS NO DIFFERENT FROM IT". Its height is the TILE's own setting,
+    // served by the backend and saved with it — not a number this factory stamps on. Pinning it here made the floor
+    // special again and, worse, put the value somewhere that never persists.
     return {
       art: [''], col, row, type: FLOOR_TYPE, tileKey: slug, heightLevel: 0, blocking: false,
       color: color ?? groundTileColor(slug, col, row),

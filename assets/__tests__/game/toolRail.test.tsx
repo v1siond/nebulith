@@ -1,18 +1,18 @@
 /**
  * THE LEFT RAIL — one idiom for everything you place, banded by the journey.
  *
- * Re-pointed at the approved design (:8899, "PROPOSED — interactive, try it"), which changed the rail's MODEL, not
- * just its paint. Three deliberate differences from the old `EDITOR_RAIL`, each asserted below because each was a
- * decision:
+ * Re-pointed at the approved design (:8899, "PROPOSED — interactive, try it"), which changed the rail's
+ * MODEL, not just its paint. Three deliberate differences from the old `EDITOR_RAIL`, each asserted below
+ * because each was a decision:
  *
- * · **`select` is gone.** Grouping actions by the OBJECT they act on showed it acts on nothing — it is the resting
- * state of the cursor. When no brush is armed, clicking selects; that needs no button. · **`artstyle` is gone from
- * the rail.** It is the skin the whole product wears, not a step in building a level. · **`hud` is new** — the
- * player's UI, which had no home in the editor at all.
+ *  · **`select` is gone.** Grouping actions by the OBJECT they act on showed it acts on nothing — it is the
+ *    resting state of the cursor. When no brush is armed, clicking selects; that needs no button.
+ * · **`artstyle` is gone from the rail.** It is the skin the whole product wears, not a step in building a level.
+ *  · **`hud` is new** — the player's UI, which had no home in the editor at all.
  *
- * Plus: the rail is the ONLY place the three libraries are named (the panel's duplicate tab strip is gone — *"why do
- * we have tiles, objects and characters repeated in the sidebar and inside tile sectrion?"*), and each library row
- * carries its COUNT so the label has information scent.
+ * Plus: the rail is the ONLY place the three libraries are named (the panel's duplicate tab strip is gone —
+ * ), and
+ * each library row carries its COUNT so the label has information scent.
  */
 import { render, screen, fireEvent } from '@testing-library/react'
 import { ToolRail } from '@/components/game/editorChrome'

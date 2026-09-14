@@ -95,9 +95,9 @@ describe('G7 — the walkable ENTRANCE opening matches the door width', () => {
   })
 
   test('the WALLS block everywhere except the doors, and the ROOM inside is walkable', () => {
-    // A building is a room you walk into, not a solid lump: the perimeter is wall (opened only at the door cells) and
-    // every interior cell is clear. That is what makes the interior reveal mean anything — You cannot enter a
-    // footprint that blocks all the way through.
+    // A building is a room you walk into, not a solid lump: the perimeter is wall (opened only at the door
+    // cells) and every interior cell is clear. That is what makes the interior reveal mean anything —
+    // You cannot enter a footprint that blocks all the way through.
     for (const seed of TOWN_SEEDS) {
       const stage = genSeeded({ zone: 'spring', variant: 'town', cols: 48, rows: 48 }, seed)
       expect(stage.buildings.length).toBeGreaterThan(0)

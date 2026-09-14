@@ -20,12 +20,12 @@ import {
 } from '@/game/artStyle'
 import type { EntityVariant } from '@/game/types'
 
-// THE ART LIVES IN THE BACKEND, and only there. The frontend's `public/tiles` copy is deleted: it was a partial,
-// stale duplicate of the backend's static root, and nothing in `src/` ever read it because the loader absolutises
-// every `image_url` against the backend origin.
+// THE ART LIVES IN THE BACKEND, and only there. The frontend's `public/tiles` copy is deleted:
+// it was a partial, stale duplicate of the backend's static root, and nothing in `src/` ever read it because
+// the loader absolutises every `image_url` against the backend origin.
 //
-// So "does this PNG exist" is answered where the PNG actually is. A root-relative src is joined onto the backend's
-// static root; an absolutised one has its origin stripped first.
+// So "does this PNG exist" is answered where the PNG actually is. A root-relative src is joined onto the
+// backend's static root; an absolutised one has its origin stripped first.
 const STATIC_ROOT = path.join(__dirname, '../../../../nebulith/priv/static')
 const onDisk = (src: string): boolean => fs.existsSync(path.join(STATIC_ROOT, src.replace(/^https?:\/\/[^/]+/, '').replace(/^\//, '')))
 

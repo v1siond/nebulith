@@ -72,10 +72,10 @@ export function roofSwap(label: string, roofTile: string | undefined): string | 
   if (!caps.includes(label)) return undefined
   // A CAP ON A FLAT DECK.
   //
-  // This returned `null` and the stamp reads `null` as "do not lay this cell at all". But `gable_roof` labels the
-  // PEAK columns with the cap, so in a flat-roof palette every gabled building lost its ridge columns outright and
-  // came out with a hole down the middle of its deck. The ridge has no meaning on a flat roof, the CELL very much
-  // does: it becomes deck, and `flattenedRoof` below takes its pitch away.
+  // This returned `null` and the stamp reads `null` as "do not lay this cell at all". But `gable_roof` labels
+  // the PEAK columns with the cap, so in a flat-roof palette every gabled building lost its ridge columns
+  // outright and came out with a hole down the middle of its deck. The ridge has no meaning on a flat roof,
+  // the CELL very much does: it becomes deck, and `flattenedRoof` below takes its pitch away.
   return ROOF_CAPS[roofTile] ?? roofTile
 }
 
@@ -93,9 +93,10 @@ export function flattenedRoof(label: string, roofTile: string | undefined): bool
 /**
  * Is this cell a WALL, so the place's wall colour applies to it?
  *
- * A plain wall is the solid `wall` block with the colour doing all the work, the same trick the meadow's floor uses.
- * That label has no underscore, so `startsWith('wall_')` said it was not a wall and the palette's colour skipped it:
- * a modern block of flats would have come out in the tile's own seasonal tone instead of the city's.
+ * A plain wall is the solid `wall` block with
+ * the colour doing all the work, the same trick the meadow's floor uses. That label has no underscore, so
+ * `startsWith('wall_')` said it was not a wall and the palette's colour skipped it: a modern block of flats
+ * would have come out in the tile's own seasonal tone instead of the city's.
  */
 const isWallLabel = (label: string): boolean => label === 'wall' || label.startsWith('wall_')
 
@@ -131,9 +132,10 @@ export function compositionCellRender(comp: Composition, cell: CompositionCell, 
   const animated = (cell.animations?.length ?? 0) > 0
   return {
     // A placed block is ALWAYS height 1. A tile is pure ART — it does NOT carry height; the GENERATOR/stamp assigns
-    // it here when it creates the block. Tallness comes from STACKING cells (a 5-storey building = 5 stacked
-    // level-0..4 cells) and `scaleY` (the run-collapse below, and the lamp POST drawn ~7 tall), never from a per-art
-    // height. This is why window/leaf/roof/door no longer render flat: they used to copy an art-tile `height: 0`.
+    // it here when it
+    // creates the block. Tallness comes from STACKING cells (a 5-storey building = 5 stacked level-0..4 cells)
+    // and `scaleY` (the run-collapse below, and the lamp POST drawn ~7 tall), never from a per-art height. This
+    // is why window/leaf/roof/door no longer render flat: they used to copy an art-tile `height: 0`.
     height: 1,
     heightLevel: (cell.level ?? 0) + baseLevel,
     scale: cell.scale ?? 1,
@@ -144,13 +146,13 @@ export function compositionCellRender(comp: Composition, cell: CompositionCell, 
     scaleY: cs?.scaleY ?? (span > 1 ? span : undefined),
     // WIDTH + DEPTH: a cell can ship a THIN or WIDE tile independent of the uniform Zoom (a tree's trunk width).
     // THICKNESS is TILE data first (`tile.settings.scaleZ`) so a door is a thin panel WHEREVER it is placed —
-    // generator-stamped or hand-painted — instead of drawing as a full cube that reads as a block, not a door. An
-    // explicit per-cell value still wins. Note this is NOT the editor's "z-width": that is `depth`, the number of
-    // CELLS spanned, which is always ≥1 because a tile occupies its own cell.
+    // generator-stamped or hand-painted — instead of drawing as a full cube that reads as a block, not a door
+    // . An explicit per-cell value still wins. Note this is NOT the editor's "z-width":
+    // that is `depth`, the number of CELLS spanned, which is always ≥1 because a tile occupies its own cell.
     scaleX: cs?.scaleX,
     scaleZ: cs?.scaleZ ?? tileThickness(tile.settings as Record<string, unknown> | undefined),
-    // The thickness AXIS is authored south-facing, exactly like `depthDir` — ROTATE it by the building's rotation so
-    // a house turned a quarter-turn has its doors thin toward ITS front, not the map's.
+    // The thickness AXIS is authored south-facing, exactly like `depthDir` — ROTATE it by the building's
+    // rotation so a house turned a quarter-turn has its doors thin toward ITS front, not the map's.
     thickness: rotateThickness(
       tileThicknessReach((cs ?? undefined) as Record<string, unknown> | undefined)
         ?? tileThicknessReach(tile.settings as Record<string, unknown> | undefined),
@@ -196,11 +198,11 @@ export function stampComposition(grid: IsometricGrid, kind: string, anchorCol: n
   // tiles and they ALL land through this same funnel, so a house lifts onto the height-1 grass exactly like a tree.
   const baseLevel = cellStackTop(grid, anchorCol, anchorRow)
   const { w, h } = comp.footprint
-  // PERF + "intelligent building": collapse each vertical RUN of the SAME tile at a footprint cell into ONE block
-  // sized `scaleY = run length`, instead of N stacked unit cubes — a wall column of 4 becomes 1 block (fewer draws +
-  // no hidden-interior overdraw). Windows / doors / roof caps have their own label so they break the run and stay
-  // their own block. Reuses the composition data as-is; scaleY renders identically (ISO + 2D) to the old stack, so
-  // the look is unchanged.
+  // PERF + "intelligent building": collapse each vertical RUN of the SAME tile at a footprint cell
+  // into ONE block sized `scaleY = run length`, instead of N stacked unit cubes — a wall column of 4 becomes 1
+  // block (fewer draws + no hidden-interior overdraw). Windows / doors / roof caps have their own label so they
+  // break the run and stay their own block. Reuses the composition data as-is; scaleY renders identically
+  // (ISO + 2D) to the old stack, so the look is unchanged.
   type Cell = (typeof comp.cells)[number]
   const columns = new Map<string, Cell[]>()
   for (const c of comp.cells) {

@@ -20,9 +20,8 @@ describe('tree composition — every ascii asset is a collection of selectable D
   /**
    * `tree_small` is TWO cells, a trunk and a crown.
    *
-   * It was 30 (a 5x3 canopy blob over a 3-cell trunk) and the backend cut it deliberately: *"tree_small = a
-   * genuinely SMALL tree (short trunk + small canopy, was a confusing legacy 5x3)"*, and *"Down from 3 cells
-   * to 2 (bush: 1), the optimization the ticket asked for"*. The fixture kept serving the old 30-cell shape
+   * It was 30 (a 5x3 canopy blob over a 3-cell trunk) and the backend cut it deliberately: and The fixture kept
+    * serving the old 30-cell shape
    * long after the DB stopped, so these tests were pinned to a tree that no longer exists anywhere else.
    */
   const TREE_SMALL_CELLS = 2
@@ -125,7 +124,7 @@ describe('tree composition — every ascii asset is a collection of selectable D
   test('the tree stamps EXACTLY 2 cells — a thin tall trunk on the ground + a bigger leaf cube on its top', () => {
     const grid = mkGrid()
     const placed = stampComposition(grid, 'tree', 7, 7, 'spring', 0)
-    expect(placed).toBe(2) // the optimised reference: "just two tiles, one trunk, one leafs" (down from 3)
+    expect(placed).toBe(2) // (down from 3)
 
     const col = getStack(grid, 7, 7).filter(t => t.type !== 'floor')
     expect(col.map(t => t.label)).toEqual(['trunk_mid', 'leaf_center'])
@@ -182,9 +181,9 @@ describe('tree composition — every ascii asset is a collection of selectable D
   })
 
   test('a round-crowned species renders a CIRCLE canopy, and a CONE keeps its box', () => {
-    // a canopy that is a cube reads wrong, so every round-crowned species says circle now, the plain `tree` included.
-    // The square case moved to `tree_conifer`, which is genuinely NOT round: the renderer draws `square` and `circle`
-    // and nothing else, so a cone keeps the box until one exists.
+    // a canopy that is a cube reads wrong, so every round-crowned species says circle
+    // now, the plain `tree` included. The square case moved to `tree_conifer`, which is genuinely NOT round:
+    // the renderer draws `square` and `circle` and nothing else, so a cone keeps the box until one exists.
     for (const kind of ['tree_round', 'tree'] as const) {
       const round = mkGrid(); stampComposition(round, kind, 7, 7, 'spring', 0)
       expect({ kind, shape: round.assets.find(a => a.label === 'leaf_center')!.shape }).toEqual({ kind, shape: 'circle' })

@@ -1,8 +1,8 @@
 /**
  * THE PLAYER-UI PROFILE — the HUD, keys and bars as backend data.
  *
- * Every property here is one of the answers to the UI spec, so the tests read as the
- * decisions rather than as implementation detail.
+ * Every property here is one of the answers to the UI spec, so the tests read as
+ * the decisions rather than as implementation detail.
  */
 import {
   activeBars, bindingsFor, installUiProfile, layoutFor, playerMay, uiActions, uiProfile,

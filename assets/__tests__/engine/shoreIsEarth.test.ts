@@ -3,18 +3,16 @@
  *
  * The long version, because it took four rounds and I was wrong in three of them.
  *
- * "white flowers that don't belong" was reported repeatedly. I fixed the bloom DATA three times and each time
- * measured zero near-white blooms, because they were never blooms: they were the `shore_*` autotile pieces, 231 to
- * 450 of them a map against 3 to 7 real flowers, hugging every river, pool and path edge.
+ * "white flowers that don't belong" was reported repeatedly. I fixed the bloom DATA three times and each
+ * time measured zero near-white blooms, because they were never blooms: they were the `shore_*` autotile
+ * pieces, 231 to 450 of them a map against 3 to 7 real flowers, hugging every river, pool and path edge.
  *
- * Then I recoloured them from an invented `#eaf8ff` to the served `palette.bank`, and got: *"I didn't want to recolor
- * them, i wanted to remove them, becuase they don't match the fucking context of the forest, they don't match island,
- * nor swamp jungles"*, plus *"they're not even located correctly, look they're inside the water, in shrot, just
- * remove that crap"*. The pieces are DRAWN as blooms, so a tan one is a brown bloom and a sand one is a yellow bloom.
- * A water edge marked with a ring of daisies is not a water edge.
+ * Then I recoloured them from an invented `#eaf8ff` to the served `palette.bank`, and got: plus The pieces are DRAWN
+  * as blooms, so a tan one is a brown bloom and
+ * a sand one is a yellow bloom. A water edge marked with a ring of daisies is not a water edge.
  *
- * So the shoreline decoration is gone. This is the guard that it stays gone, and that removing it did not take the
- * water or the lava banks with it.
+ * So the shoreline decoration is gone. This is the guard that it stays gone, and that removing it did not
+ * take the water or the lava banks with it.
  */
 import '@/__tests__/helpers/installTilesetSeed'
 import { generateStage } from '@/engine/stageGenerator'

@@ -1,14 +1,14 @@
 /**
  * UNIT CAPABILITIES — a unit's abilities are DATA (settings), not its kind.
  *
- * "all units are the same, the only difference between the player and the rest is that player is controlled by user …
- * an enemy is just a tile, a unit, that can be attacked and is hostile to the player. hostile, can be attacked, etc
- * are just settings".
+ * "all units are the same, the only difference between the player and the rest is that player is controlled
+ *  by user … an enemy is just a tile, a unit, that can be attacked and is hostile to the player. hostile,
+ * can be attacked, etc are just settings".
  *
- * Each capability reads its OWN boolean setting on the entity and falls back to a kind-derived DEFAULT, so existing
- * saves are unchanged (an enemy defaults attackable + hostile) while ANY unit can opt in or out via the setting —
- * there is no per-kind capability branch in the combat/targeting code. The `kind` stays as a label/preset (it seeds
- * the default); it no longer GATES what a unit can do.
+ * Each capability reads its OWN boolean setting on the entity and falls back to a kind-derived DEFAULT, so
+ * existing saves are unchanged (an enemy defaults attackable + hostile) while ANY unit can opt in or out via
+ * the setting — there is no per-kind capability branch in the combat/targeting code. The `kind` stays as a
+ * label/preset (it seeds the default); it no longer GATES what a unit can do.
  */
 import type { Entity } from '@/game/types'
 

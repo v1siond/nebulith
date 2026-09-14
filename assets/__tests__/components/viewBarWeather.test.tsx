@@ -1,6 +1,6 @@
 /**
- * The Rain button sits beside Day / Night and works like it: press it and the weather changes, the button says which
- * weather it is.
+ * The Rain button sits beside Day / Night and works like it: press it and the weather changes, the button says
+ * which weather it is.
  */
 import { render, screen, fireEvent } from '@testing-library/react'
 import { ViewBar } from '@/components/game/editorChrome'

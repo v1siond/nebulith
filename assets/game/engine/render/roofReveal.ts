@@ -1,27 +1,27 @@
 /**
  * ROOF REVEAL — which roof blocks come off because the hero is inside the building (Diablo / Path of Exile).
  *
- * The trigger is POSITIONAL, not proximity: the hero is under a roof or they are not. The old distance ease
- * (`cutawayAlpha`) faded things as you merely walked past, which is why walls ghosted from outside while the roof
- * stayed solid (Image #1).
+ * The trigger is POSITIONAL, not proximity: the hero is under a roof or they are not. The old
+ * distance ease (`cutawayAlpha`) faded things as you merely walked past, which is why walls ghosted from
+ * outside while the roof stayed solid (Image #1).
  *
- * A roof is authored as MANY blocks — one z-width column per footprint column (BuildingCompositions #32) — so lifting
- * only the block directly overhead would punch a hole in the roof. We lift the CONNECTED roof: every roof block whose
- * footprint touches (orthogonally or diagonally) one already revealed. That groups a building's roof without needing
- * a building identity, and stops at the next building across the street.
+ * A roof is authored as MANY blocks — one z-width column per footprint column (BuildingCompositions #32) — so
+ * lifting only the block directly overhead would punch a hole in the roof. We lift the CONNECTED roof: every
+ * roof block whose footprint touches (orthogonally or diagonally) one already revealed. That groups a
+ * building's roof without needing a building identity, and stops at the next building across the street.
  *
  * Pure + unit-tested; the renderer supplies each roof's covered cells and applies the result.
  */
 
-// ── how transparent a reveal tile draws ─────────────────────────────────────────────────────────────────── Three
-// bands. FAR is solid — a building you are nowhere near is a building, not a ghost. APPROACH eases it translucent so
-// you can read the facade and find its door. INSIDE is the deep reveal — the roof comes off (handled by
-// revealedRoofs) and the shell drops back so the room reads. Widened 2026-09-08: *"the roof should start getting
-// transparent earlier, my character is super close to the door and still can't see it correctly due to the range of
-// the transparency"*. At 6 / 2.5 the fade only BEGAN six cells out and did not reach its most transparent until 2.5 —
-// so walking up to a door you were still climbing the ramp, and the roof was ~0.6 opaque right where you needed to
-// see through it. The bands are the same shape; the range they act over is roughly doubled, so by the time the door
-// is in reach the roof is already at its clearest.
+// ── how transparent a reveal tile draws ───────────────────────────────────────────────────────────────────
+// Three bands. FAR is solid — a building you are nowhere near is a building, not a ghost. APPROACH eases it
+// translucent so you can read the facade and find its door. INSIDE is the deep reveal — the roof comes off (handled
+// by revealedRoofs) and
+// the shell drops back so the room reads.
+// Widened 2026-09-08: At 6 / 2.5 the fade only BEGAN six cells out and did not reach its most transparent until
+// 2.5 — so walking up to a door you were still climbing the ramp, and the roof was ~0.6 opaque right where
+// you needed to see through it. The bands are the same shape; the range they act over is roughly doubled,
+// so by the time the door is in reach the roof is already at its clearest.
 export const APPROACH_RADIUS = 12       // beyond this the building is fully solid
 export const APPROACH_NEAR = 5          // within this it holds FLAT at its most transparent — being near a
                                         // building has to be an unmistakable change, not a few percent
@@ -39,9 +39,10 @@ const smoothstep = (t: number): number => {
  * It only ever makes a tile MORE opaque, never less.
  */
 export function revealAlpha({ dist, inside, minAlpha = 0 }: { dist: number; inside: boolean; minAlpha?: number }): number {
-  // A PLATEAU then an ease-out, not one long ramp. The old single smoothstep over the whole radius meant a hero four
-  // cells from a wall got ~0.96 alpha — no visible change at all, which is why the reveal "didn't trigger". Inside
-  // APPROACH_NEAR it sits flat at its most transparent; from there it climbs back to solid by APPROACH_RADIUS.
+  // A PLATEAU then an ease-out, not one long ramp. The old single smoothstep over the whole radius meant a hero
+  // four cells from a wall got ~0.96 alpha — no visible change at all, which is why the reveal "didn't trigger"
+  // . Inside APPROACH_NEAR it sits flat at its most transparent; from there it climbs back
+  // to solid by APPROACH_RADIUS.
   const band = inside
     ? INTERIOR_SHELL_ALPHA
     : dist >= APPROACH_RADIUS
@@ -54,8 +55,8 @@ export function revealAlpha({ dist, inside, minAlpha = 0 }: { dist: number; insi
 
 /**
  * The near-hero fade for ONE tile in a view with no building shell to reason about (2D and top): the same
- * `revealAlpha` distance rule the iso view uses, for any tile that opted into `fadeNear`. No hero, or a tile that did
- * not opt in, draws solid.
+ * `revealAlpha` distance rule the iso view uses, for any tile that opted into `fadeNear`. No hero, or a tile that
+ * did not opt in, draws solid.
  */
 export function nearFadeAlpha(
   settings: { fadeNear?: boolean; minAlpha?: number } | undefined,

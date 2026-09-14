@@ -48,9 +48,10 @@ export function normalizePlayerViewRange(n: number | undefined | null): number |
 }
 
 /**
- * PLAYER-CAMERA RANGE control. CONTROLLED — the editor page owns the range and feeds it to `render({ playerViewRange
- * })`; this only sets it. DEFAULT OFF: a checkbox toggles the range on/off (undefined = the full-window render), and
- * while ON a slider increases / reduces the radius live. ISO-only — the page renders it only in the iso view.
+ * PLAYER-CAMERA RANGE control.
+ * CONTROLLED — the editor page owns the range and feeds it to `render({ playerViewRange })`; this only sets it.
+ * DEFAULT OFF: a checkbox toggles the range on/off (undefined = the full-window render), and while ON a slider
+ * increases / reduces the radius live. ISO-only — the page renders it only in the iso view.
  */
 export function PlayerRangeControl({
   range,

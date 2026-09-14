@@ -1,18 +1,18 @@
 /**
  * THE PLAYER-UI PROFILE, from the backend (`GET /api/ui`).
  *
- * The HUD layout, the keybindings and the action bars were frontend literals: `playerUi.data.ts` held the placements
- * and `shortcuts.ts` the keys. They are a profile now, and the one this serves by default IS the UI shipping today —
- * the seed was generated from those files rather than redesigned.
+ * The HUD layout, the keybindings and the action bars were frontend literals: `playerUi.data.ts` held the
+ * placements and `shortcuts.ts` the keys. They are a profile now, and the one this serves by default IS the
+ * UI shipping today — the seed was generated from those files rather than redesigned.
  *
  * Shaped by the answers to the UI spec, 2026-09-06:
  *
- * - **one profile per game, plus a default** — *"we'd always offer an easy default set"*. Ask for a game's profile; a
- * game with none gets the default, and that is not a fallback, it is the design. - **the author limits the player** —
- * `playerMay` says which of keys / layout / settings a player may change, so a locked game and a fully editable one
- * are the same model with different limits. - **unlimited bars, with conditions** — a bar whose `condition` is null
- * is always up; a rule swaps it in. - **desktop AND mobile** — both layouts live in one profile as separate element
- * rows.
+ * - **one profile per game, plus a default** — Ask for a game's
+ *   profile; a game with none gets the default, and that is not a fallback, it is the design.
+ * - **the author limits the player** — `playerMay` says which of keys / layout / settings a player may
+ *   change, so a locked game and a fully editable one are the same model with different limits.
+ * - **unlimited bars, with conditions** — a bar whose `condition` is null is always up; a rule swaps it in.
+ * - **desktop AND mobile** — both layouts live in one profile as separate element rows.
  *
  * Read through functions, never a module const: the profile is empty until the backend answers.
  */

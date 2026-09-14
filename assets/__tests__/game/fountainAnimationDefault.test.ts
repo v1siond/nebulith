@@ -2,15 +2,16 @@
  * The FOUNTAIN + WELL COMPOSITIONS ship their water animated BY DEFAULT — and DESYNCED.
  *
  * The animation is BACKEND DATA: nebulith authors the interior `water_c` (blue water) cells with a default
- * `animations` array — ONE looping YOYO settings animation that grows the water column's HEIGHT 1→4 blocks and back
- * (no `water_jet` drops, no opacity fade). EXACTLY 3 water columns animate in each variant — all 3 in the small
- * `well`, the CENTRE ROW of 3 in the large 3×3 `fountain` (the other 6 are STATIC water). The 3 carry the SAME grow
- * but with DISTINCT durationMs + startDelayMs so they pulse OUT of sync. It's served per cell (camelCase), carried
- * verbatim onto `CompositionCell.animations` by the loader, and `stampComposition` copies it onto the placed asset (+
- * sets `placedAt`).
+ * `animations` array — ONE looping YOYO settings animation that grows the water column's HEIGHT 1→4 blocks and
+ * back (no `water_jet` drops, no opacity fade). EXACTLY 3 water columns animate in each variant (
+ * "in all cases only 3 blocks are animated") — all 3 in the small `well`, the CENTRE ROW of 3 in the large 3×3
+ * `fountain` (the other 6 are STATIC water). The 3 carry the SAME grow but with DISTINCT durationMs +
+ * startDelayMs so they pulse OUT of sync. It's served per cell (camelCase), carried verbatim onto
+  * `CompositionCell.animations` by the loader,
+ * and `stampComposition` copies it onto the placed asset (+ sets `placedAt`).
  *
- * This drives the REAL seeded fixture (the captured /api/tilesets response), so it verifies the actual backend
- * default, not a hand-built stand-in.
+ * This drives the REAL seeded fixture (the captured /api/tilesets response), so it verifies the actual
+ * backend default, not a hand-built stand-in.
  */
 import { styleCatalog } from '@/engine/tileset/styleTiles'
 import { stampComposition } from '@/game/runtime/composition'

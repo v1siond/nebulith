@@ -94,9 +94,9 @@ describe('the shared control body — a unit uses the SAME settings UX as a tile
     expect(screen.queryByRole('button', { name: 'Square' })).toBeNull()
   })
 
-  // The NAME, the SIZE and the STATS all live in the Character window now. What is left in this section is the ways
-  // OUT to the big editors (inventory, quests, attacks), which are real windows of their own rather than a button
-  // behind a button.
+  // The NAME, the SIZE and the STATS all live in the Character window now. What is left in this
+  // section is the ways OUT to the big editors (inventory, quests, attacks), which are real windows of their
+  // own rather than a button behind a button.
   it('renders the unit-only section a tile never gets: the ways out to the big editors', () => {
     render(<><TileControls tile={makeUnitTile()} /><UnitSettingsSection unit={makeUnit()} /></>)
     expect(screen.getByRole('button', { name: /Inventory/ })).toBeInTheDocument()
@@ -105,8 +105,7 @@ describe('the shared control body — a unit uses the SAME settings UX as a tile
   })
 
   it('the CHARACTER WINDOW carries the name, the size, the stats AND the figure picker, in one place', () => {
-    // The whole of his complaint in one assertion: *"character opens a modal that only has replace tile,
-    // instead of having stats and other options there"*.
+    // The whole of his complaint in one assertion:
     render(
       <CharacterWindow
         entity={makeEntity()}
@@ -129,9 +128,9 @@ describe('the shared control body — a unit uses the SAME settings UX as a tile
     // Shared controls still there…
     expect(screen.getByLabelText('wall colour')).toBeInTheDocument()
     expect(screen.getByLabelText('Width')).toBeInTheDocument()
-    // …and the asset-only rows DO show for a tile (proves the split is data-driven, not hardcoded). The footprint is
-    // a MULTI-DIRECTION control, named for what it means: how many cells the tile covers. "Z Width"/"Z-Index" said
-    // nothing.
+    // …and the asset-only rows DO show for a tile (proves the split is data-driven, not hardcoded).
+    // The footprint is a MULTI-DIRECTION control, named for what it means: how many cells the tile covers. "Z
+    // Width"/"Z-Index" said nothing.
     expect(screen.getByRole('group', { name: 'Footprint per direction' })).toBeInTheDocument()
     expect(screen.getByLabelText('Draw order')).toBeInTheDocument()
     // …but the unit-only extras are absent.

@@ -1,15 +1,15 @@
 /**
  * STEP-BY-STEP GUIDES — "how do I actually do this?"
  *
- * This is not the same thing as `editorHelp.data.ts`, and the two must not drift into each other. `EDITOR_HELP`
- * explains a CONCEPT where you meet it — what thickness means, how stacking works — reached from an ⓘ next to the
- * control. A GUIDE is a PROCEDURE: an ordered list of clicks that gets one whole job done, read before you start
- * rather than when you are already stuck.
+ * This is not the same thing as `editorHelp.data.ts`, and the two must not drift into each other.
+ * `EDITOR_HELP` explains a CONCEPT where you meet it — what thickness means, how stacking works — reached
+ * from an ⓘ next to the control. A GUIDE is a PROCEDURE: an ordered list of clicks that gets one whole job
+ * done, read before you start rather than when you are already stuck.
  *
- * Every step names the control by the words actually printed on it. That is the discipline that makes a guide worth
- * having and the thing that rots first: a guide saying "click Generate" when the button says "Build this world" is
- * worse than no guide, because it makes the reader doubt they are in the right place. `editorGuides.test.ts` asserts
- * the control names quoted here still exist in the components that draw them.
+ * Every step names the control by the words actually printed on it. That is the discipline that makes a
+ * guide worth having and the thing that rots first: a guide saying "click Generate" when the button says
+ * "Build this world" is worse than no guide, because it makes the reader doubt they are in the right place.
+ * `editorGuides.test.ts` asserts the control names quoted here still exist in the components that draw them.
  */
 
 export interface GuideStep {

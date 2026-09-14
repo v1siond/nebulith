@@ -4,10 +4,10 @@
  * with Zelda, Pokemon and Chrono Trigger as the reference.
  *
  * TWO numbers say what a map is, and the backend serves both. EXITS is how many gates it has on its border, the
- * places a connector hands you to another map, and the first of them is the entrance: *"sometimes it'll be the same
- * place to enter and leave"* is one exit. PATHWAYS is how many paths run inside it. A pathway past the last exit has
- * nowhere to go, so it stops in the map, which is his cave: *"1 exit and 3 pathways to simulate entrance"* is one way
- * back out and two branches that end at a room, and *"just 1 exit no pathway"* is the end of the cave. Those stops
+ * places a connector hands you to another map, and the first of them is the entrance: is one exit. PATHWAYS is how
+  * many paths run inside it. A pathway past the last exit has
+ * nowhere to go, so it stops in the map, which is his cave: is one way
+ * back out and two branches that end at a room, and is the end of the cave. Those stops
  * are where a closed section, or one that opens when you do something, belongs.
  *
  * This only DECIDES cells. The layouts pave them and grow the place around them.
@@ -53,17 +53,14 @@ export interface RoutePlan {
 /**
  * A PATHWAY IS A STRETCH OF ROAD, and this is the definition the whole planner is built on.
  *
- * and then the rule:
+ * The rule:
  *
- * *"a pathway is a stretch of road that has 1 or 2 exit / either on oposites sides of it, if 2, or at the start of it
- * if it's 1"*
+ * The planner used to make ONE PATH PER GATE radiating from a hub, so his cross came out as four pathways
+ * instead of two. A stretch is now the unit: a THROUGH road leaves the map on both of its ends (2 exits, on
+ * opposite sides), and a SPUR leaves on one end and stops inside (1 exit, at its start).
  *
- * The planner used to make ONE PATH PER GATE radiating from a hub, so his cross came out as four pathways instead of
- * two. A stretch is now the unit: a THROUGH road leaves the map on both of its ends (2 exits, on opposite sides), and
- * a SPUR leaves on one end and stops inside (1 exit, at its start).
- *
- * The arithmetic falls straight out of that. For P pathways and E exits, every pathway spends 1 or 2 exits, so `P <=
- * E <= 2P`, and given both: `E - P` of them are through roads and `2P - E` are spurs.
+ * The arithmetic falls straight out of that. For P pathways and E exits, every pathway spends 1 or 2 exits,
+ * so `P <= E <= 2P`, and given both: `E - P` of them are through roads and `2P - E` are spurs.
  */
 const AXES: ReadonlyArray<readonly [Side, Side]> = [['south', 'north'], ['west', 'east']]
 
@@ -109,9 +106,9 @@ export function resolveWays(options: Readonly<Record<string, unknown>> | undefin
   const pathways = resolveCount(options?.pathways, rand)
   if (exits === null && pathways === null) return null
 
-  // EXITS ARE INFERRED FROM PATHWAYS when nobody states them. A stretch of road crosses the map unless something
-  // stops it, so the inference is two exits each, which is exactly his cross: two pathways, four exits. Capped at one
-  // gate per side.
+  // EXITS ARE INFERRED FROM PATHWAYS when nobody states them. A stretch of road crosses
+  // the map unless something stops it, so the inference is two exits each, which is exactly his cross: two
+  // pathways, four exits. Capped at one gate per side.
   const wanted = exits ?? Math.min(pathways! * 2, MAX_EXITS)
   // …and pathways from exits, the same rule read backwards: two exits can be one road straight through.
   const stretches = pathways ?? Math.max(1, Math.ceil(wanted / 2))

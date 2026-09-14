@@ -13,9 +13,9 @@ export type BuildingType =
   | 'cathedral'
   | 'temple'
   | 'castle'
-  // THE THINGS THAT MAKE A PLACE A PLACE. with a town of *"wood houses and elements, stables"* against a city of
-  // blocks and towers, and *"cities have more skycrappers, towns have more houses"*. The backend composes each of
-  // these; a place picks which it wants.
+  // THE THINGS THAT MAKE A PLACE A PLACE. with a
+  // town of against a city of blocks and towers, and The backend composes each of these; a place picks which it
+  // wants.
   | 'stable'
   | 'barn'
   | 'smithy'
@@ -25,12 +25,11 @@ export type BuildingType =
   | 'tower'
 
 /**
- * HOW MANY OF A TYPE A PLACE ASKS FOR. and *"having different types of settlements implies having different
- * objects"*.
+ * HOW MANY OF A TYPE A PLACE ASKS FOR. and
  *
- * A place's character is a LIST of these, served per place, so a traditional town asking for stables and a modern
- * city asking for towers is a data difference and not a branch in the planner. `count` is an inclusive [min, max]
- * that the generator rolls.
+ * A place's character is a LIST of these, served per place, so a traditional town asking for stables and a
+ * modern city asking for towers is a data difference and not a branch in the planner. `count` is an inclusive
+ * [min, max] that the generator rolls.
  */
 export interface MixEntry {
   type: BuildingType

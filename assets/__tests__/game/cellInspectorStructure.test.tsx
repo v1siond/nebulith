@@ -117,7 +117,8 @@ describe('the inspector renders §4.7\'s sections', () => {
   })
 
   it('the Tile row IS the swap — one click, not a panel holding one button', () => {
-    // A cell's identity has exactly one control, so the row does it rather than opening a panel to show it to you.
+    // A cell's identity
+    // has exactly one control, so the row does it rather than opening a panel to show it to you.
     const onOpenLibrary = jest.fn()
     renderPanel({ tile: floorTile({ onOpenLibrary }) })
     fireEvent.click(screen.getByRole('button', { name: 'Tile' }))
@@ -196,9 +197,7 @@ describe('the destructive footer never hides inside a collapsed section', () => 
 })
 
 /**
- * §3.13's genuine trap, and §4.7's instruction: *"The inert building-block panel (3.13) must either write
- * back or be replaced with an explicit … message. Rendering live controls over no-op handlers is worse than
- * showing nothing."*
+ * §3.13's genuine trap, and §4.7's instruction:
  */
 describe('a tile the editor cannot write to SAYS so, instead of faking controls (§3.13)', () => {
   const notice = "This tile is part of a generated object and can't be edited directly yet."

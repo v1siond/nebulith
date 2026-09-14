@@ -1,16 +1,16 @@
 /**
  * UNIT CAPABILITIES ARE SETTINGS, not kinds.
  *
- * "all units are the same … an enemy is just a tile, a unit, that can be attacked and is hostile to the player.
- * hostile, can be attacked, etc are just settings".
+ * "all units are the same … an enemy is just a tile, a unit, that can be attacked and is hostile to the
+ * player. hostile, can be attacked, etc are just settings".
  *
- * These tests prove the two capability gates that USED to be hard-coded to `kind === 'enemy'` now read a per-unit
- * SETTING (`hittable` / `hostile`) with a kind-derived DEFAULT, so: • existing saves are unchanged (an enemy defaults
- * attackable + hostile; others default neither), AND • ANY unit becomes attackable / hostile via its setting — no
- * per-kind capability code.
+ * These tests prove the two capability gates that USED to be hard-coded to `kind === 'enemy'` now read a
+ * per-unit SETTING (`hittable` / `hostile`) with a kind-derived DEFAULT, so:
+ *   • existing saves are unchanged (an enemy defaults attackable + hostile; others default neither), AND
+ *   • ANY unit becomes attackable / hostile via its setting — no per-kind capability code.
  *
- * Behaviour, not implementation: alongside the pure predicates we drive the REAL targeting (`findTarget`) and the
- * REAL combat tick (`stepCombat`) so the capability is proven genuinely honored, not hollow.
+ * Behaviour, not implementation: alongside the pure predicates we drive the REAL targeting (`findTarget`)
+ * and the REAL combat tick (`stepCombat`) so the capability is proven genuinely honored, not hollow.
  */
 import { isAttackable, isHostile } from '@/game/runtime/capabilities'
 import { findTarget, isLivingEnemy, makeEnemyRuntime } from '@/game/runtime/targeting'

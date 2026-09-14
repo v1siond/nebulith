@@ -1,23 +1,26 @@
 /**
- * ART-STYLE SWAP — the pure model behind the "reskin the whole world in one click" milestone. ONE global Style maps
- * an element's KIND → a Visual; a per-element `tileOverride` (a style-agnostic tile id) pins a specific tile
- * regardless of the active style. `resolveVisual(kind, style, override?)` is the single decision point every renderer
- * funnels through.
+ * ART-STYLE SWAP — the pure model behind the "reskin the whole world in one click"
+ * milestone. ONE global Style maps an element's KIND → a Visual; a per-element
+ * `tileOverride` (a style-agnostic tile id) pins a specific tile regardless of the
+ * active style. `resolveVisual(kind, style, override?)` is the single decision point
+ * every renderer funnels through.
  *
- * THE INVARIANT — **a style is a SET OF BAKED IMAGES, and nothing else.** So a tile's Visual is built by ONE helper
- * (`tileVisual`) from ONE normalised record (`TileArt`), looked up through ONE one lookup (`styleTileArt`). No
- * resolver, and no renderer, may branch on the style id for anything but WHICH TILESET to read — never for how to
- * draw. (MAP-MODEL §4 / §8.)
+ * THE INVARIANT — **a style is a SET OF BAKED IMAGES, and nothing else.** So a tile's Visual
+ * is built by ONE helper (`tileVisual`) from ONE normalised record (`TileArt`), looked up through ONE
+ * one lookup (`styleTileArt`). No resolver, and no renderer, may branch on the style id for
+ * anything but WHICH TILESET to read — never for how to draw. (MAP-MODEL §4 / §8.)
  *
- * `ASCII_STYLE.map` stays empty: a KIND resolves through the tileset lookup, not a pre-baked kind map, so
- * `resolveVisual` returns the `ascii` passthrough sentinel for an unmapped kind and the renderer resolves the kind's
- * baked tile itself (`styleTileImage`). A non-ASCII style only overrides the kinds it maps; anything it leaves out
- * passes through, so the world can never go blank.
+ * `ASCII_STYLE.map` stays empty: a KIND resolves through the tileset lookup, not a pre-baked kind map,
+ * so `resolveVisual` returns the `ascii` passthrough sentinel for an unmapped kind and the renderer
+ * resolves the kind's baked tile itself (`styleTileImage`). A non-ASCII style only overrides the kinds
+ * it maps; anything it leaves out passes through, so the world can never go blank.
  *
- * Two Visual KINDS: - `image` — a baked tile PNG (+ optional atlas sub-rect). **This is what every seeded tile is**,
- * in EITHER style; the renderer draws it with drawImage and caches the built sprite. - `glyph` — a char (+ optional
- * color). The documented LAST RESORT for a tile with genuinely no baked image (MAP-MODEL §8 forbids `image_url: nil`
- * on a seeded tile), never a pre-load placeholder — the loader decodes every PNG before the render gate opens.
+ * Two Visual KINDS:
+ *   - `image`  — a baked tile PNG (+ optional atlas sub-rect). **This is what every seeded tile is**,
+ *                in EITHER style; the renderer draws it with drawImage and caches the built sprite.
+ *   - `glyph`  — a char (+ optional color). The documented LAST RESORT for a tile with genuinely no
+ *                baked image (MAP-MODEL §8 forbids `image_url: nil` on a seeded tile), never a
+ *                pre-load placeholder — the loader decodes every PNG before the render gate opens.
  */
 
 // ── element kinds (the vocabulary a Style maps) ──────────────────────────
@@ -98,20 +101,17 @@ export const ASCII_PASSTHROUGH: AsciiVisual = { kind: 'ascii' }
  *  ASCII, which the whole "a style is just a set of images" rule forbids. */
 export interface TileArt extends HasTileViews { char: string; color?: string; image?: string; height?: number }
 
-/**
- * The Visual for ONE loaded tile — its baked IMAGE if it has one, else its glyph.
+/** The Visual for ONE loaded tile — its baked IMAGE if it has one, else its glyph.
  *
- * THE INVARIANT: *"the only thing that changes is the tiles, that's all that changes, the tileset art … we're just
- * saying 'use this set of images instead of this other one'."* So this is the SINGLE builder for EVERY style — ascii
- * and emoji produce the identical Visual shape and only the `src` differs. ASCII used to discard the tile's baked
- * `image` here and hand back a raw glyph, which made every image-backed tile miss the cube-sprite cache (gated on
- * `dv.image`) and fall into the per-face clip+fillText path — the whole reason ASCII rendered ~2.5× slower than emoji
- * on the same map.
+ * THE INVARIANT: So this is the
+ *  SINGLE builder for EVERY style — ascii and emoji produce the identical Visual shape and only the `src`
+ *  differs. ASCII used to discard the tile's baked `image` here and hand back a raw glyph, which made every
+ *  image-backed tile miss the cube-sprite cache (gated on `dv.image`) and fall into the per-face
+ *  clip+fillText path — the whole reason ASCII rendered ~2.5× slower than emoji on the same map.
  *
- * The glyph branch is the documented LAST RESORT for a tile with genuinely no baked image (MAP-MODEL §8: a seeded
- * tile must never be `image_url: nil`); it is never a pre-load placeholder — the loader decodes every baked PNG
- * before the render gate opens (tilesetLoader → preloadTileImages).
- */
+ *  The glyph branch is the documented LAST RESORT for a tile with genuinely no baked image (MAP-MODEL §8:
+ *  a seeded tile must never be `image_url: nil`); it is never a pre-load placeholder — the loader decodes
+ *  every baked PNG before the render gate opens (tilesetLoader → preloadTileImages). */
 export function tileVisual(t: TileArt): Visual {
   return t.image ? { kind: 'image', src: t.image, color: t.color, char: t.char } : { kind: 'glyph', char: t.char, color: t.color }
 }
@@ -247,14 +247,14 @@ export function entityStyleOverride(
 /**
  * The art styles, as the BACKEND declares them.
  *
- * A tileset row IS a style — `ascii` and `emoji` are rows in the `tilesets` table — so the list, its order, and each
- * style's display name and icon are catalog data, served on `/api/tilesets`. This used to be a frontend constant
- * (`BUILT_IN_STYLES`, §3.14a), which meant adding a style was a frontend edit: exactly what the whole tile pipeline
- * exists to avoid.
+ * A tileset row IS a style — `ascii` and `emoji` are rows in the `tilesets` table — so the list, its order,
+ * and each style's display name and icon are catalog data, served on `/api/tilesets`. This used to be a
+ * frontend constant (`BUILT_IN_STYLES`, §3.14a), which meant adding a style was a frontend edit: exactly
+ * what the whole tile pipeline exists to avoid.
  *
- * What stays here is MECHANISM, not data: each style needs a way to look a label's art up (`styleTiles`), and that is
- * engine code. A served style with no such entry still lists and still switches — every tile resolves by LABEL, so it
- * simply renders whatever that style's tileset holds.
+ * What stays here is MECHANISM, not data: each style needs a way to look a label's art up
+ * (`styleTiles`), and that is engine code. A served style with no such entry still lists and still
+ * switches — every tile resolves by LABEL, so it simply renders whatever that style's tileset holds.
  */
 export interface StyleInfo {
   id: string

@@ -155,18 +155,18 @@ function perfNow(): number {
 }
 
 
-// ════════════════════════════════════════════════════════════════════════════ CAMERA TURN — HORIZONTAL rotation of
-// the iso camera, continuous, settling on the 4 corners (#75) / "we can rotate the corners, 4 corners, 4 rotation
-// options, all faces of the map are visible" — because "tiles that aren't in the front side from the camera
-// perspective are hard to select, specially with collisions on" — and then: "when rotating i want to see the
-// animation of the world rotating … Ideally, I should have a controller that allows me to rotate more accurately,
-// with the current 4 options as the quick turnarounds".
+// ════════════════════════════════════════════════════════════════════════════
+// CAMERA TURN — HORIZONTAL rotation of the iso camera, continuous, settling on the 4 corners (#75)
+// / "we can rotate the corners, 4 corners, 4 rotation options, all faces of the map are visible" — because "tiles
+// that aren't in the front side from the camera perspective are hard to select, specially with collisions on" — and
+// then: "when rotating i want to see the animation of the world rotating … Ideally, I should have a controller that
+// allows me to rotate more accurately, with the current 4 options as the quick turnarounds".
 //
-// So the camera carries a TURN in quarter-turns (isoTurn), not just a corner: a WHOLE turn IS an `Orientation` and
-// runs today's exact integer maths; a fractional turn is the transient a drag/settle animation passes through. The
-// iso PROJECTION is untouched — a turned camera rotates the WORLD coord into the VIEW FRAME first
-// (isoTurn.cellOrienterFor) and then projects it, which is what swings a different map corner to the front. Turn 0
-// short-circuits everywhere, so an un-turned frame is byte-identical.
+// So the camera carries a TURN in quarter-turns (isoTurn), not just a corner: a WHOLE turn IS an `Orientation`
+// and runs today's exact integer maths; a fractional turn is the transient a drag/settle animation passes
+// through. The iso PROJECTION is untouched — a turned camera rotates the WORLD coord into the VIEW FRAME first
+// (isoTurn.cellOrienterFor) and then projects it, which is what swings a different map corner to the front.
+// Turn 0 short-circuits everywhere, so an un-turned frame is byte-identical.
 // ════════════════════════════════════════════════════════════════════════════
 
 /** The turn a render() uses when its params omit `cameraTurn`/`cameraFacing` — driven by the `__setCameraTurn`
@@ -384,9 +384,10 @@ export interface IsoRenderParams {
   /**
    * Draw the hero, or only USE them as the camera. Default true.
    *
-   * Every renderer frames on `player`, so a caller that wants a camera position has had to invent a player — and got
-   * one DRAWN into the picture. That is why every tile, object and preset preview had the hero standing in the middle
-   * of it. Where the camera looks and what gets drawn are two questions, so they are two parameters.
+   * Every renderer frames on `player`, so a caller that wants a camera position has had to invent a
+   * player — and got one DRAWN into the picture. That is why every tile, object and preset preview had
+   * the hero standing in the middle of it. Where the camera looks and what gets drawn are two
+   * questions, so they are two parameters.
    */
   showPlayer?: boolean
 }
@@ -463,9 +464,9 @@ export function render(params: IsoRenderParams) {
   const turn = wrapTurn(cameraTurn)
   const facing = facingForTurn(turn)
   const __isoT0 = perfNow() // perf probe — rolling avg of render() ms, exposed on window.__isoRenderMs
-  // QA seam, like `__isoRenderMs` and `__cameraFacing`: the live grid, so a Playwright probe can read what the
-  // renderer is ACTUALLY holding (a cell's flow, a tile's height) instead of inferring it from a screenshot. — this
-  // is what makes the analysis conclusive.
+  // QA seam, like `__isoRenderMs` and `__cameraFacing`: the live grid, so a Playwright probe can read what
+  // the renderer is ACTUALLY holding (a cell's flow, a tile's height) instead of inferring it from a
+  // screenshot. — this is what makes the analysis conclusive.
   ;(globalThis as unknown as { __nebulithGrid?: unknown }).__nebulithGrid = grid
   // Clear
   ctx.fillStyle = '#1a1a2e'
@@ -554,18 +555,16 @@ export function render(params: IsoRenderParams) {
 
   // ─── THE GRID'S OWN BODY — the thick RPG base ─────────────────────
   //
-  // and *"we can make the grid have height … then add the footprints and all the fancy stuff on top."*
+  // The map's thickness belongs to the GRID, not to each floor tile. That is the whole point of the split: a
+  // floor is a flat skin with no side faces (so it never occludes and never needs a turn in the depth sort),
+  // and the volume you see under the map is drawn once, here, underneath everything.
   //
-  // The map's thickness belongs to the GRID, not to each floor tile. That is the whole point of the split: a floor is
-  // a flat skin with no side faces (so it never occludes and never needs a turn in the depth sort), and the volume
-  // you see under the map is drawn once, here, underneath everything.
-  //
-  // ONLY THE SKIRT IS DRAWN. A solid slab's interior walls are each hidden by the cell in front of them, so the only
-  // ones that can ever be seen are at the map's outer edge (and around any hole). That is ~400 edge cells on a
-  // 100x100 instead of 10,000 cubes — which is why this costs nothing while a cube per cell cost everything. Each
-  // wall takes its own cell's floor colour, darkened, so the earth under grass reads as earth and the bed under a
-  // river reads as riverbed, with no new backend data. ─── ASSETS + PLAYER (ASCII art stacked in isometric space)
-  // ────────
+  // ONLY THE SKIRT IS DRAWN. A solid slab's interior walls are each hidden by the cell in front of them, so
+  // the only ones that can ever be seen are at the map's outer edge (and around any hole). That is ~400 edge
+  // cells on a 100x100 instead of 10,000 cubes — which is why this costs nothing while a cube per cell cost
+  // everything. Each wall takes its own cell's floor colour, darkened, so the earth under grass reads as
+  // earth and the bed under a river reads as riverbed, with no new backend data.
+  // ─── ASSETS + PLAYER (ASCII art stacked in isometric space) ────────
 
   // Zoom-aware cull: use the SAME span the camera can see (matches the ground tiles above),
   // so zooming OUT reveals more of the map's elements instead of a fixed 30×20 window — at
@@ -588,29 +587,29 @@ export function render(params: IsoRenderParams) {
   // render window as a controllable setting. Undefined/≤0 = off → today's zoom-derived window, byte-identical.
   const pcol = player.x / cellSize, prow = player.z / cellSize
   const rangeOn = typeof playerViewRange === 'number' && playerViewRange > 0
-  // RANGE IS A GRID TEST, NOT A PER-TILE ONE. A tile is in range when ANY GRID CELL IT COVERS is — so a long
-  // road/grass run stays visible while the ring crosses it, instead of vanishing whenever its anchor happens to sit
-  // outside. ONE rule for every tile: a depth-less tile covers just its own cell, so this is the plain cell test for
-  // everything else.
+  // RANGE IS A GRID TEST, NOT A PER-TILE ONE.
+  // A tile is in range when ANY GRID CELL IT COVERS is — so a long road/grass run stays visible while the ring
+  // crosses it, instead of vanishing whenever its anchor happens to sit outside. ONE rule for every tile: a
+  // depth-less tile covers just its own cell, so this is the plain cell test for everything else.
   const coveredCells = (a: GridAsset): { col: number; row: number }[] =>
     (a.depth ?? 1) > 1 && a.depthDir ? depthCells(a.col, a.row, a.depth!, a.depthDir) : [{ col: a.col, row: a.row }]
   const tileInRange = (a: GridAsset): boolean =>
     coveredCells(a).some(c => withinPlayerRange(c.col, c.row, pcol, prow, playerViewRange!))
-  // GLOBAL RANGE — the browser's visible area, always on. and *"fps are really low even when range is on … looks like
-  // the range is just hidding stuf from top."*
+  // GLOBAL RANGE — the browser's visible area, always on. and
   //
   // He was right that something was off, though not where it looked. The rectangle above IS derived from the
-  // viewport, but as a SQUARE in cell space sized by a mixed average — `(w/tileW + h/tileH)/2 + 4`. On a 1500x950
-  // canvas that is a half-span of 58, i.e. 116x116 = 13,456 cells, while the screen actually shows an iso DIAMOND of
-  // roughly 2,800. So for any map up to 116x116 the "cull" removed nothing at all and every tile was sorted and
-  // drawn, on screen or not.
+  // viewport, but as a SQUARE in cell space sized by a mixed average — `(w/tileW + h/tileH)/2 + 4`. On a
+  // 1500x950 canvas that is a half-span of 58, i.e. 116x116 = 13,456 cells, while the screen actually shows an
+  // iso DIAMOND of roughly 2,800. So for any map up to 116x116 the "cull" removed nothing at all and every
+  // tile was sorted and drawn, on screen or not.
   //
-  // This is the real one: project the cells a tile covers and keep it only if any of them can land on the canvas.
-  // Written as the SAME per-tile shape as the player range, so a long z-width run stays visible while any part of it
-  // is on screen — the rule set for the other range ("the range should actually work on per cell … on roads
-  // we use 1 block with lots of z-width"). The margins are the CELL'S OWN EXTENT, not a chosen multiple of it: a
-  // cell's diamond reaches exactly ±tileW horizontally and ±tileH vertically from its centre, so a cell further out
-  // than that cannot put a pixel on screen. Derived, so there is no number here anyone has to justify or tune.
+  // This is the real one: project the cells a tile covers and keep it only if any of them can land on the
+  // canvas. Written as the SAME per-tile shape as the player range, so a long z-width run stays visible while
+  // any part of it is on screen — the rule set for the other range ("the range should actually work
+  // on per cell … on roads we use 1 block with lots of z-width").
+  // The margins are the CELL'S OWN EXTENT, not a chosen multiple of it: a cell's diamond reaches exactly
+  // ±tileW horizontally and ±tileH vertically from its centre, so a cell further out than that cannot put a
+  // pixel on screen. Derived, so there is no number here anyone has to justify or tune.
   const marginX = tileW
   const marginTop = tileH
   const onScreen = (a: GridAsset): boolean => {
@@ -643,9 +642,9 @@ export function render(params: IsoRenderParams) {
   const standingCells = new Set<string>()
   for (const a of visibleAssets) if (a.type !== FLOOR_TYPE) standingCells.add(`${a.col},${a.row}`)
   for (const e of entities) standingCells.add(`${e.col},${e.row}`)
-  // A raised FLOOR run takes the front-extent ONLY when it is BARE. A run that carries a prop/unit on its span keeps
-  // its anchor sort (like before) so the thing on top stays drawn over it — trading a little of the run's own
-  // completeness for never occluding what sits on it. A bare run still draws complete.
+  // A raised FLOOR run takes the front-extent ONLY when it is BARE. A run that carries a prop/unit on its span
+  // keeps its anchor sort (like before) so the thing on top stays drawn over it — trading a little of the run's
+  // own completeness for never occluding what sits on it. A bare run still draws complete.
   const runFrontExtentRise = (a: GridAsset): number | undefined => {
     if (!((a.depth ?? 1) > 1 && a.depthDir)) return undefined
     const rise = assetBlockRise(a)
@@ -655,10 +654,10 @@ export function render(params: IsoRenderParams) {
   }
   const allObjects: { col: number; row: number; isPlayer?: boolean; asset?: GridAsset; blockRise?: number; entity?: Entity; moving?: boolean; inRange?: boolean }[] = [
     // blockRise = the run's SORT-EFFECTIVE rise, resolved ONLY for a z-width box (the one tile the depth-sort
-    // front-extent reads). A height-1 meadow/water FLOOR run reads rise ≥ 1 → takes the front-extent so a BARE raised
-    // curb draws complete; a flat town road run reads < 1 → keeps its anchor. A raised run that CARRIES a prop/unit
-    // on its span reports 0 here so it stays behind that content (see runFrontExtentRise). The raw asset rides
-    // untouched so the draw + identity-keyed stack index are unchanged.
+    // front-extent reads). A height-1 meadow/water FLOOR run reads rise ≥ 1 → takes the front-extent so a BARE
+    // raised curb draws complete; a flat town road run reads < 1 → keeps its anchor. A raised
+    // run that CARRIES a prop/unit on its span reports 0 here so it stays behind that content (see runFrontExtentRise).
+    // The raw asset rides untouched so the draw + identity-keyed stack index are unchanged.
     ...visibleAssets.map(a => ({
       col: a.col, row: a.row, asset: a,
       blockRise: runFrontExtentRise(a),
@@ -698,17 +697,17 @@ export function render(params: IsoRenderParams) {
   // draw loop below (fadeNearAlpha / cutawayAlpha). So a tree-leaf tile carrying fadeNear fades exactly like a wall.
   isoTileHits = [] // fresh per-frame record of every drawn tile's silhouette — the inverted picker reads it
   const stackIndexOf = assetStackIndexer(grid) // per-frame memo: an asset → its slot in its cell's stack (0 = base/floor)
-  // ROOF REVEAL (Diablo / Path of Exile) — POSITIONAL, not proximity: the hero is under a roof or they are not. Every
-  // `cutawayRoof` tile offers its covered footprint; the CONNECTED roof over the hero's cell comes off as ONE piece
-  // (a roof is many z-width column blocks — lifting just the one overhead would punch a hole), and the
-  // walls/windows/doors of that same shell (`fadeNear`) ease translucent so the interior actually reads. OUTSIDE a
-  // building nothing fades: the old distance ease ghosted every wall the hero walked past while the roof stayed
-  // solid.
+  // ROOF REVEAL (Diablo / Path of Exile) — POSITIONAL, not proximity: the hero is under a roof or they are not.
+  // Every `cutawayRoof` tile offers its covered footprint; the CONNECTED roof over the hero's cell comes off as
+  // ONE piece (a roof is many z-width column blocks — lifting just the one overhead would punch a hole), and the
+  // walls/windows/doors of that same shell (`fadeNear`) ease translucent so the interior actually reads.
+  // OUTSIDE a building nothing fades: the old distance ease ghosted every wall the hero walked past while the
+  // roof stayed solid.
   const roofTiles = visibleAssets.filter(a => a.settings?.cutawayRoof)
   const roofFootprints = roofTiles.map(a => grid.rectCoveredCells(a).map(c => `${c.col},${c.row}`))
-  // NO HERO, NO REVEAL. The Diablo-style cutaway exists because the player walked INSIDE a building; a preview has no
-  // player, only a camera parked on the subject, and treating that as "standing inside" faded every wall it was asked
-  // to show.
+  // NO HERO, NO REVEAL. The Diablo-style cutaway exists because the player walked INSIDE a building; a
+  // preview has no player, only a camera parked on the subject, and treating that as "standing inside"
+  // faded every wall it was asked to show.
   const liftedRoofs = showPlayer ? revealedRoofs(Math.floor(pCol), Math.floor(pRow), roofFootprints) : new Set<number>()
   const roofsOff = new Set<GridAsset>(Array.from(liftedRoofs, i => roofTiles[i]))
   const shellCells = revealedShell(roofFootprints, liftedRoofs)
@@ -762,11 +761,11 @@ export function render(params: IsoRenderParams) {
     const heightOffset = cellHeight * heightStep
 
     if (obj.isPlayer || obj.entity) {
-      // A UNIT stands on the cell's GROUND (`unitStandLevel`), not on the top of everything in it. Raising the ground
-      // still lifts it — a height-1 meadow or a walk-over road carries the hero up, the same lego math every tile
-      // reads (so the #28 "walks THROUGH the floor" bug stays fixed). What it does NOT do is lift a unit onto
-      // STRUCTURE: a doorway cell holds the whole facade column above the doorstep, and taking the stack top there
-      // drew the hero on the ROOF instead of inside the house.
+      // A UNIT stands on the cell's GROUND (`unitStandLevel`), not on the top of everything in it. Raising the
+      // ground still lifts it — a height-1 meadow or a walk-over road carries the hero up, the same lego math
+      // every tile reads (so the #28 "walks THROUGH the floor" bug stays fixed). What it does NOT do is lift a
+      // unit onto STRUCTURE: a doorway cell holds the whole facade column above the doorstep, and taking the
+      // stack top there drew the hero on the ROOF instead of inside the house.
       const floorLift = isoStackLift(tileW, unitStandLevel(grid, Math.floor(obj.col), Math.floor(obj.row)))
       drawUnit(obj, p, heightOffset + floorLift)
       continue
@@ -802,10 +801,10 @@ export function render(params: IsoRenderParams) {
       }
       if (anim) op *= anim.opacity // animated opacity fades the drawn tile (multiplies base + proximity alpha)
       if (op < 1) ctx.globalAlpha = op
-      // STACK: lift this tile `heightLevel` blocks up so the pile climbs in iso. This is the WHOLE lift — there is no
-      // floor-shaped extra term and no "floor stack lift". A tile's level already accounts for everything beneath it,
-      // floor included, because `stackTop` (cellStack) assigns it as `level + own height` over the cell's tiles — so
-      // raising a floor tile lifts what sits on it for free.
+      // STACK: lift this tile `heightLevel` blocks up so the pile climbs in iso. This is the WHOLE lift —
+      // there is no floor-shaped extra term and no "floor stack lift". A tile's level
+      // already accounts for everything beneath it, floor included, because `stackTop` (cellStack) assigns it
+      // as `level + own height` over the cell's tiles — so raising a floor tile lifts what sits on it for free.
       const stackLift = isoStackLift(tileW, obj.asset.heightLevel)
       // "z position" (per-asset zOffset): SLIDE the tile along an ISO DIAGONAL — NOT a vertical lift. zOffset is
       // the magnitude in cells; zDir picks the diagonal (default right-up), so +z slides TOWARD it (right-up =
@@ -918,10 +917,11 @@ export function render(params: IsoRenderParams) {
     drawNightLighting(ctx, w, h, lamps)
   }
 
-  // ─── WEATHER, on the MAP's own floor, over everything the night pass left. So the view hands over the four drawn
-  // corners of the ground plane, and the rain falls on THAT instead of over the whole canvas. In iso the map is a
-  // diamond and `toScreen` lands on a cell's centre, so its corners are the four corner CELLS. Through `toScreen`
-  // they follow the camera's turn, so rain stays on the map however it is spun.
+  // ─── WEATHER, on the MAP's own floor, over everything the night pass left.
+  // So the view hands over the four
+  //     drawn corners of the ground plane, and the rain falls on THAT instead of over the whole canvas.
+  //     In iso the map is a diamond and `toScreen` lands on a cell's centre, so its corners are the four corner
+  //     CELLS. Through `toScreen` they follow the camera's turn, so rain stays on the map however it is spun.
   drawWeather(ctx, w, h, weather, time, {
     corners: [
       toScreen(0, 0),
@@ -1053,8 +1053,7 @@ export function drawIsoPlayer(
   style: Style = ASCII_STYLE,
   isTarget: boolean = false,
   isHover: boolean = false,
-  /** The feet are in water. Ticket 14: *"we should see character steps do an effect in the water, we should
-   *  also see how the character shadow distorts with the water, regular water physics"*. Off → unchanged. */
+  /** The feet are in water (ticket 14): steps ripple and the shadow distorts. Off → unchanged. */
   inWater: boolean = false,
 ) {
   const playerArt = getPlayerArt(player)
@@ -1442,20 +1441,20 @@ export function fillIsoFaceWithTile(
 /**
  * THE GRID'S BODY — the thick base under the whole map.
  *
- * and the resolution that unblocked everything: *"we can make the grid have height … then add the footprints and all
- * the fancy stuff on top."*
+ * The
+ * resolution that unblocked everything:
  *
- * The map's THICKNESS is the grid's, not each tile's. A floor tile is a flat skin (height 0) so it has no side faces,
- * occludes nothing, and needs no place in the depth sort — which is what lets ground merge into z-width runs at all.
- * The volume you see under the map is this, drawn once, under everything.
+ * The map's THICKNESS is the grid's, not each tile's. A floor tile is a flat skin (height 0) so it has no side
+ * faces, occludes nothing, and needs no place in the depth sort — which is what lets ground merge into z-width
+ * runs at all. The volume you see under the map is this, drawn once, under everything.
  *
- * ONLY THE SKIRT EXISTS. A solid slab's interior walls are each hidden by the cell in front of them, so the only
- * walls that can ever be seen are where the map STOPS — its outer edge, and the rim of any hole. So this draws a wall
- * only where the neighbour it would face is missing: ~400 edge cells on a 100x100 rather than 10,000 cubes, which is
- * the difference between free and ruinous.
+ * ONLY THE SKIRT EXISTS. A solid slab's interior walls are each hidden by the cell in front of them, so the
+ * only walls that can ever be seen are where the map STOPS — its outer edge, and the rim of any hole. So this
+ * draws a wall only where the neighbour it would face is missing: ~400 edge cells on a 100x100 rather than
+ * 10,000 cubes, which is the difference between free and ruinous.
  *
- * Which neighbour faces which wall follows the projection: +col steps right-down and +row steps left-down, so the
- * RIGHT wall is hidden by (col+1, row) and the LEFT wall by (col, row+1).
+ * Which neighbour faces which wall follows the projection: +col steps right-down and +row steps left-down, so
+ * the RIGHT wall is hidden by (col+1, row) and the LEFT wall by (col, row+1).
  */
 export function drawGridSkirt(
   ctx: CanvasRenderingContext2D,
@@ -1474,10 +1473,10 @@ export function drawGridSkirt(
    */
   heightStep: number,
 ): void {
-  // THE THICKNESS IS MAP DATA — `grid.slabBlocks`, served with the level and saved with it. It was a module constant
-  // (`GRID_SLAB_BLOCKS = 1`) for exactly one day, which was one day too long: *"is there any way to control the
-  // height of the grid??"* — no, and that is the same mistake as pinning a floor's height in a factory, one layer up.
-  // Zero means no body at all, and nothing draws.
+  // THE THICKNESS IS MAP DATA — `grid.slabBlocks`, served with the level and saved with it. It was a module
+  // constant (`GRID_SLAB_BLOCKS = 1`) for exactly one day, which was one day too long:
+  // — no, and that is the same mistake as pinning a
+  // floor's height in a factory, one layer up. Zero means no body at all, and nothing draws.
   const slab = grid.slabBlocks
   const blockH = tileW * ISO_BLOCK_H_FRAC
   // NO EARLY RETURN on a missing slab any more. A map with no body still has RELIEF, and returning here would
@@ -1529,20 +1528,20 @@ export function drawGridSkirt(
     for (let col = c0; col <= c1; col++) {
       const floor = grid.floorAt(col, row)
       if (!floor) continue // no ground here → nothing to hold up
-      // ONLY THE MAP'S OUTER EDGE. This first asked "is the neighbouring FLOOR missing", which fired all over the
-      // interior — a town's roads and plots are separate floors, so every plot edge grew a wall and the grass
-      // appeared to stand a block above the road. That is the raised ground reported in #29, and it
-      // was this skirt, not the tile heights. The map's boundary is the grid's bounds.
+      // ONLY THE MAP'S OUTER EDGE. This first asked "is the neighbouring FLOOR missing", which fired all over
+      // the interior — a town's roads and plots are separate floors, so every plot edge grew a wall and the
+      // grass appeared to stand a block above the road. That is the raised ground in report #29, and it was
+      // this skirt, not the tile heights. The map's boundary is the grid's bounds.
       const openRight = col + 1 >= grid.cols // the +col neighbour is off the map, so this wall faces the void
       const openLeft = row + 1 >= grid.rows // the +row neighbour is off the map
 
-      // RELIEF. Where this cell stands ABOVE the neighbour in front of it, that difference is a CLIFF, and it is
-      // visible: the note above about interior walls is true of a flat slab, where the cell in front hides them, and
-      // false the moment two cells sit at different levels.
+      // RELIEF. Where this cell stands ABOVE the neighbour in front of it, that difference is a CLIFF, and
+      // it is visible: the note above about interior walls is true of a flat slab, where the cell in front
+      // hides them, and false the moment two cells sit at different levels.
       //
-      // The condition is the ELEVATION differing, never the FLOOR differing. Keying on the floor is precisely what
-      // grew a wall at every plot edge and made the grass look raised above the road, which is the artefact he
-      // reported in Image #29 and which the comment above records.
+      // The condition is the ELEVATION differing, never the FLOOR differing. Keying on the floor is precisely
+      // what grew a wall at every plot edge and made the grass look raised above the road, which is the
+      // artefact he reported in Image #29 and which the comment above records.
       const here = grid.getHeight(col, row)
       const cliffRight = openRight ? 0 : here - grid.getHeight(col + 1, row)
       const cliffLeft = openLeft ? 0 : here - grid.getHeight(col, row + 1)
@@ -1564,19 +1563,19 @@ export function drawGridSkirt(
 
       // THE FAR SIDE OF A TRENCH.
       //
-      // They are not a colour and not a tile: they are the CANVAS. `#1a1a2e` is what `render` clears with, and it was
-      // showing through the map. Measured on a woodland with a two-block channel: 124,260 clear pixels INSIDE the
-      // drawn map, and 173 dug cells every one of which is water, so the data was right and nothing was drawing the
-      // hole shut.
+      // They are not a colour and not a tile: they are the CANVAS. `#1a1a2e` is what `render` clears with,
+      // and it was showing through the map. Measured on a woodland with a two-block channel: 124,260 clear
+      // pixels INSIDE the drawn map, and 173 dug cells every one of which is water, so the data was right
+      // and nothing was drawing the hole shut.
       //
-      // The cliffs above only face +col and +row, the two sides the camera sees on a cell that stands ABOVE its
-      // neighbour. A trench is the opposite case: you are looking INTO it, and the wall you see is the FAR bank's
-      // back face, on -col and -row. Nothing ever drew those, because on a flat map they are hidden by the neighbour
-      // itself and it costs nothing to skip them. Dig a channel and they are the only thing between you and the
-      // background.
+      // The cliffs above only face +col and +row, the two sides the camera sees on a cell that stands ABOVE
+      // its neighbour. A trench is the opposite case: you are looking INTO it, and the wall you see is the
+      // FAR bank's back face, on -col and -row. Nothing ever drew those, because on a flat map they are
+      // hidden by the neighbour itself and it costs nothing to skip them. Dig a channel and they are the
+      // only thing between you and the background.
       //
-      // The wall wears the colour of the bank it belongs to, read from that neighbour's own floor, never shaded here:
-      // a bank with no colour draws nothing rather than inventing one.
+      // The wall wears the colour of the bank it belongs to, read from that neighbour's own floor, never
+      // shaded here: a bank with no colour draws nothing rather than inventing one.
       const backWallTo = (dc: number, dr: number, side: 'col' | 'row'): void => {
         const nCol = col + dc
         const nRow = row + dr
@@ -1636,10 +1635,11 @@ export function isoDepthCompare(
   const key = (o: { col: number; row: number; blockRise?: number; asset?: { depth?: number; depthDir?: DepthDir; depthBack?: number; heightLevel?: number; height?: number } }): number => {
     const dir = o.asset?.depthDir
     if (!dir || !o.asset?.depth) return o.col + o.row // no depth box → plain anchor key (byte-identical to before)
-    // Fold a BIDIRECTIONAL span into its one-way equivalent, then key on the TRUE backmost cell + total length
-    // (depthBack 0/absent → unchanged). The front-extent (sort by the FRONTMOST covered cell) is only correct for a
-    // box that OVERHANGS what it covers — a STACKED asset (heightLevel ≥ 1: a roof / upper level). The GROUND
-    // (heightLevel 0) never overhangs, so it sorts by its anchor and stays BEHIND the standing tiles along its span.
+    // Fold a BIDIRECTIONAL span into its one-way equivalent, then
+    // key on the TRUE backmost cell + total length (depthBack 0/absent → unchanged). The front-extent (sort by the
+    // FRONTMOST covered cell) is only correct for a box that OVERHANGS what it covers — a STACKED asset
+    // (heightLevel ≥ 1: a roof / upper level). The GROUND (heightLevel 0) never overhangs, so it sorts by its
+    // anchor and stays BEHIND the standing tiles along its span.
     const box = normalizeDepthSpan(o.col, o.row, o.asset.depth, o.asset.depthBack, dir)
     const extend = Math.floor(box.depth) > 1 && (o.asset?.heightLevel ?? 0) >= 1
     return box.col + box.row + (extend ? depthFrontExtent(box.depth, dir) : 0)
@@ -1906,12 +1906,11 @@ function drawIsoTileBlockLive(
   else fillFace(top, faceColor, dv, tint)
 }
 
-/**
- * A SOLID rectangular iso block — a 2-axis z-width tile drawn as ONE body: a single parallelogram TOP + the two OUTER
- * walls, no internal seams. `ext` is the grid span in cells in each of ±col/±row from the anchor (assetRectExtents).
- * Degenerate (a 1-wide line, or a single cell at ext 0) it matches the unit cube / isoDepthBox. `layers` blocks tall;
- * the tile shears onto every face like the cube. Pure-ish (canvas glue), same conventions as drawIsoTileBlockLive.
- */
+/** A SOLID rectangular iso block — a 2-axis
+ *  z-width tile drawn as ONE body: a single parallelogram TOP + the two OUTER walls, no internal seams. `ext` is
+ *  the grid span in cells in each of ±col/±row from the anchor (assetRectExtents). Degenerate (a 1-wide line, or
+ *  a single cell at ext 0) it matches the unit cube / isoDepthBox. `layers` blocks tall; the tile shears onto
+ *  every face like the cube. Pure-ish (canvas glue), same conventions as drawIsoTileBlockLive. */
 function drawIsoRectBlock(
   ctx: CanvasRenderingContext2D,
   center: Pt,
@@ -2062,21 +2061,20 @@ export function drawIsoSingleTileBlock(
   }
 }
 
-/**
- * The rounding-clip ellipse for a circle-shape block — the INSCRIBED ellipse of the block's projected hexagon
- * silhouette. A stacked iso block draws as a 6-vertex hexagon: the top-diamond apex, the two upper side vertices, the
- * two mid (base-diamond) side vertices, and the bottom apex. The OLD ellipse (`ry = stack/2 + tileH`) passed exactly
- * THROUGH the apex + bottom and CUT ACROSS the slanted top/bottom faces, so three things stayed angular: the top
- * point poked out sharp, the bottom point poked out sharp, and where the straight slant edge met the ellipse arc
- * there was a visible KINK. To bend EVERY corner we shrink `ry` just enough that the ellipse is TANGENT to the four
- * slanted faces (and to the vertical sides at `rx = tileW`) — i.e. fully INSCRIBED. Tangency to the slant edge (slope
- * tileH/tileW through the apex) solves to `ry² = (stack/2)² + stack·tileH`, a hair below the old `stack/2 + tileH`
- * (they differ only by the `tileH²` term). Now every hexagon vertex sits OUTSIDE the ellipse (so the clip rounds it
- * away) and the ellipse never crosses an edge (so there is no straight-edge/arc kink): the whole outline is one
- * smooth oval. Still PROPORTIONAL — a tall block → a tall oval, a unit cube → a rounder blob — with the top/bottom
- * domes at radius-of-curvature `rx²/ry` (visibly bent, not a point) and the sides gently curved. Pure geometry →
- * unit-tested directly.
- */
+/** The rounding-clip ellipse for a circle-shape block — the INSCRIBED ellipse of the block's projected
+ *  hexagon silhouette. A stacked iso block draws as a 6-vertex hexagon: the top-diamond apex, the two upper
+ *  side vertices, the two mid (base-diamond) side vertices, and the bottom apex. The OLD ellipse
+ *  (`ry = stack/2 + tileH`) passed exactly THROUGH the apex + bottom and CUT ACROSS the slanted top/bottom
+ *  faces, so three things stayed angular: the top point poked out sharp, the bottom point poked out sharp, and
+ *  where the straight slant edge met the ellipse arc there was a visible KINK at the mid-right corner.
+ *  To bend EVERY corner we shrink `ry` just enough that the ellipse is TANGENT to the four slanted
+ *  faces (and to the vertical sides at `rx = tileW`) — i.e. fully INSCRIBED. Tangency to the slant edge
+ *  (slope tileH/tileW through the apex) solves to `ry² = (stack/2)² + stack·tileH`, a hair below the old
+ *  `stack/2 + tileH` (they differ only by the `tileH²` term). Now every hexagon vertex sits OUTSIDE the
+ *  ellipse (so the clip rounds it away) and the ellipse never crosses an edge (so there is no straight-edge/arc
+ *  kink): the whole outline is one smooth oval. Still PROPORTIONAL — a tall block → a tall oval, a unit cube →
+ *  a rounder blob — with the top/bottom domes at radius-of-curvature `rx²/ry` (visibly bent, not a point) and
+ *  the sides gently curved. Pure geometry → unit-tested directly. */
 export function roundedBlockEllipse(
   center: Pt,
   tileW: number,
@@ -2121,16 +2119,14 @@ function roundIsoTopFrontCorner(
   ctx.save(); ctx.beginPath(); ctx.rect(fx, py - 1, tileW, tileH + 2); ctx.clip(); ctx.fillStyle = rightShade; lens(); ctx.fill(); ctx.restore()
 }
 
-/**
- * SHAPE = "circle": take the SAME cuboid — same footprint, height, painted faces and per-face shading as
- * drawIsoTileBlock — and BEND ITS CORNERS into a smooth rounded silhouette. We draw the block exactly as the cube
- * path does, then CLIP it to the INSCRIBED ellipse (`roundedBlockEllipse`) so every SILHOUETTE corner — the top apex,
- * the mid-side vertices, and the bottom — is bent away and no straight-edge/arc kink remains. The outer clip can't
- * reach the top face's FRONT vertex (an interior top→wall colour seam), so roundIsoTopFrontCorner bevels that last
- * sharp point too — now EVERY corner is bent. The three shaded faces and the tile's painted art all stay: it is the
- * cuboid with its corners rounded away, NOT a repainted sphere. There is no spherical relight and no single flat
- * surface — those were the rejected "ball" attempts; here the ONLY change from the cube is the rounding.
- */
+/** SHAPE = "circle": take the SAME cuboid — same footprint, height, painted faces and per-face shading as
+ * drawIsoTileBlock — and BEND ITS CORNERS into a smooth rounded silhouette. We draw the block
+ *  exactly as the cube path does, then CLIP it to the INSCRIBED ellipse (`roundedBlockEllipse`) so every SILHOUETTE
+ *  corner — the top apex, the mid-side vertices, and the bottom — is bent away and no straight-edge/arc kink remains.
+ *  The outer clip can't reach the top face's FRONT vertex (an interior top→wall colour seam), so roundIsoTopFrontCorner
+ *  bevels that last sharp point too — now EVERY corner is bent. The three shaded faces and the tile's painted art all
+ *  stay: it is the cuboid with its corners rounded away, NOT a repainted sphere. There is no spherical relight and no
+ *  single flat surface — those were the rejected "ball" attempts; here the ONLY change from the cube is the rounding. */
 export function drawIsoRoundedBlock(
   ctx: CanvasRenderingContext2D,
   center: Pt,
@@ -2172,12 +2168,13 @@ function assetThickness(asset: GridAsset): ThicknessReach | undefined {
 const ISO_SHAPE_DRAWERS: Record<TileShape, IsoShapeDrawer> = {
   square: (ctx, center, bw, bd, bh, blocks, dv, tint, asset) => {
     // `transparent` drops the coloured block so it reads SEE-THROUGH — and it applies to EVERY tile, not just a
-    // 'single' one. DISPLAY = "single" still draws ONE centered billboard inside the (here dropped) shell; an
-    // all-faces tile with transparent draws NOTHING (see-through), same as single drops its shell.
+    // 'single' one.
+    // DISPLAY = "single" still draws ONE centered billboard inside the (here dropped) shell; an all-faces tile
+    // with transparent draws NOTHING (see-through), same as single drops its shell.
     const transparent = asset.settings?.transparent
-    // Z-WIDTH RECTANGLE: a square tile spanning ≥2 cells — along ONE axis (depth/depthBack) or TWO
-    // (depthPerp/depthPerpBack too) — draws as ONE SOLID block: one parallelogram top + two outer walls, NO column
-    // seams. This lives HERE (the shape drawer) so EVERY tile gets it, not just label-backed ones — a
+    // Z-WIDTH RECTANGLE: a square tile spanning ≥2 cells — along ONE axis (depth/depthBack)
+    // or TWO (depthPerp/depthPerpBack too) — draws as ONE SOLID block: one parallelogram top + two outer walls,
+    // NO column seams. This lives HERE (the shape drawer) so EVERY tile gets it, not just label-backed ones — a
     // painted/override roof (label:null) reaches this same drawer, so "all settings apply to every tile" holds.
     // `assetRectExtents` is all-zeros for a non-z-width tile → isRect false → the byte-identical cube below.
     const ext = assetRectExtents(asset)
@@ -2248,8 +2245,8 @@ function drawIsoWaterDepth(
  *  poseMapper exactly as the draw applies it, so the geom matches whether or not the block is posed. */
 function blockGeom(x: number, y: number, halfW: number, halfD: number, blockH: number, blocks: number, asset: GridAsset, unit: number): TileGeom {
   const xf = poseMapper({ x, y }, asset.pose, unit)
-  // A z-widthed tile (1-axis line OR 2-axis rectangle) → the SOLID block's full hull, so the pick + outline hug the
-  // WHOLE element, not the anchor cell.
+  // A z-widthed tile (1-axis line OR 2-axis rectangle) → the SOLID block's full hull, so the pick + outline hug
+  // the WHOLE element, not the anchor cell.
   const ext = assetRectExtents(asset)
   if (ext.colMinus + ext.colPlus + ext.rowMinus + ext.rowPlus > 0) return rectBoxGeom(halfW, halfD, blockH, blocks, ext, xf)
   return cubeGeom(halfW, halfD, blockH, blocks, xf)
@@ -2281,10 +2278,10 @@ function drawIsoLastResortGlyph(
   ctx: CanvasRenderingContext2D, asset: GridAsset,
   x: number, y: number, fontSize: number, lineHeight: number,
 ): void {
-  // NEVER '?'. A tile with no art is a DATA gap, and painting a question mark over it invents a picture the catalog
-  // does not have — the reported "fake ascii tiles" were literal '?' plates drawn here. Missing stays
-  // missing (the tile draws its backing and nothing else), so a gap is visible as an absence and gets fixed in the
-  // backend rather than papered over in the renderer.
+  // NEVER '?'. A tile with no art is a DATA gap, and painting a question mark over it invents a picture
+  // the catalog does not have — the reported "fake ascii tiles" were literal '?' plates drawn
+  // here. Missing stays missing (the tile draws its backing and nothing else), so a gap is visible as an
+  // absence and gets fixed in the backend rather than papered over in the renderer.
   const char = asset.art[0] ?? ''
   const layerY = y - lineHeight * 0.5
   ctx.font = `bold ${fontSize}px ${ASCII_FONT}`
@@ -2356,9 +2353,10 @@ export function drawIsoAssetAscii(
     // partial slab and a standing cell as a full block, × the per-instance Height multiplier (scaleY). The
     // height VALUE is DATA (from the DB); nothing invented here.
     const bh = tileW * ISO_BLOCK_H_FRAC * (asset.scaleY ?? 1) * layerBlockScale(asset.height ?? 0) * zoom
-    // …stacked as many times as the tile is tall. This used to be hardcoded to ONE layer, so a labeled cell drew a
-    // single block however tall you made it — raise it to 5 and the tiles above rose while the tile itself stayed
-    // put. No composition tile ships a DB height above 1, so generated maps render exactly as before.
+    // …stacked as many times as the tile is tall. This used to be hardcoded to ONE layer, so a labeled cell
+    // drew a single block however tall you made it — raise it to 5 and the tiles above rose while the tile
+    // itself stayed put.
+    // No composition tile ships a DB height above 1, so generated maps render exactly as before.
     const layers = blockLayers(asset.height ?? 0)
     const tint = asset.color ?? '#cccccc'
     // The label's own glyph in the ACTIVE style (one lookup, no style branch) — the last-resort char if the
@@ -2368,8 +2366,8 @@ export function drawIsoAssetAscii(
     const recolor = labelTileRecolor(style, tint)
     const dvBlock = { char: glyph, color: tint, tint: recolor, image }
     // A z-width tile (≥2 cells, 1 or 2 axes) draws as ONE SOLID block, a plain tile as a cube — drawIsoTileForShape
-    // decides via the tile's shape drawer (the SAME solid-rect path a painted/override tile takes), so nothing here
-    // has to branch on z-width. blockGeom hugs the whole hull for the pick/outline.
+    // decides via the tile's shape drawer (the SAME solid-rect path a painted/override tile takes), so nothing
+    // here has to branch on z-width. blockGeom hugs the whole hull for the pick/outline.
     const geom = blockGeom(x, y, bw, bd, bh, layers, asset, tileH)
     if (asset.pose) {
       ctx.save(); ctx.translate(x, y); applyPose(ctx, asset.pose, 1, tileH); drawIsoTileForShape(ctx, { x: 0, y: 0 }, bw, bd, bh, layers, dvBlock, recolor, asset); ctx.restore()
@@ -2414,12 +2412,14 @@ export function drawIsoAssetAscii(
   const framed = liveFrame ? frameImage(liveFrame, adv.char, adv.image, style) : undefined
   if (framed && framed !== adv.image) adv = { ...adv, image: framed, char: '', tint: adv.tint ?? asset.color }
   // WHICH WAY THIS CELL'S PICTURE RUNS. A cell's heading is DATA on the cell (`flow`, written by the generator), and
-  // it turns the TEXTURE, not the tile: the face keeps its corners, the waves rotate inside it. This is the whole of
-  // the direction system now — no per-heading art, no per-heading animation. `!== undefined`, NOT truthiness. HEADING
-  // 0 IS A HEADING (+col), and `if (asset.flow)` skipped every one of those cells, so they drew unturned and came out
-  // a quarter turn wrong while their neighbours were right. That is the "not consistent, not aligned" he kept seeing,
-  // and no amount of fixing the FIELD could have cured it: the data was already correct. Measured through Playwright
-  // on a ring river, 10 cells at flow 0 and not one `turns=1` draw in the whole frame.
+  // it
+  // turns the TEXTURE, not the tile: the face keeps its corners, the waves rotate inside it. This is the whole
+  // of the direction system now — no per-heading art, no per-heading animation.
+  // `!== undefined`, NOT truthiness. HEADING 0 IS A HEADING (+col), and `if (asset.flow)` skipped every one
+  // of those cells, so they drew unturned and came out a quarter turn wrong while their neighbours were
+  // right. That is the "not consistent, not aligned" he kept seeing, and no amount of fixing the FIELD could
+  // have cured it: the data was already correct. Measured through Playwright on a ring river, 10 cells at
+  // flow 0 and not one `turns=1` draw in the whole frame.
   if (asset.flow !== undefined) adv = { ...adv, turns: textureTurnForHeading(asset.flow) }
   const blocks = resolveTileHeight(dbTile, asset)
   // Z-WIDTH (directional depth) is a 3D BLOCK operation: setting it declares the tile a block extruded N cells
@@ -2528,12 +2528,13 @@ export function renderDebugOverlays(
   // don't pass it keep the old flat behaviour, but render() passes its own so the tint lands where the cell is.
   heightStep = cellSize * grid.isoScale * 0.4,
 ) {
-  // The collision map means "a unit walking HERE is stopped", so the tint has to be painted on the surface that unit
-  // would stand on — not on the raw ground plane. It was painted flat, so on any cell whose walk surface is lifted
-  // (terrain elevation, or a floor the building's ground course sits on) the red diamond landed a block BELOW the
-  // structure and spilled out from under it onto the grass: "collissions don't match structures". Measured before the
-  // fix: cell 6,1 tinted at y=-129.6 while its surface was at y=-155.2 — a full block adrift. `isoStackLift` is the
-  // SAME lift the render puts a unit on, so the tint and the thing it describes can never drift apart.
+  // The collision map means "a unit walking HERE is stopped", so the tint has to be painted on the surface
+  // that unit would stand on — not on the raw ground plane. It was painted flat, so on any cell whose walk
+  // surface is lifted (terrain elevation, or a floor the building's ground course sits on) the red diamond
+  // landed a block BELOW the structure and spilled out from under it onto the grass: "collissions don't match
+  // structures". Measured before the fix: cell 6,1 tinted at y=-129.6 while its surface was at y=-155.2 — a full
+  // block adrift. `isoStackLift` is the SAME lift the render puts a unit on, so the tint and the thing it describes
+  // can never drift apart.
   const surfaceLift = (col: number, row: number): number =>
     grid.getHeight(col, row) * heightStep + isoStackLift(tileW, unitStandLevel(grid, col, row))
   const tilesX = Math.ceil(w / 32) + 10

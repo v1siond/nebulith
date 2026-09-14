@@ -71,8 +71,9 @@ describe("resolveTile resolves colour from each tile's own settings.colors (not 
   /**
    * THE FLAT COLOUR IS DATA, and inventing grey over it put a white flower in the forest.
    *
-   * Nothing was wrong with the flowers or with the blocking rule: `thicket` is authored with a flat `settings.color`,
-   * this resolver read only the per-zone map, and the fallback grey then tinted the green sprig to near-white.
+   * Nothing was wrong with
+   * the flowers or with the blocking rule: `thicket` is authored with a flat `settings.color`, this resolver
+   * read only the per-zone map, and the fallback grey then tinted the green sprig to near-white.
    */
   test("a tile whose colour is FLAT (settings.color) returns it, not the invented grey", () => {
     expect(resolveTile(TILESET, 'summer', 'thicket').color).toBe('#2f6b2a')

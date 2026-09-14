@@ -1,7 +1,7 @@
 /**
  * Unified TRIGGER model — the thing that turns a map into a playable game.
  *
- * A Trigger reads as one sentence: **"When `[event]` → do `[action]`."** It is
+ * A Trigger reads as one sentence: ** It is
  * attached to a CELL (on enter / on interact) or to an ENTITY (on defeat). The
  * play loop owns the stateful parts (detecting cell changes, reading keys, tracking
  * deaths) and applies the side effects; THIS module is PURE so the rules stay

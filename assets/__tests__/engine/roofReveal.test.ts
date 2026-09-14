@@ -1,13 +1,13 @@
 /**
  * ROOF REVEAL — the Diablo / Path of Exile behaviour.
  *
- * The old rule was DISTANCE-based (`cutawayAlpha(dist)`): a roof faded as the hero merely walked NEAR it, which is
- * why the walls ghosted from outside while the roof stayed solid. The rule is now POSITIONAL: the hero is either
- * under a roof or not.
+ * The old rule was DISTANCE-based (`cutawayAlpha(dist)`): a roof faded as the hero merely walked NEAR it, which
+ * is why the walls ghosted from outside while the roof stayed solid. The rule is now POSITIONAL: the hero is
+ * either under a roof or not.
  *
- * A building's roof is many tiles (one z-width block per column), so lifting only the tile directly overhead would
- * punch a HOLE in the roof instead of removing it. `revealedRoofs` therefore takes the CONNECTED roof — every roof
- * block whose footprint touches the one the hero is under — so the whole roof comes off as one.
+ * A building's roof is many tiles (one z-width block per column), so lifting only the tile directly overhead
+ * would punch a HOLE in the roof instead of removing it. `revealedRoofs` therefore takes the CONNECTED roof —
+ * every roof block whose footprint touches the one the hero is under — so the whole roof comes off as one.
  */
 import { revealedRoofs, revealedShell } from '@/engine/render/roofReveal'
 

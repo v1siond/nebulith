@@ -1,16 +1,16 @@
 /**
  * ONE PICTURE, TURNED PER CELL.
  *
- * This file used to assert the opposite, and it was green the whole time, which is the lesson worth keeping. It
- * checked that FOUR frame sets existed and that a cell picked one by id. Four sets is a real answer to "the current
- * should follow the river", it is just an expensive one: the direction was baked into eight PNGs. A floor face is
- * painted by mapping the unit texture square onto it with two basis vectors (`ctx.transform(eA, eB)`), so a quarter
- * turn of the picture is a PERMUTATION of those two vectors and costs nothing. The catalog is back to one loop and
- * the eight transposed rows are deleted.
+ * This file used to assert the opposite, and it was green the whole time, which is the lesson worth keeping.
+ * It checked that FOUR frame sets existed and that a cell picked one by id. Four sets is a real answer to
+ * "the current should follow the river", it is just an expensive one: the direction was baked into eight
+ * PNGs. A floor face is painted by mapping the unit texture square onto it with two basis vectors
+ * (`ctx.transform(eA, eB)`), so a quarter turn of the picture is a PERMUTATION of those two vectors and costs
+ * nothing. The catalog is back to one loop and the eight transposed rows are deleted.
  *
- * So the tests here are now about the TURN, and they are exact rather than eyeballed: a turn must cover the same
- * face, four turns must be the identity, and the heading→turn mapping has to agree with the projection the renderer
- * actually uses.
+ * So the tests here are now about the TURN, and they are exact rather than eyeballed: a turn must cover the
+ * same face, four turns must be the identity, and the heading→turn mapping has to agree with the projection
+ * the renderer actually uses.
  */
 import '@/__tests__/helpers/installTilesetSeed'
 import { isoBlockFaces, turnFaceTexture, textureTurnForHeading, unitGroundQuad, type Pt } from '@/engine/render/isoBlock'
@@ -118,14 +118,14 @@ describe('the catalog carries ONE water loop, and no transposed art', () => {
 /**
  * HEADING 0 IS A HEADING.
  *
- * Because the renderer read the heading as `if (asset.flow)`. Heading 0 is +col, a perfectly good direction, and it
- * is also falsy, so every +col cell skipped the turn entirely and drew a quarter turn off while the cells beside it
- * were right. That is exactly the "some zones wrong, some right" he circled, and no amount of work on the flow FIELD
- * could ever have fixed it: the data was correct the whole time.
+ * Because the renderer read the heading as `if (asset.flow)`. Heading 0 is +col, a perfectly good direction,
+ * and it is also falsy, so every +col cell skipped the turn entirely and drew a quarter turn off while the
+ * cells beside it were right. That is exactly the "some zones wrong, some right" he circled, and no amount
+ * of work on the flow FIELD could ever have fixed it: the data was correct the whole time.
  *
- * Found by instrumenting the real page through Playwright and counting the turns actually drawn: on a ring river with
- * 10 cells at flow 0, the frame contained not a single `turns=1` draw. That is the check below, as a unit: the
- * mapping must produce a REAL turn for heading 0, and a caller must not treat it as absent.
+ * Found by instrumenting the real page through Playwright and counting the turns actually drawn: on a ring
+ * river with 10 cells at flow 0, the frame contained not a single `turns=1` draw. That is the check below,
+ * as a unit: the mapping must produce a REAL turn for heading 0, and a caller must not treat it as absent.
  */
 describe('heading 0 is a heading, not a missing value', () => {
   it('maps to a turn like any other heading', () => {

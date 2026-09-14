@@ -1,17 +1,17 @@
 /**
  * `styleTileImage` — the ONE tile-image resolver, identical in every art style.
  *
- * and later: "all arts have the exact same behavior and engine and the only thing that changes is the tiles".
+ * "all arts have the exact same behavior and engine and the only thing that changes is the tiles".
  *
- * ROOT CAUSE this pins: a tile identified by KIND rather than by LABEL — chiefly a FLOOR, a `type:'floor'` GridAsset
- * carrying only a `tileKey` (its ground kind), NO label and empty `art: ['']` — had no way to reach its baked picture
- * under ASCII. The old pair of helpers gated one to `style.id === 'emoji'`/ascii and the caller gated the other to
- * `FLOOR_TYPE`, so a label-less ASCII prop fell through to the legacy glyph drawers (`'' || '?'` → the screen-filling
- * `?` on grass/road, and the per-frame `measureText` that tanked ASCII FPS).
+ * ROOT CAUSE this pins: a tile identified by KIND rather than by LABEL — chiefly a FLOOR, a `type:'floor'`
+ * GridAsset carrying only a `tileKey` (its ground kind), NO label and empty `art: ['']` — had no way to reach
+ * its baked picture under ASCII. The old pair of helpers gated one to `style.id === 'emoji'`/ascii and the
+ * caller gated the other to `FLOOR_TYPE`, so a label-less ASCII prop fell through to the legacy glyph drawers
+ * (`'' || '?'` → the screen-filling `?` on grass/road, and the per-frame `measureText` that tanked ASCII FPS).
  *
- * There is now ONE resolver: the KEY picks the tile, the STYLE picks only which tileset to read. These assert that,
- * positively (every base ground kind and every prop kind resolves a baked image in BOTH styles) and negatively (an
- * unknown key resolves nothing rather than inventing an image).
+ * There is now ONE resolver: the KEY picks the tile, the STYLE picks only which tileset to read. These assert
+ * that, positively (every base ground kind and every prop kind resolves a baked image in BOTH styles) and
+ * negatively (an unknown key resolves nothing rather than inventing an image).
  */
 import { styleTileImage } from '@/engine/render/shared'
 import { assetKind, ASCII_STYLE, EMOJI_STYLE, type Style } from '@/game/artStyle'

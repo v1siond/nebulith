@@ -1,13 +1,13 @@
 /**
  * THICKNESS ALONG A WORLD AXIS — the geometry behind a door that is thin the way the HOUSE faces.
  *
- * The old `scaleZ` scaled `bd` — the diamond's SCREEN-VERTICAL half-extent. A cell's two ground axes are the
- * diamond's DIAGONALS (`isoBlock.ts`: the top face runs `T → T+u → T+u+v → T+v` with `u = (+tileW,+tileH)` = +col and
- * `v = (−tileW,+tileH)` = +row), so squashing the screen axis thins the block along no world direction at all — it
- * just looks right when the camera happens to agree.
+ * The old `scaleZ` scaled `bd` — the diamond's SCREEN-VERTICAL half-extent. A cell's two ground axes are
+ * the diamond's DIAGONALS (`isoBlock.ts`: the top face runs `T → T+u → T+u+v → T+v` with
+ * `u = (+tileW,+tileH)` = +col and `v = (−tileW,+tileH)` = +row), so squashing the screen axis thins the
+ * block along no world direction at all — it just looks right when the camera happens to agree.
  *
- * `thinGroundQuad` shrinks the footprint along ONE world axis and keeps the block HUGGING the face that direction
- * points at, so a door stays flush with its wall instead of floating in the middle of the cell.
+ * `thinGroundQuad` shrinks the footprint along ONE world axis and keeps the block HUGGING the face that
+ * direction points at, so a door stays flush with its wall instead of floating in the middle of the cell.
  */
 import { thinGroundQuad, unitGroundQuad, type DepthDir } from '@/engine/render/isoBlock'
 

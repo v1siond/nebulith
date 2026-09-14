@@ -55,8 +55,7 @@ describe('parseGeneratorCatalog — the live /api/generators body', () => {
   it('reads the building material + colour palette the page declared as five consts', () => {
     // A LOOK'S OWN PALETTE. Since 2026-09-11 the settlement presets ARE the looks, so this reads Traditional
     // town's: brick and timber under warm gables, and the roof TILE it lays, which is the half that colours
-    // alone could never express (*"the material of houses should be different, walls different, roof
-    // different"*).
+    // alone could never express ().
     expect(findGenerator(LIVE, 'settlement', 'town')!.config.buildings).toEqual({
       roof: 'roof',
       materials: ['wall_brick', 'wall_wood'],
@@ -71,7 +70,7 @@ describe('parseGeneratorCatalog — the live /api/generators body', () => {
       plazaSize: 5, roadWidth: 4, setback: 1, lotGap: [1, 2], maxPerFrontage: 6,
       buildingCap: 18, houseRange: [4, 6],
       houseWidths: [3, 3, 4, 4, 4, 5, 6], natureMultiplier: 1.3,
-      streets: 'path_stone', // *"a town doesn't have roads, it has pathways of stone"*
+      streets: 'path_stone',
       mix: [
         { type: 'store', count: [1, 1] },
         { type: 'hospital', count: [1, 1] },
@@ -91,8 +90,8 @@ describe('parseGeneratorCatalog — the live /api/generators body', () => {
   })
 
   /**
-   * and *"cities have more skycrappers, towns have more houses"*. The mix is the served answer, so this asserts it
-   * SURVIVES the parse: a dropped key here would put every place back to the same buildings.
+   * The mix is the served answer,
+   * so this asserts it SURVIVES the parse: a dropped key here would put every place back to the same buildings.
    */
   it('a town and a city are served DIFFERENT buildings, and the parse keeps them', () => {
     const town = findGenerator(LIVE, 'settlement', 'town')!.config.settlement!.mix!.map(e => e.type)
@@ -326,7 +325,8 @@ describe('the catalog is a TREE — forest > type > subtype', () => {
 })
 
 describe('a generator is found by the ARCHETYPE it runs, not by where it sits', () => {
-  // A programmatic generate still asks for "town", and a town lives in the settlement category now.
+  // A
+  // programmatic generate still asks for "town", and a town lives in the settlement category now.
   const MERGED = parseGeneratorCatalog({
     data: [{
       key: 'settlement', name: 'Settlement', position: 1, generators: [

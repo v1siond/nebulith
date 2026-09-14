@@ -1,12 +1,12 @@
 /**
  * A TILE'S HEIGHT IS ITS OWN SETTING — served by the backend, saved with it, read by the engine.
  *
- * This file has been on both sides of that. It first asserted per-tile heights, then asserted the opposite (that no
- * tile carries one) when the engine stopped reading the column. It stopped reading it because the DATA was
- * inconsistent — `grass` and `road` said 0 while `meadow`, `water` and `path_stone` said 1, so a road sank below the
- * grass beside it and cut a trench. Ignoring the column hid that and cost the setting: a floor could never be laid
- * flat and no chosen height could be saved. Data migration 0008 made the column consistent instead, so the engine
- * reads it again.
+ * This file has been on both sides of that. It first asserted per-tile heights, then asserted the opposite
+ * (that no tile carries one) when the engine stopped reading the column. It stopped reading it because the
+ * DATA was inconsistent — `grass` and `road` said 0 while `meadow`, `water` and `path_stone` said 1, so a
+ * road sank below the grass beside it and cut a trench. Ignoring the column hid that and cost the setting:
+ * a floor could never be laid flat and no chosen height could be saved. Data migration 0008 made the column
+ * consistent instead, so the engine reads it again.
  *
  * The contract now, in one line: **placement height ?? the tile's height ?? one block.**
  */
@@ -22,25 +22,25 @@ describe("a tile's served height is what it is by default", () => {
     const ground = Object.entries(styleTiles('emoji')).filter(([, t]) => GROUND.has(t.category ?? ''))
     expect(ground.length).toBeGreaterThan(20) // a fixture that failed to load would pass this vacuously
 
-    // A flat tile has no side faces, so it occludes nothing and needs no turn in the depth sort — which is what lets
-    // ground merge into z-width runs at all. A single 1-block floor here brings back the trench.
+    // A flat tile has no side faces, so it occludes nothing and needs no turn in the depth sort — which is
+    // what lets ground merge into z-width runs at all. A single 1-block floor here brings back the trench.
     //
     // THE WATER SURFACES BREAK THIS, AND THEY ALWAYS HAVE. `seed_water_color` gives `water` a height of 0.5 on
     // purpose, so a river sits under its own bank rim, and the two bands join it: which is negative height compared
     // to walking floor / then inside that we put water with X height it can be < 1"*. That is his design and it is
     // not going away.
     //
-    // This test was GREEN on a stale fixture that carried `water` at height 0 with no frames. It was never true of
-    // the live catalog. Naming the four here rather than deleting the assertion, because the conflict is real and it
-    // is evidence for the perspective work: a non-flat ground tile is exactly the shape of *"the floor is height 0,
-    // but it's showing on top of the tall grass which has height 1"*. When that lands, this list should shrink to
-    // nothing or the rule should change on purpose. `water_still` is NOT here: a puddle stopped being ground and is a
-    // `props` film now.
+    // This test was GREEN on a stale fixture that carried `water` at height 0 with no frames. It was never
+    // true of the live catalog. Naming the four here rather than deleting the assertion, because the conflict
+    // is real and it is evidence for the perspective work: a non-flat ground tile is exactly the shape of
+    // When that lands,
+    // this list should shrink to nothing or the rule should change on purpose.
+    // `water_still` is NOT here: a puddle stopped being ground and is a `props` film now.
     //
-    // The `_f` rows are the CURRENT's frame pictures: the same water surface wearing a different frame, so they carry
-    // the same 0.5 and belong to this one exception, not to a new one. The transposed `water_y*` set that used to sit
-    // here is DELETED (2026-09-13): a heading is a texture turn at draw time, so a river running along +row needs no
-    // art of its own.
+    // The `_f` rows are the CURRENT's frame pictures: the same water surface wearing a different frame, so
+    // they carry the same 0.5 and belong to this one exception, not to a new one. The transposed `water_y*`
+    // set that used to sit here is DELETED (2026-09-13): a heading is a texture turn at draw time, so a river
+    // running along +row needs no art of its own.
     const KNOWN_NOT_FLAT = ['water', 'water_deep', 'water_f1', 'water_f2', 'water_f3', 'water_shallow']
     const standing = ground.filter(([, t]) => resolveTileHeight(t, undefined) !== 0)
     expect(standing.map(([label]) => label).sort()).toEqual(KNOWN_NOT_FLAT)

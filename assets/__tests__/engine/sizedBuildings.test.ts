@@ -1,6 +1,5 @@
 /**
- * ONE ENTRY PER BUILDING TYPE — the collapse behind the note *"why having 3 size house when we can have 1 house
- * button and allow user to make a house as big or as small as he wants???"*
+ * ONE ENTRY PER BUILDING TYPE — the collapse behind the note
  */
 import { bakedWidthOfKind, collapseSizedBuildings, isSizable, labelForType, typeOfKind } from '@/engine/sizedBuildings'
 import type { BuildingType } from '@/lib/buildingSizes'
@@ -50,8 +49,6 @@ describe('the size variants fold into one entry', () => {
 
 /**
  * EVERY TYPE THE BACKEND CAN BUILD gets a row, seeded or not. and on the fix I tried first, seeding a size for each:
- * *"THIS IS DEPRECATED, houses size is built on demand"*.
- *
  * This used to fold only what the seeded compositions contained, so a type nobody had seeded was invisible.
  */
 describe('a type with no seeded size still gets a row', () => {

@@ -1,12 +1,12 @@
 /**
  * THE FLOOR IS JUST A TILE — there is no "floor stack lift", no floor branch, no special thing.
  *
- * So the stacking rule is ONE rule for every tile: a tile lands on TOP of what is already in the cell — `level + its
- * own block height`, summed over the cell's tiles, floor INCLUDED. No `type === 'floor'` test anywhere in it, and no
- * `+1` constant that pretends every tile is exactly one block tall.
+ * So the stacking rule is ONE rule for every tile: a tile lands on TOP of what is already in the cell —
+ * `level + its own block height`, summed over the cell's tiles, floor INCLUDED. No `type === 'floor'` test
+ * anywhere in it, and no `+1` constant that pretends every tile is exactly one block tall.
  *
- * These assert the grid state directly (no rendering) — the render half (that nothing adds a floor-shaped lift on top
- * of this) lives in render/floorIsJustATile.realcanvas.test.ts.
+ * These assert the grid state directly (no rendering) — the render half (that nothing adds a floor-shaped
+ * lift on top of this) lives in render/floorIsJustATile.realcanvas.test.ts.
  */
 import { IsometricGrid, type GridAsset } from '@/engine/IsometricGrid'
 import { cellStackTop, pushTile, setTileHeight } from '@/engine/cellStack'
@@ -24,8 +24,8 @@ describe('the floor is just a tile — one stacking rule, no floor special case'
     const grid = mkGrid()
     grid.setGround(C, R, 'grass')
     // FLAT TILES NO LONGER EXIST. The ground is a block like any other, so a wall painted on grass rests on TOP of it
-    // rather than sinking into it — the same complaint that produced the rule ("houses stack on top of the grass
-    // tiles instead of inside"). This is the assertion that catches a 0-height ground coming back.
+    // rather than sinking into it — the same complaint that produced the rule ("houses stack on top of the
+    // grass tiles instead of inside"). This is the assertion that catches a 0-height ground coming back.
     expect(cellStackTop(grid, C, R)).toBe(1)
     expect(paint(grid, 1).heightLevel).toBe(1)
   })
@@ -159,10 +159,10 @@ describe('RAISE a tile and what is on top of it goes up with it', () => {
   })
 
   test("a tile SHRUNK then raised again lifts only what's ON it — never the ground under it", () => {
-    // Shrinking the bottom block brings the tile above DOWN toward the ground. Lifting by "level >= the old top" then
-    // swept the FLOOR up too, so the ground flew upward and drew as a flat tile where the block should be. At equal
-    // levels, stack ORDER decides what is on top of what — that is what keeps the ground out of it, with no floor
-    // branch anywhere in the rule.
+    // Shrinking the bottom block brings the tile above DOWN toward the ground. Lifting by "level >= the old
+    // top" then swept the FLOOR up too, so the ground flew upward and drew as a flat tile where the block
+    // should be. At equal levels, stack ORDER decides what is on top of what — that is what keeps the ground
+    // out of it, with no floor branch anywhere in the rule.
     const grid = mkGrid()
     grid.setGround(C, R, 'grass')
     const block = (level: number, blocks: number): GridAsset => {
@@ -187,9 +187,8 @@ describe('RAISE a tile and what is on top of it goes up with it', () => {
   })
 
   test('FLATTENING the ground to 0 brings what stands on it down to the ground', () => {
-    // T-140 made 0 a real height (`resolveTileHeight` reads `h >= 0`), because So flattening is a COLLAPSE, not the
-    // old no-op, and what stood on the block comes down with it instead of hanging one block up (Image #30: *"the
-    // 'floor' of the building is not aligned with the building itself"*).
+    // T-140 made 0 a real height (`resolveTileHeight` reads `h >= 0`). So flattening is a COLLAPSE, not the
+    // old no-op, and what stood on the block comes down with it instead of hanging one block up.
     const grid = mkGrid()
     grid.setGround(C, R, 'grass')
     const roof = grid.placeAsset([''], C, R, { type: 'house_4', heightLevel: 1 })
@@ -263,11 +262,10 @@ describe('RAISE a tile and what is on top of it goes up with it', () => {
   })
 
   test('…and what STANDS on it follows the floor EXACTLY, in fractions of a block', () => {
-    // *"we can increase from 0.001 block size, the blocks and cells are a control of position and measurement,
-    // doesn't necessarilly mean everything is handled by integer numbers"*. So a floor grown to 0.001 lifts the wall
-    // by exactly 0.001, it no longer rounds up to a whole phantom block. That rounding came from act_as_tile being
-    // default-TRUE, which is what left buildings a block clear of their own floor once T-140 made the ground flat;
-    // the setting is opt-in now, so the tile's height governs on its own.
+    // So a floor grown to
+    // 0.001 lifts the wall by exactly 0.001, it no longer rounds up to a whole phantom block. That rounding
+    // came from act_as_tile being default-TRUE, which is what left buildings a block clear of their own floor
+    // once T-140 made the ground flat; the setting is opt-in now, so the tile's height governs on its own.
     const grid = mkGrid()
     grid.setGround(C, R, 'grass')
     setTileHeight(grid, C, R, 0, 0) // start FLAT, the way a generated map now ships
@@ -282,9 +280,9 @@ describe('RAISE a tile and what is on top of it goes up with it', () => {
   })
 
   test('a tile that OPTS IN to act_as_tile still lifts what stands on it while staying flat', () => {
-    // The switch keeps the job first described for it: a walk-over surface (*"roads, whatever we walk
-    // over"*) that is FLAT but still counts as an occupant, so content lands on top of it. Opt-in, per tile, in the
-    // backend. This is the negative case for the test above: same flat height, different setting.
+    // The switch keeps the job first described for it: a walk-over surface () that is FLAT but still counts
+    // as an occupant, so content lands on top of it. Opt-in, per
+    // tile, in the backend. This is the negative case for the test above: same flat height, different setting.
     const grid = mkGrid()
     grid.setGround(C, R, 'grass')
     const floor = grid.floorAt(C, R)!

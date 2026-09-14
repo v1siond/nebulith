@@ -45,9 +45,9 @@ describe('assetLight — the ONE resolver for a tile\'s night glow pool', () => 
 })
 
 describe('entityLight — a CHARACTER casts a pool through the SAME resolver', () => {
-  // A light is a pool at a position and a unit has a position, so this one carries over whole. (Display / transparent
-  // / shape describe a BLOCK's faces, and a unit is drawn as a billboard, so they are not here — see the note on
-  // Entity.light.)
+  // A light is a pool at a position and a unit has a position, so this one carries over
+  // whole. (Display / transparent / shape describe a BLOCK's faces, and a unit is drawn as a billboard, so
+  // they are not here — see the note on Entity.light.)
   const unit = (light?: unknown) => ({ id: 'u1', kind: 'npc', col: 1, row: 1, light }) as never
 
   test('reads distance, intensity and colour exactly like a tile\'s', () => {

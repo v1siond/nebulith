@@ -143,12 +143,11 @@ export interface CompositionCellSettings {
   color?: string
 }
 
-/**
- * A per-tile LIGHT setting: the tile casts a warm radial GROUND GLOW POOL (drawn only at night by
+/** A per-tile LIGHT setting: the tile casts a warm radial GROUND GLOW POOL (drawn only at night by
  * `drawNightLighting`). A real, controllable SETTING authored on a composition cell (backend `settings.light`) or
- * per-instance in the editor's Light control group, round-tripping onto `GridAsset.light`. The renderer sizes the
- * pool from `distance` and strengths/tints it from `intensity`/`color`; `on:false` casts none.
- */
+  * per-instance
+ *  in the editor's Light control group, round-tripping onto `GridAsset.light`. The renderer sizes the pool from
+ *  `distance` and strengths/tints it from `intensity`/`color`; `on:false` casts none. */
 export interface AssetLight {
   /** pool STRENGTH, 0..1 — multiplies the pool's warm alpha (1 = today's default lamp brightness). */
   intensity: number
@@ -205,13 +204,13 @@ export function resolveGroundTile(
 ): ResolvedGround {
   const g = tileset.terrain[tileType]
   if (!g) {
-    // NOT GRASS. This read `?? tileset.terrain.grass`, and that one fallback is why the woodland had no
-    // visible paths: `path` has no `variants` entry, so every trail cell resolved to the GRASS variant and was
-    // painted the exact colour of the field it crossed. A hardcoded fallback for loaded data is the thing the
-    // compliance rule forbids, and here it was quietly overwriting a real served colour.
+    // NOT GRASS. This read `?? tileset.terrain.grass`, and that one fallback is why the woodland had
+    // no visible paths: `path` has no `variants` entry, so every trail cell resolved to the GRASS variant and
+    // was painted the exact colour of the field it crossed. A hardcoded fallback for loaded data is the thing
+    // the compliance rule forbids, and here it was quietly overwriting a real served colour.
     //
-    // A label with no terrain VARIANT still has a TILE, and that tile owns a colour. Use it. Only a label the catalog
-    // does not know at all comes back empty, which is the honest answer and draws nothing.
+    // A label with no terrain VARIANT still has a TILE, and that tile owns a colour. Use it. Only a label the
+    // catalog does not know at all comes back empty, which is the honest answer and draws nothing.
     const tile = tileset.tiles?.[tileType]
     return tile?.color ? { char: tile.char ?? '', fg: tile.color, bg: tile.color } : EMPTY_GROUND
   }
@@ -361,15 +360,15 @@ function resolveTileColor(tile: StyleTile, zone: string, variant: number): strin
   if (Array.isArray(c) && c.length > 0) return c[((variant % c.length) + c.length) % c.length]
   // THE FLAT SHAPE IS SERVED DATA TOO, and dropping it is how an invented colour reached the screen.
   //
-  // The backend serves a tile's colour two ways: a per-zone `settings.colors` map (240 of the 361 ascii rows) and a
-  // flat `settings.color` (every emoji row, plus exactly two ascii rows: `thicket` and `tall_grass`, authored that
-  // way in `tile_source.ex` @growth_tiles). This read only the map, so those two fell through to the neutral grey and
-  // `makeThicket` stamped #cccccc onto every thicket prop. `tintedImage` is documented as `tint x luminance(sprite)`,
-  // so the green sprig came out a pale white shape.
+  // The backend serves a tile's colour two ways: a per-zone `settings.colors` map (240 of the 361 ascii rows)
+  // and a flat `settings.color` (every emoji row, plus exactly two ascii rows: `thicket` and `tall_grass`,
+  // authored that way in `tile_source.ex` @growth_tiles). This read only the map, so those two fell through to
+  // the neutral grey and `makeThicket` stamped #cccccc onto every thicket prop. `tintedImage` is documented as
+  // `tint x luminance(sprite)`, so the green sprig came out a pale white shape.
   //
-  // and *"the issue is what you are considering thickets. the rule is fine"*. He was right on both counts: no flower
-  // ever blocked, and the thing blocking was a thicket wearing an invented colour. `tileColorByLabel` in this same
-  // file already reads both shapes; this resolver was simply incomplete.
+  // He was right on both counts: no flower ever blocked, and the
+  // thing blocking was a thicket wearing an invented colour. `tileColorByLabel` in this same file already reads
+  // both shapes; this resolver was simply incomplete.
   const flat = (tile.settings as { color?: unknown } | undefined)?.color
   if (typeof flat === 'string') return flat
   return FALLBACK_RESOLVED.color

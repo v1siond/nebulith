@@ -1,15 +1,15 @@
 /**
  * THE INVARIANT: an art style is a SET OF BAKED IMAGES and nothing else.
  *
- * So `visualForTileId` / `tilesForStyle` MUST build the SAME `Visual` shape for both styles from the tile's own baked
- * `image` — the only difference being the URL. ASCII used to DISCARD the baked image and return a raw
- * `{kind:'glyph'}`, which (a) made every hand-painted / stage-prop tile image-less under ASCII, (b) therefore missed
- * the cube-sprite cache (gated on `dv.image`), and (c) dropped it into the per-face clip+fillText path — the 2.46×
- * slower ASCII render.
+ * So `visualForTileId` / `tilesForStyle` MUST build the SAME `Visual` shape for both styles from the tile's
+ * own baked `image` — the only difference being the URL. ASCII used to DISCARD the baked image and return a
+ * raw `{kind:'glyph'}`, which (a) made every hand-painted / stage-prop tile image-less under ASCII, (b)
+ * therefore missed the cube-sprite cache (gated on `dv.image`), and (c) dropped it into the per-face
+ * clip+fillText path — the 2.46× slower ASCII render.
  *
- * These assert BEHAVIOUR against the captured `/api/tilesets` fixture (the real backend rows), positive and negative:
- * a tile WITH a baked image resolves an image Visual in EITHER style; a tile WITHOUT one still resolves its glyph
- * (the documented last-resort fallback); an unknown id resolves nothing.
+ * These assert BEHAVIOUR against the captured `/api/tilesets` fixture (the real backend rows), positive and
+ * negative: a tile WITH a baked image resolves an image Visual in EITHER style; a tile WITHOUT one still
+ * resolves its glyph (the documented last-resort fallback); an unknown id resolves nothing.
  */
 import { makeStyleTile, setStyleCatalog, styleCatalog, styleTile, styleTiles } from '@/engine/tileset/styleTiles'
 import '@/__tests__/helpers/installTilesetSeed'

@@ -1,6 +1,6 @@
 /**
  * The near-hero fade in the 2D and top views. Same distance rule as the iso view, for any tile that opted into
- * `fadeNear`.
+  * `fadeNear`.
  */
 import { nearFadeAlpha, revealAlpha } from '@/engine/render/roofReveal'
 

@@ -26,8 +26,8 @@ export default function GamesPage() {
   // The /games/[id] route resolves the start template (last-watched, else first) itself — just pass the id.
   const openGame = (g: Game) => router.push(`/personal-projects/game-engine/games/${g.id}`)
   const playGame = (g: Game) => router.push(`/personal-projects/game-engine/games/${g.id}?play=1`)
-  // Creating a game asks nothing — The gallery names it from what is already there and the editor opens; renaming is
-  // a normal edit once you are in it.
+  // Creating a game asks nothing — The gallery names it from what is
+  // already there and the editor opens; renaming is a normal edit once you are in it.
   const handleNew = async () => {
     const g = await createGame({ name: nextGameName(games) })
     router.push(`/personal-projects/game-engine/games/${g.id}`)

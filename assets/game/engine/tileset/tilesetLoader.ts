@@ -108,10 +108,11 @@ function toStyleTile(label: string, tile: ApiTile): StyleTile {
     title: tile.title ?? undefined,
     category: tile.category,
     height: tile.height,
-    // WALKABILITY IS THE BOX LIST, and this one line is the whole frontend's notion of it. It read `!tile.blocking`,
-    // so every one of the ~86 `walkable` checks downstream was really asking the flag. The backend writes
-    // `settings.collision` on every row now (`ensure_collisions/0`), so they ask the boxes instead, and the flag has
-    // no readers left.
+    // WALKABILITY IS THE BOX LIST, and this one line is the whole frontend's notion of it.
+    // 2026-09-13: It read
+    // `!tile.blocking`, so every one of the ~86 `walkable` checks downstream was really asking the flag.
+    // The backend writes `settings.collision` on every row now (`ensure_collisions/0`), so they ask the
+    // boxes instead, and the flag has no readers left.
     walkable: !occupiesItsCell(tile),
     image: abs(tile.image_url),
     char: tile.glyph || tile.emoji || '',

@@ -37,12 +37,13 @@ export function chromeVisible(state: ChromeState): boolean {
 /**
  * The map should fill the SCREEN, because nothing is drawn around it.
  *
- * It did exactly that: the shell's grid is a four-column editor layout (rail, panel, canvas, inspector) and it stayed
- * in force while those three columns rendered nothing, so the map kept the width it had when they were there. A
- * `.play` layout was written for this and the class was never once applied, so the rule sat dead in the stylesheet.
+ * It did exactly that: the shell's grid is a four-column
+ * editor layout (rail, panel, canvas, inspector) and it stayed in force while those three columns rendered
+ * nothing, so the map kept the width it had when they were there. A `.play` layout was written for this and
+ * the class was never once applied, so the rule sat dead in the stylesheet.
  *
- * Both of his cases, and only those: the Preview toggle (`showSidebars` off) and Play. Not the games overlay, which
- * is its own full-screen surface and does not want the canvas laid out at all.
+ * Both of his cases, and only those: the Preview toggle (`showSidebars` off) and Play. Not the games
+ * overlay, which is its own full-screen surface and does not want the canvas laid out at all.
  */
 export function canvasFullBleed(state: ChromeState): boolean {
   return (!state.showSidebars || state.playMode) && !state.showGamesView

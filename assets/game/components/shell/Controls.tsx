@@ -1,12 +1,13 @@
 /**
  * THE CONTROL PRIMITIVES — the small pieces every panel is built from.
  *
- * Carried over from the approved design at:8899 with the same class names, so the ported CSS applies with no new
- * rules. Two decisions here are the design's, not incidental:
+ * Carried over from the approved design at :8899 with the same class names, so the ported CSS applies with
+ * no new rules. Two decisions here are the design's, not incidental:
  *
- * · **A LIST, never pills, for filters.** `FilterList` is that list, and it carries a count per row so the label has
- * information scent. · **Every label names the EFFECT, not the field.** "Z-Width" became "How many cells it spans".
- * So these take plain-language labels and an optional (i) rather than a field name.
+ * · **A LIST, never pills, for filters.**
+ *    `FilterList` is that list, and it carries a count per row so the label has information scent.
+ *  · **Every label names the EFFECT, not the field.** "Z-Width" became "How many cells it spans". So these
+ *    take plain-language labels and an optional (i) rather than a field name.
  */
 import { InfoButton } from './InfoButton'
 

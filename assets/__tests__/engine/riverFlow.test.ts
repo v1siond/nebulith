@@ -1,18 +1,18 @@
 /**
  * WHICH WAY THE RIVER IS GOING.
  *
- * and image #9 marking three headings on a river that rings the map.
+ * Image #9 marking three headings on a river that rings the map.
  *
- * The heading is DATA on the cell; the renderer turns the water's texture by it (`turnFaceTexture`), so the picture
- * follows the channel with one baked frame set.
+ * The heading is DATA on the cell; the renderer turns the water's texture by it (`turnFaceTexture`), so the
+ * picture follows the channel with one baked frame set.
  *
- * WHAT WENT WRONG THE FIRST TIME, because it is the point of the tests below. The first field walked the wet cells as
- * a graph and gave each cell the step that reached it. That is correct for a channel ONE cell wide and wrong for
- * every real river, because the walk wanders across a wide channel as readily as along it. He drew the result
- * exactly: *"WE HAVE WATER LIKE | - | - |- WHEN IT SHOULD BE ------- / ------ / ------"*.
+ * WHAT WENT WRONG THE FIRST TIME, because it is the point of the tests below. The first field walked the wet
+ * cells as a graph and gave each cell the step that reached it. That is correct for a channel ONE cell wide
+ * and wrong for every real river, because the walk wanders across a wide channel as readily as along it. He
+ * drew the result exactly:
  *
- * So the test that matters is not "every cell has a heading" (the broken field passed that). It is that NEIGHBOURS
- * AGREE: a stretch of river has to come out one way, cross-section included.
+ * So the test that matters is not "every cell has a heading" (the broken field passed that). It is that
+ * NEIGHBOURS AGREE: a stretch of river has to come out one way, cross-section included.
  */
 import '@/__tests__/helpers/installTilesetSeed'
 import { generateStage } from '@/engine/stageGenerator'
@@ -80,7 +80,7 @@ describe('every channel cell states its heading', () => {
 
 
   it('neighbouring cells of one river agree which way it runs', () => {
-    // THE measure for *"ALL FUCKING TILES USED ARE RANDOMLY ALIGNED"*. A global split means nothing on its
+    // THE measure for A global split means nothing on its
     // own, a river is allowed to turn. What reads as random is two cells SIDE BY SIDE drawing their current
     // across each other, so that is what this counts.
     //

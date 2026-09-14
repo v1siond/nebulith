@@ -105,8 +105,9 @@ describe('meadow layouts — structural match to #14 / #24', () => {
     const water = new Set<string>()
     wet.ground.forEach((rowArr, r) => rowArr.forEach((g, c) => { if (g === 'water') water.add(`${c},${r}`) }))
     expect(wet.trees.some(t => water.has(`${t.col},${t.row}`))).toBe(false)
-    // A ROCK IS THE ONE THING THAT BELONGS IN THE RIVER. Everything else standing in water is still the bug this test
-    // was written for (a tree rooted mid-channel), so the rule keeps its teeth and gains exactly one exception.
+    // A ROCK IS THE ONE THING THAT BELONGS IN THE RIVER.
+    // Everything else standing in water is still the bug this test was written for
+    // (a tree rooted mid-channel), so the rule keeps its teeth and gains exactly one exception.
     const standing = wet.props.filter(p => p.blocking && p.label !== 'rock')
     expect(standing.some(p => water.has(`${p.col},${p.row}`))).toBe(false)
   })

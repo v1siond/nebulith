@@ -72,10 +72,10 @@ describe('villageLayout — buildingMix scales by settlement', () => {
 })
 
 /**
- * WHAT A PLACE IS MADE OF. with a town of *"wood houses and elements, stables"* against a city of *"skycrappers"*.
+ * WHAT A PLACE IS MADE OF. with a town of against a city of
  *
- * A look used to be a palette, so the answer to "which buildings" was the same list everywhere. These pin the list
- * itself, per place, because that is the difference he asked for.
+ * A look used to be a palette, so the answer to "which buildings" was the same list everywhere. These pin the
+ * list itself, per place, because that is the difference he asked for.
  */
 describe('villageLayout: a town and a city are made of different buildings', () => {
   const mixOf = (settlement: 'town' | 'city') => new Set(buildingMix(settlement, seededRng(11)))
@@ -358,8 +358,8 @@ describe('villageLayout — house footprints vary in size', () => {
   })
 
   it('plants ONE default width when no weighting is served — it invents no variety of its own', () => {
-    // With nothing served there is nothing to randomize FROM, and the honest result is the default size rather than a
-    // spread this file made up.
+    // With nothing served there is nothing to randomize FROM, and
+    // the honest result is the default size rather than a spread this file made up.
     const widths = new Set<number>()
     for (let s = 1; s <= 8; s++) {
       const layout = planVillage(60, 44, seededRng(s), SIZES, 'town')
@@ -379,8 +379,9 @@ describe('villageLayout — house footprints vary in size', () => {
 })
 
 describe('the SERVED settlement tuning wins over this file\'s defaults', () => {
-  // Nine numbers in villageLayout had a hand-kept twin in `settlement` on /api/generators — houseWidths was the first
-  // one traced, and it was being parsed and ignored. These prove the served value is the one that lands.
+  // Nine numbers in
+  // villageLayout had a hand-kept twin in `settlement` on /api/generators — houseWidths was the first one
+  // traced, and it was being parsed and ignored. These prove the served value is the one that lands.
   const seed = () => seededRng(5)
 
   it('PREFERS the served plaza size — the compact 5 is the fallback when it will not fit', () => {

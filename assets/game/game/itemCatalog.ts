@@ -1,13 +1,13 @@
 /**
  * THE ITEM CATALOG, from the backend (`GET /api/items`) — §3.14b's #1 violation, closed.
  *
- * `game/gear.ts` used to DECLARE the catalog: 6 weapons, 10 armour pieces and 5 consumables with complete stat blocks
- * (`baseDamage: 12, baseDefense: 2, strengthBonus: 3, reachCells: 1`) plus the two starter kits, in a file nothing
- * validated.
+ * `game/gear.ts` used to DECLARE the catalog: 6 weapons, 10 armour pieces and 5 consumables with complete
+ * stat blocks (`baseDamage: 12, baseDefense: 2, strengthBonus: 3, reachCells: 1`) plus the two starter
+ * kits, in a file nothing validated.
  *
- * This module owns the load and the shape conversion; `gear.ts` became a reader over it. The rule that makes it
- * honest: an EMPTY catalog is empty. Nothing here invents a fallback sword — a failed load means the bag has no items
- * to offer, exactly as an unreachable tileset means no tiles, and the UI says so.
+ * This module owns the load and the shape conversion; `gear.ts` became a reader over it. The rule that
+ * makes it honest: an EMPTY catalog is empty. Nothing here invents a fallback sword — a failed load means
+ * the bag has no items to offer, exactly as an unreachable tileset means no tiles, and the UI says so.
  */
 import { NEBULITH_API } from '@/lib/nebulithApi'
 import type { Item, Weapon, Armor, ConsumableEffect, GearSlot, WeaponKind, ArmorKind } from './types'

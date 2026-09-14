@@ -249,18 +249,14 @@ export interface Entity {
   movement?: MovementPattern
   /** retaliation pattern (enemies): melee/ranged + cooldown. Omitted = engine default. */
   attack?: AttackPattern
-  /**
-   * CAPABILITY SETTING — can this unit be attacked (targeted + take damage)? "all units are the same … can be
-   * attacked is a setting". Read via runtime/capabilities.isAttackable, which defaults it BY KIND (enemy = true,
-   * others = false) so existing saves are unchanged; ANY unit flagged true becomes attackable regardless of kind. NOT
-   * gated on `kind === 'enemy'` in the combat/targeting code.
-   */
+  /** CAPABILITY SETTING — can this unit be attacked (targeted + take damage)? "all units are the same …
+   * can be attacked is a setting". Read via runtime/capabilities.isAttackable, which defaults it BY KIND (enemy =
+    * true, others = false) so existing saves are unchanged; ANY unit flagged true
+   *  becomes attackable regardless of kind. NOT gated on `kind === 'enemy'` in the combat/targeting code. */
   hittable?: boolean
-  /**
-   * CAPABILITY SETTING — is this unit hostile (does it attack the player / retaliate)? "hostile … is a setting". Read
-   * via runtime/capabilities.isHostile, defaulting BY KIND (enemy = true). A unit can thus be `hittable: true,
-   * hostile: false` — attackable but peaceful — without a per-kind branch.
-   */
+  /** CAPABILITY SETTING — is this unit hostile (does it attack the player / retaliate)? "hostile … is a
+   * setting". Read via runtime/capabilities.isHostile, defaulting BY KIND (enemy = true). A
+   *  unit can thus be `hittable: true, hostile: false` — attackable but peaceful — without a per-kind branch. */
   hostile?: boolean
   /** does this character obstruct movement? Defaults to false — characters are walk-through
    *  (the player + patrols pass right through them) unless the author flips on the per-unit
@@ -293,12 +289,12 @@ export interface Entity {
   /** editor colour override for the figure glyph. Absent → the kind/role default palette. */
   color?: string
   /**
-   * PER-UNIT LIGHT — this character casts the same warm night ground pool a tile does, from the same `AssetLight`
-   * shape and through the same resolver. A torch-bearer, a lantern NPC, a glowing boss.
+   * PER-UNIT LIGHT — this character casts the same warm night ground pool a tile does, from the same
+   * `AssetLight` shape and through the same resolver. A torch-bearer, a lantern NPC, a glowing boss.
    *
-   * This is the one of those that a BILLBOARD can honour: a light is a pool at a position, and a unit has a position.
-   * Display / transparent / shape describe the faces of a BLOCK, and a unit is not drawn as one (`drawIsoEntity` is
-   * the billboard exception), so those stay with the block work.
+   * This is the one of those that a BILLBOARD can honour: a light is a pool at a position,
+   * and a unit has a position. Display / transparent / shape describe the faces of a BLOCK, and a unit is
+   * not drawn as one (`drawIsoEntity` is the billboard exception), so those stay with the block work.
    */
   light?: AssetLight
   /** shared settings-panel pose — x/y offset, rotation, flip (same shape a tile carries). Authored in the
@@ -345,8 +341,9 @@ export type QuestState = 'available' | 'active' | 'completed' | 'turned_in'
 /**
  * WHAT A UNIT SAYS.
  *
- * · static what it says any time · quest what it says about ONE quest while that quest is in a given state ·
- * situational what it says while a situation holds (see DIALOG_SITUATIONS in runtime/dialog.ts)
+ *  · static      what it says any time
+ *  · quest       what it says about ONE quest while that quest is in a given state
+ *  · situational what it says while a situation holds (see DIALOG_SITUATIONS in runtime/dialog.ts)
  */
 export type DialogKind = 'static' | 'quest' | 'situational'
 /** The situations a dialog can wait for: the world state the engine actually tracks today. */

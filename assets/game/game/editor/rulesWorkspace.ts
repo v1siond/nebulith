@@ -189,7 +189,7 @@ export function questRows(
  * Why "＋ New quest" is unavailable, or null when it is available.
  *
  * §3.8's defect was that the entry point simply did not exist when there was no NPC, so nothing explained
- * the prerequisite. Returning the REASON lets the panel state it (§4.8: *"ⓘ needs an NPC on this level"*)
+ * the prerequisite. Returning the REASON lets the panel state it (§4.8: )
  * instead of showing a disabled button with no explanation.
  */
 export function questBlockedReason(npcs: readonly unknown[]): string | null {
@@ -199,8 +199,7 @@ export function questBlockedReason(npcs: readonly unknown[]): string | null {
 /**
  * Why "＋ Add a trigger to the selection" is unavailable, or null.
  *
- * A trigger hangs off something, so there has to be a something selected (§4.8: *"ⓘ Select a cell or a
- * character first."*).
+ * A trigger hangs off something, so there has to be a something selected (§4.8: ).
  */
 export function triggerBlockedReason(hasSelection: boolean): string | null {
   return hasSelection ? null : 'Select a cell or a character first.'

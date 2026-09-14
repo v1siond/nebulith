@@ -1,16 +1,16 @@
 /**
  * BUILDING SIZES COME FROM THE BACKEND — they are not copied into the frontend.
  *
- * — and, on the lockstep this replaces: *"generating bigger houses, just mean we'll store bigger houses in the
- * backend"*.
+ * — and, on the
+ * lockstep this replaces:
  *
  * The same truth used to live in THREE places: `buildingCatalog.BUILDING_DEPTH`,
- * `buildingCatalog.BUILDING_PLACE_LENGTH`, and a second pair inside `villageLayout`. All three were hand-maintained
- * against `Nebulith.Catalog.BuildingCompositions` with nothing enforcing the match — so raising a building's depth in
- * Elixir silently desynced the plot planner from what the stamp actually fills.
+ * `buildingCatalog.BUILDING_PLACE_LENGTH`, and a second pair inside `villageLayout`. All three were
+ * hand-maintained against `Nebulith.Catalog.BuildingCompositions` with nothing enforcing the match — so raising
+ * a building's depth in Elixir silently desynced the plot planner from what the stamp actually fills.
  *
- * Now they RESOLVE from the loaded compositions. These tests prove derivation, not agreement: they change the loaded
- * footprint and assert the answer moves with it. A copied constant cannot pass that.
+ * Now they RESOLVE from the loaded compositions. These tests prove derivation, not agreement: they change the
+ * loaded footprint and assert the answer moves with it. A copied constant cannot pass that.
  */
 import { styleCatalog } from '@/engine/tileset/styleTiles'
 import { useSeedTileset } from '@/__tests__/helpers/tilesetSeed'

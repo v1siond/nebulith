@@ -1,14 +1,15 @@
 /**
  * THE GRID's controls — the matrix inside New world, the thickness in the view bar.
  *
- * > the UX experience from ground tickness is bad, plus the ground thicknes is not a per template > setting, is just
- * a general setting of the grid. It doesn't allow me to delete number, it doesn't > update the thickness in real
- * time, in short is bug, when I click build this world is reset to 1 >... we should add an option in the main sidebar
- * related specifically to the grid
+ *   > the UX experience from ground tickness is bad, plus the ground thicknes is not a per template
+ *   > setting, is just a general setting of the grid. It doesn't allow me to delete number, it doesn't
+ *   > update the thickness in real time, in short is bug, when I click build this world is reset to 1
+ *   > ... we should add an option in the main sidebar related specifically to the grid
  *
- * The matrix tests came over from `generateControls.test.tsx` unchanged in intent: the numbers are still a draft, the
- * panel still refuses to quietly rewrite a size, and it still counts whatever you type. What is NEW here is the two
- * things he reported as broken — a field you can empty, and a thickness that lands as you type.
+ * The matrix tests came over from `generateControls.test.tsx` unchanged in intent: the numbers are still a
+ * draft, the panel still refuses to quietly rewrite a size, and it still counts whatever you type. What is
+ * NEW here is the two things he reported as broken — a field you can empty, and a thickness that lands as
+ * you type.
  */
 import { render, screen, fireEvent } from '@testing-library/react'
 import { MapMatrixSection, GroundThicknessControl, NumberField } from '@/components/game/gridPanel'

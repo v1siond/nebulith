@@ -1,13 +1,14 @@
 /**
  * An HTTP failure from one of the app's own APIs, with the STATUS kept on it.
  *
- * Every `fetch` wrapper in `api.ts` used to throw a bare `Error` with the reason baked into a sentence (`'Template
- * not found'`, `` `Failed to get template: ${statusText}` ``). A caller could then only re-print that sentence: it
- * had no way to tell "this map was deleted" (404, the user's problem, and fixable by picking another map) from "the
- * backend is down" (5xx, not the user's problem, and fixable by retrying). Both degraded to the same dead end.
+ * Every `fetch` wrapper in `api.ts` used to throw a bare `Error` with the reason baked into a
+ * sentence (`'Template not found'`, `` `Failed to get template: ${statusText}` ``). A caller could
+ * then only re-print that sentence: it had no way to tell "this map was deleted" (404, the user's
+ * problem, and fixable by picking another map) from "the backend is down" (5xx, not the user's
+ * problem, and fixable by retrying). Both degraded to the same dead end.
  *
- * Handling them differently starts with being able to tell them apart, so the status travels with the error and the
- * UI decides what to show.
+ * Handling them differently starts with being able to tell them
+ * apart, so the status travels with the error and the UI decides what to show.
  */
 export class ApiError extends Error {
   /** The HTTP status the server answered with. */
@@ -59,7 +60,7 @@ export async function apiFailure(response: Response, fallback: string): Promise<
  *     POST /api/templates (blank name)   422  {"errors":{"name":["can't be blank"]}}
  *     GET  /api/templates/does-not-exist 404  {"errors":{"detail":"Not Found"}}
  *
- * and a grep for a singular `"error"` key across `lib/nebulith_web/` finds none. So this returned null for
+ * A grep for a singular `"error"` key across `lib/nebulith_web/` finds none. So this returned null for
  * EVERY real backend failure and the caller's generic sentence was all anyone ever saw: a blank name, a bad
  * size, a conflict and a dead database all read "This map could not be saved". The `error` branch stays,
  * harmlessly, for anything that does speak it.

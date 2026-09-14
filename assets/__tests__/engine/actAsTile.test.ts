@@ -3,22 +3,21 @@
  *
  * The switch is OPT-IN, and it is observable again. Both facts come out of decisions already made:
  *
- * 1. He originally described it as opt-in: *"Default is FALSE; we set it in compositions when it makes sense, roads,
- * whatever we walk over"*. On 2026-07-26 he asked for the opposite: *"act_as_tile set to true in ALL cells/block by
- * default … houses stack on top of the grass tiles instead of inside"*. 2. At that time every ground was a height-1
- * cube, so default-TRUE was a NO-OP: `stackContribution` is `actsAsTile ? max(1, blocks): blocks`, and both branches
- * agree when blocks is already 1.
+ * 1. He originally described it as opt-in: On 2026-07-26 he asked for the opposite:
+ *  2. At that time every ground was a height-1 cube, so default-TRUE was a NO-OP: `stackContribution` is
+ *     `actsAsTile ? max(1, blocks) : blocks`, and both branches agree when blocks is already 1.
  *
- * T-140 then made the ground FLAT (*"floor are regular fucking tiles, nothing more nothing less"*) and moved the
- * map's thickness onto the GRID. That turned the dormant default into a live defect: a flat floor claimed a block of
- * vertical space that nothing draws, so every building was stamped one block clear of its own floor.
+ * T-140 then made the ground FLAT () and moved
+ * the map's thickness onto the GRID. That turned the dormant default into a live defect: a flat floor claimed
+ * a block of vertical space that nothing draws, so every building was stamped one block clear of its own
+ * floor.
  *
- * So the default went back to opt-in, which serves his 2026-07-26 GOAL unchanged. On a flat ground tile, level 0 IS
- * on top of it, there is no interior to sink into. That leaves the switch doing the job he first described: a
- * walk-over surface that is flat but still counts as an occupant.
+ * So the default went back to opt-in, which serves his 2026-07-26 GOAL unchanged. On a flat ground tile,
+ * level 0 IS on top of it, there is no interior to sink into. That leaves the switch doing the job he first
+ * described: a walk-over surface that is flat but still counts as an occupant.
  *
- * These tests pin both halves: the lego rule (a tile is as tall as its height says, heights accumulate, a fresh cell
- * already holds a floor) and the switch itself, on a FLAT tile, which is the only place it shows.
+ * These tests pin both halves: the lego rule (a tile is as tall as its height says, heights accumulate, a
+ * fresh cell already holds a floor) and the switch itself, on a FLAT tile, which is the only place it shows.
  */
 import { makeStyleTile, setStyleTile, styleTile } from '@/engine/tileset/styleTiles'
 import { cellStackTop, pushTile, setCellActAsTile } from '@/engine/cellStack'
@@ -88,10 +87,9 @@ describe('heights ACCUMULATE — the rule that makes it a lego model', () => {
 })
 
 describe('the act_as_tile switch is LIVE again, it is what a FLAT tile uses to still be stood on', () => {
-  // The old version of this suite predicted its own end: *"if this test ever FAILS, the height model has gained
-  // sub-block tiles again and the switch has become observable"*. T-140 did exactly that. On a tile that is already a
-  // block tall the switch cannot change anything (max(1, 1) === 1), so both cases below use a FLAT tile, the only
-  // place it is observable, and the case
+  // The old version of this suite predicted its own end: T-140 did exactly that. On a tile
+  // that is already a block tall the switch cannot change anything (max(1, 1) === 1), so both cases below use
+  // a FLAT tile, the only place it is observable, and the case
 
   it('does NOT lift what stands on a flat tile by default, opt-in not opt-out', () => {
     // This is the defect from Image #30 stated as a test. Default-TRUE fabricated a block of vertical space

@@ -54,21 +54,21 @@ export interface AssetAnimationFx {
 /**
  * THE LIVE SPRITE FRAME for a placed asset: the playback that was stubbed.
  *
- * `resolveAssetAnimation` above resolves the SETTINGS kind and returns null for a sprite, with its own comment saying
- * so: *"Only `sprite` animations in scope → no settings written → treat as no-op (playback stubbed in Phase 1)"*. So
- * a tile carrying a frame-swap animation animated nothing, in any view. `spriteFrameIndex` was already real,
- * clock-derived and tested; nothing consumed it.
+ * `resolveAssetAnimation` above resolves the SETTINGS kind and returns null for a sprite, with its own comment
+ * saying so: So a tile carrying a frame-swap animation animated nothing, in any view. `spriteFrameIndex` was
+ * already real, clock-derived and tested; nothing consumed it.
  *
- * Water is a FLOOR, and a floor is an ordinary level-0 asset drawn through the same per-asset path as everything
- * else, so giving that path a live frame is what makes a ground tile able to move at all.
+ * Water is a FLOOR, and
+ * a floor is an ordinary level-0 asset drawn through the same per-asset path as everything else, so giving that
+ * path a live frame is what makes a ground tile able to move at all.
  *
  * Why a separate helper rather than a field on `AssetAnimationFx`: the picture is chosen inside the draw
  * (`drawIsoAssetAscii`), which never receives that fx, and all four existing callers read only `.asset` and
  * `.opacity`. One exported function keeps this additive, so an un-animated tile takes the same path it always did.
  *
  * The frame is returned RESOLVED but not turned into a picture: `frameImage` lives in `./shared`, and `shared`
- * already imports this module, so resolving it here would close a circular import. The caller owns that step, which
- * is also where the tile's own resting image is known.
+ * already imports this module, so resolving it here would close a circular import. The caller owns that step,
+ * which is also where the tile's own resting image is known.
  *
  * Returns null when the asset carries no sprite animation in scope, so an un-animated tile allocates nothing.
  */
@@ -129,25 +129,25 @@ function tileAnimations(asset: GridAsset, token: TileStyle): readonly Animation[
 
   // A TILE MAY DECLARE THAT IT HAS NONE, and that is different from saying nothing.
   //
-  // The collapse below is right for the PICTURE (every water band shares one image) and it handed the puddle the
-  // river's four frames along with it. `water_still` is authored with an EMPTY `animations` list to say so, so an own
-  // row that carries the key wins outright and never falls through. A band that carries no key at all still inherits,
-  // which is what keeps a river flowing.
+  // The
+  // collapse below is right for the PICTURE (every water band shares one image) and it handed the puddle the
+  // river's four frames along with it. `water_still` is authored with an EMPTY `animations` list to say so, so
+  // an own row that carries the key wins outright and never falls through. A band that carries no key at all
+  // still inherits, which is what keeps a river flowing.
   const own = settings(asset.tileKey)
   const list = own && 'animations' in own ? own.animations : settings(asset.label ?? assetKind(asset))?.animations
   return Array.isArray(list) && list.length > 0 ? list : undefined
 }
 
-// A CELL'S HEADING IS NOT AN ANIMATION. There used to be a `pickHeading` here, choosing one of four frame sets by the
-// cell's `flow`, because the drift was baked into four sets of pictures. It is a TEXTURE TURN now
-// (`turnFaceTexture`), applied where the face is painted, so one loop serves every heading and this bridge has
-// nothing directional left in it.
+// A CELL'S HEADING IS NOT AN ANIMATION. There used to be a `pickHeading` here, choosing one of four frame
+// sets by the cell's `flow`, because the drift was baked into four sets of pictures. It is a TEXTURE TURN
+// now (`turnFaceTexture`), applied where the face is painted, so one loop serves every heading and this
+// bridge has nothing directional left in it.
 
-/**
- * A `night`-triggered animation is a CONDITION, not a one-shot: it plays ONLY while the scene is in night mode. Every
- * OTHER trigger plays regardless of day/night. Gated HERE in the render bridge (the pure engine ignores triggers), so
- * a filtered-out night animation neither advances nor renders while it's day.
- */
+/** A `night`-triggered animation is a CONDITION, not a one-shot: it plays ONLY while the scene is in night
+ * mode. Every OTHER trigger plays regardless of day/night. Gated HERE in the
+ *  render bridge (the pure engine ignores triggers), so a filtered-out night animation neither advances nor
+ *  renders while it's day. */
 function animationPlaysAtDayNight(anim: { trigger?: { on: string } }, dayNight: DayNight): boolean {
   if (anim.trigger?.on === 'night') return dayNight === 'night'
   return true

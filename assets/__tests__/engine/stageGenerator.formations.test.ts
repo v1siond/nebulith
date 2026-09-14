@@ -1,13 +1,14 @@
 /**
- * HOW THE TREES ARE DISTRIBUTED — the thing that tells two forests apart when both hold the same number of trees.
+ * HOW THE TREES ARE DISTRIBUTED — the thing that tells two forests apart when both hold the same number of
+ * trees.
  *
  * with six photographs.
  *
- * Two served numbers carry it. `lattice` is the scale of the noise the canopy is scored against — small scores every
- * few cells differently so trees land as fine scatter, large makes neighbours score alike so they land as continuous
- * masses. `spacing` is the minimum gap between trunks. A formation is DISTRIBUTION only; pairing it with a density is
- * what produces a particular look, which is why #12 and #14 use the same kind of grouping and read as completely
- * different places.
+ * Two served numbers carry it. `lattice` is the scale of the noise the canopy is scored against — small
+ * scores every few cells differently so trees land as fine scatter, large makes neighbours score alike so
+ * they land as continuous masses. `spacing` is the minimum gap between trunks. A formation is DISTRIBUTION
+ * only; pairing it with a density is what produces a particular look, which is why #12 and #14 use the same
+ * kind of grouping and read as completely different places.
  */
 import '@/__tests__/helpers/installTilesetSeed'
 import { generateStage, type NatureDensity } from '@/engine/stageGenerator'

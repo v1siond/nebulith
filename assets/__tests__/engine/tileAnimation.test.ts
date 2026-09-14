@@ -287,9 +287,9 @@ describe('scope + sprite frame playback', () => {
   })
 })
 
-// The FAILING-bulb envelope. Sampled across the phase [0,1), it must be a MINORITY of dips over a mostly-ON baseline,
-// STEPPED (abrupt jumps — never a smooth sine), and deterministic. easeAnim routes `ease:'flicker'` to it, so an
-// opacity flicker animation reads erratic, not sine.
+// The FAILING-bulb envelope. Sampled across the phase [0,1),
+// it must be a MINORITY of dips over a mostly-ON baseline, STEPPED (abrupt jumps — never a smooth sine), and
+// deterministic. easeAnim routes `ease:'flicker'` to it, so an opacity flicker animation reads erratic, not sine.
 describe('flickerEase — the irregular, stepped failing-bulb envelope (NOT a sine yoyo)', () => {
   const N = 400
   const samples = Array.from({ length: N }, (_, i) => flickerEase(i / N))

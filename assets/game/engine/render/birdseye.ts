@@ -510,8 +510,9 @@ export function renderTopView(params: RenderTopViewParams) {
     drawNightLighting(ctx, w, h, lamps)
   }
 
-  // ─── WEATHER, on the MAP's own floor, over everything the night pass left. So the view hands over the four drawn
-  // corners of the ground plane, and the rain falls on THAT instead of over the whole canvas.
+  // ─── WEATHER, on the MAP's own floor, over everything the night pass left.
+  // So the view hands over the four
+  //     drawn corners of the ground plane, and the rain falls on THAT instead of over the whole canvas.
   drawWeather(ctx, w, h, weather, now, {
     corners: [
       { x: offsetX, y: offsetY },

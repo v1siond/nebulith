@@ -1,9 +1,10 @@
 /**
  * Naming a new game or level.
  *
- * Creating either asks the user nothing — the name is generated and the editor opens. A plain counter rather than a
- * random word, so a gallery of untouched records sorts and scans the way a person expects; renaming one is a normal
- * edit afterwards (both surfaces already have a rename field).
+ * Creating either asks the user nothing — the name is generated and the
+ * editor opens. A plain counter rather than a random word, so a gallery of untouched records sorts
+ * and scans the way a person expects; renaming one is a normal edit afterwards (both surfaces
+ * already have a rename field).
  *
  * Pure — no React, no API.
  */
@@ -36,10 +37,10 @@ export const nextLevelName = (existing: readonly { name: string }[]): string => 
 /**
  * The name a level SAVES under: what the person typed, or a generated one when they typed nothing.
  *
- * A save must never be refused for want of a name. The editor starts on an empty name and the name field was hidden
- * whenever the editor opened inside a game, so the save gate demanded a value the interface never collected. The
- * backend requires one too (`Template.changeset` validates `:name`), so the resolution belongs here, next to the
- * generator that the add-a-level path already uses.
+ * A save must never be refused for want of a name. The editor starts on an empty name
+ * and the name field was hidden whenever the editor opened inside a game, so the save gate demanded a value
+ * the interface never collected. The backend requires one too (`Template.changeset` validates `:name`), so
+ * the resolution belongs here, next to the generator that the add-a-level path already uses.
  */
 export function resolveLevelName(current: string, existing: readonly { name: string }[]): string {
   return current.trim() || nextLevelName(existing)

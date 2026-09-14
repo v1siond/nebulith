@@ -114,9 +114,10 @@ describe('sample compositions — realistic building/fountain/tree DATA from the
     animations?: Array<{ id: string; yoyo?: boolean; loop?: boolean; ease?: string; durationMs: number; startDelayMs: number; tracks: Array<{ setting: string; from: number; to: number }> }>
   }
 
-  // EXACTLY 3 water columns animate in BOTH variants, each the SAME 1→4 sine-yoyo grow but with a DISTINCT durationMs
-  // + startDelayMs so they pulse OUT of sync. This is the desync evidence at the DATA level — it would fail if the
-  // three shared one timing.
+  // EXACTLY 3 water columns animate in BOTH variants,
+  // each the SAME 1→4 sine-yoyo grow but with a DISTINCT durationMs + startDelayMs so they pulse OUT of sync
+  // . This is the desync evidence at the
+  // DATA level — it would fail if the three shared one timing.
   function assertDesyncedGrow(animated: WaterCell[]): void {
     expect(animated).toHaveLength(3)
     for (const cell of animated) {
@@ -187,9 +188,9 @@ describe('sample compositions — realistic building/fountain/tree DATA from the
   })
 
   test('the fountain/well basin rim and water default to zIndex 0 (draw priority is a capability, not a default)', () => {
-    // Reverted: nothing carries a non-zero draw priority by DEFAULT. The zIndex CAPABILITY stays wired —
-    // isoDepthCompare still honours it (isoDepthZIndex.test.ts) — but the served fountain/well data is 0 for both the
-    // water and its rim. Pure DATA, from the API.
+    // Reverted: nothing carries a non-zero draw priority by DEFAULT. The
+    // zIndex CAPABILITY stays wired — isoDepthCompare still honours it (isoDepthZIndex.test.ts) — but the served
+    // fountain/well data is 0 for both the water and its rim. Pure DATA, from the API.
     for (const name of ['fountain', 'well']) {
       const cells = comp(name).cells as Array<Cell & { zIndex?: number }>
       const water = cells.filter(c => c.label === 'water_c')

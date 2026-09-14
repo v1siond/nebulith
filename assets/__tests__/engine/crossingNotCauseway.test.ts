@@ -1,13 +1,12 @@
 /**
  * A WAY THE RIVER LANDED ON IS NOT A WAY ANY MORE, except where it crosses.
  *
- * and 2026-09-12: *"bridge wood zone is almost as long and big as the rivr"* and *"we just need the actual bridge
- * connecting"*.
+ * And
  *
- * The ways are planned on dry ground and the river is carved over them, so a way could come out lying INSIDE the
- * channel for its whole length, and every wet cell of it was planked. Measured before this pass, flat wooden deck
- * cells on one seed: woodland 50, meadow 63, jungle 64. After: 18, 30, 36, with every map still a single walkable
- * island.
+ * The ways are planned on dry ground and the river is carved over them, so a way could come out lying INSIDE
+ * the channel for its whole length, and every wet cell of it was planked. Measured before this pass, flat
+ * wooden deck cells on one seed: woodland 50, meadow 63, jungle 64. After: 18, 30, 36, with every map still a
+ * single walkable island.
  */
 import { narrowWaysToCrossings } from '@/engine/riverNetwork'
 

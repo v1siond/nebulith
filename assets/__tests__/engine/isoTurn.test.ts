@@ -1,15 +1,15 @@
 /**
  * CONTINUOUS CAMERA TURN — the pure maths behind the ANIMATED, draggable iso rotation.
  *
- * The chosen shape: a drag SPINS the world continuously and, on release, EASES into the NEAREST of the 4 corners; the
- * existing 4 buttons stay as quick jumps (now animated). At REST nothing changes — the grid model, the depth sort and
- * the baked tile art are exactly today's.
+ * The chosen shape: a drag SPINS the world continuously and, on release, EASES into the NEAREST of the 4
+ * corners; the existing 4 buttons stay as quick jumps (now animated). At REST nothing changes — the grid model,
+ * the depth sort and the baked tile art are exactly today's.
  *
- * This file pins the pure half (no canvas, no render): the turn value, the continuous rotation it drives, and the
- * easing/settle helpers. The rendered frame is `isoCameraTurn.test.ts`.
+ * This file pins the pure half (no canvas, no render): the turn value, the continuous rotation it drives, and
+ * the easing/settle helpers. The rendered frame is `isoCameraTurn.test.ts`.
  *
- * The hard requirement running through it: a WHOLE turn must be the EXACT quarter-turn maths the 4-way camera already
- * ships (`orientCell`/`deorientCell`), so a settled camera can never drift from today's frame.
+ * The hard requirement running through it: a WHOLE turn must be the EXACT quarter-turn maths the 4-way camera
+ * already ships (`orientCell`/`deorientCell`), so a settled camera can never drift from today's frame.
  */
 import {
   wrapTurn, isWholeTurn, facingForTurn, orientedDimsForTurn,

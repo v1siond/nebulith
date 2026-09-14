@@ -50,10 +50,11 @@ describe('generateStage — town vertical slice', () => {
   })
 
   it('carves streets as a dark-gray ROAD COLOUR on the ground block, never a separate road tile', () => {
-    // A road is the ordinary ground block TINTED asphalt, so it sits FLUSH with the grass — a road tile of its own
-    // re-introduced the raised trench. Road identity lives in the layout and lands here as a per-cell floor colour.
-    // The open ground is the flat floor wearing the season's colour, the meadow's way on every template. path_stone
-    // is left only under the buildings, as their foundation.
+    // A road is the ordinary
+    // ground block TINTED asphalt, so it sits FLUSH with the grass — a road tile of its own re-introduced the
+    // raised trench. Road identity lives in the layout and lands here as a per-cell floor colour.
+    // The open ground is the flat floor wearing the season's colour, the meadow's way on every template
+    // . path_stone is left only under the buildings, as their foundation.
     const allowed = new Set([FLAT_FLOOR, 'autumn_leaves', 'path_stone'])
     const allThemed = stage.ground.every(row => row.every(t => allowed.has(t)))
     expect(allThemed).toBe(true)
@@ -89,12 +90,14 @@ describe('generateStage — town vertical slice', () => {
   it('places at least one building — each names a backend composition + faces a road with a door', () => {
     expect(stage.buildings.length).toBeGreaterThan(0)
     for (const b of stage.buildings) {
-      // A building is a COMPOSITION now: it names its kind (house_4 / store_5 / …) and its footprint DEPTH matches
-      // the composition's baked depth (small ground, not a tall facade). The kind names the composition this plot
-      // needs. Two spellings are legitimate now: `house_4` — an AUTHORED composition, the shape before /api/buildings
-      // existed `house@4x4` — one COMPOSED to the footprint the plot rolled The second form is what a generate
-      // produces once the backend has answered; this test's generate has no backend, so it gets the first. Both are
-      // asserted so neither path can drift into a name nothing can resolve.
+      // A building is a COMPOSITION now: it names its kind (house_4 / store_5 / …) and its footprint DEPTH
+      // matches the composition's baked depth (small ground, not a tall facade).
+      // The kind names the composition this plot needs. Two spellings are legitimate now:
+      //   `house_4`   — an AUTHORED composition, the shape before /api/buildings existed
+      //   `house@4x4` — one COMPOSED to the footprint the plot rolled
+      // The second form is
+      // what a generate produces once the backend has answered; this test's generate has no backend, so it
+      // gets the first. Both are asserted so neither path can drift into a name nothing can resolve.
       expect(b.kind).toMatch(/^(house|big[-_]house|store|hospital|office|temple|cathedral|castle)([_]\d+|@\d+x\d+)$/)
       // The FACADE length is whichever axis the facade lies on — a building facing east/west is rotated, so
       // its facade runs down the rows (`height`) and its `length` is the depth. Passing `length` blindly

@@ -1,10 +1,10 @@
 /**
  * EACH FOREST GROWS ITS OWN SPECIES.
  *
- * Every forest rolled one global weighted table, so a jungle grew exactly what a meadow grew. The new shapes are
- * `tree_comp` with different proportions (backend), and each template serves its own mix. Built from the REAL served
- * catalog in the fixture, not numbers retyped here, so the test breaks if the data and the generator ever stop
- * agreeing.
+ * Every forest rolled one global weighted table, so a jungle grew exactly what a meadow grew. The new shapes
+ * are `tree_comp` with different proportions (backend), and each template serves its own mix. Built from the
+ * REAL served catalog in the fixture, not numbers retyped here, so the test breaks if the data and the
+ * generator ever stop agreeing.
  */
 import '@/__tests__/helpers/installTilesetSeed'
 import { generateStage } from '@/engine/stageGenerator'
@@ -90,8 +90,8 @@ describe('a template that serves no mix keeps the old shared table', () => {
 
 describe('the region you PICK leads the map', () => {
   // regions" in it, but it's badly implemented, we should just have variations, similar to "which jungle" "which
-  // region""*. Ticking a region OUT is gone, so what there is to measure is EMPHASIS: the region you pick dominates,
-  // and the others are still in there.
+  // region""*. Ticking a region OUT is gone, so what there is to
+  // measure is EMPHASIS: the region you pick dominates, and the others are still in there.
   it('a jungle led by its swamp grows more cypress than one led by open canopy', () => {
     const config = findGenerator(CATALOG, 'forest', 'jungle')!.config
     const build = (options: Record<string, string>) => {

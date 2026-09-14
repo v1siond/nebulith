@@ -3,10 +3,10 @@
  *
  * One affordance, used by every zone, so learning it once teaches all of them. Two rules it keeps:
  *
- * · **A collapsed zone leaves a strip carrying its name and the way back.** Removing it outright is the same "no way
- * out" trap as a Play mode that hides its own Stop button — a prototype did exactly that and the only escape was
- * reloading the page. · **The chevron points where the panel will GO**, not where it is. « means "fold away to the
- * left".
+ *  · **A collapsed zone leaves a strip carrying its name and the way back.** Removing it outright is the
+ *    same "no way out" trap as a Play mode that hides its own Stop button — a prototype did exactly that
+ *    and the only escape was reloading the page.
+ *  · **The chevron points where the panel will GO**, not where it is. « means "fold away to the left".
  */
 
 export interface ZoneCollapseProps {

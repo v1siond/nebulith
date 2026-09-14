@@ -191,13 +191,13 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
   /**
    * THE GRID PANEL'S NUMBERS — the matrix you have TYPED, plus the thickness the map is at.
    *
-   * It lives here, above both panels, because two different actions read it: `Resize this map` applies it to the open
-   * map, and `Build this world` generates into it. When it was private to the Generate panel those two could
-   * disagree, and a generate silently rebuilt at the old dimensions.
+   * It lives here, above both panels, because two different actions read it: `Resize this map` applies it
+   * to the open map, and `Build this world` generates into it. When it was private to the Generate panel those two
+   * could disagree, and a generate silently rebuilt at the old dimensions.
    *
-   * It re-seeds whenever the map's size changes from OUTSIDE the panel (loading a level, generating one, an undo) —
-   * tracked through `gridSizeSeen` rather than by comparing against the draft, so a half-typed number is never
-   * overwritten by its own echo.
+   * It re-seeds whenever the map's size changes from OUTSIDE the panel (loading a level, generating one,
+   * an undo) — tracked through `gridSizeSeen` rather than by comparing against the draft, so a half-typed
+   * number is never overwritten by its own echo.
    */
   const [gridDraft, setGridDraft] = useState<MapSize>({ cols: 40, rows: 40, cellSize: VILLAGE_CONFIG.cellSize })
   const gridDraftRef = useRef<MapSize>(gridDraft)
@@ -253,8 +253,9 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
   // live in the Paint sidebar — they're Inspector-only now (per-tile), so the paint brush places at full size.
   const [unitTile, setUnitTile] = useState<TileDef | null>(null)
   const [unitPlaceMode, setUnitPlaceMode] = useState<'add' | 'scatter'>('add')
-  // §4.5's `Place as` row. So hostility is a choice about the thing you are PLACING, not a property of the tile:
-  // 'auto' takes the catalog's role, 'enemy'/'npc' override it. A bear can be a pet.
+  // §4.5's `Place as` row. So hostility is a
+  // choice about the thing you are PLACING, not a property of the tile: 'auto' takes the catalog's role,
+  // 'enemy'/'npc' override it. A bear can be a pet.
   const [placeAs, setPlaceAs] = useState<'auto' | 'enemy' | 'npc'>('auto')
   // §4.5's `★ RECENT` — the last eight tiles placed, newest first. Held by the PAGE so it survives
   // switching rails (the palette unmounts when you leave Terrain), and de-duplicated so re-placing the
@@ -292,10 +293,10 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
   // Template view type (isometric or 2d)
   const [viewType, setViewType] = useState<'isometric' | '2d'>('isometric')
 
-  // ISO CAMERA FACING (#75) — which of the map's 4 corners the camera looks from, quarter-turns CW. / "4 corners, 4
-  // rotation options, all faces of the map are visible". React owns it (the nav button reads it, the render + every
-  // click projection take it); a ref carries it into the once-mounted RAF loop. Only ISO rotates — 2D/Top have no
-  // rotation.
+  // ISO CAMERA FACING (#75) — which of the map's 4 corners the camera looks from, quarter-turns CW.
+  // / "4 corners, 4 rotation options, all faces of the map are visible". React owns it (the nav button reads it, the
+  // render + every click projection take it); a ref
+  // carries it into the once-mounted RAF loop. Only ISO rotates — 2D/Top have no rotation.
   const [cameraFacing, setCameraFacing] = useState<Orientation>(0)
   const cameraFacingRef = useRef<Orientation>(0)
 
@@ -903,8 +904,8 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
   /**
    * What the open library is pointing at, and whether the placement panel is up.
    *
-   * The hovered/armed label lives HERE rather than in the library because the PREVIEW is a different zone now. —
-   * stacking it above the grid left the grid as a clipped sliver.
+   * The hovered/armed label lives HERE rather than in the library because the PREVIEW is a different zone
+   * now. — stacking it above the grid left the grid as a clipped sliver.
    */
   const [libraryHover, setLibraryHover] = useState<string | null>(null)
   const [placementOpen, setPlacementOpen] = useState(false)
@@ -914,19 +915,20 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
   const [zoneShut, setZoneShut] = useState<EditorZoneShut>(NO_ZONES_SHUT)
   const toggleZone = (zone: EditorZoneId) => setZoneShut(z => ({ ...z, [zone]: !z[zone] }))
   /**
-   * THE one answer to "is anything selected". The inspector's own precedence is unit → connector → cell, so this is
-   * that same list, asked once. — with nothing selected the zone has nothing to say, so it is not rendered at all and
-   * the map takes its 300px. That is different from COLLAPSING it, which leaves a strip to reopen: there is nothing
-   * to reopen here, and it comes back the moment you click something.
+   * THE one answer to "is anything selected". The inspector's own precedence is unit → connector → cell, so
+   * this is that same list, asked once. — with nothing selected the zone has nothing to say, so it is not rendered at
+    * all and the
+   * map takes its 300px. That is different from COLLAPSING it, which leaves a strip to reopen: there is
+   * nothing to reopen here, and it comes back the moment you click something.
    */
   const hasSelection = selectedEntityId !== null || editingConnector !== null || selectedCells.size > 0
   // THE one answer to "which rail panel is showing". Every panel below gates on THIS, and nothing else.
   //
-  // The cause was two gating variables: the three LIBRARY panels tested `editorMode` (a canvas mode — what a click
-  // does) while the three WORKSPACE panels tested `railPanel` (which panel is open). Opening Characters set the mode
-  // to `unit`; opening Generate then set `railPanel` and left the mode alone, so BOTH cards rendered — Characters
-  // first, Generate below it and off-screen past 67 creatures. Every rail option after the first one looked broken,
-  // and it hid controls that exist (the tile search).
+  // The cause was two gating variables: the three LIBRARY panels tested `editorMode` (a canvas
+  // mode — what a click does) while the three WORKSPACE panels tested `railPanel` (which panel is open).
+  // Opening Characters set the mode to `unit`; opening Generate then set `railPanel` and left the mode
+  // alone, so BOTH cards rendered — Characters first, Generate below it and off-screen past 67 creatures.
+  // Every rail option after the first one looked broken, and it hid controls that exist (the tile search).
   const activeRailId: RailId = railPanel ?? RAIL_BY_MODE[editorMode]
 
   /**
@@ -948,24 +950,25 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
   /**
    * THE PREVIEW is a movable panel beside the LEFT panel, not a sidebar zone.
    *
-   * The right-zone version is deleted — it reproduced exactly the cramming he predicted when he first asked for
-   * movable modals.
+   * The right-zone version is deleted — it
+   * reproduced exactly the cramming he predicted when he first asked for movable modals.
    */
   /**
-   * The world a hovered/selected GENERATOR preset would build. The Generate panel is not a library, so `libraryKind`
-   * is null while it is open and `subjectFor` had nothing to answer with — which is why the preview panel stayed
-   * empty there. The panel hands its own subject up instead.
+   * The world a hovered/selected GENERATOR preset would build. The Generate panel is not a library, so
+   * `libraryKind` is null while it is open and `subjectFor` had nothing to answer with — which is why the
+   * preview panel stayed empty there. The panel hands its own subject up instead.
    */
   const [genPeek, setGenPeek] = useState<ReturnType<typeof subjectFor>>(null)
   /**
    * The generator's peek belongs to the New world rail ALONE.
    *
-   * `genPeek` holds the world a preset would build, and NOTHING ever cleared it: one visit to the New world rail left
-   * it set for the rest of the session, so `genPeek ?? subjectFor(…)` short-circuited on every other rail and a
-   * library kept showing the stale world instead of the thing under the cursor. The caption said so too.
+   * `genPeek` holds the world a preset would build, and NOTHING ever cleared
+   * it: one visit to the New world rail left it set for the rest of the session, so `genPeek ?? subjectFor(…)`
+   * short-circuited on every other rail and a library kept showing the stale world instead of the thing under
+   * the cursor. The caption said so too.
    *
-   * The effect below clears it when you leave that rail. This says the same thing in the DERIVATION, so a stale value
-   * cannot decide what a library shows even for the one render before an effect runs.
+   * The effect below clears it when you leave that rail. This says the same thing in the DERIVATION, so a
+   * stale value cannot decide what a library shows even for the one render before an effect runs.
    */
   const peek = activeRailId === 'generate' ? genPeek : null
   const previewSubject = peek ?? subjectFor(libraryKind, previewLabel, activeStyleId)
@@ -990,22 +993,19 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
     styleId: activeStyleId,
   }
   const [previewOpen, setPreviewOpen] = useState(true)
-  /**
-   * The New world panel's options render INTO the Preview window (GenerateControls' tuningSlot), beside the picture
-   * they change.
-   */
+  /** The New world panel's options render INTO the Preview window (GenerateControls' tuningSlot), beside the picture
+   * they change, along with the rest of the options (map variations, river, bridge). */
   const [tuningSlot, setTuningSlot] = useState<HTMLElement | null>(null)
   // The New world panel works WITH the preview window, so opening the panel opens the window.
   /**
    * THE PREVIEW COMES BACK WHEN YOU CHANGE WHAT YOU ARE LOOKING AT.
    *
-   * One flag gates EVERY rail's preview, and the only thing that turned it back on was this effect, for the generate
-   * rail alone. So closing the window while building a world took the object and tile previews with it, and nothing
-   * in those panels could ask for it back.
+   * One flag gates EVERY rail's preview, and the only thing that turned it back on was
+   * this effect, for the generate rail alone. So closing the window while building a world took the object and
+   * tile previews with it, and nothing in those panels could ask for it back.
    *
-   * Any rail change restores it, which is the behaviour he had already spotted from the other side: *"when you close
-   * the preview it goes inside the sidebar and can never go back oputside until you change links"*. Closing it still
-   * closes it for as long as you stay where you are.
+   * Any rail change restores it, which is the behaviour he had already spotted from the other side:
+   * Closing it still closes it for as long as you stay where you are.
    */
   useEffect(() => {
     setPreviewOpen(true)
@@ -1016,11 +1016,12 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
   /**
    * PICKING SOMETHING SHOWS IT.
    *
-   * Closing the window closed it until the next RAIL change, so choosing a different tile, object or character left
+   * Closing
+   * the window closed it until the next RAIL change, so choosing a different tile, object or character left
    * you looking at nothing. Closing still closes; choosing a new thing to look at is a new reason to look.
    *
-   * Keyed on what is ARMED, not on what is hovered: a hover is not a decision, and reopening a window you just shut
-   * every time the cursor crossed the library would be its own bug.
+   * Keyed on what is ARMED, not on what is hovered: a hover is not a decision, and reopening a window you
+   * just shut every time the cursor crossed the library would be its own bug.
    */
   const armedSubject = `${activeRailId}:${buildingTool ?? ''}:${armedTile?.id ?? ''}:${unitTile?.id ?? ''}`
   useEffect(() => { setPreviewOpen(true) }, [armedSubject])
@@ -1030,8 +1031,8 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
   /**
    * The building types the backend can compose at any size (`/api/buildings`).
    *
-   * Empty until it answers, and the palette is simply unchanged until then — a type list the frontend guessed at
-   * would be the hardcoding this replaced.
+   * Empty until it answers, and the palette is simply unchanged
+   * until then — a type list the frontend guessed at would be the hardcoding this replaced.
    */
   const [buildingTypes, setBuildingTypes] = useState<BuildingTypeCatalog>(EMPTY_BUILDING_TYPES)
   /**
@@ -1054,14 +1055,14 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
   /**
    * EVERY COMPOSABLE TYPE GETS A REAL PICTURE, so the palette can offer it.
    *
-   * The palette lists every type the backend serves now (`collapseSizedBuildings`), and each of those rows draws from
-   * the COMPOSED default, `tower@4x4`. Nothing is installed under that kind until somebody asks, so this asks once:
-   * the SAME call a generate makes before it plans, which composes every served type at its own default footprint.
-   * Then the palette is rebuilt so the new compositions are in it.
+   * The palette lists every type the backend serves now (`collapseSizedBuildings`), and each of those rows
+   * draws from the COMPOSED default, `tower@4x4`. Nothing is installed under that kind until somebody asks,
+   * so this asks once: the SAME call a generate makes before it plans, which composes every served type at its
+   * own default footprint. Then the palette is rebuilt so the new compositions are in it.
    *
-   * Keyed on the style because a composition is installed per style (that is where its pictures come from), and gated
-   * on the tileset being ready because there is nothing to install into before that. Failures are warned and skipped
-   * inside the installer, so one type the backend cannot lay out never stops the palette.
+   * Keyed on the style because a composition is installed per style (that is where its pictures come from),
+   * and gated on the tileset being ready because there is nothing to install into before that. Failures are
+   * warned and skipped inside the installer, so one type the backend cannot lay out never stops the palette.
    */
   useEffect(() => {
     if (!tilesetReady || buildingTypes.types.length === 0) return
@@ -1100,11 +1101,11 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
   /**
    * WHERE AN INSPECTOR SECTION'S CONTROLS GO — a movable panel beside the inspector.
    *
-   * The sidebar keeps the six rows and their summaries; opening one lifts its controls into a panel you can drag,
-   * resize and leave open while you work on the map.
+   * The sidebar keeps the six rows and their summaries; opening one lifts
+   * its controls into a panel you can drag, resize and leave open while you work on the map.
    *
-   * The page supplies this rather than the inspector importing a panel — see `SectionPresenter`. Geometry persists
-   * per section under its own key, so each one reopens where it was left.
+   * The page supplies this rather than the inspector importing a panel — see `SectionPresenter`. Geometry
+   * persists per section under its own key, so each one reopens where it was left.
    */
   // A section's DEFAULT size, before the person drags it to their own. The Character window holds four
   // blocks (name, size, the stat grid, the figure picker with its search), so at everyone else's 330x380 the
@@ -1207,11 +1208,11 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
     playerWeaponRef.current = inventory.equippedWeapon ?? BARE_HANDS
   }, [inventory])
 
-  // Auto-save unit gear: "all interactions with the objects that can be picked and added to inventory trigger a
-  // database save". Every equip/unequip/drop/reorder mutates `loadouts`/`inventory`, so a debounced effect folds the
-  // live gear onto the entities and PATCHes JUST the `entities` field — a targeted write, not a full grid re-save.
-  // Only fires once a stage is saved (needs an id to patch), and skips the fire the load-restore itself provokes
-  // (suppressUnitAutoSaveRef).
+  // Auto-save unit gear: "all interactions with the objects that can be picked and added to inventory
+  // trigger a database save". Every equip/unequip/drop/reorder mutates `loadouts`/`inventory`, so a debounced effect
+  // folds the live gear onto the entities and PATCHes JUST the `entities` field — a targeted write, not a full grid
+  // re-save. Only fires once a stage is saved (needs an id to patch), and skips the fire the load-restore itself
+  // provokes (suppressUnitAutoSaveRef).
   const suppressUnitAutoSaveRef = useRef(false)
   useEffect(() => {
     if (suppressUnitAutoSaveRef.current) {
@@ -2056,8 +2057,9 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
       setBuildingTool(null)
       setConnectorMode(false)
       clearPaintTile()
-      // ARMS NOTHING. This used to be `prev ?? 'enemy'`, so merely OPENING the Characters library armed an enemy and
-      // the next click on the map spawned one — a character the user never chose. Opening a library is browsing;
+      // ARMS NOTHING.
+      // This used to be `prev ?? 'enemy'`, so merely OPENING the Characters library armed an enemy and the
+      // next click on the map spawned one — a character the user never chose. Opening a library is browsing;
       // placing needs a pick. Whatever was already armed is kept.
       return
     }
@@ -2315,8 +2317,8 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
       a.depthBack = Math.max(0, Math.round(cells))
       if ((a.depthBack ?? 0) > 0 && !a.depthDir) a.depthDir = 'right-down'
     })
-  // 2-AXIS z-width: the PERPENDICULAR extents — forward (depthPerp) + back (depthPerpBack) along
-  // rotateDepthDir(depthDir,1). With the primary axis this makes the tile a RECTANGLE.
+  // 2-AXIS z-width: the PERPENDICULAR extents — forward (depthPerp) +
+  // back (depthPerpBack) along rotateDepthDir(depthDir,1). With the primary axis this makes the tile a RECTANGLE.
   const setAssetDepthPerp = (i: number, cells: number) =>
     applyToSelectedTiles(i, (a) => {
       a.depthPerp = Math.max(0, Math.round(cells))
@@ -2872,10 +2874,10 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
       const f = grid.floorAt(col, row)
       return f ? { color: f.color ?? null, kind: f.tileKey ?? null, depth: f.depth ?? null, depthDir: f.depthDir ?? null, heightLevel: f.heightLevel ?? 0 } : null
     }
-    // COLLISION AUDIT (QA seam): per cell, what the flat collision map says vs what actually stands there. The map is
-    // 2D and means "a unit walking the ground is stopped here", so the only truthful source is a blocking tile at (or
-    // below) the level a unit stands at. Anything else is a visible lie — red paint on bare grass, or a wall you can
-    // walk through.
+    // COLLISION AUDIT (QA seam): per cell, what the flat collision map says vs what actually stands there.
+    // The map is 2D and means "a unit walking the ground is stopped here", so the only truthful source is a
+    // blocking tile at (or below) the level a unit stands at. Anything else is a visible lie — red paint on
+    // bare grass, or a wall you can walk through.
     win.__collisionAudit = (col0 = 0, row0 = 0, col1 = Infinity, row1 = Infinity) => {
       const grid = gridRef.current
       if (!grid) return []
@@ -3283,18 +3285,19 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
   /**
    * Rebuild the grid from its MATRIX VARIABLES.
    *
-   * — so a map is `cols × rows` cells, each a square of `cellSize` pixels (`columns = the number of cells per row`).
-   * All three already lived on `IsometricGrid`; only cols and rows were reachable from the UI.
+   * — so a map is
+   * `cols × rows` cells, each a square of `cellSize` pixels (`columns = the number of cells per row`). All
+   * three already lived on `IsometricGrid`; only cols and rows were reachable from the UI.
    *
-   * `cellSize` is what a cell MEASURES, not how big it looks on screen — that is the camera's zoom. It changes the
-   * world coordinates the player and every collision run in, which is why it rebuilds the grid like a resize rather
-   * than being a view setting.
+   * `cellSize` is what a cell MEASURES, not how big it looks on screen — that is the camera's zoom. It
+   * changes the world coordinates the player and every collision run in, which is why it rebuilds the grid
+   * like a resize rather than being a view setting.
    */
   const resizeGrid = (cols: number, rows: number, cellSize?: number) => {
-    // THE THICKNESS SURVIVES THE REBUILD. Measured: this built `new IsometricGrid({...VILLAGE_CONFIG, cols, rows,
-    // cellSize})`, which carries no `slabBlocks`, so the constructor fell to DEFAULT_SLAB_BLOCKS and every resize AND
-    // every generate threw his number away. It is a property of the map, not something a resize gets to decide, so it
-    // is carried across explicitly.
+    // THE THICKNESS SURVIVES THE REBUILD. Measured: this built `new IsometricGrid({...VILLAGE_CONFIG,
+    // cols, rows, cellSize})`, which carries no `slabBlocks`, so the constructor fell to DEFAULT_SLAB_BLOCKS
+    // and every resize AND every generate threw his number away. It is a property of the map, not something
+    // a resize gets to decide, so it is carried across explicitly.
     const newConfig = {
       ...VILLAGE_CONFIG,
       cols,
@@ -3321,15 +3324,16 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
   /**
    * RESIZE THE OPEN MAP, KEEPING IT.
    *
-   * He was reporting something worse than a missing convenience: `resizeGrid` builds a NEW grid and fills every cell
-   * with grass, so the one in-place control on this panel wiped the map.
+   * He was reporting something worse than a missing
+   * convenience: `resizeGrid` builds a NEW grid and fills every cell with grass, so the one in-place control
+   * on this panel wiped the map.
    *
    * Two cases, because they are genuinely different:
    *
-   * · CELL PIXELS ONLY. Nothing about the map changes, only how big it is drawn, so nothing is rebuilt: the size is a
-   * field, and `assetLevelsChanged` drops the per-cell index that cached the old geometry. · A DIFFERENT EXTENT. That
-   * is a different map, so the grid IS rebuilt, but everything that still fits is carried across (tiles, heights,
-   * collision) and only the cells that did not exist before are grassed.
+   *   · CELL PIXELS ONLY. Nothing about the map changes, only how big it is drawn, so nothing is rebuilt: the
+   *     size is a field, and `assetLevelsChanged` drops the per-cell index that cached the old geometry.
+   *   · A DIFFERENT EXTENT. That is a different map, so the grid IS rebuilt, but everything that still fits is
+   *     carried across (tiles, heights, collision) and only the cells that did not exist before are grassed.
    *
    * `resizeGrid` itself is left alone on purpose: a BUILD calls it too, and a build needs the clean grid.
    */
@@ -3372,9 +3376,10 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
   /**
    * How thick the map's BODY is, in blocks — the grid's own height.
    *
-   * So the map's depth is the GRID's, and a floor is a flat skin laid on it. Unlike cols/rows/cellSize this touches
-   * no cell, so it applies on the spot instead of throwing the map away — but it is still a map edit, so it takes an
-   * undo checkpoint and marks the map unsaved like every other one.
+   * So the map's
+   * depth is the GRID's, and a floor is a flat skin laid on it. Unlike cols/rows/cellSize this touches no
+   * cell, so it applies on the spot instead of throwing the map away — but it is still a map edit, so it
+   * takes an undo checkpoint and marks the map unsaved like every other one.
    */
   const setGroundThickness = (blocks: number) => {
     const grid = gridRef.current
@@ -3652,9 +3657,10 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
       // woodland with a river would lose the river.
       options: recipe.options,
       nature: generator.config.nature,
-      // The template's OWN colours. between a jungle and a woodland. Every colour used to come from the SEASON, so
-      // two different forests in spring were painted from the same numbers. BOTH call sites get it, the build and the
-      // re-roll, or a re-rolled layer would repaint a jungle in the woodland's tones.
+      // The template's OWN colours. between a jungle
+      // and a woodland. Every colour used to come from the SEASON, so two different forests in spring were
+      // painted from the same numbers. BOTH call sites get it, the build and the re-roll, or a re-rolled
+      // layer would repaint a jungle in the woodland's tones.
       palette: generator.config.palette,
       // The REGIONS this template partitions itself into — open canopy, dense growth, swamp, ruins.
       subZones: generator.config.subZones,
@@ -3688,12 +3694,12 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
   /**
    * APPLY A CHANGE TO THE MAP THAT IS ALREADY HERE, without re-rolling it.
    *
-   * Every SEED is kept, so the streets, the plots, the trees and the props come back exactly where they were and only
-   * what he changed changes. That is the whole difference from "Build this world", which rolls a new seed set and
-   * therefore a different world.
+   * Every SEED is kept, so the streets, the plots, the trees and the props come back exactly where they were
+   * and only what he changed changes. That is the whole difference from "Build this world", which rolls a new
+   * seed set and therefore a different world.
    *
-   * With nothing generated yet there is no map to preserve, so it builds one, the same fallback the layer re-roll has
-   * always taken.
+   * With nothing generated yet there is no map to preserve, so it builds one, the same fallback the layer
+   * re-roll has always taken.
    */
   const applyToCurrentMap = async (zone: ZoneId, options?: Record<string, GeneratorOptionValue>) => {
     const recipe = lastGenRef.current
@@ -3809,31 +3815,31 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
     // reproducible: the grid size is rolled from the SAME served range through a seeded rng, and the
     // per-layer seeds derive from it, so a generator can be iterated frame-to-frame against a reference.
     const seeded = seed !== undefined
-    // THE SIZE YOU CHOSE WINS. — and he was right: this rolled a random size from the generator's served range and
-    // then resized over the top of it, so the panel offered a decision it then discarded. That conflict arrived when
-    // map size moved INTO this panel.
+    // THE SIZE YOU CHOSE WINS. — and he was right: this rolled a random size from the
+    // generator's served range and then resized over the top of it, so the panel offered a decision it then
+    // discarded. That conflict arrived when map size moved INTO this panel.
     //
-    // He also asked for *"randomized sizes on the layouts and maps"*, so randomising is not removed — it is made
-    // explicit. `requested` absent = roll one (the dev harness and the "surprise me" path); present = that is the
-    // size, clamped to what the generator can actually build.
+    // He also asked for so randomising is not removed — it is
+    // made explicit. `requested` absent = roll one (the dev harness and the "surprise me" path); present =
+    // that is the size, clamped to what the generator can actually build.
     const rolled = rollGridSize(generator, seeded ? makeRng(seed) : Math.random)
     if (!rolled) {
       console.warn(`[generate] the "${generator.key}" generator serves no grid range — nothing generated`)
       return
     }
     // THE NUMBERS YOU TYPED WIN, held only inside what the ENGINE can build.
-    //
-    // This used to clamp to the GENERATOR's served range, which for Meadow is rows 24–35 — so a requested 40 became
-    // 35 with nothing said. The generator's range steers the random roll and is shown in the panel as guidance; it is
-    // not a veto. `cellSize` is honoured too: it was simply dropped before.
+    // This used to clamp to the GENERATOR's served range, which for Meadow is rows 24–35 — so a requested
+    // 40 became 35 with nothing said. The generator's range steers the random roll and is shown in the
+    // panel as guidance; it is not a veto. `cellSize` is honoured too: it was simply dropped before.
     const current: MapSize = {
       cols: gridRef.current?.cols ?? rolled.cols,
       rows: gridRef.current?.rows ?? rolled.rows,
       cellSize: gridRef.current?.cellSize ?? VILLAGE_CONFIG.cellSize,
     }
     // THE GRID PANEL IS THE SIZE. `requested` is now only the dev harness's explicit override; a normal build reads
-    // the panel, and a SEEDED run keeps rolling from the generator's served range so the validation harness stays
-    // reproducible frame-to-frame.
+    // the
+    // panel, and a SEEDED run keeps rolling from the generator's served range so the validation harness
+    // stays reproducible frame-to-frame.
     const panel: MapSize = { cols: gridDraftRef.current.cols, rows: gridDraftRef.current.rows, cellSize: gridDraftRef.current.cellSize }
     const chosen = requested ?? (seeded ? undefined : panel)
     const size = chosen
@@ -3871,9 +3877,10 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
       // these instead of there being a `woodland_river` row beside the `woodland` one.
       options,
       nature: generator.config.nature,
-      // The template's OWN colours. between a jungle and a woodland. Every colour used to come from the SEASON, so
-      // two different forests in spring were painted from the same numbers. BOTH call sites get it, the build and the
-      // re-roll, or a re-rolled layer would repaint a jungle in the woodland's tones.
+      // The template's OWN colours. between a jungle
+      // and a woodland. Every colour used to come from the SEASON, so two different forests in spring were
+      // painted from the same numbers. BOTH call sites get it, the build and the re-roll, or a re-rolled
+      // layer would repaint a jungle in the woodland's tones.
       palette: generator.config.palette,
       // The REGIONS this template partitions itself into — open canopy, dense growth, swamp, ruins.
       subZones: generator.config.subZones,
@@ -3886,8 +3893,8 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
       // The served settlement tuning — `houseWidths` is the plot-size weighting the town rolls from. Parsed
       // since T-113 and never read until now, exactly like `nature.groundCover`.
       settlement: generator.config.settlement,
-      // Footprints come from the BACKEND. Only supplied once /api/buildings has answered; before that the planner
-      // falls back to the baked sizes and a generate still works.
+      // Footprints come from the BACKEND. Only supplied once /api/buildings has answered; before that the
+      // planner falls back to the baked sizes and a generate still works.
       buildingSizes: buildingSizeSource(buildingTypesRef.current),
     })
     // COMPOSE WHAT THE PLAN ROLLED, then stamp. The plan names a composition per building
@@ -4742,8 +4749,8 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
   // Connector picker "＋ New": make a new template, select it as this connector's target, and (in a game)
   // link it. Lets the user branch the flow to a fresh room without leaving the connection form.
   const handleNewConnectorTarget = async () => {
-    // No naming dialog — same reason a new GAME doesn't ask. The level is named from the ones already saved and the
-    // top-bar name field renames it in place.
+    // No naming dialog — same reason a new GAME doesn't ask. The level is named from the ones already saved and
+    // the top-bar name field renames it in place.
     const id = await createBlankTemplate(nextLevelName(savedTemplates))
     if (!id) return
     setConnectorForm(f => ({ ...f, targetTemplateId: id }))
@@ -5226,7 +5233,8 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
       setQuests([])
       setCellTriggers([])
       // A PLAIN COLOUR TO WORK ON, not a generated world. This used to generate a whole town here, which is what
-      // those random tiles were. The generate menu is still the way to lay a world down when you want one.
+      // those random tiles were. The generate
+      // menu is still the way to lay a world down when you want one.
       const fresh = gridRef.current
       if (fresh) {
         const blank = blankStage(genZone, fresh.cols, fresh.rows)
@@ -5508,10 +5516,9 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
             … opening an arbitrary template that isn't in this game is an 'Add a level…' action"), ⚡ Generate
             and ◈ Unit are rail panels, ⚙ Stage is retired, and 🎨 Style moved to the VIEW bar — §4.1's first
             principle puts "how am I looking at it" in the bottom bar, and a reskin changes no map data. */}
-        {/* NEVER scrolls — §4.11: "the project bar never scrolls. If it cannot fit, the game name truncates
-            and the level label shortens" — and 2026-09-08 (Image #8): *"fix bug, top bar
-            scrolling, in general, I don't want any internal scrolling"*. `overflow-hidden` makes the
-            flexible children TRUNCATE instead of pushing Save/Play off the edge. */}
+        {/* NEVER scrolls — §4.11: "the project bar never scrolls. If it cannot fit, the game name truncates and the
+            level label shortens" — and `overflow-hidden` makes the flexible children TRUNCATE instead of pushing
+            Save/Play off the edge. */}
         {isChromeVisible && (
         <nav className="z z-top">
           <span style={{ fontSize: 18 }} aria-hidden="true">🎮</span>
@@ -5529,9 +5536,9 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
               confirmLabel: 'Leave without saving',
             })}
             onRename={() => void renameGame()}
-            // THIS GAME's levels. It opened the games LIST and made you find the game you were already inside. The
-            // overlay has a per-game editor already (reorder, remove, play a level); it was simply never told which
-            // game to open.
+            // THIS GAME's levels. It opened the games LIST and made you find
+            // the game you were already inside. The overlay has a per-game editor already (reorder, remove,
+            // play a level); it was simply never told which game to open.
             onManageLevels={() => { setManageGameId(gameContext?.gameId ?? null); setShowGamesView(true) }}
             onFlow={toggleFlowView}
             onExport={exportLayers}
@@ -5580,10 +5587,9 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
           {/* Outside a game there is no 🎮 menu and no level stepper, so the level's NAME and the way to
               open one live here. Inside a game the stepper names the level and `＋ Add a level` is in its
               dropdown, exactly as §4.4 draws it. */}
-          {/* The level's NAME is editable wherever the editor is open. This used to render only OUTSIDE a
-              game, on the reasoning that the stepper names the level inside one. But the stepper only
-              DISPLAYS a name, so inside a game there was no way to set one while Save still demanded it:
-              *"there's no place to do it"*. */}
+          {/* The level's NAME is editable wherever the editor is open. This used to render only OUTSIDE a game, on
+              the reasoning that the stepper names the level inside one. But the stepper only DISPLAYS a name, so
+              inside a game there was no way to set one while Save still demanded it: */}
           <input
             type="text"
             value={templateName}
@@ -5875,8 +5881,9 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
             )}
 
 
-            {/* ART STYLE — its own group. Lists every art style the BACKEND serves (a tileset row IS a style), and
-                switching one swaps only the pictures: same labels, same names, same heights, different png. */}
+            {/* ART STYLE — its own group. Lists every art style the BACKEND serves
+                (a tileset row IS a style), and switching one swaps only the pictures: same labels, same
+                names, same heights, different png. */}
 
             {/* RULES (§4.8, Week 6) — the Logic workspace. Triggers, connections and quests lived in three
                 unrelated places (per-selection, a hidden canvas mode, and behind clicking an NPC); this
@@ -5925,9 +5932,8 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
             </div>
 
             {/* ↗ DOORWAYS — the tool's entry, moved off the left rail. Opens a draggable/resizable modal. The
-                user-facing word is DOORWAY, from the approved help text: *"What a doorway is — a set of cells that
-                takes the player somewhere."* "Connector" names the data structure, not the thing a person is
-                making; the `Connector` type keeps its name. */}
+                user-facing word is DOORWAY, from the approved help text: "Connector" names the data structure, not
+                the thing a person is making; the `Connector` type keeps its name. */}
             {/* Opens a draggable/resizable modal
                 (like the settings one) hosting the whole connector flow. Highlights while it's open. */}
             <button
@@ -5985,9 +5991,9 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
                   onDim: (_axis, v) => patchSelectedEntity({ size: v > 1 ? v : undefined }), // size 1 drops the field
                   onColor: c => patchSelectedEntity({ color: c }),
                   onClearColor: () => patchSelectedEntity({ color: undefined }),
-                  // A character casts the same night glow pool a tile does — a torch-bearer, a lantern NPC. This is
-                  // the setting of that set a BILLBOARD can carry: a light is a pool at a position, and a unit has a
-                  // position.
+                  // A character casts the same night glow pool a tile does — a torch-bearer, a lantern NPC.
+                  // This is the setting of that set a BILLBOARD can carry:
+                  // a light is a pool at a position, and a unit has a position.
                   light: selEntity.light,
                   onLight: l => patchSelectedEntity({ light: l }),
                   override: selEntity.tileOverride ?? null,
@@ -6023,10 +6029,10 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
                         movement"), Clear tiles, the tile chip + colour, Add/Replace tile, Edit settings…,
                         Animate…, Remove tile, Triggers… and Save map are the tile card's own controls; the unit
                         only ADDS its name/size rows and the Stats / Inventory / Quests / Attacks buttons. */}
-                    {/* The old `▸ PLAYER (PLAYER) @ 32,10` header pill is gone, so there is ONE unit header,
-                        not two. NOTE: its COORDS went with it and nothing here replaced them — the card's
-                        heading is `Character`, the same way a cell's is `Tile`. Open question:
-                        whether a selected character should still say which cell it is on. */}
+                    {/* The old `▸ PLAYER (PLAYER) @ 32,10` header pill is gone, so there is ONE unit header, not
+                        two. NOTE: its COORDS went with it and nothing here replaced them — the card's heading is
+                        `Character`, the same way a cell's is `Tile`. Open question for whether a selected character
+                        should still say which cell it is on. */}
                     <>
                       <PropertiesPanel
                         // ONE collision control for everything: for a unit the toggle IS `blocksMovement`
@@ -6519,7 +6525,7 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
                   id: 'character',
                   label: 'Character',
                   glyph: '☻',
-                  // His *"stats section"* that did not belong in the bag. It belongs here.
+                  // His that did not belong in the bag. It belongs here.
                   render: () => <PlayerStatsPanel baseStats={baseStats} loadout={current} hp={hp} />,
                 },
                 {
@@ -6592,9 +6598,8 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
             tool (paintTileOnSelection). */}
         {/* HOW IT WILL BE PLACED — its own movable panel, as asked. */}
         {/* THE PREVIEW — a MOVABLE panel that opens beside the LEFT panel, showing the thing drawn by the map's own
-            renderer in the view you are looking at. and *"also, the preview should be how it looks in the map."*
-            Both are the same panel: `MapPreview` stamps the subject into a real grid and calls the renderer the
-            view bar has selected, so it cannot disagree with the map. */}
+            renderer in the view you are looking at. and Both are the same panel: `MapPreview` stamps the subject
+            into a real grid and calls the renderer the view bar has selected, so it cannot disagree with the map. */}
         {/* SHOWN WHEN THERE IS SOMETHING TO SHOW, which is not the same as "a library is open". Gating it on the
             library is why hovering a generator preset produced nothing: the Generate panel is not a library, so the
             whole panel was absent. */}

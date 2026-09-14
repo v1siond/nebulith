@@ -4,39 +4,35 @@ import { type MapSize, CELL_SIZE_MIN, atLeast, cellCount, mapSizeProblem, mapSiz
 /**
  * THE GRID's controls — the map's own numbers, split by where they belong.
  *
- * They lived in the Generate panel, then moved to a rail section of their own, and are now split. Both moves are
+ * They lived in the Generate panel, then moved to a rail section of their own, and are now split. Both
+ * moves are
  *
- * 2026-09-10 (a): *"we should add an option in the main sidebar related specifically to the grid... outside of the
- * template generation"*.
+ * 2026-09-10 (a):
  *
- * 2026-09-10 (b): *"grid UX is not good, my decision to move the grid out of the world section was worse, I feel like
- * is not entirely connected to the section still, but it's way better to have that close by to generate stuff on
- * demand, it also adds extra complexity, like now what happens if user generated a world, then changes the grid
- * settings after?? it just complicates things... maybe we move the dimensions back to the section they were before...
- * let's keep thickness out of the new world section, I think it makes sense close to rotate and range, which are grid
- * properties too in a way... but we keep grid size inside the world section"*.
+ * 2026-09-10 (b):
  *
  * So the split follows what each number DOES:
  *
- * - **The matrix** (columns / rows / cell pixels) rebuilds the map, so it sits with the thing that rebuilds the map.
- * {@link MapMatrixSection}, inside the New world panel. - **Ground thickness** changes nothing about the cells, only
- * how the map is DRAWN. So it joins Rotate and Range in the view bar, which is where "how am I looking at it" lives.
- * {@link GroundThicknessControl}.
+ * - **The matrix** (columns / rows / cell pixels) rebuilds the map, so it sits with the thing that rebuilds
+ *   the map. {@link MapMatrixSection}, inside the New world panel.
+ * - **Ground thickness** changes nothing about the cells, only how the map is DRAWN. So it joins Rotate and
+ *   Range in the view bar, which is where "how am I looking at it" lives. {@link GroundThicknessControl}.
  *
- * That also answers his *"what happens if user generated a world, then changes the grid settings after"*: the matrix
- * is a draft the generate consumes, and thickness applies on the spot because it can.
+ * That also answers his:
+ * the matrix is a draft the generate consumes, and thickness applies on the spot because it can.
  */
 
 /**
  * A number input you can actually EMPTY.
  *
- * The old control ran `parseInt` on every keystroke and DROPPED anything that did not parse, so backspacing to an
- * empty field was rejected and the old number snapped straight back.
+ * The old control ran `parseInt` on every
+ * keystroke and DROPPED anything that did not parse, so backspacing to an empty field was rejected and the
+ * old number snapped straight back.
  *
- * A text draft fixes it at the root: the field holds whatever you are typing, including nothing, and the COMMIT is
- * separate from the keystroke. A valid number commits as you type (so the map follows live); an empty or half-typed
- * one just sits there. Blur restores the committed value, so the field can never be left showing a number the map
- * does not have.
+ * A text draft fixes it at the root: the field holds whatever you are typing, including nothing, and the
+ * COMMIT is separate from the keystroke. A valid number commits as you type (so the map follows live); an
+ * empty or half-typed one just sits there. Blur restores the committed value, so the field can never be
+ * left showing a number the map does not have.
  */
 export function NumberField({
   label,
@@ -155,11 +151,11 @@ export function MapMatrixSection({
 /**
  * `▤ Ground` — the map's BODY depth, in the view bar beside Rotate and Range.
  *
- * He is right about the kind of thing it is: it rebuilds nothing and touches no cell, it only changes how deep the
- * map draws — the same class of property as which way the camera faces.
+ * He is right about the kind of thing it is: it rebuilds nothing and touches no cell, it only
+ * changes how deep the map draws — the same class of property as which way the camera faces.
  *
- * It is only VISIBLE where the map stops, so an empty map shows no change at all. The title says so, because that
- * silence is what made it read as broken.
+ * It is only VISIBLE where the map stops, so an empty map shows no change at all. The title says so,
+ * because that silence is what made it read as broken.
  */
 export function GroundThicknessControl({
   blocks,

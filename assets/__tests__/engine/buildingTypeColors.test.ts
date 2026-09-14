@@ -1,9 +1,10 @@
 /**
- * PER-TYPE BUILDING MATERIALS/COLOURS + APEX NAME BADGE — DATA. Each building type gets its own wall MATERIAL tile
- * (house_3 brick, house_4 wood, house_5/office/civic stone, hospital plaster) + roof (red gable, grey slate for
- * stone, blue store sign, green hospital) — each carrying its colour in settings.colors — and the building NAME is
- * composition DATA (`title`) the stamp badges the roof apex with. These assert the resolved COLOUR + LABEL + TITLE
- * end-to-end through the DB tileset + stamp — never a hardcoded glyph.
+ * PER-TYPE BUILDING MATERIALS/COLOURS + APEX NAME BADGE — DATA. Each building type gets
+ * its own wall MATERIAL tile (house_3 brick, house_4 wood, house_5/office/civic stone, hospital plaster) +
+ * roof (red gable, grey slate for stone, blue store sign, green hospital) — each carrying its colour in
+ * settings.colors — and the building NAME is composition DATA (`title`) the stamp badges the roof apex with.
+ * These assert the resolved COLOUR + LABEL + TITLE end-to-end through the DB tileset + stamp — never a
+ * hardcoded glyph.
  */
 import { styleCatalog } from '@/engine/tileset/styleTiles'
 import '@/__tests__/helpers/installTilesetSeed' // type tiles + building compositions come from the loaded backend tileset fixture

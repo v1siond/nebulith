@@ -1,14 +1,14 @@
 /**
  * THE PLAYER ALWAYS LANDS WHERE THEY CAN WALK.
  *
- * The old rule checked ONE cell — not water, not blocked — and a one-cell pocket between trees passes that test while
- * leading nowhere. It only held because every generator happens to repair its own floor into one piece; a hand-edited
- * map, or any future generator, owed nothing. This picks a cell in the LARGEST connected walkable area of the live
- * grid, as close as it can to where the generator wanted the player.
+ * The old rule checked ONE cell — not water, not blocked — and a one-cell pocket between trees passes that
+ * test while leading nowhere. It only held because every generator happens to repair its own floor into one
+ * piece; a hand-edited map, or any future generator, owed nothing. This picks a cell in the LARGEST connected
+ * walkable area of the live grid, as close as it can to where the generator wanted the player.
  *
- * Connected ORTHOGONALLY on purpose. The player is a body almost a cell wide (a 0.42-cell half-extent), and every
- * corner of it must stay clear, so it cannot squeeze through a diagonal gap between two blockers. Two cells that only
- * touch at a corner are, for this player, two different places.
+ * Connected ORTHOGONALLY on purpose. The player is a body almost a cell wide (a 0.42-cell half-extent), and
+ * every corner of it must stay clear, so it cannot squeeze through a diagonal gap between two blockers. Two
+ * cells that only touch at a corner are, for this player, two different places.
  *
  * Pure: a walkability predicate and a size in, a cell out. The editor supplies the predicate.
  */

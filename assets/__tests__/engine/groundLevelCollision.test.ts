@@ -1,16 +1,20 @@
 /**
  * ONLY GROUND-LEVEL BLOCKS BLOCK THE FLOOR.
  *
- * The grid's collision map is 2D — one flag per (col,row) — while a composition is 3D: a wall at level 0, a window at
- * level 3, a roof at level 5, a rooftop AC unit above that. If EVERY non-walkable cell wrote into that flat map,
- * anything overhead would seal the floor underneath it.
+ * The grid's collision map is 2D — one flag per (col,row) — while a composition is 3D: a wall at level 0, a
+ * window at level 3, a roof at level 5, a rooftop AC unit above that. If EVERY non-walkable cell wrote into
+ * that flat map, anything overhead would seal the floor underneath it.
  *
- * That is exactly what a flat-roof shop did: its crown (`rooftop_unit` / the sign) is authored at the centre of the
- * footprint, above the room, and it punched a blocked hole in the middle of the shop floor: ##### #.#.# ← the crown,
- * five levels up, blocking the floor #...# ##d##
+ * That is exactly what a flat-roof shop did: its crown (`rooftop_unit` / the sign) is authored at the centre of
+ * the footprint, above the room, and it punched a blocked hole in the middle of the shop floor:
+ *     #####
+ *     #.#.#   ← the crown, five levels up, blocking the floor
+ *     #...#
+ *     ##d##
  *
- * A unit walks at ground level, so ground level is what the 2D map means. A roof still BLOCKS as a block — it is
- * authored `walkable: false` and nothing stands on it — it just does not seal the room beneath it.
+ * A unit walks at ground level, so ground level is what the 2D map means. A roof still BLOCKS as a block
+ * — it is authored `walkable: false` and nothing stands on it —
+ * it just does not seal the room beneath it.
  */
 import '@/__tests__/helpers/installTilesetSeed'
 import { IsometricGrid } from '@/engine/IsometricGrid'

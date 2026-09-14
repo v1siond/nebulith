@@ -1,13 +1,14 @@
 /**
  * SWAP THIS TILE — the answer to a question that had no answer in the UI.
  *
- * It swaps the tile in THAT slot of the stack (`game/editor/tileBrush.ts:138` — `replaceTileInPlace`): same cell,
- * same level, the tiles above and below untouched, and the slot adopts the new tile's art, colour, height, thickness
- * and settings. Nothing in the old UI said any of that; the button simply read "Replace tile" and the library opened.
+ * It swaps the tile in THAT slot of the stack (`game/editor/tileBrush.ts:138` — `replaceTileInPlace`): same
+ * cell, same level, the tiles above and below untouched, and the slot adopts the new tile's art, colour,
+ * height, thickness and settings. Nothing in the old UI said any of that; the button simply read "Replace
+ * tile" and the library opened.
  *
- * So this panel shows the BEFORE and the AFTER, spells out exactly what carries over, names the one exception, and is
- * cancellable. The carry-over list is not prose — each row is a field `replaceTileInPlace` actually assigns, so it
- * cannot drift from what the code does.
+ * So this panel shows the BEFORE and the AFTER, spells out exactly what carries over, names the one
+ * exception, and is cancellable. The carry-over list is not prose — each row is a field
+ * `replaceTileInPlace` actually assigns, so it cannot drift from what the code does.
  */
 import { useMemo, useState } from 'react'
 

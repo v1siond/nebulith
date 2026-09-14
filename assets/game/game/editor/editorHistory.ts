@@ -1,22 +1,21 @@
 /**
- * A tiny, PURE undo/redo stack — the map-agnostic core of the editor's Ctrl+Z / Ctrl+Y history. It holds two lists of
- * opaque snapshots (`past` = states you can step BACK to, `future` = states you can step FORWARD to) and never
- * touches the grid itself, so it unit-tests without React or a canvas. The caller supplies the SNAPSHOT + RESTORE of
- * the live map (see mapSnapshot.ts); this module just shuffles snapshots between the two stacks and enforces the
- * bound.
+ * A tiny, PURE undo/redo stack — the map-agnostic core of the editor's Ctrl+Z / Ctrl+Y history (
+ * "ctrl + y and ctrl + z functionalities … 4-5 steps forward and backwards"). It holds two lists of opaque
+ * snapshots (`past` = states you can step BACK to, `future` = states you can step FORWARD to) and never touches
+ * the grid itself, so it unit-tests without React or a canvas. The caller supplies the SNAPSHOT + RESTORE of
+ * the live map (see mapSnapshot.ts); this module just shuffles snapshots between the two stacks and enforces
+ * the bound.
  *
- * Model — checkpoint BEFORE the edit: each user edit calls `checkpoint(present)` first, pushing the pre-edit state
- * onto `past` and dropping the redo branch. `undo`/`redo` then move the live `present` across the two stacks. `limit`
- * caps how many steps you can take each way (the oldest is dropped, ring-buffer style).
+ * Model — checkpoint BEFORE the edit: each user edit calls `checkpoint(present)` first, pushing the pre-edit
+ * state onto `past` and dropping the redo branch. `undo`/`redo` then move the live `present` across the two
+ * stacks. `limit` caps how many steps you can take each way (the oldest is dropped, ring-buffer style).
  */
 export interface History<T> {
   past: T[]
   future: T[]
 }
 
-/**
- * How many edits you can step back/forward — the 4 to 5 steps the editor is expected to offer (kept ≥ 4).
- */
+/** How many edits you can step back/forward. Four to five is the expected depth, so this stays ≥ 4. */
 export const HISTORY_LIMIT = 5
 
 export function createHistory<T>(): History<T> {

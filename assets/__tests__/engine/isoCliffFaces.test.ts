@@ -1,20 +1,21 @@
 /**
  * A STEP IN THE GROUND SHOWS A CLIFF FACE.
  *
- * and on the mountain forest: *"it doesn't have cliff, nor anything, it's basically just a meadow"*.
+ * the mountain forest:
  *
  * The grid has carried a per-cell height from the beginning, and iso drew the ground lifted by it while drawing
- * NOTHING down the side of the step, so a raised region looked like a floating slab. `drawGridSkirt` already knew how
- * to draw a vertical face (that is what the map's outer body is), it just only ever did it at the edge of the map.
+ * NOTHING down the side of the step, so a raised region looked like a floating slab. `drawGridSkirt` already
+ * knew how to draw a vertical face (that is what the map's outer body is), it just only ever did it at the edge
+ * of the map.
  *
  * THE TRAP THIS FILE PINS DOWN, because I nearly shipped it. There are two vertical scales in iso:
  *
- * · `heightStep = cellSize * isoScale * 0.4`, how far ONE elevation level lifts a tile · `blockH = tileW *
- * ISO_BLOCK_H_FRAC`, the height of one BLOCK, and ~1.6x larger
+ *   · `heightStep = cellSize * isoScale * 0.4`, how far ONE elevation level lifts a tile
+ *   · `blockH     = tileW * ISO_BLOCK_H_FRAC`, the height of one BLOCK, and ~1.6x larger
  *
- * The slab is drawn at the block scale and stays that way. A cliff drawn at that scale would not reach the ground
- * tile it holds up, and every step would show a seam. So the faces below assert the exact drop, not merely that
- * something was drawn.
+ * The slab is drawn at the block scale and stays that way. A cliff drawn at that scale would not reach the
+ * ground tile it holds up, and every step would show a seam. So the faces below assert the exact drop, not
+ * merely that something was drawn.
  */
 import '@/__tests__/helpers/installTilesetSeed'
 import { drawGridSkirt } from '@/engine/render/iso'

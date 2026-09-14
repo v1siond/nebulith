@@ -1,8 +1,8 @@
 /**
- * BIDIRECTIONAL z-width: a tile z-widths `depth` cells ahead along `depthDir` AND `depthBack` cells behind it, from
- * ONE anchor — so a 4-cell roof becomes 1 tile. normalizeDepthSpan folds that into the one-way "anchor is the start,
- * depth runs along dir" span every existing depth fn understands, so nothing else in the render/sort has to learn a
- * second case. These lock the fold: same cells, anchor moved to the back.
+ * BIDIRECTIONAL z-width: a tile z-widths `depth` cells ahead along `depthDir` AND `depthBack`
+ * cells behind it, from ONE anchor — so a 4-cell roof becomes 1 tile. normalizeDepthSpan folds that into the
+ * one-way "anchor is the start, depth runs along dir" span every existing depth fn understands, so nothing else
+ * in the render/sort has to learn a second case. These lock the fold: same cells, anchor moved to the back.
  */
 import { normalizeDepthSpan, depthCells, assetRectExtents } from '@/engine/render/isoBlock'
 import { IsometricGrid } from '@/engine/IsometricGrid'

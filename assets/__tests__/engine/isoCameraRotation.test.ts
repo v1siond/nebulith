@@ -2,21 +2,23 @@
  * 4-WAY HORIZONTAL CAMERA ROTATION IN ISO (ticket #75) — end-to-end through render().
  *
  * / "we can rotate the corners, 4 corners, 4 rotation options, all faces of the map are visible" — the reason being
- * that "tiles that aren't in the front side from the camera perspective are hard to select, specially with collisions
- * on".
+  * that "tiles that aren't in the front side from the camera perspective are hard to select, specially with
+  * collisions on".
  *
  * So this file asserts what makes the feature real, against the RENDERED frame (not the pure math —
- * `isoOrientation.test.ts` already covers that): 1. `cameraFacing: 0` is inert — the frame is identical to today's
- * un-rotated render (op stream + the hard-coded screen coords today's projection produces). 2. Each facing lands a
- * KNOWN corner tile at a DIFFERENT, PREDICTED screen position, and a DIFFERENT world corner becomes the FRONT
- * (nearest-camera) one — i.e. all four map faces become reachable. 3. The PICK round-trips at every facing: a click
- * at a tile's rendered position selects THAT world tile, through the recorded silhouettes AND through the flat
- * bare-cell screen↔cell pair. 4. A depth/`depthDir` span (a roof) stays GRID-ALIGNED under rotation — its covered
- * cells rotate with it. 5. OCCLUSION sorts in the view frame, the camera CLAMP uses the ORIENTED dims, and the
- * `__setCameraFacing` seam drives a param-less render.
+ * `isoOrientation.test.ts` already covers that):
+ *   1. `cameraFacing: 0` is inert — the frame is identical to today's un-rotated render (op stream + the
+ *      hard-coded screen coords today's projection produces).
+ *   2. Each facing lands a KNOWN corner tile at a DIFFERENT, PREDICTED screen position, and a DIFFERENT world
+ *      corner becomes the FRONT (nearest-camera) one — i.e. all four map faces become reachable.
+ *   3. The PICK round-trips at every facing: a click at a tile's rendered position selects THAT world tile,
+ *      through the recorded silhouettes AND through the flat bare-cell screen↔cell pair.
+ *   4. A depth/`depthDir` span (a roof) stays GRID-ALIGNED under rotation — its covered cells rotate with it.
+ *   5. OCCLUSION sorts in the view frame, the camera CLAMP uses the ORIENTED dims, and the `__setCameraFacing`
+ *      seam drives a param-less render.
  *
- * Deterministic camera idiom copied from isoInvertedPick.test.ts: cellSize 100 / isoScale 1 (tileW 71, tileH 36) and
- * clampCamera:false, so every expected pixel is exact.
+ * Deterministic camera idiom copied from isoInvertedPick.test.ts: cellSize 100 / isoScale 1 (tileW 71,
+ * tileH 36) and clampCamera:false, so every expected pixel is exact.
  */
 import '@/__tests__/helpers/installTilesetSeed'
 import {

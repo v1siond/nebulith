@@ -1,19 +1,20 @@
 /**
  * THE (i) EXPLANATIONS — the copy behind every info button in the editor.
  *
- * > the actions while better organized aren't completely clear for end user, we need to improve labeling > and add
- * (i) info and docs with example guides > for example, how does animation work? how do triggers work? [...] what does
- * scatter place one means?? > what does npc, auto, enemy means? whats player, npc, erase and collision???? what are
- * rules, what's a > conector, how do they work? How did that fountain animate? > we want to make it was easy that
- * even a 5y kid can build a game with the tool
+ *   > the actions while better organized aren't completely clear for end user, we need to improve labeling
+ *   > and add (i) info and docs with example guides
+ *   > for example, how does animation work? how do triggers work? [...] what does scatter place one means??
+ *   > what does npc, auto, enemy means? whats player, npc, erase and collision???? what are rules, what's a
+ *   > conector, how do they work? How did that fountain animate?
+ *   > we want to make it was easy that even a 5y kid can build a game with the tool
  *
- * This is UI COPY, not game data — the same category as a button's label — so it lives with the components that show
- * it. Every entry answers a question a real person asked, in their words, and several describe a WORKED EXAMPLE
- * (`fountain`) rather than the abstraction, because "how did that fountain animate" is the question people actually
- * have.
+ * This is UI COPY, not game data — the same category as a button's label — so it lives with the components
+ * that show it. Every entry answers a question a real person asked, in their words, and several describe a
+ * WORKED EXAMPLE (`fountain`) rather than the abstraction, because "how did that fountain animate" is the
+ * question people actually have.
  *
- * Carried over verbatim from the approved design at:8899, and a test asserts it stays that way. `body` is trusted
- * HTML authored HERE — never user input — and is rendered with dangerouslySetInnerHTML by design.
+ * Carried over verbatim from the approved design at :8899, and a test asserts it stays that way. `body` is
+ * trusted HTML authored HERE — never user input — and is rendered with dangerouslySetInnerHTML by design.
  */
 
 /** One explanation: the question as a heading, and the answer as authored HTML. */

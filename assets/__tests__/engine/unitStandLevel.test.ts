@@ -3,14 +3,14 @@
  *
  * + "roof should have collissions, so this shouldn't be a posssible bug".
  *
- * The reproduced defect (live town, door cell 27,4 — `blocked=false`, cellStackTop=8): L0 path_stone | L1 door | L3
- * wall_stone_c | L4 window | L5 wall_stone_c | L6 window | L7 roof_top_slate The renderer lifted the hero by
- * `cellStackTop` — the top of EVERYTHING in the cell — so a hero standing in the doorway was drawn 8 blocks up, on
- * the roof.
+ * The reproduced defect (live town, door cell 27,4 — `blocked=false`, cellStackTop=8):
+ *   L0 path_stone | L1 door | L3 wall_stone_c | L4 window | L5 wall_stone_c | L6 window | L7 roof_top_slate
+ * The renderer lifted the hero by `cellStackTop` — the top of EVERYTHING in the cell — so a hero standing in
+ * the doorway was drawn 8 blocks up, on the roof.
  *
- * The rule: a unit stands on the cell's GROUND surface. Walls / doors / windows / roofs are structure — you pass
- * through them (the cell is walkable) or they block the cell; they are never something a unit is lifted onto. Raising
- * the GROUND still lifts the unit, exactly like it lifts a stacked tile.
+ * The rule: a unit stands on the cell's GROUND surface. Walls / doors / windows / roofs are structure — you
+ * pass through them (the cell is walkable) or they block the cell; they are never something a unit is lifted
+ * onto. Raising the GROUND still lifts the unit, exactly like it lifts a stacked tile.
  */
 import { unitStandLevel } from '@/engine/cellStack'
 import { FLOOR_TYPE, IsometricGrid } from '@/engine/IsometricGrid'

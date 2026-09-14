@@ -132,10 +132,10 @@ export function resolveEntityDraw(
   if (styled) return drawFromVisual(styled, defChar, defColor)
   const drawn = resolveDraw(kind, style, styleOverride, defChar, defColor)
   if (drawn.image || drawn.char) return drawn
-  // A UNIT IS A TILE. `npc` / `enemy` / `player` are real backend rows, so an entity the style map leaves unresolved
-  // falls back to its BAKED TILE — the same `styleTileImage` rescue every asset gets — instead of the frontend's
-  // hand-drawn glyph figures. So the glyph figure is a PRE-LOAD state: with nothing served this still resolves
-  // nothing and the caller draws it.
+  // A UNIT IS A TILE. `npc` / `enemy` / `player` are real backend rows, so an entity the style map leaves
+  // unresolved falls back to its BAKED TILE — the same `styleTileImage` rescue every asset gets — instead of
+  // the frontend's hand-drawn glyph figures. So the glyph
+  // figure is a PRE-LOAD state: with nothing served this still resolves nothing and the caller draws it.
   const tile = styleTileImage(kind, style)
   return tile ? drawFromVisual(tile, defChar, defColor) : drawn
 }
@@ -187,14 +187,13 @@ export function kindTileImage(kind: ElementKind, style: Style): ImageVisual | un
   return tile?.image ? { kind: 'image', src: tile.image, char: tile.char } : undefined
 }
 
-/**
- * The tint to pass alongside a labelTileImage. COLOUR IS A PER-TILE SETTING that FILTERS the baked tile — so the
- * resolved colour recolours the tile image in EVERY style via tintedImage (luminance-mapped, so shading is kept).
- * ascii images are white tint-targets; emoji part-tiles bake near-monochrome (🟦 water, 🧱 brick, 🍃 leaf —
- * TILESET-AUTHORING §4), so filtering them to their own colour is ≈ identity, and to an OVERRIDE (a house roof →
- * slate, a store wall → white) recolours cleanly. Previously emoji returned undefined ("pre-coloured, never
- * recolour"), which BROKE the colour-as-a-setting rule for emoji buildings; now colour filters uniformly.
- */
+/** The tint to pass alongside a labelTileImage. COLOUR IS A PER-TILE SETTING that FILTERS the baked tile
+ * — so the resolved colour recolours the tile image in
+ *  EVERY style via tintedImage (luminance-mapped, so shading is kept). ascii images are white tint-targets;
+ *  emoji part-tiles bake near-monochrome (🟦 water, 🧱 brick, 🍃 leaf — TILESET-AUTHORING §4), so filtering
+ *  them to their own colour is ≈ identity, and to an OVERRIDE (a house roof → slate, a store wall → white)
+ *  recolours cleanly. Previously emoji returned undefined ("pre-coloured, never recolour"), which BROKE the
+ *  colour-as-a-setting rule for emoji buildings; now colour filters uniformly. */
 export function labelTileRecolor(_style: Style, tint: string): string {
   return tint
 }
@@ -394,13 +393,12 @@ export function tintedImage(img: HTMLImageElement, src: string, tint: string): C
  *  by all three views so 'single' reads consistently in iso / 2D / top. */
 export const SINGLE_TILE_FRAC = 0.6
 
-/**
- * SHAPE = 'circle' ROUNDS a tile's silhouette; it never repaints the tile. clipToBall sets an ELLIPTICAL clip of
- * radii (rx, ry) centred at (cx, cy) = the block's OWN projected extent, so the caller draws the tile's normal
- * cube/face inside it and the clip bends the corners away into a smooth oval — PROPORTIONAL to the block (a tall
- * block → a tall oval), never a fixed circle. The painted art + per-face shading are kept; only the corners are
- * rounded. The caller owns the surrounding save/restore.
- */
+/** SHAPE = 'circle' ROUNDS a tile's silhouette; it never repaints the tile. clipToBall sets an ELLIPTICAL clip of
+ * radii (rx, ry) centred at (cx, cy) = the
+ *  block's OWN projected extent, so the caller draws the tile's normal cube/face inside it and the clip bends the
+ *  corners away into a smooth oval — PROPORTIONAL to the block (a tall block → a tall oval), never a fixed circle.
+ *  The painted art + per-face shading are kept; only the corners are rounded. The caller owns the surrounding
+ *  save/restore. */
 export function clipToBall(ctx: CanvasRenderingContext2D, cx: number, cy: number, rx: number, ry: number): void {
   ctx.beginPath()
   ctx.ellipse(cx, cy, Math.max(0.5, rx), Math.max(0.5, ry), 0, 0, Math.PI * 2)
@@ -505,9 +503,10 @@ export const LIGHT = {
 }
 
 // The DEFAULT warm glow pool — the light a lamp casts when it carries NO explicit `light` setting (a bare
-// lamp/lantern prop, or a lamp_post seeded before the light default). `rgb` is a SATURATED warm gold (#ffc24d) so the
-// pool reads as a real LIT lamp, not a pale wash; it matches the bulb's seeded `light.color`. `intensity` 1 is full
-// strength; `radiusTiles` is the pool radius in cells. A tile's own `light` setting overrides all of these.
+// lamp/lantern prop, or a lamp_post seeded before the light default). `rgb` is a SATURATED warm gold (#ffc24d)
+// so the pool reads as a real LIT lamp, not a pale wash; it matches the bulb's seeded `light.color`. `intensity` 1 is
+// full strength; `radiusTiles` is the
+// pool radius in cells. A tile's own `light` setting overrides all of these.
 export const LAMP_GLOW = { rgb: '255, 194, 77', radiusTiles: 3.2, intensity: 1 }
 
 /** A resolved light pool anchor in SCREEN space: centre + pixel radius + warm `rgb` ("r, g, b") + `intensity`
@@ -584,26 +583,25 @@ export function drawNightLighting(
 }
 
 
-/**
- * Screen-space light pools for every asset on the grid that casts a `light` and lands on-screen — the anchors the
- * night pass paints. `cellCenter` maps a cell to its screen centre (each view projects differently); `tilePx` is the
- * per-cell pixel unit for THIS view, so a light's `distance` (cells) becomes `distance·tilePx` pixels — the SETTING
- * drives the pool size. `lift` raises the pool to the lamp head. Driven by `assetLight`, so ANY tile carrying a light
- * casts a pool (a lamp with none uses the default); shared by all three views.
+/** Screen-space light pools for every asset on the grid that casts a `light` and lands on-screen — the anchors
+ *  the night pass paints. `cellCenter` maps a cell to its screen centre (each view projects differently);
+ *  `tilePx` is the per-cell pixel unit for THIS view, so a light's `distance` (cells) becomes `distance·tilePx`
+ *  pixels — the SETTING drives the pool size. `lift` raises the pool to the lamp head. Driven by `assetLight`,
+ *  so ANY tile carrying a light casts a pool (a lamp with none uses the default); shared by all three views.
  *
- * `anim` (optional {time, style, view}) makes the POOL FOLLOW THE BULB: for each light-casting asset we resolve its
- * live animation opacity (night-gated) and MULTIPLY it into the pool `intensity`, so a FAILING lamp's ground pool
- * dims/cuts on the exact beat its bulb flickers. A steady lamp has no animation → opacity 1 → its pool is unchanged.
- * Absent `anim` (jsdom / a caller that doesn't animate) → every pool is steady, byte-identical.
+ *  `anim` (optional {time, style, view}) makes the POOL FOLLOW THE BULB: for each light-casting asset we
+ *  resolve its live animation opacity (night-gated) and MULTIPLY it into the pool `intensity`, so a FAILING
+ * lamp's ground pool dims/cuts on the exact beat its bulb flickers. A steady lamp has no animation → opacity 1 → its
+  * pool is
+ *  unchanged. Absent `anim` (jsdom / a caller that doesn't animate) → every pool is steady, byte-identical.
  *
- * `anchorFor` (optional) CENTRES THE POOL ON THE BULB. A lamp is a COMPOSITION — the light-casting cell is the BULB,
- * drawn high up on the post (its own heightLevel + pose), NOT at the ground cell centre. `cellCenter + lift` only
- * ever reached a fixed height off the ground, so the pool sat well BELOW the bulb. When the caller passes `anchorFor`
- * (iso/2D use the bulb's own recorded silhouette centroid) we anchor the pool THERE — on the actual bulb — instead of
- * `cellCenter(col,row) - lift`. Returns null when the bulb wasn't drawn this frame (off-screen) → we fall back to
- * `cellCenter - lift`, byte-identical. Absent `anchorFor` (top view — no vertical perspective) → the old
- * cellCenter+lift anchor, unchanged.
- */
+ *  `anchorFor` (optional) CENTRES THE POOL ON THE BULB. A lamp is a COMPOSITION — the light-casting cell is the
+ *  BULB, drawn high up on the post (its own heightLevel + pose), NOT at the ground cell centre. `cellCenter + lift`
+ * only ever reached a fixed height off the ground, so the pool sat well BELOW the bulb. When the caller passes
+  * `anchorFor` (iso/2D use the bulb's own recorded silhouette
+ *  centroid) we anchor the pool THERE — on the actual bulb — instead of `cellCenter(col,row) - lift`. Returns
+ *  null when the bulb wasn't drawn this frame (off-screen) → we fall back to `cellCenter - lift`, byte-identical.
+ *  Absent `anchorFor` (top view — no vertical perspective) → the old cellCenter+lift anchor, unchanged. */
 export function collectLampGlows(
   grid: IsometricGrid,
   cellCenter: (col: number, row: number) => { x: number; y: number },
@@ -828,9 +826,9 @@ export function drawGroundShadow(
     ctx.restore()
     return
   }
-  // A SHADOW ON WATER IS NOT A CLEAN ELLIPSE. The surface moves, so the outline breaks up: the radius is modulated
-  // around the ring and the whole thing drifts, which reads as a shadow lying on a moving surface rather than painted
-  // on it. Cheap: one path, no per-pixel work.
+  // A SHADOW ON WATER IS NOT A CLEAN ELLIPSE. The surface moves, so the outline breaks up: the
+  // radius is modulated around the ring and the whole thing drifts, which reads as a shadow lying on a moving
+  // surface rather than painted on it. Cheap: one path, no per-pixel work.
   const rx = halfWidth * 1.15
   const ry = Math.max(2, halfWidth * 0.34)
   const t = waterTime / 420
@@ -855,11 +853,11 @@ const WATER_SHADOW_STEPS = 22
 /**
  * THE STEP ITSELF: rings spreading from the feet, on water only.
  *
- * Two rings out of phase, each growing and fading on its own cycle, so a standing figure keeps disturbing the surface
- * and a moving one leaves a trail of them behind.
+ * Two rings out of phase, each growing and fading on its own cycle, so a standing figure keeps
+ * disturbing the surface and a moving one leaves a trail of them behind.
  *
- * Drawn in the same iso footprint proportions as the shadow (2:1), so a ring reads as lying ON the water rather than
- * standing up out of it.
+ * Drawn in the same iso footprint proportions as the shadow (2:1), so a ring reads as lying ON the water
+ * rather than standing up out of it.
  */
 export function drawWaterStep(ctx: CanvasRenderingContext2D, cx: number, footY: number, halfWidth: number, time: number): void {
   ctx.save()

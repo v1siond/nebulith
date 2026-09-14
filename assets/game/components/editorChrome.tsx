@@ -152,7 +152,8 @@ function CompositionSection({
 /**
  * ONE object swatch — a composed SILHOUETTE built from the object's own cells, plus its footprint.
  *
- * Now they preview like everything else, and the picture is assembled from the very tiles the stamp will place.
+ * Now they preview like everything
+ * else, and the picture is assembled from the very tiles the stamp will place.
  */
 /** The composition to PICTURE an entry with — a folded type points at a real seeded size. */
 function previewKindOf(item: CompositionPaletteGroup['items'][number]): string {
@@ -187,7 +188,7 @@ function ObjectSwatch({
       onClick={() => onArm(item.kind)}
     >
       {/* The map's own render, not a composed elevation. These three — fountain, lamp post, well — were the ones
-          named as worst, and all three were wrong for the same reason. */}
+          that read worst of all, and all three were wrong for the same reason. */}
       {/* Drawn from a REAL composition: a folded entry's own kind is a bare type with nothing installed
           under it until a size is composed. */}
       <PreviewThumb subject={{ kind: 'composition', comp: previewKindOf(item) }} context={ctx} px={66} />
@@ -218,8 +219,8 @@ export function CompositionPalette({
   /**
    * The building types the backend can compose at any size, from `/api/buildings`.
    *
-   * Given these, the palette shows ONE entry per type with a size control instead of one per baked size — Empty (the
-   * backend has not answered) → the palette is unchanged.
+   * Given these, the palette shows ONE entry per type with a size control instead of one per baked size —
+   * Empty (the backend has not answered) → the palette is unchanged.
    */
   buildingTypes?: BuildingTypeCatalog
   /** Compose a building of this type at this size and arm it. The palette never lays one out itself. */
@@ -329,8 +330,8 @@ export function CompositionPalette({
  * HOW BIG the armed building is — two numbers, and the sizes that used to be separate buttons.
  *
  * The numbers are applied IMMEDIATELY rather than behind a confirm, because unlike the map size this is not
- * destructive: it composes a building and arms it, and nothing on the map changes until you click. The map size needs
- * a commit step; this does not, and adding one would be ceremony.
+ * destructive: it composes a building and arms it, and nothing on the map changes until you click. The map
+ * size needs a commit step; this does not, and adding one would be ceremony.
  *
  * The minimum comes from the BACKEND (`/api/buildings`), which is also the only thing that knows it —
  */
@@ -385,14 +386,16 @@ function BuildingSizeControl({
 /**
  * THE LEFT RAIL — banded by the journey, and the ONLY place the three libraries are named.
  *
- * > why do we have tiles, objects and characters repeated in the sidebar and inside tile sectrion? > that's confusing
+ *   > why do we have tiles, objects and characters repeated in the sidebar and inside tile sectrion?
+ *   > that's confusing
  *
- * The library panel used to carry a duplicate tab strip. It is gone: this rail IS the tab strip, and each row carries
- * its COUNT so the label has information scent — you can see there are 24 objects without opening anything.
+ * The library panel used to carry a duplicate tab strip. It is gone: this rail IS the tab strip, and each
+ * row carries its COUNT so the label has information scent — you can see there are 24 objects without
+ * opening anything.
  *
  * The band order is the journey, not the code layout (`EDITOR_BANDS`). So `New world` leads; `Select` is gone (it
- * acts on nothing — it is the resting state of the cursor); and `Art style` moved to the top nav, before the game
- * selector.
+  * acts on nothing — it is the resting state of
+ * the cursor); and `Art style` moved to the top nav, before the game selector.
  */
 export function ToolRail({
   activeId,
@@ -612,18 +615,17 @@ export function GenerateControls({
   catalogError?: string | null
   zone: string
   onZone: (z: string) => void
-  /**
-   * `layout` steers a map type that HAS layouts (undefined otherwise → the generator's own default). The SIZE is not
-   * passed: it belongs to the Grid panel now, and the caller reads it from there.
-   */
+  /** `layout` steers a map type that HAS layouts (undefined otherwise → the generator's own default).
+   *  The SIZE is not passed: it belongs to the Grid panel now, and the caller reads it from there.
+   * */
   /** `generatorKey` is the SUBTYPE picked below the preset, when one was — the build runs exactly that one. */
   /** Returns a promise while the build runs, so the button can say so. A void return still works. */
   onGenerate: (zone: string, categoryKey: string, layout?: string, options?: Record<string, GeneratorOptionValue>, generatorKey?: string) => void | Promise<void>
   /**
    * Apply the season and the options to the map that is ALREADY open, without re-rolling it.
    *
-   * Building was the only way anything here reached the map, and building rolls a new world, so changing one setting
-   * cost you the map you had.
+   * Building was the only way anything here reached the
+   * map, and building rolls a new world, so changing one setting cost you the map you had.
    */
   onApply?: (zone: string, options: Record<string, GeneratorOptionValue>) => void
   /** When provided, shows the universal "re-roll one layer" row that re-rolls a single layer of the current
@@ -639,9 +641,10 @@ export function GenerateControls({
   /**
    * Put the Preview window back on screen.
    *
-   * Both halves of that are this component: the options fall back INLINE when there is no `tuningSlot` to portal them
-   * into (that is the "goes inside the sidebar"), and nothing could ask for the window again, so the only way back
-   * was switching rails. Same shape as `onOpenLibrary` and the other reopen props.
+   * Both halves of that are this component: the options fall back INLINE
+   * when there is no `tuningSlot` to portal them into (that is the "goes inside the sidebar"), and nothing
+   * could ask for the window again, so the only way back was switching rails. Same shape as `onOpenLibrary`
+   * and the other reopen props.
    */
   onOpenPreview?: () => void
   /** The matrix as TYPED — what this build will produce. Owned by the parent because `Build this world`
@@ -666,17 +669,18 @@ export function GenerateControls({
   /**
    * The generator's OPTIONS as the person set them.
    *
-   * because a row per combination does not scale — his own example ran woodland, woodland + river, woodland + river +
-   * bridge. Keyed by option key; absent means "as the backend declared it".
+   * because a row per
+   * combination does not scale — his own example ran woodland, woodland + river, woodland + river + bridge.
+   * Keyed by option key; absent means "as the backend declared it".
    */
   const [options, setOptions] = useState<Record<string, GeneratorOptionValue>>({})
   /**
-   * The SUBTYPE picked at each level below the preset, top down. Each entry is a child key, `random`, or '' for the
-   * level's own standard version.
+   * The SUBTYPE picked at each level below the preset, top down. Each entry
+   * is a child key, `random`, or '' for the level's own standard version.
    */
   const [path, setPath] = useState<string[]>([])
   /** Regions the person unticked. The sub-zones existed before this but only as data nobody could see —
-   *  *"I don't anything on the UI"*. */
+   * */
   const zones = catalogZones(catalog)
   // The first category is the flagship the menu opens on, until the user picks another.
   const activeKey = categoryKey ?? catalog[0]?.key ?? null
@@ -686,17 +690,19 @@ export function GenerateControls({
   /**
    * The cards to show — always at least one.
    *
-   * Only the forest had cards, because only the forest has NAMED layouts; a town has a single generator with `layout:
-   * null`, so `categoryLayouts` returned nothing and the whole card grid — thumbnail included — was skipped. A
-   * category with one generator still has something to show you: what that generator builds. Its card carries no
-   * layout id, which is exactly what `generateStage` wants for "run the category's own default pass".
+   * Only the forest had cards, because only the forest has NAMED layouts; a town has a
+   * single generator with `layout: null`, so `categoryLayouts` returned nothing and the whole card grid —
+   * thumbnail included — was skipped. A category with one generator still has something to show you: what
+   * that generator builds. Its card carries no layout id, which is exactly what `generateStage` wants for
+   * "run the category's own default pass".
    */
   /**
    * The world a preset would build, as a preview SUBJECT.
    *
-   * One object, two consumers: the card's own thumbnail and the big Preview panel (`onPeek`). They used to be one
-   * consumer, which is why hovering a preset showed a tooltip and nothing else — Built here so the small picture and
-   * the big one can never disagree about which world they are showing.
+   * One object, two consumers: the card's own thumbnail and the big Preview panel (`onPeek`). They used to
+   * be one consumer, which is why hovering a preset showed a tooltip and nothing else —
+   * 2026-09-10: Built here so the small
+   * picture and the big one can never disagree about which world they are showing.
    */
   const presetSubject = (categoryKey: string, layoutId: string | undefined, opts?: Record<string, GeneratorOptionValue>, gen?: GeneratorDef, cells: { cols: number; rows: number } = PRESET_THUMB_CELLS) => {
     // ONE lookup for every field below. It was written out six times, and the sixth is where the bug hid.
@@ -708,19 +714,21 @@ export function GenerateControls({
        * WHICH ARCHETYPE THE PREVIEW BUILDS: the row's own, exactly as `generate` asks for it.
        *
        * This passed the CATEGORY key, and that is why the preview was blank for every settlement and only for
-       * settlements. A category key is an archetype by coincidence: "forest", "cave" and "temple" happen to name one,
-       * and "settlement" never did, because town and city were merged under it. The engine looks its archetype up by
-       * name, finds nothing for "settlement", runs no pass, and draws an empty grid.
+       * settlements. A category key
+       * is an archetype by coincidence: "forest", "cave" and "temple" happen to name one, and "settlement"
+       * never did, because town and city were merged under it. The engine looks its archetype up by name,
+       * finds nothing for "settlement", runs no pass, and draws an empty grid.
        *
-       * `archetypeOf` already resolves this for the BUILD. Reading the row's `variant` here is what makes the picture
-       * and the button agree, which is the entire purpose of this object.
+       * `archetypeOf` already resolves this for the BUILD. Reading the row's `variant` here is what makes the
+       * picture and the button agree, which is the entire purpose of this object.
        */
       variant: (def?.variant ?? categoryKey) as never,
       layout: layoutId,
       // The picked world's NAME, not its layout, so the preview can say "Mountain forest" and not "woodland".
       name: def?.name,
       nature: def?.config.nature,
-      // The preview has to be built from the SAME inputs the build uses, or it is a picture of a different map. It
+      // The preview has to be built from the SAME inputs the build uses, or it is a picture of a different
+      // map. It
       // was not clear because the preview was not told about them.
       options: opts,
       palette: def?.config.palette,
@@ -800,9 +808,9 @@ export function GenerateControls({
   /**
    * The world the panel should be showing when nobody is hovering anything — the SELECTED preset's.
    *
-   * Leaving a card used to clear the panel to null, so the picture only existed while the pointer sat on it and you
-   * could never look at the thing you had actually chosen. Hover is a peek at another option; this is the resting
-   * state.
+   * Leaving a card used to
+   * clear the panel to null, so the picture only existed while the pointer sat on it and you could never
+   * look at the thing you had actually chosen. Hover is a peek at another option; this is the resting state.
    */
   const selectedSubject = () =>
     activeKey === null ? null : presetSubject(activeKey, layouts.some(l => l.id === layout) ? layout ?? undefined : layouts[0]?.id, chosenOptions(), activeGenerator, peekCells())
@@ -812,9 +820,10 @@ export function GenerateControls({
   /**
    * WHICH ARCHETYPE the engine is asked for. The row says it, not the category.
    *
-   * Once a town and a city share one, the category key names no archetype, so sending it would ask the engine to
-   * build a "settlement", which is not a thing it makes. A row served before this field existed has none, and then
-   * the category key stands in exactly as it used to.
+   * Once a
+   * town and a city share one, the category key names no archetype, so sending it would ask the engine to
+   * build a "settlement", which is not a thing it makes. A row served before this field existed has none, and
+   * then the category key stands in exactly as it used to.
    */
   const archetypeOf = (gen: GeneratorDef | undefined): string => gen?.variant ?? (activeKey as string)
 
@@ -851,8 +860,8 @@ export function GenerateControls({
     }
   }
 
-  // THE PICTURE FROM THE START. The resting picture follows the season, the kind and the size on its own instead of
-  // waiting for a hover. The other picks re-peek in their own handlers.
+  // THE PICTURE FROM THE START. The resting picture follows the season, the kind and the size on
+  // its own instead of waiting for a hover. The other picks re-peek in their own handlers.
   useEffect(() => {
     const subject = selectedSubject()
     if (subject) onPeek?.(subject as never)
@@ -878,7 +887,8 @@ export function GenerateControls({
       {` = ${buildCells.toLocaleString()} cells, ${sizeDraft.cellSize}px each`}
     </div>
   )
-  // THE SEASON is one of the things that shape the world, so it travels with the rest of them to the Preview window.
+  // THE SEASON is one of the things that shape the world, so it travels with the rest of them to the Preview
+  // window.
   const season = (
     <div className="ctl">
       <span className="l">Season</span>
@@ -889,12 +899,10 @@ export function GenerateControls({
   )
   // The options that SHAPE the world. They go to the Preview window when there is one (tuningSlot), and stay
   // right here when there is not, in the order they always had. The BUILD button no longer travels with them:
-  // *"on left side all I want to see is the kind of place, and the list of presets per kind, and the build this
-  // world button"*.
   const tuning = (
     <>
-      {/* THE SUBTYPES, one picker per level, as deep as the data goes. *"or just randomize"*. Each level offers its
-          own standard version, every subtype, and Random. */}
+      {/* THE SUBTYPES, one picker per level, as deep as the data goes. Each level offers its own standard version,
+          every subtype, and Random. */}
       {chain.map((node, level) => (node.children?.length ?? 0) > 0 && (
         <div key={node.key} className="ctl">
           <span className="l">{node.name}</span>
@@ -978,7 +986,8 @@ export function GenerateControls({
   )
   const building = (
     <>
-      {/* THE EXPLICIT ACT, LAST. Until it is clicked nothing above has touched the open map. */}
+      {/* THE EXPLICIT ACT, LAST.
+          Until it is clicked nothing above has touched the open map. */}
       <button
         type="button"
         onClick={() => { void generate() }}
@@ -1004,11 +1013,10 @@ export function GenerateControls({
         </button>
       )}
       <div className="hint">
-        {/* "the numbers above, exactly" has to stay TRUE. Building goes through clampMapSize, which holds a
-            size inside the cap, so at 400 columns the map would come back 100 wide while this line claimed
-            400. That silent rewrite is the exact bug hit twice (*"it didn't built it with the
-            specific sizes I selected"*), so the panel says what is wrong instead of promising a size it
-            will not build. */}
+        {/* "the numbers above, exactly" has to stay TRUE. Building goes through clampMapSize, which holds a size
+            inside the cap, so at 400 columns the map would come back 100 wide while this line claimed 400. That
+            silent rewrite is the exact bug hit twice (), so the panel says what is wrong instead of
+            promising a size it will not build. */}
         {!sizeDraft
           ? 'The generator picks the size.'
           : mapSizeProblem(sizeDraft)
@@ -1022,8 +1030,8 @@ export function GenerateControls({
   // on the right with the options.
   const layers = onRandomizeLayer && (
     <>
-      {/* Change ONE layer: the same five parts on every kind of place. Named for what it IS, which is his
-          *"rebuild one part" why not just layers?*. */}
+      {/* Change ONE layer: the same five parts on every kind of place. Named LAYERS for what it is, rather
+          than for the act of rebuilding one part. */}
       <div className="sub">Layers</div>
       <div className="seg" style={{ flexWrap: 'wrap' }} role="group" aria-label="Layers">
         {GENERATOR_LAYERS.map(({ id, label, hint }) => (
@@ -1085,8 +1093,8 @@ export function GenerateControls({
       </div>
       {activeCategory?.description && <div className="hint">{activeCategory.description}</div>}
 
-      {/* The chosen kind's presets as CARDS. and *"meadow, meadow + river are just pre defined options of
-          forests."* So they are named presets OF the kind above, not a separate concept called "shape". */}
+      {/* The chosen kind's presets as CARDS. and So they are named presets OF the kind above, not a separate
+          concept called "shape". */}
       {presets.length > 0 && (
         <>
           {/* The heading only earns its space when there is a CHOICE. One card needs no question. */}
@@ -1175,8 +1183,9 @@ function Step({ n, label, children }: { n: number; label: string; children: Reac
 export function StylePicker({ activeId, onPick, onClose }: { activeId: string; onPick: (id: string) => void; onClose?: () => void }) {
   return (
     <div className="space-y-1">
-      {/* Named for what it lists. Every row is a TILESET: the same labels, the same names, the same heights, a
-          different set of pictures. That is the whole difference a style makes. */}
+      {/* Named for what it lists (— "Style" said
+          nothing). Every row is a TILESET: the same labels, the same names, the same heights, a different
+          set of pictures. That is the whole difference a style makes. */}
       <p className="mb-1 text-[10px] leading-snug text-gray-400">
         Every tile keeps its name and its behaviour — only the pictures change.
       </p>
@@ -1264,8 +1273,8 @@ export function TileSwatch({
  * library narrows to one bucket in a click. `All` keeps the grouped view, which is still the right default
  * for browsing.
  *
- * Shared by all three libraries on purpose — §4.5: *"the same header/search/chips/armed-state structure, so
- * learning one teaches all three"*. Each chip carries its COUNT, so the size of a bucket is visible before
+ * Shared by all three libraries on purpose — §4.5: Each chip carries its COUNT, so the size of a bucket is visible
+  * before
  * you open it.
  */
 export function LibraryChips<T extends string>({ chips, active, onPick }: {
@@ -1274,10 +1283,11 @@ export function LibraryChips<T extends string>({ chips, active, onPick }: {
   active: T | null
   onPick: (id: T | null) => void
 }) {
-  // So: a list, one row per bucket, each carrying its count — you can see there are 4 doors and 94 ground tiles
-  // without opening anything. His earlier objection was to PILLS, which wrap and eat width; a native select costs one
-  // row for twelve options and needs no scroll area of its own. The count rides in each option's label, so the
-  // information scent survives.
+  // So: a list, one row per bucket, each
+  // carrying its count — you can see there are 4 doors and 94 ground tiles without opening anything.
+  // His earlier objection was to
+  // PILLS, which wrap and eat width; a native select costs one row for twelve options and needs no scroll
+  // area of its own. The count rides in each option's label, so the information scent survives.
   const total = chips.reduce((n, c) => n + c.count, 0)
   return (
     <div className="ctl">
@@ -1595,10 +1605,11 @@ export interface UnitPickerProps {
   /** run the scatter (scatters the picked creature, or a mix when nothing is picked). */
   onScatter: () => void
   /**
-   * `Place as: ( ) Enemy (•) Auto ( ) NPC` — §4.5's row, and
+   * `Place as: ( ) Enemy (•) Auto ( ) NPC` — §4.5's row, and the model made visible
+   * (2026-09-08):
    *
-   * So hostility is NOT a property of the tile. `Auto` takes the catalog's role for the creature you picked; Enemy /
-   * NPC override it for what you are about to place. A bear can be a pet.
+   * So hostility is NOT a property of the tile. `Auto` takes the catalog's role for the creature you
+   * picked; Enemy / NPC override it for what you are about to place. A bear can be a pet.
    */
   placeAs: 'auto' | 'enemy' | 'npc'
   onPlaceAs: (as: 'auto' | 'enemy' | 'npc') => void
@@ -2014,10 +2025,8 @@ export function ViewBar({
   fps: number
   renderMs: number
   onHelp: () => void
-  /**
-   * Open the step-by-step guides. Its own button beside Help, because "what does this key do" and "how do I build a
-   * level" are different questions and burying one inside the other is how this went missing.
-   */
+  /** Open the step-by-step guides. Its own button beside Help, because "what does this key do" and "how do I build a
+   *  level" are different questions and burying one inside the other is how this went missing. */
   onGuides: () => void
 }) {
   const overlays = [
@@ -2051,8 +2060,8 @@ export function ViewBar({
       {activeView === 'iso' && <span className="vr" aria-hidden="true" />}
       {activeView === 'iso' && <CameraRotateButton facing={facing} onFacing={onFacing} />}
       {activeView === 'iso' && <PlayerRangeControl range={playerRange} onRange={onPlayerRange} />}
-      {/* ▤ Ground — the map's own depth. His words: *"close to rotate and range, which are grid properties
-          too in a way"*. ISO-only for the same reason those two are: a flat projection has no body to show. */}
+      {/* ▤ Ground — the map's own depth. His words: ISO-only for the same reason those two are: a flat projection
+          has no body to show. */}
       {activeView === 'iso' && slabBlocks !== undefined && onSlabBlocks && (
         <GroundThicknessControl blocks={slabBlocks} onBlocks={onSlabBlocks} />
       )}
@@ -2116,8 +2125,7 @@ export function ViewBar({
       <span className="h-5 w-px shrink-0 bg-white/15" />
       <span className="shrink-0 tabular-nums text-xs text-gray-300" title="Camera zoom (mouse wheel)">🔍 {zoomPct}%</span>
 
-      {/* 🎨 Style is NOT here — it is *"a separate group, which list all available art styles"*, so it is a rail
-          entry (`artstyle`) with its own panel. */}
+      {/* 🎨 Style is NOT here — it is so it is a rail entry (`artstyle`) with its own panel. */}
 
       <span className="ml-auto flex shrink-0 items-center gap-2">
         <FpsReadout fps={fps} renderMs={renderMs} variant="nav" />

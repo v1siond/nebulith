@@ -1,23 +1,24 @@
 /**
  * THE TILE STORE — one shape, one store, every art style.
  *
- * > 1 game engine, multiple styles. That's it. We don't need an engine for ascii, another for emoji, > another for X
- * art style. Changing a style just changes the database of tiles — it just changes the > png associated with the
- * name. `grass -> ascii`, `grass -> emoji`: same name, same label, same > identifier, different png.
+ *   > 1 game engine, multiple styles. That's it. We don't need an engine for ascii, another for emoji,
+ *   > another for X art style. Changing a style just changes the database of tiles — it just changes the
+ *   > png associated with the name. `grass -> ascii`, `grass -> emoji`: same name, same label, same
+ *   > identifier, different png.
  *
- * and, on why the two per-style holder files existed at all:
+ * Why the two per-style holder files existed at all:
  *
- * > tiles come from the elixir backend, so why do we need those two files????
+ *   > tiles come from the elixir backend, so why do we need those two files????
  *
- * They don't. `asciiTileset.ts` and `emojiTileset.ts` are deleted. This module is the whole store: the backend serves
- * one payload per style, the loader installs it here, and everything reads it from here.
+ * They don't. `asciiTileset.ts` and `emojiTileset.ts` are deleted. This module is the whole store: the
+ * backend serves one payload per style, the loader installs it here, and everything reads it from here.
  *
- * The ONLY field a style changes is `image`. Everything else — name, bucket, height, collision — is a fact about the
- * LABEL, and the backend enforces that (`normalize_label_facts/0`).
+ * The ONLY field a style changes is `image`. Everything else — name, bucket, height, collision — is a fact
+ * about the LABEL, and the backend enforces that (`normalize_label_facts/0`).
  *
- * `char` is the mark the picture was baked FROM (`;` for ascii grass, `🌿` for emoji grass). It is not a second
- * rendering path: every tile draws its `image`. It is the catalog preview and the last resort for a label with no
- * baked picture. One field, one meaning, both styles.
+ * `char` is the mark the picture was baked FROM (`;` for ascii grass, `🌿` for emoji grass). It is not a
+ * second rendering path: every tile draws its `image`. It is the catalog preview and the last resort for a
+ * label with no baked picture. One field, one meaning, both styles.
  */
 import type { TilePose } from './pose'
 import type { Composition, GroundTile, TilePosition } from './tileset'
@@ -118,9 +119,9 @@ export function setStyleTile(styleId: string, label: string, tile: StyleTile): v
 /**
  * Write ONE composition into a style's catalog.
  *
- * The seam that lets a building COMPOSED TO ORDER be stamped by the path a seeded one uses. The editor asks
- * `/api/buildings/:type?width=&depth=` for a footprint nobody authored, installs the answer here under a synthetic
- * kind, and arms it — from that point nothing downstream knows or cares that it was generated.
+ * The seam that lets a building COMPOSED TO ORDER be stamped by the path a seeded one uses. The editor
+ * asks `/api/buildings/:type?width=&depth=` for a footprint nobody authored, installs the answer here under
+ * a synthetic kind, and arms it — from that point nothing downstream knows or cares that it was generated.
  *
  * One way in, mirroring `setStyleTile`, because there is one store.
  */
@@ -133,15 +134,16 @@ export function setStyleComposition(styleId: string, kind: string, comp: StyleCa
 /**
  * Write ONE composition into EVERY loaded style.
  *
- * A composition is STRUCTURE, not art: which cells exist, at which levels, carrying which LABELS. The art is the
- * label's baked picture, and that is the only thing a style changes (MAP-MODEL: one engine, N art styles). So a
- * composition belongs to all of them, and the seeded ones already do — the backend serves the same 24 with every
- * tileset.
+ * A composition is STRUCTURE, not art: which cells exist, at which levels, carrying which LABELS. The art
+ * is the label's baked picture, and that is the only thing a style changes (MAP-MODEL: one engine, N art
+ * styles). So a composition belongs to all of them, and the seeded ones already do — the backend serves the
+ * same 24 with every tileset.
  *
- * A building COMPOSED TO ORDER (`house@4x4`) did not. It was installed into the ACTIVE style alone, while every
- * structure reader in the engine looks in one fixed catalog, so the two only met when the active style happened to be
- * that one. — measured: composed into `emoji`, a town stamped 0 wall/roof tiles; the same stage composed into `ascii`
- * stamped 436. The stamp returns a cell COUNT and nobody read it, so it failed in total silence.
+ * A building COMPOSED TO ORDER (`house@4x4`) did not. It was installed into the ACTIVE style alone, while
+ * every structure reader in the engine looks in one fixed catalog, so the two only met when the active
+ * style happened to be that one. — measured:
+ * composed into `emoji`, a town stamped 0 wall/roof tiles; the same stage composed into `ascii` stamped 436.
+ * The stamp returns a cell COUNT and nobody read it, so it failed in total silence.
  */
 export function setSharedComposition(kind: string, comp: StyleCatalog['compositions'][string]): void {
   for (const styleId of Object.keys(CATALOGS)) setStyleComposition(styleId, kind, comp)

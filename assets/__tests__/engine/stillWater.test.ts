@@ -3,13 +3,13 @@
  *
  * Two defects, both data.
  *
- * A pool laid `water_shallow`, which is the RIVER's own wadeable edge, so a puddle and a channel wore one label. And
- * the generator's comment asserted that label was height 0.0 while the database said 1.0 in both styles, so every
- * puddle drew as a one-block cube of water standing on the floor.
+ * A pool laid `water_shallow`, which is the RIVER's own wadeable edge, so a puddle and a channel wore one
+ * label. And the generator's comment asserted that label was height 0.0 while the database said 1.0 in both
+ * styles, so every puddle drew as a one-block cube of water standing on the floor.
  *
- * `water_still` is the puddle: flush at height 0, frameless because standing water has no current. The two river
- * BANDS join `water`'s 0.5, which `seed_water_color` had already worked out for the channel and never applied to
- * them.
+ * `water_still` is the puddle: flush at height 0, frameless because standing water has no current. The two
+ * river BANDS join `water`'s 0.5, which `seed_water_color` had already worked out for the channel and never
+ * applied to them.
  */
 import '@/__tests__/helpers/installTilesetSeed'
 import { generateStage } from '@/engine/stageGenerator'
@@ -44,7 +44,8 @@ const groundCount = (s: ReturnType<typeof grow>, label: string) => s.ground.flat
 
 describe('still water is its own tile', () => {
   it('a puddle is a FILM STACKED ON the ground, and the ground is still under it', () => {
-    // It used to REPLACE the ground, so its own height had to match whatever floor it landed on and never could.
+    // It used to REPLACE the ground, so its own height had to match whatever floor it landed
+    // on and never could.
     const swamp = grow('forest_jungle_swamp')
     const film = swamp.props.filter(p => p.label === 'water_still')
     expect(film.length).toBeGreaterThan(0)
@@ -55,7 +56,7 @@ describe('still water is its own tile', () => {
   })
 
   it('YOU DO NOT DROP INTO IT: the level in a puddle is the level beside it', () => {
-    // The whole complaint: *"now I jump down due to the height difference"*. A unit stands on the cell's GROUND
+    // The whole complaint: A unit stands on the cell's GROUND
     // (`unitStandLevel` counts floor assets only), so a film that leaves the floor alone cannot move it.
     const swamp = grow('forest_jungle_swamp')
     const grid = new IsometricGrid(swamp.cols, swamp.rows, 32)
@@ -83,7 +84,6 @@ describe('still water is its own tile', () => {
   })
 
   it('it wears its OWN picture, not the river band with current lines in it', () => {
-    // *"the puddle is still using a bad tile of water that contains lines that are meant to be animated"*.
     const still = styleTile('ascii', 'water_still')?.image
     const band = styleTile('ascii', 'water_shallow')?.image
     expect(still).toBeDefined()
@@ -100,7 +100,7 @@ describe('still water is its own tile', () => {
   })
 
   it('a PUDDLE does not animate, even though the picture path collapses it to the river', () => {
-    // The heart of *"it doesn't have current is stationary"*. `assetKind` folds every water-ish label to the
+    // The heart of `assetKind` folds every water-ish label to the
     // kind `water` so the bands can share one image, and that used to hand a puddle the river's four frames.
     // `water_still` declares an EMPTY animations list, which is a statement, not an omission.
     const asset = { art: [''], col: 1, row: 1, type: 'floor', tileKey: 'water_still', heightLevel: 0, blocking: false, placedAt: 0 } as unknown as GridAsset

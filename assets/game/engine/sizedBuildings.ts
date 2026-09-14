@@ -1,17 +1,17 @@
 /**
  * ONE ENTRY PER BUILDING TYPE, not one per baked size.
  *
- * The size used to live in the composition NAME — `house_3`, `house_4`, `house_5` — so the palette showed three
- * houses. The backend can now compose any footprint, so the palette shows ONE House with a size control, and the
- * sizes those three names encoded become defaults rather than separate objects.
+ * The size used to live in the composition NAME — `house_3`, `house_4`, `house_5` — so the palette showed
+ * three houses. The backend can now compose any footprint, so the palette shows ONE House with a size
+ * control, and the sizes those three names encoded become defaults rather than separate objects.
  *
- * This is the collapse, kept pure so it can be tested without a catalog or a canvas: given the palette the loaded
- * tileset produced and the types the backend says it can compose, fold every `<type>_<n>` item into one entry for
- * `<type>`.
+ * This is the collapse, kept pure so it can be tested without a catalog or a canvas: given the palette the
+ * loaded tileset produced and the types the backend says it can compose, fold every `<type>_<n>` item into
+ * one entry for `<type>`.
  *
- * A composition the backend does NOT list as a type is left exactly as it is. That is not a fallback, it is the
- * correct answer: `stone_building`, `fountain`, `lamp_post` and the trees are authored objects with no parametric
- * recipe, and folding them would claim a size control the backend cannot honour.
+ * A composition the backend does NOT list as a type is left exactly as it is. That is not a fallback, it is
+ * the correct answer: `stone_building`, `fountain`, `lamp_post` and the trees are authored objects with no
+ * parametric recipe, and folding them would claim a size control the backend cannot honour.
  */
 import type { CompositionPaletteGroup, CompositionPaletteItem } from './compositionCatalog'
 import { composedKind, typeOfComposedKind, type BuildingType, type Footprint } from '@/lib/buildingSizes'
@@ -123,14 +123,14 @@ export function collapseSizedBuildings(
 
   // ── EVERY TYPE THE BACKEND CAN BUILD, whether one was ever seeded or not ───────────────────────
   //
-  // This folded what the SEEDED compositions happened to contain, so a type nobody had seeded a size for was never
-  // visited and never got a row. The generator could build a tower and the palette could not offer one. Seeding one
-  // is not the answer, he was explicit: *"THIS IS DEPRECATED, houses size is built on demand"*. So the list comes
-  // from the types, and a type with no seeded size gets its row here at its own default.
+  // This folded what the SEEDED compositions happened to contain, so a type nobody had seeded a size for was
+  // never visited and never got a row. The generator could build a tower and the palette could not offer one.
+  // Seeding one is not the answer, he was explicit: So
+  // the list comes from the types, and a type with no seeded size gets its row here at its own default.
   //
-  // `previewKind` points at the COMPOSED default (`tower@4x4`), which the page installs for every served type once
-  // `/api/buildings` answers. Nothing here invents a picture: if that install has not happened the swatch is empty,
-  // the same honest blank the rest of the editor draws for a composition that is not loaded.
+  // `previewKind` points at the COMPOSED default (`tower@4x4`), which the page installs for every served type
+  // once `/api/buildings` answers. Nothing here invents a picture: if that install has not happened the swatch
+  // is empty, the same honest blank the rest of the editor draws for a composition that is not loaded.
   const missing = types.filter(t => !represented.has(t.key))
   if (missing.length === 0) return folded
 

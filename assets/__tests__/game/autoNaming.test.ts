@@ -1,9 +1,9 @@
 /**
  * AUTO-NAMING A NEW GAME.
  *
- * So creating a game asks nothing. The name has to be generated, and it has to be generated well enough that a
- * gallery of them stays readable: no collisions, and the numbers keep counting up instead of reusing a gap and
- * producing two "Game 3"s a rename apart.
+ * So creating a game asks nothing. The name has to be generated, and it has to be generated well
+ * enough that a gallery of them stays readable: no collisions, and the numbers keep counting up
+ * instead of reusing a gap and producing two "Game 3"s a rename apart.
  */
 import { nextGameName, nextLevelName, resolveLevelName } from '@/game/autoNaming'
 

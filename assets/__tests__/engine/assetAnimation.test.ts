@@ -185,8 +185,8 @@ describe('resolveAssetAnimation — the `night` trigger gates playback to night 
   })
 
   test('the lamp night-LIT glow: a STEADY night colour (from==to) lights the bulb at night, unlit in day', () => {
-    // The DEFAULT lamp bulb behaviour. A night-triggered `color` track that HOLDS a warm value (from == to) → a
-    // steady LIT look, NOT a flicker.
+    // The DEFAULT lamp bulb behaviour.
+    // A night-triggered `color` track that HOLDS a warm value (from == to) → a steady LIT look, NOT a flicker.
     const lit = anim({
       id: 'lamp_night_lit', trigger: { on: 'night' }, ease: 'linear',
       tracks: [{ setting: 'color', from: '#ffe9a0', to: '#ffe9a0' }],

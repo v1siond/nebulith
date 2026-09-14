@@ -1,16 +1,17 @@
 /**
  * A BUILDING IS ENTERABLE — its interior is floor you walk on, not solid rock.
  *
- * and the target he gave is Image #6 (Diablo II) — a real room you move around in.
+ * The target he gave is Image #6 (Diablo II) — a real room you
+ * move around in.
  *
  * The defect is older than the doorway work: `placeBuildingOnPlot` blanket-blocked the WHOLE footprint rect —
- * collision[row][col] = !isDoor.has(`${col},${row}`) // every cell but the door — the old "a building is a solid
- * obstacle with a door you bump into" model. So the hero could stand in the doorway (that cell is walkable) and go
- * nowhere.
+ *   collision[row][col] = !isDoor.has(`${col},${row}`)   // every cell but the door
+ * — the old "a building is a solid obstacle with a door you bump into" model. So the hero could stand in the
+ * doorway (that cell is walkable) and go nowhere.
  *
- * The rule now: the PERIMETER blocks (walls, windows — you don't walk through a window), the DOORWAY is the way in,
- * and the INTERIOR is walkable floor. Per-cell truth still comes from the composition's own `walkable` flags when it
- * stamps; the generator must not pre-seal what the composition leaves open.
+ * The rule now: the PERIMETER blocks (walls, windows — you don't walk through a window), the DOORWAY is the way
+ * in, and the INTERIOR is walkable floor. Per-cell truth still comes from the composition's own `walkable`
+ * flags when it stamps; the generator must not pre-seal what the composition leaves open.
  */
 // Building SIZES are BACKEND data now (the composition footprints), so a generator run with nothing loaded
 // plants no buildings at all — correctly, since there would be no composition to stamp. Install what

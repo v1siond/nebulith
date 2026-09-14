@@ -124,11 +124,12 @@ export function FloatingPanel({ title, accent = 'cyan', onClose, children, initi
   initialPos?: XY
   initialSize?: WH
   /**
-   * A CSS selector to open NEXT TO, when there is no remembered position — the panel lands just right of that element
-   * instead of in the top-right corner.
+   * A CSS selector to open NEXT TO, when there is no remembered position — the panel lands just right of
+   * that element instead of in the top-right corner.
    *
-   * Measured from the element rather than computed from the column widths, which are CSS custom properties that
-   * change whenever a zone is collapsed. It only decides where the panel STARTS — it stays movable.
+   * Measured from the
+   * element rather than computed from the column widths, which are CSS custom properties that change
+   * whenever a zone is collapsed. It only decides where the panel STARTS — it stays movable.
    */
   openBeside?: string
   /** Fired once at the END of a drag or resize with the final `{x,y,w,h}` — the page persists it as a
@@ -229,13 +230,13 @@ export function FloatingPanel({ title, accent = 'cyan', onClose, children, initi
     window.addEventListener('mouseup', onUp)
   }
 
-  // The design's movable panel (`.mw`). Every deep editor in the app already opened through this component, so
-  // dressing THIS in the design clothes every one of them at once — and the per-panel accent colour is gone, because
-  // eight different header colours said the eight panels were different kinds of thing when they are all "a panel
-  // about the selection".
+  // The design's movable panel (`.mw`). Every deep editor in the app already opened through this
+  // component, so dressing THIS in the design clothes every one of them at once — and the per-panel accent
+  // colour is gone, because eight different header colours said the eight panels were different kinds of
+  // thing when they are all "a panel about the selection".
   //
-  // `neb` is on the root because the design's tokens are scoped to it and this renders outside the editor grid (it is
-  // `position:fixed`).
+  // `neb` is on the root because the design's tokens are scoped to it and this renders outside the editor
+  // grid (it is `position:fixed`).
   return (
     <div
       className="neb mw"
@@ -275,10 +276,10 @@ const UNIT_STATS: ReadonlyArray<readonly ['maxHp' | 'defense' | 'strength' | 'in
  * The unit's STATS body — the contents of the card's "⛊ Stats…" button, hosted in a draggable/resizable
  * FloatingPanel.
  *
- * What is deliberately NOT here: **Name** and **Size** stay as rows on the tile card (identity you retune inline),
- * and **"Blocks movement" is gone** — a unit's collision is the card's ONE `Blocked / Walkable` toggle, the same
- * control every tile uses. Everything else a unit uniquely owns lives here: the enemy's kill-quest tag, the five
- * combat stats, hittable, and the respawn timer.
+ * What is deliberately NOT here: **Name** and **Size** stay as rows on the tile card (identity you retune
+ * inline), and **"Blocks movement" is gone** — a unit's collision is the card's ONE `Blocked / Walkable`
+ * toggle, the same control every tile uses. Everything else a unit uniquely owns lives here: the enemy's
+ * kill-quest tag, the five combat stats, hittable, and the respawn timer.
  */
 export function UnitStatsBody({ entity, onPatch }: {
   entity: Entity
@@ -363,12 +364,10 @@ export interface UnitCardOpeners {
   openAttacks: () => void
 }
 
-/**
- * The KIND-specific entry points, as a dispatch table — a new unit kind adds a row, never a branch. Stats and
- * inventory are deliberately absent here because they are UNIVERSAL: every unit carries a stat block, and every unit
- * carries a loadout (the equipment panel already keys `loadouts` by entity id). Gating the inventory on `kind ===
- * 'player'` is what hid it on the NPC card under inspection.
- */
+/** The KIND-specific entry points, as a dispatch table — a new unit kind adds a row, never a branch.
+ *  Stats and inventory are deliberately absent here because they are UNIVERSAL: every unit carries a stat
+ *  block, and every unit carries a loadout (the equipment panel already keys `loadouts` by entity id).
+ *  Gating the inventory on `kind === 'player'` is what hid it on the NPC card. */
 const KIND_ENTRY_POINTS: Record<EntityKind, { quests: boolean; attacks: boolean }> = {
   player: { quests: false, attacks: false },
   npc: { quests: true, attacks: false },
@@ -391,12 +390,11 @@ export function buildUnitModel(entity: Entity, open: UnitCardOpeners): UnitContr
 /**
  * THE CHARACTER WINDOW — everything about who this is, in one place.
  *
- * and *"I'd expect to see the stats inside the character window instead of a separate window"*.
- *
- * Before this the Character row opened a panel holding one button, that button opened a SECOND panel to pick a
- * figure, and the stat block lived in a THIRD window off a separate button. Three windows for one character. Now the
- * figure picker is inline (no intermediate button, so his *"whats the point of having an extra action???"* stops
- * applying here too), the name and size sit under it, and the stats are in the same window rather than beside it.
+ * Before this the Character row opened a panel holding one button, that button opened a SECOND panel to pick
+ * a figure, and the stat block lived in a THIRD window off a separate button. Three windows for one
+ * character. Now the figure picker is inline (no intermediate button, so his stops applying here too), the name and
+  * size sit under it, and the stats are in the same
+ * window rather than beside it.
  */
 export function CharacterWindow({ entity, styleId, fromLabel, onPatch, onSize, onSwap, quests = [] }: {
   entity: Entity
@@ -442,8 +440,8 @@ export function CharacterWindow({ entity, styleId, fromLabel, onPatch, onSize, o
  *  (neutral/male/female/old/child/alien/robot) row is GONE: a unit is a tile, so its art is swapped with the
  *  card's regular "Replace tile" button, which lists the character tiles like any other tile. */
 /**
- * WHAT THIS UNIT SAYS, as many dialogs as it needs. Each dialog is its lines (one per line) and what it waits for:
- * nothing, a quest in a given state, or a situation.
+ * WHAT THIS UNIT SAYS, as many dialogs as it needs. Each dialog is its
+ * lines (one per line) and what it waits for: nothing, a quest in a given state, or a situation.
  */
 export function UnitDialogsSection({ dialogs, quests, onChange }: {
   dialogs: readonly UnitDialog[]

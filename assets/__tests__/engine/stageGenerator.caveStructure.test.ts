@@ -1,12 +1,9 @@
 /**
  * A CAVE IS A SPIDER.
  *
- * and *"I can generate a cave with 1 exit and 3 pathways to simulate entrance, then I continue doing the same until I
- * reach a part where is just 1 exit no pathway, which is the end of the cave"*.
- *
- * So: a mouth where you come in, a chamber where the ways meet, a chamber where each way ENDS, and galleries between
- * them that pinch and open. The old cave was one blob with a hole in its south edge, and a generator that serves no
- * ways still gets exactly that, which the last case here pins.
+ * So: a mouth where you come in, a chamber where the ways meet, a chamber where each way ENDS, and galleries
+ * between them that pinch and open. The old cave was one blob with a hole in its south edge, and a generator
+ * that serves no ways still gets exactly that, which the last case here pins.
  */
 import '@/__tests__/helpers/installTilesetSeed'
 import { generateStage, type StageData } from '@/engine/stageGenerator'

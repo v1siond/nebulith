@@ -1,15 +1,15 @@
 /**
- * THE PLAYER'S UI — the element inventory and the layouts, ported from the approved design at:8899.
+ * THE PLAYER'S UI — the element inventory and the layouts, ported from the approved design at :8899.
  *
- * IMPORTANT, and the reason this file holds DEFAULTS rather than reading the backend: configuring the HUD has never
- * existed. `ui_profiles` / `ui_elements` / `ui_bindings` / `ui_bar_slots` return zero hits across the Elixir lib,
- * every migration and the whole frontend — T-115 is a spec and nothing more. What DOES exist is the HUD as FIXED UI
- * (`components/game/hud.tsx`), positioned with hardcoded Tailwind classes.
+ * IMPORTANT, and the reason this file holds DEFAULTS rather than reading the backend: configuring the HUD
+ * has never existed. `ui_profiles` / `ui_elements` / `ui_bindings` / `ui_bar_slots` return zero hits across
+ * the Elixir lib, every migration and the whole frontend — T-115 is a spec and nothing more. What DOES
+ * exist is the HUD as FIXED UI (`components/game/hud.tsx`), positioned with hardcoded Tailwind classes.
  *
- * So each element's default anchor and offset below is READ OFF the class it is hardcoded with today (the `now` field
- * records the literal), which makes this a transcription of the product's real layout rather than an invention.
- * Dragging changes it live and it does NOT persist — there is nowhere to save it yet. That is stated in the panel,
- * not hidden.
+ * So each element's default anchor and offset below is READ OFF the class it is hardcoded with today (the
+ * `now` field records the literal), which makes this a transcription of the product's real layout rather
+ * than an invention. Dragging changes it live and it does NOT persist — there is nowhere to save it yet.
+ * That is stated in the panel, not hidden.
  */
 
 /** Where an element is pinned: a corner, an edge, or the middle. */

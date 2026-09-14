@@ -24,9 +24,8 @@ export function useDayNight(initial: DayNight = 'day'): {
   return { dayNight, setDayNight, dayNightRef }
 }
 
-/**
- * The weather laid over the map, and a ref the render loop reads without re-subscribing, exactly like useDayNight.
- */
+/** The weather laid over the map, and a ref the render loop reads without re-subscribing, exactly like
+ * useDayNight. */
 export function useWeather(initial: WeatherId = 'clear'): {
   weather: WeatherId
   setWeather: Dispatch<SetStateAction<WeatherId>>

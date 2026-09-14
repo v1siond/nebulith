@@ -1,17 +1,17 @@
 /**
  * ONE DRAW PATH for every preview, and a cache for the small ones.
  *
- * — so the LIST swatches have to be the same picture as the big preview, which means they have to come from the same
- * code. Two draw paths is how they drifted apart in the first place.
+ * — so the LIST swatches have to be the same picture as the big preview, which
+ * means they have to come from the same code. Two draw paths is how they drifted apart in the first place.
  *
- * The big preview draws live (it animates). A list of 23 object swatches cannot: each one is a full isometric render
- * of its own grid, and doing that per swatch per frame would cost more than the map. So the swatches render ONCE into
- * an offscreen canvas and keep the result as an image.
+ * The big preview draws live (it animates). A list of 23 object swatches cannot: each one is a full
+ * isometric render of its own grid, and doing that per swatch per frame would cost more than the map. So the
+ * swatches render ONCE into an offscreen canvas and keep the result as an image.
  *
  * Caching a render is only safe because the tileset loader gates on decode: `loadTilesetsFromBackend` awaits
- * `preloadTileImages` before it resolves, so by the time any library can be rendered every baked PNG is already
- * decoded and `tileImage` returns it. Without that gate the first render would draw nothing and the cache would keep
- * that nothing forever.
+ * `preloadTileImages` before it resolves, so by the time any library can be rendered every baked PNG is
+ * already decoded and `tileImage` returns it. Without that gate the first render would draw nothing and the
+ * cache would keep that nothing forever.
  */
 import { buildPreviewScene, fitZoom, type PreviewScene, type PreviewSubject } from './previewScene'
 import { renderTopView } from '@/engine/render/birdseye'
@@ -49,9 +49,10 @@ export function drawPreviewScene(
 ): void {
   const { grid, span, anchor } = scene
   const cs = grid.cellSize
-  // Every renderer frames the "player", so this is a CAMERA POSITION, not a character: it puts the subject in the
-  // middle of the box with no camera offset. `showPlayer: false` is what keeps it a camera — without it the renderer
-  // also DREW this invented hero, which is why every preview had a figure standing on it.
+  // Every renderer frames the "player", so this is a CAMERA POSITION, not a character: it puts the subject
+  // in the middle of the box with no camera offset. `showPlayer: false` is what keeps it a camera — without
+  // it the renderer also DREW this invented hero, which is why every preview had a figure standing on it
+  // .
   const player = {
     x: (anchor.col + span.cols / 2) * cs,
     z: (anchor.row + span.rows / 2) * cs,
