@@ -191,12 +191,67 @@ function waterMiddle(component: ReadonlySet<string>): { col: number; row: number
 const headingFor = (axis: FlowAxis, forward: boolean): number => (axis === 0 ? (forward ? 0 : 2) : (forward ? 1 : 3))
 
 /** A REACH: downstream is away from the end the distance field is seeded at, so every cell along it agrees. */
+/** How far around a cell the axis vote looks. Two cells each way is wider than any river we carve is thick,
+ *  so the vote is always taken over a piece of the STRETCH rather than over one cross-section. */
+const AXIS_VOTE = 2
+
+/**
+ * THE AXIS, AGREED WITH THE WATER AROUND IT.
+ *
+ * Alexander, 2026-09-12: *"there's still parts with perpendicular current instead of parallel"*, and
+ * 2026-09-13: *"all water should be in the same direction and always parallel to the channel of the river"*.
+ *
+ * `channelAxis` measures ONE cell, and a one-cell measurement disagrees with its neighbours exactly where a
+ * river bends or widens, because the reach along the two axes is nearly equal there and a single cell can tip
+ * the other way. It then draws its current straight across the stream. Measured on a woodland: 6 cells of 130,
+ * 5%, every one of them at a bend.
+ *
+ * A river does not change direction one cell at a time, so the axis is settled by a VOTE over the cell and the
+ * water around it. One pass is enough by construction: an outlier is outnumbered by the stretch it sits in,
+ * and a genuine turn is a majority of its own within two cells. Ties keep the cell's own answer, so a square
+ * pool still answers consistently instead of speckling.
+ */
+function agreedAxes(component: ReadonlySet<string>, water: ReadonlySet<string>): Map<string, FlowAxis> {
+  const raw = new Map<string, FlowAxis>()
+  for (const key of component) raw.set(key, channelAxis(water, key))
+  const agreed = new Map<string, FlowAxis>()
+  for (const key of component) {
+    const { col, row } = toCell(key)
+    let alongCol = 0
+    let alongRow = 0
+    for (let dc = -AXIS_VOTE; dc <= AXIS_VOTE; dc++) {
+      for (let dr = -AXIS_VOTE; dr <= AXIS_VOTE; dr++) {
+        const axis = raw.get(flowKey(col + dc, row + dr))
+        if (axis === undefined) continue
+        if (axis === 0) alongCol++
+        if (axis === 1) alongRow++
+      }
+    }
+    const own = raw.get(key) as FlowAxis
+    if (alongCol === alongRow) { agreed.set(key, own); continue }
+    // THE VOTE IS A PREFERENCE, NOT AN OVERRIDE. A cell at the tip of a bend can be outvoted onto an axis it
+    // has no water on at all, and then its current points straight into the bank, which is the very thing this
+    // is here to stop. Where the stretch disagrees with the cell's own shape, the shape wins.
+    const voted: FlowAxis = alongCol > alongRow ? 0 : 1
+    agreed.set(key, hasWaterAlong(water, key, voted) ? voted : own)
+  }
+  return agreed
+}
+
+/** Is there water either way along this axis from this cell? A heading is only honest if there is. */
+function hasWaterAlong(water: ReadonlySet<string>, key: string, axis: FlowAxis): boolean {
+  const { col, row } = toCell(key)
+  const [dc, dr] = FLOW_STEPS[axis]
+  return water.has(flowKey(col + dc, row + dr)) || water.has(flowKey(col - dc, row - dr))
+}
+
 function reachFlow(component: ReadonlySet<string>, into: Map<string, number>, water: ReadonlySet<string>): void {
   const first = component.values().next().value as string
   const end = farthestFrom(waterDistances(component, first)) // the double sweep: a true end, not the middle
   const dist = waterDistances(component, end)
+  const axes = agreedAxes(component, water)
   for (const key of component) {
-    const axis = channelAxis(water, key)
+    const axis = axes.get(key) as FlowAxis
     const { col, row } = toCell(key)
     const [dc, dr] = FLOW_STEPS[axis]
     const here = dist.get(key) ?? 0
@@ -215,9 +270,10 @@ function reachFlow(component: ReadonlySet<string>, into: Map<string, number>, wa
 /** A RING: it circulates, so downstream is the tangent around its middle. Same turn everywhere, no seam. */
 function ringFlow(component: ReadonlySet<string>, into: Map<string, number>, water: ReadonlySet<string>): void {
   const mid = waterMiddle(component)
+  const axes = agreedAxes(component, water)
   for (const key of component) {
     const { col, row } = toCell(key)
-    const axis = channelAxis(water, key)
+    const axis = axes.get(key) as FlowAxis
     // Tangent of a clockwise turn about the middle: (dcol, drow) = (-(row - midRow), (col - midCol)).
     const tangent = axis === 0 ? -(row - mid.row) : col - mid.col
     into.set(key, headingFor(axis, tangent >= 0))
