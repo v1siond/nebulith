@@ -922,9 +922,18 @@ function dryAreas(ctx: RiverSurface): Map<string, number> {
 // then treats those cells as "a way that happens to be wet" and planks them, which is how a bridge turns into
 // a causeway. This pass is the river admitting what it did to the road.
 
-/** How wide a crossing is allowed to be, across the way. Two cells to walk plus the rails is what it asked
- *  for, and it is what `bridge_cells` authors, so the flat deck matches the structure that goes on it. */
-const CROSSING_WIDTH = 1
+/**
+ * How many cells a crossing is wide, ACROSS the way.
+ *
+ * This is not a free choice: it has to be the number of rows the bridge composition authors, or the
+ * structure and the flat deck under it disagree and part of the bridge lands off the deck. `bridge_cells`
+ * builds a rail row, two walking rows and a rail row, so a crossing is FOUR cells across and the two middle
+ * ones are the way over.
+ *
+ * It was 3 (a kept line plus one cell either side), so the fourth row of every bridge was stamped onto the
+ * water beside the deck and the rail floated there on its own.
+ */
+const CROSSING_ROWS = 4
 
 /** Every cell of the map that is NOT water, labelled by the stretch of dry ground it belongs to. The BANKS. */
 function bankLabels(bounds: RiverBounds, water: ReadonlySet<string>): Map<string, number> {
@@ -983,7 +992,9 @@ function shoresOf(stretch: ReadonlySet<string>, banks: ReadonlyMap<string, numbe
   return shores
 }
 
-/** The shortest way through `stretch` from any cell in `from` to any cell in `to`, as the cells it passes. */
+/** The shortest way through `stretch` from one bank to another, staircase and all. Only used when no
+ *  straight line joins the two, which happens on a stretch that bends inside the channel. Narrow but not
+ *  rectangular, so it carries no bridge structure: it is a ford, and a ford beats keeping the whole stretch. */
 function shortestThrough(stretch: ReadonlySet<string>, from: readonly string[], to: readonly string[]): Set<string> {
   const target = new Set(to)
   const came = new Map<string, string | null>()
@@ -1009,6 +1020,65 @@ function shortestThrough(stretch: ReadonlySet<string>, from: readonly string[], 
     }
   }
   return new Set(from.slice(0, 1))
+}
+
+/**
+ * The shortest STRAIGHT run through `stretch` from one bank to another, as the cells it passes.
+ *
+ * It used to be a breadth-first shortest path, which is shortest but staircases across a diagonal river. A
+ * bridge is a RECTANGLE, so a staircased deck means part of every bridge is stamped off the deck and the
+ * rails float beside it over the water. A crossing goes straight across or it is not a crossing.
+ *
+ * Returns null when no straight line from this bank reaches that one, and the caller keeps the stretch rather
+ * than severing it.
+ */
+function straightThrough(
+  stretch: ReadonlySet<string>,
+  from: readonly string[],
+  toBank: number,
+  banks: ReadonlyMap<string, number>,
+): { cells: Set<string>; step: readonly [number, number] } | null {
+  let best: { cells: Set<string>; step: readonly [number, number] } | null = null
+  for (const start of from) {
+    const { col, row } = toCell(start)
+    for (const step of ORTHO) {
+      const cells = new Set<string>()
+      let c = col
+      let r = row
+      while (stretch.has(cellKey(c, r))) {
+        cells.add(cellKey(c, r))
+        c += step[0]
+        r += step[1]
+      }
+      // The cell it walked out onto has to be the bank we were trying to reach.
+      if (banks.get(cellKey(c, r)) !== toBank) continue
+      if (!best || cells.size < best.cells.size) best = { cells, step }
+    }
+  }
+  return best
+}
+
+/** Widen a straight crossing ACROSS its own direction, so the deck is a rectangle the bridge fits on. */
+function widenAcross(
+  line: ReadonlySet<string>,
+  step: readonly [number, number],
+  stretch: ReadonlySet<string>,
+  rows: number,
+): Set<string> {
+  const [ac, ar] = [-step[1], step[0]] // a quarter turn from the run
+  const out = new Set(line)
+  // ONE walk outward per cell of the line, stopping at the first cell that is not water. Each cell is looked
+  // at once, and a gap cannot be jumped: re-scanning the whole line per row would both cost more and let the
+  // band hop over dry ground to land on water beyond it.
+  for (const key of line) {
+    const { col, row } = toCell(key)
+    for (let n = 1; n < rows; n++) {
+      const k = cellKey(col + ac * n, row + ar * n)
+      if (!stretch.has(k)) break
+      out.add(k)
+    }
+  }
+  return out
 }
 
 /**
@@ -1045,14 +1115,23 @@ export function narrowWaysToCrossings(
     // The FIRST bank is the near side. A crossing is kept to each of the others, so a stretch that happens to
     // touch three banks does not silently lose one of them.
     for (let i = 1; i < reached.length; i++) {
-      for (const key of shortestThrough(stretch, shores.get(reached[0])!, shores.get(reached[i])!)) keep.add(key)
-    }
-    // One cell either side of the line, so a crossing is something you walk rather than balance along.
-    for (const key of [...keep]) {
-      const { col, row } = toCell(key)
-      for (const [dc, dr] of ORTHO) {
-        for (let d = 1; d <= CROSSING_WIDTH; d++) {
-          const k = cellKey(col + dc * d, row + dr * d)
+      const near = shores.get(reached[0]) as string[]
+      const run = straightThrough(stretch, near, reached[i], banks)
+      if (run) {
+        for (const key of widenAcross(run.cells, run.step, stretch, CROSSING_ROWS)) keep.add(key)
+        continue
+      }
+      // No straight line joins these two banks on this stretch, so there is no rectangle to put a bridge on.
+      // Take the narrow staircase instead and let it read as a ford. Keeping the WHOLE stretch here was the
+      // causeway all over again, measured as a 14-wide slab of deck on one seed.
+      const ford = shortestThrough(stretch, near, shores.get(reached[i]) as string[])
+      // The path plus the water immediately beside it, so it is walkable rather than a tightrope. One pass
+      // over the path, four looks per cell, nothing re-scanned.
+      for (const key of ford) {
+        const { col, row } = toCell(key)
+        keep.add(key)
+        for (const [dc, dr] of ORTHO) {
+          const k = cellKey(col + dc, row + dr)
           if (stretch.has(k)) keep.add(k)
         }
       }
