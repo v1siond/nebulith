@@ -74,18 +74,30 @@ describe('a cave built from its ways', () => {
     for (const stop of s.routes!.deadEnds) expect(openAround(s, stop, 2)).toBeGreaterThan(18)
   })
 
-  it('keeps the border sealed: a way out is a mouth, not a hole in the rock', () => {
+  // A way out is a MOUTH, not a hole in the rock, and not the whole edge falling away either. This used to
+  // assert the border was solid EVERYWHERE, which is exactly what stopped the `exits` option doing anything:
+  // a cave had 0 of 156 border cells walkable, so there was no way out at all. The rule is solid everywhere
+  // EXCEPT at the gates the ways planned.
+  it('keeps the border sealed except at its gates, which are mouths you can walk out of', () => {
     const s = cave({ exits: '4', pathways: '4' })
-    for (let c = 0; c < s.cols; c++) {
-      expect(s.collision[0][c]).toBe(true)
-      expect(s.collision[s.rows - 1][c]).toBe(true)
+    const gateCells = new Set(s.routes!.gates.flatMap(g => g.cells.map(c => `${c.col},${c.row}`)))
+    expect(gateCells.size).toBeGreaterThan(0)
+
+    let openOffGate = 0
+    const onBorder = (col: number, row: number) => col === 0 || row === 0 || col === s.cols - 1 || row === s.rows - 1
+    for (let row = 0; row < s.rows; row++) {
+      for (let col = 0; col < s.cols; col++) {
+        if (!onBorder(col, row) || s.collision[row][col]) continue
+        if (!gateCells.has(`${col},${row}`)) openOffGate++
+      }
     }
-    for (let r = 0; r < s.rows; r++) {
-      expect(s.collision[r][0]).toBe(true)
-      expect(s.collision[r][s.cols - 1]).toBe(true)
+    expect(openOffGate).toBe(0) // the rock holds everywhere the ways did not ask for a mouth
+
+    // every gate is open, and so is the cell just inside it, so the mouth is joined to the cave
+    for (const gate of s.routes!.gates) {
+      expect(s.collision[gate.inside.row][gate.inside.col]).toBe(false)
+      for (const c of gate.cells) expect(s.collision[c.row][c.col]).toBe(false)
     }
-    // and the mouth itself is walkable, just inside
-    for (const gate of s.routes!.gates) expect(s.collision[gate.inside.row][gate.inside.col]).toBe(false)
   })
 
   it('pinches and opens along a gallery instead of running one even corridor', () => {

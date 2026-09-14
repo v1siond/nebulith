@@ -911,6 +911,7 @@ export function generateStage(opts: GenerateOptions): StageData {
   // Single-pass archetypes (forest/cave/temple/boss) read `ctx.rand`; the layout rng is their source.
   const ctx: ArchetypeContext = { zone, ground, collision, floorColors, elevation, buildings, props, trees, compositions, cols, rows, layout, options: opts.options, nature: opts.nature, settlement: opts.settlement, palette: opts.palette, subZones: opts.subZones, formation: opts.formation, treeMix: opts.treeMix, crossings: opts.crossings, decks: new Set<string>(), wet: new Set<string>(), flow: new Map<string, number>(), buildingSizes: opts.buildingSizes, rand: rngs.layout }
   ARCHETYPES[variant]?.(ctx, rngs)
+  openGates(ctx) // the exits the ways planned, cut through the border AFTER everything that seals it
   flattenFloors(ctx, FLOOR_MATERIALS[variant]?.(ctx) ?? [])
   addTerrainTransitions(ctx) // blended shorelines / lava banks over the painted ground
 
@@ -1567,6 +1568,42 @@ interface ForestBuild {
  * A generator that serves neither count returns null and its layout builds the map it always did, so every saved
  * recipe is untouched.
  */
+/**
+ * CUT THE EXITS THROUGH THE BORDER, as a LAYER, after everything that seals it.
+ *
+ * An exit is a hole in the map's edge. The planner picks where they go and hands back `gates`, each holding the
+ * EDGE cells it runs off by. Nothing then opened them, and two passes ran afterwards that close the border on
+ * purpose: the temple's *"seal the map border so the dungeon is fully enclosed"* walls the whole ring, and
+ * every cave carve is guarded with `!isEdge(...)` so it stops one cell short. Measured across 5 generators ×
+ * 4 exits × 4 pathways × 3 seeds, 240 builds: a cave and a temple had **0 of 156 border cells walkable**, so
+ * the way out did not exist and the `exits` option had never once changed a map.
+ *
+ * This is the shape he named: *"we generate pathways with number of exits around the existing area … our
+ * layers aren't correctly applied"*. The gates belong to the PATHWAY layer, so they are cut here, in
+ * `generateStage`, after the archetype has finished sealing whatever it seals. No later pass can take them
+ * back, and no archetype has to remember to ask.
+ *
+ * A gate cell takes the ground and colour of the cell just INSIDE it, so the mouth reads as the floor it
+ * continues rather than a colour this function picked.
+ */
+function openGates(ctx: ArchetypeContext): void {
+  const plan = ctx.routes
+  if (!plan) return // a generator that serves no ways has no gates, and its map is untouched
+  const { collision, ground, floorColors, cols, rows } = ctx
+  for (const gate of plan.gates) {
+    const inside = gate.inside
+    if (!inBounds(inside.col, inside.row, cols, rows)) continue
+    for (const cell of gate.cells) {
+      if (!inBounds(cell.col, cell.row, cols, rows)) continue
+      collision[cell.row][cell.col] = false
+      ground[cell.row][cell.col] = ground[inside.row][inside.col]
+      floorColors[cell.row][cell.col] = floorColors[inside.row][inside.col]
+    }
+    // …and the cell just inside it, so a mouth carved up to the ring is actually joined to it.
+    collision[inside.row][inside.col] = false
+  }
+}
+
 function plannedRoutes(ctx: ArchetypeContext): RoutePlan | null {
   const ways = resolveWays(ctx.options, ctx.rand)
   if (!ways) return null

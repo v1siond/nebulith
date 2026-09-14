@@ -88,11 +88,17 @@ describe('a temple built from its ways', () => {
     }
   })
 
-  it('keeps the border walled and the floor between an eighth and two thirds of the map', () => {
+  // The border is walled EXCEPT at the gates. It used to be asserted walled everywhere, which is what made
+  // "seal the map border so the dungeon is fully enclosed" erase every exit the ways had planned.
+  it('keeps the border walled except at its gates, and the floor between an eighth and two thirds of the map', () => {
     const s = temple({ exits: '4', pathways: '4' })
+    const gateCells = new Set(s.routes!.gates.flatMap(g => g.cells.map(c => `${c.col},${c.row}`)))
+    expect(gateCells.size).toBeGreaterThan(0)
     for (let c = 0; c < s.cols; c++) {
-      expect(s.collision[0][c]).toBe(true)
-      expect(s.collision[s.rows - 1][c]).toBe(true)
+      for (const r of [0, s.rows - 1]) {
+        if (gateCells.has(`${c},${r}`)) { expect(s.collision[r][c]).toBe(false); continue }
+        expect(s.collision[r][c]).toBe(true)
+      }
     }
     const walkable = s.collision.flat().filter(c => !c).length
     expect(walkable).toBeGreaterThan(s.cols * s.rows * 0.12)
