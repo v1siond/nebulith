@@ -1148,8 +1148,8 @@ defmodule Nebulith.Catalog.TileSource do
     # THE BANDS HAVE THEIR OWN ART NOW. Both pointed at `sq_blue.png`, a flat rounded square, so a river came
     # out as three flat tones with no texture in any band: and Authored as drawn art in `tiles.json` (the new
     # `svg` shape) and baked per style, so shallow reads busy and bright and deep reads calm and dark.
-    %{label: "water_deep", emoji: "🟦", image_url: "/tiles/emoji/water_deep.png", color: "#1144aa"},
-    %{label: "water_shallow", emoji: "🟦", image_url: "/tiles/emoji/water_shallow.png", color: "#4488dd"},
+    %{label: "water_deep", emoji: "🟦", image_url: "/tiles/emoji/water_deep.png", color: @water_color},
+    %{label: "water_shallow", emoji: "🟦", image_url: "/tiles/emoji/water_shallow.png", color: @water_color},
     %{label: "whitewash", emoji: "⬜", image_url: "/tiles/emoji/sq_white.png", color: "#fffffa"},
     %{label: "wooden_planks", emoji: "🟫", image_url: "/tiles/emoji/sq_brown.png", color: "#aa8250"},
     %{label: "zen_garden", emoji: "⬜", image_url: "/tiles/emoji/sq_white.png", color: "#dcd7c8"},
