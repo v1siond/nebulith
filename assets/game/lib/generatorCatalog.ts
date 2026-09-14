@@ -221,6 +221,9 @@ export interface GeneratorConfig {
   trees?: readonly GeneratorTreeWeight[]
   /** What a river is crossed on, by kind. Absent → the classic bridge deck. */
   crossings?: Readonly<Record<string, GeneratorCrossing>>
+  /** The composition a gate wears: `forest_entrance`, `cave_entrance`, … A template chooses its entrance the
+   *  same way it chooses its bridge. Absent → a bare opening, which is the honest default. */
+  entrance?: string
 }
 
 /** One generator — a concrete map the user can ask for ("Meadow + River", "Town"). */
@@ -497,6 +500,7 @@ function parseConfig(v: unknown): GeneratorConfig {
   const formation = parseFormation(v.formation)
   const trees = parseTreeMix(v.trees)
   const crossings = parseCrossings(v.crossings)
+  const entrance = typeof v.entrance === 'string' && v.entrance !== '' ? v.entrance : undefined
   if (grid) out.grid = grid
   if (units) out.units = units
   if (nature) out.nature = nature
@@ -507,6 +511,7 @@ function parseConfig(v: unknown): GeneratorConfig {
   if (formation) out.formation = formation
   if (trees) out.trees = trees
   if (crossings) out.crossings = crossings
+  if (entrance) out.entrance = entrance
   return out
 }
 

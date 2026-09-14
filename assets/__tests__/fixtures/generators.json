@@ -104,7 +104,8 @@
               "enemies": 0,
               "enemyTypes": [],
               "townsfolk": 3
-            }
+            },
+            "entrance": "forest_entrance"
           },
           "options": [
             {
@@ -1658,7 +1659,8 @@
               "enemies": 0,
               "enemyTypes": [],
               "townsfolk": 2
-            }
+            },
+            "entrance": "forest_entrance"
           },
           "options": [
             {
@@ -3427,7 +3429,8 @@
               "enemies": 0,
               "enemyTypes": [],
               "townsfolk": 5
-            }
+            },
+            "entrance": "forest_entrance"
           },
           "options": [
             {
@@ -5264,7 +5267,8 @@
                 "skeleton"
               ],
               "townsfolk": 0
-            }
+            },
+            "entrance": "cave_entrance"
           },
           "options": [
             {
@@ -5369,7 +5373,8 @@
                 "wraith"
               ],
               "townsfolk": 0
-            }
+            },
+            "entrance": "cave_entrance"
           },
           "options": [
             {

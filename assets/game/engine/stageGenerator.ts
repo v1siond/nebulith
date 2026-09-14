@@ -280,6 +280,8 @@ export interface GenerateOptions {
   treeMix?: readonly GeneratorTreeWeight[]
   /** What a river is crossed on, by kind (`config.crossings`), picked by the `bridge` option. */
   crossings?: Readonly<Record<string, GeneratorCrossing>>
+  /** The composition this template's gates wear, served on its generator config. */
+  entrance?: string
   /**
    * Where footprints come from. Defaults to the composition-backed source so a caller that does not care (every
    * test) is unaffected.
@@ -770,6 +772,8 @@ interface ArchetypeContext {
   treeMix?: readonly GeneratorTreeWeight[]
   /** What a river is crossed on, by kind (`config.crossings`), picked by the `bridge` option. */
   crossings?: Readonly<Record<string, GeneratorCrossing>>
+  /** The composition this template's gates wear, served on its generator config. */
+  entrance?: string
   /** Where footprints come from — see `GenerateOptions.buildingSizes`. */
   buildingSizes?: BuildingSizes
   /** The user-steered shape of this kind of place, or undefined for a plain generate (placeForest then
@@ -930,6 +934,8 @@ const STAGE_LAYERS: ReadonlyArray<StageLayer<ArchetypeContext, LayerRngs>> = [
   { name: 'gates', when: ctx => !!ctx.routes, run: openGates },
   // NOTHING STANDS IN FRONT OF A ROAD. Runs after every layer that plants, so it sees the finished map.
   { name: 'sightlines', when: ctx => !!ctx.routes, run: clearPathSightlines },
+  // AND THE WAY OUT LOOKS LIKE ONE. After the gates are cut, so it dresses an opening rather than making one.
+  { name: 'entrances', when: ctx => !!ctx.routes, run: stampEntrances },
   // The open ground's texture swapped for the flat tile, keeping its colour.
   { name: 'floors', run: ctx => flattenFloors(ctx, FLOOR_MATERIALS[ctx.variant]?.(ctx) ?? []) },
   // Blended shorelines and lava banks over the painted ground.
@@ -964,7 +970,7 @@ export function generateStage(opts: GenerateOptions): StageData {
   for (const key of generationLayerKeys()) rngs[key] = layerRng(opts.seeds, key)
   for (const key of ENGINE_PASS_RNGS) rngs[key] ??= layerRng(opts.seeds, key)
   // Single-pass archetypes (forest/cave/temple/boss) read `ctx.rand`; the layout rng is their source.
-  const ctx: ArchetypeContext = { variant, zone, ground, collision, floorColors, elevation, buildings, props, trees, compositions, cols, rows, layout, options: opts.options, nature: opts.nature, settlement: opts.settlement, palette: opts.palette, subZones: opts.subZones, formation: opts.formation, treeMix: opts.treeMix, crossings: opts.crossings, decks: new Set<string>(), wet: new Set<string>(), flow: new Map<string, number>(), buildingSizes: opts.buildingSizes, rand: rngs.layout }
+  const ctx: ArchetypeContext = { variant, zone, ground, collision, floorColors, elevation, buildings, props, trees, compositions, cols, rows, layout, options: opts.options, nature: opts.nature, settlement: opts.settlement, palette: opts.palette, subZones: opts.subZones, formation: opts.formation, treeMix: opts.treeMix, crossings: opts.crossings, entrance: opts.entrance, decks: new Set<string>(), wet: new Set<string>(), flow: new Map<string, number>(), buildingSizes: opts.buildingSizes, rand: rngs.layout }
   runLayers(STAGE_LAYERS, ctx, rngs)
 
   return {
@@ -1671,6 +1677,40 @@ function sealForestEdge(ctx: ArchetypeContext): void {
     trees.push({ col, row, kind: pickLivingTree(ctx.rand(), ctx.treeMix), variant: massVariant(col, row) })
     collision[row][col] = true
   })
+}
+
+/** A gate's side turned into the quarter-turns its entrance is stamped at. Authored facing SOUTH: three cells
+ *  along +dx with the feet one step inward at +dy, which is what a south gate wants unturned. */
+const ENTRANCE_TURN: Readonly<Record<Side, number>> = { south: 0, west: 1, north: 2, east: 3 }
+
+/**
+ * AN EXIT THAT LOOKS LIKE A WAY SOMEWHERE ELSE.
+ *
+ * *"we need a better visual indicator that 'going through this pathway goes to somewhere else', like a whuite
+ * or dark light right in the exit cells … a forest entrance, a cave entrance, a town/city entrance, a park
+ * entrance"*, with a reference picture to model against.
+ *
+ * Each entrance is three cells wide, which is the gate width, so one covers its gate and nothing else: two
+ * uprights that block, a span over the middle, and a walkable mouth under it carrying a dark light. The
+ * composition is DATA (`forest_entrance` and its three siblings, seeded in nebulith); all this does is choose
+ * one and put it where the way leaves.
+ *
+ * Runs after `gates`, so it dresses an opening that already exists rather than making one.
+ */
+function stampEntrances(ctx: ArchetypeContext): void {
+  const plan = ctx.routes
+  if (!plan) return
+  // WHICH ENTRANCE, straight from the generator that is running. It was a variant -> composition table in
+  // this file, which is the frontend deciding something the backend owns; a template names its entrance on
+  // its own config now, beside its crossings and its trees. Nothing served → a bare opening.
+  const kind = ctx.entrance
+  if (!kind) return
+  for (const gate of plan.gates) {
+    // The MIDDLE of the gate's edge cells: the entrance is authored around its own middle cell.
+    const middle = gate.cells[Math.floor(gate.cells.length / 2)]
+    if (!middle || !inBounds(middle.col, middle.row, ctx.cols, ctx.rows)) continue
+    ctx.compositions.push({ kind, col: middle.col, row: middle.row, variant: 0, rotation: ENTRANCE_TURN[gate.side] })
+  }
 }
 
 /**
