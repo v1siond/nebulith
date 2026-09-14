@@ -578,6 +578,23 @@ export class IsometricGrid {
   // Assets within the camera view rect (+ margin). Just a cull — NO depth sort here: every render path
   // re-sorts the merged asset+building+entity+player draw list by the same depth key, so sorting the
   // assets first was a second O(N log N) pass over EVERY asset on the map, every frame, thrown away.
+  /**
+   * The assets whose FOOTPRINT meets the camera window.
+   *
+   * THE WINDOW CUTS A TILE, NOT A CELL. This tested `asset.col` and `asset.row` alone, which is the tile's
+   * ANCHOR, so a tile covering many cells was kept or dropped on where its first cell happened to be. A floor
+   * is not one asset per cell: the generator collapses a run into ONE asset with `depth`, measured up to 33
+   * cells long on a 40x40 forest, 161 of its 172 floors. A run anchored outside the window was thrown away
+   * whole while most of it was on screen, and the hole it left had a straight edge because a run is a straight
+   * line of cells.
+   *
+   * It shows up ZOOMED IN because the window is sized in cells off the zoomed tile size: measured, `halfSpan`
+   * falls from 49 to 17 as you zoom, so the window narrows past the length of the runs and starts clipping
+   * them. *"sometimes maps would stop showing the floor, specially when zoomed in"*.
+   *
+   * `assetRectExtents` folds `depth`, `depthBack`, `depthPerp` and `depthPerpBack` into the rectangle the tile
+   * really covers, so this asks the one model of that rather than growing a second.
+   */
   getVisibleAssets(cameraCol: number, cameraRow: number, viewCols: number, viewRows: number): GridAsset[] {
     const margin = 5
     const minCol = cameraCol - viewCols / 2 - margin
@@ -585,10 +602,11 @@ export class IsometricGrid {
     const minRow = cameraRow - viewRows / 2 - margin
     const maxRow = cameraRow + viewRows / 2 + margin
 
-    return this.assets.filter(asset =>
-      asset.col >= minCol && asset.col <= maxCol &&
-      asset.row >= minRow && asset.row <= maxRow
-    )
+    return this.assets.filter(asset => {
+      const { colMinus, colPlus, rowMinus, rowPlus } = assetRectExtents(asset)
+      return asset.col + colPlus >= minCol && asset.col - colMinus <= maxCol &&
+        asset.row + rowPlus >= minRow && asset.row - rowMinus <= maxRow
+    })
   }
 
   // Place a single tile at a specific height level

@@ -594,8 +594,25 @@ export function render(params: IsoRenderParams) {
   // A tile is in range when ANY GRID CELL IT COVERS is — so a long road/grass run stays visible while the ring
   // crosses it, instead of vanishing whenever its anchor happens to sit outside. ONE rule for every tile: a
   // depth-less tile covers just its own cell, so this is the plain cell test for everything else.
-  const coveredCells = (a: GridAsset): { col: number; row: number }[] =>
-    (a.depth ?? 1) > 1 && a.depthDir ? depthCells(a.col, a.row, a.depth!, a.depthDir) : [{ col: a.col, row: a.row }]
+  // THE CELLS A TILE COVERS, all of them.
+  //
+  // This used to expand a tile with `depth` + `depthDir` only, which is ONE of the four ways a tile spans: it
+  // ignored `depthBack` (cells behind the anchor), `depthPerp` and `depthPerpBack` (the perpendicular axis). So
+  // a 2-axis tile was range-tested on a line through the middle of itself and vanished whenever that line fell
+  // outside while the rest of it did not. His words: *"my guess is that the range is cutting at the cell level
+  // only not at the tile level, and some cell have tiles that spand multiple cells"*.
+  //
+  // `assetRectExtents` already folds all four into one rectangle and is unit-tested, so this asks it rather
+  // than growing a second model of the same thing.
+  const coveredCells = (a: GridAsset): { col: number; row: number }[] => {
+    const { colMinus, colPlus, rowMinus, rowPlus } = assetRectExtents(a)
+    if (colMinus === 0 && colPlus === 0 && rowMinus === 0 && rowPlus === 0) return [{ col: a.col, row: a.row }]
+    const out: { col: number; row: number }[] = []
+    for (let c = a.col - colMinus; c <= a.col + colPlus; c++) {
+      for (let r = a.row - rowMinus; r <= a.row + rowPlus; r++) out.push({ col: c, row: r })
+    }
+    return out
+  }
   const tileInRange = (a: GridAsset): boolean =>
     coveredCells(a).some(c => withinPlayerRange(c.col, c.row, pcol, prow, playerViewRange!))
   // GLOBAL RANGE — the browser's visible area, always on. and
@@ -627,6 +644,23 @@ export function render(params: IsoRenderParams) {
   }
   const onScreenAssets = rectAssets.filter(onScreen)
   const visibleAssets = rangeOn ? onScreenAssets.filter(tileInRange) : onScreenAssets
+  // WHAT EACH CULL THREW AWAY, published like `__isoRenderMs`.
+  //
+  // *"sometimes maps would stop showing the floor, specially when zoomed in"*. A floor that is missing was
+  // either never fetched, culled, or drawn as nothing, and those are four different bugs that look identical on
+  // screen. Counting them separately is what names it, the same way instrumenting the DRAW found the navy hole
+  // after five pixel detectors had each been wrong differently.
+  ;(globalThis as unknown as { __isoCull?: Record<string, number> }).__isoCull = {
+    halfSpan,
+    inGrid: grid.assets.length,
+    inGridFloors: grid.assets.reduce((n, a) => n + (a.type === FLOOR_TYPE ? 1 : 0), 0),
+    inRect: rectAssets.length,
+    inRectFloors: rectAssets.reduce((n, a) => n + (a.type === FLOOR_TYPE ? 1 : 0), 0),
+    onScreen: onScreenAssets.length,
+    onScreenFloors: onScreenAssets.reduce((n, a) => n + (a.type === FLOOR_TYPE ? 1 : 0), 0),
+    visible: visibleAssets.length,
+    visibleFloors: visibleAssets.reduce((n, a) => n + (a.type === FLOOR_TYPE ? 1 : 0), 0),
+  }
   // Ground shadow goes ONLY on a tree's bottom (ground-contact) cell — see isGroundContact. The
   // tree-cell Set is memoized (treeCellSet) so we don't rescan every asset + realloc each frame.
   const treeCells = treeCellSet(grid)
