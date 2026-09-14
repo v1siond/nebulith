@@ -1,4 +1,5 @@
 import { randIntWith, type Rng } from '@/lib/math'
+import { inBounds, toCell, type Cell } from './grid'
 import { type GeneratorCrossing, type GeneratorOptionValue, type GeneratorPalette } from '@/lib/generatorCatalog'
 import { type RoutePlan } from '@/engine/pathNetwork'
 import { resolveComposition } from '@/engine/tileset/tileset'
@@ -32,18 +33,7 @@ export interface RiverBounds {
   rows: number
 }
 
-/** A cell, the same pair the whole engine uses. */
-export interface Cell { col: number; row: number }
-
-/** Is this cell on the map? The module's own, for the same reason as `toCell`. */
-const inBounds = (col: number, row: number, cols: number, rows: number): boolean =>
-  col >= 0 && row >= 0 && col < cols && row < rows
-
-/** A `col,row` key back into its pair. The module's own, so it does not import from the file it left. */
-const toCell = (key: string): { col: number; row: number } => {
-  const [col, row] = key.split(',').map(Number)
-  return { col, row }
-}
+export type { Cell } from './grid'
 
 /**
  * WHICH WAY THE WATER IS GOING, per cell.

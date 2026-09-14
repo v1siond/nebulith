@@ -53,6 +53,7 @@ function groundBlockHeight(slug: string): number {
 // The ONE per-cell mapping the live composition stamp uses — the save path expands its anchors through it too,
 // so a generated stage RELOADS exactly as it was stamped (height / z-width / scale / pose / animations).
 import { compositionCellRender } from '@/game/runtime/composition'
+import { flood, forEachCell, inBounds, isEdge, toCell, ORTHO, type Cell } from './grid'
 import { varyIntensity } from './colors'
 import { groundTileColor } from './tileset/groundColor'
 import type { Connector } from '@/lib/api'
@@ -294,23 +295,12 @@ export interface NatureDensity {
   tallGrass?: number
 }
 
-type Cell = { col: number; row: number }
 type Plant = (col: number, row: number) => void
 
 // ── small pure helpers ──────────────────────────────────────────────
-const inBounds = (col: number, row: number, cols: number, rows: number): boolean =>
-  col >= 0 && col < cols && row >= 0 && row < rows
-const isEdge = (col: number, row: number, cols: number, rows: number): boolean =>
-  col === 0 || row === 0 || col === cols - 1 || row === rows - 1
 
 function makeGrid<T>(cols: number, rows: number, fill: () => T): T[][] {
   return Array.from({ length: rows }, () => Array.from({ length: cols }, fill))
-}
-
-function forEachCell(cols: number, rows: number, visit: (col: number, row: number) => void): void {
-  for (let row = 0; row < rows; row++) {
-    for (let col = 0; col < cols; col++) visit(col, row)
-  }
 }
 
 // A deterministic [0,1) value from a seed — drives leaf/flower intensity variety WITHOUT
@@ -2179,7 +2169,7 @@ function joinStrandedRegions(ctx: ArchetypeContext): void {
     const found: Set<string>[] = []
     forEachCell(cols, rows, (col, row) => {
       if (!isFloor(col, row) || seen.has(`${col},${row}`)) return
-      found.push(floodFloor(isFloor, col, row, seen))
+      found.push(flood(isFloor, col, row, seen))
     })
     if (found.length <= 1) return
     found.sort((a, b) => b.size - a.size)
@@ -3369,7 +3359,7 @@ function dryAreas(ctx: ArchetypeContext): Map<string, number> {
   forEachCell(cols, rows, (col, row) => {
     if (!isDry(col, row) || seen.has(`${col},${row}`)) return
     const id = next++
-    for (const key of floodFloor(isDry, col, row, seen)) area.set(key, id)
+    for (const key of flood(isDry, col, row, seen)) area.set(key, id)
   })
   return area
 }
@@ -3903,7 +3893,7 @@ function repairFloorConnectivity(ctx: ArchetypeContext, maxPocket = Infinity): v
   let largest = new Set<string>()
   forEachCell(cols, rows, (col, row) => {
     if (!isFloor(col, row) || seen.has(`${col},${row}`)) return
-    const region = floodFloor(isFloor, col, row, seen)
+    const region = flood(isFloor, col, row, seen)
     regions.push(region)
     if (region.size > largest.size) largest = region
   })
@@ -3938,7 +3928,6 @@ function waterBound(ctx: ArchetypeContext, region: ReadonlySet<string>): boolean
   return wet > dry
 }
 
-const FLOOR_DIRS: ReadonlyArray<readonly [number, number]> = [[1, 0], [-1, 0], [0, 1], [0, -1]]
 
 /** The biggest connected region of floor cells (4-neighbour), as a key set. Used by the cave / boss
  *  archetypes to keep the carved floor one navigable region. */
@@ -3948,35 +3937,10 @@ function largestFloorRegion(isFloor: (c: number, r: number) => boolean, cols: nu
   forEachCell(cols, rows, (col, row) => {
     if (!isFloor(col, row)) return
     if (seen.has(`${col},${row}`)) return
-    const region = floodFloor(isFloor, col, row, seen)
+    const region = flood(isFloor, col, row, seen)
     if (region.size > best.size) best = region
   })
   return best
-}
-
-function floodFloor(
-  isFloor: (c: number, r: number) => boolean,
-  startCol: number,
-  startRow: number,
-  seen: Set<string>,
-): Set<string> {
-  const region = new Set<string>()
-  const stack: Cell[] = [{ col: startCol, row: startRow }]
-  seen.add(`${startCol},${startRow}`)
-  while (stack.length > 0) {
-    const { col, row } = stack.pop()!
-    region.add(`${col},${row}`)
-    for (const [dc, dr] of FLOOR_DIRS) {
-      const c = col + dc
-      const r = row + dr
-      const key = `${c},${r}`
-      if (seen.has(key)) continue
-      if (!isFloor(c, r)) continue
-      seen.add(key)
-      stack.push({ col: c, row: r })
-    }
-  }
-  return region
 }
 
 /** L-shaped, 2-wide corridor between two cells. */
@@ -4065,13 +4029,6 @@ function keepLargestClearing(trees: boolean[][], cols: number, rows: number): Se
   return largest
 }
 
-const ORTHO: ReadonlyArray<readonly [number, number]> = [
-  [1, 0],
-  [-1, 0],
-  [0, 1],
-  [0, -1],
-]
-
 function floodOpen(trees: boolean[][], startCol: number, startRow: number, cols: number, rows: number): Set<string> {
   const region = new Set<string>([`${startCol},${startRow}`])
   const stack: Cell[] = [{ col: startCol, row: startRow }]
@@ -4089,11 +4046,6 @@ function floodOpen(trees: boolean[][], startCol: number, startRow: number, cols:
     }
   }
   return region
-}
-
-const toCell = (key: string): Cell => {
-  const [col, row] = key.split(',').map(Number)
-  return { col, row }
 }
 
 function carveVertical(trees: boolean[][], col: number, fromRow: number, toRow: number): void {
