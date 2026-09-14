@@ -1080,4 +1080,37 @@ defmodule Nebulith.Catalog.GeneratorSource do
 
   defp townsfolk(count), do: %{"townsfolk" => count, "enemies" => 0, "enemyTypes" => []}
   defp enemies(types), do: %{"townsfolk" => 0, "enemies" => 10, "enemyTypes" => types}
+  @doc """
+  The GENERATION LAYERS: the stack map generation runs, in order.
+
+  Six today. `ways` leads because the exits and paths are planned before anything is built around them, and
+  `units` trails because the editor scatters those, not the generator.
+
+  `seedable: false` is the honest half. `edge`, `gates`, `floors` and `transitions` are decided entirely by the
+  ways above them, so re-rolling one changes nothing, and the editor reads this flag rather than offering a
+  button that does nothing.
+
+  More are coming and each is a row: *"we can apply shadow and lightning as extra layers, we'll also add fog
+  layer, then we probably will add some reprocess layer too, we'll add water reflection layer"*.
+  """
+  def seed_generation_layers do
+    layers = [
+      %{key: "ways", label: "Ways", position: 10, seedable: true,
+        hint: "the exits and the paths between them. re-roll to move where you come in and go out"},
+      %{key: "layout", label: "Layout", position: 20, seedable: true,
+        hint: "the bare shape: streets, plots and clearings, with structures and nature stripped"},
+      %{key: "buildings", label: "Buildings", position: 30, seedable: true,
+        hint: "the structures, re-rolled in place"},
+      %{key: "nature", label: "Nature", position: 40, seedable: true,
+        hint: "the trees, plants and greenery"},
+      %{key: "decor", label: "Decor", position: 50, seedable: true,
+        hint: "the dressing: plazas, lamps and fountains"},
+      %{key: "units", label: "Units", position: 60, seedable: true,
+        hint: "the creatures and townsfolk"}
+    ]
+
+    for attrs <- layers, do: {:ok, _} = Nebulith.Catalog.upsert_generation_layer(attrs)
+    :ok
+  end
+
 end

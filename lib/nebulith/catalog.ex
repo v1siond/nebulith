@@ -10,6 +10,7 @@ defmodule Nebulith.Catalog do
   alias Nebulith.Catalog.Template
   alias Nebulith.Catalog.{Tile, Composition, CompositionCell}
   alias Nebulith.Catalog.{Generator, GeneratorCategory}
+  alias Nebulith.Catalog.GenerationLayer
 
   @doc """
   Returns the list of tilesets.
@@ -367,4 +368,42 @@ defmodule Nebulith.Catalog do
     do: Map.merge(base, over, fn _k, a, b -> deep_merge(a, b) end)
 
   defp deep_merge(_base, over), do: over
+  # ── GENERATION LAYERS ──────────────────────────────────────────────────────────────────────────────────
+  # The stack generation runs in, as data. The engine binds a pass to each `key`; the editor builds its
+  # re-roll panel from the same list, so adding a layer is a row rather than an edit in two repos.
+
+  @doc "Every generation layer, in the order generation runs them."
+  def list_generation_layers do
+    Repo.all(from l in GenerationLayer, order_by: [asc: l.position, asc: l.key])
+  end
+
+  @doc "One layer by its key, or nil."
+  def get_generation_layer(key) when is_binary(key), do: Repo.get_by(GenerationLayer, key: key)
+
+  @doc "Create a layer."
+  def create_generation_layer(attrs) do
+    %GenerationLayer{} |> GenerationLayer.changeset(attrs) |> Repo.insert()
+  end
+
+  @doc "Update a layer."
+  def update_generation_layer(%GenerationLayer{} = layer, attrs) do
+    layer |> GenerationLayer.changeset(attrs) |> Repo.update()
+  end
+
+  @doc "Delete a layer."
+  def delete_generation_layer(%GenerationLayer{} = layer), do: Repo.delete(layer)
+
+  @doc """
+  Upsert by key — the seed path, so re-seeding never duplicates a layer and never clobbers an edit to a key
+  that is already there with something the code happens to say today.
+  """
+  def upsert_generation_layer(attrs) do
+    attrs = Map.new(attrs, fn {k, v} -> {to_string(k), v} end)
+
+    case get_generation_layer(attrs["key"]) do
+      nil -> create_generation_layer(attrs)
+      layer -> update_generation_layer(layer, attrs)
+    end
+  end
+
 end

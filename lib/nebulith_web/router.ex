@@ -48,6 +48,14 @@ defmodule NebulithWeb.Router do
     get "/entities", EntityController, :index
     get "/combat", CombatController, :index
     get "/zones", ZoneController, :index
+    # THE GENERATION LAYERS, as data. The engine binds a pass to each key and the editor builds its re-roll
+    # panel from the list, so a layer is a row rather than an edit in two repos. Keyed by `key`, not id: the
+    # key is what the engine binds to, so it is what a caller has in hand.
+    get "/generation_layers", GenerationLayerController, :index
+    post "/generation_layers", GenerationLayerController, :create
+    get "/generation_layers/:key", GenerationLayerController, :show
+    put "/generation_layers/:key", GenerationLayerController, :update
+    delete "/generation_layers/:key", GenerationLayerController, :delete
     get "/ui", UiController, :index
     put "/ui", UiController, :update
     resources "/templates", TemplateController, except: [:new, :edit]
