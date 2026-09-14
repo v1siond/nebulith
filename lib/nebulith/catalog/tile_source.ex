@@ -3165,22 +3165,6 @@ defmodule Nebulith.Catalog.TileSource do
       # The browseable palette shows ONE "Lamp post" (category "props"); the FAILING variant is a generator-only
       # flavour (~18% of stamped lamps), so it carries NO category → it renders on the map but is NOT a duplicate
       # palette entry (Alexander #45 "remove duplicated lamp post options").
-      # WHERE A MAP LETS YOU OUT, as a thing you can SEE. Alexander, 2026-09-13: *"it's also really important
-      # to have visual indicators of the exit, like maybe we always put a light or something ... let's add exit
-      # or pathway exit objects, we can add castle doors, white light, pokemon like indicators, etc"*, and
-      # *"we can ut a few trees at the sides of the exit/entrance pathway with the visual indicator selected"*.
-      #
-      # A DEFAULT ONE NOW, MORE LATER, in his own words: *"we can have a default one for now and expand later
-      # with more types"*. So this is a FAMILY keyed by the kind of place you are walking into, and the
-      # generator asks for one by name. Two are authored here: the plain way out of a wood, and the one he
-      # described for a jungle, *"going into a deeper jungle exit would have a lot of trees outside indicating
-      # we're going deeper into de forest"*. Adding a castle door or a shrine gate is another entry, no code.
-      #
-      # THE MIDDLE STAYS WALKABLE. The gate straddles a 3-wide pathway, so the marker is a light standing at
-      # the side of the mouth and the flanks are what narrow it. A composition that blocked its own middle
-      # would seal the exit it is advertising.
-      "exit_gate" => exit_gate_composition("tree_small", 1),
-      "exit_gate_deep_forest" => exit_gate_composition("tree_conifer", 2),
       "lamp_post" => lamp_post_composition([bulb_night_lit_anim()], "props"),
       "lamp_post_failing" => lamp_post_composition([bulb_night_lit_anim(), lamp_flicker_anim()], nil)
     }
@@ -3192,50 +3176,6 @@ defmodule Nebulith.Catalog.TileSource do
   # top. `nil` → no animation (kept for callers that want a plain bulb). Everything else — structure, the tuned
   # post/bulb settings, the `light` glow pool — is IDENTICAL, so a failing lamp is a lit lamp whose bulb flickers.
   # The STRUCTURE is style-agnostic (only the baked `post`/`lamp` ART differs per style).
-  # The exit marker's own glow. WHITE, because that is what he named ("white light"), and brighter than a lamp
-  # so it reads as a way out from across the map rather than as street furniture.
-  @exit_light %{"intensity" => 1.2, "distance" => 4.0, "color" => "#eaf6ff", "on" => true}
-
-  @doc false
-  # One gate: a lit marker at the mouth with `flank_depth` rows of trees to either side of the way through.
-  # `footprint_h` is `flank_depth + 1` so a deeper flank is a deeper thicket, which is the whole difference
-  # between walking out of a wood and walking into a jungle.
-  defp exit_gate_composition(tree_label, flank_depth) do
-    width = 3
-
-    # A MARKER YOU CAN SEE IN DAYLIGHT. The gate carried only a `light`, and a light draws its glow pool at
-    # NIGHT, so by day the way out was marked by nothing at all (ticket 104). A lamp needs something holding
-    # it up anyway: the post is the thing you see from across the map, the bulb sits on top of it, and the
-    # glow is what the post adds after dark. Same two-cell shape the lamp post itself uses.
-    marker =
-      for dx <- [0, width - 1] do
-        [
-          # `bridge_rail`, NOT `post`. I reached for `post` here and put the open crate straight back: its art
-          # is a rounded square with a 31% transparent margin, so any block extruded from it shows its own
-          # dark interior and reads as a black-and-white box. `bridge_rail` is the solid full-bleed tile
-          # authored for exactly this, and the gatepost states its own colour like every other cell.
-          %{dx: dx, dy: 0, level: 0, label: "bridge_rail", walkable: false,
-            settings: %{"scaleY" => 1.6, "scaleZ" => 0.35, "color" => "#6b5f52"}},
-          %{dx: dx, dy: 0, level: 1, label: "lamp", walkable: true, scale: 0.6,
-            settings: %{"display" => "single", "pose" => %{"dy" => -1.4}, "light" => @exit_light}}
-        ]
-      end
-      |> List.flatten()
-
-    # The flanks: trees down both edges, never in the middle column, so the way through stays open.
-    flanks =
-      for dy <- 0..(flank_depth - 1), dx <- [0, width - 1] do
-        %{dx: dx, dy: dy + 1, level: 0, label: tree_label, walkable: false}
-      end
-
-    %{
-      footprint_w: width,
-      footprint_h: flank_depth + 1,
-      category: "props",
-      cells: marker ++ flanks
-    }
-  end
-
   defp lamp_post_composition(bulb_animations, category) do
     # `light` is a real, controllable SETTING (Alexander: "control the light intensity and distance"): the bulb
     # casts a warm ground GLOW POOL at night, sized by `distance` (cells), strengthened/tinted by `intensity`/
