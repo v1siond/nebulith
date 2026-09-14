@@ -58,7 +58,7 @@ import { groundTileColor } from './tileset/groundColor'
 import type { Connector } from '@/lib/api'
 import { clamp, randInt, randIntWith, manhattan, makeRng, type Rng } from '@/lib/math'
 import { planRoutes, resolveWays, type Gate, type RouteCell, type RoutePlan } from '@/engine/pathNetwork'
-import { carveChannel, channelDepth, digChannel, flowField, isWaterGround, resolveRiverCourse, waterBand, DEEP_WATER_FROM, FLOW_STEPS, RIVER_COURSES, WATER_BANDS, type ChannelShape, type RiverCourse, type WaterBand } from '@/engine/riverNetwork'
+import { carveChannel, channelDepth, digChannel, flowField, isWaterGround, resolveRiverCourse, waterBand, chooseBridgeSpan, crossingStyle, resolveCrossing, waterReach, DEEP_WATER_FROM, FLOW_STEPS, MIN_BRIDGE_SPAN, RIVER_COURSES, WATER_BANDS, type ChannelShape, type RiverCourse, type WaterBand } from '@/engine/riverNetwork'
 
 export type VariantId = 'town' | 'city' | 'forest' | 'cave' | 'temple' | 'boss-stage'
 
@@ -2726,27 +2726,6 @@ function raiseRegions(ctx: ArchetypeContext, zoneAt: (GeneratorSubZone | undefin
 
 
 
-/** The walkable BANK either side of the creek — this is the route through a jungle, so it is cleared to a
- *  real width rather than being a one-cell shoreline tint. Returns the bank cells for the open mask. */
-function jungleBanks(ctx: ArchetypeContext, water: Set<string>, pal: GeneratorPalette | undefined): Set<string> {
-  const { cols, rows, collision, floorColors } = ctx
-  const banks = new Set<string>()
-  for (const key of water) {
-    const { col, row } = toCell(key)
-    for (let dr = -JUNGLE.bankDepth; dr <= JUNGLE.bankDepth; dr++) {
-      for (let dc = -JUNGLE.bankDepth; dc <= JUNGLE.bankDepth; dc++) {
-        const c = col + dc
-        const r = row + dr
-        if (!inBounds(c, r, cols, rows) || water.has(`${c},${r}`)) continue
-        if (Math.hypot(dc, dr) > JUNGLE.bankDepth) continue
-        banks.add(`${c},${r}`)
-        collision[r][c] = false
-        if (pal?.bank) floorColors[r][c] = pal.bank
-      }
-    }
-  }
-  return banks
-}
 
 /** An ANIMAL TRACK from a light gap to the water — one cell wide, wandering, and marked open rather than
  *  paved. A jungle has no roads; what it has is the line where the undergrowth happens to be thinnest. */
@@ -3216,6 +3195,51 @@ function wadeableShallows(ctx: ArchetypeContext, depth: ReadonlyMap<string, numb
   return new Set(joined.keys())
 }
 
+// THE BANKS STAY WITH THEIR LAYOUTS, for now, and it is worth saying why. Moving them to `riverNetwork`
+// looked obvious until it was tried: `paintRiverBanks` reads the MEADOW's palette and `jungleBanks` reads
+// `JUNGLE.bankDepth`. They are not the river's bank, they are the meadow's and the jungle's, which is
+// exactly the kind of thing that makes a seam meaningless if you drag it across anyway. They move when a
+// bank width and tone are SERVED, like every other template fact.
+
+/** Sandy BANK highlight on the land cells orthogonally touching the river — the shoreline in #17. */
+function paintRiverBanks(ctx: ArchetypeContext, water: Set<string>, pal: MeadowPalette): void {
+  const { cols, rows, ground, collision, floorColors } = ctx
+  water.forEach(key => {
+    const { col, row } = toCell(key)
+    for (const [dc, dr] of ORTHO) {
+      const c = col + dc
+      const r = row + dr
+      if (!inBounds(c, r, cols, rows) || isEdge(c, r, cols, rows)) continue
+      if (water.has(`${c},${r}`) || collision[r][c] || ground[r][c] !== 'meadow') continue
+      floorColors[r][c] = pal.bank
+    }
+  })
+}
+
+
+/** The walkable BANK either side of the creek — this is the route through a jungle, so it is cleared to a
+ *  real width rather than being a one-cell shoreline tint. Returns the bank cells for the open mask. */
+function jungleBanks(ctx: ArchetypeContext, water: Set<string>, pal: GeneratorPalette | undefined): Set<string> {
+  const { cols, rows, collision, floorColors } = ctx
+  const banks = new Set<string>()
+  for (const key of water) {
+    const { col, row } = toCell(key)
+    for (let dr = -JUNGLE.bankDepth; dr <= JUNGLE.bankDepth; dr++) {
+      for (let dc = -JUNGLE.bankDepth; dc <= JUNGLE.bankDepth; dc++) {
+        const c = col + dc
+        const r = row + dr
+        if (!inBounds(c, r, cols, rows) || water.has(`${c},${r}`)) continue
+        if (Math.hypot(dc, dr) > JUNGLE.bankDepth) continue
+        banks.add(`${c},${r}`)
+        collision[r][c] = false
+        if (pal?.bank) floorColors[r][c] = pal.bank
+      }
+    }
+  }
+  return banks
+}
+
+
 /**
  * SETTLE THE WATER BY DEPTH, once the map is otherwise finished.
  *
@@ -3468,20 +3492,6 @@ function paintMeadowRiver(ctx: ArchetypeContext): Set<string> {
   return water
 }
 
-/** Sandy BANK highlight on the land cells orthogonally touching the river — the shoreline in #17. */
-function paintRiverBanks(ctx: ArchetypeContext, water: Set<string>, pal: MeadowPalette): void {
-  const { cols, rows, ground, collision, floorColors } = ctx
-  water.forEach(key => {
-    const { col, row } = toCell(key)
-    for (const [dc, dr] of ORTHO) {
-      const c = col + dc
-      const r = row + dr
-      if (!inBounds(c, r, cols, rows) || isEdge(c, r, cols, rows)) continue
-      if (water.has(`${c},${r}`) || collision[r][c] || ground[r][c] !== 'meadow') continue
-      floorColors[r][c] = pal.bank
-    }
-  })
-}
 
 /** SPARSE framing trees: natural CLUMPS in the outer LAND band beyond the river (hugging the top / left /
  *  right edges — where the river variant leaves a thin strip) plus a few near the bottom corners. The trees
@@ -3821,23 +3831,11 @@ function nearestCell(from: Cell, keys: Iterable<string>): Cell | null {
   return best
 }
 
-/** How many consecutive water cells lie beyond `at` in direction (dc, dr) — how far the river reaches that way. */
-function waterReach(water: Set<string>, at: Cell, dc: number, dr: number): number {
-  let n = 0
-  let { col, row } = at
-  while (water.has(`${col + dc},${row + dr}`)) {
-    col += dc
-    row += dr
-    n++
-  }
-  return n
-}
 
 /** Turn a set of cells into walkable deck: clear what stands on them and lay the crossing this map is built
  *  with. Shared by every crossing (the bridge, the joined crossing, fallen logs, a route over water) so they all
  *  read alike, and each cell is remembered in `ctx.decks`. */
 /** The shortest run worth building a bridge over: one cell of water and a landing at each end. */
-const MIN_BRIDGE_SPAN = 3
 
 /**
  * RECORD A BRIDGE over a deck run. Alexander, 2026-09-12, in capitals: *"AND THE BRIDGES ARE STILL NOT
@@ -3892,45 +3890,6 @@ function recordBridgeSpan(
   })
 }
 
-/**
- * WHICH AUTHORED SPAN CROSSES THIS RIVER: the smallest one that covers the water plus a landing each side.
- *
- * Alexander, 2026-09-12: *"would a bridge be that large, when we only have to connect a small river?? we just
- * need something like 4 cells long x whatever the river size"*, and *"river is usually 3-4 cells wide or more"*.
- *
- * This used to walk DOWN from `runLength` and take the first span that fit, so it always picked the largest
- * bridge the landing-to-landing run allowed. Measured across 3 courses x 3 layouts x 8 seeds, that put 35 of
- * 118 crossings on the longest authored span; choosing by the river instead puts 28 there and moves the rest
- * onto spans that match their water.
- *
- * The down-walk survives as the FALLBACK, and it has to. `waterWidth` is read from the wet run, which on a
- * diagonal reach can be longer than the deck run, so nothing authored is long enough. Dropping out there left
- * 11 of those 118 crossings with a bare deck and no structure on it. A slightly short bridge reads as a
- * bridge; a deck with nothing on it does not.
- *
- * Pure, and takes `authored` as a predicate, so the choice can be tested without a tileset.
- */
-export function chooseBridgeSpan(waterWidth: number, runLength: number, authored: (span: number) => boolean): number | null {
-  // JUST THE BRIDGE. Alexander, 2026-09-13, with a picture: *"bridge wood zone is almost as long and big as
-  // the rivr, that's terrible, we just need the actual bridge connecting"*.
-  //
-  // What it wants is the water plus one landing on each bank, and nothing else. What it did was fall back to
-  // `runLength`, the length of the whole DECK RUN, and count DOWN from there: a path that meets the river at
-  // an angle has a long run, so a two-cell creek got a seven-cell bridge. The run is a limit, not a target.
-  //
-  // So it searches OUTWARD from what is needed and takes the CLOSEST authored span, up only as far as the run
-  // allows and down only as far as a bridge still reads as one.
-  const needed = Math.max(MIN_BRIDGE_SPAN, Math.min(waterWidth + 2, Math.max(MIN_BRIDGE_SPAN, runLength)))
-  for (let out = 0; out <= runLength; out++) {
-    const longer = needed + out
-    if (longer <= runLength && authored(longer)) return longer
-    const shorter = needed - out
-    // Still bounded by the run: a bridge longer than the deck it sits on is not a bridge, which is what the
-    // "too short for even the minimum" case asserts.
-    if (shorter >= MIN_BRIDGE_SPAN && shorter <= runLength && authored(shorter)) return shorter
-  }
-  return null
-}
 
 function layDeck(ctx: ArchetypeContext, deck: Set<string>, tone: string | undefined): void {
   const { cols, rows, ground, collision, floorColors } = ctx
@@ -3987,28 +3946,7 @@ function deckRoutes(ctx: ArchetypeContext, plan: RoutePlan, water: ReadonlySet<s
   if (wet.size > 0) layDeck(ctx, wet, tone)
 }
 
-/**
- * THE KIND OF CROSSING. Alexander, 2026-09-11: *"on the "bridges" that we use on rivers, we must have multiple
- * variations too / it can be a simple dirt path, it can be an actual bridge, which again, are multiple
- * variations"*. One per map, so every crossing on it matches, picked the first time a deck is laid.
- */
-function crossingStyle(ctx: ArchetypeContext): GeneratorCrossing | undefined {
-  if (ctx.crossing === undefined) ctx.crossing = resolveCrossing(ctx.options?.bridge, ctx.crossings, ctx.rand) ?? null
-  return ctx.crossing ?? undefined
-}
 
-/** The pure half of `crossingStyle`. `random` picks one of the served kinds; an option the map was not built
- *  with (an older recipe) keeps the classic deck, so a saved map does not change under anyone. */
-export function resolveCrossing(
-  value: GeneratorOptionValue | undefined,
-  crossings: Readonly<Record<string, GeneratorCrossing>> | undefined,
-  rand: Rng,
-): GeneratorCrossing | undefined {
-  if (!crossings || typeof value !== 'string') return undefined
-  if (value !== 'random') return crossings[value]
-  const kinds = Object.keys(crossings)
-  return kinds.length > 0 ? crossings[kinds[randIntWith(rand, 0, kinds.length - 1)]] : undefined
-}
 
 /** Pave an L-shaped spur from the bridge landing to the route it joins, wearing the TILE AND COLOUR of that
  *  route cell — so the spur looks like the path it runs into (a forest trail in a wood, cobble on a meadow)

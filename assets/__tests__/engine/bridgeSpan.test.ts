@@ -11,7 +11,9 @@
  *
  * The spans the backend authors are 3, 4, 5, 6 and 7 per family, which is why `WOOD` below is that set.
  */
-import { chooseBridgeSpan } from '@/engine/stageGenerator'
+// chooseBridgeSpan lives in `riverNetwork` with the rest of the crossing decision: how long a bridge
+// has to be is a question about the WATER, not about whichever layout happened to carve it.
+import { chooseBridgeSpan } from '@/engine/riverNetwork'
 
 /** The authored set, as `tile_source.ex` carries it and `/api/tilesets` serves it. */
 const WOOD = (span: number) => [3, 4, 5, 6, 7].includes(span)

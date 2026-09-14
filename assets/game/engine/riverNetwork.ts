@@ -1,5 +1,5 @@
 import { randIntWith, type Rng } from '@/lib/math'
-import { type GeneratorOptionValue, type GeneratorPalette } from '@/lib/generatorCatalog'
+import { type GeneratorCrossing, type GeneratorOptionValue, type GeneratorPalette } from '@/lib/generatorCatalog'
 
 /**
  * THE RIVER, AS ITS OWN SUBSYSTEM.
@@ -27,6 +27,9 @@ export interface RiverBounds {
   cols: number
   rows: number
 }
+
+/** A cell, the same pair the whole engine uses. */
+export interface Cell { col: number; row: number }
 
 /** Is this cell on the map? The module's own, for the same reason as `toCell`. */
 const inBounds = (col: number, row: number, cols: number, rows: number): boolean =>
@@ -370,4 +373,99 @@ export function carveChannel(ctx: RiverCarve, pal: GeneratorPalette | undefined,
   // Every channel-carved course comes through here: `through`, `divides`, and the jungle's creek.
   digChannel(ctx, water)
   return water
+}
+
+// ── the bank, and what crosses it ─────────────────────────────────────────
+// The shore a river leaves behind, and the decision of what spans it. Both are the river's business: a bank
+// is the edge of the water and a crossing is sized by how wide the water turned out to be, so keeping either
+// in the layouts is what let three templates answer the same question three ways.
+
+/** The shortest bridge that reads as one. Below this it is a plank, not a crossing. */
+export const MIN_BRIDGE_SPAN = 3
+
+/** What a map needs to hand over to be asked which crossing it wants. */
+export interface RiverCrossings {
+  /** ONE crossing per map, cached here the first time a deck is laid, so every bridge on it matches. The
+   *  field is mutable on purpose: that memo IS the "picked once" rule. */
+  crossing?: GeneratorCrossing | null
+  crossings?: Readonly<Record<string, GeneratorCrossing>>
+  options: Readonly<Record<string, GeneratorOptionValue>> | undefined
+  rand: Rng
+}
+
+
+
+/** How many consecutive water cells lie beyond `at` in direction (dc, dr) — how far the river reaches that way. */
+export function waterReach(water: Set<string>, at: Cell, dc: number, dr: number): number {
+  let n = 0
+  let { col, row } = at
+  while (water.has(`${col + dc},${row + dr}`)) {
+    col += dc
+    row += dr
+    n++
+  }
+  return n
+}
+
+/**
+ * WHICH AUTHORED SPAN CROSSES THIS RIVER: the smallest one that covers the water plus a landing each side.
+ *
+ * Alexander, 2026-09-12: *"would a bridge be that large, when we only have to connect a small river?? we just
+ * need something like 4 cells long x whatever the river size"*, and *"river is usually 3-4 cells wide or more"*.
+ *
+ * This used to walk DOWN from `runLength` and take the first span that fit, so it always picked the largest
+ * bridge the landing-to-landing run allowed. Measured across 3 courses x 3 layouts x 8 seeds, that put 35 of
+ * 118 crossings on the longest authored span; choosing by the river instead puts 28 there and moves the rest
+ * onto spans that match their water.
+ *
+ * The down-walk survives as the FALLBACK, and it has to. `waterWidth` is read from the wet run, which on a
+ * diagonal reach can be longer than the deck run, so nothing authored is long enough. Dropping out there left
+ * 11 of those 118 crossings with a bare deck and no structure on it. A slightly short bridge reads as a
+ * bridge; a deck with nothing on it does not.
+ *
+ * Pure, and takes `authored` as a predicate, so the choice can be tested without a tileset.
+ */
+export function chooseBridgeSpan(waterWidth: number, runLength: number, authored: (span: number) => boolean): number | null {
+  // JUST THE BRIDGE. Alexander, 2026-09-13, with a picture: *"bridge wood zone is almost as long and big as
+  // the rivr, that's terrible, we just need the actual bridge connecting"*.
+  //
+  // What it wants is the water plus one landing on each bank, and nothing else. What it did was fall back to
+  // `runLength`, the length of the whole DECK RUN, and count DOWN from there: a path that meets the river at
+  // an angle has a long run, so a two-cell creek got a seven-cell bridge. The run is a limit, not a target.
+  //
+  // So it searches OUTWARD from what is needed and takes the CLOSEST authored span, up only as far as the run
+  // allows and down only as far as a bridge still reads as one.
+  const needed = Math.max(MIN_BRIDGE_SPAN, Math.min(waterWidth + 2, Math.max(MIN_BRIDGE_SPAN, runLength)))
+  for (let out = 0; out <= runLength; out++) {
+    const longer = needed + out
+    if (longer <= runLength && authored(longer)) return longer
+    const shorter = needed - out
+    // Still bounded by the run: a bridge longer than the deck it sits on is not a bridge, which is what the
+    // "too short for even the minimum" case asserts.
+    if (shorter >= MIN_BRIDGE_SPAN && shorter <= runLength && authored(shorter)) return shorter
+  }
+  return null
+}
+
+/** The pure half of `crossingStyle`. `random` picks one of the served kinds; an option the map was not built
+ *  with (an older recipe) keeps the classic deck, so a saved map does not change under anyone. */
+export function resolveCrossing(
+  value: GeneratorOptionValue | undefined,
+  crossings: Readonly<Record<string, GeneratorCrossing>> | undefined,
+  rand: Rng,
+): GeneratorCrossing | undefined {
+  if (!crossings || typeof value !== 'string') return undefined
+  if (value !== 'random') return crossings[value]
+  const kinds = Object.keys(crossings)
+  return kinds.length > 0 ? crossings[kinds[randIntWith(rand, 0, kinds.length - 1)]] : undefined
+}
+
+/**
+ * THE KIND OF CROSSING. Alexander, 2026-09-11: *"on the "bridges" that we use on rivers, we must have multiple
+ * variations too / it can be a simple dirt path, it can be an actual bridge, which again, are multiple
+ * variations"*. One per map, so every crossing on it matches, picked the first time a deck is laid.
+ */
+export function crossingStyle(ctx: RiverCrossings): GeneratorCrossing | undefined {
+  if (ctx.crossing === undefined) ctx.crossing = resolveCrossing(ctx.options?.bridge, ctx.crossings, ctx.rand) ?? null
+  return ctx.crossing ?? undefined
 }
