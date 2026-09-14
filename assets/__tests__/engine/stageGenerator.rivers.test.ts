@@ -238,7 +238,10 @@ describe('water by depth: wade the shallows, the rest blocks', () => {
       // now, so counting it here measured the wrong thing. Pools are the cells wearing the served swamp tone.
       const pal = findGenerator(CATALOG, 'forest', layout)!.config.palette
       const channel = waterCells(s).filter(([c, r]) => !(pal?.swamp && s.floorColors[r][c] === pal.swamp))
-      const walkableDeep = channel.filter(([c, r]) => s.ground[r][c] !== 'water_shallow' && !s.collision[r][c])
+      // `water_bend` is a cell where the channel TURNS, at whatever depth it happens to be, so it is not
+      // evidence of depth either way. Only the bands past the shallow edge count as deep here.
+      const shallowish = new Set(['water_shallow', 'water_bend'])
+      const walkableDeep = channel.filter(([c, r]) => !shallowish.has(s.ground[r][c]) && !s.collision[r][c])
       expect({ layout, course, walkableDeep: walkableDeep.length }).toEqual({ layout, course, walkableDeep: 0 })
     }
   })

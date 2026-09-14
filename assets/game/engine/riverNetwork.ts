@@ -818,6 +818,31 @@ export function wadeableShallows(ctx: RiverSurface, depth: ReadonlyMap<string, n
 }
 
 /**
+ * WHERE THE CHANNEL TURNS: the cells whose current changes axis.
+ *
+ * Water is not linear. It runs straight down a reach and BENDS at a corner, and a bend drawn with the
+ * straight picture turned a quarter is the stepped `-----| | |` a river never makes. A bend cell wears its
+ * own picture, whose lines curve from one edge to the next.
+ *
+ * A cell is a bend when the cell its current flows INTO runs on the other axis: that next cell is where the
+ * turn happens, so that is the one that gets the corner.
+ */
+export function bendCells(flow: ReadonlyMap<string, number>, water: ReadonlySet<string>): Set<string> {
+  const axis = (dir: number): number => dir % 2 // 0 = along col, 1 = along row
+  const bends = new Set<string>()
+  for (const [key, dir] of flow) {
+    const { col, row } = toCell(key)
+    const [dc, dr] = FLOW_STEPS[dir]
+    const next = cellKey(col + dc, row + dr)
+    if (!water.has(next)) continue
+    const onward = flow.get(next)
+    if (onward === undefined || axis(onward) === axis(dir)) continue
+    bends.add(next)
+  }
+  return bends
+}
+
+/**
  * SETTLE THE WATER BY DEPTH, once the map is otherwise finished.
  *
  *   · the edge you can WADE is shallow: light blue, walkable
@@ -861,10 +886,13 @@ export function settleWaterDepth(ctx: RiverSurface, pal: GeneratorPalette | unde
   // THIS REVERSES the per-depth shading was asked for on 2026-09-11 (). The newest instruction wins. The band still
   // decides the LABEL and what you can wade through, so the shallows stay walkable. They just stop being a
   // different colour, which means the wadeable edge now needs the shoreline to mark it, not a hue.
+  // WHERE IT TURNS. Read before the bands are laid, off the flow that was just written, so a bend keeps the
+  // depth it had and only swaps the picture it draws with.
+  const bends = frozen ? new Set<string>() : bendCells(ctx.flow, channel)
   for (const [key, d] of depth) {
     const { col, row } = toCell(key)
     const band = waterBand(d)
-    ground[row][col] = frozen ? 'frozen_water' : band.label
+    ground[row][col] = frozen ? 'frozen_water' : bends.has(key) ? 'water_bend' : band.label
     // The BAND is the label; whether you can stand here is `wadeableShallows`, which refuses a cut channel.
     collision[row][col] = frozen ? false : !wadeable.has(key)
     if (pal?.water) floorColors[row][col] = pal.water
