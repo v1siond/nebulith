@@ -2884,6 +2884,13 @@ defmodule Nebulith.Catalog.TileSource do
   @deck_thickness 0.09
   @rail_height 0.55
   @rail_thickness 0.3
+  # The BEARERS: the beams in the channel the walkway rests on, one block BELOW it. Thicker than a rail (they
+  # are carrying something) and tall enough to reach from the water up to the deck.
+  @bearer_height 0.9
+  @bearer_thickness 0.45
+  # The POSTS at the four corners, standing proud of the rail line so the crossing has ends you can see.
+  @post_height 1.05
+  @post_thickness 0.28
 
   defp seed_new_compositions do
     for {name, %{footprint_w: w, footprint_h: h, cells: cells} = comp} <- compositions() do
@@ -3294,27 +3301,58 @@ defmodule Nebulith.Catalog.TileSource do
   # which is right for a lamp and wrong here, so the CELL states its colour (the per-cell `settings.color` the
   # stamp already honours) rather than the shared tile being repainted for one caller.
   defp bridge_cells(deck_label, rail_label, span, rail_color) do
-    # TWO CELLS OF DECK, so two can pass. The deck was a single row down the middle, which is a plank, not a crossing.
-    # Rows 1 and 2 are
-    # the way over and rows 0 and 3 are the rails, so the footprint is span x 4.
+    last_row = List.last(@deck_rows) + 1
+
+    # A BRIDGE IS BUILT IN LAYERS, like everything else here. Four of them, bottom to top:
+    #
+    #   level -1  BEARERS   the beams down in the channel that hold the thing up
+    #   level  0  WALKWAY   the planks, two rows so two can pass
+    #   level  0  RAILS     a thin panel down each side
+    #   level  0  POSTS     uprights at the four corners, standing above the rail line
+    #
+    # It used to be one flat layer of planks with a rail beside it, which reads as a plank laid on the ground
+    # rather than as a structure spanning a river.
+
+    # LAYER -1 — THE BEARERS. One per walking row, spanning the crossing through z-width, a block below the
+    # deck so they sit IN the channel. No collision: nothing walks at that level, and the ground course is the
+    # only one that may write to the 2D collision map.
+    bearers =
+      for dy <- @deck_rows do
+        %{dx: 0, dy: dy, level: -1, label: rail_label, walkable: true,
+          settings: %{
+            "scaleY" => @bearer_height,
+            "scaleZ" => @bearer_thickness,
+            # WHICH WAY IT IS THIN. Without a direction, `scaleZ` stays the old screen-axis squash, which
+            # thins along no world axis at all and leaves a z-width beam reading as displaced from the deck
+            # it belongs to. Naming the side it hugs makes it a world-axis panel, the same as a door.
+            "thicknessDir" => "left-down",
+            "depth" => span,
+            "depthDir" => "right-down",
+            "color" => rail_color
+          }}
+      end
+
+    # LAYER 0 — THE WALKWAY. Two rows, so two can pass.
     deck =
       for dx <- 0..(span - 1), dy <- @deck_rows do
         %{dx: dx, dy: dy, level: 0, label: deck_label, walkable: true,
           settings: %{"scaleY" => @deck_thickness}}
       end
 
-    # ONE cell per side, spanning the whole crossing through z-width (`depth` + `depthDir`), thinned to a
-    # DOOR'S thickness: `scaleZ` 0.3 is exactly what the `door` tile carries, so a rail is the same kind
-    # of panel a door is rather than a wall of its own invention.
-    #
-    # AND THE COLLISION IS THAT SIZE. A rail you cannot walk through should block the strip it occupies, not
-    # its whole cell, so the cell states a box of the same 0.3 across, centred like the panel it draws.
+    # LAYER 0 — THE RAILS. One cell per side spanning the crossing through z-width, thinned to a DOOR's
+    # thickness: `scaleZ` 0.3 is what the `door` tile carries, so a rail is the same kind of panel a door is
+    # rather than a wall of its own invention. The collision is that size too: a rail blocks the strip it
+    # occupies, not its whole cell.
     rails =
-      for dy <- [0, @deck_rows |> List.last() |> Kernel.+(1)] do
+      for {dy, hug} <- [{0, "right-up"}, {last_row, "left-down"}] do
         %{dx: 0, dy: dy, level: 0, label: rail_label, walkable: false,
           settings: %{
             "scaleY" => @rail_height,
             "scaleZ" => @rail_thickness,
+            # Each rail hugs the OUTER edge of its own row, so the pair frames the walkway instead of sitting
+            # in the middle of it. `scaleZ` alone has no world direction, so it squashed on the screen axis
+            # and the rail read as floating beside the deck rather than running along its edge.
+            "thicknessDir" => hug,
             "depth" => span,
             "depthDir" => "right-down",
             "color" => rail_color,
@@ -3322,7 +3360,20 @@ defmodule Nebulith.Catalog.TileSource do
           }}
       end
 
-    deck ++ rails
+    # LAYER 0 — THE POSTS. Taller than the rail and thin on both ground axes, so each end of the crossing has
+    # an upright rather than the railing simply stopping.
+    posts =
+      for dx <- [0, span - 1], dy <- [0, last_row] do
+        %{dx: dx, dy: dy, level: 0, label: "post", walkable: false,
+          settings: %{
+            "scaleY" => @post_height,
+            "scaleZ" => @post_thickness,
+            "scaleX" => @post_thickness,
+            "color" => rail_color
+          }}
+      end
+
+    bearers ++ deck ++ rails ++ posts
   end
 
   defp well_cells do
