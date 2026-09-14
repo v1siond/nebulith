@@ -1922,16 +1922,32 @@ function drawIsoRectBlock(
   tint: string | undefined,
   ext: { colMinus: number; colPlus: number; rowMinus: number; rowPlus: number },
   topDv?: DrawVisual,
+  /** THICKNESS: how far the block reaches toward each world direction inside the cells it spans. A z-width
+   *  tile used to ignore this outright, because only the non-rect branch was ever handed it, so a tile asking
+   *  for both a span and a thickness got the span and drew full width. */
+  thickness?: ThicknessReach,
 ): void {
   const px = center.x
   const H = blockH * Math.max(1, layers) // total rise; the walls drop this far from the top face
   const ty = center.y - H // top-face reference (the block rises H above its ground base)
   const { colMinus: cm, colPlus: cp, rowMinus: rm, rowPlus: rp } = ext
+  // The rectangle in CELL space: `a` runs along +col, `b` along +row, both measured from the anchor cell's
+  // back corner. The outer faces sit at the cell boundaries, and thickness pulls each one inward by however
+  // much of its own cell that side gives up — the same rule `reachGroundQuad` applies to a single cell.
+  const reach = (dir: DepthDir): number => {
+    const raw = thickness?.[dir]
+    return typeof raw === 'number' && raw > 0 && raw < 1 ? raw : 1
+  }
+  const a0 = -cm + (1 - reach('left-up'))
+  const a1 = cp + reach('right-down')
+  const b0 = -rm + (1 - reach('right-up'))
+  const b1 = rp + reach('left-down')
+  const at = (a: number, b: number): Pt => ({ x: px + (a - b) * tileW, y: ty + (a + b - 1) * tileH })
   // The four OUTER corners of the rectangle's top parallelogram (dir1/dir2 are the two grid axes → 4 corners).
-  const T = { x: px + (rm - cm) * tileW, y: ty - (cm + rm + 1) * tileH } // back (min col, min row) → top vertex
-  const R = { x: px + (cp + rm + 1) * tileW, y: ty + (cp - rm) * tileH } // right (max col, min row)
-  const B = { x: px + (cp - rp) * tileW, y: ty + (cp + rp + 1) * tileH } // front (max col, max row) → bottom vertex
-  const L = { x: px - (cm + rp + 1) * tileW, y: ty + (rp - cm) * tileH } // left (min col, max row)
+  const T = at(a0, b0) // back (min col, min row) → top vertex
+  const R = at(a1 + 1, b0) // right (max col, min row)
+  const B = at(a1 + 1, b1 + 1) // front (max col, max row) → bottom vertex
+  const L = at(a0, b1 + 1) // left (min col, max row)
   const dn = (p: Pt): Pt => ({ x: p.x, y: p.y + H })
   const faceColor = tint ?? dv.tint ?? dv.color
   const leftShade = darkenColor(faceColor, faceLight(-tileH, tileW)) // +row (front-left) wall
@@ -2181,7 +2197,7 @@ const ISO_SHAPE_DRAWERS: Record<TileShape, IsoShapeDrawer> = {
     const isRect = ext.colMinus + ext.colPlus + ext.rowMinus + ext.rowPlus > 0
     if (asset.settings?.display === 'single') drawIsoSingleTileBlock(ctx, center, bw, bd, bh, blocks, dv, tint, asset.depth, asset.depthDir, transparent)
     else if (transparent) return // see-through: no coloured block (whether a rect deck or a plain cube)
-    else if (isRect) drawIsoRectBlock(ctx, center, bw, bd, bh, blocks, dv, tint, ext)
+    else if (isRect) drawIsoRectBlock(ctx, center, bw, bd, bh, blocks, dv, tint, ext, undefined, assetThickness(asset))
     else drawIsoTileBlock(ctx, center, bw, bd, bh, blocks, dv, tint, undefined, asset.depth, asset.depthDir, assetThickness(asset))
   },
   circle: (ctx, center, bw, bd, bh, blocks, dv, tint, asset) => {
@@ -2192,7 +2208,7 @@ const ISO_SHAPE_DRAWERS: Record<TileShape, IsoShapeDrawer> = {
 
 /** Draw a placed tile's block as the SOLID its `shape` selects — the single call the asset draw sites use in
  *  place of branching on display/shape themselves. Unknown/absent shape → the square (cube) drawer. */
-function drawIsoTileForShape(
+export function drawIsoTileForShape(
   ctx: CanvasRenderingContext2D, center: Pt, bw: number, bd: number, bh: number, blocks: number,
   dv: DrawVisual, tint: string | undefined, asset: GridAsset,
 ): void {
