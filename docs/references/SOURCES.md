@@ -12,6 +12,7 @@ the thing you are about to build, put it here, and get it approved before modell
 | File | What it is for | Source | Licence |
 |---|---|---|---|
 | `gateway-arch-cc0.png` | The GATEWAY pattern: two solid piers, a real curved opening, a cap that oversails the piers | [opengameart.org/content/arch](https://opengameart.org/content/arch) | CC0 |
+| `gatehouse-town-cc0.jpg` | **The TOWN entrance reference.** A stone gatehouse with real MASS, a true arched opening cut through it, crenellation either side, and a timber deck crossing to it. Also a second wood-deck reference | [opengameart.org/content/castle-gate-and-drawbridge](https://opengameart.org/content/castle-gate-and-drawbridge) | CC0 |
 | `cave-mouth-cc0.png` | The DARK MOUTH: a rock mass with the darkest value in the picture as the way in | [opengameart.org/content/cave-entrance](https://opengameart.org/content/cave-entrance) | CC0 |
 | `bridge-stone-cc0.png` | The stone bridge: a humped deck, a parapet on both sides, piers into the water | [opengameart.org/content/stone-bridge](https://opengameart.org/content/stone-bridge) | CC0 |
 | `bridge-wood-cc0.png` | The wood bridge, plainest form | [opengameart.org/content/wooden-bridge](https://opengameart.org/content/wooden-bridge) | CC0 |
