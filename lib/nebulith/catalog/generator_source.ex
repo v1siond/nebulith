@@ -813,7 +813,7 @@ defmodule Nebulith.Catalog.GeneratorSource do
             "wallColors" => ["#c9a66b", "#b08d5b", "#d8c79a"]
           })
         },
-        options: @settlement_way_options
+        options: @settlement_way_options ++ @water_options
       },
       %{
         category: "settlement", key: "city", name: "City", layout: "city", variant: "city", position: 1,
@@ -834,7 +834,7 @@ defmodule Nebulith.Catalog.GeneratorSource do
             "wallColors" => ["#e8ecef", "#d3d8dc", "#bcc3c9"]
           })
         },
-        options: @settlement_way_options
+        options: @settlement_way_options ++ @water_options
       },
       # ── VARIATIONS OF A TOWN ────────────────────────────────────────────────────────────────────────
       # image #31 - a small town: a handful of houses and a lot of green between them
