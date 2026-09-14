@@ -126,6 +126,10 @@ function genSeeded(opts: Parameters<typeof generateStage>[0], seed: number): Sta
 // three settlements and the forest are byte-identical: the forest's river is off by default and a settlement
 // places no water at all.
 // RELOCKED TWICE ON 2026-09-13, cave and temple only. Second time: the shoreline is GONE.
+// RELOCKED 2026-09-14, forest only. The meadow entrance now runs through the shared gateway lane, which places
+// a lamp post INSTEAD of a flower bed at the two lamp depths. The old code did both, so a flower prop was left
+// sitting inside the cell the lamp post blocks. Nothing else about the lane moved: same width, same run, same
+// clamp, same paving.
 //
 // Recolouring the shore pieces to the served bank was the wrong fix, because the pieces are DRAWN as blooms:
 // *"I didn't want to recolor them, i wanted to remove them, becuase they don't match the fucking context of
@@ -148,7 +152,7 @@ const BASELINE: Record<string, string> = {
   'town|autumn|40x40|1': 'affafaf3',
   'town|summer|50x40|7': '9c0fd03a',
   'city|summer|56x44|3': 'b8a0077c',
-  'forest|summer|30x24|42': 'f243961a',
+  'forest|summer|30x24|42': '99a9427a',
   'cave|autumn|40x30|99': '94c7579b',
   'temple|winter|36x30|5': 'c6258d72',
   'boss-stage|winter|36x30|11': 'e081dcd4',

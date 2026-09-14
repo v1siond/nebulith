@@ -58,7 +58,7 @@ import { varyIntensity } from './colors'
 import { groundTileColor } from './tileset/groundColor'
 import type { Connector } from '@/lib/api'
 import { clamp, randInt, randIntWith, manhattan, makeRng, type Rng } from '@/lib/math'
-import { planRoutes, resolveWays, type Gate, type RouteCell, type RoutePlan } from '@/engine/pathNetwork'
+import { planRoutes, resolveWays, type Gate, type RouteCell, type RoutePlan, type Side } from '@/engine/pathNetwork'
 import {
   carveChannel, deckRoutes, digChannel, flowField, isWaterGround, layDeck, recordBridgeSpan,
   narrowestLine, narrowWaysToCrossings, resolveRiverCourse, settleWaterDepth, strewRiverRocks, wadeableShallows, waterBand, waterReach,
@@ -1798,7 +1798,15 @@ function layoutWoodland(ctx: ArchetypeContext, opts: ForestBuild = {}): void {
   //     water separates is joined by its crossing, never by a track.
   if (ctx.formation?.understory !== undefined) joinStrandedRegions(ctx)
 
-  // 8 · The water settles by depth, last.
+  // 8 · THE WAYS OUT, drawn. After the planting and the joins, so nothing puts a trunk back on a lane. A
+  //     woodland wears its own trail between flanking trunks rather than the meadow's cobble and lamps.
+  paintGateways(ctx, opts.routes, water, trailCells, {
+    ground: FLAT_FLOOR,
+    paving: ctx.palette?.trail,
+    flank: flankingTrees,
+  })
+
+  // 9 · The water settles by depth, last.
   settleWaterDepth(ctx, ctx.palette)
 
   void collision
@@ -2019,8 +2027,128 @@ function layoutJungle(ctx: ArchetypeContext, opts: ForestBuild = {}): void {
   repairFloorConnectivity(ctx, JUNGLE_MAX_POCKET)
   joinStrandedRegions(ctx)
 
-  // 9 · The creek settles by depth, last; the swamp pools stay blocking and turn blue-green.
+  // 9 · THE WAYS OUT. Same lane as the meadow's, wearing the jungle's own trail and flanked by its growth.
+  paintGateways(ctx, opts.routes, water, open, {
+    ground: FLAT_FLOOR,
+    paving: pal?.trail,
+    flank: flankingTrees,
+  })
+
+  // 10 · The creek settles by depth, last; the swamp pools stay blocking and turn blue-green.
   settleWaterDepth(ctx, pal, pools)
+}
+
+
+// ── the ways OUT ──────────────────────────────────────────────────────────
+// One lane, shared by every layout. It is the meadow's entrance generalised twice over:
+//
+//   1. ANY EDGE. It only ever ran in from the top or the bottom, so a gate on the east or west side had
+//      nothing drawn at all.
+//   2. THE DRESSING IS THE LAYOUT'S. A meadow way out is cobble between flower beds under lamps; a forest way
+//      out is its own trail between flanking trunks. Same lane, the template's own materials.
+
+/** How wide a way out reads and how far it reaches in. */
+const GATEWAY_HALF = 2
+const GATEWAY_RUN = 11
+
+/** Which way a lane runs in from each edge, and which way it measures its width. */
+const GATEWAY_STEPS: Record<Side, { readonly inward: readonly [number, number]; readonly across: readonly [number, number] }> = {
+  south: { inward: [0, -1], across: [1, 0] },
+  north: { inward: [0, 1], across: [1, 0] },
+  west: { inward: [1, 0], across: [0, 1] },
+  east: { inward: [-1, 0], across: [0, 1] },
+}
+
+/** What stands down both sides of a way out, one call per lane-side cell. The layout chooses it. */
+type GatewayFlank = (ctx: ArchetypeContext, col: number, row: number, depth: number) => void
+
+/** Tended beds the whole way, with two pairs of lamps. A lamp REPLACES the bed at its depth: the post blocks
+ *  its own cell, so a flower placed there would sit inside a blocked cell. */
+function bedsAndLamps(ctx: ArchetypeContext, col: number, row: number, depth: number): void {
+  if (depth === 2 || depth === Math.min(GATEWAY_RUN - 2, 7)) { placeLampPost(ctx, col, row); return }
+  plantFlowerBed(ctx, col, row)
+}
+
+/** Trunks down both sides, so a forest way out reads as a gap in the trees rather than a lane that happens to
+ *  be empty. Every other cell, or it comes out as a hedge. */
+function flankingTrees(ctx: ArchetypeContext, col: number, row: number, depth: number): void {
+  if (depth % 2 === 1) return
+  stampTree(ctx, col, row)
+}
+
+/** One way out: where it meets the edge, what it is paved with, and what stands beside it. */
+interface Gateway {
+  side: Side
+  /** The cell just inside the map. Only its along-the-edge coordinate is used. */
+  inside: Cell
+  /** The floor label the lane is laid in, and the tone it wears. Both the layout's own. */
+  ground: string
+  paving: string | undefined
+  flank: GatewayFlank
+}
+
+/** Where a gateway's lane meets the map edge. */
+function gatewayMouth(ctx: ArchetypeContext, gate: Gateway): Cell {
+  const { cols, rows } = ctx
+  if (gate.side === 'south') return { col: gate.inside.col, row: rows - 1 }
+  if (gate.side === 'north') return { col: gate.inside.col, row: 0 }
+  if (gate.side === 'west') return { col: 0, row: gate.inside.row }
+  return { col: cols - 1, row: gate.inside.row }
+}
+
+/**
+ * Paint one way out: a lane cleared of whatever grew on it, paved so you can see it, dressed so you can tell
+ * it leads somewhere.
+ *
+ * Never the water in it. Clearing a river cell's collision makes the river WALKABLE, and a river on the
+ * `through` course can run straight across a lane.
+ */
+function paintGateway(ctx: ArchetypeContext, gate: Gateway, water: ReadonlySet<string>, routes: Set<string>): void {
+  const { cols, rows, ground, collision, floorColors } = ctx
+  const { inward, across } = GATEWAY_STEPS[gate.side]
+  const mouth = gatewayMouth(ctx, gate)
+  const at = (depth: number, w: number): Cell => ({
+    col: mouth.col + inward[0] * depth + across[0] * w,
+    row: mouth.row + inward[1] * depth + across[1] * w,
+  })
+
+  const lane = new Set<string>()
+  for (let depth = 0; depth < GATEWAY_RUN; depth++) {
+    for (let w = -GATEWAY_HALF; w <= GATEWAY_HALF; w++) {
+      const { col, row } = at(depth, w)
+      if (!inBounds(col, row, cols, rows) || water.has(`${col},${row}`)) continue
+      lane.add(`${col},${row}`)
+    }
+  }
+  clearMeadowCells(ctx, lane)
+
+  for (let depth = 0; depth < GATEWAY_RUN; depth++) {
+    for (let w = -GATEWAY_HALF; w <= GATEWAY_HALF; w++) {
+      const { col, row } = at(depth, w)
+      if (!lane.has(`${col},${row}`) || collision[row][col]) continue
+      ground[row][col] = gate.ground
+      floorColors[row][col] = gate.paving
+      routes.add(`${col},${row}`)
+    }
+    for (const w of [-GATEWAY_HALF - 1, GATEWAY_HALF + 1]) {
+      const { col, row } = at(depth, w)
+      if (!inBounds(col, row, cols, rows) || water.has(`${col},${row}`)) continue
+      gate.flank(ctx, col, row, depth)
+    }
+  }
+}
+
+/** Every gate the plan made, drawn. Without this a layout paves its ways and leaves them looking like any
+ *  other stretch of floor, so there is nothing on screen that reads as a way out. */
+function paintGateways(
+  ctx: ArchetypeContext,
+  plan: RoutePlan | null | undefined,
+  water: ReadonlySet<string>,
+  routes: Set<string>,
+  dress: Omit<Gateway, 'side' | 'inside'>,
+): void {
+  if (!plan) return
+  for (const gate of plan.gates) paintGateway(ctx, { ...dress, side: gate.side, inside: gate.inside }, water, routes)
 }
 
 /** Paint a route network in a served tone, so a way through is something you can SEE rather than merely walk.
@@ -3231,10 +3359,9 @@ function buildMeadow(ctx: ArchetypeContext, opts: MeadowBuild): void {
     // middle, which is what his image #16 had none of. The lamps and flower beds stay on the way you come IN,
     // and on a far-edge way out, because that is where they read as a gateway rather than as scenery.
     paveMeadowRoutes(ctx, opts.routes, water, routes)
-    paintMeadowEntrance(ctx, water, routes, false, opts.routes.entrance.inside.col / ctx.cols)
-    for (const gate of opts.routes.gates) {
-      if (gate.side === 'north') paintMeadowEntrance(ctx, water, routes, true, gate.inside.col / ctx.cols)
-    }
+    // Every gate, on whatever edge the plan put it. This used to draw the entrance and then only the NORTH
+    // gates, so a way out east or west had nothing to see there at all.
+    paintMeadowGateways(ctx, opts.routes, water, routes)
   } else if (opts.twoWays) {
     paintMeadowEntrance(ctx, water, routes, false, 0.5) // near (bottom) cobble way in
     paintMeadowEntrance(ctx, water, routes, true, 0.5)  // far (top) cobble way out — opposite edge, aligned → a through-route (#26)
@@ -3402,39 +3529,22 @@ function paveMeadowRoutes(ctx: ArchetypeContext, plan: RoutePlan, water: Set<str
  *  a colour, not a tile) from the near edge inward, lined with colourful flower beds + lamp posts (the lit
  *  cobble way in #24). Clears any framing tree/prop off the lane first, so the way in is always a clean
  *  opening. */
+/** The meadow's ways out: its cobble lane, its beds, its lamps, on whichever edge each gate sits. */
+function paintMeadowGateways(ctx: ArchetypeContext, plan: RoutePlan, water: ReadonlySet<string>, routes: Set<string>): void {
+  const pal = MEADOW_PALETTES[ctx.zone] ?? MEADOW_PALETTES.summer
+  paintGateways(ctx, plan, water, routes, { ground: 'meadow', paving: pal.cobble, flank: bedsAndLamps })
+}
+
 function paintMeadowEntrance(ctx: ArchetypeContext, water: Set<string>, routes: Set<string>, fromTop = false, frac = MEADOW_ENTRANCE_FRAC): void {
-  const { cols, rows, ground, collision, floorColors, zone } = ctx
-  const pal = MEADOW_PALETTES[zone] ?? MEADOW_PALETTES.summer
-  const g = clamp(Math.floor(cols * frac), MEADOW_ENTRANCE_HALF + 1, cols - MEADOW_ENTRANCE_HALF - 2)
-  // The lane runs IN from the chosen edge — depth d = 0 at the edge (top row 0, or the bottom row) growing inward.
-  const rowAt = (d: number): number => (fromTop ? d : rows - 1 - d)
-  // Clear the lane (trees/props the framing pass may have dropped) so the cobble way is a real opening.
-  const lane = new Set<string>()
-  for (let d = 0; d < MEADOW_ENTRANCE_RUN; d++)
-    for (let w = -MEADOW_ENTRANCE_HALF; w <= MEADOW_ENTRANCE_HALF; w++) lane.add(`${g + w},${rowAt(d)}`)
-  // Never the water in it. Clearing a river cell's collision makes the river WALKABLE, and a river on the
-  // `through` course can run straight across this lane. The old perimeter river left the near edge open, so
-  // it never reached here, which is why this only showed once the courses existed.
-  for (const key of [...lane]) if (water.has(key)) lane.delete(key)
-  clearMeadowCells(ctx, lane)
-  for (let d = 0; d < MEADOW_ENTRANCE_RUN; d++) {
-    const row = rowAt(d)
-    for (let w = -MEADOW_ENTRANCE_HALF; w <= MEADOW_ENTRANCE_HALF; w++) {
-      const c = g + w
-      if (!inBounds(c, row, cols, rows) || water.has(`${c},${row}`) || collision[row][c]) continue
-      ground[row][c] = 'meadow'
-      floorColors[row][c] = pal.cobble
-      routes.add(`${c},${row}`)
-    }
-    plantFlowerBed(ctx, g - MEADOW_ENTRANCE_HALF - 1, row) // beds hug both sides of the lane
-    plantFlowerBed(ctx, g + MEADOW_ENTRANCE_HALF + 1, row)
-  }
-  // Lamp posts flanking the way (the lit cobble path in #24) — a pair near the edge and a pair a few cells in.
-  // placeLampPost blocks its own cell, so they never sit on the walkable lane.
-  for (const d of [2, Math.min(MEADOW_ENTRANCE_RUN - 2, 7)]) {
-    placeLampPost(ctx, g - MEADOW_ENTRANCE_HALF - 1, rowAt(d))
-    placeLampPost(ctx, g + MEADOW_ENTRANCE_HALF + 1, rowAt(d))
-  }
+  const pal = MEADOW_PALETTES[ctx.zone] ?? MEADOW_PALETTES.summer
+  const col = clamp(Math.floor(ctx.cols * frac), GATEWAY_HALF + 1, ctx.cols - GATEWAY_HALF - 2)
+  paintGateway(ctx, {
+    side: fromTop ? 'north' : 'south',
+    inside: { col, row: fromTop ? 0 : ctx.rows - 1 },
+    ground: 'meadow',
+    paving: pal.cobble,
+    flank: bedsAndLamps,
+  }, water, routes)
 }
 
 /** Drop a flower into a lane-side bed cell (open meadow only) — a light stochastic scatter so the beds read
