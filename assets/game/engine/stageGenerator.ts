@@ -71,6 +71,8 @@ export type VariantId = 'town' | 'city' | 'forest' | 'cave' | 'temple' | 'boss-s
 /**
  * The independent GENERATION LAYERS a stage is built from — the "macro" randomize scopes the user
  * steers (whole map vs just this layer). Each maps to a seedable pass over the current grid:
+ *   ways      — how many exits the map has, where its gates sit and where its paths run. FIRST: everything
+ *               below is built around it.
  *   layout    — terrain/ground distribution + roads/plots (the "map without structures nor nature"),
  *   buildings — the compositions stamped on the layout's plots,
  *   nature    — trees / bushes / flowers / ground cover,
@@ -78,8 +80,8 @@ export type VariantId = 'town' | 'city' | 'forest' | 'cave' | 'temple' | 'boss-s
  *   units     — enemy/npc scatter (owned by the editor's entity store, not the generator).
  * A given layer re-rolls in isolation by handing it a fresh seed while the others keep theirs.
  */
-export type LayerId = 'layout' | 'buildings' | 'nature' | 'decor' | 'units'
-export const LAYER_IDS: readonly LayerId[] = ['layout', 'buildings', 'nature', 'decor', 'units']
+export type LayerId = 'ways' | 'layout' | 'buildings' | 'nature' | 'decor' | 'units'
+export const LAYER_IDS: readonly LayerId[] = ['ways', 'layout', 'buildings', 'nature', 'decor', 'units']
 
 /** The engine-owned layers (units are scattered by the editor). Each settlement pass draws from its
  *  own seedable rng so one layer re-rolls without disturbing the others. */
@@ -902,7 +904,7 @@ export function blankStage(zone: ZoneId, cols: number, rows: number): StageData 
  */
 const STAGE_LAYERS: ReadonlyArray<StageLayer<ArchetypeContext, LayerRngs>> = [
   // THE WAYS, before anything is built on them: how many exits the map has and where its paths run.
-  { name: 'ways', run: ctx => { planWays(ctx) } },
+  { name: 'ways', run: (ctx, rngs) => { planWays(ctx, rngs.ways) } },
   // THE MAP ITSELF: ground, water, walls, plots, vegetation — whichever archetype this variant is.
   { name: 'terrain', run: (ctx, rngs) => ARCHETYPES[ctx.variant]?.(ctx, rngs) },
   // A WOOD YOU CANNOT WALK OUT OF THE SIDE OF. Forests only: a cave and a temple build their own walls.
@@ -938,6 +940,7 @@ export function generateStage(opts: GenerateOptions): StageData {
   // One rng per engine layer. When no seeds are supplied they all alias `Math.random`, so the pass
   // order draws the exact same sequence as before the split — the behaviour-preservation guarantee.
   const rngs: LayerRngs = {
+    ways: layerRng(opts.seeds, 'ways'),
     layout: layerRng(opts.seeds, 'layout'),
     buildings: layerRng(opts.seeds, 'buildings'),
     nature: layerRng(opts.seeds, 'nature'),
@@ -1675,10 +1678,10 @@ function openGates(ctx: ArchetypeContext): void {
   }
 }
 
-function planWays(ctx: ArchetypeContext): RoutePlan | null {
-  const ways = resolveWays(ctx.options, ctx.rand)
+function planWays(ctx: ArchetypeContext, rand: Rng): RoutePlan | null {
+  const ways = resolveWays(ctx.options, rand)
   if (!ways) return null
-  ctx.routes = planRoutes(ctx.cols, ctx.rows, ways, ctx.rand, WOODLAND.pathWidth)
+  ctx.routes = planRoutes(ctx.cols, ctx.rows, ways, rand, WOODLAND.pathWidth)
   return ctx.routes
 }
 

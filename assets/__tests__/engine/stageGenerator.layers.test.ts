@@ -1,4 +1,5 @@
 import '@/__tests__/helpers/installTilesetSeed' // the generator reads ALL tile data from the loaded backend tileset fixture
+import { GENERATOR_LAYERS } from '@/components/game/editorConfig'
 import { generateStage, LAYER_IDS, type LayerId, type StageData } from '@/engine/stageGenerator'
 import { makeRng } from '@/lib/math'
 
@@ -178,8 +179,20 @@ describe('generateStage — behaviour-preserving under a seeded Math.random (equ
 describe('generateStage — settlement layer passes are independent + seedable', () => {
   const base = { zone: 'summer' as const, variant: 'town' as const, cols: 48, rows: 40 }
 
-  it('exposes the canonical layer ids', () => {
-    expect(LAYER_IDS).toEqual(['layout', 'buildings', 'nature', 'decor', 'units'])
+  // `ways` leads, and it leads on purpose: the exits and the paths are planned before anything is built
+  // around them, so its seed has to exist before the layout's.
+  it('exposes the canonical layer ids, ways first', () => {
+    expect(LAYER_IDS).toEqual(['ways', 'layout', 'buildings', 'nature', 'decor', 'units'])
+  })
+
+  // Every id the engine names has a row in the panel, in the same order. A layer the engine rolls and the
+  // panel does not offer is a re-roll the user cannot reach.
+  it('every engine layer has a row in the panel, in the engine order', () => {
+    expect(GENERATOR_LAYERS.map(l => l.id)).toEqual([...LAYER_IDS])
+    for (const l of GENERATOR_LAYERS) {
+      expect(l.label.trim()).not.toBe('')
+      expect(l.hint.trim()).not.toBe('')
+    }
   })
 
   it('a per-layer seed makes the whole town reproducible (all layers seeded)', () => {

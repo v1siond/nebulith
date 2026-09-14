@@ -169,6 +169,7 @@ export const SEASON_BTN_ACTIVE = 'bg-purple-600 ring-1 ring-purple-300'
  *  (GENERATION-SPEC §5). GLOBAL: the same five for every variant, never gated per map type. Order matches the
  *  engine's `LAYER_IDS`; `label`/`hint` are user-facing. Adding a layer = one row here + a pass in the engine. */
 export const GENERATOR_LAYERS: ReadonlyArray<{ id: LayerId; label: string; hint: string }> = [
+  { id: 'ways', label: 'Ways', hint: 'the exits and the paths between them — re-roll to move where you come in and go out' },
   { id: 'layout', label: 'Layout', hint: 'the bare shape — streets, plots & clearings, with structures and nature stripped' },
   { id: 'buildings', label: 'Buildings', hint: 'the structures, re-rolled in place' },
   { id: 'nature', label: 'Nature', hint: 'the trees, plants & greenery' },
