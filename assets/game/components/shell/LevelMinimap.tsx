@@ -1,7 +1,7 @@
 /**
  * THE LEVEL MAP — the whole level at a glance, with where you are marked.
  *
- * He is right that it is half built: `renderTopView` already draws an entire level from above, entities
+ * That is right that it is half built: `renderTopView` already draws an entire level from above, entities
  * included. It is used today as a full-screen VIEW MODE ("Top"). This draws the SAME function into a small
  * canvas at a zoom that fits the whole grid, and adds the one thing a minimap has that a view mode does not
  * — a rectangle showing which part you are looking at, and a click to go there.

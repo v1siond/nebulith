@@ -1,8 +1,8 @@
 /**
  * A PATHWAY IS A STRETCH OF ROAD.
  *
- * The planner counted from the centre out: one path per gate, radiating from a hub. His cross came out as
- * four pathways. A stretch is the unit now, and these tests are his sentences.
+ * The planner counted from the centre out: one path per gate, radiating from a hub. A cross came out as
+ * four pathways. A stretch is the unit now, and these tests are the requirements.
  */
 import { MAX_EXITS, planRoutes, resolveWays, splitPathways } from '@/engine/pathNetwork'
 import { makeRng } from '@/lib/math'
@@ -11,7 +11,7 @@ const rand = () => makeRng(11)
 
 describe('the arithmetic of a stretch', () => {
   it('no pathway spends more than two exits, so E <= 2P for every combination offered', () => {
-    // The upper bound is his rule and it is absolute: a stretch has one exit or two. The LOWER bound is not
+    // The upper bound is the rule and it is absolute: a stretch has one exit or two. The LOWER bound is not
     // a bound at all, because fewer exits than pathways is the cave (see the branch case below).
     for (const pathways of ['1', '2', '3', '4']) {
       for (const exits of ['1', '2', '3', '4']) {
@@ -35,7 +35,7 @@ describe('the arithmetic of a stretch', () => {
   })
 
   it('FEWER exits than pathways is the cave: the extra stretches are galleries that stop', () => {
-    // His rule covers a map's roads. A cave has one mouth and two dead-end galleries, which is more
+    // The rule covers a map's roads. A cave has one mouth and two dead-end galleries, which is more
     // stretches than ways out, so those extras are BRANCHES: no exit of their own, and they stop inside.
     expect(splitPathways({ pathways: 3, exits: 1 })).toEqual({ through: 0, spurs: 1, branches: 2 })
   })

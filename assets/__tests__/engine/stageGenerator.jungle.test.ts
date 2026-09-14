@@ -1,7 +1,7 @@
 /**
  * THE JUNGLE — a jungle, not a dense woodland.
  *
- * I had shipped it as `layoutWoodland` with heavier numbers, which is exactly what he was objecting to. The
+ * I had shipped it as `layoutWoodland` with heavier numbers, which is exactly what was rejected. The
  * tests below assert the four ways the STRUCTURE differs, because density is not the difference:
  *
  *   · light gaps where a giant fell, not clearings cut for you
@@ -87,7 +87,7 @@ describe('a jungle is structurally a different place from a woodland', () => {
   })
 
   it('lays NO trails — a jungle has no roads, a woodland paves its corridors', () => {
-    // A DEGENERATE ORACLE LIVED HERE, and it is why he was looking at a woodland with no visible paths.
+    // A DEGENERATE ORACLE LIVED HERE, and it is why the map came out as a woodland with no visible paths.
     //
     // It counted cells whose colour equalled `groundTileColor(zonePalette(zone).trail)`, and that call falls
     // back to the season's GROUND colour when it cannot resolve the label. So both sides of the comparison
@@ -182,7 +182,7 @@ describe('however dense it gets, the jungle is ONE place', () => {
 })
 
 describe('the jungle is PARTITIONED into sub-zones — regions inside one map', () => {
-  // On 2026-09-11 he chose the shape: regions inside ONE map, so you walk out of the open canopy
+  // On 2026-09-11 it chose the shape: regions inside ONE map, so you walk out of the open canopy
   // into dense growth without loading anything, and the template list stays at three forests.
 
   const floorCells = (s: ReturnType<typeof zoned>, tone: string) =>

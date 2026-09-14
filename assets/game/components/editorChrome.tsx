@@ -670,7 +670,7 @@ export function GenerateControls({
    * The generator's OPTIONS as the person set them.
    *
    * because a row per
-   * combination does not scale — his own example ran woodland, woodland + river, woodland + river + bridge.
+   * combination does not scale — the own example ran woodland, woodland + river, woodland + river + bridge.
    * Keyed by option key; absent means "as the backend declared it".
    */
   const [options, setOptions] = useState<Record<string, GeneratorOptionValue>>({})
@@ -1285,7 +1285,7 @@ export function LibraryChips<T extends string>({ chips, active, onPick }: {
 }) {
   // So: a list, one row per bucket, each
   // carrying its count — you can see there are 4 doors and 94 ground tiles without opening anything.
-  // His earlier objection was to
+  // The earlier objection was to
   // PILLS, which wrap and eat width; a native select costs one row for twelve options and needs no scroll
   // area of its own. The count rides in each option's label, so the information scent survives.
   const total = chips.reduce((n, c) => n + c.count, 0)
@@ -2060,7 +2060,7 @@ export function ViewBar({
       {activeView === 'iso' && <span className="vr" aria-hidden="true" />}
       {activeView === 'iso' && <CameraRotateButton facing={facing} onFacing={onFacing} />}
       {activeView === 'iso' && <PlayerRangeControl range={playerRange} onRange={onPlayerRange} />}
-      {/* ▤ Ground — the map's own depth. His words: ISO-only for the same reason those two are: a flat projection
+      {/* ▤ Ground — the map's own depth. The requirement: ISO-only for the same reason those two are: a flat projection
           has no body to show. */}
       {activeView === 'iso' && slabBlocks !== undefined && onSlabBlocks && (
         <GroundThicknessControl blocks={slabBlocks} onBlocks={onSlabBlocks} />

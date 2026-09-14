@@ -8,7 +8,7 @@
  *
  * The matrix tests came over from `generateControls.test.tsx` unchanged in intent: the numbers are still a
  * draft, the panel still refuses to quietly rewrite a size, and it still counts whatever you type. What is
- * NEW here is the two things he reported as broken — a field you can empty, and a thickness that lands as
+ * NEW here is the two things reported as broken — a field you can empty, and a thickness that lands as
  * you type.
  */
 import { render, screen, fireEvent } from '@testing-library/react'

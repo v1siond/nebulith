@@ -6,7 +6,7 @@
  * TWO numbers say what a map is, and the backend serves both. EXITS is how many gates it has on its border, the
  * places a connector hands you to another map, and the first of them is the entrance: is one exit. PATHWAYS is how
   * many paths run inside it. A pathway past the last exit has
- * nowhere to go, so it stops in the map, which is his cave: is one way
+ * nowhere to go, so it stops in the map, which is the cave: is one way
  * back out and two branches that end at a room, and is the end of the cave. Those stops
  * are where a closed section, or one that opens when you do something, belongs.
  *
@@ -55,7 +55,7 @@ export interface RoutePlan {
  *
  * The rule:
  *
- * The planner used to make ONE PATH PER GATE radiating from a hub, so his cross came out as four pathways
+ * The planner used to make ONE PATH PER GATE radiating from a hub, so the cross came out as four pathways
  * instead of two. A stretch is now the unit: a THROUGH road leaves the map on both of its ends (2 exits, on
  * opposite sides), and a SPUR leaves on one end and stops inside (1 exit, at its start).
  *
@@ -74,13 +74,13 @@ export const MAX_EXITS = 4
  *   · SPUR     one exit at its start, and it stops inside.
  *   · BRANCH   no exit of its own. It leaves the network and stops inside.
  *
- * The first two are his sentence. The third is the case his sentence does not reach and the code already
+ * The first two are the requirement. The third is the case the requirement does not reach and the code already
  * had: a CAVE with one mouth and two dead-end galleries (`planRoutes(1 exit, 3 pathways)`), which has more
  * stretches than it has ways out. Rather than clamp that away, more exits than pathways builds through
- * roads and fewer builds branches, so both his map and his cave come out of one rule.
+ * roads and fewer builds branches, so both the map and the cave come out of one rule.
  */
 export function splitPathways(ways: Ways): { through: number; spurs: number; branches: number } {
-  // TOTAL FOR ANY PAIR, including the ones his rule says cannot exist. `resolveWays` keeps a served map
+  // TOTAL FOR ANY PAIR, including the ones the rule says cannot exist. `resolveWays` keeps a served map
   // inside `E <= 2P`, but `planRoutes` is called directly with hand-built counts (the cave, and the whole
   // test matrix), and a combination like 4 exits on 1 pathway has to come out as SOMETHING rather than
   // index past the end of the gate list. Capped by the pathways available and by the two opposite-side
@@ -107,7 +107,7 @@ export function resolveWays(options: Readonly<Record<string, unknown>> | undefin
   if (exits === null && pathways === null) return null
 
   // EXITS ARE INFERRED FROM PATHWAYS when nobody states them. A stretch of road crosses
-  // the map unless something stops it, so the inference is two exits each, which is exactly his cross: two
+  // the map unless something stops it, so the inference is two exits each, which is exactly the cross: two
   // pathways, four exits. Capped at one gate per side.
   const wanted = exits ?? Math.min(pathways! * 2, MAX_EXITS)
   // …and pathways from exits, the same rule read backwards: two exits can be one road straight through.

@@ -1,7 +1,7 @@
 /**
  * A BUILDING IS ENTERABLE — its interior is floor you walk on, not solid rock.
  *
- * The target he gave is Image #6 (Diablo II) — a real room you
+ * The target is Image #6 (Diablo II) — a real room you
  * move around in.
  *
  * The defect is older than the doorway work: `placeBuildingOnPlot` blanket-blocked the WHOLE footprint rect —

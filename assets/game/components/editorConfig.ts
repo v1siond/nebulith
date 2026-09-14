@@ -82,7 +82,7 @@ export const EDITOR_BANDS: readonly RailBand[] = [
   {
     title: 'MAKE THE WORLD',
     items: [
-      // MAP SIZE IS BACK IN HERE, and the ground thickness is not. reversing his own
+      // MAP SIZE IS BACK IN HERE, and the ground thickness is not. reversing the own
       // move of a few hours earlier: and separately So the numbers
       // that REBUILD the map sit with the thing that rebuilds it, and the one that only changes how it is
       // DRAWN sits in the view bar with the camera.

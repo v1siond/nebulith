@@ -1,7 +1,7 @@
 /**
  * A BRIDGE MUST NOT LOOK LIKE WATER.
  *
- * He was right and the cause was a single `else if`. A crossing cell is river a moment before the deck is
+ * That was right. The cause was a single `else if`. A crossing cell is river a moment before the deck is
  * laid, so `floorColors` is holding the river's blue when `layDeck` runs. `layDeck` wrote the tile (`bridge`)
  * and the elevation, then reached `else if (tone) floorColors[…] = tone` and, with no served tone, LEFT THE
  * BLUE THERE. The tile said bridge and the colour said water, so you got a blue walkway over a blue river.
@@ -11,7 +11,7 @@
  * inventing a value: an undefined override means "no override", so the bridge tile's own served colour
  * shows. Inventing a brown would have been the violation.
  *
- * The oracle is his sentence, measured: no cell you can walk on may wear a colour the water wears.
+ * The oracle is the requirement, measured: no cell you can walk on may wear a colour the water wears.
  */
 import '@/__tests__/helpers/installTilesetSeed'
 import { generateStage } from '@/engine/stageGenerator'
@@ -89,7 +89,7 @@ describe('nothing you walk on wears the water it crosses', () => {
  * `else if (tone)` branch was never the one taken there. Keeping it, because the deck bug was real and this
  * is the regression guard for it, but it is not evidence, and saying so is the point.
  *
- * The cell he was actually looking at was a SWAMP PUDDLE. The pool pass wrote `floorColors[…] = pal.water`,
+ * The cell actually at fault was a SWAMP PUDDLE. The pool pass wrote `floorColors[…] = pal.water`,
  * so the ground itself was a walkable meadow wearing the river's blue. Measured on a swamp jungle at seed 7:
  * 48 cells, before and 0 after, with the 48 puddle FILMS still there (the puddle became its own layer instead
  * of a paint job on the floor).

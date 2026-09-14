@@ -8,7 +8,7 @@
  *
  * WHAT WENT WRONG THE FIRST TIME, because it is the point of the tests below. The first field walked the wet
  * cells as a graph and gave each cell the step that reached it. That is correct for a channel ONE cell wide
- * and wrong for every real river, because the walk wanders across a wide channel as readily as along it. He
+ * and wrong for every real river, because the walk wanders across a wide channel as readily as along it. It
  * drew the result exactly:
  *
  * So the test that matters is not "every cell has a heading" (the broken field passed that). It is that
@@ -50,8 +50,8 @@ describe('every channel cell states its heading', () => {
   })
 
   it('a river that RINGS the map turns, so it cannot be one heading everywhere', () => {
-    // The whole of his complaint: the drift was one direction on every cell of every map. A ring has to use
-    // at least three of the four headings, which is exactly what his three arrows drew.
+    // The whole of the complaint: the drift was one direction on every cell of every map. A ring has to use
+    // at least three of the four headings, which is exactly what the three arrows drew.
     const s = river('around')
     const used = new Set<number>()
     s.flow?.forEach(row => row.forEach(v => { if (v !== undefined) used.add(v) }))
@@ -119,9 +119,9 @@ describe('every channel cell states its heading', () => {
 })
 
 /**
- * HIS DRAWING, AS A NUMBER.
+ * THE DRAWING, AS A NUMBER.
  *
- *     what he saw          what he asked for
+ *     what it drew          what was asked for
  *     | - | - |-           -------
  *                          ------
  *                          ------
@@ -173,7 +173,7 @@ describe('a stretch of river runs ONE way, cross-section included', () => {
 
   it('and that one heading lies along the channel, not across it', () => {
     // A horizontal cut runs along COL, so its cells must read heading 0 or 2. Pointing 1/3 would mean the
-    // waves run across the river, which is the "backwards" half of his complaint.
+    // waves run across the river, which is the "backwards" half of the complaint.
     const s = river('divides')
     const across = wetCells(s).filter(([col, row]) => {
       const h = s.flow?.[row]?.[col]

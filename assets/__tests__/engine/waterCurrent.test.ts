@@ -120,7 +120,7 @@ describe('the catalog carries ONE water loop, and no transposed art', () => {
  *
  * Because the renderer read the heading as `if (asset.flow)`. Heading 0 is +col, a perfectly good direction,
  * and it is also falsy, so every +col cell skipped the turn entirely and drew a quarter turn off while the
- * cells beside it were right. That is exactly the "some zones wrong, some right" he circled, and no amount
+ * cells beside it were right. That is exactly the "some zones wrong, some right" it circled, and no amount
  * of work on the flow FIELD could ever have fixed it: the data was correct the whole time.
  *
  * Found by instrumenting the real page through Playwright and counting the turns actually drawn: on a ring

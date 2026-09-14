@@ -132,9 +132,9 @@ describe('the two served counts', () => {
   it('one count given, the other follows it', () => {
     // exits alone: every path is a way out. pathways alone: one way out, the rest stop inside.
     // TWO EXITS IS ONE ROAD STRAIGHT THROUGH, not two roads. This expected two pathways,
-    // which is the old count-from-the-centre-out model he corrected.
+    // which is the old count-from-the-centre-out model it corrected.
     expect(resolveWays({ exits: '2' }, makeRng(1))).toEqual({ exits: 2, pathways: 1 })
-    // …and pathways alone now INFER their exits, which he asked for directly: Three stretches want six
+    // …and pathways alone now INFER their exits, which is the stated rule: Three stretches want six
     // exits and a map has four sides, so four. It used to default to one, which made two of the three
     // stretches dead ends on a map that had asked for roads.
     expect(resolveWays({ pathways: '3' }, makeRng(1))).toEqual({ exits: 4, pathways: 3 })

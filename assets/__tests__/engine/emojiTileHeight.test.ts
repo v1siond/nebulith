@@ -27,7 +27,7 @@ describe("a tile's served height is what it is by default", () => {
     //
     // THE WATER SURFACES BREAK THIS, AND THEY ALWAYS HAVE. `seed_water_color` gives `water` a height of 0.5 on
     // purpose, so a river sits under its own bank rim, and the two bands join it: which is negative height compared
-    // to walking floor / then inside that we put water with X height it can be < 1"*. That is his design and it is
+    // to walking floor / then inside that we put water with X height it can be < 1"*. That is the design and it is
     // not going away.
     //
     // This test was GREEN on a stale fixture that carried `water` at height 0 with no frames. It was never
@@ -59,7 +59,7 @@ describe("a tile's served height is what it is by default", () => {
     // They used to be forced identical, which is exactly what made a road indistinguishable from a wall to
     // the renderer and put a cube under every blade of grass.
     // `meadow`, not `water`. A water SURFACE is deliberately 0.5 so a river sits under its own bank rim, which
-    // is the one documented exception to the flat-ground rule above and is his design, not a slip. Using it as
+    // is the one documented exception to the flat-ground rule above and is the design, not a slip. Using it as
     // the flat example only worked while the fixture carried a stale height of 0.
     expect(resolveTileHeight(styleTiles('emoji').meadow, undefined)).toBe(0)
     expect(resolveTileHeight(styleTiles('emoji').grass, undefined)).toBe(0)

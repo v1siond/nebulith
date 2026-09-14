@@ -254,7 +254,7 @@ describe('water by depth: wade the shallows, the rest blocks', () => {
    *
    * after
    *
-   * THIS REPLACES what this case used to pin (shallow light, deep dark), which came from his 2026-09-11
+   * THIS REPLACES what this case used to pin (shallow light, deep dark), which came from the
    * The
    * newer instruction wins, and the measurement says why: one seed-2 `divides` river carried `#4f93b3`,
    * `#8ccbe8` and `#2a5f8a` at once. All three bands draw the SAME picture, because a floor resolves its art

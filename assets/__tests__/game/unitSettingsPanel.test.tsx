@@ -105,7 +105,7 @@ describe('the shared control body — a unit uses the SAME settings UX as a tile
   })
 
   it('the CHARACTER WINDOW carries the name, the size, the stats AND the figure picker, in one place', () => {
-    // The whole of his complaint in one assertion:
+    // The whole of the complaint in one assertion:
     render(
       <CharacterWindow
         entity={makeEntity()}

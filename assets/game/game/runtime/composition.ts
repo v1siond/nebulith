@@ -269,7 +269,7 @@ function stampRun(
   const roofed = roofSwap(c.label, roofTile)
   if (roofed === null) return false
   // A pitched roof laid FLAT keeps neither its step height nor its extra level, or the deck comes out as a
-  // stepped mound with the ridge floating over it (his Image #38).
+  // stepped mound with the ridge floating over it (the Image #38).
   const flatten = flattenedRoof(c.label, roofTile)
   const label = roofed ?? (material ? c.label.replace(WALL_MAT, `${material}_`) : c.label)
   const tile = resolveTile(styleCatalog('ascii'), zone, label, variant)

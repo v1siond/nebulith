@@ -3,7 +3,7 @@
  *
  * THE BOX LIST IS THE ONLY STATEMENT.
  *
- * He is right, and until now this file was the reason it was not true: it opened with `if (!asset.blocking)
+ * That is right, and until now this file was the reason it was not true: it opened with `if (!asset.blocking)
  * return []`, so the boxes could only ever REFINE a decision the flag had already made. Measured against live
  * at the time: 0 of 375 tiles carried a box and 72 carried `blocking: true`. The fact lived in the flag and
  * the system that owned it was empty. The backend now writes `settings.collision` on every row

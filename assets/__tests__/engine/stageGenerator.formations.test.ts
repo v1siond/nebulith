@@ -128,7 +128,7 @@ describe('a formation is DISTRIBUTION — the look comes from pairing it with a 
   })
 
   it('the understory formation makes the FLOOR the hard part, not the canopy (image #15)', () => {
-    // His image #15 is a wood whose trunks you can see straight through and whose floor you cannot cross.
+    // Reference image #15 is a wood whose trunks you can see straight through and whose floor you cannot cross.
     const dense = build(FORM.understory, 0.55)
     const stand = build(FORM.stand, 0.55)
     expect(dense.props.length).toBeGreaterThan(stand.props.length)

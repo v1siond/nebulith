@@ -160,7 +160,7 @@ describe('woodland + river', () => {
   })
 
   it('JOINS the crossing to a trail when asked — the deck touches the path network, not the trees', () => {
-    // Ticket 36, his words: The plain bridge spans at a
+    // Ticket 36, the requirement: The plain bridge spans at a
     // fixed column and lands wherever that is, which in a wood is usually nowhere. With the option on, the
     // span is chosen AGAINST the trails and paved back to them, so a deck cell is always next to paving.
     //

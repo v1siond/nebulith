@@ -211,7 +211,7 @@ function stackContribution(a: GridAsset): number {
  * WHERE IN THE CELL the next thing stands: 1 is this tile's TOP face (the default, and what every tile did
  * before this existed), 0 is its BOTTOM face, and anything between is a fraction of its height.
  *
- * He also guessed the cause exactly. A cell stacks by each tile's own HEIGHT, and `flower`, `clover`, `wheat`
+ * It also guessed the cause exactly. A cell stacks by each tile's own HEIGHT, and `flower`, `clover`, `wheat`
  * and `bush` are all authored a full block tall in the live catalog so they draw as standing billboards. That
  * same block was then counted as a SURFACE, so a tree stamped onto a flowered cell started one level up. How
  * tall a thing DRAWS and whether you can stand on it are two different questions, and they shared one number.
@@ -239,9 +239,9 @@ function assetStackAt(a: GridAsset): number {
  *  vertical space that NOTHING DRAWS: the floor skin is painted at level 0, the building was stamped at level 1,
  * and the house parted company with its own floor.
  *
- *  His 2026-07-26 GOAL still holds and is still met: on a FLAT ground tile, level 0 *is* on top of it, there is
- * no interior to sink into. So the lego law he stated governs unchanged (), and act_as_tile goes back to being what
-  * he first
+ *  The 2026-07-26 GOAL still holds and is still met: on a FLAT ground tile, level 0 *is* on top of it, there is
+ * no interior to sink into. So the lego law it stated governs unchanged (), and act_as_tile goes back to being what
+  * it first
  *  described it as, the explicit switch for a walk-over surface (a height-0 road that should still lift what
  *  stands on it), set on the TILE in the backend like every other setting. No tile in the live DB sets it today. */
 function assetActsAsTile(a: GridAsset): boolean {

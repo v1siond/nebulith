@@ -1,7 +1,7 @@
 /**
  * WEATHER ON THE MAP.
  *
- * It used to be a screen effect over the whole canvas. These pin the two halves of his note: nothing falls outside
+ * It used to be a screen effect over the whole canvas. These pin the two halves of the note: nothing falls outside
  * the map's drawn floor, and a drop ends its fall ON that floor, leaving a ripple there.
  */
 import { drawWeather, nextWeather, onSurface, surfaceArea, WEATHER, WEATHER_LABEL, WEATHER_ORDER, type MapSurface } from '@/engine/render/weather'

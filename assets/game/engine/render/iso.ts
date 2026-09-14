@@ -597,7 +597,7 @@ export function render(params: IsoRenderParams) {
     coveredCells(a).some(c => withinPlayerRange(c.col, c.row, pcol, prow, playerViewRange!))
   // GLOBAL RANGE — the browser's visible area, always on. and
   //
-  // He was right that something was off, though not where it looked. The rectangle above IS derived from the
+  // That was right that something was off, though not where it looked. The rectangle above IS derived from the
   // viewport, but as a SQUARE in cell space sized by a mixed average — `(w/tileW + h/tileH)/2 + 4`. On a
   // 1500x950 canvas that is a half-span of 58, i.e. 116x116 = 13,456 cells, while the screen actually shows an
   // iso DIAMOND of roughly 2,800. So for any map up to 116x116 the "cull" removed nothing at all and every
@@ -733,7 +733,7 @@ export function render(params: IsoRenderParams) {
       const inHandSlash = attackAnims.find(a => a.inHand && now - a.start < a.durationMs)
       const swingP = inHandSlash ? Math.min(1, (now - inHandSlash.start) / inHandSlash.durationMs) : null
       const footY = p.y - heightOffset - (player.jumpHeight ?? 0)
-      // IS HE STANDING IN WATER? Asked of the FLOOR he is on, by its tile, which is the same way every other
+      // IS HE STANDING IN WATER? Asked of the FLOOR it is on, by its tile, which is the same way every other
       // reader answers a question about a cell. A puddle and a wadeable shallow both count: they are the two
       // places you can be on foot and still be in water.
       const underfoot = grid.floorAt(obj.col, obj.row)?.tileKey ?? ''
@@ -753,7 +753,7 @@ export function render(params: IsoRenderParams) {
   // ONE PASS — tiles AND units, in the single depth order `allObjects` already carries. A unit is a tile, so
   // perspective decides what covers what: a wall nearer the camera hides the figure behind it, and the figure
   // hides what stands behind IT. (Units used to draw in a separate later pass, which painted them over every
-  // tile — the hero standing on a roof he was actually behind.) A unit that wants to sit above its
+  // tile — the hero standing on a roof it was actually behind.) A unit that wants to sit above its
   // surroundings does it the same way any tile does: with a higher z-index, not with a privileged pass.
   for (const obj of allObjects) {
     const p = toScreen(obj.col, obj.row)
@@ -1541,7 +1541,7 @@ export function drawGridSkirt(
       //
       // The condition is the ELEVATION differing, never the FLOOR differing. Keying on the floor is precisely
       // what grew a wall at every plot edge and made the grass look raised above the road, which is the
-      // artefact he reported in Image #29 and which the comment above records.
+      // artefact it reported in Image #29 and which the comment above records.
       const here = grid.getHeight(col, row)
       const cliffRight = openRight ? 0 : here - grid.getHeight(col + 1, row)
       const cliffLeft = openLeft ? 0 : here - grid.getHeight(col, row + 1)
@@ -2417,7 +2417,7 @@ export function drawIsoAssetAscii(
   // of the direction system now — no per-heading art, no per-heading animation.
   // `!== undefined`, NOT truthiness. HEADING 0 IS A HEADING (+col), and `if (asset.flow)` skipped every one
   // of those cells, so they drew unturned and came out a quarter turn wrong while their neighbours were
-  // right. That is the "not consistent, not aligned" he kept seeing, and no amount of fixing the FIELD could
+  // right. That is the "not consistent, not aligned" it kept seeing, and no amount of fixing the FIELD could
   // have cured it: the data was already correct. Measured through Playwright on a ring river, 10 cells at
   // flow 0 and not one `turns=1` draw in the whole frame.
   if (asset.flow !== undefined) adv = { ...adv, turns: textureTurnForHeading(asset.flow) }

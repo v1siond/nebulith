@@ -381,7 +381,7 @@ function scatterTallGrass(ctx: ArchetypeContext): void {
 const makeFlower = (rng: Rng, zone: ZoneId, col: number, row: number, regionSet?: readonly FlowerKind[]): StageProp => {
   // A REGION's own blooms beat the season's. A sub-zone could already say which SPECIES grow in it
   // (`trees`) and had no way to say which BLOOMS, so a swamp planted the season's set, and summer's carries
-  // `✽ #f4f4ec`, a near-white. Measured in a swamp jungle before this: whites among the blooms, as he saw.
+  // `✽ #f4f4ec`, a near-white. Measured in a swamp jungle before this: whites among the blooms, as it saw.
   const set = regionSet ?? zoneFlowers(zone) ?? defaultFlowers()
   const pick: FlowerKind = set[randIntWith(rng, 0, set.length - 1)] // seeded pick — the caller passes its layer rng so the pass stays reproducible
   // Each flower gets its own intensity tone (per-cell) for a naturally varied meadow — tone only, no opacity.
@@ -647,10 +647,10 @@ const isLandCell = (ctx: ArchetypeContext, col: number, row: number): boolean =>
 
 function edgeDecor(neighbourType: string, col: number, row: number): StageProp | null {
   // ANY water, not the four names in WATER_LIKE. The depth pass renames a cell `water_shallow` or `water_deep`,
-  // so a deep pool used to border the land with no shoreline at all, which is half of why his swamp read as
+  // so a deep pool used to border the land with no shoreline at all, which is half of why the swamp read as
   // : nothing marked where the water began.
   // A WATER EDGE GETS NOTHING. It was a `≈` character, then the 8 baked `shore_*` autotile pieces, and those
-  // are drawn as BLOOMS: 231 to 450 a map, which is what he had been calling "white flowers" for four rounds.
+  // are drawn as BLOOMS: 231 to 450 a map, which is what it had been calling "white flowers" for four rounds.
   // Lava keeps its ember.
   if (isWaterGround(neighbourType)) return null
   if (LAVA_LIKE.has(neighbourType)) {
@@ -674,7 +674,7 @@ function addTerrainTransitions(ctx: ArchetypeContext): void {
       if (collision[row][col] || occupied.has(`${col},${row}`)) continue
       // NO SHORE DECORATION. and
       //
-      // The `shore_*` pieces are drawn as blooms, which is why he read 231 to 450 of them a map as "white
+      // The `shore_*` pieces are drawn as blooms, which is why it read 231 to 450 of them a map as "white
       // flowers" through four rounds of me hunting the flower data. Recolouring them to the served bank only
       // made them brown blooms. A water edge marked with a ring of daisies is not a water edge.
       // Lava keeps its ember below; only the water shoreline is gone.
@@ -724,7 +724,7 @@ interface ArchetypeContext {
    * Replacing the ground meant the puddle's own height had
    * to match whatever floor it landed on, and it never could: `meadow` is a 1.0 block and the puddle was 0.
    *
-   * So the ground STAYS and the film is stacked over it, which is his "small layer above it" exactly, and the
+   * So the ground STAYS and the film is stacked over it, which is the "small layer above it" exactly, and the
    * walking level never changes. This set is how the planting passes still know a cell is wet, since they used
    * to learn it from the ground label.
    */
@@ -1432,7 +1432,7 @@ const forestWater = (ctx: ArchetypeContext, legacy: RiverCourse): { river: River
  */
 
 /** Resolve the served `river` option to a course, or null for no river. `random` is one of the choices, not
- *  the only behaviour, which is the whole of his note. An old boolean recipe (`river: true`) keeps the river
+ *  the only behaviour, which is the whole of the note. An old boolean recipe (`river: true`) keeps the river
  *  its layout always had, so a saved map does not change under anyone. */
 function riverCourse(ctx: ArchetypeContext, legacy: RiverCourse): RiverCourse | null {
   return resolveRiverCourse(ctx.options?.river, legacy, ctx.rand)
@@ -1509,7 +1509,7 @@ const FOREST_LAYOUTS: Readonly<Partial<Record<ForestLayout, (ctx: ArchetypeConte
 
 // ── 'woodland' layout — an ACTUAL forest ──────────────────────────────────────
 //
-// He is right, and the measurement was blunt: the Forest category's presets produced
+// That is right, and the measurement was blunt: the Forest category's presets produced
 // ~10% tree cover scattered at random over an open field. That is a lawn with shrubs on it. Worse, the
 // category described itself as "Open meadow and tree masses" and `forest_meadow` as "tree masses filling
 // the rest" — both promising something the code never built. `scatterFramingTrees` says so in its own
@@ -1543,7 +1543,7 @@ const WOODLAND = {
   /** A clearing's radius range, in cells. */
   clearingRadius: [2, 5] as const,
   /** How wide a path through the trees is. Two cells so a unit never threads a one-cell gap. */
-  // It was 2, the bottom of what he asked for, and a 2-wide corridor with a tree leaning into it
+  // It was 2, the bottom of what was asked for, and a 2-wide corridor with a tree leaning into it
   // walks like a 1-wide one. 3 is the width you can actually move down.
   pathWidth: 3,
 } as const
@@ -1780,7 +1780,7 @@ function layoutWoodland(ctx: ArchetypeContext, opts: ForestBuild = {}): void {
 
 // ── 'jungle' — a JUNGLE, not a dense woodland ─────────────────────────────────
 //
-// He was right and I had shipped exactly what he objected to: `layoutWoodland` with heavier numbers. Density
+// That was right, and what shipped was exactly what it objected to: `layoutWoodland` with heavier numbers. Density
 // is not the difference between the Amazon and a pine wood. The STRUCTURE is, and it inverts in four ways:
 //
 //   · A wood has CLEARINGS cut into it, open ground you can walk. A jungle has none. What it has is LIGHT
@@ -1918,7 +1918,7 @@ function layoutJungle(ctx: ArchetypeContext, opts: ForestBuild = {}): void {
   }
 
   // 3b · THE PATHS, FIRST. Decided before any of this and claimed here, so neither the canopy nor the
-  //      undergrowth can plant on them. A jungle has no roads, but his image #16 is exactly the complaint that a
+  //      undergrowth can plant on them. A jungle has no roads, but reference image #16 is exactly the complaint that a
   //      map shows no way through it, so the network is a trodden track: clear, and painted in the SERVED trail
   //      tone so you can SEE it. A generator that serves no trail colour still gets a clear track, unpainted.
   if (opts.routes) {
@@ -1926,7 +1926,7 @@ function layoutJungle(ctx: ArchetypeContext, opts: ForestBuild = {}): void {
     // emergents all treat as spoken for, and a tree planted on a boardwalk is a blocked pathway.
     for (const key of opts.routes.cells) open.add(key)
     paveRoutes(ctx, opts.routes, water, pal?.trail)
-    // …AND THE MOUTH OF EACH WAY. A jungle track that stops at the border is exactly his Its ways are a TONE rather
+    // …AND THE MOUTH OF EACH WAY. A jungle track that stops at the border is exactly the Its ways are a TONE rather
     // than a paved tile (its
     // test pins one tone the whole way through), so the lane is tinted to match instead of being given a
     // ground label the rest of the track does not have.
@@ -2138,7 +2138,7 @@ function canPlantBloom(ctx: ArchetypeContext, col: number, row: number): boolean
 /**
  * PICK A CLUSTERED SHARE of the candidates: value noise on a coarse lattice, lowest-scoring taken.
  *
- * His choice when asked how blooms should be distributed: patches, not an even scatter. This is the SAME
+ * The choice when asked how blooms should be distributed: patches, not an even scatter. This is the SAME
  * mechanism the canopy uses, and that function's own comment records why the alternatives fail: a per-cell
  * roll gives an even sprinkle with no order to it, and random anchors until a count is hit gave "ruinous"
  * distribution because the loop stops as soon as the number fills. Scoring every candidate and taking the
@@ -2178,7 +2178,7 @@ function pickClustered(ctx: ArchetypeContext, candidates: readonly Cell[], share
   return scored.slice(0, Math.round(scored.length * Math.min(1, share))).map(s => s.cell)
 }
 
-/** A gate lane's half-width and how far it reaches in. The meadow's own numbers, which he has called correct:
+/** A gate lane's half-width and how far it reaches in. The meadow's own numbers, which it has called correct:
  *  5 cells across (wider than the 3-cell corridor, so the way MOUTHS at the border) and 11 deep. */
 const GATE_LANE_HALF = 2
 const GATE_LANE_RUN = 11
@@ -2186,7 +2186,7 @@ const GATE_LANE_RUN = 11
 /**
  * THE CELLS OF EVERY GATE'S LANE: the mouth of each way where it meets the map edge.
  *
- * He is right, and the reason is narrow. All three forest layouts PLAN the same network (`plannedRoutes`), and
+ * That is right, and the reason is narrow. All three forest layouts PLAN the same network (`plannedRoutes`), and
  * all three render the corridor. What only the meadow does is render the GATES: `paintMeadowEntrance` clears
  * and paves a wide lane running in from the edge, so the way reads as an opening. Woodland and jungle drew a
  * 3-wide corridor that simply stopped at the border, which is a path you can walk and cannot see.
@@ -2403,12 +2403,12 @@ function fellLogsAcross(ctx: ArchetypeContext, water: Set<string>, pal: Generato
     layDeck(ctx, deck, pal?.trail)
     // The woodland's and jungle's crossings come through HERE, not through placeRiverCrossing, which only runs
     // when the `crossing` option joins one to the paths. Fixing only that one would have left a bridge absent
-    // from the common case, which is exactly the map in his screenshots. `vertical` is the CREEK's long axis
+    // from the common case, which is exactly the map in the screenshots. `vertical` is the CREEK's long axis
     // and this deck runs across it, so the span lies along +col when the creek runs down the map.
     //
     // THREE of the six `layDeck` callers get a bridge: this one, placeRiverCrossing, and placeMeadowBridge.
     // The other three stay bare ON PURPOSE, because they are PATHWAYS over water rather than spans: `cutRoute`
-    // decks the wet cells of a route it is carving, and `deckRoutes` is the swamp BOARDWALK (). He draws that line
+    // decks the wet cells of a route it is carving, and `deckRoutes` is the swamp BOARDWALK (). It draws that line
     // himself: a dirt pathway (#62) is not a bridge.
     recordBridgeSpan(ctx, deck, vertical, band.length) // the wet cells on this line ARE the river's width here
   }
@@ -2597,12 +2597,12 @@ function floodSwampPools(ctx: ArchetypeContext, zoneAt: (GeneratorSubZone | unde
     // elevation, which is what makes a river something you go around. A pool sits AT ground level, so the map
     // said walkable and the collision grid said otherwise. The river keeps its bands (see settleWaterDepth);
     // this stamps a wet floor and nothing more.
-    // THE FLOOR STAYS THE FLOOR. and then the model, in his
+    // THE FLOOR STAYS THE FLOOR. and then the model, in the
     // own words:
     //
     // Three layers, and this line was collapsing the first two into one. It painted the GROUND the river's
     // blue, so the cell was a walkable meadow wearing water: measured on a swamp jungle, 48 cells of exactly
-    // that, which is the "walkable thing that looks like water" he is pointing at. The puddle is the FILM
+    // that, which is the "walkable thing that looks like water" it is pointing at. The puddle is the FILM
     // stacked above (`water_still`, stackAt 0 so you neither step up onto it nor drop into it), and the water
     // look belongs to that tile, not to the floor underneath it.
     //
@@ -2664,7 +2664,7 @@ const RUIN_RUBBLE = 0.14
 /**
  * RUINS, which are BUILT.
  *
- * He was right, and this pass was the reason. It placed ONE `rock` prop per cell at a 16% roll, so the "ruins"
+ * That was right, and this pass was the reason. It placed ONE `rock` prop per cell at a 16% roll, so the "ruins"
  * were boulders scattered through the trees: rubble, with no architecture anywhere in it. It also skipped
  * every cell in `open`, which reads like a bug and is not one, because the jungle puts its planned ROUTE cells
  * into `open` and skipping them is what keeps a blocking rock off the paths. Those are two different concerns
@@ -2768,7 +2768,7 @@ function paintJungleGaps(
   // The REGION standing here decides its own blooms; the season answers where a region states none. This is
   // where a swamp's daisies came from: a light gap is the only lit ground in a jungle, so it is where the
   // blooms are, and it had no idea which region it was in. Now they also come in patches and keep off the
-  // boardwalks, which is where he found them growing out of the bridge wood.
+  // boardwalks, which is where it found them growing out of the bridge wood.
   for (const cell of pickClustered(ctx, plantable, Math.min(1, flowers * 2), BLOOM_LATTICE)) {
     placeProp(ctx, makeFlower(ctx.rand, ctx.zone, cell.col, cell.row, zoneAt?.[cell.row]?.[cell.col]?.flowers))
   }
@@ -2801,7 +2801,7 @@ function raiseRegions(ctx: ArchetypeContext, zoneAt: (GeneratorSubZone | undefin
  * HOW DEEP THIS MAP CUTS ITS CHANNEL, in levels, from the served `depth` option.
  *
  * A gated choice takes `none` when its dependency is off, so a map with no river, or one serving no depth at
- * all, is NOT CUT and reads exactly as it always did. That also keeps his other case honest: A puddle is not a
+ * all, is NOT CUT and reads exactly as it always did. That also keeps the other case honest: A puddle is not a
  * channel, so nothing digs it.
  */
 
@@ -2824,7 +2824,7 @@ function traceJungleTrack(ctx: ArchetypeContext, from: Cell, to: Cell, open: Set
     if (Math.abs(dc) > Math.abs(dr) ? ctx.rand() < 0.82 : ctx.rand() < 0.18) col += Math.sign(dc)
     else row += Math.sign(dr)
     // Widened to the same minimum every other route uses. An animal track is the narrowest thing on the
-    // map and it still has to be walkable, which is the whole of his note.
+    // map and it still has to be walkable, which is the whole of the note.
     for (let oc = 0; oc < WOODLAND.pathWidth; oc++) {
       for (let or_ = 0; or_ < WOODLAND.pathWidth; or_++) {
         const c = col + oc
@@ -3014,7 +3014,7 @@ const DEFAULT_CANOPY_LATTICE = 4
 function woodlandCanopyField(ctx: ArchetypeContext, open: Set<string>, canopy: number, formation?: GeneratorFormation): Cell[] {
   const { cols, rows, collision } = ctx
   // THE GROUPING. A small lattice scores every few cells differently, so trees land as fine scatter
-  // (his image #10, a wood pasture); a large one makes neighbours score alike, so they land as continuous
+  // (reference image #10, a wood pasture); a large one makes neighbours score alike, so they land as continuous
   // masses (image #14, a closed canopy). Same density, completely different forest.
   const CANOPY_LATTICE = Math.max(1, Math.round(formation?.lattice ?? DEFAULT_CANOPY_LATTICE))
   // The lattice — one random value per corner, drawn from the layer rng so a seed reproduces the forest.
@@ -3046,7 +3046,7 @@ function woodlandCanopyField(ctx: ArchetypeContext, open: Set<string>, canopy: n
       // NOT IN WATER, said out loud instead of relied upon.
       //
       // This used to exclude a pool only because a pool happened to be BLOCKED. The moment a pool at ground
-      // level stopped blocking (his ), canopy started planting on the water: measured 23 to 209 trees standing in
+      // level stopped blocking (the ), canopy started planting on the water: measured 23 to 209 trees standing in
       // pools
       // across eight seeds, and their trunks took the cells the ruin's rubble needed, so a seeded ruin lost
       // its fallen blocks.
@@ -3064,7 +3064,7 @@ function woodlandCanopyField(ctx: ArchetypeContext, open: Set<string>, canopy: n
   scored.sort((a, b) => a.n - b.n)
 
   // SPACING. With no minimum gap the lowest-scoring cells sit shoulder to shoulder and the stand reads as a
-  // solid wall, which is right for a closed canopy (his image #14) and wrong for everything else. A gap of
+  // solid wall, which is right for a closed canopy (reference image #14) and wrong for everything else. A gap of
   // 3 forces the open, individually-readable spacing of a wood pasture (image #10) at the SAME density —
   // the trees spread out to find room rather than there being fewer of them.
   // SPACING 1 IS A TRAP and the served formations avoid it. Claiming only the four orthogonal neighbours
@@ -3124,7 +3124,7 @@ function dressWoodlandClearings(
     }
   }
 
-  // Ground cover stays an even scatter: it is texture underfoot, not an arrangement, and he has never
+  // Ground cover stays an even scatter: it is texture underfoot, not an arrangement, and it has never
   // complained about it. It simply keeps off the ways and out from under the blooms.
   if (cover === undefined) return
   for (const cell of plantable) {
@@ -3206,7 +3206,7 @@ function meadowWater(ctx: ArchetypeContext): GeneratorPalette {
   }
 }
 
-// THE CURRENT LIVES IN `riverNetwork.ts` NOW. He was right that we did not: 56 water functions
+// THE CURRENT LIVES IN `riverNetwork.ts` NOW. That was right that we did not: 56 water functions
 // in this one 5,775-line file. The flow field is the first piece out, and it took its 193 lines with it.
 
 
@@ -3289,7 +3289,7 @@ function buildMeadow(ctx: ArchetypeContext, opts: MeadowBuild): void {
   const routes = new Set<string>()
   if (opts.routes) {
     // THE GATES ARE THE WAYS. Every one of them gets a cobble way that runs off its own edge and joins the
-    // middle, which is what his image #16 had none of. The lamps and flower beds stay on the way you come IN,
+    // middle, which is what reference image #16 had none of. The lamps and flower beds stay on the way you come IN,
     // and on a far-edge way out, because that is where they read as a gateway rather than as scenery.
     paveMeadowRoutes(ctx, opts.routes, water, routes)
     // Every gate, on whatever edge the plan put it. This used to draw the entrance and then only the NORTH
@@ -3613,7 +3613,7 @@ function placeMeadowBridge(ctx: ArchetypeContext, water: Set<string>): void {
   // meadow river is this layout's design, not something every caller should inherit.
   layDeck(ctx, deck, (MEADOW_PALETTES[ctx.zone] ?? MEADOW_PALETTES.summer).cobble)
   // …and the STRUCTURE on it. This function's own doc calls itself "a stone BRIDGE crossing the river", so it
-  // is the one deck of the six that most obviously owes him a real bridge. The deck runs along +row here (it
+  // is the one deck of the six that most obviously needs a real bridge. The deck runs along +row here (it
   // spans the top-edge arm at a fixed column), so the span axis is rows, not cols.
   recordBridgeSpan(ctx, deck, false, span.length) // every water row at this column
 }
@@ -3623,7 +3623,7 @@ function placeMeadowBridge(ctx: ArchetypeContext, water: Set<string>): void {
  *
  * `placeMeadowBridge` spans the river at a FIXED column, wherever that lands. On a meadow it happens to land
  * near the way in; in a wood it lands wherever it lands, so you get a deck in the middle of the trees with no
- * route to it. That is the defect he named, and it is a placement problem, not a missing feature.
+ * route to it. That is the defect it named, and it is a placement problem, not a missing feature.
  *
  * This one works the other way round: start from the ROUTE the layout already paved, span the river at its
  * narrowest point beside it, and pave a spur from each bank back to the nearest route cell. The deck ends up
@@ -3777,7 +3777,7 @@ function repairFloorConnectivity(ctx: ArchetypeContext, maxPocket = Infinity): v
   })
   for (const region of regions) {
     if (region === largest || region.size > maxPocket) continue // keep the meadow + the intentional outer strip
-    // A pocket the WATER cut off is not a mistake, it is a MOUND. His image #18 is mounds with boardwalks
+    // A pocket the WATER cut off is not a mistake, it is a MOUND. Reference image #18 is mounds with boardwalks
     // between them, so carpeting one with tree mass deletes the very thing you are meant to stand on. Left
     // alone here, and `joinStrandedRegions` planks out to it.
     if (waterBound(ctx, region)) continue
@@ -4342,8 +4342,8 @@ const ENTRANCE_HEIGHT = 4
 /**
  * A CAVE IS A SPIDER, once the generator says how many ways run through it.
  *
- * The research he asked for says the same thing twice. A Zelda dungeon is a SPIDER: an entrance, a hub (the
- * body), legs off it, each leg ending somewhere worth reaching, the boss locked off the hub. His "1 exit and 3
+ * The research was asked for says the same thing twice. A Zelda dungeon is a SPIDER: an entrance, a hub (the
+ * body), legs off it, each leg ending somewhere worth reaching, the boss locked off the hub. The "1 exit and 3
  * pathways" IS that spider. WoW's lesson is rhythm, a short run and then a place that looks like somewhere, so
  * every stop gets a CHAMBER rather than a corridor end. Warcraft 3's is the chokepoint, so a gallery pinches
  * and opens along its length, which the plan's SPINE makes safe to do.

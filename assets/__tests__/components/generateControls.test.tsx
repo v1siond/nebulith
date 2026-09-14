@@ -14,7 +14,7 @@
  * · — the numbered
  *    `1 · SEASON` / `4 · MAP SIZE` headings are gone; a control is labelled by what it is.
  * · — the size
- * caps were deleted. ONE came back on 2026-09-10 at his own request (), and it is held to the same standard the
+ * caps were deleted. ONE came back on 2026-09-10 at request (), and it is held to the same standard the
   * removal was: a number is never quietly rewritten under
  *    you. Over the cap the panel SAYS so; it does not silently build something else.
  *

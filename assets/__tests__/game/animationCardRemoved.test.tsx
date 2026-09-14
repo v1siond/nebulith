@@ -55,7 +55,7 @@ describe('Cell inspector — the real TileAnimationEditor entry survives', () =>
       />,
     )
     // The row IS the entry now, no "✦ Animate…" button underneath it — a section whose only content was a
-    // launch button became the launch button (his ).
+    // launch button became the launch button (the ).
     const animate = screen.getByRole('button', { name: 'Animation' })
     expect(animate).toBeInTheDocument()
     fireEvent.click(animate)

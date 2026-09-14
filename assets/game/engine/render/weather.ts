@@ -153,7 +153,7 @@ export function drawWeather(
   }
   ctx.stroke()
 
-  // THE LANDING. A ripple exactly where the drop met the floor, which is the half he was missing.
+  // THE LANDING. A ripple exactly where the drop met the floor, which is the half it was missing.
   if (fx.splash && landed.length > 0) {
     ctx.strokeStyle = fx.splash.color
     ctx.lineWidth = fx.splash.width

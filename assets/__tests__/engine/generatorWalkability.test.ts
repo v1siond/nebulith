@@ -1,8 +1,8 @@
 /**
  * COMMON SENSE ABOUT WHAT BLOCKS.
  *
- * And when I said the fix was backend data, he
- * corrected me: He
+ * And when I said the fix was backend data, it
+ * corrected me: It
  * was right: `flower`, `grass`, `bush` and `decor_clover` are all `blocking: false` in the live DB, and the
  * generator was stamping `collision = true` over the top of them.
  *

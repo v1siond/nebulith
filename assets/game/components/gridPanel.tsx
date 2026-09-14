@@ -18,7 +18,7 @@ import { type MapSize, CELL_SIZE_MIN, atLeast, cellCount, mapSizeProblem, mapSiz
  * - **Ground thickness** changes nothing about the cells, only how the map is DRAWN. So it joins Rotate and
  *   Range in the view bar, which is where "how am I looking at it" lives. {@link GroundThicknessControl}.
  *
- * That also answers his:
+ * That also answers the:
  * the matrix is a draft the generate consumes, and thickness applies on the spot because it can.
  */
 
@@ -151,7 +151,7 @@ export function MapMatrixSection({
 /**
  * `▤ Ground` — the map's BODY depth, in the view bar beside Rotate and Range.
  *
- * He is right about the kind of thing it is: it rebuilds nothing and touches no cell, it only
+ * That is right about the kind of thing it is: it rebuilds nothing and touches no cell, it only
  * changes how deep the map draws — the same class of property as which way the camera faces.
  *
  * It is only VISIBLE where the map stops, so an empty map shows no change at all. The title says so,

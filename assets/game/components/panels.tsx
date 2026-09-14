@@ -688,7 +688,7 @@ export function EquipmentPanel({ label, styleId, loadout, baseStats, hp, onChang
               </div>
             </section>
           </div>
-          {/* THESE TWO BELONG TO THE PLAYER'S UI, not to an inventory. He is right — a key you press during play is
+          {/* THESE TWO BELONG TO THE PLAYER'S UI, not to an inventory. That is right — a key you press during play is
               a HUD binding, not a possession. They are demoted to a closed disclosure at the bottom rather than
               deleted, because Player UI does not host them yet and deleting a working feature to make a point is
               not a fix. Moving them there is the follow-up. */}

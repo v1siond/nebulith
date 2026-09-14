@@ -167,7 +167,7 @@ export function applyStageToGrid(stage: StageData, grid: IsometricGrid, building
   // This was switched OFF on 2026-07-27 because a merged run spans many camera depths under ONE sort key, so
   // its front cells could be wrongly occluded. That objection dates from the same day the ground became
   // height-1 BLOCKS: a flat ground diamond has no side faces and cannot overdraw anything, a 1-block one can.
-  // It is back on so the defect can be SEEN and fixed rather than reasoned about — his call, and the right one:
+  // It is back on so the defect can be SEEN and fixed rather than reasoned about — the call, and the right one:
   // the merge is worth 15-20x and the sorting is a solvable problem, not a reason to pay per cell forever.
   grid.compressGround()
 }

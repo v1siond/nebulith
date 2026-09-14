@@ -951,7 +951,7 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
    * THE PREVIEW is a movable panel beside the LEFT panel, not a sidebar zone.
    *
    * The right-zone version is deleted — it
-   * reproduced exactly the cramming he predicted when he first asked for movable modals.
+   * reproduced exactly the cramming it predicted when it first asked for movable modals.
    */
   /**
    * The world a hovered/selected GENERATOR preset would build. The Generate panel is not a library, so
@@ -1004,7 +1004,7 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
    * this effect, for the generate rail alone. So closing the window while building a world took the object and
    * tile previews with it, and nothing in those panels could ask for it back.
    *
-   * Any rail change restores it, which is the behaviour he had already spotted from the other side:
+   * Any rail change restores it, which is the behaviour it had already spotted from the other side:
    * Closing it still closes it for as long as you stay where you are.
    */
   useEffect(() => {
@@ -3296,7 +3296,7 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
   const resizeGrid = (cols: number, rows: number, cellSize?: number) => {
     // THE THICKNESS SURVIVES THE REBUILD. Measured: this built `new IsometricGrid({...VILLAGE_CONFIG,
     // cols, rows, cellSize})`, which carries no `slabBlocks`, so the constructor fell to DEFAULT_SLAB_BLOCKS
-    // and every resize AND every generate threw his number away. It is a property of the map, not something
+    // and every resize AND every generate threw the number away. It is a property of the map, not something
     // a resize gets to decide, so it is carried across explicitly.
     const newConfig = {
       ...VILLAGE_CONFIG,
@@ -3324,7 +3324,7 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
   /**
    * RESIZE THE OPEN MAP, KEEPING IT.
    *
-   * He was reporting something worse than a missing
+   * It was reporting something worse than a missing
    * convenience: `resizeGrid` builds a NEW grid and fills every cell with grass, so the one in-place control
    * on this panel wiped the map.
    *
@@ -3695,7 +3695,7 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
    * APPLY A CHANGE TO THE MAP THAT IS ALREADY HERE, without re-rolling it.
    *
    * Every SEED is kept, so the streets, the plots, the trees and the props come back exactly where they were
-   * and only what he changed changes. That is the whole difference from "Build this world", which rolls a new
+   * and only what it changed changes. That is the whole difference from "Build this world", which rolls a new
    * seed set and therefore a different world.
    *
    * With nothing generated yet there is no map to preserve, so it builds one, the same fallback the layer
@@ -3815,11 +3815,11 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
     // reproducible: the grid size is rolled from the SAME served range through a seeded rng, and the
     // per-layer seeds derive from it, so a generator can be iterated frame-to-frame against a reference.
     const seeded = seed !== undefined
-    // THE SIZE YOU CHOSE WINS. — and he was right: this rolled a random size from the
+    // THE SIZE YOU CHOSE WINS. — and it was right: this rolled a random size from the
     // generator's served range and then resized over the top of it, so the panel offered a decision it then
     // discarded. That conflict arrived when map size moved INTO this panel.
     //
-    // He also asked for so randomising is not removed — it is
+    // It also asked for so randomising is not removed — it is
     // made explicit. `requested` absent = roll one (the dev harness and the "surprise me" path); present =
     // that is the size, clamped to what the generator can actually build.
     const rolled = rollGridSize(generator, seeded ? makeRng(seed) : Math.random)
@@ -6525,7 +6525,7 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
                   id: 'character',
                   label: 'Character',
                   glyph: '☻',
-                  // His that did not belong in the bag. It belongs here.
+                  // The that did not belong in the bag. It belongs here.
                   render: () => <PlayerStatsPanel baseStats={baseStats} loadout={current} hp={hp} />,
                 },
                 {
@@ -6732,7 +6732,7 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
           const who = selected.name || selected.kind
           const close = () => setEntityModal(null)
           if (entityModal === 'inventory') {
-            // The carried BAG + live vitals belong to the hero alone — he is the one unit with a combat
+            // The carried BAG + live vitals belong to the hero alone — it is the one unit with a combat
             // state and an item bag. Every OTHER unit carries a loadout (weapon / armour / abilities), which
             // the equipment panel already edits per entity (`loadouts[selectedEntityId]`), so the entry point
             // is the same for all of them and only the bag section is the player's.

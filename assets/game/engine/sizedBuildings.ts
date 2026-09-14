@@ -125,7 +125,7 @@ export function collapseSizedBuildings(
   //
   // This folded what the SEEDED compositions happened to contain, so a type nobody had seeded a size for was
   // never visited and never got a row. The generator could build a tower and the palette could not offer one.
-  // Seeding one is not the answer, he was explicit: So
+  // Seeding one is not the answer, it was explicit: So
   // the list comes from the types, and a type with no seeded size gets its row here at its own default.
   //
   // `previewKind` points at the COMPOSED default (`tower@4x4`), which the page installs for every served type

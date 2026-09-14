@@ -110,7 +110,7 @@ export function compositionSpan(comp: string): { cols: number; rows: number } | 
 /**
  * What a piece needs AROUND it to read as itself, by the tile's OWN backend category.
  *
- * He is right: a roof lying on grass is not a roof, it is a coloured lid. A window floating in
+ * That is right: a roof lying on grass is not a roof, it is a coloured lid. A window floating in
  * the open is not a window, it is a pane.
  *
  * The rule is DATA, not a guess about names: the backend already files every tile under a category

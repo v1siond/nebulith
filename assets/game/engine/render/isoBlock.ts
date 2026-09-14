@@ -193,7 +193,7 @@ export function isoBlockFaces(
 /**
  * TURN A FACE'S TEXTURE, without moving the face.
  *
- * He is right and the reason is one line of the renderer. `fillIsoFaceWithTile` paints a face by mapping the
+ * That is right and the reason is one line of the renderer. `fillIsoFaceWithTile` paints a face by mapping the
  * unit texture square onto it through `ctx.transform(eA, eB)` — two basis vectors. Rotating what the texture
  * shows by a quarter turn is therefore just PERMUTING THOSE TWO VECTORS, which costs nothing and needs no art.
  * I had instead baked a second set of water frames (`water_y*`) plus two reversals to get four headings: eight

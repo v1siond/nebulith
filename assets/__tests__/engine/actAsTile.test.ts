@@ -3,7 +3,7 @@
  *
  * The switch is OPT-IN, and it is observable again. Both facts come out of decisions already made:
  *
- * 1. He originally described it as opt-in: On 2026-07-26 he asked for the opposite:
+ * 1. It was originally specified as opt-in: On 2026-07-26 the opposite was specified:
  *  2. At that time every ground was a height-1 cube, so default-TRUE was a NO-OP: `stackContribution` is
  *     `actsAsTile ? max(1, blocks) : blocks`, and both branches agree when blocks is already 1.
  *
@@ -12,8 +12,8 @@
  * a block of vertical space that nothing draws, so every building was stamped one block clear of its own
  * floor.
  *
- * So the default went back to opt-in, which serves his 2026-07-26 GOAL unchanged. On a flat ground tile,
- * level 0 IS on top of it, there is no interior to sink into. That leaves the switch doing the job he first
+ * So the default went back to opt-in, which serves the GOAL unchanged. On a flat ground tile,
+ * level 0 IS on top of it, there is no interior to sink into. That leaves the switch doing the job it first
  * described: a walk-over surface that is flat but still counts as an occupant.
  *
  * These tests pin both halves: the lego rule (a tile is as tall as its height says, heights accumulate, a

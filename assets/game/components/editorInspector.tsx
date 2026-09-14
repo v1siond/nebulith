@@ -741,7 +741,7 @@ export function InspectorSection({ id, isUnit, open, onToggle, badge, present, l
   /**
    * This section has nothing to show, only something to DO — so the header does it.
    *
-   * He is right and it was indefensible: Rules opened a panel holding one Rules button, Animation a panel
+   * That is right and it was indefensible: Rules opened a panel holding one Rules button, Animation a panel
    * holding one Animate button. Two clicks and two windows to reach one editor. A section that is purely a
    * way in should BE the way in, so these rows open their editor on the first click and never expand.
    */

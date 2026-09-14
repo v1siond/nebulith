@@ -6,7 +6,7 @@
  * could plant nothing but the thicket, so every forest template from the meadow up grew waist-high walls
  * wearing a plant picture.
  *
- * The formations are named after his own reference images, and three of the five say in their own notes that
+ * The formations are named after the own reference images, and three of the five say in their own notes that
  * the floor is clear: "nothing between them" (#10), "a clear walkable floor" (#11), "clear ground between the
  * groups" (#12). Only #14 and #15 describe a floor you cannot cross. So the plant is served per formation,
  * and whether it blocks is the TILE's business, read off its row rather than minted here.

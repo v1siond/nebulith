@@ -145,7 +145,7 @@ export const FLOOR_TYPE = 'floor'
  *
  * `floor` is the REAL flat floor tile that already ships (`FLAT_FLOOR` in stageGenerator, what `blankStage`
  * has always used): a sparse `⸪` mark under a flat colour rather than a repeating motif, in both styles. Its
- * base tone is now the one earth family he asked for, so a fresh grid comes up dirt-coloured, and
+ * base tone is now the one earth family was asked for, so a fresh grid comes up dirt-coloured, and
  * `makeFloorAsset` derives the map body from the same value.
  */
 export const DEFAULT_FLOOR_SLUG = 'floor'

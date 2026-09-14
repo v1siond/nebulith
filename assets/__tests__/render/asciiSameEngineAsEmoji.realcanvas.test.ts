@@ -1,7 +1,7 @@
 /**
  * ASCII AND EMOJI MUST RUN THE SAME ENGINE — measured at the canvas API.
  *
- * He was right. Under ASCII, `visualForTileId`/`tilesForStyle` threw the tile's baked image away and the
+ * That was right. Under ASCII, `visualForTileId`/`tilesForStyle` threw the tile's baked image away and the
  * kind→image rescue was gated to `FLOOR_TYPE`, so a placed tile arrived with `dv.image === undefined`. That
  * meant:
  *   · the single-block cube SPRITE CACHE (`cubeBlockSprite`) is gated on `dv.image` → never hit under ASCII,

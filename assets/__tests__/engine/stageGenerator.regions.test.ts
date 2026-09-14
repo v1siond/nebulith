@@ -7,7 +7,7 @@
  * WHY THIS FILE EXISTS, and it is not a flattering reason. I "fixed" glades by serving it a stand region and a
  * meadow region, and I reported the ticket done. It did nothing on screen: only `layoutJungle` ever called
  * `partitionSubZones`, so a woodland's regions were served, parsed, and dropped on the floor. Served and
- * ignored, the exact defect I keep finding in other code, this time mine. He caught it:
+ * ignored, the exact defect I keep finding in other code, this time mine. It was caught in review:
  *
  * So these tests do not assert that the data parses. Parsing is what fooled me. They assert what the finished
  * map CONTAINS: both region tones present, a stand measurably thicker than the meadow beside it, and, for
@@ -104,7 +104,7 @@ describe('a woodland is PARTITIONED into regions, the same as a jungle', () => {
     const s = grow()
     const stand = canopyRate(s, zone('stand').floor!)
     const meadow = canopyRate(s, zone('meadow').floor!)
-    // his complaint was that the two read identically. Thicker is not enough, it has to be obvious.
+    // the complaint was that the two read identically. Thicker is not enough, it has to be obvious.
     expect(stand).toBeGreaterThan(meadow * 3)
   })
 

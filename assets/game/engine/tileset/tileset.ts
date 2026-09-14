@@ -366,7 +366,7 @@ function resolveTileColor(tile: StyleTile, zone: string, variant: number): strin
   // the neutral grey and `makeThicket` stamped #cccccc onto every thicket prop. `tintedImage` is documented as
   // `tint x luminance(sprite)`, so the green sprig came out a pale white shape.
   //
-  // He was right on both counts: no flower ever blocked, and the
+  // That was right on both counts: no flower ever blocked, and the
   // thing blocking was a thicket wearing an invented colour. `tileColorByLabel` in this same file already reads
   // both shapes; this resolver was simply incomplete.
   const flat = (tile.settings as { color?: unknown } | undefined)?.color

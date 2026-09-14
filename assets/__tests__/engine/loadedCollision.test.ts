@@ -1,7 +1,7 @@
 /**
  * LOADING A SAVED MAP MUST NOT BLOCK THE FLOOR WITH THE STOREY ABOVE IT.
  *
- * Measured cause — his saved `village` template holds 204 blocking assets, 89 of them ABOVE ground level
+ * Measured cause — a saved `village` template holds 204 blocking assets, 89 of them ABOVE ground level
  * (`window` @L2/L4/L6, upper wall courses @L3/L5, `awning` @L2). `deserializeToGrid` blocked a cell for EVERY
  * blocking asset regardless of level:
  *     // Blocks are collision regardless of any visual height level — a blocking asset always blocks its cell.

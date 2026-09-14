@@ -392,7 +392,7 @@ export function buildUnitModel(entity: Entity, open: UnitCardOpeners): UnitContr
  *
  * Before this the Character row opened a panel holding one button, that button opened a SECOND panel to pick
  * a figure, and the stat block lived in a THIRD window off a separate button. Three windows for one
- * character. Now the figure picker is inline (no intermediate button, so his stops applying here too), the name and
+ * character. Now the figure picker is inline (no intermediate button, so the stops applying here too), the name and
   * size sit under it, and the stats are in the same
  * window rather than beside it.
  */

@@ -1,7 +1,7 @@
 /**
  * RESIZING A HUD PIECE — the grip has to follow the cursor, whatever the piece is pinned to.
  *
- * He is describing anchor maths, not a sign error. A piece pinned to the BOTTOM keeps its bottom edge where
+ * That describes anchor maths, not a sign error. A piece pinned to the BOTTOM keeps its bottom edge where
  * it is, so growing its height pushes the TOP up — and the grip, drawn at the bottom-right, sits still under
  * the cursor while the piece grows away from it. On a centre anchor the piece grows both ways at once, so
  * the grip tracks at half speed. Only a top-left pinned piece ever behaved.
@@ -31,7 +31,7 @@ describe('the grip follows the cursor', () => {
   })
 
   it('BOTTOM-CENTRE pinned (the action bar): the grip is on top, so dragging UP grows it', () => {
-    // This is his bug. The bottom edge is pinned, so the height can only grow upward.
+    // This is the reported bug. The bottom edge is pinned, so the height can only grow upward.
     expect(hudResize(piece({ a: 'BC' }), 0, -20)).toEqual({ w: 200, h: 120 })
     expect(hudResize(piece({ a: 'BC' }), 0, 20)).toEqual({ w: 200, h: 80 })
   })

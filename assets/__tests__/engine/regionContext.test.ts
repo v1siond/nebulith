@@ -35,7 +35,7 @@ describe('a swamp jungle grows swamp things in every region', () => {
   })
 
   it('no region anywhere in it plants the near-white the season carries', () => {
-    // #f4f4ec is summer's daisy, the exact colour he objected to.
+    // #f4f4ec is summer's daisy, the exact colour that was rejected.
     for (const z of regions('forest_jungle_swamp')) {
       const whites = (z.flowers ?? []).filter(f => f.color?.toLowerCase() === '#f4f4ec')
       expect({ region: z.key, whites: whites.length }).toEqual({ region: z.key, whites: 0 })
@@ -57,7 +57,7 @@ describe('an island jungle grows coastal things', () => {
 
   it('grows TROPICAL species, not a temperate wood with palms dropped in', () => {
     // and, when I called it blocked on art,
-    // He was right: a species is proportions on the shared two-tile tree.
+    // That was right: a species is proportions on the shared two-tile tree.
     const tropical = ['tree_coconut', 'tree_banana', 'tree_mangrove', 'tree_palm']
     for (const name of ['open', 'dense']) {
       const grown = species('forest_jungle_island', name)
@@ -94,7 +94,7 @@ describe('an island jungle grows coastal things', () => {
 
 describe('NO jungle anywhere falls through to the season', () => {
   /**
-   * Measured 2026-09-13, and it is why he saw the daisies again after the swamp was fixed: giving the SWAMP
+   * Measured 2026-09-13, and it is why the map showed the daisies again after the swamp was fixed: giving the SWAMP
    * variant its own regions did nothing for the plain jungle, whose shared `open`, `dense` and `ruins` still
    * stated no blooms and so planted summer's near-white. A rainforest floor is not a daisy meadow.
    */

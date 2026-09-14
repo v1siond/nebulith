@@ -12,7 +12,7 @@
  * What remains is a structural FLOOR of one cell, because a grid with no cells is not a grid. It is stated
  * rather than silently applied: nothing here may quietly change a number the user typed.
  *
- * A CEILING is back, at his word — Note the
+ * A CEILING is back, at the word — Note the
  * "for now": this is a deliberate, temporary bound while the renderer catches up, not a return to the old
  * rule. It is stated in ONE place so lifting it is a one-line change, and the panel reports it rather than
  * silently rewriting what you typed.

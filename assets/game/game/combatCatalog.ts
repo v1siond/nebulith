@@ -5,7 +5,7 @@
  * default stat lines (`game/entities.ts`). What did NOT: the formulas. `(weapon.baseDamage + strength) *
  * multiplier` is the shape of the algorithm, and the frontend is what runs it.
  *
- * A CREATURE's numbers are not here either. He was right: the
+ * A CREATURE's numbers are not here either. That was right: the
  * archetype table held nine entries for eight creatures, one each, with a frontend map translating between
  * the two vocabularies. A creature's stat block now rides on its own TILE (`settings.combat`) and arrives
  * with the tileset, so `enemyCombat()` reads it from there.

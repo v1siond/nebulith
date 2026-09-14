@@ -1,7 +1,7 @@
 /**
  * PATHS FIRST, IN THE MAPS THEMSELVES.
  *
- * His model is two numbers: and for a cave,
+ * The model is two numbers: and for a cave,
  *
  * `pathNetwork.test.ts` pins the PLAN. These pin what the three forest layouts do with it: a way out you can
  * stand on, walk to, and SEE, and a map that is unchanged when the generator serves no ways at all.

@@ -9,7 +9,7 @@ import { type UiBar, type UiBarSlot, saveBars, uiActions, uiProfile } from '@/ga
  * Each of those is a control here, and each is a column on `ui_bars`:
  *
  * - **add / remove / reorder** — `+ Add a bar` and the per-bar buttons; the whole list is saved at once.
- * - **rows and columns** — his
+ * - **rows and columns** — the
  * - **size, font size, show the text** — per bar, in its settings.
  * - **conditionals** — WHEN a bar is up: always, or once something is in it, or on an event / quest /
  *   ability. Null condition IS "always", which is why the select's first option writes null rather than a
@@ -18,7 +18,7 @@ import { type UiBar, type UiBarSlot, saveBars, uiActions, uiProfile } from '@/ga
  * Spec: `2026-09-06-ui-system-spec-and-plan.md` §2.7, tab 3.
  */
 
-/** The ways a bar can be gated, in his words. `null` = always up. */
+/** The ways a bar can be gated, in the requirement. `null` = always up. */
 const WHEN_OPTIONS: ReadonlyArray<{ value: string; label: string }> = [
   { value: 'always', label: 'Always' },
   { value: 'filled', label: 'Once something is in it' },

@@ -115,7 +115,7 @@ describe('still water is its own tile', () => {
   })
 
   it('the channel label keeps its frames', () => {
-    // The other half of his sentence. Removing the current everywhere would pass the test above and be wrong.
+    // The other half of the requirement. Removing the current everywhere would pass the test above and be wrong.
     const water = styleTile('ascii', 'water')
     expect((water?.settings as { frames?: unknown[] } | undefined)?.frames ?? []).not.toHaveLength(0)
   })

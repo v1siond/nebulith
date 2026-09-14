@@ -75,7 +75,7 @@ describe('villageLayout — buildingMix scales by settlement', () => {
  * WHAT A PLACE IS MADE OF. with a town of against a city of
  *
  * A look used to be a palette, so the answer to "which buildings" was the same list everywhere. These pin the
- * list itself, per place, because that is the difference he asked for.
+ * list itself, per place, because that is the difference was asked for.
  */
 describe('villageLayout: a town and a city are made of different buildings', () => {
   const mixOf = (settlement: 'town' | 'city') => new Set(buildingMix(settlement, seededRng(11)))
