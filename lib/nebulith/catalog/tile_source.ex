@@ -3332,11 +3332,14 @@ defmodule Nebulith.Catalog.TileSource do
           }}
       end
 
-    # LAYER 0 — THE WALKWAY. Two rows, so two can pass.
+    # LAYER 0 — THE WALKWAY. Two rows, so two can pass, and each row is ONE tile that z-widths the whole
+    # crossing. It used to be `span` separate planks per row, which is 2×span tiles for a surface that is one
+    # flat run: *"you can use less tiles to make the sides too, with z-width"*. A span-7 bridge goes from 18
+    # tiles to 10, and the deck draws as one solid top with no column seams down the middle of the walkway.
     deck =
-      for dx <- 0..(span - 1), dy <- @deck_rows do
-        %{dx: dx, dy: dy, level: 0, label: deck_label, walkable: true,
-          settings: %{"scaleY" => @deck_thickness}}
+      for dy <- @deck_rows do
+        %{dx: 0, dy: dy, level: 0, label: deck_label, walkable: true,
+          settings: %{"scaleY" => @deck_thickness, "depth" => span, "depthDir" => "right-down"}}
       end
 
     # LAYER 0 — THE RAILS. One cell per side spanning the crossing through z-width, thinned to a DOOR's
@@ -3362,18 +3365,30 @@ defmodule Nebulith.Catalog.TileSource do
 
     # LAYER 0 — THE POSTS. Taller than the rail and thin on both ground axes, so each end of the crossing has
     # an upright rather than the railing simply stopping.
+    #
+    # Thin by REACH, not by scale. `scaleX`/`scaleZ` squash the drawn diamond on the SCREEN axes, so a post
+    # keeps its shape only while the camera is at its default corner and shears the moment the map is turned:
+    # *"you're using width instead of z-width to control the sides and structure, hence why it looks bad"*.
+    # A reach is a WORLD axis, the same thing a door states, so the post stays a post at all four facings.
     posts =
       for dx <- [0, span - 1], dy <- [0, last_row] do
         %{dx: dx, dy: dy, level: 0, label: "post", walkable: false,
           settings: %{
             "scaleY" => @post_height,
-            "scaleZ" => @post_thickness,
-            "scaleX" => @post_thickness,
+            "thickness" => post_reach(@post_thickness),
             "color" => rail_color
           }}
       end
 
     bearers ++ deck ++ rails ++ posts
+  end
+
+  # A block CENTRED in its cell and `width` of it across, on BOTH ground axes — the four reaches that say so.
+  # A reach is measured from the cell's far boundary, so the pair on one axis has to sum past 1 to leave the
+  # block any body at all: centring `width` means each side reaches (1 + width) / 2.
+  defp post_reach(width) do
+    reach = (1 + width) / 2
+    %{"left-up" => reach, "right-down" => reach, "right-up" => reach, "left-down" => reach}
   end
 
   defp well_cells do
