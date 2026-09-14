@@ -27,7 +27,9 @@ import liveBody from '@/__tests__/fixtures/generators.json'
 const CATALOG = parseGeneratorCatalog(liveBody)
 
 /** Build a forest from its REAL served config, with the river switched to a course. */
-function grow(layout: 'woodland' | 'meadow' | 'jungle', river: GeneratorOptionValue, seed = 5, crossing = false) {
+function grow(layout: 'woodland' | 'meadow' | 'jungle', river: GeneratorOptionValue, seed = 5, extra: Record<string, GeneratorOptionValue> | boolean = false) {
+  const crossing = typeof extra === 'boolean' ? extra : false
+  const more = typeof extra === 'boolean' ? {} : extra
   const config = findGenerator(CATALOG, 'forest', layout)!.config
   const orig = Math.random
   Math.random = makeRng(seed)
@@ -35,7 +37,7 @@ function grow(layout: 'woodland' | 'meadow' | 'jungle', river: GeneratorOptionVa
     return generateStage({
       zone: 'summer', variant: 'forest', layout, cols: 60, rows: 40,
       nature: config.nature, palette: config.palette, formation: config.formation,
-      treeMix: config.trees, subZones: config.subZones, options: { river, crossing },
+      treeMix: config.trees, subZones: config.subZones, options: { river, crossing, ...more },
     })
   } finally {
     Math.random = orig
@@ -225,8 +227,11 @@ describe('random — one of the courses, and more than one across seeds', () => 
 })
 
 describe('water by depth: wade the shallows, the rest blocks', () => {
-  // The one kind of water you may walk is the SHALLOW edge; everything past it blocks.
-  it.each(['through', 'divides', 'around', 'random'])('%s: only the shallow band is walkable', course => {
+  // THE BAND IS THE LABEL, NOT THE PERMISSION. `water_shallow` says how far from the bank a cell lies;
+  // whether you may stand in it is a separate question, and a shallow cell that touches TWO banks blocks so
+  // the shallows never become a way across. So the invariant is no longer "no shallow cell blocks", it is
+  // "nothing walkable is deeper than the shallow edge".
+  it.each(['through', 'divides', 'around', 'random'])('%s: nothing past the shallow edge is walkable', course => {
     for (const layout of ['woodland', 'meadow', 'jungle'] as const) {
       const s = grow(layout, course, 3)
       // THE CHANNEL ONLY. A jungle also carries swamp pools, and a pool at ground level is walkable on purpose
@@ -234,9 +239,18 @@ describe('water by depth: wade the shallows, the rest blocks', () => {
       const pal = findGenerator(CATALOG, 'forest', layout)!.config.palette
       const channel = waterCells(s).filter(([c, r]) => !(pal?.swamp && s.floorColors[r][c] === pal.swamp))
       const walkableDeep = channel.filter(([c, r]) => s.ground[r][c] !== 'water_shallow' && !s.collision[r][c])
-      const blockedShallow = channel.filter(([c, r]) => s.ground[r][c] === 'water_shallow' && s.collision[r][c])
-      expect({ layout, course, walkableDeep: walkableDeep.length, blockedShallow: blockedShallow.length })
-        .toEqual({ layout, course, walkableDeep: 0, blockedShallow: 0 })
+      expect({ layout, course, walkableDeep: walkableDeep.length }).toEqual({ layout, course, walkableDeep: 0 })
+    }
+  })
+
+  it('a channel CUT below its bank blocks everywhere, shallow edge included', () => {
+    // You would have to climb down the rim to get in, so there is nothing to wade: the crossing is the way
+    // over. Where the river is flush with its bank (no cut) the shallow edge stays walkable, which the case
+    // above covers.
+    for (const layout of ['woodland', 'meadow', 'jungle'] as const) {
+      const s = grow(layout, 'divides', 3, { depth: '1' })
+      const open = waterCells(s).filter(([c, r]) => !s.collision[r][c])
+      expect({ layout, open: open.length }).toEqual({ layout, open: 0 })
     }
   })
 

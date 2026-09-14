@@ -337,6 +337,8 @@ export const WATER_BANDS: Readonly<Record<'shallow' | 'open' | 'deep', WaterBand
   open: { label: 'water', walkable: false },
   deep: { label: 'water_deep', walkable: false },
 }
+/** How far from the bank the water is still shallow. */
+const SHALLOW_TO = 1
 /** How many cells in from the bank the water turns deep. */
 export const DEEP_WATER_FROM = 3
 
@@ -375,9 +377,17 @@ export function resolveRiverCourse(value: GeneratorOptionValue | undefined, lega
   return (RIVER_COURSES as readonly string[]).includes(value) ? (value as RiverCourse) : null
 }
 
-export function waterBand(depth: number, wadeable: boolean): WaterBand {
-  if (wadeable) return WATER_BANDS.shallow
+/**
+ * WHICH BAND a cell of water is, by how far it lies from the bank. Depth only.
+ *
+ * It used to answer `shallow` for any WADEABLE cell and depth for the rest, which tied the label to the
+ * walkability: the moment wading stopped (a cut channel, where the bank stands a block above the water and
+ * you would have to climb down a wall to get in) the shallow band vanished from the map entirely. They are
+ * two different questions. This one is the label; `wadeableShallows` answers the other.
+ */
+export function waterBand(depth: number): WaterBand {
   if (depth >= DEEP_WATER_FROM) return WATER_BANDS.deep
+  if (depth <= SHALLOW_TO) return WATER_BANDS.shallow
   return WATER_BANDS.open
 }
 
@@ -777,6 +787,14 @@ export function strewRiverRocks(ctx: RiverSurface, channel: ReadonlySet<string>)
  * Grown outward from the banks until nothing more can join, so a shallow cell can hang off another one.
  */
 export function wadeableShallows(ctx: RiverSurface, depth: ReadonlyMap<string, number>): Set<string> {
+  // YOU CANNOT WADE INTO A CUT. Where the channel is dug, the bank stands a whole block above the water and
+  // the rim is a wall you would have to climb down, so the water there blocks and the crossing is the way
+  // over. Wading survives exactly where the river is flush with its bank (an undug channel, and the
+  // perimeter course), which is where stepping in actually makes sense.
+  //
+  // Measured before this: 68 of 159 wet cells were open on a one-block cut, so a walker stepped off a
+  // 0.65-block bank straight into the river.
+  if (channelDepth(ctx) > 0) return new Set()
   const area = dryAreas(ctx)
   const joined = new Map<string, number>()
   const pending = new Set([...depth].filter(([, d]) => d === 1).map(([key]) => key))
@@ -845,9 +863,10 @@ export function settleWaterDepth(ctx: RiverSurface, pal: GeneratorPalette | unde
   // different colour, which means the wadeable edge now needs the shoreline to mark it, not a hue.
   for (const [key, d] of depth) {
     const { col, row } = toCell(key)
-    const band = waterBand(d, wadeable.has(key))
+    const band = waterBand(d)
     ground[row][col] = frozen ? 'frozen_water' : band.label
-    collision[row][col] = frozen ? false : !band.walkable
+    // The BAND is the label; whether you can stand here is `wadeableShallows`, which refuses a cut channel.
+    collision[row][col] = frozen ? false : !wadeable.has(key)
     if (pal?.water) floorColors[row][col] = pal.water
   }
   if (!pal?.swamp) return
