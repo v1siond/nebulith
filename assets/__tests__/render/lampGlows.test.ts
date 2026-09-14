@@ -45,10 +45,9 @@ describe('assetLight — the ONE resolver for a tile\'s night glow pool', () => 
 })
 
 describe('entityLight — a CHARACTER casts a pool through the SAME resolver', () => {
-  // Alexander, 2026-09-11: *"appearance only has color when Id expect all the same tile settings a regular
-  // tile has too"*. A light is a pool at a position and a unit has a position, so this one carries over
-  // whole. (Display / transparent / shape describe a BLOCK's faces, and a unit is drawn as a billboard, so
-  // they are not here — see the note on Entity.light.)
+  // A light is a pool at a position and a unit has a position, so this one carries over whole. (Display / transparent
+  // / shape describe a BLOCK's faces, and a unit is drawn as a billboard, so they are not here — see the note on
+  // Entity.light.)
   const unit = (light?: unknown) => ({ id: 'u1', kind: 'npc', col: 1, row: 1, light }) as never
 
   test('reads distance, intensity and colour exactly like a tile\'s', () => {
@@ -143,7 +142,7 @@ describe('collectLampGlows — night pool anchors, sized by each asset\'s light'
   })
 })
 
-describe('collectLampGlows — a FAILING lamp\'s pool dims in SYNC with its bulb flicker (Alexander: "same rhythm")', () => {
+describe('collectLampGlows — a FAILING lamp\'s pool dims in SYNC with its bulb flicker ("same rhythm")', () => {
   const anim = { time: 0, style: EMOJI_STYLE, view: 'iso' as const }
   const failingLamp = (light: { intensity: number; distance: number }) =>
     ({ col: 2, row: 2, type: 'lamp_post', label: 'lamp', placedAt: 0, light, animations: [flickerAnim()] }) as unknown as GridAsset
@@ -211,7 +210,7 @@ describe('collectLampGlows — the pool CENTRES ON THE BULB (anchorFor), not the
   })
 })
 
-describe('drawNightLighting — a brighter, more saturated warm pool (Alexander: "doesn\'t look on yet … more saturation")', () => {
+describe('drawNightLighting — a brighter, more saturated warm pool, so a lit lamp reads as ON', () => {
   // A recording ctx that captures the radial-gradient colour stops the night pass builds.
   function recordingNightCtx() {
     const stops: { off: number; col: string }[] = []

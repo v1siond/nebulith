@@ -1,20 +1,14 @@
 /**
  * BUILDINGS AT ANY SIZE — the client for `/api/buildings`.
  *
- * Alexander, 2026-09-08: *"i think we should NOT have a fixed size, but a default one and allow user to
- * specify the size of the element they want to put — for example, why having 3 size house when we can have
- * 1 house button and allow user to make a house as big or as small as he wants??? … i want to be able to
- * generate a store of any size, a hospital of any size, etc."*
- *
- * Two calls and one install. `fetchBuildingTypes` gets the types with their default footprints;
- * `composeBuilding` asks the backend to lay one out and installs the answer into the loaded catalog under a
- * synthetic kind, so the editor's existing stamp path places it. Nothing downstream learns that a building
- * was composed rather than seeded — that distinction stops here.
+ * Two calls and one install. `fetchBuildingTypes` gets the types with their default footprints; `composeBuilding`
+ * asks the backend to lay one out and installs the answer into the loaded catalog under a synthetic kind, so the
+ * editor's existing stamp path places it. Nothing downstream learns that a building was composed rather than seeded —
+ * that distinction stops here.
  *
  * NO LAYOUT LOGIC LIVES IN THIS FILE, and that is the point. The recipe is Elixir's
- * (`BuildingCompositions.compose_building/4`), beside the composition seeds, because a composition is DATA
- * and data is the backend's. A frontend that could lay out a building would be a second opinion about what
- * a house is.
+ * (`BuildingCompositions.compose_building/4`), beside the composition seeds, because a composition is DATA and data
+ * is the backend's. A frontend that could lay out a building would be a second opinion about what a house is.
  */
 import { NEBULITH_API } from './nebulithApi'
 import { setSharedComposition, styleCatalog } from '@/engine/tileset/styleTiles'
@@ -28,7 +22,9 @@ export interface Footprint {
 
 export interface BuildingType {
   key: string
-  /** The type's own authored footprint — Alexander: *"you can pick one of the old hardcoded values."* */
+  /**
+   * The type's own authored footprint —
+   */
   default: Footprint
 }
 
@@ -83,13 +79,12 @@ export function composedKind(type: string, size: Footprint): string {
 /**
  * The BACKEND's spelling of a building type.
  *
- * The frontend's `BuildingType` may use hyphens; the backend's keys use underscores, and it documents that
- * convention itself: *"keyed by type_length (hyphens in the type become underscores)"*. One place converts, so
- * a hyphenated plan still finds the composition it was pre-composed under instead of silently placing nothing.
+ * The frontend's `BuildingType` may use hyphens; the backend's keys use underscores, and it documents that convention
+ * itself: *"keyed by type_length (hyphens in the type become underscores)"*. One place converts, so a hyphenated plan
+ * still finds the composition it was pre-composed under instead of silently placing nothing.
  *
- * NO TYPE IS HYPHENATED TODAY. `big-house` was the only one and it is deleted (Alexander, 2026-09-12: *"per
- * biome, and delete big_house"*). This stays as the guard on the seam between the two spellings rather than
- * being deleted and rediscovered the next time a type is named with two words.
+ * NO TYPE IS HYPHENATED TODAY. `big-house` was the only one and it is deleted. This stays as the guard on the seam
+ * between the two spellings rather than being deleted and rediscovered the next time a type is named with two words.
  */
 export function backendTypeKey(type: string): string {
   return type.replace(/-/g, '_')
@@ -166,14 +161,12 @@ export async function composeBuilding(
 /**
  * A `BuildingSizes` backed by the BACKEND's default footprints.
  *
- * Alexander, 2026-09-09: *"user will specify the size or we'd use the default one. For randomizers, we
- * randomize the footprint and house adapts to it … even the footprint should come from backend, then
- * frontend draws."* So the generator rolls around these numbers and the building is composed to fit
- * whatever it rolls — nothing snaps to an authored size.
+ * So the generator rolls around these numbers and the building is composed to fit whatever it rolls — nothing snaps
+ * to an authored size.
  *
- * Undefined until `/api/buildings` has answered, and the planner then keeps using the composition-backed
- * source. That is not a fallback in the forbidden sense: it is the OLD behaviour, unchanged, for the window
- * before the backend has spoken.
+ * Undefined until `/api/buildings` has answered, and the planner then keeps using the composition-backed source. That
+ * is not a fallback in the forbidden sense: it is the OLD behaviour, unchanged, for the window before the backend has
+ * spoken.
  */
 export function buildingSizeSource(catalog: BuildingTypeCatalog): {
   depthOf: (type: string, length: number) => number | null

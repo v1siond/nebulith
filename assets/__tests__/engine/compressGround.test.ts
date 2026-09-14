@@ -43,10 +43,9 @@ describe('compressGround — runs follow the road direction', () => {
 /**
  * A RUN MAY NOT SPAN A STEP.
  *
- * Alexander, 2026-09-11: *"we have the grid height precisely to deal with things like this we need to implement
- * relieve/relief"*. Relief lives in the grid's per-cell height, and a merge that ignores it would quietly erase
- * the thing: the two floors either side of a dug channel's lip are the same tile in the same colour, so without
- * the elevation clause they collapse into ONE z-width block spanning both levels and the step vanishes.
+ * Relief lives in the grid's per-cell height, and a merge that ignores it would quietly erase the thing: the two
+ * floors either side of a dug channel's lip are the same tile in the same colour, so without the elevation clause
+ * they collapse into ONE z-width block spanning both levels and the step vanishes.
  *
  * The second test is the one that matters as much: it would be easy to satisfy the first by breaking merging
  * altogether, and then every optimisation ticket regresses silently.

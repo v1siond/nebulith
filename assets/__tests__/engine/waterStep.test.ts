@@ -1,13 +1,10 @@
 /**
  * WHAT WATER DOES WHEN YOU STAND IN IT.
  *
- * Alexander, 2026-09-13, describing what a puddle should be: *"we should see character steps do an effect in
- * the water, we should also see how the character shadow distorts with the water, regular water physics"*.
- *
- * The catalog has carried `decor_ripple` frames for a while with ZERO draw sites, which is the shape of gap
- * this project keeps finding: data nobody reads. This draws it instead, from the two things a figure in
- * water actually does to the surface, and the tests assert the DRAWING, through a recording context, rather
- * than trusting that a function was called.
+ * The catalog has carried `decor_ripple` frames for a while with ZERO draw sites, which is the shape of gap this
+ * project keeps finding: data nobody reads. This draws it instead, from the two things a figure in water actually
+ * does to the surface, and the tests assert the DRAWING, through a recording context, rather than trusting that a
+ * function was called.
  */
 import { drawGroundShadow, drawWaterStep } from '@/engine/render/shared'
 

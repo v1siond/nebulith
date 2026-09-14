@@ -1,13 +1,9 @@
 /**
  * A TEMPLE BUILT FROM ITS WAYS, and a lock with a key you can reach.
  *
- * Alexander, 2026-09-11: *"caves and temples are BAD, they should be completely re-imagined, just like we did
- * with forests, we should research temple types and how they've been built in other games, like world of
- * warcraft, warcraft 3, zelda, etc and replicate that with our templates"*.
- *
- * The sanctum takes the plan's deepest place, the chapels take the other stops, the hall takes the way in, and
- * the halls between them are the planned ways. The invariant that makes a lock-and-key dungeon solvable at all
- * is pinned here directly: the key must be reachable WITHOUT crossing the gate it opens.
+ * The sanctum takes the plan's deepest place, the chapels take the other stops, the hall takes the way in, and the
+ * halls between them are the planned ways. The invariant that makes a lock-and-key dungeon solvable at all is pinned
+ * here directly: the key must be reachable WITHOUT crossing the gate it opens.
  */
 import '@/__tests__/helpers/installTilesetSeed'
 import { generateStage, type StageData } from '@/engine/stageGenerator'

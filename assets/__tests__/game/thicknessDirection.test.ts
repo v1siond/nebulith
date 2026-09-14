@@ -1,18 +1,14 @@
 /**
  * THE THICKNESS AXIS IS THE HOUSE'S, NOT THE VIEWER'S.
  *
- * Alexander: "I want to ensure the doors are less tick while facing the direction of their logical front,
- * IE: the ISO direction — but here it's only applied viewing to MY front, not the front of the house."
+ * For that to hold, `thicknessDir` has to survive the two rotations that stand between an authored tile and the
+ * pixels, exactly as `depthDir` already does:
  *
- * For that to hold, `thicknessDir` has to survive the two rotations that stand between an authored tile and
- * the pixels, exactly as `depthDir` already does:
+ * 1. the BUILDING's rotation, applied when a composition is stamped (a house facing east has its doors thin toward
+ * east), and 2. the CAMERA's facing, applied at render time (turning the camera must not re-thin the door).
  *
- *   1. the BUILDING's rotation, applied when a composition is stamped (a house facing east has its doors
- *      thin toward east), and
- *   2. the CAMERA's facing, applied at render time (turning the camera must not re-thin the door).
- *
- * …and it has to round-trip through save/load, or a reloaded map loses the axis and every door goes back to
- * being a cube.
+ * …and it has to round-trip through save/load, or a reloaded map loses the axis and every door goes back to being a
+ * cube.
  */
 import { compositionCellRender } from '@/game/runtime/composition'
 import { IsometricGrid } from '@/engine/IsometricGrid'

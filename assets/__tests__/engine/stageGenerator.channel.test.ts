@@ -1,14 +1,12 @@
 /**
  * A RIVER IS CUT BELOW THE WALKING FLOOR.
  *
- * Alexander, 2026-09-11: *"we need the river without water, which is negative height compared to walking floor
- * / then inside that we put water with X height it can be < 1, but not walkable"*, and *"river depth is
- * confgiuravble, same as shadow, same as sun light, we want to control everyhting"*.
+ * and *"river depth is confgiuravble, same as shadow, same as sun light, we want to control everyhting"*.
  *
- * The first version of this file asserted that the dug count EQUALLED the count of cells whose ground is
- * `water`, and it failed at 158 against 60. The code was right and the ruler was wrong: one river is painted
- * in THREE labels (`water`, `water_shallow`, `water_deep`) by the depth bands, so counting one of them measures
- * a third of the bed. What matters is the relation, not a count: every water cell is inside the channel.
+ * The first version of this file asserted that the dug count EQUALLED the count of cells whose ground is `water`, and
+ * it failed at 158 against 60. The code was right and the ruler was wrong: one river is painted in THREE labels
+ * (`water`, `water_shallow`, `water_deep`) by the depth bands, so counting one of them measures a third of the bed.
+ * What matters is the relation, not a count: every water cell is inside the channel.
  */
 import '@/__tests__/helpers/installTilesetSeed'
 import { generateStage, type StageData } from '@/engine/stageGenerator'

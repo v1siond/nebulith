@@ -163,37 +163,38 @@ export function deriveCellCollision(stack: TileEntry[]): boolean {
 
 // ── mutators: translate stack ops back onto the grid's EXISTING setters ──
 
-/** The TOP of what a cell already holds, in blocks — where the next tile lands. ONE rule for EVERY tile
- *  (Alexander: "ALL TILES STACK ON TOP OF ANOTHER LIKE LEGOS BY DEFAULT … THE FLOOR IS NO DIFFERENT FROM
- *  IT"): each tile occupies `its level + its own block height`, and the next tile rests on the tallest of
- *  them. The FLOOR is counted like any other tile — a flat floor is 0 blocks tall so it adds nothing and a
- *  wall painted on grass starts on the grid, while RAISING that floor tile lifts whatever is stacked above
- *  it, for free, because the rule reads its height the same way it reads a wall's. 0 on an empty cell.
+/**
+ * The TOP of what a cell already holds, in blocks — where the next tile lands. ONE rule for EVERY tile: each tile
+ * occupies `its level + its own block height`, and the next tile rests on the tallest of them. The FLOOR is counted
+ * like any other tile — a flat floor is 0 blocks tall so it adds nothing and a wall painted on grass starts on the
+ * grid, while RAISING that floor tile lifts whatever is stacked above it, for free, because the rule reads its height
+ * the same way it reads a wall's. 0 on an empty cell.
  *
- *  Height is `resolveTileHeight` × the per-instance Height multiplier (scaleY) — the SAME product the iso
- *  renderer extrudes, so a 4-block pier authored as one scaleY-4 cell stacks as 4 blocks, not as 1. */
+ * Height is `resolveTileHeight` × the per-instance Height multiplier (scaleY) — the SAME product the iso renderer
+ * extrudes, so a 4-block pier authored as one scaleY-4 cell stacks as 4 blocks, not as 1.
+ */
 export function cellStackTop(grid: IsometricGrid, col: number, row: number): number {
-  // The lego rule is UNCHANGED: each tile occupies `its level + its own block height`, and the next tile rests
-  // on the tallest — height ≥ 1 tiles stack on top, a flat tile adds 0 so content lands at its level.
-  // ACT-AS-TILE (Alexander: "the cell works as if a tile was inside it already") makes a tile count as an
-  // occupant of AT LEAST ONE block for stacking, so content stacks ON TOP of it EVEN WHEN IT IS FLAT (a
-  // height-0 road you WALK OVER lifts the walker to level 1 without being raised). Default false → a flat tile
+  // The lego rule is UNCHANGED: each tile occupies `its level + its own block height`, and the next tile rests on the
+  // tallest — height ≥ 1 tiles stack on top, a flat tile adds 0 so content lands at its level. ACT-AS-TILE makes a
+  // tile count as an occupant of AT LEAST ONE block for stacking, so content stacks ON TOP of it EVEN WHEN IT IS FLAT
+  // (a height-0 road you WALK OVER lifts the walker to level 1 without being raised). Default false → a flat tile
   // still lets content land at its own level. A height-≥1 tile is already ≥1, so this never changes the legos.
   return grid.getAssetsAtCell(col, row).reduce((top, a) => Math.max(top, (a.heightLevel ?? 0) + stackContribution(a)), 0)
 }
 
-/** The level a UNIT (hero / npc / enemy) STANDS AT in a cell — the top of the cell's GROUND, NOT the top of
- *  everything in it. A unit is not a tile you stack: walls, doors, windows and roofs are STRUCTURE it passes
- *  through (the cell is walkable) or that blocks the cell outright — never a surface it is lifted onto.
+/**
+ * The level a UNIT (hero / npc / enemy) STANDS AT in a cell — the top of the cell's GROUND, NOT the top of everything
+ * in it. A unit is not a tile you stack: walls, doors, windows and roofs are STRUCTURE it passes through (the cell is
+ * walkable) or that blocks the cell outright — never a surface it is lifted onto.
  *
- *  Using `cellStackTop` here was the "hero walks in the door and ends up on the roof" bug (Alexander, Image #2:
- *  "instead of going inside, it went over the tiles, which is wrong"): a doorway cell holds the whole facade
- *  column above the doorstep — `L0 path_stone | L1 door | L3 wall | L4 window | L5 wall | L6 window | L7 roof` —
- *  so the stack top was 8 and the hero was drawn eight blocks up, standing on the roof.
+ * Using `cellStackTop` here was the "hero walks in the door and ends up on the roof" bug: a doorway cell holds the
+ * whole facade column above the doorstep — `L0 path_stone | L1 door | L3 wall | L4 window | L5 wall | L6 window | L7
+ * roof` — so the stack top was 8 and the hero was drawn eight blocks up, standing on the roof.
  *
- *  RAISING THE GROUND STILL LIFTS THE UNIT: the ground is read through the SAME lego math every tile uses
- *  (`stackContribution` — its level + its own height, act-as-tile counting as ≥1), so a height-1 meadow or a
- *  walk-over road lifts the walker exactly like it lifts a stacked tile. 0 on a cell with no ground. */
+ * RAISING THE GROUND STILL LIFTS THE UNIT: the ground is read through the SAME lego math every tile uses
+ * (`stackContribution` — its level + its own height, act-as-tile counting as ≥1), so a height-1 meadow or a walk-over
+ * road lifts the walker exactly like it lifts a stacked tile. 0 on a cell with no ground.
+ */
 export function unitStandLevel(grid: IsometricGrid, col: number, row: number): number {
   return grid
     .getAssetsAtCell(col, row)
@@ -209,18 +210,16 @@ function stackContribution(a: GridAsset): number {
 }
 
 /**
- * WHERE IN THE CELL the next thing stands: 1 is this tile's TOP face (the default, and what every tile did
- * before this existed), 0 is its BOTTOM face, and anything between is a fraction of its height.
+ * WHERE IN THE CELL the next thing stands: 1 is this tile's TOP face (the default, and what every tile did before
+ * this existed), 0 is its BOTTOM face, and anything between is a fraction of its height.
  *
- * Alexander, 2026-09-13, looking at a woodland where every tree floated a block above the blooms: *"all trees
- * are located above the high grass, instead of at floor level"*, and *"the high grass doesn't have collissions
- * and has height but elements don't stack on top ... like a y stack position, which goes from the top face to
- * the bottom face of the cell"*.
+ * and *"the high grass doesn't have collissions and has height but elements don't stack on top... like a y stack
+ * position, which goes from the top face to the bottom face of the cell"*.
  *
- * He also guessed the cause exactly. A cell stacks by each tile's own HEIGHT, and `flower`, `clover`, `wheat`
- * and `bush` are all authored a full block tall in the live catalog so they draw as standing billboards. That
- * same block was then counted as a SURFACE, so a tree stamped onto a flowered cell started one level up. How
- * tall a thing DRAWS and whether you can stand on it are two different questions, and they shared one number.
+ * He also guessed the cause exactly. A cell stacks by each tile's own HEIGHT, and `flower`, `clover`, `wheat` and
+ * `bush` are all authored a full block tall in the live catalog so they draw as standing billboards. That same block
+ * was then counted as a SURFACE, so a tree stamped onto a flowered cell started one level up. How tall a thing DRAWS
+ * and whether you can stand on it are two different questions, and they shared one number.
  *
  * Read the SAME data path as height and act-as-tile: a per-instance override wins, else the DB tile's own
  * `settings.stackAt`, else 1. Clamped, because a negative would sink the stack into the floor.
@@ -234,24 +233,23 @@ function assetStackAt(a: GridAsset): number {
   return typeof value === 'number' && value >= 0 && value <= 1 ? value : 1
 }
 
-/** Does this placed tile ACT AS A TILE — i.e. "does the cell behave as if a tile was already inside it", so the
- *  next tile stacks ON TOP rather than landing inside at level 0? A per-tile SETTING (`settings.actAsTile`),
- *  read the SAME data path as height: a per-instance/composition-cell override on the asset wins, else the DB
- *  tile's own `settings.actAsTile`. Resolved by the tile's slug (floor → its ground kind, like assetBlocks).
+/**
+ * Does this placed tile ACT AS A TILE — i.e. "does the cell behave as if a tile was already inside it", so the next
+ * tile stacks ON TOP rather than landing inside at level 0? A per-tile SETTING (`settings.actAsTile`), read the SAME
+ * data path as height: a per-instance/composition-cell override on the asset wins, else the DB tile's own
+ * `settings.actAsTile`. Resolved by the tile's slug (floor → its ground kind, like assetBlocks).
  *
- *  OPT-IN. It was default-TRUE (Alexander 2026-07-26: *"act_as_tile set to true in ALL cells/block by default …
- *  houses stack on top of the grass tiles instead of inside"*). While every ground was a height-1 cube that
- *  default was a NO-OP: `max(1, blocks)` and `blocks` are the same number when blocks is already 1. It only
- *  started doing anything when T-140 made the ground FLAT, and what it then did was fabricate a block of
- *  vertical space that NOTHING DRAWS: the floor skin is painted at level 0, the building was stamped at level 1,
- *  and the house parted company with its own floor. Alexander, Image #30: *"drawing issue base doesn't match
- *  buildings … the 'floor' of the building is not aligned with the building itself"*.
+ * OPT-IN. It was default-TRUE. While every ground was a height-1 cube that default was a NO-OP: `max(1, blocks)` and
+ * `blocks` are the same number when blocks is already 1. It only started doing anything when T-140 made the ground
+ * FLAT, and what it then did was fabricate a block of vertical space that NOTHING DRAWS: the floor skin is painted at
+ * level 0, the building was stamped at level 1, and the house parted company with its own floor.
  *
- *  His 2026-07-26 GOAL still holds and is still met: on a FLAT ground tile, level 0 *is* on top of it, there is
- *  no interior to sink into. So the lego law he stated governs unchanged (*"each tile occupies its level + its own
- *  block height, and the next tile rests on the tallest"*), and act_as_tile goes back to being what he first
- *  described it as, the explicit switch for a walk-over surface (a height-0 road that should still lift what
- *  stands on it), set on the TILE in the backend like every other setting. No tile in the live DB sets it today. */
+ * His 2026-07-26 GOAL still holds and is still met: on a FLAT ground tile, level 0 *is* on top of it, there is no
+ * interior to sink into. So the lego law he stated governs unchanged (*"each tile occupies its level + its own block
+ * height, and the next tile rests on the tallest"*), and act_as_tile goes back to being what he first described it
+ * as, the explicit switch for a walk-over surface (a height-0 road that should still lift what stands on it), set on
+ * the TILE in the backend like every other setting. No tile in the live DB sets it today.
+ */
 function assetActsAsTile(a: GridAsset): boolean {
   const perInstance = (a.settings as { actAsTile?: boolean } | undefined)?.actAsTile
   if (perInstance !== undefined) return perInstance
@@ -308,19 +306,21 @@ function orderedStack(grid: IsometricGrid, col: number, row: number): GridAsset[
   return [...grid.getAssetsAtCell(col, row)].sort((a, b) => (a.heightLevel ?? 0) - (b.heightLevel ?? 0))
 }
 
-/** Set a stacked tile's own BLOCK height and LIFT everything above it in the cell by the change — "ALL TILES
- *  STACK ON TOP OF ANOTHER LIKE LEGOS BY DEFAULT … IF INCREASE THE HEIGHT OF ANY FLOOR TILE, WHATEVER IS ON
- *  TOP OF IT WILL GET LIFTED, BECAUSE THAT'S HOW ALL FUCKING TILES WORK AND THE FLOOR IS NO DIFFERENT FROM IT"
- *  (Alexander). It applies to EVERY tile, floor included — there is no floor case in here.
+/**
+ * Set a stacked tile's own BLOCK height and LIFT everything above it in the cell by the change — "ALL TILES STACK ON
+ * TOP OF ANOTHER LIKE LEGOS BY DEFAULT … IF INCREASE THE HEIGHT OF ANY FLOOR TILE, WHATEVER IS ON TOP OF IT WILL GET
+ * LIFTED, BECAUSE THAT'S HOW ALL FUCKING TILES WORK AND THE FLOOR IS NO DIFFERENT FROM IT". It applies to EVERY tile,
+ * floor included — there is no floor case in here.
  *
- *  The lift is written into STATE (the tiles above get new heightLevels), never derived at draw time. A level
- *  is where the tile was PUT: 32 real composition cells deliberately float clear of whatever is under them (a
- *  tree's leaves beside its trunk, a lamp's bulb, a store sign, an office rooftop unit), so re-seating each
- *  tile onto the one below would collapse every tree and lamp on the map. Shifting the whole pile by the SAME
- *  delta raises it while preserving those authored gaps. A shrink shifts back down, so the edit is reversible.
+ * The lift is written into STATE (the tiles above get new heightLevels), never derived at draw time. A level is where
+ * the tile was PUT: 32 real composition cells deliberately float clear of whatever is under them (a tree's leaves
+ * beside its trunk, a lamp's bulb, a store sign, an office rooftop unit), so re-seating each tile onto the one below
+ * would collapse every tree and lamp on the map. Shifting the whole pile by the SAME delta raises it while preserving
+ * those authored gaps. A shrink shifts back down, so the edit is reversible.
  *
- *  `blocks` becomes the tile's ONE height number — it lands on `height` and clears any per-instance `scaleY`
- *  multiplier, so a collapsed composition run (height 1 × scaleY 4) edited to 5 is simply 5 blocks tall. */
+ * `blocks` becomes the tile's ONE height number — it lands on `height` and clears any per-instance `scaleY`
+ * multiplier, so a collapsed composition run (height 1 × scaleY 4) edited to 5 is simply 5 blocks tall.
+ */
 export function setTileHeight(grid: IsometricGrid, col: number, row: number, stackIndex: number, blocks: number): void {
   const target = orderedStack(grid, col, row)[stackIndex]
   if (!target) return
@@ -386,14 +386,15 @@ export function setCellActAsTile(grid: IsometricGrid, col: number, row: number, 
 
 const blockKey = (b: { col: number; row: number }): string => `${b.col},${b.row}`
 
-/** Every block a tile OCCUPIES: its anchor, plus the blocks its Z-WIDTH spans.
+/**
+ * Every block a tile OCCUPIES: its anchor, plus the blocks its Z-WIDTH spans.
  *
- *  "even if it's 1 tile positioned in 1 block with smart z-width, it's still ocupying the other blocks, just
- *  differently" (Alexander). A z-width road or roof bar is ONE tile lying ACROSS several blocks, so a lift has
- *  to consider all of them — both directions:
- *   - raise the spanning tile → everything standing on ANY block it covers goes up (its anchor is not special);
- *   - raise a tile under one of those blocks → the spanning tile goes up, even though it is anchored elsewhere.
- *  A tile with no z-width simply occupies its own block, so the ordinary case is unchanged. */
+ * "even if it's 1 tile positioned in 1 block with smart z-width, it's still ocupying the other blocks, just
+ * differently". A z-width road or roof bar is ONE tile lying ACROSS several blocks, so a lift has to consider all of
+ * them — both directions: - raise the spanning tile → everything standing on ANY block it covers goes up (its anchor
+ * is not special); - raise a tile under one of those blocks → the spanning tile goes up, even though it is anchored
+ * elsewhere. A tile with no z-width simply occupies its own block, so the ordinary case is unchanged.
+ */
 function occupiedBlocks(a: GridAsset): { col: number; row: number }[] {
   const depth = a.depth ?? 1
   if (depth > 1 && a.depthDir) return depthCells(a.col, a.row, depth, a.depthDir)

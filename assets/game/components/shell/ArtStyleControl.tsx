@@ -1,15 +1,12 @@
 /**
  * ART STYLE — in the top nav, before the game selector.
  *
- * Alexander, 2026-09-08: *"I think art style should be on top nav before game selector."*
+ * It belongs there and not in the rail: it is not a step in building a level, it is the skin the whole product is
+ * wearing, and it is one of the first two things anyone touches.
  *
- * It belongs there and not in the rail: it is not a step in building a level, it is the skin the whole
- * product is wearing, and it is one of the first two things anyone touches.
- *
- * The control PREVIEWS rather than names. The same four labels are drawn in each style, so the choice is
- * made by looking — "ascii" and "emoji" mean nothing to someone who has just arrived. That is also the
- * clearest possible statement of the engine's central rule: one label, one set of facts, a different
- * picture per style.
+ * The control PREVIEWS rather than names. The same four labels are drawn in each style, so the choice is made by
+ * looking — "ascii" and "emoji" mean nothing to someone who has just arrived. That is also the clearest possible
+ * statement of the engine's central rule: one label, one set of facts, a different picture per style.
  */
 import { useEffect, useRef, useState } from 'react'
 

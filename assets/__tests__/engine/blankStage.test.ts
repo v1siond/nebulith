@@ -1,9 +1,7 @@
 /**
  * A NEW MAP IS A PLAIN COLOUR.
  *
- * Alexander, 2026-09-11: *"when you land on a new map, I see the grid base full of random tiles, It'd like to
- * just have a solid color to work on, it can be brown, green like meadow, whatever, just don't use tiles at all,
- * plain color grid base ready to edit"*. The `?new=1` route used to generate a whole town.
+ * The `?new=1` route used to generate a whole town.
  */
 import '@/__tests__/helpers/installTilesetSeed'
 import { blankStage, FLAT_FLOOR } from '@/engine/stageGenerator'

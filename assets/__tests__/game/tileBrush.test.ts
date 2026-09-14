@@ -16,8 +16,10 @@ import { clearGroundTile, placeGroundTile, removeTopAsset, removeAssetAtLevel, s
 import { tileSlug } from '@/game/editor/tilePlacement'
 import { captureMapSnapshot, restoreMapSnapshot } from '@/game/editor/mapSnapshot'
 
-/** A tile that OCCUPIES ITS WHOLE CELL. `blocking: true` used to say this; the box list says it now, which is
- *  the only statement about walking through a tile (Alexander, 2026-09-13: the flag is gone, collisions do it). */
+/**
+ * A tile that OCCUPIES ITS WHOLE CELL. `blocking: true` used to say this; the box list says it now, which is the only
+ * statement about walking through a tile.
+ */
 const SOLID = { collision: [{ x: 0, y: 0, w: 1, h: 1 }] }
 
 const EMOJI = tilesForStyle('emoji')

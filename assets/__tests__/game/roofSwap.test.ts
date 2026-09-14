@@ -1,12 +1,9 @@
 /**
  * A LOOK LAYS ITS OWN ROOF.
  *
- * Alexander, 2026-09-11: *"I picked a tropical city and had nothing different than a regular one ... the
- * material of houses should be different, walls different, roof different"*.
- *
  * The roof SHAPE is baked into each composition, so a palette that carries only colours can never change one.
- * `roofSwap` is the whole of the fix: a roof cell's label becomes the roof the look named, and because a roof
- * is a body plus a ridge cap, the cap has to move with it or a gable ridge ends up sitting on a flat deck.
+ * `roofSwap` is the whole of the fix: a roof cell's label becomes the roof the look named, and because a roof is a
+ * body plus a ridge cap, the cap has to move with it or a gable ridge ends up sitting on a flat deck.
  */
 import { flattenedRoof, roofSwap } from '@/game/runtime/composition'
 
@@ -29,12 +26,11 @@ describe('roofSwap', () => {
   })
 
   /**
-   * THIS USED TO ASSERT THE BUG. Alexander, 2026-09-11, with a photograph: *"modern city renders buoldings
-   * without roof"*.
+   * THIS USED TO ASSERT THE BUG.
    *
-   * It returned null, the stamp reads null as "do not lay this cell", and `gable_roof` labels the PEAK columns
-   * with the cap. So every gabled building in a flat-roof city lost its ridge columns and came out with a hole
-   * down the middle of its deck. The ridge is meaningless on a flat roof; the CELL is not.
+   * It returned null, the stamp reads null as "do not lay this cell", and `gable_roof` labels the PEAK columns with
+   * the cap. So every gabled building in a flat-roof city lost its ridge columns and came out with a hole down the
+   * middle of its deck. The ridge is meaningless on a flat roof; the CELL is not.
    */
   it('turns the ridge into deck on a flat roof, never into a hole', () => {
     expect(roofSwap('roof_top', 'flat_roof')).toBe('flat_roof')

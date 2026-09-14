@@ -85,10 +85,12 @@ export const LAYER_IDS: readonly LayerId[] = ['layout', 'buildings', 'nature', '
 export type EngineLayerId = Exclude<LayerId, 'units'>
 type LayerRngs = Record<EngineLayerId, Rng>
 
-/** General forest LAYOUT the user steers; the generator randomizes the rest. The old passages/open/lake
- *  generators were RETIRED (Alexander) — the forest now builds one of the meadow layouts, and a plain generate
- *  with no explicit layout RANDOMLY picks one (seeded). All are registered in FOREST_LAYOUTS. `meadow_pass` is a
- *  NEW variation: the open meadow opened on TWO opposite edges (top + bottom) for a through-route map (#26). */
+/**
+ * General forest LAYOUT the user steers; the generator randomizes the rest. The old passages/open/lake generators
+ * were RETIRED — the forest now builds one of the meadow layouts, and a plain generate with no explicit layout
+ * RANDOMLY picks one (seeded). All are registered in FOREST_LAYOUTS. `meadow_pass` is a NEW variation: the open
+ * meadow opened on TWO opposite edges (top + bottom) for a through-route map (#26).
+ */
 export type ForestLayout = 'woodland' | 'jungle' | 'meadow' | 'meadow_pass'
 
 export interface StageProp {
@@ -195,22 +197,19 @@ export interface StageData {
   /**
    * PER-CELL ELEVATION, in levels, 0 being the walking floor and NEGATIVE being dug out.
    *
-   * Alexander, 2026-09-11: *"we need the river without water, which is negative height compared to walking
-   * floor / then inside that we put water with X height it can be < 1, but not walkable"*, and *"we have the
-   * grid height precisely to deal with things like this we need to implement relieve/relief"*.
+   * and *"we have the grid height precisely to deal with things like this we need to implement relieve/relief"*.
    *
    * The grid has carried a per-cell height since the beginning and it has always been all zeros, because
-   * `applyStageToGrid` wrote 0 into every cell of every generate and the save path wrote a field of zeros.
-   * This is where a generator says otherwise. Absent, or absent at a cell, means flat, which is what every
-   * template does today, so nothing changes for one that does not ask.
+   * `applyStageToGrid` wrote 0 into every cell of every generate and the save path wrote a field of zeros. This is
+   * where a generator says otherwise. Absent, or absent at a cell, means flat, which is what every template does
+   * today, so nothing changes for one that does not ask.
    */
   elevation?: number[][]
   /**
    * PER-CELL CURRENT, in quarter turns (0 = +col, 1 = +row, 2 = -col, 3 = -row); absent means still.
    *
-   * Alexander, 2026-09-13: *"there should be a current direction that goes around with the river and the tiles
-   * should show correctly that current"*. Carried beside `floorColors` and `elevation` because it is the same
-   * kind of thing: state the generator PICKS and the render READS.
+   * Carried beside `floorColors` and `elevation` because it is the same kind of thing: state the generator PICKS and
+   * the render READS.
    */
   flow?: (number | undefined)[][]
   connectors: Connector[]
@@ -230,10 +229,9 @@ export interface GenerateOptions {
   /**
    * WHICH SHAPE of its kind this map builds: a forest's `woodland`, a settlement's `modern_city`.
    *
-   * A plain string, not `ForestLayout`, since 2026-09-11: a settlement's presets are its LOOKS now
-   * (Alexander: *"instead of "town" "city" we'd have modern city, swamp village, etc"*), and passing
-   * `modern_city` through a type called ForestLayout would be a lie the compiler happily told. Only
-   * `placeForest` resolves it today, and it checks membership before it does.
+   * A plain string, not `ForestLayout`, since 2026-09-11: a settlement's presets are its LOOKS now, and passing
+   * `modern_city` through a type called ForestLayout would be a lie the compiler happily told. Only `placeForest`
+   * resolves it today, and it checks membership before it does.
    */
   layout?: string
   /** Per-layer SEED. A layer given a seed draws from a reproducible `makeRng(seed)` stream; a layer
@@ -272,9 +270,8 @@ export interface GenerateOptions {
   /** What a river is crossed on, by kind (`config.crossings`), picked by the `bridge` option. */
   crossings?: Readonly<Record<string, GeneratorCrossing>>
   /**
-   * Where footprints come from. Alexander, 2026-09-09: *"even the footprint should come from backend, then
-   * frontend draws."* Defaults to the composition-backed source so a caller that does not care (every
-   * test) is unaffected.
+   * Where footprints come from. Defaults to the composition-backed source so a caller that does not care (every test)
+   * is unaffected.
    */
   buildingSizes?: BuildingSizes
 }
@@ -321,8 +318,7 @@ const massVariant = (col: number, row: number): number =>
  *  a stand shows standard / tall / small / round trees + bushes instead of one repeated shape. Pure +
  *  injectable (tests pass explicit rolls to prove the full spread). */
 export function pickLivingTree(rand: number, mix?: readonly GeneratorTreeWeight[]): LivingTreeKind {
-  // A template's OWN species first. Alexander, 2026-09-11: *"we're using the same for all forest variations,
-  // but that's not good"* — every forest rolled this one global table, so a jungle grew what a meadow grew.
+  // A template's OWN species first. — every forest rolled this one global table, so a jungle grew what a meadow grew.
   // No served mix → the global table, which is exactly the old behaviour.
   const table = mix && mix.length > 0 ? mix : livingTreeVariants()
   const total = table.reduce((sum, v) => sum + v.weight, 0)
@@ -341,23 +337,19 @@ export function pickLivingTree(rand: number, mix?: readonly GeneratorTreeWeight[
 /**
  * A THICKET: the undergrowth you cannot push through, drawn as itself.
  *
- * Alexander, 2026-09-11: *"some collisions are actually dumb lol, we are using collissions in flowers / like, I
- * get it on trees, but flowers? come on, let's have some common sense when doing these generators / it's easy to
- * know which things should be walkable and which shouldn't."* The undergrowth pass used to place the same little
- * clover a meadow uses and then stamp `collision = true` over it, so what you saw was walkable and what you hit
- * was a wall. This is the thing that blocks, and it looks like it.
+ * The undergrowth pass used to place the same little clover a meadow uses and then stamp `collision = true` over it,
+ * so what you saw was walkable and what you hit was a wall. This is the thing that blocks, and it looks like it.
  */
 /**
  * ONE PLANT, and the tile's own row says whether you can walk on it.
  *
- * Alexander, 2026-09-12: *"collissions still wrong, I'm not able to walk over the green flowers"*, and
- * separately *"USE THE FUCKING BACKEND DATA ... IF SOMETHING IS DATA, IT MEANS WE MUST FUCKING GENERATE IT IN
- * A WAY IT GETS STORED"*.
+ * and separately *"USE THE FUCKING BACKEND DATA... IF SOMETHING IS DATA, IT MEANS WE MUST FUCKING GENERATE IT IN A
+ * WAY IT GETS STORED"*.
  *
  * This was two functions that differed only in a hardcoded boolean: `makeThicket` said `blocking: true` and
- * `makeTallGrass` said `false`, neither of them asking. Measured against the live catalog, `thicket` is the
- * ONLY one of 40 nature tiles that blocks, so the frontend was minting the single most surprising collision
- * in the game rather than reading it.
+ * `makeTallGrass` said `false`, neither of them asking. Measured against the live catalog, `thicket` is the ONLY one
+ * of 40 nature tiles that blocks, so the frontend was minting the single most surprising collision in the game rather
+ * than reading it.
  */
 const makePlant = (zone: ZoneId, col: number, row: number, label: string): StageProp => {
   const tile = resolveTile(styleCatalog('ascii'), zone, label)
@@ -391,10 +383,9 @@ function scatterTallGrass(ctx: ArchetypeContext): void {
 }
 
 const makeFlower = (rng: Rng, zone: ZoneId, col: number, row: number, regionSet?: readonly FlowerKind[]): StageProp => {
-  // A REGION's own blooms beat the season's. Alexander, 2026-09-12: *"does that look like a swamp to you?? where
-  // have you seen swamps with white flowers??"*. A sub-zone could already say which SPECIES grow in it
-  // (`trees`) and had no way to say which BLOOMS, so a swamp planted the season's set, and summer's carries
-  // `✽ #f4f4ec`, a near-white. Measured in a swamp jungle before this: whites among the blooms, as he saw.
+  // A REGION's own blooms beat the season's. A sub-zone could already say which SPECIES grow in it (`trees`) and had
+  // no way to say which BLOOMS, so a swamp planted the season's set, and summer's carries `✽ #f4f4ec`, a near-white.
+  // Measured in a swamp jungle before this: whites among the blooms, as he saw.
   const set = regionSet ?? zoneFlowers(zone) ?? defaultFlowers()
   const pick: FlowerKind = set[randIntWith(rng, 0, set.length - 1)] // seeded pick — the caller passes its layer rng so the pass stays reproducible
   // Each flower gets its own intensity tone (per-cell) for a naturally varied meadow — tone only, no opacity.
@@ -409,9 +400,9 @@ const makeFlower = (rng: Rng, zone: ZoneId, col: number, row: number, regionSet?
  *  ONE centered billboard a block tall (`display: 'single'` + `height: 1`) with a TRANSPARENT block — just the
  *  bloom shows, no coloured cube around it. A type with no entry keeps the tile's own flat render, as before. */
 export const GENERATED_PROP_RENDER: Readonly<Record<string, { height?: number; display?: TileDisplay; transparent?: boolean; scale?: number }>> = {
-  // A flower AND a scattered ground-decor bloom both render as ONE small SINGLE billboard with a TRANSPARENT
-  // block (Alexander 2026-07-27: "make flowers single transparent and slightly smaller… I used zoom 1") — so a
-  // daisy shows as a small bloom on the grass, NOT a coloured cube. scale < 1 = slightly smaller than a full cell.
+  // A flower AND a scattered ground-decor bloom both render as ONE small SINGLE billboard with a TRANSPARENT block —
+  // so a daisy shows as a small bloom on the grass, NOT a coloured cube. scale < 1 = slightly smaller than a full
+  // cell.
   flower: { height: 1, display: 'single', transparent: true, scale: 0.85 },
   ground_decor: { height: 1, display: 'single', transparent: true, scale: 0.85 },
 }
@@ -585,12 +576,13 @@ type Centrepiece = keyof typeof CENTREPIECE_FOOTPRINT
 // animated water columns), a grand city square gets the big `fountain` (a 3×3 basin, its centre 3 animated).
 // The plaza side is the settlement tell — PLAZA_SIZE is town 5 / city 7 (villageLayout), so ≥6 ⇒ city.
 const pickCentrepiece = (plazaSize: number): Centrepiece => (plazaSize >= 6 ? 'fountain' : 'well')
-/** How many of a settlement's lamps are FAILING (flickering) bulbs — a SMALL, RANDOM *absolute* count, NEVER a
- *  fraction of the lamp count (Alexander: "the flicker should be a random thing that only 1 or 2 lamps get and
- *  it's not even 100% of the time"). Usually 1, sometimes 2, occasionally 0 — so it stays "only 1 or 2" whether
- *  the settlement has 6 lamps or 20. The old per-cell ratio hash tagged ~a quarter of every map's lamps (a town
- *  got 2–3, a city 3–4 flickering — reading as "all of them"). Drawn from the DECOR rng, so a decor re-roll
- *  picks a different tiny set. */
+/**
+ * How many of a settlement's lamps are FAILING (flickering) bulbs — a SMALL, RANDOM *absolute* count, NEVER a
+ * fraction of the lamp count. Usually 1, sometimes 2, occasionally 0 — so it stays "only 1 or 2" whether the
+ * settlement has 6 lamps or 20. The old per-cell ratio hash tagged ~a quarter of every map's lamps (a town got 2–3, a
+ * city 3–4 flickering — reading as "all of them"). Drawn from the DECOR rng, so a decor re-roll picks a different
+ * tiny set.
+ */
 function failingLampTarget(rand: Rng): number {
   const r = rand()
   if (r < 0.25) return 0
@@ -652,20 +644,21 @@ const makeBossAnchor = (col: number, row: number): StageProp => ({
 // frosty rim, or a charred ember crust — so coastlines/lava banks read as blended.
 const LAVA_LIKE = new Set(['lava', 'magma'])
 
-/** THE reusable LAND-ONLY guard (Alexander): NOTHING — a prop, tree, lamp, ornament, rock, unit or spawn — may
- *  sit on a WATER cell; only the bridge deck crosses water. Reads the GROUND directly so every generator + the
- *  placement primitives share ONE check instead of a per-type special case. A cell is water when its ground tile
- *  is water-like (the meadow river, a lake, oasis, koi pond, deep/ice water, …). */
+/**
+ * THE reusable LAND-ONLY guard: NOTHING — a prop, tree, lamp, ornament, rock, unit or spawn — may sit on a WATER
+ * cell; only the bridge deck crosses water. Reads the GROUND directly so every generator + the placement primitives
+ * share ONE check instead of a per-type special case. A cell is water when its ground tile is water-like (the meadow
+ * river, a lake, oasis, koi pond, deep/ice water, …).
+ */
 const isLandCell = (ctx: ArchetypeContext, col: number, row: number): boolean =>
   inBounds(col, row, ctx.cols, ctx.rows) && !isWaterGround(ctx.ground[row][col]) && !ctx.wet.has(`${col},${row}`)
 
 function edgeDecor(neighbourType: string, col: number, row: number): StageProp | null {
-  // ANY water, not the four names in WATER_LIKE. The depth pass renames a cell `water_shallow` or `water_deep`,
-  // so a deep pool used to border the land with no shoreline at all, which is half of why his swamp read as
-  // *"really really confusing"*: nothing marked where the water began.
-  // A WATER EDGE GETS NOTHING. It was a `≈` character, then the 8 baked `shore_*` autotile pieces, and those
-  // are drawn as BLOOMS: 231 to 450 a map, which is what he had been calling "white flowers" for four rounds.
-  // Alexander, 2026-09-13: *"just remove that crap"*. Lava keeps its ember.
+  // ANY water, not the four names in WATER_LIKE. The depth pass renames a cell `water_shallow` or `water_deep`, so a
+  // deep pool used to border the land with no shoreline at all, which is half of why his swamp read as *"really
+  // really confusing"*: nothing marked where the water began. A WATER EDGE GETS NOTHING. It was a `≈` character, then
+  // the 8 baked `shore_*` autotile pieces, and those are drawn as BLOOMS: 231 to 450 a map, which is what he had been
+  // calling "white flowers" for four rounds. Lava keeps its ember.
   if (isWaterGround(neighbourType)) return null
   if (LAVA_LIKE.has(neighbourType)) {
     return { col, row, type: 'ember', char: '▒', blocking: false, color: '#d2691e' }
@@ -686,15 +679,13 @@ function addTerrainTransitions(ctx: ArchetypeContext): void {
       const here = ground[row][col]
       if (isWaterGround(here) || LAVA_LIKE.has(here)) continue // decorate LAND only, whatever depth the water is
       if (collision[row][col] || occupied.has(`${col},${row}`)) continue
-      // NO SHORE DECORATION. Alexander, 2026-09-13, after I recoloured them instead of removing them: *"I
-      // didn't want to recolor them, i wanted to remove them, becuase they don't match the fucking context of
-      // the forest, they don't match island, nor swamp jungles"*, and *"they're not even located correctly,
-      // look they're inside the water, in shrot, just remove that crap"*.
+      // NO SHORE DECORATION. and *"they're not even located correctly, look they're inside the water, in shrot, just
+      // remove that crap"*.
       //
-      // The `shore_*` pieces are drawn as blooms, which is why he read 231 to 450 of them a map as "white
-      // flowers" through four rounds of me hunting the flower data. Recolouring them to the served bank only
-      // made them brown blooms. A water edge marked with a ring of daisies is not a water edge.
-      // Lava keeps its ember below; only the water shoreline is gone.
+      // The `shore_*` pieces are drawn as blooms, which is why he read 231 to 450 of them a map as "white flowers"
+      // through four rounds of me hunting the flower data. Recolouring them to the served bank only made them brown
+      // blooms. A water edge marked with a ring of daisies is not a water edge. Lava keeps its ember below; only the
+      // water shoreline is gone.
       for (const [dc, dr] of ORTHO) {
         const c = col + dc
         const r = row + dr
@@ -737,14 +728,13 @@ interface ArchetypeContext {
   /**
    * CELLS WITH STANDING WATER LYING ON TOP OF DRY GROUND.
    *
-   * A puddle is not a ground tile. Alexander, 2026-09-13: *"water shadllow shouldn't be below floor level,
-   * it's a small layer above it, when the fuck have you seen a puddle of water below floor level?"*, and
-   * *"now I jump down due to the height difference"*. Replacing the ground meant the puddle's own height had
-   * to match whatever floor it landed on, and it never could: `meadow` is a 1.0 block and the puddle was 0.
+   * A puddle is not a ground tile. and *"now I jump down due to the height difference"*. Replacing the ground meant
+   * the puddle's own height had to match whatever floor it landed on, and it never could: `meadow` is a 1.0 block and
+   * the puddle was 0.
    *
-   * So the ground STAYS and the film is stacked over it, which is his "small layer above it" exactly, and the
-   * walking level never changes. This set is how the planting passes still know a cell is wet, since they used
-   * to learn it from the ground label.
+   * So the ground STAYS and the film is stacked over it, which is his "small layer above it" exactly, and the walking
+   * level never changes. This set is how the planting passes still know a cell is wet, since they used to learn it
+   * from the ground label.
    */
   wet: Set<string>
   /** Per-cell CURRENT, in quarter turns (0 = +col, 1 = +row, 2 = -col, 3 = -row). See `flowField`. */
@@ -801,16 +791,13 @@ const ARCHETYPES: Partial<Record<VariantId, (ctx: ArchetypeContext, rngs: LayerR
 }
 
 // ── the floor is a colour ────────────────────────────────────────────────
-// Alexander, 2026-09-11: *"look how we handle the floor in meadow, just using different colors and only using the
-// floor tiles as ornaments, that's how we wanna do it on all other templates too"*.
 //
-// The meadow lays ONE flat tile and paints each cell's colour on it; textured tiles are spent on ornaments. The
-// other archetypes laid a textured tile as their whole floor (a cave is `cave_floor` wall to wall, a temple a
-// checkerboard of two textured tiles, a winter wood is `snow`). They still lay those while they build, because
-// their own passes read the labels (a pool is "not the cave floor"). Once an archetype is done, `flattenFloors`
-// swaps each open-ground material for the flat tile, wearing that material's colour: the colour stays, only the
-// texture goes. Tiles laid on purpose as ornaments (moss patches, the rune ring, bridges) are not open ground, so
-// they stay textured.
+// The meadow lays ONE flat tile and paints each cell's colour on it; textured tiles are spent on ornaments. The other
+// archetypes laid a textured tile as their whole floor (a cave is `cave_floor` wall to wall, a temple a checkerboard
+// of two textured tiles, a winter wood is `snow`). They still lay those while they build, because their own passes
+// read the labels (a pool is "not the cave floor"). Once an archetype is done, `flattenFloors` swaps each open-ground
+// material for the flat tile, wearing that material's colour: the colour stays, only the texture goes. Tiles laid on
+// purpose as ornaments (moss patches, the rune ring, bridges) are not open ground, so they stay textured.
 
 /** The flat floor every template lays (backend tile `floor`, the meadow's flat tile under a neutral name). */
 export const FLAT_FLOOR = 'floor'
@@ -873,12 +860,10 @@ const layerRng = (seeds: GenerateOptions['seeds'], layer: EngineLayerId): Rng =>
 /**
  * A PLAIN COLOUR TO WORK ON: every cell the flat floor tile, one colour, and nothing else in it.
  *
- * Alexander, 2026-09-11: *"when you land on a new map, I see the grid base full of random tiles, It'd like to
- * just have a solid color to work on, it can be brown, green like meadow, whatever, just don't use tiles at all,
- * plain color grid base ready to edit"*. Landing on a new template used to lay down a whole generated town.
+ * Landing on a new template used to lay down a whole generated town.
  *
- * The colour is the floor tile's OWN served colour, so this invents nothing: change it in the backend and every
- * blank map follows. `variant` is inert here, a blank map carries no buildings, props or units for it to steer.
+ * The colour is the floor tile's OWN served colour, so this invents nothing: change it in the backend and every blank
+ * map follows. `variant` is inert here, a blank map carries no buildings, props or units for it to steer.
  */
 export function blankStage(zone: ZoneId, cols: number, rows: number): StageData {
   const floorColors = makeGrid<string | undefined>(cols, rows, () => undefined)
@@ -916,8 +901,7 @@ export function generateStage(opts: GenerateOptions): StageData {
   const ground = makeGrid(cols, rows, () => palette?.groundTypes[0] ?? '')
   const collision = makeGrid(cols, rows, () => false)
   const floorColors = makeGrid<string | undefined>(cols, rows, () => undefined)
-  // Flat until a pass digs or raises. Alexander, 2026-09-11: *"we have the grid height precisely to deal with
-  // things like this we need to implement relieve/relief"*.
+  // Flat until a pass digs or raises.
   const elevation = makeGrid(cols, rows, () => 0)
   const buildings: PlacedBuilding[] = []
   const props: StageProp[] = []
@@ -1015,16 +999,14 @@ export function layoutPass(ctx: ArchetypeContext, settlement: Settlement): Villa
     )
   }
   const layout = planVillage(cols, rows, ctx.rand, ctx.buildingSizes ?? BACKEND_BUILDING_SIZES, settlement, ctx.settlement)
-  // WHAT THIS PLACE PAVES WITH. Alexander, 2026-09-11: *"a town doesn't have roads, it has pathways of stone,
-  // cities do have pathways a skycraoppers"*. It was `road` for a town and a city alike, so a village had
-  // asphalt through it. The place says it now; with nothing served it stays the road it always was.
+  // WHAT THIS PLACE PAVES WITH. It was `road` for a town and a city alike, so a village had asphalt through it. The
+  // place says it now; with nothing served it stays the road it always was.
   const streets = ctx.settlement?.streets ?? 'road'
   for (let r = 0; r < rows; r++) {
     for (let c = 0; c < cols; c++) {
-      // Roads are a COLOUR on the ground BLOCK, not a separate ROAD tile (Alexander #34/#48: "remove the tiles
-      // from the roads, we can use color"). The base ground stays (a height-1 block) and is tinted asphalt, so a
-      // road is FLUSH with the grass — no raised road-tile trench. Road IDENTITY lives in `layout.roads` (read by
-      // placement + scatter), never re-derived from the ground kind.
+      // Roads are a COLOUR on the ground BLOCK, not a separate ROAD tile. The base ground stays (a height-1 block)
+      // and is tinted asphalt, so a road is FLUSH with the grass — no raised road-tile trench. Road IDENTITY lives in
+      // `layout.roads` (read by placement + scatter), never re-derived from the ground kind.
       if (layout.roads[r][c]) ctx.floorColors[r][c] = groundTileColor(streets, c, r)
     }
   }
@@ -1042,10 +1024,10 @@ export function layoutPass(ctx: ArchetypeContext, settlement: Settlement): Villa
 export function buildingsPass(ctx: ArchetypeContext, layout: VillageLayout): void {
   const { buildings, cols, rows } = ctx
   for (const plot of layout.plots) {
-    // THE FOOTPRINT THE PLOT ROLLED decides the building, not a baked name. `composedKind` names the
-    // composition the backend will lay out for that size; `buildingCompositionKind` named the nearest
-    // AUTHORED one, which is the snap Alexander asked to remove — *"we randomize the footprint and house
-    // adapts to it."* The editor composes every kind this pass names before the stamp runs.
+    // THE FOOTPRINT THE PLOT ROLLED decides the building, not a baked name. `composedKind` names the composition the
+    // backend will lay out for that size; `buildingCompositionKind` named the nearest AUTHORED one, which is the snap
+    // asked to be removed — *"we randomize the footprint and house adapts to it."* The editor composes every
+    // kind this pass names before the stamp runs.
     const kind = ctx.buildingSizes?.defaultOf
       ? composedKind(plot.type, { w: plot.length, h: plot.depth })
       : buildingCompositionKind(plot.type, plot.length)
@@ -1376,11 +1358,11 @@ function placeBuilding(
   // centred 2-wide doorway, so a hardcoded 1-cell opening walled off half of it (G7).
   const doors = doorCells(plot.facing, rect, facadeDoorSpan(kind, plot.length))
   const isDoor = new Set(doors.map(d => `${d.col},${d.row}`))
-  // A building is a ROOM, not a solid obstacle: its SHELL blocks (walls + windows — you don't walk through a
-  // window), the DOORWAY is the way in, and the INTERIOR is walkable floor you move around on. Blanket-blocking
-  // the whole rect (the old `!isDoor` line) let the hero stand in the doorway and go nowhere — Alexander,
-  // Image #5: "I can't navigate inside the house". Per-cell truth still comes from the composition's own
-  // `walkable` flags when it stamps; the generator must not pre-seal what the composition leaves open.
+  // A building is a ROOM, not a solid obstacle: its SHELL blocks (walls + windows — you don't walk through a window),
+  // the DOORWAY is the way in, and the INTERIOR is walkable floor you move around on. Blanket-blocking the whole rect
+  // (the old `!isDoor` line) let the hero stand in the doorway and go nowhere — Per-cell truth still comes from the
+  // composition's own `walkable` flags when it stamps; the generator must not pre-seal what the composition leaves
+  // open.
   const lastCol = rect.col + rect.w - 1
   const lastRow = rect.row + rect.h - 1
   for (let row = rect.row; row <= lastRow; row++) {
@@ -1405,11 +1387,10 @@ function placeForest(ctx: ArchetypeContext): void {
   forEachCell(cols, rows, (col, row) => {
     ground[row][col] = floor
   })
-  // The forest builds one of the MEADOW layouts (Alexander retired the old passages/open/lake
-  // generators). An explicit meadow layout is honoured; a plain generate (no/legacy layout) RANDOMLY
-  // picks one — seeded from ctx.rand, so it's reproducible per seed. Dispatch map (Open/Closed).
-  // A layout this forest does not know (a settlement's `modern_city`, or nothing at all) rolls a meadow, the
-  // same fallback a plain generate always had.
+  // The forest builds one of the MEADOW layouts. An explicit meadow layout is honoured; a plain generate (no/legacy
+  // layout) RANDOMLY picks one — seeded from ctx.rand, so it's reproducible per seed. Dispatch map (Open/Closed). A
+  // layout this forest does not know (a settlement's `modern_city`, or nothing at all) rolls a meadow, the same
+  // fallback a plain generate always had.
   const named = ctx.layout as ForestLayout | undefined
   const layout = named && FOREST_LAYOUTS[named] ? named : pickMeadowLayout(ctx.rand, ctx.nature)
   FOREST_LAYOUTS[layout]!(ctx)
@@ -1449,13 +1430,10 @@ const forestWater = (ctx: ArchetypeContext, legacy: RiverCourse): { river: River
 })
 
 /**
- * THE RIVER'S COURSE. Alexander, 2026-09-11: *"variants of river usage, maybe it's traversable, maybe it's
- * dividing the map in two half, maybe it's around the map, etc right now is super random, and while I want
- * and think the randomness is good, we need to parametize it a bit more"*.
+ * THE RIVER'S COURSE.
  *
- *   · `through` — winds across the map edge to edge, and is easy to cross in several places
- *   · `divides` — cuts the map in two, and can be crossed at exactly ONE place
- *   · `around`  — runs around the edge, leaving the way in open
+ * · `through` — winds across the map edge to edge, and is easy to cross in several places · `divides` — cuts the map
+ * in two, and can be crossed at exactly ONE place · `around` — runs around the edge, leaving the way in open
  */
 
 /** Resolve the served `river` option to a course, or null for no river. `random` is one of the choices, not
@@ -1521,15 +1499,12 @@ function bridgeRiver(ctx: ArchetypeContext, water: Set<string>, routes: Set<stri
  *  and is fully responsible for the floor gradient / trees / river / ornaments / repair.
  *  Open/Closed: register a layout here, no dispatcher edits. */
 const FOREST_LAYOUTS: Readonly<Partial<Record<ForestLayout, (ctx: ArchetypeContext) => void>>> = {
-  // A RIVER IS AN OPTION, not a layout. Alexander, 2026-09-10: *"every time we add a new template, the
-  // list grows ... that's not sustainable. Instead, we should just have extra options for each template"*.
-  // It was already an option INSIDE the builder — `layoutWoodland(ctx, {river: true})` — and only the
-  // catalog row and the layout string duplicated per combination. Now the option reaches the builder from
-  // the generator's declared options, and `woodland_river` / `meadow_river` are gone as layouts.
+  // A RIVER IS AN OPTION, not a layout. It was already an option INSIDE the builder — `layoutWoodland(ctx, {river:
+  // true})` — and only the catalog row and the layout string duplicated per combination. Now the option reaches the
+  // builder from the generator's declared options, and `woodland_river` / `meadow_river` are gone as layouts.
   woodland: ctx => layoutWoodland(ctx, { ...forestWater(ctx, 'around'), routes: plannedRoutes(ctx) }),
-  // A JUNGLE HAS ITS OWN BUILDER. It used to share the woodland's with heavier numbers, and Alexander was
-  // right that density is not the difference: *"there's a huge difference between amazonas and a pines
-  // forest"*. Light gaps instead of clearings, a creek instead of trails, blocking undergrowth, emergents.
+  // A JUNGLE HAS ITS OWN BUILDER. It used to share the woodland's with heavier numbers, and Light gaps instead of
+  // clearings, a creek instead of trails, blocking undergrowth, emergents.
   jungle: ctx => layoutJungle(ctx, { ...forestWater(ctx, 'through'), routes: plannedRoutes(ctx) }),
   meadow: ctx => buildMeadow(ctx, { ...forestWater(ctx, 'around'), twoWays: false, routes: plannedRoutes(ctx) }),
   meadow_pass: layoutMeadowPass,
@@ -1537,45 +1512,40 @@ const FOREST_LAYOUTS: Readonly<Partial<Record<ForestLayout, (ctx: ArchetypeConte
 
 // ── 'woodland' layout — an ACTUAL forest ──────────────────────────────────────
 //
-// Alexander, 2026-09-09: *"plus generators aren't good either, like the meadow is not a forest, it doesn't
-// look like one."* He is right, and the measurement was blunt: the Forest category's presets produced
-// ~10% tree cover scattered at random over an open field. That is a lawn with shrubs on it. Worse, the
-// category described itself as "Open meadow and tree masses" and `forest_meadow` as "tree masses filling
-// the rest" — both promising something the code never built. `scatterFramingTrees` says so in its own
-// comment: *"trees only frame the edges; the centre stays open"*.
+// He is right, and the measurement was blunt: the Forest category's presets produced ~10% tree cover scattered at
+// random over an open field. That is a lawn with shrubs on it. Worse, the category described itself as "Open meadow
+// and tree masses" and `forest_meadow` as "tree masses filling the rest" — both promising something the code never
+// built. `scatterFramingTrees` says so in its own comment: *"trees only frame the edges; the centre stays open"*.
 //
-// A meadow framed by trees is a fine thing and it stays. It is simply not a forest, so the category now
-// leads with one.
+// A meadow framed by trees is a fine thing and it stays. It is simply not a forest, so the category now leads with
+// one.
 //
-// THE INVERSION. A meadow decides where trees are ALLOWED (a band near the edges) and leaves the rest
-// empty. A woodland decides where they are ABSENT — trees are the field, and clearings are carved out of
-// it. That single reversal is the whole layout:
+// THE INVERSION. A meadow decides where trees are ALLOWED (a band near the edges) and leaves the rest empty. A
+// woodland decides where they are ABSENT — trees are the field, and clearings are carved out of it. That single
+// reversal is the whole layout:
 //
-//   1. canopy everywhere the density says, as coherent stands rather than per-cell coin flips
-//   2. carve a handful of organic CLEARINGS out of it
-//   3. cut WINDING PATHS joining every clearing, so nothing is sealed off
-//   4. dress the clearings with the ground cover / flowers the generator asked for
+// 1. canopy everywhere the density says, as coherent stands rather than per-cell coin flips 2. carve a handful of
+// organic CLEARINGS out of it 3. cut WINDING PATHS joining every clearing, so nothing is sealed off 4. dress the
+// clearings with the ground cover / flowers the generator asked for
 //
-// Step 3 is not decoration: a dense forest with no connectivity guarantee produces sealed pockets, and a
-// spawn inside one is an unplayable level. The paths are cut AFTER the canopy and clear whatever they
-// cross, which makes reachability a property of the construction rather than something to test for.
+// Step 3 is not decoration: a dense forest with no connectivity guarantee produces sealed pockets, and a spawn inside
+// one is an unplayable level. The paths are cut AFTER the canopy and clear whatever they cross, which makes
+// reachability a property of the construction rather than something to test for.
 
 /** Woodland tuning that is NOT the generator's to state — the shape of the algorithm, not its dial. */
 const WOODLAND = {
   /**
    * Clearings per 1,000 cells.
    *
-   * Alexander, 2026-09-09: *"the woodland is bad, in the sense that, the forest is generated without any
-   * roads, there's no way to navigate it."* Two clearings on a small map gave ONE trail between them, which
-   * is not a network. Raised so a map always has somewhere to go as well as somewhere to stand.
+   * Two clearings on a small map gave ONE trail between them, which is not a network. Raised so a map always has
+   * somewhere to go as well as somewhere to stand.
    */
   clearingsPerThousand: 5,
   /** A clearing's radius range, in cells. */
   clearingRadius: [2, 5] as const,
   /** How wide a path through the trees is. Two cells so a unit never threads a one-cell gap. */
-  // Alexander, 2026-09-11: *"the paths through should be, at least 2-3 grid cells wide, in order to walk
-  // normally"*. It was 2, the bottom of what he asked for, and a 2-wide corridor with a tree leaning into it
-  // walks like a 1-wide one. 3 is the width you can actually move down.
+  // It was 2, the bottom of what he asked for, and a 2-wide corridor with a tree leaning into it walks like a 1-wide
+  // one. 3 is the width you can actually move down.
   pathWidth: 3,
 } as const
 
@@ -1592,10 +1562,9 @@ interface ForestBuild {
 /**
  * THE WAYS THROUGH, resolved once so the three forest layouts cannot drift apart on what an exit or a pathway is.
  *
- * Alexander, 2026-09-11, on a generated map: *"there's no clear pathway at all, nothing that indicates potential
- * connection with other place"*, and *"these paths aren't NOT considered when making the forests, we should always
- * have paths firsts, and ensure the rest is build around it"*. So this runs BEFORE a tree is planted and the plan
- * it returns is the frame the layout builds around, rather than something cut between clearings afterwards.
+ * and *"these paths aren't NOT considered when making the forests, we should always have paths firsts, and ensure the
+ * rest is build around it"*. So this runs BEFORE a tree is planted and the plan it returns is the frame the layout
+ * builds around, rather than something cut between clearings afterwards.
  *
  * A generator that serves neither count returns null and its layout builds the map it always did, so every saved
  * recipe is untouched.
@@ -1615,10 +1584,12 @@ function plannedRoutes(ctx: ArchetypeContext): RoutePlan | null {
  * been configured as a forest, and quietly picking 0.45 here is exactly the hardcoded-fallback the
  * compliance rule forbids.
  */
-/** `woodland` (dense trees, clearings, trails) and `woodland_river` (the same, cut by a river with a bridge).
- *  Alexander, 2026-09-09: *"add a woodland + river variant too."* Mirrors the meadow pair — one builder, an
- *  options object — so the two never drift apart. A JUNGLE is not here: it is the same STRUCTURE at a heavier
- *  served density, so it is a preset over this builder, not a fourth code path (see FOREST_LAYOUTS). */
+/**
+ * `woodland` (dense trees, clearings, trails) and `woodland_river` (the same, cut by a river with a bridge). Mirrors
+ * the meadow pair — one builder, an options object — so the two never drift apart. A JUNGLE is not here: it is the
+ * same STRUCTURE at a heavier served density, so it is a preset over this builder, not a fourth code path (see
+ * FOREST_LAYOUTS).
+ */
 function layoutWoodland(ctx: ArchetypeContext, opts: ForestBuild = {}): void {
   const { cols, rows, collision, ground, zone, trees, floorColors } = ctx
   const canopy = ctx.nature?.canopy
@@ -1630,22 +1601,20 @@ function layoutWoodland(ctx: ArchetypeContext, opts: ForestBuild = {}): void {
   const floor = zonePalette(zone)?.groundTypes[0] ?? ''
   forEachCell(cols, rows, (col, row) => { ground[row][col] = floor })
 
-  // 0a · THE REGIONS. Alexander, 2026-09-11: *"woodland with meadow is the same as mountain forest..."*, and
-  //      then 2026-09-12: *"fix 105 properly"*.
+  // 0a · THE REGIONS. and then 2026-09-12: *"fix 105 properly"*.
   //
-  //      I gave glades its stands and meadows and reported the ticket done, and it did NOTHING: only
-  //      `layoutJungle` ever called `partitionSubZones`, so a woodland's served regions were parsed and
-  //      dropped. Served-and-ignored, the exact defect I keep finding elsewhere, this time mine.
+  // I gave glades its stands and meadows and reported the ticket done, and it did NOTHING: only `layoutJungle` ever
+  // called `partitionSubZones`, so a woodland's served regions were parsed and dropped. Served-and-ignored, the exact
+  // defect I keep finding elsewhere, this time mine.
   //
-  //      Both forest layouts share the one mechanism now. `subZoneCanopyField` runs `woodlandCanopyField`
-  //      once per region, so a map with no regions takes the same single call it always did.
+  // Both forest layouts share the one mechanism now. `subZoneCanopyField` runs `woodlandCanopyField` once per region,
+  // so a map with no regions takes the same single call it always did.
   const zones = leadRegion(ctx, ctx.subZones)
   const zoneAt = partitionSubZones(ctx, zones)
   paintSubZoneFloors(ctx, zoneAt)
 
-  // 0b · RELIEF: a region may stand ABOVE the rest of the map. Alexander, 2026-09-12: *"we need to have
-  //      support for different levels of terrain, relieve in spanish"*. A region that states no level is flat,
-  //      so every existing template is unmoved.
+  // 0b · RELIEF: a region may stand ABOVE the rest of the map. A region that states no level is flat, so every
+  // existing template is unmoved.
   raiseRegions(ctx, zoneAt)
 
   // 0 · THE RIVER, if this variant has one — carved BEFORE anything is planted, so its cells are already
@@ -1696,13 +1665,12 @@ function layoutWoodland(ctx: ArchetypeContext, opts: ForestBuild = {}): void {
     carveClearing(ctx, centre, open)
   }
 
-  // 2 · TRAILS joining the clearings in a chain, so every one is reachable from every other, plus a spur
-  //     from the first and last clearing to the map EDGE — a forest you cannot enter or leave is a room.
+  // 2 · TRAILS joining the clearings in a chain, so every one is reachable from every other, plus a spur from the
+  // first and last clearing to the map EDGE — a forest you cannot enter or leave is a room.
   //
-  //     Alexander, 2026-09-09: *"there's no way to navigate it."* The first version stopped here and only
-  //     removed canopy, so a trail was an absence rather than a route: nothing marked it, nothing paved it,
-  //     and with two clearings there was one of them. Now the corridors are PAVED (step 2b) and there are
-  //     enough of them to form a network.
+  // The first version stopped here and only removed canopy, so a trail was an absence rather than a route: nothing
+  // marked it, nothing paved it, and with two clearings there was one of them. Now the corridors are PAVED (step 2b)
+  // and there are enough of them to form a network.
   for (let i = 1; i < clearings.length; i++) carveWoodlandPath(ctx, clearings[i - 1], clearings[i], open, trailCells)
   // The two spurs to the nearest EDGE are what a forest with no plan uses to avoid being a sealed room. With a
   // plan the gates already run off the border, and a spur would be a way out nobody asked for.
@@ -1723,17 +1691,16 @@ function layoutWoodland(ctx: ArchetypeContext, opts: ForestBuild = {}): void {
     // once pools began laying `water_shallow`.
     if (!inBounds(c, r, cols, rows) || isWaterGround(ground[r][c])) continue
     ground[r][c] = trail
-    // …AND TAKE THE COLOUR WITH IT. Alexander, 2026-09-13: *"the pathways and exits aren't working on any
-    // template generator"*.
+    // …AND TAKE THE COLOUR WITH IT.
     //
-    // Laying the TILE was not enough and this is why. The grass pass has already written a colour into
-    // `floorColors` for every cell, and `flattenFloors` prefers that existing colour over the tile's own
-    // (`floorColors[row][col] ?? groundTileColor(material)`). So all 543 trail cells were being paved
-    // correctly and then flattened back out wearing grass green: measured on a woodland, 543 cells of
-    // `rgba(96, 134, 52, 0.95)` and not one of the path tile's `#9c7b4d`. A path you cannot see is not a path.
+    // Laying the TILE was not enough and this is why. The grass pass has already written a colour into `floorColors`
+    // for every cell, and `flattenFloors` prefers that existing colour over the tile's own (`floorColors[row][col] ??
+    // groundTileColor(material)`). So all 543 trail cells were being paved correctly and then flattened back out
+    // wearing grass green: measured on a woodland, 543 cells of `rgba(96, 134, 52, 0.95)` and not one of the path
+    // tile's `#9c7b4d`. A path you cannot see is not a path.
     //
-    // The served trail colour wins where a template states one; otherwise the grass override is CLEARED so
-    // the `path` tile's own served colour comes through. Neither branch invents a colour.
+    // The served trail colour wins where a template states one; otherwise the grass override is CLEARED so the `path`
+    // tile's own served colour comes through. Neither branch invents a colour.
     floorColors[r][c] = ctx.palette?.trail ?? undefined
   }
 
@@ -1815,21 +1782,19 @@ function layoutWoodland(ctx: ArchetypeContext, opts: ForestBuild = {}): void {
 
 // ── 'jungle' — a JUNGLE, not a dense woodland ─────────────────────────────────
 //
-// Alexander, 2026-09-10: *"right now a jungle is basically the same as woodland in the app, there's not a
-// single difference between them"*, *"like there's a huge difference between amazonas and a pines forest"*,
-// *"a jungle should follow real jungle patterns"*.
+// *"like there's a huge difference between amazonas and a pines forest"*, *"a jungle should follow real jungle
+// patterns"*.
 //
-// He was right and I had shipped exactly what he objected to: `layoutWoodland` with heavier numbers. Density
-// is not the difference between the Amazon and a pine wood. The STRUCTURE is, and it inverts in four ways:
+// He was right and I had shipped exactly what he objected to: `layoutWoodland` with heavier numbers. Density is not
+// the difference between the Amazon and a pine wood. The STRUCTURE is, and it inverts in four ways:
 //
-//   · A wood has CLEARINGS cut into it, open ground you can walk. A jungle has none. What it has is LIGHT
-//     GAPS where a giant fell, small and irregular, and they are the only places the sun reaches the floor.
-//   · A wood has TRAILS, straight-ish routes between places. A jungle has no roads. You move along the
-//     WATER, so the creek and its banks ARE the route through the map.
-//   · A wood's floor is walkable between the trunks. A jungle's is choked — UNDERGROWTH is its own blocking
-//     layer, and it is what makes a jungle hard rather than the trunks.
-//   · A wood is lit from above and shaded below. A jungle is the other way round: the canopy is the brightest
-//     thing on the map because it is the layer getting the sun, and the floor lives in permanent shade.
+// · A wood has CLEARINGS cut into it, open ground you can walk. A jungle has none. What it has is LIGHT GAPS where a
+// giant fell, small and irregular, and they are the only places the sun reaches the floor. · A wood has TRAILS,
+// straight-ish routes between places. A jungle has no roads. You move along the WATER, so the creek and its banks ARE
+// the route through the map. · A wood's floor is walkable between the trunks. A jungle's is choked — UNDERGROWTH is
+// its own blocking layer, and it is what makes a jungle hard rather than the trunks. · A wood is lit from above and
+// shaded below. A jungle is the other way round: the canopy is the brightest thing on the map because it is the layer
+// getting the sun, and the floor lives in permanent shade.
 //
 // All four are here. The colours come from the SERVED palette, never from a constant in this file.
 
@@ -1899,11 +1864,9 @@ function layoutJungle(ctx: ArchetypeContext, opts: ForestBuild = {}): void {
   forEachCell(cols, rows, (col, row) => { ground[row][col] = floor })
   paintJungleFloor(ctx, pal)
 
-  // 0b · THE REGIONS. A jungle is not one uniform density, it is several kinds of ground you walk between —
-  //      open canopy, dense growth, swamp, ruins. Served by the backend, so which regions exist and how much
-  //      of the map each claims is data. Absent → one uniform jungle, exactly as before.
-  // The region the person picked LEADS this map (Alexander, 2026-09-11: *"on jungle we have "regions" in it,
-  // but it's badly implemented, we should just have variations, similar to "which jungle" "which region""*).
+  // 0b · THE REGIONS. A jungle is not one uniform density, it is several kinds of ground you walk between — open
+  // canopy, dense growth, swamp, ruins. Served by the backend, so which regions exist and how much of the map each
+  // claims is data. Absent → one uniform jungle, exactly as before. The region the person picked LEADS this map.
   const zones = leadRegion(ctx, ctx.subZones)
   const zoneAt = partitionSubZones(ctx, zones)
   paintSubZoneFloors(ctx, zoneAt)
@@ -2160,14 +2123,9 @@ const BLOOM_LATTICE = 9
 /**
  * MAY A BLOOM STAND HERE? The one rule, in one place.
  *
- * Alexander, 2026-09-12: *"please remove those fucking flowers, the main issues is that they show up randomly,
- * without any order in places they shouldn't be, like there's flowers in the bridge wood? makes no sense, this
- * affects all forests templates"*.
- *
- * Flowers in the bridge wood happened because this rule existed in ONE of the three bloom passes.
- * `scatterFlowers` checked the ground (roads, built floor, water) and the other two checked nothing at all,
- * so a clearing or a light gap would plant on a deck. `ctx.decks` has always been recorded by `layDeck` and
- * nothing consulted it.
+ * Flowers in the bridge wood happened because this rule existed in ONE of the three bloom passes. `scatterFlowers`
+ * checked the ground (roads, built floor, water) and the other two checked nothing at all, so a clearing or a light
+ * gap would plant on a deck. `ctx.decks` has always been recorded by `layDeck` and nothing consulted it.
  */
 function canPlantBloom(ctx: ArchetypeContext, col: number, row: number): boolean {
   if (!inBounds(col, row, ctx.cols, ctx.rows)) return false
@@ -2231,18 +2189,15 @@ const GATE_LANE_RUN = 11
 /**
  * THE CELLS OF EVERY GATE'S LANE: the mouth of each way where it meets the map edge.
  *
- * Alexander, 2026-09-12: *"ONLY the meadow template generator does the pathways and exit/entrance correctly,
- * NONE of the other templates do it correctly"*.
+ * He is right, and the reason is narrow. All three forest layouts PLAN the same network (`plannedRoutes`), and all
+ * three render the corridor. What only the meadow does is render the GATES: `paintMeadowEntrance` clears and paves a
+ * wide lane running in from the edge, so the way reads as an opening. Woodland and jungle drew a 3-wide corridor that
+ * simply stopped at the border, which is a path you can walk and cannot see.
  *
- * He is right, and the reason is narrow. All three forest layouts PLAN the same network (`plannedRoutes`), and
- * all three render the corridor. What only the meadow does is render the GATES: `paintMeadowEntrance` clears
- * and paves a wide lane running in from the edge, so the way reads as an opening. Woodland and jungle drew a
- * 3-wide corridor that simply stopped at the border, which is a path you can walk and cannot see.
- *
- * This is the geometry half, shared, so both layouts get the same mouth and neither grows its own copy. What
- * each layout DOES with the cells stays its own: the woodland folds them into `trailCells` and its existing
- * paving handles them, the jungle tints them like the rest of its track. Water is skipped, because a lane laid
- * over the river is a blocked stripe rather than a way (the same rule the trail paving already follows).
+ * This is the geometry half, shared, so both layouts get the same mouth and neither grows its own copy. What each
+ * layout DOES with the cells stays its own: the woodland folds them into `trailCells` and its existing paving handles
+ * them, the jungle tints them like the rest of its track. Water is skipped, because a lane laid over the river is a
+ * blocked stripe rather than a way (the same rule the trail paving already follows).
  *
  * `d` starts at -1 so the EDGE cells are included, not just the run inward from `gate.inside`.
  */
@@ -2465,13 +2420,12 @@ function fellLogsAcross(ctx: ArchetypeContext, water: Set<string>, pal: Generato
 /**
  * THE SUB-ZONE MAP — which region each cell belongs to.
  *
- * Alexander, 2026-09-10: *"the generator shoudl be smart enough to identify different patterns of jungles for
- * example, open zones, dense zones, zones with swamp ... zone with ruins"*, and on the shape (2026-09-11):
- * regions inside ONE map, so you walk out of the open canopy into dense growth without loading anything.
+ * and on the shape (2026-09-11): regions inside ONE map, so you walk out of the open canopy into dense growth without
+ * loading anything.
  *
- * Nearest-seed partition: scatter a seed per region, every cell joins its closest. That gives irregular
- * organic borders for free, which matters — a jungle does not change character along a straight line. The
- * distance is warped by a little noise so the borders wobble instead of reading as Voronoi edges.
+ * Nearest-seed partition: scatter a seed per region, every cell joins its closest. That gives irregular organic
+ * borders for free, which matters — a jungle does not change character along a straight line. The distance is warped
+ * by a little noise so the borders wobble instead of reading as Voronoi edges.
  *
  * Seeds are drawn by WEIGHT, so the served numbers decide how much of the map each kind tends to claim.
  */
@@ -2592,13 +2546,13 @@ function floodSwampPools(ctx: ArchetypeContext, zoneAt: (GeneratorSubZone | unde
   forEachCell(cols, rows, (col, row) => {
     const share = zoneAt[row][col]?.pools
     if (share === undefined) return
-    // NOT THE CREEK. The creek is carved first and blocks its cells; a pool blob painted over the top of it
-    // left cells reading as swamp-green standing water while behaving as river. Measured on a swamp jungle:
-    // 21 swamp-toned cells, 9 of them blocked, and one `water` label carrying two different tones.
+    // NOT THE CREEK. The creek is carved first and blocks its cells; a pool blob painted over the top of it left
+    // cells reading as swamp-green standing water while behaving as river. Measured on a swamp jungle: 21 swamp-toned
+    // cells, 9 of them blocked, and one `water` label carrying two different tones.
     //
-    // Alexander, 2026-09-12: *"water looks weird and is inconsistent"*. This is one of the ways it was: the
-    // tone said puddle and the collision said channel. A pool is standing water in a hollow, so it takes only
-    // cells the channel has not already claimed, and swamp tone now means exactly one thing.
+    // This is one of the ways it was: the tone said puddle and the collision said channel. A pool is standing water
+    // in a hollow, so it takes only cells the channel has not already claimed, and swamp tone now means exactly one
+    // thing.
     if (isWaterGround(ground[row][col])) return
     if (shadeNoise(Math.floor(col / SWAMP_POOL_PATCH) * 1.9 + Math.floor(row / SWAMP_POOL_PATCH) * 2.7) > share * 2) return
     candidate.add(`${col},${row}`)
@@ -2616,54 +2570,46 @@ function floodSwampPools(ctx: ArchetypeContext, zoneAt: (GeneratorSubZone | unde
   //     a coarser patch, so a swamp is as wet as it was and simply legible.
   for (const key of pools) {
     const { col, row } = toCell(key)
-    // A PUDDLE IS FLUSH WITH THE FLOOR; a channel surface is not. Alexander, 2026-09-12: *"the green walkable
-    // water is also below floor level, when that's not the case, in fact a puddle of water is at floor level, a
-    // little bit transparent over other tiles walkable floor tiles"*.
+    // A PUDDLE IS FLUSH WITH THE FLOOR; a channel surface is not.
     //
-    // Measured before changing anything: a pool ALREADY sits at elevation 0, is ALREADY walkable (149 of 149
-    // cells) and is already translucent. What made it read as recessed is mine from earlier the same day. I
-    // gave `water` a height of 0.5 so a RIVER surface would sit under its bank rim, and a pool lays that same
-    // label, so a puddle drew a 0.45-tileW slab standing PROUD of the floor with dark sides, which the eye
-    // reads as a basin. One label cannot be both a sunken channel and a flush puddle.
+    // Measured before changing anything: a pool ALREADY sits at elevation 0, is ALREADY walkable (149 of 149 cells)
+    // and is already translucent. What made it read as recessed is mine from earlier the same day. I gave `water` a
+    // height of 0.5 so a RIVER surface would sit under its bank rim, and a pool lays that same label, so a puddle
+    // drew a 0.45-tileW slab standing PROUD of the floor with dark sides, which the eye reads as a basin. One label
+    // cannot be both a sunken channel and a flush puddle.
     //
-    // A PUDDLE HAS ITS OWN LABEL. Alexander, 2026-09-13: *"the green water is using the same tile as the river
-    // water, which is bad, because that is not a river is a puddle, it doesn't have current is stationary"*.
+    // A PUDDLE HAS ITS OWN LABEL.
     //
-    // This laid `water_shallow`, which is the RIVER's wadeable edge, so a pool and a channel wore one tile. It
-    // also claimed in this very comment that the label was height 0.0, and the database has never said so: it
-    // was 1.0 in both styles, so every puddle drew as a one-block cube of water standing on the floor.
+    // This laid `water_shallow`, which is the RIVER's wadeable edge, so a pool and a channel wore one tile. It also
+    // claimed in this very comment that the label was height 0.0, and the database has never said so: it was 1.0 in
+    // both styles, so every puddle drew as a one-block cube of water standing on the floor.
     //
-    // `water_still` is the puddle: height 0, non-blocking, and NO frames, because standing water has no
-    // current. It is still water-ground (`isWaterGround` matches any label containing "water"), so all
-    // thirteen consumers behave exactly as before.
-    // THE GROUND STAYS. The film is stacked over it (`applyStageToGrid` places every prop at `cellStackTop`),
-    // so the walking level is the floor's, unchanged, and the water lies on top of it. Marked wet so the
-    // planting passes still keep out, which they used to learn from the ground label.
+    // `water_still` is the puddle: height 0, non-blocking, and NO frames, because standing water has no current. It
+    // is still water-ground (`isWaterGround` matches any label containing "water"), so all thirteen consumers behave
+    // exactly as before. THE GROUND STAYS. The film is stacked over it (`applyStageToGrid` places every prop at
+    // `cellStackTop`), so the walking level is the floor's, unchanged, and the water lies on top of it. Marked wet so
+    // the planting passes still keep out, which they used to learn from the ground label.
     ctx.wet.add(key)
     const film = resolveTile(styleCatalog('ascii'), ctx.zone, 'water_still')
     ctx.props.push({ col, row, type: 'ground_decor', char: film.char, label: 'water_still', blocking: false, color: pal?.swamp ?? pal?.water ?? film.color })
-    // NO COLLISION. Alexander, 2026-09-12, on the green water: *"I can't walk throug the green one, even when
-    // the floor makes it seems like I should, specially considering the floor is at the same level"*, and
-    // earlier: *"we still want to be able to use water outside of rivers, usually i'l be like water puddles,
-    // walkable"*.
+    // NO COLLISION. and earlier: *"we still want to be able to use water outside of rivers, usually i'l be like water
+    // puddles, walkable"*.
     //
     // A pool is not a channel. `carveChannel` cuts its bed BELOW the walking floor and `digChannel` writes that
-    // elevation, which is what makes a river something you go around. A pool sits AT ground level, so the map
-    // said walkable and the collision grid said otherwise. The river keeps its bands (see settleWaterDepth);
-    // this stamps a wet floor and nothing more.
-    // THE FLOOR STAYS THE FLOOR. Alexander, 2026-09-13, on a swamp jungle: *"I don't want to fucking ever see
-    // a bridge or walkable thing that looks like water, it's fucking confusing"*, and then the model, in his
-    // own words: *"we need the floor tile, which is the actual floor, then the puddle water stacked on top but
-    // walkable, and with stacking set at bottom face, then the flower stacked on the puddle"*.
+    // elevation, which is what makes a river something you go around. A pool sits AT ground level, so the map said
+    // walkable and the collision grid said otherwise. The river keeps its bands (see settleWaterDepth); this stamps a
+    // wet floor and nothing more. THE FLOOR STAYS THE FLOOR. and then the model, in his own words: *"we need the
+    // floor tile, which is the actual floor, then the puddle water stacked on top but walkable, and with stacking set
+    // at bottom face, then the flower stacked on the puddle"*.
     //
-    // Three layers, and this line was collapsing the first two into one. It painted the GROUND the river's
-    // blue, so the cell was a walkable meadow wearing water: measured on a swamp jungle, 48 cells of exactly
-    // that, which is the "walkable thing that looks like water" he is pointing at. The puddle is the FILM
-    // stacked above (`water_still`, stackAt 0 so you neither step up onto it nor drop into it), and the water
-    // look belongs to that tile, not to the floor underneath it.
+    // Three layers, and this line was collapsing the first two into one. It painted the GROUND the river's blue, so
+    // the cell was a walkable meadow wearing water: measured on a swamp jungle, 48 cells of exactly that, which is
+    // the "walkable thing that looks like water" he is pointing at. The puddle is the FILM stacked above
+    // (`water_still`, stackAt 0 so you neither step up onto it nor drop into it), and the water look belongs to that
+    // tile, not to the floor underneath it.
     //
-    // Nothing replaces this. Leaving the ground its own colour is not a fallback, it is the absence of an
-    // override that should never have been written.
+    // Nothing replaces this. Leaving the ground its own colour is not a fallback, it is the absence of an override
+    // that should never have been written.
   }
   return pools
 }
@@ -2671,11 +2617,10 @@ function floodSwampPools(ctx: ArchetypeContext, zoneAt: (GeneratorSubZone | unde
 /**
  * How coarse the pool noise is, in cells.
  *
- * Alexander, 2026-09-11: *"the swamp water is still really really confusing and poorly optimized"*, with image
- * #18, where a swamp is a few big pools with boardwalks and mounds between them. Measured on a swamp jungle
- * before this: THIRTY separate bodies of water on one 40x30 map, twelve of them three cells or smaller, sizes
- * 129, 48, 20, 18, 16, 16, 12, 12 and down. That is a pepper of puddles and it came straight from scoring the
- * noise over a 2x2 patch. Five reads as a hollow full of standing water.
+ * with image #18, where a swamp is a few big pools with boardwalks and mounds between them. Measured on a swamp
+ * jungle before this: THIRTY separate bodies of water on one 40x30 map, twelve of them three cells or smaller, sizes
+ * 129, 48, 20, 18, 16, 16, 12, 12 and down. That is a pepper of puddles and it came straight from scoring the noise
+ * over a 2x2 patch. Five reads as a hollow full of standing water.
  */
 const SWAMP_POOL_PATCH = 5
 /** Under this many cells it is not a pool, so it never becomes water at all. */
@@ -2720,17 +2665,14 @@ const RUIN_RUBBLE = 0.14
 /**
  * RUINS, which are BUILT.
  *
- * Alexander, 2026-09-11: *"jungle ruins doesn't have any ruins..."*.
+ * He was right, and this pass was the reason. It placed ONE `rock` prop per cell at a 16% roll, so the "ruins" were
+ * boulders scattered through the trees: rubble, with no architecture anywhere in it. It also skipped every cell in
+ * `open`, which reads like a bug and is not one, because the jungle puts its planned ROUTE cells into `open` and
+ * skipping them is what keeps a blocking rock off the paths. Those are two different concerns and they are separated
+ * now: `keepOut` holds the route cells, and the clearings are fair game, which is where you can actually see a ruin.
  *
- * He was right, and this pass was the reason. It placed ONE `rock` prop per cell at a 16% roll, so the "ruins"
- * were boulders scattered through the trees: rubble, with no architecture anywhere in it. It also skipped
- * every cell in `open`, which reads like a bug and is not one, because the jungle puts its planned ROUTE cells
- * into `open` and skipping them is what keeps a blocking rock off the paths. Those are two different concerns
- * and they are separated now: `keepOut` holds the route cells, and the clearings are fair game, which is where
- * you can actually see a ruin.
- *
- * A ruin is a platform with columns standing on it. Every piece already exists in both art styles, so none of
- * this waits on new tiles.
+ * A ruin is a platform with columns standing on it. Every piece already exists in both art styles, so none of this
+ * waits on new tiles.
  */
 function raiseRuins(
   ctx: ArchetypeContext,
@@ -2844,11 +2786,9 @@ function carveJungleCreek(ctx: ArchetypeContext, pal: GeneratorPalette | undefin
 /**
  * RAISE A REGION, so a map has more than one level of ground.
  *
- * Alexander, 2026-09-12: *"we need to have support for different levels of terrain, relieve in spanish"*.
- *
- * A region states its own `level` and every cell in it stands there. The step between two regions becomes a
- * CLIFF, drawn by `drawGridSkirt`, which keys on the elevation differing and never on the floor differing.
- * A region stating no level is flat, so nothing changes for a template that does not ask.
+ * A region states its own `level` and every cell in it stands there. The step between two regions becomes a CLIFF,
+ * drawn by `drawGridSkirt`, which keys on the elevation differing and never on the floor differing. A region stating
+ * no level is flat, so nothing changes for a template that does not ask.
  */
 function raiseRegions(ctx: ArchetypeContext, zoneAt: (GeneratorSubZone | undefined)[][]): void {
   forEachCell(ctx.cols, ctx.rows, (col, row) => {
@@ -2860,14 +2800,12 @@ function raiseRegions(ctx: ArchetypeContext, zoneAt: (GeneratorSubZone | undefin
 /**
  * HOW DEEP THIS MAP CUTS ITS CHANNEL, in levels, from the served `depth` option.
  *
- * Alexander, 2026-09-11: *"we need the river without water, which is negative height compared to walking
- * floor / then inside that we put water with X height it can be < 1, but not walkable"*, and *"river depth is
- * confgiuravble ... we want to control everyhting"*.
+ * and *"river depth is confgiuravble... we want to control everyhting"*.
  *
- * A gated choice takes `none` when its dependency is off, so a map with no river, or one serving no depth at
- * all, is NOT CUT and reads exactly as it always did. That also keeps his other case honest: *"we still want
- * to be able to use water outside of rivers, usually i'l be like water puddles, walkable"*. A puddle is not a
- * channel, so nothing digs it.
+ * A gated choice takes `none` when its dependency is off, so a map with no river, or one serving no depth at all, is
+ * NOT CUT and reads exactly as it always did. That also keeps his other case honest: *"we still want to be able to
+ * use water outside of rivers, usually i'l be like water puddles, walkable"*. A puddle is not a channel, so nothing
+ * digs it.
  */
 
 
@@ -2946,18 +2884,16 @@ function plantUndergrowth(
     const understory = formation?.understory ?? 1
     const density = clamp01(cover * (zone?.undergrowth ?? 1) * understory * reach)
     if (density <= 0) continue
-    // A coarser lattice than the canopy's, so undergrowth reads as broad thickets rather than as a second
-    // canopy stippled between the trunks.
-    // WHICH PLANT the understory is made of is SERVED, per formation. Three of the five formations describe
-    // a clear walkable floor in their own notes ("nothing between them", "a clear walkable floor", "clear
-    // ground between the groups") and every one of them used to grow the blocking thicket regardless, which
-    // is Alexander's *"I'm not able to walk over the green flowers"*.
+    // A coarser lattice than the canopy's, so undergrowth reads as broad thickets rather than as a second canopy
+    // stippled between the trunks. WHICH PLANT the understory is made of is SERVED, per formation. Three of the five
+    // formations describe a clear walkable floor in their own notes ("nothing between them", "a clear walkable
+    // floor", "clear ground between the groups") and every one of them used to grow the blocking thicket regardless,
+    // which is the report *"I'm not able to walk over the green flowers"*.
     //
-    // A REGION INHERITS ITS PARENT'S PLANT, the same way the generator tree deep-merges everything else. All
-    // 19 served sub-zone formations state an `understory` number and none states a tile, so reading only the
-    // region's own would have dropped a woodland's glades and its mountain vale straight back onto the
-    // thicket. Absent at both levels falls back to `thicket`, so a generator that says nothing anywhere
-    // behaves exactly as it did.
+    // A REGION INHERITS ITS PARENT'S PLANT, the same way the generator tree deep-merges everything else. All 19
+    // served sub-zone formations state an `understory` number and none states a tile, so reading only the region's
+    // own would have dropped a woodland's glades and its mountain vale straight back onto the thicket. Absent at both
+    // levels falls back to `thicket`, so a generator that says nothing anywhere behaves exactly as it did.
     const plant = formation?.understoryTile ?? ctx.formation?.understoryTile ?? 'thicket'
     const thicket = woodlandCanopyField(ctx, mask, density, { lattice: (formation?.lattice ?? DEFAULT_CANOPY_LATTICE) + 3 })
     for (const { col, row } of thicket) {
@@ -3078,10 +3014,9 @@ const DEFAULT_CANOPY_LATTICE = 4
  */
 function woodlandCanopyField(ctx: ArchetypeContext, open: Set<string>, canopy: number, formation?: GeneratorFormation): Cell[] {
   const { cols, rows, collision } = ctx
-  // THE GROUPING. Alexander, 2026-09-11: *"there's different ways in which trees and nature is distributed
-  // across these zones"*. A small lattice scores every few cells differently, so trees land as fine scatter
-  // (his image #10, a wood pasture); a large one makes neighbours score alike, so they land as continuous
-  // masses (image #14, a closed canopy). Same density, completely different forest.
+  // THE GROUPING. A small lattice scores every few cells differently, so trees land as fine scatter (his image #10, a
+  // wood pasture); a large one makes neighbours score alike, so they land as continuous masses (image #14, a closed
+  // canopy). Same density, completely different forest.
   const CANOPY_LATTICE = Math.max(1, Math.round(formation?.lattice ?? DEFAULT_CANOPY_LATTICE))
   // The lattice — one random value per corner, drawn from the layer rng so a seed reproduces the forest.
   const latticeCols = Math.ceil(cols / CANOPY_LATTICE) + 2
@@ -3201,17 +3136,16 @@ function dressWoodlandClearings(
   }
 }
 
-// ── 'meadow' + 'meadow_river' layouts (references #14 / #17) ──────────────────
-// An OPEN muted-olive clearing framed by a dense tree BORDER, with EXACTLY TWO cobblestone entrances on
-// the near (bottom) edge, a loose grid of ornament ZONES (flower / grass / rock-earth patches — "not
-// everything is green"), a season floor-colour GRADIENT written as per-cell STATE (Alexander: "a gradient
-// of greens to yellows based on the season"), and — the river variant — a perimeter WATER ring broken only
-// at the entrances, with a stone BRIDGE crossing it.
+// ── 'meadow' + 'meadow_river' layouts (references #14 / #17) ────────────────── An OPEN muted-olive clearing framed
+// by a dense tree BORDER, with EXACTLY TWO cobblestone entrances on the near (bottom) edge, a loose grid of ornament
+// ZONES (flower / grass / rock-earth patches — "not everything is green"), a season floor-colour GRADIENT written as
+// per-cell STATE, and — the river variant — a perimeter WATER ring broken only at the entrances, with a stone BRIDGE
+// crossing it.
 //
-// Alexander's model: grass + water are a COLOUR on a flat floor tile, TILES are spent only on ORNAMENTS
-// (flowers, rocks) + highlights (the bridge). So the whole floor is the flat 'meadow' tile tinted per-cell
-// (grass / earth / cobble) or the flat 'water' tile tinted river-blue — both carry a real block HEIGHT, so
-// terrain reads as a raised block and every ornament STACKS on top of it (no 0-height tiles emitted).
+// the model: grass + water are a COLOUR on a flat floor tile, TILES are spent only on ORNAMENTS (flowers,
+// rocks) + highlights (the bridge). So the whole floor is the flat 'meadow' tile tinted per-cell (grass / earth /
+// cobble) or the flat 'water' tile tinted river-blue — both carry a real block HEIGHT, so terrain reads as a raised
+// block and every ornament STACKS on top of it (no 0-height tiles emitted).
 
 /** Per-season meadow floor palette: the gradient endpoints (top/light → bottom/dark, an olive greens→
  *  yellows) plus the earth / grass patch tints, the cobblestone entrance tone, and the river + bank
@@ -3272,9 +3206,8 @@ function meadowWater(ctx: ArchetypeContext): GeneratorPalette {
   }
 }
 
-// THE CURRENT LIVES IN `riverNetwork.ts` NOW. Alexander, 2026-09-13: *"do we have a separate module to build
-// the river layouts? like the channel, the current, etc"*. He was right that we did not: 56 water functions
-// in this one 5,775-line file. The flow field is the first piece out, and it took its 193 lines with it.
+// THE CURRENT LIVES IN `riverNetwork.ts` NOW. He was right that we did not: 56 water functions in this one 5,775-line
+// file. The flow field is the first piece out, and it took its 193 lines with it.
 
 
 // THE BANKS STAY WITH THEIR LAYOUTS, for now, and it is worth saying why. Moving them to `riverNetwork`
@@ -3435,12 +3368,12 @@ function paintMeadowRiver(ctx: ArchetypeContext): Set<string> {
     if (Math.abs(d - centreInset(along)) > MEADOW_RIVER_HALF) return // outside the channel band → land
     ground[row][col] = 'water'
     collision[row][col] = true // water BLOCKS
-    // THE ONE TONE, flat. This quantised a ripple shade over ~3x3 patches, which is still a colour lottery
-    // across one river: *"not different currents, nor different colors mixed"* (Alexander, 2026-09-12).
+    // THE ONE TONE, flat. This quantised a ripple shade over ~3x3 patches, which is still a colour lottery across one
+    // river: *"not different currents, nor different colors mixed"*.
     //
-    // The old comment defended the patches on FPS grounds, because `compressGround` merges only floors sharing
-    // a tile AND a colour. A FLAT colour merges strictly better than patches do, so the performance argument
-    // points the same way as the look: one river, one run.
+    // The old comment defended the patches on FPS grounds, because `compressGround` merges only floors sharing a tile
+    // AND a colour. A FLAT colour merges strictly better than patches do, so the performance argument points the same
+    // way as the look: one river, one run.
     floorColors[row][col] = pal.river
     water.add(`${col},${row}`)
   })
@@ -3686,19 +3619,18 @@ function placeMeadowBridge(ctx: ArchetypeContext, water: Set<string>): void {
 }
 
 /**
- * THE CROSSING, JOINED TO THE PATHS (ticket 36). Alexander, 2026-09-10: *"rivers need crossings connected to
- * the paths"*.
+ * THE CROSSING, JOINED TO THE PATHS (ticket 36).
  *
- * `placeMeadowBridge` spans the river at a FIXED column, wherever that lands. On a meadow it happens to land
- * near the way in; in a wood it lands wherever it lands, so you get a deck in the middle of the trees with no
- * route to it. That is the defect he named, and it is a placement problem, not a missing feature.
+ * `placeMeadowBridge` spans the river at a FIXED column, wherever that lands. On a meadow it happens to land near the
+ * way in; in a wood it lands wherever it lands, so you get a deck in the middle of the trees with no route to it.
+ * That is the defect he named, and it is a placement problem, not a missing feature.
  *
- * This one works the other way round: start from the ROUTE the layout already paved, span the river at its
- * narrowest point beside it, and pave a spur from each bank back to the nearest route cell. The deck ends up
- * part of the path network rather than a bridge that happens to exist.
+ * This one works the other way round: start from the ROUTE the layout already paved, span the river at its narrowest
+ * point beside it, and pave a spur from each bank back to the nearest route cell. The deck ends up part of the path
+ * network rather than a bridge that happens to exist.
  *
- * Returns false when there is nothing to join to (no route, or no water beside it) so the caller can fall
- * back to the plain bridge — a river still has to be crossable either way.
+ * Returns false when there is nothing to join to (no route, or no water beside it) so the caller can fall back to the
+ * plain bridge — a river still has to be crossable either way.
  */
 function placeRiverCrossing(ctx: ArchetypeContext, water: Set<string>, routes: Set<string>): boolean {
   if (water.size === 0 || routes.size === 0) return false
@@ -4088,17 +4020,14 @@ function placeTemple(ctx: ArchetypeContext): void {
 /**
  * THE PLAN IS THE TEMPLE, once the generator says how many ways run through it.
  *
- * Alexander, 2026-09-11: *"caves and temples are BAD, they should be completely re-imagined ... research temple
- * types and how they've been built in other games, like world of warcraft, warcraft 3, zelda"*.
+ * The research: a Zelda dungeon is a spider (entrance, hub, legs, each leg ending somewhere worth reaching, the boss
+ * locked off the hub), and WoW's lesson is that each of those places should look like somewhere rather than like the
+ * end of a corridor. So the SANCTUM takes the plan's deepest point, the chapels take the other stops, and the
+ * entrance hall takes the way in. What used to be here was a fixed list: a boss rect at the top, an entrance rect at
+ * the bottom and three halls on a lane formula, connected by corridors of its own devising.
  *
- * The research: a Zelda dungeon is a spider (entrance, hub, legs, each leg ending somewhere worth reaching, the
- * boss locked off the hub), and WoW's lesson is that each of those places should look like somewhere rather than
- * like the end of a corridor. So the SANCTUM takes the plan's deepest point, the chapels take the other stops,
- * and the entrance hall takes the way in. What used to be here was a fixed list: a boss rect at the top, an
- * entrance rect at the bottom and three halls on a lane formula, connected by corridors of its own devising.
- *
- * The altar stays in the north half, which is what its suite holds it to, so the sanctum takes the most
- * NORTHERN place the plan offers and is nudged north if even that sits south of the middle.
+ * The altar stays in the north half, which is what its suite holds it to, so the sanctum takes the most NORTHERN
+ * place the plan offers and is nudged north if even that sits south of the middle.
  */
 function templeRoomAt(centre: RouteCell, w: number, h: number, cols: number, rows: number, role: TempleRoom['role']): TempleRoom {
   return {
@@ -4413,20 +4342,17 @@ const ENTRANCE_HEIGHT = 4
 /**
  * A CAVE IS A SPIDER, once the generator says how many ways run through it.
  *
- * Alexander, 2026-09-11: *"caves and temples are BAD, they should be completely re-imagined, just like we did
- * with forests, we should research temple types and how they've been built in other games, like world of
- * warcraft, warcraft 3, zelda, etc"*, and *"I can generate a cave with 1 exit and 3 pathways to simulate
- * entrance, then I continue doing the same until I reach a part where is just 1 exit no pathway, which is the
- * end of the cave"*.
+ * and *"I can generate a cave with 1 exit and 3 pathways to simulate entrance, then I continue doing the same until I
+ * reach a part where is just 1 exit no pathway, which is the end of the cave"*.
  *
- * The research he asked for says the same thing twice. A Zelda dungeon is a SPIDER: an entrance, a hub (the
- * body), legs off it, each leg ending somewhere worth reaching, the boss locked off the hub. His "1 exit and 3
- * pathways" IS that spider. WoW's lesson is rhythm, a short run and then a place that looks like somewhere, so
- * every stop gets a CHAMBER rather than a corridor end. Warcraft 3's is the chokepoint, so a gallery pinches
- * and opens along its length, which the plan's SPINE makes safe to do.
+ * The research he asked for says the same thing twice. A Zelda dungeon is a SPIDER: an entrance, a hub (the body),
+ * legs off it, each leg ending somewhere worth reaching, the boss locked off the hub. His "1 exit and 3 pathways" IS
+ * that spider. WoW's lesson is rhythm, a short run and then a place that looks like somewhere, so every stop gets a
+ * CHAMBER rather than a corridor end. Warcraft 3's is the chokepoint, so a gallery pinches and opens along its
+ * length, which the plan's SPINE makes safe to do.
  *
- * What this used to be: one cellular-automata blob with a chamber cut into its south edge, and no notion of
- * where you came in or where you could go next. A generator that serves no ways still gets exactly that.
+ * What this used to be: one cellular-automata blob with a chamber cut into its south edge, and no notion of where you
+ * came in or where you could go next. A generator that serves no ways still gets exactly that.
  */
 const CAVE_HUB_RADIUS = [4, 6] as const
 const CAVE_STOP_RADIUS = [3, 4] as const
@@ -4698,10 +4624,10 @@ function reopenCaveEntrance(ctx: ArchetypeContext, pal: CavePalette, entrance: R
 }
 
 /**
- * Moss, fallen leaves or dune as ORNAMENTS, the way the meadow sprinkles its plots: a few small patches on a
- * loose grid (the meadow's own spacing). It used to roll every floor cell against `accentChance`, which textured a
- * fifth of the floor; Alexander, 2026-09-11: *"only using the floor tiles as ornaments"*. `accentChance` is now
- * the chance a grid slot grows a patch, so the served number still says how mossy a season's caves are.
+ * Moss, fallen leaves or dune as ORNAMENTS, the way the meadow sprinkles its plots: a few small patches on a loose
+ * grid (the meadow's own spacing). It used to roll every floor cell against `accentChance`, which textured a fifth of
+ * the floor; `accentChance` is now the chance a grid slot grows a patch, so the served number still says how mossy a
+ * season's caves are.
  */
 function paintFloorAccents(ctx: ArchetypeContext, pal: CavePalette): void {
   const { ground, collision, cols, rows } = ctx

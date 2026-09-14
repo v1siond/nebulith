@@ -329,10 +329,10 @@ function stroke2DTileOutline(ctx: CanvasRenderingContext2D, geom: TileGeom): voi
 function drawTopLastResortGlyph(ctx: CanvasRenderingContext2D, asset: GridAsset, x: number, baseY: number, tileW: number, tileH: number): TileGeom {
   const tileFg = asset.color || '#ffffff'
   const tileBg = asset.bgColor || darkenColor(tileFg, 0.3)
-  // NEVER '?'. A tile with no art is a DATA gap, and painting a question mark over it invents a picture
-  // the catalog does not have — the "fake ascii tiles" Alexander reported were literal '?' plates drawn
-  // here. Missing stays missing (the tile draws its backing and nothing else), so a gap is visible as an
-  // absence and gets fixed in the backend rather than papered over in the renderer.
+  // NEVER '?'. A tile with no art is a DATA gap, and painting a question mark over it invents a picture the catalog
+  // does not have — the reported "fake ascii tiles" were literal '?' plates drawn here. Missing stays
+  // missing (the tile draws its backing and nothing else), so a gap is visible as an absence and gets fixed in the
+  // backend rather than papered over in the renderer.
   const char = asset.art[0] ?? ''
   ctx.fillStyle = tileBg
   ctx.fillRect(x - tileW * 0.5, baseY - tileH, tileW, tileH)
@@ -375,11 +375,9 @@ export interface Render2DParams {
   /**
    * Draw the hero, or only USE them as the camera. Default true.
    *
-   * Every renderer frames on `player`, so a caller that wants a camera position has had to invent a
-   * player — and got one DRAWN into the picture. That is why every tile, object and preset preview had
-   * the hero standing in the middle of it (Alexander, 2026-09-10: *"the roof preview showing a grid
-   * floor with player, instead of a building"*). Where the camera looks and what gets drawn are two
-   * questions, so they are two parameters.
+   * Every renderer frames on `player`, so a caller that wants a camera position has had to invent a player — and got
+   * one DRAWN into the picture. That is why every tile, object and preset preview had the hero standing in the middle
+   * of it. Where the camera looks and what gets drawn are two questions, so they are two parameters.
    */
   showPlayer?: boolean
 }
@@ -972,11 +970,9 @@ export function render2D(params: Render2DParams) {
     drawNightLighting(ctx, w, h, lamps)
   }
 
-  // ─── WEATHER, on the MAP's own floor, over everything the night pass left.
-  //     Alexander, 2026-09-11: *"the rain is not interacting with the map, it shoudl be rain on top of the map
-  //     only and interacting with it, the rain should show landing on the flor"*. So the view hands over the four
-  //     drawn corners of the ground plane, and the rain falls on THAT instead of over the whole canvas.
-  //     `toScreen` lands on a cell's top-left corner here, so the map's own corners are exact.
+  // ─── WEATHER, on the MAP's own floor, over everything the night pass left. So the view hands over the four drawn
+  // corners of the ground plane, and the rain falls on THAT instead of over the whole canvas. `toScreen` lands on a
+  // cell's top-left corner here, so the map's own corners are exact.
   drawWeather(ctx, w, h, weather, time, {
     corners: [toScreen(0, 0), toScreen(grid.cols, 0), toScreen(grid.cols, grid.rows), toScreen(0, grid.rows)],
   })

@@ -1,6 +1,5 @@
 /**
- * WEATHER ON THE MAP. Alexander, 2026-09-11: *"the rain is not interacting with the map, it shoudl be rain on top
- * of the map only and interacting with it, the rain should show landing on the flor"*.
+ * WEATHER ON THE MAP.
  *
  * It used to be a screen effect over the whole canvas. These pin the two halves of his note: nothing falls outside
  * the map's drawn floor, and a drop ends its fall ON that floor, leaving a ripple there.

@@ -29,7 +29,7 @@ describe('entityArt — the FIGURE comes from the backend, never from this file'
 
   it('a unit is a GRID of characters, not one character', () => {
     // THE regression guard. Treating a unit like a terrain slab — one distinct glyph each — is what turned
-    // Alexander's whole cast into `♀`/`♂`/`d` (Image #13). A figure has depth AND width.
+    // the whole cast into `♀`/`♂`/`d` (Image #13). A figure has depth AND width.
     installUnitArt()
     for (const entity of [makeEnemy('e', 0, 0, 'goblin'), makeNpc('n', 0, 0), makePlayer('p', 0, 0)]) {
       const art = entityArt(entity)

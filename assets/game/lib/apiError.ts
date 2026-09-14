@@ -1,15 +1,13 @@
 /**
  * An HTTP failure from one of the app's own APIs, with the STATUS kept on it.
  *
- * Every `fetch` wrapper in `api.ts` used to throw a bare `Error` with the reason baked into a
- * sentence (`'Template not found'`, `` `Failed to get template: ${statusText}` ``). A caller could
- * then only re-print that sentence: it had no way to tell "this map was deleted" (404, the user's
- * problem, and fixable by picking another map) from "the backend is down" (5xx, not the user's
- * problem, and fixable by retrying). Both degraded to the same dead end.
+ * Every `fetch` wrapper in `api.ts` used to throw a bare `Error` with the reason baked into a sentence (`'Template
+ * not found'`, `` `Failed to get template: ${statusText}` ``). A caller could then only re-print that sentence: it
+ * had no way to tell "this map was deleted" (404, the user's problem, and fixable by picking another map) from "the
+ * backend is down" (5xx, not the user's problem, and fixable by retrying). Both degraded to the same dead end.
  *
- * Alexander, 2026-09-10: *"let's correctly handle errors in frontend, like 404, 500, etc. We need an
- * actual real page and good UX"*. Handling them differently starts with being able to tell them
- * apart, so the status travels with the error and the UI decides what to show.
+ * Handling them differently starts with being able to tell them apart, so the status travels with the error and the
+ * UI decides what to show.
  */
 export class ApiError extends Error {
   /** The HTTP status the server answered with. */

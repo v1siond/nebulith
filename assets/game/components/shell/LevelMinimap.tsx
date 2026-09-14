@@ -1,20 +1,18 @@
 /**
  * THE LEVEL MAP — the whole level at a glance, with where you are marked.
  *
- * Alexander, 2026-09-08: *"we also need a map functionality, IE: having a map of the level we're in"* and
- * *"You can start with the overlay, which is half built."*
+ * and *"You can start with the overlay, which is half built."*
  *
- * He is right that it is half built: `renderTopView` already draws an entire level from above, entities
- * included. It is used today as a full-screen VIEW MODE ("Top"). This draws the SAME function into a small
- * canvas at a zoom that fits the whole grid, and adds the one thing a minimap has that a view mode does not
- * — a rectangle showing which part you are looking at, and a click to go there.
+ * He is right that it is half built: `renderTopView` already draws an entire level from above, entities included. It
+ * is used today as a full-screen VIEW MODE ("Top"). This draws the SAME function into a small canvas at a zoom that
+ * fits the whole grid, and adds the one thing a minimap has that a view mode does not — a rectangle showing which
+ * part you are looking at, and a click to go there.
  *
- * Reusing the renderer rather than writing a second one is the point: a minimap that draws the level its own
- * way is a second opinion about what the level looks like, and the two will disagree the first time a tile
- * setting changes.
+ * Reusing the renderer rather than writing a second one is the point: a minimap that draws the level its own way is a
+ * second opinion about what the level looks like, and the two will disagree the first time a tile setting changes.
  *
- * It repaints on a timer, not per frame. A map of a level that is not moving does not need 60fps, and the
- * editor's own loop is the thing that must stay smooth.
+ * It repaints on a timer, not per frame. A map of a level that is not moving does not need 60fps, and the editor's
+ * own loop is the thing that must stay smooth.
  */
 import { useCallback, useEffect, useRef } from 'react'
 
@@ -43,12 +41,12 @@ export interface LevelMinimapProps {
   mainCanvas: HTMLCanvasElement | null
   /** Centre the main view on a cell. The editor already has this — `__centerOn` uses the same maths. */
   onJumpTo?: (col: number, row: number) => void
-  /** Collapse it. Alexander: the HUD version will be hideable "like almost everything in HUD". */
+  /**
+   * Collapse it. the HUD version will be hideable "like almost everything in HUD".
+   */
   onHide?: () => void
   /**
-   * Open the map BIG. Alexander, 2026-09-09: *"i want to be able to increase/maximize the map, right now
-   * only the mini map is available."* Absent → no maximize control (the big one does not offer to open
-   * itself again).
+   * Open the map BIG. Absent → no maximize control (the big one does not offer to open itself again).
    */
   onMaximize?: () => void
   /** Drawn large, in a panel of its own. Only changes the chrome — the map is the same component. */

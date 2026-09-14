@@ -1,6 +1,5 @@
 /**
- * THE DIALOG SYSTEM. Alexander, 2026-09-11: *"on units we need to have a dialog system, each unit has many dialogs,
- * some dialogs are linked to quests, others are static and others are event of situational based"*.
+ * THE DIALOG SYSTEM.
  */
 import { dialogApplies, pickDialog, reachableSpeaker, newDialog, type DialogWorld } from '@/game/runtime/dialog'
 import type { Entity, Quest, UnitDialog } from '@/game/types'

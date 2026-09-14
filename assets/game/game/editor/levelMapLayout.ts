@@ -1,22 +1,20 @@
 /**
  * THE LEVEL MAP — levels placed where their doorways say they are.
  *
- * Alexander, 2026-09-08: *"while we do have a connection of all levels, it's not formed into a real map
- * layout"*, and earlier, asking for *"a map of the overall layout of levels"*.
+ * and earlier, asking for *"a map of the overall layout of levels"*.
  *
- * What it replaced laid every level on a CIRCLE by its position in the array
- * (`angle = i / count * 2π`). That draws the right edges — you could see what connects to what — but the
- * POSITIONS carried no information at all: the level through your east door might be drawn to the
- * north-west, and reordering the list moved everything. It was a graph diagram, not a map.
+ * What it replaced laid every level on a CIRCLE by its position in the array (`angle = i / count * 2π`). That draws
+ * the right edges — you could see what connects to what — but the POSITIONS carried no information at all: the level
+ * through your east door might be drawn to the north-west, and reordering the list moved everything. It was a graph
+ * diagram, not a map.
  *
- * THE IDEA: a doorway already has a direction. It lives in specific cells of a specific level, so which
- * EDGE of that level it sits nearest is a fact, not a guess. If A's east-edge doorway leads to B, then B
- * belongs east of A. Walk the graph outward from where you are, placing each level one step in the
- * direction its doorway pointed, and the result is a map you can navigate by memory the way you navigate
- * a game world.
+ * THE IDEA: a doorway already has a direction. It lives in specific cells of a specific level, so which EDGE of that
+ * level it sits nearest is a fact, not a guess. If A's east-edge doorway leads to B, then B belongs east of A. Walk
+ * the graph outward from where you are, placing each level one step in the direction its doorway pointed, and the
+ * result is a map you can navigate by memory the way you navigate a game world.
  *
- * Pure and lattice-based: this returns integer grid coordinates and knows nothing about pixels or canvas,
- * so it is testable without rendering and the view is free to scale it however it likes.
+ * Pure and lattice-based: this returns integer grid coordinates and knows nothing about pixels or canvas, so it is
+ * testable without rendering and the view is free to scale it however it likes.
  */
 
 /** Which edge of its own level a doorway sits on. */

@@ -1,16 +1,13 @@
 /**
- * A tile collides with what it OCCUPIES, not with its whole cell. Alexander, 2026-09-11 (Image #17): *"they should
- * adapt to the size of the tile ... the character behaves as if I'm colliding with walls, when there's plenty of
- * space between the tree and my unit"*.
+ * A tile collides with what it OCCUPIES, not with its whole cell.
  */
 import { boxesForAsset, worldPointBlocked, FULL_CELL, MIN_BOX_SIDE, type BoxGrid } from '@/engine/collisionBoxes'
 import type { GridAsset } from '@/engine/IsometricGrid'
 
 /**
- * A tile that OCCUPIES ITS WHOLE CELL, which is what `blocking: true` used to mean and what
- * `ensure_collisions/0` now writes for every solid row. Saying it in the data is the point: a tile is solid
- * where its boxes are, and one with no boxes is not solid at all (Alexander, 2026-09-13, on removing the
- * flag: *"we fucking have collissions which already do the fucking job"*).
+ * A tile that OCCUPIES ITS WHOLE CELL, which is what `blocking: true` used to mean and what `ensure_collisions/0` now
+ * writes for every solid row. Saying it in the data is the point: a tile is solid where its boxes are, and one with
+ * no boxes is not solid at all.
  */
 const WHOLE_CELL = [{ x: 0, y: 0, w: 1, h: 1 }]
 const asset = (patch: Partial<GridAsset> = {}): GridAsset =>

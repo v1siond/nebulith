@@ -83,8 +83,8 @@ describe('generateStage — cave: seasons yield DISTINCT palettes', () => {
   })
 
   it('paints a season-specific cave FLOOR (not grass) that differs across seasons', () => {
-    // The floor is the flat tile now, the meadow's way (Alexander, 2026-09-11), so the season lives in its
-    // COLOUR: every flat cell wears that season's cave-floor tile colour.
+    // The floor is the flat tile now, the meadow's way, so the season lives in its COLOUR: every flat cell wears that
+    // season's cave-floor tile colour.
     const wears = (zone: ZoneId, material: string): boolean => {
       const s = cave(zone)
       const flat: Array<[number, number]> = []

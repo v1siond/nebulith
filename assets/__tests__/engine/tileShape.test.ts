@@ -158,10 +158,10 @@ describe('drawIsoAssetAscii ROUTES on asset.shape (end-to-end)', () => {
   })
 })
 
-// ── The rounding clip must round EVERY corner (Alexander: the top point, a mid-right side corner, and the bottom
-//    were "still sharp"). roundedBlockEllipse must INSCRIBE the block's projected hexagon: every one of the 6
-//    silhouette vertices sits OUTSIDE the ellipse (so the clip bends it away — no vertex pokes through), AND the
-//    ellipse never crosses an edge (so the whole outline is one smooth oval — no straight-edge/arc kink). ──
+// ── The rounding clip must round EVERY corner. roundedBlockEllipse must INSCRIBE the block's projected hexagon:
+// every one of the 6 silhouette vertices sits OUTSIDE the ellipse (so the clip bends it away — no vertex pokes
+// through), AND the ellipse never crosses an edge (so the whole outline is one smooth oval — no straight-edge/arc
+// kink). ──
 describe('roundedBlockEllipse — the clip inscribes the block hexagon so NO corner stays sharp', () => {
   const TW = 40, TH = 20, BH = 44
   const center = { x: 0, y: 0 }
@@ -170,7 +170,7 @@ describe('roundedBlockEllipse — the clip inscribes the block hexagon so NO cor
   const hexagon = (n: number) => {
     const stack = n * BH
     return [
-      { x: center.x, y: center.y - stack - TH },     // TOP apex (the point Alexander circled)
+      { x: center.x, y: center.y - stack - TH },     // TOP apex (the circled point)
       { x: center.x + TW, y: center.y - stack },      // upper-right
       { x: center.x + TW, y: center.y },              // MID-RIGHT (the side corner)
       { x: center.x, y: center.y + TH },              // BOTTOM apex

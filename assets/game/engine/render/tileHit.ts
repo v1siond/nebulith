@@ -1,16 +1,16 @@
 /**
  * TILE HIT GEOMETRY — the transform-aware shape a placed tile actually occupies ON SCREEN.
  *
- * The editor selector is INVERTED (Alexander): instead of "cursor → cell → topmost tile in the cell", we
- * "cursor → topmost rendered TILE → its cell". To do that the picker needs the tile's REAL rendered
- * silhouette, honouring every render transform (scaleX/Y/Z, scale/zoom, pose x/y/rot/flip, heightLevel lift,
- * zOffset slide, directional depth, single-display, billboard sprites). This module is the ONE place that
- * turns a draw's local geometry + pose into screen-space polygons — reused by BOTH the hit-test and the
- * selection/hover HIGHLIGHT so the outline hugs exactly what was drawn (never the flat ground cell).
+ * The editor selector is INVERTED: instead of "cursor → cell → topmost tile in the cell", we "cursor → topmost
+ * rendered TILE → its cell". To do that the picker needs the tile's REAL rendered silhouette, honouring every render
+ * transform (scaleX/Y/Z, scale/zoom, pose x/y/rot/flip, heightLevel lift, zOffset slide, directional depth,
+ * single-display, billboard sprites). This module is the ONE place that turns a draw's local geometry + pose into
+ * screen-space polygons — reused by BOTH the hit-test and the selection/hover HIGHLIGHT so the outline hugs exactly
+ * what was drawn (never the flat ground cell).
  *
- * It is deliberately pure and co-located with the primitives the renderer already uses (isoBlockFaces /
- * isoDepthBox via the caller). The renderer RECORDS these geoms at the draw site (see iso.ts drawIsoAssetAscii
- * → the isoTileHits list) so the pick can never drift from the draw: it IS the draw's geometry.
+ * It is deliberately pure and co-located with the primitives the renderer already uses (isoBlockFaces / isoDepthBox
+ * via the caller). The renderer RECORDS these geoms at the draw site (see iso.ts drawIsoAssetAscii → the isoTileHits
+ * list) so the pick can never drift from the draw: it IS the draw's geometry.
  */
 import type { Pt } from './isoBlock'
 import { isoDepthBox, type DepthDir } from './isoBlock'
@@ -136,10 +136,12 @@ export function depthBoxGeom(
   return { kind: 'poly', pts: convexHull(pts) }
 }
 
-/** A 2-AXIS z-width RECTANGLE's screen hull (Alexander #62/#63): the convex hull of the solid block's 8 corners
- *  (top parallelogram + its base), matching drawIsoRectBlock, so a click ANYWHERE on the deck selects it and the
- *  outline hugs the whole element — not just the first column. `ext` = grid cells spanned in each of ±col/±row
- *  (assetRectExtents). A single cell / 1-wide line is the degenerate case → the same hull as the cube / long box. */
+/**
+ * A 2-AXIS z-width RECTANGLE's screen hull: the convex hull of the solid block's 8 corners (top parallelogram + its
+ * base), matching drawIsoRectBlock, so a click ANYWHERE on the deck selects it and the outline hugs the whole element
+ * — not just the first column. `ext` = grid cells spanned in each of ±col/±row (assetRectExtents). A single cell /
+ * 1-wide line is the degenerate case → the same hull as the cube / long box.
+ */
 export function rectBoxGeom(
   halfW: number,
   halfD: number,

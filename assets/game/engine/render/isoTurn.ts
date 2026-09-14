@@ -1,28 +1,24 @@
 /**
- * isoTurn — the PURE maths for a CONTINUOUS iso camera turn: the world spins while you drag and eases into
- * the nearest of the 4 corners when you let go. No React, no canvas, no timers; every function is pure.
+ * isoTurn — the PURE maths for a CONTINUOUS iso camera turn: the world spins while you drag and eases into the
+ * nearest of the 4 corners when you let go. No React, no canvas, no timers; every function is pure.
  *
- * Alexander: "when rotating i want to see the animation of the world rotating, in fact, Ideally, I should have
- * a controller that allows me to rotate more accurately, with the current 4 options as the quick turnarounds."
+ * ─── The model ──────────────────────────────────────────────────────────────────────────────────────────── A TURN
+ * is measured in QUARTER-TURNS on a 0..4 circle. A WHOLE turn IS an `Orientation` — the four corners the 4-way camera
+ * already ships — and every function here DELEGATES to `isoOrientation` at a whole turn, so a settled camera runs
+ * today's exact integer maths and today's exact frame. Only the transient between corners is new.
  *
- * ─── The model ────────────────────────────────────────────────────────────────────────────────────────────
- * A TURN is measured in QUARTER-TURNS on a 0..4 circle. A WHOLE turn IS an `Orientation` — the four corners
- * the 4-way camera already ships — and every function here DELEGATES to `isoOrientation` at a whole turn, so a
- * settled camera runs today's exact integer maths and today's exact frame. Only the transient between corners
- * is new.
+ * ─── Why rotating the GRID coord is a real turntable ────────────────────────────────────────────────────── The iso
+ * renderer projects a ground coord with x ∝ (col − row) and y ∝ (col + row) — a fixed linear map that carries the 2:1
+ * iso squash. The ground plane IS the (col,row) plane and height is a separate vertical offset, so rotating (col,row)
+ * about the grid centre and leaving the height alone is exactly a turntable spin about the vertical axis, seen
+ * through the unchanged iso projection. At turn 1 the continuous rotation `(cu,cv) → (−cv, cu)` is precisely
+ * `isoOrientation`'s clockwise quarter-turn, so the two agree at every corner.
  *
- * ─── Why rotating the GRID coord is a real turntable ──────────────────────────────────────────────────────
- * The iso renderer projects a ground coord with x ∝ (col − row) and y ∝ (col + row) — a fixed linear map that
- * carries the 2:1 iso squash. The ground plane IS the (col,row) plane and height is a separate vertical
- * offset, so rotating (col,row) about the grid centre and leaving the height alone is exactly a turntable spin
- * about the vertical axis, seen through the unchanged iso projection. At turn 1 the continuous rotation
- * `(cu,cv) → (−cv, cu)` is precisely `isoOrientation`'s clockwise quarter-turn, so the two agree at every corner.
- *
- * ─── The one quantisation ─────────────────────────────────────────────────────────────────────────────────
- * Between corners the VIEW DIMS (which swap on an odd corner) follow the NEAREST corner. That term is a
- * re-centring constant: the renderer projects a cell's offset FROM THE CAMERA FOCUS and both go through this
- * module, so the constant cancels and the pixels stay smooth across the 45° crossover. It only shows where a
- * consumer uses the dims on their own — the camera CLAMP (game mode; the editor pans unclamped).
+ * ─── The one quantisation ───────────────────────────────────────────────────────────────────────────────── Between
+ * corners the VIEW DIMS (which swap on an odd corner) follow the NEAREST corner. That term is a re-centring constant:
+ * the renderer projects a cell's offset FROM THE CAMERA FOCUS and both go through this module, so the constant
+ * cancels and the pixels stay smooth across the 45° crossover. It only shows where a consumer uses the dims on their
+ * own — the camera CLAMP (game mode; the editor pans unclamped).
  */
 import { orientCell, deorientCell, orientedDims, type Orientation } from './isoOrientation'
 

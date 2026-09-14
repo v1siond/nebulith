@@ -4,19 +4,18 @@
  * This sits BESIDE `stageGenerator.woodland.test.ts`, which owns the thinning, the path widths and the river
  * crossings. This file owns only the regions inside one woodland map, and their elevation.
  *
- * Alexander, 2026-09-11: *"woodland with meadow is the same as mountain forest..."*, *"mountain forest is not a
- * real mountain forest, I mean it doesn't even have mountain nor relieve sections, when we can construct them
- * withn cells easily... it doesn't have cliff, nor anything, it's basically just a meadow"*.
+ * *"mountain forest is not a real mountain forest, I mean it doesn't even have mountain nor relieve sections, when we
+ * can construct them withn cells easily... it doesn't have cliff, nor anything, it's basically just a meadow"*.
  *
- * WHY THIS FILE EXISTS, and it is not a flattering reason. I "fixed" glades by serving it a stand region and a
- * meadow region, and I reported the ticket done. It did nothing on screen: only `layoutJungle` ever called
- * `partitionSubZones`, so a woodland's regions were served, parsed, and dropped on the floor. Served and
- * ignored, the exact defect I keep finding in other code, this time mine. He caught it: *"fix 105 properly"*.
+ * WHY THIS FILE EXISTS, and it is not a flattering reason. I "fixed" glades by serving it a stand region and a meadow
+ * region, and I reported the ticket done. It did nothing on screen: only `layoutJungle` ever called
+ * `partitionSubZones`, so a woodland's regions were served, parsed, and dropped on the floor. Served and ignored, the
+ * exact defect I keep finding in other code, this time mine. He caught it: *"fix 105 properly"*.
  *
- * So these tests do not assert that the data parses. Parsing is what fooled me. They assert what the finished
- * map CONTAINS: both region tones present, a stand measurably thicker than the meadow beside it, and, for
- * *"different levels of terrain, relieve in spanish"*, a raised region actually sitting above the ground with
- * the river cutting relative to whatever it flows through.
+ * So these tests do not assert that the data parses. Parsing is what fooled me. They assert what the finished map
+ * CONTAINS: both region tones present, a stand measurably thicker than the meadow beside it, and, for *"different
+ * levels of terrain, relieve in spanish"*, a raised region actually sitting above the ground with the river cutting
+ * relative to whatever it flows through.
  */
 import '@/__tests__/helpers/installTilesetSeed'
 import { generateStage, type StageData, type NatureDensity } from '@/engine/stageGenerator'

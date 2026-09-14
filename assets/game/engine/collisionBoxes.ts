@@ -1,29 +1,20 @@
 /**
  * COLLISION BOXES: what a tile actually occupies inside its cell.
  *
- * Alexander, 2026-09-11 (Image #17, standing between two trees): *"we need to fix the collisions of objects,
- * specifically, they should adapt to the size of the tile ... the character behaves as if I'm colliding with walls,
- * when there's plenty of space between the tree and my unit ... the collision takes the size of the cell by default,
- * I think we need to be able to control the size of the collission and use it as the base for the hitboxes system ...
- * we can modify cells to have many collisions and we can position and modify the size of those collision blocks at
- * will, unit collide with these blocks on real contact"*.
+ * THE BOX LIST IS THE ONLY STATEMENT.
  *
- * THE BOX LIST IS THE ONLY STATEMENT. Alexander, 2026-09-13: *"the real fix is to fucking remove the fucking
- * walkable and blocking properties as I've requested for ages, because we fucking have collissions which
- * already do the fucking job"*.
+ * He is right, and until now this file was the reason it was not true: it opened with `if (!asset.blocking) return
+ * []`, so the boxes could only ever REFINE a decision the flag had already made. Measured against live at the time: 0
+ * of 375 tiles carried a box and 72 carried `blocking: true`. The fact lived in the flag and the system that owned it
+ * was empty. The backend now writes `settings.collision` on every row (`ensure_collisions/0`, seeded from the flag so
+ * nothing moved), and the rule here is one line:
  *
- * He is right, and until now this file was the reason it was not true: it opened with `if (!asset.blocking)
- * return []`, so the boxes could only ever REFINE a decision the flag had already made. Measured against live
- * at the time: 0 of 375 tiles carried a box and 72 carried `blocking: true`. The fact lived in the flag and
- * the system that owned it was empty. The backend now writes `settings.collision` on every row
- * (`ensure_collisions/0`, seeded from the flag so nothing moved), and the rule here is one line:
+ * a tile is solid where its boxes are, and a tile with no boxes is not solid at all.
  *
- *     a tile is solid where its boxes are, and a tile with no boxes is not solid at all.
- *
- * A tile with authored boxes uses them (as many as it likes, each positioned and sized). A tile whose box is
- * the WHOLE CELL — what the seeding writes, and what "solid" has always meant — shrinks to the size it is
- * DRAWN at, which is already data: a standard trunk draws at 0.6 of its cell, so it occupies 0.6 of it. That
- * keeps walls, rocks and buildings unchanged while a tree stops blocking the gap beside it.
+ * A tile with authored boxes uses them (as many as it likes, each positioned and sized). A tile whose box is the
+ * WHOLE CELL — what the seeding writes, and what "solid" has always meant — shrinks to the size it is DRAWN at, which
+ * is already data: a standard trunk draws at 0.6 of its cell, so it occupies 0.6 of it. That keeps walls, rocks and
+ * buildings unchanged while a tree stops blocking the gap beside it.
  */
 import { resolveAssetDrawSize } from './render/assetDimensions'
 import { styleTile } from './tileset/styleTiles'

@@ -1,21 +1,15 @@
 /**
  * ASCII AND EMOJI MUST RUN THE SAME ENGINE — measured at the canvas API.
  *
- * Alexander: *"I don't understand why ASCII style is so slow and with fps < 15, my only guess is that it's
- * NOT using the same emoji engine, and instead is running through some old legacy shitty code."*
+ * He was right. Under ASCII, `visualForTileId`/`tilesForStyle` threw the tile's baked image away and the kind→image
+ * rescue was gated to `FLOOR_TYPE`, so a placed tile arrived with `dv.image === undefined`. That meant: · the
+ * single-block cube SPRITE CACHE (`cubeBlockSprite`) is gated on `dv.image` → never hit under ASCII, so every cell
+ * re-drew 3 faces LIVE, every frame; · `fillIsoFaceWithTile`'s glyph branch does `beginPath + rect + clip + fillText`
+ * PER FACE (the image branch deliberately skips the clip — its own comment calls it "a real hotspot"); · a label-less
+ * prop fell through to the deleted per-type glyph drawers, which called `ctx.measureText` per asset per frame.
  *
- * He was right. Under ASCII, `visualForTileId`/`tilesForStyle` threw the tile's baked image away and the
- * kind→image rescue was gated to `FLOOR_TYPE`, so a placed tile arrived with `dv.image === undefined`. That
- * meant:
- *   · the single-block cube SPRITE CACHE (`cubeBlockSprite`) is gated on `dv.image` → never hit under ASCII,
- *     so every cell re-drew 3 faces LIVE, every frame;
- *   · `fillIsoFaceWithTile`'s glyph branch does `beginPath + rect + clip + fillText` PER FACE (the image
- *     branch deliberately skips the clip — its own comment calls it "a real hotspot");
- *   · a label-less prop fell through to the deleted per-type glyph drawers, which called `ctx.measureText`
- *     per asset per frame.
- *
- * These tests count the actual canvas calls for the SAME assets in both styles. They fail loudly if ASCII
- * regains a glyph/clip/measureText path, or if the sprite cache stops catching it.
+ * These tests count the actual canvas calls for the SAME assets in both styles. They fail loudly if ASCII regains a
+ * glyph/clip/measureText path, or if the sprite cache stops catching it.
  */
 import { loadedStyleIds, styleTiles } from '@/engine/tileset/styleTiles'
 import { installRealCanvas, type RealCanvasHarness } from '@/__tests__/helpers/realCanvas'

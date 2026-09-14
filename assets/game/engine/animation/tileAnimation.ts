@@ -187,16 +187,13 @@ export const ADDITIVE_SETTINGS: ReadonlySet<SettingKey> = new Set<SettingKey>([
 export const MULTIPLICATIVE_SETTINGS: ReadonlySet<SettingKey> = new Set<SettingKey>(['zoom', 'width'])
 
 /**
- * FLICKER envelope — a FAILING bulb, NOT a smooth curve (Alexander: "more irregular, it's supposed to
- * represent a failing bulb"; "it's not even 100% of the time"). Deterministic pseudo-noise over the phase `t`
- * (∈[0,1]): the bulb is fully ON (envelope 0) for the VAST MAJORITY of the loop (~85% of slots) — a normal-
- * looking lamp that only OCCASIONALLY faults, not a constant strobe — punctuated by brief, ERRATIC dips of
- * varying depth at IRREGULAR times. The phase is quantized into fine slots; a per-slot hash GATES whether that
- * slot faults, and a second hash picks the fault DEPTH — a full-off blink or a partial dip — giving a
- * non-uniform, STEPPED on/off pattern, never a sine yoyo. PURE + repeatable.
- *   0        → bulb fully lit (most of the loop)
- *   1        → a full-off blink (the darkest fault)
- *   0<v<1    → a partial dip (erratic amplitude)
+ * FLICKER envelope — a FAILING bulb, NOT a smooth curve. Deterministic pseudo-noise over the phase `t` (∈[0,1]): the
+ * bulb is fully ON (envelope 0) for the VAST MAJORITY of the loop (~85% of slots) — a normal- looking lamp that only
+ * OCCASIONALLY faults, not a constant strobe — punctuated by brief, ERRATIC dips of varying depth at IRREGULAR times.
+ * The phase is quantized into fine slots; a per-slot hash GATES whether that slot faults, and a second hash picks the
+ * fault DEPTH — a full-off blink or a partial dip — giving a non-uniform, STEPPED on/off pattern, never a sine yoyo.
+ * PURE + repeatable. 0 → bulb fully lit (most of the loop) 1 → a full-off blink (the darkest fault) 0<v<1 → a partial
+ * dip (erratic amplitude)
  */
 export function flickerEase(t: number): number {
   const x = t < 0 ? 0 : t > 1 ? 1 : t

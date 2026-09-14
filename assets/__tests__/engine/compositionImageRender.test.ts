@@ -1,23 +1,20 @@
 /**
- * The tileset loader populates each tile's backend IMAGE — `styleTile(style, label).image`, the SAME field
- * and the same URL shape in every style — but the COMPOSITION render path (a labeled
- * tree/building/feature cell drawn as an iso cube / 2D cell / top cell) still drew the glyph, never the
- * image. This proves it now draws the image — mirroring emojiImageTiles.test.ts's setup and
- * tileRouting.test.ts's recordingCtx render-test pattern.
+ * The tileset loader populates each tile's backend IMAGE — `styleTile(style, label).image`, the SAME field and the
+ * same URL shape in every style — but the COMPOSITION render path (a labeled tree/building/feature cell drawn as an
+ * iso cube / 2D cell / top cell) still drew the glyph, never the image. This proves it now draws the image —
+ * mirroring emojiImageTiles.test.ts's setup and tileRouting.test.ts's recordingCtx render-test pattern.
  *
- * The core rule under test (COLOUR is a per-tile SETTING that FILTERS the baked tile — Alexander:
- * "the tiles themselves are irrelevant … select the brick tile and apply white"):
- *   - ascii tile images are white, TRANSPARENT TINT-TARGETS → recoloured to the tile's colour.
- *   - emoji tile images are baked near-monochrome part-tiles → luminance-FILTERED to the tile's colour
- *     TOO (a brick 🧱 → white, a roof 🟥 → slate), shading kept. BOTH styles recolour now — the old
- *     "emoji is pre-coloured, never recolour" rule broke colour-as-a-setting for emoji buildings.
- *   - no image on the label → falls back to the glyph, never a blank cell/block.
+ * The core rule under test: - ascii tile images are white, TRANSPARENT TINT-TARGETS → recoloured to the tile's
+ * colour. - emoji tile images are baked near-monochrome part-tiles → luminance-FILTERED to the tile's colour TOO (a
+ * brick 🧱 → white, a roof 🟥 → slate), shading kept. BOTH styles recolour now — the old "emoji is pre-coloured, never
+ * recolour" rule broke colour-as-a-setting for emoji buildings. - no image on the label → falls back to the glyph,
+ * never a blank cell/block.
  *
- * Recolour is proven by IDENTITY, not by inspecting pixels: tintedImage(img, src, tint) returns a
- * DISTINCT offscreen canvas object when a tint is given (and the fake 2D context below makes that path
- * succeed instead of degrading to "no document/no context" passthrough); with no tint it returns the raw
- * image untouched. So "the drawn source !== the raw stub image" IS "a tint was applied", and
- * "drawn source === the raw stub image" IS "no tint was applied" — a genuine behavioural assertion.
+ * Recolour is proven by IDENTITY, not by inspecting pixels: tintedImage(img, src, tint) returns a DISTINCT offscreen
+ * canvas object when a tint is given (and the fake 2D context below makes that path succeed instead of degrading to
+ * "no document/no context" passthrough); with no tint it returns the raw image untouched. So "the drawn source !==
+ * the raw stub image" IS "a tint was applied", and "drawn source === the raw stub image" IS "no tint was applied" — a
+ * genuine behavioural assertion.
  */
 import { makeStyleTile, setStyleTile, styleCatalog, styleTile, styleTiles } from '@/engine/tileset/styleTiles'
 import { installTilesetPayload } from '@/engine/tileset/tilesetLoader'

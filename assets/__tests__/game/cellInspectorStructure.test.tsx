@@ -117,9 +117,7 @@ describe('the inspector renders §4.7\'s sections', () => {
   })
 
   it('the Tile row IS the swap — one click, not a panel holding one button', () => {
-    // Alexander, 2026-09-11: *"there's many options in right sidebar that open a modal that have a button
-    // inside that open a another modal ... whats the point of having an extra action???"* A cell's identity
-    // has exactly one control, so the row does it rather than opening a panel to show it to you.
+    // A cell's identity has exactly one control, so the row does it rather than opening a panel to show it to you.
     const onOpenLibrary = jest.fn()
     renderPanel({ tile: floorTile({ onOpenLibrary }) })
     fireEvent.click(screen.getByRole('button', { name: 'Tile' }))

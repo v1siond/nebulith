@@ -1,9 +1,9 @@
 /**
- * MAP SNAPSHOT — the deep copy an undo checkpoint stores and a redo/undo restores. Everything a map EDIT can
- * change lives here: the grid's per-cell layers (ground / height / collision / floor colour / floor dims), its
- * placed assets, its ground thickness, and the entities. UI-only state (selection, panels, camera) is deliberately NOT captured —
- * undo restores the MAP, not the workspace (Alexander: "don't capture non-map UI state"). Snapshots are the
- * currency of editorHistory.ts; this module owns the grid⇄snapshot deep-clone so neither side aliases the other.
+ * MAP SNAPSHOT — the deep copy an undo checkpoint stores and a redo/undo restores. Everything a map EDIT can change
+ * lives here: the grid's per-cell layers (ground / height / collision / floor colour / floor dims), its placed
+ * assets, its ground thickness, and the entities. UI-only state (selection, panels, camera) is deliberately NOT
+ * captured — undo restores the MAP, not the workspace. Snapshots are the currency of editorHistory.ts; this module
+ * owns the grid⇄snapshot deep-clone so neither side aliases the other.
  */
 import type { GridAsset, IsometricGrid } from '@/engine/IsometricGrid'
 import type { Entity } from '@/game/types'

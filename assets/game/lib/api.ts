@@ -325,12 +325,12 @@ export function deserializeToGrid(
   }
 
   // Rebuild the collision grid from the assets — GROUND-level blocks only, the same rule the composition stamp
-  // follows. The map is 2D (one flag per cell) while a building is 3D, so blocking a cell for a tile at ANY
-  // level made an upper storey seal the floor beneath it: a saved village held 89 blocking assets above ground
-  // (windows at L2/L4/L6, wall courses at L3/L5, awnings at L2) and the collision map traced those storeys
-  // instead of the walls — "the collissions don't match the generated building" (Alexander, Image #13).
-  // A unit walks on the ground, so the ground is what this flat map means. Tiles keep their own truthful
-  // `blocking` data: a roof still blocks as a block, it just does not seal the room under it.
+  // follows. The map is 2D (one flag per cell) while a building is 3D, so blocking a cell for a tile at ANY level
+  // made an upper storey seal the floor beneath it: a saved village held 89 blocking assets above ground (windows at
+  // L2/L4/L6, wall courses at L3/L5, awnings at L2) and the collision map traced those storeys instead of the walls —
+  // "the collissions don't match the generated building". A unit walks on the ground, so the ground is what this flat
+  // map means. Tiles keep their own truthful `blocking` data: a roof still blocks as a block, it just does not seal
+  // the room under it.
   for (const asset of grid.assets) {
     if (!asset.blocking) continue
     if ((asset.heightLevel ?? 0) > unitStandLevel(grid, asset.col, asset.row)) continue // an upper storey

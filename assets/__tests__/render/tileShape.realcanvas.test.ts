@@ -1,23 +1,20 @@
 /**
- * REAL-CANVAS tests for the per-tile SHAPE setting (`shape: 'square' | 'circle'`). `circle` takes the SAME
- * cuboid and BENDS ITS CORNERS into a smooth rounded silhouette (Alexander: "ALL I WANT WITH THE SHAPE IS TO
- * MANIPULATE THE SIDES OF THE CUBOID, selecting circle shape should bend the corners OF THE CUBOID to form a
- * circle … the cube/cuboid is just a tile, painted on all sides of the block/cell").
+ * REAL-CANVAS tests for the per-tile SHAPE setting (`shape: 'square' | 'circle'`). `circle` takes the SAME cuboid and
+ * BENDS ITS CORNERS into a smooth rounded silhouette.
  *
- * MODEL: `shape: 'circle'` draws the tile's NORMAL cube (its baked art painted on all three shaded faces) and
- * then CLIPS the silhouette to an ELLIPSE of the block's OWN projected extent — so the corners are rounded away
- * but the shape stays PROPORTIONAL to the block: a TALL block → a TALL OVAL (an egg standing up), a unit cube →
- * a rounder blob. It is NOT a repainted sphere: there is no spherical relight, no single flat surface, and no
- * fixed circle (rx==ry). These render to a real rasteriser (@napi-rs/canvas) and read the PIXELS:
- *   • the form is ROUND (its bounding-box corners are transparent; a rect would fill them) and its centre is filled;
- *   • the silhouette is PROPORTIONAL — a tall (height-3) block's rounded silhouette is clearly TALLER than wide,
- *     a unit (height-1) block's is roughly square: the aspect follows the block, never a fixed 1:1;
- *   • the tile's ART survives — a TWO-BAND tile (green top, blue bottom) drawn as a circle still shows BOTH bands;
- *   • the cuboid's NORMAL per-face shading is KEPT — the top face is brighter than the front walls, and the two
- *     front walls differ from each other (real 3 faces, NOT one uniformly-lit ball);
- *   • the tile keeps its BACKGROUND COLOUR where the art is transparent (the cube fills colour then paints art);
- *   • the colour SETTING still FILTERS the tile (a magenta colour → a magenta form; a green baked image is
- *     recoloured, never left green), in BOTH emoji + ascii styles, positive + negative.
+ * MODEL: `shape: 'circle'` draws the tile's NORMAL cube (its baked art painted on all three shaded faces) and then
+ * CLIPS the silhouette to an ELLIPSE of the block's OWN projected extent — so the corners are rounded away but the
+ * shape stays PROPORTIONAL to the block: a TALL block → a TALL OVAL (an egg standing up), a unit cube → a rounder
+ * blob. It is NOT a repainted sphere: there is no spherical relight, no single flat surface, and no fixed circle
+ * (rx==ry). These render to a real rasteriser (@napi-rs/canvas) and read the PIXELS: • the form is ROUND (its
+ * bounding-box corners are transparent; a rect would fill them) and its centre is filled; • the silhouette is
+ * PROPORTIONAL — a tall (height-3) block's rounded silhouette is clearly TALLER than wide, a unit (height-1) block's
+ * is roughly square: the aspect follows the block, never a fixed 1:1; • the tile's ART survives — a TWO-BAND tile
+ * (green top, blue bottom) drawn as a circle still shows BOTH bands; • the cuboid's NORMAL per-face shading is KEPT —
+ * the top face is brighter than the front walls, and the two front walls differ from each other (real 3 faces, NOT
+ * one uniformly-lit ball); • the tile keeps its BACKGROUND COLOUR where the art is transparent (the cube fills colour
+ * then paints art); • the colour SETTING still FILTERS the tile (a magenta colour → a magenta form; a green baked
+ * image is recoloured, never left green), in BOTH emoji + ascii styles, positive + negative.
  */
 import { makeStyleTile, setStyleTile, styleTile } from '@/engine/tileset/styleTiles'
 import { installRealCanvas, type RealCanvasHarness } from '@/__tests__/helpers/realCanvas'

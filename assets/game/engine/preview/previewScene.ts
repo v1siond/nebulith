@@ -1,20 +1,18 @@
 /**
  * A PREVIEW IS A TINY MAP — built by the map's own code, so it cannot disagree with the map.
  *
- * Alexander, 2026-09-09: *"the previews of the objects don't match the selected view at all, ig infact, the
- * example ofn the element in the list itself doesn't match their actual look / fountain, lamp post and well
- * are the worst offenders"* and *"also, the preview should be how it looks in the map."*
+ * and *"also, the preview should be how it looks in the map."*
  *
- * The old previews DREW THEIR OWN PICTURE: a "front elevation" composed from a composition's parts, plus a
- * flat plan grid. That is a second opinion about what a thing looks like, and it was wrong in exactly the
- * cases where it had the most work to do — a fountain (animated water columns), a lamp post (a glow anchor
- * whose art is not its footprint) and a well (a 5×3 composition). Anything that makes a tile interesting is
- * something a hand-rolled elevation does not know about.
+ * The old previews DREW THEIR OWN PICTURE: a "front elevation" composed from a composition's parts, plus a flat plan
+ * grid. That is a second opinion about what a thing looks like, and it was wrong in exactly the cases where it had
+ * the most work to do — a fountain (animated water columns), a lamp post (a glow anchor whose art is not its
+ * footprint) and a well (a 5×3 composition). Anything that makes a tile interesting is something a hand-rolled
+ * elevation does not know about.
  *
  * So this builds a REAL grid, puts the subject into it through the SAME functions the editor's brush and the
- * generator use — `placeGroundTile` / `stackAssetTile` / `stampComposition` — and hands it back for the
- * ACTIVE view's renderer to draw. Height runs, thickness, per-cell settings, animation, art frames and
- * stacking all arrive for free, because none of them are re-implemented here.
+ * generator use — `placeGroundTile` / `stackAssetTile` / `stampComposition` — and hands it back for the ACTIVE view's
+ * renderer to draw. Height runs, thickness, per-cell settings, animation, art frames and stacking all arrive for
+ * free, because none of them are re-implemented here.
  *
  * It is deliberately pure and canvas-free: the scene is data, the drawing is `MapPreview`'s job.
  */
@@ -38,11 +36,10 @@ export type PreviewSubject =
   /**
    * A whole generated LEVEL — what a preset card shows.
    *
-   * Alexander, 2026-09-08: *"yes we want this feature"* (preset thumbnails). It is the same machinery as a
-   * tile preview, one level up: generate the stage the preset would build, put it in a scratch grid through
-   * the editor's own applier, and let the map's renderer draw it. So the thumbnail cannot promise something
-   * the button does not deliver — and with the new Woodland preset beside two Meadows, the difference
-   * between them is the whole reason to look.
+   * (preset thumbnails). It is the same machinery as a tile preview, one level up: generate the stage the preset
+   * would build, put it in a scratch grid through the editor's own applier, and let the map's renderer draw it. So
+   * the thumbnail cannot promise something the button does not deliver — and with the new Woodland preset beside two
+   * Meadows, the difference between them is the whole reason to look.
    */
   | {
       kind: 'stage'
@@ -56,10 +53,9 @@ export type PreviewSubject =
       /**
        * The rest of what a build is fed — the switches, the colours, the regions.
        *
-       * Alexander, 2026-09-11: *"it's not clear how the extras modify the existing selected zone"*. It was
-       * not clear because the preview was generated WITHOUT them, so a river you switched on changed the
-       * build and not the picture of it. A preview that is not fed the same inputs is a picture of a
-       * different map, which is worse than no picture.
+       * It was not clear because the preview was generated WITHOUT them, so a river you switched on changed the build
+       * and not the picture of it. A preview that is not fed the same inputs is a picture of a different map, which
+       * is worse than no picture.
        */
       options?: Record<string, GeneratorOptionValue>
       palette?: GeneratorPalette
@@ -114,14 +110,12 @@ export function compositionSpan(comp: string): { cols: number; rows: number } | 
 /**
  * What a piece needs AROUND it to read as itself, by the tile's OWN backend category.
  *
- * Alexander, 2026-09-10: *"there's previews that make 0 sense, like the roof preview showing a grid floor
- * with player, instead of a building, or a window not being previewed in a building, like preview must be
- * logical"*. He is right: a roof lying on grass is not a roof, it is a coloured lid. A window floating in
- * the open is not a window, it is a pane.
+ * He is right: a roof lying on grass is not a roof, it is a coloured lid. A window floating in the open is not a
+ * window, it is a pane.
  *
- * The rule is DATA, not a guess about names: the backend already files every tile under a category
- * (`roofs`, `windows`, `doors`, `walls`, `terrain`, `nature`…), so the context comes from the row. A
- * category with no entry here previews on plain ground, exactly as before.
+ * The rule is DATA, not a guess about names: the backend already files every tile under a category (`roofs`,
+ * `windows`, `doors`, `walls`, `terrain`, `nature`…), so the context comes from the row. A category with no entry
+ * here previews on plain ground, exactly as before.
  */
 type PreviewContextKind = 'on-wall' | 'in-wall' | 'wall-run'
 
@@ -256,10 +250,10 @@ export function fitZoom(
   if (view === '2d') return Math.min(w / (grid.cols * 24), h / (grid.rows * 24 + levels * 16))
   // ISO: the diamond spans (cols + rows) in both diagonal axes, and a stacked block adds its real height.
   //
-  // That last part was wrong and it SHOWED: the allowance was 0.4 per level while the renderer draws a block
-  // at `tileW * ISO_BLOCK_H_FRAC` (0.9), so anything tall was zoomed to fit a box less than half its height
-  // and had its top cut off — which is what a roof on a wall stub does (Alexander: *"weird vertical
-  // centering in a lot of the previews"*). One constant, imported from the renderer, so the two cannot drift.
+  // That last part was wrong and it SHOWED: the allowance was 0.4 per level while the renderer draws a block at
+  // `tileW * ISO_BLOCK_H_FRAC` (0.9), so anything tall was zoomed to fit a box less than half its height and had its
+  // top cut off — which is what a roof on a wall stub does. One constant, imported from the renderer, so the two
+  // cannot drift.
   const diagonal = grid.cols + grid.rows
   const perZoomX = cs * grid.isoScale * 0.71 * diagonal
   const perZoomY = cs * grid.isoScale * (0.36 * diagonal + ISO_BLOCK_H_FRAC * levels)

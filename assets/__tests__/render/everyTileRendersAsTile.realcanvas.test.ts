@@ -1,25 +1,22 @@
 /**
- * PERMANENT REGRESSION GUARD — EVERY tile, in EVERY category, in BOTH styles, renders through the ONE
- * uniform tile path as a BLOCK/SLAB — NEVER a flat 2D billboard. A UNIT is the single documented exception
- * (a depth-0 tile drawn by drawIsoEntity, MAP-MODEL §4: "a character/unit is a depth-0 tile — the one map
- * exception").
+ * PERMANENT REGRESSION GUARD — EVERY tile, in EVERY category, in BOTH styles, renders through the ONE uniform tile
+ * path as a BLOCK/SLAB — NEVER a flat 2D billboard. A UNIT is the single documented exception (a depth-0 tile drawn
+ * by drawIsoEntity, MAP-MODEL §4: "a character/unit is a depth-0 tile — the one map exception").
  *
- * WHY THIS EXISTS (Alexander's demand): "EVERY tile in EVERY category must render through the ONE uniform
- * tile path, never a flat 2D billboard, forever." A prior fix routed height-0 tiles through the block path
- * as a thin slab (FLOOR_SLAB_SCALE_Y) instead of a billboard, but was only ever validated on 39 emoji
- * nature/decor tiles. This test proves it for ALL 262 emoji + 211 ascii tiles and FAILS the moment anyone
- * reintroduces a billboard path for a placed tile.
+ * WHY THIS EXISTS: "EVERY tile in EVERY category must render through the ONE uniform tile path, never a flat 2D
+ * billboard, forever." A prior fix routed height-0 tiles through the block path as a thin slab (FLOOR_SLAB_SCALE_Y)
+ * instead of a billboard, but was only ever validated on 39 emoji nature/decor tiles. This test proves it for ALL 262
+ * emoji + 211 ascii tiles and FAILS the moment anyone reintroduces a billboard path for a placed tile.
  *
- * THE CONTRACT (MAP-MODEL §4, EDITOR-INTERACTION-SPEC §11, ENGINE-ARCHITECTURE §3/§8):
- *   • non-unit tile  → drawIsoAssetAscii returns a CUBE geom (block/slab). A height-0 tile is a THIN slab
- *                      (a real, minimal-height block), a height≥1 tile a taller cube. NEVER billboardGeom.
- *   • Z-Width (depth) → the block EXTRUDES further (a directional depth-box hull), settings honoured.
- *   • unit tile      → routed to the ENTITY path (placementFor === 'entity'), NEVER forced into a block.
+ * THE CONTRACT (MAP-MODEL §4, EDITOR-INTERACTION-SPEC §11, ENGINE-ARCHITECTURE §3/§8): • non-unit tile →
+ * drawIsoAssetAscii returns a CUBE geom (block/slab). A height-0 tile is a THIN slab (a real, minimal-height block),
+ * a height≥1 tile a taller cube. NEVER billboardGeom. • Z-Width (depth) → the block EXTRUDES further (a directional
+ * depth-box hull), settings honoured. • unit tile → routed to the ENTITY path (placementFor === 'entity'), NEVER
+ * forced into a block.
  *
- * DETERMINISTIC + OFFLINE: the tile list is the baked `fixtures/tilesets.json` (a captured /api/tilesets
- * response — every category present), installed via the SAME loader production uses. Each tile's baked PNG
- * is stubbed by a solid raster + warmed BEFORE any render (the images-decoded condition the real app gates
- * on). No network at test time.
+ * DETERMINISTIC + OFFLINE: the tile list is the baked `fixtures/tilesets.json` (a captured /api/tilesets response —
+ * every category present), installed via the SAME loader production uses. Each tile's baked PNG is stubbed by a solid
+ * raster + warmed BEFORE any render (the images-decoded condition the real app gates on). No network at test time.
  */
 import { styleTiles } from '@/engine/tileset/styleTiles'
 import { installRealCanvas, type RealCanvasHarness } from '@/__tests__/helpers/realCanvas'
@@ -105,12 +102,12 @@ describe.each([
   })
 })
 
-// ── EVERY tile is an extruded cube; the PLACED BLOCK's height says how tall ──────────────────────────────
-// "all tiles/blocks are height 1, GLOBAL, no exceptions" (Alexander, 2026-07-27). There is no flat-tile shape
-// any more: the catalog row is ART, and whatever height it carries is never read (resolveTileHeight ignores
-// the tile and takes the PLACEMENT's height, defaulting to one block). So a row still marked `height: 0` in
-// the catalog must extrude exactly like any other — if it drew as a flat diamond, an inert art number would
-// be steering geometry again, which is what sank the road below the grass beside it (the trench).
+// ── EVERY tile is an extruded cube; the PLACED BLOCK's height says how tall ────────────────────────────── "all
+// tiles/blocks are height 1, GLOBAL, no exceptions". There is no flat-tile shape any more: the catalog row is ART,
+// and whatever height it carries is never read (resolveTileHeight ignores the tile and takes the PLACEMENT's height,
+// defaulting to one block). So a row still marked `height: 0` in the catalog must extrude exactly like any other — if
+// it drew as a flat diamond, an inert art number would be steering geometry again, which is what sank the road below
+// the grass beside it (the trench).
 describe('the height model — every tile extrudes; the placed block decides how far', () => {
   it("a row's OWN served height decides how far it extrudes — flat stays flat, a block stands", () => {
     const flatRow = nonUnit(emojiRows()).find(r => r.height === 0)

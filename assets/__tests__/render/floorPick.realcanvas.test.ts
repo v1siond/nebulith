@@ -1,7 +1,6 @@
 /**
- * THE FLOOR IS SELECTABLE LIKE ANY TILE. Alexander: "the selector doesn't select the floor tile at all …
- * all tiles behave the same." A floor is a level-0 GridAsset, so clicking its cell MUST return the floor tile
- * from the SAME inverted picker every other tile uses (pickIsoTilesAt over the recorded silhouettes) — not
+ * THE FLOOR IS SELECTABLE LIKE ANY TILE. A floor is a level-0 GridAsset, so clicking its cell MUST return the floor
+ * tile from the SAME inverted picker every other tile uses (pickIsoTilesAt over the recorded silhouettes) — not
  * "nothing" / the bare cell. This reproduces the real pick through the production render() on a real canvas.
  */
 import { installRealCanvas, type RealCanvasHarness } from '@/__tests__/helpers/realCanvas'

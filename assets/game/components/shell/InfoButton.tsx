@@ -1,14 +1,11 @@
 /**
  * THE (i) BUTTON — a click-to-open explanation next to a control.
  *
- * Alexander, 2026-09-08: *"we need to improve labeling and add (i) info and docs with example guides."*
+ * CLICK, not hover, and it stays open until dismissed. That is deliberate: a hover tooltip cannot be read on a touch
+ * screen, cannot be selected or copied, and vanishes the moment you move toward the thing it describes — which is
+ * exactly when you still need it. Godot's editor made the same correction.
  *
- * CLICK, not hover, and it stays open until dismissed. That is deliberate: a hover tooltip cannot be read
- * on a touch screen, cannot be selected or copied, and vanishes the moment you move toward the thing it
- * describes — which is exactly when you still need it. Godot's editor made the same correction.
- *
- * The copy lives in `editorHelp.data.ts`. An id with no copy renders NO button, so an (i) never opens an
- * empty box.
+ * The copy lives in `editorHelp.data.ts`. An id with no copy renders NO button, so an (i) never opens an empty box.
  */
 import { useEffect, useId, useRef, useState } from 'react'
 

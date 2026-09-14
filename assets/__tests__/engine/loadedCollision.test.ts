@@ -1,19 +1,16 @@
 /**
  * LOADING A SAVED MAP MUST NOT BLOCK THE FLOOR WITH THE STOREY ABOVE IT.
  *
- * Alexander (2026-09-06, Image #13): *"actually it's worse, the collissions don't match the generated building"*.
+ * Measured cause — his saved `village` template holds 204 blocking assets, 89 of them ABOVE ground level (`window`
+ * @L2/L4/L6, upper wall courses @L3/L5, `awning` @L2). `deserializeToGrid` blocked a cell for EVERY blocking asset
+ * regardless of level: // Blocks are collision regardless of any visual height level — a blocking asset always blocks
+ * its cell. So a second-floor window stamped collision onto the floor of the room beneath it, and the collision map
+ * traced the UPPER STOREYS instead of the walls. Freshly generated maps were fine (0 mismatches measured) — only
+ * saved ones were wrong, which is why it looked like the collisions "don't match the building".
  *
- * Measured cause — his saved `village` template holds 204 blocking assets, 89 of them ABOVE ground level
- * (`window` @L2/L4/L6, upper wall courses @L3/L5, `awning` @L2). `deserializeToGrid` blocked a cell for EVERY
- * blocking asset regardless of level:
- *     // Blocks are collision regardless of any visual height level — a blocking asset always blocks its cell.
- * So a second-floor window stamped collision onto the floor of the room beneath it, and the collision map traced
- * the UPPER STOREYS instead of the walls. Freshly generated maps were fine (0 mismatches measured) — only saved
- * ones were wrong, which is why it looked like the collisions "don't match the building".
- *
- * The rule, the same one the composition stamp follows: the 2D collision map is written by GROUND-level blocks
- * only. A unit walks on the ground, so the ground is what that flat map means. Tiles keep their own truthful
- * `blocking` data — a roof still blocks as a block; it just does not seal the room under it.
+ * The rule, the same one the composition stamp follows: the 2D collision map is written by GROUND-level blocks only.
+ * A unit walks on the ground, so the ground is what that flat map means. Tiles keep their own truthful `blocking`
+ * data — a roof still blocks as a block; it just does not seal the room under it.
  */
 import { deserializeToGrid } from '@/lib/api'
 import type { TemplateData } from '@/lib/api'

@@ -1,19 +1,17 @@
 /**
  * SPRITE PLAYBACK, the thing that was stubbed.
  *
- * Alexander, 2026-09-12: *"fix the water look ... you usually need border and animation"*.
- *
  * `spriteFrameIndex` has been real, clock-derived and tested all along, and nothing consumed it:
  * `resolveAssetAnimation` said so in its own comment, returning null for a sprite because it writes no render
- * settings ("playback stubbed in Phase 1"). So a tile carrying a frame-swap animation animated nothing, in any
- * view. `spriteFrame` is the consumer.
+ * settings ("playback stubbed in Phase 1"). So a tile carrying a frame-swap animation animated nothing, in any view.
+ * `spriteFrame` is the consumer.
  *
- * WHY THIS MATTERS FOR WATER SPECIFICALLY: water is a FLOOR, and a floor is an ordinary level-0 asset whose
- * identity rides on `tileKey`, never a label (`makeFloorAsset`). So the label seam that animates a composition
- * cell could never animate a floor. This resolves per ASSET, which is why it reaches the ground.
+ * WHY THIS MATTERS FOR WATER SPECIFICALLY: water is a FLOOR, and a floor is an ordinary level-0 asset whose identity
+ * rides on `tileKey`, never a label (`makeFloorAsset`). So the label seam that animates a composition cell could
+ * never animate a floor. This resolves per ASSET, which is why it reaches the ground.
  *
- * The frame is returned resolved but NOT turned into a picture: `frameImage` lives in `render/shared`, and
- * `shared` already imports the animation bridge, so resolving it there would close a circular import.
+ * The frame is returned resolved but NOT turned into a picture: `frameImage` lives in `render/shared`, and `shared`
+ * already imports the animation bridge, so resolving it there would close a circular import.
  */
 import '@/__tests__/helpers/installTilesetSeed'
 import { spriteFrame } from '@/engine/render/assetAnimation'

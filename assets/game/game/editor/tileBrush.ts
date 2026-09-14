@@ -37,11 +37,12 @@ export function tileChar(tile: TileDef): string {
   return visualChar(tile.visual)
 }
 
-/** Place a ground/floor tile of `type` at a cell AND write its colour as STATE — the ONE ground-placement
- *  helper every map-builder (generator apply, editor paint, biome fills) routes through. The colour is PICKED
- *  from the ground tile's own DB colour (groundTileColor); the grid stores it, and every view READS floor.color
- *  instead of deriving it — so no floor is ever placed colourless and there is no render-time colour fallback
- *  (Alexander: "the generator should put the color on the tile … if we don't have a value, empty grid"). */
+/**
+ * Place a ground/floor tile of `type` at a cell AND write its colour as STATE — the ONE ground-placement helper every
+ * map-builder (generator apply, editor paint, biome fills) routes through. The colour is PICKED from the ground
+ * tile's own DB colour (groundTileColor); the grid stores it, and every view READS floor.color instead of deriving it
+ * — so no floor is ever placed colourless and there is no render-time colour fallback.
+ */
 export function placeGround(grid: IsometricGrid, col: number, row: number, type: string): void {
   grid.setGround(col, row, type, groundTileColor(type, col, row))
 }

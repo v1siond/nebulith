@@ -1,20 +1,16 @@
 /**
  * ANIMATED CAMERA TURN IN ISO — end-to-end through render().
  *
- * Alexander: "when rotating i want to see the animation of the world rotating, in fact, Ideally, I should have
- * a controller that allows me to rotate more accurately, with the current 4 options as the quick turnarounds."
- * Chosen shape: the world SPINS continuously while you drag and EASES into the NEAREST of the 4 corners on
- * release; the 4 buttons stay as quick jumps. **At rest nothing about today's render changes.**
+ * Chosen shape: the world SPINS continuously while you drag and EASES into the NEAREST of the 4 corners on release;
+ * the 4 buttons stay as quick jumps. **At rest nothing about today's render changes.**
  *
- * So this file asserts, against the RENDERED frame (the pure maths is `isoTurn.test.ts`):
- *   1. A WHOLE turn is BIT-IDENTICAL to today — same op stream as the `cameraFacing` render, and the same
- *      literal screen coords `isoCameraRotation.test.ts` already pins. This is the hard regression guard.
- *   2. A FRACTIONAL turn really rotates the world: a known corner lands at a predicted INTERMEDIATE screen
- *      position, and the sweep is smooth — including across the 45° nearest-corner crossover.
- *   3. The depth sort mid-turn uses the CONTINUOUS projected key: the order flips where the two tiles are
- *      genuinely at the same screen depth, NOT at the corner crossover.
- *   4. The pick still round-trips at REST.
- *   5. The `__setCameraTurn` / `__cameraTurn` seams the UI controller will drive.
+ * So this file asserts, against the RENDERED frame (the pure maths is `isoTurn.test.ts`): 1. A WHOLE turn is
+ * BIT-IDENTICAL to today — same op stream as the `cameraFacing` render, and the same literal screen coords
+ * `isoCameraRotation.test.ts` already pins. This is the hard regression guard. 2. A FRACTIONAL turn really rotates
+ * the world: a known corner lands at a predicted INTERMEDIATE screen position, and the sweep is smooth — including
+ * across the 45° nearest-corner crossover. 3. The depth sort mid-turn uses the CONTINUOUS projected key: the order
+ * flips where the two tiles are genuinely at the same screen depth, NOT at the corner crossover. 4. The pick still
+ * round-trips at REST. 5. The `__setCameraTurn` / `__cameraTurn` seams the UI controller will drive.
  *
  * Deterministic camera idiom from isoCameraRotation.test.ts: cellSize 100 / isoScale 1 (tileW 71, tileH 36),
  * clampCamera:false, player on the map CENTRE — so every expected pixel is exact.

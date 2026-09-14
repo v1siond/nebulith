@@ -105,11 +105,9 @@ describe('playerViewRange culls the render to a radius around the player', () =>
   })
 })
 
-// RANGE IS A GRID TEST, NOT A PER-TILE ONE (Alexander: "the range should actually work on per cell … on roads
-// we use 1 block with lots of z-width, if we do per tile range, then unless we hit the specific part the tile is
-// located, road won't show … for vision range, rendering player camera, it's better to use the grid").
-// A z-width run is ONE tile spanning MANY cells, so it must stay visible while the ring crosses ANY cell it
-// covers — testing only its anchor made a whole road vanish. Same anchor either way; only the z-width differs.
+// RANGE IS A GRID TEST, NOT A PER-TILE ONE. A z-width run is ONE tile spanning MANY cells, so it must stay visible
+// while the ring crosses ANY cell it covers — testing only its anchor made a whole road vanish. Same anchor either
+// way; only the z-width differs.
 describe('player range culls on the GRID CELLS a tile covers, not just its anchor', () => {
   const ANCHOR = { col: PCOL + 5, row: PROW } // dist 5 — outside a range of 4, still on-screen
   const runAt = (col: number, row: number, depth: number): GridAsset =>

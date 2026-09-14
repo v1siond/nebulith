@@ -1,19 +1,16 @@
 /**
  * THE PREVIEWS — every picture the library shows.
  *
- * Alexander, 2026-09-08: *"there's no preview in objects, in general we need preview for everything."*
- *
- * Thin renderers over `@/engine/tilePreview`, which holds all the geometry and is unit-tested. The DOM and
- * class names are carried over from the approved design at :8899 unchanged, so the CSS in
+ * Thin renderers over `@/engine/tilePreview`, which holds all the geometry and is unit-tested. The DOM and class
+ * names are carried over from the approved design at:8899 unchanged, so the CSS in
  * `styles/themes/nebulith-editor.css` applies without a single new rule.
  *
  * Two rules these components exist to keep:
  *
- *  · **A missing picture shows as missing.** No glyph stand-in, no emoji picked from the name, no borrowing
- *    another style's art. The old inventory panel chose an icon by regexing the item's name, which made 15
- *    pictureless items look finished.
- *  · **Frames play only where you're looking.** 358 simultaneously animating tiles is a scroll-killer, so a
- *    swatch is a still with a small badge and the big preview is what animates.
+ * · **A missing picture shows as missing.** No glyph stand-in, no emoji picked from the name, no borrowing another
+ * style's art. The old inventory panel chose an icon by regexing the item's name, which made 15 pictureless items
+ * look finished. · **Frames play only where you're looking.** 358 simultaneously animating tiles is a scroll-killer,
+ * so a swatch is a still with a small badge and the big preview is what animates.
  */
 import { useEffect, useState } from 'react'
 
@@ -77,17 +74,15 @@ export function TilePicture({ styleId, label, size, animate = false, className }
 /**
  * `CompositionFront`, `CompositionPlan` and `PreviewStrip` were deleted here.
  *
- * All three DREW THEIR OWN PICTURE of a thing — a front elevation composed from a composition's parts, and
- * a flat plan grid. Alexander, 2026-09-09: *"the previews of the objects don't match the selected view at
- * all… fountain, lamp post and well are the worst offenders"* and *"the preview should be how it looks in
- * the map."* A hand-assembled elevation cannot answer that, because it re-implements a renderer and knows
- * nothing about footprints, collapsed height runs, per-cell settings or animation.
+ * All three DREW THEIR OWN PICTURE of a thing — a front elevation composed from a composition's parts, and a flat
+ * plan grid. and *"the preview should be how it looks in the map."* A hand-assembled elevation cannot answer that,
+ * because it re-implements a renderer and knows nothing about footprints, collapsed height runs, per-cell settings or
+ * animation.
  *
- * Their replacement is `@/engine/preview` — a real grid, stamped through the brush and the generator's own
- * stamp, drawn by whichever of the three map renderers the view bar has selected. Deleted rather than left
- * unused: two ways to picture a tile is exactly how these drifted from the map in the first place.
+ * Their replacement is `@/engine/preview` — a real grid, stamped through the brush and the generator's own stamp,
+ * drawn by whichever of the three map renderers the view bar has selected. Deleted rather than left unused: two ways
+ * to picture a tile is exactly how these drifted from the map in the first place.
  *
- * `TilePicture` stays. A tile's baked PNG is the right picture in the two places that still want one: a
- * CHARACTER (a billboard, drawn upright by every view, so its image already is its map appearance) and the
- * small swap-panel grid.
+ * `TilePicture` stays. A tile's baked PNG is the right picture in the two places that still want one: a CHARACTER (a
+ * billboard, drawn upright by every view, so its image already is its map appearance) and the small swap-panel grid.
  */

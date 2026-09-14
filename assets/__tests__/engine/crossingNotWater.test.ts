@@ -1,18 +1,15 @@
 /**
  * A BRIDGE MUST NOT LOOK LIKE WATER.
  *
- * Alexander, 2026-09-13, looking at a generated swamp forest: *"first of all, I don't want to fucking ever
- * see a bridge or walkable thing that looks like water, it's fucking confusing"*.
+ * He was right and the cause was a single `else if`. A crossing cell is river a moment before the deck is laid, so
+ * `floorColors` is holding the river's blue when `layDeck` runs. `layDeck` wrote the tile (`bridge`) and the
+ * elevation, then reached `else if (tone) floorColors[…] = tone` and, with no served tone, LEFT THE BLUE THERE. The
+ * tile said bridge and the colour said water, so you got a blue walkway over a blue river.
  *
- * He was right and the cause was a single `else if`. A crossing cell is river a moment before the deck is
- * laid, so `floorColors` is holding the river's blue when `layDeck` runs. `layDeck` wrote the tile (`bridge`)
- * and the elevation, then reached `else if (tone) floorColors[…] = tone` and, with no served tone, LEFT THE
- * BLUE THERE. The tile said bridge and the colour said water, so you got a blue walkway over a blue river.
- *
- * The old code carried a comment defending it ("a default here would be a hardcoded fallback for a SERVED
- * value"), which is the compliance rule pointed at the wrong thing. Clearing a STALE override is not
- * inventing a value: an undefined override means "no override", so the bridge tile's own served colour
- * shows. Inventing a brown would have been the violation.
+ * The old code carried a comment defending it ("a default here would be a hardcoded fallback for a SERVED value"),
+ * which is the compliance rule pointed at the wrong thing. Clearing a STALE override is not inventing a value: an
+ * undefined override means "no override", so the bridge tile's own served colour shows. Inventing a brown would have
+ * been the violation.
  *
  * The oracle is his sentence, measured: no cell you can walk on may wear a colour the water wears.
  */

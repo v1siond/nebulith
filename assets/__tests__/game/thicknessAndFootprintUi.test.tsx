@@ -1,19 +1,14 @@
 /**
  * THICKNESS AND FOOTPRINT ARE ONE CONTROL SHAPE, AND THEIR ARROWS MATCH THE VIEW.
  *
- * Alexander: "I pefer thickness UI to work like z-width UI … plus, the direction should match and be aligned
- * with the current cammera rotation, I rotated and the direction the propreties in the UI were showing didn't
- * match the view."
+ * So both controls ask the SAME question — "how far does this tile reach toward ⟨arrow⟩?" — and differ only in unit:
+ * FOOTPRINT whole CELLS, minimum 1 (a tile always occupies its own cell) THICKNESS within ONE cell, maximum 1 (1 =
+ * all the way to that face)
  *
- * So both controls ask the SAME question — "how far does this tile reach toward ⟨arrow⟩?" — and differ only
- * in unit:
- *   FOOTPRINT  whole CELLS, minimum 1 (a tile always occupies its own cell)
- *   THICKNESS  within ONE cell, maximum 1 (1 = all the way to that face)
- *
- * And the arrows are SCREEN directions. The glyph stays where it is in the 2×2 grid (↖ is always the up-left
- * corner, matching where the block grows on screen) while the WORLD axis under it is re-derived per camera
- * facing — so clicking the arrow you can see edits the axis you are looking at, while STORAGE stays
- * world-space (which is what keeps a door thin toward its own wall as you rotate).
+ * And the arrows are SCREEN directions. The glyph stays where it is in the 2×2 grid (↖ is always the up-left corner,
+ * matching where the block grows on screen) while the WORLD axis under it is re-derived per camera facing — so
+ * clicking the arrow you can see edits the axis you are looking at, while STORAGE stays world-space (which is what
+ * keeps a door thin toward its own wall as you rotate).
  */
 import { render, screen, fireEvent } from '@testing-library/react'
 import { TileControls, type TileControlModel } from '@/components/game/editorChrome'

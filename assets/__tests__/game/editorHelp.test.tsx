@@ -1,11 +1,10 @@
 /**
- * THE EDITOR'S SELF-DOCUMENTATION (games-page UX design §4.9, fixing §3.4 "Nothing tells the user
- * how to use the editor" — a P0).
+ * THE EDITOR'S SELF-DOCUMENTATION (games-page UX design §4.9, fixing §3.4 "Nothing tells the user how to use the
+ * editor" — a P0).
  *
- * Two surfaces, one contract: the chip states the current mode on the canvas, and the help sheet
- * lists every shortcut FROM the shortcut table. These tests render the real components and read the
- * DOM, so a sheet that silently stopped listing a group, or a chip that stopped naming its mode,
- * fails here rather than in front of Alexander.
+ * Two surfaces, one contract: the chip states the current mode on the canvas, and the help sheet lists every shortcut
+ * FROM the shortcut table. These tests render the real components and read the DOM, so a sheet that silently stopped
+ * listing a group, or a chip that stopped naming its mode, fails here rather than in review.
  */
 import { render, screen, fireEvent } from '@testing-library/react'
 import { CanvasModeChip, HelpSheet } from '@/components/game/editorHelp'

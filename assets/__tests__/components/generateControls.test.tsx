@@ -1,32 +1,29 @@
 /**
  * THE "NEW WORLD" PANEL (was ⚡ GENERATE, §4.6).
  *
- * The menu IS the backend catalog (T-113): every season, kind of place and preset comes from a verbatim
- * capture of `/api/generators`, and the menu offers NOTHING the catalog does not carry. That is the point
- * these tests exist to hold, and it is unchanged.
+ * The menu IS the backend catalog (T-113): every season, kind of place and preset comes from a verbatim capture of
+ * `/api/generators`, and the menu offers NOTHING the catalog does not carry. That is the point these tests exist to
+ * hold, and it is unchanged.
  *
- * WHAT CHANGED, 2026-09-09, and why this suite was rewritten rather than patched. Alexander asked for four
- * things and each one moved a contract the old tests pinned:
+ * WHAT CHANGED, 2026-09-09, and why this suite was rewritten rather than patched. The ask was for four things and
+ * each one moved a contract the old tests pinned:
  *
- *  · *"why not just a regular select??? we don't need to have the options showing with scrolling when we
- *    can use an actual dropdown selector and reduce space"* — season chips and map-type cards are now
- *    native `<select>`s, so `getByRole('button', {name: 'winter'})` has no subject.
- *  · *"build this world button should be at the end"* — and it is named that, not "Generate world".
- *  · *"labels aren't clearly descriptive… we need clear concise labeling"* — the numbered
- *    `1 · SEASON` / `4 · MAP SIZE` headings are gone; a control is labelled by what it is.
- *  · *"this shouldn't be a limitation… the previous limits where caused by poor optimization"* — the size
- *    caps were deleted. ONE came back on 2026-09-10 at his own request (*"let's limit maps to 100x100 for
- *    now"*), and it is held to the same standard the removal was: a number is never quietly rewritten under
- *    you. Over the cap the panel SAYS so; it does not silently build something else.
+ * · *"why not just a regular select??? we don't need to have the options showing with scrolling when we can use an
+ * actual dropdown selector and reduce space"* — season chips and map-type cards are now native `<select>`s, so
+ * `getByRole('button', {name: 'winter'})` has no subject. · *"build this world button should be at the end"* — and it
+ * is named that, not "Generate world". · *"labels aren't clearly descriptive… we need clear concise labeling"* — the
+ * numbered `1 · SEASON` / `4 · MAP SIZE` headings are gone; a control is labelled by what it is. · *"this shouldn't
+ * be a limitation… the previous limits where caused by poor optimization"* — the size caps were deleted. ONE came
+ * back on 2026-09-10 at his own request (*"let's limit maps to 100x100 for now"*), and it is held to the same
+ * standard the removal was: a number is never quietly rewritten under you. Over the cap the panel SAYS so; it does
+ * not silently build something else.
  *
- * Everything else the old suite proved is proved here too: a click selects rather than generates, the
- * picked preset id is forwarded verbatim, and a preset does not survive changing the kind of place.
+ * Everything else the old suite proved is proved here too: a click selects rather than generates, the picked preset
+ * id is forwarded verbatim, and a preset does not survive changing the kind of place.
  *
- * WHAT MOVED OUT, 2026-09-10. Alexander: *"the ground thicknes is not a per template setting, is just a
- * general setting of the grid ... we should add an option in the main sidebar related specifically to the
- * grid ... outside of the template generation"*. The matrix (columns / rows / cell pixels) and the ground
- * thickness are the GRID's, so their tests moved with them to `gridPanel.test.tsx`. This panel takes no
- * size at all now: `onGenerate` has three arguments and the caller reads the grid.
+ * WHAT MOVED OUT, 2026-09-10. The matrix (columns / rows / cell pixels) and the ground thickness are the GRID's, so
+ * their tests moved with them to `gridPanel.test.tsx`. This panel takes no size at all now: `onGenerate` has three
+ * arguments and the caller reads the grid.
  */
 import { act, render, screen, fireEvent, within } from '@testing-library/react'
 import { GenerateControls } from '@/components/game/editorChrome'
@@ -175,8 +172,6 @@ describe('variations are options on a preset, not more presets', () => {
   }
 
   it('offers the river as a choice of COURSE — each one he named, random among them', () => {
-    // Alexander, 2026-09-11: *"maybe it's traversable, maybe it's dividing the map in two half, maybe it's
-    // around the map ... the randomness is good, we need to parametize it a bit more"*.
     setup()
     fireEvent.change(kinds(), { target: { value: 'forest' } })
     expect([...control(/^river$/i).options].map(o => o.value)).toEqual(['none', 'random', 'through', 'divides', 'around'])
@@ -204,8 +199,6 @@ describe('variations are options on a preset, not more presets', () => {
   })
 
   it('offers the kind of crossing, greyed out until there is a river, and forwards the one picked', () => {
-    // Alexander, 2026-09-11: *"it can be a simple dirt path, it can be an actual bridge, which again, are
-    // multiple variations"*.
     const onGenerate = setup()
     fireEvent.change(kinds(), { target: { value: 'forest' } })
     const kind = () => control(/^kind of crossing$/i)
@@ -219,10 +212,9 @@ describe('variations are options on a preset, not more presets', () => {
   })
 
   it('offers HOW DEEP the channel is cut, greyed out until there is a river, and forwards it', () => {
-    // Alexander, 2026-09-11: *"we need the river without water, which is negative height compared to walking
-    // floor"* and *"river depth is confgiuravble, same as shadow, same as sun light, we want to control
-    // everyhting"*. Same shape as the crossing and its kind: served, dependent, forwarded. A variation is an
-    // option, so it gets the same coverage the other options have.
+    // and *"river depth is confgiuravble, same as shadow, same as sun light, we want to control everyhting"*. Same
+    // shape as the crossing and its kind: served, dependent, forwarded. A variation is an option, so it gets the same
+    // coverage the other options have.
     const onGenerate = setup()
     fireEvent.change(kinds(), { target: { value: 'forest' } })
     const depth = () => control(/how deep the channel is cut/i)
@@ -245,8 +237,6 @@ describe('variations are options on a preset, not more presets', () => {
 })
 
 describe('forest > type > subtype — pick one, go deeper, or randomize', () => {
-  // Alexander, 2026-09-11: *"when selecting a zone, we should also have extra options to select different
-  // types of the selected zone, or just randomize, and we can go various levels deeper"*.
   const setup = () => {
     const onGenerate = jest.fn()
     render(<GenerateControls catalog={CATALOG} zone="spring" onZone={noop} onGenerate={onGenerate} />)
@@ -386,9 +376,6 @@ describe('re-roll the selection — it names the count and says what to do first
 })
 
 describe('the preview window shows the world to build, its size, and the options that shape it', () => {
-  // Alexander, 2026-09-11: *"we should see the preview of the map to generate in the preview modal as soon as we
-  // select the zone and in that same preview map, we should see the grid size, how many cells, etc. We should also
-  // have the rest of options like variations of the map, adding river, adding bridge, etc etc"*.
   const size = { cols: 60, rows: 40, cellSize: 16 }
   type Props = Parameters<typeof GenerateControls>[0]
   const props = (extra: Partial<Props> = {}): Props => ({
@@ -440,13 +427,10 @@ describe('the preview window shows the world to build, its size, and the options
   })
 
   /**
-   * Alexander, 2026-09-11: *"the preview doesn't work on any of settlements"*.
-   *
-   * The subject carried the CATEGORY key as the archetype. That is an archetype by coincidence for forest,
-   * cave and temple, and never was for "settlement" since town and city were merged under it, so the engine
-   * ran no pass and the preview drew an empty grid. Only settlements broke, and the one test that looked at
-   * this field asserted `CATALOG[0].key` where the key and the variant happen to be the same word, so nothing
-   * caught it.
+   * The subject carried the CATEGORY key as the archetype. That is an archetype by coincidence for forest, cave and
+   * temple, and never was for "settlement" since town and city were merged under it, so the engine ran no pass and
+   * the preview drew an empty grid. Only settlements broke, and the one test that looked at this field asserted
+   * `CATALOG[0].key` where the key and the variant happen to be the same word, so nothing caught it.
    */
   it('a settlement peeks the ROW\'s archetype, never the category key', () => {
     const p = props()
@@ -459,9 +443,8 @@ describe('the preview window shows the world to build, its size, and the options
   })
 
   /**
-   * Alexander, 2026-09-11: *"when you close the preview it goes inside the sidebar and can never go back
-   * oputside until you change links"*. With no window to portal into, the options fall back inline (that is
-   * the sidebar half), and nothing could ask for the window back.
+   * With no window to portal into, the options fall back inline (that is the sidebar half), and nothing could ask for
+   * the window back.
    */
   describe('the way back to the preview window', () => {
     const reopen = () => screen.getByRole('button', { name: /preview window/i })
@@ -490,10 +473,8 @@ describe('the preview window shows the world to build, its size, and the options
   })
 
   /**
-   * Alexander, 2026-09-11: *"'build this world' is a bit limited, what If I just want to change the season of
-   * the current template¿ what if I just want to change the cell pixels, keeping the rest? we need to be able
-   * to apply changes without re-randomizing the map"*. Building was the only way anything in this panel
-   * reached the map, and a build rolls a new world, so changing one setting cost you the map you had.
+   * Building was the only way anything in this panel reached the map, and a build rolls a new world, so changing one
+   * setting cost you the map you had.
    */
   describe('applying a change to the map that is already open', () => {
     const apply = () => screen.getByRole('button', { name: /apply to this map/i })

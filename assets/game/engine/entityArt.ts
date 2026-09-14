@@ -5,26 +5,26 @@ import type { TilePose } from '@/engine/tileset/pose'
 /**
  * ENTITY ART — a READER over the backend unit tiles. It declares no figures of its own.
  *
- * This file used to BE the art: 11 multi-row enemy figures, their 11 animation frames, the villager, the
- * fallbacks — ~90 lines of hand-drawn sprites in the frontend. Alexander, 2026-09-08:
+ * This file used to BE the art: 11 multi-row enemy figures, their 11 animation frames, the villager, the fallbacks —
+ * ~90 lines of hand-drawn sprites in the frontend.
  *
- *   > human like units should look like the user player, animals, and other units are also composition of
- *   > ascii characters grouped to create a given element … a dog is not a single character, is a set of
- *   > characters combined to form a dog, that was then converted to png to be a tile … we lost the unit
- *   > ascii art and we must recover it a correctly convert it to tile images and save them in thew elixir
- *   > backend … i don't want ANY data layer on frontend, just actual game engine.
+ * > human like units should look like the user player, animals, and other units are also composition of > ascii
+ * characters grouped to create a given element … a dog is not a single character, is a set of > characters combined
+ * to form a dog, that was then converted to png to be a tile … we lost the unit > ascii art and we must recover it a
+ * correctly convert it to tile images and save them in thew elixir > backend … i don't want ANY data layer on
+ * frontend, just actual game engine.
  *
- * Those figures now live in nebulith (`priv/repo/tilesets/ascii_unit_art.json` → `TileSource.apply_unit_art`)
- * and arrive on each unit tile as `settings.artFrames` — the character ROWS of every frame — alongside
- * `settings.frames`, the baked picture per frame, and `settings.frameMs`, the loop length. The 11 enemy
- * figures were recovered from this file verbatim, so nothing was redrawn in the move.
+ * Those figures now live in nebulith (`priv/repo/tilesets/ascii_unit_art.json` → `TileSource.apply_unit_art`) and
+ * arrive on each unit tile as `settings.artFrames` — the character ROWS of every frame — alongside `settings.frames`,
+ * the baked picture per frame, and `settings.frameMs`, the loop length. The 11 enemy figures were recovered from this
+ * file verbatim, so nothing was redrawn in the move.
  *
  * What stays here is the NAMED ACCESS the render already used — `entityArt(entity)`, `entityArtFrame(e, n)`,
  * `entityFootprint(e)` — so every call site keeps its shape while the rows come from the catalog.
  *
- * An unserved label resolves to NO rows rather than a stand-in figure: a unit the backend has no art for
- * must read as missing, not as a goblin. The footprint still floors at 1×2 cells, because collision needs a
- * box for a unit that exists whether or not its picture has loaded.
+ * An unserved label resolves to NO rows rather than a stand-in figure: a unit the backend has no art for must read as
+ * missing, not as a goblin. The footprint still floors at 1×2 cells, because collision needs a box for a unit that
+ * exists whether or not its picture has loaded.
  */
 
 /** The unit TILE LABEL an entity draws. An enemy is its type (`goblin`); everything else is its kind

@@ -1,14 +1,10 @@
 /**
  * EACH FOREST GROWS ITS OWN SPECIES.
  *
- * Alexander, 2026-09-11: *"we need to have more variance of trees, like we're using the same for all forest
- * variations, but that's not good, existing trees serves as a great starting point, let's use that base to
- * generate more variants"*.
- *
- * Every forest rolled one global weighted table, so a jungle grew exactly what a meadow grew. The new shapes
- * are `tree_comp` with different proportions (backend), and each template serves its own mix. Built from the
- * REAL served catalog in the fixture, not numbers retyped here, so the test breaks if the data and the
- * generator ever stop agreeing.
+ * Every forest rolled one global weighted table, so a jungle grew exactly what a meadow grew. The new shapes are
+ * `tree_comp` with different proportions (backend), and each template serves its own mix. Built from the REAL served
+ * catalog in the fixture, not numbers retyped here, so the test breaks if the data and the generator ever stop
+ * agreeing.
  */
 import '@/__tests__/helpers/installTilesetSeed'
 import { generateStage } from '@/engine/stageGenerator'
@@ -93,9 +89,9 @@ describe('a template that serves no mix keeps the old shared table', () => {
 })
 
 describe('the region you PICK leads the map', () => {
-  // Alexander, 2026-09-11: *"on jungle we have "regions" in it, but it's badly implemented, we should just have
-  // variations, similar to "which jungle" "which region""*. Ticking a region OUT is gone, so what there is to
-  // measure is EMPHASIS: the region you pick dominates, and the others are still in there.
+  // regions" in it, but it's badly implemented, we should just have variations, similar to "which jungle" "which
+  // region""*. Ticking a region OUT is gone, so what there is to measure is EMPHASIS: the region you pick dominates,
+  // and the others are still in there.
   it('a jungle led by its swamp grows more cypress than one led by open canopy', () => {
     const config = findGenerator(CATALOG, 'forest', 'jungle')!.config
     const build = (options: Record<string, string>) => {

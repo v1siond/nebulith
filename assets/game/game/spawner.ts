@@ -28,11 +28,9 @@ export const CAVE_ENEMY_TYPES = ['bat', 'spider', 'skeleton'] as const
 export const TEMPLE_ENEMY_TYPES = ['skeleton', 'guardian', 'wraith'] as const
 
 /*
- * `ARCHETYPE_BY_ENEMY_TYPE` and `archetypeForEnemyType` lived here: a hardcoded table translating a
- * creature into a second vocabulary of nine "archetypes" that mapped one-to-one back onto eight creatures.
- * Alexander, 2026-09-10: *"an enemy is just a regular unit, but marked as hostile towards player. so, I
- * don't think we need a separate table for it"*. A creature carries its own numbers now
- * (`combatForEnemyType` → the tile's `settings.combat`), so there is nothing left to translate.
+ * `ARCHETYPE_BY_ENEMY_TYPE` and `archetypeForEnemyType` lived here: a hardcoded table translating a creature into a
+ * second vocabulary of nine "archetypes" that mapped one-to-one back onto eight creatures. A creature carries its own
+ * numbers now (`combatForEnemyType` → the tile's `settings.combat`), so there is nothing left to translate.
  */
 
 export interface ScatterOptions {

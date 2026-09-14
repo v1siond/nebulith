@@ -10,22 +10,17 @@ import { type ZoneId } from '@/engine/zones'
 /**
  * THE RIVER, AS ITS OWN SUBSYSTEM.
  *
- * Alexander, 2026-09-13, having guessed the state of it before looking: *"do we have a separate module to
- * build the river layouts? like the channel, the current, etc and then insert it based of generator usage? I
- * bet we don't, I bet we have a fucking spagetti code where everythign is just a huge shitstorm of methods
- * instead of separate modules handling each individual subsystem."*
+ * He was right. Measured at the time: `stageGenerator.ts` was 5,775 lines and 211 functions, 56 of them about water,
+ * all in that one file with the trees and the buildings and the settlements. `pathNetwork.ts` already existed, so the
+ * project knew the pattern and water had simply never been given it, which is also why a fix to the woodland's river
+ * never reached the jungle's.
  *
- * He was right. Measured at the time: `stageGenerator.ts` was 5,775 lines and 211 functions, 56 of them about
- * water, all in that one file with the trees and the buildings and the settlements. `pathNetwork.ts` already
- * existed, so the project knew the pattern and water had simply never been given it, which is also why a fix
- * to the woodland's river never reached the jungle's.
+ * This is the first piece pulled out: THE CURRENT. It is the most self-contained (pure graph work over a set of wet
+ * cells and the map's bounds, touching no ground, no props and no palette) and the one he has raised most often, so
+ * it is the honest place to start rather than a big-bang move.
  *
- * This is the first piece pulled out: THE CURRENT. It is the most self-contained (pure graph work over a set
- * of wet cells and the map's bounds, touching no ground, no props and no palette) and the one he has raised
- * most often, so it is the honest place to start rather than a big-bang move.
- *
- * The seam is deliberately narrow: a river needs to know how big the map is, nothing else. `RiverBounds` is
- * that, and `ArchetypeContext` satisfies it structurally, so the caller passes itself and no adapter exists.
+ * The seam is deliberately narrow: a river needs to know how big the map is, nothing else. `RiverBounds` is that, and
+ * `ArchetypeContext` satisfies it structurally, so the caller passes itself and no adapter exists.
  */
 
 /** All a river needs to know about the map it runs through. */
@@ -39,39 +34,34 @@ export type { Cell } from './grid'
 /**
  * WHICH WAY THE WATER IS GOING, per cell.
  *
- * Alexander, 2026-09-13, with three drawings: *"ALL FUCKING TILES USED ARE RANDOMLY ALIGNED, NONE IS THE SAME
- * PATTERN, THE SAME DIRECTION … MOST OF THEM ARE BACKWARDS TOO, LIKE NONE OF THEM ARE TAKING INTO
- * CONSIDERATION THE DIRECTION OF THE RIVER AROUND THE FUCKING MAP"*, and then the target, drawn:
+ * and then the target, drawn:
  *
- *     what he sees        what he wants            or
- *     | - | - |-          -------                  | | |
- *                         ------                   | | |
- *                         ------                   | | |
+ * what he sees what he wants or | - | - |- ------- | | | ------ | | | ------ | | |
  *
- * WHY IT CAME OUT SCRAMBLED. The first version walked the wet cells as a graph and gave each cell the step
- * that REACHED it. That is right for a channel one cell wide and wrong for every real river, because a river
- * is WIDE: the walk wanders across the channel as happily as along it, so two cells in the same cross-section
- * get perpendicular headings. His `| - | - |-` is exactly a depth-first walk of a three-wide band.
+ * WHY IT CAME OUT SCRAMBLED. The first version walked the wet cells as a graph and gave each cell the step that
+ * REACHED it. That is right for a channel one cell wide and wrong for every real river, because a river is WIDE: the
+ * walk wanders across the channel as happily as along it, so two cells in the same cross-section get perpendicular
+ * headings. His `| - | - |-` is exactly a depth-first walk of a three-wide band.
  *
  * A cell's heading is two independent facts, and they need two different answers:
  *
- *   1. THE AXIS — does this stretch run along col or along row? That is a fact about the channel's SHAPE, so
- *      measure the shape: how far the water reaches through this cell each way. A three-wide horizontal band
- *      reaches ~40 along col and 3 along row at every one of its cells, so the whole band answers "col",
- *      cross-section included. This is what makes his `-------` come out level.
+ * 1. THE AXIS — does this stretch run along col or along row? That is a fact about the channel's SHAPE, so measure
+ * the shape: how far the water reaches through this cell each way. A three-wide horizontal band reaches ~40 along col
+ * and 3 along row at every one of its cells, so the whole band answers "col", cross-section included. This is what
+ * makes his `-------` come out level.
  *
- *   2. THE SIGN — of the two ways along that axis, which is downstream? That is a fact about the channel as a
- *      WHOLE, so it comes from a distance field, not from a neighbour. BFS from an EXTREMITY of the reach
- *      makes the distance climb monotonically from one end to the other, so "downstream = the neighbour that
- *      is farther" agrees everywhere. The extremity is found with the standard double sweep (BFS from any
- *      cell, take the farthest; BFS again from that one), which lands on a true end of the reach rather than
- *      the middle. Seeding in the middle would give a spring flowing out both ways.
+ * 2. THE SIGN — of the two ways along that axis, which is downstream? That is a fact about the channel as a WHOLE, so
+ * it comes from a distance field, not from a neighbour. BFS from an EXTREMITY of the reach makes the distance climb
+ * monotonically from one end to the other, so "downstream = the neighbour that is farther" agrees everywhere. The
+ * extremity is found with the standard double sweep (BFS from any cell, take the farthest; BFS again from that one),
+ * which lands on a true end of the reach rather than the middle. Seeding in the middle would give a spring flowing
+ * out both ways.
  *
- * A RING IS THE ONE CASE A DISTANCE FIELD CANNOT ANSWER, and it is the case he drew (image #9, a river going
- * around the map). Distance from any seed on a ring climbs BOTH ways and the two halves collide at the far
- * side. A ring does not have an upstream, it CIRCULATES, so it gets the other rule: turn the vector from the
- * ring's middle to the cell by ninety degrees and follow that around. Which rule applies is decided exactly,
- * not by a threshold: the water is a ring when it encircles dry land (`encirclesDryLand`).
+ * A RING IS THE ONE CASE A DISTANCE FIELD CANNOT ANSWER, and it is the case he drew (image #9, a river going around
+ * the map). Distance from any seed on a ring climbs BOTH ways and the two halves collide at the far side. A ring does
+ * not have an upstream, it CIRCULATES, so it gets the other rule: turn the vector from the ring's middle to the cell
+ * by ninety degrees and follow that around. Which rule applies is decided exactly, not by a threshold: the water is a
+ * ring when it encircles dry land (`encirclesDryLand`).
  *
  * Returns quarter turns: 0 = +col, 1 = +row, 2 = -col, 3 = -row. Every wet cell of a channel gets one.
  */
@@ -198,18 +188,17 @@ const AXIS_VOTE = 2
 /**
  * THE AXIS, AGREED WITH THE WATER AROUND IT.
  *
- * Alexander, 2026-09-12: *"there's still parts with perpendicular current instead of parallel"*, and
- * 2026-09-13: *"all water should be in the same direction and always parallel to the channel of the river"*.
+ * and 2026-09-13: *"all water should be in the same direction and always parallel to the channel of the river"*.
  *
- * `channelAxis` measures ONE cell, and a one-cell measurement disagrees with its neighbours exactly where a
- * river bends or widens, because the reach along the two axes is nearly equal there and a single cell can tip
- * the other way. It then draws its current straight across the stream. Measured on a woodland: 6 cells of 130,
- * 5%, every one of them at a bend.
+ * `channelAxis` measures ONE cell, and a one-cell measurement disagrees with its neighbours exactly where a river
+ * bends or widens, because the reach along the two axes is nearly equal there and a single cell can tip the other
+ * way. It then draws its current straight across the stream. Measured on a woodland: 6 cells of 130, 5%, every one of
+ * them at a bend.
  *
- * A river does not change direction one cell at a time, so the axis is settled by a VOTE over the cell and the
- * water around it. One pass is enough by construction: an outlier is outnumbered by the stretch it sits in,
- * and a genuine turn is a majority of its own within two cells. Ties keep the cell's own answer, so a square
- * pool still answers consistently instead of speckling.
+ * A river does not change direction one cell at a time, so the axis is settled by a VOTE over the cell and the water
+ * around it. One pass is enough by construction: an outlier is outnumbered by the stretch it sits in, and a genuine
+ * turn is a majority of its own within two cells. Ties keep the cell's own answer, so a square pool still answers
+ * consistently instead of speckling.
  */
 function agreedAxes(component: ReadonlySet<string>, water: ReadonlySet<string>): Map<string, FlowAxis> {
   const raw = new Map<string, FlowAxis>()
@@ -394,22 +383,21 @@ export function waterBand(depth: number, wadeable: boolean): WaterBand {
  *  rivers. The draw order is unchanged when nothing is forced, so the jungle's creek is byte-identical. */
 // TRIED, MEASURED, AND NOT KEPT: turning the channel to CROSS the planned ways.
 //
-// Alexander, 2026-09-12: *"we need to always draw the pathway first, then the river and everything else adapts
-// to it"*. The ways ARE planned before a drop of water is carved, and the channel ignores them, so a river can
-// come out lying along a way for its whole length and every cell of the overlap gets planked. That is his
-// *"there's still a lot of wood path alongside bridge when we just want the bridge and the river"*.
+// The ways ARE planned before a drop of water is carved, and the channel ignores them, so a river can come out lying
+// along a way for its whole length and every cell of the overlap gets planked. That is his *"there's still a lot of
+// wood path alongside bridge when we just want the bridge and the river"*.
 //
-// The obvious version was to count which axis the ways mostly step along and run the channel across it. Built
-// and measured, seed 5, `divides`, 2 exits and 2 pathways, counting the flat wooden deck cells on the map:
+// The obvious version was to count which axis the ways mostly step along and run the channel across it. Built and
+// measured, seed 5, `divides`, 2 exits and 2 pathways, counting the flat wooden deck cells on the map:
 //
-//     woodland 53 -> 42    meadow 65 -> 79    jungle 64 -> 82
+// woodland 53 -> 42 meadow 65 -> 79 jungle 64 -> 82
 //
-// It helps the one case and makes the other two WORSE, because a two-pathway network already uses both axes:
-// turning the river off one way puts it along the other. So the axis is not where this is decided.
+// It helps the one case and makes the other two WORSE, because a two-pathway network already uses both axes: turning
+// the river off one way puts it along the other. So the axis is not where this is decided.
 //
-// What it actually needs is repair rather than prediction: carve the river, then where it has landed ALONG a
-// way, move the way off the water, and where it merely meets one, make that a crossing. That is a real piece
-// of work on `pathNetwork`, not a line here, so it is written down rather than half-done.
+// What it actually needs is repair rather than prediction: carve the river, then where it has landed ALONG a way,
+// move the way off the water, and where it merely meets one, make that a crossing. That is a real piece of work on
+// `pathNetwork`, not a line here, so it is written down rather than half-done.
 
 export function carveChannel(ctx: RiverCarve, pal: GeneratorPalette | undefined, shape: ChannelShape): Set<string> {
   const { cols, rows, ground, collision, floorColors } = ctx
@@ -456,17 +444,16 @@ export function carveChannel(ctx: RiverCarve, pal: GeneratorPalette | undefined,
 /**
  * WHERE TO PUT A CROSSING: the line near `want` where the water is NARROWEST.
  *
- * Alexander, 2026-09-12: *"we just need the actual bridge connecting"*, and again on 2026-09-13 looking at a
- * meadow: *"we still have situations where there's a lot of wood path alongside bridge when we just want the
- * bridge and the river"*.
+ * and again on 2026-09-13 looking at a meadow: *"we still have situations where there's a lot of wood path alongside
+ * bridge when we just want the bridge and the river"*.
  *
- * A crossing used to be laid at a fixed fraction along the river, and the flat deck under it has to reach both
- * banks, so it is as long as the water is wide THERE. On a river that meanders, a straight slice through the
- * middle can be twice the river's actual width, and the deck comes out a causeway with a small bridge
- * somewhere in it. Roads do not cross rivers at their widest, they cross at the narrows.
+ * A crossing used to be laid at a fixed fraction along the river, and the flat deck under it has to reach both banks,
+ * so it is as long as the water is wide THERE. On a river that meanders, a straight slice through the middle can be
+ * twice the river's actual width, and the deck comes out a causeway with a small bridge somewhere in it. Roads do not
+ * cross rivers at their widest, they cross at the narrows.
  *
- * `widths` is how many wet cells lie on each line. Ties go to the line closest to `want`, so a straight river
- * (where every line is the same) crosses exactly where it always did.
+ * `widths` is how many wet cells lie on each line. Ties go to the line closest to `want`, so a straight river (where
+ * every line is the same) crosses exactly where it always did.
  */
 export function narrowestLine(widths: ReadonlyMap<number, number>, want: number, reach: number): number {
   let best = want
@@ -512,31 +499,29 @@ export function waterReach(water: Set<string>, at: Cell, dc: number, dr: number)
 /**
  * WHICH AUTHORED SPAN CROSSES THIS RIVER: the smallest one that covers the water plus a landing each side.
  *
- * Alexander, 2026-09-12: *"would a bridge be that large, when we only have to connect a small river?? we just
- * need something like 4 cells long x whatever the river size"*, and *"river is usually 3-4 cells wide or more"*.
+ * and *"river is usually 3-4 cells wide or more"*.
  *
- * This used to walk DOWN from `runLength` and take the first span that fit, so it always picked the largest
- * bridge the landing-to-landing run allowed. Measured across 3 courses x 3 layouts x 8 seeds, that put 35 of
- * 118 crossings on the longest authored span; choosing by the river instead puts 28 there and moves the rest
- * onto spans that match their water.
+ * This used to walk DOWN from `runLength` and take the first span that fit, so it always picked the largest bridge
+ * the landing-to-landing run allowed. Measured across 3 courses x 3 layouts x 8 seeds, that put 35 of 118 crossings
+ * on the longest authored span; choosing by the river instead puts 28 there and moves the rest onto spans that match
+ * their water.
  *
- * The down-walk survives as the FALLBACK, and it has to. `waterWidth` is read from the wet run, which on a
- * diagonal reach can be longer than the deck run, so nothing authored is long enough. Dropping out there left
- * 11 of those 118 crossings with a bare deck and no structure on it. A slightly short bridge reads as a
- * bridge; a deck with nothing on it does not.
+ * The down-walk survives as the FALLBACK, and it has to. `waterWidth` is read from the wet run, which on a diagonal
+ * reach can be longer than the deck run, so nothing authored is long enough. Dropping out there left 11 of those 118
+ * crossings with a bare deck and no structure on it. A slightly short bridge reads as a bridge; a deck with nothing
+ * on it does not.
  *
  * Pure, and takes `authored` as a predicate, so the choice can be tested without a tileset.
  */
 export function chooseBridgeSpan(waterWidth: number, runLength: number, authored: (span: number) => boolean): number | null {
-  // JUST THE BRIDGE. Alexander, 2026-09-13, with a picture: *"bridge wood zone is almost as long and big as
-  // the rivr, that's terrible, we just need the actual bridge connecting"*.
+  // JUST THE BRIDGE.
   //
   // What it wants is the water plus one landing on each bank, and nothing else. What it did was fall back to
-  // `runLength`, the length of the whole DECK RUN, and count DOWN from there: a path that meets the river at
-  // an angle has a long run, so a two-cell creek got a seven-cell bridge. The run is a limit, not a target.
+  // `runLength`, the length of the whole DECK RUN, and count DOWN from there: a path that meets the river at an angle
+  // has a long run, so a two-cell creek got a seven-cell bridge. The run is a limit, not a target.
   //
-  // So it searches OUTWARD from what is needed and takes the CLOSEST authored span, up only as far as the run
-  // allows and down only as far as a bridge still reads as one.
+  // So it searches OUTWARD from what is needed and takes the CLOSEST authored span, up only as far as the run allows
+  // and down only as far as a bridge still reads as one.
   const needed = Math.max(MIN_BRIDGE_SPAN, Math.min(waterWidth + 2, Math.max(MIN_BRIDGE_SPAN, runLength)))
   for (let out = 0; out <= runLength; out++) {
     const longer = needed + out
@@ -563,9 +548,9 @@ export function resolveCrossing(
 }
 
 /**
- * THE KIND OF CROSSING. Alexander, 2026-09-11: *"on the "bridges" that we use on rivers, we must have multiple
- * variations too / it can be a simple dirt path, it can be an actual bridge, which again, are multiple
- * variations"*. One per map, so every crossing on it matches, picked the first time a deck is laid.
+ * THE KIND OF CROSSING. bridges" that we use on rivers, we must have multiple variations too / it can be a simple
+ * dirt path, it can be an actual bridge, which again, are multiple variations"*. One per map, so every crossing on it
+ * matches, picked the first time a deck is laid.
  */
 export function crossingStyle(ctx: RiverCrossings): GeneratorCrossing | undefined {
   if (ctx.crossing === undefined) ctx.crossing = resolveCrossing(ctx.options?.bridge, ctx.crossings, ctx.rand) ?? null
@@ -617,16 +602,16 @@ export function layDeck(ctx: RiverDeck, deck: Set<string>, tone: string | undefi
   for (const key of deck) {
     const { col, row } = toCell(key)
     if (!inBounds(col, row, cols, rows)) continue
-    // NOT YET: THE WATER DOES NOT STAY UNDER THE DECK. Alexander, 2026-09-13: *"the bridge should look like
-    // it's above the water"*, and he is right, but keeping the cell wet here is not the way to get there.
+    // NOT YET: THE WATER DOES NOT STAY UNDER THE DECK. and he is right, but keeping the cell wet here is not the way
+    // to get there.
     //
     // Tried and reverted, measured: leaving the deck cells as water broke four documented invariants at once.
-    // `divides` went from one crossing to two (the wadeable shallows the extra water created became a second
-    // way over), and "the river is cut below the walking floor" failed, because a deck cell is forced to
-    // elevation 0 while a river cell is dug below it. Those two facts cannot both hold on one cell.
+    // `divides` went from one crossing to two (the wadeable shallows the extra water created became a second way
+    // over), and "the river is cut below the walking floor" failed, because a deck cell is forced to elevation 0
+    // while a river cell is dug below it. Those two facts cannot both hold on one cell.
     //
-    // The real fix is for the deck COMPOSITION to be lifted to the bank's level over a cell that stays river,
-    // which is a change to how the stamp picks its level, not to what the ground says. Ticket 105.
+    // The real fix is for the deck COMPOSITION to be lifted to the bank's level over a cell that stays river, which
+    // is a change to how the stamp picks its level, not to what the ground says. Ticket 105.
     ground[row][col] = style?.tile ?? 'bridge'
     collision[row][col] = false
     ctx.decks.add(key)
@@ -634,16 +619,15 @@ export function layDeck(ctx: RiverDeck, deck: Set<string>, tone: string | undefi
     // is before any crossing is laid, so a deck cell was still carrying the bed's negative elevation and a
     // bridge came out sunk in the water. Measured on a `divides` river: 14 of its cells.
     ctx.elevation[row][col] = 0
-    // A DECK NEVER KEEPS THE WATER'S COLOUR. Alexander, 2026-09-13: *"I don't want to fucking ever see a
-    // bridge or walkable thing that looks like water, it's fucking confusing"*.
+    // A DECK NEVER KEEPS THE WATER'S COLOUR.
     //
-    // This cell was river a moment ago and `floorColors` still held the river's blue. The old branch was
-    // `else if (tone)`, so a deck with no served tone was LEFT wearing it: the tile said bridge, the colour
-    // said water, and you got a blue walkway over a blue river.
+    // This cell was river a moment ago and `floorColors` still held the river's blue. The old branch was `else if
+    // (tone)`, so a deck with no served tone was LEFT wearing it: the tile said bridge, the colour said water, and
+    // you got a blue walkway over a blue river.
     //
-    // Clearing it is not the hardcoded fallback the old comment worried about. An undefined override means
-    // "no override", so the bridge tile's OWN served colour shows through, which is the data doing its job.
-    // Inventing a brown here would have been the violation; leaving a stale blue was just a bug.
+    // Clearing it is not the hardcoded fallback the old comment worried about. An undefined override means "no
+    // override", so the bridge tile's OWN served colour shows through, which is the data doing its job. Inventing a
+    // brown here would have been the violation; leaving a stale blue was just a bug.
     floorColors[row][col] = deckTone(style, col, row, tone)
   }
 }
@@ -651,12 +635,11 @@ export function layDeck(ctx: RiverDeck, deck: Set<string>, tone: string | undefi
 /**
  * PLANK THE WAY WHERE IT CROSSES WATER.
  *
- * Alexander, 2026-09-11: *"if we're going to have water blocked zones, we must have clear pathways to navigate
- * them"*, with his swamp (image #18) as the example, the boardwalk over the pools IS the pathway there.
+ * with his swamp (image #18) as the example, the boardwalk over the pools IS the pathway there.
  *
- * The water is carved without knowing where the paths run, so a creek or a pool can land straight on a gate and
- * leave a way out that nobody can use (measured: three jungle seeds in eight). Every planned cell that came out
- * wet gets a deck, which is the same crossing the map uses everywhere else, so it wears the served kind too.
+ * The water is carved without knowing where the paths run, so a creek or a pool can land straight on a gate and leave
+ * a way out that nobody can use (measured: three jungle seeds in eight). Every planned cell that came out wet gets a
+ * deck, which is the same crossing the map uses everywhere else, so it wears the served kind too.
  */
 export function deckRoutes(ctx: RiverDeck, plan: RoutePlan, water: ReadonlySet<string>, tone: string | undefined): void {
   const wet = new Set<string>()
@@ -665,21 +648,19 @@ export function deckRoutes(ctx: RiverDeck, plan: RoutePlan, water: ReadonlySet<s
 }
 
 /**
- * RECORD A BRIDGE over a deck run. Alexander, 2026-09-12, in capitals: *"AND THE BRIDGES ARE STILL NOT
- * BRIDGES COMPOSITIONS / we should have actual BRIDGE"*, with a wooden arch, a steel truss and a sheet of ten
- * variations.
+ * RECORD A BRIDGE over a deck run. with a wooden arch, a steel truss and a sheet of ten variations.
  *
  * The flat deck STAYS. It is laid first by the caller and this adds the structure on top, which keeps every
- * connectivity guarantee intact (a crossing is still a crossing whatever span the river turns out to be) and
- * means no run can come out uncrossable because no composition happened to fit it.
+ * connectivity guarantee intact (a crossing is still a crossing whatever span the river turns out to be) and means no
+ * run can come out uncrossable because no composition happened to fit it.
  *
- * The span is asked of the CATALOG, descending, rather than read from a list here: whatever spans the backend
- * ships are the spans used, so authoring `bridge_wood_9` needs no frontend change. A crossing that names no
- * composition records nothing, which is how a DIRT PATH stays a path (his #62, *"this is a dirt pathway"*).
+ * The span is asked of the CATALOG, descending, rather than read from a list here: whatever spans the backend ships
+ * are the spans used, so authoring `bridge_wood_9` needs no frontend change. A crossing that names no composition
+ * records nothing, which is how a DIRT PATH stays a path (his #62, *"this is a dirt pathway"*).
  *
  * Rotation: a bridge is authored `span x 3` running along +dx, so a deck lying along +row turns one quarter
- * (`rotateOffsetCW` maps it to `3 x span`, anchor still top-left). The anchor is the run's top-left corner,
- * nudged by half the slack so the abutments sit on the landings rather than in the water.
+ * (`rotateOffsetCW` maps it to `3 x span`, anchor still top-left). The anchor is the run's top-left corner, nudged by
+ * half the slack so the abutments sit on the landings rather than in the water.
  */
 export function recordBridgeSpan(
   ctx: RiverDeck,
@@ -696,15 +677,12 @@ export function recordBridgeSpan(
   const runLength = spanAlongCol
     ? Math.max(...cells.map(c => c.col)) - minCol + 1
     : Math.max(...cells.map(c => c.row)) - minRow + 1
-  // SIZE THE BRIDGE TO THE RIVER, not to the deck run. Alexander, 2026-09-12: *"would a bridge be that large,
-  // when we only have to connect a small river?? we just need something like 4 cells long x whatever the river
-  // size"*, and *"river is usually 3-4 cells wide or more"*.
+  // SIZE THE BRIDGE TO THE RIVER, not to the deck run. and *"river is usually 3-4 cells wide or more"*.
   //
   // This used to walk DOWN from `runLength` and take the first span that fit, so it always picked the largest
-  // authored bridge the landing-to-landing run allowed, which is how a 4-wide river got a 7-span. It now walks
-  // UP and takes the SMALLEST authored span that covers the water plus one landing each side. Spans 4 and 6 are
-  // authored in the backend for exactly this, so a 3-wide river lands on 5 and a 4-wide on 6 rather than both
-  // rounding up to 7.
+  // authored bridge the landing-to-landing run allowed, which is how a 4-wide river got a 7-span. It now walks UP and
+  // takes the SMALLEST authored span that covers the water plus one landing each side. Spans 4 and 6 are authored in
+  // the backend for exactly this, so a 3-wide river lands on 5 and a 4-wide on 6 rather than both rounding up to 7.
   const span = chooseBridgeSpan(waterWidth, runLength, s => resolveComposition(styleCatalog('ascii'), `${family}_${s}`) !== null)
   if (span === null) return
   const offset = Math.floor((runLength - span) / 2)
@@ -755,13 +733,10 @@ const ROCK_MIN_WATER_NEIGHBOURS = 4
 /**
  * A FEW ROCKS IN THE RIVER.
  *
- * Alexander, 2026-09-13, with three reference images, one of them a river with rocks and a bridge: *"we should
- * have a few rocks here and there in middle of the river too, with collission of water animation, that'd help"*.
- *
- * The cell STAYS WATER. That is the whole point of the note: the rock is something standing IN the river, so
- * the water keeps its label, its colour and its current, and the rock is a prop on top of it that you cannot
- * walk through. Every other prop pass refuses a water cell (`isLandCell`, and rightly, a flower has no
- * business floating), so this pushes directly rather than going through `placeProp`.
+ * The cell STAYS WATER. That is the whole point of the note: the rock is something standing IN the river, so the
+ * water keeps its label, its colour and its current, and the rock is a prop on top of it that you cannot walk
+ * through. Every other prop pass refuses a water cell (`isLandCell`, and rightly, a flower has no business floating),
+ * so this pushes directly rather than going through `placeProp`.
  *
  * Only well-inside cells qualify: a rock needs water on all four sides or it reads as a lump of the bank.
  */
@@ -818,13 +793,8 @@ export function wadeableShallows(ctx: RiverSurface, depth: ReadonlyMap<string, n
 /**
  * SETTLE THE WATER BY DEPTH, once the map is otherwise finished.
  *
- * Alexander, 2026-09-11: *"I only want light blue for walkable water, different layers of darkblue for the deeper
- * waters and we can have some share of blue-green for swamp, the thing is, right now the green used makes it look
- * like a floor instead of water and it's confusing"*.
- *
- *   · the edge you can WADE is shallow: light blue, walkable
- *   · past it the water is ordinary, and further in DEEP and darker; both block
- *   · a swamp pool stays as it is (blocking), recoloured blue-green
+ * · the edge you can WADE is shallow: light blue, walkable · past it the water is ordinary, and further in DEEP and
+ * darker; both block · a swamp pool stays as it is (blocking), recoloured blue-green
  *
  * It runs LAST, after the trails, the bridges and the connectivity joins. Everything before it still sees plain
  * water, so none of that logic changes, and the shallows are only ever hung off ground you could already reach
@@ -843,30 +813,26 @@ export function settleWaterDepth(ctx: RiverSurface, pal: GeneratorPalette | unde
   for (const [key, dir] of flowField(ctx, channel)) ctx.flow.set(key, dir)
   strewRiverRocks(ctx, channel)
   const wadeable = wadeableShallows(ctx, depth)
-  // FROZEN OVER. Alexander, 2026-09-12: *"in winter, rivers are ice and we can walk over them, which mean, we
-  // just remove collissions and add the ice physics we haven't developed yet"*. `frozen_water` already exists as
-  // a label in both styles, named for exactly this, so the season lays a different TILE rather than the same
-  // water with an exception bolted on.
+  // FROZEN OVER. `frozen_water` already exists as a label in both styles, named for exactly this, so the season lays
+  // a different TILE rather than the same water with an exception bolted on.
   //
-  // HONEST ABOUT WHERE THIS BELONGS: reading the season here is the same shape of frontend conditional the data
-  // audit indicts elsewhere. The durable home is a served answer on the tile, which is also what makes the ice
-  // physics possible later. It reads the zone for now because nothing serves it yet.
+  // HONEST ABOUT WHERE THIS BELONGS: reading the season here is the same shape of frontend conditional the data audit
+  // indicts elsewhere. The durable home is a served answer on the tile, which is also what makes the ice physics
+  // possible later. It reads the zone for now because nothing serves it yet.
   const frozen = ctx.zone === 'winter'
-  // ONE SURFACE COLOUR for the whole channel. Alexander, 2026-09-12, with his reference image: *"top is one
-  // color and bottom is another color, but consistent, not different currents, nor different colors mixed"*,
-  // after *"we need to use the tiles consistently, right now water tiles is far from consistent making it look
-  // random"*.
+  // ONE SURFACE COLOUR for the whole channel. after *"we need to use the tiles consistently, right now water tiles is
+  // far from consistent making it look random"*.
   //
-  // MEASURED before changing it, on a seed-5 `divides` river: 120 cells `#4f93b3`, 108 `#8ccbe8`, 38 `#2a5f8a`
-  // three blues at 45/41/14% inside ONE river. And all three drew the SAME picture, because a floor resolves
-  // its art through `groundKind`, which collapses every band to `water`. So the bands were never different
-  // water; they were one tile wearing three tints. The "bottom" colour he asks for is the map BODY beneath the
-  // surface, which `groundSideColor` already derives from it, so one tone here delivers both halves of the rule.
+  // MEASURED before changing it, on a seed-5 `divides` river: 120 cells `#4f93b3`, 108 `#8ccbe8`, 38 `#2a5f8a` three
+  // blues at 45/41/14% inside ONE river. And all three drew the SAME picture, because a floor resolves its art
+  // through `groundKind`, which collapses every band to `water`. So the bands were never different water; they were
+  // one tile wearing three tints. The "bottom" colour he asks for is the map BODY beneath the surface, which
+  // `groundSideColor` already derives from it, so one tone here delivers both halves of the rule.
   //
-  // THIS REVERSES the per-depth shading he asked for on 2026-09-11 (*"I only want light blue for walkable
-  // water, different layers of darkblue for the deeper waters"*). The newest instruction wins. The band still
-  // decides the LABEL and what you can wade through, so the shallows stay walkable. They just stop being a
-  // different colour, which means the wadeable edge now needs the shoreline to mark it, not a hue.
+  // THIS REVERSES the per-depth shading he asked for on 2026-09-11 (*"I only want light blue for walkable water,
+  // different layers of darkblue for the deeper waters"*). The newest instruction wins. The band still decides the
+  // LABEL and what you can wade through, so the shallows stay walkable. They just stop being a different colour,
+  // which means the wadeable edge now needs the shoreline to mark it, not a hue.
   for (const [key, d] of depth) {
     const { col, row } = toCell(key)
     const band = waterBand(d, wadeable.has(key))
@@ -1046,24 +1012,22 @@ function shortestThrough(stretch: ReadonlySet<string>, from: readonly string[], 
 /**
  * KEEP THE CROSSING, DROP THE CAUSEWAY.
  *
- * Alexander, 2026-09-13: *"we still have situations where there's a lot of wood path alongside bridge when we
- * just want the bridge and the river"*, and 2026-09-12: *"we just need the actual bridge connecting"* and
- * *"bridge wood zone is almost as long and big as the rivr"*.
+ * and 2026-09-12: *"we just need the actual bridge connecting"* and *"bridge wood zone is almost as long and big as
+ * the rivr"*.
  *
- * The ways are planned on dry ground, then the river is carved over them, and every way cell that came out wet
- * was planked. On a map whose ways run the same direction as the channel that is a plank road down the middle
- * of the river: measured on a woodland, 85 deck cells against 105 water cells, 28 columns wide.
+ * The ways are planned on dry ground, then the river is carved over them, and every way cell that came out wet was
+ * planked. On a map whose ways run the same direction as the channel that is a plank road down the middle of the
+ * river: measured on a woodland, 85 deck cells against 105 water cells, 28 columns wide.
  *
  * So the river narrows each wet stretch of the network back to what a crossing IS:
  *
- *   · a stretch that touches only ONE bank goes entirely. It leads from the shore into the water and back to
- *     the same shore, which is a paddle, not a way.
- *   · a stretch that touches TWO OR MORE banks keeps the shortest line through it to each further bank, one
- *     cell either side so you are not walking a tightrope. Everything else goes.
+ * · a stretch that touches only ONE bank goes entirely. It leads from the shore into the water and back to the same
+ * shore, which is a paddle, not a way. · a stretch that touches TWO OR MORE banks keeps the shortest line through it
+ * to each further bank, one cell either side so you are not walking a tightrope. Everything else goes.
  *
- * Connectivity is kept BY CONSTRUCTION: every bank the network reached through the water it still reaches,
- * along the shortest path there was. Nothing downstream changes, the paving and the decking simply see a
- * network that no longer runs down the river.
+ * Connectivity is kept BY CONSTRUCTION: every bank the network reached through the water it still reaches, along the
+ * shortest path there was. Nothing downstream changes, the paving and the decking simply see a network that no longer
+ * runs down the river.
  */
 export function narrowWaysToCrossings(
   bounds: RiverBounds,

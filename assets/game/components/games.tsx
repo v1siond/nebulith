@@ -119,9 +119,8 @@ export function GamesViewOverlay({
   /**
    * Open straight onto THIS game's levels instead of the list of every game.
    *
-   * Alexander, 2026-09-10: *"clcking in manage levels doesn't make sense, it shows games??? instead of the
-   * levels of my game"*. "Manage levels" is reached from inside a game, so the game is already known; making
-   * you pick it out of a list of all your games was asking a question that had been answered.
+   * "Manage levels" is reached from inside a game, so the game is already known; making you pick it out of a list of
+   * all your games was asking a question that had been answered.
    */
   openGameId?: string | null
   onPlayLevel: (templateId: string) => void
@@ -249,15 +248,14 @@ export function FlowViewOverlay({
 }) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
 
-  // Lay EVERY saved template (+ the current one) out as a MAP — each level placed in the direction its
-  // doorway pointed, walking outward from the level you are standing in. x/y are node centres; each node
-  // carries its own connectors (the current room's come from the live `connectors` prop, since it may have
-  // unsaved edits). Shared by render + click hit-testing.
+  // Lay EVERY saved template (+ the current one) out as a MAP — each level placed in the direction its doorway
+  // pointed, walking outward from the level you are standing in. x/y are node centres; each node carries its own
+  // connectors (the current room's come from the live `connectors` prop, since it may have unsaved edits). Shared by
+  // render + click hit-testing.
   //
-  // This used to be a CIRCLE by array index: `angle = i / count * 2π`. The edges were right, so you could
-  // see what connected to what, but the positions carried no information — the level through your east
-  // door might be drawn to the north-west, and reordering the list moved everything. Alexander,
-  // 2026-09-08: *"while we do have a connection of all levels, it's not formed into a real map layout."*
+  // This used to be a CIRCLE by array index: `angle = i / count * 2π`. The edges were right, so you could see what
+  // connected to what, but the positions carried no information — the level through your east door might be drawn to
+  // the north-west, and reordering the list moved everything.
   //
   // `layoutLevels` does the placing and is pure + tested; this only turns its integer lattice into pixels.
   const layoutNodes = useCallback(

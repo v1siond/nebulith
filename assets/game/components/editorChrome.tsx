@@ -152,9 +152,7 @@ function CompositionSection({
 /**
  * ONE object swatch — a composed SILHOUETTE built from the object's own cells, plus its footprint.
  *
- * Alexander, 2026-09-08: *"compositions like houses, fountain, etc, don't have any preview until you look
- * toplace it in grid, which works different to all the other tiles."* Now they preview like everything
- * else, and the picture is assembled from the very tiles the stamp will place.
+ * Now they preview like everything else, and the picture is assembled from the very tiles the stamp will place.
  */
 /** The composition to PICTURE an entry with — a folded type points at a real seeded size. */
 function previewKindOf(item: CompositionPaletteGroup['items'][number]): string {
@@ -188,8 +186,8 @@ function ObjectSwatch({
       onFocus={() => onHover?.(previewKindOf(item))}
       onClick={() => onArm(item.kind)}
     >
-      {/* The map's own render, not a composed elevation. These three — fountain, lamp post, well — were the
-          ones Alexander named as worst, and all three were wrong for the same reason. */}
+      {/* The map's own render, not a composed elevation. These three — fountain, lamp post, well — were the ones
+          named as worst, and all three were wrong for the same reason. */}
       {/* Drawn from a REAL composition: a folded entry's own kind is a bare type with nothing installed
           under it until a size is composed. */}
       <PreviewThumb subject={{ kind: 'composition', comp: previewKindOf(item) }} context={ctx} px={66} />
@@ -220,9 +218,8 @@ export function CompositionPalette({
   /**
    * The building types the backend can compose at any size, from `/api/buildings`.
    *
-   * Given these, the palette shows ONE entry per type with a size control instead of one per baked size —
-   * Alexander: *"why having 3 size house when we can have 1 house button and allow user to make a house as
-   * big or as small as he wants???"* Empty (the backend has not answered) → the palette is unchanged.
+   * Given these, the palette shows ONE entry per type with a size control instead of one per baked size — Empty (the
+   * backend has not answered) → the palette is unchanged.
    */
   buildingTypes?: BuildingTypeCatalog
   /** Compose a building of this type at this size and arm it. The palette never lays one out itself. */
@@ -305,11 +302,9 @@ export function CompositionPalette({
           />
         ))}
       </div>
-      {/* HOW BIG — shown only for the armed object, and only when the backend can compose that type at any
-          size. Alexander, 2026-09-08: *"i think we should NOT have a fixed size, but a default one and allow
-          user to specify the size of the element they want to put."* It sits in the footer rather than on
-          every swatch for the reason the character panel does: a control per card would leave the swatches
-          — the thing you opened the library for — as one clipped row. */}
+      {/* HOW BIG — shown only for the armed object, and only when the backend can compose that type at any size. It
+          sits in the footer rather than on every swatch for the reason the character panel does: a control per card
+          would leave the swatches — the thing you opened the library for — as one clipped row. */}
       {armedSizable && onComposeBuilding && (
         <BuildingSizeControl
           item={armedSizable}
@@ -334,11 +329,10 @@ export function CompositionPalette({
  * HOW BIG the armed building is — two numbers, and the sizes that used to be separate buttons.
  *
  * The numbers are applied IMMEDIATELY rather than behind a confirm, because unlike the map size this is not
- * destructive: it composes a building and arms it, and nothing on the map changes until you click. The map
- * size needs a commit step; this does not, and adding one would be ceremony.
+ * destructive: it composes a building and arms it, and nothing on the map changes until you click. The map size needs
+ * a commit step; this does not, and adding one would be ceremony.
  *
  * The minimum comes from the BACKEND (`/api/buildings`), which is also the only thing that knows it —
- * Alexander: *"the smalles house would be something like 4x3"*.
  */
 function BuildingSizeControl({
   item,
@@ -391,19 +385,14 @@ function BuildingSizeControl({
 /**
  * THE LEFT RAIL — banded by the journey, and the ONLY place the three libraries are named.
  *
- * Alexander, 2026-09-08:
+ * > why do we have tiles, objects and characters repeated in the sidebar and inside tile sectrion? > that's confusing
  *
- *   > why do we have tiles, objects and characters repeated in the sidebar and inside tile sectrion?
- *   > that's confusing
+ * The library panel used to carry a duplicate tab strip. It is gone: this rail IS the tab strip, and each row carries
+ * its COUNT so the label has information scent — you can see there are 24 objects without opening anything.
  *
- * The library panel used to carry a duplicate tab strip. It is gone: this rail IS the tab strip, and each
- * row carries its COUNT so the label has information scent — you can see there are 24 objects without
- * opening anything.
- *
- * The band order is the journey, not the code layout (`EDITOR_BANDS`). Alexander: *"there's 0 sense to put
- * art style and generate to the bottom of the sidebar, those will be usually the first options end users
- * will play with."* So `New world` leads; `Select` is gone (it acts on nothing — it is the resting state of
- * the cursor); and `Art style` moved to the top nav, before the game selector.
+ * The band order is the journey, not the code layout (`EDITOR_BANDS`). So `New world` leads; `Select` is gone (it
+ * acts on nothing — it is the resting state of the cursor); and `Art style` moved to the top nav, before the game
+ * selector.
  */
 export function ToolRail({
   activeId,
@@ -623,19 +612,18 @@ export function GenerateControls({
   catalogError?: string | null
   zone: string
   onZone: (z: string) => void
-  /** `layout` steers a map type that HAS layouts (undefined otherwise → the generator's own default).
-   *  The SIZE is not passed: it belongs to the Grid panel now, and the caller reads it from there.
-   *  Alexander, 2026-09-10: *"the template generation just uses whatever we setup on it"*. */
+  /**
+   * `layout` steers a map type that HAS layouts (undefined otherwise → the generator's own default). The SIZE is not
+   * passed: it belongs to the Grid panel now, and the caller reads it from there.
+   */
   /** `generatorKey` is the SUBTYPE picked below the preset, when one was — the build runs exactly that one. */
   /** Returns a promise while the build runs, so the button can say so. A void return still works. */
   onGenerate: (zone: string, categoryKey: string, layout?: string, options?: Record<string, GeneratorOptionValue>, generatorKey?: string) => void | Promise<void>
   /**
    * Apply the season and the options to the map that is ALREADY open, without re-rolling it.
    *
-   * Alexander, 2026-09-11: *"'build this world' is a bit limited, what If I just want to change the season of
-   * the current template¿ what if I just want to change the cell pixels, keeping the rest? we need to be able
-   * to apply changes without re-randomizing the map"*. Building was the only way anything here reached the
-   * map, and building rolls a new world, so changing one setting cost you the map you had.
+   * Building was the only way anything here reached the map, and building rolls a new world, so changing one setting
+   * cost you the map you had.
    */
   onApply?: (zone: string, options: Record<string, GeneratorOptionValue>) => void
   /** When provided, shows the universal "re-roll one layer" row that re-rolls a single layer of the current
@@ -651,11 +639,9 @@ export function GenerateControls({
   /**
    * Put the Preview window back on screen.
    *
-   * Alexander, 2026-09-11: *"when you close the preview it goes inside the sidebar and can never go back
-   * oputside until you change links"*. Both halves of that are this component: the options fall back INLINE
-   * when there is no `tuningSlot` to portal them into (that is the "goes inside the sidebar"), and nothing
-   * could ask for the window again, so the only way back was switching rails. Same shape as `onOpenLibrary`
-   * and the other reopen props.
+   * Both halves of that are this component: the options fall back INLINE when there is no `tuningSlot` to portal them
+   * into (that is the "goes inside the sidebar"), and nothing could ask for the window again, so the only way back
+   * was switching rails. Same shape as `onOpenLibrary` and the other reopen props.
    */
   onOpenPreview?: () => void
   /** The matrix as TYPED — what this build will produce. Owned by the parent because `Build this world`
@@ -669,8 +655,7 @@ export function GenerateControls({
   preview?: PreviewContext
   /**
    * Where the options that shape the new world go: the Preview window, so they sit with the picture they change.
-   * Alexander, 2026-09-11: *"We should also have the rest of options like variations of the map, adding river,
-   * adding bridge, etc etc"*. Absent (the window is closed) → they stay inline in this panel.
+   * Absent (the window is closed) → they stay inline in this panel.
    */
   tuningSlot?: HTMLElement | null
 }) {
@@ -681,16 +666,13 @@ export function GenerateControls({
   /**
    * The generator's OPTIONS as the person set them.
    *
-   * Alexander, 2026-09-10: *"we should just have extra options for each template"*, because a row per
-   * combination does not scale — his own example ran woodland, woodland + river, woodland + river + bridge.
-   * Keyed by option key; absent means "as the backend declared it".
+   * because a row per combination does not scale — his own example ran woodland, woodland + river, woodland + river +
+   * bridge. Keyed by option key; absent means "as the backend declared it".
    */
   const [options, setOptions] = useState<Record<string, GeneratorOptionValue>>({})
   /**
-   * The SUBTYPE picked at each level below the preset, top down. Alexander, 2026-09-11: *"when selecting a zone,
-   * we should also have extra options to select different types of the selected zone, or just randomize, and
-   * we can go various levels deeper / forest > type of forest > sub type of type of forest > etc"*. Each entry
-   * is a child key, `random`, or '' for the level's own standard version.
+   * The SUBTYPE picked at each level below the preset, top down. Each entry is a child key, `random`, or '' for the
+   * level's own standard version.
    */
   const [path, setPath] = useState<string[]>([])
   /** Regions the person unticked. The sub-zones existed before this but only as data nobody could see —
@@ -704,20 +686,17 @@ export function GenerateControls({
   /**
    * The cards to show — always at least one.
    *
-   * Alexander, 2026-09-09: *"the preview of the forests ARE AWESONE; we need the same with all places, like
-   * towns, cities, etc."* Only the forest had cards, because only the forest has NAMED layouts; a town has a
-   * single generator with `layout: null`, so `categoryLayouts` returned nothing and the whole card grid —
-   * thumbnail included — was skipped. A category with one generator still has something to show you: what
-   * that generator builds. Its card carries no layout id, which is exactly what `generateStage` wants for
-   * "run the category's own default pass".
+   * Only the forest had cards, because only the forest has NAMED layouts; a town has a single generator with `layout:
+   * null`, so `categoryLayouts` returned nothing and the whole card grid — thumbnail included — was skipped. A
+   * category with one generator still has something to show you: what that generator builds. Its card carries no
+   * layout id, which is exactly what `generateStage` wants for "run the category's own default pass".
    */
   /**
    * The world a preset would build, as a preview SUBJECT.
    *
-   * One object, two consumers: the card's own thumbnail and the big Preview panel (`onPeek`). They used to
-   * be one consumer, which is why hovering a preset showed a tooltip and nothing else — Alexander,
-   * 2026-09-10: *"the preview panel on selection is not showing on generators"*. Built here so the small
-   * picture and the big one can never disagree about which world they are showing.
+   * One object, two consumers: the card's own thumbnail and the big Preview panel (`onPeek`). They used to be one
+   * consumer, which is why hovering a preset showed a tooltip and nothing else — Built here so the small picture and
+   * the big one can never disagree about which world they are showing.
    */
   const presetSubject = (categoryKey: string, layoutId: string | undefined, opts?: Record<string, GeneratorOptionValue>, gen?: GeneratorDef, cells: { cols: number; rows: number } = PRESET_THUMB_CELLS) => {
     // ONE lookup for every field below. It was written out six times, and the sixth is where the bug hid.
@@ -729,21 +708,19 @@ export function GenerateControls({
        * WHICH ARCHETYPE THE PREVIEW BUILDS: the row's own, exactly as `generate` asks for it.
        *
        * This passed the CATEGORY key, and that is why the preview was blank for every settlement and only for
-       * settlements. Alexander, 2026-09-11: *"the preview doesn't work on any of settlements"*. A category key
-       * is an archetype by coincidence: "forest", "cave" and "temple" happen to name one, and "settlement"
-       * never did, because town and city were merged under it. The engine looks its archetype up by name,
-       * finds nothing for "settlement", runs no pass, and draws an empty grid.
+       * settlements. A category key is an archetype by coincidence: "forest", "cave" and "temple" happen to name one,
+       * and "settlement" never did, because town and city were merged under it. The engine looks its archetype up by
+       * name, finds nothing for "settlement", runs no pass, and draws an empty grid.
        *
-       * `archetypeOf` already resolves this for the BUILD. Reading the row's `variant` here is what makes the
-       * picture and the button agree, which is the entire purpose of this object.
+       * `archetypeOf` already resolves this for the BUILD. Reading the row's `variant` here is what makes the picture
+       * and the button agree, which is the entire purpose of this object.
        */
       variant: (def?.variant ?? categoryKey) as never,
       layout: layoutId,
       // The picked world's NAME, not its layout, so the preview can say "Mountain forest" and not "woodland".
       name: def?.name,
       nature: def?.config.nature,
-      // The preview has to be built from the SAME inputs the build uses, or it is a picture of a different
-      // map. Alexander, 2026-09-11: *"it's not clear how the extras modify the existing selected zone"*. It
+      // The preview has to be built from the SAME inputs the build uses, or it is a picture of a different map. It
       // was not clear because the preview was not told about them.
       options: opts,
       palette: def?.config.palette,
@@ -823,9 +800,9 @@ export function GenerateControls({
   /**
    * The world the panel should be showing when nobody is hovering anything — the SELECTED preset's.
    *
-   * Alexander, 2026-09-11: *"preview only shows on hover is not kept on selection"*. Leaving a card used to
-   * clear the panel to null, so the picture only existed while the pointer sat on it and you could never
-   * look at the thing you had actually chosen. Hover is a peek at another option; this is the resting state.
+   * Leaving a card used to clear the panel to null, so the picture only existed while the pointer sat on it and you
+   * could never look at the thing you had actually chosen. Hover is a peek at another option; this is the resting
+   * state.
    */
   const selectedSubject = () =>
     activeKey === null ? null : presetSubject(activeKey, layouts.some(l => l.id === layout) ? layout ?? undefined : layouts[0]?.id, chosenOptions(), activeGenerator, peekCells())
@@ -835,10 +812,9 @@ export function GenerateControls({
   /**
    * WHICH ARCHETYPE the engine is asked for. The row says it, not the category.
    *
-   * Alexander, 2026-09-11: *"City and town options are the same, it'd put them in a single category"*. Once a
-   * town and a city share one, the category key names no archetype, so sending it would ask the engine to
-   * build a "settlement", which is not a thing it makes. A row served before this field existed has none, and
-   * then the category key stands in exactly as it used to.
+   * Once a town and a city share one, the category key names no archetype, so sending it would ask the engine to
+   * build a "settlement", which is not a thing it makes. A row served before this field existed has none, and then
+   * the category key stands in exactly as it used to.
    */
   const archetypeOf = (gen: GeneratorDef | undefined): string => gen?.variant ?? (activeKey as string)
 
@@ -875,9 +851,8 @@ export function GenerateControls({
     }
   }
 
-  // THE PICTURE FROM THE START. Alexander, 2026-09-11: *"we should see the preview of the map to generate in the
-  // preview modal as soon as we select the zone"*. The resting picture follows the season, the kind and the size on
-  // its own instead of waiting for a hover. The other picks re-peek in their own handlers.
+  // THE PICTURE FROM THE START. The resting picture follows the season, the kind and the size on its own instead of
+  // waiting for a hover. The other picks re-peek in their own handlers.
   useEffect(() => {
     const subject = selectedSubject()
     if (subject) onPeek?.(subject as never)
@@ -895,8 +870,7 @@ export function GenerateControls({
     )
   }
 
-  // THE SIZE, said plainly under the picture. Alexander, 2026-09-11: *"in that same preview map, we should see the
-  // grid size, how many cells, etc."* The renderer's own corner readout is too small to read at this scale.
+  // THE SIZE, said plainly under the picture. The renderer's own corner readout is too small to read at this scale.
   const buildCells = sizeDraft ? cellCount(sizeDraft) : null
   const sizeLine = sizeDraft && buildCells !== null && (
     <div aria-label="The map this builds" style={{ margin: '8px 0 4px', fontSize: 15 }}>
@@ -904,8 +878,7 @@ export function GenerateControls({
       {` = ${buildCells.toLocaleString()} cells, ${sizeDraft.cellSize}px each`}
     </div>
   )
-  // THE SEASON is one of the things that shape the world, so it travels with the rest of them to the Preview
-  // window. Alexander, 2026-09-11: *"I also think the season should be part of the preview modal too"*.
+  // THE SEASON is one of the things that shape the world, so it travels with the rest of them to the Preview window.
   const season = (
     <div className="ctl">
       <span className="l">Season</span>
@@ -920,9 +893,8 @@ export function GenerateControls({
   // world button"*.
   const tuning = (
     <>
-      {/* THE SUBTYPES, one picker per level, as deep as the data goes. Alexander, 2026-09-11: *"forest > type of
-          forest > sub type of type of forest > etc / like maybe it's an island jungle, maybe it's a mountain
-          forest"*, *"or just randomize"*. Each level offers its own standard version, every subtype, and Random. */}
+      {/* THE SUBTYPES, one picker per level, as deep as the data goes. *"or just randomize"*. Each level offers its
+          own standard version, every subtype, and Random. */}
       {chain.map((node, level) => (node.children?.length ?? 0) > 0 && (
         <div key={node.key} className="ctl">
           <span className="l">{node.name}</span>
@@ -994,9 +966,8 @@ export function GenerateControls({
         </>
       )}
 
-      {/* HOW BIG — back inside this panel. Alexander, 2026-09-10: *"it's way better to have that close by to
-          generate stuff on demand"*. The thickness is deliberately NOT here: it rebuilds nothing, so it
-          lives in the view bar with the camera controls. */}
+      {/* HOW BIG — back inside this panel. The thickness is deliberately NOT here: it rebuilds nothing, so it lives
+          in the view bar with the camera controls. */}
       {size && onSizeDraft && onResize && sizeDraft && (
         <>
           <div className="sub">Size</div>
@@ -1007,8 +978,7 @@ export function GenerateControls({
   )
   const building = (
     <>
-      {/* THE EXPLICIT ACT, LAST. Alexander, 2026-09-09: *"build this world button should be at the end."*
-          Until it is clicked nothing above has touched the open map. */}
+      {/* THE EXPLICIT ACT, LAST. Until it is clicked nothing above has touched the open map. */}
       <button
         type="button"
         onClick={() => { void generate() }}
@@ -1020,9 +990,8 @@ export function GenerateControls({
       >
         {buildingWorld ? 'Building this world…' : '⚡ Build this world'}
       </button>
-      {/* THE SAME MAP, WITH THE CHANGE IN IT. Build rolls a new world; this keeps the one on screen and only
-          moves what you changed, because every seed is kept. Alexander, 2026-09-11: *"we need to be able to
-          apply changes without re-randomizing the map"*. */}
+      {/* THE SAME MAP, WITH THE CHANGE IN IT. Build rolls a new world; this keeps the one on screen and only moves
+          what you changed, because every seed is kept. */}
       {onApply && (
         <button
           type="button"
@@ -1037,7 +1006,7 @@ export function GenerateControls({
       <div className="hint">
         {/* "the numbers above, exactly" has to stay TRUE. Building goes through clampMapSize, which holds a
             size inside the cap, so at 400 columns the map would come back 100 wide while this line claimed
-            400. That silent rewrite is the exact bug Alexander hit twice (*"it didn't built it with the
+            400. That silent rewrite is the exact bug hit twice (*"it didn't built it with the
             specific sizes I selected"*), so the panel says what is wrong instead of promising a size it
             will not build. */}
         {!sizeDraft
@@ -1093,9 +1062,8 @@ export function GenerateControls({
     <div className="pfix" style={{ overflowY: 'auto' }}>
       <div className="hint">Builds a whole level from a preset. Replaces whatever is on this level now.</div>
 
-      {/* A selectable LIST, not a grid of pills. Alexander, 2026-09-08: *"I don't like to use pills as
-          filters, they'll create a lot of issues after, because of space."* Each row carries how many
-          shapes it offers, which is the information that makes the row worth clicking. */}
+      {/* A selectable LIST, not a grid of pills. Each row carries how many shapes it offers, which is the
+          information that makes the row worth clicking. */}
       <div className="ctl">
         <span className="l">Kind of place</span>
         <select
@@ -1117,8 +1085,7 @@ export function GenerateControls({
       </div>
       {activeCategory?.description && <div className="hint">{activeCategory.description}</div>}
 
-      {/* The chosen kind's presets as CARDS. Alexander: *"shape is not good, in the sense that, we should
-          have better sub options layout"* and *"meadow, meadow + river are just pre defined options of
+      {/* The chosen kind's presets as CARDS. and *"meadow, meadow + river are just pre defined options of
           forests."* So they are named presets OF the kind above, not a separate concept called "shape". */}
       {presets.length > 0 && (
         <>
@@ -1140,10 +1107,9 @@ export function GenerateControls({
                     : `Shape the ${zone} ${typeLabel.toLowerCase()} as a ${label.toLowerCase()}`
                 }
               >
-                {/* THE PRESET'S OWN PICTURE: the level this button would build, generated small and
-                    seeded, drawn by the map's renderer. Alexander, 2026-09-08: *"yes we want this
-                    feature."* The design reserved this slot (a `.pmap` block beside the name) and the port
-                    dropped it; it is worth more now than when he asked, because Woodland sits next to two
+                {/* THE PRESET'S OWN PICTURE: the level this button would build, generated small and seeded, drawn
+                    by the map's renderer. The design reserved this slot (a `.pmap` block beside the name) and the
+                    port dropped it; it is worth more now than when he asked, because Woodland sits next to two
                     Meadows and the only honest way to tell them apart is to look. */}
                 {preview && activeKey && (
                   <PreviewThumb subject={presetSubject(activeKey, id)} context={preview} px={92} />
@@ -1180,11 +1146,10 @@ export function GenerateControls({
           ◰ Preview window
         </button>
       )}
-      {/* THE OPTIONS LIVE IN THE WINDOW. Alexander, 2026-09-11: *"when I close the preview, it gets injected in
-          the sidebar instead of just closing"*. They fell back inline whenever there was no slot, which is
-          right when the page cannot show a window at all, and wrong when you just closed one: closing moved
-          the controls instead of closing. With `onOpenPreview` the page HAS a window, so the fallback is off
-          and the button above is the way back. */}
+      {/* THE OPTIONS LIVE IN THE WINDOW. They fell back inline whenever there was no slot, which is right when the
+          page cannot show a window at all, and wrong when you just closed one: closing moved the controls instead
+          of closing. With `onOpenPreview` the page HAS a window, so the fallback is off and the button above is the
+          way back. */}
       {!tuningSlot && !onOpenPreview && <>{season}{tuning}{layers}{randomize}</>}
       {building}
       {tuningSlot && createPortal(<>{sizeLine}{season}{tuning}{layers}{randomize}</>, tuningSlot)}
@@ -1210,9 +1175,8 @@ function Step({ n, label, children }: { n: number; label: string; children: Reac
 export function StylePicker({ activeId, onPick, onClose }: { activeId: string; onPick: (id: string) => void; onClose?: () => void }) {
   return (
     <div className="space-y-1">
-      {/* Named for what it lists (Alexander, 2026-09-08: *"we should improve it's naming"* — "Style" said
-          nothing). Every row is a TILESET: the same labels, the same names, the same heights, a different
-          set of pictures. That is the whole difference a style makes. */}
+      {/* Named for what it lists. Every row is a TILESET: the same labels, the same names, the same heights, a
+          different set of pictures. That is the whole difference a style makes. */}
       <p className="mb-1 text-[10px] leading-snug text-gray-400">
         Every tile keeps its name and its behaviour — only the pictures change.
       </p>
@@ -1310,13 +1274,10 @@ export function LibraryChips<T extends string>({ chips, active, onPick }: {
   active: T | null
   onPick: (id: T | null) => void
 }) {
-  // Alexander, 2026-09-08: *"I don't like to use pills as filters, they'll create a lot of issues after,
-  // because of space, it'd rather have a list of selectable items."* So: a list, one row per bucket, each
-  // carrying its count — you can see there are 4 doors and 94 ground tiles without opening anything.
-  // Alexander, 2026-09-09: *"why not just a regular select??? we don't need to have the options showing with
-  // scrolling when we can use an actual dropdown selector and reduce space."* His earlier objection was to
-  // PILLS, which wrap and eat width; a native select costs one row for twelve options and needs no scroll
-  // area of its own. The count rides in each option's label, so the information scent survives.
+  // So: a list, one row per bucket, each carrying its count — you can see there are 4 doors and 94 ground tiles
+  // without opening anything. His earlier objection was to PILLS, which wrap and eat width; a native select costs one
+  // row for twelve options and needs no scroll area of its own. The count rides in each option's label, so the
+  // information scent survives.
   const total = chips.reduce((n, c) => n + c.count, 0)
   return (
     <div className="ctl">
@@ -1552,10 +1513,9 @@ export function TilePalette({
         </div>
         <div className="ls">ground, walls, roofs, nature and props</div>
       </div>
-      {/* THE PREVIEW IS NOT HERE. Alexander, 2026-09-09: *"why do we have the preview in the same panel and
-          not a separate panel next to the selected element?"* — because stacking it above the grid left the
-          grid, the thing you opened the library FOR, as a clipped sliver. It renders in the zone that
-          already means "what am I looking at": the right-hand one, which is empty while you browse. */}
+      {/* THE PREVIEW IS NOT HERE. — because stacking it above the grid left the grid, the thing you opened the
+          library FOR, as a clipped sliver. It renders in the zone that already means "what am I looking at": the
+          right-hand one, which is empty while you browse. */}
       <div className="pfix">
         <LibrarySearch query={query} onQuery={setQuery} total={total} shown={shown} noun="tiles" />
         <LibraryChips
@@ -1635,12 +1595,10 @@ export interface UnitPickerProps {
   /** run the scatter (scatters the picked creature, or a mix when nothing is picked). */
   onScatter: () => void
   /**
-   * `Place as: ( ) Enemy  (•) Auto  ( ) NPC` — §4.5's row, and Alexander's model made visible
-   * (2026-09-08): *"An enemy is just a setting, a unit set as enemy. We can have friendly pets or enemy
-   * animals, and the same applies to pretty much all units."*
+   * `Place as: ( ) Enemy (•) Auto ( ) NPC` — §4.5's row, and
    *
-   * So hostility is NOT a property of the tile. `Auto` takes the catalog's role for the creature you
-   * picked; Enemy / NPC override it for what you are about to place. A bear can be a pet.
+   * So hostility is NOT a property of the tile. `Auto` takes the catalog's role for the creature you picked; Enemy /
+   * NPC override it for what you are about to place. A bear can be a pet.
    */
   placeAs: 'auto' | 'enemy' | 'npc'
   onPlaceAs: (as: 'auto' | 'enemy' | 'npc') => void
@@ -1709,15 +1667,11 @@ export function UnitPicker({ units, pickedId, onPick, mode, onMode, animated, on
         </div>
       )}
 
-      {/* The character's BEHAVIOUR lives in its own panel. Alexander, 2026-09-09: *"that's why I requested
-          explicitly to consider movable modals, because I knew this was gonna be a problem."* Stacked under
-          the grid it left the swatches — the thing you opened the library for — as one clipped row.
-
-          Named for the QUESTION, not the mechanism. Alexander, 2026-09-09: *"'how it will be placed' is not
-          clear at all in the characters."* He is right: "placed" describes the click, while the panel decides
-          three things about the CHARACTER — whose side it is on, whether one lands or several, and whether it
-          stands still or wanders. The count beside the label already reads "Friendly · Patrols", which is a
-          summary of behaviour, not of placement. */}
+      {/* The character's BEHAVIOUR lives in its own panel. Stacked under the grid it left the swatches — the thing
+          you opened the library for — as one clipped row. Named for the QUESTION, not the mechanism. He is right:
+          "placed" describes the click, while the panel decides three things about the CHARACTER — whose side it is
+          on, whether one lands or several, and whether it stands still or wanders. The count beside the label
+          already reads "Friendly · Patrols", which is a summary of behaviour, not of placement. */}
       <div className="pfoot">
         <button type="button" className="b wide sm" onClick={onOpenPlacement} title="Whose side it is on, whether one lands or several, and whether it stands still or wanders">
           <span className="ic" aria-hidden="true">☰</span>
@@ -1743,10 +1697,9 @@ export function UnitPlacementBody({
   return (
     <div>
 
-        {/* Whose side: TWO answers and no third. Alexander, 2026-09-08: *"I don't think auto should be an
-            option in the character, it's either friendly or unfriendly as simple as that. we don't support
-            coop for now."* Neither pressed = the catalog's own answer for this creature, which is what
-            `auto` has always meant — so the third state survives as the DEFAULT instead of as a button. */}
+        {/* Whose side: TWO answers and no third. Neither pressed = the catalog's own answer for this creature,
+            which is what `auto` has always meant — so the third state survives as the DEFAULT instead of as a
+            button. */}
         <div className="ctl">
           <span className="l">
             <span>Whose side</span>
@@ -2061,9 +2014,10 @@ export function ViewBar({
   fps: number
   renderMs: number
   onHelp: () => void
-  /** Open the step-by-step guides. Alexander, 2026-09-09: *"there's no general step by step guides on how
-   *  to do stuff."* Its own button beside Help, because "what does this key do" and "how do I build a
-   *  level" are different questions and burying one inside the other is how this went missing. */
+  /**
+   * Open the step-by-step guides. Its own button beside Help, because "what does this key do" and "how do I build a
+   * level" are different questions and burying one inside the other is how this went missing.
+   */
   onGuides: () => void
 }) {
   const overlays = [
@@ -2162,8 +2116,8 @@ export function ViewBar({
       <span className="h-5 w-px shrink-0 bg-white/15" />
       <span className="shrink-0 tabular-nums text-xs text-gray-300" title="Camera zoom (mouse wheel)">🔍 {zoomPct}%</span>
 
-      {/* 🎨 Style is NOT here — Alexander, 2026-09-08: it is *"a separate group, which list all available
-          art styles"*, so it is a rail entry (`artstyle`) with its own panel. */}
+      {/* 🎨 Style is NOT here — it is *"a separate group, which list all available art styles"*, so it is a rail
+          entry (`artstyle`) with its own panel. */}
 
       <span className="ml-auto flex shrink-0 items-center gap-2">
         <FpsReadout fps={fps} renderMs={renderMs} variant="nav" />

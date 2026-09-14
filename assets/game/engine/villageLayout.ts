@@ -74,23 +74,20 @@ export interface VillageLayout {
 // Settlement scaling — a city is a much bigger, denser place than a town (more + bigger buildings,
 // a denser street grid). The [min, max] count of each.
 const HOUSE_RANGE: Record<Settlement, [number, number]> = { town: [4, 6], city: [7, 11] }
-// WHICH BUILDINGS A PLACE IS MADE OF. Alexander, 2026-09-11: *"there's not a single difference between any of
-// the settlements ... all you did was change colors, when everything should've changed like having different
-// types of settlements implies having different objects"*, and *"cities have more skycrappers, towns have more
-// houses"*.
+// WHICH BUILDINGS A PLACE IS MADE OF. and *"cities have more skycrappers, towns have more houses"*.
 //
-// This replaced a fixed `['store', 'hospital', 'temple']` seed plus a per-settlement office range, which is why
-// every place built the identical set of buildings in different colours. It is the DEFAULT list now, and the
-// served one (`settlement.mix`, per place) wins, so a town of stables and a city of towers is a data difference.
+// This replaced a fixed `['store', 'hospital', 'temple']` seed plus a per-settlement office range, which is why every
+// place built the identical set of buildings in different colours. It is the DEFAULT list now, and the served one
+// (`settlement.mix`, per place) wins, so a town of stables and a city of towers is a data difference.
 //
 // HOUSES ARE DEMANDED HERE, and leftover frontage takes more of them on top.
 //
-// `big-house` USED TO BE A TYPE and is gone (Alexander, 2026-09-12: *"per biome, and delete big_house"*). Its
-// 6-wide footprint moved into the served `houseWidths`, and its COUNT moved into this list.
+// `big-house` USED TO BE A TYPE and is gone. Its 6-wide footprint moved into the served `houseWidths`, and its COUNT
+// moved into this list.
 //
-// It went into `houseRange` first, which did nothing at all: `houseRange` is read only by `buildingMix`, and
-// nothing in the app calls `buildingMix`. `placePlots` demands from THIS list. Measured, dropping the entry
-// thinned every frontage to one plot per block, and the neighbourhood row test failed exactly as it should.
+// It went into `houseRange` first, which did nothing at all: `houseRange` is read only by `buildingMix`, and nothing
+// in the app calls `buildingMix`. `placePlots` demands from THIS list. Measured, dropping the entry thinned every
+// frontage to one plot per block, and the neighbourhood row test failed exactly as it should.
 const MIX_BASE: Record<Settlement, readonly MixEntry[]> = {
   town: [
     { type: 'store', count: [1, 1] },
@@ -146,11 +143,9 @@ export interface BuildingSizes {
   /**
    * The type's DEFAULT footprint, straight off `/api/buildings`.
    *
-   * Alexander, 2026-09-09: *"user will specify the size or we'd use the default one. For randomizers, we
-   * randomize the footprint and house adapts to it … even the footprint should come from backend, then
-   * frontend draws."* So a plot rolls a footprint and the building is composed to fit it; this is where
-   * the number it rolls around comes from. Absent → the planner falls back to the baked size, which is how
-   * a generate still works before `/api/buildings` has answered.
+   * So a plot rolls a footprint and the building is composed to fit it; this is where the number it rolls around
+   * comes from. Absent → the planner falls back to the baked size, which is how a generate still works before
+   * `/api/buildings` has answered.
    */
   defaultOf?(type: BuildingType): { w: number; h: number } | null
 }
@@ -174,15 +169,13 @@ const BUILDING_CAP: Record<Settlement, number> = { town: 18, city: 72 }
 /**
  * THE SETTLEMENT TUNING THE BACKEND SERVES.
  *
- * Every field above is also a value in `settlement` on `/api/generators` — `plazaSize`, `setback`,
- * `roadWidth`, `lotGap`, `maxPerFrontage`, `buildingCap`, `houseRange`, `houseWidths`,
- * and until now the frontend kept its own copy of each and read that instead. `houseWidths` was the first
- * one traced (it duplicated the served list exactly); these are the rest of the same family.
+ * Every field above is also a value in `settlement` on `/api/generators` — `plazaSize`, `setback`, `roadWidth`,
+ * `lotGap`, `maxPerFrontage`, `buildingCap`, `houseRange`, `houseWidths`, and until now the frontend kept its own
+ * copy of each and read that instead. `houseWidths` was the first one traced (it duplicated the served list exactly);
+ * these are the rest of the same family.
  *
- * Alexander, 2026-09-09: *"we don't need anything hardcoded in frontend other than default values and the
- * necessary code to randomize data, everything else is backend driven."* So the constants above stay, as
- * DEFAULTS, and the served value wins wherever there is one. That keeps a generate working before
- * `/api/generators` answers and keeps every existing test calling `planVillage` without config valid,
+ * So the constants above stay, as DEFAULTS, and the served value wins wherever there is one. That keeps a generate
+ * working before `/api/generators` answers and keeps every existing test calling `planVillage` without config valid,
  * while making a town's tuning a data change rather than an edit in this file.
  */
 export interface SettlementTuning {
@@ -206,11 +199,10 @@ export interface SettlementTuning {
   houseWidths?: readonly number[]
   mix?: readonly MixEntry[]
   /**
-   * WHAT THIS PLACE PAVES ITS STREETS WITH, as a ground label. Alexander, 2026-09-11: *"a town doesn't have
-   * roads, it has pathways of stone, cities do have pathways a skycraoppers"*.
+   * WHAT THIS PLACE PAVES ITS STREETS WITH, as a ground label.
    *
-   * The planner does not read it: a street is a COLOUR the layout pass paints, not a plot decision. It rides
-   * here because this interface mirrors the served `settlement` block whole.
+   * The planner does not read it: a street is a COLOUR the layout pass paints, not a plot decision. It rides here
+   * because this interface mirrors the served `settlement` block whole.
    */
   streets?: string
 }
@@ -250,17 +242,16 @@ function resolveTuning(settlement: Settlement, served?: SettlementTuning): Tunin
 /**
  * The facade width this plot rolls for a building.
  *
- * `HOUSE_WIDTHS = [3, 3, 4, 4, 4, 5]` used to live here, and the backend has been serving that exact list
- * as `settlement.houseWidths` all along — parsed into `GeneratorSettlement` and then ignored, the same
- * dead-served-data trap `nature.groundCover` was in. It is read now, so re-weighting a town's houses is a
- * data change rather than an edit here.
+ * `HOUSE_WIDTHS = [3, 3, 4, 4, 4, 5]` used to live here, and the backend has been serving that exact list as
+ * `settlement.houseWidths` all along — parsed into `GeneratorSettlement` and then ignored, the same dead-served-data
+ * trap `nature.groundCover` was in. It is read now, so re-weighting a town's houses is a data change rather than an
+ * edit here.
  *
- * Alexander, 2026-09-09: *"we randomize the footprint and house adapts to it … even the footprint should
- * come from backend."* Which is what this is: the numbers are the backend's, the roll is the generator's,
- * and the building is composed to whatever comes out.
+ * Which is what this is: the numbers are the backend's, the roll is the generator's, and the building is composed to
+ * whatever comes out.
  *
- * Order of preference, with no invented values anywhere: the served weighting → the type's served default
- * → the baked size. Null only when NONE of them is available, which the planner reads as "skip".
+ * Order of preference, with no invented values anywhere: the served weighting → the type's served default → the baked
+ * size. Null only when NONE of them is available, which the planner reads as "skip".
  */
 const plotWidth = (type: BuildingType, rng: Rng, sizes: BuildingSizes, widths?: readonly number[]): number | null => {
   if (type === 'house' && widths && widths.length > 0) return widths[Math.floor(rng() * widths.length)]

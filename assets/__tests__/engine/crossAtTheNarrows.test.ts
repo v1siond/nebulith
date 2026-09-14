@@ -1,15 +1,13 @@
 /**
  * A CROSSING GOES WHERE THE RIVER IS NARROW.
  *
- * Alexander, 2026-09-13, on a meadow: *"we still have situations where there's a lot of wood path alongside
- * bridge when we just want the bridge and the river"*, and on 2026-09-12: *"we just need the actual bridge
- * connecting"*.
+ * and on 2026-09-12: *"we just need the actual bridge connecting"*.
  *
- * The flat deck under a crossing has to reach both banks, so its length is however wide the water is at the
- * line it was laid on. A crossing used to be laid at a fixed fraction along the river, and a straight slice
- * through a MEANDER is far longer than the river is actually wide, which is what turned a bridge into a wooden
- * causeway. Measured across the three forest layouts, flat deck cells on one seed: 53/65/64 before, 50/63/64
- * after, so it never makes one longer.
+ * The flat deck under a crossing has to reach both banks, so its length is however wide the water is at the line it
+ * was laid on. A crossing used to be laid at a fixed fraction along the river, and a straight slice through a MEANDER
+ * is far longer than the river is actually wide, which is what turned a bridge into a wooden causeway. Measured
+ * across the three forest layouts, flat deck cells on one seed: 53/65/64 before, 50/63/64 after, so it never makes
+ * one longer.
  */
 import { narrowestLine } from '@/engine/riverNetwork'
 

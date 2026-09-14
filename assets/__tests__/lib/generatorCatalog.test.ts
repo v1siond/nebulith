@@ -91,9 +91,8 @@ describe('parseGeneratorCatalog — the live /api/generators body', () => {
   })
 
   /**
-   * Alexander, 2026-09-11: *"there's not a single difference between any of the settlements ... all you did was
-   * change colors"*, and *"cities have more skycrappers, towns have more houses"*. The mix is the served answer,
-   * so this asserts it SURVIVES the parse: a dropped key here would put every place back to the same buildings.
+   * and *"cities have more skycrappers, towns have more houses"*. The mix is the served answer, so this asserts it
+   * SURVIVES the parse: a dropped key here would put every place back to the same buildings.
    */
   it('a town and a city are served DIFFERENT buildings, and the parse keeps them', () => {
     const town = findGenerator(LIVE, 'settlement', 'town')!.config.settlement!.mix!.map(e => e.type)
@@ -305,8 +304,6 @@ describe('fetchGeneratorCatalog — the wire', () => {
 })
 
 describe('the catalog is a TREE — forest > type > subtype', () => {
-  // Alexander, 2026-09-11: *"forest > type of forest > sub type of type of forest > etc / like maybe it's an
-  // island jungle, maybe it's a mountain forest"*.
   it('parses each type\'s subtypes, in menu order', () => {
     expect(findGenerator(LIVE, 'forest', 'woodland')!.children?.map(c => c.key)).toEqual([
       'forest_woodland_beech', 'forest_woodland_dense', 'forest_woodland_mountain', 'forest_woodland_glades',
@@ -329,8 +326,7 @@ describe('the catalog is a TREE — forest > type > subtype', () => {
 })
 
 describe('a generator is found by the ARCHETYPE it runs, not by where it sits', () => {
-  // Alexander, 2026-09-11: *"City and town options are the same, it'd put them in a single category"*. A
-  // programmatic generate still asks for "town", and a town lives in the settlement category now.
+  // A programmatic generate still asks for "town", and a town lives in the settlement category now.
   const MERGED = parseGeneratorCatalog({
     data: [{
       key: 'settlement', name: 'Settlement', position: 1, generators: [

@@ -1,18 +1,17 @@
 /**
- * UNIT-DATA PERSISTENCE — fold each unit's LOADOUT (+ the hero's INVENTORY) onto the entities at save,
- * split them back out on load.
+ * UNIT-DATA PERSISTENCE — fold each unit's LOADOUT (+ the hero's INVENTORY) onto the entities at save, split them
+ * back out on load.
  *
- * "everything is data ... what a unit HAS is data" (Alexander): a unit's gear rides ON the unit, so it
- * persists through the SAME `entities` channel every entity already round-trips (templates.tsx →
- * template.entities jsonb → nebulith Postgres over HTTP). No parallel per-unit-type table — units are the
- * same, so their inventory is just data on the unit. These two pure functions are the boundary codec ONLY:
- * the running editor keeps its `loadouts` map + hero `inventory` state; fold marries them to the entities
- * at the save edge and split reads them back at the load edge — exactly as entities/quests already ride
- * assetsData (lib/gridCodec.ts).
+ * "everything is data... what a unit HAS is data": a unit's gear rides ON the unit, so it persists through the SAME
+ * `entities` channel every entity already round-trips (templates.tsx → template.entities jsonb → nebulith Postgres
+ * over HTTP). No parallel per-unit-type table — units are the same, so their inventory is just data on the unit.
+ * These two pure functions are the boundary codec ONLY: the running editor keeps its `loadouts` map + hero
+ * `inventory` state; fold marries them to the entities at the save edge and split reads them back at the load edge —
+ * exactly as entities/quests already ride assetsData (lib/gridCodec.ts).
  *
  * Round-trip guarantee (tested in __tests__/game/unitDataPersistence.test.ts): for any entity list,
- * `split(fold(entities, loadouts, inventory))` reproduces `loadouts` + `playerInventory` EXACTLY —
- * including bag/special ORDER and empty gaps — for the player and any npc/enemy alike.
+ * `split(fold(entities, loadouts, inventory))` reproduces `loadouts` + `playerInventory` EXACTLY — including
+ * bag/special ORDER and empty gaps — for the player and any npc/enemy alike.
  */
 import type { Entity, Inventory, Loadout } from '@/game/types'
 

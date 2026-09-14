@@ -1,20 +1,20 @@
 /**
- * REAL-CANVAS fountain/well DESYNC evidence — drives the ACTUAL view render functions with the EXACT desynced
- * water animations the backend serves (`/api/tilesets`, captured in the fixture), and measures the drawn water
- * column's rendered HEIGHT (vertical magenta extent) + BASE (bottom row) at controlled clock times, in EMOJI
- * and ASCII. Baked tiles are OS-independent, so this real render IS authoritative for the visible behaviour
- * (the live browser runs this same render code every frame; only the WSL2 headless *surface capture* is frozen,
- * which this bypasses by rendering to a controlled canvas at a controlled clock).
+ * REAL-CANVAS fountain/well DESYNC evidence — drives the ACTUAL view render functions with the EXACT desynced water
+ * animations the backend serves (`/api/tilesets`, captured in the fixture), and measures the drawn water column's
+ * rendered HEIGHT (vertical magenta extent) + BASE (bottom row) at controlled clock times, in EMOJI and ASCII. Baked
+ * tiles are OS-independent, so this real render IS authoritative for the visible behaviour (the live browser runs
+ * this same render code every frame; only the WSL2 headless *surface capture* is frozen, which this bypasses by
+ * rendering to a controlled canvas at a controlled clock).
  *
- * The design under test (Alexander): TWO water variants — a small `well` (a 1×3 water line, ALL 3 columns
- * animated) and a large `fountain` (a 3×3 water grid, only the CENTRE ROW of 3 animated, 6 static). In BOTH,
- * EXACTLY 3 columns animate, each the SAME 1→4 sine-yoyo height-grow but with a DISTINCT durationMs +
- * startDelayMs so they pulse OUT of sync ("different duration and delays … realistic fountain water"). The
- * three timings are READ FROM THE REAL FIXTURE, so this test would FAIL if the backend made them identical.
+ * The design under test: TWO water variants — a small `well` (a 1×3 water line, ALL 3 columns animated) and a large
+ * `fountain` (a 3×3 water grid, only the CENTRE ROW of 3 animated, 6 static). In BOTH, EXACTLY 3 columns animate,
+ * each the SAME 1→4 sine-yoyo height-grow but with a DISTINCT durationMs + startDelayMs so they pulse OUT of sync
+ * ("different duration and delays … realistic fountain water"). The three timings are READ FROM THE REAL FIXTURE, so
+ * this test would FAIL if the backend made them identical.
  *
- * What we assert: (1) DESYNC — at a SHARED clock the 3 columns render 3 DIFFERENT heights (a synced baseline,
- * built by giving all three ONE timing, renders EQUAL — the counterfactual). (2) Each column still GROWS its
- * height 1→~4→1 over its OWN period, base PLANTED (grows up, never levitates), never invisible (no opacity).
+ * What we assert: (1) DESYNC — at a SHARED clock the 3 columns render 3 DIFFERENT heights (a synced baseline, built
+ * by giving all three ONE timing, renders EQUAL — the counterfactual). (2) Each column still GROWS its height 1→~4→1
+ * over its OWN period, base PLANTED (grows up, never levitates), never invisible (no opacity).
  */
 import { makeStyleTile, setStyleTile, styleCatalog, styleTile } from '@/engine/tileset/styleTiles'
 import { installRealCanvas, type RealCanvasHarness } from '@/__tests__/helpers/realCanvas'

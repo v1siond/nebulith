@@ -125,7 +125,7 @@ describe('tree composition — every ascii asset is a collection of selectable D
   test('the tree stamps EXACTLY 2 cells — a thin tall trunk on the ground + a bigger leaf cube on its top', () => {
     const grid = mkGrid()
     const placed = stampComposition(grid, 'tree', 7, 7, 'spring', 0)
-    expect(placed).toBe(2) // Alexander's optimized reference: "just two tiles, one trunk, one leafs" (down from 3)
+    expect(placed).toBe(2) // the optimised reference: "just two tiles, one trunk, one leafs" (down from 3)
 
     const col = getStack(grid, 7, 7).filter(t => t.type !== 'floor')
     expect(col.map(t => t.label)).toEqual(['trunk_mid', 'leaf_center'])
@@ -182,9 +182,9 @@ describe('tree composition — every ascii asset is a collection of selectable D
   })
 
   test('a round-crowned species renders a CIRCLE canopy, and a CONE keeps its box', () => {
-    // Alexander, 2026-09-12: a canopy that is a cube reads wrong, so every round-crowned species says circle
-    // now, the plain `tree` included. The square case moved to `tree_conifer`, which is genuinely NOT round:
-    // the renderer draws `square` and `circle` and nothing else, so a cone keeps the box until one exists.
+    // a canopy that is a cube reads wrong, so every round-crowned species says circle now, the plain `tree` included.
+    // The square case moved to `tree_conifer`, which is genuinely NOT round: the renderer draws `square` and `circle`
+    // and nothing else, so a cone keeps the box until one exists.
     for (const kind of ['tree_round', 'tree'] as const) {
       const round = mkGrid(); stampComposition(round, kind, 7, 7, 'spring', 0)
       expect({ kind, shape: round.assets.find(a => a.label === 'leaf_center')!.shape }).toEqual({ kind, shape: 'circle' })
@@ -193,7 +193,7 @@ describe('tree composition — every ascii asset is a collection of selectable D
     expect(cone.assets.find(a => a.label === 'leaf_center')!.shape ?? 'square').toBe('square')
   })
 
-  // ── DIMENSION-SANITY: the trunk is never bigger than the leaves (Alexander's rule) ─────────────────────
+  // ── DIMENSION-SANITY: the trunk is never bigger than the leaves ─────────────────────
   test('DIMENSION SANITY: for every tree variant the trunk is thinner + less zoomed than the leaves, and sits BELOW them', () => {
     for (const kind of TREE_VARIANTS) {
       const grid = mkGrid()

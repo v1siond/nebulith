@@ -1,16 +1,13 @@
 /**
  * COMMON SENSE ABOUT WHAT BLOCKS.
  *
- * Alexander, 2026-09-11: *"some collisions are actually dumb lol, we are using collissions in flowers / like, I
- * get it on trees, but flowers? come on, let's have some common sense when doing these generators / it's easy to
- * know which things should be walkable and which shouldn't."* And when I said the fix was backend data, he
- * corrected me: *"the fix is on the generator setting the setting as false, the backend just stores data"*. He
- * was right: `flower`, `grass`, `bush` and `decor_clover` are all `blocking: false` in the live DB, and the
- * generator was stamping `collision = true` over the top of them.
+ * And when I said the fix was backend data, he corrected me: *"the fix is on the generator setting the setting as
+ * false, the backend just stores data"*. He was right: `flower`, `grass`, `bush` and `decor_clover` are all
+ * `blocking: false` in the live DB, and the generator was stamping `collision = true` over the top of them.
  *
- * THE RULE, in one test: a cell's collision comes from the thing standing IN it. So if everything a cell holds
- * is walkable, the cell is walkable. Water is not an occupant (you do not walk on water), a building footprint
- * is stamped later from `stage.buildings`, and a tree trunk is an occupant that blocks.
+ * THE RULE, in one test: a cell's collision comes from the thing standing IN it. So if everything a cell holds is
+ * walkable, the cell is walkable. Water is not an occupant (you do not walk on water), a building footprint is
+ * stamped later from `stage.buildings`, and a tree trunk is an occupant that blocks.
  */
 import '@/__tests__/helpers/installTilesetSeed'
 import { generateStage, type ForestLayout, type StageData, type VariantId } from '@/engine/stageGenerator'

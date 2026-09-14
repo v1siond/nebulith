@@ -1,18 +1,15 @@
 /**
  * THE JUNGLE — a jungle, not a dense woodland.
  *
- * Alexander, 2026-09-10: *"right now a jungle is basically the same as woodland in the app, there's not a
- * single difference between them, but they should be, colors should be different, general layout should be
- * different"*, *"like there's a huge difference between amazonas and a pines forest"*, *"a jungle should
- * follow real jungle patterns"*.
+ * *"like there's a huge difference between amazonas and a pines forest"*, *"a jungle should follow real jungle
+ * patterns"*.
  *
- * I had shipped it as `layoutWoodland` with heavier numbers, which is exactly what he was objecting to. The
- * tests below assert the four ways the STRUCTURE differs, because density is not the difference:
+ * I had shipped it as `layoutWoodland` with heavier numbers, which is exactly what he was objecting to. The tests
+ * below assert the four ways the STRUCTURE differs, because density is not the difference:
  *
- *   · light gaps where a giant fell, not clearings cut for you
- *   · a creek you travel along, not trails someone laid
- *   · undergrowth that BLOCKS, where a wood's floor cover only decorates
- *   · a canopy brighter than its own floor, the lighting inversion that reads as tropical
+ * · light gaps where a giant fell, not clearings cut for you · a creek you travel along, not trails someone laid ·
+ * undergrowth that BLOCKS, where a wood's floor cover only decorates · a canopy brighter than its own floor, the
+ * lighting inversion that reads as tropical
  *
  * And the one thing that is not negotiable whatever it looks like: the whole floor is ONE PLACE.
  */
@@ -31,8 +28,10 @@ const JUNGLE: NatureDensity = { canopy: 0.62, groundCover: 0.5, flowers: 0.1 }
 const WOOD_PAL: GeneratorPalette = { floor: '#6f7f4a', floorAlt: '#7d8a55', litter: '#7a6a44', canopy: '#5d7340', canopyAlt: '#6b8049', undergrowth: '#6d7f45', water: '#4f93b3', bank: '#c1a877', trail: '#9a8a62' }
 const JUNG_PAL: GeneratorPalette = { floor: '#2f4a2a', floorAlt: '#38552f', litter: '#46442a', canopy: '#2e6b32', canopyAlt: '#3f8a3c', undergrowth: '#25532a', water: '#5e6b3a', bank: '#6b5f3c', trail: '#57502f' }
 
-/** The served sub-zones, as `generator_source.ex` carries them. Regions inside ONE map — Alexander,
- *  2026-09-11, choosing between that and separate templates. */
+/**
+ * The served sub-zones, as `generator_source.ex` carries them. Regions inside ONE map — choosing between that and
+ * separate templates.
+ */
 const ZONES: readonly GeneratorSubZone[] = [
   { key: 'open', weight: 3, canopy: 0.45, undergrowth: 0.5, floor: '#3f5f33' },
   { key: 'dense', weight: 4, canopy: 1.3, undergrowth: 1.45, floor: '#24381f' },
@@ -187,10 +186,8 @@ describe('however dense it gets, the jungle is ONE place', () => {
 })
 
 describe('the jungle is PARTITIONED into sub-zones — regions inside one map', () => {
-  // Alexander, 2026-09-10: *"the generator shoudl be smart enough to identify different patterns of jungles
-  // for example, open zones, dense zones, zones with swamp, zone with river, zone with cave, zone with
-  // ruins"*. On 2026-09-11 he chose the shape: regions inside ONE map, so you walk out of the open canopy
-  // into dense growth without loading anything, and the template list stays at three forests.
+  // On 2026-09-11 he chose the shape: regions inside ONE map, so you walk out of the open canopy into dense growth
+  // without loading anything, and the template list stays at three forests.
 
   const floorCells = (s: ReturnType<typeof zoned>, tone: string) =>
     s.floorColors.flat().filter(t => t === tone).length
@@ -226,21 +223,19 @@ describe('the jungle is PARTITIONED into sub-zones — regions inside one map', 
   it('floods the SWAMP with standing pools, not a channel', () => {
     const s = zoned()
     const dry = build('jungle', JUNGLE, JUNG_PAL, 5, 60, 40) // the same seed with no regions = creek only
-    // WATER-GROUND, not one spelling of it. A pool lays `water_shallow` since 2026-09-12, because that label
-    // is height 0.0 and a puddle has to sit LEVEL with the floor (Alexander: *"a puddle of water is at floor
-    // level, a little bit transparent over other tiles walkable floor tiles"*), while `water` is 0.5 so a
-    // RIVER surface sits under its bank. Counting the literal 'water' label therefore measured the CREEK only
-    // and the swamp's pools dropped out of the tally: 39 against the dry map's 77.
+    // WATER-GROUND, not one spelling of it. A pool lays `water_shallow` since 2026-09-12, because that label is
+    // height 0.0 and a puddle has to sit LEVEL with the floor, while `water` is 0.5 so a RIVER surface sits under its
+    // bank. Counting the literal 'water' label therefore measured the CREEK only and the swamp's pools dropped out of
+    // the tally: 39 against the dry map's 77.
     //
-    // The intent of this case is unchanged: a regioned swamp holds MORE standing water than a region-less
-    // jungle. Only the ruler was wrong, and it was wrong in the same way four places in the generator were.
-    // WET WHEREVER IT LIVES. A pool stopped being a ground tile on 2026-09-13 and became a FILM stacked over
-    // the ground, because as a ground tile its height could never match the floor it landed on and Alexander
-    // fell into every puddle: *"now I jump down due to the height difference"*. So the channel is still in the
-    // ground and the pools are in the props, and counting only one of them measures half the water.
+    // The intent of this case is unchanged: a regioned swamp holds MORE standing water than a region-less jungle.
+    // Only the ruler was wrong, and it was wrong in the same way four places in the generator were. WET WHEREVER IT
+    // LIVES. A pool stopped being a ground tile on 2026-09-13 and became a FILM stacked over the ground, because as a
+    // ground tile its height could never match the floor it landed on and So the channel is still in the ground and
+    // the pools are in the props, and counting only one of them measures half the water.
     //
-    // Same lesson as the comment above, one layer further out: the intent of this case has not changed, only
-    // where the answer is kept.
+    // Same lesson as the comment above, one layer further out: the intent of this case has not changed, only where
+    // the answer is kept.
     const wet = (stage: { ground: string[][]; props: Array<{ label?: string }> }) =>
       stage.ground.flat().filter(t => t.includes('water')).length +
       stage.props.filter(p => p.label === 'water_still').length
@@ -248,9 +243,9 @@ describe('the jungle is PARTITIONED into sub-zones — regions inside one map', 
   })
 
   /**
-   * THIS TEST USED TO PASS WHILE THE FEATURE WAS WRONG. Alexander, 2026-09-11: *"jungle ruins doesn't have any
-   * ruins..."*. It asserted only that SOME rock prop existed, and scattered boulders satisfied that happily.
-   * What makes a ruin a ruin is that it was built: a platform, and uprights at a regular interval on it.
+   * THIS TEST USED TO PASS WHILE THE FEATURE WAS WRONG. It asserted only that SOME rock prop existed, and scattered
+   * boulders satisfied that happily. What makes a ruin a ruin is that it was built: a platform, and uprights at a
+   * regular interval on it.
    */
   it('BUILDS ruins: a stone platform with columns standing on it, not a scatter of rocks', () => {
     const s = zoned()

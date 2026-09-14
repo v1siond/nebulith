@@ -2,17 +2,16 @@
  * GEAR — a READER over the backend item catalog (§3.14b #1, closed 2026-09-08).
  *
  * This file used to BE the catalog: 6 weapons, 10 armour pieces and 5 consumables with complete stat blocks
- * (`baseDamage: 12, baseDefense: 2, strengthBonus: 3, reachCells: 1`) plus the two starter kits, ~105 lines
- * of game data in the frontend with nothing validating it. Alexander, 2026-09-08: *"all hardcoded data of
- * the frontend moved to the elixir backend … pretty much everything that is DATA or depends on DATA"*.
+ * (`baseDamage: 12, baseDefense: 2, strengthBonus: 3, reachCells: 1`) plus the two starter kits, ~105 lines of game
+ * data in the frontend with nothing validating it.
  *
- * The rows now live in nebulith's `items` table and arrive via `GET /api/items` (`game/itemCatalog.ts`).
- * What stays here is the NAMED ACCESS the game already used — `sword()`, `starterWarriorGear()` — so every
- * call site keeps its shape while the numbers come from the catalog.
+ * The rows now live in nebulith's `items` table and arrive via `GET /api/items` (`game/itemCatalog.ts`). What stays
+ * here is the NAMED ACCESS the game already used — `sword()`, `starterWarriorGear()` — so every call site keeps its
+ * shape while the numbers come from the catalog.
  *
- * Each accessor returns a FRESH object (the catalog clones), so callers never share a mutable reference and
- * can equip the same item into two slots without aliasing. An accessor for a slug the catalog does not
- * serve returns `undefined` rather than a stand-in: an invented sword would read as a real one.
+ * Each accessor returns a FRESH object (the catalog clones), so callers never share a mutable reference and can equip
+ * the same item into two slots without aliasing. An accessor for a slug the catalog does not serve returns
+ * `undefined` rather than a stand-in: an invented sword would read as a real one.
  */
 import { itemBySlug, itemCatalog, starterKit } from './itemCatalog'
 import type { Item } from './types'

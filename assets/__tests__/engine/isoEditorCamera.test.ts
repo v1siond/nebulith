@@ -1,25 +1,22 @@
 /**
  * THE EDITOR'S ISO CAMERA under 4-way rotation (ticket #75).
  *
- * Alexander: "the rotate button or action … just rotates the map horizontally, changing the front perspective
- * of the map and showing a different side of it" / "we can rotate the corners, 4 corners, 4 rotation options,
- * all faces of the map are visible."
+ * / "we can rotate the corners, 4 corners, 4 rotation options, all faces of the map are visible."
  *
- * `iso.ts` already rotates the RENDER (isoCameraRotation.test.ts covers that). The editor page carried its OWN
- * copy of the iso math in `screenToCell` and `cellToCanvas` — facing-blind, so on a rotated map a click landed
- * on a mirrored/transposed cell and the on-canvas toolbar drifted off the selection. `isoEditorCamera` is that
- * math extracted into one pure seam both call sites now read, so this file can prove:
+ * `iso.ts` already rotates the RENDER (isoCameraRotation.test.ts covers that). The editor page carried its OWN copy
+ * of the iso math in `screenToCell` and `cellToCanvas` — facing-blind, so on a rotated map a click landed on a
+ * mirrored/transposed cell and the on-canvas toolbar drifted off the selection. `isoEditorCamera` is that math
+ * extracted into one pure seam both call sites now read, so this file can prove:
  *
- *   1. Facing 0 is INERT — the seam reproduces, to the bit, the formulas the page used before (clamped AND
- *      unclamped, since the render clamps only in play mode).
- *   2. The anchor the editor draws overlays at is the RENDER's own diamond centre, one tile-height down — at
- *      every facing, checked against a real render()'s recorded silhouettes, not against itself.
- *   3. screen→cell is the EXACT inverse of cell→screen at all 4 facings, for every cell of a NON-SQUARE map
- *      (an odd facing swaps the view dims, so a dims bug cannot hide behind a square).
- *   4. Rotating really re-maps the screen: one fixed pixel resolves to a different world cell per facing.
+ * 1. Facing 0 is INERT — the seam reproduces, to the bit, the formulas the page used before (clamped AND unclamped,
+ * since the render clamps only in play mode). 2. The anchor the editor draws overlays at is the RENDER's own diamond
+ * centre, one tile-height down — at every facing, checked against a real render()'s recorded silhouettes, not against
+ * itself. 3. screen→cell is the EXACT inverse of cell→screen at all 4 facings, for every cell of a NON-SQUARE map (an
+ * odd facing swaps the view dims, so a dims bug cannot hide behind a square). 4. Rotating really re-maps the screen:
+ * one fixed pixel resolves to a different world cell per facing.
  *
- * Deterministic camera idiom copied from isoCameraRotation.test.ts: cellSize 100 / isoScale 1, so every
- * expected pixel is exact.
+ * Deterministic camera idiom copied from isoCameraRotation.test.ts: cellSize 100 / isoScale 1, so every expected
+ * pixel is exact.
  */
 import '@/__tests__/helpers/installTilesetSeed'
 import { isoEditorCamera, isoEditorCellAt, isoEditorCellAnchor, type IsoEditorView } from '@/game/editor/isoEditorCamera'

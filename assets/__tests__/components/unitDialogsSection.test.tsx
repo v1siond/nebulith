@@ -1,6 +1,5 @@
 /**
- * Writing what a unit says, in its Character window. Alexander, 2026-09-11: *"each unit has many dialogs, some
- * dialogs are linked to quests, others are static and others are event of situational based"*.
+ * Writing what a unit says, in its Character window.
  */
 import { render, screen, fireEvent } from '@testing-library/react'
 import { UnitDialogsSection } from '@/components/game/modals'

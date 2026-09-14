@@ -1,9 +1,8 @@
 /**
- * placeGround — the ONE ground-placement helper every map-builder (generator apply + editor paint + fills)
- * routes through, so a floor is ALWAYS born with its colour as STATE. Alexander: "the generator should put the
- * color on the tile … if we don't [have a value], empty grid." The grid itself stays pure (it only stores what
- * it's handed); this helper PICKS the ground tile's DB colour (groundTileColor) and writes it — so no floor can
- * ever be placed colourless, and every view just READS floor.color (no render-time derivation, no fallback).
+ * placeGround — the ONE ground-placement helper every map-builder (generator apply + editor paint + fills) routes
+ * through, so a floor is ALWAYS born with its colour as STATE. The grid itself stays pure (it only stores what it's
+ * handed); this helper PICKS the ground tile's DB colour (groundTileColor) and writes it — so no floor can ever be
+ * placed colourless, and every view just READS floor.color (no render-time derivation, no fallback).
  */
 import { placeGround } from '@/game/editor/tileBrush'
 import { IsometricGrid } from '@/engine/IsometricGrid'

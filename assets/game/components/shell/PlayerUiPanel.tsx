@@ -1,18 +1,14 @@
 /**
  * THE PLAYER'S UI — the panel, and the hybrid layout mode that goes with it.
  *
- * Alexander, 2026-09-08: *"there's no preview for the HUD either, we should kind of like a hybrid mode
- * between game mode and editor where we can place and see our HUD updates in realtime, like we'd do on wow
- * bartender."*
+ * So the game keeps running and the real HUD becomes draggable on top of it. The panel and the overlay share ONE
+ * piece of state (`useHudLayout`), which is what makes dragging and typing the same surface instead of two views that
+ * drift.
  *
- * So the game keeps running and the real HUD becomes draggable on top of it. The panel and the overlay share
- * ONE piece of state (`useHudLayout`), which is what makes dragging and typing the same surface instead of
- * two views that drift.
- *
- * WHAT THIS DOES NOT DO: persist. Configuring the HUD has never existed in the product — there is no
- * `ui_profiles` table, no endpoint, nothing (T-115 is a spec). The defaults are transcribed from the
- * Tailwind classes each element is hardcoded with today, so this is a faithful, editable view of the real
- * layout; it simply has nowhere to save to. The panel says so rather than implying otherwise.
+ * WHAT THIS DOES NOT DO: persist. Configuring the HUD has never existed in the product — there is no `ui_profiles`
+ * table, no endpoint, nothing (T-115 is a spec). The defaults are transcribed from the Tailwind classes each element
+ * is hardcoded with today, so this is a faithful, editable view of the real layout; it simply has nowhere to save to.
+ * The panel says so rather than implying otherwise.
  */
 import { useCallback, useEffect, useRef, useState } from 'react'
 
@@ -369,8 +365,7 @@ export function PlayerUiPanel({ state, onDone, gameId }: { state: HudLayoutState
             <Hint>Pinned, not placed. &ldquo;16 up from the bottom-left&rdquo; survives a resized window; &ldquo;y = 812&rdquo; does not.</Hint>
             <NumberField label="Across" value={placement.x} unit="px" onChange={(v) => patch(selected, { x: v })} />
             <NumberField label="In from the edge" value={placement.y} unit="px" onChange={(v) => patch(selected, { y: v })} />
-            {/* Alexander, 2026-09-10: *"why does width doesn't have a slider, but size does?"* No reason —
-                they are the same kind of decision, so they get the same control. Bounded by the STAGE,
+            {/* No reason — they are the same kind of decision, so they get the same control. Bounded by the STAGE,
                 because a piece of HUD cannot usefully be wider than the window it sits in. */}
             <Slider label="Width" min={HUD_MIN_W} max={stageW} step={1} value={placement.w} unit="px"
               onChange={(v) => patch(selected, { w: v })} />

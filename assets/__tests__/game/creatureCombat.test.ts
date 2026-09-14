@@ -1,12 +1,9 @@
 /**
  * A CREATURE'S NUMBERS LIVE ON ITS TILE.
  *
- * Alexander, 2026-09-10: *"an enemy is just a regular unit, but marked as hostile towards player. so, I
- * don't think we need a separate table for it, maybe I'm missing something, please explain your reasoning"*.
- *
- * The reasoning did not hold. There were nine archetypes for eight creatures — one each — plus a frontend
- * map translating creature → archetype. Reuse was the only argument for a second table and there was none.
- * A creature's stat block rides on its own tile now and arrives with the tileset.
+ * The reasoning did not hold. There were nine archetypes for eight creatures — one each — plus a frontend map
+ * translating creature → archetype. Reuse was the only argument for a second table and there was none. A creature's
+ * stat block rides on its own tile now and arrives with the tileset.
  */
 import { setStyleTile } from '@/engine/tileset/styleTiles'
 import { enemyCombat, installCombatCatalog, combatRules, statRules } from '@/game/combatCatalog'

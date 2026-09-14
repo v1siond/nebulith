@@ -1,13 +1,10 @@
 /**
  * RESIZING A HUD PIECE — the grip has to follow the cursor, whatever the piece is pinned to.
  *
- * Alexander, 2026-09-10: *"when I tried to use the crner to grow it the controls were ivnerted, IE: going
- * down made it bigger, going up made it smaller, weird stuff"*.
- *
- * He is describing anchor maths, not a sign error. A piece pinned to the BOTTOM keeps its bottom edge where
- * it is, so growing its height pushes the TOP up — and the grip, drawn at the bottom-right, sits still under
- * the cursor while the piece grows away from it. On a centre anchor the piece grows both ways at once, so
- * the grip tracks at half speed. Only a top-left pinned piece ever behaved.
+ * He is describing anchor maths, not a sign error. A piece pinned to the BOTTOM keeps its bottom edge where it is, so
+ * growing its height pushes the TOP up — and the grip, drawn at the bottom-right, sits still under the cursor while
+ * the piece grows away from it. On a centre anchor the piece grows both ways at once, so the grip tracks at half
+ * speed. Only a top-left pinned piece ever behaved.
  */
 import { hudGripCorner, hudResize } from '@/engine/hudLayout'
 import type { HudPlacement } from '@/components/game/shell/playerUi.data'

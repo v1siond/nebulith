@@ -51,12 +51,11 @@ export const CELL_LABELS = [...TREE_COLUMN_LABELS, ...TREE_MASS_LABELS, ...BUILD
 
 export type CellLabel = (typeof CELL_LABELS)[number]
 
-// PER-LABEL COLLISION LIVED HERE AND IS GONE (2026-09-06). It hardcoded
-// `WALKABLE_LABELS = {tree_leaf_top, roof_top}` in the frontend, and it was wrong twice over: it claimed a ROOF
-// is walkable, which COMBAT-AND-SYSTEMS-SPEC §9 now forbids ("a ROOF BLOCKS" — Alexander: "roof should have
-// collissions"), and it duplicated data the backend already owns and serves — `tiles.blocking` and
-// `composition_cells.walkable`. It had no runtime callers, so it was a latent bug waiting for one.
-// Walkability is BACKEND DATA. Read it from the tile/composition cell; never from a label set.
+// PER-LABEL COLLISION LIVED HERE AND IS GONE (2026-09-06). It hardcoded `WALKABLE_LABELS = {tree_leaf_top, roof_top}`
+// in the frontend, and it was wrong twice over: it claimed a ROOF is walkable, which COMBAT-AND-SYSTEMS-SPEC §9 now
+// forbids, and it duplicated data the backend already owns and serves — `tiles.blocking` and
+// `composition_cells.walkable`. It had no runtime callers, so it was a latent bug waiting for one. Walkability is
+// BACKEND DATA. Read it from the tile/composition cell; never from a label set.
 
 // ── autotile labeler (9-piece corner/edge/interior) ────────────────────
 // Each filled cell is labeled from its neighbourhood: a corner/edge piece is

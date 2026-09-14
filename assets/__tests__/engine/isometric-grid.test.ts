@@ -1,7 +1,9 @@
 import { IsometricGrid } from '@/engine/IsometricGrid'
 
-/** A tile that OCCUPIES ITS WHOLE CELL. `blocking: true` used to say this; the box list says it now, which is
- *  the only statement about walking through a tile (Alexander, 2026-09-13: the flag is gone, collisions do it). */
+/**
+ * A tile that OCCUPIES ITS WHOLE CELL. `blocking: true` used to say this; the box list says it now, which is the only
+ * statement about walking through a tile.
+ */
 const SOLID = { collision: [{ x: 0, y: 0, w: 1, h: 1 }] }
 
 const mkGrid = () => new IsometricGrid({ cols: 10, rows: 10, cellSize: 16, isoScale: 1.4 })

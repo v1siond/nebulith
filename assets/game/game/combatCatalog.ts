@@ -1,30 +1,22 @@
 /**
  * THE CREATURE + COMBAT CATALOG, from the backend (`GET /api/combat`).
  *
- * Alexander, 2026-09-10: *"any data that changes per level, per template, list of available templates,
- * their footprints, basically anything that is DATA should be moved to the backend, the frontend just
- * processes the data algorithmically"*.
+ * What came over: the tunable coefficients the damage maths multiplies by (`game/combat.ts`) and the default stat
+ * lines (`game/entities.ts`). What did NOT: the formulas. `(weapon.baseDamage + strength) * multiplier` is the shape
+ * of the algorithm, and the frontend is what runs it.
  *
- * What came over: the tunable coefficients the damage maths multiplies by (`game/combat.ts`) and the
- * default stat lines (`game/entities.ts`). What did NOT: the formulas. `(weapon.baseDamage + strength) *
- * multiplier` is the shape of the algorithm, and the frontend is what runs it.
- *
- * A CREATURE's numbers are not here either. Alexander, 2026-09-10: *"an enemy is just a regular unit, but
- * marked as hostile towards player. so, I don't think we need a separate table for it"*. He was right: the
- * archetype table held nine entries for eight creatures, one each, with a frontend map translating between
- * the two vocabularies. A creature's stat block now rides on its own TILE (`settings.combat`) and arrives
- * with the tileset, so `enemyCombat()` reads it from there.
+ * A CREATURE's numbers are not here either. He was right: the archetype table held nine entries for eight creatures,
+ * one each, with a frontend map translating between the two vocabularies. A creature's stat block now rides on its
+ * own TILE (`settings.combat`) and arrives with the tileset, so `enemyCombat()` reads it from there.
  *
  * ## Two rules this file exists to keep
  *
- * 1. **Nothing is invented.** An unloaded catalog is EMPTY, exactly like an unreachable tileset means no
- *    tiles. A caller that needs a number it was not given does nothing and says so, rather than falling
- *    back to a value this file made up — a hardcoded fallback for backend data is the violation the
- *    migration exists to remove.
- * 2. **Never read at module scope.** `ENEMY_ARCHETYPES` was a module-level `const` built the moment its
- *    file was imported, which is exactly how the brute once captured an empty ability registry and
- *    shipped an 8-damage tap instead of its 18 (the note still stands in `archetypes.ts`). Every reader
- *    here is a FUNCTION, called when something renders or runs.
+ * 1. **Nothing is invented.** An unloaded catalog is EMPTY, exactly like an unreachable tileset means no tiles. A
+ * caller that needs a number it was not given does nothing and says so, rather than falling back to a value this file
+ * made up — a hardcoded fallback for backend data is the violation the migration exists to remove. 2. **Never read at
+ * module scope.** `ENEMY_ARCHETYPES` was a module-level `const` built the moment its file was imported, which is
+ * exactly how the brute once captured an empty ability registry and shipped an 8-damage tap instead of its 18 (the
+ * note still stands in `archetypes.ts`). Every reader here is a FUNCTION, called when something renders or runs.
  */
 import { NEBULITH_API } from '@/lib/nebulithApi'
 import { getEntityResolution } from '@/engine/entity/entityResolution'

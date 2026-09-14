@@ -80,15 +80,15 @@ const MIN_SPAN = 0.05
 /**
  * THICKNESS: the block's footprint INSIDE its own cell, from four independent per-direction reaches.
  *
- * This is the same question the Footprint asks — "how far does this tile reach toward ⟨direction⟩?" — only
- * the unit differs: Footprint counts whole CELLS (≥1), thickness measures WITHIN one cell (≤1). Alexander
- * asked for the two to work alike, so they share the vocabulary, the four diagonals and the control shape.
+ * This is the same question the Footprint asks — "how far does this tile reach toward ⟨direction⟩?" — only the unit
+ * differs: Footprint counts whole CELLS (≥1), thickness measures WITHIN one cell (≤1). The ask was for the two to
+ * work alike, so they share the vocabulary, the four diagonals and the control shape.
  *
- * The axes are WORLD axes, not screen ones: a cell's ground axes are the diamond's DIAGONALS
- * (`u = (+tileW,+tileH)` = +col, `v = (−tileW,+tileH)` = +row), so the old screen-extent squash thinned along
- * no world direction at all — which is why a door read thin from one side of the house and solid from the
- * other. Along each axis the block spans from `1 − reach(back)` to `reach(forward)`, so a door with reach 1
- * toward its wall and 0.3 the other way is a 0.3-thick panel FLUSH with that wall.
+ * The axes are WORLD axes, not screen ones: a cell's ground axes are the diamond's DIAGONALS (`u = (+tileW,+tileH)` =
+ * +col, `v = (−tileW,+tileH)` = +row), so the old screen-extent squash thinned along no world direction at all —
+ * which is why a door read thin from one side of the house and solid from the other. Along each axis the block spans
+ * from `1 − reach(back)` to `reach(forward)`, so a door with reach 1 toward its wall and 0.3 the other way is a
+ * 0.3-thick panel FLUSH with that wall.
  */
 export function reachGroundQuad(tileW: number, tileH: number, reach: ThicknessReach): GroundQuad {
   const full = unitGroundQuad(tileW, tileH)
@@ -193,30 +193,23 @@ export function isoBlockFaces(
 /**
  * TURN A FACE'S TEXTURE, without moving the face.
  *
- * Alexander, 2026-09-13: *"why are we doing water svg?? we should use the backend pngs, if anything is new it
- * should be backend tiles, we should build water with regular tileset animation, which doesn't use svg"*.
- *
- * He is right and the reason is one line of the renderer. `fillIsoFaceWithTile` paints a face by mapping the
- * unit texture square onto it through `ctx.transform(eA, eB)` — two basis vectors. Rotating what the texture
- * shows by a quarter turn is therefore just PERMUTING THOSE TWO VECTORS, which costs nothing and needs no art.
- * I had instead baked a second set of water frames (`water_y*`) plus two reversals to get four headings: eight
- * PNGs to do what a basis swap does for free. They are gone.
+ * He is right and the reason is one line of the renderer. `fillIsoFaceWithTile` paints a face by mapping the unit
+ * texture square onto it through `ctx.transform(eA, eB)` — two basis vectors. Rotating what the texture shows by a
+ * quarter turn is therefore just PERMUTING THOSE TWO VECTORS, which costs nothing and needs no art. I had instead
+ * baked a second set of water frames (`water_y*`) plus two reversals to get four headings: eight PNGs to do what a
+ * basis swap does for free. They are gone.
  *
  * The four turns, each covering the SAME four corners so the face is unchanged:
  *
- *     k=0  (a,           eA,  eB)
- *     k=1  (a+eA,        eB, -eA)
- *     k=2  (a+eA+eB,    -eA, -eB)
- *     k=3  (a+eB,       -eB,  eA)
+ * k=0 (a, eA, eB) k=1 (a+eA, eB, -eA) k=2 (a+eA+eB, -eA, -eB) k=3 (a+eB, -eB, eA)
  *
- * Composable and exact: applying k=1 twice gives k=2, and four turns is the identity (no accumulated drift,
- * the same property `quarterTurnCW` is built on).
+ * Composable and exact: applying k=1 twice gives k=2, and four turns is the identity (no accumulated drift, the same
+ * property `quarterTurnCW` is built on).
  *
- * WHICH TURN A HEADING WANTS is not a matter of taste, it falls out of the projection. The top face is built
- * `origin = left corner, eA -> top, eB -> bottom` (isoBlockFaces), and with `unitGroundQuad` that is
- * `eA = (+tileW, -tileH)`, the -row step, and `eB = (+tileW, +tileH)`, the +col step. Water's art runs its
- * wave lines along texture-x and scrolls them +x, so an unturned cell flows along `eA`, i.e. heading 3. See
- * `textureTurnForHeading`.
+ * WHICH TURN A HEADING WANTS is not a matter of taste, it falls out of the projection. The top face is built `origin
+ * = left corner, eA -> top, eB -> bottom` (isoBlockFaces), and with `unitGroundQuad` that is `eA = (+tileW, -tileH)`,
+ * the -row step, and `eB = (+tileW, +tileH)`, the +col step. Water's art runs its wave lines along texture-x and
+ * scrolls them +x, so an unturned cell flows along `eA`, i.e. heading 3. See `textureTurnForHeading`.
  */
 export function turnFaceTexture(origin: Pt, eA: Pt, eB: Pt, turns: number): { origin: Pt; eA: Pt; eB: Pt } {
   const add = (p: Pt, q: Pt): Pt => ({ x: p.x + q.x, y: p.y + q.y })
@@ -301,11 +294,13 @@ export function depthCells(col: number, row: number, depth: number, dir: DepthDi
   return out
 }
 
-/** Normalize a BIDIRECTIONAL span (anchor + `depth` ahead along `dir`, plus `depthBack` behind it) into the
- *  one-way span every depth fn already understands: the anchor moves BACK `depthBack` cells along −dir and the
- *  depth grows to depthBack+depth. depthBack ≤ 0 → anchor + depth unchanged (today's one-way span, byte-identical).
- *  So authoring can z-width BOTH ways (Alexander #58) while depthCells / isoDepthBox / spanBackmost / the depth
- *  sort keep their single "anchor is the start, depth runs along dir" contract untouched. Pure, unit-tested. */
+/**
+ * Normalize a BIDIRECTIONAL span (anchor + `depth` ahead along `dir`, plus `depthBack` behind it) into the one-way
+ * span every depth fn already understands: the anchor moves BACK `depthBack` cells along −dir and the depth grows to
+ * depthBack+depth. depthBack ≤ 0 → anchor + depth unchanged (today's one-way span, byte-identical). So authoring can
+ * z-width BOTH ways while depthCells / isoDepthBox / spanBackmost / the depth sort keep their single "anchor is the
+ * start, depth runs along dir" contract untouched. Pure, unit-tested.
+ */
 export function normalizeDepthSpan(col: number, row: number, depth: number | undefined, depthBack: number | undefined, dir: DepthDir): { col: number; row: number; depth: number } {
   const b = Math.max(0, Math.floor(depthBack ?? 0))
   const d = Math.max(1, Math.floor(depth ?? 1))

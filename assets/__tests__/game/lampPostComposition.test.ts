@@ -1,17 +1,16 @@
 /**
- * The LAMP_POST composition renders as a REAL post — a tall, THIN pole with a single bulb ON TOP — shaped
- * ENTIRELY by BACKEND per-cell settings (Alexander's built reference, Images #45/#46: "copy the settings of
- * the post, that's how it should look like, like a real post"). No frontend geometry is hardcoded.
+ * The LAMP_POST composition renders as a REAL post — a tall, THIN pole with a single bulb ON TOP — shaped ENTIRELY by
+ * BACKEND per-cell settings. No frontend geometry is hardcoded.
  *
- * The tuning is DATA on the composition cells (served by nebulith, carried verbatim onto CompositionCell):
- *   • POST (level 0) — ONE cell drawn as a tall pole: Height `scaleY` 7 at Zoom `scale` 0.3 (thin). Blocks.
- *   • BULB (level 1) — a SINGLE-display billboard (one centered bulb, not tiled on the faces), Zoom `scale`
- *     0.6, lifted by `pose.dy` -1.8 so it sits on top of the post. Walkable overhead.
- * The composition STRUCTURE is style-agnostic (one global row) → identical in ascii + emoji; only the art differs.
+ * The tuning is DATA on the composition cells (served by nebulith, carried verbatim onto CompositionCell): • POST
+ * (level 0) — ONE cell drawn as a tall pole: Height `scaleY` 7 at Zoom `scale` 0.3 (thin). Blocks. • BULB (level 1) —
+ * a SINGLE-display billboard (one centered bulb, not tiled on the faces), Zoom `scale` 0.6, lifted by `pose.dy` -1.8
+ * so it sits on top of the post. Walkable overhead. The composition STRUCTURE is style-agnostic (one global row) →
+ * identical in ascii + emoji; only the art differs.
  *
- * Drives the REAL seeded fixture (the captured /api/tilesets response), so it verifies the actual backend
- * default, and asserts stampComposition applies each setting onto the placed asset (scaleY, scale, settings.display,
- * pose) — the "compositions use tuned tile settings for realistic shapes" plumbing.
+ * Drives the REAL seeded fixture (the captured /api/tilesets response), so it verifies the actual backend default,
+ * and asserts stampComposition applies each setting onto the placed asset (scaleY, scale, settings.display, pose) —
+ * the "compositions use tuned tile settings for realistic shapes" plumbing.
  */
 import { styleCatalog } from '@/engine/tileset/styleTiles'
 import { stampComposition } from '@/game/runtime/composition'

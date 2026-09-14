@@ -113,10 +113,9 @@ export function makeEnemy(
   enemyType: string,
   options: MakeEnemyOptions = {},
 ): Entity {
-  // THE CREATURE'S OWN NUMBERS, off its tile. Alexander, 2026-09-10: *"an enemy is just a regular unit,
-  // but marked as hostile towards player"*. There is no archetype to pass any more: the enemy TYPE is
-  // already here, and the backend resolves it to the tile whose settings carry the stat block. A type
-  // whose tile carries none falls to the default stats, exactly as an unrecognised type always did.
+  // THE CREATURE'S OWN NUMBERS, off its tile. There is no archetype to pass any more: the enemy TYPE is already here,
+  // and the backend resolves it to the tile whose settings carry the stat block. A type whose tile carries none falls
+  // to the default stats, exactly as an unrecognised type always did.
   const profile = combatForEnemyType(enemyType)
   const size = options.size ?? 1
   // Size multiplies the FINAL stat block (defaults ← archetype ← explicit overrides), so a boss is just

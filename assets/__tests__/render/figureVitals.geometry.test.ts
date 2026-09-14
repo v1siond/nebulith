@@ -1,14 +1,13 @@
 /**
- * FIGURE VITALS GEOMETRY — the HP bar + name label must sit TIGHT to the unit's head, "like ascii art
- * style" (Alexander), in every view + both styles. The bug: `drawFigureVitals` was fed a `figureTop`
- * derived from the ASCII multi-row figure height (`art.length * lineHeight`) even when an EMOJI/image
- * sprite was drawn — a short billboard grounded near the feet — so the bar floated ~3-5 cells ABOVE the
- * emoji head. The fix passes the ACTUAL drawn-sprite top, so the bar hugs the head in every branch.
+ * FIGURE VITALS GEOMETRY — the HP bar + name label must sit TIGHT to the unit's head, "like ascii art style", in
+ * every view + both styles. The bug: `drawFigureVitals` was fed a `figureTop` derived from the ASCII multi-row figure
+ * height (`art.length * lineHeight`) even when an EMOJI/image sprite was drawn — a short billboard grounded near the
+ * feet — so the bar floated ~3-5 cells ABOVE the emoji head. The fix passes the ACTUAL drawn-sprite top, so the bar
+ * hugs the head in every branch.
  *
- * These drive the REAL view drawers (drawIsoEntity, drawTopEntity) onto a recording 2D context and read
- * back the drawn coordinates: the HP-bar body rect (its unique '#3a1414' fill) vs the drawn sprite's own y.
- * The vertical gap between them must be a TIGHT band of the head (well under one cell), NOT the old
- * multi-cell float.
+ * These drive the REAL view drawers (drawIsoEntity, drawTopEntity) onto a recording 2D context and read back the
+ * drawn coordinates: the HP-bar body rect (its unique '#3a1414' fill) vs the drawn sprite's own y. The vertical gap
+ * between them must be a TIGHT band of the head (well under one cell), NOT the old multi-cell float.
  */
 import { styleTiles } from '@/engine/tileset/styleTiles'
 import { drawIsoEntity } from '@/engine/render/iso'

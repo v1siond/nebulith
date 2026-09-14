@@ -1,12 +1,12 @@
 /**
  * STAGE DATA → A GRID. The one place a generated stage becomes real tiles.
  *
- * Lifted out of the editor page, unchanged. It was always a pure function of its arguments — no state, no
- * refs — but living inside the component made it unreachable, and that was the blocker on preset
- * thumbnails: a thumbnail has to generate a stage and put it in a scratch grid, which is exactly this.
+ * Lifted out of the editor page, unchanged. It was always a pure function of its arguments — no state, no refs — but
+ * living inside the component made it unreachable, and that was the blocker on preset thumbnails: a thumbnail has to
+ * generate a stage and put it in a scratch grid, which is exactly this.
  *
- * Alexander asked for preset thumbnails on 2026-09-08 (*"yes we want this feature"*); this is the seam that
- * unblocks them. Nothing about the behaviour changes — the editor calls the same code it always did.
+ * Preset thumbnails need a stage rendered off-screen; this is the seam that unblocks
+ * them. Nothing about the behaviour changes — the editor calls the same code it always did.
  */
 import { cellStackTop } from '@/engine/cellStack'
 import { type IsometricGrid } from '@/engine/IsometricGrid'
@@ -38,7 +38,6 @@ export function applyStageToGrid(stage: StageData, grid: IsometricGrid, building
         if (floorColor) grid.setGround(c, r, kind, floorColor)
         else placeGround(grid, c, r, kind)
         // THE CURRENT, the same way the colour travels: state the generator picked, read by the render.
-        // Alexander, 2026-09-13: *"there should be a current direction that goes around with the river"*.
         const flow = stage.flow?.[r]?.[c]
         if (flow !== undefined) {
           const floor = grid.floorAt(c, r)
@@ -46,20 +45,18 @@ export function applyStageToGrid(stage: StageData, grid: IsometricGrid, building
         }
         // WATER FILLS THE CHANNEL IT IS DUG INTO.
         //
-        // Alexander, 2026-09-13, on a rendered river: *"this is just terrible ... not a single thing in that
-        // river is good"*. Measured on that view: 66% of the river corridor was bare EARTH, 163,876 brown
-        // pixels against 85,462 blue.
+        // Measured on that view: 66% of the river corridor was bare EARTH, 163,876 brown pixels against 85,462 blue.
         //
-        // The bed is cut two blocks down and the water tile is a 0.5-block slab that sits ON the bed, so the
-        // surface landed a block and a half below the bank and BOTH banks showed a block and a half of dry
-        // wall for the whole length of the river. A canyon with a trickle in it. Every other complaint about
-        // that picture followed from it: the river read as disconnected patches, the brown swamped
-        // everything, and the bridge could not be told apart from the bank because both were earth.
+        // The bed is cut two blocks down and the water tile is a 0.5-block slab that sits ON the bed, so the surface
+        // landed a block and a half below the bank and BOTH banks showed a block and a half of dry wall for the whole
+        // length of the river. A canyon with a trickle in it. Every other complaint about that picture followed from
+        // it: the river read as disconnected patches, the brown swamped everything, and the bridge could not be told
+        // apart from the bank because both were earth.
         //
-        // A river's surface sits just under its bank and the depth is UNDER the water where you cannot see
-        // it. So the block is as tall as the hole it fills, less a rim, and the three depth BANDS all get the
-        // same treatment, which also makes the surface level: they carry different tile heights (0.5, 1, 1),
-        // and that difference was a visible half-block step wherever the band changed.
+        // A river's surface sits just under its bank and the depth is UNDER the water where you cannot see it. So the
+        // block is as tall as the hole it fills, less a rim, and the three depth BANDS all get the same treatment,
+        // which also makes the surface level: they carry different tile heights (0.5, 1, 1), and that difference was
+        // a visible half-block step wherever the band changed.
         const dug = -(stage.elevation?.[r]?.[c] ?? 0)
         if (dug > 0 && kind.includes('water')) {
           const floor = grid.floorAt(c, r)
@@ -88,10 +85,10 @@ export function applyStageToGrid(stage: StageData, grid: IsometricGrid, building
   // TONAL variety is dropped in favour of a distinct, palette-matching species per season.
   for (const a of paint.assets) {
     const override = stagePropTileOverride(stage.zone, a.type)
-    // A prop STACKS on whatever is already in the cell — the SHARED lego rule (`cellStackTop`), not a special
-    // floor lift: on a flat town floor the top is 0 (byte-identical); on a height-1 meadow the top is 1 so the
-    // flower billboard sits ON the meadow block instead of embedding in its green volume. "Floors are tiles,
-    // all tiles stack" (Alexander) — no floorStackLift, the prop just lands on top of what's there.
+    // A prop STACKS on whatever is already in the cell — the SHARED lego rule (`cellStackTop`), not a special floor
+    // lift: on a flat town floor the top is 0 (byte-identical); on a height-1 meadow the top is 1 so the flower
+    // billboard sits ON the meadow block instead of embedding in its green volume. "Floors are tiles, all tiles
+    // stack" — no floorStackLift, the prop just lands on top of what's there.
     const propLift = cellStackTop(grid, a.col, a.row)
     // Per-instance render for standing props (a flower = single billboard, height 1) — the SAME override the
     // SAVE path (stageToTemplate) writes, so live + saved/loaded match. Spreads height + settings.display.
@@ -147,14 +144,13 @@ export function applyStageToGrid(stage: StageData, grid: IsometricGrid, building
     // no building on it is never correct, so it is reported here rather than left to be spotted by eye.
     if (cells === 0) console.warn(`[stage] "${b.kind}" stamped no cells at ${b.col},${anchorRow} — the loaded tileset has no such composition, so this plot is bare`)
   }
-  // A TREE is just TILES too: stamp each recorded tree ANCHOR as a rich stacked composition
-  // (stampComposition → one asset per cell+level of tree_small / tree_dead), the SAME per-block path
-  // buildings use — so every generated tree is 100% backend DB tiles AND each tile is individually
-  // selectable. The generator recorded anchors (stage.trees) instead of baking flat tree props (TreeAnchor).
-  // A tree STACKS on the anchor cell's current top — the SHARED lego rule (`cellStackTop`): a raised meadow
-  // floor (DB height 1) puts the trunk ON TOP of the block instead of embedding at level 0 (the exposed-trunk
-  // bug), a flat town/grass floor (top 0) is byte-identical. No floorStackLift — the composition just lands on
-  // what is already there, "floors are tiles, all tiles stack" (Alexander).
+  // A TREE is just TILES too: stamp each recorded tree ANCHOR as a rich stacked composition (stampComposition → one
+  // asset per cell+level of tree_small / tree_dead), the SAME per-block path buildings use — so every generated tree
+  // is 100% backend DB tiles AND each tile is individually selectable. The generator recorded anchors (stage.trees)
+  // instead of baking flat tree props (TreeAnchor). A tree STACKS on the anchor cell's current top — the SHARED lego
+  // rule (`cellStackTop`): a raised meadow floor (DB height 1) puts the trunk ON TOP of the block instead of
+  // embedding at level 0 (the exposed-trunk bug), a flat town/grass floor (top 0) is byte-identical. No
+  // floorStackLift — the composition just lands on what is already there, "floors are tiles, all tiles stack".
   for (const t of stage.trees ?? []) stampComposition(grid, t.kind, t.col, t.row, stage.zone, t.variant, 0)
   // A FOUNTAIN is just TILES too: stamp each recorded composition ANCHOR (the plaza fountain — rim +
   // water + jets) through the SAME path, so it's per-cell backend tiles, not a special drawer/prop — lifted
@@ -163,16 +159,14 @@ export function applyStageToGrid(stage: StageData, grid: IsometricGrid, building
   // compositions were fountains and wells (square, and never turned). A bridge is span x 3 and has to lie
   // ACROSS its river, so it records the quarter-turns it needs and the save path reads the same field.
   for (const c of stage.compositions ?? []) stampComposition(grid, c.kind, c.col, c.row, stage.zone, c.variant ?? 0, c.rotation ?? 0)
-  // MERGE THE GROUND into z-width runs — the "optimized footprints" pass. Alexander, 2026-09-09: *"we must
-  // have FOOTPRINTS for each map … instead of using 16 tiles to do a grass zone, we can use less, maybe even
-  // 1 if there's no flowers and it's plain grass"*, and 2026-09-10: *"let's turn it on first."*
+  // MERGE THE GROUND into z-width runs — the "optimized footprints" pass. and 2026-09-10: *"let's turn it on first."*
   //
   // Measured on the generators: 1600 floor tiles → 93 on a town, 2464 → 116 on a city, 2400 → 163 on a forest.
   //
-  // This was switched OFF on 2026-07-27 because a merged run spans many camera depths under ONE sort key, so
-  // its front cells could be wrongly occluded. That objection dates from the same day the ground became
-  // height-1 BLOCKS: a flat ground diamond has no side faces and cannot overdraw anything, a 1-block one can.
-  // It is back on so the defect can be SEEN and fixed rather than reasoned about — his call, and the right one:
-  // the merge is worth 15-20x and the sorting is a solvable problem, not a reason to pay per cell forever.
+  // This was switched OFF on 2026-07-27 because a merged run spans many camera depths under ONE sort key, so its
+  // front cells could be wrongly occluded. That objection dates from the same day the ground became height-1 BLOCKS:
+  // a flat ground diamond has no side faces and cannot overdraw anything, a 1-block one can. It is back on so the
+  // defect can be SEEN and fixed rather than reasoned about — his call, and the right one: the merge is worth 15-20x
+  // and the sorting is a solvable problem, not a reason to pay per cell forever.
   grid.compressGround()
 }

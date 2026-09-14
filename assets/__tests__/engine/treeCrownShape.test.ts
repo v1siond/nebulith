@@ -1,15 +1,15 @@
 /**
  * A CANOPY IS NOT A CUBE.
  *
- * Alexander, 2026-09-12: the new foliage art fixed the texture, not the outline. A crown's silhouette comes
- * from the COMPOSITION, not from the picture: the renderer paints the shaded quad and then overlays the tile
- * image, so transparent pixels reveal the solid block rather than carving it. Rounding is the per-cell setting
- * `shape: circle`, and nine species did not carry it.
+ * the new foliage art fixed the texture, not the outline. A crown's silhouette comes from the COMPOSITION, not from
+ * the picture: the renderer paints the shaded quad and then overlays the tile image, so transparent pixels reveal the
+ * solid block rather than carving it. Rounding is the per-cell setting `shape: circle`, and nine species did not
+ * carry it.
  *
- * Seven of those nine are round-crowned and now do. The other two are NOT round: a conifer and a cypress are
- * cones, and `circle` would be wrong in the other direction. The renderer draws `square` and `circle` and
- * nothing else, so those two keep the box until a cone shape exists. That is recorded here rather than left as
- * a silent gap, so this test fails the day someone rounds them off to make a number go up.
+ * Seven of those nine are round-crowned and now do. The other two are NOT round: a conifer and a cypress are cones,
+ * and `circle` would be wrong in the other direction. The renderer draws `square` and `circle` and nothing else, so
+ * those two keep the box until a cone shape exists. That is recorded here rather than left as a silent gap, so this
+ * test fails the day someone rounds them off to make a number go up.
  */
 import '@/__tests__/helpers/installTilesetSeed'
 import { styleCatalog } from '@/engine/tileset/styleTiles'

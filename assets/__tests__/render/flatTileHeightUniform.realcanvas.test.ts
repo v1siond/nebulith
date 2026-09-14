@@ -1,16 +1,16 @@
 /**
  * PERMANENT GUARD: a tile renders at its OWN DB block-height — read, never invented, never floored.
  *
- * WHY (Alexander): a tile's height is DATA in the DB (nebulith), not a frontend constant. The frontend only
- * READS `height` and draws it: a sub-1 tile is a proportional thin slab, a 1-block tile a full cube, a
- * 3-block tile three tall. The old bugs were the frontend INVENTING the flat height (FLOOR_SLAB_SCALE_Y /
- * resolveHeightScale) and the render FLOORING a sub-1 height to a full cube.
+ * WHY: a tile's height is DATA in the DB (nebulith), not a frontend constant. The frontend only READS `height` and
+ * draws it: a sub-1 tile is a proportional thin slab, a 1-block tile a full cube, a 3-block tile three tall. The old
+ * bugs were the frontend INVENTING the flat height (FLOOR_SLAB_SCALE_Y / resolveHeightScale) and the render FLOORING
+ * a sub-1 height to a full cube.
  *
- * A FLAT tile is 0 blocks tall — data migration 0005, "GET THE TILES OF 0.1 DOWN TO 0". So it draws NO side
- * walls: it is the flat ground diamond, which is what a floor should look like. The thing that must never
- * break is that it is still PAINTED — the ground is the map — so the flat case is proved on real pixels, not
- * on geometry alone. Sub-1 heights remain supported for any tile whose DATA says so (a 0.1 tile still draws a
- * 0.1 slab); nothing here hardcodes a flat height either way.
+ * A FLAT tile is 0 blocks tall — data migration 0005, "GET THE TILES OF 0.1 DOWN TO 0". So it draws NO side walls: it
+ * is the flat ground diamond, which is what a floor should look like. The thing that must never break is that it is
+ * still PAINTED — the ground is the map — so the flat case is proved on real pixels, not on geometry alone. Sub-1
+ * heights remain supported for any tile whose DATA says so (a 0.1 tile still draws a 0.1 slab); nothing here
+ * hardcodes a flat height either way.
  *
  * Proved against the production iso path (drawIsoAssetAscii) on a REAL @napi-rs/canvas.
  */
@@ -87,10 +87,9 @@ describe('a tile renders at its OWN DB height — read, not invented; sub-1 not 
   })
 
   test('a LABELED composition tile extrudes to its height too — not pinned to one block', () => {
-    // Alexander (Image #38): "the tile stuck at height 1 … the tile didn't grew as expected but things still
-    // moved up". The labeled-cell path drew a single layer whatever the height was, so raising a wall/ground
-    // cell lifted everything above it while the tile itself stayed one block tall. A labeled tile is a tile:
-    // it extrudes exactly like an unlabeled one.
+    // The labeled-cell path drew a single layer whatever the height was, so raising a wall/ground cell lifted
+    // everything above it while the tile itself stayed one block tall. A labeled tile is a tile: it extrudes exactly
+    // like an unlabeled one.
     const labeled = (height: number): number => {
       const a = { art: [''], col: 4, row: 4, type: 'house_4', label: 'wall_wood_c', heightLevel: 0, height, color: '#c9c9c9' } as unknown as GridAsset
       const cv = H.makeCanvas(480, 420)

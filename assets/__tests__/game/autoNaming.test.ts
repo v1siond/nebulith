@@ -1,13 +1,9 @@
 /**
  * AUTO-NAMING A NEW GAME.
  *
- * Alexander: "we implemented an alert with an input to ask for the game name when creating a new
- * one, that's the worst UX ever … just assign a random name or put something generic like 'game X'
- * and redirect user to the editor right away."
- *
- * So creating a game asks nothing. The name has to be generated, and it has to be generated well
- * enough that a gallery of them stays readable: no collisions, and the numbers keep counting up
- * instead of reusing a gap and producing two "Game 3"s a rename apart.
+ * So creating a game asks nothing. The name has to be generated, and it has to be generated well enough that a
+ * gallery of them stays readable: no collisions, and the numbers keep counting up instead of reusing a gap and
+ * producing two "Game 3"s a rename apart.
  */
 import { nextGameName, nextLevelName, resolveLevelName } from '@/game/autoNaming'
 

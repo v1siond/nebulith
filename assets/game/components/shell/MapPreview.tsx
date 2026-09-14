@@ -1,20 +1,18 @@
 /**
  * THE PREVIEW — the thing, drawn by the map's own renderer, in the view you are looking at.
  *
- * Alexander, 2026-09-09: *"the previews of the objects don't match the selected view at all… fountain, lamp
- * post and well are the worst offenders"* and *"also, the preview should be how it looks in the map."*
+ * and *"also, the preview should be how it looks in the map."*
  *
- * Both sentences have the same answer, and it is the answer the level minimap already uses: do not draw a
- * second picture. `buildPreviewScene` puts the subject into a real grid through the brush and the stamp, and
+ * Both sentences have the same answer, and it is the answer the level minimap already uses: do not draw a second
+ * picture. `buildPreviewScene` puts the subject into a real grid through the brush and the stamp, and
  * `drawPreviewScene` calls whichever of the three renderers the view bar has selected. So:
  *
- *  · it matches the map, because it IS the map's code;
- *  · it follows the view, because the view chooses the function;
- *  · and a fountain animates, a lamp post glows and a well is 5×3, because none of that is re-implemented.
+ * · it matches the map, because it IS the map's code; · it follows the view, because the view chooses the function; ·
+ * and a fountain animates, a lamp post glows and a well is 5×3, because none of that is re-implemented.
  *
- * This draws LIVE, on a timer, because an animated tile is part of how it looks. The list swatches use the
- * same draw path through `previewThumbnail`, which renders once and keeps the result — a list of 23 full
- * isometric renders per frame would cost more than the map.
+ * This draws LIVE, on a timer, because an animated tile is part of how it looks. The list swatches use the same draw
+ * path through `previewThumbnail`, which renders once and keeps the result — a list of 23 full isometric renders per
+ * frame would cost more than the map.
  */
 import { useCallback, useEffect, useMemo, useRef } from 'react'
 

@@ -1,8 +1,6 @@
 /**
- * PATHS FIRST. Alexander, 2026-09-11: *"I expect maps to have an entrance and exit, sometimes it'll be the same
- * place to enter and leave, others we must have multiple pathways with different exists"*, and for a cave, *"1 exit
- * and 3 pathways to simulate entrance, then I continue doing the same until I reach a part where is just 1 exit no
- * pathway, which is the end of the cave"*.
+ * PATHS FIRST. and for a cave, *"1 exit and 3 pathways to simulate entrance, then I continue doing the same until I
+ * reach a part where is just 1 exit no pathway, which is the end of the cave"*.
  *
  * So these pin the two numbers against each other: a gate per exit, and every pathway the exits do not account for
  * ending somewhere inside the map instead of at its border.
@@ -133,10 +131,9 @@ describe('the two served counts', () => {
   })
 
   it('one count given, the other follows it', () => {
-    // exits alone: every path is a way out. pathways alone: one way out, the rest stop inside.
-    // TWO EXITS IS ONE ROAD STRAIGHT THROUGH, not two roads. Alexander, 2026-09-13: *"a pathway is a stretch
-    // of road that has 1 or 2 exit / either on oposites sides of it, if 2"*. This expected two pathways,
-    // which is the old count-from-the-centre-out model he corrected.
+    // exits alone: every path is a way out. pathways alone: one way out, the rest stop inside. TWO EXITS IS ONE ROAD
+    // STRAIGHT THROUGH, not two roads. This expected two pathways, which is the old count-from-the-centre-out model
+    // he corrected.
     expect(resolveWays({ exits: '2' }, makeRng(1))).toEqual({ exits: 2, pathways: 1 })
     // …and pathways alone now INFER their exits, which he asked for directly: *"when exits aren't
     // specifically set, the system should infer them from the number of pathways"*. Three stretches want six

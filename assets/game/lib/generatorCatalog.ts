@@ -1,23 +1,21 @@
 /**
- * The MAP-GENERATOR CATALOG — the backend's answer to "which worlds can I generate, and with what
- * knobs?" (`GET /api/generators`, T-113 / games-page UX §3.14b Tier-1 #1).
+ * The MAP-GENERATOR CATALOG — the backend's answer to "which worlds can I generate, and with what knobs?" (`GET
+ * /api/generators`, T-113 / games-page UX §3.14b Tier-1 #1).
  *
- * Alexander (2026-09-06): *"in fact, I want to get to the point where all generators are just backend
- * records organized per categories"*. Every number the generator used to hard-code in the frontend —
- * grid ranges, cell geometry, settlement tuning, nature densities, unit counts, building materials and
- * roof/wall colours — is a row in `generators` now (`Nebulith.Catalog.GeneratorSource`), served whole.
+ * Every number the generator used to hard-code in the frontend — grid ranges, cell geometry, settlement tuning,
+ * nature densities, unit counts, building materials and roof/wall colours — is a row in `generators` now
+ * (`Nebulith.Catalog.GeneratorSource`), served whole.
  *
  * This module is the CLIENT + the pure SELECTORS over it. It is deliberately dumb about the game:
  *
- *   - it NEVER invents a value. A category the backend does not serve does not exist; a config section
- *     the backend leaves out reads as `undefined`, and the caller plants nothing rather than falling
- *     back to a number this file made up (the no-fallback law, MAP-MODEL §8).
- *   - it NEVER lets a malformed row through as a half-object. A row missing a `key`/`name` is DROPPED
- *     with a warning, so a bad seed shows up as a missing menu entry — loud — instead of a silent
- *     default that looks generated.
+ * - it NEVER invents a value. A category the backend does not serve does not exist; a config section the backend
+ * leaves out reads as `undefined`, and the caller plants nothing rather than falling back to a number this file made
+ * up (the no-fallback law, MAP-MODEL §8). - it NEVER lets a malformed row through as a half-object. A row missing a
+ * `key`/`name` is DROPPED with a warning, so a bad seed shows up as a missing menu entry — loud — instead of a silent
+ * default that looks generated.
  *
- * The catalog is the DATA behind the Generate panel (§4.6): season chips, map-type cards and the
- * per-type layouts are all read from here, so adding a generator is a seed row and nothing else.
+ * The catalog is the DATA behind the Generate panel (§4.6): season chips, map-type cards and the per-type layouts are
+ * all read from here, so adding a generator is a seed row and nothing else.
  */
 import type { MixEntry } from '@/engine/buildingTypes'
 // The bloom shape a REGION can serve, imported rather than re-declared so the two cannot drift. Cycle-free:
@@ -68,11 +66,9 @@ export interface GeneratorBuildings {
   /**
    * The ROOF TILE a residential building lays: `roof` (a gable), `roof_slate`, `flat_roof`.
    *
-   * Alexander, 2026-09-11: *"I picked a tropical city and had nothing different than a regular one ... the
-   * material of houses should be different, walls different, roof different"*. The roof SHAPE is baked into
-   * each composition (`house_5` is slate, `house_4` a gable, `store_5` a flat deck), so colours alone could
-   * never make a look read as a look. Absent → every building keeps the roof its composition was authored
-   * with, which is what every map did before this existed.
+   * The roof SHAPE is baked into each composition (`house_5` is slate, `house_4` a gable, `store_5` a flat deck), so
+   * colours alone could never make a look read as a look. Absent → every building keeps the roof its composition was
+   * authored with, which is what every map did before this existed.
    */
   roof?: string
   materials: readonly string[]
@@ -109,12 +105,12 @@ export interface GeneratorSettlement {
 /**
  * The COLOURS a template paints its ground and canopy with — what makes an Amazonas not a pine wood.
  *
- * Alexander, 2026-09-10: *"colors should be different"*, *"like there's a huge difference between amazonas
- * and a pines forest"*. Every colour in a forest used to come from the SEASON, so a spring jungle and a
- * spring woodland were painted from the same numbers and looked identical. This is per GENERATOR.
+ * *"like there's a huge difference between amazonas and a pines forest"*. Every colour in a forest used to come from
+ * the SEASON, so a spring jungle and a spring woodland were painted from the same numbers and looked identical. This
+ * is per GENERATOR.
  *
- * Every field is optional because the backend is the authority on which templates state one. A template that
- * serves no palette gets no painting, never a colour invented here.
+ * Every field is optional because the backend is the authority on which templates state one. A template that serves
+ * no palette gets no painting, never a colour invented here.
  */
 export interface GeneratorPalette {
   /** the shaded forest floor */
@@ -130,8 +126,9 @@ export interface GeneratorPalette {
   undergrowth?: string
   /** a watercourse, and the ground either side of it */
   water?: string
-  /** water by DEPTH: the wadeable edge, and the deep middle. Alexander, 2026-09-11: *"I only want light blue
-   *  for walkable water, different layers of darkblue for the deeper waters"*. */
+  /**
+   * water by DEPTH: the wadeable edge, and the deep middle.
+   */
   waterShallow?: string
   waterDeep?: string
   /** standing swamp water, blue-green, the only water allowed to lean green */
@@ -144,21 +141,18 @@ export interface GeneratorPalette {
 /**
  * ONE SUB-ZONE a map is partitioned into — a region with its own character, not a template of its own.
  *
- * Alexander, 2026-09-10: *"the generator shoudl be smart enough to identify different patterns of jungles
- * for example, open zones, dense zones, zones with swamp, zone with river, zone with cave, zone with
- * ruins"*, and 2026-09-11 on the shape: regions inside ONE map. You walk from one into the next.
+ * and 2026-09-11 on the shape: regions inside ONE map. You walk from one into the next.
  *
- * `canopy` and `undergrowth` MULTIPLY the generator's served base densities rather than replacing them, so
- * the base stays the one knob that moves the whole map.
+ * `canopy` and `undergrowth` MULTIPLY the generator's served base densities rather than replacing them, so the base
+ * stays the one knob that moves the whole map.
  */
 /**
- * HOW THE TREES ARE DISTRIBUTED — the difference between a wood pasture, an even-aged stand and a closed
- * canopy, none of which is a matter of how MANY trees there are.
+ * HOW THE TREES ARE DISTRIBUTED — the difference between a wood pasture, an even-aged stand and a closed canopy, none
+ * of which is a matter of how MANY trees there are.
  *
- * Alexander, 2026-09-11: *"there's different ways in which trees and nature is distributed across these
- * zones"*, with six photographs. Two numbers carry most of it: `lattice` is the scale of the noise the
- * canopy is scored against (small = fine scatter, large = big continuous masses) and `spacing` is the
- * minimum gap between trunks (0 lets them form a wall, 3+ makes every tree individually readable).
+ * with six photographs. Two numbers carry most of it: `lattice` is the scale of the noise the canopy is scored
+ * against (small = fine scatter, large = big continuous masses) and `spacing` is the minimum gap between trunks (0
+ * lets them form a wall, 3+ makes every tree individually readable).
  */
 /** One entry of a template's tree mix — which shape, and how often it is rolled. */
 export interface GeneratorTreeWeight {
@@ -195,9 +189,8 @@ export interface GeneratorSubZone {
   /** the share of the region carrying fallen masonry (ruins) */
   stone?: number
   /**
-   * This region's own ELEVATION in levels: 0 the walking floor, positive standing above it. The step between
-   * two regions is a cliff. Alexander, 2026-09-12: *"we need to have support for different levels of terrain,
-   * relieve in spanish"*.
+   * This region's own ELEVATION in levels: 0 the walking floor, positive standing above it. The step between two
+   * regions is a cliff.
    */
   level?: number
   /** this region's own tree distribution — a swamp is spaced like a pasture, dense growth is a wall */
@@ -205,9 +198,8 @@ export interface GeneratorSubZone {
   /** which species grow in this region — the swamp is cypress, whatever the rest of the jungle is */
   trees?: readonly GeneratorTreeWeight[]
   /**
-   * Which BLOOMS grow in this region, overriding the season's set. Alexander, 2026-09-12: *"where have you
-   * seen swamps with white flowers??"*. A region could state its species and not its flowers, so a swamp
-   * planted summer's set, which carries a near-white. Absent means the season decides, as before.
+   * Which BLOOMS grow in this region, overriding the season's set. A region could state its species and not its
+   * flowers, so a swamp planted summer's set, which carries a near-white. Absent means the season decides, as before.
    */
   flowers?: readonly FlowerKind[]
 }
@@ -224,8 +216,7 @@ export interface GeneratorConfig {
   /** How this template distributes its trees. Absent → the generator's own default grouping. */
   formation?: GeneratorFormation
   /**
-   * WHICH trees grow here. Alexander, 2026-09-11: *"we're using the same for all forest variations, but
-   * that's not good"*. Absent → the global weighted table every template used to share.
+   * WHICH trees grow here. Absent → the global weighted table every template used to share.
    */
   trees?: readonly GeneratorTreeWeight[]
   /** What a river is crossed on, by kind. Absent → the classic bridge deck. */
@@ -243,10 +234,9 @@ export interface GeneratorDef {
   /**
    * WHICH ARCHETYPE this generator runs: 'town', 'city', 'forest', 'cave', 'temple'.
    *
-   * The editor used to send the CATEGORY KEY to the engine as the variant, which only worked while every
-   * category held one kind. Alexander, 2026-09-11: *"City and town options are the same, it'd put them in a
-   * single category"*, so a row says what it runs. Null on a payload from before this existed, and the caller
-   * then falls back to the category key exactly as it used to.
+   * The editor used to send the CATEGORY KEY to the engine as the variant, which only worked while every category
+   * held one kind. so a row says what it runs. Null on a payload from before this existed, and the caller then falls
+   * back to the category key exactly as it used to.
    */
   variant: string | null
   /** The seasons this generator runs in — the season chips are the union of these. */
@@ -256,10 +246,8 @@ export interface GeneratorDef {
   /**
    * What a person may switch ON for this generator.
    *
-   * Alexander, 2026-09-10: *"every time we add a new template, the list grows ... that's not sustainable.
-   * Instead, we should just have extra options for each template"*. A river used to be a second row
-   * (`Woodland + River`); it is an option on Woodland now. DECLARED by the backend, so the panel renders
-   * whatever exists without knowing any option by name.
+   * A river used to be a second row (`Woodland + River`); it is an option on Woodland now. DECLARED by the backend,
+   * so the panel renders whatever exists without knowing any option by name.
    */
   options: readonly GeneratorOption[]
   /**
@@ -277,20 +265,19 @@ export interface GeneratorChoice {
 }
 
 /**
- * One kind of river crossing: the tile its deck lays, and optionally the tile whose COLOUR it wears. Alexander,
- * 2026-09-11: *"it can be a simple dirt path, it can be an actual bridge, which again, are multiple variations"*.
- * A dirt path is the flat floor in the dirt path's colour; a bridge is its own textured tile.
+ * One kind of river crossing: the tile its deck lays, and optionally the tile whose COLOUR it wears. A dirt path is
+ * the flat floor in the dirt path's colour; a bridge is its own textured tile.
  */
 export interface GeneratorCrossing {
   tile: string
   colorOf?: string
   /**
-   * The COMPOSITION this kind of crossing builds, without its span: `bridge_wood`, and the generator appends
-   * the span it needs (`bridge_wood_5`), the same shape as `house_3`/`house_4`/`house_5`.
+   * The COMPOSITION this kind of crossing builds, without its span: `bridge_wood`, and the generator appends the span
+   * it needs (`bridge_wood_5`), the same shape as `house_3`/`house_4`/`house_5`.
    *
-   * Absent means this crossing is not a structure. A dirt path names none on purpose, because Alexander called
-   * that one *"a dirt pathway"* (#62) rather than a bridge. `tile` stays for both: it is what a crossing lays
-   * when no composition of the needed span is loaded, which keeps a map generating rather than leaving a gap.
+   * Absent means this crossing is not a structure. A dirt path names none on purpose, because that is
+   * one *"a dirt pathway"* (#62) rather than a bridge. `tile` stays for both: it is what a crossing lays when no
+   * composition of the needed span is loaded, which keeps a map generating rather than leaving a gap.
    */
   composition?: string
 }
@@ -302,9 +289,9 @@ export interface GeneratorOption {
   key: string
   label: string
   /**
-   * `toggle` is on/off. `choice` picks one of `choices` — the river is one, because Alexander asked for its
-   * COURSE to be steerable (*"maybe it's traversable, maybe it's dividing the map in two half, maybe it's
-   * around the map"*), which an on/off cannot say.
+   * `toggle` is on/off. `choice` picks one of `choices` — the river is one, because its COURSE is what is picked to
+   * be steerable (*"maybe it's traversable, maybe it's dividing the map in two half, maybe it's around the map"*),
+   * which an on/off cannot say.
    */
   type: 'toggle' | 'choice'
   default: GeneratorOptionValue
@@ -761,10 +748,9 @@ export function findGenerator(
 /**
  * The generator that runs a given ARCHETYPE, optionally of a given shape.
  *
- * `findGenerator` takes a CATEGORY key, and that was the same thing as the variant until a town and a city
- * started sharing one category (Alexander, 2026-09-11: *"City and town options are the same, it'd put them in a
- * single category"*). A programmatic generate still asks for "town", so this resolves a row by what it RUNS
- * rather than by where it sits in the menu.
+ * `findGenerator` takes a CATEGORY key, and that was the same thing as the variant until a town and a city started
+ * sharing one category. A programmatic generate still asks for "town", so this resolves a row by what it RUNS rather
+ * than by where it sits in the menu.
  *
  * A `layout` narrows it when the archetype has shapes (a forest has three). A catalog served before the variant
  * existed carries none, and then this falls back to the old category lookup, so nothing old breaks.
@@ -814,13 +800,12 @@ export function rollGridSize(
 }
 
 /**
- * A generator's served grid range is used for ONE thing: `rollGridSize` picking a random size when the user
- * has not typed one.
+ * A generator's served grid range is used for ONE thing: `rollGridSize` picking a random size when the user has not
+ * typed one.
  *
- * It used to be exposed here as guidance the panel printed, and before that as a CAP. Alexander, 2026-09-09:
- * *"this shouldn't be a limitation, our generators should be versatile enough and random enough to do a
- * forest as big as what I put."* So neither the cap nor the note survives, and with no caller left the
- * accessors are deleted rather than kept "just in case" — the range is read where it is rolled.
+ * It used to be exposed here as guidance the panel printed, and before that as a CAP. So neither the cap nor the note
+ * survives, and with no caller left the accessors are deleted rather than kept "just in case" — the range is read
+ * where it is rolled.
  */
 
 /** One integer in an inclusive range. A reversed/degenerate range yields its `min` rather than NaN. */

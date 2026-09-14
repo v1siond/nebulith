@@ -1,14 +1,13 @@
 /**
- * ASCII FLOORS (grass / road / water / …) ARE BAKED-IMAGE TILES, NOT '?'. Alexander: "ascii is still screwed …
- * we don't have tiles for grass, road and a bunch more."
+ * ASCII FLOORS (grass / road / water / …) ARE BAKED-IMAGE TILES, NOT '?'.
  *
- * ROOT CAUSE this pins: a FLOOR is a `type:'floor'` GridAsset carrying only a `tileKey` (its ground kind) —
- * NO label and empty `art: ['']`. ASCII resolves a KIND to nothing (`ASCII_STYLE.map` is empty by design →
- * passthrough), and the label→image path needs a label, so an ascii floor fell through to `drawIsoDefaultAscii`
- * → `'' || '?'` → the screen-filling `?` on grass/road. The baked ascii grass/road tiles DO exist in the DB
- * tileset (`styleTile('ascii', 'grass').image`) — the floor just never consulted them. Emoji floors work
- * because `emojiStyleMap()` resolves the kind. `kindTileImage` is the ascii counterpart: it resolves the baked
- * DB image for a KIND-identified tile (chiefly the floor), so the floor draws its picture like emoji does.
+ * ROOT CAUSE this pins: a FLOOR is a `type:'floor'` GridAsset carrying only a `tileKey` (its ground kind) — NO label
+ * and empty `art: ['']`. ASCII resolves a KIND to nothing (`ASCII_STYLE.map` is empty by design → passthrough), and
+ * the label→image path needs a label, so an ascii floor fell through to `drawIsoDefaultAscii` → `'' || '?'` → the
+ * screen-filling `?` on grass/road. The baked ascii grass/road tiles DO exist in the DB tileset (`styleTile('ascii',
+ * 'grass').image`) — the floor just never consulted them. Emoji floors work because `emojiStyleMap()` resolves the
+ * kind. `kindTileImage` is the ascii counterpart: it resolves the baked DB image for a KIND-identified tile (chiefly
+ * the floor), so the floor draws its picture like emoji does.
  */
 import { styleTile } from '@/engine/tileset/styleTiles'
 import { kindTileImage } from '@/engine/render/shared'
@@ -39,9 +38,8 @@ describe('kindTileImage — the baked ASCII image for a KIND-identified (label-l
     expect(img?.kind).toBe('image')
   })
 
-  // One engine, N styles (Alexander, 2026-09-08): a kind IS a label in the catalog, so it resolves the
-  // SAME way in every style — only the png differs. This used to return undefined for emoji BY NAME, which
-  // is the style-branch the rule forbids.
+  // One engine, N styles: a kind IS a label in the catalog, so it resolves the SAME way in every style — only the png
+  // differs. This used to return undefined for emoji BY NAME, which is the style-branch the rule forbids.
   it('resolves the kind in EVERY style — same label, different png', () => {
     const ascii = kindTileImage(assetKind(floorOf('grass')), ASCII_STYLE)
     const emoji = kindTileImage(assetKind(floorOf('grass')), EMOJI_STYLE)

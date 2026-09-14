@@ -2,8 +2,7 @@
  * Install the creature tiles a combat test needs.
  *
  * A creature's stat block lives on its TILE now (`settings.combat`), resolved from the enemy type through
- * `/api/entities` — Alexander, 2026-09-10: *"an enemy is just a regular unit, but marked as hostile towards
- * player"*. A test that builds an enemy therefore has to install the tile, exactly as the app installs the
+ * `/api/entities` — A test that builds an enemy therefore has to install the tile, exactly as the app installs the
  * tileset before anything fights.
  *
  * The numbers mirror the seeder (`TileSource.seed_unit_combat/0`) so a test asserts what ships.

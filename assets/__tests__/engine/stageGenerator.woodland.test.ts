@@ -1,17 +1,16 @@
 /**
  * THE CANOPY FOREST LAYOUTS — `woodland`, `jungle`, and the river OPTION either can carry.
  *
- * Alexander, 2026-09-09: *"we need less trees on woodland, reduce it about 30%"*, *"add a jungle variant"*,
- * *"and add a woodland + river variant too."*
+ * *"add a jungle variant"*, *"and add a woodland + river variant too."*
  *
- * All three share ONE builder. That is the point of them: a jungle is not a different kind of map, it is a
- * woodland at jungle DENSITY, and a woodland+river is a woodland with water carved through it before anything
- * is planted. Two code paths that must be kept looking alike by hand always drift, so the tests below assert
- * the SHARED structure once and then only what genuinely differs per layout.
+ * All three share ONE builder. That is the point of them: a jungle is not a different kind of map, it is a woodland
+ * at jungle DENSITY, and a woodland+river is a woodland with water carved through it before anything is planted. Two
+ * code paths that must be kept looking alike by hand always drift, so the tests below assert the SHARED structure
+ * once and then only what genuinely differs per layout.
  *
- * The densities themselves are BACKEND data (`/api/generators` → `config.nature`), so they are passed in here
- * rather than read from a constant — the generator must build whatever it is served, and the numbers are
- * tuned in `generator_source.ex`, not in this file.
+ * The densities themselves are BACKEND data (`/api/generators` → `config.nature`), so they are passed in here rather
+ * than read from a constant — the generator must build whatever it is served, and the numbers are tuned in
+ * `generator_source.ex`, not in this file.
  */
 import '@/__tests__/helpers/installTilesetSeed' // the generator reads all tile/composition data from the loaded fixture
 import { generateStage, type ForestLayout, type NatureDensity } from '@/engine/stageGenerator'
@@ -76,9 +75,8 @@ describe('every canopy layout builds a navigable forest', () => {
   ])('%s plants trees, carves clearings and leaves a way through', (_label, layout, nature, options) => {
     const stage = build(layout, nature, 1, options)
     expect(stage.trees.length).toBeGreaterThan(0)
-    // Not a solid block of forest: a real share of the map is NOT under a trunk, which is what the clearings
-    // and trails are. Alexander, 2026-09-09: *"the forest is generated without any roads, there's no way to
-    // navigate it."*
+    // Not a solid block of forest: a real share of the map is NOT under a trunk, which is what the clearings and
+    // trails are.
     const trunks = new Set(stage.trees.map(t => `${t.col},${t.row}`))
     const open = COLS * ROWS - trunks.size
     expect(open / (COLS * ROWS)).toBeGreaterThan(0.5)
@@ -88,7 +86,7 @@ describe('every canopy layout builds a navigable forest', () => {
   })
 })
 
-describe('the woodland was thinned by ~30% (Alexander, 2026-09-09)', () => {
+describe('the woodland was thinned by ~30%', () => {
   it('drops roughly a third of the trees against the density it used to run at', () => {
     const before = meanTrees('woodland', { ...WOODLAND, canopy: 0.62 })
     const after = meanTrees('woodland', WOODLAND)
@@ -107,9 +105,8 @@ describe('the woodland was thinned by ~30% (Alexander, 2026-09-09)', () => {
 })
 
 describe('a path is wide enough to walk down', () => {
-  // Alexander, 2026-09-11: *"the paths through should be, at least 2-3 grid cells wide, in order to walk
-  // normally"*. They were 2, the bottom of that range, and a 2-wide corridor with a trunk leaning into it
-  // walks like a 1-wide one.
+  // They were 2, the bottom of that range, and a 2-wide corridor with a trunk leaning into it walks like a 1-wide
+  // one.
 
   /** For every trail cell, the narrower of its horizontal and vertical trail run — the local corridor width.
    *  Reported as the tightest PINCH on the map, because the narrowest point is what decides if you get through. */

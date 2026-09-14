@@ -87,7 +87,7 @@ function PoseRow({ label, value, min, max, step, suffix, onInput, labelWidth = '
     <label className="flex items-center gap-2">
       <span className={`${labelWidth} shrink-0 text-[10px] text-gray-400`}>
         {label}
-        {/* Alexander asked outright what several of these meant. The ones with an answer carry it. */}
+        {/* Several of these settings are not self-explanatory. The ones with an answer carry it. */}
         {help && <InfoButton helpId={help} />}
       </span>
       <input type="range" min={min} max={max} step={step} value={value} onChange={e => emit(e.target.value)} aria-label={label} className="flex-1 accent-cyan-500" />
@@ -288,9 +288,8 @@ export interface PropertiesPanelProps {
   /**
    * The CHARACTER window's body — the figure, the name, the size and the stat block, all in one place.
    *
-   * Only a unit passes it. When it is absent the identity row is a plain launcher into the tile swap, which
-   * is all a cell has to offer. Alexander, 2026-09-11: *"I'd expect to see the stats inside the character
-   * window instead of a separate window"*.
+   * Only a unit passes it. When it is absent the identity row is a plain launcher into the tile swap, which is all a
+   * cell has to offer.
    */
   unitIdentity?: React.ReactNode
   /** how many rules the selected cell/unit currently has — surfaced as a count on the Rules button. */
@@ -362,21 +361,22 @@ function dirsForFacing(facing: number): { glyph: string; spoken: string; dir: De
 const Z_WIDTH_OPPOSITE: Record<DepthDir, DepthDir> = { 'left-up': 'right-down', 'right-down': 'left-up', 'right-up': 'left-down', 'left-down': 'right-up' }
 const Z_WIDTH_PERP: Record<DepthDir, DepthDir> = { 'left-up': 'right-up', 'right-up': 'right-down', 'right-down': 'left-down', 'left-down': 'left-up' }
 
-/** Z WIDTH — MULTI-DIRECTION (Alexander "two sides at the same time"): one INDEPENDENT amount per direction. The
- *  box spans a RECTANGLE: the primary axis (depthDir) has a FORWARD end (`depth-1` past the anchor) + a BACK end
- *  (`depthBack`); the PERPENDICULAR axis has forward (`depthPerp`) + back (`depthPerpBack`). Because the 4
- *  diagonals are exactly {dir, opposite, perp, opposite-perp}, EACH of the 4 sliders writes its OWN extent — so
- *  moving one never resets the others (the bug). A fresh tile fixes depthDir to the primary col axis. 2×2 layout
- *  matches where the box grows on screen; cap at 2 sides (zoom covers the rest). */
+/**
+ * Z WIDTH — MULTI-DIRECTION: one INDEPENDENT amount per direction. The box spans a RECTANGLE: the primary axis
+ * (depthDir) has a FORWARD end (`depth-1` past the anchor) + a BACK end (`depthBack`); the PERPENDICULAR axis has
+ * forward (`depthPerp`) + back (`depthPerpBack`). Because the 4 diagonals are exactly {dir, opposite, perp,
+ * opposite-perp}, EACH of the 4 sliders writes its OWN extent — so moving one never resets the others (the bug). A
+ * fresh tile fixes depthDir to the primary col axis. 2×2 layout matches where the box grows on screen; cap at 2 sides
+ * (zoom covers the rest).
+ */
 function ZWidthRow({ zWidth, zBack, zPerp, zPerpBack, zDir, facing, onZWidth, onZBack, onZPerp, onZPerpBack, onZDir }: { zWidth: number | null; facing: number; zBack?: number | null; zPerp?: number | null; zPerpBack?: number | null; zDir: DepthDir | null; onZWidth: (cells: number) => void; onZBack?: (cells: number) => void; onZPerp?: (cells: number) => void; onZPerpBack?: (cells: number) => void; onZDir: (dir: DepthDir) => void }) {
   const depth = zWidth ?? 1, back = zBack ?? 0, perp = zPerp ?? 0, perpBack = zPerpBack ?? 0
   const dir = zDir ?? 'right-down' // fresh tile → the primary (col) axis, so the 4 sliders map to fixed extents
   const perpDir = Z_WIDTH_PERP[dir]
-  // CELLS this block reaches toward `d`, COUNTING ITS OWN — so every slider reads in the unit the logic
-  // uses, and 1 (its own cell) is the floor. It used to show the EXTRA cells beyond the anchor, which made
-  // "0" and "1" render the identical block and a fractional value do nothing at all (Alexander: "I have 0,
-  // but its behaving as if value was 1 … the UI is wrong. The min is 1 cell"). The four extents underneath
-  // stay independent — moving one never resets another.
+  // CELLS this block reaches toward `d`, COUNTING ITS OWN — so every slider reads in the unit the logic uses, and 1
+  // (its own cell) is the floor. It used to show the EXTRA cells beyond the anchor, which made "0" and "1" render the
+  // identical block and a fractional value do nothing at all. The four extents underneath stay independent — moving
+  // one never resets another.
   const amountFor = (d: DepthDir): number =>
     1 + (d === dir ? Math.max(0, depth - 1)
       : d === Z_WIDTH_OPPOSITE[dir] ? back
@@ -418,16 +418,17 @@ function ZWidthRow({ zWidth, zBack, zPerp, zPerpBack, zDir, facing, onZWidth, on
   )
 }
 
-/** THICKNESS — four per-direction REACHES, laid out exactly like the Footprint above it.
+/**
+ * THICKNESS — four per-direction REACHES, laid out exactly like the Footprint above it.
  *
- *  Alexander: "I pefer thickness UI to work like z-width UI". So the two controls ask the SAME question —
- *  "how far does this tile reach toward ⟨arrow⟩?" — and differ only in unit: the Footprint counts whole
- *  CELLS (>= 1, it always occupies its own), Thickness measures WITHIN one cell (<= 1, 1 = all the way to
- *  that face). A door is 0.3 toward the inside of its wall and 1 toward the wall itself.
+ * So the two controls ask the SAME question — "how far does this tile reach toward ⟨arrow⟩?" — and differ only in
+ * unit: the Footprint counts whole CELLS (>= 1, it always occupies its own), Thickness measures WITHIN one cell (<=
+ * 1, 1 = all the way to that face). A door is 0.3 toward the inside of its wall and 1 toward the wall itself.
  *
- *  The arrows are SCREEN directions — `dirsForFacing` turns the stored WORLD axes into what is currently on
- *  screen — because "I rotated and the direction the propreties in the UI were showing didn't match the
- *  view". Storage stays world-space, or rotating the camera would re-thin the tile. */
+ * The arrows are SCREEN directions — `dirsForFacing` turns the stored WORLD axes into what is currently on screen —
+ * because "I rotated and the direction the propreties in the UI were showing didn't match the view". Storage stays
+ * world-space, or rotating the camera would re-thin the tile.
+ */
 function ThicknessRow({ reach, facing, onThicknessReach }: { reach: ThicknessReach | null; facing: number; onThicknessReach: (dir: DepthDir, value: number) => void }) {
   const reachFor = (dir: DepthDir): number => reach?.[dir] ?? 1
   return (
@@ -528,10 +529,11 @@ function ActAsTileRow({ actAsTile, onActAsTile }: { actAsTile: boolean | null; o
  *  (today's warm LAMP_GLOW: intensity 1, radius 3.2 cells, #ffd98a). */
 const DEFAULT_LIGHT: AssetLight = { intensity: 1, distance: 3.2, color: '#ffd98a', on: true }
 
-/** LIGHT — a real, controllable SETTING (Alexander: "a regular setting that allows me to control the light
- *  intensity and distance"): the tile casts a warm ground GLOW POOL at night. An On/Off toggle plus an
- *  intensity slider (pool strength 0–1), a distance slider (pool radius in cells), and a colour picker. Editing
- *  any control materialises the light (turning it On); Off keeps the values but casts no pool. Asset tiles only. */
+/**
+ * LIGHT — a real, controllable SETTING: the tile casts a warm ground GLOW POOL at night. An On/Off toggle plus an
+ * intensity slider (pool strength 0–1), a distance slider (pool radius in cells), and a colour picker. Editing any
+ * control materialises the light (turning it On); Off keeps the values but casts no pool. Asset tiles only.
+ */
 function LightControls({ light, onLight }: { light: AssetLight | undefined; onLight: (light: AssetLight | undefined) => void }) {
   const cur = light ?? DEFAULT_LIGHT
   const isOn = !!light && light.on !== false
@@ -631,11 +633,11 @@ export function SizeAndPositionControls({ tile }: { tile: TileControlModel }) {
       <DimRow label="Width" axis="width" value={tile.dims.width} title="Width — horizontal stretch (every view)" onDim={tile.onDim} />
       <DimRow label="Height" axis="height" value={tile.dims.height} title="Height — grows UP from the base (iso + 2D views)" onDim={tile.onDim} />
       <DimRow label="Zoom" axis="zoom" value={tile.dims.zoom} title="Zoom — scales Width, Height and Zoom together" onDim={tile.onDim} />
-      {/* THICKNESS (scaleZ) — how much of its OWN cell the block fills along the into-screen axis. Alexander:
-          "it was used as 3d fill inside the cells/tiles". It is NOT the Footprint below: that counts CELLS
-          SPANNED (always ≥1), this fills within one. A door is a thin panel in a wall — the backend already
-          ships `door` at 0.3 (tile_source.ex:45, "scaleZ is THICKNESS") and this control tunes the placed
-          instance. Unconditional, like Width and Height: a setting is never gated on the kind of tile. */}
+      {/* THICKNESS (scaleZ) — how much of its OWN cell the block fills along the into-screen axis. It is NOT the
+          Footprint below: that counts CELLS SPANNED (always ≥1), this fills within one. A door is a thin panel in a
+          wall — the backend already ships `door` at 0.3 (tile_source.ex:45, "scaleZ is THICKNESS") and this control
+          tunes the placed instance. Unconditional, like Width and Height: a setting is never gated on the kind of
+          tile. */}
       {tile.onThicknessReach && (
         <ThicknessRow
           reach={tile.thickness === null ? null : (JSON.parse(tile.thickness ?? '{}') as ThicknessReach)}
@@ -744,21 +746,16 @@ export function InspectorSection({ id, isUnit, open, onToggle, badge, present, l
   /**
    * This section has nothing to show, only something to DO — so the header does it.
    *
-   * Alexander, 2026-09-11: *"there's many options in right sidebar that open a modal that have a button
-   * inside that open a another modal, the issue is that the first modal, only had the option to open
-   * another modal, so whats the point of having an extra action???"*
-   *
-   * He is right and it was indefensible: Rules opened a panel holding one Rules button, Animation a panel
-   * holding one Animate button. Two clicks and two windows to reach one editor. A section that is purely a
-   * way in should BE the way in, so these rows open their editor on the first click and never expand.
+   * He is right and it was indefensible: Rules opened a panel holding one Rules button, Animation a panel holding one
+   * Animate button. Two clicks and two windows to reach one editor. A section that is purely a way in should BE the
+   * way in, so these rows open their editor on the first click and never expand.
    */
   launch?: () => void
   /**
    * Where the body goes when open. Absent → inline, the original accordion.
    *
-   * Alexander, 2026-09-09: *"the right sidebar is still too full of stuff, we should have movable modals
-   * for each section/group of actions."* With a presenter the sidebar keeps only the six rows and their
-   * summaries, and the controls open beside it where they can be dragged and left open.
+   * With a presenter the sidebar keeps only the six rows and their summaries, and the controls open beside it where
+   * they can be dragged and left open.
    */
   present?: SectionPresenter
   children: React.ReactNode
@@ -828,9 +825,9 @@ export function PropertiesPanel(p: PropertiesPanelProps) {
           <div className="flex items-center justify-between">
             <span className="flex min-w-0 items-center gap-1.5">
               <TilePreview visual={t.preview} label={t.label} />
-              {/* WHERE it is, beside what it is. Alexander, 2026-09-09: *"yes, it they should see where
-                  they're."* The old `▸ PLAYER (PLAYER) @ 32,10` header carried the coords and nothing replaced
-                  it when that pill went, so a selected character stopped saying which cell it stood on. */}
+              {/* WHERE it is, beside what it is. The old `▸ PLAYER (PLAYER) @ 32,10` header carried the coords and
+                  nothing replaced it when that pill went, so a selected character stopped saying which cell it
+                  stood on. */}
               <p className="truncate text-[9px] font-bold uppercase tracking-wider text-gray-500">
                 {isUnit ? t.label : `cell · ${t.label}`}
                 {p.at && <span className="text-gray-600">{` · ${p.at.col}, ${p.at.row}`}</span>}
@@ -847,12 +844,10 @@ export function PropertiesPanel(p: PropertiesPanelProps) {
         )
         : <p className="text-[9px] font-bold uppercase tracking-wider text-gray-500">— cell —</p>}
 
-      {/* TILE / CHARACTER.
-          A cell's only identity control is the swap, so the row opens the swap panel on the first click
-          rather than a panel containing one button (his *"whats the point of having an extra action???"*).
-          A CHARACTER is the opposite case: it has a name, a size, a figure and a stat block, so it gets a
-          real window. Alexander, 2026-09-11: *"character opens a modal that only has replace tile, instead
-          of having stats and other options there"*. */}
+      {/* TILE / CHARACTER. A cell's only identity control is the swap, so the row opens the swap panel on the first
+          click rather than a panel containing one button (his *"whats the point of having an extra action???"*). A
+          CHARACTER is the opposite case: it has a name, a size, a figure and a stat block, so it gets a real
+          window. */}
       {t && (p.unitIdentity
         ? section('identity', t.styleName, p.unitIdentity)
         // The badge carries what the click DOES ("Add tile" on an empty cell, "Replace tile" on a filled
@@ -898,12 +893,9 @@ export function PropertiesPanel(p: PropertiesPanelProps) {
           frame-by-frame character animations. Present whenever the model wires onOpenAnimator. */}
       {t?.onOpenAnimator && launcher('animation', t.animations?.length ?? 0, t.onOpenAnimator)}
 
-      {/* Rules — opens the rules modal (cell: enter/interact; unit: on defeat). Present for a bare cell too:
-          a cell can carry a rule without holding a tile.
-
-          The user-facing word is RULES. Alexander, 2026-09-09: *"there's old language in functionalities,
-          for example right panel says triggers in tile selection, but that was changed to rules."* The prop
-          and the `Trigger` type keep their names — renaming the DATA is a separate, larger change. */}
+      {/* Rules — opens the rules modal (cell: enter/interact; unit: on defeat). Present for a bare cell too: a cell
+          can carry a rule without holding a tile. The user-facing word is RULES. The prop and the `Trigger` type
+          keep their names — renaming the DATA is a separate, larger change. */}
       {p.onOpenTriggers && launcher('rules', p.triggerCount ?? 0, p.onOpenTriggers)}
 
       {/* The destructive footer — outside every section, so an action that empties the cell can never hide

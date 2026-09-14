@@ -1,10 +1,9 @@
 /**
- * RANDOM animation authoring (Alexander: "select a unit, click animate and add a random animation (movement)
- * or build one manually like we do now" + the top-nav "Animated" placement drops one on automatically).
+ * RANDOM animation authoring (+ the top-nav "Animated" placement drops one on automatically).
  *
- *   1. randomMovementAnimation() — the DATA a "random" drop produces: a `move`-triggered, any-direction walk
- *      cycle (own tile → mirrored) with a randomized cadence. Deterministic under an injected rng.
- *   2. The Animate modal's 🎲 button appends that as a sprite-kind animation (editable like any other row).
+ * 1. randomMovementAnimation() — the DATA a "random" drop produces: a `move`-triggered, any-direction walk cycle (own
+ * tile → mirrored) with a randomized cadence. Deterministic under an injected rng. 2. The Animate modal's 🎲 button
+ * appends that as a sprite-kind animation (editable like any other row).
  */
 import { useState } from 'react'
 import { render, screen, fireEvent } from '@testing-library/react'

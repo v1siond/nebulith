@@ -110,8 +110,8 @@ describe('generateStage — temple interior: seasons yield DISTINCT palettes', (
   })
 
   it('paints a season-specific temple FLOOR (never outdoor grass) that differs across seasons', () => {
-    // Flat floor in the season's colours now, the meadow's way (Alexander, 2026-09-11). The hall's checker is
-    // two colours instead of two textured tiles, so every flat cell wears the floor's or the accent's colour.
+    // Flat floor in the season's colours now, the meadow's way. The hall's checker is two colours instead of two
+    // textured tiles, so every flat cell wears the floor's or the accent's colour.
     const wears = (zone: ZoneId, materials: string[]): boolean => {
       const s = temple(zone)
       const flat: Array<[number, number]> = []

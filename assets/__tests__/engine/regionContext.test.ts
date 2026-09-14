@@ -1,16 +1,15 @@
 /**
  * A REGION BELONGS TO ITS PLACE.
  *
- * Alexander, 2026-09-12: *"the swamps still look fucking terrible because they have nature and flowers that
- * don't match the swamp context"*, and *"same with island forest, which is better, but still not good enough,
- * needs to be more closely related to beaches nature"*.
+ * and *"same with island forest, which is better, but still not good enough, needs to be more closely related to
+ * beaches nature"*.
  *
- * `open` and `dense` are one shared pair reused by every jungle variant, so a SWAMP's open patch was, literally,
- * the rainforest's open patch: palms under summer's near-white daisy. A variant overrides the regions it
- * borrows now, and anything it does not name is inherited unchanged.
+ * `open` and `dense` are one shared pair reused by every jungle variant, so a SWAMP's open patch was, literally, the
+ * rainforest's open patch: palms under summer's near-white daisy. A variant overrides the regions it borrows now, and
+ * anything it does not name is inherited unchanged.
  *
- * These assert the DATA rather than a rendered map, because that is where the answer lives and because a
- * generated map only samples it.
+ * These assert the DATA rather than a rendered map, because that is where the answer lives and because a generated
+ * map only samples it.
  */
 import { findGeneratorByKey, parseGeneratorCatalog, type GeneratorSubZone } from '@/lib/generatorCatalog'
 import liveBody from '@/__tests__/fixtures/generators.json'
@@ -60,10 +59,9 @@ describe('an island jungle grows coastal things', () => {
   })
 
   it('grows TROPICAL species, not a temperate wood with palms dropped in', () => {
-    // Alexander, 2026-09-13: *"the trees variations are the same as any other forest, when they should be
-    // more tropical, like coconnuts trees, bananas, water nature, etc"*, and, when I called it blocked on art,
-    // *"is not blocked because it's expected that you will add the trees variations following the same pattern
-    // used to other trees"*. He was right: a species is proportions on the shared two-tile tree.
+    // and, when I called it blocked on art, *"is not blocked because it's expected that you will add the trees
+    // variations following the same pattern used to other trees"*. He was right: a species is proportions on the
+    // shared two-tile tree.
     const tropical = ['tree_coconut', 'tree_banana', 'tree_mangrove', 'tree_palm']
     for (const name of ['open', 'dense']) {
       const grown = species('forest_jungle_island', name)
@@ -78,10 +76,9 @@ describe('an island jungle grows coastal things', () => {
   })
 
   it('each tropical species is BROWSEABLE, so it shows in the objects list', () => {
-    // Alexander, 2026-09-13: *"none of this is present in the objects list"*. The palette lists a composition
-    // when its served `category` is a browseable bucket and never by a name heuristic, so this asserts the
-    // bucket rather than the rendering: a species authored without one draws on the map and can never be
-    // placed by hand.
+    // The palette lists a composition when its served `category` is a browseable bucket and never by a name
+    // heuristic, so this asserts the bucket rather than the rendering: a species authored without one draws on the
+    // map and can never be placed by hand.
     const nature = buildCompositionPalette(styleCatalog('ascii')).find(g => g.category === 'nature')
     const kinds = (nature?.items ?? []).map(i => i.kind)
     for (const kind of ['tree_coconut', 'tree_banana', 'tree_mangrove']) {

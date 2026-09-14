@@ -112,17 +112,17 @@ describe('isoDepthCompare — a FLAT z-width run stays behind standing tiles (ro
 })
 
 describe('isoDepthCompare — a GROUND run (heightLevel 0) NEVER front-extends: it stays under standing tiles', () => {
-  // Alexander's #52 ("everything mixed together in a non-perspective way"). The ground is the base every standing
+  // report #52 ("everything mixed together in a non-perspective way"). The ground is the base every standing
   // tile sits on, so a merged ground RUN must always sort by its BACK/ANCHOR cell and stay BEHIND the houses and
   // trees along its span — it must never paint its raised curb-face up over them.
   //
   // History: the gate used to give a ground run a FRONT-EXTENT when its rendered rise ≥ 1, to tell a raised
   // meadow/water CURB (height-1) from a flat height-0 town slab (Images #29/#31). That distinction DIED when ALL
-  // terrain became height-1 GLOBAL: every floor now reads rise ≥ 1, so the extent fired for EVERY ground run and
-  // each one climbed the draw order and painted over the buildings — #52. Height is uniform now, so a floor is
-  // never a curb relative to its neighbours; the ground keys on its anchor, and only STACKED geometry
-  // (heightLevel ≥ 1: roofs / upper levels) still front-extends. A run at (2,5) depth 5 right-down covers cols
-  // 2..6 — its OLD front-extent key was 11, its anchor key is 7.
+  // terrain became height-1 GLOBAL: every floor now reads rise ≥ 1, so the extent fired for EVERY ground run and each
+  // one climbed the draw order and painted over the buildings — #52. Height is uniform now, so a floor is never a
+  // curb relative to its neighbours; the ground keys on its anchor, and only STACKED geometry (heightLevel ≥ 1: roofs
+  // / upper levels) still front-extends. A run at (2,5) depth 5 right-down covers cols 2..6 — its OLD front-extent
+  // key was 11, its anchor key is 7.
   const groundRun: Item = { id: 'ground', col: 2, row: 5, blockRise: 1, asset: { heightLevel: 0, depth: 5, depthDir: 'right-down' } }
   // A house whose anchor (10) sits BETWEEN the run's anchor (7) and its OLD front-extent (11) — the exact tile the
   // old behaviour leapfrogged and painted ground over. With the fix the run keys on 7 and stays behind it.

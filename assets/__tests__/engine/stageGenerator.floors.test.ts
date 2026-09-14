@@ -1,9 +1,6 @@
 /**
  * THE FLOOR IS A COLOUR, on every template.
  *
- * Alexander, 2026-09-11: *"look how we handle the floor in meadow, just using different colors and only using the
- * floor tiles as ornaments, that's how we wanna do it on all other templates too"*.
- *
  * The meadow lays one flat tile and paints each cell's colour on it. These pin the same for the rest: the textured
  * tile a place used to lay wall to wall is gone from its open ground, its colour is kept on the flat floor, and a
  * textured tile only turns up as an ornament (a moss patch) or where it belongs to something else (a building's

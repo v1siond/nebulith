@@ -1,15 +1,14 @@
 /**
- * COLLISION MUST MATCH THE STRUCTURE (Alexander, Image #5: "collissions don't match structures").
+ * COLLISION MUST MATCH THE STRUCTURE.
  *
- * The collision overlay tints `grid.isBlocked(col,row)`. The grid's collision map is 2D — one flag per cell —
- * and it means "a unit standing on the ground here is stopped". So the flag has exactly one truthful source:
+ * The collision overlay tints `grid.isBlocked(col,row)`. The grid's collision map is 2D — one flag per cell — and it
+ * means "a unit standing on the ground here is stopped". So the flag has exactly one truthful source:
  *
- *     a cell is blocked  ⟺  a GROUND-COURSE tile in it is non-walkable
+ * a cell is blocked ⟺ a GROUND-COURSE tile in it is non-walkable
  *
- * Anything else is a visible lie: a blocked cell with nothing standing in it paints red on bare grass, and a
- * walled cell left unblocked lets the player walk through the wall. This file pins that equivalence over the
- * REAL backend compositions (the fixture tileset), in every rotation, because a rotation is where an offset
- * bug hides.
+ * Anything else is a visible lie: a blocked cell with nothing standing in it paints red on bare grass, and a walled
+ * cell left unblocked lets the player walk through the wall. This file pins that equivalence over the REAL backend
+ * compositions (the fixture tileset), in every rotation, because a rotation is where an offset bug hides.
  */
 import '@/__tests__/helpers/installTilesetSeed'
 import { IsometricGrid } from '@/engine/IsometricGrid'

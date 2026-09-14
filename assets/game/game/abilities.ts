@@ -61,17 +61,15 @@ export const ABILITY_ANIMATIONS: readonly AbilityAnimation[] = [
 
 // ── the ability REGISTRY — BACKEND DATA (§3.14b #2) ──────────────────────────────────
 /**
- * The registry used to be 13 `AbilityDef` constants right here — name, description, category, cooldown and
- * effect, all frontend literals. Alexander, 2026-09-08: *"all hardcoded data of the frontend moved to the
- * elixir backend … pretty much everything that is DATA or depends on DATA"*. The rows live in nebulith's
- * `abilities` table now and arrive via `GET /api/abilities`.
+ * The registry used to be 13 `AbilityDef` constants right here — name, description, category, cooldown and effect,
+ * all frontend literals. The rows live in nebulith's `abilities` table now and arrive via `GET /api/abilities`.
  *
- * The honesty rule is the same as the tile catalog's: an unloaded registry is EMPTY. Nothing here invents a
- * Fire Slash, so the browse modal shows what the backend has and says so when it has nothing.
+ * The honesty rule is the same as the tile catalog's: an unloaded registry is EMPTY. Nothing here invents a Fire
+ * Slash, so the browse modal shows what the backend has and says so when it has nothing.
  *
- * There is deliberately no colour: an ability names the FX TILE it plays (`animation`), and that tile row
- * carries the tint — which is what `abilityTint()` reads. The old `ABILITY_TINT` map duplicated nine hexes
- * the API already served.
+ * There is deliberately no colour: an ability names the FX TILE it plays (`animation`), and that tile row carries the
+ * tint — which is what `abilityTint()` reads. The old `ABILITY_TINT` map duplicated nine hexes the API already
+ * served.
  */
 let REGISTRY: readonly AbilityDef[] = []
 

@@ -629,10 +629,9 @@ export function EquipmentPanel({ label, styleId, loadout, baseStats, hp, onChang
           </div>
 
           {/* ── Action slots: SPECIAL ACTIONS beside ABILITIES — two distinct, user-keyed sets ── */}
-          {/* ONE COLUMN. Alexander, 2026-09-09: *"inventory is still fucking ugly.."* — the bag and the
-              equipment list were `grid-cols-2` inside an already-narrow panel, so each got half the width
-              and the bag's four-across slots came out as unreadable squares. Stacked, both get the full
-              width and the slots are big enough to show an item. */}
+          {/* ONE COLUMN. — the bag and the equipment list were `grid-cols-2` inside an already-narrow panel, so
+              each got half the width and the bag's four-across slots came out as unreadable squares. Stacked, both
+              get the full width and the slots are big enough to show an item. */}
           <div className="space-y-3">
             {/* LEFT — the bag */}
             <section>
@@ -645,7 +644,7 @@ export function EquipmentPanel({ label, styleId, loadout, baseStats, hp, onChang
                     {item ? (
                       <span className="flex flex-col items-center gap-0.5">
                         <ItemFace item={item} styleId={styleId} size={26} />
-                        {/* THE FULL NAME. Alexander, Image #20: the bag showed "Iron Swo" and "Hunter B" —
+                        {/* THE FULL NAME. Image #20: the bag showed "Iron Swo" and "Hunter B" —
                           not a CSS overflow but `item.name.slice(0, 8)`, a hard cut at eight characters.
                           The slot is wide enough to read now (one column, not two), so the name is the
                           name and long ones wrap onto a second line instead of being amputated. */}
@@ -688,11 +687,10 @@ export function EquipmentPanel({ label, styleId, loadout, baseStats, hp, onChang
               </div>
             </section>
           </div>
-          {/* THESE TWO BELONG TO THE PLAYER'S UI, not to an inventory. Alexander, 2026-09-09: *"also, that
-              inventory has things that would normally be associated with the HUD."* He is right — a key you
-              press during play is a HUD binding, not a possession. They are demoted to a closed disclosure
-              at the bottom rather than deleted, because Player UI does not host them yet and deleting a
-              working feature to make a point is not a fix. Moving them there is the follow-up. */}
+          {/* THESE TWO BELONG TO THE PLAYER'S UI, not to an inventory. He is right — a key you press during play is
+              a HUD binding, not a possession. They are demoted to a closed disclosure at the bottom rather than
+              deleted, because Player UI does not host them yet and deleting a working feature to make a point is
+              not a fix. Moving them there is the follow-up. */}
           <details className="mt-3 rounded-lg border border-white/10 bg-black/30 p-2">
             <summary className="cursor-pointer text-[11px] font-bold uppercase tracking-wider text-gray-400">
               Keys and abilities · these belong in Player UI
@@ -891,13 +889,12 @@ export function QuestLogPanel({ quests, onClose, embedded = false }: {
 /**
  * The LABEL whose baked picture represents this item, or null when the backend has no art for it.
  *
- * Alexander, 2026-09-08: *"in general we need preview for everything."* An item's picture is a real tile,
- * resolved by label like everything else — `Iron Sword` → `sword`, `Battle Axe` → `axe`.
+ * An item's picture is a real tile, resolved by label like everything else — `Iron Sword` → `sword`, `Battle Axe` →
+ * `axe`.
  *
- * It returns NULL rather than a stand-in, and that matters: only 6 of the 21 seeded items have art (the
- * weapons). All the armour and every consumable have none. The old version hid that by returning 🛡️ or 🧪
- * for anything it did not recognise, which made 15 pictureless items look finished — so the gap was
- * invisible and never got authored.
+ * It returns NULL rather than a stand-in, and that matters: only 6 of the 21 seeded items have art (the weapons). All
+ * the armour and every consumable have none. The old version hid that by returning 🛡️ or 🧪 for anything it did not
+ * recognise, which made 15 pictureless items look finished — so the gap was invisible and never got authored.
  */
 function itemArtLabel(item: Item, styleId: string): string | null {
   // `Item` is a discriminated union, so the candidate label comes from the arm that HAS one. A consumable

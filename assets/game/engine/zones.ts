@@ -1,18 +1,16 @@
 /**
  * SEASONS — the TYPES, and the readers over the backend's season catalog.
  *
- * This file used to AUTHOR every season: ground palettes, hazard and trail tiles, the curated tree / decor /
- * flower tile per season, bloom variants, tree shape weights, rock shades, prop art, and the temple and cave
- * palettes. 302 lines of values. It even said where they belonged, in its own comment: *"The true model
- * end-state is these palettes living in the Nebulith backend"*.
+ * This file used to AUTHOR every season: ground palettes, hazard and trail tiles, the curated tree / decor / flower
+ * tile per season, bloom variants, tree shape weights, rock shades, prop art, and the temple and cave palettes. 302
+ * lines of values. It even said where they belonged, in its own comment: *"The true model end-state is these palettes
+ * living in the Nebulith backend"*.
  *
- * They do now (`GET /api/zones`, plus the season-independent tables in `game_rules`). Alexander,
- * 2026-09-10: *"anything that is DATA should be moved to the backend, the frontend just processes the data
- * algorithmically"*. What is left here is the processing: the type of a season, and the readers that hand
- * the generator what the backend served.
+ * They do now (`GET /api/zones`, plus the season-independent tables in `game_rules`). What is left here is the
+ * processing: the type of a season, and the readers that hand the generator what the backend served.
  *
- * Every reader is a FUNCTION. A module-level const would capture the catalog while it is still empty, which
- * is the exact trap documented in `archetypes.ts` and now removed from it.
+ * Every reader is a FUNCTION. A module-level const would capture the catalog while it is still empty, which is the
+ * exact trap documented in `archetypes.ts` and now removed from it.
  *
  * A season the backend does not serve has no palette, and a caller with no palette plants NOTHING. That is
  * deliberate: inventing a fallback green would be the hardcoded default this migration exists to delete.

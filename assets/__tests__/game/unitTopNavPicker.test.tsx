@@ -1,14 +1,10 @@
 /**
- * ◈ Unit top-nav — the ENEMY / CREATURE picker (Alexander: "I don't see the enemy tiles in the unit top nav
- * option, how can I decide which enemies to add now? … move the enemy painting to the unit top nav and edit
- * the functionality either randomize the enemies (scatter them) or add/remove them normally like we'd do when
- * painting" + "add the unit static or with a randomized animation").
+ * ◈ Unit top-nav — the ENEMY / CREATURE picker (+ "add the unit static or with a randomized animation").
  *
- * These lock the restored flow two ways:
- *   1. STRUCTURE — the UnitPicker component lists the `units` tiles so you can SEE + pick a creature, exposes
- *      the Add / Scatter modes and the Static / Animated motion toggle, and fires the right callbacks.
- *   2. SOURCE GUARD — the page wires the picker into the top-nav Unit dropdown, and the three removals
- *      (Paint Height/Opacity/Clear, the Inspector STYLE card, the tutorial prose) stay removed.
+ * These lock the restored flow two ways: 1. STRUCTURE — the UnitPicker component lists the `units` tiles so you can
+ * SEE + pick a creature, exposes the Add / Scatter modes and the Static / Animated motion toggle, and fires the right
+ * callbacks. 2. SOURCE GUARD — the page wires the picker into the top-nav Unit dropdown, and the three removals
+ * (Paint Height/Opacity/Clear, the Inspector STYLE card, the tutorial prose) stay removed.
  */
 import { readFileSync } from 'fs'
 import { resolve } from 'path'
@@ -78,11 +74,10 @@ describe('◈ Unit top-nav — the creature picker', () => {
   })
 })
 
-// The three placement decisions moved OUT of the picker into their own movable panel — Alexander,
-// 2026-09-09: *"that's why I requested explicitly to consider movable modals, because I knew this was gonna
-// be a problem."* Stacked under the grid they crushed the swatches into one clipped row. They were relabelled
-// in the same pass (*"'how it will be placed' is not clear at all"*, *"we need clear concise labeling that
-// clearly points at the action/feature"*), so both the HOME and the WORDS below are the current ones.
+// The three placement decisions moved OUT of the picker into their own movable panel — Stacked under the grid they
+// crushed the swatches into one clipped row. They were relabelled in the same pass (*"'how it will be placed' is not
+// clear at all"*, *"we need clear concise labeling that clearly points at the action/feature"*), so both the HOME and
+// the WORDS below are the current ones.
 describe('◈ How a character lands — the behaviour panel', () => {
   const renderPlacement = (overrides: Partial<React.ComponentProps<typeof UnitPlacementBody>> = {}) => {
     const props: React.ComponentProps<typeof UnitPlacementBody> = {
@@ -124,8 +119,7 @@ describe('◈ How a character lands — the behaviour panel', () => {
   })
 
   it('whose side is two answers, not three — neither pressed means the creature decides', () => {
-    // Alexander, 2026-09-08: *"I don't think auto should be an option in the character, it's either friendly
-    // or unfriendly as simple as that."* So `auto` survives as the DEFAULT, never as a third button.
+    // So `auto` survives as the DEFAULT, never as a third button.
     const onPlaceAs = jest.fn()
     renderPlacement({ placeAs: 'auto', onPlaceAs })
     expect(screen.getByRole('button', { name: /^Friendly$/i })).toHaveAttribute('aria-pressed', 'false')

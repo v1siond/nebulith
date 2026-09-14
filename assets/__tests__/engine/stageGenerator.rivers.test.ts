@@ -1,25 +1,17 @@
 /**
  * THE RIVER'S COURSE.
  *
- * Alexander, 2026-09-11: *"the rivers aren't consistently generated, It'd like to have variants of river
- * usage, maybe it's traversable, maybe it's dividing the map in two half, maybe it's around the map, etc
- * right now is super random, and while I want and think the randomness is good, we need to parametize it a
- * bit more"*.
- *
- * Each course has a SIGNATURE, and the tests assert the signature rather than the pixels:
- *   · through — reaches two opposite edges, and is crossable in several places
- *   · divides — runs edge to edge across the middle, crossable in exactly ONE place; take that crossing away
- *               and the map falls into two halves
- *   · around  — runs round the map inset from its edges, leaving the way in open
- *   · random  — one of those three, picked per seed, and genuinely more than one across seeds
+ * Each course has a SIGNATURE, and the tests assert the signature rather than the pixels: · through — reaches two
+ * opposite edges, and is crossable in several places · divides — runs edge to edge across the middle, crossable in
+ * exactly ONE place; take that crossing away and the map falls into two halves · around — runs round the map inset
+ * from its edges, leaving the way in open · random — one of those three, picked per seed, and genuinely more than one
+ * across seeds
  *
  * And one thing no course may do, whatever it looks like: make its CHANNEL walkable past the shallows.
  *
- * A POOL IS NOT A CHANNEL, and this file used to treat them as one thing. Alexander, 2026-09-12: *"I can't walk
- * throug the green one, even when the floor makes it seems like I should, specially considering the floor is at
- * the same level"*, with *"we still want to be able to use water outside of rivers, usually i'l be like water
- * puddles, walkable"*. A channel is CUT below the walking floor, which is what makes it something you go around.
- * A pool sits at ground level and you walk through it.
+ * A POOL IS NOT A CHANNEL, and this file used to treat them as one thing. with *"we still want to be able to use
+ * water outside of rivers, usually i'l be like water puddles, walkable"*. A channel is CUT below the walking floor,
+ * which is what makes it something you go around. A pool sits at ground level and you walk through it.
  */
 import '@/__tests__/helpers/installTilesetSeed'
 import { FLAT_FLOOR, generateStage } from '@/engine/stageGenerator'
@@ -232,8 +224,7 @@ describe('random — one of the courses, and more than one across seeds', () => 
 })
 
 describe('water by depth: wade the shallows, the rest blocks', () => {
-  // Alexander, 2026-09-11: *"I only want light blue for walkable water, different layers of darkblue for the
-  // deeper waters"*. The one kind of water you may walk is the SHALLOW edge; everything past it blocks.
+  // The one kind of water you may walk is the SHALLOW edge; everything past it blocks.
   it.each(['through', 'divides', 'around', 'random'])('%s: only the shallow band is walkable', course => {
     for (const layout of ['woodland', 'meadow', 'jungle'] as const) {
       const s = grow(layout, course, 3)
@@ -260,20 +251,18 @@ describe('water by depth: wade the shallows, the rest blocks', () => {
   /**
    * ONE SURFACE COLOUR for the whole channel.
    *
-   * Alexander, 2026-09-12, with his reference image: *"top is one color and bottom is another color, but
-   * consistent, not different currents, nor different colors mixed"*, after *"we need to use the tiles
-   * consistently, right now water tiles is far from consistent making it look random"*.
+   * after *"we need to use the tiles consistently, right now water tiles is far from consistent making it look
+   * random"*.
    *
-   * THIS REPLACES what this case used to pin (shallow light, deep dark), which came from his 2026-09-11
-   * *"I only want light blue for walkable water, different layers of darkblue for the deeper waters"*. The
-   * newer instruction wins, and the measurement says why: one seed-2 `divides` river carried `#4f93b3`,
-   * `#8ccbe8` and `#2a5f8a` at once. All three bands draw the SAME picture, because a floor resolves its art
-   * through `groundKind`, which collapses every water label to `water`. So the three tones were three tints on
-   * one tile, never three kinds of water.
+   * THIS REPLACES what this case used to pin (shallow light, deep dark), which came from his 2026-09-11 *"I only want
+   * light blue for walkable water, different layers of darkblue for the deeper waters"*. The newer instruction wins,
+   * and the measurement says why: one seed-2 `divides` river carried `#4f93b3`, `#8ccbe8` and `#2a5f8a` at once. All
+   * three bands draw the SAME picture, because a floor resolves its art through `groundKind`, which collapses every
+   * water label to `water`. So the three tones were three tints on one tile, never three kinds of water.
    *
-   * The assertion is DIFFERENTIAL on purpose: the bands must still be MORE than one (they carry the label and
-   * decide what you can wade) while the tones must be exactly one. Collapsing the bands themselves, the wrong
-   * fix, would fail the first expectation rather than quietly pass.
+   * The assertion is DIFFERENTIAL on purpose: the bands must still be MORE than one (they carry the label and decide
+   * what you can wade) while the tones must be exactly one. Collapsing the bands themselves, the wrong fix, would
+   * fail the first expectation rather than quietly pass.
    */
   it('paints the WHOLE channel one served tone, whatever the band', () => {
     const pal = findGenerator(CATALOG, 'forest', 'woodland')!.config.palette!
@@ -284,18 +273,16 @@ describe('water by depth: wade the shallows, the rest blocks', () => {
   })
 
   /**
-   * A POOL IS WALKABLE, and it used to be blocked. Alexander, 2026-09-12, looking at the green water: *"I can't
-   * walk throug the green one, even when the floor makes it seems like I should, specially considering the floor
-   * is at the same level"*.
+   * A POOL IS WALKABLE, and it used to be blocked.
    *
-   * The cause was that `waterDepth` skips pool cells (`!pools.has(...)`), so a pool never reached the depth
-   * bands that decide walkability and kept the flat block `floodSwampPools` stamped. The river's shallows went
-   * through the bands and were wadeable; the pool beside them never did. Same water, two rules.
+   * The cause was that `waterDepth` skips pool cells (`!pools.has(...)`), so a pool never reached the depth bands
+   * that decide walkability and kept the flat block `floodSwampPools` stamped. The river's shallows went through the
+   * bands and were wadeable; the pool beside them never did. Same water, two rules.
    */
   it('a swamp pool is WALKABLE and still turns blue-green, never the floor-green it used to be', () => {
-    // A POOL IS A FILM NOW, not a ground tile. It stopped replacing the ground on 2026-09-13 because its own
-    // height could never match the floor it landed on, so Alexander dropped into every one of them. The pool
-    // is therefore a prop carrying the swamp tone, sitting over ground that is left alone.
+    // A POOL IS A FILM NOW, not a ground tile. It stopped replacing the ground on 2026-09-13 because its own height
+    // could never match the floor it landed on, so a drop happened into every one of them. The pool is therefore a
+    // prop carrying the swamp tone, sitting over ground that is left alone.
     const config = findGenerator(CATALOG, 'forest', 'jungle')!.config
     const s = grow('jungle', 'none', 7)
     const pools = s.props.filter(p => p.label === 'water_still')
@@ -307,9 +294,7 @@ describe('water by depth: wade the shallows, the rest blocks', () => {
   })
 
   /**
-   * FROZEN OVER. Alexander, 2026-09-12: *"in winter, rivers are ice and we can walk over them, which mean, we
-   * just remove collissions and add the ice physics we haven't developed yet"*. The ice physics do not exist
-   * yet; walking over it does.
+   * FROZEN OVER. The ice physics do not exist yet; walking over it does.
    */
   it('a WINTER river is ice, and you walk over it', () => {
     const config = findGenerator(CATALOG, 'forest', 'woodland')!.config
@@ -346,8 +331,8 @@ describe('water by depth: wade the shallows, the rest blocks', () => {
 })
 
 describe('the kind of crossing: a dirt path, or one of several bridges', () => {
-  // Alexander, 2026-09-11: *"on the "bridges" that we use on rivers, we must have multiple variations too / it can
-  // be a simple dirt path, it can be an actual bridge, which again, are multiple variations"*.
+  // bridges" that we use on rivers, we must have multiple variations too / it can be a simple dirt path, it can be an
+  // actual bridge, which again, are multiple variations"*.
   const kinds = (layout: 'woodland' | 'meadow' | 'jungle') => findGenerator(CATALOG, 'forest', layout)!.config.crossings!
   const deckOf = (s: Stage, style: GeneratorCrossing): Set<string> => {
     const out = new Set<string>()

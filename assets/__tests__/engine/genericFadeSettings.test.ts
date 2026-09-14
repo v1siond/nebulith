@@ -92,8 +92,8 @@ describe('revealAlpha — the ONE ease (it superseded fadeNearAlpha AND cutawayA
   })
 
   test('holds FLAT at APPROACH_ALPHA anywhere inside APPROACH_NEAR', () => {
-    // A plateau, not a ramp: standing at the door and standing five cells out read the same, so getting close
-    // is an unmistakable change rather than a few percent (Alexander, Image #7).
+    // A plateau, not a ramp: standing at the door and standing five cells out read the same, so getting close is an
+    // unmistakable change rather than a few percent.
     expect(revealAlpha({ dist: 0, inside: false })).toBeCloseTo(APPROACH_ALPHA)
     expect(revealAlpha({ dist: APPROACH_NEAR, inside: false })).toBeCloseTo(APPROACH_ALPHA)
   })

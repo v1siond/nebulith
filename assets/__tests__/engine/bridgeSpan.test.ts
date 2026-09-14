@@ -1,13 +1,11 @@
 /**
  * WHICH BRIDGE CROSSES THIS RIVER.
  *
- * Alexander, 2026-09-12, looking at a 7-cell bridge over a 4-cell river: *"would a bridge be that large, when
- * we only have to connect a small river?? we just need something like 4 cells long x whatever the river size"*,
  * and *"river is usually 3-4 cells wide or more"*.
  *
- * The span used to be chosen by walking DOWN from the landing-to-landing run and taking the first that fit, so
- * it was always the largest bridge that would go in, whatever the water underneath was doing. It is chosen by
- * the RIVER now: the smallest authored span that covers the water plus one landing each side.
+ * The span used to be chosen by walking DOWN from the landing-to-landing run and taking the first that fit, so it was
+ * always the largest bridge that would go in, whatever the water underneath was doing. It is chosen by the RIVER now:
+ * the smallest authored span that covers the water plus one landing each side.
  *
  * The spans the backend authors are 3, 4, 5, 6 and 7 per family, which is why `WOOD` below is that set.
  */

@@ -1,16 +1,12 @@
 /**
  * UNITS RESOLVE THEIR BACKEND TILE, IN EVERY STYLE (T-125's last sub-item).
  *
- * Alexander, on the remaining ASCII-specific path: *"it just means we don't load anything until backend data
- * comes in, the fallback is still ascii, but the backend image tile, as it should."*
- *
  * So the glyph art in `engine/entityArt.ts` is a PRE-LOAD state, not the destination. A unit is a tile like
- * everything else: `npc` / `enemy` / `player` are real backend rows, and once the tileset is loaded the
- * entity draws that baked image in ascii exactly as it does in emoji. Only while nothing is loaded does the
- * glyph show.
+ * everything else: `npc` / `enemy` / `player` are real backend rows, and once the tileset is loaded the entity draws
+ * that baked image in ascii exactly as it does in emoji. Only while nothing is loaded does the glyph show.
  *
- * That is what these tests pin: with a tileset loaded, the entity resolves an IMAGE in BOTH styles; with
- * nothing loaded, it resolves neither image nor char, so the caller's pre-load figure still renders.
+ * That is what these tests pin: with a tileset loaded, the entity resolves an IMAGE in BOTH styles; with nothing
+ * loaded, it resolves neither image nor char, so the caller's pre-load figure still renders.
  */
 import { clearStyleCatalogs, installStyleTiles } from '@/engine/tileset/styleTiles'
 import { resolveEntityDraw } from '@/engine/render/shared'

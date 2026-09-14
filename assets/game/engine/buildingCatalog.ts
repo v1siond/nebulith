@@ -30,13 +30,12 @@ export function isRoadGround(ground: string | undefined): boolean {
   return ground != null && ROAD_GROUNDS.has(ground)
 }
 
-// ── composition catalog ───────────────────────────────────────────────────
-// A building's SIZE is backend data. These used to be two hardcoded tables here and a THIRD copy inside
-// villageLayout, each hand-maintained against Nebulith.Catalog.BuildingCompositions with nothing enforcing the
-// match — so deepening a building in Elixir silently desynced the plot planner from what the stamp fills
-// (Alexander: "generating bigger houses, just mean we'll store bigger houses in the backend").
-// Now every size RESOLVES from the loaded compositions, whose names encode `<type>_<facadeWidth>`.
-// Null when nothing is loaded — an unknown size is never invented (MAP-MODEL §8, the no-fallback law).
+// ── composition catalog ─────────────────────────────────────────────────── A building's SIZE is backend data. These
+// used to be two hardcoded tables here and a THIRD copy inside villageLayout, each hand-maintained against
+// Nebulith.Catalog.BuildingCompositions with nothing enforcing the match — so deepening a building in Elixir silently
+// desynced the plot planner from what the stamp fills. Now every size RESOLVES from the loaded compositions, whose
+// names encode `<type>_<facadeWidth>`. Null when nothing is loaded — an unknown size is never invented (MAP-MODEL §8,
+// the no-fallback law).
 
 /** The baked facade widths for a type, ascending — parsed from the loaded composition NAMES (`house_3/4/5`).
  *  Empty when nothing is loaded; the caller picks from what EXISTS rather than from a hand-kept list. */
@@ -205,12 +204,12 @@ export function compositionFootprintCells(comp: Composition, anchorCol: number, 
   return cells
 }
 
-/** True iff EVERY occupied cell is IN BOUNDS — the ONLY thing that blocks a composition placement. A
- *  composition REPLACES whatever it lands on (Alexander: "replace anything if I want to … it's only red when
- *  there's not enough cells or blocks in the area I want to put the composition"), so occupied cells and roads
- *  are FINE — the stamp clears the footprint first. Invalid means the footprint runs OFF the map (not enough
- *  room), nothing else. Reads the ACTUAL occupied cells (not the bounding rect), so an L-shaped or basin
- *  composition is judged on the cells it truly fills. Pure. */
+/**
+ * True iff EVERY occupied cell is IN BOUNDS — the ONLY thing that blocks a composition placement. A composition
+ * REPLACES whatever it lands on, so occupied cells and roads are FINE — the stamp clears the footprint first. Invalid
+ * means the footprint runs OFF the map (not enough room), nothing else. Reads the ACTUAL occupied cells (not the
+ * bounding rect), so an L-shaped or basin composition is judged on the cells it truly fills. Pure.
+ */
 export function compositionFits(grid: IsometricGrid, cells: readonly { col: number; row: number }[]): boolean {
   for (const { col, row } of cells) {
     if (col < 0 || row < 0 || col >= grid.cols || row >= grid.rows) return false

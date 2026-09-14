@@ -1,18 +1,14 @@
 /**
  * WHAT GROWS ON THE FLOOR, AND WHETHER YOU CAN WALK ON IT.
  *
- * Alexander, 2026-09-12, on a woodland: *"collissions still wrong, I'm not able to walk over the green
- * flowers"*.
+ * Measured against the live catalog: of the 40 tiles in the `nature` category, `thicket` is the ONLY one that blocks.
+ * Everything else, flowers and clover and mushrooms included, is walkable. And `plantUndergrowth` could plant nothing
+ * but the thicket, so every forest template from the meadow up grew waist-high walls wearing a plant picture.
  *
- * Measured against the live catalog: of the 40 tiles in the `nature` category, `thicket` is the ONLY one that
- * blocks. Everything else, flowers and clover and mushrooms included, is walkable. And `plantUndergrowth`
- * could plant nothing but the thicket, so every forest template from the meadow up grew waist-high walls
- * wearing a plant picture.
- *
- * The formations are named after his own reference images, and three of the five say in their own notes that
- * the floor is clear: "nothing between them" (#10), "a clear walkable floor" (#11), "clear ground between the
- * groups" (#12). Only #14 and #15 describe a floor you cannot cross. So the plant is served per formation,
- * and whether it blocks is the TILE's business, read off its row rather than minted here.
+ * The formations are named after his own reference images, and three of the five say in their own notes that the
+ * floor is clear: "nothing between them" (#10), "a clear walkable floor" (#11), "clear ground between the groups"
+ * (#12). Only #14 and #15 describe a floor you cannot cross. So the plant is served per formation, and whether it
+ * blocks is the TILE's business, read off its row rather than minted here.
  */
 import '@/__tests__/helpers/installTilesetSeed'
 import { generateStage } from '@/engine/stageGenerator'

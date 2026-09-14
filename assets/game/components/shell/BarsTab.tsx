@@ -6,20 +6,16 @@ import { type UiBar, type UiBarSlot, saveBars, uiActions, uiProfile } from '@/ga
 /**
  * THE BARS TAB — add a bar, shape it, say when it shows.
  *
- * Alexander, 2026-09-10: *"the bar is weird, it doesn't allow me toa dd new bars easily ... we should've
- * used bartender as base, whioch allow us to easily add bars, make them smaller bigger, add new rows, new
- * columns to each row, add conditionals to the bars, so one shows or hides all the time, orhides until
- * something is put in it"*, and *"we can configure the player and units bars, their size, their font size,
- * if we want to show the text or not"*.
+ * and *"we can configure the player and units bars, their size, their font size, if we want to show the text or
+ * not"*.
  *
  * Each of those is a control here, and each is a column on `ui_bars`:
  *
- * - **add / remove / reorder** — `+ Add a bar` and the per-bar buttons; the whole list is saved at once.
- * - **rows and columns** — his *"new rows, new columns to each row"*.
- * - **size, font size, show the text** — per bar, in its settings.
- * - **conditionals** — WHEN a bar is up: always, or once something is in it, or on an event / quest /
- *   ability. Null condition IS "always", which is why the select's first option writes null rather than a
- *   sentinel string.
+ * - **add / remove / reorder** — `+ Add a bar` and the per-bar buttons; the whole list is saved at once. - **rows and
+ * columns** — his *"new rows, new columns to each row"*. - **size, font size, show the text** — per bar, in its
+ * settings. - **conditionals** — WHEN a bar is up: always, or once something is in it, or on an event / quest /
+ * ability. Null condition IS "always", which is why the select's first option writes null rather than a sentinel
+ * string.
  *
  * Spec: `2026-09-06-ui-system-spec-and-plan.md` §2.7, tab 3.
  */

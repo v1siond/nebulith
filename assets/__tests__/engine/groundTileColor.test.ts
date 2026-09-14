@@ -1,10 +1,9 @@
 /**
- * The GENERATOR/placement writes the ground colour onto the floor tile as STATE — it is NOT derived at render.
- * Alexander: "the generator should put the color on the tile as expected … NO fallbacks … once stored they
- * load." So `groundTileColor` is the placement-time PICK: the ground tile's own DB colour (terrain `bg`),
- * per-cell shaded for grassy ground — the SAME value 2D used to derive at render (cellFill→bg for ASCII), now
- * computed once at placement and stored on `floor.color`. Renders then READ it; a floor with no colour renders
- * nothing (empty), never a hardcoded fallback.
+ * The GENERATOR/placement writes the ground colour onto the floor tile as STATE — it is NOT derived at render. So
+ * `groundTileColor` is the placement-time PICK: the ground tile's own DB colour (terrain `bg`), per-cell shaded for
+ * grassy ground — the SAME value 2D used to derive at render (cellFill→bg for ASCII), now computed once at placement
+ * and stored on `floor.color`. Renders then READ it; a floor with no colour renders nothing (empty), never a
+ * hardcoded fallback.
  */
 import { groundTileColor } from '@/engine/render/shared'
 import { useSeedTileset } from '@/__tests__/helpers/tilesetSeed'

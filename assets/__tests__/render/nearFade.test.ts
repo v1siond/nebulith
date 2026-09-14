@@ -1,7 +1,6 @@
 /**
- * The near-hero fade in the 2D and top views. Alexander, 2026-09-11: *"when user is close, they get more
- * transparent. Specially on trees and buildings, and any exterior element that can block us from seeing the player
- * character"*. Same distance rule as the iso view, for any tile that opted into `fadeNear`.
+ * The near-hero fade in the 2D and top views. Same distance rule as the iso view, for any tile that opted into
+ * `fadeNear`.
  */
 import { nearFadeAlpha, revealAlpha } from '@/engine/render/roofReveal'
 

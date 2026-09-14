@@ -1,20 +1,19 @@
 /**
  * A LIST SWATCH — the same picture the big preview shows, rendered once and kept.
  *
- * Alexander, 2026-09-09: *"the example ofn the element in the list itself doesn't match their actual look /
- * fountain, lamp post and well are the worst offenders."* All three are compositions, and all three were
- * drawn by a hand-rolled "front elevation" that knew nothing about footprints, height runs or animation. So
- * a swatch now goes through `previewThumbnail`, which is the big preview's own draw path.
+ * All three are compositions, and all three were drawn by a hand-rolled "front elevation" that knew nothing about
+ * footprints, height runs or animation. So a swatch now goes through `previewThumbnail`, which is the big preview's
+ * own draw path.
  *
- * RENDERED LAZILY, and that is not an optimisation detail — it is what makes this possible at all. The tile
- * library mounts all 238 swatches at once with no windowing, and each thumbnail is a full isometric render
- * of its own grid. Doing them eagerly would block the main thread for a third of a second every time the
- * library opened. One shared IntersectionObserver means only the ~40 swatches actually on screen render on
- * open, and the rest as they scroll past — each one exactly once, because the result is cached.
+ * RENDERED LAZILY, and that is not an optimisation detail — it is what makes this possible at all. The tile library
+ * mounts all 238 swatches at once with no windowing, and each thumbnail is a full isometric render of its own grid.
+ * Doing them eagerly would block the main thread for a third of a second every time the library opened. One shared
+ * IntersectionObserver means only the ~40 swatches actually on screen render on open, and the rest as they scroll
+ * past — each one exactly once, because the result is cached.
  *
- * Before a swatch has rendered it reserves its box and draws nothing. It does NOT fall back to the flat
- * baked image: that image is precisely the wrong picture this component exists to replace, and showing it
- * for a moment would put the old mismatch back on screen as a flash.
+ * Before a swatch has rendered it reserves its box and draws nothing. It does NOT fall back to the flat baked image:
+ * that image is precisely the wrong picture this component exists to replace, and showing it for a moment would put
+ * the old mismatch back on screen as a flash.
  */
 import { useEffect, useRef, useState } from 'react'
 

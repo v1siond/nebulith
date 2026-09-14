@@ -1,18 +1,16 @@
 /**
  * "HOW DO I …" — the step-by-step guides, in a movable panel.
  *
- * Alexander, 2026-09-09: *"there's no general step by step guides on how to do stuff."*
- *
  * Two decisions worth stating, because both were the reason the old help did not answer this:
  *
- *  · **A list of jobs first, not a list of features.** The entry point is "Make my first level", not
- *    "Generate panel". Someone who needs a guide does not yet know what the panel is called.
- *  · **The steps are TICKABLE.** A guide you read and then lose your place in is a wall of text. Ticking
- *    as you go is what lets you look away at the map — which every one of these steps asks you to do —
- *    and come back. The panel is movable for the same reason: it has to sit beside the thing it describes.
+ * · **A list of jobs first, not a list of features.** The entry point is "Make my first level", not "Generate panel".
+ * Someone who needs a guide does not yet know what the panel is called. · **The steps are TICKABLE.** A guide you
+ * read and then lose your place in is a wall of text. Ticking as you go is what lets you look away at the map — which
+ * every one of these steps asks you to do — and come back. The panel is movable for the same reason: it has to sit
+ * beside the thing it describes.
  *
- * Progress is per-viewer and deliberately not persisted: it records "where am I in this task, right now",
- * which is meaningless the next time you open the editor.
+ * Progress is per-viewer and deliberately not persisted: it records "where am I in this task, right now", which is
+ * meaningless the next time you open the editor.
  */
 import { useState } from 'react'
 

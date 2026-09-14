@@ -1,18 +1,15 @@
 /**
  * A PUDDLE IS NOT A RIVER.
  *
- * Alexander, 2026-09-13: *"the green water is using the same tile as the river water, which is bad, because
- * that is not a river is a puddle, it doesn't have current is stationary"*.
- *
  * Two defects, both data.
  *
- * A pool laid `water_shallow`, which is the RIVER's own wadeable edge, so a puddle and a channel wore one
- * label. And the generator's comment asserted that label was height 0.0 while the database said 1.0 in both
- * styles, so every puddle drew as a one-block cube of water standing on the floor.
+ * A pool laid `water_shallow`, which is the RIVER's own wadeable edge, so a puddle and a channel wore one label. And
+ * the generator's comment asserted that label was height 0.0 while the database said 1.0 in both styles, so every
+ * puddle drew as a one-block cube of water standing on the floor.
  *
- * `water_still` is the puddle: flush at height 0, frameless because standing water has no current. The two
- * river BANDS join `water`'s 0.5, which `seed_water_color` had already worked out for the channel and never
- * applied to them.
+ * `water_still` is the puddle: flush at height 0, frameless because standing water has no current. The two river
+ * BANDS join `water`'s 0.5, which `seed_water_color` had already worked out for the channel and never applied to
+ * them.
  */
 import '@/__tests__/helpers/installTilesetSeed'
 import { generateStage } from '@/engine/stageGenerator'
@@ -47,9 +44,7 @@ const groundCount = (s: ReturnType<typeof grow>, label: string) => s.ground.flat
 
 describe('still water is its own tile', () => {
   it('a puddle is a FILM STACKED ON the ground, and the ground is still under it', () => {
-    // Alexander, 2026-09-13: *"it's a small layer above it, when the fuck have you seen a puddle of water below
-    // floor level?"*. It used to REPLACE the ground, so its own height had to match whatever floor it landed
-    // on and never could.
+    // It used to REPLACE the ground, so its own height had to match whatever floor it landed on and never could.
     const swamp = grow('forest_jungle_swamp')
     const film = swamp.props.filter(p => p.label === 'water_still')
     expect(film.length).toBeGreaterThan(0)

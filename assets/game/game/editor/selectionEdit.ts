@@ -39,13 +39,14 @@ export function parseSelectionKey(key: string): { col: number; row: number; stac
 /** A per-cell edit target: the cell + the stack SLOT the edit should act on. */
 export interface SelectionTileTarget { col: number; row: number; index: number }
 
-/** Turn a selection into per-cell edit targets that each use the tile's OWN stack slot — the fix for "edits hit
- *  the wrong tile in the stack" (Alexander: "a few of the tiles I selected changed the tile located at the bottom
- *  instead of the one selected"). Every selection key already carries the picked tile's slot, so a multi-select
- *  edits/replaces each cell's SELECTED tile — NEVER a single global level forced onto every cell (which landed on
- *  the bottom/floor tile). A bare `"col,row"` key (a flat rectangle drag with no specific tile) falls back to
- *  `fallbackIndex` — the Inspector's `selectedTileLevel`. Mirrors {@link removeSelectedBlock}'s per-key resolution.
- *  Malformed keys are skipped. */
+/**
+ * Turn a selection into per-cell edit targets that each use the tile's OWN stack slot — the fix for "edits hit the
+ * wrong tile in the stack". Every selection key already carries the picked tile's slot, so a multi-select
+ * edits/replaces each cell's SELECTED tile — NEVER a single global level forced onto every cell (which landed on the
+ * bottom/floor tile). A bare `"col,row"` key (a flat rectangle drag with no specific tile) falls back to
+ * `fallbackIndex` — the Inspector's `selectedTileLevel`. Mirrors {@link removeSelectedBlock}'s per-key resolution.
+ * Malformed keys are skipped.
+ */
 export function resolveSelectionTargets(keys: Iterable<string>, fallbackIndex: number): SelectionTileTarget[] {
   const out: SelectionTileTarget[] = []
   for (const key of keys) {

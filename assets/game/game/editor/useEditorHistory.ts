@@ -1,11 +1,10 @@
 /**
- * useEditorHistory — the React wiring for the editor's undo/redo (Alexander: "ctrl + y and ctrl + z … replace a
- * building for another, then ctrl+z to go back … 4-5 steps forward and backwards"). It owns a bounded snapshot
- * ring (see editorHistory.ts + mapSnapshot.ts) and binds Ctrl+Z (undo) / Ctrl+Y or Ctrl+Shift+Z (redo).
+ * useEditorHistory — the React wiring for the editor's undo/redo. It owns a bounded snapshot ring (see
+ * editorHistory.ts + mapSnapshot.ts) and binds Ctrl+Z (undo) / Ctrl+Y or Ctrl+Shift+Z (redo).
  *
- * Contract: call the returned `checkpoint()` at the START of every map-mutating edit — BEFORE it mutates — so a
- * later undo restores the exact pre-edit map. The keybinds are ignored while typing in a text field, so undo in
- * an input still edits text, not the map.
+ * Contract: call the returned `checkpoint()` at the START of every map-mutating edit — BEFORE it mutates — so a later
+ * undo restores the exact pre-edit map. The keybinds are ignored while typing in a text field, so undo in an input
+ * still edits text, not the map.
  */
 import { useCallback, useEffect, useRef } from 'react'
 import type { MutableRefObject } from 'react'

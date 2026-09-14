@@ -1,15 +1,13 @@
 /**
  * ASK BEFORE DESTROYING — the app's own confirmation, replacing `window.confirm` (design §5.1).
  *
- * A native `confirm()` is a browser chrome box: unstyled, unreadable next to the dark editor, and
- * impossible to phrase properly ("Delete this template?" with an OK button that says OK). This hook
- * keeps the call site's shape — `if (!(await confirm({…}))) return` — while rendering the app's
- * Modal, so the dialogue reads like the rest of the editor and the destructive button says what it
- * destroys.
+ * A native `confirm()` is a browser chrome box: unstyled, unreadable next to the dark editor, and impossible to
+ * phrase properly ("Delete this template?" with an OK button that says OK). This hook keeps the call site's shape —
+ * `if (!(await confirm({…}))) return` — while rendering the app's Modal, so the dialogue reads like the rest of the
+ * editor and the destructive button says what it destroys.
  *
- * Only for DESTRUCTIVE actions. Creating things must not ask at all: Alexander, on the new-game
- * prompt — "that's the worst UX ever … just assign a random name … and redirect user to the editor
- * right away." See `game/autoNaming.ts`.
+ * Only for DESTRUCTIVE actions. Creating things must not ask at all: on the new-game prompt — "that's the worst UX
+ * ever … just assign a random name … and redirect user to the editor right away." See `game/autoNaming.ts`.
  */
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { Modal } from './modals'
@@ -97,13 +95,13 @@ export interface UsePrompt {
 /**
  * ASK FOR A VALUE — the app's own text prompt, replacing `window.prompt` (§5.1).
  *
- * The sibling of `useConfirm`, and the same contract: the call site keeps its shape
- * (`const name = await prompt({…}); if (!name) return`) while the dialogue is the app's Modal, and the
- * promise ALWAYS settles so a cancelled prompt can never leave its caller hanging.
+ * The sibling of `useConfirm`, and the same contract: the call site keeps its shape (`const name = await prompt({…});
+ * if (!name) return`) while the dialogue is the app's Modal, and the promise ALWAYS settles so a cancelled prompt can
+ * never leave its caller hanging.
  *
- * Only for a value the user must genuinely supply — RENAMING something that already exists. Creating things
- * must not ask at all: Alexander, on the new-game prompt, *"that's the worst UX ever … just assign a random
- * name … and redirect user to the editor right away"* (see `game/autoNaming.ts`).
+ * Only for a value the user must genuinely supply — RENAMING something that already exists. Creating things must not
+ * ask at all: *"that's the worst UX ever … just assign a random name … and redirect user to the editor right away"*
+ * (see `game/autoNaming.ts`).
  */
 export function usePrompt(): UsePrompt {
   const [request, setRequest] = useState<PromptRequest | null>(null)

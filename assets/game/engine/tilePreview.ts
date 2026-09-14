@@ -1,23 +1,19 @@
 /**
  * TILE PREVIEWS — the facts and the geometry behind every picture the library shows.
  *
- * Alexander, 2026-09-08:
+ * > there's no preview in objects, in general we need preview for everything. > the ascii art unit tiles aren't
+ * distinguishable at all right now, they're supper small and not clear, > we don't know what does it mean "static vs
+ * moving" options, there's no preview > compositions like houses, fountain, etc, don't have any preview until you
+ * look toplace it in grid, > which works different to all the other tiles
  *
- *   > there's no preview in objects, in general we need preview for everything.
- *   > the ascii art unit tiles aren't distinguishable at all right now, they're supper small and not clear,
- *   > we don't know what does it mean "static vs moving" options, there's no preview
- *   > compositions like houses, fountain, etc, don't have any preview until you look toplace it in grid,
- *   > which works different to all the other tiles
+ * Nothing here draws. Every function is a pure read of the LOADED catalog, so the React layer is a thin renderer and
+ * all of this is unit-testable. Two rules it exists to honour:
  *
- * Nothing here draws. Every function is a pure read of the LOADED catalog, so the React layer is a thin
- * renderer and all of this is unit-testable. Two rules it exists to honour:
- *
- *  · **Read through functions, never a module const.** The catalog arrives over the network; a top-level
- *    `const TILES = styleTiles('ascii')` would capture the empty catalog forever. Every accessor below
- *    takes the style id and asks the store at call time.
- *  · **No fallbacks.** A label with no picture returns `undefined`/`null`, and the UI shows the hole. It
- *    does NOT substitute a glyph, an emoji or another style's art — that is how 15 pictureless items came
- *    to look finished in the old inventory panel.
+ * · **Read through functions, never a module const.** The catalog arrives over the network; a top-level `const TILES
+ * = styleTiles('ascii')` would capture the empty catalog forever. Every accessor below takes the style id and asks
+ * the store at call time. · **No fallbacks.** A label with no picture returns `undefined`/`null`, and the UI shows
+ * the hole. It does NOT substitute a glyph, an emoji or another style's art — that is how 15 pictureless items came
+ * to look finished in the old inventory panel.
  */
 import { styleCatalog, styleTile } from './tileset/styleTiles'
 import type { Composition, CompositionCell } from './tileset/tileset'

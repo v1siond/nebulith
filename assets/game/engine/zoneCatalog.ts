@@ -1,17 +1,15 @@
 /**
  * THE SEASON CATALOG, from the backend (`GET /api/zones`).
  *
- * `engine/zones.ts` authored all of this: ground palettes, the hazard and trail tile, the curated tree /
- * decor / flower tile each season wears, its bloom variants, and its temple and cave palettes. That file
- * named its own destination in a comment — *"The true model end-state is these palettes living in the
- * Nebulith backend"* — and Alexander's 2026-09-10 rule is the same: *"anything that is DATA should be moved
- * to the backend, the frontend just processes the data algorithmically"*.
+ * `engine/zones.ts` authored all of this: ground palettes, the hazard and trail tile, the curated tree / decor /
+ * flower tile each season wears, its bloom variants, and its temple and cave palettes. That file named its own
+ * destination in a comment — *"The true model end-state is these palettes living in the Nebulith backend"* — and
  *
- * Season-INDEPENDENT tables (tree shape weights, rock shades, cave decor, prop art) are not per-zone, so
- * they arrive in the `game_rules` bundles rather than repeated in every season.
+ * Season-INDEPENDENT tables (tree shape weights, rock shades, cave decor, prop art) are not per-zone, so they arrive
+ * in the `game_rules` bundles rather than repeated in every season.
  *
- * Read through FUNCTIONS, never a module const: the catalog is empty until the backend answers, and a
- * const would capture that empty state for the life of the page.
+ * Read through FUNCTIONS, never a module const: the catalog is empty until the backend answers, and a const would
+ * capture that empty state for the life of the page.
  */
 import { NEBULITH_API } from '@/lib/nebulithApi'
 

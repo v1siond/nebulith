@@ -1,7 +1,6 @@
 /**
- * Ground-colour PICKING — a leaf module (no render/grid imports) so the grid itself can colour a floor at
- * placement without a cycle. Alexander: "the generator should put the color on the tile … once saved they
- * load." The colour a floor carries is DATA it is BORN with (setGround/makeFloorAsset), picked from the
+ * Ground-colour PICKING — a leaf module (no render/grid imports) so the grid itself can colour a floor at placement
+ * without a cycle. The colour a floor carries is DATA it is BORN with (setGround/makeFloorAsset), picked from the
  * ground tile's OWN DB colour; every view then READS `floor.color` instead of deriving it per-frame.
  */
 import { styleCatalog } from './styleTiles'

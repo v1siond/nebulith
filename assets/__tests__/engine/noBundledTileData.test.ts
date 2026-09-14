@@ -43,9 +43,8 @@ describe('no bundled frontend tile data — the ONE store starts empty', () => {
 })
 
 describe('no bundled frontend tile data — the source proves it (grep-style guard)', () => {
-  // Alexander, 2026-09-08, on the two per-style holder files: *"why do we have this? tiles come from the
-  // elixir backend, so why do we need those two files????"*. They are deleted, and this keeps them deleted —
-  // a per-style module is exactly where bundled rows creep back in, one style at a time.
+  // They are deleted, and this keeps them deleted — a per-style module is exactly where bundled rows creep back in,
+  // one style at a time.
   test('there is no per-style tileset module — one store, every style', () => {
     expect(fs.existsSync(path.join(TILESET_DIR, 'emojiTileset.ts'))).toBe(false)
     expect(fs.existsSync(path.join(TILESET_DIR, 'asciiTileset.ts'))).toBe(false)

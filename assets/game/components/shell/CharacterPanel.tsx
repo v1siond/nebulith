@@ -3,24 +3,21 @@ import { useState, type ReactNode } from 'react'
 /**
  * THE CHARACTER PANEL — one panel, tabs down the side, WoW / Resident Evil style.
  *
- * Alexander, 2026-09-10:
- *
- *   > readlly, inventory button is not good at all, we should have something like world of wacraft or
- *   > redisent evil, a tab panel where we can go from inventory, to map, to our character stats, status,
- *   > class, to the actual inventory to the abilities or talents, where each is a different tab
+ * > readlly, inventory button is not good at all, we should have something like world of wacraft or > redisent evil,
+ * a tab panel where we can go from inventory, to map, to our character stats, status, > class, to the actual
+ * inventory to the abilities or talents, where each is a different tab
  *
  * and, separately, what was wrong with the old one:
  *
- *   > the inventory also have sections that don't belong there, like the "add gear to bag", and stats
- *   > section, the keys and abilities are redundant now, since we have editable action bars
+ * > the inventory also have sections that don't belong there, like the "add gear to bag", and stats > section, the
+ * keys and abilities are redundant now, since we have editable action bars
  *
- * Both are the same fix. The bag had grown a stats block, a key-rebinding block and an ability block
- * because there was nowhere else to put them; giving each its own tab is what makes the bag a bag again.
- * The keys in particular are genuinely redundant now — a key belongs to an action bar, and bars are
- * editable in Player UI.
+ * Both are the same fix. The bag had grown a stats block, a key-rebinding block and an ability block because there
+ * was nowhere else to put them; giving each its own tab is what makes the bag a bag again. The keys in particular are
+ * genuinely redundant now — a key belongs to an action bar, and bars are editable in Player UI.
  *
- * A TAB IS A ROUTE, not a scroll position: exactly one is open, its name says what you are looking at, and
- * every one is reachable in a single click from any other.
+ * A TAB IS A ROUTE, not a scroll position: exactly one is open, its name says what you are looking at, and every one
+ * is reachable in a single click from any other.
  */
 
 export interface CharacterTab {

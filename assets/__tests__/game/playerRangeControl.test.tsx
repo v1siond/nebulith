@@ -1,10 +1,9 @@
 /**
- * PLAYER-CAMERA RANGE CONTROL — the iso-only top-nav control that sets `playerViewRange` (Alexander: "I want
- * to control that setting, so increasing, reducing, etc."). The engine half already culls to a radius around
- * the player and draws a ring; this is the UI that drives it.
+ * PLAYER-CAMERA RANGE CONTROL — the iso-only top-nav control that sets `playerViewRange`. The engine half already
+ * culls to a radius around the player and draws a ring; this is the UI that drives it.
  *
- * DEFAULT OFF (range = undefined → today's full-window render, no regression). Toggling ON sets a positive
- * range and reveals a slider to INCREASE / REDUCE it live; toggling OFF returns to undefined.
+ * DEFAULT OFF (range = undefined → today's full-window render, no regression). Toggling ON sets a positive range and
+ * reveals a slider to INCREASE / REDUCE it live; toggling OFF returns to undefined.
  */
 import { useState } from 'react'
 import { render, screen, fireEvent } from '@testing-library/react'

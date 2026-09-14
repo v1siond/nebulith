@@ -562,8 +562,8 @@ export function TileAnimationEditor({ animations, elementType, elementLabel, spr
 
       <TileAnimationPreview animations={animations} />
 
-      {/* Add buttons pinned ABOVE the list so they stay reachable however many animations exist — a long list
-          no longer pushes them off the bottom (Alexander: "have the buttons up"). */}
+      {/* Add buttons pinned ABOVE the list so they stay reachable however many animations exist — a long list no
+          longer pushes them off the bottom. */}
       <div className="flex flex-wrap gap-1">
         {kinds.includes('settings') && (
           <button onClick={addSettings} className="flex-1 rounded bg-fuchsia-800 px-2 py-1 text-[11px] font-bold text-white transition-colors hover:bg-fuchsia-700">

@@ -1,11 +1,9 @@
 import '@/__tests__/helpers/installTilesetSeed' // the generator reads ALL tile data from the loaded backend tileset fixture
 import { generateStage, type StageData } from '@/engine/stageGenerator'
 
-// Only a SMALL, RANDOM minority of a settlement's lamps flickers (Alexander: "the flicker should be a random
-// thing that only 1 or 2 lamps get and it's not even 100% of the time … rest should be either all the time ON
-// during night time or OFF during day time"). The old per-cell ratio hash tagged ~a quarter of every map's
-// lamps — a town got 2–3, a CITY 3–4 flickering — which read as "all of them". These lock the fix: the failing
-// count is a tiny ABSOLUTE number (≤ 2), never a fraction of the lamp count.
+// Only a SMALL, RANDOM minority of a settlement's lamps flickers. The old per-cell ratio hash tagged ~a quarter of
+// every map's lamps — a town got 2–3, a CITY 3–4 flickering — which read as "all of them". These lock the fix: the
+// failing count is a tiny ABSOLUTE number (≤ 2), never a fraction of the lamp count.
 
 function lampKinds(stage: StageData): { total: number; failing: number } {
   const lamps = stage.compositions.filter(c => c.kind === 'lamp_post' || c.kind === 'lamp_post_failing')

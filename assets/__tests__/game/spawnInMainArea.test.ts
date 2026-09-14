@@ -1,6 +1,5 @@
 /**
- * The player always lands where they can walk — Alexander, 2026-09-11: *"make sure the player is always in a
- * zone we can walk when generating a new map ... I'm stuck and cant go anywhere"*.
+ * The player always lands where they can walk —
  */
 import { spawnInMainArea } from '@/game/runtime/spawn'
 
