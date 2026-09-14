@@ -4,8 +4,7 @@ defmodule Nebulith.Catalog.CombatSource do
   a fresh player / enemy / npc starts from.
 
   A CREATURE's numbers are not here: an enemy is a unit tile marked hostile, so its stat block lives on its
-  own tile row (`TileSource.seed_unit_combat/0`). Alexander, 2026-09-10: *"an enemy is just a regular unit,
-  but marked as hostile towards player"*.
+  own tile row (`TileSource.seed_unit_combat/0`).
 
   Every number here is the value the game uses TODAY, so seeding changes no behaviour — it only moves
   where the number lives. Provenance, so the port can be re-checked:

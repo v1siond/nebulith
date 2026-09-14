@@ -51,11 +51,11 @@ defmodule Nebulith.GeneratorSourceTest do
       cats = Catalog.list_generator_categories() |> by_key()
 
       # Order matters and is asserted, because the category's FIRST preset is the one the panel opens on.
-      # Alexander, 2026-09-09: *"the meadow is not a forest, it doesn't look like one"* — every preset here
+      # — every preset here
       # used to be a clearing, so a category called Forest opened on something that was not one.
       assert Enum.map(cats["forest"].generators, & &1.layout) == ["woodland", "jungle", "meadow"]
-      # THE LOOK IS THE PRESET since 2026-09-11: *"instead of "town" "city" we'd have modern city, swamp
-      # village, etc"*. Each one says which archetype builds it.
+      # THE LOOK IS THE PRESET: modern city, swamp village and so on, rather than a bare "town" and "city".
+      # Each one says which archetype builds it.
       assert Enum.map(cats["settlement"].generators, & &1.name) == [
                "Town",
                "City"
@@ -72,8 +72,7 @@ defmodule Nebulith.GeneratorSourceTest do
       cats = Catalog.list_generator_categories() |> by_key()
       layouts = Enum.map(cats["forest"].generators, & &1.layout)
 
-      # Alexander, 2026-09-10, on the list growing combinatorially: *"we should just have extra options for
-      # each template"*. `forest_meadow_river` used to be its own row, which is exactly the growth he named:
+      # `forest_meadow_river` used to be its own row, which is exactly the growth it named:
       # one boolean doubled the category. The river survives as a toggle, so the count stays at three.
       refute "meadow_river" in layouts
       assert length(layouts) == 3
@@ -94,8 +93,7 @@ defmodule Nebulith.GeneratorSourceTest do
         assert crossing["default"] == false
         assert kind["requires"] == "river"
 
-        # HOW DEEP the channel is cut is served, not chosen by the generator. Alexander, 2026-09-11: *"river
-        # depth is confgiuravble, same as shadow, same as sun light, we want to control everyhting"*. It hangs
+        # HOW DEEP the channel is cut is served, not chosen by the generator. It hangs
         # off the river like the crossing does, so it greys out when there is no river to cut.
         depth = Enum.find(g.options, &(&1["key"] == "depth"))
         assert depth["requires"] == "river", "#{g.key} offers a depth with no river"
@@ -110,7 +108,7 @@ defmodule Nebulith.GeneratorSourceTest do
 
       [river, crossing, kind] = Enum.filter(woodland.options, &(&1["key"] in ~w(river crossing bridge)))
 
-      # His next ticket was *"rivers need crossings connected to the paths"*. A crossing over dry ground is
+      # The next ticket was A crossing over dry ground is
       # nonsense, so the row says what it depends on and the editor greys the toggle out from the DATA.
       refute Map.has_key?(river, "requires")
       assert crossing["requires"] == "river"
@@ -129,8 +127,8 @@ defmodule Nebulith.GeneratorSourceTest do
         |> Map.fetch!(:options)
         |> Enum.find(&(&1["key"] == "river"))
 
-      # *"maybe it's traversable, maybe it's dividing the map in two half, maybe it's around the map"*, and
-      # *"I want and think the randomness is good"* — random stays, as one choice among the courses.
+      # and
+      # — random stays, as one choice among the courses.
       assert Enum.map(river["choices"], & &1["key"]) == ~w(none random through divides around)
       assert river["default"] in Enum.map(river["choices"], & &1["key"])
     end
@@ -150,10 +148,7 @@ defmodule Nebulith.GeneratorSourceTest do
       GeneratorSource.seed()
       cats = Catalog.list_generator_categories() |> by_key()
 
-      # Alexander, 2026-09-11: *"on temple, cave and forest templates we should have the option to define how
-      # many pathways, we want to have"*, and the cave he drew out: *"1 exit and 3 pathways to simulate
-      # entrance, then I continue doing the same until I reach a part where is just 1 exit no pathway, which is
-      # the end of the cave"*. That is TWO numbers, not one. An exit leaves the map (a connector to the next
+      # and the cave it drew out: That is TWO numbers, not one. An exit leaves the map (a connector to the next
       # one), a pathway runs inside it, and a pathway that is not an exit has to end somewhere, which is where
       # a closed or gated section goes.
       for key <- ~w(forest cave temple), g <- cats[key].generators do
@@ -192,8 +187,7 @@ defmodule Nebulith.GeneratorSourceTest do
       cats = Catalog.list_generator_categories() |> by_key()
       pal = for g <- cats["forest"].generators, into: %{}, do: {g.layout, g.config["palette"]}
 
-      # Alexander, 2026-09-10: *"colors should be different"*, *"like there's a huge difference between
-      # amazonas and a pines forest"*. Every colour in a forest used to come from the SEASON, so a spring
+      # Every colour in a forest used to come from the SEASON, so a spring
       # jungle and a spring woodland were painted from the same numbers and looked identical. The assertion
       # is that they SHARE NOTHING, not that either is a particular hex — tune the hexes freely, just never
       # back into agreement.
@@ -206,8 +200,6 @@ defmodule Nebulith.GeneratorSourceTest do
     end
 
     test "every kind of crossing the river offers is served with the tile it lays" do
-      # Alexander, 2026-09-11: *"it can be a simple dirt path, it can be an actual bridge, which again, are
-      # multiple variations"*.
       GeneratorSource.seed()
       cats = Catalog.list_generator_categories() |> by_key()
 
@@ -226,9 +218,7 @@ defmodule Nebulith.GeneratorSourceTest do
     end
 
     test "water reads as WATER: blue that darkens with depth, and only swamp leans green" do
-      # Alexander, 2026-09-11: *"I only want light blue for walkable water, different layers of darkblue for the
-      # deeper waters and we can have some share of blue-green for swamp ... the green used makes it look like a
-      # floor instead of water"*. Asserted as RELATIONSHIPS so the hexes stay free to tune.
+      # Asserted as RELATIONSHIPS so the hexes stay free to tune.
       GeneratorSource.seed()
       cats = Catalog.list_generator_categories() |> by_key()
 
@@ -247,7 +237,7 @@ defmodule Nebulith.GeneratorSourceTest do
       cats = Catalog.list_generator_categories() |> by_key()
       nature = for g <- cats["forest"].generators, into: %{}, do: {g.layout, g.config["nature"]}
 
-      # Ticket 48, his words: *"a jungle is not a woodland"*. What makes it one is these numbers, not a
+      # Ticket 48, the requirement: What makes it one is these numbers, not a
       # separate generator — same clearings, same trails, choked floor. If the two ever read the same the
       # preset is decorative, so the test asserts the GAP rather than the values.
       assert nature["jungle"]["canopy"] > nature["woodland"]["canopy"]
@@ -258,9 +248,8 @@ defmodule Nebulith.GeneratorSourceTest do
     test "a generator runs in seasons the editor offers, and narrows them when its climate implies one" do
       GeneratorSource.seed()
 
-      # This used to assert EVERY generator ran in EVERY season. Alexander, 2026-09-11: *"if the season is
-      # implied, it shoudl be preselected, or we don't mention the clima at all, like, snowy town implies
-      # winter season for example"*. So a row may narrow its own list; what must hold is that it names at
+      # This used to assert EVERY generator ran in EVERY season. So a row may narrow its own list; what must hold is
+      # that it names at
       # least one season and never invents one the editor cannot offer.
       offered = MapSet.new(~w(spring summer autumn winter desert))
       cats = Catalog.list_generator_categories()
@@ -272,9 +261,8 @@ defmodule Nebulith.GeneratorSourceTest do
                "#{g.key} names a season the editor cannot offer: #{inspect(g.zones)}"
       end
 
-      # A place whose climate really does narrow its seasons. Alexander, 2026-09-11, on the one that did not:
-      # *"snowy town shouldn't exist a snowing town is just a regular town withn winter season and rain
-      # active"*. So the snowy town is gone, and a swamp, which does not freeze over, is the honest example.
+      # A place whose climate really does narrow its seasons.
+      # So the snowy town is gone, and a swamp, which does not freeze over, is the honest example.
       swamp = Enum.find(generator(cats, "settlement", "town").children, &(&1.key == "town_swamp"))
       assert swamp.zones == ["spring", "summer"]
       # and a place with no implied climate still runs in all of them
@@ -357,9 +345,7 @@ defmodule Nebulith.GeneratorSourceTest do
     end
 
     test "every place is made of DIFFERENT buildings, not the same ones in another colour", %{categories: cats} do
-      # Alexander, 2026-09-11: *"there's not a single difference between any of the settlements ... all you did
-      # was change colors, when everything should've changed like having different types of settlements implies
-      # having different objects"*, and *"cities have more skycrappers, towns have more houses"*.
+      # and
       #
       # Kinds AND their variations. Walking the top level alone would check two rows and miss every variation,
       # which is exactly the thing this test exists to hold. Type AND count, because two places asking for the
@@ -407,7 +393,7 @@ defmodule Nebulith.GeneratorSourceTest do
         refute "barn" in list, "#{key} is a city with a barn in it"
       end
 
-      # The two he named first: the modern city is the tall one, and a medieval city is the same KIND with
+      # The two it named first: the modern city is the tall one, and a medieval city is the same KIND with
       # nothing tall in it at all.
       assert "tower" in wants["city_modern"]
       assert "apartment" in wants["city_modern"]
@@ -417,8 +403,7 @@ defmodule Nebulith.GeneratorSourceTest do
     end
 
     test "a town paves with stone and a city with road", %{categories: cats} do
-      # Alexander, 2026-09-11: *"a town doesn't have roads, it has pathways of stone, cities do have pathways a
-      # skycraoppers"*. Every street used to be painted `road` whatever the place was.
+      # Every street used to be painted `road` whatever the place was.
       streets =
         for kind <- by_key(cats)["settlement"].generators,
             row <- [kind | kind.children],
@@ -430,7 +415,7 @@ defmodule Nebulith.GeneratorSourceTest do
       assert streets["city"] == "road"
       refute streets["town"] == streets["city"]
 
-      # A variation paves with its own. Alexander's *"a town doesn't have roads, it has pathways of stone"* is
+      # A variation paves with its own. The reference is
       # the KIND's default; a mountain town cobbles, a beach town has dirt tracks, a swamp village boardwalks.
       assert streets["town_mountain"] == "cobblestone"
       assert streets["town_beach"] == "path_dirt"
@@ -447,8 +432,6 @@ defmodule Nebulith.GeneratorSourceTest do
     end
 
     test "a variation called dense IS denser, counting trees and not bushes", %{categories: cats} do
-      # Alexander, 2026-09-11: *"'dense woodland' is not dense at all, standard woodland is denser lol"*.
-      #
       # `canopy` is the share of plantable floor that takes an entry from the TREE table, so a table with
       # bushes in it spends part of that share on shrubs. Comparing the canopy numbers alone said dense was
       # denser; comparing what actually grows said the opposite. This compares what grows.
@@ -505,10 +488,8 @@ defmodule Nebulith.GeneratorSourceTest do
     end
 
     test "every settlement look owns its own material and its own roof", %{categories: cats} do
-      # Alexander, 2026-09-11: *"I picked a tropical city and had nothing different than a regular one ... the
-      # material of houses should be different, walls different, roof different"* and *"each settlement
-      # variation should have their own flavor and clear differences"*. A look that shares its family AND its
-      # roof with another look is the bug he reported, so this refuses to let two of them match.
+      # and A look that shares its family AND its
+      # roof with another look is the bug it reported, so this refuses to let two of them match.
       looks =
         for look <- by_key(cats)["settlement"].generators do
           b = look.config["buildings"]
@@ -534,8 +515,6 @@ defmodule Nebulith.GeneratorSourceTest do
   end
 
   describe "the catalog is a TREE — forest > type > subtype" do
-    # Alexander, 2026-09-11: *"forest > type of forest > sub type of type of forest > etc / like maybe it's an
-    # island jungle, maybe it's a mountain forest"*.
     setup do
       GeneratorSource.seed()
       %{forest: Catalog.list_generator_categories() |> by_key() |> Map.fetch!("forest")}
@@ -594,9 +573,7 @@ defmodule Nebulith.GeneratorSourceTest do
     end
 
     test "a mountain forest is built at THREE LEVELS, which is what makes it a mountain", %{forest: f} do
-      # Alexander, 2026-09-11: *"mountain forest is not a real mountain forest, I mean it doesn't even have
-      # mountain nor relieve sections, when we can construct them withn cells easily... it doesn't have cliff,
-      # nor anything, it's basically just a meadow"*. It was a meadow because every cell stood at 0.
+      # It was a meadow because every cell stood at 0.
       woodland = Enum.find(f.generators, &(&1.key == "forest_woodland"))
       mountain = Enum.find(woodland.children, &(&1.key == "forest_woodland_mountain"))
       levels = Map.new(mountain.config["subZones"], &{&1["key"], &1["level"]})

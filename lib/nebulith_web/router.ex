@@ -52,9 +52,9 @@ defmodule NebulithWeb.Router do
     put "/ui", UiController, :update
     resources "/templates", TemplateController, except: [:new, :edit]
     resources "/games", GameController, except: [:new, :edit] do
-      # A game's LEVELS, nested so the route itself carries whose levels these are. *"game > has many levels
-      # > has many templates"* — the layer that was missing, and the reason "Manage levels" could only show
-      # him a list of games.
+      # A game's LEVELS, nested so the route itself carries whose levels these are. — the layer that was missing, and
+      # the reason "Manage levels" could only show
+      # a list of games.
       resources "/levels", LevelController, only: [:index, :create]
       put "/levels/order", LevelController, :reorder
     end
@@ -64,9 +64,8 @@ defmodule NebulithWeb.Router do
     # The map-generator CATALOG — categories + their generators, with every knob a generate takes.
     # Read-only; the editor loads it at mount so nothing about a generator is hardcoded frontend-side.
     get "/generators", GeneratorController, :index
-    # BUILDINGS AT ANY SIZE — the types the composer offers, and one composed to order. Alexander,
-    # 2026-09-08: *"why having 3 size house when we can have 1 house button and allow user to make a house
-    # as big or as small as he wants???"* `show` serves the SAME composition shape /api/tilesets does, so
+    # BUILDINGS AT ANY SIZE — the types the composer offers, and one composed to order.
+    # 2026-09-08: `show` serves the SAME composition shape /api/tilesets does, so
     # the editor stamps a generated building through the path it already has.
     get "/buildings", BuildingController, :index
     get "/buildings/:type", BuildingController, :show

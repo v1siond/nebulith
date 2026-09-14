@@ -1,7 +1,7 @@
 defmodule Nebulith.DataMigration.AsciiEmojiVocabularyParity do
   @moduledoc """
   Closes the ascii/emoji VOCABULARY gap on a LIVE DB: every tile LABEL present in one style is given a
-  twin in the other, so a map painted or generated in one style never renders `?` in the other (Alexander:
+  twin in the other, so a map painted or generated in one style never renders `?` in the other (
   "full 1:1 vocabulary parity now"). Only the ART differs — each twin copies the SAME height/category/
   blocking as the row it mirrors (MAP-MODEL §4).
 

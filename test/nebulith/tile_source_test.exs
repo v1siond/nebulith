@@ -101,7 +101,7 @@ defmodule Nebulith.TileSourceTest do
     assert round_leaf.settings["shape"] == "circle"
     refute Map.has_key?(square_leaf.settings, "shape")
 
-    # skinny/thick TRUNK width is a per-variant setting (Alexander: "trunk width is a variable"): tall = 0.85
+    # skinny/thick TRUNK width is a per-variant setting: tall = 0.85
     # (skinnier), stub = 1.2 (thicker); the standard trunk omits Width entirely (default 1).
     tall_trunk = Enum.find(comps, &(&1.name == "tree_tall")).cells |> Enum.find(&(&1.label == "trunk_mid"))
     stub_trunk = Enum.find(comps, &(&1.name == "tree_stub")).cells |> Enum.find(&(&1.label == "trunk_mid"))
@@ -112,8 +112,7 @@ defmodule Nebulith.TileSourceTest do
   end
 
   test "the fountain/well basin rim and water default to z_index 0 (draw priority is a capability, not a default)" do
-    # Reverted (Alexander: "just leave everything on 0 by default for now, it'll work fine; we'll only need
-    # specific z-index once we start working composition optimization"). The z_index CAPABILITY stays (the
+    # Reverted. The z_index CAPABILITY stays (the
     # column + the depth-sort override + the editor Z-Index control), but nothing carries a non-zero draw
     # priority by default — the rim and its water both sort positionally at 0.
     for name <- ["fountain", "well"] do
@@ -136,8 +135,7 @@ defmodule Nebulith.TileSourceTest do
     assert length(water) == 9
     assert Enum.all?(water, &(&1.scale == 1.15))
 
-    # Only the CENTER ROW of 3 animates (Alexander: "in the 9 blocks version, the 3 in the center are the ones
-    # to animate"); the other 6 are STATIC blue water (no animation).
+    # Only the CENTER ROW of 3 animates; the other 6 are STATIC blue water (no animation).
     animated = Enum.filter(water, & &1.animations)
     assert length(animated) == 3
     assert length(water) - length(animated) == 6
@@ -152,7 +150,7 @@ defmodule Nebulith.TileSourceTest do
   end
 
   test "the DEFAULT lamp_post bulb LIGHTS UP at night — a steady night-triggered color glow, no flicker" do
-    # Alexander: "the bulb should change appearance when night mode = true, but it doesn't". The DEFAULT lamp bulb
+    # The DEFAULT lamp bulb
     # now carries EXACTLY ONE animation — a `night`-triggered `color` glow that HOLDS a constant warm value
     # (`from` == `to`, so it's steady, NOT a tween and NOT a flicker). In day the render bridge drops the night
     # animation → the plain unlit bulb; at night the colour tints the bulb art warm → a lit, glowing bulb. The
@@ -183,7 +181,7 @@ defmodule Nebulith.TileSourceTest do
   end
 
   test "the lamp_post_failing bulb is night-LIT and ALSO carries ONE irregular flicker — a dying street light" do
-    # Alexander: "it should be more irregular, it's supposed to represent a failing bulb". Only a MINORITY of lamps
+    # Only a MINORITY of lamps
     # get this variant (the generator tags ~18%). Its bulb shares the DEFAULT night-lit `color` glow AND adds a
     # SINGLE opacity flicker with `ease: "flicker"` — the frontend's irregular, STEPPED failing-bulb envelope, NOT
     # a smooth sine yoyo. Both are night-gated, so the bulb rests in day and is lit-but-flickering at night; the
@@ -223,7 +221,7 @@ defmodule Nebulith.TileSourceTest do
   end
 
   test "the lamp bulb carries a default LIGHT setting — a warm night ground glow pool (intensity + distance)" do
-    # Alexander: "a regular setting that allows me to control the light intensity and distance". The lamp cell
+    # The lamp cell
     # ships a `light` in its settings jsonb — served verbatim, copied onto the placed asset by stampComposition —
     # so lamps light by DEFAULT (radius 3.2 cells; a SATURATED warm gold #ffc24d so the pool reads as clearly "on"),
     # and the editor's Light control edits them per placement. The post base never lights.
@@ -266,7 +264,7 @@ defmodule Nebulith.TileSourceTest do
   end
 
   test "the lamp_post cells carry the tuned tile settings — a tall thin post + a single bulb lifted on top" do
-    # Alexander built the reference (Images #45/#46, "copy the settings of the post … like a real post"): the
+    # The reference is images #45/#46: copy the settings of the post … like a real post"): the
     # POST is ONE cell shaped into a tall, thin pole by its OWN settings (Height ~7 = scaleY, Zoom ~0.3 = scale),
     # and the BULB is a SINGLE-display billboard zoomed down + lifted to sit ON TOP of the post (Zoom ~0.6 =
     # scale, y ~-1.8 = pose.dy). The composition STRUCTURE is style-agnostic — ONE global `compositions` row
@@ -302,7 +300,7 @@ defmodule Nebulith.TileSourceTest do
     assert emoji_roof_top.image_url == "/tiles/emoji/roof_top.png"
     # The ridge apex is ROOF: it lifts off with the rest of the roof (cutawayRoof), it does not merely ease
     # translucent. While it carried fadeNear, a hero under a PEAK column — the door columns of every gable
-    # house — was under no cutaway tile, so the roof never came off (Alexander, Image #4).
+    # house — was under no cutaway tile, so the roof never came off.
     assert emoji_roof_top.settings["cutawayRoof"] == true
     refute emoji_roof_top.settings["fadeNear"]
   end
@@ -343,7 +341,7 @@ defmodule Nebulith.TileSourceTest do
     end
   end
 
-  # Alexander, 2026-09-11: every template handles its floor the way the meadow does, colour on one flat tile.
+  # every template handles its floor the way the meadow does, colour on one flat tile.
   test "the flat floor is served in both styles: walkable terrain, level with the ground, its own picture" do
     for style <- ["ascii", "emoji"] do
       floor = Enum.find(Catalog.list_tiles_for(style), &(&1.label == "floor"))
@@ -361,7 +359,7 @@ defmodule Nebulith.TileSourceTest do
     refute ascii["floor"].glyph == ascii["meadow"].glyph, "a shared glyph is a shared picture"
   end
 
-  # Alexander, 2026-09-11: trees, buildings and any exterior element that can hide the player fade when you're close.
+  # trees, buildings and any exterior element that can hide the player fade when you're close.
   test "trees and standing exterior tiles fade near the hero, flowers and markers stay solid" do
     for style <- ["ascii", "emoji"] do
       tiles = Map.new(Catalog.list_tiles_for(style), &{&1.label, &1})
@@ -387,13 +385,12 @@ defmodule Nebulith.TileSourceTest do
   end
 
   test "every tile carries its OWN height, and the SAME label carries the same one in every art style" do
-    # The rule this file states and the one worth guarding: *"height is per-tile DATA read uniformly, with
-    # NO type/category code branch — a tile just carries its own height."*
+    # The rule this file states and the one worth guarding:
     #
     # THE CLASSIFICATION LISTS ARE GONE, and they were the part contradicting that rule. This test used to
     # hardcode which labels are flat and which stand, which is the very type/category branch the model
     # forbids — and it had gone stale in two ways: it called `roof` flat and walkable, exactly the claim
-    # COMBAT-AND-SYSTEMS-SPEC §9 forbids (Alexander: *"roof should have collissions"*), and it called
+    # COMBAT-AND-SYSTEMS-SPEC §9 forbids, and it called
     # `water` a flat floor when water is deliberately a height-1 block so ornaments stack on top of it.
     #
     # What replaces it is the ENGINE's own law: one label, one set of facts, a different picture per style.
@@ -454,10 +451,7 @@ defmodule Nebulith.TileSourceTest do
              FlatTilesMinimalHeight.flat_height()
   end
 
-  # THE emoji.json RECONCILE test is gone. Alexander, 2026-09-09: *"there's 0 sense on having a validation
-  # for emoji.json when we use the backend database, the only exception would be if we wanted to validate
-  # the import/seed of the json into de database works, but that seems like a really useless test when we
-  # can just run migrations and validate the lists."*
+  # THE emoji.json RECONCILE test is gone.
   #
   # The DB is the source of truth. What is worth asserting about heights is asserted below, against the
   # seeded rows rather than against the file they came from.
@@ -499,7 +493,7 @@ defmodule Nebulith.TileSourceTest do
     assert wall.settings["colors"]
     assert wall.settings["fadeNear"] == true
 
-    # A canopy FADES now: Alexander, 2026-09-11, *"Specially on trees"*. It still keeps its per-season colours
+    # A canopy FADES now: It still keeps its per-season colours
     # next to the new key, and it is never a roof, so it never lifts off.
     canopy = Enum.find(ascii_tiles, &(&1.label == "leaf_center"))
     assert canopy.settings["colors"]["spring"]

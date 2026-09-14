@@ -2,9 +2,7 @@ defmodule Nebulith.Levels do
   @moduledoc """
   The Levels context — the layer between a game and its maps.
 
-  Alexander, 2026-09-10: *"game > has many levels > has many templates"*, *"for example, Mario > 1-1 1-2 1-3
-  1-4"*, and on why it is a real layer: *"a level may be a jungle, that contains 4 caves, each one connected
-  to na separate template that is still part of the current level"*. Five maps, one level.
+  and on why it is a real layer: Five maps, one level.
 
   Ordering is by `position` everywhere, and a level's maps come back ordered — the editor renders the list it
   is given without sorting, so the order is the API's job.

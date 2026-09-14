@@ -4,8 +4,7 @@ defmodule Nebulith.Repo.Migrations.CreateItems do
 
   `game/gear.ts` declared 6 weapons, 10 armour pieces and 5 consumables with complete stat blocks
   (`baseDamage: 12, baseDefense: 2, strengthBonus: 3, reachCells: 1`) plus the two starter kits, in a file
-  nothing validated. Alexander, 2026-09-08: *"all hardcoded data of the frontend moved to the elixir
-  backend … pretty much everything that is DATA or depends on DATA"*.
+  nothing validated.
 
   The art already lives here — the weapon TILES are seeded with baked PNGs and poses
   (`priv/repo/tilesets/emoji.json`), so only the numbers were missing.

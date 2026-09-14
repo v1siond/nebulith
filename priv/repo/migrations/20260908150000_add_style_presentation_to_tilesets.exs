@@ -2,7 +2,7 @@ defmodule Nebulith.Repo.Migrations.AddStylePresentationToTilesets do
   @moduledoc """
   A TILESET row is an ART STYLE, so it should carry what the style picker needs to show one.
 
-  Alexander, 2026-09-08: *"styles should be backend categories"*. The `tilesets` table already IS the list
+  The `tilesets` table already IS the list
   of styles — `ascii` and `emoji` are rows in it — but the frontend still declared the list, its order, and
   each style's icon in `game/artStyle.ts` (`BUILT_IN_STYLES`, §3.14a). Adding a style therefore meant a
   frontend edit, which is the thing the whole tile pipeline exists to avoid.

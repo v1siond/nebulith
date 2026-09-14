@@ -2,8 +2,7 @@ defmodule Nebulith.Repo.Migrations.DeleteBigHouseComposition do
   @moduledoc """
   Removes the seeded `big_house_6` composition from a DB that already has it.
 
-  Alexander, 2026-09-12: *"per biome, and delete big_house"*, after *"there's duplicated objects, like big house
-  and house / in fact most are basically ther same, same form, same layout, same everything"*.
+  after
 
   WHY A MIGRATION AND NOT A RESEED. `BuildingCompositions.seed_sample/0` upserts by name and deletes nothing, so
   dropping the type from `definitions/0` stops it being RE-created and leaves the existing row exactly where it

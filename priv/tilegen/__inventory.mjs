@@ -1,7 +1,6 @@
 /**
  * STEP 1 — EXHAUSTIVE FEATURE INVENTORY of the editor.
  *
- * Alexander, 2026-09-08:
  *   "literally do a list of all features in the editor .../games/97829bd2-... a list of all features, all
  *    clickable things, every little single thing that can be interacted with, ALL FEATURES list them"
  *

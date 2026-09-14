@@ -2,9 +2,7 @@ defmodule Nebulith.Repo.Migrations.AddGrowthTiles do
   @moduledoc """
   Adds `tall_grass` (walkable) and `thicket` (blocking) to a DB that already exists.
 
-  Alexander, 2026-09-11: *"we are using collissions in flowers ... it's easy to know which things should be
-  walkable and which shouldn't"* and *"we do need some type of walkable long grass too ... that long grass is
-  walkable"*. The generator was blocking cells that held a clover; a thicket that stops you needs to look like
+  and The generator was blocking cells that held a clover; a thicket that stops you needs to look like
   one, and long grass you walk into needs to exist at all.
 
   Runs the same seeder `seed/0` runs, which upserts by [tileset_id, label], so it touches these four rows and

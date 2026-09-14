@@ -1,7 +1,6 @@
 defmodule Nebulith.DataMigration.AllBlocksMinHeight1 do
   @moduledoc """
-  Every tile/block is at least ONE block tall (Alexander 2026-07-26: "remove the height 0 from any generator,
-  all tiles/blocks are height 1 by default. GLOBAL").
+  Every tile/block is at least ONE block tall.
 
   This REVERSES `FlatTilesZeroHeight` (0005), which took flat tiles down to 0. The model moved on: grounds are
   now RAISED height-1 blocks so that content marked `act_as_tile` stacks ON TOP of them (houses on the grass,

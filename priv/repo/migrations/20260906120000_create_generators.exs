@@ -4,9 +4,7 @@ defmodule Nebulith.Repo.Migrations.CreateGenerators do
   def change do
     # MAP GENERATORS AS DATA (T-113). A generator used to be frontend code plus a scatter of
     # hardcoded constants — grid ranges in the page, settlement tuning in `villageLayout`, nature
-    # densities and unit counts in `stageGenerator`. Alexander: "I want to get to the point where all
-    # generators are just backend records organized per categories, we can seed categories and
-    # existing generators from what we have".
+    # densities and unit counts in `stageGenerator`.
     #
     # A CATEGORY is a map type the editor offers (forest / town / city / cave / temple) — the
     # `STAGE_VARIANTS` menu. A GENERATOR is one named, runnable configuration inside a category (a

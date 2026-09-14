@@ -2,7 +2,6 @@ defmodule Nebulith.AsciiGlyphUniquenessTest do
   @moduledoc """
   PERMANENT guard against "fake" ascii tiles.
 
-  Alexander, 2026-09-08: *"a lot of ascii art tiles are fake, like I select them and I get a '?' rendered"*.
   Measured at the time: **29 of 358 ascii tiles had no baked PNG at all** (those drew the literal `?`), and
   **170 more drew a byte-identical copy of another tile's picture** because they shared a glyph — `rose`,
   `tulip`, `sunflower` and `hibiscus` were one `❀` plate, `oak-tree`, `palm-tree` and `pine-tree` one `♣`.
@@ -89,7 +88,7 @@ end
 
 defmodule Nebulith.OneEngineManyStylesTest do
   @moduledoc """
-  A LABEL owns everything but the picture (Alexander, 2026-09-08).
+  A LABEL owns everything but the picture.
 
   `grass` is called "Grass", is `terrain`, is walkable and is a flat slab — in EVERY style, because those
   are facts about grass, not about which pictures you are looking at. Only the image differs.
@@ -245,8 +244,6 @@ end
 defmodule Nebulith.UnitArtTest do
   @moduledoc """
   A UNIT IS A GRID OF CHARACTERS, not one character.
-
-  Alexander, 2026-09-08, on a town whose entire cast rendered as gender icons (Image #13):
 
     > all unit tiles are wrong … human like units should look like the user player, animals, and other
     > units are also composition of ascii characters grouped to create a given element … a dog is not a

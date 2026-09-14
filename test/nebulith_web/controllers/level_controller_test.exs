@@ -2,8 +2,7 @@ defmodule NebulithWeb.LevelControllerTest do
   @moduledoc """
   The levels API, nested under its game.
 
-  Alexander, 2026-09-10: *"clcking in manage levels doesn't make sense, it shows games??? instead of the
-  levels of my game"*. The route is the fix as much as the screen is: `/api/games/:game_id/levels` cannot
+  The route is the fix as much as the screen is: `/api/games/:game_id/levels` cannot
   answer with a list of games.
   """
   use NebulithWeb.ConnCase

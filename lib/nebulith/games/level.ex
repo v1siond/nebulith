@@ -2,9 +2,7 @@ defmodule Nebulith.Games.Level do
   @moduledoc """
   A LEVEL — the layer between a game and its maps.
 
-  Alexander, 2026-09-10: *"game > has many levels > has many templates"*, *"for example, Mario > 1-1 1-2 1-3
-  1-4"*. And on why it has to be a real layer rather than a naming convention: *"a level may be a jungle, that
-  contains 4 caves, each one connected to na separate template that is still part of the current level"*.
+  And on why it has to be a real layer rather than a naming convention:
 
   That last part is the whole reason this table exists. Four caves and a jungle are FIVE maps that are ONE
   level, and there was previously nowhere to say so.

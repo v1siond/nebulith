@@ -2,10 +2,7 @@ defmodule Nebulith.SeedsCoverageTest do
   @moduledoc """
   EVERY SOURCE THAT EXPOSES `seed/0` MUST BE CALLED BY `priv/repo/seeds.exs`.
 
-  Alexander, 2026-09-12, after I reported that a fresh database comes up with no zones and no UI:
-  *"you did, why you don't have any memory of previous work? is there any way to solve that??"*, and then
-  *"we need all the seeds necessary to run our generators, to see the categories, objects, art styles, tiles
-  and everything needed for the editor"*.
+  and then
 
   What had happened: `zone_source.ex` and `ui_source.ex` each had a table, a migration and a `seed/0`, and
   `seeds.exs` called neither. The dev database answered `/api/zones` and `/api/ui` only because a past session

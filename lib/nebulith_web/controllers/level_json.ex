@@ -15,8 +15,7 @@ defmodule NebulithWeb.LevelJSON do
       name: l.name,
       description: l.description,
       position: l.position,
-      # The maps this level is built from, in order. Alexander: *"a level may be a jungle, that contains 4
-      # caves, each one connected to na separate template that is still part of the current level"*.
+      # The maps this level is built from, in order.
       templateIds: Levels.template_ids(l),
       createdAt: l.inserted_at,
       updatedAt: l.updated_at

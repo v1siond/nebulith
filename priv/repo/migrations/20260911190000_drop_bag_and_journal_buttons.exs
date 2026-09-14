@@ -2,10 +2,6 @@ defmodule Nebulith.Repo.Migrations.DropBagAndJournalButtons do
   @moduledoc """
   Nuke the floating Bag and Journal buttons out of the HUD.
 
-  Alexander, 2026-09-11: *"we still ahve these stupid buttons I want to remove, I told you we don't need
-  them ... we already have inventory on user sidebar, and we could add quests there ... those two from the
-  image AREN'T NEDDED, I DON'T WANT THEM, NUKE THEM OUT"*.
-
   Nothing is lost with them. `open_bag` (I) and `open_journal` (Q) are ACTIONS, so the keys still work and
   either can be dropped on an action bar slot. The panels they used to open (`bag_panel`, `journal_panel`)
   are separate elements and stay exactly as they are.

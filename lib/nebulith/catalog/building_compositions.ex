@@ -105,11 +105,6 @@ defmodule Nebulith.Catalog.BuildingCompositions do
 
   # ── BUILDINGS AT ANY SIZE ───────────────────────────────────────────────────
   #
-  # Alexander, 2026-09-08: *"i think we should NOT have a fixed size, but a default one and allow user to
-  # specify the size of the element they want to put — for example, why having 3 size house when we can have
-  # 1 house button and allow user to make a house as big or as small as he wants??? … i want to be able to
-  # generate a store of any size, a hospital of any size, etc."*
-  #
   # The size used to live in a STRING: eleven compositions named `house_3` / `house_4` / `house_5`, with the
   # width recovered by parsing the name (`buildingCatalog.ts:41` says so outright). But the RECIPE was
   # already parametric — `house/4`, `store/0`, `office/0` and `civic/7` were the same function five times
@@ -128,8 +123,7 @@ defmodule Nebulith.Catalog.BuildingCompositions do
   #     between floors. Fits all eleven: house [1,3], cathedral [1,3], temple/office [1,3,5],
   #     castle [1,3,5,7].
   #
-  # `materials` is a LIST because Alexander asked for the material to be rolled, not fixed: *"pick random
-  # material, but allow user to change the selected roof, walls, windows and doors."* A one-entry list is a
+  # `materials` is a LIST because A one-entry list is a
   # type whose material is part of its identity (a hospital is plaster).
   @building_types %{
     "house" => %{
@@ -172,11 +166,8 @@ defmodule Nebulith.Catalog.BuildingCompositions do
     "castle" => %{materials: ["wall_stone"], roof: {:gable, "roof_slate", "roof_top_slate"}, wide_door: true, walls: :ornament, default: {12, 6}},
 
     # ── THE THINGS THAT MAKE A PLACE A PLACE ────────────────────────────────────────────────────────
-    # Alexander, 2026-09-11: *"all you did was change colors, when everything should've changed like having
-    # different types of settlements implies having different objects, just like we added a bunch of new trees
-    # to be able to do the jungle and other forests, we have to add new buildings with design matching the
-    # context of the settlement"*, with a town of *"wood houses and elements, stables"* (image #28) against a
-    # city of blocks and towers (images #27, #33), and *"cities have more skycrappers, towns have more houses"*.
+    # with a town of (image #28) against a
+    # city of blocks and towers (images #27, #33), and
     #
     # Every one of these is a recombination of what already exists: a wall family, a roof, a footprint and a
     # HEIGHT. That last one is the part that was missing, and it is what separates a stable from a tower:
@@ -250,7 +241,6 @@ defmodule Nebulith.Catalog.BuildingCompositions do
   @doc """
   The default footprint for a type — `{width, depth}`.
 
-  Alexander, 2026-09-08: *"we should have default values … you can pick one of the old hardcoded values."*
   So each default IS that type's authored footprint, not a new number.
   """
   def default_footprint(type) do
@@ -261,7 +251,7 @@ defmodule Nebulith.Catalog.BuildingCompositions do
   end
 
   @doc """
-  The smallest building to OFFER — Alexander: *"the smalles house would be something like 4x3"*. Below this
+  The smallest building to OFFER — Below this
   the facade has no interior column for a window and the door fills the front wall.
 
   It is advice for the caller, not a rule this module enforces. `compose_building/4` composes exactly the
@@ -279,8 +269,7 @@ defmodule Nebulith.Catalog.BuildingCompositions do
   `definitions/0` calls this eleven times, so the existing composition tests are the proof that this
   generalises the seeds rather than replacing them with something that merely looks similar.
 
-  Options, all of which Alexander asked to be overridable (*"allow user to change the selected roof, walls,
-  windows and doors"*):
+  Options, all of which are overridable:
 
     * `:material` — a wall material label, else one is ROLLED from the type's list
     * `:roof` / `:roof_top` — the roof body + apex tiles
@@ -360,8 +349,8 @@ defmodule Nebulith.Catalog.BuildingCompositions do
   # ONE facade, from the table's row. Every authored builder was this `cond` with different arms.
   # ── THE FORM IS THE BUILDING ─────────────────────────────────────────────────────────────────────
   #
-  # Alexander, 2026-09-11: *"most are basically ther same, same form, same layout, same everything"* and
-  # *"there's duplicated objects, like big house and house"*, after I added seven types that were nothing but
+  # and
+  # after I added seven types that were nothing but
   # a different width, wall family and height.
   #
   # He was right, and it was measurable: fifteen types produced EIGHT distinct shapes, with
@@ -485,14 +474,14 @@ defmodule Nebulith.Catalog.BuildingCompositions do
   #
   # A doorway is `dx in doors` AND the FRONT row — the row `facade_fun` actually puts a "door" on. Keying it on
   # the column alone left the BACK wall opposite every door walkable, so you could walk straight through the
-  # back of the building (Alexander 2026-09-06: "we're most likely applying the properties wrong").
+  # back of the building.
   defp assemble(w, h, top_at, doors, facade_fun, roof_cells) do
     walls =
       for dy <- 0..(h - 1), dx <- 0..(w - 1), perimeter?(dx, dy, w, h) do
         wall_column(dx, dy, top_at.(dx), dx in doors and dy == h - 1, facade_fun)
       end
 
-    # NO separate entrance apron (Alexander #49): now that every tile is a height-1 block, the `path` apron in
+    # NO separate entrance apron: now that every tile is a height-1 block, the `path` apron in
     # front of the doors became a raised block that BLOCKS the doorway — and it's redundant since the road/ground
     # is already there as colour. The doors open straight onto the ground; road identity + walkability come from
     # the layout, not a doorstep tile.
@@ -532,7 +521,7 @@ defmodule Nebulith.Catalog.BuildingCompositions do
   # DEPTH along the +row (south) axis via `depth`/`depthDir`, carrying its gable-step HEIGHT as `scaleY` —
   # instead of one cell per (col,row). Anchored at the BACK row (dy=0) so the +row (`left-down`) span reaches
   # forward across the footprint; the frontend rotates the direction with the footprint when a building faces
-  # east/west/north. A roof BLOCKS (Alexander 2026-09-06: "roof should have collissions"): it is not a floor and
+  # east/west/north. A roof BLOCKS: it is not a floor and
   # nothing stands on it. It used to be authored walkable on the reasoning that the wall beneath already carried
   # the collision — which left "walkable" claiming you may stand on a roof.
   defp roof_span_cell(dx, level, label, depth, span) do
@@ -641,10 +630,6 @@ defmodule Nebulith.Catalog.BuildingCompositions do
 
   # ── A WALL NEED NOT BE A TILE ────────────────────────────────────────────────────────────────────
   #
-  # Alexander, 2026-09-11: *"for the walls, we're using tiles wrong, just like roads, we should variate it,
-  # somne buildings can be build only with colored walls, no tile / others can have tiles, others can use tiles
-  # as ornaments"*.
-  #
   # This is the ROAD decision applied to a facade. A road stopped being a tile and became a colour on the
   # ground block (#34/#48), and a wall can do the same. So a building states how its walls are made:
   #
@@ -655,7 +640,7 @@ defmodule Nebulith.Catalog.BuildingCompositions do
   #   · `:ornament` a plain field DRESSED with the material's pieces only where a mason would dress stone: the
   #                 corners, the ground course and the top course.
   #
-  # This is also the answer to *"there's no difference between medieval city and regular town"*: a town is
+  # This is also the answer to: a town is
   # tiled timber, a medieval city is dressed stone, a modern city is flat colour. Three different surfaces
   # before a single new tile is authored.
   defp wall_piece(:plain, _mat, _dx, _level, _w, _top), do: @plain_wall
@@ -714,7 +699,7 @@ defmodule Nebulith.Catalog.BuildingCompositions do
       "store_5" => compose_building("store", 5, 4),
       "office_5" => compose_building("office", 5, 5),
       # STONE BUILDING stays hand-authored: it is the material+piece SAMPLE from TILESET-AUTHORING §3, and
-      # Alexander has already agreed it merges with `house_5` (*"yes merge"*) — so generalising it now would
+      # It merges with `house_5`, so generalising it now would
       # be work on something scheduled for deletion.
       "stone_building" => stone_building(),
       # Hospital — box-built like the houses (6-wide, h=4, 2 floors + gable), so its windows are a symmetric
@@ -725,7 +710,7 @@ defmodule Nebulith.Catalog.BuildingCompositions do
       # the name; h/wall_top preserve each one's authored footprint + height. temple/cathedral/castle = stone
       # and slate.
       #
-      # `big_house_6` USED TO BE HERE. Alexander, 2026-09-12: *"per biome, and delete big_house"*, after
+      # `big_house_6` USED TO BE HERE. after
       # measuring it against `house`: same parts, same wall height, same roof, wider by two cells. A wide house
       # is a house with a bigger footprint, and footprints are composed on demand, so the type earned nothing.
       "temple_8" => compose_building("temple", 8, 4),

@@ -131,7 +131,7 @@ defmodule Nebulith.Catalog do
   The bang version RAISES, which reached the client as an `Ecto.NoResultsError` debug page — HTML, to a
   caller that asked for JSON. `FallbackController` has had a `{:error, :not_found}` clause all along; this
   is what lets a controller reach it. A missing map is an ordinary answer to an ordinary question, not an
-  exception (Alexander, 2026-09-10: *"let's correctly handle errors in frontend, like 404, 500, etc"*).
+  exception.
   """
   def get_template(id) do
     case Repo.get(Template, id) do

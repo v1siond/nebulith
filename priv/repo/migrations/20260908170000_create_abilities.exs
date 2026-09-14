@@ -3,8 +3,7 @@ defmodule Nebulith.Repo.Migrations.CreateAbilities do
   The ABILITY REGISTRY — §3.14b's #2 violation.
 
   `game/abilities.ts` declared 13 abilities (name, description, category, cooldown, and a
-  damage/healing/shield/debuff effect) as frontend constants. Alexander, 2026-09-08: *"pretty much
-  everything that is DATA or depends on DATA"* belongs in the backend.
+  damage/healing/shield/debuff effect) as frontend constants. belongs in the backend.
 
   `animation` names the FX tile the ability plays. That tile row already carries the ability's COLOUR in its
   own settings — which is why §3.14b called the old `ABILITY_TINT` map a duplicate of nine hexes the API was

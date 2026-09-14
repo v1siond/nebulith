@@ -1,10 +1,6 @@
 /**
  * DEEP USABILITY RUN — attempts every editor function as a user would and records what actually happens.
  *
- * Alexander, 2026-09-08: "an analysis should go through ALL functionalities, CLICK ON ALL PLACES; ALL THINGS
- * IN THE UI; EVERYTHING; ON A TILE; ON A CHARACTER; TRY TO MAKE AN ANIMATION; ETC ETC ... literally use all
- * functionalities to determine how they currently work ... is a DEEP USABILITY test."
- *
  * Each probe states an INTENT, performs the clicks, then measures whether the intent was achieved.
  * Outcome vocabulary:
  *   OK        — the intent succeeded

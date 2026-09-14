@@ -3,8 +3,7 @@ defmodule NebulithWeb.LevelController do
   CRUD for a game's LEVELS.
 
   Nested under the game on purpose: a level belongs to exactly one game and there is no reason to ask for one
-  without knowing whose it is. That is also the fix for what Alexander hit — *"clcking in manage levels
-  doesn't make sense, it shows games??? instead of the levels of my game"* — because a route that takes a game
+  without knowing whose it is. That is also the fix for the reported failure:
   id cannot answer with a list of games.
   """
   use NebulithWeb, :controller

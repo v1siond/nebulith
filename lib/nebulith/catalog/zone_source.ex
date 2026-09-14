@@ -4,7 +4,7 @@ defmodule Nebulith.Catalog.ZoneSource do
 
   `src/engine/zones.ts` carried all of this — ground palettes, the hazard and trail tile, the curated tree /
   decor / flower tile per season, the bloom variants, and the temple and cave palettes. Its own comment said
-  where it belonged: *"The true model end-state is these palettes living in the Nebulith backend"*.
+  where it belonged:
 
   Every value here was dumped out of that module rather than retyped, so the seed cannot have drifted from
   what shipped. Idempotent: `seed/0` upserts by `key`, the contract every other source here has.

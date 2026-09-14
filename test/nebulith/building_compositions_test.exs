@@ -184,7 +184,7 @@ defmodule Nebulith.BuildingCompositionsTest do
     # THIS GROUP WAS INVERTED, not deleted.
     #
     # It used to assert an apron: a `path` cell on the row in front of the facade, spanning every door
-    # column. Alexander #49 removed it, and `assemble/6` says why — once every tile became a height-1 block
+    # column. Report #49 removed it, and `assemble/6` says why — once every tile became a height-1 block
     # the apron stood UP as a raised block directly in front of the doors and BLOCKED the doorway it was
     # meant to serve. It is also redundant: the road or ground is already there, and walkability comes from
     # the layout rather than from a doorstep tile.
@@ -308,7 +308,7 @@ defmodule Nebulith.BuildingCompositionsTest do
                "#{unquote(name)}: expected #{w} roof blocks, got #{length(roofs)}"
 
         # Every roof block spans the footprint DEPTH along +row (grid-aligned, anchored at the back row) and
-        # BLOCKS — Alexander 2026-09-06: "roof should have collissions". (It used to be authored walkable on the
+        # BLOCKS — (It used to be authored walkable on the
         # reasoning that the wall beneath carried the collision; that made "walkable" claim you may stand on a
         # roof, which is how the hero ended up standing on one.)
         for r <- roofs do
@@ -361,7 +361,7 @@ defmodule Nebulith.BuildingCompositionsTest do
         refute Map.has_key?(st(crown), "depth")
 
         # Every deck/parapet column spans the footprint depth along +row and BLOCKS, like the crown and every
-        # gable bar — a roof is not a floor (Alexander 2026-09-06: "roof should have collissions").
+        # gable bar — a roof is not a floor.
         for d <- deck do
           assert st(d)["depth"] == h, "#{unquote(name)}: deck column missing depth=#{h}"
           assert st(d)["depthDir"] == "left-down"
@@ -370,7 +370,7 @@ defmodule Nebulith.BuildingCompositionsTest do
       end
     end
   end
-  # ── WALKABILITY (Alexander 2026-09-06, Images #1/#2) ────────────────────────────────────────────────────
+  # ── WALKABILITY ────────────────────────────────────────────────────
   # "when entering through a door, the user goes over the roof instead of inside the house … we're most likely
   #  applying the properties wrong, plus roof should have collissions, so this shouldn't be a posssible bug"
   #
@@ -425,10 +425,7 @@ defmodule Nebulith.BuildingCompositionsContextTest do
   @moduledoc """
   THE THINGS THAT MAKE A PLACE A PLACE.
 
-  Alexander, 2026-09-11: *"having different types of settlements implies having different objects, just like
-  we added a bunch of new trees to be able to do the jungle and other forests, we have to add new buildings
-  with design matching the context of the settlement"*, and *"cities have more skycrappers, towns have more
-  houses"*.
+  and
 
   So the test that matters is not that a new type EXISTS, it is that it comes out a different SHAPE. The knob
   that does that is `wall_top_bonus`, because `wall_top` is `max(3, min(w - 3, 8)) + bonus`: measured, the
@@ -529,7 +526,7 @@ defmodule Nebulith.BuildingCompositionsContextTest do
   end
 
   test "a church is a nave with a TOWER, and a manor a centre between WINGS" do
-    # Alexander, 2026-09-11: *"most are basically ther same, same form, same layout, same everything"*. Slice 1
+    # Slice 1
     # could only change labels, so these two stayed boxes: a nave and its tower are different HEIGHTS.
     walls = fn type ->
       {w, h} = Buildings.default_footprint(type)
@@ -567,9 +564,7 @@ defmodule Nebulith.BuildingCompositionsContextTest do
   end
 
   test "a wall is plain colour, tiled material, or a plain field dressed with it" do
-    # Alexander, 2026-09-11: *"for the walls, we're using tiles wrong, just like roads, we should variate it,
-    # somne buildings can be build only with colored walls, no tile / others can have tiles, others can use
-    # tiles as ornaments"*. This is the road decision applied to a facade, and it is what makes a modern city,
+    # This is the road decision applied to a facade, and it is what makes a modern city,
     # a medieval city and a timber town three different surfaces before any new tile exists.
     surface = fn type ->
       {w, h} = Buildings.default_footprint(type)

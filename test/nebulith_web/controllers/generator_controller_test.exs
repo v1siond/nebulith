@@ -52,7 +52,7 @@ defmodule NebulithWeb.GeneratorControllerTest do
 
       # The editor draws these toggles straight from here and greys the crossing out until the river is on.
       # It never hardcodes the pair, so the shape is the contract — keys, labels, defaults and `requires`.
-      # THE WAYS COME FIRST, since 2026-09-11: his *"we should always have paths firsts"*. Their own shape is
+      # THE WAYS COME FIRST, since 2026-09-11: the Their own shape is
       # pinned in `generator_source_test`; here it matters that they ride over the wire, and in what order.
       assert Enum.map(woodland["options"], & &1["key"]) == ~w(exits pathways river crossing depth bridge)
 
@@ -77,9 +77,8 @@ defmodule NebulithWeb.GeneratorControllerTest do
                  "default" => false,
                  "requires" => "river"
                },
-               # HOW DEEP the channel is cut, and it rides the wire like the rest. Alexander, 2026-09-11:
-               # *"river depth is confgiuravble, same as shadow, same as sun light, we want to control
-               # everyhting, intensity, quality, size, activate, deactivate itm, etc"*. `flat` is the old
+               # HOW DEEP the channel is cut, and it rides the wire like the rest.
+               # `flat` is the old
                # behaviour, a river painted on the walking plane.
                %{
                  "key" => "depth",
@@ -132,8 +131,7 @@ defmodule NebulithWeb.GeneratorControllerTest do
       data = json_response(get(conn, ~p"/api/generators"), 200)["data"]
       cave = Enum.find(data, &(&1["key"] == "cave")) |> Map.fetch!("generators") |> hd()
 
-      # His cave: *"1 exit and 3 pathways to simulate entrance ... until I reach a part where is just 1 exit no
-      # pathway, which is the end of the cave"*. Two numbers, and they reach the editor from here.
+      # The cave: Two numbers, and they reach the editor from here.
       assert Enum.map(cave["options"], & &1["key"]) == ~w(exits pathways)
       assert Enum.all?(cave["options"], &(&1["default"] == "random"))
     end

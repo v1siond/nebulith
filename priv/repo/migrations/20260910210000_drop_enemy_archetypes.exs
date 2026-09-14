@@ -4,9 +4,6 @@ defmodule Nebulith.Repo.Migrations.DropEnemyArchetypes do
   @moduledoc """
   Drop `enemy_archetypes`, a few hours old and wrong.
 
-  Alexander, 2026-09-10: *"an enemy is just a regular unit, but marked as hostile towards player. so, I
-  don't think we need a separate table for it, maybe I'm missing something, please explain your reasoning"*.
-
   The reasoning did not survive being written down. The table held nine archetypes for eight creatures, one
   each, and a frontend `Record` translated creature → archetype. Reuse was the only argument for a separate
   table and there was none: a second vocabulary whose whole job is to be translated back is not a concept.

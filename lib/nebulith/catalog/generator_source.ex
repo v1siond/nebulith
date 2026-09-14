@@ -3,10 +3,7 @@ defmodule Nebulith.Catalog.GeneratorSource do
   The SEED for the map-generator catalog — the categories the editor offers and the generators in
   them, ported verbatim from the constants that used to be scattered across the frontend.
 
-  Alexander (2026-09-06): *"in fact, I want to get to the point where all generators are just backend
-  records organized per categories, we can seed categories and existing generators from what we
-  have"* and *"we should generate the maps based of the specified grid settings, IE: cell size, rows
-  x col"*.
+  and
 
   Every number here is the value the shipped generator uses TODAY, so seeding changes no behaviour —
   it only moves where the number lives. Provenance, so the port can be re-checked:
@@ -34,19 +31,16 @@ defmodule Nebulith.Catalog.GeneratorSource do
   # runs in all of them, so the menu is zone x category with no gaps.
   @zones ~w(spring summer autumn winter desert)
 
-  # THE OPTIONS an outdoor generator offers. Alexander, 2026-09-10: *"we should just have extra options for
-  # each template"*, after listing exactly how the row count explodes otherwise (woodland, woodland + river,
+  # THE OPTIONS an outdoor generator offers. after listing exactly how the row count explodes otherwise (woodland,
+  # woodland + river,
   # woodland + river + bridge…).
   #
   # `requires` is what keeps the panel honest: a crossing is meaningless without a river, so it says so
-  # rather than the frontend knowing it. That was his next ticket too — *"rivers need crossings connected to
-  # the paths"* — and as an option it is one more row here, never another template.
+  # rather than the frontend knowing it. That was the next ticket too — — and as an option it is one more row here,
+  # never another template.
   #
-  # THE RIVER IS A CHOICE OF COURSE, not an on/off. Alexander, 2026-09-11: *"the rivers aren't consistently
-  # generated, It'd like to have variants of river usage, maybe it's traversable, maybe it's dividing the map
-  # in two half, maybe it's around the map, etc right now is super random, and while I want and think the
-  # randomness is good, we need to parametize it a bit more"*. So each course he named is a choice, and the
-  # randomness he wants to keep is one of them rather than the only behaviour.
+  # THE RIVER IS A CHOICE OF COURSE, not an on/off. So each course it named is a choice, and the
+  # randomness it wants to keep is one of them rather than the only behaviour.
   @water_options [
     %{
       "key" => "river",
@@ -68,10 +62,7 @@ defmodule Nebulith.Catalog.GeneratorSource do
       "default" => false,
       "requires" => "river"
     },
-    # HOW DEEP the channel is cut. Alexander, 2026-09-11: *"we need the river without water, which is negative
-    # height compared to walking floor / then inside that we put water with X height it can be < 1, but not
-    # walkable"*, and *"river depth is confgiuravble, same as shadow, same as sun light, we want to control
-    # everyhting, intensity, quality, size, activate, deactivate itm, etc"*.
+    # HOW DEEP the channel is cut. and
     #
     # So the depth is a served number, not a constant the generator picks. `flat` keeps the old behaviour
     # exactly, which is a river painted on the walking plane, so nothing changes for a map that does not ask.
@@ -87,9 +78,9 @@ defmodule Nebulith.Catalog.GeneratorSource do
         %{"key" => "2", "label" => "Two blocks down"}
       ]
     },
-    # WHAT the river is crossed on. Alexander, 2026-09-11: *"on the "bridges" that we use on rivers, we must have
-    # multiple variations too / it can be a simple dirt path, it can be an actual bridge, which again, are
-    # multiple variations"*. Each key is a row of @crossings, which says the tile it lays.
+    # WHAT the river is crossed on. bridges" that we use on rivers, we must have multiple variations too / it can be a
+    # simple dirt path, it can be an actual bridge, which again, are multiple variations"*. Each key is a row of
+    # @crossings, which says the tile it lays.
     %{
       "key" => "bridge",
       "label" => "Kind of crossing",
@@ -109,10 +100,9 @@ defmodule Nebulith.Catalog.GeneratorSource do
   # The tile each kind of crossing lays over the water. A dirt path is the flat floor wearing the dirt path's
   # colour (the floor rule: colour on the flat tile, textured tiles for the things that stand out). The bridges
   # are the textured tiles, in the colour they come in, so each reads as its own material.
-  # A BRIDGE KIND ALSO NAMES ITS COMPOSITION. Alexander, 2026-09-12, in capitals: *"AND THE BRIDGES ARE STILL
-  # NOT BRIDGES COMPOSITIONS / we should have actual BRIDGE"*. The `tile` stays, because it is what a crossing
+  # A BRIDGE KIND ALSO NAMES ITS COMPOSITION. The `tile` stays, because it is what a crossing
   # falls back to when no composition of the needed span is loaded, and it is all a DIRT PATH ever wants: he
-  # called that one *"a dirt pathway"* (#62), not a bridge, so it names no composition on purpose.
+  # called that one (#62), not a bridge, so it names no composition on purpose.
   #
   # The BACKEND names it rather than the frontend deriving `bridge_#{kind}` from the option key, because a
   # composition's name is data about what exists in the catalog. The generator appends the span it needs
@@ -125,11 +115,7 @@ defmodule Nebulith.Catalog.GeneratorSource do
   }
 
   # ── THE WAYS THROUGH A MAP ────────────────────────────────────────────────
-  # Alexander, 2026-09-11: *"I expect maps to have an entrance and exit, sometimes it'll be the same place to enter
-  # and leave, others we must have multiple pathways with different exists ... we should always have paths firsts,
-  # and ensure the rest is build around it"*, and for caves and temples too: *"I can generate a cave with 1 exit and
-  # 3 pathways to simulate entrance, then I continue doing the same until I reach a part where is just 1 exit no
-  # pathway, which is the end of the cave"*.
+  # and for caves and temples too:
   #
   # So a map carries TWO numbers, not one. EXITS are the ways out to another map (the connectors). PATHWAYS are the
   # paths inside it: the ones that are not an exit end somewhere in the map, which is where a closed or gated
@@ -181,11 +167,9 @@ defmodule Nebulith.Catalog.GeneratorSource do
 
   # The per-building material + colour roll. Residential buildings pick a material and a roof/wall
   # tone by a position hash; a store and a hospital are FIXED so they read as civic at a glance.
-  # A LOOK IS A MATERIAL AND A ROOF, not a hex nudge. Alexander, 2026-09-11: *"I picked a tropical city and had
-  # nothing different than a regular one ... the material of houses should be different, walls different, roof
-  # different"*, and *"each settlement variation should have their own flavor and clear differences"*.
+  # A LOOK IS A MATERIAL AND A ROOF, not a hex nudge. and
   #
-  # He was right and the reason was in here: every look carried colours only, and the ROOF TILE is baked into
+  # It was right and the reason was in here: every look carried colours only, and the ROOF TILE is baked into
   # the composition (`house_5` is slate, `house_4` is a gable, `store_5` is a flat deck), so
   # no palette could change a roof's shape. `roof` names the body tile a residential building lays, and the
   # stamper swaps its cap with it. Four wall families exist (brick, plaster, stone, wood), so each look below
@@ -202,35 +186,31 @@ defmodule Nebulith.Catalog.GeneratorSource do
 
   # The light dressing every outdoor map gets: flat ground tufts + a few standing blooms.
   # `tallGrass` is the share of open floor standing in LONG GRASS, walkable, the kind Pokemon hides its
-  # encounters in (Alexander, 2026-09-11: *"we do need some type of walkable long grass too ... that long grass
-  # is walkable, we need variance like that too"*). A field is where you expect it most.
+  # encounters in. A field is where you expect it most.
   @outdoor_nature %{"groundCover" => 0.12, "flowers" => 0.06, "tallGrass" => 0.18}
 
   # A WOODLAND's densities. `canopy` is the share of cells carrying a tree, and it is the number that
-  # makes a forest read as a forest. Alexander, 2026-09-09: *"the meadow is not a forest, it doesn't look
-  # like one"* — measured, the meadow presets produced ~10% tree cover scattered over an open field. At
+  # makes a forest read as a forest. — measured, the meadow presets produced ~10% tree cover scattered over an open
+  # field. At
   # 0.62 the canopy dominates the forest floor and the carved clearings read as clearings rather than as
   # the default state. Note the share is of the PLANTABLE floor, not the whole grid — the clearings and
   # paths are excluded, so this number is not diluted by how many clearings a map happens to roll.
   # Ground cover is richer than the meadow's because a forest floor is not lawn.
-  # Alexander, 2026-09-09: *"we need less trees on woodland, reduce it about 30%."* 0.62 → 0.434. The trees
+  # 0.62 → 0.434. The trees
   # were reading as a wall rather than as a wood — thinning them lets the clearings and trails breathe and
   # lets you see through the trunks. The density lives HERE, not in the generator, so tuning it is a data
   # change and not a code change.
   @woodland_nature %{"groundCover" => 0.2, "flowers" => 0.04, "canopy" => 0.434, "tallGrass" => 0.12}
 
-  # A JUNGLE is a woodland grown over: the canopy Alexander already accepted as forest-dense (the 0.62 the
+  # A JUNGLE is a woodland grown over: the canopy already accepted as forest-dense (the 0.62 the
   # woodland used to carry), plus the thing that actually distinguishes a jungle from a wood — UNDERGROWTH.
   # Ground cover more than doubles and the blooms go with it, so the floor is choked rather than walkable
   # lawn between trunks. Same STRUCTURE as the woodland (clearings, trails); only these numbers differ, which
   # is why it needs no generator of its own. Starting values — tune them here by eye.
   @jungle_nature %{"groundCover" => 0.5, "flowers" => 0.1, "canopy" => 0.62}
 
-  # THE FOREST PALETTES. Alexander, 2026-09-10: *"right now a jungle is basically the same as woodland in the
-  # app, there's not a single difference between them, but they should be, colors should be different"* and
-  # *"like there's a huge difference between amazonas and a pines forest"*.
-  #
-  # He is right, and the reason was structural: every colour in a forest came from the SEASON (spring, autumn)
+  # THE FOREST PALETTES. and
+  # It is right, and the reason was structural: every colour in a forest came from the SEASON (spring, autumn)
   # and nothing came from the KIND of forest, so a spring jungle and a spring woodland were painted from the
   # same numbers. A palette per GENERATOR is what makes them different places, and it lives here because it is
   # data about a template.
@@ -248,8 +228,7 @@ defmodule Nebulith.Catalog.GeneratorSource do
     "canopyAlt" => "#6b8049",
     "undergrowth" => "#6d7f45",
     "water" => "#4f93b3",
-    # Water by DEPTH, then swamp. Alexander, 2026-09-11: *"I only want light blue for walkable water, different
-    # layers of darkblue for the deeper waters and we can have some share of blue-green for swamp"*.
+    # Water by DEPTH, then swamp.
     "waterShallow" => "#8ccbe8",
     "waterDeep" => "#2a5f8a",
     "swamp" => "#3f8a84",
@@ -268,8 +247,8 @@ defmodule Nebulith.Catalog.GeneratorSource do
     "canopy" => "#2e6b32",
     "canopyAlt" => "#3f8a3c",
     "undergrowth" => "#25532a",
-    # Was olive silt (#5e6b3a), my choice in ticket 48, and exactly what he saw: *"right now the green used
-    # makes it look like a floor instead of water and it's confusing"*. Water is blue; only swamp leans green.
+    # Was olive silt (#5e6b3a), my choice in ticket 48, and exactly what was reported: Water is blue; only swamp leans
+    # green.
     "water" => "#3f86b0",
     "waterShallow" => "#86c5e2",
     "waterDeep" => "#23547e",
@@ -278,8 +257,7 @@ defmodule Nebulith.Catalog.GeneratorSource do
     "trail" => "#57502f"
   }
 
-  # WHICH TREES GROW HERE. Alexander, 2026-09-11: *"we need to have more variance of trees, like we're using
-  # the same for all forest variations, but that's not good"*. Every forest rolled from one global weighted
+  # WHICH TREES GROW HERE. Every forest rolled from one global weighted
   # table, so a jungle and a meadow grew the same species. Each template states its own mix now; a template
   # that states none falls back to that global table.
   @woodland_trees [
@@ -322,16 +300,13 @@ defmodule Nebulith.Catalog.GeneratorSource do
     "swamp" => "#3f8a84"
   }
 
-  # HOW THE TREES ARE DISTRIBUTED. Alexander, 2026-09-11: *"we need more variants of trees distribution too,
-  # or formations, like right now all forest variations kind of follow the same type oof tree grouping, but
-  # just there's different forests types, there's different ways in which trees and nature is distributed
-  # across these zones"*, with six reference photographs.
+  # HOW THE TREES ARE DISTRIBUTED. with six reference photographs.
   #
   # Two numbers do most of the work:
   #
   #   * `lattice` — the scale of the noise the canopy is scored against, in cells. SMALL means the score
   #     changes every few cells, so trees land as fine scatter. LARGE means neighbouring cells score alike,
-  #     so they land as big continuous masses. This is the "grouping" he is describing.
+  #     so they land as big continuous masses. This is the "grouping" it is describing.
   #   * `spacing` — the minimum gap between two trunks. 0 lets them touch and read as a wall; 3 forces the
   #     open, individually-readable spacing of a wood pasture. NEVER 1: claiming only the four orthogonal
   #     neighbours leaves a CHECKERBOARD, which is passable diagonally (the iso view's movement) but not
@@ -341,10 +316,9 @@ defmodule Nebulith.Catalog.GeneratorSource do
   # `understory` multiplies the served ground cover, because how choked the floor is between the trunks is
   # the other half of what tells two forests apart.
   #
-  # Each of these is one of his photographs:
+  # Each of these is one of the photographs:
   # WHICH PLANT GROWS AS THE UNDERSTORY, per formation, and it is the whole of ticket 2.
   #
-  # Alexander, 2026-09-12: *"collissions still wrong, I'm not able to walk over the green flowers"*.
   # Measured: of the 40 nature tiles the catalog serves, `thicket` is the ONLY one that blocks, and the
   # undergrowth pass could plant nothing else. So every template from the meadow up grew waist-high walls
   # wearing a plant picture, including three formations whose own notes below promise the opposite:
@@ -372,9 +346,7 @@ defmodule Nebulith.Catalog.GeneratorSource do
     "flooded" => %{"lattice" => 5, "spacing" => 3, "understory" => 0.7}
   }
 
-  # THE JUNGLE'S SUB-ZONES. Alexander, 2026-09-10: *"the generator shoudl be smart enough to identify
-  # different patterns of jungles for example, open zones, dense zones, zones with swamp, zone with river,
-  # zone with cave, zone with ruins"*, and 2026-09-11 on the shape: REGIONS INSIDE ONE MAP, not more rows in
+  # THE JUNGLE'S SUB-ZONES. and 2026-09-11 on the shape: REGIONS INSIDE ONE MAP, not more rows in
   # the template list. You walk out of the open canopy into dense growth, through a swamp, up to the ruins,
   # without loading anything.
   #
@@ -384,9 +356,9 @@ defmodule Nebulith.Catalog.GeneratorSource do
   #
   # The river is not in this list because it is not a region — it is the watercourse that runs THROUGH them,
   # and every jungle has one.
-  # WOODLAND REGIONS. Alexander, 2026-09-11: *"woodland with meadow is the same as mountain forest..."*.
+  # WOODLAND REGIONS.
   #
-  # Measured, he was right: glades ran `canopy 0.35` and mountain forest `0.28`, both under the SAME `clumped`
+  # Measured, it was right: glades ran `canopy 0.35` and mountain forest `0.28`, both under the SAME `clumped`
   # formation with the same ground cover, on ground that is flat everywhere. One thin uniform scatter, twice.
   #
   # "Stands of trees broken by open meadow" is its own description and it is TWO REGIONS, not one average. A
@@ -418,10 +390,8 @@ defmodule Nebulith.Catalog.GeneratorSource do
     }
   ]
 
-  # THE MOUNTAIN'S SUB-ZONES, and the first regions that stand at DIFFERENT HEIGHTS. Alexander, 2026-09-11:
-  # *"mountain forest is not a real mountain forest, I mean it doesn't even have mountain nor relieve sections,
-  # when we can construct them withn cells easily... it doesn't have cliff, nor anything, it's basically just a
-  # meadow"*, and 2026-09-12: *"we need to have support for different levels of terrain, relieve in spanish"*.
+  # THE MOUNTAIN'S SUB-ZONES, and the first regions that stand at DIFFERENT HEIGHTS.
+  # and 2026-09-12:
   #
   # `level` is what makes this a mountain instead of a colour change: the cells of a region stand at that level
   # and the step down to the next region is drawn as a cliff face. A ridge at 3 over a slope at 1 is a two-level
@@ -469,10 +439,10 @@ defmodule Nebulith.Catalog.GeneratorSource do
 
   # A JUNGLE'S OWN BLOOMS. Measured 2026-09-13: the shared `open`, `dense` and `ruins` regions stated none, so
   # every jungle variant that did not override them fell through to the SEASON's set, and summer's carries
-  # `✽ #f4f4ec`, the near-white Alexander has rejected twice. A rainforest floor is not a daisy meadow.
+  # `✽ #f4f4ec`, the near-white rejected twice. A rainforest floor is not a daisy meadow.
   #
   # Like the swamp's and the island's, these colours are a PROPOSAL rather than a derivation: heliconia red,
-  # orchid violet and a waxy cream-yellow, for his eye to accept or replace.
+  # orchid violet and a waxy cream-yellow, to accept or replace in review.
   @jungle_blooms [
     %{"char" => "✿", "color" => "#c2513f"},
     %{"char" => "✾", "color" => "#8d5fa8"},
@@ -480,8 +450,8 @@ defmodule Nebulith.Catalog.GeneratorSource do
   ]
 
   # The swamp's blooms, named once because the swamp VARIANT gives them to its other regions too (ticket 27).
-  # These colours are a PROPOSAL, not a derivation: his instruction was negative (no white), so the set is
-  # muted swamp growth (iris violet, dull marsh gold, a blue green sedge) for his eye to accept or replace.
+  # These colours are a PROPOSAL, not a derivation: the instruction was negative (no white), so the set is
+  # muted swamp growth (iris violet, dull marsh gold, a blue green sedge) to accept or replace in review.
   @swamp_blooms [
     %{"char" => "✾", "color" => "#7b5fa8"},
     %{"char" => "❋", "color" => "#4f8f7a"},
@@ -496,7 +466,7 @@ defmodule Nebulith.Catalog.GeneratorSource do
       "canopy" => 0.45,
       "undergrowth" => 0.5,
       "floor" => "#3f5f33",
-      # an open region reads as individual trees on visible ground — his image #12
+      # an open region reads as individual trees on visible ground — reference image #12
       "formation" => %{"lattice" => 9, "spacing" => 3, "understory" => 0.5},
       "trees" => [%{"kind" => "tree_palm", "weight" => 30}, %{"kind" => "tree_round", "weight" => 30}, %{"kind" => "tree_big", "weight" => 20}, %{"kind" => "bush_round", "weight" => 20}],
       "flowers" => @jungle_blooms
@@ -508,7 +478,7 @@ defmodule Nebulith.Catalog.GeneratorSource do
       "canopy" => 1.3,
       "undergrowth" => 1.45,
       "floor" => "#24381f",
-      # wall to wall, nothing between — his image #14
+      # wall to wall, nothing between — reference image #14
       "formation" => %{"lattice" => 13, "spacing" => 0, "understory" => 1.3},
       "trees" => [%{"kind" => "tree_giant", "weight" => 25}, %{"kind" => "tree_big", "weight" => 25}, %{"kind" => "bush", "weight" => 25}, %{"kind" => "tree_round", "weight" => 25}],
       "flowers" => @jungle_blooms
@@ -522,17 +492,16 @@ defmodule Nebulith.Catalog.GeneratorSource do
       "floor" => "#3b4a2e",
       # the share of the zone that stands under water — pools, not a channel
       "pools" => 0.22,
-      # cypress standing IN the water, well apart — his image #13
+      # cypress standing IN the water, well apart — reference image #13
       "formation" => %{"lattice" => 5, "spacing" => 3, "understory" => 0.7},
       # the cypress IS the swamp — image #13
       "trees" => [%{"kind" => "tree_cypress", "weight" => 60}, %{"kind" => "bush_round", "weight" => 25}, %{"kind" => "tree_round", "weight" => 15}],
-      # WHAT BLOOMS HERE. Alexander, 2026-09-12: *"does that look like a swamp to you?? where have you seen
-      # swamps with white flowers??"*. A region could already state its SPECIES (`trees` above) and had no way
+      # WHAT BLOOMS HERE. A region could already state its SPECIES (`trees` above) and had no way
       # to state its BLOOMS, so a swamp planted the season's set, and summer's carries `✽ #f4f4ec`, a near
-      # white. Measured in a swamp jungle before this: whites among the blooms, exactly as he saw.
+      # white. Measured in a swamp jungle before this: whites among the blooms, exactly as was seen.
       #
-      # These colours are a PROPOSAL, not a derivation: his instruction was negative (no white), so the set is
-      # muted swamp growth (iris violet, dull marsh gold, a blue green sedge) for his eye to accept or replace.
+      # These colours are a PROPOSAL, not a derivation: the instruction was negative (no white), so the set is
+      # muted swamp growth (iris violet, dull marsh gold, a blue green sedge) to accept or replace in review.
       "flowers" => @swamp_blooms
     },
     %{
@@ -555,8 +524,8 @@ defmodule Nebulith.Catalog.GeneratorSource do
   defp depth(_row, _by_key), do: 0
 
   @doc false
-  # THE REGION PICKER. Alexander, 2026-09-11: *"on jungle we have "regions" in it, but it's badly implemented,
-  # we should just have variations, similar to "which jungle" "which region""*.
+  # THE REGION PICKER. regions" in it, but it's badly implemented, we should just have variations, similar to "which
+  # jungle" "which region""*.
   #
   # Tick boxes are gone. You pick a region to LEAD and the map leans that way, which is the same idiom as
   # picking a preset or a subtype. Built from the KEYS a row actually carries, so a subtype that holds two
@@ -591,8 +560,7 @@ defmodule Nebulith.Catalog.GeneratorSource do
   @doc false
   # THE SAME REGION, IN A DIFFERENT PLACE. `open` and `dense` are shared by every jungle variant, which is
   # why a SWAMP's open patch grew rainforest palms under summer's near-white daisies: it was, literally, the
-  # rainforest's open patch. Alexander, 2026-09-12: *"the swamps still look fucking terrible because they have
-  # nature and flowers that don't match the swamp context"*.
+  # rainforest's open patch.
   #
   # A variant overrides the regions it borrows. Anything it does not name is inherited unchanged, so a plain
   # jungle is untouched.
@@ -613,12 +581,11 @@ defmodule Nebulith.Catalog.GeneratorSource do
     }
   }
 
-  # AN ISLAND IS A COAST, not the Amazon. Alexander, 2026-09-12: *"same with island forest, which is better,
-  # but still not good enough, needs to be more closely related to beaches nature"*. Its palette was already
+  # AN ISLAND IS A COAST, not the Amazon. Its palette was already
   # its own; its regions were still the rainforest's, so palms grew under inland blooms.
   #
   # Like the swamp set, these colours are a PROPOSAL rather than a derivation: shore growth, hibiscus pink,
-  # sea-holly blue and a bleached sand yellow, for his eye to accept or replace.
+  # sea-holly blue and a bleached sand yellow, to accept or replace in review.
   @island_blooms [
     %{"char" => "✿", "color" => "#e2739b"},
     %{"char" => "❋", "color" => "#6aa9c4"},
@@ -626,9 +593,8 @@ defmodule Nebulith.Catalog.GeneratorSource do
   ]
 
   @island_regions %{
-    # THE TROPICS, not a temperate wood with palms in it. Alexander, 2026-09-13: *"the trees variations are the
-    # same as any other forest, when they should be more tropical, like coconnuts trees, bananas, water nature,
-    # etc"*. `tree_coconut`, `tree_banana` and `tree_mangrove` are authored in `tile_source.ex` the same way
+    # THE TROPICS, not a temperate wood with palms in it. `tree_coconut`, `tree_banana` and `tree_mangrove` are
+    # authored in `tile_source.ex` the same way
     # every other species is, as proportions on the shared two-tile tree.
     "open" => %{
       "trees" => [%{"kind" => "tree_coconut", "weight" => 35}, %{"kind" => "tree_palm", "weight" => 25}, %{"kind" => "tree_banana", "weight" => 25}, %{"kind" => "bush_round", "weight" => 15}],
@@ -650,7 +616,7 @@ defmodule Nebulith.Catalog.GeneratorSource do
   def categories do
     [
       %{key: "forest", name: "Forest", position: 0, description: "Woodland and open meadows, with no settlement in them."},
-      # Alexander, 2026-09-11: *"City and town options are the same, it'd put them in a single category"*. So a
+      # So a
       # town and a city are two PRESETS of one kind of place, the way a woodland and a meadow are two presets
       # of forest. The row says which archetype it runs, so the engine still builds a town for Town.
       %{key: "settlement", name: "Settlement", position: 1, description: "Towns and cities: the same streets and squares at different densities."},
@@ -681,11 +647,9 @@ defmodule Nebulith.Catalog.GeneratorSource do
         options: @way_options ++ @water_options
       },
       # ── SUBTYPES ────────────────────────────────────────────────────────────────────────────────────
-      # Alexander, 2026-09-11: *"we should also have extra options to select different types of the selected
-      # zone, or just randomize, and we can go various levels deeper / forest > type of forest > sub type of
-      # type of forest > etc / like maybe it's an island jungle, maybe it's a mountain forest"*. Each one
+      # Each one
       # states ONLY what makes it different; the catalog merges its parent's config under it. The woodland and
-      # meadow sets are his six reference photographs, named by image.
+      # meadow sets are the six reference photographs, named by image.
 
       # image #11 — straight trunks at even spacing, a clear floor
       %{
@@ -700,8 +664,7 @@ defmodule Nebulith.Catalog.GeneratorSource do
         category: "forest", parent: "forest_woodland", key: "forest_woodland_dense", name: "Dense woodland",
         layout: "woodland", position: 1,
         description: "Tall trunks over deep undergrowth, with a trail cut through it.",
-        # A BUSH IS NOT A TREE. Alexander, 2026-09-11: *"'dense woodland' is not dense at all, standard
-        # woodland is denser lol"*. He was right and it was arithmetic: `canopy` is the share of plantable
+        # A BUSH IS NOT A TREE. It was right and it was arithmetic: `canopy` is the share of plantable
         # floor that gets an entry from the TREE table, and 30% of this one's table was `bush`. So its real
         # tree cover was 0.55 x 0.70 = 0.39, against plain woodland's 0.434 x 0.95 = 0.41. It was thinner.
         #
@@ -747,14 +710,12 @@ defmodule Nebulith.Catalog.GeneratorSource do
         config: %{"subZones" => sub_zones_in(%{"swamp" => 6, "dense" => 2, "open" => 1}, @swamp_regions)},
         options: @way_options ++ region_options(~w(open dense swamp)) ++ @water_options
       },
-      # his words — an island: water around it, palms
+      # an island: water around it, palms
       %{
         category: "forest", parent: "forest_jungle", key: "forest_jungle_island", name: "Island jungle",
         layout: "jungle", position: 2,
         description: "Palms over pale sand, ringed by shallow turquoise water.",
-        # AN ISLAND IS NOT THE AMAZON. Alexander, 2026-09-11: *"Island jungle is not different whatsoever from
-        # regular swamp, vegetation and colors should differt, the nature from islands is not the same as in
-        # amazonas for example"*.
+        # AN ISLAND IS NOT THE AMAZON.
         #
         # Measured: it inherited the jungle palette WHOLE, so its colours were the same numbers as the swamp
         # jungle's, down to the hex. Only the tree weights differed and you cannot see a weight. An island is
@@ -774,8 +735,7 @@ defmodule Nebulith.Catalog.GeneratorSource do
                     "bank" => "#e8d6a6",
                     "trail" => "#cdb684"
                   }),
-                  # THE WHOLE ISLAND, not just its two regions. Alexander, 2026-09-13: *"when I generate island jungles,
-                  # most of the trees are still the same used in other jungles"*. He is right and this line was why:
+                  # THE WHOLE ISLAND, not just its two regions. It is right and this line was why:
                   # a cell inside `open` or `dense` takes that region's mix, and everything OUTSIDE them falls back
                   # to THIS list, which was the generic palm-and-round set. On a map where the regions cover part of
                   # the ground, most trees came from here.
@@ -804,10 +764,7 @@ defmodule Nebulith.Catalog.GeneratorSource do
         config: %{}
       },
       # ── SETTLEMENTS, BUILT LIKE FORESTS ─────────────────────────────────────────────────────────────
-      # Alexander, 2026-09-11: *"all settlements are still the same fucking thing, only city and town are
-      # different, the rest are the same"*, *"we even have THE FUCKING FOREST as baseline, just like a swamp
-      # jungle is not the same as regular jungle"*, and *"i think we should threat setlement the same way we do
-      # with forest"*.
+      # and
       #
       # So the shape is the forest's. What you pick is the KIND, and a town and a city really are the two
       # different things: a town is low and green with stone pathways through it, a city is dense and paved. A
@@ -815,13 +772,11 @@ defmodule Nebulith.Catalog.GeneratorSource do
       # the archetype and the options and deep-merges the config (a list, like the building mix, REPLACES its
       # parent's rather than adding to it, which is the point of stating one).
       #
-      # Four of the old rows are gone at his word: *"remove "andean town", "remove mediterranean city", remove
-      # "tropical city""* and *"snowy town shouldn't exist a snowing town is just a regular town withn winter
-      # season and rain active"*.
+      # Four of the old rows are gone: andean town, mediterranean city and tropical city, and
       #
-      # NOT here yet, deliberately: his *"A swamp city should be a city in a fucking swamp"* and the city with a
+      # NOT here yet, deliberately: the city with a
       # lake (image #34). A settlement generator places no WATER at all today, so both would be a normal place
-      # with browner walls, which is the exact paint he rejected. They wait on the water work.
+      # with browner walls, which is the exact paint it rejected. They wait on the water work.
       %{
         category: "settlement", key: "town", name: "Town", layout: "town", variant: "town", position: 0,
         description: "Houses along stone pathways, a square in the middle, trees between the lots.",
@@ -942,8 +897,7 @@ defmodule Nebulith.Catalog.GeneratorSource do
             # forge for the boats. Leaving the farm buildings in made this the forest village in other colours.
             "mix" => mix([{"smithy", 1, 1}])
           },
-          # CHOKED, not lawn. Alexander, 2026-09-11: *"a swamp town should have rivers, be more jungle like,
-          # have houses made of wood"*. The wood it already had. This is the jungle half: undergrowth to the
+          # CHOKED, not lawn. The wood it already had. This is the jungle half: undergrowth to the
           # doorstep and trees pressing in, the same numbers that separate a jungle from a woodland.
           # The RIVERS it wants are the one part that cannot be served yet, because a settlement generator
           # places no water at all. That is the same blocker as the swamp city and the lake city.
@@ -1033,9 +987,8 @@ defmodule Nebulith.Catalog.GeneratorSource do
         attrs
         |> Map.drop([:category, :parent])
         |> Map.put(:category_id, Map.fetch!(ids, attrs.category))
-        # A ROW MAY IMPLY ITS SEASON. Alexander, 2026-09-11: *"if the season is implied, it shoudl be
-        # preselected, or we don't mention the clima at all, like, snowy town implies winter season for
-        # example"*. A row that states its own seasons keeps them; everything else runs in all of them.
+        # A ROW MAY IMPLY ITS SEASON. A row that states its own seasons keeps them; everything else runs in all of
+        # them.
         |> Map.put(:zones, Map.get(attrs, :zones, @zones))
         |> Map.put(:parent_id, parent_id)
 
@@ -1054,7 +1007,7 @@ defmodule Nebulith.Catalog.GeneratorSource do
 
     # A GENERATOR the list no longer names goes the same way, and this one bit harder: the settlement LOOKS
     # replaced `town_default` and `city_default`, and without this the old rows sat in the menu as ghosts. His
-    # *"we still have "city" and "town" but they're exactly the same"* would have been true all over again,
+    # A city and a town that are exactly the same would have been true all over again,
     # from the database rather than from the source. Deleting a parent takes its subtypes with it.
     keys = Enum.map(rows, & &1.key)
 
@@ -1081,8 +1034,7 @@ defmodule Nebulith.Catalog.GeneratorSource do
       "houseWidths" => [3, 3, 4, 4, 4, 5, 6],
       "natureMultiplier" => Keyword.fetch!(opts, :nature_mult),
       "mix" => mix(Keyword.fetch!(opts, :mix), Keyword.get(opts, :demanded_houses, {1, 3})),
-      # WHAT THIS PLACE PAVES ITS STREETS WITH. Alexander, 2026-09-11: *"a town doesn't have roads, it has
-      # pathways of stone, cities do have pathways a skycraoppers"*.
+      # WHAT THIS PLACE PAVES ITS STREETS WITH.
       #
       # Measured before writing this: the settlement pass painted every street `road` for a town and a city
       # alike, so a village had asphalt through it. A street is a COLOUR on the ground block, not a tile
@@ -1092,10 +1044,7 @@ defmodule Nebulith.Catalog.GeneratorSource do
     }
   end
 
-  # WHICH BUILDINGS A PLACE IS MADE OF. Alexander, 2026-09-11: *"there's not a single difference between any of
-  # the settlements ... all you did was change colors, when everything should've changed like having different
-  # types of settlements implies having different objects"*, and *"cities have more skycrappers, towns have more
-  # houses"*.
+  # WHICH BUILDINGS A PLACE IS MADE OF. and
   #
   # A look was a palette, so every place built the same store, hospital, temple and offices in different colours.
   # This is the other half: the LIST of buildings a place demands, as data, per place. A traditional town asks for

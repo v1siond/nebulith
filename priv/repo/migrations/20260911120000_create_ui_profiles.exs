@@ -4,21 +4,17 @@ defmodule Nebulith.Repo.Migrations.CreateUiProfiles do
   @moduledoc """
   THE PLAYER-UI MODEL — the HUD, the keys and the bars, as data.
 
-  The spec for this is `2026-09-06-ui-system-spec-and-plan.md` §2.3, and Alexander answered its open
+  The spec for this is `2026-09-06-ui-system-spec-and-plan.md` §2.3, and the open
   questions the same day. The answers are what this schema is shaped by:
 
-  * **One profile per GAME, plus a seeded default** (his Q1) — *"these profiles would basically act as game
-    settings, and we'd always offer an easy default set"*. `game_id` nil IS the default profile.
-  * **Author and player, with author-controlled limits** (Q2) — *"authors have the ability to build the UI
-    they want and also limit it's editability, players are allowed to do only as much as the game author
-    allows"*. Hence `editable` on a binding and on an element, owned by the author.
-  * **Unlimited bars, no paging, with CONDITIONAL swapping** (Q6) — *"allow user to create as much bars as
-    they need, no pagination. But do support things like conditional swapping, I'd like to be able to
-    activate bars when certain things happen"*. Hence `ui_bars.condition`, a jsonb rule rather than a
+  * **One profile per GAME, plus a seeded default** (the Q1) — `game_id` nil IS the default profile.
+  * **Author and player, with author-controlled limits** (Q2) — Hence `editable` on a binding and on an element,
+  owned by the author.
+  * **Unlimited bars, no paging, with CONDITIONAL swapping** (Q6) — Hence `ui_bars.condition`, a jsonb rule rather
+  than a
     boolean: the trigger kinds he listed (event, quest action, vehicle, object, ability) are open-ended.
   * **Bars are player-only** (Q7) — so there is no unit/enemy bar here; an enemy's attacks are its own.
-  * **Desktop AND mobile layouts** (Q9) — *"I'd like to be able to make a desktop AND mobile layout, where
-    depending on screensize, either activates"*. Hence `form` on an element row: one profile carries both.
+  * **Desktop AND mobile layouts** (Q9) — Hence `form` on an element row: one profile carries both.
 
   `ui_actions` is the seeded ACTION CATALOG and is read-only to the frontend: it names what CAN be bound
   (move_up, attack_primary, power_1…), which is engine capability rather than per-game taste.

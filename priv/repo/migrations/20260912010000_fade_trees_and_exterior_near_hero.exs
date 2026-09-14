@@ -2,9 +2,7 @@ defmodule Nebulith.Repo.Migrations.FadeTreesAndExteriorNearHero do
   @moduledoc """
   Trees and the other standing exterior tiles ease see-through as the hero comes close.
 
-  Alexander, 2026-09-11: *"we must add transparency/opacity on all static elements, when user is close, they get
-  more transparent. Specially on trees and buildings, and any exterior element that can block us from seeing the
-  player character"*. The renderer already fades any tile carrying `fadeNear`; a building's walls, windows and
+  The renderer already fades any tile carrying `fadeNear`; a building's walls, windows and
   doors did, the trees and everything else outside did not.
 
   Runs `TileSource.ensure_fade_near/0`, which writes only the `fadeNear` key, so editor-tuned poses survive. Only

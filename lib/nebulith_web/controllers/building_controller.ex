@@ -2,13 +2,8 @@ defmodule NebulithWeb.BuildingController do
   @moduledoc """
   BUILDINGS AT ANY SIZE.
 
-  Alexander, 2026-09-08: *"i think we should NOT have a fixed size, but a default one and allow user to
-  specify the size of the element they want to put — for example, why having 3 size house when we can have
-  1 house button and allow user to make a house as big or as small as he wants??? … i want to be able to
-  generate a store of any size, a hospital of any size, etc."*
-
-  `index` lists the types the composer can build, each with the DEFAULT footprint Alexander asked for
-  (*"we should have default values … you can pick one of the old hardcoded values"* — so each default IS
+  `index` lists the types the composer can build, each with its DEFAULT footprint
+  (— so each default IS
   that type's authored footprint) and the smallest size worth offering.
 
   `show` composes one at an arbitrary size and serves it in the SAME shape `/api/tilesets` serves a seeded

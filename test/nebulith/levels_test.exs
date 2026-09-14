@@ -1,9 +1,6 @@
 defmodule Nebulith.LevelsTest do
   @moduledoc """
-  THE LEVEL LAYER. Alexander, 2026-09-10: *"game > has many levels > has many templates"*, *"for example,
-  Mario > 1-1 1-2 1-3 1-4"*, and on why it has to be real rather than a naming convention: *"a level may be a
-  jungle, that contains 4 caves, each one connected to na separate template that is still part of the current
-  level"*.
+  THE LEVEL LAYER. and on why it has to be real rather than a naming convention:
 
   Four caves and a jungle are FIVE maps and ONE level. Everything below is that sentence.
   """

@@ -1,7 +1,6 @@
 /**
  * BUILD A GAME — an end-to-end usability journey, played as a real user would.
  *
- * Alexander, 2026-09-08:
  *   "it's running all flows end to end, from creating a new game, generating maps, connectors, again.
  *    You must use the app as a real user would, you must literally create a game with it, document the
  *    pain points, the bottlenecks, the inconveniences, the bad things in the UI, in the UX, and based of

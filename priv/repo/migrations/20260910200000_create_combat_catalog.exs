@@ -4,10 +4,7 @@ defmodule Nebulith.Repo.Migrations.CreateCombatCatalog do
   @moduledoc """
   CREATURES AND COMBAT AS DATA.
 
-  Alexander, 2026-09-10: *"any data that changes per level, per template, list of available templates,
-  their footprints, basically anything that is DATA should be moved to the backend, the frontend just
-  processes the data algorithmically"*, and on 2026-09-06 about enemies specifically: *"enemies are a
-  separate configurable entity each one with their own patterns and attacks"*.
+  and on 2026-09-06 about enemies specifically:
 
   Two tables, because they are two different things:
 

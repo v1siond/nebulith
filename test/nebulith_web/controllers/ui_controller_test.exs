@@ -2,7 +2,7 @@ defmodule NebulithWeb.UiControllerTest do
   @moduledoc """
   `GET /api/ui` — the action catalog and the UI profile in force.
 
-  Shaped by the answers Alexander gave the UI spec on 2026-09-06: one profile per game plus a seeded
+  Shaped by the answers to the UI spec: one profile per game plus a seeded
   default, author-controlled player limits, unlimited bars with conditional swapping, and a Desktop AND a
   Mobile layout in the same profile.
   """

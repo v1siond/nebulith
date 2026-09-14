@@ -2,8 +2,8 @@ defmodule NebulithWeb.TemplateControllerTest do
   @moduledoc """
   `/api/templates` — a saved map's ROUND TRIP.
 
-  Written for a defect that had no test to catch it. Alexander, 2026-09-10: *"the ground thicknes ... the
-  data is stored in the database"*. It was not: the editor had sent `slabBlocks` with every save since
+  Written for a defect that had no test to catch it. It was not: the editor had sent `slabBlocks` with every save
+  since
   `75f9685`, `Template` declared no such field, and `cast/3` drops what the schema does not declare —
   silently, with a 200 back, so a saved map always reloaded one block deep.
 

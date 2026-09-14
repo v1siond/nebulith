@@ -1,6 +1,6 @@
 defmodule Nebulith.DataMigration.FlatTilesZeroHeight do
   @moduledoc """
-  Takes every FLAT tile back to height 0 (Alexander: "GET THE TILES OF 0.1 DOWN TO 0").
+  Takes every FLAT tile back to height 0.
 
   `FlatTilesMinimalHeight` (0001) gave flat tiles a 0.1 "minimal slab". That slab is not needed and is not the
   model: FLOORS ARE TILES, AND ALL TILES STACK ON TOP OF EACH OTHER LIKE LEGOS BY DEFAULT (MAP-MODEL §4). A

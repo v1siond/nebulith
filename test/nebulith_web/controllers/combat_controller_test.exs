@@ -3,8 +3,7 @@ defmodule NebulithWeb.CombatControllerTest do
   `GET /api/combat` — the creature roster and the fight's coefficients.
 
   These were nine stat blocks and a handful of "tunable coefficients" in the frontend
-  (`game/archetypes.ts`, `game/combat.ts`, `game/entities.ts`). Alexander, 2026-09-10: *"anything that
-  is DATA should be moved to the backend, the frontend just processes the data algorithmically"*.
+  (`game/archetypes.ts`, `game/combat.ts`, `game/entities.ts`).
   """
   use NebulithWeb.ConnCase
 
@@ -23,7 +22,6 @@ defmodule NebulithWeb.CombatControllerTest do
     end
 
     test "serves no creature roster — a creature's numbers ride on its own tile", %{conn: conn} do
-      # Alexander, 2026-09-10: *"an enemy is just a regular unit, but marked as hostile towards player"*.
       # `enemy_archetypes` is gone; `TileSource.seed_unit_combat/0` puts the stat block on the tile.
       data = json_response(get(conn, ~p"/api/combat"), 200)["data"]
       refute Map.has_key?(data, "archetypes")

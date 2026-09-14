@@ -4,8 +4,6 @@ defmodule Nebulith.Repo.Migrations.AddOptionsToGenerators do
   @moduledoc """
   A generator declares its OPTIONS, so a variation stops being a new row.
 
-  Alexander, 2026-09-10:
-
     > our current layout has a proble, every time we add a new template, the list grows, even when the
     > template is in a similar category as others. for example, we have woodland, woodland + river, Jungle,
     > meadow, meadow + river and now we'll add bridges on river, we might have woodlan, woodlan + river,

@@ -2,10 +2,6 @@ defmodule Nebulith.DataMigration.GroundTilesAreFlat do
   @moduledoc """
   The ground you WALK ON is flat: every `terrain`, `floors` and `roads` tile goes to height 0.
 
-  Alexander, 2026-09-10: *"floors should be generated with height 0, which mean, the height setting from the
-  floor tile is 0, which allow us to save it in the backend … floor are regular fucking tiles, nothing more
-  nothing less."*
-
   ## Why this is data and not code
 
   The frontend had stopped reading a tile's height at all (`resolveTileHeight` did `void tile`). It did that

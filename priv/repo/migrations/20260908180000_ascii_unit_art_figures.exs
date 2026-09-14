@@ -2,8 +2,6 @@ defmodule Nebulith.Repo.Migrations.AsciiUnitArtFigures do
   @moduledoc """
   Gives every ascii UNIT its composed FIGURE instead of one character.
 
-  Alexander, 2026-09-08 (Image #13 — a town whose entire cast was `♀` and `♂`):
-
     > all unit tiles are wrong … a dog is not a single character, is a set of characters combined to form a
     > dog, that was then converted to png to be a tile … we lost the unit ascii art and we must recover it
     > a correctly convert it to tile images and save them in thew elixir backend

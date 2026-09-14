@@ -2,7 +2,7 @@ defmodule Nebulith.Catalog.TemplateLoadoutPersistenceTest do
   @moduledoc """
   Proves the ELIXIR persistence layer preserves a UNIT's loadout/inventory EXACTLY — the backend side of
   "if I equip something I want to see it equipped next time … if I move things in my inventory to a specific
-  order I should see the same when reloading" (Alexander).
+  order I should see the same when reloading".
 
   The `Template` table is a Prisma-owned shared table with no Ecto migration, so it is absent from the
   test DB — the controller round-trip can't run here. Instead we test the two layers that DO the preserving:

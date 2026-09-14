@@ -2,9 +2,6 @@ defmodule Nebulith.Repo.Migrations.AddFlatFloorTile do
   @moduledoc """
   Adds the flat `floor` ground tile, in both styles, to a DB that already exists.
 
-  Alexander, 2026-09-11: *"look how we handle the floor in meadow, just using different colors and only using
-  the floor tiles as ornaments, that's how we wanna do it on all other templates too"*.
-
   The meadow's floor is one flat tile tinted per cell. Every other template laid a TEXTURED tile as its whole
   floor (a cave is `cave_floor` wall to wall, a temple a checkerboard of two textured tiles). This is the flat
   tile they lay instead, wearing the material's colour, so the textured ones are left for ornaments.

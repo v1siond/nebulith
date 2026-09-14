@@ -1,8 +1,6 @@
 defmodule Nebulith.Repo.Migrations.CreateLevels do
   @moduledoc """
-  THE LEVEL LAYER. Alexander, 2026-09-10: *"game > has many levels > has many templates"*, *"for example,
-  Mario > 1-1 1-2 1-3 1-4"*, and on why it is a real layer and not a label: *"a level may be a jungle, that
-  contains 4 caves, each one connected to na separate template that is still part of the current level"*.
+  THE LEVEL LAYER. and on why it is a real layer and not a label:
 
   Until now a game held templates directly (`game_templates`), flat, so there was nowhere to say "these four
   maps are one level". That is also why "Manage levels" showed him a list of GAMES: there were no levels to

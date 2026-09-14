@@ -2,8 +2,6 @@ defmodule Nebulith.Repo.Migrations.AgreeLabelColors do
   @moduledoc """
   Gives every style's row for a label the SAME per-zone colours, on a DB that already exists.
 
-  Alexander, 2026-09-12: *"seed the emoji colors first also"*.
-
   Measured on the live catalog first: 240 ascii rows carried `settings.colors` and TWO emoji rows did
   (`leaf_center`, `leaf_top`), whose values were already identical to their ascii twins. So this copies an
   existing precedent across 238 labels rather than inventing a palette, and a style that authored its own

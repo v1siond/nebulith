@@ -2,11 +2,6 @@ defmodule Nebulith.ParametricBuildingsTest do
   @moduledoc """
   BUILDINGS AT ANY SIZE — `BuildingCompositions.compose_building/4`.
 
-  Alexander, 2026-09-08: *"i think we should NOT have a fixed size, but a default one and allow user to
-  specify the size of the element they want to put — for example, why having 3 size house when we can have
-  1 house button and allow user to make a house as big or as small as he wants??? … i want to be able to
-  generate a store of any size, a hospital of any size, etc."*
-
   `building_compositions_test.exs` already asserts the ELEVEN authored buildings cell-for-cell, and they are
   now composed through this same function — so that suite is the proof that this generalises the seeds
   rather than replacing them with something merely similar. This suite covers what it adds: the sizes nobody
@@ -82,7 +77,7 @@ defmodule Nebulith.ParametricBuildingsTest do
     end
   end
 
-  describe "what the user may override — Alexander: \"allow user to change the selected roof, walls, windows and doors\"" do
+  describe "what the user may override — the selected roof, walls, windows and doors\"" do
     test "the wall material" do
       comp = BC.compose_building("house", 6, 4, material: "wall_stone")
       assert Enum.any?(labels(comp), &String.starts_with?(&1, "wall_stone"))

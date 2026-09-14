@@ -45,21 +45,20 @@ defmodule Nebulith.Catalog.TileSource do
     "wall" => %{"fadeNear" => true},
     "window" => %{"fadeNear" => true},
     # A DOOR stays opaque and obvious while the wall around it fades — it is the thing you are looking FOR
-    # (Alexander 2026-09-06: "doors should be more opaque and obvious", "would I know that there's a door in a
-    # building if I can't see it?"). `minAlpha` is the floor the reveal may never take a tile below.
-    # `scaleZ` is THICKNESS — a door is a thin panel in the wall, not a full cube (Alexander, Image #10: "they
-    # don't look like doors"). Distinct from the editor's "z-width" (`depth`), which counts CELLS spanned and is
+    # . `minAlpha` is the floor the reveal may never take a tile below.
+    # `scaleZ` is THICKNESS — a door is a thin panel in the wall, not a full cube. Distinct from the editor's
+    # "z-width" (`depth`), which counts CELLS spanned and is
     # always >= 1 because a tile occupies its own cell.
     #
     # `thicknessDir` is WHICH WAY it is thin, as a WORLD axis. Without it the shrink happened along a
-    # screen axis, so a door read as thin from one side of the house and solid from the other (Alexander,
+    # screen axis, so a door read as thin from one side of the house and solid from the other (
     # Image #3: "it's only applied viewing to MY front, not the front of the house"). `left-down` is +row =
     # the FRONT face a building is authored with (`building_compositions.ex`: `front = dy == h - 1`), and the
     # stamp ROTATES it by the building's rotation, so every door is thin toward ITS OWN house's front.
     "door" => %{"fadeNear" => true, "minAlpha" => 0.9, "scaleZ" => 0.3, "thicknessDir" => "left-down"},
     # The ridge apex is ROOF, so it lifts off with the rest of it. It used to carry `fadeNear` (it was the
     # "walkable apex cap"), which left a hero standing under a PEAK column — the door columns of every gable
-    # house — under no cutaway tile at all, so the roof stayed solid over their head (Alexander, Image #4:
+    # house — under no cutaway tile at all, so the roof stayed solid over their head (
     # "I'm inside but I can't see inside, the roof is not transparent").
     "roof_top" => %{"cutawayRoof" => true},
     "roof" => %{"cutawayRoof" => true},
@@ -71,7 +70,7 @@ defmodule Nebulith.Catalog.TileSource do
     "parapet" => %{"cutawayRoof" => true},
     "rooftop_unit" => %{"cutawayRoof" => true},
     # FLOWERS render as a single centered BILLBOARD in a transparent block (a standing bloom, not a cube) —
-    # EVERYWHERE: scattered AND inside compositions (Alexander #49). Set on the flower TILE so it's global, not
+    # EVERYWHERE: scattered AND inside compositions. Set on the flower TILE so it's global, not
     # per-composition. Every flower reuses `decor_flower`'s art, so they all take the same behavior.
     "decor_flower" => %{"display" => "single", "transparent" => true},
     "blossom" => %{"display" => "single", "transparent" => true},
@@ -172,8 +171,8 @@ defmodule Nebulith.Catalog.TileSource do
   # Reuse the existing row if present (leaving its `data` blob untouched);
   # create a bare key/name row when absent.
 
-  # How the style picker SHOWS each style. A tileset row is an art style (Alexander: "styles should be
-  # backend categories"), so its icon and order are catalog data, not something the frontend declares.
+  # How the style picker SHOWS each style. A tileset row is an art style, so its icon and order are catalog data, not
+  # something the frontend declares.
   # ASCII is position 1 — it is the editor's default and the engine's baseline.
   @style_presentation %{
     "ascii" => %{icon: "⌨", position: 1},
@@ -238,8 +237,8 @@ defmodule Nebulith.Catalog.TileSource do
   end
 
   # ── Ascii terrain / ground tiles ──────────────────────────────────────────
-  # Ground is walkable (blocking false) and a height-1 BLOCK (Alexander 2026-07-26: "all tiles/blocks are height
-  # 1 by default. GLOBAL"). Its glyph is the first `char` variant; the full char/fg/bg arrays live in settings.
+  # Ground is walkable (blocking false) and a height-1 BLOCK. Its glyph is the first `char` variant; the full
+  # char/fg/bg arrays live in settings.
 
   defp seed_terrain_tiles(terrain, tileset_id) do
     for {label, %{"char" => char, "fg" => fg, "bg" => bg} = t} <- terrain do
@@ -874,7 +873,7 @@ defmodule Nebulith.Catalog.TileSource do
   end
 
   # ── Cross-style vocabulary parity (1:1 label set) ─────────────────────────
-  # THE full-parity pass (Alexander: "full 1:1 vocabulary parity now"): every tile LABEL exists in BOTH
+  # THE full-parity pass: every tile LABEL exists in BOTH
   # styles so a map painted or generated in one style never renders `?` in the other. Only the ART differs —
   # the SAME label carries the SAME height/category/blocking (MAP-MODEL §4). We author each gap label's twin
   # by FOLLOWING the existing patterns, never inventing art:
@@ -1147,8 +1146,7 @@ defmodule Nebulith.Catalog.TileSource do
     %{label: "tropical_grass", emoji: "🟩", image_url: "/tiles/emoji/sq_green.png", color: "#32c850"},
     %{label: "volcanic_rock", emoji: "⬛", image_url: "/tiles/emoji/sq_black.png", color: "#644632"},
     # THE BANDS HAVE THEIR OWN ART NOW. Both pointed at `sq_blue.png`, a flat rounded square, so a river came
-    # out as three flat tones with no texture in any band: Alexander, 2026-09-12, *"water looks weird and is
-    # inconsistent"* and *"the middle river is super weird"*. Authored as drawn art in `tiles.json` (the new
+    # out as three flat tones with no texture in any band: and Authored as drawn art in `tiles.json` (the new
     # `svg` shape) and baked per style, so shallow reads busy and bright and deep reads calm and dark.
     %{label: "water_deep", emoji: "🟦", image_url: "/tiles/emoji/water_deep.png", color: "#1144aa"},
     %{label: "water_shallow", emoji: "🟦", image_url: "/tiles/emoji/water_shallow.png", color: "#4488dd"},
@@ -1306,15 +1304,11 @@ defmodule Nebulith.Catalog.TileSource do
   @doc """
   WHAT GROWS ON THE FLOOR: walkable long grass, and a thicket you cannot push through.
 
-  Alexander, 2026-09-11: *"some collisions are actually dumb lol, we are using collissions in flowers / like, I
-  get it on trees, but flowers? come on, let's have some common sense when doing these generators / it's easy to
-  know which things should be walkable and which shouldn't."* The jungle's undergrowth pass was drawing the same
+  The jungle's undergrowth pass was drawing the same
   little clover a meadow uses and then blocking the cell, so what you saw was walkable and what you hit was a
   wall. A thicket that stops you has to LOOK like a thicket, which is what `thicket` is for.
 
-  And: *"we do need some type of walkable long grass too, for example, look pokemon they ahve regular grass and
-  regular roads, but ALSO, have different type of long grass where pokemon appears, that long grass is walkable,
-  we need variance like that too"*. That is `tall_grass`, walkable, height 0 like `grass`.
+  And: That is `tall_grass`, walkable, height 0 like `grass`.
 
   Heights and shapes are taken from the rows they stand beside rather than invented: `grass` is height 0.0, and
   `bush` is height 1.0 with `fadeNear`, so the thicket fades as you approach it the way a bush does.
@@ -1386,8 +1380,7 @@ defmodule Nebulith.Catalog.TileSource do
   @doc """
   Upserts the FLAT `floor` ground tile in BOTH styles: the meadow's flat floor, for every other template.
 
-  Alexander, 2026-09-11: *"look how we handle the floor in meadow, just using different colors and only using
-  the floor tiles as ornaments, that's how we wanna do it on all other templates too"*. A cave, a temple, a
+  A cave, a temple, a
   town plaza or a snowy wood lays this tile and writes the material's colour on it as per-cell STATE, which
   leaves the textured tiles (cave floor, moss, stone) for ornaments.
 
@@ -1411,18 +1404,17 @@ defmodule Nebulith.Catalog.TileSource do
   end
 
   # What a hand-painted floor wears before anyone colours it. A generated one always carries its own.
-  # ONE EARTH FAMILY, EVERYWHERE. Alexander, 2026-09-12, answering the question that blocked the base material:
-  # *"one earth family everywhere"*, with *"please make sure the default grid, doesn't have any tiles and it's
-  # dirt color or it's a real floor, on both emoji and ascii"* and his Image #65.
+  # ONE EARTH FAMILY, EVERYWHERE.
+  # with and the Image #65.
   #
   # This was a neutral grey (#8c8a82). It is the base tone of the FLAT floor tile, and every template that lays
   # `floor` writes its own per-cell colour over the top, so this value is only ever seen where nobody repaints:
-  # a fresh grid and a blank stage. Those are exactly the two surfaces he was looking at.
+  # a fresh grid and a blank stage. Those are exactly the two surfaces it was looking at.
   #
   # `makeFloorAsset` then derives the map BODY from it (`groundSideColor` darkens the surface), so one earth
   # tone here gives the default grid its dirt colour AND the body under it, with no new tile and no new plumbing.
   #
-  # The hex is a PROPOSAL, not a derivation: he said "dirt color", not which one. Mid-brown, between the
+  # The hex is a PROPOSAL, not a derivation: it said "dirt color", not which one. Mid-brown, between the
   # existing `mud_hut` (120,90,60) and `autumn_ground` (74,50,30).
   @floor_color "#7a5c3e"
 
@@ -1466,8 +1458,8 @@ defmodule Nebulith.Catalog.TileSource do
   @water_color "#4f93b3"
 
   defp seed_meadow_tiles(ascii_id, emoji_id) do
-    # HEIGHT 1.0: the meadow floor is a RAISED colour block with visible side faces (Alexander: "no 0-height
-    # tiles in generators, floor will elevate the things on top") — ornaments STACK on top of it. It stays a
+    # HEIGHT 1.0: the meadow floor is a RAISED colour block with visible side faces — ornaments STACK on top of it. It
+    # stays a
     # flat solid baked square TINTED by the per-cell floor colour (the season gradient / earth / cobble the
     # generator writes as STATE).
     {:ok, _} =
@@ -1508,8 +1500,8 @@ defmodule Nebulith.Catalog.TileSource do
   @doc """
   Upserts the color-only WATER ground tile in BOTH styles — a flat blue floor built the SAME way as `meadow`
   (a flat baked square TINTED by the per-cell floor colour), so the meadow_river layout paints its river +
-  lake with COLOUR instead of a tiled 🌊 texture (Alexander: "reduce tiles usage… build the lake with
-  colors"). Height 1.0 so the water reads as a raised block like the land it sits beside.
+  lake with COLOUR instead of a tiled 🌊 texture. Height 1.0 so the water reads as a raised block like the land it
+  sits beside.
 
   The emoji image is the same flat white square `/tiles/emoji/baked/water.png` (overwritten to a flat square
   in the tile pipeline) that the floor colour tints; the ascii twin carries @water_color as its terrain `bg`
@@ -1520,8 +1512,6 @@ defmodule Nebulith.Catalog.TileSource do
 
   ## Why the height is 0.5 and not 1.0
 
-  Alexander, 2026-09-12, on his Image #50: *"the water level should be below the river channel border"*.
-
   It was 1.0, and the doc here used to justify that as "a raised block like the land it sits beside". That was
   the bug. The iso render lifts one ELEVATION level by `cellSize * isoScale * 0.4` but draws one BLOCK of tile
   height as `cellSize * isoScale * 0.639` (`tileW * ISO_BLOCK_H_FRAC`). They are different units. So a channel
@@ -1530,16 +1520,13 @@ defmodule Nebulith.Catalog.TileSource do
 
   The surface sits below the rim only while `0.639 * height < 0.4`, i.e. height < 0.626. 0.5 rises 0.32 and
   leaves the water 0.08 below the bank, keeping a visible side face, which his Image #52 needs, since the rule
-  there is *"top is one color and bottom is another color"* and a height-0 tile has no bottom to colour.
+  there is and a height-0 tile has no bottom to colour.
 
   This is the ONE place the number lives: `@height_authority` is emoji, so `normalize_tile_heights/0` copies
   the emoji row's height onto ascii, and a single value keeps both styles honest.
   """
   @doc """
   ONE WATER SURFACE, and a PUDDLE that is not part of it.
-
-  Alexander, 2026-09-13: *"the green water is using the same tile as the river water, which is bad, because
-  that is not a river is a puddle, it doesn't have current is stationary"*.
 
   Two things were wrong and both were data.
 
@@ -1557,9 +1544,7 @@ defmodule Nebulith.Catalog.TileSource do
   def seed_water_surface do
     for tileset <- Catalog.list_tilesets() do
       # THE BANDS ARE LEFT ALONE. I dropped them from 1.0 to 0.5 reasoning "one channel surface" from the
-      # comment above, and Alexander never asked for it: *"I don't even understand what 3 means"*, and *"I
-      # don't understand any of the reasoning behind these changes, it wasn't definitely what I requested nor
-      # asked for"*. He was right. It was tidying dressed up as a fix, and it is reverted.
+      # comment above, and and It was right. It was tidying dressed up as a fix, and it is reverted.
 
       case Repo.get_by(Tile, tileset_id: tileset.id, label: "water_shallow") do
         nil ->
@@ -1573,17 +1558,15 @@ defmodule Nebulith.Catalog.TileSource do
               title: "Still water",
               glyph: "⌷",
               emoji: shallow.emoji,
-              # ITS OWN PICTURE. This copied the shallow band's, which is drawn as wave paths: Alexander,
-              # 2026-09-13, *"the puddle is still using a bad tile of water that contains lines that are meant
-              # to be animated, instead of having stationary water without any current lines"*. Authored in
+              # ITS OWN PICTURE. This copied the shallow band's, which is drawn as wave paths:
+              # 2026-09-13, Authored in
               # `tiles.json` as a flat sheet with a soft sheen and no directional stroke anywhere, and baked.
               image_url: "/tiles/#{tileset.key}/water_still.png",
               color_role: shallow.color_role,
               blocking: false,
-              # A FILM, NOT A FLOOR. A puddle is *"a small layer above it"*, so it is a thin sheet the generator
+              # A FILM, NOT A FLOOR. A puddle is so it is a thin sheet the generator
               # STACKS on the ground rather than a ground tile that replaces it. Height 0 made it a ground
-              # replacement sitting a whole block below `meadow` (1.0), which is why he fell in: *"now I jump
-              # down due to the height difference"*.
+              # replacement sitting a whole block below `meadow` (1.0), which is why it fell in:
               height: 0.05,
               # NOT `terrain`. It stopped being ground the moment it became a film the generator stacks ON the
               # ground, and the category is what a thing IS. It also keeps the flat-ground contract honest:
@@ -1598,11 +1581,7 @@ defmodule Nebulith.Catalog.TileSource do
               # which is a different thing from saying nothing and inheriting.
               settings: %{
                 "color" => (shallow.settings || %{})["color"],
-                # NO CURRENT, BUT YOU CAN SEE THROUGH IT. Alexander, 2026-09-13, giving the three layers:
-                # *"the floor tile, which is the actual floor, then the puddle water stacked on top but
-                # walkable, and with stacking set at bottom face, then the flower stacked on the puddle ...
-                # and the puddle of water cell/tile should have some level of transparency, like real water"*.
-                #
+                # NO CURRENT, BUT YOU CAN SEE THROUGH IT.
                 # The list stays a STATEMENT rather than an omission (the frontend collapses every water-ish
                 # label to `water` so the bands can share one picture, and that collapse would hand a puddle
                 # the river's current). It now carries exactly one entry, and it is not a current: a constant
@@ -1677,9 +1656,6 @@ defmodule Nebulith.Catalog.TileSource do
   @doc """
   THE WATER LOOK: frame pictures for the three bands, and a foam SHORELINE family.
 
-  Alexander, 2026-09-12: *"fix the water look, it has to be more water realistic, look for isometric water and
-  copy it, you usually need border and animation"*.
-
   Two halves, both data:
 
     * ANIMATION. Each band carries `frames` (`<label>.png`, `_f1`, `_f2`) and `frameMs`, the same shape the 67
@@ -1699,8 +1675,7 @@ defmodule Nebulith.Catalog.TileSource do
   # which collapses every water label to the kind `water`, so `water_shallow`/`water_deep` rows supply the
   # LABEL and the walkability and nothing visual at all. Animating them was art nobody could ever see.
   @water_bands ~w(water)
-  # THE SPLASH a unit leaves standing in floor-level water. Alexander, 2026-09-12: *"add interaction with floor
-  # level water, we must the effect of units walking on top"*. It rides the same frame rails as the bands: the
+  # THE SPLASH a unit leaves standing in floor-level water. It rides the same frame rails as the bands: the
   # renderer derives it from where a unit IS, so nothing about it is stamped into a saved map.
   @water_effects ~w(decor_ripple)
 
@@ -1715,8 +1690,8 @@ defmodule Nebulith.Catalog.TileSource do
       for {key, tileset_id} <- [{"ascii", ascii_id}, {"emoji", emoji_id}], label <- @water_bands ++ @water_effects do
         # FOUR frames, not three. The wave art has a 32px period in a 128px tile, and each frame shifts it by
         # 8px, so four frames advance the pattern exactly ONE period and the loop closes on itself. With three
-        # frames the loop jumped back a third of a period every cycle, which is the flicker he reported:
-        # *"animation is bad too"* (2026-09-12).
+        # frames the loop jumped back a third of a period every cycle, which is the flicker it reported:
+        # (2026-09-12).
         frames = frame_images(key, label, [nil, nil, nil, nil], static)
         # Only when there is more than one picture to swap between: a single frame is a still, and writing one
         # would claim an animation that cannot play.
@@ -1781,8 +1756,7 @@ defmodule Nebulith.Catalog.TileSource do
     end
   end
 
-  # WATER IS NOT SOLID. Alexander, 2026-09-12: *"in general water is kind of like a semi transparent tile too,
-  # is not solid"*, with his two reference images.
+  # WATER IS NOT SOLID. with the two reference images.
   #
   # Authored as a SETTINGS animation carrying a FLAT `opacity` track rather than as a new tile setting, because
   # that is the one alpha the renderer already applies unconditionally: every view multiplies by
@@ -1794,7 +1768,7 @@ defmodule Nebulith.Catalog.TileSource do
   #
   # `from` equals `to` on purpose: a CONSTANT, not a fade. The interpolator returns the same value at every t.
   #
-  # 0.8 is a starting point for his :3000 verdict, not a derived number. He asked for "semi transparent" and
+  # 0.8 is a starting point for his :3000 verdict, not a derived number. It asked for "semi transparent" and
   # did not say how much, so this is the one value here that is a proposal rather than a measurement.
   defp water_translucence(id \\ "water_translucence", opacity \\ 0.8) do
     %{
@@ -1823,8 +1797,7 @@ defmodule Nebulith.Catalog.TileSource do
   @doc """
   THE BRIDGE'S OWN TWO TILES, solid to the edge.
 
-  Alexander, 2026-09-13, on a rendered crossing: *"why do we have those white boxes in middle? what the fuck
-  are those squished black boxes??"*. Neither the colour nor the height was the cause. `post.png` and
+  Neither the colour nor the height was the cause. `post.png` and
   `sq_brown.png` (which `wooden_planks` uses) are ROUNDED SQUARES with a transparent margin, 31% of the tile,
   so every block extruded from them shows its own dark interior through the gap. That is the open crate, and
   it would happen to anything built from those tiles, not just a bridge.
@@ -1858,11 +1831,8 @@ defmodule Nebulith.Catalog.TileSource do
   @doc """
   ONE CURRENT, turned per cell by the renderer, so a river flows the way it actually runs.
 
-  Alexander, 2026-09-13: *"why are we doing water svg?? we should use the backend pngs, if anything is new it
-  should be backend tiles, we should build water with regular tileset animation, which doesn't use svg"*.
-
-  He is right, and this function is where I got it wrong. My first answer to *"there should be a current
-  direction that goes around with the river"* was to BAKE the direction in: a second frame set (`water_y*`)
+  He is right, and this function is where I got it wrong. My first answer to was to BAKE the direction in: a
+  second frame set (`water_y*`)
   transposed from the first, plus both played in reverse, so four frame sets and four animations, and a cell
   chose one by id. That is eight PNGs and four animations to express a rotation.
 
@@ -1917,8 +1887,8 @@ defmodule Nebulith.Catalog.TileSource do
     }
   end
 
-  # A BANK IS EARTH, NOT SNOW. Alexander, 2026-09-13, on maps with 231 to 450 of these hugging every water
-  # edge: *"I don't know what the fuck is the name of those white flowers, but I want them OUUUUUUUUT"*. They
+  # A BANK IS EARTH, NOT SNOW. on maps with 231 to 450 of these hugging every water
+  # edge: They
   # were not flowers. They were the shore pieces, authored `#eaf8ff`, a near-white, and read at map scale as a
   # line of white blobs along every river and pool.
   #
@@ -2141,9 +2111,6 @@ defmodule Nebulith.Catalog.TileSource do
   @doc """
   Makes every PER-LABEL fact agree across styles — the "one engine, N art styles" rule, enforced.
 
-  Alexander, 2026-09-08: *"we just need ONE ENGINE that is used by ALL ART STYLES … changing a style just
-  changes the database of tiles … same name, same label, same identifier, different png"*.
-
   So a LABEL owns everything except the picture. `grass` is called "Grass", is `terrain`, is walkable and is
   a flat slab — in every style, because those are facts about grass, not about which pictures you are
   looking at. Only `image_url` (and the glyph/emoji the picture is baked FROM) may differ.
@@ -2181,7 +2148,7 @@ defmodule Nebulith.Catalog.TileSource do
   do (`leaf_center`, `leaf_top`), whose values are already IDENTICAL to their ascii twins. So copying across
   is the established precedent, not a new palette: nothing here invents a colour.
 
-  Alexander, 2026-09-12: *"seed the emoji colors first also"*. Why it matters beyond tidiness: the frontend
+  Why it matters beyond tidiness: the frontend
   reads every composition cell's colour and every floor colour through `styleCatalog('ascii')`, pinned, because
   switching those reads to the ACTIVE style today would drop 359 emoji rows onto an invented grey. This is the
   half that has to land before that pin can come out.
@@ -2209,7 +2176,7 @@ defmodule Nebulith.Catalog.TileSource do
 
   # THE PLAIN `color` KEY, agreed the same way as the per-zone map above.
   #
-  # Alexander, 2026-09-13: *"the pathways and exits aren't working on any template generator"*. The woodland's
+  # The woodland's
   # trail was invisible and this was the last link in the chain. `path` carries `#9c7b4d` in emoji and NOTHING
   # in ascii, and the generator resolves a ground colour through the ASCII catalog, so `groundTileColor("path")`
   # fell through to the season's grass. The trail was painted the exact colour of the field it crossed.
@@ -2369,8 +2336,7 @@ defmodule Nebulith.Catalog.TileSource do
   @doc """
   Gives a creature tile its COMBAT settings — the stat block it fights with.
 
-  Alexander, 2026-09-10: *"an enemy is just a regular unit, but marked as hostile towards player. so, I
-  don't think we need a separate table for it"*. He is right, and the evidence was in the mapping: nine
+  He is right, and the evidence was in the mapping: nine
   archetypes existed for eight creatures, one each, with a frontend `Record` translating between the two
   vocabularies. A second vocabulary whose only job is to be translated back is not a concept.
 
@@ -2465,7 +2431,7 @@ defmodule Nebulith.Catalog.TileSource do
   @doc """
   Points every tile at its OWN picture, when one has been baked for it.
 
-  Alexander's model: *"same name, same label, same identifier, different png"*. A tile's picture is its
+  the model: A tile's picture is its
   label's file in its style's directory. **29 ascii tiles pointed at ANOTHER tile's png** — `rose`,
   `sunflower` and `blossom` all at `decor_flower.png`, `pine-tree` and `palm-tree` at `tree.png` — so they
   drew a duplicate even after being given their own glyph and their own baked file. That is the same "fake
@@ -2494,8 +2460,6 @@ defmodule Nebulith.Catalog.TileSource do
 
   @doc """
   Applies the ASCII UNIT ART (`priv/repo/tilesets/ascii_unit_art.json`) — the FIGURES units draw as.
-
-  Alexander, 2026-09-08, on seeing every unit render as a single character (Image #13, the `♀`/`♂` cast):
 
     > human like units should look like the user player, animals, and other units are also composition of
     > ascii characters grouped to create a given element … a dog is not a single character, is a set of
@@ -2579,9 +2543,7 @@ defmodule Nebulith.Catalog.TileSource do
   end
 
   # ── Fade near the hero ─────────────────────────────────────────────────────
-  # Alexander, 2026-09-11: *"we must add transparency/opacity on all static elements, when user is close, they get
-  # more transparent. Specially on trees and buildings, and any exterior element that can block us from seeing the
-  # player character"*. A building's walls, windows and doors already fade (@behavior_settings). These are the
+  # A building's walls, windows and doors already fade (@behavior_settings). These are the
   # trees and the other standing things outside. NAMED, not derived from height: a flower is as tall as a castle
   # in this data, and a key or a hazard marker must stay solid, it is the thing you are walking toward.
   @fade_near_prefixes ~w(trunk leaf_ canopy_ tree_)
@@ -2593,25 +2555,20 @@ defmodule Nebulith.Catalog.TileSource do
 
   # GROUND PLANTS: they STAND UP, and they hold nothing up.
   #
-  # Alexander, 2026-09-13, on a woodland where every tree floated a block above the blooms: *"all trees are
-  # located above the high grass, instead of at floor level"*, and *"the high grass doesn't have collissions
-  # and has height but elements don't stack on top ... like a y stack position, which goes from the top face
-  # to the bottom face of the cell"*.
+  # and
   #
-  # He is right that it was already nearly there. A cell stacks by each tile's own HEIGHT (`cellStackTop`),
+  # It is right that it was already nearly there. A cell stacks by each tile's own HEIGHT (`cellStackTop`),
   # and `flower`, `clover`, `wheat` and `bush` are all authored a full block tall so they draw as standing
   # billboards. That same block was being counted as a SURFACE, so a tree or a hero landing on a flowered cell
   # was lifted one level onto it. Height is how tall it DRAWS; it should not decide what can stand on it.
   #
-  # `stackAt` is that split, and it is his own description: 1 is the top face (the default, and what every
+  # `stackAt` is that split, and it is the own description: 1 is the top face (the default, and what every
   # tile did before), 0 is the bottom face. A plant you walk through gets 0, so whatever follows lands at its
   # feet while the picture still stands at full height.
   #
-  # AND YOU WALK THROUGH THEM. Alexander, 2026-09-13, on the understory carpeting a swamp jungle: *"you see
-  # those small green things? I SHOULD BE ABLE TO WALK THROUGH THEM, BUT THEY FUCKING HAVE COLLISIONS, I'VE
-  # REQUESTED TO FIX THAT FOR 3 STRAIGHT SESSIONS AND IT'S STILL NOT FIXED."*
+  # AND YOU WALK THROUGH THEM.
   #
-  # He is right, and the reason it survived three sessions is that the fix was looked for in the GENERATOR
+  # It is right, and the reason it survived three sessions is that the fix was looked for in the GENERATOR
   # every time. It was never there. `makePlant` reads the tile and writes `blocking: !tile.walkable`, so a
   # plant blocks because its CATALOG ROW says it blocks, and `thicket` was the one plant row in the whole
   # catalog with `blocking: true` (measured against live: every other nature tile is already false). It is
@@ -2626,10 +2583,7 @@ defmodule Nebulith.Catalog.TileSource do
 
   # WHAT A TILE OCCUPIES, as the only statement about whether you can walk through it.
   #
-  # Alexander, 2026-09-13: *"the real fix is to fucking remove the fucking walkable and blocking properties as
-  # I've requested for ages, because we fucking have collissions which already do the fucking job"*.
-  #
-  # He is right about where this ends up and it is worth writing down why it had not happened yet: the boxes
+  # It is right about where this ends up and it is worth writing down why it had not happened yet: the boxes
   # system was built (`collisionBoxes.ts`, 2026-09-11) but NO ROW HAS EVER CARRIED ONE. Measured against live
   # before this: 0 of 375 tiles have `settings.collision`, 72 have `blocking: true`. So the finer truth has
   # been running entirely off the coarse flag it was meant to replace, and `boxesForAsset` opens with
@@ -2709,7 +2663,7 @@ defmodule Nebulith.Catalog.TileSource do
   Gives every tile that names a DISTINCT thing its own glyph, in every style that uses glyphs.
 
   An ascii tile's picture is rasterised FROM its glyph, so two tiles on one glyph are two tiles with one
-  picture. Alexander, 2026-09-08: *"a lot of ascii art tiles are fake"* — measured at 170 of 358 ascii tiles
+  picture. — measured at 170 of 358 ascii tiles
   drawing a byte-identical copy of another tile's art, because `rose`/`tulip`/`sunflower`/`hibiscus` were all
   `❀` and `oak-tree`/`palm-tree`/`pine-tree` were all `♣`.
 
@@ -2799,9 +2753,7 @@ defmodule Nebulith.Catalog.TileSource do
   """
   # THE GROUND IS FLAT, and until now nothing enforced it.
   #
-  # Alexander, 2026-09-13, on a rendered bridge: *"why do we have those white boxes in middle? what the fuck
-  # are those squished black boxes?? how did you saw that and thought 'yeah this is a good bridge'??? the
-  # answer is you didnt"*. He is right that I never looked. When I did, through Playwright, the bridge was a
+  # It is right that I never looked. When I did, through Playwright, the bridge was a
   # row of open-topped cubes, and the reason was one number.
   #
   # `reconcile_tile_heights/0` below says in its own docstring "ground = 0, standing >= 1" and only ever did
@@ -2813,9 +2765,8 @@ defmodule Nebulith.Catalog.TileSource do
   # It stayed hidden because the test fixture carries them at 0, so `emojiTileHeight`'s flat-ground assertion
   # was green against a payload that had drifted from live. That is the fixture trap, twice in one day.
   #
-  # THE WATER SURFACES ARE THE ONE EXCEPTION, and a deliberate one: Alexander, 2026-09-11, *"we need the river
-  # without water, which is negative height compared to walking floor / then inside that we put water with X
-  # height it can be < 1"*. They keep what they are authored with.
+  # THE WATER SURFACES ARE THE ONE EXCEPTION, and a deliberate one: which is negative height compared to walking floor
+  # / then inside that we put water with X height it can be < 1"*. They keep what they are authored with.
   @non_flat_ground ~w(water water_f1 water_f2 water_f3 water_shallow water_deep)
 
   @doc """
@@ -2889,8 +2840,8 @@ defmodule Nebulith.Catalog.TileSource do
   defp seed_tree_leaves(emoji_id, palettes) do
     emoji = read_tileset("emoji.json")
     # The canopy SHADE array per zone (green…pink for spring) — the SAME data ascii's leaf carries, so an emoji
-    # tree's per-tree `variant` picks a tone (green vs pink) exactly like ascii (Alexander: "one green, one
-    # pink"). `color` stays for the emoji sidebar/backing fill; `colors` drives the composition's variant tint.
+    # tree's per-tree `variant` picks a tone (green vs pink) exactly like ascii. `color` stays for the emoji
+    # sidebar/backing fill; `colors` drives the composition's variant tint.
     canopy_colors = per_zone_colors("canopy", palettes)
 
     for label <- ["leaf_center", "leaf_top"], t = emoji[label] do
@@ -2973,8 +2924,8 @@ defmodule Nebulith.Catalog.TileSource do
   # `scale` column), `trunk_w` is Width (scaleX, only emitted when ≠ 1 so a default trunk stays byte-clean),
   # `shape` (nil | "circle") gives the canopy a round form. The leaf's LEVEL is derived from the trunk's
   # rendered height (scaleY × zoom, in block units — one level = one block) so the canopy sits ON the trunk
-  # top for any height, never floating or buried. DIMENSION-SANITY GUARD (Alexander: "you don't want a trunk
-  # bigger than the top leafs"): the trunk's effective width AND its zoom must be strictly SMALLER than the
+  # top for any height, never floating or buried. DIMENSION-SANITY GUARD: the trunk's effective width AND its zoom
+  # must be strictly SMALLER than the
   # leaves' — a violating variant RAISES at build time, so no unbelievable tree can ship.
   defp tree_comp(opts) do
     trunk_w = Map.get(opts, :trunk_w, 1.0)
@@ -2994,7 +2945,7 @@ defmodule Nebulith.Catalog.TileSource do
     }
   end
 
-  # A BUSH is the trunkless tree variant (Alexander: "a variant without trunk to simulate bushes") — a SINGLE
+  # A BUSH is the trunkless tree variant — a SINGLE
   # leaf cell sitting on the ground (level 0), blocking (a ground-level shrub obstructs, unlike a tree's
   # walkable overhead canopy). One tile — the leanest asset in the set.
   defp bush_comp(opts) do
@@ -3004,8 +2955,7 @@ defmodule Nebulith.Catalog.TileSource do
 
   defp leaf_cell(level, leaf_h, leaf_zoom, shape, walkable) do
     # The canopy defaults to a SQUARE crown (a leaf cube); a ROUND crown is OPT-IN via `shape: "circle"`
-    # ("tree_round"/"bush_round"), so "tree" and "tree round" render DIFFERENTLY (Alexander #46 — they had become
-    # identical when the default was "circle"). An explicit shape always wins (a future conifer can pass a cone).
+    # ("tree_round"/"bush_round"), so "tree" and "tree round" render DIFFERENTLY. An explicit shape always wins (a future conifer can pass a cone).
     settings = %{"scaleY" => leaf_h}
     settings = if shape, do: Map.put(settings, "shape", shape), else: settings
     %{dx: 0, dy: 0, level: level, label: "leaf_center", walkable: walkable, scale: leaf_zoom, settings: settings}
@@ -3031,15 +2981,15 @@ defmodule Nebulith.Catalog.TileSource do
 
   defp compositions do
     %{
-      # A tree is EXACTLY TWO tiles — ONE thin tall TRUNK + ONE bigger LEAF cube on top (Alexander's tuned
+      # A tree is EXACTLY TWO tiles — ONE thin tall TRUNK + ONE bigger LEAF cube on top (the tuned
       # reference: "the ones in my example use just two tiles, one for trunk another for leafs"). Same technique
       # as the lamp post: the trunk is a single `trunk_mid` cell drawn as a thin tall pole (Height `scaleY` +
       # Zoom `scale`, Width `scaleX` when a variant wants it skinnier/thicker); the leaf is a single `leaf_center`
       # cell zoomed UP into a fat cube and lifted onto the trunk top. Colour is a per-tree SETTING (variant picks
       # a canopy shade — green…pink — from leaf_center's per-zone array, in BOTH styles). Every variant is built
       # by `tree_comp/1`, which DERIVES the leaf's level from the trunk height (canopy sits on the trunk, never
-      # floats) and ENFORCES the dimension-sanity rule (Alexander: "you don't want a trunk bigger than the top
-      # leafs") — the trunk must be thinner + less zoomed than the leaves or the build raises. The user's
+      # floats) and ENFORCES the dimension-sanity rule — the trunk must be thinner + less zoomed than the leaves or
+      # the build raises. The user's
       # hand-tuned green tree (trunk H3.15/zoom0.6, leaf H2/zoom1.35) is the CENTER; the variants spread a
       # believable range: tall/small trunks, skinny/thick trunks, ROUND canopies (shape: circle), and trunkless
       # BUSHES (leaf only). Down from 3 cells to 2 (bush: 1) — the optimization the ticket asked for.
@@ -3048,24 +2998,22 @@ defmodule Nebulith.Catalog.TileSource do
       "tree_stub" => tree_comp(%{trunk_h: 1.7, trunk_zoom: 0.6, trunk_w: 1.2, leaf_h: 1.0, leaf_zoom: 1.35, shape: "circle"}),
       "tree_round" =>
         tree_comp(%{trunk_h: 3.15, trunk_zoom: 0.6, trunk_w: 1.0, leaf_h: 2.0, leaf_zoom: 1.35, shape: "circle"}),
-      # SIZE variants (Alexander #46): tree_small = a genuinely SMALL tree (short trunk + small canopy, was a
+      # SIZE variants: tree_small = a genuinely SMALL tree (short trunk + small canopy, was a
       # confusing legacy 5×3), tree_big = a LARGE tree (tall trunk + broad canopy). Both respect the trunk<leaf
       # dimension guard. Canopy WIDTH (leaf_zoom) is the main size read: 0.95 small vs 1.35 default vs 1.9 big.
       "tree_small" => tree_comp(%{trunk_h: 1.9, trunk_zoom: 0.5, trunk_w: 1.0, leaf_h: 1.2, leaf_zoom: 0.95, shape: "circle"}),
       "tree_big" => tree_comp(%{trunk_h: 4.2, trunk_zoom: 0.7, trunk_w: 1.0, leaf_h: 2.8, leaf_zoom: 1.9, shape: "circle"}),
       "bush" => bush_comp(%{leaf_h: 1.2, leaf_zoom: 1.35}),
       "bush_round" => bush_comp(%{leaf_h: 1.2, leaf_zoom: 1.35, shape: "circle"}),
-      # MORE SPECIES, FROM THE SAME BASE. Alexander, 2026-09-11: *"we're using the same for all forest
-      # variations, but that's not good, existing trees serves as a great starting point, let's use that base
-      # to generate more variants"*. Every one below is `tree_comp/1` with different proportions, so each still
+      # MORE SPECIES, FROM THE SAME BASE. Every one below is `tree_comp/1` with different proportions, so each still
       # passes the trunk-thinner-than-leaves guard and stamps through the same two-tile path. Only `square` and
       # `circle` crowns are drawable today, so the silhouette comes from the proportions, not a new shape.
       #
-      # STILL SQUARE, and on purpose. Alexander, 2026-09-12: a canopy that is a CUBE reads wrong, so every
+      # STILL SQUARE, and on purpose. a canopy that is a CUBE reads wrong, so every
       # round-crowned species above now says so. A conifer and a cypress are NOT round, they are cones, and
       # `circle` would be just as wrong the other way. The renderer draws `square` and `circle` and nothing
       # else, so these two keep the box until a cone exists. Filed rather than fudged.
-      # conifer: a tall narrow crown on a thin trunk (his image #12, the hillside conifers)
+      # conifer: a tall narrow crown on a thin trunk (reference image #12, the hillside conifers)
       "tree_conifer" => tree_comp(%{trunk_h: 3.8, trunk_zoom: 0.45, trunk_w: 0.8, leaf_h: 3.4, leaf_zoom: 0.9}),
       # column: a long straight bare trunk with the crown held high (image #11's beech stand, #15's giants)
       "tree_column" => tree_comp(%{trunk_h: 5.0, trunk_zoom: 0.5, trunk_w: 0.8, leaf_h: 2.2, leaf_zoom: 1.2, shape: "circle"}),
@@ -3085,49 +3033,45 @@ defmodule Nebulith.Catalog.TileSource do
         tree_comp(%{trunk_h: 4.6, trunk_zoom: 0.4, trunk_w: 0.7, leaf_h: 1.0, leaf_zoom: 1.15, shape: "circle"}),
       # sapling: new growth, the smallest tree there is
       "tree_sapling" => tree_comp(%{trunk_h: 1.2, trunk_zoom: 0.35, trunk_w: 0.8, leaf_h: 0.9, leaf_zoom: 0.7, shape: "circle"}),
-      # THE TROPICS. Alexander, 2026-09-13: *"the trees variations are the same as any other forest, when they
-      # should be more tropical, like coconnuts trees, bananas, water nature, etc"*, and, when I called it
-      # blocked on art: *"is not blocked because it's expected that you will add the trees variations following
-      # the same pattern used to other trees, I already explained it multiple times before"*.
+      # THE TROPICS. and, when I called it
+      # blocked on art:
       #
-      # He is right and I was wrong. A species here is proportions, not a new picture: the file says so itself
-      # a few lines up, *"the silhouette comes from the proportions, not a new shape"*. So these three are the
+      # It is right and I was wrong. A species here is proportions, not a new picture: the file says so itself
+      # a few lines up, So these three are the
       # same two-tile `tree_comp` every other species is.
       #
       # coconut: taller and leaner than the palm, its small crown held right at the top
       "tree_coconut" => tree_comp(%{trunk_h: 5.4, trunk_zoom: 0.38, trunk_w: 0.65, leaf_h: 1.1, leaf_zoom: 1.3, shape: "circle"}),
       # banana: a short fat pseudo-stem under enormous low leaves, wider than it is tall
       "tree_banana" => tree_comp(%{trunk_h: 1.6, trunk_zoom: 0.5, trunk_w: 0.9, leaf_h: 1.6, leaf_zoom: 1.95, shape: "circle"}),
-      # mangrove: his *"water nature"* for a coast, a thick braced base under a broad low crown
+      # mangrove: the for a coast, a thick braced base under a broad low crown
       "tree_mangrove" => tree_comp(%{trunk_h: 2.2, trunk_zoom: 0.7, trunk_w: 1.25, leaf_h: 1.5, leaf_zoom: 1.8, shape: "circle"}),
       # TWO water variants of the town-square basin, both COMPOSITIONS assembled from AUTOTILE PIECES
       # (TILESET-AUTHORING §3), not one fill: a rim of the RIGHT edge/corner piece per cell (`fountain_tl/tr/
       # bl/br` corners + `fountain_t/b/l/r` sides) around a `water_c` (blue water) interior. Every cell blocks
       # (you stroll the paved ring around it); the generator stamps one centred on the plaza (stampComposition).
       #
-      # `well` — the SMALL variant (Alexander: "current design but removing 3 blocks of water, just leaving 3"):
+      # `well` — the SMALL variant:
       #   a 5×3 basin whose interior is a 1×3 LINE of 3 `water_c` cells, ALL 3 animated (desynced height-grow).
-      # `fountain` — the LARGE variant (Alexander: "one that has 9 blocks of water"): a 5×5 basin whose interior
-      #   is a 3×3 GRID of 9 `water_c` cells; only the CENTER ROW of 3 animates (Alexander: "in the 9 blocks
-      #   version, the 3 in the center are the ones to animate"), the other 6 are STATIC blue water.
+      # `fountain` — the LARGE variant: a 5×5 basin whose interior
+      # is a 3×3 GRID of 9 `water_c` cells; only the CENTER ROW of 3 animates, the other 6 are STATIC blue water.
       # A basin is a standalone ornament → the `props` bucket (same category vocabulary as tiles, MAP-MODEL §8).
-      # BRIDGES ARE COMPOSITIONS, like a tree or a building. Alexander, 2026-09-12, in capitals after asking
-      # twice: *"AND THE BRIDGES ARE STILL NOT BRIDGES COMPOSITIONS / we should have actual BRIDGE"*, with a
+      # BRIDGES ARE COMPOSITIONS, like a tree or a building. in capitals after asking
+      # twice: with a
       # wooden arch (#59), a steel truss (#60) and a sheet of ten variations (#61).
       #
       # What a crossing was until now: ONE FLAT TILE laid per cell. Measured in the running app, a wood crossing
-      # came out as 87 cells of flat `rgba(120,90,50,0.95)` floor, which is the whole of *"not a real bridge"*
-      # and of *"all the other bridges ahve the same coloring issue"*: a big colour patch, no structure.
+      # came out as 87 cells of flat `rgba(120,90,50,0.95)` floor, which is the whole of
+      # and of: a big colour patch, no structure.
       #
       # A bridge is a DECK you walk on with RAILS either side, so it reads as built from any angle. Three spans
       # each (3 / 5 / 7 cells), the same way `house_3`/`house_4`/`house_5` are the one composer called at fixed
       # sizes: the generator picks the span that fits its channel. Every tile here already exists, so none of
       # this needs new art. The steel truss of #60 does, and it is not attempted here.
       # Spans 3 to 7. The EVEN ones exist because a span has to match the river, not round up past it:
-      # Alexander, 2026-09-12, *"would a bridge be that large, when we only have to connect a small river?? we
-      # just need something like 4 cells long x whatever the river size"*, and *"river is usually 3-4 cells wide
-      # or more"*. With only odd spans authored, a 4-wide river needed 4 plus a landing each side and rounded
-      # straight up to 7, which is the size he rejected.
+      # when we only have to connect a small river?? we just need something like 4 cells long x whatever the river
+      # size"*, and With only odd spans authored, a 4-wide river needed 4 plus a landing each side and rounded
+      # straight up to 7, which is the size it rejected.
       "bridge_wood_3" => %{footprint_w: 3, footprint_h: 4, category: "props", cells: bridge_cells("bridge_deck", "bridge_rail", 3, @wood_rail)},
       "bridge_wood_4" => %{footprint_w: 4, footprint_h: 4, category: "props", cells: bridge_cells("bridge_deck", "bridge_rail", 4, @wood_rail)},
       "bridge_wood_5" => %{footprint_w: 5, footprint_h: 4, category: "props", cells: bridge_cells("bridge_deck", "bridge_rail", 5, @wood_rail)},
@@ -3145,26 +3089,24 @@ defmodule Nebulith.Catalog.TileSource do
       "bridge_plank_7" => %{footprint_w: 7, footprint_h: 4, category: "props", cells: bridge_cells("bridge_deck", "bridge_rail", 7, @wood_rail)},
       "well" => %{footprint_w: 5, footprint_h: 3, category: "props", cells: well_cells()},
       "fountain" => %{footprint_w: 5, footprint_h: 5, category: "props", cells: fountain_cells()},
-      # LIGHT POSTS — a composition, NOT a single lamp tile (Alexander: "light posts should be a composition of a
-      # post/base tile + the lamp on top … the composition of maps is exactly the same between art styles, only
-      # the tile changes"). ONE 1×1 column of TWO cells, each shaped by its OWN tuned settings so it reads like a
-      # REAL post (Alexander's built reference, Images #45/#46 — "copy the settings of the post"):
+      # LIGHT POSTS — a composition, NOT a single lamp tile. ONE 1×1 column of TWO cells, each shaped by its OWN tuned
+      # settings so it reads like a
+      # REAL post:
       #   • POST (level 0, blocks) — ONE cell drawn as a tall, THIN pole: Height `scaleY` 7 at Zoom `scale` 0.3.
       #   • BULB (level 1, walkable overhead) — a SINGLE-display billboard (one centered bulb), Zoom `scale` 0.6,
       #     lifted by `pose.dy` -1.8 so it sits ON TOP of the tall post, carrying the night `light` glow POOL.
       # TWO variants share this whole structure (lamp_post_composition/1) — the bulb ALWAYS carries the
-      # night-LIT appearance change (Alexander: "the bulb should change appearance when night mode = true");
-      # only the FAILING variant adds a flicker on top (Alexander: "the lamp should just be 'on' on night mode,
-      # the flicker animation can be applied to a few, but not all"):
+      # night-LIT appearance change;
+      # only the FAILING variant adds a flicker on top:
       #   • `lamp_post`         → the DEFAULT (MAJORITY of lamps): the bulb LIGHTS UP at night — a STEADY warm
       #     glow via ONE `night`-triggered `color` animation (day = the plain unlit bulb, night = lit), NO flicker.
       #   • `lamp_post_failing` → a FAILING bulb (MINORITY, ~18%): the SAME night-lit glow PLUS the irregular
       #     `lamp_flicker_anim` (a stepped, erratic opacity dip — a dying bulb, NOT a smooth pulse). Its ground
       #     pool dims in SYNC with the flicker (the frontend folds the bulb's live opacity into the pool
-      #     intensity — see LIGHTING.md, Alexander: "the light area should fail at the same rhythm").
+      # intensity — see LIGHTING.md, ).
       # The browseable palette shows ONE "Lamp post" (category "props"); the FAILING variant is a generator-only
       # flavour (~18% of stamped lamps), so it carries NO category → it renders on the map but is NOT a duplicate
-      # palette entry (Alexander #45 "remove duplicated lamp post options").
+      # palette entry.
       "lamp_post" => lamp_post_composition([bulb_night_lit_anim()], "props"),
       "lamp_post_failing" => lamp_post_composition([bulb_night_lit_anim(), lamp_flicker_anim()], nil)
     }
@@ -3177,10 +3119,10 @@ defmodule Nebulith.Catalog.TileSource do
   # post/bulb settings, the `light` glow pool — is IDENTICAL, so a failing lamp is a lit lamp whose bulb flickers.
   # The STRUCTURE is style-agnostic (only the baked `post`/`lamp` ART differs per style).
   defp lamp_post_composition(bulb_animations, category) do
-    # `light` is a real, controllable SETTING (Alexander: "control the light intensity and distance"): the bulb
+    # `light` is a real, controllable SETTING: the bulb
     # casts a warm ground GLOW POOL at night, sized by `distance` (cells), strengthened/tinted by `intensity`/
     # `color`. `color` is a SATURATED warm gold (#ffc24d) so the pool reads as a real LIT lamp, not a pale wash
-    # (Alexander: "needs more saturation … doesn't look 'on' yet"); it matches the frontend LAMP_GLOW default.
+    # ; it matches the frontend LAMP_GLOW default.
     bulb =
       %{
         dx: 0,
@@ -3188,7 +3130,7 @@ defmodule Nebulith.Catalog.TileSource do
         level: 1,
         label: "lamp",
         walkable: true,
-        # The bulb reads as a real lamp head (Alexander, #43) — ONE centered billboard at Zoom `scale` 0.6,
+        # The bulb reads as a real lamp head — ONE centered billboard at Zoom `scale` 0.6,
         # lifted onto the post top by `pose.dy` -1.8. NO dark base tint: it shows the `lamp` tile's own art (the
         # pale bulb of #43); the night-lit `color` animation last-wins-tints it warm gold at night.
         scale: 0.6,
@@ -3220,15 +3162,11 @@ defmodule Nebulith.Catalog.TileSource do
   # control. It's kept for the upcoming COMPOSITION-OPTIMIZATION work (e.g. a basin rim occluding the water it
   # contains — see ANIMATION-SYSTEM.md → "z-index draw priority (a capability for composition optimization)").
   # But NOTHING carries a non-zero z_index by DEFAULT right now: every cell keeps the column default 0 and
-  # sorts positionally (Alexander: "just leave everything on 0 by default for now, it'll work fine; we'll only
-  # need specific z-index once we start working composition optimization").
+  # sorts positionally.
 
-  # The fountain/well WATER's DEFAULT ANIMATION — the height-GROW yoyo (Alexander: "animate the water to grow
-  # its height 3-4 blocks, then go back to 1 block in loop … more realistic"), now DESYNCED per column so the
-  # water does NOT pulse in unison (Alexander: "the blocks should have different duration and delays, to
-  # actually look like realistic fountain water"). EXACTLY 3 water columns animate in every variant — all 3 in
-  # the small `well`, the CENTER ROW of 3 in the large `fountain` (Alexander: "in all cases only 3 blocks are
-  # animated. in the 9 blocks version, the 3 in the center are the ones to animate"). Each of the 3 carries the
+  # The fountain/well WATER's DEFAULT ANIMATION — the height-GROW yoyo, now DESYNCED per column so the
+  # water does NOT pulse in unison. EXACTLY 3 water columns animate in every variant — all 3 in
+  # the small `well`, the CENTER ROW of 3 in the large `fountain`. Each of the 3 carries the
   # SAME 1→4 sine-yoyo grow but with a DISTINCT durationMs + startDelayMs, so their yoyo PERIODS differ (no two
   # ever share a phase) and they surge out of sync:
   #
@@ -3270,14 +3208,14 @@ defmodule Nebulith.Catalog.TileSource do
     ]
   end
 
-  # The lamp bulb's DEFAULT night-LIT appearance change (Alexander: "the bulb should change appearance when night
-  # mode = true, but it doesn't"). BOTH lamp variants carry this — it's the normal lamp behaviour: at night the
+  # The lamp bulb's DEFAULT night-LIT appearance change. BOTH lamp variants carry this — it's the normal lamp
+  # behaviour: at night the
   # bulb visibly LIGHTS UP, STEADY (not flickering); in day it's the plain unlit bulb. Settings-driven, NOT a
   # render special-case — ONE `night`-triggered `color` animation that HOLDS a warm glow (`from` == `to`, so it's
   # a constant value, not a tween). The render bridge (resolveAssetAnimation) gates `night` triggers to night
   # mode, so in DAY the animation is dropped → the bulb shows its base (unlit) art, and at NIGHT the `color`
   # last-wins-tints the bulb art warm (luminance-mapped) → a lit, glowing bulb. `#ffd257` = a SATURATED warm
-  # gold so the lit bulb POPS as clearly "on" (Alexander: "doesn't look 'on' yet … needs more saturation"),
+  # gold so the lit bulb POPS as clearly "on",
   # not the pale wash the earlier `#ffe9a0` gave. Pure DATA — tune the colour/trigger on the cell, no render
   # special-casing.
   defp bulb_night_lit_anim do
@@ -3297,8 +3235,8 @@ defmodule Nebulith.Catalog.TileSource do
     }
   end
 
-  # The FAILING lamp bulb's ADDITIONAL animation — a single irregular OPACITY flicker (Alexander: "it should be
-  # more irregular, it's supposed to represent a failing bulb"). ONLY the `lamp_post_failing` variant carries this
+  # The FAILING lamp bulb's ADDITIONAL animation — a single irregular OPACITY flicker. ONLY the `lamp_post_failing`
+  # variant carries this
   # (on TOP of the shared night-lit glow); the default `lamp_post` bulb is STEADY-lit at night, no flicker. It
   # runs through the EXISTING animation engine (the SAME cell-default path the fountain water uses):
   #   • ONE opacity track 1 → 0.12 with `ease: "flicker"` — the frontend's irregular, STEPPED failing-bulb
@@ -3306,10 +3244,10 @@ defmodule Nebulith.Catalog.TileSource do
   #     varying depth + occasional full-off blinks at irregular times. `loop: true`, `yoyo: false` (the flicker
   #     ease supplies the erratic shape; a yoyo would just smooth it back out). `opacity` and the night-lit
   #     `color` are DIFFERENT settings, so the two animations compose — the failing bulb is lit AND flickering.
-  # `night`-triggered (Alexander: "the lamp post animation should be off on daytime and on on night time"): the
+  # `night`-triggered: the
   # render bridge (resolveAssetAnimation) gates it to night mode, so the bulb rests static in day and flickers at
   # night. The ground light POOL follows it — the frontend folds this bulb's live opacity into the pool intensity
-  # so the pool dims on the SAME beat (Alexander: "the light area should fail at the same rhythm of the flick").
+  # so the pool dims on the SAME beat.
   # Pure DATA — tune the timing/depth/trigger on the cell, no render special-casing.
   defp lamp_flicker_anim do
     %{
@@ -3340,15 +3278,14 @@ defmodule Nebulith.Catalog.TileSource do
   #
   # `dy 1` is the deck, `dy 0` and `dy 2` the rails, so the footprint is span x 3 and you cross along +dx.
   #
-  # THE DECK IS FLAT, AND IT HAS TO SAY SO PER CELL. Alexander, 2026-09-13: *"why do we have those white boxes
-  # in middle? what the fuck are those squished black boxes??"*. The deck tile (`wooden_planks`) is height 0 in
+  # THE DECK IS FLAT, AND IT HAS TO SAY SO PER CELL. The deck tile (`wooden_planks`) is height 0 in
   # the catalog and it made no difference, because `compositionCellRender` assigns `height: 1` to EVERY
   # composition cell on purpose ("a tile is pure ART — it does NOT carry height"). So each plank extruded into
   # a cube and the bridge came out a row of open crates. `scaleY` is the per-cell mechanism that already
   # exists for exactly this (the lamp post is one cell drawn seven tall), so the deck states its own thinness.
   #
-  # THE RAILS ARE ONE TILE EACH, NOT ONE PER CELL. Alexander, 2026-09-12: *"you can use less tiles to make the
-  # sides too, with z-width"*, with the doors as the model. A rail is a single cell given `depth: span` along
+  # THE RAILS ARE ONE TILE EACH, NOT ONE PER CELL. with the doors as the model. A rail is a single cell given `depth:
+  # span` along
   # the crossing axis, which is the same directional-depth a roof deck uses: two tiles for two rails at any
   # span, instead of `2 x span` cubes. `scaleZ` keeps it a thin panel on the deck's edge rather than a wall,
   # and `scaleY` keeps it hand height rather than a full block.
@@ -3357,8 +3294,8 @@ defmodule Nebulith.Catalog.TileSource do
   # which is right for a lamp and wrong here, so the CELL states its colour (the per-cell `settings.color` the
   # stamp already honours) rather than the shared tile being repainted for one caller.
   defp bridge_cells(deck_label, rail_label, span, rail_color) do
-    # TWO CELLS OF DECK, so two can pass. Alexander, 2026-09-13: *"please ensure we have at least 2 cells free
-    # to walk"*. The deck was a single row down the middle, which is a plank, not a crossing. Rows 1 and 2 are
+    # TWO CELLS OF DECK, so two can pass. The deck was a single row down the middle, which is a plank, not a crossing.
+    # Rows 1 and 2 are
     # the way over and rows 0 and 3 are the rails, so the footprint is span x 4.
     deck =
       for dx <- 0..(span - 1), dy <- @deck_rows do
@@ -3367,8 +3304,7 @@ defmodule Nebulith.Catalog.TileSource do
       end
 
     # ONE cell per side, spanning the whole crossing through z-width (`depth` + `depthDir`), thinned to a
-    # DOOR'S thickness: *"ensure the sides are smaller, like door thicknes, and make sure the collission is
-    # scoped to that size"*. `scaleZ` 0.3 is exactly what the `door` tile carries, so a rail is the same kind
+    # DOOR'S thickness: `scaleZ` 0.3 is exactly what the `door` tile carries, so a rail is the same kind
     # of panel a door is rather than a wall of its own invention.
     #
     # AND THE COLLISION IS THAT SIZE. A rail you cannot walk through should block the strip it occupies, not
@@ -3502,7 +3438,7 @@ defmodule Nebulith.Catalog.TileSource do
   # A label that REUSES another's behaviour (wooden-door → door) must do so in EVERY style. Resolving the
   # reuse HERE rather than at each call site is what fixes the emoji `wooden-door`, which was seeded through a
   # path that passed the raw label and so rendered as a full cube while the ascii twin was a thin panel —
-  # the same tile, two behaviours (Alexander's rule: every style renders the same label identically).
+  # the same tile, two behaviours.
   defp merge_behavior(settings, label) do
     Map.merge(settings, Map.get(@behavior_settings, reuse_behavior_base(label), %{}))
   end

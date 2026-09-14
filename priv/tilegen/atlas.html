@@ -7,18 +7,17 @@
   "tile-<style>-<label>" that bake.mjs screenshots one by one.
 
   TWO WAYS A CELL IS DRAWN, because a style's tiles are AUTHORED differently even though the engine
-  treats every result identically (Alexander, 2026-09-08: "all art styles use image tiles ... but that
-  doesn't mean the tiles are generated in the same way"):
+  treats every result identically ():
 
     * DRAWN ART:      `svg`, an inline SVG string scaled to the cell. For a tile no font can draw:
-                        water with waves on it, a foam shoreline piece, a ripple. Alexander, 2026-09-12:
+                        water with waves on it, a foam shoreline piece, a ripple. :
                         "fix the water look ... look for isometric water and copy it, you usually need
                         border and animation". A glyph cannot be a wave, so this is the authoring shape
                         that lets water exist at all. It wins over every other shape.
     * ONE MARK      — `glyph` (ascii) or `emoji`. A terrain slab, a wall piece, a weapon.
     * A GRID OF MARKS — `art`, an ARRAY OF ROWS composed into a figure:
                           ["  O", " /|\", " / \"]
-                        This is how every UNIT is drawn. Alexander: "a dog is not a single character, is
+                        This is how every UNIT is drawn. A dog is not a single character, is
                         a set of characters combined to form a dog, that was then converted to png to be
                         a tile". Rows are LEFT-ALIGNED on one shared origin (leading spaces carry the
                         shape) and share one monospace advance, so the figure holds together instead of

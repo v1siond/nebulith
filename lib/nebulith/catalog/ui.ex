@@ -33,8 +33,7 @@ defmodule Nebulith.Catalog.Ui do
     @moduledoc """
     One complete UI configuration. `game_id` nil is the seeded DEFAULT every new game starts from.
 
-    `player_may` is the author's limit on the player (Alexander: *"players are allowed to do only as much
-    as the game author allows"*) — which of keys / layout / settings a player may change.
+    `player_may` is the author's limit on the player — which of keys / layout / settings a player may change.
     """
     use Ecto.Schema
     import Ecto.Changeset
@@ -109,8 +108,7 @@ defmodule Nebulith.Catalog.Ui do
   defmodule Bar do
     @moduledoc """
     One action bar. Unlimited per profile and never paged (his Q6), and `condition` is what lets a bar
-    swap in when something happens — *"activate bars when certain things happen, like special event, or
-    specific quest actions, or maybe vehicle actions"*. Nil means always up.
+    swap in when something happens — Nil means always up.
     """
     use Ecto.Schema
     import Ecto.Changeset

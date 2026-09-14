@@ -2,8 +2,6 @@ defmodule Nebulith.Repo.Migrations.SeedWaterLook do
   @moduledoc """
   Gives water its ART on a DB that already exists: frame pictures for the water surface, and the foam shoreline.
 
-  Alexander, 2026-09-12: *"fix the water look ... you usually need border and animation"*.
-
   Measured before writing it: `emoji/baked/water.png` was an 854 byte BLANK and both other bands pointed at
   `sq_blue.png`, a flat rounded square, so a river rendered as three flat tones with no texture anywhere. The
   pictures are authored as drawn art in `tiles.json` and baked per style.

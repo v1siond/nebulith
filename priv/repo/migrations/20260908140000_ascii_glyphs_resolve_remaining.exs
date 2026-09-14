@@ -18,7 +18,7 @@ defmodule Nebulith.Repo.Migrations.AsciiGlyphsResolveRemaining do
     * `adult` / `person` / `player` are one human figure whose colour says which.
 
   Everything else must be unique: picking a sunflower and getting a rose's picture is the "fake ascii tiles"
-  Alexander reported on 2026-09-08.
+  reported 2026-09-08.
 
   The INCUMBENT of a colliding glyph is the alphabetically-first label, so the assignment is stable across
   runs and the baseline tiles the generator leans on (`grass`, `water`, `path`, `sand`) keep the plain

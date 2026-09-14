@@ -6,7 +6,7 @@ defmodule Nebulith.DataMigration.AsciiPathFloorHeight do
   (MAP-MODEL §4). `path` broke that — the emoji row is a flat slab while the ascii row was born a FULL BLOCK
   from the glyph seed's old hardcoded `height: 1`. A building's ENTRANCE places the `path` tile
   (`BuildingCompositions.entrance_cells/2`), so the doorstep stood up as a kerb instead of lying flat like the
-  road it joins (Alexander: *"the entrance door … aren't 0.01 height like the rest of floor tiles"*).
+  road it joins.
 
   The seed now reads the tile's OWN authored height (ascii.json `path` = flat), so a fresh DB is born right;
   this fixes the rows already in a live DB. A re-seed is not the vehicle — it would `replace_all` and clobber

@@ -3,7 +3,7 @@ defmodule NebulithWeb.UiController do
   `GET /api/ui` — the action catalog and the UI profile in force.
 
   `?game=<id>` asks for that game's profile; a game with none gets the seeded default, which is the whole
-  point of having one (Alexander: *"we'd always offer an easy default set"*).
+  point of having one.
   """
   use NebulithWeb, :controller
 

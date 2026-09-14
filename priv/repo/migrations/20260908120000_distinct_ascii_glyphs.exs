@@ -2,7 +2,6 @@ defmodule Nebulith.Repo.Migrations.DistinctAsciiGlyphs do
   @moduledoc """
   Give semantically-different ASCII tiles their own glyph.
 
-  Alexander, 2026-09-08: *"a lot of ascii art tiles are fake, like I select them and I get a '?' rendered"*.
   Two separate defects sat behind that. The `?` was 29 tiles the bake source never carried, so nothing was
   ever drawn for them — fixed by baking what these rows already declared. The second is this one: **170 of
   358 ascii tiles rendered a byte-identical copy of another tile's picture**, because they shared a glyph.

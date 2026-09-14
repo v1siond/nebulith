@@ -6,11 +6,7 @@ defmodule Nebulith.Repo.Migrations.CreateZones do
 
   `src/engine/zones.ts` held 302 lines of per-season values: ground palettes, the hazard and trail tile, the
   tree / decor / flower tile each season wears, its flower variants, and its temple and cave palettes. The
-  file said where it belonged in its own comment: *"The true model end-state is these palettes living in the
-  Nebulith backend"*.
-
-  Alexander, 2026-09-10: *"any data that changes per level, per template ... basically anything that is DATA
-  should be moved to the backend, the frontend just processes the data algorithmically"*.
+  file said where it belonged in its own comment:
 
   One row per season, with each group as jsonb: they are read whole by the generator, they differ in shape
   between groups, and adding a knob to one must not need a migration. The season-INDEPENDENT tables (tree

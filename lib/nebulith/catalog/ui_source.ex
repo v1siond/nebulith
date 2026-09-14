@@ -2,8 +2,7 @@ defmodule Nebulith.Catalog.UiSource do
   @moduledoc """
   The SEED for the player-UI model: the action catalog, and the DEFAULT profile.
 
-  Alexander, 2026-09-06: *"we'd always offer an easy default set, like regular wasd to move, and whats
-  necessary to start developing the maps"*. That default is this profile — the UI the product ships with
+  That default is this profile — the UI the product ships with
   today, moved rather than redesigned. Every chord and every placement was dumped out of the frontend
   (`shortcuts.ts`, `playerUi.data.ts`) and generated into this file, so the seed cannot have drifted from
   what shipped.
@@ -293,8 +292,7 @@ defmodule Nebulith.Catalog.UiSource do
   @doc """
   What a PLAYER may change in the default profile.
 
-  His Q2: *"in most cases, [players] will only be edit predefined UI keybindings and other settings, like
-  text speed, audio volume"*. So keys yes, layout no, until an author says otherwise.
+  His Q2: So keys yes, layout no, until an author says otherwise.
   """
   def player_may, do: %{"keys" => true, "layout" => false, "settings" => true}
 
@@ -357,7 +355,7 @@ defmodule Nebulith.Catalog.UiSource do
   end
 
   # ONE bar to start, always up, holding the power slots the product already binds to 1-4. Unlimited bars
-  # is the model (his Q6); one is what ships.
+  # is the model (the Q6); one is what ships.
   defp seed_bars(profile) do
     Repo.delete_all(from b in Bar, where: b.profile_id == ^profile.id)
 
@@ -401,7 +399,7 @@ defmodule Nebulith.Catalog.UiSource do
   COPY-ON-WRITE, and it matters: the seeded default is shared by every game that has not customised its UI,
   so the first time one game moves a bar it must get its OWN profile rather than editing everyone's. The
   copy carries the default's bindings, elements and bars, so a game starts from exactly what it was already
-  showing (his Q1: *"we'd always offer an easy default set"* — you start from it, you do not lose it).
+  showing (his Q1: — you start from it, you do not lose it).
   """
   def editable_profile(nil), do: default_profile()
 

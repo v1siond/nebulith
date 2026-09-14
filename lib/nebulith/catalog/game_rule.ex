@@ -4,8 +4,8 @@ defmodule Nebulith.Catalog.GameRule do
 
   `combat` holds the coefficients the damage maths multiplies by; `stats` holds the default stat lines
   a player, an enemy and an npc start from. The FORMULAS are not here: `(weapon.baseDamage + strength)
-  * multiplier` is the shape of the algorithm, and Alexander's line is that the frontend *"processes
-  the data algorithmically"*. So the shape stays in code and every number it uses comes from here.
+  * multiplier` is the shape of the algorithm, and the rule is that the frontend So the shape stays in
+  code and every number it uses comes from here.
   """
   use Ecto.Schema
   import Ecto.Changeset

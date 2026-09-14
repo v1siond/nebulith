@@ -2,11 +2,7 @@ defmodule Nebulith.Docs do
   @moduledoc """
   THE DOCUMENTATION LIBRARY: every markdown document in the repo, listed and rendered.
 
-  Alexander, 2026-09-12, after being handed `docs/API.md` and told that was the deliverable: *"I already know
-  it's bad, because i requested an actual page in either the backend or the frontend, actual documentation
-  layout, etc"*, then *"I'm fine with rendering different markdowns as long as we have an index of multiple
-  markdowns each one explaining the docs for all sections of the system and api and how it works and how
-  everything is architected"*.
+  after being handed `docs/API.md` and told that was the deliverable: then
 
   So the docs are not one page. They are the corpus already in `docs/`, indexed and served.
 
