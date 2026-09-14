@@ -911,6 +911,7 @@ export function generateStage(opts: GenerateOptions): StageData {
   // Single-pass archetypes (forest/cave/temple/boss) read `ctx.rand`; the layout rng is their source.
   const ctx: ArchetypeContext = { zone, ground, collision, floorColors, elevation, buildings, props, trees, compositions, cols, rows, layout, options: opts.options, nature: opts.nature, settlement: opts.settlement, palette: opts.palette, subZones: opts.subZones, formation: opts.formation, treeMix: opts.treeMix, crossings: opts.crossings, decks: new Set<string>(), wet: new Set<string>(), flow: new Map<string, number>(), buildingSizes: opts.buildingSizes, rand: rngs.layout }
   ARCHETYPES[variant]?.(ctx, rngs)
+  if (variant === 'forest') sealForestEdge(ctx) // a wood you cannot simply walk out of the side of
   openGates(ctx) // the exits the ways planned, cut through the border AFTER everything that seals it
   flattenFloors(ctx, FLOOR_MATERIALS[variant]?.(ctx) ?? [])
   addTerrainTransitions(ctx) // blended shorelines / lava banks over the painted ground
@@ -1568,6 +1569,45 @@ interface ForestBuild {
  * A generator that serves neither count returns null and its layout builds the map it always did, so every saved
  * recipe is untouched.
  */
+/** How deep the treeline runs. The gate is `pathWidth` (3) cells across, so a one-cell band reads as a fence
+ *  beside a three-cell opening rather than a wood that thickens. Two is the least that reads as a BAND. */
+const EDGE_TREELINE = 2
+
+/**
+ * THE WOOD GETS TOO THICK THAT WAY: a forest's border, sealed with its own trees.
+ *
+ * Measured 2026-09-14: a woodland, a jungle and a meadow each had **156 of 156 border cells walkable**. The
+ * map had no edge at all, so you left wherever you liked and the `exits` count could never mean anything —
+ * every forest measured 4 exits however many were asked for.
+ *
+ * His call on what closes it: a dense treeline, broken only at the gates. So the band is planted with the
+ * template's OWN species (`ctx.treeMix`, the same served mix the canopy rolls), which is why a jungle edge is
+ * jungle and a meadow edge is meadow without this function knowing anything about either.
+ *
+ * Runs BEFORE `openGates`, which then cuts the ways back through it. Cells the route network already claimed
+ * are left alone, so a path that reaches the border is not planted over on its way out.
+ *
+ * A generator that serves no ways plans no routes, and its map is left exactly as it was.
+ */
+function sealForestEdge(ctx: ArchetypeContext): void {
+  const plan = ctx.routes
+  if (!plan) return
+  const { collision, trees, cols, rows } = ctx
+  const spared = new Set<string>(plan.cells)
+  for (const gate of plan.gates) {
+    spared.add(`${gate.inside.col},${gate.inside.row}`)
+    for (const c of gate.cells) spared.add(`${c.col},${c.row}`)
+  }
+  forEachCell(cols, rows, (col, row) => {
+    const depth = Math.min(col, row, cols - 1 - col, rows - 1 - row)
+    if (depth >= EDGE_TREELINE) return               // not in the band
+    if (spared.has(`${col},${row}`)) return          // a way runs through here
+    if (collision[row][col]) return                  // something already stands here
+    trees.push({ col, row, kind: pickLivingTree(ctx.rand(), ctx.treeMix), variant: massVariant(col, row) })
+    collision[row][col] = true
+  })
+}
+
 /**
  * CUT THE EXITS THROUGH THE BORDER, as a LAYER, after everything that seals it.
  *

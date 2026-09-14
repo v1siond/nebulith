@@ -13,9 +13,10 @@
  * `openGates` cuts them as a LAYER in `generateStage`, after the archetype has sealed whatever it seals, so no
  * later pass can take them back and no archetype has to remember to ask.
  *
- * WHAT THIS DOES NOT COVER: a FOREST. Its border is 100% walkable, all 156 cells, so you leave wherever you
- * like and the count can never mean anything. Closing it is a design decision about what a forest's edge looks
- * like, and that is his to make.
+ * A FOREST had the same symptom for the opposite reason: its border was 100% walkable, all 156 cells, so you
+ * left wherever you liked. His call on what closes it was a dense treeline, and `sealForestEdge` plants one
+ * from the template's OWN species, broken only where a way runs through. Measured after both fixes, over every
+ * combination the `E <= 2P` rule allows: **0 of 210 builds carry the wrong number of exits.**
  */
 import '@/__tests__/helpers/installTilesetSeed'
 import { generateStage, type StageData } from '@/engine/stageGenerator'
@@ -26,8 +27,11 @@ import liveBody from '@/__tests__/fixtures/generators.json'
 const CATALOG = parseGeneratorCatalog(liveBody)
 const COLS = 40, ROWS = 40
 const ENCLOSED = [
-  { cat: 'cave', gen: 'cave_default', variant: 'cave' as const },
-  { cat: 'temple', gen: 'temple_default', variant: 'temple' as const },
+  { cat: 'forest', gen: 'forest_woodland', variant: 'forest' as const, layout: 'woodland' },
+  { cat: 'forest', gen: 'forest_jungle', variant: 'forest' as const, layout: 'jungle' },
+  { cat: 'forest', gen: 'forest_meadow', variant: 'forest' as const, layout: 'meadow' },
+  { cat: 'cave', gen: 'cave_default', variant: 'cave' as const, layout: undefined },
+  { cat: 'temple', gen: 'temple_default', variant: 'temple' as const, layout: undefined },
 ]
 
 function build(c: (typeof ENCLOSED)[number], exits: number, pathways: number, seed: number): StageData {
@@ -36,7 +40,7 @@ function build(c: (typeof ENCLOSED)[number], exits: number, pathways: number, se
   Math.random = makeRng(seed)
   try {
     return generateStage({
-      zone: 'summer', variant: c.variant, cols: COLS, rows: ROWS,
+      zone: 'summer', variant: c.variant, layout: c.layout as never, cols: COLS, rows: ROWS,
       options: { exits: String(exits), pathways: String(pathways) },
       nature: config?.nature, palette: config?.palette, formation: config?.formation,
       treeMix: config?.trees, subZones: config?.subZones, crossings: config?.crossings,
@@ -89,11 +93,39 @@ describe.each(ENCLOSED)('$gen, a map with a real border', c => {
     }
   })
 
-  it('opens the border ONLY at its gates, never the whole ring', () => {
+  it('opens the border only where a way runs through, never the whole ring', () => {
     const one = openBorderCells(build(c, 1, 2, 7))
     const four = openBorderCells(build(c, 4, 2, 7))
-    expect(one).toBeGreaterThan(0)          // there IS a way out — it used to be 0
+    expect(one).toBeGreaterThan(0)          // there IS a way out — a forest used to be 156, a cave 0
     expect(four).toBeGreaterThan(one)       // …and asking for more opens more
-    expect(four).toBeLessThan(COLS)         // …while the rest of the border stays solid
+    expect(four).toBeLessThan(COLS)         // …while the rest of the border holds
+  })
+
+  // The mouth is as wide as the PATH that runs through it, which is wider than the planner's 3-cell gate and
+  // is the point: you walk out along the road. What must never happen is an opening somewhere no way goes.
+  it('every reachable hole in the border belongs to a way, none of it is somewhere else', () => {
+    const stage = build(c, 2, 2, 7)
+    const { collision, cols, rows, spawn } = stage
+    const onWay = new Set<string>(stage.routes!.cells)
+    for (const g of stage.routes!.gates) {
+      onWay.add(`${g.inside.col},${g.inside.row}`)
+      for (const cell of g.cells) onWay.add(`${cell.col},${cell.row}`)
+    }
+    const seen = new Set<string>()
+    const st: Array<[number, number]> = [[spawn!.col, spawn!.row]]
+    while (st.length) {
+      const [cc, rr] = st.pop()!
+      if (cc < 0 || rr < 0 || cc >= cols || rr >= rows) continue
+      const k = `${cc},${rr}`
+      if (seen.has(k) || collision[rr]?.[cc]) continue
+      seen.add(k)
+      st.push([cc + 1, rr], [cc - 1, rr], [cc, rr + 1], [cc, rr - 1])
+    }
+    const strays = [...seen].filter(k => {
+      const [col, row] = k.split(',').map(Number)
+      const border = col === 0 || row === 0 || col === cols - 1 || row === rows - 1
+      return border && !onWay.has(k)
+    })
+    expect(strays).toEqual([])
   })
 })
