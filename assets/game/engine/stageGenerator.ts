@@ -1602,62 +1602,7 @@ function plannedRoutes(ctx: ArchetypeContext): RoutePlan | null {
   const ways = resolveWays(ctx.options, ctx.rand)
   if (!ways) return null
   ctx.routes = planRoutes(ctx.cols, ctx.rows, ways, ctx.rand, WOODLAND.pathWidth)
-  markExits(ctx, ctx.routes)
   return ctx.routes
-}
-
-/** Which way a gate's composition is turned. A composition is authored SOUTH-FACING (the convention
- *  `depthDir` and building rotation already use), so each side is that many quarter turns from south. */
-const GATE_ROTATION: Readonly<Record<string, number>> = { south: 0, west: 1, north: 2, east: 3 }
-
-/**
- * WHICH GATE A PLACE SHOWS, worked out rather than configured.
- *
- * Alexander, 2026-09-13: *"the exit type should be inferred logically too"*. The logic is what you are
- * walking INTO: a jungle's way out should say "it gets denser that way", a wood's should just say "this is
- * the way". So the layout picks first, and a template that names its own gate in `options.exit` overrides,
- * which is how a new type arrives without touching this.
- *
- * Everything falls back to `exit_gate`, and an unauthored name falls back too rather than stamping nothing:
- * a way out with no marker is the bug this exists to fix.
- */
-const EXIT_GATE_BY_LAYOUT: Readonly<Record<string, string>> = { jungle: 'exit_gate_deep_forest' }
-const DEFAULT_EXIT_GATE = 'exit_gate'
-
-/** The gate for this map: the served name, else the one its layout implies, else the default. */
-function exitGateKind(ctx: ArchetypeContext): string {
-  const served = ctx.options?.exit
-  const wanted = typeof served === 'string' && served.length > 0 ? served : EXIT_GATE_BY_LAYOUT[ctx.layout ?? '']
-  const catalog = styleCatalog('ascii')
-  if (wanted && resolveComposition(catalog, wanted) !== null) return wanted
-  return DEFAULT_EXIT_GATE
-}
-
-/**
- * MARK EVERY WAY OUT.
- *
- * Alexander, 2026-09-13: *"it's really important to have visual indicators of the exit, like maybe we always
- * put a light or something"*, and *"we can ut a few trees at the sides of the exit/entrance pathway with the
- * visual indicator selected"*, and on why it is a family rather than one thing: *"we need many types, because
- * we'll have many different zones ... going into a deeper jungle exit would have a lot of trees outside"*.
- *
- * The gate itself is DATA (`exit_gate*` in the catalog): a lit marker at the mouth with trees down both sides
- * of the way through. This only decides WHERE one goes and WHICH WAY it faces, so a new kind of exit is a new
- * composition and no change here. The marker is centred on the gate's own inside cell, which is the middle of
- * the 3-wide pathway, so the flanks land on the two cells that frame it.
- */
-function markExits(ctx: ArchetypeContext, plan: RoutePlan): void {
-  const kind = exitGateKind(ctx)
-  if (resolveComposition(styleCatalog('ascii'), kind) === null) return // not authored for this style: no gate, no guess
-  for (const gate of plan.gates) {
-    ctx.compositions.push({
-      kind,
-      col: gate.inside.col - 1, // the marker sits at dx 1, so the anchor is one cell back along the mouth
-      row: gate.inside.row,
-      variant: 0,
-      rotation: GATE_ROTATION[gate.side] ?? 0,
-    })
-  }
 }
 
 /**
