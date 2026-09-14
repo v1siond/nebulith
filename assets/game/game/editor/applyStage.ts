@@ -17,9 +17,7 @@ import { type GeneratorBuildings } from '@/lib/generatorCatalog'
 
 /** How far the water's surface sits BELOW the bank it runs between. A rim, not a canyon: enough that you can
  *  see it is a cut and not a puddle, small enough that the bank does not become the view. */
-const WATER_FREEBOARD = 0.25
 /** However shallow the cut, the surface still has a body under it rather than collapsing to a film. */
-const WATER_MIN_RISE = 0.35
 
 export function applyStageToGrid(stage: StageData, grid: IsometricGrid, buildingSalt = 0, palette?: GeneratorBuildings): void {
   for (let r = 0; r < grid.rows; r++) {
@@ -42,26 +40,13 @@ export function applyStageToGrid(stage: StageData, grid: IsometricGrid, building
           const floor = grid.floorAt(c, r)
           if (floor) floor.flow = flow
         }
-        // WATER FILLS THE CHANNEL IT IS DUG INTO.
+        // THE WATER'S OWN HEIGHT IS THE TILE'S. It used to be overridden here to `dug - 0.25`, which put the
+        // surface a quarter of a block under the bank: measurably below it, visually flush with it, so the
+        // channel had no visible edge. The tile carries 0.35 stacked from the cell's BOTTOM face now, so in a
+        // one-deep channel the surface lands 0.65 under the bank and the cut shows the whole way along.
         //
-        // Measured on that view: 66% of the river corridor was bare EARTH, 163,876 brown
-        // pixels against 85,462 blue.
-        //
-        // The bed is cut two blocks down and the water tile is a 0.5-block slab that sits ON the bed, so the
-        // surface landed a block and a half below the bank and BOTH banks showed a block and a half of dry
-        // wall for the whole length of the river. A canyon with a trickle in it. Every other complaint about
-        // that picture followed from it: the river read as disconnected patches, the brown swamped
-        // everything, and the bridge could not be told apart from the bank because both were earth.
-        //
-        // A river's surface sits just under its bank and the depth is UNDER the water where you cannot see
-        // it. So the block is as tall as the hole it fills, less a rim, and the three depth BANDS all get the
-        // same treatment, which also makes the surface level: they carry different tile heights (0.5, 1, 1),
-        // and that difference was a visible half-block step wherever the band changed.
-        const dug = -(stage.elevation?.[r]?.[c] ?? 0)
-        if (dug > 0 && kind.includes('water')) {
-          const floor = grid.floorAt(c, r)
-          if (floor) floor.height = Math.max(WATER_MIN_RISE, dug - WATER_FREEBOARD)
-        }
+        // Nothing is invented here any more: the depth of the channel is the generator's, the height of the
+        // water is the tile's, and this file just applies them.
       }
       // RELIEF. This wrote 0 unconditionally, which is why the grid's per-cell height has been all zeros on
       // every map ever generated. A generator that states none still gets 0, so a flat template is unchanged.
