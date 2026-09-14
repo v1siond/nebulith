@@ -58,6 +58,7 @@ import { groundTileColor } from './tileset/groundColor'
 import type { Connector } from '@/lib/api'
 import { clamp, randInt, randIntWith, manhattan, makeRng, type Rng } from '@/lib/math'
 import { planRoutes, resolveWays, type Gate, type RouteCell, type RoutePlan } from '@/engine/pathNetwork'
+import { channelDepth, digChannel, flowField, isWaterGround, FLOW_STEPS } from '@/engine/riverNetwork'
 
 export type VariantId = 'town' | 'city' | 'forest' | 'cave' | 'temple' | 'boss-stage'
 
@@ -655,14 +656,12 @@ const makeBossAnchor = (col: number, row: number): StageProp => ({
 // archetype paints the ground, we scan every walkable LAND cell and, where it
 // touches water/ice/lava, stamp a non-blocking edge decor — a shoreline ripple, a
 // frosty rim, or a charred ember crust — so coastlines/lava banks read as blended.
-const WATER_LIKE = new Set(['water', 'ice_water', 'oasis', 'koi'])
 const LAVA_LIKE = new Set(['lava', 'magma'])
 
 /** THE reusable LAND-ONLY guard (Alexander): NOTHING — a prop, tree, lamp, ornament, rock, unit or spawn — may
  *  sit on a WATER cell; only the bridge deck crosses water. Reads the GROUND directly so every generator + the
  *  placement primitives share ONE check instead of a per-type special case. A cell is water when its ground tile
  *  is water-like (the meadow river, a lake, oasis, koi pond, deep/ice water, …). */
-const isWaterGround = (g: string | undefined): boolean => !!g && (WATER_LIKE.has(g) || g.includes('water'))
 const isLandCell = (ctx: ArchetypeContext, col: number, row: number): boolean =>
   inBounds(col, row, ctx.cols, ctx.rows) && !isWaterGround(ctx.ground[row][col]) && !ctx.wet.has(`${col},${row}`)
 
@@ -2732,30 +2731,8 @@ function raiseRegions(ctx: ArchetypeContext, zoneAt: (GeneratorSubZone | undefin
  * to be able to use water outside of rivers, usually i'l be like water puddles, walkable"*. A puddle is not a
  * channel, so nothing digs it.
  */
-const CHANNEL_DEPTH: Readonly<Record<string, number>> = { '1': 1, '2': 2 }
 
-function channelDepth(ctx: ArchetypeContext): number {
-  const served = ctx.options?.depth
-  return typeof served === 'string' ? CHANNEL_DEPTH[served] ?? 0 : 0
-}
 
-/**
- * CUT THE CHANNEL: every bed cell drops below the walking floor.
- *
- * Collision is NOT touched here. `carveChannel` already blocks a water cell, and a second opinion about
- * walkability in a second place is how the ten `=== 'water'` conditionals came to exist.
- */
-function digChannel(ctx: ArchetypeContext, water: ReadonlySet<string>): void {
-  const depth = channelDepth(ctx)
-  if (depth === 0) return
-  for (const key of water) {
-    const { col, row } = toCell(key)
-    // RELATIVE to whatever the ground already stands at, so a river crossing a raised region cuts into THAT
-    // region rather than snapping to an absolute depth. At level 0 the two are identical, which is every map
-    // that states no relief.
-    if (inBounds(col, row, ctx.cols, ctx.rows)) ctx.elevation[row][col] -= depth
-  }
-}
 
 /** The shape of a channel: how wide, how far it wanders, and optionally which way it must run. */
 interface ChannelShape {
@@ -3224,199 +3201,9 @@ function meadowWater(ctx: ArchetypeContext): GeneratorPalette {
   }
 }
 
-/**
- * WHICH WAY THE WATER IS GOING, per cell.
- *
- * Alexander, 2026-09-13, with three drawings: *"ALL FUCKING TILES USED ARE RANDOMLY ALIGNED, NONE IS THE SAME
- * PATTERN, THE SAME DIRECTION … MOST OF THEM ARE BACKWARDS TOO, LIKE NONE OF THEM ARE TAKING INTO
- * CONSIDERATION THE DIRECTION OF THE RIVER AROUND THE FUCKING MAP"*, and then the target, drawn:
- *
- *     what he sees        what he wants            or
- *     | - | - |-          -------                  | | |
- *                         ------                   | | |
- *                         ------                   | | |
- *
- * WHY IT CAME OUT SCRAMBLED. The first version walked the wet cells as a graph and gave each cell the step
- * that REACHED it. That is right for a channel one cell wide and wrong for every real river, because a river
- * is WIDE: the walk wanders across the channel as happily as along it, so two cells in the same cross-section
- * get perpendicular headings. His `| - | - |-` is exactly a depth-first walk of a three-wide band.
- *
- * A cell's heading is two independent facts, and they need two different answers:
- *
- *   1. THE AXIS — does this stretch run along col or along row? That is a fact about the channel's SHAPE, so
- *      measure the shape: how far the water reaches through this cell each way. A three-wide horizontal band
- *      reaches ~40 along col and 3 along row at every one of its cells, so the whole band answers "col",
- *      cross-section included. This is what makes his `-------` come out level.
- *
- *   2. THE SIGN — of the two ways along that axis, which is downstream? That is a fact about the channel as a
- *      WHOLE, so it comes from a distance field, not from a neighbour. BFS from an EXTREMITY of the reach
- *      makes the distance climb monotonically from one end to the other, so "downstream = the neighbour that
- *      is farther" agrees everywhere. The extremity is found with the standard double sweep (BFS from any
- *      cell, take the farthest; BFS again from that one), which lands on a true end of the reach rather than
- *      the middle. Seeding in the middle would give a spring flowing out both ways.
- *
- * A RING IS THE ONE CASE A DISTANCE FIELD CANNOT ANSWER, and it is the case he drew (image #9, a river going
- * around the map). Distance from any seed on a ring climbs BOTH ways and the two halves collide at the far
- * side. A ring does not have an upstream, it CIRCULATES, so it gets the other rule: turn the vector from the
- * ring's middle to the cell by ninety degrees and follow that around. Which rule applies is decided exactly,
- * not by a threshold: the water is a ring when it encircles dry land (`encirclesDryLand`).
- *
- * Returns quarter turns: 0 = +col, 1 = +row, 2 = -col, 3 = -row. Every wet cell of a channel gets one.
- */
-const FLOW_STEPS: ReadonlyArray<readonly [number, number]> = [[1, 0], [0, 1], [-1, 0], [0, -1]]
-/** How far along one axis to look for the channel's run. A river is a handful of cells across and a map is
- *  tens long, so this only has to see PAST the width to answer, and 12 does on every size we generate. */
-const RUN_REACH = 12
-/** Axis of a stretch: which of the two grid directions it runs along. */
-type FlowAxis = 0 | 1 // 0 = col, 1 = row
-
-const flowKey = (col: number, row: number): string => `${col},${row}`
-
-/** The water cells reachable from `start`, 4-connected. One river arm, one component. */
-function waterComponent(water: ReadonlySet<string>, start: string, seen: Set<string>): Set<string> {
-  const found = new Set<string>([start])
-  const stack = [start]
-  seen.add(start)
-  while (stack.length > 0) {
-    const { col, row } = toCell(stack.pop() as string)
-    for (const [dc, dr] of FLOW_STEPS) {
-      const k = flowKey(col + dc, row + dr)
-      if (!water.has(k) || seen.has(k)) continue
-      seen.add(k)
-      found.add(k)
-      stack.push(k)
-    }
-  }
-  return found
-}
-
-/** Every separate body of water, so two arms of the same map are each given their own current. */
-function waterComponents(water: ReadonlySet<string>): Set<string>[] {
-  const seen = new Set<string>()
-  const out: Set<string>[] = []
-  for (const key of water) if (!seen.has(key)) out.push(waterComponent(water, key, seen))
-  return out
-}
-
-/** How many cells of water lie in a straight line through this one, counting both ways along (dc,dr). */
-function runThrough(water: ReadonlySet<string>, col: number, row: number, dc: number, dr: number): number {
-  let n = 1
-  for (let s = 1; s <= RUN_REACH && water.has(flowKey(col + dc * s, row + dr * s)); s++) n++
-  for (let s = 1; s <= RUN_REACH && water.has(flowKey(col - dc * s, row - dr * s)); s++) n++
-  return n
-}
-
-/** WHICH WAY THIS STRETCH RUNS, from the water's own shape: the axis it reaches farther along. Ties go to
- *  col, so a perfectly square pool answers consistently instead of speckling. */
-function channelAxis(water: ReadonlySet<string>, key: string): FlowAxis {
-  const { col, row } = toCell(key)
-  return runThrough(water, col, row, 1, 0) >= runThrough(water, col, row, 0, 1) ? 0 : 1
-}
-
-/** Graph distance from `from` to every cell of the component. */
-function waterDistances(component: ReadonlySet<string>, from: string): Map<string, number> {
-  const dist = new Map<string, number>([[from, 0]])
-  let frontier = [from]
-  while (frontier.length > 0) {
-    const next: string[] = []
-    for (const key of frontier) {
-      const { col, row } = toCell(key)
-      const d = (dist.get(key) as number) + 1
-      for (const [dc, dr] of FLOW_STEPS) {
-        const k = flowKey(col + dc, row + dr)
-        if (!component.has(k) || dist.has(k)) continue
-        dist.set(k, d)
-        next.push(k)
-      }
-    }
-    frontier = next
-  }
-  return dist
-}
-
-/** The cell of `dist` that is farthest from its seed. */
-function farthestFrom(dist: ReadonlyMap<string, number>): string {
-  let best = ''
-  let far = -1
-  for (const [key, d] of dist) if (d > far) { far = d; best = key }
-  return best
-}
-
-/** Does this water RING something? True when a dry cell inside its reach cannot be walked out to the map's
- *  edge without crossing water, which is precisely what "the river goes around the map" means. Exact: a
- *  flood of the dry cells inward from the border, no threshold and no guessing at shapes. */
-function encirclesDryLand(component: ReadonlySet<string>, cols: number, rows: number): boolean {
-  const outside = new Set<string>()
-  const stack: string[] = []
-  const consider = (col: number, row: number): void => {
-    if (col < 0 || row < 0 || col >= cols || row >= rows) return
-    const k = flowKey(col, row)
-    if (component.has(k) || outside.has(k)) return
-    outside.add(k)
-    stack.push(k)
-  }
-  for (let col = 0; col < cols; col++) { consider(col, 0); consider(col, rows - 1) }
-  for (let row = 0; row < rows; row++) { consider(0, row); consider(cols - 1, row) }
-  while (stack.length > 0) {
-    const { col, row } = toCell(stack.pop() as string)
-    for (const [dc, dr] of FLOW_STEPS) consider(col + dc, row + dr)
-  }
-  return outside.size + component.size < cols * rows
-}
-
-/** The middle of a body of water, as the average of its cells. */
-function waterMiddle(component: ReadonlySet<string>): { col: number; row: number } {
-  let col = 0
-  let row = 0
-  for (const key of component) { const c = toCell(key); col += c.col; row += c.row }
-  return { col: col / component.size, row: row / component.size }
-}
-
-/** Turn an axis and a direction along it into the heading the renderer reads. */
-const headingFor = (axis: FlowAxis, forward: boolean): number => (axis === 0 ? (forward ? 0 : 2) : (forward ? 1 : 3))
-
-/** A REACH: downstream is away from the end the distance field is seeded at, so every cell along it agrees. */
-function reachFlow(component: ReadonlySet<string>, into: Map<string, number>, water: ReadonlySet<string>): void {
-  const first = component.values().next().value as string
-  const end = farthestFrom(waterDistances(component, first)) // the double sweep: a true end, not the middle
-  const dist = waterDistances(component, end)
-  for (const key of component) {
-    const axis = channelAxis(water, key)
-    const { col, row } = toCell(key)
-    const [dc, dr] = FLOW_STEPS[axis]
-    const here = dist.get(key) ?? 0
-    const ahead = dist.get(flowKey(col + dc, row + dr))
-    const behind = dist.get(flowKey(col - dc, row - dr))
-    // Downstream is the way the distance CLIMBS. With only one neighbour on the axis, that one decides; with
-    // neither (a one-cell puddle in the reach) the reach's own orientation is all there is, so take forward.
-    const forward = ahead !== undefined && behind !== undefined ? ahead > behind
-      : ahead !== undefined ? ahead > here
-        : behind !== undefined ? behind < here
-          : true
-    into.set(key, headingFor(axis, forward))
-  }
-}
-
-/** A RING: it circulates, so downstream is the tangent around its middle. Same turn everywhere, no seam. */
-function ringFlow(component: ReadonlySet<string>, into: Map<string, number>, water: ReadonlySet<string>): void {
-  const mid = waterMiddle(component)
-  for (const key of component) {
-    const { col, row } = toCell(key)
-    const axis = channelAxis(water, key)
-    // Tangent of a clockwise turn about the middle: (dcol, drow) = (-(row - midRow), (col - midCol)).
-    const tangent = axis === 0 ? -(row - mid.row) : col - mid.col
-    into.set(key, headingFor(axis, tangent >= 0))
-  }
-}
-
-function flowField(ctx: ArchetypeContext, water: ReadonlySet<string>): Map<string, number> {
-  const flow = new Map<string, number>()
-  for (const component of waterComponents(water)) {
-    if (encirclesDryLand(component, ctx.cols, ctx.rows)) ringFlow(component, flow, water)
-    else reachFlow(component, flow, water)
-  }
-  return flow
-}
+// THE CURRENT LIVES IN `riverNetwork.ts` NOW. Alexander, 2026-09-13: *"do we have a separate module to build
+// the river layouts? like the channel, the current, etc"*. He was right that we did not: 56 water functions
+// in this one 5,775-line file. The flow field is the first piece out, and it took its 193 lines with it.
 /** How many channel cells in get a rock, as a share. Sparse on purpose: *"a few rocks here and there"*. */
 const RIVER_ROCK_SHARE = 0.035
 /** A rock never sits on the bank edge, or it reads as part of the shore instead of standing in the water. */
