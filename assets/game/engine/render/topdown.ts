@@ -15,7 +15,7 @@ import { applyPose } from '@/engine/tileset/pose'
 import { resolveTileSize, resolveTilePose } from '@/engine/tileset/tileViewSettings'
 import { resolveTileHeight } from '@/engine/tileset/tileHeight'
 import { Connector } from '@/lib/api'
-import { ASCII_FONT, COMBAT_RANGE, type DayNight, ENEMY_MOVE_MS, applyCellTransform, clampCameraAxis, assetCaptionByCell, terrainLabelAt, collectLampGlows, drawCellLabel, debugLabelColors, drawFacingGlyph, drawFigureVitals, drawGroundShadow, drawHitMarker, drawHoverRing, drawNightLighting, drawPlayerArm, drawProjectileGlyph, drawConnectorMarker, drawAttackAnimFrame, drawQuestMarker, drawRangeRing, drawSelectionRing, drawStyledImage, drawFlatTileForShape, SINGLE_TILE_FRAC, enemyInAttackReach, entityAnimFrame, entityMotion, entityRenderCell, frameImage, getPlayerArt, fillTintedGlyph, idleNow, isDeadEnemy, isDebugMode, isShowCollisions, resolveDraw, resolveAssetDraw, resolveEntityDraw, assetOverride, styleTileImage, labelTileRecolor, groundDecorImage, type DrawVisual } from './shared'
+import { ASCII_FONT, COMBAT_RANGE, type DayNight, ENEMY_MOVE_MS, applyCellTransform, clampCameraAxis, assetCaptionByCell, terrainLabelAt, collectLampGlows, drawCellLabel, debugLabelColors, drawFacingGlyph, drawFigureVitals, drawGroundShadow, drawHitMarker, drawHoverRing, drawNightLighting, drawPlayerArm, drawProjectileGlyph, drawConnectorMarker, drawAttackAnimFrame, drawQuestMarker, drawRangeRing, drawSelectionRing, drawStyledImage, drawFlatTileForShape, SINGLE_TILE_FRAC, enemyInAttackReach, entityAnimFrame, entityMotion, entityRenderCell, frameImage, getPlayerArt, fillTintedGlyph, idleNow, isDeadEnemy, isDebugMode, isShowCollisions, resolveDraw, resolveAssetDraw, resolveEntityDraw, assetOverride, assetTileImage, styleTileImage, labelTileRecolor, groundDecorImage, type DrawVisual } from './shared'
 import { nearFadeAlpha } from './roofReveal'
 import { drawWeather, type WeatherId } from './weather'
 import { resolveAssetDrawSize } from './assetDimensions'
@@ -739,7 +739,7 @@ export function render2D(params: Render2DParams) {
       // while its emoji twin drew a picture. Emoji already carries the kind image in `adv`, so `!adv.image`
       // is false there and nothing changes. No baked tile for that kind → keeps its glyph (last resort).
       if (!adv.image) {
-        const kimg = styleTileImage(assetKind(asset), style)
+        const kimg = assetTileImage(asset, style)
         if (kimg) adv = { ...adv, image: kimg, char: '', tint: adv.tint ?? asset.color }
       }
       // The tile's ACTIVE-STYLE entry — per-view size/pose, read the SAME way in every style (styleTileArt).

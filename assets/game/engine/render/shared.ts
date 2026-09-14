@@ -27,7 +27,7 @@ export const ASCII_FONT = '"JetBrains Mono", "Fira Code", "Consolas", monospace'
 // property: on the ASCII style with NO override, resolveVisual returns the passthrough
 // sentinel, so `resolveDraw` returns the caller's OWN default char+color unchanged —
 // the fillText that follows is byte-identical to the pre-style code.
-import { resolveVisual, styleTileArt, visualForTileId, type ElementKind, type ImageVisual, type Style, type Visual } from '@/game/artStyle'
+import { assetKind, resolveVisual, styleTileArt, visualForTileId, type ElementKind, type ImageVisual, type Style, type Visual } from '@/game/artStyle'
 import { tileSlug } from '@/game/editor/tilePlacement'
 import { type AttackAnim, type AnimFrame } from '@/engine/attackAnimations'
 import { type TileView } from '@/engine/animation/tileAnimation'
@@ -167,6 +167,23 @@ export function assetOverride(asset: GridAsset, style: Style): string | null | u
 export function styleTileImage(key: string, style: Style): ImageVisual | undefined {
   const art = styleTileArt(key, style.id)
   return art?.image ? { kind: 'image', src: art.image, char: art.char } : undefined
+}
+
+/** The baked tile for a LABEL-LESS asset (a floor, a kind-identified prop): its KIND's tile, and failing that
+ *  its OWN key.
+ *
+ *  A floor's kind comes from `groundKind`, which FOLDS many ground names onto one kind on purpose — every
+ *  water_* label shares the one `water` tile so a river is one picture. Names it does not recognise fold onto
+ *  `ground`, and `ground` IS NOT A TILE. So `cobblestone` (a real tile, baked in both styles) resolved no
+ *  picture, and with no picture and no glyph the floor drew NOTHING: that is the dark navy showing through the
+ *  map at the river crossings, reported over and over. It is the canvas.
+ *
+ *  The kind is tried FIRST so every fold that works today is untouched, then the tile's own name, which is how
+ *  the catalog is keyed anyway. A name with neither still answers undefined, and nothing is invented. */
+export function assetTileImage(asset: { type: string; label?: string; tileKey?: string }, style: Style): ImageVisual | undefined {
+  const byKind = styleTileImage(assetKind(asset), style)
+  if (byKind) return byKind
+  return asset.tileKey ? styleTileImage(asset.tileKey, style) : undefined
 }
 
 /** The active-style backend IMAGE for a COMPOSITION cell's LABEL (a tree/building/feature part), shared by

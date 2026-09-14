@@ -14,7 +14,7 @@ import { type PlayerState, barFraction, hpFraction, playerDisplayName } from '@/
 import { type CombatState, type Entity, type Quest } from '@/game/types'
 import { resolveGroundTile, type TileShape } from '@/engine/tileset/tileset'
 import { Connector } from '@/lib/api'
-import { ASCII_FONT, COMBAT_RANGE, type DayNight, type DrawVisual, ENEMY_MOVE_MS, LIGHT, applyCellTransform, isoCameraFocus, assetCaptionByCell, terrainLabelAt, collectLampGlows, type CompositionGhost, compositionGhostColors, drawCellLabel, debugLabelColors, drawFacingGlyph, drawFigureVitals, drawGroundShadow, drawWaterStep, drawHitMarker, drawHoverRing, drawNightLighting, drawPlayerArm, drawProjectileGlyph, drawConnectorMarker, drawAttackAnimFrame, drawQuestMarker, drawRangeRing, drawSelectionRing, drawStyledImage, clipToBall, SINGLE_TILE_FRAC, enemyInAttackReach, entityAnimFrame, entityMotion, entityRenderCell, frameImage, getPlayerArt, fillTintedGlyph, idleNow, isDeadEnemy, isDebugMode, isShowCollisions, resolveDraw, resolveAssetDraw, resolveEntityDraw, assetOverride, styleTileImage, labelTileRecolor, groundDecorImage, tileImage, tintedImage, tintedGlyphSprite, treeCellSet } from './shared'
+import { ASCII_FONT, COMBAT_RANGE, type DayNight, type DrawVisual, ENEMY_MOVE_MS, LIGHT, applyCellTransform, isoCameraFocus, assetCaptionByCell, terrainLabelAt, collectLampGlows, type CompositionGhost, compositionGhostColors, drawCellLabel, debugLabelColors, drawFacingGlyph, drawFigureVitals, drawGroundShadow, drawWaterStep, drawHitMarker, drawHoverRing, drawNightLighting, drawPlayerArm, drawProjectileGlyph, drawConnectorMarker, drawAttackAnimFrame, drawQuestMarker, drawRangeRing, drawSelectionRing, drawStyledImage, clipToBall, SINGLE_TILE_FRAC, enemyInAttackReach, entityAnimFrame, entityMotion, entityRenderCell, frameImage, getPlayerArt, fillTintedGlyph, idleNow, isDeadEnemy, isDebugMode, isShowCollisions, resolveDraw, resolveAssetDraw, resolveEntityDraw, assetOverride, assetTileImage, styleTileImage, labelTileRecolor, groundDecorImage, tileImage, tintedImage, tintedGlyphSprite, treeCellSet } from './shared'
 import { drawWeather, type WeatherId } from './weather'
 import { resolveAssetDrawSize } from './assetDimensions'
 import { resolveAssetAnimation, spriteFrame } from './assetAnimation'
@@ -521,6 +521,9 @@ export function render(params: IsoRenderParams) {
       const v = orientForView(col, row)
       return viewToScreen(v.col, v.row)
     }
+  // QA seam beside `__nebulithGrid`: the frame's cell->pixel projection and its tile size. A probe that finds
+  // an undrawn pixel can then name the CELL responsible instead of guessing from the picture.
+  ;(globalThis as unknown as { __nebulithProject?: unknown }).__nebulithProject = { toScreen, tileW, tileH, heightStep }
 
   // ─── GROUND: nothing special here anymore ──────────────────────────
   // Floors are ordinary level-0 tiles in grid.assets (thin colored slabs) — they flow through the SAME
@@ -2432,7 +2435,7 @@ export function drawIsoAssetAscii(
   // NOTHING, never the dingbat (mirrors the ground_decor/label image paths). A kind with no baked tile in the
   // active style still resolves undefined and keeps its glyph — the documented last resort (MAP-MODEL §8).
   if (!adv.image) {
-    const kimg = styleTileImage(assetKind(asset), style)
+    const kimg = assetTileImage(asset, style)
     if (kimg) adv = { ...adv, image: kimg, char: '', tint: adv.tint ?? asset.color }
   }
   // A LIVE SPRITE FRAME wins over the tile's resting picture, in every style.
@@ -2485,8 +2488,14 @@ export function drawIsoAssetAscii(
   // There is NO per-type/category/style branch: the ONE rule is "any art → a block/slab, never a billboard".
   // Only a genuinely ART-LESS tile (adv.char '' + no image — the ASCII kind-catalog fallback) drops below to
   // the per-type / labeled glyph drawers; a UNIT never reaches here (drawIsoEntity — the one billboard, §4).
-  const blockCount = blocks >= 1 ? blocks : ((hasZWidth || adv.image || adv.char) ? 1 : 0)
-  if (blockCount >= 1 && (adv.image || adv.char)) {
+  // A FLOOR IS THE MAP'S SURFACE, so it draws even with no picture and no glyph. Every other tile obeys
+  // "no art, no block" — a missing prop leaves the ground it stood on, which is a gap you can live with.
+  // A missing floor leaves the CANVAS, and `#1a1a2e` is what the frame is cleared with, so the map reads as a
+  // hole punched through to the background. Its `color` is data the tile already carries (the same colour the
+  // skirt shades its side faces from), so the slab has everything it needs to draw without inventing a thing.
+  const floorSolid = asset.type === FLOOR_TYPE && !!asset.color
+  const blockCount = blocks >= 1 ? blocks : ((hasZWidth || adv.image || adv.char || floorSolid) ? 1 : 0)
+  if (blockCount >= 1 && (adv.image || adv.char || floorSolid)) {
     // A block scales on ALL THREE axes (was height-only): Width (scaleX) widens the diamond, Depth (scaleZ)
     // deepens it, Height (scaleY) stretches it up, and Zoom (scale) multiplies every axis. This is what makes a
     // tile able to SPAN MANY BLOCKS (a 1×2 wall, a wide roof) instead of only growing taller.

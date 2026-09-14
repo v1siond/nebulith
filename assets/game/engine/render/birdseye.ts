@@ -7,7 +7,7 @@ import { type HitMarker } from '@/game/runtime/combat'
 import { type PlayerState, barFraction, hpFraction } from '@/game/runtime/player'
 import { type CombatState, type Entity, type Quest } from '@/game/types'
 import { Connector } from '@/lib/api'
-import { ASCII_FONT, type CompositionGhost, type DayNight, applyCellTransform, clampCameraAxis, collectLampGlows, drawCompositionGhostFlat, debugCellCaptions, debugLabelColors, drawConnectorMarker, drawHitMarker, drawHpBar, drawNightLighting, drawQuestMarker, drawStyledImage, drawFlatTileForShape, SINGLE_TILE_FRAC, fillTintedGlyph, grassShade, cellFill, isDeadEnemy, isDebugMode, isShowCollisions, resolveDraw, resolveAssetDraw, resolveEntityDraw, assetOverride, styleTileImage, labelTileRecolor, tileImage } from './shared'
+import { ASCII_FONT, type CompositionGhost, type DayNight, applyCellTransform, clampCameraAxis, collectLampGlows, drawCompositionGhostFlat, debugCellCaptions, debugLabelColors, drawConnectorMarker, drawHitMarker, drawHpBar, drawNightLighting, drawQuestMarker, drawStyledImage, drawFlatTileForShape, SINGLE_TILE_FRAC, fillTintedGlyph, grassShade, cellFill, isDeadEnemy, isDebugMode, isShowCollisions, resolveDraw, resolveAssetDraw, resolveEntityDraw, assetOverride, assetTileImage, styleTileImage, labelTileRecolor, tileImage } from './shared'
 import { nearFadeAlpha } from './roofReveal'
 import { drawWeather, type WeatherId } from './weather'
 import { resolveAssetDrawSize } from './assetDimensions'
@@ -181,7 +181,7 @@ export function renderTopView(params: RenderTopViewParams) {
       // with an image and an ascii floor/prop painted a glyph where its emoji twin painted a picture. Emoji
       // already carries the kind image, so `!dv.image` is false there and nothing changes.
       if (!dv.image) {
-        const kimg = styleTileImage(kind, style)
+        const kimg = asset ? assetTileImage(asset, style) : styleTileImage(kind, style)
         if (kimg) dv = { ...dv, image: kimg, char: '', tint: dv.tint ?? asset.color }
       }
       // The tile's ACTIVE-STYLE entry — per-view size/pose, read the SAME way in every style (styleTileArt).
