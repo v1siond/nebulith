@@ -61,7 +61,7 @@ import { clamp, randInt, randIntWith, manhattan, makeRng, type Rng } from '@/lib
 import { planRoutes, resolveWays, type Gate, type RouteCell, type RoutePlan } from '@/engine/pathNetwork'
 import {
   carveChannel, deckRoutes, digChannel, flowField, isWaterGround, layDeck, recordBridgeSpan,
-  resolveRiverCourse, settleWaterDepth, strewRiverRocks, wadeableShallows, waterBand, waterReach,
+  narrowestLine, resolveRiverCourse, settleWaterDepth, strewRiverRocks, wadeableShallows, waterBand, waterReach,
   FLOW_STEPS, type RiverCourse,
 } from '@/engine/riverNetwork'
 
@@ -2278,8 +2278,15 @@ function fellLogsAcross(ctx: ArchetypeContext, water: Set<string>, pal: Generato
   const lo = Math.min(...cells.map(along))
   const hi = Math.max(...cells.map(along))
 
+  // How wide the water is on every line, so a crossing can be put at the NARROWS rather than at a fixed
+  // fraction. A meander makes a straight slice through the middle far longer than the river is actually wide,
+  // and the flat deck has to reach both banks, so that slice is what made the wooden causeway.
+  const widths = new Map<number, number>()
+  for (const c of cells) widths.set(along(c), (widths.get(along(c)) ?? 0) + 1)
+  const CROSSING_REACH = 6
+
   for (const frac of fractions) {
-    const at = Math.round(lo + (hi - lo) * frac)
+    const at = narrowestLine(widths, Math.round(lo + (hi - lo) * frac), CROSSING_REACH)
     // Every water cell on that line, plus one dry cell past each end so the log lands on both banks.
     const band = cells.filter(c => along(c) === at)
     if (band.length === 0) continue

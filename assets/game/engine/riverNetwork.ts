@@ -1,13 +1,11 @@
 import { randIntWith, type Rng } from '@/lib/math'
-import { inBounds, toCell, type Cell } from './grid'
+import { flood, forEachCell, inBounds, toCell, ORTHO, type Cell } from './grid'
 import { type GeneratorCrossing, type GeneratorOptionValue, type GeneratorPalette } from '@/lib/generatorCatalog'
 import { type RoutePlan } from '@/engine/pathNetwork'
-import { resolveComposition } from '@/engine/tileset/tileset'
+import { resolveComposition, resolveTile } from '@/engine/tileset/tileset'
 import { styleCatalog } from '@/engine/tileset/styleTiles'
-import { resolveTile } from '@/engine/tileset/tileset'
-import { type ZoneId } from '@/engine/zones'
-import { flood, forEachCell, ORTHO } from './grid'
 import { groundTileColor } from '@/engine/tileset/groundColor'
+import { type ZoneId } from '@/engine/zones'
 
 /**
  * THE RIVER, AS ITS OWN SUBSYSTEM.
@@ -338,6 +336,25 @@ export function waterBand(depth: number, wadeable: boolean): WaterBand {
 
 /** A watercourse running edge to edge through the map — the jungle's creek, and the `through` and `divides`
  *  rivers. The draw order is unchanged when nothing is forced, so the jungle's creek is byte-identical. */
+// TRIED, MEASURED, AND NOT KEPT: turning the channel to CROSS the planned ways.
+//
+// Alexander, 2026-09-12: *"we need to always draw the pathway first, then the river and everything else adapts
+// to it"*. The ways ARE planned before a drop of water is carved, and the channel ignores them, so a river can
+// come out lying along a way for its whole length and every cell of the overlap gets planked. That is his
+// *"there's still a lot of wood path alongside bridge when we just want the bridge and the river"*.
+//
+// The obvious version was to count which axis the ways mostly step along and run the channel across it. Built
+// and measured, seed 5, `divides`, 2 exits and 2 pathways, counting the flat wooden deck cells on the map:
+//
+//     woodland 53 -> 42    meadow 65 -> 79    jungle 64 -> 82
+//
+// It helps the one case and makes the other two WORSE, because a two-pathway network already uses both axes:
+// turning the river off one way puts it along the other. So the axis is not where this is decided.
+//
+// What it actually needs is repair rather than prediction: carve the river, then where it has landed ALONG a
+// way, move the way off the water, and where it merely meets one, make that a crossing. That is a real piece
+// of work on `pathNetwork`, not a line here, so it is written down rather than half-done.
+
 export function carveChannel(ctx: RiverCarve, pal: GeneratorPalette | undefined, shape: ChannelShape): Set<string> {
   const { cols, rows, ground, collision, floorColors } = ctx
   const water = new Set<string>()
@@ -379,6 +396,35 @@ export function carveChannel(ctx: RiverCarve, pal: GeneratorPalette | undefined,
 // The shore a river leaves behind, and the decision of what spans it. Both are the river's business: a bank
 // is the edge of the water and a crossing is sized by how wide the water turned out to be, so keeping either
 // in the layouts is what let three templates answer the same question three ways.
+
+/**
+ * WHERE TO PUT A CROSSING: the line near `want` where the water is NARROWEST.
+ *
+ * Alexander, 2026-09-12: *"we just need the actual bridge connecting"*, and again on 2026-09-13 looking at a
+ * meadow: *"we still have situations where there's a lot of wood path alongside bridge when we just want the
+ * bridge and the river"*.
+ *
+ * A crossing used to be laid at a fixed fraction along the river, and the flat deck under it has to reach both
+ * banks, so it is as long as the water is wide THERE. On a river that meanders, a straight slice through the
+ * middle can be twice the river's actual width, and the deck comes out a causeway with a small bridge
+ * somewhere in it. Roads do not cross rivers at their widest, they cross at the narrows.
+ *
+ * `widths` is how many wet cells lie on each line. Ties go to the line closest to `want`, so a straight river
+ * (where every line is the same) crosses exactly where it always did.
+ */
+export function narrowestLine(widths: ReadonlyMap<number, number>, want: number, reach: number): number {
+  let best = want
+  let bestWidth = widths.get(want) ?? Infinity
+  for (let d = 1; d <= reach; d++) {
+    for (const at of [want - d, want + d]) {
+      const width = widths.get(at)
+      if (width === undefined || width >= bestWidth) continue
+      best = at
+      bestWidth = width
+    }
+  }
+  return best
+}
 
 /** The shortest bridge that reads as one. Below this it is a plank, not a crossing. */
 export const MIN_BRIDGE_SPAN = 3
