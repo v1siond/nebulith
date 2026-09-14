@@ -133,14 +133,26 @@ defmodule Nebulith.GeneratorSourceTest do
       assert river["default"] in Enum.map(river["choices"], & &1["key"])
     end
 
-    test "a settlement offers no options at all" do
+    test "a settlement says how many exits it has, and how many STREETS" do
       GeneratorSource.seed()
       cats = Catalog.list_generator_categories() |> by_key()
 
-      # An empty list, not nil — the column is NOT NULL with a `[]` default, so the frontend can map over
-      # it without a guard on every generator it draws.
+      # It used to offer nothing, which is why a town ignored the exits and pathways you set: *"pathways is
+      # good in forests ... is not working on towns nor cities"*.
       for g <- cats["settlement"].generators do
-        assert g.options == [], "#{g.key} carries #{inspect(g.options)}"
+        keys = Enum.map(g.options, & &1["key"])
+        assert "exits" in keys, "#{g.key} offers no exits"
+        assert "pathways" in keys, "#{g.key} offers no pathways"
+
+        # EXITS ARE UNCHANGED: *"exits are maintained as they're now"*, so the same random plus 1 to 4.
+        exits = Enum.find(g.options, &(&1["key"] == "exits"))
+        assert length(exits["choices"]) == 5
+
+        # STREETS GO HIGHER. *"pathways in towns has higher ceiling (not limited to 4, we should determine
+        # the limit from the grid size"*: the list offers more than a forest's four and the engine holds it
+        # to what the map measures.
+        streets = Enum.find(g.options, &(&1["key"] == "pathways"))
+        assert length(streets["choices"]) > 5, "#{g.key} caps its streets at a forest's four"
       end
     end
 

@@ -120,11 +120,21 @@ defmodule NebulithWeb.GeneratorControllerTest do
 
     test "a generator with nothing to switch on serves an empty list, not null", %{conn: conn} do
       data = json_response(get(conn, ~p"/api/generators"), 200)["data"]
-      town = Enum.find(data, &(&1["key"] == "settlement")) |> Map.fetch!("generators") |> hd()
+      # A settlement is no longer the example either: since 2026-09-14 a town says how many exits and how many
+      # streets it has, so a generator with genuinely nothing to switch on is what this needs. `null` would
+      # make the frontend guard every map over it; the column is NOT NULL defaulting to `[]`.
+      empty =
+        data
+        |> Enum.flat_map(&Map.fetch!(&1, "generators"))
+        |> Enum.find(&(&1["options"] == []))
 
-      # `null` would make the frontend guard every map over it. The column is NOT NULL defaulting to `[]`.
-      # A cave is no longer the example: since 2026-09-11 it says how many exits and pathways it has.
-      assert town["options"] == []
+      for gen <- Enum.flat_map(data, &Map.fetch!(&1, "generators")) do
+        assert is_list(gen["options"]), "#{gen["key"]} serves #{inspect(gen["options"])}, not a list"
+      end
+
+      # …and if every generator has something to switch on today, the list shape is still what is being
+      # asserted, which is the point of the test.
+      assert empty == nil or empty["options"] == []
     end
 
     test "a cave says how many EXITS and PATHWAYS it has", %{conn: conn} do

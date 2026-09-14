@@ -149,6 +149,23 @@ defmodule Nebulith.Catalog.GeneratorSource do
     }
   ]
 
+  # A SETTLEMENT'S WAYS. The same exits as everywhere else, *"exits are maintained as they're now"*, and more
+  # pathways to choose from: *"pathways in towns has higher ceiling (not limited to 4, we should determine the
+  # limit from the grid size"*. A town is a street grid and a street grid carries as many streets as it has
+  # room for, so the list goes to 8 and the engine holds it to what the map measures.
+  @settlement_way_options [
+    List.first(@way_options),
+    %{
+      "key" => "pathways",
+      "label" => "Streets",
+      "type" => "choice",
+      "default" => "random",
+      "choices" =>
+        [%{"key" => "random", "label" => "Random"}] ++
+          Enum.map(1..8, &%{"key" => to_string(&1), "label" => to_string(&1)})
+    }
+  ]
+
   # The default grid a non-city map rolls, and the cell geometry every map starts from.
   @small_grid %{
     "cols" => %{"min" => 30, "max" => 45},
@@ -787,6 +804,7 @@ defmodule Nebulith.Catalog.GeneratorSource do
                                      mix: [{"temple", 1, 1}, {"church", 1, 1}, {"stable", 1, 2}, {"barn", 1, 2}, {"smithy", 1, 1}],
                                      streets: "path_stone"),
           "nature" => @outdoor_nature,
+          "entrance" => "town_entrance",
           "units" => townsfolk(8),
           "buildings" => Map.merge(@building_palette, %{
             "roof" => "roof",
@@ -794,7 +812,8 @@ defmodule Nebulith.Catalog.GeneratorSource do
             "roofColors" => ["#8a4b2f", "#7a4326", "#6b4a2b"],
             "wallColors" => ["#c9a66b", "#b08d5b", "#d8c79a"]
           })
-        }
+        },
+        options: @settlement_way_options
       },
       %{
         category: "settlement", key: "city", name: "City", layout: "city", variant: "city", position: 1,
@@ -806,6 +825,7 @@ defmodule Nebulith.Catalog.GeneratorSource do
                                      mix: [{"temple", 1, 1}, {"tower", 3, 5}, {"apartment", 4, 7}, {"office", 2, 4}],
                                      streets: "road"),
           "nature" => @outdoor_nature,
+          "entrance" => "town_entrance",
           "units" => townsfolk(14),
           "buildings" => Map.merge(@building_palette, %{
             "roof" => "flat_roof",
@@ -813,7 +833,8 @@ defmodule Nebulith.Catalog.GeneratorSource do
             "roofColors" => ["#4a4f55", "#3f464c", "#5a636b"],
             "wallColors" => ["#e8ecef", "#d3d8dc", "#bcc3c9"]
           })
-        }
+        },
+        options: @settlement_way_options
       },
       # ── VARIATIONS OF A TOWN ────────────────────────────────────────────────────────────────────────
       # image #31 - a small town: a handful of houses and a lot of green between them

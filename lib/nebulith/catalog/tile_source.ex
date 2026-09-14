@@ -3547,14 +3547,25 @@ defmodule Nebulith.Catalog.TileSource do
       # and that colour is a setting on the tile you can change. Recolouring them from this function would be
       # inventing a palette in code and taking the setting away from the thing that owns it: an object is a
       # construction of tiles, and each tile brings its own.
-      %{dx: 0, dy: 0, level: 0, label: left_upright, walkable: false},
-      %{dx: 2, dy: 0, level: 0, label: right_upright, walkable: false},
-      # THE MOUTH. Walkable, because it is the exit, and carrying a DARK light so the opening is the darkest
-      # thing here. The lamp proves the setting works; this uses it for the opposite effect.
       #
-      # This one IS a colour on the cell, and it is the only one: the darkness IS the feature he asked for,
-      # *"a whuite or dark light right in the exit cells"*. It lives in the cell's settings like every other
-      # per-cell setting, so it is editable on the object rather than fixed in the engine.
+      # DRAWN AS THE THING, NOT AS A BOX. Every tile defaults to a CUBE SHELL with its picture on the faces,
+      # which is why the first attempt came out as a stack of coloured bricks: *"what the hell is that ugly
+      # tetris piece"*. `display: single` + `transparent` drops the shell and draws the piece itself, which is
+      # how every prop in this engine that reads as an object is set up.
+      %{dx: 0, dy: 0, level: 0, label: left_upright, walkable: false,
+        settings: %{"display" => "single", "transparent" => true}},
+      %{dx: 2, dy: 0, level: 0, label: right_upright, walkable: false,
+        settings: %{"display" => "single", "transparent" => true}},
+      # THE MOUTH: a dark patch on the GROUND under the arch, not a dark block standing in it.
+      #
+      # It was a block. A composition cell carries its tile's own height, so a floor label stamped as a cell
+      # came out a full cube tall and painted near-black: a black box in the gateway, which is what the first
+      # render showed. `scaleY` flattens it to a stain on the floor, the same way the bridge deck is a plank
+      # rather than a brick, and then the darkness reads as the opening it is meant to be.
+      #
+      # The colour is the one this function sets, and it is the feature itself: *"a whuite or dark light right
+      # in the exit cells"*. It sits in the cell's settings like every other per-cell setting, so it is
+      # editable on the object.
       %{
         dx: 1,
         dy: 0,
@@ -3563,11 +3574,29 @@ defmodule Nebulith.Catalog.TileSource do
         walkable: true,
         settings: %{
           "color" => mouth,
+          "scaleY" => 0.06,
           "light" => %{"intensity" => 0.85, "distance" => 2.4, "color" => mouth, "on" => true}
         }
       },
-      # THE SPAN, over the mouth. Overhead, so you walk under it.
-      %{dx: 1, dy: 0, level: 1, label: span, walkable: true},
+      # THE SPAN: an arch ACROSS all three cells, so it springs from one upright and lands on the other.
+      #
+      # It was one piece at level 1 over the middle cell, which hung in the air touching nothing. Z-width is
+      # how this engine makes one tile cover several cells, and three cells at level 1 is exactly the arch the
+      # reference shows: it rests on both uprights and bridges the mouth between them.
+      %{
+        dx: 0,
+        dy: 0,
+        level: 1,
+        label: span,
+        walkable: true,
+        settings: %{
+          "depth" => 3,
+          "depthDir" => "right-down",
+          "scaleY" => 0.55,
+          "display" => "single",
+          "transparent" => true
+        }
+      },
       # THE FEET, one step inside, crowding the uprights so the thing looks grown rather than placed.
       %{dx: 0, dy: 1, level: 0, label: foot_left, walkable: true, scale: 0.7, settings: %{"display" => "single", "transparent" => true}},
       %{dx: 2, dy: 1, level: 0, label: foot_right, walkable: true, scale: 0.7, settings: %{"display" => "single", "transparent" => true}}
