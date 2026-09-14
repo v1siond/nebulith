@@ -741,14 +741,30 @@ He is right, and the cause is visible in this document rather than in the render
 Step 1 and step 1b of the process exist because of this, and the references now live in
 [`references/`](references/) with their sources and licences.
 
-## The references, now on disk
+## The references
 
-| For | Image | What to take from it |
-|---|---|---|
-| Gateway / entrance | ![arch](references/gateway-arch-cc0.png) | Two SOLID piers with mass, a real CURVED opening, a cap that OVERSAILS the piers. Not two posts with a lintel balanced on top |
-| The dark mouth | ![cave](references/cave-mouth-cc0.png) | The way in is the darkest value in the picture, and it sits INSIDE a rock mass rather than being painted on the floor |
-| Stone bridge | ![stone](references/bridge-stone-cc0.png) | A humped deck, a parapet down both sides, piers reaching the water |
-| Wood bridge | ![kit](references/bridge-kit-ccby-jaqmarti.png) | **The most useful reference we have.** A bridge is a KIT: flat deck, ramp, deck-on-piers, deck-with-posts, in two tones. Exactly the piece-family method the good objects use and the current bridge does not |
+**The first set I gathered was rejected on sight**: *"none of the references are good, I'll share ones witht he
+same name"*. His set replaced it. They are licensed stock, so the files live in
+`.claude-workspace/game-website/references/` and only their sources are recorded, in
+[`references/SOURCES.md`](references/SOURCES.md).
+
+What each one settles:
+
+- **Bridges** come from one sheet holding eleven of them, split into `references/split/bridge-01..11`: stone
+  arch viaduct, brick trestle on cylindrical piers, gatehouse bridge with crenellated towers, suspension,
+  steel truss viaduct, steel arch, WOOD arched footbridge, red stone humped bridge, rope-and-plank footbridge,
+  modern highway on piers with lamp posts, stone bridge with turreted towers. Every type he listed, in one
+  place, in the right projection.
+- **The cave entrance** is a DARK MOUTH cut into a rock MASS, with greenery over the top and boulders at its
+  feet. Never a dark patch painted on the floor, which is what ours does.
+- **The woodland** reference is the one that reframes the whole job: the way out is not one big arch object. It
+  is the PATH, the dark canopy closing in either side, and the scatter between them. It also carries two small
+  plank bridges, ruined columns, benches, logs and blooms, which is the whole vocabulary of a forest map.
+- **His construction principle, stated plainly**: *"for towns you can use lamp post and similar things like we
+  do on meadow, in general the principle of objects is to use tiles as decoration, look how we build lamp post,
+  trees and houses"*. The good objects are tiles used as decoration. That is the method, and it is why the
+  arch-from-spheres attempt below reads as nothing at all.
+- **Still to gather**, his list: entrances to Pokemon towns and cities, Zelda, Death's Door, Ori, Hollow Knight.
 
 Everything below this line is the REJECTED first attempt, kept so the next one can see what failed and why.
 Nothing in it is seeded.
