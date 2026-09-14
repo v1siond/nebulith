@@ -22,7 +22,10 @@
  * A pool sits at ground level and you walk through it.
  */
 import '@/__tests__/helpers/installTilesetSeed'
-import { FLAT_FLOOR, generateStage, resolveCrossing, resolveRiverCourse } from '@/engine/stageGenerator'
+import { FLAT_FLOOR, generateStage, resolveCrossing } from '@/engine/stageGenerator'
+// THE RIVER OWNS ITS OWN VOCABULARY NOW: the course resolver moved to `riverNetwork` with the rest of
+// the channel, so the test asks the module that answers rather than the file it used to live in.
+import { resolveRiverCourse } from '@/engine/riverNetwork'
 import { groundTileColor } from '@/engine/tileset/groundColor'
 import { findGenerator, parseGeneratorCatalog, type GeneratorCrossing, type GeneratorOptionValue } from '@/lib/generatorCatalog'
 import { makeRng } from '@/lib/math'

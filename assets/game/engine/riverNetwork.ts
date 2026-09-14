@@ -1,3 +1,6 @@
+import { randIntWith, type Rng } from '@/lib/math'
+import { type GeneratorOptionValue, type GeneratorPalette } from '@/lib/generatorCatalog'
+
 /**
  * THE RIVER, AS ITS OWN SUBSYSTEM.
  *
@@ -24,6 +27,10 @@ export interface RiverBounds {
   cols: number
   rows: number
 }
+
+/** Is this cell on the map? The module's own, for the same reason as `toCell`. */
+const inBounds = (col: number, row: number, cols: number, rows: number): boolean =>
+  col >= 0 && row >= 0 && col < cols && row < rows
 
 /** A `col,row` key back into its pair. The module's own, so it does not import from the file it left. */
 const toCell = (key: string): { col: number; row: number } => {
@@ -269,6 +276,98 @@ export function digChannel(cut: RiverCut, water: ReadonlySet<string>): void {
   if (depth === 0) return
   for (const key of water) {
     const { col, row } = toCell(key)
-    if (col >= 0 && row >= 0 && col < cut.cols && row < cut.rows) cut.elevation[row][col] -= depth
+    if (inBounds(col, row, cut.cols, cut.rows)) cut.elevation[row][col] -= depth
   }
+}
+
+// A band decides the LABEL and whether you can wade it. It used to decide a COLOUR too, which is what put
+// three blues in one river; the surface takes one served tone now (see the depth pass).
+export interface WaterBand { label: string; walkable: boolean }
+export const WATER_BANDS: Readonly<Record<'shallow' | 'open' | 'deep', WaterBand>> = {
+  shallow: { label: 'water_shallow', walkable: true },
+  open: { label: 'water', walkable: false },
+  deep: { label: 'water_deep', walkable: false },
+}
+/** How many cells in from the bank the water turns deep. */
+export const DEEP_WATER_FROM = 3
+
+/** The shape of a channel: how wide, how far it wanders, and optionally which way it must run. */
+export interface ChannelShape {
+  half: number
+  /** how far the centreline wanders, as a share of the map's width across it */
+  swing: number
+  /** force it to run left to right (cutting top from bottom). Absent -> rolled. */
+  horizontal?: boolean
+}
+
+// ── the channel itself ────────────────────────────────────────────────────
+// Where the water GOES, as opposed to which way it flows once it is there. Pulled across whole: a river's
+// shape is the same question in a woodland, a jungle and a meadow, and keeping three copies of the answer in
+// one 5,500-line file is exactly what let the templates drift apart.
+
+/** What a map needs to hand over to have a channel carved into it. */
+export interface RiverCarve extends RiverCut {
+  ground: string[][]
+  collision: boolean[][]
+  floorColors: (string | undefined)[][]
+  rand: Rng
+}
+
+/** The three courses a river can take across a map. */
+export type RiverCourse = 'through' | 'divides' | 'around'
+export const RIVER_COURSES: readonly RiverCourse[] = ['through', 'divides', 'around']
+
+/** The pure half of `riverCourse`, exported so "random" can be tested as a DISTRIBUTION rather than guessed
+ *  from what a map happens to look like. */
+export function resolveRiverCourse(value: GeneratorOptionValue | undefined, legacy: RiverCourse, rand: Rng): RiverCourse | null {
+  if (value === undefined || value === false || value === 'none') return null
+  if (value === true) return legacy
+  if (value === 'random') return RIVER_COURSES[randIntWith(rand, 0, RIVER_COURSES.length - 1)]
+  return (RIVER_COURSES as readonly string[]).includes(value) ? (value as RiverCourse) : null
+}
+
+export function waterBand(depth: number, wadeable: boolean): WaterBand {
+  if (wadeable) return WATER_BANDS.shallow
+  if (depth >= DEEP_WATER_FROM) return WATER_BANDS.deep
+  return WATER_BANDS.open
+}
+
+
+/** A watercourse running edge to edge through the map — the jungle's creek, and the `through` and `divides`
+ *  rivers. The draw order is unchanged when nothing is forced, so the jungle's creek is byte-identical. */
+export function carveChannel(ctx: RiverCarve, pal: GeneratorPalette | undefined, shape: ChannelShape): Set<string> {
+  const { cols, rows, ground, collision, floorColors } = ctx
+  const water = new Set<string>()
+  const half = shape.half
+  const vertical = shape.horizontal === undefined ? ctx.rand() < 0.5 : !shape.horizontal
+  const span = vertical ? rows : cols
+  const across = vertical ? cols : rows
+  const phase = ctx.rand() * Math.PI * 2
+  const phase2 = ctx.rand() * Math.PI * 2
+  // The centreline wanders across the map as it runs down it — two sine terms so the meander is irregular
+  // rather than a wave, kept off the edges so the creek never degenerates into a border.
+  const centre = (along: number): number => {
+    const mid = across / 2
+    const swing = across * shape.swing
+    return mid + swing * Math.sin(along * 0.14 + phase) + swing * 0.4 * Math.sin(along * 0.31 + phase2)
+  }
+  for (let along = 0; along < span; along++) {
+    const c = centre(along)
+    for (let off = Math.floor(c - half); off <= Math.ceil(c + half); off++) {
+      if (Math.abs(off - c) > half) continue
+      const col = vertical ? off : along
+      const row = vertical ? along : off
+      if (!inBounds(col, row, cols, rows)) continue
+      ground[row][col] = 'water'
+      collision[row][col] = true
+      // FLAT, not noisy. This used to vary the intensity per 3x3 block from a position hash, which is a
+      // per-cell colour lottery inside one river: *"not different currents, nor different colors mixed"*.
+      // `settleWaterDepth` overwrites channel cells afterwards anyway, so the noise was also wasted work.
+      if (pal?.water) floorColors[row][col] = pal.water
+      water.add(`${col},${row}`)
+    }
+  }
+  // Every channel-carved course comes through here: `through`, `divides`, and the jungle's creek.
+  digChannel(ctx, water)
+  return water
 }

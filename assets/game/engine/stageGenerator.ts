@@ -58,7 +58,7 @@ import { groundTileColor } from './tileset/groundColor'
 import type { Connector } from '@/lib/api'
 import { clamp, randInt, randIntWith, manhattan, makeRng, type Rng } from '@/lib/math'
 import { planRoutes, resolveWays, type Gate, type RouteCell, type RoutePlan } from '@/engine/pathNetwork'
-import { channelDepth, digChannel, flowField, isWaterGround, FLOW_STEPS } from '@/engine/riverNetwork'
+import { carveChannel, channelDepth, digChannel, flowField, isWaterGround, resolveRiverCourse, waterBand, DEEP_WATER_FROM, FLOW_STEPS, RIVER_COURSES, WATER_BANDS, type ChannelShape, type RiverCourse, type WaterBand } from '@/engine/riverNetwork'
 
 export type VariantId = 'town' | 'city' | 'forest' | 'cave' | 'temple' | 'boss-stage'
 
@@ -1463,8 +1463,6 @@ const forestWater = (ctx: ArchetypeContext, legacy: RiverCourse): { river: River
  *   · `divides` — cuts the map in two, and can be crossed at exactly ONE place
  *   · `around`  — runs around the edge, leaving the way in open
  */
-export type RiverCourse = 'through' | 'divides' | 'around'
-const RIVER_COURSES: readonly RiverCourse[] = ['through', 'divides', 'around']
 
 /** Resolve the served `river` option to a course, or null for no river. `random` is one of the choices, not
  *  the only behaviour, which is the whole of his note. An old boolean recipe (`river: true`) keeps the river
@@ -1473,14 +1471,6 @@ function riverCourse(ctx: ArchetypeContext, legacy: RiverCourse): RiverCourse | 
   return resolveRiverCourse(ctx.options?.river, legacy, ctx.rand)
 }
 
-/** The pure half of `riverCourse`, exported so "random" can be tested as a DISTRIBUTION rather than guessed
- *  from what a map happens to look like. */
-export function resolveRiverCourse(value: GeneratorOptionValue | undefined, legacy: RiverCourse, rand: Rng): RiverCourse | null {
-  if (value === undefined || value === false || value === 'none') return null
-  if (value === true) return legacy
-  if (value === 'random') return RIVER_COURSES[randIntWith(rand, 0, RIVER_COURSES.length - 1)]
-  return (RIVER_COURSES as readonly string[]).includes(value) ? (value as RiverCourse) : null
-}
 
 /** Carve the river along its course. `around` is the existing perimeter river; the other two are channels
  *  that cross the whole map, which is what makes them cross it or cut it. */
@@ -2734,53 +2724,7 @@ function raiseRegions(ctx: ArchetypeContext, zoneAt: (GeneratorSubZone | undefin
 
 
 
-/** The shape of a channel: how wide, how far it wanders, and optionally which way it must run. */
-interface ChannelShape {
-  half: number
-  /** how far the centreline wanders, as a share of the map's width across it */
-  swing: number
-  /** force it to run left to right (cutting top from bottom). Absent → rolled. */
-  horizontal?: boolean
-}
 
-/** A watercourse running edge to edge through the map — the jungle's creek, and the `through` and `divides`
- *  rivers. The draw order is unchanged when nothing is forced, so the jungle's creek is byte-identical. */
-function carveChannel(ctx: ArchetypeContext, pal: GeneratorPalette | undefined, shape: ChannelShape): Set<string> {
-  const { cols, rows, ground, collision, floorColors } = ctx
-  const water = new Set<string>()
-  const half = shape.half
-  const vertical = shape.horizontal === undefined ? ctx.rand() < 0.5 : !shape.horizontal
-  const span = vertical ? rows : cols
-  const across = vertical ? cols : rows
-  const phase = ctx.rand() * Math.PI * 2
-  const phase2 = ctx.rand() * Math.PI * 2
-  // The centreline wanders across the map as it runs down it — two sine terms so the meander is irregular
-  // rather than a wave, kept off the edges so the creek never degenerates into a border.
-  const centre = (along: number): number => {
-    const mid = across / 2
-    const swing = across * shape.swing
-    return mid + swing * Math.sin(along * 0.14 + phase) + swing * 0.4 * Math.sin(along * 0.31 + phase2)
-  }
-  for (let along = 0; along < span; along++) {
-    const c = centre(along)
-    for (let off = Math.floor(c - half); off <= Math.ceil(c + half); off++) {
-      if (Math.abs(off - c) > half) continue
-      const col = vertical ? off : along
-      const row = vertical ? along : off
-      if (!inBounds(col, row, cols, rows)) continue
-      ground[row][col] = 'water'
-      collision[row][col] = true
-      // FLAT, not noisy. This used to vary the intensity per 3x3 block from a position hash, which is a
-      // per-cell colour lottery inside one river: *"not different currents, nor different colors mixed"*.
-      // `settleWaterDepth` overwrites channel cells afterwards anyway, so the noise was also wasted work.
-      if (pal?.water) floorColors[row][col] = pal.water
-      water.add(`${col},${row}`)
-    }
-  }
-  // Every channel-carved course comes through here: `through`, `divides`, and the jungle's creek.
-  digChannel(ctx, water)
-  return water
-}
 
 /** The walkable BANK either side of the creek — this is the route through a jungle, so it is cleared to a
  *  real width rather than being a one-cell shoreline tint. Returns the bank cells for the open mask. */
@@ -3241,6 +3185,38 @@ function strewRiverRocks(ctx: ArchetypeContext, channel: ReadonlySet<string>): v
 }
 
 /**
+ * Which bank-side cells you may WADE. One only when it hangs off exactly ONE stretch of dry ground, so the
+ * shallows can never become a way across: banks the river keeps apart stay apart, and the bridge stays THE
+ * crossing. Measured without this: a narrow river is shallow on both sides with nothing left between, and a
+ * "divides" map could be waded straight over. A cell touching no walkable ground (only trunks or rocks) stays
+ * open water too, or it would be a puddle you could never reach.
+ *
+ * Grown outward from the banks until nothing more can join, so a shallow cell can hang off another one.
+ */
+function wadeableShallows(ctx: ArchetypeContext, depth: ReadonlyMap<string, number>): Set<string> {
+  const area = dryAreas(ctx)
+  const joined = new Map<string, number>()
+  const pending = new Set([...depth].filter(([, d]) => d === 1).map(([key]) => key))
+  for (let grew = true; grew;) {
+    grew = false
+    for (const key of pending) {
+      const { col, row } = toCell(key)
+      const touching = new Set<number>()
+      for (const [dc, dr] of ORTHO) {
+        const id = area.get(`${col + dc},${row + dr}`) ?? joined.get(`${col + dc},${row + dr}`)
+        if (id !== undefined) touching.add(id)
+      }
+      if (touching.size === 0) continue
+      pending.delete(key)
+      if (touching.size > 1) continue
+      joined.set(key, [...touching][0])
+      grew = true
+    }
+  }
+  return new Set(joined.keys())
+}
+
+/**
  * SETTLE THE WATER BY DEPTH, once the map is otherwise finished.
  *
  * Alexander, 2026-09-11: *"I only want light blue for walkable water, different layers of darkblue for the deeper
@@ -3312,20 +3288,7 @@ function settleWaterDepth(ctx: ArchetypeContext, pal: GeneratorPalette | undefin
 
 // A band decides the LABEL and whether you can wade it. It used to decide a COLOUR too (`tone`), which is what
 // put three blues in one river; the surface now takes one served tone (see settleWaterDepth).
-interface WaterBand { label: string; walkable: boolean }
-const WATER_BANDS: Readonly<Record<'shallow' | 'open' | 'deep', WaterBand>> = {
-  shallow: { label: 'water_shallow', walkable: true },
-  open: { label: 'water', walkable: false },
-  deep: { label: 'water_deep', walkable: false },
-}
-/** How many cells in from the bank the water turns deep. */
-const DEEP_WATER_FROM = 3
 
-function waterBand(depth: number, wadeable: boolean): WaterBand {
-  if (wadeable) return WATER_BANDS.shallow
-  if (depth >= DEEP_WATER_FROM) return WATER_BANDS.deep
-  return WATER_BANDS.open
-}
 
 /**
  * How far each channel cell is from the nearest bank, counted orthogonally (1 = touching it). A bridge is not a
@@ -3366,37 +3329,6 @@ function waterDepth(ctx: ArchetypeContext, pools: ReadonlySet<string>): Map<stri
   return depth
 }
 
-/**
- * Which bank-side cells you may WADE. One only when it hangs off exactly ONE stretch of dry ground, so the
- * shallows can never become a way across: banks the river keeps apart stay apart, and the bridge stays THE
- * crossing. Measured without this: a narrow river is shallow on both sides with nothing left between, and a
- * "divides" map could be waded straight over. A cell touching no walkable ground (only trunks or rocks) stays
- * open water too, or it would be a puddle you could never reach.
- *
- * Grown outward from the banks until nothing more can join, so a shallow cell can hang off another one.
- */
-function wadeableShallows(ctx: ArchetypeContext, depth: ReadonlyMap<string, number>): Set<string> {
-  const area = dryAreas(ctx)
-  const joined = new Map<string, number>()
-  const pending = new Set([...depth].filter(([, d]) => d === 1).map(([key]) => key))
-  for (let grew = true; grew;) {
-    grew = false
-    for (const key of pending) {
-      const { col, row } = toCell(key)
-      const touching = new Set<number>()
-      for (const [dc, dr] of ORTHO) {
-        const id = area.get(`${col + dc},${row + dr}`) ?? joined.get(`${col + dc},${row + dr}`)
-        if (id !== undefined) touching.add(id)
-      }
-      if (touching.size === 0) continue
-      pending.delete(key)
-      if (touching.size > 1) continue
-      joined.set(key, [...touching][0])
-      grew = true
-    }
-  }
-  return new Set(joined.keys())
-}
 
 /** Every walkable dry cell, labelled by the stretch of ground it belongs to. Bridges are left out on purpose:
  *  the question is what the WATER keeps apart. */
