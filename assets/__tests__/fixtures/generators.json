@@ -4178,9 +4178,83 @@
               "enemies": 0,
               "enemyTypes": [],
               "townsfolk": 8
-            }
+            },
+            "entrance": "town_entrance"
           },
-          "options": [],
+          "options": [
+            {
+              "choices": [
+                {
+                  "key": "random",
+                  "label": "Random"
+                },
+                {
+                  "key": "1",
+                  "label": "1: in and out the same way"
+                },
+                {
+                  "key": "2",
+                  "label": "2: in one side, out the other"
+                },
+                {
+                  "key": "3",
+                  "label": "3"
+                },
+                {
+                  "key": "4",
+                  "label": "4"
+                }
+              ],
+              "default": "random",
+              "key": "exits",
+              "label": "Exits",
+              "type": "choice"
+            },
+            {
+              "choices": [
+                {
+                  "key": "random",
+                  "label": "Random"
+                },
+                {
+                  "key": "1",
+                  "label": "1"
+                },
+                {
+                  "key": "2",
+                  "label": "2"
+                },
+                {
+                  "key": "3",
+                  "label": "3"
+                },
+                {
+                  "key": "4",
+                  "label": "4"
+                },
+                {
+                  "key": "5",
+                  "label": "5"
+                },
+                {
+                  "key": "6",
+                  "label": "6"
+                },
+                {
+                  "key": "7",
+                  "label": "7"
+                },
+                {
+                  "key": "8",
+                  "label": "8"
+                }
+              ],
+              "default": "random",
+              "key": "pathways",
+              "label": "Streets",
+              "type": "choice"
+            }
+          ],
           "description": "Houses along stone pathways, a square in the middle, trees between the lots.",
           "key": "town",
           "layout": "town",
@@ -4943,9 +5017,83 @@
               "enemies": 0,
               "enemyTypes": [],
               "townsfolk": 14
-            }
+            },
+            "entrance": "town_entrance"
           },
-          "options": [],
+          "options": [
+            {
+              "choices": [
+                {
+                  "key": "random",
+                  "label": "Random"
+                },
+                {
+                  "key": "1",
+                  "label": "1: in and out the same way"
+                },
+                {
+                  "key": "2",
+                  "label": "2: in one side, out the other"
+                },
+                {
+                  "key": "3",
+                  "label": "3"
+                },
+                {
+                  "key": "4",
+                  "label": "4"
+                }
+              ],
+              "default": "random",
+              "key": "exits",
+              "label": "Exits",
+              "type": "choice"
+            },
+            {
+              "choices": [
+                {
+                  "key": "random",
+                  "label": "Random"
+                },
+                {
+                  "key": "1",
+                  "label": "1"
+                },
+                {
+                  "key": "2",
+                  "label": "2"
+                },
+                {
+                  "key": "3",
+                  "label": "3"
+                },
+                {
+                  "key": "4",
+                  "label": "4"
+                },
+                {
+                  "key": "5",
+                  "label": "5"
+                },
+                {
+                  "key": "6",
+                  "label": "6"
+                },
+                {
+                  "key": "7",
+                  "label": "7"
+                },
+                {
+                  "key": "8",
+                  "label": "8"
+                }
+              ],
+              "default": "random",
+              "key": "pathways",
+              "label": "Streets",
+              "type": "choice"
+            }
+          ],
           "description": "Blocks and towers on paved streets, wide junctions, little green.",
           "key": "city",
           "layout": "city",

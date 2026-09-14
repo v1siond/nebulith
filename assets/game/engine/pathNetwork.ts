@@ -19,8 +19,27 @@ export interface RouteCell { col: number; row: number }
 export type Side = 'south' | 'north' | 'west' | 'east'
 
 /** How many exits, or how many pathways. The counts the backend offers. */
-export type RouteCount = 1 | 2 | 3 | 4
+/** How many exits, or how many pathways. A NUMBER, not a union of four: *"pathways in towns has higher ceiling
+ *  (not limited to 4, we should determine the limit from the grid size"*. A town is a street grid and a street
+ *  grid has as many streets as it has room for, so the ceiling is measured off the map rather than fixed here.
+ *  EXITS keep their cap: *"exits are maintained as they're now"*. */
+export type RouteCount = number
+/** What the RANDOM roll picks between when nothing is stated. */
 export const ROUTE_COUNTS: readonly RouteCount[] = [1, 2, 3, 4]
+
+/**
+ * How many pathways a map this size can actually hold.
+ *
+ * A pathway is a stretch `width` cells across, and two of them running side by side need a gap you can build
+ * something in, or they are one wide road. So each one costs about twice its own width, and the map fits as
+ * many as its SHORTER side has room for: a 40x40 at width 3 holds 6, a 70x70 holds 11.
+ *
+ * This is why the count is not a fixed four. A forest never noticed because it asks for one or two trails; a
+ * town is a street grid and wants as many as it can carry.
+ */
+export function pathwayCeiling(cols: number, rows: number, width = 3): number {
+  return Math.max(1, Math.floor(Math.min(cols, rows) / Math.max(2, width * 2)))
+}
 
 /** What the two served options come to for one map. */
 export interface Ways { exits: RouteCount; pathways: RouteCount }
@@ -94,14 +113,21 @@ export function splitPathways(ways: Ways): { through: number; spurs: number; bra
 export function resolveCount(value: unknown, rand: Rng): RouteCount | null {
   if (value === 'random') return ROUTE_COUNTS[randIntWith(rand, 0, ROUTE_COUNTS.length - 1)]
   const n = typeof value === 'number' ? value : typeof value === 'string' ? Number(value) : NaN
-  return (ROUTE_COUNTS as readonly number[]).includes(n) ? (n as RouteCount) : null
+  // ANY whole count the backend cares to offer, not just the four this file used to name. A served option is
+  // the backend saying what you may pick; repeating that list here made it two lists to keep in step, and it
+  // is what capped a town's streets at four.
+  return Number.isInteger(n) && n >= 1 ? (n as RouteCount) : null
 }
 
 /**
  * Both counts together. A recipe that states neither gets null and its maps stay exactly as they were. One stated
  * without the other still makes sense: exits alone means every path is a way out, pathways alone means one way out.
  */
-export function resolveWays(options: Readonly<Record<string, unknown>> | undefined, rand: Rng): Ways | null {
+export function resolveWays(
+  options: Readonly<Record<string, unknown>> | undefined,
+  rand: Rng,
+  grid?: { cols: number; rows: number; width?: number },
+): Ways | null {
   const exits = resolveCount(options?.exits, rand)
   const pathways = resolveCount(options?.pathways, rand)
   if (exits === null && pathways === null) return null
@@ -115,7 +141,11 @@ export function resolveWays(options: Readonly<Record<string, unknown>> | undefin
   // At most two exits per pathway, and at most one gate per side. FEWER exits than pathways is allowed on
   // purpose: that is the cave, where the extra stretches are galleries that stop rather than ways out.
   const bounded = clamp(wanted, 1, Math.min(stretches * 2, MAX_EXITS))
-  return { exits: bounded as RouteCount, pathways: stretches as RouteCount }
+  // …and the pathways are held to what the map can actually carry. Asking a 30x24 town for 8 streets is asking
+  // for streets with nothing between them; the ceiling is measured, not decreed.
+  const ceiling = grid ? pathwayCeiling(grid.cols, grid.rows, grid.width) : Number.POSITIVE_INFINITY
+  const held = clamp(stretches, 1, ceiling)
+  return { exits: bounded as RouteCount, pathways: held as RouteCount }
 }
 
 /** A gate on `side`, somewhere in the middle stretch of that edge so a path never hugs a corner. */

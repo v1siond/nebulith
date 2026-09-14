@@ -160,7 +160,15 @@ describe('picking is not building — §4.6\'s "why did my map just vanish" trap
     fireEvent.change(kinds(), { target: { value: other.key } })
     build()
     const [firstOfOther] = categoryLayouts(CATALOG, other.key)
-    expect(onGenerate).toHaveBeenCalledWith('spring', other.generators[0].variant, firstOfOther.id, {})
+    // The options sent are that kind of place's OWN defaults, not the ones the previous pick carried. A town
+    // serves ways now, so it sends its own `random` ways rather than the empty map this used to expect: what
+    // matters is that nothing came ACROSS from the kind of place clicked before.
+    const [, , layout, options] = onGenerate.mock.calls[onGenerate.mock.calls.length - 1]
+    expect(layout).toBe(firstOfOther.id)
+    const ownDefaults = Object.fromEntries(
+      (other.generators[0].options ?? []).map(o => [o.key, o.default]).filter(([, d]) => d !== undefined),
+    )
+    expect(options).toEqual(ownDefaults)
   })
 })
 

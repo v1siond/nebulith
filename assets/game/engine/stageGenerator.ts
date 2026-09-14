@@ -1709,7 +1709,38 @@ function stampEntrances(ctx: ArchetypeContext): void {
     // The MIDDLE of the gate's edge cells: the entrance is authored around its own middle cell.
     const middle = gate.cells[Math.floor(gate.cells.length / 2)]
     if (!middle || !inBounds(middle.col, middle.row, ctx.cols, ctx.rows)) continue
+    clearForEntrance(ctx, gate)
     ctx.compositions.push({ kind, col: middle.col, row: middle.row, variant: 0, rotation: ENTRANCE_TURN[gate.side] })
+  }
+}
+
+/**
+ * CLEAR THE GROUND AN ENTRANCE IS ABOUT TO STAND ON.
+ *
+ * The canopy fills its density before the ways are cut, and the treeline plants the border after, so by the
+ * time an entrance is placed there can already be a tree on the very cell its upright wants. Measured on the
+ * first render: an `oak-tree` upright and a whole `tree_round` composition in the same cell, which is why the
+ * frame did not read as a frame.
+ *
+ * A structure owns the cells it stands on. This takes them.
+ */
+function clearForEntrance(ctx: ArchetypeContext, gate: Gate): void {
+  const taken = new Set(gate.cells.map(c => `${c.col},${c.row}`))
+  taken.add(`${gate.inside.col},${gate.inside.row}`)
+  const kept = ctx.trees.filter(t => !taken.has(`${t.col},${t.row}`))
+  if (kept.length !== ctx.trees.length) {
+    ctx.trees.length = 0
+    ctx.trees.push(...kept)
+  }
+  // …and whatever else was stamped there, so an upright is not sharing its cell with a trunk.
+  const keptComps = ctx.compositions.filter(c => !taken.has(`${c.col},${c.row}`))
+  if (keptComps.length !== ctx.compositions.length) {
+    ctx.compositions.length = 0
+    ctx.compositions.push(...keptComps)
+  }
+  for (const key of taken) {
+    const { col, row } = toCell(key)
+    if (inBounds(col, row, ctx.cols, ctx.rows)) ctx.collision[row][col] = false
   }
 }
 
@@ -1804,7 +1835,7 @@ function openGates(ctx: ArchetypeContext): void {
 }
 
 function planWays(ctx: ArchetypeContext, rand: Rng): RoutePlan | null {
-  const ways = resolveWays(ctx.options, rand)
+  const ways = resolveWays(ctx.options, rand, { cols: ctx.cols, rows: ctx.rows, width: WOODLAND.pathWidth })
   if (!ways) return null
   ctx.routes = planRoutes(ctx.cols, ctx.rows, ways, rand, WOODLAND.pathWidth)
   return ctx.routes
