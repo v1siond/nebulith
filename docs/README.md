@@ -15,6 +15,13 @@ and update the relevant doc in the same change that alters the model or a featur
 - [`TILE-BACKEND-MIGRATION.md`](TILE-BACKEND-MIGRATION.md) — why/how the Elixir backend owns all tile
   data; the Ecto model, the bake pipeline, and the `/api/tilesets` contract.
 
+## Authoring objects
+
+- [`OBJECT-CONSTRUCTION.md`](OBJECT-CONSTRUCTION.md), how an object (a tile composition) is built so it looks like the thing it is named after: the reference-first process, the engine facts sheet, the six patterns, the checklist. Read it before authoring any composition.
+- [`HITBOXES-AND-ELEVATION.md`](HITBOXES-AND-ELEVATION.md), the hitbox and elevation implementation spec.
+- [`DESIGN-ENTRANCES.md`](DESIGN-ENTRANCES.md), the design for the four map entrances, with the honest render comparison.
+- [`references/SOURCES.md`](references/SOURCES.md), the isometric reference art every object is modelled against, with sources and licences.
+
 ## Systems & features
 
 - [`ARCHITECTURE.md`](ARCHITECTURE.md) — end-to-end technical architecture of the system.
