@@ -220,3 +220,58 @@ describe('the border shows exactly the openings that were asked for', () => {
     for (const k of borderWater) expect(treeAt.has(k)).toBe(true)
   })
 })
+
+/**
+ * EVERY MAP TYPE, not just the ones that had an edge already.
+ *
+ * *"the town edge is defined by the exits, every other place should be blocked somehow, by structure or trees,
+ * or whatever"* (2026-09-14), after he found that *"pathways is good in forests ... is not working on towns
+ * nor cities"*.
+ *
+ * Measured then: a 50x50 town had 196 of 196 border cells walkable and read 4 ways out whatever was asked for,
+ * exactly as a forest did before its treeline. Its generator also served NO way options at all, so there was
+ * nothing to ask for in the first place.
+ */
+describe('a town and a city carry their ways like everything else', () => {
+  const SETTLEMENTS = ['town', 'city'] as const
+
+  function settle(variant: (typeof SETTLEMENTS)[number], exits: number, pathways: number, seed: number): StageData {
+    const orig = Math.random
+    Math.random = makeRng(seed)
+    try {
+      return generateStage({
+        zone: 'summer', variant, cols: 50, rows: 50,
+        options: { exits: String(exits), pathways: String(pathways) },
+      })
+    } finally { Math.random = orig }
+  }
+
+  const walkableBorder = (s: StageData) => {
+    let open = 0
+    for (let c = 0; c < s.cols; c++) for (const r of [0, s.rows - 1]) if (!s.collision[r][c]) open++
+    for (let r = 1; r < s.rows - 1; r++) for (const c of [0, s.cols - 1]) if (!s.collision[r][c]) open++
+    return open
+  }
+
+  describe.each(SETTLEMENTS)('%s', variant => {
+    it.each([1, 2, 3, 4])('carries the %i ways out it was asked for', exits => {
+      for (const seed of [3, 7, 11]) {
+        expect(reachableSides(settle(variant, exits, 3, seed)).size).toBe(exits)
+      }
+    })
+
+    it('closes the rest of its border: it was 196 of 196 open', () => {
+      const open = walkableBorder(settle(variant, 2, 3, 7))
+      expect(open).toBeGreaterThan(0)   // the ways are still there
+      expect(open).toBeLessThan(40)     // …and the rest of the edge is not
+    })
+
+    // The ceiling is measured off the map, not fixed at four: *"pathways in towns has higher ceiling (not
+    // limited to 4, we should determine the limit from the grid size"*.
+    it('takes more streets than a forest takes trails, and scales with the ask', () => {
+      const few = settle(variant, 2, 2, 7).routes!.cells.size
+      const many = settle(variant, 2, 6, 7).routes!.cells.size
+      expect(many).toBeGreaterThan(few)
+    })
+  })
+})

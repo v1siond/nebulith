@@ -928,10 +928,15 @@ const STAGE_LAYERS: ReadonlyArray<StageLayer<ArchetypeContext, LayerRngs>> = [
   { name: 'ways', run: (ctx, rngs) => { planWays(ctx, rngs.ways) } },
   // THE MAP ITSELF: ground, water, walls, plots, vegetation — whichever archetype this variant is.
   { name: 'terrain', run: (ctx, rngs) => ARCHETYPES[ctx.variant]?.(ctx, rngs) },
-  // A WOOD YOU CANNOT WALK OUT OF THE SIDE OF. Forests only: a cave and a temple build their own walls.
-  { name: 'edge', when: ctx => ctx.variant === 'forest' && !!ctx.routes, run: sealForestEdge },
+  // WATER FOR A MAP THAT DID NOT MAKE ITS OWN is NOT wired yet, and `carveMapWater` below says why.
+  // Deliberately absent rather than shipped severing towns.
+  // THE EDGE IS DEFINED BY THE EXITS: everywhere else on the border is closed. Every map, not just a wood. A
+  // cave and a temple already wall their own, so this finds nothing to do there and plants nothing.
+  { name: 'edge', when: ctx => !!ctx.routes, run: sealMapEdge },
   // THE EXITS, cut through whatever the layers above sealed. Last word on the border, by construction.
   { name: 'gates', when: ctx => !!ctx.routes, run: openGates },
+  // A WAY STAYS WALKABLE. After everything that builds, so nothing can wall a gate in behind it.
+  { name: 'ways-clear', when: ctx => !!ctx.routes, run: keepWaysWalkable },
   // NOTHING STANDS IN FRONT OF A ROAD. Runs after every layer that plants, so it sees the finished map.
   { name: 'sightlines', when: ctx => !!ctx.routes, run: clearPathSightlines },
   // AND THE WAY OUT LOOKS LIKE ONE. After the gates are cut, so it dresses an opening rather than making one.
@@ -1626,27 +1631,71 @@ interface ForestBuild {
  * A generator that serves neither count returns null and its layout builds the map it always did, so every saved
  * recipe is untouched.
  */
-/** How deep the treeline runs. The gate is `pathWidth` (3) cells across, so a one-cell band reads as a fence
- *  beside a three-cell opening rather than a wood that thickens. Two is the least that reads as a BAND. */
+/** How deep the edge band runs. The gate is `pathWidth` (3) cells across, so a one-cell band reads as a fence
+ *  beside a three-cell opening rather than an edge that thickens. Two is the least that reads as a BAND. */
 const EDGE_TREELINE = 2
 
 /**
- * THE WOOD GETS TOO THICK THAT WAY: a forest's border, sealed with its own trees.
+ * THE RIVER, for a map whose own archetype did not make one.
  *
- * Measured 2026-09-14: a woodland, a jungle and a meadow each had **156 of 156 border cells walkable**. The
- * map had no edge at all, so you left wherever you liked and the `exits` count could never mean anything —
- * every forest measured 4 exits however many were asked for.
+ * *"towns should work withn rivers and everything we have on forests too, like bidges and whatnot"*
+ * (2026-09-14). A town served no water options at all and its archetype has no water pass, so a settlement
+ * could never have a river however the map was set.
  *
- * His call on what closes it: a dense treeline, broken only at the gates. So the band is planted with the
+ * `carveRiver` and `bridgeRiver` are the SAME functions the three forest layouts call. Nothing about water is
+ * re-implemented here: this is the general layer, and the template supplies the course, the palette and
+ * whether it wants a crossing, which is the shape he asked the layers to have.
+ *
+ * NOT WIRED INTO THE STACK YET, and here is the measurement that says why. Run AFTER `terrain`, which is the
+ * only place the "has this map already made water" guard can be asked, a 50x50 town came out with 120 to 141
+ * water cells and 60 bridge cells, and:
+ *   · the river SEVERED it. Three exits asked for came back as two reachable sides, because a town's ways are
+ *     planned but not paved, so the crossing does not join the two banks for walking.
+ *   · one to three BUILDINGS stood in the water, because the river was cut after the town was built.
+ *
+ * Both follow from the order. His own stack puts water BEFORE the rest: *"we generate the grid, then we add
+ * water if any, then we generate pathways ... then we add the rest"*. Moving it there means the forest
+ * layouts stop carving their own, which is a change to three layouts he has already approved, so it is the
+ * next step rather than something to slip in behind a guard.
+ *
+ * The OPTIONS are served on a town regardless, because that half is backend data and costs nothing.
+ */
+function carveMapWater(ctx: ArchetypeContext): void {
+  const course = riverCourse(ctx, 'through')
+  if (!course) return
+  const water = carveRiver(ctx, course, ctx.palette, ctx.routes)
+  if (water.size === 0) return
+  const routes = new Set<string>(ctx.routes?.cells ?? [])
+  bridgeRiver(ctx, water, routes, course, ctx.options?.crossing === true, ctx.palette)
+}
+
+/**
+ * THE EDGE IS DEFINED BY THE EXITS. Everywhere else on the border is closed.
+ *
+ * *"the town edge is defined by the exits, every other place should be blocked somehow, by structure or trees,
+ * or whatever"* (2026-09-14). So this is not a forest pass any more: it runs for every map, and what it plants
+ * is the template's OWN species, which is the shape he asked for on the layers generally, *"a general module
+ * that enforces the layers we have, then we just change the things SPECIFIC to the template generator, but
+ * overall rules are the same"*.
+ *
+ * A map that walls its own border already (a cave, a temple) has every band cell blocking, so this finds
+ * nothing to do and plants nothing. A town and a forest both had an open border and both get closed.
+ *
+ * Measured 2026-09-14: a woodland, a jungle and a meadow each had 156 of 156 border cells walkable, and a
+ * 50x50 town 196 of 196. The map had no edge at all, so you left wherever you liked and the `exits` count
+ * could never mean anything: every one of them read 4 ways out however many were asked for.
+ *
+ * His call on what closes a wood: a dense treeline, broken only at the gates. The band is planted with the
  * template's OWN species (`ctx.treeMix`, the same served mix the canopy rolls), which is why a jungle edge is
- * jungle and a meadow edge is meadow without this function knowing anything about either.
+ * jungle and a meadow edge is meadow without this function knowing anything about either, and why a town's
+ * edge is whatever its own template grows.
  *
  * Runs BEFORE `openGates`, which then cuts the ways back through it. Cells the route network already claimed
  * are left alone, so a path that reaches the border is not planted over on its way out.
  *
  * A generator that serves no ways plans no routes, and its map is left exactly as it was.
  */
-function sealForestEdge(ctx: ArchetypeContext): void {
+function sealMapEdge(ctx: ArchetypeContext): void {
   const plan = ctx.routes
   if (!plan) return
   const { collision, trees, cols, rows } = ctx
@@ -1711,6 +1760,58 @@ function stampEntrances(ctx: ArchetypeContext): void {
     if (!middle || !inBounds(middle.col, middle.row, ctx.cols, ctx.rows)) continue
     clearForEntrance(ctx, gate)
     ctx.compositions.push({ kind, col: middle.col, row: middle.row, variant: 0, rotation: ENTRANCE_TURN[gate.side] })
+  }
+}
+
+/**
+ * A WAY STAYS WALKABLE. Nothing may be built across a road.
+ *
+ * A settlement plans its ways like every other map and then lays its streets and plots without consulting the
+ * plan, so a gate can end up walled in behind a block of houses. Measured: a city asked for 4 exits and one
+ * seed gave 3 reachable sides, because one gate's corridor was built over.
+ *
+ * This is the general rule rather than a settlement patch: a cell a way covers is a cell you can walk. It runs
+ * after everything that builds, so it has the last word, in the same way `gates` has the last word on the
+ * border. Water is left alone: a river crossing a way is what a bridge is for, and drying the river to make a
+ * road would be the wrong fix.
+ */
+function keepWaysWalkable(ctx: ArchetypeContext): void {
+  const plan = ctx.routes
+  if (!plan) return
+  const { collision, cols, rows } = ctx
+  // THE BORDER IS THE GATES' BUSINESS, not this layer's. A way that touches the ring would otherwise open it
+  // wherever it happens to run, which is the same hole the treeline was taught to close.
+  const gate = new Set<string>()
+  for (const g of plan.gates) for (const c of g.cells) gate.add(`${c.col},${c.row}`)
+  const opened: Cell[] = []
+  for (const key of plan.cells) {
+    const { col, row } = toCell(key)
+    if (!inBounds(col, row, cols, rows)) continue
+    if (isEdge(col, row, cols, rows) && !gate.has(key)) continue
+    if (isWaterGround(ctx.ground[row][col]) || ctx.wet.has(key)) continue
+    if (!collision[row][col]) continue
+    collision[row][col] = true // keep it shut for now; the reachable ones are opened below
+    opened.push({ col, row })
+  }
+  if (opened.length === 0) return
+
+  // OPEN ONLY WHAT JOINS UP. Clearing every planned cell made a cave grow a one-cell island: a cell the plan
+  // ran through, surrounded by rock the cave never carved, walkable and unreachable. So each one is opened
+  // only when it already touches somewhere you can stand, and the sweep repeats while that keeps being true,
+  // which grows the corridor outward from the map instead of punching holes in it.
+  let grew = true
+  while (grew) {
+    grew = false
+    for (const { col, row } of opened) {
+      if (!collision[row][col]) continue
+      const joins = ORTHO.some(([dc, dr]) => {
+        const c = col + dc, r = row + dr
+        return inBounds(c, r, cols, rows) && !collision[r][c]
+      })
+      if (!joins) continue
+      collision[row][col] = false
+      grew = true
+    }
   }
 }
 
