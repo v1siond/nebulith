@@ -2456,7 +2456,10 @@ export function drawIsoAssetAscii(
     // tile able to SPAN MANY BLOCKS (a 1×2 wall, a wide roof) instead of only growing taller.
     const zoom = asset.scale ?? 1
     const bw = tileW * (asset.scaleX ?? 1) * zoom       // Width  — diamond half-width
-    const bd = tileH * (asset.scaleZ ?? 1) * zoom       // Depth  — diamond half-height (into-screen axis)
+    // Depth — diamond half-height (into-screen axis). A tile that states a world-axis THICKNESS is thinned by
+    // its quad instead, so applying scaleZ here as well would thin it twice, and a z-width sweep would step
+    // by a squashed cell rather than a whole one. Its sibling above already guarded this; this one did not.
+    const bd = tileH * (assetThickness(asset) ? 1 : (asset.scaleZ ?? 1)) * zoom
     // Height — the tile's OWN DB block-height as pixels: partialBlockScale draws a sub-block (flat 0.1) tile as a
     // thin partial slab and a standing tile as a full block, × the per-instance Height multiplier (scaleY). The
     // height VALUE is DATA (from the DB, read into `blocks`); nothing invented.
