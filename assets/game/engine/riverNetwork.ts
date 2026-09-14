@@ -677,6 +677,14 @@ export function recordBridgeSpan(
   const runLength = spanAlongCol
     ? Math.max(...cells.map(c => c.col)) - minCol + 1
     : Math.max(...cells.map(c => c.row)) - minRow + 1
+  // A BRIDGE ONLY GOES ON A DECK WIDE ENOUGH TO HOLD IT. The composition is CROSSING_ROWS rows deep (a rail,
+  // two walking rows, a rail), so a narrower deck means a rail is stamped off the end of it, floating over
+  // the water beside the crossing. That is what a ford gets instead: a plain deck and no structure, which is
+  // honest, rather than a bridge with a rail hanging off one side.
+  const across = spanAlongCol
+    ? Math.max(...cells.map(c => c.row)) - minRow + 1
+    : Math.max(...cells.map(c => c.col)) - minCol + 1
+  if (across < CROSSING_ROWS) return
   // SIZE THE BRIDGE TO THE RIVER, not to the deck run. and
   //
   // This used to walk DOWN from `runLength` and take the first span that fit, so it always picked the largest
@@ -933,7 +941,7 @@ function dryAreas(ctx: RiverSurface): Map<string, number> {
  * It was 3 (a kept line plus one cell either side), so the fourth row of every bridge was stamped onto the
  * water beside the deck and the rail floated there on its own.
  */
-const CROSSING_ROWS = 4
+export const CROSSING_ROWS = 4
 
 /** Every cell of the map that is NOT water, labelled by the stretch of dry ground it belongs to. The BANKS. */
 function bankLabels(bounds: RiverBounds, water: ReadonlySet<string>): Map<string, number> {
@@ -1058,24 +1066,52 @@ function straightThrough(
   return best
 }
 
-/** Widen a straight crossing ACROSS its own direction, so the deck is a rectangle the bridge fits on. */
+/**
+ * Widen a straight crossing ACROSS its own direction into the rectangle the bridge needs.
+ *
+ * It must come out EXACTLY `rows` wide, because that is how many rows the bridge composition authors and a
+ * band one short leaves a rail hanging over the water beside the deck (measured: a 3-wide band under a
+ * 4-row bridge put one rail off the deck on every crossing).
+ *
+ * So it does not simply grow until it runs out of water. It scores every window of `rows` consecutive
+ * offsets around the line by how much of it is water, and takes the best one: the band covers the channel
+ * where it can and steps onto the bank where it must, which is what an abutment is anyway. Ties go to the
+ * window nearest the line, so a crossing stays centred on the run it was chosen for.
+ */
 function widenAcross(
   line: ReadonlySet<string>,
   step: readonly [number, number],
   stretch: ReadonlySet<string>,
+  bounds: RiverBounds,
   rows: number,
 ): Set<string> {
   const [ac, ar] = [-step[1], step[0]] // a quarter turn from the run
-  const out = new Set(line)
-  // ONE walk outward per cell of the line, stopping at the first cell that is not water. Each cell is looked
-  // at once, and a gap cannot be jumped: re-scanning the whole line per row would both cost more and let the
-  // band hop over dry ground to land on water beyond it.
-  for (const key of line) {
-    const { col, row } = toCell(key)
-    for (let n = 1; n < rows; n++) {
-      const k = cellKey(col + ac * n, row + ar * n)
-      if (!stretch.has(k)) break
-      out.add(k)
+  const cells = [...line].map(toCell)
+  /** How much water a band at offsets [from, from+rows) would cover, and how far it sits off the line. */
+  const score = (from: number): { wet: number; drift: number } => {
+    let wet = 0
+    for (const { col, row } of cells) {
+      for (let n = from; n < from + rows; n++) {
+        if (stretch.has(cellKey(col + ac * n, row + ar * n))) wet++
+      }
+    }
+    return { wet, drift: Math.abs(from) + Math.abs(from + rows - 1) }
+  }
+  let best = 1 - rows
+  let bestScore = score(best)
+  for (let from = 2 - rows; from <= 0; from++) {
+    const s = score(from)
+    if (s.wet > bestScore.wet || (s.wet === bestScore.wet && s.drift < bestScore.drift)) {
+      best = from
+      bestScore = s
+    }
+  }
+  const out = new Set<string>()
+  for (const { col, row } of cells) {
+    for (let n = best; n < best + rows; n++) {
+      const c = col + ac * n
+      const r = row + ar * n
+      if (inBounds(c, r, bounds.cols, bounds.rows)) out.add(cellKey(c, r))
     }
   }
   return out
@@ -1118,7 +1154,7 @@ export function narrowWaysToCrossings(
       const near = shores.get(reached[0]) as string[]
       const run = straightThrough(stretch, near, reached[i], banks)
       if (run) {
-        for (const key of widenAcross(run.cells, run.step, stretch, CROSSING_ROWS)) keep.add(key)
+        for (const key of widenAcross(run.cells, run.step, stretch, bounds, CROSSING_ROWS)) keep.add(key)
         continue
       }
       // No straight line joins these two banks on this stretch, so there is no rectangle to put a bridge on.

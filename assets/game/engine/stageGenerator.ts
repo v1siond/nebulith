@@ -61,7 +61,7 @@ import { clamp, randInt, randIntWith, manhattan, makeRng, type Rng } from '@/lib
 import { planRoutes, resolveWays, type Gate, type RouteCell, type RoutePlan, type Side } from '@/engine/pathNetwork'
 import {
   carveChannel, deckRoutes, digChannel, flowField, isWaterGround, layDeck, recordBridgeSpan,
-  narrowestLine, narrowWaysToCrossings, resolveRiverCourse, settleWaterDepth, strewRiverRocks, wadeableShallows, waterBand, waterReach,
+  narrowestLine, narrowWaysToCrossings, resolveRiverCourse, CROSSING_ROWS, settleWaterDepth, strewRiverRocks, wadeableShallows, waterBand, waterReach,
   FLOW_STEPS, type RiverCourse,
 } from '@/engine/riverNetwork'
 
@@ -2393,8 +2393,11 @@ function fellLogsAcross(ctx: ArchetypeContext, water: Set<string>, pal: Generato
     const from = Math.min(...band.map(across)) - 1
     const to = Math.max(...band.map(across)) + 1
     const deck = new Set<string>()
+    // AS WIDE AS THE BRIDGE THAT GOES ON IT. This laid 3 cells across while the composition authors four rows
+    // (a rail, two walking rows, a rail), so the fourth row of every bridge was stamped off the deck.
+    const half = Math.floor(CROSSING_ROWS / 2)
     for (let a = from; a <= to; a++) {
-      for (let w = -1; w <= 1; w++) {
+      for (let w = half - CROSSING_ROWS + 1; w <= half; w++) {
         const col = vertical ? a : at + w
         const row = vertical ? at + w : a
         if (inBounds(col, row, ctx.cols, ctx.rows)) deck.add(`${col},${row}`)
