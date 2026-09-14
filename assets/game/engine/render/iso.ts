@@ -575,7 +575,7 @@ export function render(params: IsoRenderParams) {
   const camCell = turn === 0
     ? { col: camX / cellSize, row: camZ / cellSize }
     : deorientCellTurn(fc, fr, grid.cols, grid.rows, turn)
-  drawGridSkirt(ctx, grid, toScreen, tileW, tileH, Math.floor(camCell.col), Math.floor(camCell.row), halfSpan, heightStep)
+  drawGridSkirt(ctx, grid, toScreen, tileW, tileH, Math.floor(camCell.col), Math.floor(camCell.row), halfSpan, heightStep, facing)
 
   const rectAssets = grid.getVisibleAssets(
     Math.floor(camCell.col),
@@ -1472,7 +1472,24 @@ export function drawGridSkirt(
    * seam. The slab keeps `blockH`, because that is the body's own look and it is unchanged.
    */
   heightStep: number,
+  /** Which corner the camera is at. Every face below is drawn on a FIXED SCREEN edge, so the grid neighbour
+   *  it has to ask about turns with the camera. Without this the skirt closed the wrong two sides of every
+   *  step and the real ones were left open to the background. */
+  facing: Orientation = 0,
 ): void {
+  // The grid step that currently PROJECTS toward a given screen diagonal. At facing 0 down-right is +col and
+  // down-left is +row; a quarter turn of the camera turns all four, so the base step turns the opposite way.
+  const stepAt = (base: readonly [number, number]): readonly [number, number] => {
+    let [dc, dr] = base
+    for (let i = 0; i < ((facing % 4) + 4) % 4; i++) [dc, dr] = [dr, -dc]
+    return [dc, dr]
+  }
+  const [frc, frr] = stepAt([1, 0]) // the neighbour under the screen-RIGHT face (B→R)
+  const [flc, flr] = stepAt([0, 1]) // the neighbour under the screen-LEFT face (L→B)
+  const [brc, brr] = stepAt([-1, 0]) // behind the screen up-LEFT edge (L→T)
+  const [buc, bur] = stepAt([0, -1]) // behind the screen up-RIGHT edge (T→R)
+  const off = (c: number, r: number): boolean => c < 0 || r < 0 || c >= grid.cols || r >= grid.rows
+
   // THE THICKNESS IS MAP DATA — `grid.slabBlocks`, served with the level and saved with it. It was a module
   // constant (`GRID_SLAB_BLOCKS = 1`) for exactly one day, which was one day too long:
   // — no, and that is the same mistake as pinning a
@@ -1532,8 +1549,8 @@ export function drawGridSkirt(
       // the interior — a town's roads and plots are separate floors, so every plot edge grew a wall and the
       // grass appeared to stand a block above the road. That is the raised ground in report #29, and it was
       // this skirt, not the tile heights. The map's boundary is the grid's bounds.
-      const openRight = col + 1 >= grid.cols // the +col neighbour is off the map, so this wall faces the void
-      const openLeft = row + 1 >= grid.rows // the +row neighbour is off the map
+      const openRight = off(col + frc, row + frr) // the neighbour under the right face is off the map
+      const openLeft = off(col + flc, row + flr) // and the one under the left face
 
       // RELIEF. Where this cell stands ABOVE the neighbour in front of it, that difference is a CLIFF, and
       // it is visible: the note above about interior walls is true of a flat slab, where the cell in front
@@ -1543,8 +1560,8 @@ export function drawGridSkirt(
       // what grew a wall at every plot edge and made the grass look raised above the road, which is the
       // artefact it reported in Image #29 and which the comment above records.
       const here = grid.getHeight(col, row)
-      const cliffRight = openRight ? 0 : here - grid.getHeight(col + 1, row)
-      const cliffLeft = openLeft ? 0 : here - grid.getHeight(col, row + 1)
+      const cliffRight = openRight ? 0 : here - grid.getHeight(col + frc, row + frr)
+      const cliffLeft = openLeft ? 0 : here - grid.getHeight(col + flc, row + flr)
 
       if (!openRight && !openLeft && cliffRight <= 0 && cliffLeft <= 0) continue // flat and interior: nothing shows
       // READ the body colour the floor was born with — never shade one here. Deriving a colour at draw time is
@@ -1579,15 +1596,15 @@ export function drawGridSkirt(
       const backWallTo = (dc: number, dr: number, side: 'col' | 'row'): void => {
         const nCol = col + dc
         const nRow = row + dr
-        if (nCol < 0 || nRow < 0 || nCol >= grid.cols || nRow >= grid.rows) return
+        if (off(nCol, nRow)) return
         const rise = grid.getHeight(nCol, nRow) - here
         if (rise <= 0) return
         const bankBody = grid.floorAt(nCol, nRow)?.sideColor
         if (!bankBody) return
         backWall(top, side, bankBody, rise * heightStep)
       }
-      backWallTo(-1, 0, 'col')
-      backWallTo(0, -1, 'row')
+      backWallTo(brc, brr, 'col')
+      backWallTo(buc, bur, 'row')
     }
   }
 }
