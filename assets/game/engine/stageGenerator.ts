@@ -58,7 +58,10 @@ import { groundTileColor } from './tileset/groundColor'
 import type { Connector } from '@/lib/api'
 import { clamp, randInt, randIntWith, manhattan, makeRng, type Rng } from '@/lib/math'
 import { planRoutes, resolveWays, type Gate, type RouteCell, type RoutePlan } from '@/engine/pathNetwork'
-import { carveChannel, channelDepth, digChannel, flowField, isWaterGround, resolveRiverCourse, waterBand, chooseBridgeSpan, crossingStyle, resolveCrossing, waterReach, DEEP_WATER_FROM, FLOW_STEPS, MIN_BRIDGE_SPAN, RIVER_COURSES, WATER_BANDS, type ChannelShape, type RiverCourse, type WaterBand } from '@/engine/riverNetwork'
+import {
+  carveChannel, deckRoutes, digChannel, flowField, isWaterGround, layDeck, recordBridgeSpan,
+  resolveRiverCourse, waterBand, waterReach, FLOW_STEPS, type RiverCourse,
+} from '@/engine/riverNetwork'
 
 export type VariantId = 'town' | 'city' | 'forest' | 'cave' | 'temple' | 'boss-stage'
 
@@ -3837,114 +3840,9 @@ function nearestCell(from: Cell, keys: Iterable<string>): Cell | null {
  *  read alike, and each cell is remembered in `ctx.decks`. */
 /** The shortest run worth building a bridge over: one cell of water and a landing at each end. */
 
-/**
- * RECORD A BRIDGE over a deck run. Alexander, 2026-09-12, in capitals: *"AND THE BRIDGES ARE STILL NOT
- * BRIDGES COMPOSITIONS / we should have actual BRIDGE"*, with a wooden arch, a steel truss and a sheet of ten
- * variations.
- *
- * The flat deck STAYS. It is laid first by the caller and this adds the structure on top, which keeps every
- * connectivity guarantee intact (a crossing is still a crossing whatever span the river turns out to be) and
- * means no run can come out uncrossable because no composition happened to fit it.
- *
- * The span is asked of the CATALOG, descending, rather than read from a list here: whatever spans the backend
- * ships are the spans used, so authoring `bridge_wood_9` needs no frontend change. A crossing that names no
- * composition records nothing, which is how a DIRT PATH stays a path (his #62, *"this is a dirt pathway"*).
- *
- * Rotation: a bridge is authored `span x 3` running along +dx, so a deck lying along +row turns one quarter
- * (`rotateOffsetCW` maps it to `3 x span`, anchor still top-left). The anchor is the run's top-left corner,
- * nudged by half the slack so the abutments sit on the landings rather than in the water.
- */
-function recordBridgeSpan(
-  ctx: ArchetypeContext,
-  deck: ReadonlySet<string>,
-  spanAlongCol: boolean,
-  waterWidth: number,
-): void {
-  const family = crossingStyle(ctx)?.composition
-  if (!family) return
-  const cells = [...deck].map(toCell).filter(c => inBounds(c.col, c.row, ctx.cols, ctx.rows))
-  if (cells.length === 0) return
-  const minCol = Math.min(...cells.map(c => c.col))
-  const minRow = Math.min(...cells.map(c => c.row))
-  const runLength = spanAlongCol
-    ? Math.max(...cells.map(c => c.col)) - minCol + 1
-    : Math.max(...cells.map(c => c.row)) - minRow + 1
-  // SIZE THE BRIDGE TO THE RIVER, not to the deck run. Alexander, 2026-09-12: *"would a bridge be that large,
-  // when we only have to connect a small river?? we just need something like 4 cells long x whatever the river
-  // size"*, and *"river is usually 3-4 cells wide or more"*.
-  //
-  // This used to walk DOWN from `runLength` and take the first span that fit, so it always picked the largest
-  // authored bridge the landing-to-landing run allowed, which is how a 4-wide river got a 7-span. It now walks
-  // UP and takes the SMALLEST authored span that covers the water plus one landing each side. Spans 4 and 6 are
-  // authored in the backend for exactly this, so a 3-wide river lands on 5 and a 4-wide on 6 rather than both
-  // rounding up to 7.
-  const span = chooseBridgeSpan(waterWidth, runLength, s => resolveComposition(styleCatalog('ascii'), `${family}_${s}`) !== null)
-  if (span === null) return
-  const offset = Math.floor((runLength - span) / 2)
-  ctx.compositions.push({
-    kind: `${family}_${span}`,
-    col: spanAlongCol ? minCol + offset : minCol,
-    row: spanAlongCol ? minRow : minRow + offset,
-    variant: 0,
-    rotation: spanAlongCol ? 0 : 1,
-  })
-}
 
 
-function layDeck(ctx: ArchetypeContext, deck: Set<string>, tone: string | undefined): void {
-  const { cols, rows, ground, collision, floorColors } = ctx
-  const style = crossingStyle(ctx)
-  clearMeadowCells(ctx, deck)
-  for (const key of deck) {
-    const { col, row } = toCell(key)
-    if (!inBounds(col, row, cols, rows)) continue
-    // NOT YET: THE WATER DOES NOT STAY UNDER THE DECK. Alexander, 2026-09-13: *"the bridge should look like
-    // it's above the water"*, and he is right, but keeping the cell wet here is not the way to get there.
-    //
-    // Tried and reverted, measured: leaving the deck cells as water broke four documented invariants at once.
-    // `divides` went from one crossing to two (the wadeable shallows the extra water created became a second
-    // way over), and "the river is cut below the walking floor" failed, because a deck cell is forced to
-    // elevation 0 while a river cell is dug below it. Those two facts cannot both hold on one cell.
-    //
-    // The real fix is for the deck COMPOSITION to be lifted to the bank's level over a cell that stays river,
-    // which is a change to how the stamp picks its level, not to what the ground says. Ticket 105.
-    ground[row][col] = style?.tile ?? 'bridge'
-    collision[row][col] = false
-    ctx.decks.add(key)
-    // A DECK SPANS THE CHANNEL, it does not lie in the bottom of it. The dig runs inside `carveChannel`, which
-    // is before any crossing is laid, so a deck cell was still carrying the bed's negative elevation and a
-    // bridge came out sunk in the water. Measured on a `divides` river: 14 of its cells.
-    ctx.elevation[row][col] = 0
-    // A DECK NEVER KEEPS THE WATER'S COLOUR. Alexander, 2026-09-13: *"I don't want to fucking ever see a
-    // bridge or walkable thing that looks like water, it's fucking confusing"*.
-    //
-    // This cell was river a moment ago and `floorColors` still held the river's blue. The old branch was
-    // `else if (tone)`, so a deck with no served tone was LEFT wearing it: the tile said bridge, the colour
-    // said water, and you got a blue walkway over a blue river.
-    //
-    // Clearing it is not the hardcoded fallback the old comment worried about. An undefined override means
-    // "no override", so the bridge tile's OWN served colour shows through, which is the data doing its job.
-    // Inventing a brown here would have been the violation; leaving a stale blue was just a bug.
-    if (style) floorColors[row][col] = groundTileColor(style.colorOf ?? style.tile, col, row) || undefined
-    else floorColors[row][col] = tone
-  }
-}
 
-/**
- * PLANK THE WAY WHERE IT CROSSES WATER.
- *
- * Alexander, 2026-09-11: *"if we're going to have water blocked zones, we must have clear pathways to navigate
- * them"*, with his swamp (image #18) as the example, the boardwalk over the pools IS the pathway there.
- *
- * The water is carved without knowing where the paths run, so a creek or a pool can land straight on a gate and
- * leave a way out that nobody can use (measured: three jungle seeds in eight). Every planned cell that came out
- * wet gets a deck, which is the same crossing the map uses everywhere else, so it wears the served kind too.
- */
-function deckRoutes(ctx: ArchetypeContext, plan: RoutePlan, water: ReadonlySet<string>, tone: string | undefined): void {
-  const wet = new Set<string>()
-  for (const key of plan.cells) if (water.has(key)) wet.add(key)
-  if (wet.size > 0) layDeck(ctx, wet, tone)
-}
 
 
 
