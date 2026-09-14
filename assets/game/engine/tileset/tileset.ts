@@ -129,6 +129,18 @@ export interface CompositionCellSettings {
   depthPerp?: number
   depthPerpBack?: number
   display?: TileDisplay
+  /**
+   * DROP THE CUBE SHELL: only the tile's own picture is drawn, with no coloured block behind it.
+   *
+   * Every tile draws as a cube by default, so a prop authored into a composition came out as a coloured box with
+   * its picture painted on the faces, which is *"what the hell is that ugly tetris piece?????"*. `display:
+   * 'single'` centres the picture; this is what removes the box around it, and the two are authored together.
+   *
+   * The field did not exist here, so the backend stored it on the cell, served it, and the stamp threw it away
+   * while copying `display` from the very same object. Measured on a stamped `forest_entrance`: every cell came
+   * back carrying `display: 'single'` and nothing else, so the fix seeded for the tetris piece never rendered.
+   */
+  transparent?: boolean
   /** the SOLID this cell's tile renders as ('square' cube default, 'circle' ball) — stampComposition copies it
    *  onto the placed asset's `shape`, so a composition can ship a default shape (a lamp globe = a circle cell). */
   shape?: TileShape
@@ -249,13 +261,21 @@ export const FALLBACK_RESOLVED: ResolvedTile = { char: '?', color: '#cccccc', wa
  *  so a stamp only sets `asset.settings` on tiles that actually opt into a behavior. `display` follows the
  *  SAME data path: only the non-default `'single'` rides through — `'all-faces'` / absent carries nothing,
  *  leaving `asset.settings` unset so a default tile renders byte-identically to before. */
-export function tileRenderBehavior(settings?: Record<string, unknown>): { fadeNear?: boolean; cutawayRoof?: boolean; minAlpha?: number; display?: TileDisplay; collision?: Array<{ x: number; y: number; w: number; h: number }> } | undefined {
+export function tileRenderBehavior(settings?: Record<string, unknown>): { fadeNear?: boolean; cutawayRoof?: boolean; minAlpha?: number; display?: TileDisplay; transparent?: boolean; collision?: Array<{ x: number; y: number; w: number; h: number }> } | undefined {
   if (!settings) return undefined
-  const out: { fadeNear?: boolean; cutawayRoof?: boolean; minAlpha?: number; display?: TileDisplay; collision?: Array<{ x: number; y: number; w: number; h: number }> } = {}
+  const out: { fadeNear?: boolean; cutawayRoof?: boolean; minAlpha?: number; display?: TileDisplay; transparent?: boolean; collision?: Array<{ x: number; y: number; w: number; h: number }> } = {}
   if (typeof settings.minAlpha === 'number') out.minAlpha = settings.minAlpha
   if (settings.fadeNear) out.fadeNear = true
   if (settings.cutawayRoof) out.cutawayRoof = true
   if (settings.display === 'single') out.display = 'single'
+  // `transparent` DROPS THE CUBE SHELL so only the tile's own picture shows, and it rode no data path at all.
+  // The renderer reads `asset.settings.transparent`; this function is what puts settings on an asset; it copied
+  // `display` and not this. So the backend served it on 12 tiles (every flower, every entrance piece) and the
+  // only thing that ever set it was a hardcoded table in the generator keyed by prop TYPE, which is the
+  // violation twice already caught: *"this should be backend data, we receive the existing objects from backend
+  // and are correctly processed by the frontend methods"*. A setting reaching one kind of tile and not another
+  // is a bug, never a design: every tile setting applies to every tile through this same path.
+  if (settings.transparent) out.transparent = true
   // AUTHORED collision boxes, the finer truth under a blocked cell (collisionBoxes.ts). Kept only when every box
   // is a real rectangle: a malformed one must never make a tile walk-through.
   const boxes = Array.isArray(settings.collision)
@@ -263,7 +283,7 @@ export function tileRenderBehavior(settings?: Record<string, unknown>): { fadeNe
       !!b && typeof b === 'object' && ['x', 'y', 'w', 'h'].every(k => typeof (b as Record<string, unknown>)[k] === 'number'))
     : []
   if (boxes.length > 0) out.collision = boxes
-  return out.fadeNear || out.cutawayRoof || out.display || out.collision ? out : undefined
+  return out.fadeNear || out.cutawayRoof || out.display || out.transparent || out.collision ? out : undefined
 }
 
 /** A tile's authored THICKNESS (`settings.scaleZ`) — how much of its own cell the block fills along the

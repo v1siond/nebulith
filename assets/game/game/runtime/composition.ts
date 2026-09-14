@@ -185,9 +185,19 @@ export function compositionCellRender(comp: Composition, cell: CompositionCell, 
 function cellSettings(comp: Composition, cell: CompositionCell, tile: ResolvedTile): GridAsset['settings'] {
   const behavior = tileRenderBehavior(tile.settings)
   const display = cell.settings?.display
+  // …AND `transparent`, WHICH IS WHAT DROPS THE CUBE SHELL. It sat on the same cell object as `display`, was
+  // served by the backend, and was thrown away here while `display` was copied. Measured on a stamped
+  // `forest_entrance`: every cell arrived with `display: 'single'` and nothing else, so the piece kept its
+  // coloured box and the tetris piece was never actually fixed, only seeded.
+  const transparent = cell.settings?.transparent
   const badge = comp.title && cell.label.startsWith('roof_top') ? { text: comp.title, color: BADGE_COLOR } : undefined
-  if (!behavior && !display && !badge) return undefined
-  return { ...behavior, ...(display ? { display } : {}), ...(badge ? { badge } : {}) }
+  if (!behavior && !display && !transparent && !badge) return undefined
+  return {
+    ...behavior,
+    ...(display ? { display } : {}),
+    ...(transparent ? { transparent } : {}),
+    ...(badge ? { badge } : {}),
+  }
 }
 
 export function stampComposition(grid: IsometricGrid, kind: string, anchorCol: number, anchorRow: number, zone: ZoneId, variant = 0, rotation = 0, material?: string, roofColor?: string, wallColor?: string, roofTile?: string): number {
