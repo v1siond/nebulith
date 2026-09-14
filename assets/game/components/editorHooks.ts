@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState, type Dispatch, type MutableRe
 import type { DayNight } from '@/engine/render'
 import type { WeatherId } from '@/engine/render/weather'
 import { getEditorSettings, readBooleanSetting, readGeometrySetting, readNumberSetting, saveEditorSetting, type EditorSettings, type PanelGeometry } from '@/lib/editorSettings'
+import { loadGenerationLayers } from '@/engine/generate/generationLayers'
 import { sectionIsOpen, sectionSettingKey, type InspectorSectionId } from '@/game/editor/inspectorSections'
 import { EMPTY_GENERATOR_CATALOG, fetchGeneratorCatalog, type GeneratorCatalog } from '@/lib/generatorCatalog'
 import type { SaveState } from '@/game/editor/saveState'
@@ -236,4 +237,25 @@ export function useGeneratorCatalog(): GeneratorCatalogState {
     return () => { live = false }
   }, [])
   return { catalog, error }
+}
+
+/**
+ * Load the GENERATION LAYERS once on mount.
+ *
+ * The stack generation runs is backend data (`/api/generation_layers`): the engine binds a pass to each key
+ * and the re-roll panel lists the seedable ones, so a layer added in the backend reaches both without a
+ * release here. `installGenerationLayers` puts them where both readers look; the returned count is what makes
+ * the component re-render once they arrive, since the readers are functions rather than state.
+ */
+export function useGenerationLayers(): { count: number; error: string | null } {
+  const [count, setCount] = useState(0)
+  const [error, setError] = useState<string | null>(null)
+  useEffect(() => {
+    let live = true
+    loadGenerationLayers()
+      .then(layers => { if (live) { setCount(layers.length); setError(null) } })
+      .catch((err: unknown) => { if (live) setError(err instanceof Error ? err.message : String(err)) })
+    return () => { live = false }
+  }, [])
+  return { count, error }
 }

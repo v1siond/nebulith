@@ -1,6 +1,7 @@
 import '@/__tests__/helpers/installTilesetSeed' // the generator reads ALL tile data from the loaded backend tileset fixture
-import { GENERATOR_LAYERS } from '@/components/game/editorConfig'
-import { generateStage, LAYER_IDS, type LayerId, type StageData } from '@/engine/stageGenerator'
+import { generatorLayers } from '@/components/game/editorConfig'
+import { installGenerationLayers } from '@/engine/generate/generationLayers'
+import { generateStage, layerIds, type LayerId, type StageData } from '@/engine/stageGenerator'
 import { makeRng } from '@/lib/math'
 
 // ── a compact, deterministic DIGEST of a whole StageData ──────────────────────
@@ -179,20 +180,68 @@ describe('generateStage — behaviour-preserving under a seeded Math.random (equ
 describe('generateStage — settlement layer passes are independent + seedable', () => {
   const base = { zone: 'summer' as const, variant: 'town' as const, cols: 48, rows: 40 }
 
-  // `ways` leads, and it leads on purpose: the exits and the paths are planned before anything is built
-  // around them, so its seed has to exist before the layout's.
-  it('exposes the canonical layer ids, ways first', () => {
-    expect(LAYER_IDS).toEqual(['ways', 'layout', 'buildings', 'nature', 'decor', 'units'])
+  // THE LAYERS COME FROM THE BACKEND, so these install a served body and assert against THAT: *"on the tests
+  // side we must mock the backend response and return and assert as many layers we want"*. Nothing here names
+  // a canonical list, because the engine does not have one any more.
+  const served = (...layers: Array<Partial<{ key: string; label: string; hint: string; position: number; seedable: boolean }>>) => ({
+    generationLayers: layers.map((l, i) => ({
+      key: l.key ?? `layer${i}`,
+      label: l.label ?? `Layer ${i}`,
+      hint: l.hint ?? 'what it does',
+      position: l.position ?? (i + 1) * 10,
+      seedable: l.seedable ?? true,
+    })),
   })
 
-  // Every id the engine names has a row in the panel, in the same order. A layer the engine rolls and the
-  // panel does not offer is a re-roll the user cannot reach.
-  it('every engine layer has a row in the panel, in the engine order', () => {
-    expect(GENERATOR_LAYERS.map(l => l.id)).toEqual([...LAYER_IDS])
-    for (const l of GENERATOR_LAYERS) {
+  it('the engine runs whatever layers the backend serves, in the order it serves them', () => {
+    installGenerationLayers(served(
+      { key: 'ways', position: 10 },
+      { key: 'layout', position: 20 },
+      { key: 'fog', position: 30 },
+    ))
+    expect(layerIds()).toEqual(['ways', 'layout', 'fog'])
+  })
+
+  it('takes as many layers as the backend cares to serve', () => {
+    installGenerationLayers(served(...Array.from({ length: 12 }, (_, i) => ({ key: `layer_${i}`, position: i }))))
+    expect(layerIds()).toHaveLength(12)
+    expect(layerIds()[0]).toBe('layer_0')
+    expect(layerIds()[11]).toBe('layer_11')
+  })
+
+  it('orders by POSITION, not by the order the rows happen to arrive in', () => {
+    installGenerationLayers(served(
+      { key: 'units', position: 60 },
+      { key: 'ways', position: 10 },
+      { key: 'nature', position: 40 },
+    ))
+    expect(layerIds()).toEqual(['ways', 'nature', 'units'])
+  })
+
+  it('serves nothing → the engine names no layers, and never falls back to a list of its own', () => {
+    installGenerationLayers({ generationLayers: [] })
+    expect(layerIds()).toEqual([])
+  })
+
+  // Every SEEDABLE layer gets a panel row, in the served order. A layer the engine rolls and the panel does
+  // not offer is a re-roll nobody can reach; one the panel offers and the engine cannot roll is a dead button.
+  it('every seedable layer the backend serves has a row in the panel, in the same order', () => {
+    installGenerationLayers(served(
+      { key: 'ways', label: 'Ways', position: 10 },
+      { key: 'gates', label: 'Gates', position: 15, seedable: false },
+      { key: 'fog', label: 'Fog', position: 20 },
+    ))
+    expect(generatorLayers().map(l => l.id)).toEqual(['ways', 'fog'])
+    for (const l of generatorLayers()) {
       expect(l.label.trim()).not.toBe('')
       expect(l.hint.trim()).not.toBe('')
     }
+  })
+
+  it('a layer that cannot be re-rolled is not offered as a button that does nothing', () => {
+    installGenerationLayers(served({ key: 'gates', label: 'Gates', position: 10, seedable: false }))
+    expect(layerIds()).toEqual(['gates'])   // the engine still runs it
+    expect(generatorLayers()).toEqual([])   // the panel does not pretend you can roll it
   })
 
   it('a per-layer seed makes the whole town reproducible (all layers seeded)', () => {

@@ -59,6 +59,7 @@ import { groundTileColor } from './tileset/groundColor'
 import type { Connector } from '@/lib/api'
 import { clamp, randInt, randIntWith, manhattan, makeRng, type Rng } from '@/lib/math'
 import { runLayers, type StageLayer } from '@/engine/generate/pipeline'
+import { generationLayerKeys } from '@/engine/generate/generationLayers'
 import { planRoutes, resolveWays, type Gate, type RouteCell, type RoutePlan, type Side } from '@/engine/pathNetwork'
 import {
   carveChannel, deckRoutes, digChannel, flowField, isWaterGround, layDeck, recordBridgeSpan,
@@ -80,12 +81,22 @@ export type VariantId = 'town' | 'city' | 'forest' | 'cave' | 'temple' | 'boss-s
  *   units     — enemy/npc scatter (owned by the editor's entity store, not the generator).
  * A given layer re-rolls in isolation by handing it a fresh seed while the others keep theirs.
  */
-export type LayerId = 'ways' | 'layout' | 'buildings' | 'nature' | 'decor' | 'units'
-export const LAYER_IDS: readonly LayerId[] = ['ways', 'layout', 'buildings', 'nature', 'decor', 'units']
+/** A layer's id. A STRING, because the list is backend data: *"I just don't want anything hardcoded on the
+ *  frontend … we're also hardcoding on the actual engine, that's where we need to update it"*. A union type
+ *  here would be exactly that hardcoding, and adding a fog layer would mean editing this file. */
+export type LayerId = string
 
-/** The engine-owned layers (units are scattered by the editor). Each settlement pass draws from its
- *  own seedable rng so one layer re-rolls without disturbing the others. */
-export type EngineLayerId = Exclude<LayerId, 'units'>
+/** Every layer the backend serves, in run order. Empty until the catalog answers, which is the honest state:
+ *  no served layers means no layers, never a list this file kept for the occasion. */
+export const layerIds = (): readonly LayerId[] => generationLayerKeys()
+
+/** The engine-owned layers (units are scattered by the editor). Each pass draws from its own seedable rng so
+ *  one layer re-rolls without disturbing the others. A string for the same reason `LayerId` is. */
+export type EngineLayerId = LayerId
+
+/** Layer key → its rng. Built per generate from whatever the backend serves, so a layer added there has a seed
+ *  here without this file learning its name. A key with no seed falls back to the shared rng, which is what an
+ *  unseeded generate always did. */
 type LayerRngs = Record<EngineLayerId, Rng>
 
 /** General forest LAYOUT the user steers; the generator randomizes the rest. The old passages/open/lake
@@ -850,6 +861,12 @@ function buildingFootprints(buildings: readonly PlacedBuilding[]): Set<string> {
 
 /** A layer's random source: its own reproducible `makeRng(seed)` when a seed is given, else the
  *  global `Math.random` (today's behaviour, so a plain generate is unchanged). */
+/** The rngs the passes in this file ASK FOR BY NAME. A pass that reads `rngs.nature` needs one whether or not
+ *  the backend happens to serve a `nature` layer today, so these are filled in after the served ones. This is
+ *  not a second list of layers: it is the set of names the CODE in this file uses, and it shrinks as passes
+ *  move out into layers of their own. */
+const ENGINE_PASS_RNGS: readonly string[] = ['ways', 'layout', 'buildings', 'nature', 'decor']
+
 const layerRng = (seeds: GenerateOptions['seeds'], layer: EngineLayerId): Rng => {
   const seed = seeds?.[layer]
   return seed === undefined ? Math.random : makeRng(seed)
@@ -939,13 +956,11 @@ export function generateStage(opts: GenerateOptions): StageData {
 
   // One rng per engine layer. When no seeds are supplied they all alias `Math.random`, so the pass
   // order draws the exact same sequence as before the split — the behaviour-preservation guarantee.
-  const rngs: LayerRngs = {
-    ways: layerRng(opts.seeds, 'ways'),
-    layout: layerRng(opts.seeds, 'layout'),
-    buildings: layerRng(opts.seeds, 'buildings'),
-    nature: layerRng(opts.seeds, 'nature'),
-    decor: layerRng(opts.seeds, 'decor'),
-  }
+  // ONE RNG PER SERVED LAYER, plus the ones the passes below name directly. When no seeds are supplied they
+  // all alias `Math.random`, so the draw order is exactly what it was before the split.
+  const rngs: LayerRngs = {}
+  for (const key of generationLayerKeys()) rngs[key] = layerRng(opts.seeds, key)
+  for (const key of ENGINE_PASS_RNGS) rngs[key] ??= layerRng(opts.seeds, key)
   // Single-pass archetypes (forest/cave/temple/boss) read `ctx.rand`; the layout rng is their source.
   const ctx: ArchetypeContext = { variant, zone, ground, collision, floorColors, elevation, buildings, props, trees, compositions, cols, rows, layout, options: opts.options, nature: opts.nature, settlement: opts.settlement, palette: opts.palette, subZones: opts.subZones, formation: opts.formation, treeMix: opts.treeMix, crossings: opts.crossings, decks: new Set<string>(), wet: new Set<string>(), flow: new Map<string, number>(), buildingSizes: opts.buildingSizes, rand: rngs.layout }
   runLayers(STAGE_LAYERS, ctx, rngs)

@@ -16,7 +16,7 @@ import { catalogZones, categoryLayouts, findCategory, findGenerator, type Genera
 import { CELL_SIZE_MIN, atLeast, cellCount, mapSizeProblem, mapSizeValid, type MapSize } from '@/lib/mapSize'
 import { PreviewThumb, type PreviewContext } from '@/components/game/shell/PreviewThumb'
 import { subjectFor } from '@/engine/preview/previewScene'
-import { EDITOR_BANDS, EDITOR_RAIL, type RailEntry, type RailId, type EditorMode, GENERATOR_LAYERS, SEASON_BTN, SEASON_BTN_ACTIVE, SELECT_CLS, INPUT_CLS } from './editorConfig'
+import { EDITOR_BANDS, EDITOR_RAIL, type RailEntry, type RailId, type EditorMode, generatorLayers, SEASON_BTN, SEASON_BTN_ACTIVE, SELECT_CLS, INPUT_CLS } from './editorConfig'
 import { COMPOSITION_CATEGORY_GLYPH, type CompositionPaletteGroup } from '@/engine/compositionCatalog'
 import { headroomFps } from '@/components/useFps'
 import { CameraRotateButton, PlayerRangeControl } from './cameraControls'
@@ -553,8 +553,8 @@ function MenuHeader({ children, className = '' }: { children: React.ReactNode; c
  * An EMPTY catalog offers nothing and SAYS so. It never falls back to a hardcoded menu: a button for a map
  * type the backend cannot generate is the same silent lie that hid the localStorage games P0 (§3.1).
  *
- * The per-layer re-roll row stays frontend data (`GENERATOR_LAYERS`) — the layers are engine PASSES
- * (`stageGenerator`'s `LAYER_IDS`), not generator records, and `/api/generators` serves no layer list.
+ * The per-layer re-roll row is BACKEND data now (`/api/generation_layers`, read through `generatorLayers()`).
+ * It used to be a hardcoded array here and a second one in the engine, kept in step by hand.
  */
 /** A map's MATRIX: how many cells, and how big one cell is. Defined in `@/lib/mapSize`, with the engine
  *  bounds, because the generate path has to agree with this panel about them. */
@@ -1045,7 +1045,7 @@ export function GenerateControls({
           than for the act of rebuilding one part. */}
       <div className="sub">Layers</div>
       <div className="seg" style={{ flexWrap: 'wrap' }} role="group" aria-label="Layers">
-        {GENERATOR_LAYERS.map(({ id, label, hint }) => (
+        {generatorLayers().map(({ id, label, hint }) => (
           <button
             key={id}
             type="button"

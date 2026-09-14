@@ -5,6 +5,7 @@
 // tool→type lookup, and the swatch/season data the editor cards render.
 import { type EntityKind } from '@/game/types'
 import { type LayerId } from '@/engine/stageGenerator'
+import { generationLayers } from '@/engine/generate/generationLayers'
 
 // ── editor tool state ────────────────────────────────────────────────
 
@@ -164,18 +165,17 @@ export const SEASON_BTN: Record<string, string> = {
 export const SEASON_BTN_ACTIVE = 'bg-purple-600 ring-1 ring-purple-300'
 
 // ── universal generator LAYERS (the per-map-type sub-categories) ──────
-/** The generator LAYERS every map type shares — a forest, a town, a temple all have a layout, structures,
- *  nature, decor and units. Re-rolling one re-generates just THAT layer of the CURRENT map, keeping the rest
- *  (GENERATION-SPEC §5). GLOBAL: the same five for every variant, never gated per map type. Order matches the
- *  engine's `LAYER_IDS`; `label`/`hint` are user-facing. Adding a layer = one row here + a pass in the engine. */
-export const GENERATOR_LAYERS: ReadonlyArray<{ id: LayerId; label: string; hint: string }> = [
-  { id: 'ways', label: 'Ways', hint: 'the exits and the paths between them — re-roll to move where you come in and go out' },
-  { id: 'layout', label: 'Layout', hint: 'the bare shape — streets, plots & clearings, with structures and nature stripped' },
-  { id: 'buildings', label: 'Buildings', hint: 'the structures, re-rolled in place' },
-  { id: 'nature', label: 'Nature', hint: 'the trees, plants & greenery' },
-  { id: 'decor', label: 'Decor', hint: 'the dressing — plazas, lamps & fountains' },
-  { id: 'units', label: 'Units', hint: 'the creatures & townsfolk' },
-]
+// THE LIST IS BACKEND DATA. It used to live here as a hardcoded array AND again in the engine as `LAYER_IDS`,
+// two copies kept in step by hand: *"I just don't want anything hardcoded on the frontend … we're also
+// hardcoding on the actual engine, that's where we need to update it"*. Both are gone. The panel asks
+// `generationLayers()` what the layers are, and a layer added in the backend appears here without a release.
+//
+// Only the SEEDABLE ones are offered: a layer decided entirely by the ones above it would give you a button
+// that does nothing, which is the same silent lie as a map type the backend cannot generate.
+export const generatorLayers = (): ReadonlyArray<{ id: LayerId; label: string; hint: string }> =>
+  generationLayers()
+    .filter(layer => layer.seedable)
+    .map(layer => ({ id: layer.key, label: layer.label, hint: layer.hint }))
 
 // Shared field styling for the small editor form controls (triggers + animation editors).
 export const SELECT_CLS = 'flex-1 rounded bg-gray-800 p-1 text-xs text-gray-100'

@@ -27,7 +27,8 @@
  */
 import { act, render, screen, fireEvent, within } from '@testing-library/react'
 import { GenerateControls } from '@/components/game/editorChrome'
-import { GENERATOR_LAYERS } from '@/components/game/editorConfig'
+import { installGenerationLayers } from '@/engine/generate/generationLayers'
+import { generatorLayers } from '@/components/game/editorConfig'
 import { EMPTY_GENERATOR_CATALOG, catalogZones, categoryLayouts, parseGeneratorCatalog } from '@/lib/generatorCatalog'
 import liveBody from '@/__tests__/fixtures/generators.json'
 
@@ -326,15 +327,32 @@ describe('an empty or failed catalog says so instead of offering nothing', () =>
 })
 
 describe('rebuild ONE part, keep the rest', () => {
-  it('shows every generator layer, and the SAME set for every kind of place', () => {
+  // THE LAYERS ARE SERVED, so the panel is driven by a mocked backend body rather than by a list this file
+  // keeps: *"on the tests side we must mock the backend response and return and assert as many layers we
+  // want"*. `fog` is in here on purpose — a layer the backend invents after this file was written must show
+  // up without anyone editing this file.
+  const SERVED = {
+    generationLayers: [
+      { key: 'ways', label: 'Ways', hint: 'the exits and the paths between them', position: 10, seedable: true },
+      { key: 'layout', label: 'Layout', hint: 'the bare shape', position: 20, seedable: true },
+      { key: 'gates', label: 'Gates', hint: 'follows the ways', position: 25, seedable: false },
+      { key: 'fog', label: 'Fog', hint: 'a fog pass', position: 30, seedable: true },
+    ],
+  }
+  beforeEach(() => installGenerationLayers(SERVED))
+  afterEach(() => installGenerationLayers({ generationLayers: [] }))
+
+  it('shows every SEEDABLE layer the backend serves, and the same set for every kind of place', () => {
     const onRandomizeLayer = jest.fn()
     render(
       <GenerateControls catalog={CATALOG} zone="spring" onZone={noop} onGenerate={noop}
         onRandomizeLayer={onRandomizeLayer} />,
     )
-    for (const { label } of GENERATOR_LAYERS) {
+    for (const { label } of generatorLayers()) {
       expect(screen.getByRole('button', { name: new RegExp(label, 'i') })).toBeInTheDocument()
     }
+    // …and the one that only follows is NOT offered, because rolling it would do nothing.
+    expect(screen.queryByRole('button', { name: /^gates$/i })).toBeNull()
   })
 
   it('forwards the clicked layer id (data-driven, no per-id branch)', () => {
@@ -343,7 +361,7 @@ describe('rebuild ONE part, keep the rest', () => {
       <GenerateControls catalog={CATALOG} zone="spring" onZone={noop} onGenerate={noop}
         onRandomizeLayer={onRandomizeLayer} />,
     )
-    for (const { id, label } of GENERATOR_LAYERS) {
+    for (const { id, label } of generatorLayers()) {
       fireEvent.click(screen.getByRole('button', { name: new RegExp(label, 'i') }))
       expect(onRandomizeLayer).toHaveBeenCalledWith(id)
     }

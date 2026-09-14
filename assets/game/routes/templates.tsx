@@ -86,7 +86,7 @@ import { useConfirm, usePrompt } from '@/components/game/useConfirm'
 import { LevelStepper } from '@/components/game/levelStepper'
 import { GameMenu } from '@/components/game/gameMenu'
 import { describeSaveState } from '@/game/editor/saveState'
-import { useDayNight, useWeather, useFloatingPanels, useGeneratorCatalog, useInspectorSections, useIsMobile, usePlayerViewRange, useSaveState } from '@/components/game/editorHooks'
+import { useDayNight, useWeather, useFloatingPanels, useGeneratorCatalog, useGenerationLayers, useInspectorSections, useIsMobile, usePlayerViewRange, useSaveState } from '@/components/game/editorHooks'
 import { nextWeather } from '@/engine/render/weather'
 import { findGenerator, findGeneratorForVariant, rollGridSize, type GeneratorBuildings, type GeneratorCatalog, type GeneratorDef, type GeneratorOptionValue, findGeneratorByKey } from '@/lib/generatorCatalog'
 import { clampMapSize, type MapSize } from '@/lib/mapSize'
@@ -311,6 +311,10 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
   // (`GET /api/generators`, T-113 / §3.14b Tier-1 #1). The menu renders from it and every generate READS
   // its config; a ref carries it into the once-mounted debug seams, like genZoneRef.
   const { catalog: generatorCatalog, error: generatorCatalogError } = useGeneratorCatalog()
+  // The layers generation runs, also backend data (`/api/generation_layers`). Loading them is what fills the
+  // re-roll panel and what gives every served layer its own seed — with nothing served there are no layers,
+  // which is the honest state rather than a list the frontend kept for the occasion.
+  useGenerationLayers()
   const generatorCatalogRef = useRef<GeneratorCatalog>(generatorCatalog)
 
   // Connector state
