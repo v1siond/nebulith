@@ -35,7 +35,11 @@ const ENCLOSED = [
 ]
 
 function build(c: (typeof ENCLOSED)[number], exits: number, pathways: number, seed: number): StageData {
-  const config = findGenerator(CATALOG, c.cat, c.gen)?.config
+  // `findGenerator` matches on LAYOUT. A forest is found by its layout; a cave and a temple have none and
+  // take their category's only generator. Passing the generator KEY here found nothing, and every build ran
+  // with no served config: no tree mix for the treeline to plant from, no nature, no sub-zones.
+  const config = findGenerator(CATALOG, c.cat, c.layout)?.config
+  expect(config).toBeDefined() // the fixture really does serve this one — an undefined config proves nothing
   const orig = Math.random
   Math.random = makeRng(seed)
   try {

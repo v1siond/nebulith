@@ -58,6 +58,7 @@ import { varyIntensity } from './colors'
 import { groundTileColor } from './tileset/groundColor'
 import type { Connector } from '@/lib/api'
 import { clamp, randInt, randIntWith, manhattan, makeRng, type Rng } from '@/lib/math'
+import { runLayers, type StageLayer } from '@/engine/generate/pipeline'
 import { planRoutes, resolveWays, type Gate, type RouteCell, type RoutePlan, type Side } from '@/engine/pathNetwork'
 import {
   carveChannel, deckRoutes, digChannel, flowField, isWaterGround, layDeck, recordBridgeSpan,
@@ -696,6 +697,9 @@ function addTerrainTransitions(ctx: ArchetypeContext): void {
 
 // ── archetypes (Open/Closed: register a variant here, no dispatcher edits) ──
 interface ArchetypeContext {
+  /** Which archetype is being built. A LAYER guards on this (`edge` is forests only); the passes inside an
+   *  archetype already know which one they are. */
+  variant: VariantId
   zone: ZoneId
   ground: string[][]
   collision: boolean[][]
@@ -880,6 +884,37 @@ export function blankStage(zone: ZoneId, cols: number, rows: number): StageData 
   }
 }
 
+/**
+ * THE ORDER GENERATION RUNS IN, as a list you can read.
+ *
+ * *"we generate the grid, then we add water if any, then we generate pathways with number of exits around the
+ * existing area, then we add the rest of vegeation and other things, then we add the characters if any"*.
+ *
+ * `ways` is hoisted out of the six archetypes and runs FIRST, which is the half of his order that was only ever
+ * a convention: every archetype happened to call `plannedRoutes` near its top, and nothing made it so. It is
+ * structural now, and `terrain` reads `ctx.routes` instead of planning its own.
+ *
+ * Water still runs inside `terrain`, because it is woven into how each archetype paints its ground; pulling it
+ * out is its own step and it changes what the maps look like, so it is not smuggled in here.
+ *
+ * ADDING ONE IS APPENDING A ROW. shadow, lighting, fog, reprocess, water reflection: each is a `name`, an
+ * optional `when` guard, and a `run`. `runLayers` does not change, and neither does anything above.
+ */
+const STAGE_LAYERS: ReadonlyArray<StageLayer<ArchetypeContext, LayerRngs>> = [
+  // THE WAYS, before anything is built on them: how many exits the map has and where its paths run.
+  { name: 'ways', run: ctx => { planWays(ctx) } },
+  // THE MAP ITSELF: ground, water, walls, plots, vegetation — whichever archetype this variant is.
+  { name: 'terrain', run: (ctx, rngs) => ARCHETYPES[ctx.variant]?.(ctx, rngs) },
+  // A WOOD YOU CANNOT WALK OUT OF THE SIDE OF. Forests only: a cave and a temple build their own walls.
+  { name: 'edge', when: ctx => ctx.variant === 'forest' && !!ctx.routes, run: sealForestEdge },
+  // THE EXITS, cut through whatever the layers above sealed. Last word on the border, by construction.
+  { name: 'gates', when: ctx => !!ctx.routes, run: openGates },
+  // The open ground's texture swapped for the flat tile, keeping its colour.
+  { name: 'floors', run: ctx => flattenFloors(ctx, FLOOR_MATERIALS[ctx.variant]?.(ctx) ?? []) },
+  // Blended shorelines and lava banks over the painted ground.
+  { name: 'transitions', run: addTerrainTransitions },
+]
+
 export function generateStage(opts: GenerateOptions): StageData {
   const { zone, variant } = opts
   const cols = opts.cols ?? 40
@@ -909,12 +944,8 @@ export function generateStage(opts: GenerateOptions): StageData {
     decor: layerRng(opts.seeds, 'decor'),
   }
   // Single-pass archetypes (forest/cave/temple/boss) read `ctx.rand`; the layout rng is their source.
-  const ctx: ArchetypeContext = { zone, ground, collision, floorColors, elevation, buildings, props, trees, compositions, cols, rows, layout, options: opts.options, nature: opts.nature, settlement: opts.settlement, palette: opts.palette, subZones: opts.subZones, formation: opts.formation, treeMix: opts.treeMix, crossings: opts.crossings, decks: new Set<string>(), wet: new Set<string>(), flow: new Map<string, number>(), buildingSizes: opts.buildingSizes, rand: rngs.layout }
-  ARCHETYPES[variant]?.(ctx, rngs)
-  if (variant === 'forest') sealForestEdge(ctx) // a wood you cannot simply walk out of the side of
-  openGates(ctx) // the exits the ways planned, cut through the border AFTER everything that seals it
-  flattenFloors(ctx, FLOOR_MATERIALS[variant]?.(ctx) ?? [])
-  addTerrainTransitions(ctx) // blended shorelines / lava banks over the painted ground
+  const ctx: ArchetypeContext = { variant, zone, ground, collision, floorColors, elevation, buildings, props, trees, compositions, cols, rows, layout, options: opts.options, nature: opts.nature, settlement: opts.settlement, palette: opts.palette, subZones: opts.subZones, formation: opts.formation, treeMix: opts.treeMix, crossings: opts.crossings, decks: new Set<string>(), wet: new Set<string>(), flow: new Map<string, number>(), buildingSizes: opts.buildingSizes, rand: rngs.layout }
+  runLayers(STAGE_LAYERS, ctx, rngs)
 
   return {
     zone,
@@ -1644,11 +1675,17 @@ function openGates(ctx: ArchetypeContext): void {
   }
 }
 
-function plannedRoutes(ctx: ArchetypeContext): RoutePlan | null {
+function planWays(ctx: ArchetypeContext): RoutePlan | null {
   const ways = resolveWays(ctx.options, ctx.rand)
   if (!ways) return null
   ctx.routes = planRoutes(ctx.cols, ctx.rows, ways, ctx.rand, WOODLAND.pathWidth)
   return ctx.routes
+}
+
+/** What the `ways` layer decided, for the archetypes that build around it. Null when the generator serves no
+ *  counts, which is how a recipe from before the ways existed keeps the map it always had. */
+function plannedRoutes(ctx: ArchetypeContext): RoutePlan | null {
+  return ctx.routes ?? null
 }
 
 /**
