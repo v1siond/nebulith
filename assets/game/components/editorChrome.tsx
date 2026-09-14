@@ -16,7 +16,7 @@ import { catalogZones, categoryLayouts, findCategory, findGenerator, type Genera
 import { CELL_SIZE_MIN, atLeast, cellCount, mapSizeProblem, mapSizeValid, type MapSize } from '@/lib/mapSize'
 import { PreviewThumb, type PreviewContext } from '@/components/game/shell/PreviewThumb'
 import { subjectFor } from '@/engine/preview/previewScene'
-import { EDITOR_BANDS, EDITOR_RAIL, type RailEntry, type RailId, type EditorMode, generatorLayers, SEASON_BTN, SEASON_BTN_ACTIVE, SELECT_CLS, INPUT_CLS } from './editorConfig'
+import { SHOW_2D_VIEW, EDITOR_BANDS, EDITOR_RAIL, type RailEntry, type RailId, type EditorMode, generatorLayers, SEASON_BTN, SEASON_BTN_ACTIVE, SELECT_CLS, INPUT_CLS } from './editorConfig'
 import { COMPOSITION_CATEGORY_GLYPH, type CompositionPaletteGroup } from '@/engine/compositionCatalog'
 import { headroomFps } from '@/components/useFps'
 import { CameraRotateButton, PlayerRangeControl } from './cameraControls'
@@ -2062,7 +2062,11 @@ export function ViewBar({
     >
       <div className="seg" role="group" aria-label="How to look at the map">
         <ViewButton label="ISO" active={activeView === 'iso'} activeClass="" onClick={onIso} />
-        <ViewButton label="2D" active={activeView === '2d'} activeClass="" onClick={on2D} />
+        {/* 2D IS HIDDEN, NOT DELETED. *"for now, let's hide 2d view, it has huge gaps with isometric at this
+            point and working on catching it up would just slow us down, so we'll nail isometric, then catchup
+            2d back"*. The renderer, the handler and the view id all stay: this is one flag, and putting the
+            button back is flipping it. Anything already saved on the 2d view still opens. */}
+        {SHOW_2D_VIEW && <ViewButton label="2D" active={activeView === '2d'} activeClass="" onClick={on2D} />}
         <ViewButton label="Top" active={activeView === 'top'} activeClass="" onClick={onTop} />
         <ViewButton label="Flow" active={activeView === 'flow'} activeClass="" onClick={onFlow} />
       </div>

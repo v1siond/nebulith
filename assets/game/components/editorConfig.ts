@@ -180,3 +180,15 @@ export const generatorLayers = (): ReadonlyArray<{ id: LayerId; label: string; h
 // Shared field styling for the small editor form controls (triggers + animation editors).
 export const SELECT_CLS = 'flex-1 rounded bg-gray-800 p-1 text-xs text-gray-100'
 export const INPUT_CLS = 'w-full rounded bg-gray-800 p-1 text-xs text-gray-100'
+
+/**
+ * Is the 2D view offered?
+ *
+ * *"for now, let's hide 2d view, it has huge gaps with isometric at this point and working on catching it up
+ * would just slow us down, so we'll nail isometric, then catchup 2d back"* (2026-09-14).
+ *
+ * HIDDEN, not removed. `renderTopView`'s 2D path, the `'2d'` view id and every handler stay exactly where they
+ * are, so catching it up later is work on the renderer rather than a re-wiring, and a map saved while looking
+ * at it still opens. Flip this to true to put the button back.
+ */
+export const SHOW_2D_VIEW = false
