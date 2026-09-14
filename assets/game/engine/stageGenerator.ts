@@ -928,6 +928,8 @@ const STAGE_LAYERS: ReadonlyArray<StageLayer<ArchetypeContext, LayerRngs>> = [
   { name: 'edge', when: ctx => ctx.variant === 'forest' && !!ctx.routes, run: sealForestEdge },
   // THE EXITS, cut through whatever the layers above sealed. Last word on the border, by construction.
   { name: 'gates', when: ctx => !!ctx.routes, run: openGates },
+  // NOTHING STANDS IN FRONT OF A ROAD. Runs after every layer that plants, so it sees the finished map.
+  { name: 'sightlines', when: ctx => !!ctx.routes, run: clearPathSightlines },
   // The open ground's texture swapped for the flat tile, keeping its colour.
   { name: 'floors', run: ctx => flattenFloors(ctx, FLOOR_MATERIALS[ctx.variant]?.(ctx) ?? []) },
   // Blended shorelines and lava banks over the painted ground.
@@ -1669,6 +1671,60 @@ function sealForestEdge(ctx: ArchetypeContext): void {
     trees.push({ col, row, kind: pickLivingTree(ctx.rand(), ctx.treeMix), variant: massVariant(col, row) })
     collision[row][col] = true
   })
+}
+
+/**
+ * KEEP THE PATH IN SIGHT: no tree stands between the camera and a way.
+ *
+ * *"the trees formation on right side block the pathway from top … I think it's fine to keep the tree formation
+ * but we can tune it towards where it doesn't block the pathway view"* (2026-09-14, Image #61).
+ *
+ * In an isometric view the two cells drawn IN FRONT of `(col,row)` are `(col+1,row)` and `(col,row+1)`: they
+ * are painted later and they are a whole tree tall, so anything there hides the cell behind it. Measured over
+ * three seeds each: a woodland hid 42 of 489 path cells that way, a jungle 43 of 525, a meadow 12 of 489.
+ *
+ * The formation is KEPT, as he asked. What changes is that a tree does not take the one cell where it would
+ * stand in the way of a road. The trees are cleared rather than shortened because the renderer draws a tree at
+ * one height; a short species is a different ticket.
+ *
+ * NEVER THE BORDER BAND. A tree there is holding the edge closed, and pulling one out would open a way nobody
+ * asked for, which is the bug two layers above this one exists to prevent.
+ */
+function clearPathSightlines(ctx: ArchetypeContext): void {
+  const plan = ctx.routes
+  if (!plan) return
+  const { collision, trees, cols, rows } = ctx
+  // The cells that must be free of trees: every cell a way covers, and the cell drawn in front of each.
+  //
+  // ON the way matters more than in front of it, and it was the bigger number: measured, 19 of 31 remaining
+  // in a woodland and 20 of 33 in a jungle were trees standing IN the road rather than beside it. Nothing
+  // planted them there on purpose; the canopy fills a density and the road was simply not excluded from it.
+  //
+  // The border band is exempt, because a tree there is what holds the edge shut — EXCEPT where the band cell
+  // is itself part of a way, which is the gate corridor and is meant to be open.
+  const mustSee = new Set<string>()
+  const inBand = (c: number, r: number) => Math.min(c, r, cols - 1 - c, rows - 1 - r) < EDGE_TREELINE
+  for (const key of plan.cells) {
+    const { col, row } = toCell(key)
+    if (inBounds(col, row, cols, rows)) mustSee.add(key) // nothing stands IN a road
+    for (const [dc, dr] of [[1, 0], [0, 1]] as const) {
+      const c = col + dc, r = row + dr
+      if (!inBounds(c, r, cols, rows)) continue
+      if (inBand(c, r) && !plan.cells.has(`${c},${r}`)) continue // the band holds the border shut
+      mustSee.add(`${c},${r}`)
+    }
+  }
+  if (mustSee.size === 0) return
+  const kept = trees.filter(t => !mustSee.has(`${t.col},${t.row}`))
+  if (kept.length === trees.length) return
+  const stillTreed = new Set(kept.map(t => `${t.col},${t.row}`))
+  for (const t of trees) {
+    const key = `${t.col},${t.row}`
+    if (stillTreed.has(key) || !mustSee.has(key)) continue
+    collision[t.row][t.col] = false // the trunk was what blocked it; nothing else stands here
+  }
+  trees.length = 0
+  trees.push(...kept)
 }
 
 /**
