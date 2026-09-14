@@ -53,7 +53,17 @@ describe.each(LAYOUTS)('%s', layout => {
   it.each(seeds)('has no tree standing IN the road (seed %i)', seed => {
     const s = forest(layout, seed)
     const trees = treeCells(s)
-    const inTheRoad = [...s.routes!.cells].filter(k => trees.has(k))
+    // THE ROAD IS WHAT YOU CAN WALK, and the border RING is not part of it except at a gate. A corridor is
+    // three cells wide, so it brushes the ring beside its gate; those cells are sealed on purpose
+    // (*"the town edge is defined by the exits, every other place should be blocked somehow, by structure or
+    // trees, or whatever"*) and the thing sealing them is a tree. That is the treeline doing its job, not a
+    // tree in the way, and counting it here is what made this assert the mouth should be wider than the gate.
+    const onRing = (c: number, r: number) => c === 0 || r === 0 || c === s.cols - 1 || r === s.rows - 1
+    const inTheRoad = [...s.routes!.cells].filter(key => {
+      const [col, row] = key.split(',').map(Number)
+      if (onRing(col, row)) return false
+      return trees.has(key)
+    })
     expect(inTheRoad).toEqual([])
   })
 

@@ -109,9 +109,19 @@ export function splitPathways(ways: Ways): { through: number; spurs: number; bra
   return { through, spurs: Math.max(0, gatedOnce), branches: Math.max(0, ways.pathways - through - gatedOnce) }
 }
 
-/** A count as served: `"random"`, `"1"` to `"4"`, or absent (an older recipe, which keeps its old map). */
-export function resolveCount(value: unknown, rand: Rng): RouteCount | null {
-  if (value === 'random') return ROUTE_COUNTS[randIntWith(rand, 0, ROUTE_COUNTS.length - 1)]
+/**
+ * A count as served: `"random"`, a number, or absent (an older recipe, which keeps its old map).
+ *
+ * `ceiling` is what RANDOM may roll up to. *"pathways in towns has higher ceiling (not limited to 4, we should
+ * determine the limit from the grid size"*, so "random" means the generator decides and the generator decides
+ * by the map: a city with room for nine streets may roll nine. Left off it rolls the four a forest trail was
+ * written for, which is what `exits` keeps: *"exits are maintained as they're now"*.
+ */
+export function resolveCount(value: unknown, rand: Rng, ceiling = ROUTE_COUNTS.length): RouteCount | null {
+  // One rand() call either way, and 1..4 IS `ROUTE_COUNTS`, so every map that rolled before rolls the same.
+  // An unmeasured ceiling (no grid handed in) falls back to that four rather than rolling toward infinity.
+  const top = Number.isFinite(ceiling) ? Math.max(1, Math.floor(ceiling)) : ROUTE_COUNTS.length
+  if (value === 'random') return randIntWith(rand, 1, top)
   const n = typeof value === 'number' ? value : typeof value === 'string' ? Number(value) : NaN
   // ANY whole count the backend cares to offer, not just the four this file used to name. A served option is
   // the backend saying what you may pick; repeating that list here made it two lists to keep in step, and it
@@ -127,9 +137,16 @@ export function resolveWays(
   options: Readonly<Record<string, unknown>> | undefined,
   rand: Rng,
   grid?: { cols: number; rows: number; width?: number },
+  /** What this particular map can hold, when the caller knows better than the general rule. A settlement does:
+   *  its streets are bounded by the BLOCKS between them, which `streetRoom` measures, not by the path width. */
+  stated?: number,
 ): Ways | null {
+  // …and the pathways are held to what the map can actually carry. Asking a 30x24 town for 8 streets is asking
+  // for streets with nothing between them; the ceiling is measured, not decreed. It bounds the RANDOM roll as
+  // well as the stated one, so a city still rolls a city's worth of streets.
+  const ceiling = stated ?? (grid ? pathwayCeiling(grid.cols, grid.rows, grid.width) : Number.POSITIVE_INFINITY)
   const exits = resolveCount(options?.exits, rand)
-  const pathways = resolveCount(options?.pathways, rand)
+  const pathways = resolveCount(options?.pathways, rand, ceiling)
   if (exits === null && pathways === null) return null
 
   // EXITS ARE INFERRED FROM PATHWAYS when nobody states them. A stretch of road crosses
@@ -141,9 +158,6 @@ export function resolveWays(
   // At most two exits per pathway, and at most one gate per side. FEWER exits than pathways is allowed on
   // purpose: that is the cave, where the extra stretches are galleries that stop rather than ways out.
   const bounded = clamp(wanted, 1, Math.min(stretches * 2, MAX_EXITS))
-  // …and the pathways are held to what the map can actually carry. Asking a 30x24 town for 8 streets is asking
-  // for streets with nothing between them; the ceiling is measured, not decreed.
-  const ceiling = grid ? pathwayCeiling(grid.cols, grid.rows, grid.width) : Number.POSITIVE_INFINITY
   const held = clamp(stretches, 1, ceiling)
   return { exits: bounded as RouteCount, pathways: held as RouteCount }
 }

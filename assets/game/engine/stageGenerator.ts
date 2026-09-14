@@ -12,7 +12,7 @@ import { styleCatalog, styleTile } from '@/engine/tileset/styleTiles'
 import { type BuildingType } from './buildingTypes'
 import { buildingCompositionKind, buildingDoorOffset, facingRotation, isRoadGround, rotateFootprintOffset } from './buildingCatalog'
 import { composedKind } from '@/lib/buildingSizes'
-import { type BuildingSizes, type SettlementTuning, planVillage, type VillageLayout, type Settlement, type Plot, type Facing, type PlazaRect } from './villageLayout'
+import { type BuildingSizes, type SettlementTuning, planVillage, streetRoom, type VillageLayout, type Settlement, type Plot, type Facing, type PlazaRect, type StreetPlan } from './villageLayout'
 // The planner is pure: it takes the building sizes rather than reading them. They come from the BACKEND
 // compositions (buildingCatalog resolves them), so deepening a building in Elixir moves the plots with it.
 import { BACKEND_BUILDING_SIZES } from './buildingCatalog'
@@ -60,7 +60,7 @@ import type { Connector } from '@/lib/api'
 import { clamp, randInt, randIntWith, manhattan, makeRng, type Rng } from '@/lib/math'
 import { runLayers, type StageLayer } from '@/engine/generate/pipeline'
 import { generationLayerKeys } from '@/engine/generate/generationLayers'
-import { planRoutes, resolveWays, type Gate, type RouteCell, type RoutePlan, type Side } from '@/engine/pathNetwork'
+import { planRoutes, resolveWays, type Gate, type RouteCell, type RoutePlan, type Side, type Ways } from '@/engine/pathNetwork'
 import {
   carveChannel, deckRoutes, digChannel, flowField, isWaterGround, layDeck, recordBridgeSpan,
   narrowestLine, narrowWaysToCrossings, resolveRiverCourse, CROSSING_ROWS, settleWaterDepth, strewRiverRocks, wadeableShallows, waterBand, waterReach,
@@ -784,6 +784,9 @@ interface ArchetypeContext {
   /** The ways through this map, planned BEFORE anything was planted. Undefined → this generator serves no ways
    *  and the layout built exactly the map it always did. */
   routes?: RoutePlan
+  /** The two COUNTS the ways layer settled: how many exits, how many pathways. Kept beside the plan because a
+   *  settlement lays one street per pathway, and the plan itself only records where the roads run. */
+  ways?: Ways
   /** The active pass's random source. Defaults to `Math.random`; a seeded layer swaps in its own
    *  `makeRng(seed)` stream so the pass reproduces. EVERY stochastic helper draws from this, never
    *  from `Math.random` directly, so a pass is pure given its rng. */
@@ -1054,7 +1057,7 @@ export function layoutPass(ctx: ArchetypeContext, settlement: Settlement): Villa
         '/api/tilesets, which has not installed the tileset yet.',
     )
   }
-  const layout = planVillage(cols, rows, ctx.rand, ctx.buildingSizes ?? BACKEND_BUILDING_SIZES, settlement, ctx.settlement)
+  const layout = planVillage(cols, rows, ctx.rand, ctx.buildingSizes ?? BACKEND_BUILDING_SIZES, settlement, ctx.settlement, streetPlanFor(ctx))
   // WHAT THIS PLACE PAVES WITH. It was `road` for a town and a city alike, so a village had
   // asphalt through it. The place says it now; with nothing served it stays the road it always was.
   const streets = ctx.settlement?.streets ?? 'road'
@@ -1067,7 +1070,109 @@ export function layoutPass(ctx: ArchetypeContext, settlement: Settlement): Villa
       if (layout.roads[r][c]) ctx.floorColors[r][c] = groundTileColor(streets, c, r)
     }
   }
+  snapGatesToStreets(ctx, layout)
+  adoptStreetsAsWays(ctx, layout)
   return layout
+}
+
+/**
+ * A GATE SITS ON A STREET.
+ *
+ * The streets are laid to meet the gates, but two gates on the same axis can want lines closer together than a
+ * buildable block fits between, and only one of them gets a street of its own. Measured on a 40x40 town asked
+ * for 4 exits: the north gate landed four columns off the south gate's street, opened onto no road at all, and
+ * the map had four mouths but three ways in.
+ *
+ * So the GATE moves to the street, rather than the street being bent to the gate. Two gates sharing one street
+ * is a road THROUGH the town, which is what a through road is anyway.
+ */
+function snapGatesToStreets(ctx: ArchetypeContext, layout: VillageLayout): void {
+  const plan = ctx.routes
+  if (!plan) return
+  for (const gate of plan.gates) {
+    const band = nearestStreetBand(gate, layout, ctx.cols, ctx.rows)
+    if (!band) continue // no street runs to that edge: the gate keeps the mouth the planner gave it
+    moveGateInto(gate, band)
+  }
+}
+
+/** A run of cells one street covers where it meets an edge, as first and last position along that edge. */
+interface StreetBand {
+  lo: number
+  hi: number
+}
+
+/** The street band nearest this gate on the edge it sits on, read off the paved cells rather than off the
+ *  planner's numbers, so it is the street that is actually there. Null when no street reaches that edge. */
+function nearestStreetBand(gate: Gate, layout: VillageLayout, cols: number, rows: number): StreetBand | null {
+  const alongRow = gate.side === 'west' || gate.side === 'east'
+  const span = alongRow ? rows : cols
+  const paved = (at: number): boolean => {
+    if (gate.side === 'west') return layout.roads[at][0]
+    if (gate.side === 'east') return layout.roads[at][cols - 1]
+    if (gate.side === 'north') return layout.roads[0][at]
+    return layout.roads[rows - 1][at]
+  }
+  const bands: StreetBand[] = []
+  for (let at = 0; at < span; at++) {
+    if (!paved(at)) continue
+    const last = bands[bands.length - 1]
+    if (last && last.hi === at - 1) {
+      last.hi = at
+      continue
+    }
+    bands.push({ lo: at, hi: at })
+  }
+  if (bands.length === 0) return null
+  const mid = gate.cells[Math.floor(gate.cells.length / 2)]
+  const at = alongRow ? mid.row : mid.col
+  const distance = (b: StreetBand): number => Math.max(b.lo - at, 0, at - b.hi)
+  return bands.reduce((best, b) => (distance(b) < distance(best) ? b : best))
+}
+
+/** Re-centre a gate's mouth inside a street band, and the cell just inside it with it. */
+function moveGateInto(gate: Gate, band: StreetBand): void {
+  const width = gate.cells.length
+  const start = band.lo + Math.max(0, Math.floor((band.hi - band.lo + 1 - width) / 2))
+  const along = (cell: RouteCell, at: number): RouteCell =>
+    gate.side === 'west' || gate.side === 'east' ? { col: cell.col, row: at } : { col: at, row: cell.row }
+  const moved = gate.cells.map((cell, i) => along(cell, start + i))
+  gate.cells.length = 0
+  gate.cells.push(...moved)
+  gate.inside = along(gate.inside, start + Math.floor(width / 2))
+}
+
+/**
+ * THE STREETS BECOME THE MAP'S WAYS.
+ *
+ * *"street is just a form of pathway"* (2026-09-14). The ways layer plans a WINDING route from gate to gate,
+ * which is what a forest trail is; a settlement paves a STRAIGHT grid instead. Keeping both left a town with
+ * two networks: the streets you see, and a wandering corridor that `ways-clear` then kept walkable straight
+ * through the blocks and `sightlines` stripped trees along.
+ *
+ * So the settlement hands its streets back as the ways. Every layer below this one works on the roads that are
+ * actually there. The GATES are untouched: they are what the streets were placed to meet.
+ *
+ * Mutates the sets in place rather than replacing `ctx.routes`, because this pass runs on a `withRand` copy of
+ * the context and a fresh object would never reach the layers that come after it.
+ */
+function adoptStreetsAsWays(ctx: ArchetypeContext, layout: VillageLayout): void {
+  const plan = ctx.routes
+  if (!plan) return
+  plan.cells.clear()
+  for (let r = 0; r < ctx.rows; r++) {
+    for (let c = 0; c < ctx.cols; c++) {
+      if (layout.roads[r][c]) plan.cells.add(`${c},${r}`)
+    }
+  }
+  // A gate keeps its own mouth even when its street was clamped a row off it, so a way out is never walled in.
+  for (const gate of plan.gates) {
+    for (const cell of gate.cells) plan.cells.add(`${cell.col},${cell.row}`)
+    plan.cells.add(`${gate.inside.col},${gate.inside.row}`)
+  }
+  // A street does not pinch, so the whole of it is spine. That is what a cave uses the distinction for.
+  plan.spine.clear()
+  for (const key of plan.cells) plan.spine.add(key)
 }
 
 /**
@@ -1872,16 +1977,28 @@ function clearPathSightlines(ctx: ArchetypeContext): void {
   // in a woodland and 20 of 33 in a jungle were trees standing IN the road rather than beside it. Nothing
   // planted them there on purpose; the canopy fills a density and the road was simply not excluded from it.
   //
-  // The border band is exempt, because a tree there is what holds the edge shut — EXCEPT where the band cell
-  // is itself part of a way, which is the gate corridor and is meant to be open.
+  // The border band is exempt, because a tree there is what holds the edge shut, EXCEPT where the band cell is
+  // itself part of a way.
+  //
+  // THE RING ITSELF IS THE GATES' BUSINESS, though, and that is a rule rather than an accident. It used to hold
+  // by luck: a forest trail wanders, so it touches the ring exactly once, at its gate. A settlement's ways are
+  // STREETS and every one of them runs the full span, so both ends of every street were being cleared and the
+  // edge opened. Measured on his 40x40 town asked for 2 exits: 6 openings across 3 streets.
+  const gateWay = new Set<string>()
+  for (const gate of plan.gates) {
+    for (const c of gate.cells) gateWay.add(`${c.col},${c.row}`)
+    gateWay.add(`${gate.inside.col},${gate.inside.row}`)
+  }
+  const mayClear = (c: number, r: number): boolean => !isEdge(c, r, cols, rows) || gateWay.has(`${c},${r}`)
   const mustSee = new Set<string>()
   const inBand = (c: number, r: number) => Math.min(c, r, cols - 1 - c, rows - 1 - r) < EDGE_TREELINE
   for (const key of plan.cells) {
     const { col, row } = toCell(key)
-    if (inBounds(col, row, cols, rows)) mustSee.add(key) // nothing stands IN a road
+    if (inBounds(col, row, cols, rows) && mayClear(col, row)) mustSee.add(key) // nothing stands IN a road
     for (const [dc, dr] of [[1, 0], [0, 1]] as const) {
       const c = col + dc, r = row + dr
       if (!inBounds(c, r, cols, rows)) continue
+      if (!mayClear(c, r)) continue // the ring stays shut wherever no gate runs through it
       if (inBand(c, r) && !plan.cells.has(`${c},${r}`)) continue // the band holds the border shut
       mustSee.add(`${c},${r}`)
     }
@@ -1935,11 +2052,41 @@ function openGates(ctx: ArchetypeContext): void {
   }
 }
 
+/** The variants that lay a STREET GRID. Their pathway ceiling is measured in blocks (`streetRoom`) rather than
+ *  in path widths, because a street is only a street if there is something to build between it and the next. */
+const STREET_VARIANTS = new Set<VariantId>(['town', 'city'])
+
 function planWays(ctx: ArchetypeContext, rand: Rng): RoutePlan | null {
-  const ways = resolveWays(ctx.options, rand, { cols: ctx.cols, rows: ctx.rows, width: WOODLAND.pathWidth })
+  const room = STREET_VARIANTS.has(ctx.variant) ? streetRoom(ctx.cols, ctx.rows, ctx.settlement) : undefined
+  const ways = resolveWays(ctx.options, rand, { cols: ctx.cols, rows: ctx.rows, width: WOODLAND.pathWidth }, room)
   if (!ways) return null
+  ctx.ways = ways
   ctx.routes = planRoutes(ctx.cols, ctx.rows, ways, rand, WOODLAND.pathWidth)
   return ctx.routes
+}
+
+/**
+ * THE STREET SKELETON A SETTLEMENT INHERITS FROM THE WAYS LAYER.
+ *
+ * *"pathways size must apply to the streets distribution logic, in fact, they're rendundant, street is just a
+ * form of pathway"* (2026-09-14). The backend already agreed: a settlement's "Streets" dropdown is the
+ * `pathways` key under a different label. Only the planner disagreed, laying its own fixed grid.
+ *
+ * Undefined when this generator serves no ways, and the planner then keeps the grid it always had.
+ */
+function streetPlanFor(ctx: ArchetypeContext): StreetPlan | undefined {
+  const plan = ctx.routes
+  const ways = ctx.ways
+  if (!plan || !ways) return undefined
+  return { pathways: ways.pathways, gates: plan.gates.map(gate => ({ side: gate.side, at: gateLine(gate) })) }
+}
+
+/** The line a gate's street runs along: its ROW when the gate is on the left or right edge, its COLUMN when it
+ *  is on the top or bottom. Taken from the gate's middle cell so the street is centred on the mouth. */
+function gateLine(gate: Gate): number {
+  const mid = gate.cells[Math.floor(gate.cells.length / 2)]
+  if (gate.side === 'west' || gate.side === 'east') return mid.row
+  return mid.col
 }
 
 /** What the `ways` layer decided, for the archetypes that build around it. Null when the generator serves no

@@ -13,6 +13,7 @@
  * roads, stamps each building ORIENTED by its facing, then fills nature around it.
  */
 import { type BuildingType, type MixEntry } from './buildingTypes'
+import { type Side } from './pathNetwork'
 import { clamp, randIntWith as randInt } from '@/lib/math'
 
 export type Rng = () => number
@@ -291,6 +292,154 @@ export function demandedBuildings(rng: Rng, tuning: Tuning): BuildingType[] {
   return out
 }
 
+/**
+ * THE STREET SKELETON THE WAYS LAYER PLANNED, when there is one.
+ *
+ * *"pathways size must apply to the streets distribution logic, in fact, they're rendundant, street is just a
+ * form of pathway"* (2026-09-14). A street IS a pathway, so the count is not this file's to invent.
+ *
+ * `pathways` is what the ways layer settled, and `gates` is where it put the holes in the border. A gate on the
+ * left or right edge is met by a street ACROSS the map at its row; one on the top or bottom by a street DOWN
+ * the map at its column. That is how a town's exits end up ON its streets instead of beside them.
+ */
+export interface StreetPlan {
+  /** How many streets this place has, full stop. The pathway count from the ways layer. */
+  pathways: number
+  /** Where each planned gate sits: its side, and the row (left/right) or column (top/bottom) it is centred on. */
+  gates: readonly { side: Side; at: number }[]
+}
+
+/** Which way a street has to run to meet a gate on that side. A gate is a hole in one EDGE, and the street that
+ *  reaches it runs perpendicular to that edge. */
+const STREET_AXIS: Record<Side, 'rows' | 'cols'> = { west: 'rows', east: 'rows', north: 'cols', south: 'cols' }
+
+/** The street lines of a settlement, as row bands and column bands. */
+interface StreetLines {
+  rows: number[]
+  cols: number[]
+}
+
+/**
+ * WHERE THE STREETS RUN, AND HOW MANY.
+ *
+ * A settlement laid a FIXED grid: town 3 by 3, city 5 by 6, whatever was asked for. Measured on his 40x40 town
+ * asked for 2 streets: 3 across plus 3 down, **6 streets**, and the option had never once changed one. The
+ * count was planned by the ways layer, written onto the stage, and this function read a constant instead. Same
+ * shape as `houseWidths` and `natureMultiplier` before it: the data arrived and a local default won.
+ *
+ * With a plan, the gates are served first (a street ends at each way out) and the rest are spread evenly,
+ * alternating axes so four streets read as a grid rather than four parallel roads. Without one, the old grid
+ * stands, which keeps a generator that serves no ways building exactly the map it always did.
+ */
+function streetGrid(cols: number, rows: number, settlement: Settlement, tuning: Tuning, plan?: StreetPlan): StreetLines {
+  const room = { rows: streetsAlong(rows, tuning.roadWidth), cols: streetsAlong(cols, tuning.roadWidth) }
+  if (!plan) {
+    const g = GRID[settlement]
+    return {
+      rows: streetLines(rows, Math.max(2, Math.min(g.h, room.rows)), tuning.roadWidth),
+      cols: streetLines(cols, Math.max(2, Math.min(g.v, room.cols)), tuning.roadWidth),
+    }
+  }
+
+  const picked: StreetLines = { rows: [], cols: [] }
+  const wanted = clamp(plan.pathways, 1, room.rows + room.cols)
+  const take = (axis: 'rows' | 'cols', at: number): void => {
+    if (picked.rows.length + picked.cols.length >= wanted) return
+    if (picked[axis].length >= room[axis]) return
+    const span = axis === 'rows' ? rows : cols
+    const line = clamp(at, 5, span - 5 - tuning.roadWidth)
+    // Two streets closer than this are one wide road with a stripe down it, not a block you can build in.
+    if (picked[axis].some(q => Math.abs(q - line) <= tuning.roadWidth + 2)) return
+    picked[axis].push(line)
+  }
+
+  // THE GATES FIRST. A gate is centred on its cell; a street is a band starting at `line`, so the band is
+  // pulled back half its width to sit over the gate rather than beside it.
+  const centreBand = Math.floor((tuning.roadWidth - 1) / 2)
+  for (const gate of plan.gates) take(STREET_AXIS[gate.side], gate.at - centreBand)
+
+  // …then the rest, evenly spread, taking the axis with fewer streets so far.
+  // Each one goes in the WIDEST gap left on its axis. Evenly-spaced positions were tried first and lost a
+  // street every time a gate happened to sit beside one: the gate took the line, and the even position next to
+  // it was then too close to use, with no other candidate to fall back on.
+  const spent = { rows: false, cols: false }
+  while (picked.rows.length + picked.cols.length < wanted) {
+    const axis = nextStreetAxis(picked, room, spent)
+    if (!axis) break
+    const at = widestGap(picked[axis], axis === 'rows' ? rows : cols, tuning.roadWidth)
+    if (at === null) {
+      spent[axis] = true
+      continue
+    }
+    const before = picked[axis].length
+    take(axis, at)
+    if (picked[axis].length === before) spent[axis] = true
+  }
+  return { rows: picked.rows.sort((a, b) => a - b), cols: picked.cols.sort((a, b) => a - b) }
+}
+
+/** How many full-span streets fit along a span. Each one costs its own width plus the block beside it: a lot
+ *  row (depth about 3), the setback and a buffer, which is the +7. Below that the blocks collapse and the
+ *  place is all road. */
+function streetsAlong(span: number, roadWidth: number): number {
+  return Math.max(1, Math.floor((span - 4) / (roadWidth + 7)))
+}
+
+/**
+ * HOW MANY STREETS A SETTLEMENT THIS SIZE CAN HOLD, both axes together.
+ *
+ * The ways layer needs this to bound what it plans, or it promises more pathways than the planner can lay and
+ * a town ends up with a corridor that is not a street. `pathwayCeiling` is the general estimate, measured in
+ * path widths; this is the real number, measured in BLOCKS, which is what a settlement is made of.
+ */
+export function streetRoom(cols: number, rows: number, served?: SettlementTuning): number {
+  const roadWidth = served?.roadWidth ?? ROAD_W
+  return streetsAlong(rows, roadWidth) + streetsAlong(cols, roadWidth)
+}
+
+/** Which axis takes the next street: the one with fewer so far, so a grid grows square instead of striped.
+ *  Null when neither axis has an unused line left, which is what stops the fill. */
+function nextStreetAxis(picked: StreetLines, room: Room, spent: Record<'rows' | 'cols', boolean>): 'rows' | 'cols' | null {
+  const open = {
+    rows: !spent.rows && picked.rows.length < room.rows,
+    cols: !spent.cols && picked.cols.length < room.cols,
+  }
+  if (!open.rows && !open.cols) return null
+  if (!open.rows) return 'cols'
+  if (!open.cols) return 'rows'
+  return picked.rows.length <= picked.cols.length ? 'rows' : 'cols'
+}
+
+/** How many streets each axis has room for. */
+interface Room {
+  rows: number
+  cols: number
+}
+
+/**
+ * The legal street line sitting in the WIDEST remaining gap, so each new street spreads instead of clustering.
+ *
+ * An evenly-spaced list cannot do this once the gates have claimed their lines: an even position one cell off a
+ * gate's street is unusable, and dropping it loses a street the map had room for. Measuring the gap each time
+ * finds the space whenever there is any. Null when there is none.
+ */
+function widestGap(taken: readonly number[], span: number, roadWidth: number): number | null {
+  const lo = 5
+  const hi = span - 5 - roadWidth
+  if (hi < lo) return null
+  let best: number | null = null
+  let widest = roadWidth + 2 // any closer and the two are one wide road with a stripe down it, not two streets
+  for (let at = lo; at <= hi; at++) {
+    const gap = taken.length === 0
+      ? Math.min(at - lo, hi - at)
+      : taken.reduce((near, q) => Math.min(near, Math.abs(q - at)), Number.POSITIVE_INFINITY)
+    if (gap <= widest) continue
+    best = at
+    widest = gap
+  }
+  return best
+}
+
 /** Evenly-spaced positions for `n` full-span 2-wide streets along a `span`, clamped so each leaves a
  *  buildable block + frontage room and never touches the edge or a neighbour. */
 function streetLines(span: number, n: number, roadWidth: number): number[] {
@@ -307,16 +456,10 @@ function streetLines(span: number, n: number, roadWidth: number): number[] {
  * then a FRONTAGE on BOTH sides of every street (the rows of lots placePlots fills). Grid size is
  * clamped to the map so each block still fits a row of houses between streets.
  */
-export function planRoads(cols: number, rows: number, rng: Rng, settlement: Settlement, tuning: Tuning = resolveTuning(settlement)): RoadPlan {
+export function planRoads(cols: number, rows: number, rng: Rng, settlement: Settlement, tuning: Tuning = resolveTuning(settlement), streets?: StreetPlan): RoadPlan {
   const roads: boolean[][] = Array.from({ length: rows }, () => new Array<boolean>(cols).fill(false))
   const entrances: Entrance[] = []
-  const g = GRID[settlement]
-  // Each block between streets needs the road (tuning.roadWidth) + a lot row on each side (≈ depth 3 + tuning.setback 1
-  // + buffer) → ~tuning.roadWidth+7 cells of spacing; clamp the grid to the map so blocks never collapse.
-  const hN = Math.max(2, Math.min(g.h, Math.floor((rows - 4) / (tuning.roadWidth + 7))))
-  const vN = Math.max(2, Math.min(g.v, Math.floor((cols - 4) / (tuning.roadWidth + 7))))
-  const streetRows = streetLines(rows, hN, tuning.roadWidth)
-  const streetCols = streetLines(cols, vN, tuning.roadWidth)
+  const { rows: streetRows, cols: streetCols } = streetGrid(cols, rows, settlement, tuning, streets)
 
   for (const sr of streetRows) {
     for (let c = 0; c < cols; c++) for (let w = 0; w < tuning.roadWidth; w++) roads[sr + w][c] = true
@@ -590,11 +733,11 @@ function firstClearSpot(frontages: Frontage[], len: number, depth: number, setba
 
 /** Compose the steps: road GRID → reserve the central SQUARE → fill frontages with rows of lots
  *  AROUND the square. The pipeline the generator stamps (it paves the square + drops ONE fountain). */
-export function planVillage(cols: number, rows: number, rng: Rng, sizes: BuildingSizes, settlement: Settlement = 'town', served?: SettlementTuning): VillageLayout {
+export function planVillage(cols: number, rows: number, rng: Rng, sizes: BuildingSizes, settlement: Settlement = 'town', served?: SettlementTuning, streets?: StreetPlan): VillageLayout {
   // Resolved ONCE, then handed down. Every pass must plan from the same numbers, and resolving per-pass
   // would let a served value reach one and not another.
   const tuning = resolveTuning(settlement, served)
-  const { roads, frontages, entrances } = planRoads(cols, rows, rng, settlement, tuning)
+  const { roads, frontages, entrances } = planRoads(cols, rows, rng, settlement, tuning, streets)
   const plaza = planPlaza(cols, rows, roads, settlement, tuning)
   const plots = placePlots(roads, frontages, cols, rows, rng, settlement, sizes, plaza, tuning)
   return { roads, plots, entrances, plaza }
