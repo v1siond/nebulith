@@ -1,5 +1,5 @@
 import { randIntWith, type Rng } from '@/lib/math'
-import { flood, forEachCell, inBounds, toCell, ORTHO, type Cell } from './grid'
+import { cellKey, flood, forEachCell, inBounds, toCell, ORTHO, type Cell } from './grid'
 import { type GeneratorCrossing, type GeneratorOptionValue, type GeneratorPalette } from '@/lib/generatorCatalog'
 import { type RoutePlan } from '@/engine/pathNetwork'
 import { resolveComposition, resolveTile } from '@/engine/tileset/tileset'
@@ -891,4 +891,156 @@ function dryAreas(ctx: RiverSurface): Map<string, number> {
     for (const key of flood(isDry, col, row, seen)) area.set(key, id)
   })
   return area
+}
+
+// ── the ways the water landed on ──────────────────────────────────────────
+// The paths are planned before a drop of water is carved, so a river can land ON one. Everything downstream
+// then treats those cells as "a way that happens to be wet" and planks them, which is how a bridge turns into
+// a causeway. This pass is the river admitting what it did to the road.
+
+/** How wide a crossing is allowed to be, across the way. Two cells to walk plus the rails is what he asked
+ *  for, and it is what `bridge_cells` authors, so the flat deck matches the structure that goes on it. */
+const CROSSING_WIDTH = 1
+
+/** Every cell of the map that is NOT water, labelled by the stretch of dry ground it belongs to. The BANKS. */
+function bankLabels(bounds: RiverBounds, water: ReadonlySet<string>): Map<string, number> {
+  const dry = (col: number, row: number): boolean =>
+    inBounds(col, row, bounds.cols, bounds.rows) && !water.has(cellKey(col, row))
+  const seen = new Set<string>()
+  const banks = new Map<string, number>()
+  let next = 0
+  forEachCell(bounds.cols, bounds.rows, (col, row) => {
+    if (!dry(col, row) || seen.has(cellKey(col, row))) return
+    const id = next++
+    for (const key of flood(dry, col, row, seen)) banks.set(key, id)
+  })
+  return banks
+}
+
+/** The wet cells of `ways`, split into the separate puddles and stretches they form. */
+function wetStretches(ways: ReadonlySet<string>, water: ReadonlySet<string>): Set<string>[] {
+  const wet = new Set<string>()
+  for (const key of ways) if (water.has(key)) wet.add(key)
+  const seen = new Set<string>()
+  const out: Set<string>[] = []
+  for (const key of wet) {
+    if (seen.has(key)) continue
+    const found = new Set<string>([key])
+    const stack = [key]
+    seen.add(key)
+    while (stack.length > 0) {
+      const { col, row } = toCell(stack.pop() as string)
+      for (const [dc, dr] of ORTHO) {
+        const k = cellKey(col + dc, row + dr)
+        if (!wet.has(k) || seen.has(k)) continue
+        seen.add(k)
+        found.add(k)
+        stack.push(k)
+      }
+    }
+    out.push(found)
+  }
+  return out
+}
+
+/** Which bank each cell of `stretch` touches, as bank id -> the stretch cells that touch it. */
+function shoresOf(stretch: ReadonlySet<string>, banks: ReadonlyMap<string, number>): Map<number, string[]> {
+  const shores = new Map<number, string[]>()
+  for (const key of stretch) {
+    const { col, row } = toCell(key)
+    for (const [dc, dr] of ORTHO) {
+      const bank = banks.get(cellKey(col + dc, row + dr))
+      if (bank === undefined) continue
+      const at = shores.get(bank)
+      if (at) { at.push(key); continue }
+      shores.set(bank, [key])
+    }
+  }
+  return shores
+}
+
+/** The shortest way through `stretch` from any cell in `from` to any cell in `to`, as the cells it passes. */
+function shortestThrough(stretch: ReadonlySet<string>, from: readonly string[], to: readonly string[]): Set<string> {
+  const target = new Set(to)
+  const came = new Map<string, string | null>()
+  const queue: string[] = []
+  for (const key of from) {
+    if (came.has(key)) continue
+    came.set(key, null)
+    queue.push(key)
+  }
+  for (let i = 0; i < queue.length; i++) {
+    const key = queue[i]
+    if (target.has(key)) {
+      const path = new Set<string>()
+      for (let at: string | null | undefined = key; at; at = came.get(at)) path.add(at)
+      return path
+    }
+    const { col, row } = toCell(key)
+    for (const [dc, dr] of ORTHO) {
+      const k = cellKey(col + dc, row + dr)
+      if (!stretch.has(k) || came.has(k)) continue
+      came.set(k, key)
+      queue.push(k)
+    }
+  }
+  return new Set(from.slice(0, 1))
+}
+
+/**
+ * KEEP THE CROSSING, DROP THE CAUSEWAY.
+ *
+ * Alexander, 2026-09-13: *"we still have situations where there's a lot of wood path alongside bridge when we
+ * just want the bridge and the river"*, and 2026-09-12: *"we just need the actual bridge connecting"* and
+ * *"bridge wood zone is almost as long and big as the rivr"*.
+ *
+ * The ways are planned on dry ground, then the river is carved over them, and every way cell that came out wet
+ * was planked. On a map whose ways run the same direction as the channel that is a plank road down the middle
+ * of the river: measured on a woodland, 85 deck cells against 105 water cells, 28 columns wide.
+ *
+ * So the river narrows each wet stretch of the network back to what a crossing IS:
+ *
+ *   · a stretch that touches only ONE bank goes entirely. It leads from the shore into the water and back to
+ *     the same shore, which is a paddle, not a way.
+ *   · a stretch that touches TWO OR MORE banks keeps the shortest line through it to each further bank, one
+ *     cell either side so you are not walking a tightrope. Everything else goes.
+ *
+ * Connectivity is kept BY CONSTRUCTION: every bank the network reached through the water it still reaches,
+ * along the shortest path there was. Nothing downstream changes, the paving and the decking simply see a
+ * network that no longer runs down the river.
+ */
+export function narrowWaysToCrossings(
+  bounds: RiverBounds,
+  ways: Set<string>,
+  water: ReadonlySet<string>,
+): number {
+  if (water.size === 0) return 0
+  const banks = bankLabels(bounds, water)
+  let dropped = 0
+  for (const stretch of wetStretches(ways, water)) {
+    const shores = shoresOf(stretch, banks)
+    const keep = new Set<string>()
+    const reached = [...shores.keys()]
+    // The FIRST bank is the near side. A crossing is kept to each of the others, so a stretch that happens to
+    // touch three banks does not silently lose one of them.
+    for (let i = 1; i < reached.length; i++) {
+      for (const key of shortestThrough(stretch, shores.get(reached[0])!, shores.get(reached[i])!)) keep.add(key)
+    }
+    // One cell either side of the line, so a crossing is something you walk rather than balance along.
+    for (const key of [...keep]) {
+      const { col, row } = toCell(key)
+      for (const [dc, dr] of ORTHO) {
+        for (let d = 1; d <= CROSSING_WIDTH; d++) {
+          const k = cellKey(col + dc * d, row + dr * d)
+          if (stretch.has(k)) keep.add(k)
+        }
+      }
+    }
+    for (const key of stretch) {
+      if (keep.has(key)) continue
+      ways.delete(key)
+      dropped++
+    }
+  }
+  return dropped
 }

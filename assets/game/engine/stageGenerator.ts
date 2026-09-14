@@ -61,7 +61,7 @@ import { clamp, randInt, randIntWith, manhattan, makeRng, type Rng } from '@/lib
 import { planRoutes, resolveWays, type Gate, type RouteCell, type RoutePlan } from '@/engine/pathNetwork'
 import {
   carveChannel, deckRoutes, digChannel, flowField, isWaterGround, layDeck, recordBridgeSpan,
-  narrowestLine, resolveRiverCourse, settleWaterDepth, strewRiverRocks, wadeableShallows, waterBand, waterReach,
+  narrowestLine, narrowWaysToCrossings, resolveRiverCourse, settleWaterDepth, strewRiverRocks, wadeableShallows, waterBand, waterReach,
   FLOW_STEPS, type RiverCourse,
 } from '@/engine/riverNetwork'
 
@@ -1468,7 +1468,7 @@ function riverCourse(ctx: ArchetypeContext, legacy: RiverCourse): RiverCourse | 
 
 /** Carve the river along its course. `around` is the existing perimeter river; the other two are channels
  *  that cross the whole map, which is what makes them cross it or cut it. */
-function carveRiver(ctx: ArchetypeContext, course: RiverCourse, pal: GeneratorPalette | undefined): Set<string> {
+function carveRiver(ctx: ArchetypeContext, course: RiverCourse, pal: GeneratorPalette | undefined, ways?: RoutePlan | null): Set<string> {
   if (course === 'around') {
     const water = paintMeadowRiver(ctx)
     // A template that serves its own water colour wears it here too, not the meadow's blue. THE TONE, FLAT:
@@ -1479,9 +1479,28 @@ function carveRiver(ctx: ArchetypeContext, course: RiverCourse, pal: GeneratorPa
     return water
   }
   // `divides` is wide and nearly straight across the middle, so it reads as a barrier; `through` meanders.
-  return course === 'divides'
+  const water = course === 'divides'
     ? carveChannel(ctx, pal, { half: 2.3, swing: 0.05, horizontal: true })
     : carveChannel(ctx, pal, { half: 1.6, swing: 0.26 })
+  narrowWays(ctx, ways, water)
+  return water
+}
+
+/**
+ * THE WAYS GIVE GROUND TO THE RIVER, once, right where it was carved.
+ *
+ * *"we need to always draw the pathway first, then the river and everything else adapts to it"*. The ways ARE
+ * drawn first, and this is the adapting: whatever stretch of a way the channel landed on stops being a way,
+ * except for the one crossing that keeps both banks joined. Everything after it (the paving, the decking, the
+ * gates) sees a network that no longer runs down the river, so none of them needed a change.
+ *
+ * The `around` course does not come through here on purpose: a perimeter river has the map's edge on one side,
+ * so its "ways" are the bridge it always had.
+ */
+function narrowWays(ctx: ArchetypeContext, ways: RoutePlan | null | undefined, water: ReadonlySet<string>): void {
+  if (!ways) return
+  narrowWaysToCrossings(ctx, ways.cells, water)
+  narrowWaysToCrossings(ctx, ways.spine, water)
 }
 
 /**
@@ -1633,7 +1652,7 @@ function layoutWoodland(ctx: ArchetypeContext, opts: ForestBuild = {}): void {
   //     spoken for. It joins `open` (the not-plantable mask) rather than getting its own check, which is why
   //     the canopy pass below needs no river branch at all: water is simply somewhere a tree cannot go.
   const open = new Set<string>()
-  const water = opts.river ? carveRiver(ctx, opts.river, ctx.palette) : new Set<string>()
+  const water = opts.river ? carveRiver(ctx, opts.river, ctx.palette, opts.routes) : new Set<string>()
   for (const key of water) open.add(key)
 
   // 1 · CLEARINGS, as a mask, so the canopy pass can simply avoid them. Deciding the holes before
@@ -1893,7 +1912,7 @@ function layoutJungle(ctx: ArchetypeContext, opts: ForestBuild = {}): void {
   // No course picked → the jungle's own narrow creek; `through` → the same creek, wide; the other courses
   // carve their own channel. A jungle always has water — the option only says what KIND.
   const water = opts.river === 'through' ? carveJungleCreek(ctx, pal, true)
-    : opts.river ? carveRiver(ctx, opts.river, pal)
+    : opts.river ? carveRiver(ctx, opts.river, pal, opts.routes)
     : carveJungleCreek(ctx, pal, false)
   // 1b · SWAMP POOLS — standing water where a swamp region says so. They join the same water set the creek
   //      is in, so every later pass treats a pool exactly as it treats the channel.
@@ -3201,7 +3220,7 @@ interface MeadowBuild {
 function buildMeadow(ctx: ArchetypeContext, opts: MeadowBuild): void {
   floodMeadowFloor(ctx)                          // flat 'meadow' tile everywhere (a raised, tintable block)
   paintMeadowGradient(ctx)                        // season olive greens→yellows as per-cell floor STATE
-  const water = opts.river ? carveRiver(ctx, opts.river, meadowWater(ctx)) : new Set<string>() // the river along the course the option picked
+  const water = opts.river ? carveRiver(ctx, opts.river, meadowWater(ctx), opts.routes) : new Set<string>() // the river along the course the option picked
   paintMeadowPlots(ctx, water)                    // faint tended-field patchwork (a subtle colour)
   scatterMeadowOrnaments(ctx, water)              // subtle dirt/earth patches, a few field stones, tiny flowers — mostly open
   scatterFramingTrees(ctx, water)                 // SPARSE tree clumps BEYOND the river (top/left/right) + a few near the bottom corners
