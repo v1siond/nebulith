@@ -564,6 +564,23 @@ describe('the preview window shows the world to build, its size, and the options
         // …and the failure was REPORTED. A caught-and-dropped error would leave the user with a button that
         // simply does nothing, which is worse than the stuck one.
         expect(spy).toHaveBeenCalledWith('Building this world failed', expect.any(Error))
+        // …to the USER, not only to the console. The console is for me; a message on the panel is the only
+        // thing that tells whoever clicked why the map did not change.
+        expect(await screen.findByRole('alert')).toHaveTextContent('the generator threw')
+      } finally {
+        spy.mockRestore()
+      }
+    })
+
+    it('clears the last failure when the next build starts, so the message always belongs to this click', async () => {
+      const spy = jest.spyOn(console, 'error').mockImplementation(() => {})
+      try {
+        const { fail } = startBuild()
+        await act(async () => { fail(new Error('the generator threw')) })
+        expect(await screen.findByRole('alert')).toHaveTextContent('the generator threw')
+
+        fireEvent.click(await screen.findByRole('button', { name: /build this world/i }))
+        expect(screen.queryByRole('alert')).toBeNull()
       } finally {
         spy.mockRestore()
       }

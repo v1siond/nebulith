@@ -835,10 +835,14 @@ export function GenerateControls({
    * changing when it finally landed. A second click during that window queued a whole second build.
    */
   const [buildingWorld, setBuildingWorld] = useState(false)
+  // WHAT WENT WRONG, on the screen. A build that throws used to reach the console and nowhere else: the
+  // button went back to "Build this world" and the map did not change, which reads as the click being lost.
+  const [buildError, setBuildError] = useState<string | null>(null)
 
   const generate = async () => {
     if (activeKey === null || buildingWorld) return
     setBuildingWorld(true)
+    setBuildError(null) // a new attempt clears the last failure, so the message always belongs to this click
     try {
       // No size travels with this any more. The caller reads the GRID panel's numbers, which is the one place
       // they are set, so a generate and a resize can no longer disagree about what the map's shape is.
@@ -851,10 +855,12 @@ export function GenerateControls({
       if (leaf && leaf !== presetGenerator) await onGenerate(zone, archetypeOf(leaf), picked ?? undefined, chosenOptions(), leaf.key)
       else await onGenerate(zone, archetypeOf(leaf), picked ?? undefined, chosenOptions())
     } catch (err) {
-      // LOUD, not silent. Awaiting the build means a generator that throws now rejects here, and letting that
-      // escape would be an unhandled rejection AND a button stuck on "Building…" forever. There is no
-      // user-facing message for a failed build yet, which is its own gap and is on the ticket.
+      // LOUD, not silent, and on the SCREEN. Awaiting the build means a generator that throws rejects here, and
+      // letting that escape would be an unhandled rejection AND a button stuck on "Building…" forever. The
+      // thrown message is shown as it is: whatever failed said something, and a generic sentence in its place
+      // would be the frontend inventing an explanation it does not have.
       console.error('Building this world failed', err)
+      setBuildError(err instanceof Error ? err.message : String(err))
     } finally {
       setBuildingWorld(false)
     }
@@ -999,6 +1005,11 @@ export function GenerateControls({
       >
         {buildingWorld ? 'Building this world…' : '⚡ Build this world'}
       </button>
+      {buildError && (
+        <div className="hint" role="alert" style={{ color: 'var(--bad)', marginTop: 6 }}>
+          This world could not be built: {buildError}
+        </div>
+      )}
       {/* THE SAME MAP, WITH THE CHANGE IN IT. Build rolls a new world; this keeps the one on screen and only moves
           what you changed, because every seed is kept. */}
       {onApply && (
