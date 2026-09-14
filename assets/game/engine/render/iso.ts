@@ -1938,6 +1938,9 @@ function drawIsoRectBlock(
     const raw = thickness?.[dir]
     return typeof raw === 'number' && raw > 0 && raw < 1 ? raw : 1
   }
+  // The far faces sit one cell PAST the last cell (a rect of n cells spans n+1 boundaries), and thickness
+  // pulls each face back into its own cell. At reach 1 these are exactly -cm, cp+1, -rm, rp+1, the numbers
+  // the corners were written with before.
   const a0 = -cm + (1 - reach('left-up'))
   const a1 = cp + reach('right-down')
   const b0 = -rm + (1 - reach('right-up'))
@@ -1945,9 +1948,9 @@ function drawIsoRectBlock(
   const at = (a: number, b: number): Pt => ({ x: px + (a - b) * tileW, y: ty + (a + b - 1) * tileH })
   // The four OUTER corners of the rectangle's top parallelogram (dir1/dir2 are the two grid axes → 4 corners).
   const T = at(a0, b0) // back (min col, min row) → top vertex
-  const R = at(a1 + 1, b0) // right (max col, min row)
-  const B = at(a1 + 1, b1 + 1) // front (max col, max row) → bottom vertex
-  const L = at(a0, b1 + 1) // left (min col, max row)
+  const R = at(a1, b0) // right (max col, min row)
+  const B = at(a1, b1) // front (max col, max row) → bottom vertex
+  const L = at(a0, b1) // left (min col, max row)
   const dn = (p: Pt): Pt => ({ x: p.x, y: p.y + H })
   const faceColor = tint ?? dv.tint ?? dv.color
   const leftShade = darkenColor(faceColor, faceLight(-tileH, tileW)) // +row (front-left) wall

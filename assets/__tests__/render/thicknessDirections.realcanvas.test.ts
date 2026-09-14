@@ -151,3 +151,33 @@ describe('a Z-WIDTH tile takes its thickness too (the rect branch)', () => {
     expect(rect(ALL_ONE)).toEqual(rect(undefined))
   })
 })
+
+describe('a spanning block covers exactly the cells it claims', () => {
+  // THE GUARD ON THE FIX ABOVE. Teaching drawIsoRectBlock about thickness meant rewriting its corners, and the
+  // first version added a cell to both axes: every spanning block grew by one, which is what the map's own
+  // BODY is drawn as, so the ground lost its base. Size is the thing to assert, not just "it thinned".
+  // A wide canvas with the block well clear of the left edge: +row runs down-LEFT, so a six-cell span walks
+  // off a narrow canvas and the silhouette gets clipped rather than measured.
+  const SW = 900, SH = 520, SCX = 620, SCY = 200
+  const span = (cells: number, thickness?: ThicknessReach) => {
+    const canvas = H.makeCanvas(SW, SH)
+    const ctx = canvas.getContext('2d') as unknown as CanvasRenderingContext2D
+    const asset = { depthDir: 'left-down' as DepthDir, depth: cells, thickness, shape: 'square' } as unknown as GridAsset
+    drawIsoTileForShape(ctx, { x: SCX, y: SCY }, TW, TH, BH, 1, SOLID, undefined, asset)
+    return silhouette(canvas)
+  }
+
+  it('one cell of span is the same WIDTH as no span at all', () => {
+    const plain = draw(undefined)
+    expect(span(1).x1 - span(1).x0).toBe(plain.x1 - plain.x0)
+  })
+
+  it('each extra cell adds exactly one cell of width, no more', () => {
+    const one = span(1)
+    const two = span(2)
+    const six = span(6)
+    // +row runs down-LEFT, so each cell adds tileW of screen width and tileH of height.
+    expect(two.x1 - two.x0).toBe(one.x1 - one.x0 + TW)
+    expect(six.x1 - six.x0).toBe(one.x1 - one.x0 + TW * 5)
+  })
+})
