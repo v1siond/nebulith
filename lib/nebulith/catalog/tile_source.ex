@@ -3516,4 +3516,114 @@ defmodule Nebulith.Catalog.TileSource do
     |> File.read!()
     |> Jason.decode!()
   end
+  # ── ENTRANCES: an exit that looks like a way somewhere else ──────────────────────────────────────────────
+  #
+  # *"we need a better visual indicator that 'going through this pathway goes to somewhere else', like a
+  # whuite or dark light right in the exit cells"*, with a reference picture of a mossy cave mouth and the
+  # list *"a forest entrance, a cave entrance, a town/city entrance, a park entrance"*.
+  #
+  # The reference reads as four parts, and every entrance below is built from the same four:
+  #
+  #     UPRIGHT   SPAN   UPRIGHT
+  #        |       ===      |
+  #        |      MOUTH     |          the darkest thing in the picture, and where your eye goes
+  #       feet    floor    feet
+  #
+  # Three cells wide because that is the gate width, so an entrance covers its gate and nothing else. The
+  # MIDDLE CELL STAYS WALKABLE: it is the way out. The uprights block, which is what makes it a doorway rather
+  # than a decoration.
+  #
+  # Every piece is a real catalogue tile. Nothing is drawn for this. An earlier attempt at these was reverted
+  # for being invented rather than modelled, which is the mistake the reference picture exists to stop.
+  defp entrance_cells({left_upright, right_upright}, span, floor, foot_left, foot_right, opts) do
+    mouth = Keyword.get(opts, :mouth, "#0d0d12")
+
+    [
+      # THE UPRIGHTS, on the border row. They block: a doorway you cannot brush past the side of. The two
+      # DIFFER where the place is grown rather than built, which is what stops a wood's opening reading as
+      # something somebody put there. A town's are a matched pair for the same reason, in reverse.
+      #
+      # NO COLOUR IS SET HERE. A boulder is already the colour a boulder is, a pillar the colour a pillar is,
+      # and that colour is a setting on the tile you can change. Recolouring them from this function would be
+      # inventing a palette in code and taking the setting away from the thing that owns it: an object is a
+      # construction of tiles, and each tile brings its own.
+      %{dx: 0, dy: 0, level: 0, label: left_upright, walkable: false},
+      %{dx: 2, dy: 0, level: 0, label: right_upright, walkable: false},
+      # THE MOUTH. Walkable, because it is the exit, and carrying a DARK light so the opening is the darkest
+      # thing here. The lamp proves the setting works; this uses it for the opposite effect.
+      #
+      # This one IS a colour on the cell, and it is the only one: the darkness IS the feature he asked for,
+      # *"a whuite or dark light right in the exit cells"*. It lives in the cell's settings like every other
+      # per-cell setting, so it is editable on the object rather than fixed in the engine.
+      %{
+        dx: 1,
+        dy: 0,
+        level: 0,
+        label: floor,
+        walkable: true,
+        settings: %{
+          "color" => mouth,
+          "light" => %{"intensity" => 0.85, "distance" => 2.4, "color" => mouth, "on" => true}
+        }
+      },
+      # THE SPAN, over the mouth. Overhead, so you walk under it.
+      %{dx: 1, dy: 0, level: 1, label: span, walkable: true},
+      # THE FEET, one step inside, crowding the uprights so the thing looks grown rather than placed.
+      %{dx: 0, dy: 1, level: 0, label: foot_left, walkable: true, scale: 0.7, settings: %{"display" => "single", "transparent" => true}},
+      %{dx: 2, dy: 1, level: 0, label: foot_right, walkable: true, scale: 0.7, settings: %{"display" => "single", "transparent" => true}}
+    ]
+  end
+
+  @doc """
+  The four entrances he named, as compositions.
+
+  Each carries a `category` so it shows up in the objects palette and can be dropped anywhere, which is the
+  workflow he described: *"any time we add a new functionality it just becomes a new object we can just place
+  and play with"*.
+  """
+  def seed_entrances do
+    entrances = %{
+      # A wood opening onto somewhere else: a bare gnarled trunk one side, a full crown the other, a boulder
+      # bridging them. The two uprights differ on purpose, which is what stops it reading as something built.
+      "forest_entrance" => %{
+        footprint_w: 3,
+        footprint_h: 2,
+        category: "props",
+        cells: entrance_cells({"dead-tree", "oak-tree"}, "boulder", "path_dirt", "mushroom", "red-mushroom", [])
+      },
+      # Rock both sides and rock over the top, and the darkest mouth of the four.
+      "cave_entrance" => %{
+        footprint_w: 3,
+        footprint_h: 2,
+        category: "props",
+        cells: entrance_cells({"cliff_face", "cliff_face"}, "boulder", "cave_floor", "boulder", "boulder", mouth: "#08080c")
+      },
+      # BUILT, not grown: dressed uprights, a real arch, and a lamp at each foot that lights the way at night
+      # through the light setting it already carries.
+      "town_entrance" => %{
+        footprint_w: 3,
+        footprint_h: 2,
+        category: "props",
+        cells: entrance_cells({"pillar", "pillar"}, "torii-gate", "path_stone", "lamp", "lamp", [])
+      },
+      # The town entrance, lighter: the same built frame with blooms at its feet and a softer floor.
+      "park_entrance" => %{
+        footprint_w: 3,
+        footprint_h: 2,
+        category: "props",
+        cells: entrance_cells({"pillar", "pillar"}, "torii-gate", "path", "bouquet", "flower", [])
+      }
+    }
+
+    for {name, %{footprint_w: w, footprint_h: h, cells: cells} = comp} <- entrances do
+      {:ok, _} =
+        Nebulith.Catalog.upsert_composition_with_cells(
+          %{name: name, footprint_w: w, footprint_h: h, category: Map.get(comp, :category)},
+          cells
+        )
+    end
+
+    :ok
+  end
+
 end

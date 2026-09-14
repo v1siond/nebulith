@@ -631,19 +631,19 @@ defmodule Nebulith.Catalog.GeneratorSource do
       %{
         category: "forest", key: "forest_woodland", name: "Woodland", layout: "woodland", variant: "forest", position: 0,
         description: "Dense trees with clearings cut into them, joined by paths.",
-        config: %{"grid" => @small_grid, "nature" => @woodland_nature, "units" => townsfolk(3), "palette" => @woodland_palette, "formation" => @formations["stand"], "trees" => @woodland_trees, "crossings" => @crossings},
+        config: %{"grid" => @small_grid, "nature" => @woodland_nature, "units" => townsfolk(3), "palette" => @woodland_palette, "formation" => @formations["stand"], "trees" => @woodland_trees, "crossings" => @crossings, "entrance" => "forest_entrance"},
         options: @way_options ++ @water_options
       },
       %{
         category: "forest", key: "forest_jungle", name: "Jungle", layout: "jungle", variant: "forest", position: 1,
         description: "A closed canopy over choked undergrowth, with clearings cut into it.",
-        config: %{"grid" => @small_grid, "nature" => @jungle_nature, "units" => townsfolk(2), "palette" => @jungle_palette, "subZones" => @jungle_sub_zones, "formation" => @formations["closed"], "trees" => @jungle_trees, "crossings" => @crossings},
+        config: %{"grid" => @small_grid, "nature" => @jungle_nature, "units" => townsfolk(2), "palette" => @jungle_palette, "subZones" => @jungle_sub_zones, "formation" => @formations["closed"], "trees" => @jungle_trees, "crossings" => @crossings, "entrance" => "forest_entrance"},
         options: @way_options ++ region_options(~w(open dense swamp ruins)) ++ @water_options
       },
       %{
         category: "forest", key: "forest_meadow", name: "Meadow", layout: "meadow", variant: "forest", position: 2,
         description: "An open clearing framed by trees, with two ways in.",
-        config: %{"grid" => @small_grid, "nature" => @outdoor_nature, "units" => townsfolk(5), "formation" => @formations["scattered"], "trees" => @meadow_trees, "palette" => @meadow_palette, "crossings" => @crossings},
+        config: %{"grid" => @small_grid, "nature" => @outdoor_nature, "units" => townsfolk(5), "formation" => @formations["scattered"], "trees" => @meadow_trees, "palette" => @meadow_palette, "crossings" => @crossings, "entrance" => "forest_entrance"},
         options: @way_options ++ @water_options
       },
       # ── SUBTYPES ────────────────────────────────────────────────────────────────────────────────────
@@ -945,13 +945,13 @@ defmodule Nebulith.Catalog.GeneratorSource do
       %{
         category: "cave", key: "cave_default", name: "Cave", variant: "cave", position: 0,
         description: "A cavern floor: bats, spiders and skeletons instead of townsfolk.",
-        config: %{"grid" => @small_grid, "units" => enemies(~w(bat spider skeleton))},
+        config: %{"grid" => @small_grid, "units" => enemies(~w(bat spider skeleton)), "entrance" => "cave_entrance"},
         options: @way_options
       },
       %{
         category: "temple", key: "temple_default", name: "Temple", variant: "temple", position: 0,
         description: "A temple dungeon: skeletons, guardians and wraiths.",
-        config: %{"grid" => @small_grid, "units" => enemies(~w(skeleton guardian wraith))},
+        config: %{"grid" => @small_grid, "units" => enemies(~w(skeleton guardian wraith)), "entrance" => "cave_entrance"},
         options: @way_options
       }
     ]
