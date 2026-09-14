@@ -61,7 +61,8 @@ import { clamp, randInt, randIntWith, manhattan, makeRng, type Rng } from '@/lib
 import { planRoutes, resolveWays, type Gate, type RouteCell, type RoutePlan } from '@/engine/pathNetwork'
 import {
   carveChannel, deckRoutes, digChannel, flowField, isWaterGround, layDeck, recordBridgeSpan,
-  resolveRiverCourse, waterBand, waterReach, FLOW_STEPS, type RiverCourse,
+  resolveRiverCourse, settleWaterDepth, strewRiverRocks, wadeableShallows, waterBand, waterReach,
+  FLOW_STEPS, type RiverCourse,
 } from '@/engine/riverNetwork'
 
 export type VariantId = 'town' | 'city' | 'forest' | 'cave' | 'temple' | 'boss-stage'
@@ -3120,73 +3121,7 @@ function meadowWater(ctx: ArchetypeContext): GeneratorPalette {
 // THE CURRENT LIVES IN `riverNetwork.ts` NOW. Alexander, 2026-09-13: *"do we have a separate module to build
 // the river layouts? like the channel, the current, etc"*. He was right that we did not: 56 water functions
 // in this one 5,775-line file. The flow field is the first piece out, and it took its 193 lines with it.
-/** How many channel cells in get a rock, as a share. Sparse on purpose: *"a few rocks here and there"*. */
-const RIVER_ROCK_SHARE = 0.035
-/** A rock never sits on the bank edge, or it reads as part of the shore instead of standing in the water. */
-const ROCK_MIN_WATER_NEIGHBOURS = 4
 
-/**
- * A FEW ROCKS IN THE RIVER.
- *
- * Alexander, 2026-09-13, with three reference images, one of them a river with rocks and a bridge: *"we should
- * have a few rocks here and there in middle of the river too, with collission of water animation, that'd help"*.
- *
- * The cell STAYS WATER. That is the whole point of the note: the rock is something standing IN the river, so
- * the water keeps its label, its colour and its current, and the rock is a prop on top of it that you cannot
- * walk through. Every other prop pass refuses a water cell (`isLandCell`, and rightly, a flower has no
- * business floating), so this pushes directly rather than going through `placeProp`.
- *
- * Only well-inside cells qualify: a rock needs water on all four sides or it reads as a lump of the bank.
- */
-function strewRiverRocks(ctx: ArchetypeContext, channel: ReadonlySet<string>): void {
-  const rock = resolveTile(styleCatalog('ascii'), ctx.zone, 'rock')
-  const midstream = [...channel].filter(key => {
-    const { col, row } = toCell(key)
-    return FLOW_STEPS.filter(([dc, dr]) => channel.has(`${col + dc},${row + dr}`)).length >= ROCK_MIN_WATER_NEIGHBOURS
-  })
-  for (const key of midstream) {
-    if (ctx.rand() >= RIVER_ROCK_SHARE) continue
-    const { col, row } = toCell(key)
-    // ONLY WHERE THE WATER ALREADY BLOCKS. A rock is solid, and dropping a fresh blocker into a channel can
-    // sever the map: placing them freely broke "however dense it gets, the jungle is ONE place" eight times
-    // over, and pinched a wadeable ford shut. Standing one in water you could not cross anyway adds the look
-    // he asked for and cannot change what connects to what.
-    if (!ctx.collision[row][col]) continue
-    ctx.props.push({ col, row, type: 'rock', char: rock.char, label: 'rock', blocking: true, color: rock.color })
-  }
-}
-
-/**
- * Which bank-side cells you may WADE. One only when it hangs off exactly ONE stretch of dry ground, so the
- * shallows can never become a way across: banks the river keeps apart stay apart, and the bridge stays THE
- * crossing. Measured without this: a narrow river is shallow on both sides with nothing left between, and a
- * "divides" map could be waded straight over. A cell touching no walkable ground (only trunks or rocks) stays
- * open water too, or it would be a puddle you could never reach.
- *
- * Grown outward from the banks until nothing more can join, so a shallow cell can hang off another one.
- */
-function wadeableShallows(ctx: ArchetypeContext, depth: ReadonlyMap<string, number>): Set<string> {
-  const area = dryAreas(ctx)
-  const joined = new Map<string, number>()
-  const pending = new Set([...depth].filter(([, d]) => d === 1).map(([key]) => key))
-  for (let grew = true; grew;) {
-    grew = false
-    for (const key of pending) {
-      const { col, row } = toCell(key)
-      const touching = new Set<number>()
-      for (const [dc, dr] of ORTHO) {
-        const id = area.get(`${col + dc},${row + dr}`) ?? joined.get(`${col + dc},${row + dr}`)
-        if (id !== undefined) touching.add(id)
-      }
-      if (touching.size === 0) continue
-      pending.delete(key)
-      if (touching.size > 1) continue
-      joined.set(key, [...touching][0])
-      grew = true
-    }
-  }
-  return new Set(joined.keys())
-}
 
 // THE BANKS STAY WITH THEIR LAYOUTS, for now, and it is worth saying why. Moving them to `riverNetwork`
 // looked obvious until it was tried: `paintRiverBanks` reads the MEADOW's palette and `jungleBanks` reads
@@ -3233,136 +3168,11 @@ function jungleBanks(ctx: ArchetypeContext, water: Set<string>, pal: GeneratorPa
 }
 
 
-/**
- * SETTLE THE WATER BY DEPTH, once the map is otherwise finished.
- *
- * Alexander, 2026-09-11: *"I only want light blue for walkable water, different layers of darkblue for the deeper
- * waters and we can have some share of blue-green for swamp, the thing is, right now the green used makes it look
- * like a floor instead of water and it's confusing"*.
- *
- *   · the edge you can WADE is shallow: light blue, walkable
- *   · past it the water is ordinary, and further in DEEP and darker; both block
- *   · a swamp pool stays as it is (blocking), recoloured blue-green
- *
- * It runs LAST, after the trails, the bridges and the connectivity joins. Everything before it still sees plain
- * water, so none of that logic changes, and the shallows are only ever hung off ground you could already reach
- * (`wadeableShallows`), so no map comes out more or less connected than it went in.
- */
-function settleWaterDepth(ctx: ArchetypeContext, pal: GeneratorPalette | undefined, pools: ReadonlySet<string> = new Set()): void {
-  const { ground, collision, floorColors } = ctx
-  const depth = waterDepth(ctx, pools)
-
-  // WHICH WAY IT RUNS, decided once for the whole reach. Only the CHANNEL gets one: a pool is standing water
-  // and standing water has no current, which is his own distinction.
-  const channel = new Set<string>()
-  forEachCell(ctx.cols, ctx.rows, (col, row) => {
-    if (isWaterGround(ground[row][col]) && !pools.has(`${col},${row}`)) channel.add(`${col},${row}`)
-  })
-  for (const [key, dir] of flowField(ctx, channel)) ctx.flow.set(key, dir)
-  strewRiverRocks(ctx, channel)
-  const wadeable = wadeableShallows(ctx, depth)
-  // FROZEN OVER. Alexander, 2026-09-12: *"in winter, rivers are ice and we can walk over them, which mean, we
-  // just remove collissions and add the ice physics we haven't developed yet"*. `frozen_water` already exists as
-  // a label in both styles, named for exactly this, so the season lays a different TILE rather than the same
-  // water with an exception bolted on.
-  //
-  // HONEST ABOUT WHERE THIS BELONGS: reading the season here is the same shape of frontend conditional the data
-  // audit indicts elsewhere. The durable home is a served answer on the tile, which is also what makes the ice
-  // physics possible later. It reads the zone for now because nothing serves it yet.
-  const frozen = ctx.zone === 'winter'
-  // ONE SURFACE COLOUR for the whole channel. Alexander, 2026-09-12, with his reference image: *"top is one
-  // color and bottom is another color, but consistent, not different currents, nor different colors mixed"*,
-  // after *"we need to use the tiles consistently, right now water tiles is far from consistent making it look
-  // random"*.
-  //
-  // MEASURED before changing it, on a seed-5 `divides` river: 120 cells `#4f93b3`, 108 `#8ccbe8`, 38 `#2a5f8a`
-  // three blues at 45/41/14% inside ONE river. And all three drew the SAME picture, because a floor resolves
-  // its art through `groundKind`, which collapses every band to `water`. So the bands were never different
-  // water; they were one tile wearing three tints. The "bottom" colour he asks for is the map BODY beneath the
-  // surface, which `groundSideColor` already derives from it, so one tone here delivers both halves of the rule.
-  //
-  // THIS REVERSES the per-depth shading he asked for on 2026-09-11 (*"I only want light blue for walkable
-  // water, different layers of darkblue for the deeper waters"*). The newest instruction wins. The band still
-  // decides the LABEL and what you can wade through, so the shallows stay walkable. They just stop being a
-  // different colour, which means the wadeable edge now needs the shoreline to mark it, not a hue.
-  for (const [key, d] of depth) {
-    const { col, row } = toCell(key)
-    const band = waterBand(d, wadeable.has(key))
-    ground[row][col] = frozen ? 'frozen_water' : band.label
-    collision[row][col] = frozen ? false : !band.walkable
-    if (pal?.water) floorColors[row][col] = pal.water
-  }
-  if (!pal?.swamp) return
-  for (const key of pools) {
-    const { col, row } = toCell(key)
-    // WATER-GROUND, not one spelling of it. This tested `=== 'water'` and silently stopped applying the swamp
-    // tone the moment a pool started laying `water_shallow` (its flush height), so every pool came out wearing
-    // the plain river blue. The rule is written twenty lines up in this very file: ask what the ground IS, never
-    // which of its names it happens to carry.
-    if (isWaterGround(ground[row]?.[col])) floorColors[row][col] = pal.swamp
-  }
-}
-
-// A band decides the LABEL and whether you can wade it. It used to decide a COLOUR too (`tone`), which is what
-// put three blues in one river; the surface now takes one served tone (see settleWaterDepth).
 
 
-/**
- * How far each channel cell is from the nearest bank, counted orthogonally (1 = touching it). A bridge is not a
- * bank, so the water beside a deck keeps the depth of the river around it instead of ringing the deck with
- * shallows. The map edge is not a bank either, so a river running off the map stays deep there. Swamp pools are
- * left out, they are their own kind of water.
- */
-function waterDepth(ctx: ArchetypeContext, pools: ReadonlySet<string>): Map<string, number> {
-  const { cols, rows, ground } = ctx
-  // The CHANNEL is water that is not a pool. `pools` already excludes them explicitly, so this is the same
-  // answer as before; it asks what the ground is rather than which name it wears, for the same reason as above.
-  const isChannel = (c: number, r: number) => inBounds(c, r, cols, rows) && isWaterGround(ground[r][c]) && !pools.has(`${c},${r}`)
-  // A BANK is dry land. Testing `!== 'water'` made a swamp POOL count as a bank the moment pools started
-  // laying `water_shallow`, which would have made the channel read as shallow wherever a puddle touched it.
-  // …AND NOT A PUDDLE EITHER. The warning above came true from the other direction: a pool no longer carries a
-  // water GROUND label (it is a film over dry ground), so without this every puddle touching the channel would
-  // count as its bank and shallow the river there.
-  const isBank = (c: number, r: number) =>
-    inBounds(c, r, cols, rows) && !isWaterGround(ground[r][c]) && !ctx.decks.has(`${c},${r}`) && !ctx.wet.has(`${c},${r}`)
-  const depth = new Map<string, number>()
-  const queue: Cell[] = []
-  forEachCell(cols, rows, (col, row) => {
-    if (!isChannel(col, row) || !ORTHO.some(([dc, dr]) => isBank(col + dc, row + dr))) return
-    depth.set(`${col},${row}`, 1)
-    queue.push({ col, row })
-  })
-  for (let i = 0; i < queue.length; i++) {
-    const { col, row } = queue[i]
-    const next = depth.get(`${col},${row}`)! + 1
-    for (const [dc, dr] of ORTHO) {
-      const c = col + dc
-      const r = row + dr
-      if (!isChannel(c, r) || depth.has(`${c},${r}`)) continue
-      depth.set(`${c},${r}`, next)
-      queue.push({ col: c, row: r })
-    }
-  }
-  return depth
-}
 
 
-/** Every walkable dry cell, labelled by the stretch of ground it belongs to. Bridges are left out on purpose:
- *  the question is what the WATER keeps apart. */
-function dryAreas(ctx: ArchetypeContext): Map<string, number> {
-  const { cols, rows, ground, collision } = ctx
-  const isDry = (c: number, r: number) =>
-    inBounds(c, r, cols, rows) && !collision[r][c] && ground[r][c] !== 'water' && !ctx.decks.has(`${c},${r}`)
-  const seen = new Set<string>()
-  const area = new Map<string, number>()
-  let next = 0
-  forEachCell(cols, rows, (col, row) => {
-    if (!isDry(col, row) || seen.has(`${col},${row}`)) return
-    const id = next++
-    for (const key of flood(isDry, col, row, seen)) area.set(key, id)
-  })
-  return area
-}
+
 
 function layoutMeadowPass(ctx: ArchetypeContext): void { buildMeadow(ctx, { river: null, twoWays: true, routes: plannedRoutes(ctx) }) }
 
