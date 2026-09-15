@@ -883,6 +883,10 @@ interface ArchetypeContext {
   zoneAt?: (GeneratorSubZone | undefined)[][]
   /** The regions this map actually has, in the order terrain resolved them. */
   zones?: readonly GeneratorSubZone[]
+  /** Standing water a swamp region flooded, kept apart from the channel because it settles differently. */
+  pools: Set<string>
+  /** The walkable bank the water layer left along its edge, which the pathways layer routes to. */
+  banks: Set<string>
   /** The species this template grows. A jungle is not a meadow with more trees in it. */
   treeMix?: readonly GeneratorTreeWeight[]
   /** What a river is crossed on, by kind (`config.crossings`), picked by the `bridge` option. */
@@ -1184,7 +1188,7 @@ export function generateStage(opts: GenerateOptions): StageData {
   for (const key of generationLayerKeys()) rngs[key] = layerRng(opts.seeds, key)
   for (const key of ENGINE_PASS_RNGS) rngs[key] ??= layerRng(opts.seeds, key)
   // Single-pass archetypes (forest/cave/temple/boss) read `ctx.rand`; the layout rng is their source.
-  const ctx: ArchetypeContext = { variant, zone, ground, collision, floorColors, elevation, buildings, props, trees, compositions, cols, rows, layout, options: opts.options, nature: opts.nature, settlement: opts.settlement, palette: opts.palette, subZones: opts.subZones, formation: opts.formation, pathway: opts.pathway, treeMix: opts.treeMix, crossings: opts.crossings, entrance: opts.entrance, pathwayCells: new Set<string>(), water: new Set<string>(), claimed: new Set<string>(), decks: new Set<string>(), wet: new Set<string>(), flow: new Map<string, number>(), buildingSizes: opts.buildingSizes, rand: rngs.layout }
+  const ctx: ArchetypeContext = { variant, zone, ground, collision, floorColors, elevation, buildings, props, trees, compositions, cols, rows, layout, options: opts.options, nature: opts.nature, settlement: opts.settlement, palette: opts.palette, subZones: opts.subZones, formation: opts.formation, pathway: opts.pathway, treeMix: opts.treeMix, crossings: opts.crossings, entrance: opts.entrance, pathwayCells: new Set<string>(), water: new Set<string>(), pools: new Set<string>(), banks: new Set<string>(), claimed: new Set<string>(), decks: new Set<string>(), wet: new Set<string>(), flow: new Map<string, number>(), buildingSizes: opts.buildingSizes, rand: rngs.layout }
   runLayers(STAGE_LAYERS, ctx, rngs)
 
   return {
@@ -1795,10 +1799,6 @@ function pickMeadowLayout(rand: Rng, nature: NatureDensity | undefined): ForestL
 /** The water options as the generator serves them, read once so the three forest layouts cannot drift apart
  *  on what a river or a crossing means. An absent option is OFF: the catalog row says `default: false`, and
  *  inventing a value here is exactly the hardcoded fallback the compliance rule forbids. */
-const forestWater = (ctx: ArchetypeContext, legacy: RiverCourse): { river: RiverCourse | null } => ({
-  river: riverCourse(ctx, legacy),
-})
-
 /**
  * THE RIVER'S COURSE.
  *
@@ -1885,7 +1885,7 @@ const forestLayoutTable = (): Readonly<Partial<Record<ForestLayout, VariantPhase
   // A JUNGLE HAS ITS OWN BUILDER. It used to share the woodland's with heavier numbers, but density is not
   // the difference: light gaps instead of clearings, a creek instead of trails, blocking undergrowth,
   // emergents.
-  jungle: { terrain: ctx => layoutJungle(ctx, { ...forestWater(ctx, 'through'), routes: plannedRoutes(ctx) }) },
+  jungle: junglePhases,
   meadow: meadowPhases(false),
   meadow_pass: meadowPhases(true),
 })
@@ -1940,31 +1940,11 @@ const WOODLAND = {
   clearingsPerThousand: 5,
   /** A clearing's radius range, in cells. */
   clearingRadius: [2, 5] as const,
-  /** How wide a path through the trees is. Two cells so a unit never threads a one-cell gap. */
-  // It was 2, the bottom of what was asked for, and a 2-wide corridor with a tree leaning into it
-  // walks like a 1-wide one. 3 is the width you can actually move down.
+  /** How wide a path through the trees is, when the template serves no width of its own. It was 2, the bottom
+   *  of what was asked for, and a 2-wide corridor with a tree leaning into it walks like a 1-wide one. */
   pathWidth: 3,
 } as const
 
-/** What a forest layout is built with: the water options, and the pathways through the map. */
-interface ForestBuild {
-  /** The river's COURSE, or null for none. */
-  river?: RiverCourse | null
-  /** Put the river's crossing ON the path network rather than at a fixed span. */
-  crossing?: boolean
-  /** The planned pathways in, out and through. null → this generator serves none and the layout builds as it always did. */
-  routes?: RoutePlan | null
-}
-
-/**
- * THE WAYS THROUGH, resolved once so the three forest layouts cannot drift apart on what an exit or a pathway is.
- *
- * So this runs BEFORE a tree is planted and the plan
- * it returns is the frame the layout builds around, rather than something cut between clearings afterwards.
- *
- * A generator that serves neither count returns null and its layout builds the map it always did, so every saved
- * recipe is untouched.
- */
 /** How deep the edge band runs. The gate is `pathWidth` (3) cells across, so a one-cell band reads as a fence
  *  beside a three-cell opening rather than an edge that thickens. Two is the least that reads as a BAND. */
 const EDGE_TREELINE = 2
@@ -2767,157 +2747,166 @@ function jungleFloorReach(ctx: ArchetypeContext, open: Set<string>): number {
  * before the canopy is scored, exactly as the woodland's clearings do, which is why neither the canopy nor
  * the undergrowth pass needs to know what water or a gap is.
  */
-function layoutJungle(ctx: ArchetypeContext, opts: ForestBuild = {}): void {
-  const { cols, rows, collision, ground, trees } = ctx
-  const canopy = ctx.nature?.canopy
-  if (canopy === undefined) {
-    console.warn('[generate] this generator serves no `nature.canopy`, so a jungle has no tree density to build from — nothing planted')
-    return
-  }
-  const pal = ctx.palette
+/**
+ * A JUNGLE, IN PHASES. Same cut as the woodland, on the layer boundaries.
+ *
+ * A jungle ALWAYS has water: *"a jungle map without water is a map with no way across it"*. The river option
+ * decides what KIND, not whether, which is why the water phase here is unconditional where the woodland's
+ * returns early.
+ */
+const junglePhases: VariantPhases = {
+  terrain: ctx => {
+    const { cols, rows, ground } = ctx
+    if (ctx.nature?.canopy === undefined) {
+      console.warn('[generate] this generator serves no `nature.canopy`, so a jungle has no tree density to build from — nothing planted')
+      return
+    }
+    // THE FLOOR, in permanent shade. Mottled over coarse patches rather than one flat fill, because a jungle
+    // floor is litter and roots and standing shade, not lawn. Absent palette means the tile's own colour.
+    const floor = zonePalette(ctx.zone)?.groundTypes[0] ?? ''
+    forEachCell(cols, rows, (col, row) => { ground[row][col] = floor })
+    paintJungleFloor(ctx, ctx.palette)
 
-  // 0 · THE FLOOR, in permanent shade. Mottled over coarse patches rather than one flat fill, because a
-  //     jungle floor is litter and roots and standing shade, not lawn. Absent palette → the tile's own colour.
-  const floor = zonePalette(ctx.zone)?.groundTypes[0] ?? ''
-  forEachCell(cols, rows, (col, row) => { ground[row][col] = floor })
-  paintJungleFloor(ctx, pal)
+    // THE REGIONS. A jungle is not one uniform density, it is several kinds of ground you walk between: open
+    // canopy, dense growth, swamp, ruins. The region the person picked LEADS the map.
+    ctx.zones = leadRegion(ctx, ctx.subZones)
+    ctx.zoneAt = partitionSubZones(ctx, ctx.zones)
+    paintSubZoneFloors(ctx, ctx.zoneAt)
+    // ONE mechanism for both forests: a jungle plateau is the same idea as a wooded ridge.
+    raiseRegions(ctx, ctx.zoneAt)
+  },
 
-  // 0b · THE REGIONS. A jungle is not one uniform density, it is several kinds of ground you walk between —
-  //      open canopy, dense growth, swamp, ruins. Served by the backend, so which regions exist and how much
-  //      of the map each claims is data. Absent → one uniform jungle, exactly as before.
-  // The region the person picked LEADS this map.
-  const zones = leadRegion(ctx, ctx.subZones)
-  const zoneAt = partitionSubZones(ctx, zones)
-  paintSubZoneFloors(ctx, zoneAt)
-  // ONE mechanism for both forests: a jungle plateau is the same idea as a wooded ridge. No region serves a
-  // level yet, so this is inert until one does.
-  raiseRegions(ctx, zoneAt)
+  water: ctx => {
+    if (ctx.nature?.canopy === undefined) return
+    const pal = ctx.palette
+    const course = riverCourse(ctx, 'through')
+    // No course picked means the jungle's own narrow creek; `through` is the same creek, wide; the other
+    // courses carve their own channel.
+    const channel = course === 'through' ? carveJungleCreek(ctx, pal, true)
+      : course ? carveRiver(ctx, course, pal)
+      : carveJungleCreek(ctx, pal, false)
+    for (const key of channel) ctx.water.add(key)
 
-  const open = new Set<string>()
+    // SWAMP POOLS, standing water where a swamp region says so. They join the same water set the creek is in,
+    // so every later pass treats a pool exactly as it treats the channel.
+    for (const key of floodSwampPools(ctx, ctx.zoneAt!, pal)) {
+      ctx.pools.add(key)
+      ctx.water.add(key)
+    }
+    for (const key of jungleBanks(ctx, ctx.water, pal)) {
+      ctx.banks.add(key)
+      ctx.claimed.add(key) // a bank is walkable ground the water left, so nothing plants on it
+    }
+  },
 
-  // 1 · THE CREEK — the route through, and the only reliable one. A jungle map without water is a map with
-  //     no way across it, so this is not gated on the river OPTION the way the woodland's is: the option
-  //     decides whether a WOOD has a river, but a jungle IS built around its watercourse. The option still
-  //     reads, and turns the creek into a full river (wider, with a crossing).
-  // No course picked → the jungle's own narrow creek; `through` → the same creek, wide; the other courses
-  // carve their own channel. A jungle always has water — the option only says what KIND.
-  const water = opts.river === 'through' ? carveJungleCreek(ctx, pal, true)
-    : opts.river ? carveRiver(ctx, opts.river, pal, opts.routes)
-    : carveJungleCreek(ctx, pal, false)
-  // 1b · SWAMP POOLS — standing water where a swamp region says so. They join the same water set the creek
-  //      is in, so every later pass treats a pool exactly as it treats the channel.
-  const pools = floodSwampPools(ctx, zoneAt, pal)
-  for (const key of pools) water.add(key)
-  const banks = jungleBanks(ctx, water, pal)
-  for (const key of banks) open.add(key)
+  pathways: ctx => {
+    const { cols, rows } = ctx
+    if (ctx.nature?.canopy === undefined) return
+    const pal = ctx.palette
 
-  // 2 · LIGHT GAPS where a giant came down. Small, irregular, and dressed brighter than the floor around
-  //     them — they are the only lit ground on the map.
-  const gaps = new Set<string>()
-  const wanted = Math.max(1, Math.round((cols * rows / 1000) * JUNGLE.gapsPerThousand))
-  for (let i = 0; i < wanted; i++) {
-    const centre = { col: randIntWith(ctx.rand, 3, Math.max(3, cols - 4)), row: randIntWith(ctx.rand, 3, Math.max(3, rows - 4)) }
-    const radius = randIntWith(ctx.rand, JUNGLE.gapRadius[0], JUNGLE.gapRadius[1])
-    for (let r = centre.row - radius - 1; r <= centre.row + radius + 1; r++) {
-      for (let c = centre.col - radius - 1; c <= centre.col + radius + 1; c++) {
-        if (!inBounds(c, r, cols, rows) || water.has(`${c},${r}`)) continue
-        if (Math.hypot(c - centre.col, r - centre.row) <= radius - 0.5 + ctx.rand()) {
-          gaps.add(`${c},${r}`)
-          open.add(`${c},${r}`)
+    // LIGHT GAPS where a giant came down. Small, irregular, and dressed brighter than the floor around them,
+    // because they are the only lit ground on the map.
+    const gaps = new Set<string>()
+    const wanted = Math.max(1, Math.round((cols * rows / 1000) * JUNGLE.gapsPerThousand))
+    for (let i = 0; i < wanted; i++) {
+      const centre = { col: randIntWith(ctx.rand, 3, Math.max(3, cols - 4)), row: randIntWith(ctx.rand, 3, Math.max(3, rows - 4)) }
+      const radius = randIntWith(ctx.rand, JUNGLE.gapRadius[0], JUNGLE.gapRadius[1])
+      for (let r = centre.row - radius - 1; r <= centre.row + radius + 1; r++) {
+        for (let c = centre.col - radius - 1; c <= centre.col + radius + 1; c++) {
+          if (!inBounds(c, r, cols, rows) || ctx.water.has(`${c},${r}`)) continue
+          if (Math.hypot(c - centre.col, r - centre.row) <= radius - 0.5 + ctx.rand()) {
+            gaps.add(`${c},${r}`)
+            ctx.claimed.add(`${c},${r}`)
+          }
         }
       }
     }
-  }
-  paintJungleGaps(ctx, gaps, pal, zoneAt)
+    paintJungleGaps(ctx, gaps, pal, ctx.zoneAt!)
 
-  // 3 · AN ANIMAL TRACK joining each gap to the water. Not a road and not paved — it is simply the line of
-  //     least undergrowth, so it reads as a way through rather than as a path someone built. Without it a
-  //     light gap is a pocket you cannot reach, which the repair below would then carpet over.
-  const nearestWater = (from: Cell) => nearestCell(from, banks.size > 0 ? banks : water)
-  for (const key of gaps) {
-    const cell = toCell(key)
-    const target = nearestWater(cell)
-    if (target) traceJungleTrack(ctx, cell, target, open)
-  }
+    // AN ANIMAL TRACK joining each gap to the water. Not a road and not paved: it is the line of least
+    // undergrowth, so it reads as a way through rather than a path someone built. Without it a light gap is a
+    // pocket you cannot reach, which the repair would then carpet over.
+    const nearestWater = (from: Cell) => nearestCell(from, ctx.banks.size > 0 ? ctx.banks : ctx.water)
+    for (const key of gaps) {
+      const cell = toCell(key)
+      const target = nearestWater(cell)
+      if (target) traceJungleTrack(ctx, cell, target, ctx.claimed)
+    }
 
-  // 3b · THE PATHS, FIRST. Decided before any of this and claimed here, so neither the canopy nor the
-  //      undergrowth can plant on them. A jungle has no roads, but reference image #16 is exactly the complaint that a
-  //      map shows no way through it, so the network is a trodden track: clear, and painted in the SERVED trail
-  //      tone so you can SEE it. A generator that serves no trail colour still gets a clear track, unpainted.
-  if (opts.routes) {
-    // Every planned cell, the wet ones too: `open` is what the canopy, the undergrowth, the ruins and the
-    // emergents all treat as spoken for, and a tree planted on a boardwalk is a blocked pathway.
-    for (const key of opts.routes.cells) { open.add(key); ctx.pathwayCells.add(key) }
-    paveRoutes(ctx, opts.routes, water, pal?.trail)
-    // …AND THE MOUTH OF EACH WAY. A jungle track that stops at the border is exactly the Its pathways are a TONE rather
-    // than a paved tile (its
-    // test pins one tone the whole way through), so the lane is tinted to match instead of being given a
-    // ground label the rest of the track does not have.
-    //
-    // NARROWER AND SHALLOWER than the meadow's, and the reason is measured rather than aesthetic. A gate lane
-    // is CLEARED, so it unblocks cells; five wide by eleven deep at every gate moved the jungle's walkable
-    // share from under to over the woodland-gap threshold its own test defends (0.4554 against 0.4495), which
-    // is the test saying "this no longer walks like a jungle" and being right. A trodden track mouths at the
-    // width of the track: the served way width, and half the depth.
-    const gateLanes = gateLaneCells(ctx, opts.routes, water, 1, 6)
+    // THE PLANNED PATHS. A jungle has no roads, but a map that shows no way through it is the complaint
+    // reference image #16 answers, so the network is a trodden track: clear, and painted in the SERVED trail
+    // tone so you can SEE it. A generator that serves no trail colour still gets a clear track, unpainted.
+    if (!ctx.routes) return
+    // Every planned cell, the wet ones too: a tree planted on a boardwalk is a blocked pathway.
+    for (const key of ctx.routes.cells) { ctx.claimed.add(key); ctx.pathwayCells.add(key) }
+    paveRoutes(ctx, ctx.routes, ctx.water, pal?.trail)
+
+    // …AND THE MOUTH OF EACH WAY. NARROWER AND SHALLOWER than the meadow's, measured rather than chosen: a
+    // gate lane is CLEARED, so it unblocks cells, and five wide by eleven deep at every gate moved the
+    // jungle's walkable share from under to over the woodland-gap threshold its own test defends, which is
+    // the test saying "this no longer walks like a jungle" and being right.
+    const gateLanes = gateLaneCells(ctx, ctx.routes, ctx.water, 1, 6)
     clearMeadowCells(ctx, gateLanes)
-    for (const key of gateLanes) { open.add(key); ctx.pathwayCells.add(key) }
+    for (const key of gateLanes) { ctx.claimed.add(key); ctx.pathwayCells.add(key) }
     tintCells(ctx, gateLanes, pal?.trail)
-    deckRoutes(ctx, opts.routes, water, pal?.trail)
-  }
+    deckRoutes(ctx, ctx.routes, ctx.water, pal?.trail)
+  },
 
-  // 4 · THE CANOPY over everything else — the same exact-coverage field the woodland uses, because choosing
-  //     the lowest-scoring N cells is the right way to hit a density whatever the forest. Run PER REGION so
-  //     dense growth is genuinely denser than open canopy on the same map, rather than the whole map sharing
-  //     one number. A map with no regions runs it once, which is the old behaviour exactly.
-  const field = zones.length > 0
-    ? subZoneCanopyField(ctx, open, canopy, zoneAt, zones)
-    : woodlandCanopyField(ctx, open, canopy, ctx.formation)
-  for (const { col, row } of field) {
-    const kind: LivingTreeKind | 'tree_dead' = ctx.rand() < 0.04 ? 'tree_dead' : pickLivingTree(ctx.rand(), zoneAt[row][col]?.trees ?? ctx.treeMix)
-    trees.push({ col, row, kind, variant: massVariant(col, row) })
-    collision[row][col] = true
-  }
+  objects: ctx => {
+    const { collision, trees } = ctx
+    const canopy = ctx.nature?.canopy
+    if (canopy === undefined) return
+    const pal = ctx.palette
+    const zones = ctx.zones ?? []
+    const zoneAt = ctx.zoneAt!
 
-  // 5 · UNDERGROWTH between the trunks — the layer a wood does not have. Its density is the served
-  //     `groundCover` scaled by the region, which is why dense growth is a wall and open canopy is not.
-  plantUndergrowth(ctx, open, water, pal, zoneAt, jungleFloorReach(ctx, open))
+    // THE CANOPY over everything else, the same exact-coverage field the woodland uses. Run PER REGION so
+    // dense growth is genuinely denser than open canopy on the same map, rather than the whole map sharing
+    // one number. A map with no regions runs it once, which is the old behaviour exactly.
+    const field = zones.length > 0
+      ? subZoneCanopyField(ctx, ctx.claimed, canopy, zoneAt, zones)
+      : woodlandCanopyField(ctx, ctx.claimed, canopy, ctx.formation)
+    for (const { col, row } of field) {
+      if (standsOnPathway(ctx, col, row)) continue
+      const kind: LivingTreeKind | 'tree_dead' = ctx.rand() < 0.04 ? 'tree_dead' : pickLivingTree(ctx.rand(), zoneAt[row][col]?.trees ?? ctx.treeMix)
+      trees.push({ col, row, kind, variant: massVariant(col, row) })
+      collision[row][col] = true
+    }
 
-  // 5b · RUINS where a ruins region says so: a stone platform with columns on it. The planned routes are
-  //      kept out explicitly, which is what used to be done by skipping all of `open` and cost us every ruin
-  //      in the clearings.
-  raiseRuins(ctx, zoneAt, water, opts.routes?.cells ?? new Set<string>())
+    // UNDERGROWTH between the trunks, the layer a wood does not have. Its density is the served `groundCover`
+    // scaled by the region, which is why dense growth is a wall and open canopy is not.
+    plantUndergrowth(ctx, ctx.claimed, ctx.water, pal, zoneAt, jungleFloorReach(ctx, ctx.claimed))
 
-  // 6 · EMERGENTS — the few giants standing clear above the canopy. Recorded as taller tree anchors.
-  plantEmergents(ctx, open, water)
+    // RUINS where a ruins region says so: a stone platform with columns on it. The planned routes are kept
+    // out explicitly, which used to be done by skipping all of `claimed` and cost every ruin in the clearings.
+    raiseRuins(ctx, zoneAt, ctx.water, ctx.routes?.cells ?? new Set<string>())
 
-  // 7 · CROSS THE CREEK. Measured before this existed: the creek ran edge to edge through the middle and
-  //     split the jungle into two halves that never met — 6 regions, the largest holding 49% of the walkable
-  //     ground, against the woodland's single region holding 100%. A map in halves is two maps.
-  //
-  //     The crossings are FALLEN LOGS, not a stone bridge: a jungle has no masonry, and the thing you
-  //     actually cross a creek on is a tree that came down over it. Same walkable deck underneath, wearing
-  //     the palette's trail tone instead of cobble.
-  if (opts.river) bridgeRiver(ctx, water, open, opts.river, pal)
-  else fellLogsAcross(ctx, water, pal)
+    // EMERGENTS, the few giants standing clear above the canopy.
+    plantEmergents(ctx, ctx.claimed, ctx.water)
 
-  // 8 · KEEP IT ONE PLACE, by CUTTING TO the strays rather than carpeting them. The undergrowth pass blocks
-  //     half the floor, which pinches regions off behind it. Filling those in is the meadow's answer and it
-  //     costs play area; on a jungle the honest answer is a track, because a track is exactly what gets you
-  //     through undergrowth. Measured over 150 seeds: 1 map came out at 83% connected before this, none
-  //     after, and no map loses ground to it.
-  repairFloorConnectivity(ctx, JUNGLE_MAX_POCKET)
-  joinStrandedRegions(ctx)
+    // CROSS THE CREEK. Before this existed the creek ran edge to edge and split the jungle into two halves
+    // that never met: 6 regions, the largest holding 49% of the walkable ground against a woodland's 100%.
+    // The crossings are FALLEN LOGS rather than a stone bridge, because a jungle has no masonry and the thing
+    // you actually cross a creek on is a tree that came down over it.
+    const course = riverCourse(ctx, 'through')
+    if (course) bridgeRiver(ctx, ctx.water, ctx.claimed, course, pal)
+    else fellLogsAcross(ctx, ctx.water, pal)
 
-  // 9 · THE WAYS OUT. Same lane as the meadow's, wearing the jungle's own trail and flanked by its growth.
-  paintGateways(ctx, opts.routes, water, open, {
-    ground: FLAT_FLOOR,
-    paving: pal?.trail,
-    flank: flankingTrees,
-  })
+    // KEEP IT ONE PLACE by CUTTING TO the strays rather than carpeting them. The undergrowth blocks half the
+    // floor, which pinches regions off behind it; filling those in is the meadow's answer and it costs play
+    // area, while a track is exactly what gets you through undergrowth.
+    repairFloorConnectivity(ctx, JUNGLE_MAX_POCKET)
+    joinStrandedRegions(ctx)
 
-  // 10 · The creek settles by depth, last; the swamp pools stay blocking and turn blue-green.
-  settleWaterDepth(ctx, pal, pools)
+    // THE WAYS OUT. Same lane as the meadow's, wearing the jungle's own trail and flanked by its growth.
+    paintGateways(ctx, ctx.routes, ctx.water, ctx.claimed, {
+      ground: FLAT_FLOOR,
+      paving: pal?.trail,
+      flank: flankingTrees,
+    })
+
+    settleWaterDepth(ctx, pal, ctx.pools) // the creek settles by depth; the pools stay blocking, blue-green
+  },
 }
 
 
@@ -4212,17 +4201,6 @@ function jungleBanks(ctx: ArchetypeContext, water: Set<string>, pal: GeneratorPa
 
 
 
-
-interface MeadowBuild {
-  /** The river's COURSE, or null for none. An option on the generator, not a layout of its own. */
-  river: RiverCourse | null
-  /** Put the river's crossing ON the path network instead of at the fixed top-right span (ticket 36). */
-  crossing?: boolean
-  /** Open TWO opposite cobble pathways (top + bottom) for a through-route (`meadow_pass`) instead of one bottom way. */
-  twoPathways: boolean
-  /** The planned pathways in, out and through. Present → the gates ARE the pathways and `twoPathways` is moot. */
-  routes?: RoutePlan | null
-}
 
 /** THE meadow builder — `meadow` (one bottom way, no river), `meadow_river` (one way + perimeter river) and
  *  `meadow_pass` (two opposite pathways, no river). LAYOUT-FIRST: flat floor + season gradient → (river) carve the
