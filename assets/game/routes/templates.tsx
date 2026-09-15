@@ -996,7 +996,10 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
     style: activeStyle,
     styleId: activeStyleId,
   }
-  const [previewOpen, setPreviewOpen] = useState(true)
+  // CLOSED UNTIL SOMETHING IS SELECTED. *"preview modal is always open, I only want to open when an actual
+  // element is selected"* (2026-09-15). It opened on load with nothing picked, so the window sat over the map
+  // from the first frame. `previewSubject` is what a selection sets, and opening follows that.
+  const [previewOpen, setPreviewOpen] = useState(false)
   /** The New world panel's options render INTO the Preview window (GenerateControls' tuningSlot), beside the picture
    * they change, along with the rest of the options (map variations, river, bridge). */
   const [tuningSlot, setTuningSlot] = useState<HTMLElement | null>(null)
@@ -1028,7 +1031,15 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
    * just shut every time the cursor crossed the library would be its own bug.
    */
   const armedSubject = `${activeRailId}:${buildingTool ?? ''}:${armedTile?.id ?? ''}:${unitTile?.id ?? ''}`
-  useEffect(() => { setPreviewOpen(true) }, [armedSubject])
+  // …AND ONLY WHEN SOMETHING IS ACTUALLY ARMED. This fired on mount too, with nothing selected, so the window
+  // opened over the map from the first frame however the initial state was set: *"I only want to open when an
+  // actual element is selected"*. Changing the rail alone is not a selection either, so it is the TOOL or the
+  // tile that counts.
+  const armedAnything = !!buildingTool || !!armedTile || !!unitTile
+  useEffect(() => {
+    if (!armedAnything) return
+    setPreviewOpen(true)
+  }, [armedSubject, armedAnything])
   /** Is the level map open BIG, in its own panel? Separate from `levelMapOpen`, which is the corner one. */
   const [levelMapBig, setLevelMapBig] = useState(false)
 

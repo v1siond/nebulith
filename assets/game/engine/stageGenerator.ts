@@ -1587,9 +1587,8 @@ function pickMeadowLayout(rand: Rng, nature: NatureDensity | undefined): ForestL
 /** The water options as the generator serves them, read once so the three forest layouts cannot drift apart
  *  on what a river or a crossing means. An absent option is OFF: the catalog row says `default: false`, and
  *  inventing a value here is exactly the hardcoded fallback the compliance rule forbids. */
-const forestWater = (ctx: ArchetypeContext, legacy: RiverCourse): { river: RiverCourse | null; crossing: boolean } => ({
+const forestWater = (ctx: ArchetypeContext, legacy: RiverCourse): { river: RiverCourse | null } => ({
   river: riverCourse(ctx, legacy),
-  crossing: ctx.options?.crossing === true,
 })
 
 /**
@@ -1649,9 +1648,16 @@ function narrowWays(ctx: ArchetypeContext, ways: RoutePlan | null | undefined, w
  * Get across it, the way its course says. Several crossings make `through` traversable; exactly ONE makes
  * `divides` a real division; `around` keeps the bridge it always had over its near arm.
  */
-function bridgeRiver(ctx: ArchetypeContext, water: Set<string>, routes: Set<string>, course: RiverCourse, joined: boolean, pal: GeneratorPalette | undefined): void {
-  if (course === 'around') { crossRiver(ctx, water, routes, joined); return }
-  if (joined && placeRiverCrossing(ctx, water, routes)) {
+function bridgeRiver(ctx: ArchetypeContext, water: Set<string>, routes: Set<string>, course: RiverCourse, pal: GeneratorPalette | undefined): void {
+  // A RIVER THAT CUTS A PATH IS ALWAYS CROSSED. It used to be a toggle, "A crossing joined to the paths",
+  // and he asked what it even meant and why it was in the UI. It meant: off, the river got fallen logs at
+  // random spots and the path simply stopped at the water; on, a real crossing was placed where the path
+  // meets it.
+  //
+  // There is no map where the first is wanted. A path that walks into a river and ends is a broken map, not a
+  // variation, so the crossing is unconditional now and the option is gone.
+  if (course === 'around') { crossRiver(ctx, water, routes, true); return }
+  if (placeRiverCrossing(ctx, water, routes)) {
     // The crossing sits ON the path network; a river that is easy to cross gets fords elsewhere too.
     if (course === 'through') fellLogsAcross(ctx, water, pal, [0.2, 0.8])
     return
@@ -1771,7 +1777,7 @@ function carveMapWater(ctx: ArchetypeContext): void {
   const water = carveRiver(ctx, course, ctx.palette, ctx.routes)
   if (water.size === 0) return
   const routes = new Set<string>(ctx.routes?.cells ?? [])
-  bridgeRiver(ctx, water, routes, course, ctx.options?.crossing === true, ctx.palette)
+  bridgeRiver(ctx, water, routes, course, ctx.palette)
 }
 
 /**
@@ -2336,7 +2342,7 @@ function layoutWoodland(ctx: ArchetypeContext, opts: ForestBuild = {}): void {
   //     after the planting so nothing puts a trunk back on it. Same ordering reason as the meadow's.
   //     The trails carved in step 2 are this layout's path network, so a joined crossing lands on one of them
   //     rather than in the middle of the trees — which is the whole of ticket 36.
-  if (opts.river) bridgeRiver(ctx, water, trailCells, opts.river, opts.crossing === true, ctx.palette)
+  if (opts.river) bridgeRiver(ctx, water, trailCells, opts.river, ctx.palette)
 
   // 7 · ONE PLACE, cutting tracks through the brush to anything the undergrowth walled off. AFTER the bridge,
   //     and that order is a fix, not a preference: run before it, the join saw the far bank of a river as a
@@ -2556,7 +2562,7 @@ function layoutJungle(ctx: ArchetypeContext, opts: ForestBuild = {}): void {
   //     The crossings are FALLEN LOGS, not a stone bridge: a jungle has no masonry, and the thing you
   //     actually cross a creek on is a tree that came down over it. Same walkable deck underneath, wearing
   //     the palette's trail tone instead of cobble.
-  if (opts.river) bridgeRiver(ctx, water, open, opts.river, opts.crossing === true, pal)
+  if (opts.river) bridgeRiver(ctx, water, open, opts.river, pal)
   else fellLogsAcross(ctx, water, pal)
 
   // 8 · KEEP IT ONE PLACE, by CUTTING TO the strays rather than carpeting them. The undergrowth pass blocks
@@ -3887,7 +3893,7 @@ function buildMeadow(ctx: ArchetypeContext, opts: MeadowBuild): void {
   }
   scatterTallGrass(ctx)                           // patches of walkable long grass, as much as the generator serves
   repairFloorConnectivity(ctx, MEADOW_MAX_POCKET) // fill only TINY stranded pockets; the land strip beyond the river stays (decor)
-  if (opts.river) bridgeRiver(ctx, water, routes, opts.river, opts.crossing === true, meadowWater(ctx)) // after repair, so the deck is never filled back in
+  if (opts.river) bridgeRiver(ctx, water, routes, opts.river, meadowWater(ctx)) // after repair, so the deck is never filled back in
   settleWaterDepth(ctx, meadowWater(ctx)) // last, once the bridge is down
 }
 

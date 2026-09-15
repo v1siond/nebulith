@@ -64,7 +64,26 @@ describe('every channel cell states its heading', () => {
     const steps: ReadonlyArray<readonly [number, number]> = [[1, 0], [0, 1], [-1, 0], [0, -1]]
     for (const course of ['through', 'divides', 'around']) {
       const s = river(course)
+      // THE CHANNEL INCLUDES THE BRIDGE THE RIVER RUNS UNDER.
+      //
+      // A deck REPLACES the water in the ground, which `layDeck` documents and defends: a cell cannot be both
+      // dug below the walking floor and forced to elevation 0. So a crossing reads as dry BANK here, and once
+      // crossings became unconditional (2026-09-15) the cell beside a deck pointed straight at it and counted
+      // as off-channel. The heading is correct, the river really does flow that way; it is this set that was
+      // missing the span.
       const wet = new Set(wetCells(s).map(([c, r]) => `${c},${r}`))
+      // …and the BRIDGE the river runs under. A deck REPLACES the water in the ground, which `layDeck`
+      // documents and defends (a cell cannot be both dug below the walking floor and forced to elevation 0),
+      // so a crossing reads as dry BANK here. Once crossings became unconditional the cell beside a deck
+      // pointed straight at it and counted as off-channel. The heading is right, the river really does flow
+      // that way; this set was missing the span. `decks` is generation state and never reaches StageData, so
+      // the span is found the way the renderer finds it: by its ground label.
+      for (let r = 0; r < s.rows; r++) {
+        for (let c = 0; c < s.cols; c++) {
+          const g = s.ground[r]?.[c]
+          if (g === 'bridge' || g === 'bridge_deck' || g === 'wooden_planks') wet.add(`${c},${r}`)
+        }
+      }
       let offChannel = 0
       for (const [c, r] of wetCells(s)) {
         const dir = s.flow?.[r]?.[c]

@@ -863,7 +863,23 @@ export function settleWaterDepth(ctx: RiverSurface, pal: GeneratorPalette | unde
   forEachCell(ctx.cols, ctx.rows, (col, row) => {
     if (isWaterGround(ground[row][col]) && !pools.has(`${col},${row}`)) channel.add(`${col},${row}`)
   })
-  for (const [key, dir] of flowField(ctx, channel)) ctx.flow.set(key, dir)
+
+  // THE RIVER RUNS UNDER THE BRIDGE, so the flow walk is given the deck cells too.
+  //
+  // A deck REPLACES the water in the ground (`layDeck` documents why: a cell cannot be both dug below the
+  // floor and forced to elevation 0). The channel above is built from ground labels, so a crossing cut the
+  // river in two and `flowField` walked each half on its own and gave them OPPOSITE headings. Measured on a
+  // `divides` river once crossings became unconditional: 93 cells heading 0 against 52 heading 2, where a
+  // straight channel should be one heading at over 90 per cent.
+  //
+  // The deck is not added to `ctx.flow` itself: it is dry, and a dry cell has no current. It is only in the
+  // set the walk uses to see that the two halves are one river.
+  const flowing = new Set(channel)
+  for (const key of ctx.decks) flowing.add(key)
+  for (const [key, dir] of flowField(ctx, flowing)) {
+    if (!channel.has(key)) continue
+    ctx.flow.set(key, dir)
+  }
   strewRiverRocks(ctx, channel)
   const wadeable = wadeableShallows(ctx, depth)
   // FROZEN OVER. `frozen_water` already exists as
