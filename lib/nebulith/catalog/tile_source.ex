@@ -3791,28 +3791,28 @@ defmodule Nebulith.Catalog.TileSource do
   the template's own canopy colour, darkened, so the dark you walk into is the colour of that wood's leaves.
   """
   def seed_forest_entrances do
-    for {name, species, canopy, gloom, foot, wet} <- [
+    for {name, species, canopy, gloom, foot, wet, ground} <- [
           # ── WOODLAND: its served species, its served canopy density, its palette canopy colour ──
-          {"woodland_entrance", ~w(tree_column tree tree_tall tree_round tree_conifer tree_stub tree_sapling), 0.434, "#5d7340", "mushroom", 0},
-          {"beech_entrance", ~w(tree_column tree_tall tree), 0.45, "#5d7340", "mushroom", 0},
-          {"dense_woodland_entrance", ~w(tree_column tree_tall tree tree_big tree_sapling), 0.6, "#5d7340", "mushroom", 0},
-          {"glades_entrance", ~w(tree tree_round tree_broadleaf tree_gnarled), 0.4, "#5d7340", "bouquet", 0},
-          {"mountain_forest_entrance", ~w(tree_conifer tree_column tree_stub), 0.45, "#4a5f42", "rock", 0},
+          {"woodland_entrance", ~w(tree_column tree tree_tall tree_round tree_conifer tree_stub tree_sapling), 0.434, "#5d7340", "mushroom", 0, "grass"},
+          {"beech_entrance", ~w(tree_column tree_tall tree), 0.45, "#5d7340", "mushroom", 0, "grass"},
+          {"dense_woodland_entrance", ~w(tree_column tree_tall tree tree_big tree_sapling), 0.6, "#5d7340", "mushroom", 0, "dark-grass"},
+          {"glades_entrance", ~w(tree tree_round tree_broadleaf tree_gnarled), 0.4, "#5d7340", "bouquet", 0, "grass"},
+          {"mountain_forest_entrance", ~w(tree_conifer tree_column tree_stub), 0.45, "#4a5f42", "rock", 0, "path_dirt"},
           # ── JUNGLE ──
-          {"jungle_entrance", ~w(tree_round tree_big bush_round tree_giant tree_palm), 0.62, "#2e6b32", "mushroom", 1},
-          {"dense_jungle_entrance", ~w(tree_giant tree_big tree_round bush_round), 0.72, "#2e6b32", "mushroom", 1},
-          {"island_entrance", ~w(tree_coconut tree_palm tree_banana tree_mangrove bush_round), 0.62, "#4f9147", "bouquet", 2},
-          {"jungle_ruins_entrance", ~w(tree_round tree_big tree_giant bush_round), 0.62, "#2e6b32", "rock", 1},
-          {"swamp_entrance", ~w(tree_mangrove tree_gnarled tree_round bush_round), 0.62, "#2e6b32", "red-mushroom", 3},
+          {"jungle_entrance", ~w(tree_round tree_big bush_round tree_giant tree_palm), 0.62, "#2e6b32", "mushroom", 1, "dark-grass"},
+          {"dense_jungle_entrance", ~w(tree_giant tree_big tree_round bush_round), 0.72, "#2e6b32", "mushroom", 1, "dark-grass"},
+          {"island_entrance", ~w(tree_coconut tree_palm tree_banana tree_mangrove bush_round), 0.62, "#4f9147", "bouquet", 2, "sand"},
+          {"jungle_ruins_entrance", ~w(tree_round tree_big tree_giant bush_round), 0.62, "#2e6b32", "rock", 1, "path_stone"},
+          {"swamp_entrance", ~w(tree_mangrove tree_gnarled tree_round bush_round), 0.62, "#2e6b32", "red-mushroom", 3, "dark-grass"},
           # ── MEADOW ──
-          {"meadow_entrance", ~w(tree_gnarled tree_broadleaf tree_round tree_big bush_round), 0.2, "#6b8049", "bouquet", 0},
-          {"open_meadow_entrance", ~w(tree_gnarled tree_broadleaf bush_round), 0.12, "#6b8049", "flower", 0},
-          {"wood_pasture_entrance", ~w(tree_gnarled tree_broadleaf bush_round), 0.18, "#6b8049", "bouquet", 0}
+          {"meadow_entrance", ~w(tree_gnarled tree_broadleaf tree_round tree_big bush_round), 0.2, "#6b8049", "bouquet", 0, "grass"},
+          {"open_meadow_entrance", ~w(tree_gnarled tree_broadleaf bush_round), 0.12, "#6b8049", "flower", 0, "grass-field"},
+          {"wood_pasture_entrance", ~w(tree_gnarled tree_broadleaf bush_round), 0.18, "#6b8049", "bouquet", 0, "grass-field"}
         ] do
       {:ok, _} =
         Nebulith.Catalog.upsert_composition_with_cells(
           %{name: name, footprint_w: @forest_w, footprint_h: @forest_h, category: "props"},
-          forest_entrance_cells(species, canopy, gloom, foot, wet)
+          forest_entrance_cells(species, canopy, gloom, foot, wet, ground)
         )
     end
 
@@ -3830,7 +3830,7 @@ defmodule Nebulith.Catalog.TileSource do
     "#" <> Enum.map_join([r, g, b], fn c -> c |> down.() |> Integer.to_string(16) |> String.pad_leading(2, "0") end)
   end
 
-  defp forest_entrance_cells(species, canopy, gloom, foot, wet) do
+  defp forest_entrance_cells(species, canopy, gloom, foot, wet, ground) do
     # THE CROWNS WEAR THIS WOOD'S OWN LEAF COLOUR. Every palette serves `canopy` and `canopyAlt` and they are
     # genuinely different numbers per template, and they were being used for the gloom ONLY. Every crown drew
     # the tile's default green, so thirteen objects came out as one pile of green blobs: *"they all suck,
@@ -3923,6 +3923,21 @@ defmodule Nebulith.Catalog.TileSource do
           settings: %{"scaleY" => 0.6 + deep * 2.6, "color" => shade(gloom, 0.4 + deep * 0.55)}}
       end
 
+    # THE WOOD'S OWN FLOOR, on the cells this object owns.
+    #
+    # Rendering all thirteen maps side by side, the LOUDEST difference between them is the ground: island is
+    # pale sand, open meadow bright grass-field, mountain bare dirt, jungle and swamp dark. Every entrance was
+    # standing on the same default grass, which is a large part of why thirteen objects read as one.
+    #
+    # The PATH columns are untouched: the map's own pathway runs through, and laying a floor over it is what
+    # made a pit, twice.
+    floor =
+      for dx <- 0..(@forest_w - 1),
+          dx not in @forest_path,
+          dy <- 0..(@forest_h - 1),
+          do: %{dx: dx, dy: dy, level: 0, label: ground, walkable: true, scale: 1.0,
+                settings: %{"scaleY" => 0.05}}
+
     verge =
       for dy <- 0..(@forest_h - 1),
           dx <- [Enum.min(@forest_path) - 1, Enum.max(@forest_path) + 1],
@@ -3938,7 +3953,7 @@ defmodule Nebulith.Catalog.TileSource do
           do: %{dx: dx, dy: dy, level: 0, label: "water_c", walkable: false, scale: 1.0,
                 settings: %{"scaleY" => 0.12}}
 
-    List.flatten(wood) ++ canopy_over ++ verge ++ water ++ dark
+    floor ++ List.flatten(wood) ++ canopy_over ++ verge ++ water ++ dark
   end
 
   def seed_entrances do
