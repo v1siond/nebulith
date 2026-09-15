@@ -122,9 +122,19 @@ describe('player range culls on the GRID CELLS a tile covers, not just its ancho
     expect(withinPlayerRange(ANCHOR.col, ANCHOR.row, PCOL, PROW, 4)).toBe(false)
   })
 
-  it('a z-width run whose COVERED cells reach into the ring still renders', () => {
-    renderIso(sceneWith(runAt(ANCHOR.col, ANCHOR.row, 3)), 4) // covers cols 15,14,13 — 14 and 13 are inside
-    expect(drawnAt(ANCHOR.col, ANCHOR.row)).toBe(true)
+  it('a z-width run reaching into the ring renders the part that IS in range, and not its outside anchor', () => {
+    // THIS CASE CHANGED, on his instruction: *"range should determine the grid, whatever is on range, defined
+    // the cells from the grid we care about, anything outside of that we don't care, we shouldn't see ANYTHING
+    // nor render ANYTHING not in range when is active"* (2026-09-15, Image #82).
+    //
+    // It used to assert the run drew AT ITS ANCHOR, the cell outside the ring, because the renderer kept a
+    // spanning tile whole once any cell of it qualified. On a real map the longest floor run covers 33 cells,
+    // so one run touching the ring painted a band clear across the screen.
+    //
+    // The run is now cut to the cells in range: the anchor at 15 is gone, and 14 and 13 draw.
+    renderIso(sceneWith(runAt(ANCHOR.col, ANCHOR.row, 3)), 4) // covers cols 15,14,13; 14 and 13 are inside
+    expect(drawnAt(ANCHOR.col, ANCHOR.row)).toBe(false)
+    expect(drawnAt(ANCHOR.col - 1, ANCHOR.row)).toBe(true)
   })
 
   it('the SAME tile without z-width is culled — only its own cell counts, and that is outside', () => {
