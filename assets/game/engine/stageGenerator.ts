@@ -5087,7 +5087,7 @@ const templePhases: VariantPhases = {
     placeAltarChamber(ctx, boss, pal)
     placeTorches(ctx, rooms, pal)
     placeTempleHazards(ctx, rooms, pal, plan?.cells ?? new Set())
-    repairTempleFloor(ctx, pal)
+    sealStrandedFloor(ctx, (col, row) => makeTempleWall(col, row, pal.wall))
     if (plan) { placeSanctumGate(ctx, boss, rooms, plan, pal); return }
     placeLockedDoorAndKey(ctx, boss, entrance, rooms, pal)
   },
@@ -5372,17 +5372,6 @@ function stampTemplePool(ctx: ArchetypeContext, room: TempleRoom, pal: TemplePal
 
 /** Flood-fill the walkable floor and fill every cell OUTSIDE the largest region with wall — so
  *  the dungeon floor is always ONE connected region, even after blocking hazard pools. */
-function repairTempleFloor(ctx: ArchetypeContext, pal: TemplePalette): void {
-  const { collision, props, cols, rows } = ctx
-  const isFloor = (col: number, row: number): boolean => inBounds(col, row, cols, rows) && !collision[row][col]
-  const largest = largestFloorRegion(isFloor, cols, rows)
-  forEachCell(cols, rows, (col, row) => {
-    if (!isFloor(col, row)) return
-    if (largest.has(`${col},${row}`)) return
-    collision[row][col] = true
-    props.push(makeTempleWall(col, row, pal.wall)) // stranded pocket → wall it off
-  })
-}
 
 /** The (narratively) locked boss GATEWAY — a walkable threshold prop at the corridor mouth just
  *  south of the boss chamber — and its KEY, dropped on a side-hall floor. Both guarded + optional
@@ -5522,7 +5511,7 @@ const cavePhases: VariantPhases = {
     if (!pal || !ctx.caveEntrance) return
     if (ctx.routes) keepSpineOpen(ctx, ctx.routes, pal)
     reopenCaveEntrance(ctx, pal, ctx.caveEntrance)
-    repairCaveFloor(ctx, pal)
+    sealStrandedFloor(ctx, (col, row) => makeCaveWall(col, row, pal.wall))
   },
 
   objects: ctx => {
@@ -5637,15 +5626,22 @@ function stampPool(ctx: ArchetypeContext, pal: CavePalette, cc: number, cr: numb
 /** Flood-fill the walkable floor and fill every cell OUTSIDE the largest region with
  *  rock — so the cavern floor is always ONE connected region (no unreachable pockets),
  *  even after blocking pools carve the space. */
-function repairCaveFloor(ctx: ArchetypeContext, pal: CavePalette): void {
+/**
+ * WALL OFF EVERY POCKET OF FLOOR YOU CANNOT WALK TO, in whatever the place is built of.
+ *
+ * This was written twice, `repairCaveFloor` and `repairTempleFloor`, identical line for line except for which
+ * wall it pushed. An interior answers a stranded pocket by filling it back in with its own masonry, which is
+ * one policy; the outdoors answers it differently (`repairFloorConnectivity` bounds the pocket by size and
+ * leaves the far bank of a river alone), which is a second policy and stays its own function.
+ */
+function sealStrandedFloor(ctx: ArchetypeContext, wall: (col: number, row: number) => StageProp): void {
   const { collision, props, cols, rows } = ctx
   const isFloor = (col: number, row: number): boolean => inBounds(col, row, cols, rows) && !collision[row][col]
   const largest = largestFloorRegion(isFloor, cols, rows)
   forEachCell(cols, rows, (col, row) => {
-    if (!isFloor(col, row)) return
-    if (largest.has(`${col},${row}`)) return
+    if (!isFloor(col, row) || largest.has(`${col},${row}`)) return
     collision[row][col] = true
-    props.push(makeCaveWall(col, row, pal.wall)) // stranded pocket → rock
+    props.push(wall(col, row)) // a pocket you cannot reach is a hole in the map, so it stops being floor
   })
 }
 
