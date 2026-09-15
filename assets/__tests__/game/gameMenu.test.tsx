@@ -1,5 +1,5 @@
 /**
- * THE 🎮 GAME MENU (§4.4) — the game's identity, and the ways out of it.
+ * THE 🎮 GAME MENU (§4.4) — the game's identity, and the pathways out of it.
  *
  * §3.2 measured that inside `/games/[id]` "the only identity shown anywhere is the template name" — you
  * could not tell which GAME you were editing. The stepper fixed "which level"; this fixes "which game", and

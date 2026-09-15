@@ -81,7 +81,7 @@ export function TilePicture({ styleId, label, size, animate = false, className }
  *
  * Their replacement is `@/engine/preview` — a real grid, stamped through the brush and the generator's own
  * stamp, drawn by whichever of the three map renderers the view bar has selected. Deleted rather than left
- * unused: two ways to picture a tile is exactly how these drifted from the map in the first place.
+ * unused: two pathways to picture a tile is exactly how these drifted from the map in the first place.
  *
  * `TilePicture` stays. A tile's baked PNG is the right picture in the two places that still want one: a
  * CHARACTER (a billboard, drawn upright by every view, so its image already is its map appearance) and the

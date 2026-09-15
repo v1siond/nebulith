@@ -42,7 +42,7 @@ export function pathwayCeiling(cols: number, rows: number, width = 3): number {
 }
 
 /** What the two served options come to for one map. */
-export interface Ways { exits: RouteCount; pathways: RouteCount }
+export interface Pathways { exits: RouteCount; pathways: RouteCount }
 
 /** Where a path leaves the map: the edge cells it runs off by, and the cell just inside. */
 export interface Gate { side: Side; cells: RouteCell[]; inside: RouteCell }
@@ -95,18 +95,18 @@ export const MAX_EXITS = 4
  *
  * The first two are the requirement. The third is the case the requirement does not reach and the code already
  * had: a CAVE with one mouth and two dead-end galleries (`planRoutes(1 exit, 3 pathways)`), which has more
- * stretches than it has ways out. Rather than clamp that away, more exits than pathways builds through
+ * stretches than it has pathways out. Rather than clamp that away, more exits than pathways builds through
  * roads and fewer builds branches, so both the map and the cave come out of one rule.
  */
-export function splitPathways(ways: Ways): { through: number; spurs: number; branches: number } {
-  // TOTAL FOR ANY PAIR, including the ones the rule says cannot exist. `resolveWays` keeps a served map
+export function splitPathways(pathways: Pathways): { through: number; spurs: number; branches: number } {
+  // TOTAL FOR ANY PAIR, including the ones the rule says cannot exist. `resolvePathways` keeps a served map
   // inside `E <= 2P`, but `planRoutes` is called directly with hand-built counts (the cave, and the whole
   // test matrix), and a combination like 4 exits on 1 pathway has to come out as SOMETHING rather than
   // index past the end of the gate list. Capped by the pathways available and by the two opposite-side
   // axes a map actually has; the remaining exits become spurs.
-  const through = Math.min(Math.max(0, ways.exits - ways.pathways), ways.pathways, AXES.length)
-  const gatedOnce = ways.exits - through * 2 // the stretches left holding exactly one gate
-  return { through, spurs: Math.max(0, gatedOnce), branches: Math.max(0, ways.pathways - through - gatedOnce) }
+  const through = Math.min(Math.max(0, pathways.exits - pathways.pathways), pathways.pathways, AXES.length)
+  const gatedOnce = pathways.exits - through * 2 // the stretches left holding exactly one gate
+  return { through, spurs: Math.max(0, gatedOnce), branches: Math.max(0, pathways.pathways - through - gatedOnce) }
 }
 
 /**
@@ -133,14 +133,14 @@ export function resolveCount(value: unknown, rand: Rng, ceiling = ROUTE_COUNTS.l
  * Both counts together. A recipe that states neither gets null and its maps stay exactly as they were. One stated
  * without the other still makes sense: exits alone means every path is a way out, pathways alone means one way out.
  */
-export function resolveWays(
+export function resolvePathways(
   options: Readonly<Record<string, unknown>> | undefined,
   rand: Rng,
   grid?: { cols: number; rows: number; width?: number },
   /** What this particular map can hold, when the caller knows better than the general rule. A settlement does:
    *  its streets are bounded by the BLOCKS between them, which `streetRoom` measures, not by the path width. */
   stated?: number,
-): Ways | null {
+): Pathways | null {
   // …and the pathways are held to what the map can actually carry. Asking a 30x24 town for 8 streets is asking
   // for streets with nothing between them; the ceiling is measured, not decreed. It bounds the RANDOM roll as
   // well as the stated one, so a city still rolls a city's worth of streets.
@@ -156,7 +156,7 @@ export function resolveWays(
   // …and pathways from exits, the same rule read backwards: two exits can be one road straight through.
   const stretches = pathways ?? Math.max(1, Math.ceil(wanted / 2))
   // At most two exits per pathway, and at most one gate per side. FEWER exits than pathways is allowed on
-  // purpose: that is the cave, where the extra stretches are galleries that stop rather than ways out.
+  // purpose: that is the cave, where the extra stretches are galleries that stop rather than pathways out.
   const bounded = clamp(wanted, 1, Math.min(stretches * 2, MAX_EXITS))
   const held = clamp(stretches, 1, ceiling)
   return { exits: bounded as RouteCount, pathways: held as RouteCount }
@@ -197,7 +197,7 @@ export const DEAD_END_MARGIN = 4
  * one remaining side and ends at a stop. Every stretch is routed via the hub, so the network stays one
  * connected thing, which is the guarantee the layouts depend on.
  */
-export function planRoutes(cols: number, rows: number, ways: Ways, rand: Rng, width = 3): RoutePlan {
+export function planRoutes(cols: number, rows: number, pathways: Pathways, rand: Rng, width = 3): RoutePlan {
   const cells = new Set<string>()
   const spine = new Set<string>()
   const hub = {
@@ -205,7 +205,7 @@ export function planRoutes(cols: number, rows: number, ways: Ways, rand: Rng, wi
     row: clamp(Math.round(rows / 2 + (rand() - 0.5) * rows * 0.3), 2, rows - 3),
   }
 
-  const { through, spurs, branches } = splitPathways(ways)
+  const { through, spurs, branches } = splitPathways(pathways)
   // THE WAY IN IS ALWAYS THE NEAR EDGE. `entrance` is `gates[0]` and every layout leans on it being south,
   // so the south/north axis is laid first and south before north. Shuffling the axes broke that on the first
   // run. What varies is which SIDES the spurs take, not where you come in.

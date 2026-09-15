@@ -2326,7 +2326,7 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
   const setAssetDepthDir = (i: number, dir: DepthDir) =>
     applyToSelectedTiles(i, (a) => { a.depthDir = dir })
   // BIDIRECTIONAL z-width (#58): extend the SAME tile BACKWARD from its anchor (opposite depthDir) by `cells`, so
-  // one roof tile spans both ways. 0 = one-way (today). Needs a depthDir to point the axis (default like depth).
+  // one roof tile spans both pathways. 0 = one-way (today). Needs a depthDir to point the axis (default like depth).
   const setAssetDepthBack = (i: number, cells: number) =>
     applyToSelectedTiles(i, (a) => {
       a.depthBack = Math.max(0, Math.round(cells))
@@ -6462,7 +6462,7 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
         )}
 
         {/* No floating Inventory button. The bag opens on I, from the sidebar, or from any action bar slot bound to
-            `open_bag` — three ways in already, so a button parked over the map was a fourth that only ever got in
+            `open_bag` — three pathways in already, so a button parked over the map was a fourth that only ever got in
             the way. */}
         {confirmDialog}
         {promptDialog}

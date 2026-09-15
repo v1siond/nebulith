@@ -601,7 +601,7 @@ export function render(params: IsoRenderParams) {
   // depth-less tile covers just its own cell, so this is the plain cell test for everything else.
   // THE CELLS A TILE COVERS, all of them.
   //
-  // This used to expand a tile with `depth` + `depthDir` only, which is ONE of the four ways a tile spans: it
+  // This used to expand a tile with `depth` + `depthDir` only, which is ONE of the four pathways a tile spans: it
   // ignored `depthBack` (cells behind the anchor), `depthPerp` and `depthPerpBack` (the perpendicular axis). So
   // a 2-axis tile was range-tested on a line through the middle of itself and vanished whenever that line fell
   // outside while the rest of it did not. His words: *"my guess is that the range is cutting at the cell level

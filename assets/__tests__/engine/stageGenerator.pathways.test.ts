@@ -4,7 +4,7 @@
  * The model is two numbers: and for a cave,
  *
  * `pathNetwork.test.ts` pins the PLAN. These pin what the three forest layouts do with it: a way out you can
- * stand on, walk to, and SEE, and a map that is unchanged when the generator serves no ways at all.
+ * stand on, walk to, and SEE, and a map that is unchanged when the generator serves no pathways at all.
  */
 import '@/__tests__/helpers/installTilesetSeed'
 import { FLAT_FLOOR, generateStage, type ForestLayout, type StageData } from '@/engine/stageGenerator'
@@ -29,15 +29,15 @@ const trailPaint = (layout: ForestLayout, col: number, row: number): string =>
   findGenerator(CATALOG, 'forest', layout)?.config.palette?.trail
   ?? groundTileColor(zonePalette(ZONE)!.trail, col, row)
 
-/** A forest built from its served template, the way the editor builds it, with the ways the person picked. */
-function grow(layout: ForestLayout, ways: Record<string, string> | undefined, seed = 7): StageData {
+/** A forest built from its served template, the way the editor builds it, with the pathways the person picked. */
+function grow(layout: ForestLayout, pathways: Record<string, string> | undefined, seed = 7): StageData {
   const config = findGenerator(CATALOG, 'forest', layout)?.config
   const orig = Math.random
   Math.random = makeRng(seed)
   try {
     return generateStage({
       zone: ZONE, variant: 'forest', layout, cols: COLS, rows: ROWS,
-      options: ways,
+      options: pathways,
       nature: config?.nature, palette: config?.palette, formation: config?.formation,
       treeMix: config?.trees, subZones: config?.subZones, crossings: config?.crossings,
     })
@@ -64,7 +64,7 @@ function reachable(stage: StageData): Set<string> {
   return seen
 }
 
-describe('the ways the generator serves reach the map it builds', () => {
+describe('the pathways the generator serves reach the map it builds', () => {
   it.each(LAYOUTS)('%s: a gate per exit, and a stop for the pathway no exit accounts for', layout => {
     const s = grow(layout, { exits: '3', pathways: '4' })
     expect(s.routes).toBeTruthy()
@@ -103,7 +103,7 @@ describe('the ways the generator serves reach the map it builds', () => {
 })
 
 describe('a path is something you can SEE, not just walk', () => {
-  it('a woodland paves its ways with the trail the season serves', () => {
+  it('a woodland paves its pathways with the trail the season serves', () => {
     const s = grow('woodland', { exits: '3', pathways: '3' })
     for (const gate of s.routes!.gates) {
       const { col, row } = gate.inside
@@ -144,7 +144,7 @@ describe('a path is something you can SEE, not just walk', () => {
   })
 })
 
-describe('a generator that serves no ways builds exactly the map it always did', () => {
+describe('a generator that serves no pathways builds exactly the map it always did', () => {
   const shape = (s: StageData) => JSON.stringify({ g: s.ground, c: s.collision, f: s.floorColors, t: s.trees, p: s.props })
 
   it.each(LAYOUTS)('%s: no plan, and nothing moves', layout => {

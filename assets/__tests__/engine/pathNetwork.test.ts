@@ -4,12 +4,12 @@
  * So these pin the two numbers against each other: a gate per exit, and every pathway the exits do not account for
  * ending somewhere inside the map instead of at its border.
  */
-import { DEAD_END_MARGIN, planRoutes, resolveCount, resolveWays, ROUTE_COUNTS, type RouteCount, type RoutePlan } from '@/engine/pathNetwork'
+import { DEAD_END_MARGIN, planRoutes, resolveCount, resolvePathways, ROUTE_COUNTS, type RouteCount, type RoutePlan } from '@/engine/pathNetwork'
 import { makeRng } from '@/lib/math'
 
 const COLS = 40
 const ROWS = 30
-const ways = (exits: RouteCount, pathways: RouteCount) => ({ exits, pathways })
+const asked = (exits: RouteCount, pathways: RouteCount) => ({ exits, pathways })
 const EVERY: Array<[RouteCount, RouteCount]> = ROUTE_COUNTS.flatMap(e => ROUTE_COUNTS.map(p => [e, p] as [RouteCount, RouteCount]))
 const key = (c: { col: number; row: number }) => `${c.col},${c.row}`
 
@@ -31,7 +31,7 @@ function reach(plan: RoutePlan): Set<string> {
 describe('a map has one gate per exit, and the first is the way in', () => {
   it.each(EVERY)('%i exits, %i pathways', (exits, pathways) => {
     for (let seed = 1; seed <= 20; seed++) {
-      const plan = planRoutes(COLS, ROWS, ways(exits, pathways), makeRng(seed))
+      const plan = planRoutes(COLS, ROWS, asked(exits, pathways), makeRng(seed))
       expect(plan.gates).toHaveLength(exits)
       expect(plan.entrance).toBe(plan.gates[0])
       expect(plan.entrance.side).toBe('south')
@@ -43,7 +43,7 @@ describe('a map has one gate per exit, and the first is the way in', () => {
 
   it('every gate sits on its own edge, three cells wide, and is part of the network', () => {
     for (let seed = 1; seed <= 40; seed++) {
-      const plan = planRoutes(COLS, ROWS, ways(4, 4), makeRng(seed))
+      const plan = planRoutes(COLS, ROWS, asked(4, 4), makeRng(seed))
       for (const gate of plan.gates) {
         expect(gate.cells).toHaveLength(3)
         for (const c of gate.cells) {
@@ -59,7 +59,7 @@ describe('a map has one gate per exit, and the first is the way in', () => {
 describe('a pathway that is not an exit stops inside the map', () => {
   it.each(EVERY)('%i exits, %i pathways', (exits, pathways) => {
     for (let seed = 1; seed <= 20; seed++) {
-      const plan = planRoutes(COLS, ROWS, ways(exits, pathways), makeRng(seed))
+      const plan = planRoutes(COLS, ROWS, asked(exits, pathways), makeRng(seed))
       expect(plan.deadEnds).toHaveLength(Math.max(0, pathways - exits))
       for (const stop of plan.deadEnds) {
         // never near the border: a dead end must not read as a way out that failed to open
@@ -70,18 +70,18 @@ describe('a pathway that is not an exit stops inside the map', () => {
   })
 
   it('his cave: 1 exit and 3 pathways is one way back out and two branches that stop', () => {
-    const cave = planRoutes(COLS, ROWS, ways(1, 3), makeRng(9))
+    const cave = planRoutes(COLS, ROWS, asked(1, 3), makeRng(9))
     expect(cave.gates).toHaveLength(1)
     expect(cave.deadEnds).toHaveLength(2)
     // and the end of the cave: one exit, no pathway, nothing but the way you came in
-    const end = planRoutes(COLS, ROWS, ways(1, 1), makeRng(9))
+    const end = planRoutes(COLS, ROWS, asked(1, 1), makeRng(9))
     expect(end.gates).toHaveLength(1)
     expect(end.deadEnds).toEqual([])
   })
 
   it('the stops are apart from each other, not three branches into the same corner', () => {
     for (let seed = 1; seed <= 20; seed++) {
-      const plan = planRoutes(COLS, ROWS, ways(1, 4), makeRng(seed))
+      const plan = planRoutes(COLS, ROWS, asked(1, 4), makeRng(seed))
       const [a, b, c] = plan.deadEnds
       for (const [p, q] of [[a, b], [a, c], [b, c]]) {
         expect(Math.hypot(p.col - q.col, p.row - q.row)).toBeGreaterThan(3)
@@ -93,7 +93,7 @@ describe('a pathway that is not an exit stops inside the map', () => {
 describe('the network holds together', () => {
   it.each(EVERY)('%i exits, %i pathways: from the entrance you reach the hub, every gate and every stop', (exits, pathways) => {
     for (let seed = 1; seed <= 20; seed++) {
-      const plan = planRoutes(COLS, ROWS, ways(exits, pathways), makeRng(seed))
+      const plan = planRoutes(COLS, ROWS, asked(exits, pathways), makeRng(seed))
       const walked = reach(plan)
       expect(walked.has(key(plan.hub))).toBe(true)
       for (const gate of plan.gates) expect(gate.cells.every(c => walked.has(key(c)))).toBe(true)
@@ -104,7 +104,7 @@ describe('the network holds together', () => {
   it('the paths bend: they are not one straight line from the entrance to the hub', () => {
     let bent = 0
     for (let seed = 1; seed <= 40; seed++) {
-      const plan = planRoutes(COLS, ROWS, ways(1, 1), makeRng(seed))
+      const plan = planRoutes(COLS, ROWS, asked(1, 1), makeRng(seed))
       const cols = new Set([...plan.cells].map(k => Number(k.split(',')[0])))
       if (cols.size > 3) bent++
     }
@@ -112,7 +112,7 @@ describe('the network holds together', () => {
   })
 
   it('stays inside the map', () => {
-    const plan = planRoutes(COLS, ROWS, ways(4, 4), makeRng(7))
+    const plan = planRoutes(COLS, ROWS, asked(4, 4), makeRng(7))
     for (const k of plan.cells) {
       const [c, r] = k.split(',').map(Number)
       expect(c >= 0 && r >= 0 && c < COLS && r < ROWS).toBe(true)
@@ -125,19 +125,19 @@ describe('the two served counts', () => {
     expect(resolveCount('3', makeRng(1))).toBe(3)
     expect(resolveCount(undefined, makeRng(1))).toBeNull()
     expect(resolveCount('none', makeRng(1))).toBeNull()
-    expect(resolveWays(undefined, makeRng(1))).toBeNull()
-    expect(resolveWays({ river: 'through' }, makeRng(1))).toBeNull()
+    expect(resolvePathways(undefined, makeRng(1))).toBeNull()
+    expect(resolvePathways({ river: 'through' }, makeRng(1))).toBeNull()
   })
 
   it('one count given, the other follows it', () => {
     // exits alone: every path is a way out. pathways alone: one way out, the rest stop inside.
     // TWO EXITS IS ONE ROAD STRAIGHT THROUGH, not two roads. This expected two pathways,
     // which is the old count-from-the-centre-out model it corrected.
-    expect(resolveWays({ exits: '2' }, makeRng(1))).toEqual({ exits: 2, pathways: 1 })
+    expect(resolvePathways({ exits: '2' }, makeRng(1))).toEqual({ exits: 2, pathways: 1 })
     // …and pathways alone now INFER their exits, which is the stated rule: Three stretches want six
     // exits and a map has four sides, so four. It used to default to one, which made two of the three
     // stretches dead ends on a map that had asked for roads.
-    expect(resolveWays({ pathways: '3' }, makeRng(1))).toEqual({ exits: 4, pathways: 3 })
+    expect(resolvePathways({ pathways: '3' }, makeRng(1))).toEqual({ exits: 4, pathways: 3 })
   })
 
   it('random picks every count across maps', () => {
@@ -152,7 +152,7 @@ describe('the spine: the one-cell centre line of the same network', () => {
   // severed by accident. The spine is carved ALWAYS, so the width above it is free to vary.
   it.each(EVERY)('%i exits, %i pathways: the spine is inside the band, and holds the whole map together', (exits, pathways) => {
     for (let seed = 1; seed <= 10; seed++) {
-      const plan = planRoutes(COLS, ROWS, ways(exits, pathways), makeRng(seed))
+      const plan = planRoutes(COLS, ROWS, asked(exits, pathways), makeRng(seed))
       for (const k of plan.spine) expect(plan.cells.has(k)).toBe(true)
 
       // walk the SPINE only: the hub, every gate and every stop must still be reachable from the entrance
@@ -175,7 +175,7 @@ describe('the spine: the one-cell centre line of the same network', () => {
   })
 
   it('is a fraction of the band, not the whole of it', () => {
-    const plan = planRoutes(COLS, ROWS, ways(3, 4), makeRng(5))
+    const plan = planRoutes(COLS, ROWS, asked(3, 4), makeRng(5))
     expect(plan.spine.size).toBeGreaterThan(0)
     expect(plan.spine.size).toBeLessThan(plan.cells.size / 2) // a 3-wide band is about three times its centre
   })

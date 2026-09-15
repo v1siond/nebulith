@@ -2,7 +2,7 @@
  * THE JUNGLE — a jungle, not a dense woodland.
  *
  * I had shipped it as `layoutWoodland` with heavier numbers, which is exactly what was rejected. The
- * tests below assert the four ways the STRUCTURE differs, because density is not the difference:
+ * tests below assert the four pathways the STRUCTURE differs, because density is not the difference:
  *
  *   · light gaps where a giant fell, not clearings cut for you
  *   · a creek you travel along, not trails someone laid

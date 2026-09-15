@@ -120,7 +120,7 @@ export interface CompositionCellSettings {
    *  spans the correct grid axis. Absent → no directional depth (a plain cube). */
   depthDir?: DepthDir
   /** BIDIRECTIONAL z-width (#58): extra cells this SAME cell spans BACKWARD (opposite `depthDir`) from its anchor,
-   *  so ONE roof/deck cell covers a footprint both ways — a 4-cell roof authored as 1 tile. stampComposition
+   *  so ONE roof/deck cell covers a footprint both pathways — a 4-cell roof authored as 1 tile. stampComposition
    *  copies it onto the placed asset's `depthBack`. Absent/0 → today's one-way span. */
   depthBack?: number
   /** 2-AXIS z-width ("two sides at the same time"): cells this cell ALSO spans along the PERPENDICULAR axis —
@@ -331,7 +331,7 @@ const OPPOSITE: Record<DepthDir, DepthDir> = {
 /**
  * A tile's authored THICKNESS as the four REACHES the renderer and the editor both speak.
  *
- * The backend authors it two ways, because one is far easier to write by hand:
+ * The backend authors it two pathways, because one is far easier to write by hand:
  *   - the SHORTHAND `{scaleZ, thicknessDir}` — "0.3 thick, hugging this face" (how a door is authored), and
  *   - the EXPLICIT `{thickness: {"<dir>": 0.4, …}}` — a per-direction reach map, for anything the shorthand
  *     cannot say (thin on both sides, or thin along both axes).
@@ -380,7 +380,7 @@ function resolveTileColor(tile: StyleTile, zone: string, variant: number): strin
   if (Array.isArray(c) && c.length > 0) return c[((variant % c.length) + c.length) % c.length]
   // THE FLAT SHAPE IS SERVED DATA TOO, and dropping it is how an invented colour reached the screen.
   //
-  // The backend serves a tile's colour two ways: a per-zone `settings.colors` map (240 of the 361 ascii rows)
+  // The backend serves a tile's colour two pathways: a per-zone `settings.colors` map (240 of the 361 ascii rows)
   // and a flat `settings.color` (every emoji row, plus exactly two ascii rows: `thicket` and `tall_grass`,
   // authored that way in `tile_source.ex` @growth_tiles). This read only the map, so those two fell through to
   // the neutral grey and `makeThicket` stamped #cccccc onto every thicket prop. `tintedImage` is documented as

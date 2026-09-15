@@ -16,7 +16,7 @@
 import '@/__tests__/helpers/installTilesetSeed'
 import { generateStage, type StageData } from '@/engine/stageGenerator'
 import { planVillage, streetRoom, type BuildingSizes, type StreetPlan, type VillageLayout } from '@/engine/villageLayout'
-import { planRoutes, resolveWays, type Side } from '@/engine/pathNetwork'
+import { planRoutes, resolvePathways, type Side } from '@/engine/pathNetwork'
 import { findGenerator, parseGeneratorCatalog } from '@/lib/generatorCatalog'
 import { makeRng } from '@/lib/math'
 import liveBody from '@/__tests__/fixtures/generators.json'
@@ -43,16 +43,16 @@ function streetCount(layout: VillageLayout, cols: number, rows: number): { acros
 }
 
 /** The street plan a settlement inherits, built the way `streetPlanFor` builds it in the generator: real
- *  served options through `resolveWays`, real gates through `planRoutes`. */
+ *  served options through `resolvePathways`, real gates through `planRoutes`. */
 function planFor(cols: number, rows: number, exits: number, pathways: number, seed: number): StreetPlan {
   const rand = makeRng(seed)
-  const ways = resolveWays({ exits: String(exits), pathways: String(pathways) }, rand, { cols, rows, width: 3 }, streetRoom(cols, rows))!
-  const routes = planRoutes(cols, rows, ways, rand, 3)
+  const asked = resolvePathways({ exits: String(exits), pathways: String(pathways) }, rand, { cols, rows, width: 3 }, streetRoom(cols, rows))!
+  const routes = planRoutes(cols, rows, asked, rand, 3)
   const line = (side: Side, cells: { col: number; row: number }[]): number => {
     const mid = cells[Math.floor(cells.length / 2)]
     return side === 'west' || side === 'east' ? mid.row : mid.col
   }
-  return { pathways: ways.pathways, gates: routes.gates.map(g => ({ side: g.side, at: line(g.side, g.cells) })) }
+  return { pathways: asked.pathways, gates: routes.gates.map(g => ({ side: g.side, at: line(g.side, g.cells) })) }
 }
 
 describe('a settlement lays one street per pathway', () => {
@@ -66,7 +66,7 @@ describe('a settlement lays one street per pathway', () => {
   })
 
   it('laid 6 for that same town before the fix, which is what the fixed GRID decided', () => {
-    // No plan handed in is the old behaviour exactly, kept for a generator that serves no ways.
+    // No plan handed in is the old behaviour exactly, kept for a generator that serves no pathways.
     const layout = planVillage(40, 40, makeRng(7), SIZES, 'town')
     const { across, down } = streetCount(layout, 40, 40)
     expect(across + down).toBe(6)

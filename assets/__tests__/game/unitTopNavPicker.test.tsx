@@ -1,7 +1,7 @@
 /**
  * ◈ Unit top-nav — the ENEMY / CREATURE picker (+ "add the unit static or with a randomized animation").
  *
- * These lock the restored flow two ways:
+ * These lock the restored flow two pathways:
  *   1. STRUCTURE — the UnitPicker component lists the `units` tiles so you can SEE + pick a creature, exposes
  *      the Add / Scatter modes and the Static / Animated motion toggle, and fires the right callbacks.
  *   2. SOURCE GUARD — the page wires the picker into the top-nav Unit dropdown, and the three removals

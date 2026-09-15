@@ -4,7 +4,7 @@
  * *"we have trees in the pathway, we shouldn't have any trees in the pathway, just in grass or dirt zones,
  * same with flowers"* (2026-09-15, Image #78, a meadow).
  *
- * `clearPathSightlines` swept TREES off the ways and left `props` alone, so a path came out clear of trunks
+ * `clearPathSightlines` swept TREES off the pathways and left `props` alone, so a path came out clear of trunks
  * and still carrying flowers, mushrooms and tall grass down the middle of it. Two lists, one rule, and only
  * one of them was being applied.
  *

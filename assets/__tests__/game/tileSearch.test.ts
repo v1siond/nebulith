@@ -42,7 +42,7 @@ describe('matchesTileQuery', () => {
     expect(matchesTileQuery(tile('grass', 'Grass'), 'GRASS')).toBe(true)
   })
 
-  it('treats "_" and a space as the same separator, both ways', () => {
+  it('treats "_" and a space as the same separator, both pathways', () => {
     expect(matchesTileQuery(tile('water_deep', 'water_deep'), 'water deep')).toBe(true)
     expect(matchesTileQuery(tile('water_shallow', 'Shallow Water'), 'shallow_water')).toBe(true)
   })

@@ -73,7 +73,7 @@ describe('the new shapes come from the existing base, and each forest grows its 
 
 describe('a template that serves no mix keeps the old shared table', () => {
   it('rolls none of the new-only shapes', () => {
-    // The compliance rule both ways: served data is honoured, missing data invents nothing.
+    // The compliance rule both pathways: served data is honoured, missing data invents nothing.
     const orig = Math.random
     Math.random = makeRng(7)
     try {

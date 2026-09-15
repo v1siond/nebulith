@@ -61,10 +61,10 @@ import { clamp, randInt, randIntWith, manhattan, makeRng, type Rng } from '@/lib
 import { runLayers, type StageLayer } from '@/engine/generate/pipeline'
 import { generationLayerKeys } from '@/engine/generate/generationLayers'
 import { isTileCategory, TILE_CATEGORY } from '@/engine/tileset/tileCategory'
-import { planRoutes, resolveWays, type Gate, type RouteCell, type RoutePlan, type Side, type Ways } from '@/engine/pathNetwork'
+import { planRoutes, resolvePathways, type Gate, type RouteCell, type RoutePlan, type Side, type Pathways } from '@/engine/pathNetwork'
 import {
   carveChannel, deckRoutes, digChannel, flowField, isWaterGround, layDeck, recordBridgeSpan,
-  narrowestLine, narrowWaysToCrossings, resolveRiverCourse, CROSSING_ROWS, settleWaterDepth, strewRiverRocks, wadeableShallows, waterBand, waterReach,
+  narrowestLine, narrowPathwaysToCrossings, resolveRiverCourse, CROSSING_ROWS, settleWaterDepth, strewRiverRocks, wadeableShallows, waterBand, waterReach,
   FLOW_STEPS, type RiverCourse,
 } from '@/engine/riverNetwork'
 
@@ -73,7 +73,7 @@ export type VariantId = 'town' | 'city' | 'forest' | 'cave' | 'temple' | 'boss-s
 /**
  * The independent GENERATION LAYERS a stage is built from — the "macro" randomize scopes the user
  * steers (whole map vs just this layer). Each maps to a seedable pass over the current grid:
- *   ways      — how many exits the map has, where its gates sit and where its paths run. FIRST: everything
+ *   pathways      — how many exits the map has, where its gates sit and where its paths run. FIRST: everything
  *               below is built around it.
  *   layout    — terrain/ground distribution + roads/plots (the "map without structures nor nature"),
  *   buildings — the compositions stamped on the layout's plots,
@@ -675,11 +675,33 @@ function placeLampPost(ctx: ArchetypeContext, col: number, row: number): Composi
 }
 
 /** Place a prop iff the cell is in-bounds + not already blocked; set collision when blocking. */
-function placeProp(ctx: ArchetypeContext, prop: StageProp): void {
+/**
+ * IS THIS CELL PART OF A WAY?
+ *
+ * *"we have trees in the pathway, we shouldn't have any trees in the pathway, just in grass or dirt zones,
+ * same with flowers"*. That was answered with a SWEEP: plant everywhere, then pull the growing things back
+ * off the road afterwards. A sweep is the right shape only while the planting happens BEFORE the pathways are
+ * cut, which was true when every variant painted and planted in one pass.
+ *
+ * Once objects run after pathways, the pathways are already there while things are being planted, so the rule is
+ * a GUARD at the moment of placing rather than a repair afterwards. Empty until the pathways layer has run, so
+ * this costs a set lookup and changes nothing for a variant that has not been split yet.
+ */
+const standsOnPathway = (ctx: ArchetypeContext, col: number, row: number): boolean =>
+  ctx.pathwayCells.has(`${col},${row}`)
+
+/** What a placement is allowed to ignore. Way DRESSING is put on the way on purpose, so it says so. */
+interface PlaceOptions {
+  /** This thing belongs ON the way: the pebbles and litter the objects layer scatters down it. */
+  onPathway?: boolean
+}
+
+function placeProp(ctx: ArchetypeContext, prop: StageProp, opts?: PlaceOptions): void {
   const { props, collision, cols, rows } = ctx
   if (!inBounds(prop.col, prop.row, cols, rows)) return
   if (collision[prop.row][prop.col]) return
   if (!isLandCell(ctx, prop.col, prop.row)) return // land-only: no prop (flower / rock / …) in water
+  if (!opts?.onPathway && standsOnPathway(ctx, prop.col, prop.row)) return // and nothing grows in a road
   props.push(prop)
   if (prop.blocking) collision[prop.row][prop.col] = true
 }
@@ -814,7 +836,7 @@ interface ArchetypeContext {
   /** How the trees are DISTRIBUTED — a wood pasture, an even-aged stand and a closed canopy differ in this,
    *  not in how many trees they hold. */
   formation?: GeneratorFormation
-  /** What this template's ways are MADE OF: surface, width, edge, scatter, lining. A pathway used to be a
+  /** What this template's pathways are MADE OF: surface, width, edge, scatter, lining. A pathway used to be a
    *  tint over the ground already there, at one width for every place in the game. */
   pathway?: GeneratorPathway
   /**
@@ -825,7 +847,17 @@ interface ArchetypeContext {
    * plan named 170. Paving the plan alone left the other 317 wearing the tile the layout had laid, and the
    * map showed ONE path in TWO materials. A layout that cuts a way says so here, and one pass surfaces them.
    */
-  wayCells: Set<string>
+  pathwayCells: Set<string>
+  /**
+   * EVERY CELL THE WATER LAYER LAID, so the layers after it can go around what it left.
+   *
+   * *"we should have water go first, because then the pathway can footprint the actual navigable layout,
+   * including potentially using bridges"*. It used to be a local `Set` inside whichever archetype carved it
+   * and it died with that function, so anything downstream had to re-derive it from the ground labels.
+   */
+  water: Set<string>
+  /** Which forest layout this map is, resolved once in the terrain phase so all four phases agree. */
+  forestLayout?: ForestLayout
   /** The species this template grows. A jungle is not a meadow with more trees in it. */
   treeMix?: readonly GeneratorTreeWeight[]
   /** What a river is crossed on, by kind (`config.crossings`), picked by the `bridge` option. */
@@ -839,12 +871,12 @@ interface ArchetypeContext {
   layout: string | undefined
   /** The generator's OPTIONS as the person set them — `{river: true}`. A layout reads the ones it knows. */
   options: Readonly<Record<string, GeneratorOptionValue>> | undefined
-  /** The ways through this map, planned BEFORE anything was planted. Undefined → this generator serves no ways
+  /** The pathways through this map, planned BEFORE anything was planted. Undefined → this generator serves no pathways
    *  and the layout built exactly the map it always did. */
   routes?: RoutePlan
-  /** The two COUNTS the ways layer settled: how many exits, how many pathways. Kept beside the plan because a
+  /** The two COUNTS the pathways layer settled: how many exits, how many pathways. Kept beside the plan because a
    *  settlement lays one street per pathway, and the plan itself only records where the roads run. */
-  ways?: Ways
+  pathways?: Pathways
   /** The active pass's random source. Defaults to `Math.random`; a seeded layer swaps in its own
    *  `makeRng(seed)` stream so the pass reproduces. EVERY stochastic helper draws from this, never
    *  from `Math.random` directly, so a pass is pure given its rng. */
@@ -874,18 +906,23 @@ const withRand = (ctx: ArchetypeContext, rand: Rng): ArchetypeContext => ({ ...c
 interface VariantPhases {
   /** The ground: the grid's floor by zone, region and season. Decides what may grow and what it looks like. */
   terrain: (ctx: ArchetypeContext, rngs: LayerRngs) => void
-  /** Rivers, creeks and pools. Laid BEFORE the ways, because it is what they have to go around. */
+  /** Rivers, creeks and pools. Laid BEFORE the pathways, because it is what they have to go around. */
   water?: (ctx: ArchetypeContext, rngs: LayerRngs) => void
-  /** The map's STRUCTURE: where the ways run, and which ground is left to build on. */
-  ways?: (ctx: ArchetypeContext, rngs: LayerRngs) => void
-  /** Everything placed on it, and the LOOK of the ways and the exits. */
+  /** The map's STRUCTURE: where the pathways run, and which ground is left to build on. */
+  pathways?: (ctx: ArchetypeContext, rngs: LayerRngs) => void
+  /** Everything placed on it, and the LOOK of the pathways and the exits. */
   objects?: (ctx: ArchetypeContext, rngs: LayerRngs) => void
 }
 
 const BUILD: Partial<Record<VariantId, VariantPhases>> = {
   town: { terrain: placeTown },
   city: { terrain: placeCity },
-  forest: { terrain: placeForest },
+  forest: {
+    terrain: placeForest,
+    water: (ctx, rngs) => forestPhases(ctx)?.water?.(ctx, rngs),
+    pathways: (ctx, rngs) => forestPhases(ctx)?.pathways?.(ctx, rngs),
+    objects: (ctx, rngs) => forestPhases(ctx)?.objects?.(ctx, rngs),
+  },
   temple: { terrain: placeTemple },
   cave: { terrain: placeCave },
   'boss-stage': { terrain: placeBossStage },
@@ -958,7 +995,7 @@ function buildingFootprints(buildings: readonly PlacedBuilding[]): Set<string> {
  *  the backend happens to serve a `nature` layer today, so these are filled in after the served ones. This is
  *  not a second list of layers: it is the set of names the CODE in this file uses, and it shrinks as passes
  *  move out into layers of their own. */
-const ENGINE_PASS_RNGS: readonly string[] = ['pathways', 'ways', 'layout', 'buildings', 'nature', 'decor']
+const ENGINE_PASS_RNGS: readonly string[] = ['pathways', 'layout', 'buildings', 'nature', 'decor']
 
 const layerRng = (seeds: GenerateOptions['seeds'], layer: EngineLayerId): Rng => {
   const seed = seeds?.[layer]
@@ -1002,7 +1039,7 @@ export function blankStage(zone: ZoneId, cols: number, rows: number): StageData 
  * *"we generate the grid, then we add water if any, then we generate pathways with number of exits around the
  * existing area, then we add the rest of vegeation and other things, then we add the characters if any"*.
  *
- * `ways` is hoisted out of the six archetypes and runs FIRST, which is the half of his order that was only ever
+ * `pathways` is hoisted out of the six archetypes and runs FIRST, which is the half of his order that was only ever
  * a convention: every archetype happened to call `plannedRoutes` near its top, and nothing made it so. It is
  * structural now, and `terrain` reads `ctx.routes` instead of planning its own.
  *
@@ -1013,18 +1050,18 @@ export function blankStage(zone: ZoneId, cols: number, rows: number): StageData 
  * optional `when` guard, and a `run`. `runLayers` does not change, and neither does anything above.
  */
 const STAGE_LAYERS: ReadonlyArray<StageLayer<ArchetypeContext, LayerRngs>> = [
-  // THE PLAN for the ways, which `terrain` builds around. It sits ahead of terrain because every archetype
+  // THE PLAN for the pathways, which `terrain` builds around. It sits ahead of terrain because every archetype
   // reads `ctx.routes` while it builds, and THAT is the inversion still to fix: the model says water is laid
   // first and the pathways adapt to what it left, so this belongs inside `pathways` once water is its own
   // layer. Marked rather than moved, because moving it changes every map and that is his call to see.
-  { name: 'pathways:plan', run: (ctx, rngs) => { planWays(ctx, rngs.pathways ?? rngs.ways) } },
+  { name: 'pathways:plan', run: (ctx, rngs) => { planPathways(ctx, rngs.pathways) } },
 
   // TERRAIN: the grid's ground, by zone, region and season. Still carries WATER and OBJECTS inside it,
   // because each archetype paints, floods and plants in one pass. Splitting those three apart is the work
   // this list is being straightened out for.
   { name: 'terrain', run: (ctx, rngs) => BUILD[ctx.variant]?.terrain(ctx, rngs) },
 
-  // WATER, laid before the ways because it is what they go around: *"we should have water go first, because
+  // WATER, laid before the pathways because it is what they go around: *"we should have water go first, because
   // then the pathway can footprint the actual navigable layout, including potentially using bridges"*. Empty
   // for every variant that still carves its own inside `terrain`; they move across one at a time.
   { name: 'water', when: ctx => !!BUILD[ctx.variant]?.water, run: (ctx, rngs) => BUILD[ctx.variant]?.water?.(ctx, rngs) },
@@ -1032,18 +1069,23 @@ const STAGE_LAYERS: ReadonlyArray<StageLayer<ArchetypeContext, LayerRngs>> = [
   // PATHWAYS: the map's STRUCTURE. *"what the pathways determine is the map structure, what is a pathway,
   // what is a section to put objects, what are the exits, how's the pathway draw"*.
   //
-  // This was FOUR entries (`edge`, `gates`, `ways-clear`, `sightlines`) plus a fifth (`ways`) at the top and
+  // This was FOUR entries (`edge`, `gates`, `pathways-clear`, `sightlines`) plus a fifth (`pathways`) at the top and
   // a sixth (`pathway`) below, six names for one layer. None of them is a layer: the border is defined by the
   // exits, the gates are the exits, keeping a way walkable and clearing what stands in it are both the way
   // still being a way. They ran consecutively already, so this is the same order under one name.
   {
     name: 'pathways',
-    when: ctx => !!ctx.routes,
+    // A VARIANT WITH NO SERVED ROUTES STILL HAS WAYS. The meadow draws its cobble entrance whether or not a
+    // plan was served, and gating the whole layer on `ctx.routes` skipped it: measured, zero lamp posts and
+    // no entrance at all on a plain generate. The GATE steps keep their own check, because a gate needs a
+    // plan to be cut from; the variant's own way-drawing does not.
+    when: ctx => !!ctx.routes || !!BUILD[ctx.variant]?.pathways,
     run: (ctx, rngs) => {
-      BUILD[ctx.variant]?.ways?.(ctx, rngs) // where this variant's ways actually run
+      BUILD[ctx.variant]?.pathways?.(ctx, rngs) // where this variant's pathways actually run
+      if (!ctx.routes) return
       sealMapEdge(ctx) // the border is closed everywhere the exits are not
       openGates(ctx) // and cut open where they are, so the exits get the last word on it
-      keepWaysWalkable(ctx) // nothing built above may wall a gate in behind it
+      keepPathwaysWalkable(ctx) // nothing built above may wall a gate in behind it
       clearPathSightlines(ctx) // and nothing stands in a way or in front of one
     },
   },
@@ -1054,10 +1096,13 @@ const STAGE_LAYERS: ReadonlyArray<StageLayer<ArchetypeContext, LayerRngs>> = [
   // Only two of its steps are here so far. The rest is still inside `terrain`, planted by each archetype.
   {
     name: 'objects',
-    when: ctx => !!ctx.routes,
+    // Same as pathways: a map with no served plan is still dressed. Only the two steps that dress a GATE
+    // need one.
+    when: ctx => !!ctx.routes || !!BUILD[ctx.variant]?.objects,
     run: (ctx, rngs) => {
       BUILD[ctx.variant]?.objects?.(ctx, rngs) // everything this variant plants and builds
-      layWays(ctx) // the surface a way wears, what lies on it and what stands beside it
+      if (!ctx.routes) return
+      layPathways(ctx) // the surface a way wears, what lies on it and what stands beside it
       stampEntrances(ctx) // and the way out looks like one, on the surface the way actually wears
     },
   },
@@ -1097,7 +1142,7 @@ export function generateStage(opts: GenerateOptions): StageData {
   for (const key of generationLayerKeys()) rngs[key] = layerRng(opts.seeds, key)
   for (const key of ENGINE_PASS_RNGS) rngs[key] ??= layerRng(opts.seeds, key)
   // Single-pass archetypes (forest/cave/temple/boss) read `ctx.rand`; the layout rng is their source.
-  const ctx: ArchetypeContext = { variant, zone, ground, collision, floorColors, elevation, buildings, props, trees, compositions, cols, rows, layout, options: opts.options, nature: opts.nature, settlement: opts.settlement, palette: opts.palette, subZones: opts.subZones, formation: opts.formation, pathway: opts.pathway, treeMix: opts.treeMix, crossings: opts.crossings, entrance: opts.entrance, wayCells: new Set<string>(), decks: new Set<string>(), wet: new Set<string>(), flow: new Map<string, number>(), buildingSizes: opts.buildingSizes, rand: rngs.layout }
+  const ctx: ArchetypeContext = { variant, zone, ground, collision, floorColors, elevation, buildings, props, trees, compositions, cols, rows, layout, options: opts.options, nature: opts.nature, settlement: opts.settlement, palette: opts.palette, subZones: opts.subZones, formation: opts.formation, pathway: opts.pathway, treeMix: opts.treeMix, crossings: opts.crossings, entrance: opts.entrance, pathwayCells: new Set<string>(), water: new Set<string>(), decks: new Set<string>(), wet: new Set<string>(), flow: new Map<string, number>(), buildingSizes: opts.buildingSizes, rand: rngs.layout }
   runLayers(STAGE_LAYERS, ctx, rngs)
 
   return {
@@ -1124,7 +1169,7 @@ export function generateStage(opts: GenerateOptions): StageData {
     trees,
     compositions,
     connectors: [],
-    // WHERE YOU COME IN. A map that planned its ways puts you just inside its entrance, which is the whole point
+    // WHERE YOU COME IN. A map that planned its pathways puts you just inside its entrance, which is the whole point
     // of an entrance; a map that planned none keeps the old choice, so every existing template is unmoved.
     spawn: routeSpawn(ctx) ?? chooseSpawn(buildings, collision, cols, rows),
     routes: ctx.routes ?? null,
@@ -1194,7 +1239,7 @@ export function layoutPass(ctx: ArchetypeContext, settlement: Settlement): Villa
     }
   }
   snapGatesToStreets(ctx, layout)
-  adoptStreetsAsWays(ctx, layout)
+  adoptStreetsAsPathways(ctx, layout)
   return layout
 }
 
@@ -1204,7 +1249,7 @@ export function layoutPass(ctx: ArchetypeContext, settlement: Settlement): Villa
  * The streets are laid to meet the gates, but two gates on the same axis can want lines closer together than a
  * buildable block fits between, and only one of them gets a street of its own. Measured on a 40x40 town asked
  * for 4 exits: the north gate landed four columns off the south gate's street, opened onto no road at all, and
- * the map had four mouths but three ways in.
+ * the map had four mouths but three pathways in.
  *
  * So the GATE moves to the street, rather than the street being bent to the gate. Two gates sharing one street
  * is a road THROUGH the town, which is what a through road is anyway.
@@ -1268,18 +1313,18 @@ function moveGateInto(gate: Gate, band: StreetBand): void {
 /**
  * THE STREETS BECOME THE MAP'S WAYS.
  *
- * *"street is just a form of pathway"* (2026-09-14). The ways layer plans a WINDING route from gate to gate,
+ * *"street is just a form of pathway"* (2026-09-14). The pathways layer plans a WINDING route from gate to gate,
  * which is what a forest trail is; a settlement paves a STRAIGHT grid instead. Keeping both left a town with
- * two networks: the streets you see, and a wandering corridor that `ways-clear` then kept walkable straight
+ * two networks: the streets you see, and a wandering corridor that `pathways-clear` then kept walkable straight
  * through the blocks and `sightlines` stripped trees along.
  *
- * So the settlement hands its streets back as the ways. Every layer below this one works on the roads that are
+ * So the settlement hands its streets back as the pathways. Every layer below this one works on the roads that are
  * actually there. The GATES are untouched: they are what the streets were placed to meet.
  *
  * Mutates the sets in place rather than replacing `ctx.routes`, because this pass runs on a `withRand` copy of
  * the context and a fresh object would never reach the layers that come after it.
  */
-function adoptStreetsAsWays(ctx: ArchetypeContext, layout: VillageLayout): void {
+function adoptStreetsAsPathways(ctx: ArchetypeContext, layout: VillageLayout): void {
   const plan = ctx.routes
   if (!plan) return
   plan.cells.clear()
@@ -1677,9 +1722,7 @@ function placeForest(ctx: ArchetypeContext): void {
   // picks one — seeded from ctx.rand, so it's reproducible per seed. Dispatch map (Open/Closed).
   // A layout this forest does not know (a settlement's `modern_city`, or nothing at all) rolls a meadow, the
   // same fallback a plain generate always had.
-  const named = ctx.layout as ForestLayout | undefined
-  const layout = named && FOREST_LAYOUTS[named] ? named : pickMeadowLayout(ctx.rand, ctx.nature)
-  FOREST_LAYOUTS[layout]!(ctx)
+  forestPhases(ctx)?.terrain(ctx, {})
 }
 
 /**
@@ -1732,7 +1775,7 @@ function riverCourse(ctx: ArchetypeContext, legacy: RiverCourse): RiverCourse | 
 
 /** Carve the river along its course. `around` is the existing perimeter river; the other two are channels
  *  that cross the whole map, which is what makes them cross it or cut it. */
-function carveRiver(ctx: ArchetypeContext, course: RiverCourse, pal: GeneratorPalette | undefined, ways?: RoutePlan | null): Set<string> {
+function carveRiver(ctx: ArchetypeContext, course: RiverCourse, pal: GeneratorPalette | undefined, pathways?: RoutePlan | null): Set<string> {
   if (course === 'around') {
     const water = paintMeadowRiver(ctx)
     // A template that serves its own water colour wears it here too, not the meadow's blue. THE TONE, FLAT:
@@ -1746,25 +1789,25 @@ function carveRiver(ctx: ArchetypeContext, course: RiverCourse, pal: GeneratorPa
   const water = course === 'divides'
     ? carveChannel(ctx, pal, { half: 2.3, swing: 0.05, horizontal: true })
     : carveChannel(ctx, pal, { half: 1.6, swing: 0.26 })
-  narrowWays(ctx, ways, water)
+  narrowPathways(ctx, pathways, water)
   return water
 }
 
 /**
  * THE WAYS GIVE GROUND TO THE RIVER, once, right where it was carved.
  *
- * The ways ARE
+ * The pathways ARE
  * drawn first, and this is the adapting: whatever stretch of a way the channel landed on stops being a way,
  * except for the one crossing that keeps both banks joined. Everything after it (the paving, the decking, the
  * gates) sees a network that no longer runs down the river, so none of them needed a change.
  *
  * The `around` course does not come through here on purpose: a perimeter river has the map's edge on one side,
- * so its "ways" are the bridge it always had.
+ * so its "pathways" are the bridge it always had.
  */
-function narrowWays(ctx: ArchetypeContext, ways: RoutePlan | null | undefined, water: ReadonlySet<string>): void {
-  if (!ways) return
-  narrowWaysToCrossings(ctx, ways.cells, water)
-  narrowWaysToCrossings(ctx, ways.spine, water)
+function narrowPathways(ctx: ArchetypeContext, pathways: RoutePlan | null | undefined, water: ReadonlySet<string>): void {
+  if (!pathways) return
+  narrowPathwaysToCrossings(ctx, pathways.cells, water)
+  narrowPathwaysToCrossings(ctx, pathways.spine, water)
 }
 
 /**
@@ -1791,18 +1834,33 @@ function bridgeRiver(ctx: ArchetypeContext, water: Set<string>, routes: Set<stri
 /** Forest layout builders, keyed by the user-steered ForestLayout. Each runs on the already-floored ctx
  *  and is fully responsible for the floor gradient / trees / river / ornaments / repair.
  *  Open/Closed: register a layout here, no dispatcher edits. */
-const FOREST_LAYOUTS: Readonly<Partial<Record<ForestLayout, (ctx: ArchetypeContext) => void>>> = {
+const FOREST_LAYOUTS: Readonly<Partial<Record<ForestLayout, VariantPhases>>> = {
   // A RIVER IS AN OPTION, not a layout.
   // It was already an option INSIDE the builder — `layoutWoodland(ctx, {river: true})` — and only the
   // catalog row and the layout string duplicated per combination. Now the option reaches the builder from
   // the generator's declared options, and `woodland_river` / `meadow_river` are gone as layouts.
-  woodland: ctx => layoutWoodland(ctx, { ...forestWater(ctx, 'around'), routes: plannedRoutes(ctx) }),
+  woodland: { terrain: ctx => layoutWoodland(ctx, { ...forestWater(ctx, 'around'), routes: plannedRoutes(ctx) }) },
   // A JUNGLE HAS ITS OWN BUILDER. It used to share the woodland's with heavier numbers, but density is not
   // the difference: light gaps instead of clearings, a creek instead of trails, blocking undergrowth,
   // emergents.
-  jungle: ctx => layoutJungle(ctx, { ...forestWater(ctx, 'through'), routes: plannedRoutes(ctx) }),
-  meadow: ctx => buildMeadow(ctx, { ...forestWater(ctx, 'around'), twoWays: false, routes: plannedRoutes(ctx) }),
-  meadow_pass: layoutMeadowPass,
+  jungle: { terrain: ctx => layoutJungle(ctx, { ...forestWater(ctx, 'through'), routes: plannedRoutes(ctx) }) },
+  meadow: meadowPhases(false),
+  meadow_pass: meadowPhases(true),
+}
+
+/**
+ * WHICH FOREST THIS IS, decided once and remembered.
+ *
+ * The layout used to be rolled inside `placeForest`, which was fine while one function built the whole map.
+ * With the phases split across layers it has to be the SAME answer in all four, so the terrain phase resolves
+ * it and the rest read it back.
+ */
+function forestPhases(ctx: ArchetypeContext): VariantPhases | undefined {
+  if (!ctx.forestLayout) {
+    const named = ctx.layout as ForestLayout | undefined
+    ctx.forestLayout = named && FOREST_LAYOUTS[named] ? named : pickMeadowLayout(ctx.rand, ctx.nature)
+  }
+  return FOREST_LAYOUTS[ctx.forestLayout]
 }
 
 // ── 'woodland' layout — an ACTUAL forest ──────────────────────────────────────
@@ -1846,13 +1904,13 @@ const WOODLAND = {
   pathWidth: 3,
 } as const
 
-/** What a forest layout is built with: the water options, and the ways through the map. */
+/** What a forest layout is built with: the water options, and the pathways through the map. */
 interface ForestBuild {
   /** The river's COURSE, or null for none. */
   river?: RiverCourse | null
   /** Put the river's crossing ON the path network rather than at a fixed span. */
   crossing?: boolean
-  /** The planned ways in, out and through. null → this generator serves none and the layout builds as it always did. */
+  /** The planned pathways in, out and through. null → this generator serves none and the layout builds as it always did. */
   routes?: RoutePlan | null
 }
 
@@ -1883,7 +1941,7 @@ const EDGE_TREELINE = 2
  * NOT WIRED INTO THE STACK YET, and here is the measurement that says why. Run AFTER `terrain`, which is the
  * only place the "has this map already made water" guard can be asked, a 50x50 town came out with 120 to 141
  * water cells and 60 bridge cells, and:
- *   · the river SEVERED it. Three exits asked for came back as two reachable sides, because a town's ways are
+ *   · the river SEVERED it. Three exits asked for came back as two reachable sides, because a town's pathways are
  *     planned but not paved, so the crossing does not join the two banks for walking.
  *   · one to three BUILDINGS stood in the water, because the river was cut after the town was built.
  *
@@ -1917,17 +1975,17 @@ function carveMapWater(ctx: ArchetypeContext): void {
  *
  * Measured 2026-09-14: a woodland, a jungle and a meadow each had 156 of 156 border cells walkable, and a
  * 50x50 town 196 of 196. The map had no edge at all, so you left wherever you liked and the `exits` count
- * could never mean anything: every one of them read 4 ways out however many were asked for.
+ * could never mean anything: every one of them read 4 pathways out however many were asked for.
  *
  * His call on what closes a wood: a dense treeline, broken only at the gates. The band is planted with the
  * template's OWN species (`ctx.treeMix`, the same served mix the canopy rolls), which is why a jungle edge is
  * jungle and a meadow edge is meadow without this function knowing anything about either, and why a town's
  * edge is whatever its own template grows.
  *
- * Runs BEFORE `openGates`, which then cuts the ways back through it. Cells the route network already claimed
+ * Runs BEFORE `openGates`, which then cuts the pathways back through it. Cells the route network already claimed
  * are left alone, so a path that reaches the border is not planted over on its way out.
  *
- * A generator that serves no ways plans no routes, and its map is left exactly as it was.
+ * A generator that serves no pathways plans no routes, and its map is left exactly as it was.
  */
 function sealMapEdge(ctx: ArchetypeContext): void {
   const plan = ctx.routes
@@ -2029,7 +2087,7 @@ function entranceAnchor(kind: string, middle: RouteCell, rotation: number): Rout
 /**
  * A WAY STAYS WALKABLE. Nothing may be built across a road.
  *
- * A settlement plans its ways like every other map and then lays its streets and plots without consulting the
+ * A settlement plans its pathways like every other map and then lays its streets and plots without consulting the
  * plan, so a gate can end up walled in behind a block of houses. Measured: a city asked for 4 exits and one
  * seed gave 3 reachable sides, because one gate's corridor was built over.
  *
@@ -2038,7 +2096,7 @@ function entranceAnchor(kind: string, middle: RouteCell, rotation: number): Rout
  * border. Water is left alone: a river crossing a way is what a bridge is for, and drying the river to make a
  * road would be the wrong fix.
  */
-function keepWaysWalkable(ctx: ArchetypeContext): void {
+function keepPathwaysWalkable(ctx: ArchetypeContext): void {
   const plan = ctx.routes
   if (!plan) return
   const { collision, cols, rows } = ctx
@@ -2081,7 +2139,7 @@ function keepWaysWalkable(ctx: ArchetypeContext): void {
 /**
  * CLEAR THE GROUND AN ENTRANCE IS ABOUT TO STAND ON.
  *
- * The canopy fills its density before the ways are cut, and the treeline plants the border after, so by the
+ * The canopy fills its density before the pathways are cut, and the treeline plants the border after, so by the
  * time an entrance is placed there can already be a tree on the very cell its upright wants. Measured on the
  * first render: an `oak-tree` upright and a whole `tree_round` composition in the same cell, which is why the
  * frame did not read as a frame.
@@ -2139,7 +2197,7 @@ function clearPathSightlines(ctx: ArchetypeContext): void {
   // itself part of a way.
   //
   // THE RING ITSELF IS THE GATES' BUSINESS, though, and that is a rule rather than an accident. It used to hold
-  // by luck: a forest trail wanders, so it touches the ring exactly once, at its gate. A settlement's ways are
+  // by luck: a forest trail wanders, so it touches the ring exactly once, at its gate. A settlement's pathways are
   // STREETS and every one of them runs the full span, so both ends of every street were being cleared and the
   // edge opened. Measured on his 40x40 town asked for 2 exits: 6 openings across 3 streets.
   const gateWay = new Set<string>()
@@ -2205,7 +2263,7 @@ function clearPathSightlines(ctx: ArchetypeContext): void {
  * specific characteristics"* (2026-09-15).
  *
  * WHAT WAS THERE. Measured on a 40x40: a woodland trail swapped the ground for the flat floor tile and
- * tinted it; a meadow and a jungle did not even do that, their ways were the SAME `meadow` ground as the
+ * tinted it; a meadow and a jungle did not even do that, their pathways were the SAME `meadow` ground as the
  * field beside them wearing a different colour. Width was a constant in this file. So a rainforest machete
  * trail, a clifftop path above a beach and a four lane seafront street were one 3-wide rectangle in three
  * colours, with nothing on them and nothing beside them.
@@ -2217,11 +2275,11 @@ function clearPathSightlines(ctx: ArchetypeContext): void {
  *
  * Every value is served. A template with no pathway block gets exactly the map it got before.
  */
-function layWays(ctx: ArchetypeContext): void {
+function layPathways(ctx: ArchetypeContext): void {
   const plan = ctx.routes
   const way = ctx.pathway
   if (!plan || !way) return
-  const lane = payableLane(ctx, plan)
+  const lane = pavableLane(ctx, plan)
   if (lane.size === 0) return
   paveLane(ctx, lane, way)
   scatterOnLane(ctx, lane, way)
@@ -2239,12 +2297,12 @@ function layWays(ctx: ArchetypeContext): void {
  * Water is never paved. A river is crossed on a deck, which the crossing layer already laid, and the deck's
  * own cells are left exactly as it made them.
  */
-function payableLane(ctx: ArchetypeContext, plan: RoutePlan): Set<string> {
+function pavableLane(ctx: ArchetypeContext, plan: RoutePlan): Set<string> {
   const { cols, rows, ground } = ctx
   const edge = ctx.pathway?.edge ?? 0
   const lane = new Set<string>()
   // Every cell the layout cut as a way, and the planned centreline for a layout that records none.
-  const cut = ctx.wayCells.size > 0 ? ctx.wayCells : plan.cells
+  const cut = ctx.pathwayCells.size > 0 ? ctx.pathwayCells : plan.cells
   for (const key of cut) {
     const { col, row } = toCell(key)
     if (!inBounds(col, row, cols, rows)) continue
@@ -2294,7 +2352,7 @@ function scatterOnLane(ctx: ArchetypeContext, lane: ReadonlySet<string>, way: Ge
       if (ctx.rand() >= rate) continue
       const { col, row } = toCell(key)
       if (ctx.collision[row][col]) continue
-      placeProp(ctx, makePlant(ctx.zone, col, row, tile))
+      placeProp(ctx, makePlant(ctx.zone, col, row, tile), { onPathway: true })
     }
   }
 }
@@ -2354,7 +2412,7 @@ function lineTheLane(ctx: ArchetypeContext, lane: ReadonlySet<string>, way: Gene
  */
 function openGates(ctx: ArchetypeContext): void {
   const plan = ctx.routes
-  if (!plan) return // a generator that serves no ways has no gates, and its map is untouched
+  if (!plan) return // a generator that serves no pathways has no gates, and its map is untouched
   const { collision, ground, floorColors, cols, rows } = ctx
   for (const gate of plan.gates) {
     const inside = gate.inside
@@ -2380,7 +2438,7 @@ function openGates(ctx: ArchetypeContext): void {
  *
  * A template that serves no pathway keeps that 3, which is what every saved recipe was built against.
  */
-function wayWidth(ctx: ArchetypeContext): number {
+function pathwayWidth(ctx: ArchetypeContext): number {
   return ctx.pathway?.width ?? WOODLAND.pathWidth
 }
 
@@ -2388,12 +2446,12 @@ function wayWidth(ctx: ArchetypeContext): number {
  *  in path widths, because a street is only a street if there is something to build between it and the next. */
 const STREET_VARIANTS = new Set<VariantId>(['town', 'city'])
 
-function planWays(ctx: ArchetypeContext, rand: Rng): RoutePlan | null {
+function planPathways(ctx: ArchetypeContext, rand: Rng): RoutePlan | null {
   const room = STREET_VARIANTS.has(ctx.variant) ? streetRoom(ctx.cols, ctx.rows, ctx.settlement) : undefined
-  const ways = resolveWays(ctx.options, rand, { cols: ctx.cols, rows: ctx.rows, width: wayWidth(ctx) }, room)
-  if (!ways) return null
-  ctx.ways = ways
-  ctx.routes = planRoutes(ctx.cols, ctx.rows, ways, rand, wayWidth(ctx))
+  const pathways = resolvePathways(ctx.options, rand, { cols: ctx.cols, rows: ctx.rows, width: pathwayWidth(ctx) }, room)
+  if (!pathways) return null
+  ctx.pathways = pathways
+  ctx.routes = planRoutes(ctx.cols, ctx.rows, pathways, rand, pathwayWidth(ctx))
   return ctx.routes
 }
 
@@ -2404,13 +2462,13 @@ function planWays(ctx: ArchetypeContext, rand: Rng): RoutePlan | null {
  * form of pathway"* (2026-09-14). The backend already agreed: a settlement's "Streets" dropdown is the
  * `pathways` key under a different label. Only the planner disagreed, laying its own fixed grid.
  *
- * Undefined when this generator serves no ways, and the planner then keeps the grid it always had.
+ * Undefined when this generator serves no pathways, and the planner then keeps the grid it always had.
  */
 function streetPlanFor(ctx: ArchetypeContext): StreetPlan | undefined {
   const plan = ctx.routes
-  const ways = ctx.ways
-  if (!plan || !ways) return undefined
-  return { pathways: ways.pathways, gates: plan.gates.map(gate => ({ side: gate.side, at: gateLine(gate) })) }
+  const pathways = ctx.pathways
+  if (!plan || !pathways) return undefined
+  return { pathways: pathways.pathways, gates: plan.gates.map(gate => ({ side: gate.side, at: gateLine(gate) })) }
 }
 
 /** The line a gate's street runs along: its ROW when the gate is on the left or right edge, its COLUMN when it
@@ -2421,8 +2479,8 @@ function gateLine(gate: Gate): number {
   return mid.col
 }
 
-/** What the `ways` layer decided, for the archetypes that build around it. Null when the generator serves no
- *  counts, which is how a recipe from before the ways existed keeps the map it always had. */
+/** What the `pathways` layer decided, for the archetypes that build around it. Null when the generator serves no
+ *  counts, which is how a recipe from before the pathways existed keeps the map it always had. */
 function plannedRoutes(ctx: ArchetypeContext): RoutePlan | null {
   return ctx.routes ?? null
 }
@@ -2482,7 +2540,7 @@ function layoutWoodland(ctx: ArchetypeContext, opts: ForestBuild = {}): void {
   const clearings: Cell[] = []
 
   // 1a · THE PATHS, FIRST. When
-  //      the generator serves the ways, the network is already decided: its cells join `open` so nothing can be
+  //      the generator serves the pathways, the network is already decided: its cells join `open` so nothing can be
   //      planted on them, and they are paved in step 2b with the rest. A GLADE goes where the paths meet and at
   //      every stop, so a pathway that is not an exit ends somewhere worth walking to rather than in a wall of
   //      trunks. That is where a closed or gated section will go.
@@ -2490,7 +2548,7 @@ function layoutWoodland(ctx: ArchetypeContext, opts: ForestBuild = {}): void {
     for (const key of opts.routes.cells) { open.add(key); trailCells.add(key) }
     clearings.push(opts.routes.hub, ...opts.routes.deadEnds)
     for (const centre of clearings) carveClearing(ctx, centre, open)
-    // …AND THE MOUTH OF EACH WAY. The corridor alone stopped dead at the border, so a woodland had ways you
+    // …AND THE MOUTH OF EACH WAY. The corridor alone stopped dead at the border, so a woodland had pathways you
     // could walk and could not see (). These join `trailCells`, so step 2b paves them with the season's own trail
     // rather than
     // this pass inventing a second way to draw a path.
@@ -2533,12 +2591,12 @@ function layoutWoodland(ctx: ArchetypeContext, opts: ForestBuild = {}): void {
 
   // 2b · PAVE them. A trail has to be visible to be a trail — this is the half that was missing. The tile
   //      comes from the zone's palette, so a season can pave its trails differently without a branch here.
-  // THE TEMPLATE PAVES, NOT THE SEASON, whenever the template says what its ways are made of. This tile came
+  // THE TEMPLATE PAVES, NOT THE SEASON, whenever the template says what its pathways are made of. This tile came
   // from `zonePalette(zone).trail`, so which material a trail was laid in depended on whether it was autumn,
   // and every forest in a given season shared one. That is the same root as *"none of the forest entrances is
   // unique enough to their BIO"*: the thing that should vary per template was varying per season instead.
   // A template with no pathway block keeps the season's tile exactly as before.
-  for (const key of trailCells) ctx.wayCells.add(key)
+  for (const key of trailCells) ctx.pathwayCells.add(key)
   // SKIP, do not pave with nothing. Handing the loop an empty tile wrote `''` into 55 cells of ground, and a
   // cell with no tile at all is not the same thing as a cell the pathway layer is about to surface.
   if (!ctx.pathway?.surface) paveWoodlandTrail(ctx, trailCells, zonePalette(zone)?.trail ?? '')
@@ -2622,7 +2680,7 @@ function layoutWoodland(ctx: ArchetypeContext, opts: ForestBuild = {}): void {
 // ── 'jungle' — a JUNGLE, not a dense woodland ─────────────────────────────────
 //
 // That was right, and what shipped was exactly what it objected to: `layoutWoodland` with heavier numbers. Density
-// is not the difference between the Amazon and a pine wood. The STRUCTURE is, and it inverts in four ways:
+// is not the difference between the Amazon and a pine wood. The STRUCTURE is, and it inverts in four pathways:
 //
 //   · A wood has CLEARINGS cut into it, open ground you can walk. A jungle has none. What it has is LIGHT
 //     GAPS where a giant fell, small and irregular, and they are the only places the sun reaches the floor.
@@ -2661,7 +2719,7 @@ const JUNGLE = {
  * The fix belongs on the UNDERGROWTH and not on the canopy, which the suite says out loud in two places:
  * and I tried the canopy first and it failed both, which is the suite doing its job.
  *
- * So groundCover reads as the share of the jungle's WALKABLE FLOOR that is choked, and the ways are simply not
+ * So groundCover reads as the share of the jungle's WALKABLE FLOOR that is choked, and the pathways are simply not
  * where it grows. This factor is that floor over what is left to plant on.
  */
 function jungleFloorReach(ctx: ArchetypeContext, open: Set<string>): number {
@@ -2765,9 +2823,9 @@ function layoutJungle(ctx: ArchetypeContext, opts: ForestBuild = {}): void {
   if (opts.routes) {
     // Every planned cell, the wet ones too: `open` is what the canopy, the undergrowth, the ruins and the
     // emergents all treat as spoken for, and a tree planted on a boardwalk is a blocked pathway.
-    for (const key of opts.routes.cells) { open.add(key); ctx.wayCells.add(key) }
+    for (const key of opts.routes.cells) { open.add(key); ctx.pathwayCells.add(key) }
     paveRoutes(ctx, opts.routes, water, pal?.trail)
-    // …AND THE MOUTH OF EACH WAY. A jungle track that stops at the border is exactly the Its ways are a TONE rather
+    // …AND THE MOUTH OF EACH WAY. A jungle track that stops at the border is exactly the Its pathways are a TONE rather
     // than a paved tile (its
     // test pins one tone the whole way through), so the lane is tinted to match instead of being given a
     // ground label the rest of the track does not have.
@@ -2779,7 +2837,7 @@ function layoutJungle(ctx: ArchetypeContext, opts: ForestBuild = {}): void {
     // width of the track: the served way width, and half the depth.
     const gateLanes = gateLaneCells(ctx, opts.routes, water, 1, 6)
     clearMeadowCells(ctx, gateLanes)
-    for (const key of gateLanes) { open.add(key); ctx.wayCells.add(key) }
+    for (const key of gateLanes) { open.add(key); ctx.pathwayCells.add(key) }
     tintCells(ctx, gateLanes, pal?.trail)
     deckRoutes(ctx, opts.routes, water, pal?.trail)
   }
@@ -2839,7 +2897,7 @@ function layoutJungle(ctx: ArchetypeContext, opts: ForestBuild = {}): void {
 }
 
 
-// ── the ways OUT ──────────────────────────────────────────────────────────
+// ── the pathways OUT ──────────────────────────────────────────────────────────
 // One lane, shared by every layout. It is the meadow's entrance generalised twice over:
 //
 //   1. ANY EDGE. It only ever ran in from the top or the bottom, so a gate on the east or west side had
@@ -2938,7 +2996,7 @@ function paintGateway(ctx: ArchetypeContext, gate: Gateway, water: ReadonlySet<s
   }
 }
 
-/** Every gate the plan made, drawn. Without this a layout paves its ways and leaves them looking like any
+/** Every gate the plan made, drawn. Without this a layout paves its pathways and leaves them looking like any
  *  other stretch of floor, so there is nothing on screen that reads as a way out. */
 function paintGateways(
   ctx: ArchetypeContext,
@@ -3066,7 +3124,7 @@ function gateLaneCells(
   return lane
 }
 
-/** Tint a set of cells, for a layout whose ways are a colour rather than a paved tile (the jungle's track). */
+/** Tint a set of cells, for a layout whose pathways are a colour rather than a paved tile (the jungle's track). */
 function tintCells(ctx: ArchetypeContext, cells: ReadonlySet<string>, tone: string | undefined): void {
   if (!tone) return
   for (const key of cells) {
@@ -3169,7 +3227,7 @@ function dryRouteTo(ctx: ArchetypeContext, from: Cell, mainCells: readonly Cell[
 function cutRoute(ctx: ArchetypeContext, route: readonly Cell[], bridgeWater: boolean): void {
   const wet = new Set<string>()
   const dry = new Set<string>()
-  const width = wayWidth(ctx)
+  const width = pathwayWidth(ctx)
   for (const { col, row } of route) {
     for (let dc = 0; dc < width; dc++) {
       for (let dr = 0; dr < width; dr++) {
@@ -3392,7 +3450,7 @@ function floodSwampPools(ctx: ArchetypeContext, zoneAt: (GeneratorSubZone | unde
     // left cells reading as swamp-green standing water while behaving as river. Measured on a swamp jungle:
     // 21 swamp-toned cells, 9 of them blocked, and one `water` label carrying two different tones.
     //
-    // This is one of the ways it was: the
+    // This is one of the pathways it was: the
     // tone said puddle and the collision said channel. A pool is standing water in a hollow, so it takes only
     // cells the channel has not already claimed, and swamp tone now means exactly one thing.
     if (isWaterGround(ground[row][col])) return
@@ -3670,8 +3728,8 @@ function traceJungleTrack(ctx: ArchetypeContext, from: Cell, to: Cell, open: Set
     else row += Math.sign(dr)
     // Widened to the same minimum every other route uses. An animal track is the narrowest thing on the
     // map and it still has to be walkable, which is the whole of the note.
-    for (let oc = 0; oc < wayWidth(ctx); oc++) {
-      for (let or_ = 0; or_ < wayWidth(ctx); or_++) {
+    for (let oc = 0; oc < pathwayWidth(ctx); oc++) {
+      for (let or_ = 0; or_ < pathwayWidth(ctx); or_++) {
         const c = col + oc
         const r = row + or_
         if (inBounds(c, r, cols, rows)) open.add(`${c},${r}`)
@@ -3846,7 +3904,7 @@ function paveWoodlandTrail(ctx: ArchetypeContext, trailCells: ReadonlySet<string
 function carveWoodlandPath(ctx: ArchetypeContext, from: Cell, to: Cell, open: Set<string>, trailCells: Set<string>): void {
   const { cols, rows } = ctx
   const colFirst = ctx.rand() < 0.5
-  const width = wayWidth(ctx)
+  const width = pathwayWidth(ctx)
   const widen = (c: number, r: number) => {
     for (let dr = 0; dr < width; dr++) {
       for (let dc = 0; dc < width; dc++) {
@@ -3996,7 +4054,7 @@ function dressWoodlandClearings(
   }
 
   // Ground cover stays an even scatter: it is texture underfoot, not an arrangement, and it has never
-  // complained about it. It simply keeps off the ways and out from under the blooms.
+  // complained about it. It simply keeps off the pathways and out from under the blooms.
   if (cover === undefined) return
   for (const cell of plantable) {
     if (bloomAt.has(`${cell.col},${cell.row}`)) continue
@@ -4060,7 +4118,6 @@ function lerpHex(a: string, b: string, t: number): string {
   return `#${[mix(ar, br), mix(ag, bg), mix(ab, bb)].map(v => v.toString(16).padStart(2, '0')).join('')}`
 }
 
-function layoutMeadow(ctx: ArchetypeContext): void { buildMeadow(ctx, { river: null, twoWays: false }) }
 /** `meadow_pass` (#26): the open meadow opened on TWO opposite edges (top + bottom) — a through-route you can
  *  enter one side and exit the other, distinct from the single-entrance `meadow`. No river. */
 /** The meadow's water, bank and deck tones. The WATER comes from the served palette when the template states
@@ -4132,50 +4189,81 @@ function jungleBanks(ctx: ArchetypeContext, water: Set<string>, pal: GeneratorPa
 
 
 
-function layoutMeadowPass(ctx: ArchetypeContext): void { buildMeadow(ctx, { river: null, twoWays: true, routes: plannedRoutes(ctx) }) }
-
 interface MeadowBuild {
   /** The river's COURSE, or null for none. An option on the generator, not a layout of its own. */
   river: RiverCourse | null
   /** Put the river's crossing ON the path network instead of at the fixed top-right span (ticket 36). */
   crossing?: boolean
-  /** Open TWO opposite cobble ways (top + bottom) for a through-route (`meadow_pass`) instead of one bottom way. */
-  twoWays: boolean
-  /** The planned ways in, out and through. Present → the gates ARE the ways and `twoWays` is moot. */
+  /** Open TWO opposite cobble pathways (top + bottom) for a through-route (`meadow_pass`) instead of one bottom way. */
+  twoPathways: boolean
+  /** The planned pathways in, out and through. Present → the gates ARE the pathways and `twoPathways` is moot. */
   routes?: RoutePlan | null
 }
 
 /** THE meadow builder — `meadow` (one bottom way, no river), `meadow_river` (one way + perimeter river) and
- *  `meadow_pass` (two opposite ways, no river). LAYOUT-FIRST: flat floor + season gradient → (river) carve the
+ *  `meadow_pass` (two opposite pathways, no river). LAYOUT-FIRST: flat floor + season gradient → (river) carve the
  *  perimeter water → sparse framing trees → pave the cobble way(s) → populate the open centre with ornament
  *  zones → keep the floor one region → (river) drop the stone bridge last so the repair can't fill it. */
-function buildMeadow(ctx: ArchetypeContext, opts: MeadowBuild): void {
-  floodMeadowFloor(ctx)                          // flat 'meadow' tile everywhere (a raised, tintable block)
-  paintMeadowGradient(ctx)                        // season olive greens→yellows as per-cell floor STATE
-  const water = opts.river ? carveRiver(ctx, opts.river, meadowWater(ctx), opts.routes) : new Set<string>() // the river along the course the option picked
-  paintMeadowPlots(ctx, water)                    // faint tended-field patchwork (a subtle colour)
-  scatterMeadowOrnaments(ctx, water)              // subtle dirt/earth patches, a few field stones, tiny flowers — mostly open
-  scatterFramingTrees(ctx, water)                 // SPARSE tree clumps BEYOND the river (top/left/right) + a few near the bottom corners
-  // The cobble ways ARE this layout's path network, so they are what a joined crossing joins to.
-  const routes = new Set<string>()
-  if (opts.routes) {
-    // THE GATES ARE THE WAYS. Every one of them gets a cobble way that runs off its own edge and joins the
-    // middle, which is what reference image #16 had none of. The lamps and flower beds stay on the way you come IN,
-    // and on a far-edge way out, because that is where they read as a gateway rather than as scenery.
-    paveMeadowRoutes(ctx, opts.routes, water, routes)
-    // Every gate, on whatever edge the plan put it. This used to draw the entrance and then only the NORTH
-    // gates, so a way out east or west had nothing to see there at all.
-    paintMeadowGateways(ctx, opts.routes, water, routes)
-  } else if (opts.twoWays) {
-    paintMeadowEntrance(ctx, water, routes, false, 0.5) // near (bottom) cobble way in
-    paintMeadowEntrance(ctx, water, routes, true, 0.5)  // far (top) cobble way out — opposite edge, aligned → a through-route (#26)
-  } else {
-    paintMeadowEntrance(ctx, water, routes)       // ONE bottom-left cobble entrance, lamp posts + flower beds
+/**
+ * THE MEADOW, IN PHASES, one per layer.
+ *
+ * It was one function that painted, carved, planted and paved in a single pass. The four below are that same
+ * sequence cut at the layer boundaries, with two things that follow from the cut rather than from taste:
+ *
+ *   · the ORNAMENTS AND TREES now run AFTER the pathways, so they see the pathways and go round them. They used to
+ *     run before, and a sweep afterwards pulled the ones that landed in the road back out. `standsOnPathway`
+ *     makes that a guard at the moment of placing instead of a repair.
+ *   · the RIVER is carved in its own phase before the pathways are drawn, which is the order he asked for:
+ *     *"we should have water go first, because then the pathway can footprint the actual navigable layout"*.
+ */
+function meadowPhases(twoPathways: boolean): VariantPhases {
+  return {
+    terrain: ctx => {
+      floodMeadowFloor(ctx) // flat 'meadow' tile everywhere (a raised, tintable block)
+      paintMeadowGradient(ctx) // the season's olive greens and yellows, as per-cell floor state
+    },
+
+    water: ctx => {
+      const course = riverCourse(ctx, 'around')
+      if (!course) return
+      for (const key of carveRiver(ctx, course, meadowWater(ctx))) ctx.water.add(key)
+    },
+
+    pathways: ctx => {
+      // The cobble pathways ARE this layout's path network, so they are what a crossing joins to. They land in
+      // `ctx.pathwayCells`, which is what every later phase reads to keep off them.
+      const routes = ctx.pathwayCells
+      if (ctx.routes) {
+        // THE GATES ARE THE WAYS. Every one gets a cobble way off its own edge that joins the middle. The
+        // lamps and flower beds stay on the way you come IN and on a far-edge way out, because that is where
+        // they read as a gateway rather than as scenery.
+        paveMeadowRoutes(ctx, ctx.routes, ctx.water, routes)
+        paintMeadowGateways(ctx, ctx.routes, ctx.water, routes)
+        return
+      }
+      if (twoPathways) {
+        paintMeadowEntrance(ctx, ctx.water, routes, false, 0.5) // near (bottom) cobble way in
+        paintMeadowEntrance(ctx, ctx.water, routes, true, 0.5) // and the far one out, aligned, a through-route
+        return
+      }
+      paintMeadowEntrance(ctx, ctx.water, routes) // ONE bottom-left cobble entrance, lamps and flower beds
+    },
+
+    objects: ctx => {
+      paintMeadowPlots(ctx, ctx.water) // faint tended-field patchwork, a subtle colour
+      scatterMeadowOrnaments(ctx, ctx.water) // dirt patches, field stones, tiny flowers, mostly open
+      scatterFramingTrees(ctx, ctx.water) // sparse clumps beyond the river and near the bottom corners
+      scatterTallGrass(ctx) // walkable long grass, as much as the generator serves
+      repairFloorConnectivity(ctx, MEADOW_MAX_POCKET) // fill only TINY stranded pockets
+      const course = riverCourse(ctx, 'around')
+      // A BRIDGE IS AN OBJECT, and it is the first thing the objects phase owes the pathways: *"if you want to
+      // put actual tiles or objects specifically related to pathways, like a bridge to go over a river ...
+      // it'll still happen at the end of the process and can be the start of the objects phase"*. After the
+      // repair, so the deck is never filled back in.
+      if (course) bridgeRiver(ctx, ctx.water, ctx.pathwayCells, course, meadowWater(ctx))
+      settleWaterDepth(ctx, meadowWater(ctx)) // last, once the bridge is down
+    },
   }
-  scatterTallGrass(ctx)                           // patches of walkable long grass, as much as the generator serves
-  repairFloorConnectivity(ctx, MEADOW_MAX_POCKET) // fill only TINY stranded pockets; the land strip beyond the river stays (decor)
-  if (opts.river) bridgeRiver(ctx, water, routes, opts.river, meadowWater(ctx)) // after repair, so the deck is never filled back in
-  settleWaterDepth(ctx, meadowWater(ctx)) // last, once the bridge is down
 }
 
 /** Get across the river. With the crossing option on, the span is placed against the path network and paved
@@ -4303,6 +4391,7 @@ const HARSH_ZONES: ReadonlySet<ZoneId> = new Set<ZoneId>(['autumn', 'winter', 'l
 function stampMeadowTree(ctx: ArchetypeContext, col: number, row: number, tall: boolean): void {
   const { zone, trees, collision } = ctx
   if (!isLandCell(ctx, col, row)) return // land-only: no tree in water
+  if (standsOnPathway(ctx, col, row)) return // and no tree in a road
   const variant = randIntWith(ctx.rand, 0, canopyCount(styleCatalog('ascii'), zone) - 1)
   // The green/verdant reference meadows show NO bare snags — only a HARSH season sprinkles a little dead wood.
   const dead = HARSH_ZONES.has(zone) && ctx.rand() < DEAD_TREE_CHANCE[zone] * 0.4
@@ -4333,7 +4422,7 @@ function paveMeadowRoutes(ctx: ArchetypeContext, plan: RoutePlan, water: Set<str
  *  a colour, not a tile) from the near edge inward, lined with colourful flower beds + lamp posts (the lit
  *  cobble way in #24). Clears any framing tree/prop off the lane first, so the way in is always a clean
  *  opening. */
-/** The meadow's ways out: its cobble lane, its beds, its lamps, on whichever edge each gate sits. */
+/** The meadow's pathways out: its cobble lane, its beds, its lamps, on whichever edge each gate sits. */
 function paintMeadowGateways(ctx: ArchetypeContext, plan: RoutePlan, water: ReadonlySet<string>, routes: Set<string>): void {
   const pal = MEADOW_PALETTES[ctx.zone] ?? MEADOW_PALETTES.summer
   paintGateways(ctx, plan, water, routes, { ground: 'meadow', paving: pal.cobble, flank: bedsAndLamps })
@@ -4408,21 +4497,34 @@ function paintMeadowPlots(ctx: ArchetypeContext, water: Set<string>): void {
     if (ground[row][col] !== 'meadow') return
     if (((Math.floor(col / MEADOW_PATCH) + Math.floor(row / MEADOW_PATCH)) & 1) === 0) return // only the alternate patches
     const base = floorColors[row][col] ?? pal.grass
-    floorColors[row][col] = lerpHex(base, pal.plot, 0.16) // faint, whole-patch tone
+    tintFloorCell(ctx, col, row, lerpHex(base, pal.plot, 0.16)) // faint, whole-patch tone
   })
 }
 
 // One cell of an ornament zone, dispatched by kind (Open/Closed: add a kind = add a row). Each reads a
 // clear meadow cell and either tints the floor (grass/earth) or stacks a sparse ornament prop on top.
+/**
+ * TINT A FLOOR CELL, unless a pathway is what is standing on it.
+ *
+ * *"objects are put in the free spaces that the map has after pathways and river has run"*. The objects phase
+ * runs after the ways are drawn now, so every tint it lays has to leave them alone. Measured the moment the
+ * meadow was split: its plot patchwork repainted straight over the cobble, and a way that was one colour all
+ * the way across came out in three.
+ */
+function tintFloorCell(ctx: ArchetypeContext, col: number, row: number, colour: string): void {
+  if (standsOnPathway(ctx, col, row)) return
+  ctx.floorColors[row][col] = colour
+}
+
 const MEADOW_ORNAMENT_CELL: Readonly<Record<MeadowOrnament, (ctx: ArchetypeContext, col: number, row: number, pal: MeadowPalette) => void>> = {
   flowers: (ctx, col, row) => { if (ctx.rand() < 0.7) placeProp(ctx, makeFlower(ctx.rand, ctx.zone, col, row)) },
   grass: (ctx, col, row, pal) => {
     const base = ctx.floorColors[row][col] ?? pal.grass
-    ctx.floorColors[row][col] = lerpHex(base, meadowTint(pal.grass, col, row), 0.3) // a gentle darker-green mottle, not a hard blob
+    tintFloorCell(ctx, col, row, lerpHex(base, meadowTint(pal.grass, col, row), 0.3)) // a gentle mottle, not a blob
   },
-  earth: (ctx, col, row, pal) => { ctx.floorColors[row][col] = mutedEarth(ctx, col, row, pal) },
+  earth: (ctx, col, row, pal) => { tintFloorCell(ctx, col, row, mutedEarth(ctx, col, row, pal)) },
   rock: (ctx, col, row, pal) => {
-    ctx.floorColors[row][col] = mutedEarth(ctx, col, row, pal) // bare earth under the rocks
+    tintFloorCell(ctx, col, row, mutedEarth(ctx, col, row, pal)) // bare earth under the rocks
     if (ctx.rand() < 0.22) placeProp(ctx, makeMeadowRock(ctx, col, row)) // a few LIGHT-grey field stones, sparse
   },
 }
@@ -4595,7 +4697,7 @@ function carveSpur(ctx: ArchetypeContext, from: Cell, to: Cell, water: Set<strin
   const tone = floorColors[to.row][to.col]
 
   const lane = new Set<string>()
-  const width = wayWidth(ctx)
+  const width = pathwayWidth(ctx)
   const widen = (col: number, row: number) => {
     for (let dc = 0; dc < width; dc++)
       for (let dr = 0; dr < width; dr++) lane.add(`${col + dc},${row + dr}`)
@@ -4758,6 +4860,7 @@ export function treeColumnClearsPaving(ground: string[][], col: number, baseRow:
 function stampTree(ctx: ArchetypeContext, baseCol: number, baseRow: number, dead = false): void {
   const { collision, zone, trees, cols, rows } = ctx
   if (!isLandCell(ctx, baseCol, baseRow)) return // land-only: no tree in water
+  if (standsOnPathway(ctx, baseCol, baseRow)) return // and no tree in a road
   const variant = randIntWith(ctx.rand, 0, canopyCount(styleCatalog('ascii'), zone) - 1) // this tree's canopy tone (green…pink)
   const kind = dead ? 'tree_dead' : pickLivingTree(ctx.rand(), ctx.treeMix) // random shape variant (standard/tall/small/round/bush)
   trees.push({ col: baseCol, row: baseRow, kind, variant })
@@ -4842,13 +4945,13 @@ function placeTemple(ctx: ArchetypeContext): void {
   })
   const wall = makeGrid(cols, rows, () => true)
 
-  // 2. Carve the ROOMS. With ways served they come FROM the plan (sanctum at its deepest point, chapels at the
+  // 2. Carve the ROOMS. With pathways served they come FROM the plan (sanctum at its deepest point, chapels at the
   //    other stops, the hall at the way in); without, the fixed list this always used.
   const plan = plannedRoutes(ctx)
   const rooms = plan ? templeRoomsFromPlan(ctx, plan) : templeRooms(cols, rows)
   rooms.forEach(room => carveTempleRoom(wall, room, cols, rows))
 
-  // 3. Wire them together. The planned ways ARE the halls when there are ways; otherwise the old corridors.
+  // 3. Wire them together. The planned pathways ARE the halls when there are pathways; otherwise the old corridors.
   if (plan) carveTempleWays(wall, plan, cols, rows)
   else connectTempleRooms(wall, rooms, cols, rows)
 
@@ -4893,7 +4996,7 @@ function placeTemple(ctx: ArchetypeContext): void {
 /** Lay out the dungeon rooms: a south ENTRANCE hall (spawn), a grand north BOSS chamber, and a
  *  row of pillared side HALLS across the middle band. Deterministic sizes, jittered positions. */
 /**
- * THE PLAN IS THE TEMPLE, once the generator says how many ways run through it.
+ * THE PLAN IS THE TEMPLE, once the generator says how many pathways run through it.
  *
  * The research: a Zelda dungeon is a spider (entrance, hub, legs, each leg ending somewhere worth reaching, the
  * boss locked off the hub), and WoW's lesson is that each of those places should look like somewhere rather than
@@ -4931,7 +5034,7 @@ function templeRoomsFromPlan(ctx: ArchetypeContext, plan: RoutePlan): TempleRoom
   return [sanctum, entrance, ...chapels]
 }
 
-/** The halls ARE the planned ways: carve the band the plan painted, never the border. */
+/** The halls ARE the planned pathways: carve the band the plan painted, never the border. */
 function carveTempleWays(wall: boolean[][], plan: RoutePlan, cols: number, rows: number): void {
   for (const key of plan.cells) {
     const { col, row } = toCell(key)
@@ -5215,7 +5318,7 @@ const ENTRANCE_HALF = 3 // → a 7-wide chamber
 const ENTRANCE_HEIGHT = 4
 
 /**
- * A CAVE IS A SPIDER, once the generator says how many ways run through it.
+ * A CAVE IS A SPIDER, once the generator says how many pathways run through it.
  *
  * The research was asked for says the same thing twice. A Zelda dungeon is a SPIDER: an entrance, a hub (the
  * body), legs off it, each leg ending somewhere worth reaching, the boss locked off the hub. The "1 exit and 3
@@ -5224,7 +5327,7 @@ const ENTRANCE_HEIGHT = 4
  * and opens along its length, which the plan's SPINE makes safe to do.
  *
  * What this used to be: one cellular-automata blob with a chamber cut into its south edge, and no notion of
- * where you came in or where you could go next. A generator that serves no ways still gets exactly that.
+ * where you came in or where you could go next. A generator that serves no pathways still gets exactly that.
  */
 const CAVE_HUB_RADIUS = [4, 6] as const
 const CAVE_STOP_RADIUS = [3, 4] as const
@@ -5233,7 +5336,7 @@ const CAVE_MOUTH_RADIUS = 2
 const CAVE_PINCH = 0.42
 
 /** A blobby chamber: a disc whose radius wobbles per cell, so it reads as a cave rather than a room. The border
- *  is never touched: a cave is enclosed, and its ways out are MOUTHS, not holes in the rock. */
+ *  is never touched: a cave is enclosed, and its pathways out are MOUTHS, not holes in the rock. */
 function carveCaveChamber(rock: boolean[][], centre: RouteCell, radius: number, cols: number, rows: number, rand: Rng, into: Set<string>): void {
   for (let r = centre.row - radius - 1; r <= centre.row + radius + 1; r++) {
     for (let c = centre.col - radius - 1; c <= centre.col + radius + 1; c++) {
@@ -5295,7 +5398,7 @@ function placeCave(ctx: ArchetypeContext): void {
   let chambers: ReadonlySet<string> = new Set<string>()
 
   if (plan) {
-    // 2. THE SPIDER, carved out of solid rock: chambers where you arrive, where the ways meet, and where each
+    // 2. THE SPIDER, carved out of solid rock: chambers where you arrive, where the pathways meet, and where each
     //    one ends; galleries between them.
     rock = makeGrid(cols, rows, () => true)
     chambers = carveCaveSpider(ctx, rock, plan)
@@ -5417,7 +5520,7 @@ function carveCavePools(ctx: ArchetypeContext, pal: CavePalette, entrance: Rect,
  *  painted only over existing floor cells. */
 /** A pool, and the cells it must not touch.
  *
- * `keepOut` is how a CHAMBER stays dry: the hub is where the ways meet and a stop is the room at the end of
+ * `keepOut` is how a CHAMBER stays dry: the hub is where the pathways meet and a stop is the room at the end of
  * one, and a room you arrive in should not be a lake. Measured before this existed: ten of the twenty five
  * cells around the hub came out as water. The temple's own pool has the same discipline in the other
  * direction, staying strictly inside its room so it cannot seal a doorway. */
@@ -5752,7 +5855,7 @@ function placeBossAnchor(ctx: ArchetypeContext, arena: Rect): void {
   collision[row][col] = true
 }
 
-/** Just inside the entrance: the way in is where you start. Null when this map planned no ways, or when the cell
+/** Just inside the entrance: the way in is where you start. Null when this map planned no pathways, or when the cell
  *  ended up blocked anyway, and then the old chain picks the spawn. */
 function routeSpawn(ctx: ArchetypeContext): { col: number; row: number } | null {
   const inside = ctx.routes?.entrance.inside

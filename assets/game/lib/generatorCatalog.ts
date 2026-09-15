@@ -248,7 +248,7 @@ export interface GeneratorConfig {
   subZones?: readonly GeneratorSubZone[]
   /** How this template distributes its trees. Absent → the generator's own default grouping. */
   formation?: GeneratorFormation
-  /** What this template's ways are made of. Absent → the engine's own plain track. */
+  /** What this template's pathways are made of. Absent → the engine's own plain track. */
   pathway?: GeneratorPathway
   /**
    * WHICH trees grow here. Absent → the global weighted table every template used to share.

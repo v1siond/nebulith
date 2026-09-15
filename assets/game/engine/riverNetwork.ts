@@ -53,15 +53,15 @@ export type { Cell } from './grid'
  *      reaches ~40 along col and 3 along row at every one of its cells, so the whole band answers "col",
  *      cross-section included. This is what makes the `-------` come out level.
  *
- *   2. THE SIGN — of the two ways along that axis, which is downstream? That is a fact about the channel as a
+ *   2. THE SIGN — of the two pathways along that axis, which is downstream? That is a fact about the channel as a
  *      WHOLE, so it comes from a distance field, not from a neighbour. BFS from an EXTREMITY of the reach
  *      makes the distance climb monotonically from one end to the other, so "downstream = the neighbour that
  *      is farther" agrees everywhere. The extremity is found with the standard double sweep (BFS from any
  *      cell, take the farthest; BFS again from that one), which lands on a true end of the reach rather than
- *      the middle. Seeding in the middle would give a spring flowing out both ways.
+ *      the middle. Seeding in the middle would give a spring flowing out both pathways.
  *
  * A RING IS THE ONE CASE A DISTANCE FIELD CANNOT ANSWER, and it is the case it drew (image #9, a river going
- * around the map). Distance from any seed on a ring climbs BOTH ways and the two halves collide at the far
+ * around the map). Distance from any seed on a ring climbs BOTH pathways and the two halves collide at the far
  * side. A ring does not have an upstream, it CIRCULATES, so it gets the other rule: turn the vector from the
  * ring's middle to the cell by ninety degrees and follow that around. Which rule applies is decided exactly,
  * not by a threshold: the water is a ring when it encircles dry land (`encirclesDryLand`).
@@ -106,7 +106,7 @@ function waterComponents(water: ReadonlySet<string>): Set<string>[] {
   return out
 }
 
-/** How many cells of water lie in a straight line through this one, counting both ways along (dc,dr). */
+/** How many cells of water lie in a straight line through this one, counting both pathways along (dc,dr). */
 function runThrough(water: ReadonlySet<string>, col: number, row: number, dc: number, dr: number): number {
   let n = 1
   for (let s = 1; s <= RUN_REACH && water.has(flowKey(col + dc * s, row + dr * s)); s++) n++
@@ -394,11 +394,11 @@ export function waterBand(depth: number): WaterBand {
 
 /** A watercourse running edge to edge through the map — the jungle's creek, and the `through` and `divides`
  *  rivers. The draw order is unchanged when nothing is forced, so the jungle's creek is byte-identical. */
-// TRIED, MEASURED, AND NOT KEPT: turning the channel to CROSS the planned ways.
+// TRIED, MEASURED, AND NOT KEPT: turning the channel to CROSS the planned pathways.
 //
-// The ways ARE planned before a drop of water is carved, and the channel ignores them, so a river can
+// The pathways ARE planned before a drop of water is carved, and the channel ignores them, so a river can
 // come out lying along a way for its whole length and every cell of the overlap gets planked. That is the
-// The obvious version was to count which axis the ways mostly step along and run the channel across it. Built
+// The obvious version was to count which axis the pathways mostly step along and run the channel across it. Built
 // and measured, seed 5, `divides`, 2 exits and 2 pathways, counting the flat wooden deck cells on the map:
 //
 //     woodland 53 -> 42    meadow 65 -> 79    jungle 64 -> 82
@@ -450,7 +450,7 @@ export function carveChannel(ctx: RiverCarve, pal: GeneratorPalette | undefined,
 // ── the bank, and what crosses it ─────────────────────────────────────────
 // The shore a river leaves behind, and the decision of what spans it. Both are the river's business: a bank
 // is the edge of the water and a crossing is sized by how wide the water turned out to be, so keeping either
-// in the layouts is what let three templates answer the same question three ways.
+// in the layouts is what let three templates answer the same question three pathways.
 
 /**
  * WHERE TO PUT A CROSSING: the line near `want` where the water is NARROWEST.
@@ -988,7 +988,7 @@ function dryAreas(ctx: RiverSurface): Map<string, number> {
   return area
 }
 
-// ── the ways the water landed on ──────────────────────────────────────────
+// ── the pathways the water landed on ──────────────────────────────────────────
 // The paths are planned before a drop of water is carved, so a river can land ON one. Everything downstream
 // then treats those cells as "a way that happens to be wet" and planks them, which is how a bridge turns into
 // a causeway. This pass is the river admitting what it did to the road.
@@ -1021,10 +1021,10 @@ function bankLabels(bounds: RiverBounds, water: ReadonlySet<string>): Map<string
   return banks
 }
 
-/** The wet cells of `ways`, split into the separate puddles and stretches they form. */
-function wetStretches(ways: ReadonlySet<string>, water: ReadonlySet<string>): Set<string>[] {
+/** The wet cells of `pathways`, split into the separate puddles and stretches they form. */
+function wetStretches(pathways: ReadonlySet<string>, water: ReadonlySet<string>): Set<string>[] {
   const wet = new Set<string>()
-  for (const key of ways) if (water.has(key)) wet.add(key)
+  for (const key of pathways) if (water.has(key)) wet.add(key)
   const seen = new Set<string>()
   const out: Set<string>[] = []
   for (const key of wet) {
@@ -1184,8 +1184,8 @@ function widenAcross(
  * KEEP THE CROSSING, DROP THE CAUSEWAY.
  *
  * And
- * The ways are planned on dry ground, then the river is carved over them, and every way cell that came out wet
- * was planked. On a map whose ways run the same direction as the channel that is a plank road down the middle
+ * The pathways are planned on dry ground, then the river is carved over them, and every way cell that came out wet
+ * was planked. On a map whose pathways run the same direction as the channel that is a plank road down the middle
  * of the river: measured on a woodland, 85 deck cells against 105 water cells, 28 columns wide.
  *
  * So the river narrows each wet stretch of the network back to what a crossing IS:
@@ -1199,15 +1199,15 @@ function widenAcross(
  * along the shortest path there was. Nothing downstream changes, the paving and the decking simply see a
  * network that no longer runs down the river.
  */
-export function narrowWaysToCrossings(
+export function narrowPathwaysToCrossings(
   bounds: RiverBounds,
-  ways: Set<string>,
+  pathways: Set<string>,
   water: ReadonlySet<string>,
 ): number {
   if (water.size === 0) return 0
   const banks = bankLabels(bounds, water)
   let dropped = 0
-  for (const stretch of wetStretches(ways, water)) {
+  for (const stretch of wetStretches(pathways, water)) {
     const shores = shoresOf(stretch, banks)
     const keep = new Set<string>()
     const reached = [...shores.keys()]
@@ -1237,7 +1237,7 @@ export function narrowWaysToCrossings(
     }
     for (const key of stretch) {
       if (keep.has(key)) continue
-      ways.delete(key)
+      pathways.delete(key)
       dropped++
     }
   }

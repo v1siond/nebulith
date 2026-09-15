@@ -142,7 +142,7 @@ describe('heading 0 is a heading, not a missing value', () => {
   })
 
   it('the two headings along one axis give the SAME line, opposite scroll', () => {
-    // +col and -col are one channel seen two ways: the waves lie the same, only the drift reverses. This is
+    // +col and -col are one channel seen two pathways: the waves lie the same, only the drift reverses. This is
     // why the render A/B showed K=1 and K=3 identical, and it is the invariant that makes the mapping safe.
     const o = { x: 0, y: 0 }, eA = { x: 32, y: -16 }, eB = { x: 32, y: 16 }
     // The angle MOD 180, because a line has no arrow. Taking |x|,|y| instead collapses the two diagonals

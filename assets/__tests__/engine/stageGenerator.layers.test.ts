@@ -145,11 +145,26 @@ function genSeeded(opts: Parameters<typeof generateStage>[0], seed: number): Sta
 // The blast radius is the proof the change is what it says: only the two archetypes that hold POOLS moved.
 // The three settlements place no water, and the forest's river is off by default, so all four are byte
 // identical. Any wider spread than this and the fix had reached something it should not have.
+// RELOCKED 2026-09-15, and the blast radius is again the proof.
+//
+// The MEADOW is the first variant split into the layer phases the backend serves: terrain paints the floor,
+// water carves the river, pathways draws the cobble ways, objects plants everything else. Two things follow
+// from the cut and both are the point of it:
+//
+//   · the ornaments and the framing trees now run AFTER the ways, so they go ROUND them. They used to run
+//     first and a sweep pulled whatever landed in the road back out afterwards, which only works while the
+//     planting happens before the ways exist.
+//   · nothing tints a cell a way is standing on. Measured the moment the split landed: the plot patchwork
+//     repainted over the cobble and a way that is one colour all the way across came out in three.
+//
+// Only `forest` moves. The three settlements, the cave, the temple and the boss stage are byte identical,
+// because none of them is split yet. Any wider spread than this and the change had reached something it
+// should not have.
 const BASELINE: Record<string, string> = {
   'town|autumn|40x40|1': 'affafaf3',
   'town|summer|50x40|7': '9c0fd03a',
   'city|summer|56x44|3': 'b8a0077c',
-  'forest|summer|30x24|42': '99a9427a',
+  'forest|summer|30x24|42': '18b10cd1',
   'cave|autumn|40x30|99': '94c7579b',
   'temple|winter|36x30|5': 'c6258d72',
   'boss-stage|winter|36x30|11': 'e081dcd4',
@@ -195,11 +210,11 @@ describe('generateStage — settlement layer passes are independent + seedable',
 
   it('the engine runs whatever layers the backend serves, in the order it serves them', () => {
     installGenerationLayers(served(
-      { key: 'ways', position: 10 },
+      { key: 'pathways', position: 10 },
       { key: 'layout', position: 20 },
       { key: 'fog', position: 30 },
     ))
-    expect(layerIds()).toEqual(['ways', 'layout', 'fog'])
+    expect(layerIds()).toEqual(['pathways', 'layout', 'fog'])
   })
 
   it('takes as many layers as the backend cares to serve', () => {
@@ -212,10 +227,10 @@ describe('generateStage — settlement layer passes are independent + seedable',
   it('orders by POSITION, not by the order the rows happen to arrive in', () => {
     installGenerationLayers(served(
       { key: 'units', position: 60 },
-      { key: 'ways', position: 10 },
+      { key: 'pathways', position: 10 },
       { key: 'nature', position: 40 },
     ))
-    expect(layerIds()).toEqual(['ways', 'nature', 'units'])
+    expect(layerIds()).toEqual(['pathways', 'nature', 'units'])
   })
 
   it('serves nothing → the engine names no layers, and never falls back to a list of its own', () => {
@@ -227,11 +242,11 @@ describe('generateStage — settlement layer passes are independent + seedable',
   // not offer is a re-roll nobody can reach; one the panel offers and the engine cannot roll is a dead button.
   it('every seedable layer the backend serves has a row in the panel, in the same order', () => {
     installGenerationLayers(served(
-      { key: 'ways', label: 'Ways', position: 10 },
+      { key: 'pathways', label: 'Pathways', position: 10 },
       { key: 'gates', label: 'Gates', position: 15, seedable: false },
       { key: 'fog', label: 'Fog', position: 20 },
     ))
-    expect(generatorLayers().map(l => l.id)).toEqual(['ways', 'fog'])
+    expect(generatorLayers().map(l => l.id)).toEqual(['pathways', 'fog'])
     for (const l of generatorLayers()) {
       expect(l.label.trim()).not.toBe('')
       expect(l.hint.trim()).not.toBe('')

@@ -51,7 +51,7 @@ describe.each(CASES)('$cat $layout', c => {
     for (const e of stamped) expect(e.kind).toBe(served)
   })
 
-  it.each([1, 2, 3, 4])('puts exactly one at each of its %i ways out', exits => {
+  it.each([1, 2, 3, 4])('puts exactly one at each of its %i pathways out', exits => {
     const s = build(c, exits)
     expect(entrances(s)).toHaveLength(s.routes!.gates.length)
   })

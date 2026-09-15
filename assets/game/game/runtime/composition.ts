@@ -163,7 +163,7 @@ export function compositionCellRender(comp: Composition, cell: CompositionCell, 
     // rotateFootprintOffset applied to the cell's offset).
     depth: cs?.depth,
     depthDir: cs?.depthDir ? rotateDepthDir(cs.depthDir, rotation) : undefined,
-    depthBack: cs?.depthBack, // BIDIRECTIONAL z-width (#58): a composition cell can span BOTH ways from its anchor
+    depthBack: cs?.depthBack, // BIDIRECTIONAL z-width (#58): a composition cell can span BOTH pathways from its anchor
                               // → one roof tile instead of a row (the "optimize tiles usage AGAIN" win)
     depthPerp: cs?.depthPerp, // 2-AXIS z-width ("two sides at the same time"): + the PERPENDICULAR extents, so a
     depthPerpBack: cs?.depthPerpBack, // composition cell covers a RECTANGLE (a 2×2 roof deck authored as 1 tile)

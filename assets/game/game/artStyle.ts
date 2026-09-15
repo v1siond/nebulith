@@ -55,7 +55,7 @@ export type ElementKind =
 
 // The finer tile taxonomy (11 buckets, backend-owned). Order matches the Library sidebar layout.
 // `buildings` was split into its structural pieces: walls / windows / doors / roofs. Ground splits into
-// terrain (natural) / roads (paved ways) / floors (constructed interior). props = furniture/anchors, decor
+// terrain (natural) / roads (paved pathways) / floors (constructed interior). props = furniture/anchors, decor
 // = small ground detail. The DATA value is always one of these strings; the UI shows prettier labels.
 export type TileCategory =
   | 'terrain' | 'roads' | 'floors'

@@ -5,7 +5,7 @@
  * Bush rustle + Preview / Apply) was a dead authoring path — it wrote asset.cellAnim via the old
  * frame-preset flow and was superseded by the real per-asset TileAnimationEditor modal. It's gone.
  *
- * These tests lock the removal two ways:
+ * These tests lock the removal two pathways:
  *   1. STRUCTURE — the real animation entry (the Animation row, which opens TileAnimationEditor on the
  *      first click) still renders on an asset tile, and the dead preset controls never render.
  *   2. SOURCE GUARD — the page source no longer carries the preset card markup or its exclusive wiring,

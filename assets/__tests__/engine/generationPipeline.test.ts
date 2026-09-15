@@ -31,16 +31,16 @@ const fresh = (): Ctx => ({ log: [], cells: 0 })
 describe('the runner', () => {
   it('runs every layer once, in the order the list gives', () => {
     const ctx = fresh()
-    runLayers([step('ways'), step('terrain'), step('edge'), step('gates')], ctx, { seed: 1 })
-    expect(ctx.log).toEqual(['ways', 'terrain', 'edge', 'gates'])
+    runLayers([step('pathways'), step('terrain'), step('edge'), step('gates')], ctx, { seed: 1 })
+    expect(ctx.log).toEqual(['pathways', 'terrain', 'edge', 'gates'])
   })
 
   it('takes a NEW layer without changing: appended, it runs in place', () => {
     const ctx = fresh()
     // shadow, lighting, fog, reprocess, water reflection — this is the shape each of them arrives in.
-    const stack = [step('ways'), step('terrain'), step('shadow'), step('fog'), step('reflection')]
+    const stack = [step('pathways'), step('terrain'), step('shadow'), step('fog'), step('reflection')]
     runLayers(stack, ctx, { seed: 1 })
-    expect(ctx.log).toEqual(['ways', 'terrain', 'shadow', 'fog', 'reflection'])
+    expect(ctx.log).toEqual(['pathways', 'terrain', 'shadow', 'fog', 'reflection'])
   })
 
   it('hands every layer the same context and the same seeds', () => {
@@ -65,17 +65,17 @@ describe('a layer that has nothing to do', () => {
       when: () => false,
       run: c => { c.cells += 10_000; c.log.push('water') }, // would touch every cell
     }
-    runLayers([step('ways'), expensive, step('terrain')], ctx, { seed: 1 })
+    runLayers([step('pathways'), expensive, step('terrain')], ctx, { seed: 1 })
 
-    expect(ctx.log).toEqual(['ways', 'terrain'])
+    expect(ctx.log).toEqual(['pathways', 'terrain'])
     expect(ctx.cells).toBe(0) // it never started, so it never counted a single cell
   })
 
   it('still appears in the readout, marked as not run, so a skip is visible rather than silent', () => {
-    const timings = runLayers([step('ways'), { name: 'fog', when: () => false, run: () => {} }], fresh(), { seed: 1 })
-    expect(timings.map(t => t.name)).toEqual(['ways', 'fog'])
+    const timings = runLayers([step('pathways'), { name: 'fog', when: () => false, run: () => {} }], fresh(), { seed: 1 })
+    expect(timings.map(t => t.name)).toEqual(['pathways', 'fog'])
     expect(timings.find(t => t.name === 'fog')).toMatchObject({ ran: false, ms: 0 })
-    expect(timings.find(t => t.name === 'ways')?.ran).toBe(true)
+    expect(timings.find(t => t.name === 'pathways')?.ran).toBe(true)
   })
 
   it('runs when its guard says so', () => {
@@ -87,8 +87,8 @@ describe('a layer that has nothing to do', () => {
 
 describe('what a layer cost', () => {
   it('is published for the last generate, one entry per layer, in order', () => {
-    runLayers([step('ways'), step('terrain'), step('gates')], fresh(), { seed: 1 })
-    expect(stageLayerTimings().map(t => t.name)).toEqual(['ways', 'terrain', 'gates'])
+    runLayers([step('pathways'), step('terrain'), step('gates')], fresh(), { seed: 1 })
+    expect(stageLayerTimings().map(t => t.name)).toEqual(['pathways', 'terrain', 'gates'])
     for (const t of stageLayerTimings()) expect(t.ms).toBeGreaterThanOrEqual(0)
   })
 

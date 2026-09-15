@@ -298,12 +298,12 @@ export function demandedBuildings(rng: Rng, tuning: Tuning): BuildingType[] {
  * *"pathways size must apply to the streets distribution logic, in fact, they're rendundant, street is just a
  * form of pathway"* (2026-09-14). A street IS a pathway, so the count is not this file's to invent.
  *
- * `pathways` is what the ways layer settled, and `gates` is where it put the holes in the border. A gate on the
+ * `pathways` is what the pathways layer settled, and `gates` is where it put the holes in the border. A gate on the
  * left or right edge is met by a street ACROSS the map at its row; one on the top or bottom by a street DOWN
  * the map at its column. That is how a town's exits end up ON its streets instead of beside them.
  */
 export interface StreetPlan {
-  /** How many streets this place has, full stop. The pathway count from the ways layer. */
+  /** How many streets this place has, full stop. The pathway count from the pathways layer. */
   pathways: number
   /** Where each planned gate sits: its side, and the row (left/right) or column (top/bottom) it is centred on. */
   gates: readonly { side: Side; at: number }[]
@@ -324,12 +324,12 @@ interface StreetLines {
  *
  * A settlement laid a FIXED grid: town 3 by 3, city 5 by 6, whatever was asked for. Measured on his 40x40 town
  * asked for 2 streets: 3 across plus 3 down, **6 streets**, and the option had never once changed one. The
- * count was planned by the ways layer, written onto the stage, and this function read a constant instead. Same
+ * count was planned by the pathways layer, written onto the stage, and this function read a constant instead. Same
  * shape as `houseWidths` and `natureMultiplier` before it: the data arrived and a local default won.
  *
  * With a plan, the gates are served first (a street ends at each way out) and the rest are spread evenly,
  * alternating axes so four streets read as a grid rather than four parallel roads. Without one, the old grid
- * stands, which keeps a generator that serves no ways building exactly the map it always did.
+ * stands, which keeps a generator that serves no pathways building exactly the map it always did.
  */
 function streetGrid(cols: number, rows: number, settlement: Settlement, tuning: Tuning, plan?: StreetPlan): StreetLines {
   const room = { rows: streetsAlong(rows, tuning.roadWidth), cols: streetsAlong(cols, tuning.roadWidth) }
@@ -388,7 +388,7 @@ function streetsAlong(span: number, roadWidth: number): number {
 /**
  * HOW MANY STREETS A SETTLEMENT THIS SIZE CAN HOLD, both axes together.
  *
- * The ways layer needs this to bound what it plans, or it promises more pathways than the planner can lay and
+ * The pathways layer needs this to bound what it plans, or it promises more pathways than the planner can lay and
  * a town ends up with a corridor that is not a street. `pathwayCeiling` is the general estimate, measured in
  * path widths; this is the real number, measured in BLOCKS, which is what a settlement is made of.
  */

@@ -2,7 +2,7 @@
  * A ROTATED COMPOSITION MUST TURN ITS CELLS AND ITS DIRECTIONS THE SAME WAY.
  *
  * A cell's POSITION inside a composition is turned by `rotateFootprintOffset`; the directions it carries
- * (which way it spans, which way it is thin) by `rotateDepthDir`. If those two turn opposite ways, a bridge
+ * (which way it spans, which way it is thin) by `rotateDepthDir`. If those two turn opposite pathways, a bridge
  * rail authored flush with the OUTER edge of the deck comes out flush with the inner one, and a bridge is the
  * only place anyone would notice.
  *

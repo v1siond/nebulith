@@ -1,9 +1,9 @@
 /**
  * A CAVE IS A SPIDER.
  *
- * So: a mouth where you come in, a chamber where the ways meet, a chamber where each way ENDS, and galleries
+ * So: a mouth where you come in, a chamber where the pathways meet, a chamber where each way ENDS, and galleries
  * between them that pinch and open. The old cave was one blob with a hole in its south edge, and a generator
- * that serves no ways still gets exactly that, which the last case here pins.
+ * that serves no pathways still gets exactly that, which the last case here pins.
  */
 import '@/__tests__/helpers/installTilesetSeed'
 import { generateStage, type StageData } from '@/engine/stageGenerator'
@@ -13,11 +13,11 @@ const COLS = 40
 const ROWS = 30
 const key = (c: { col: number; row: number }) => `${c.col},${c.row}`
 
-function cave(ways: Record<string, string> | undefined, seed = 7): StageData {
+function cave(pathways: Record<string, string> | undefined, seed = 7): StageData {
   const orig = Math.random
   Math.random = makeRng(seed)
   try {
-    return generateStage({ zone: 'summer', variant: 'cave', cols: COLS, rows: ROWS, options: ways })
+    return generateStage({ zone: 'summer', variant: 'cave', cols: COLS, rows: ROWS, options: pathways })
   } finally {
     Math.random = orig
   }
@@ -52,7 +52,7 @@ function openAround(s: StageData, at: { col: number; row: number }, r: number): 
   return n
 }
 
-describe('a cave built from its ways', () => {
+describe('a cave built from its pathways', () => {
   it('plans them, and every way is a place you can stand', () => {
     for (let seed = 1; seed <= 6; seed++) {
       const s = cave({ exits: '1', pathways: '3' }, seed)
@@ -67,7 +67,7 @@ describe('a cave built from its ways', () => {
     }
   })
 
-  it('opens a CHAMBER where the ways meet and where each one ends', () => {
+  it('opens a CHAMBER where the pathways meet and where each one ends', () => {
     const s = cave({ exits: '2', pathways: '4' })
     // a 3-wide gallery gives at most ~21 open cells in a 5x5 window; a chamber fills it
     expect(openAround(s, s.routes!.hub, 2)).toBeGreaterThan(21)
@@ -77,7 +77,7 @@ describe('a cave built from its ways', () => {
   // A way out is a MOUTH, not a hole in the rock, and not the whole edge falling away either. This used to
   // assert the border was solid EVERYWHERE, which is exactly what stopped the `exits` option doing anything:
   // a cave had 0 of 156 border cells walkable, so there was no way out at all. The rule is solid everywhere
-  // EXCEPT at the gates the ways planned.
+  // EXCEPT at the gates the pathways planned.
   it('keeps the border sealed except at its gates, which are mouths you can walk out of', () => {
     const s = cave({ exits: '4', pathways: '4' })
     const gateCells = new Set(s.routes!.gates.flatMap(g => g.cells.map(c => `${c.col},${c.row}`)))
@@ -91,7 +91,7 @@ describe('a cave built from its ways', () => {
         if (!gateCells.has(`${col},${row}`)) openOffGate++
       }
     }
-    expect(openOffGate).toBe(0) // the rock holds everywhere the ways did not ask for a mouth
+    expect(openOffGate).toBe(0) // the rock holds everywhere the pathways did not ask for a mouth
 
     // every gate is open, and so is the cell just inside it, so the mouth is joined to the cave
     for (const gate of s.routes!.gates) {
@@ -116,10 +116,10 @@ describe('a cave built from its ways', () => {
     expect(widths.size).toBeGreaterThan(1) // not one uniform corridor
   })
 
-  it('is still ONE place, whatever the ways', () => {
-    for (const ways of [{ exits: '1', pathways: '1' }, { exits: '2', pathways: '3' }, { exits: '4', pathways: '4' }]) {
+  it('is still ONE place, whatever the pathways', () => {
+    for (const pathways of [{ exits: '1', pathways: '1' }, { exits: '2', pathways: '3' }, { exits: '4', pathways: '4' }]) {
       for (let seed = 1; seed <= 4; seed++) {
-        const s = cave(ways, seed)
+        const s = cave(pathways, seed)
         const walkable = s.collision.flat().filter(c => !c).length
         expect(reach(s).size).toBe(walkable)
       }
@@ -127,7 +127,7 @@ describe('a cave built from its ways', () => {
   })
 })
 
-describe('a cave that serves no ways is the cave it always was', () => {
+describe('a cave that serves no pathways is the cave it always was', () => {
   it('still carves its cellular cavern, enclosed and connected', () => {
     const s = cave(undefined)
     expect(s.routes).toBeNull()

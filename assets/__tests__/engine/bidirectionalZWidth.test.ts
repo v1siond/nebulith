@@ -32,7 +32,7 @@ describe('normalizeDepthSpan — bidirectional span folds to a one-way span', ()
 })
 
 describe('assetRectExtents — model → ±col/±row grid extents', () => {
-  test('two perpendicular sides (right-down + left-down) → a rectangle both ways', () => {
+  test('two perpendicular sides (right-down + left-down) → a rectangle both pathways', () => {
     expect(assetRectExtents({ depthDir: 'right-down', depth: 4, depthPerp: 2 })).toEqual({ colMinus: 0, colPlus: 3, rowMinus: 0, rowPlus: 2 })
   })
   test('back extents land on the opposite sides', () => {

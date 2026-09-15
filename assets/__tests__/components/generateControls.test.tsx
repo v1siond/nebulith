@@ -161,7 +161,7 @@ describe('picking is not building — §4.6\'s "why did my map just vanish" trap
     build()
     const [firstOfOther] = categoryLayouts(CATALOG, other.key)
     // The options sent are that kind of place's OWN defaults, not the ones the previous pick carried. A town
-    // serves ways now, so it sends its own `random` ways rather than the empty map this used to expect: what
+    // serves pathways now, so it sends its own `random` pathways rather than the empty map this used to expect: what
     // matters is that nothing came ACROSS from the kind of place clicked before.
     const [, , layout, options] = onGenerate.mock.calls[onGenerate.mock.calls.length - 1]
     expect(layout).toBe(firstOfOther.id)
@@ -341,9 +341,9 @@ describe('rebuild ONE part, keep the rest', () => {
   // up without anyone editing this file.
   const SERVED = {
     generationLayers: [
-      { key: 'ways', label: 'Ways', hint: 'the exits and the paths between them', position: 10, seedable: true },
+      { key: 'pathways', label: 'Pathways', hint: 'the exits and the paths between them', position: 10, seedable: true },
       { key: 'layout', label: 'Layout', hint: 'the bare shape', position: 20, seedable: true },
-      { key: 'gates', label: 'Gates', hint: 'follows the ways', position: 25, seedable: false },
+      { key: 'gates', label: 'Gates', hint: 'follows the pathways', position: 25, seedable: false },
       { key: 'fog', label: 'Fog', hint: 'a fog pass', position: 30, seedable: true },
     ],
   }

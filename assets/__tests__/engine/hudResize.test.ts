@@ -3,7 +3,7 @@
  *
  * That describes anchor maths, not a sign error. A piece pinned to the BOTTOM keeps its bottom edge where
  * it is, so growing its height pushes the TOP up — and the grip, drawn at the bottom-right, sits still under
- * the cursor while the piece grows away from it. On a centre anchor the piece grows both ways at once, so
+ * the cursor while the piece grows away from it. On a centre anchor the piece grows both pathways at once, so
  * the grip tracks at half speed. Only a top-left pinned piece ever behaved.
  */
 import { hudGripCorner, hudResize } from '@/engine/hudLayout'
@@ -36,7 +36,7 @@ describe('the grip follows the cursor', () => {
     expect(hudResize(piece({ a: 'BC' }), 0, 20)).toEqual({ w: 200, h: 80 })
   })
 
-  it('bottom-centre pinned: horizontally it grows BOTH ways, so the right edge still tracks 1:1', () => {
+  it('bottom-centre pinned: horizontally it grows BOTH pathways, so the right edge still tracks 1:1', () => {
     // originX 0.5 → the piece widens by 2 for every 1 the right edge moves.
     expect(hudResize(piece({ a: 'BC' }), 15, 0)).toEqual({ w: 230, h: 100 })
   })

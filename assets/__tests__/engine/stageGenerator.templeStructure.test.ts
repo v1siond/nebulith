@@ -2,7 +2,7 @@
  * A TEMPLE BUILT FROM ITS WAYS, and a lock with a key you can reach.
  *
  * The sanctum takes the plan's deepest place, the chapels take the other stops, the hall takes the way in, and
- * the halls between them are the planned ways. The invariant that makes a lock-and-key dungeon solvable at all
+ * the halls between them are the planned pathways. The invariant that makes a lock-and-key dungeon solvable at all
  * is pinned here directly: the key must be reachable WITHOUT crossing the gate it opens.
  */
 import '@/__tests__/helpers/installTilesetSeed'
@@ -13,11 +13,11 @@ const COLS = 40
 const ROWS = 30
 const key = (c: { col: number; row: number }) => `${c.col},${c.row}`
 
-function temple(ways: Record<string, string> | undefined, seed = 7): StageData {
+function temple(pathways: Record<string, string> | undefined, seed = 7): StageData {
   const orig = Math.random
   Math.random = makeRng(seed)
   try {
-    return generateStage({ zone: 'summer', variant: 'temple', cols: COLS, rows: ROWS, options: ways })
+    return generateStage({ zone: 'summer', variant: 'temple', cols: COLS, rows: ROWS, options: pathways })
   } finally {
     Math.random = orig
   }
@@ -41,8 +41,8 @@ function reach(s: StageData, from: { col: number; row: number }, blocked = new S
   return seen
 }
 
-describe('a temple built from its ways', () => {
-  it('puts the altar in the north half however the ways fall', () => {
+describe('a temple built from its pathways', () => {
+  it('puts the altar in the north half however the pathways fall', () => {
     for (let seed = 1; seed <= 8; seed++) {
       const s = temple({ exits: '2', pathways: '4' }, seed)
       const altars = s.props.filter(p => p.type === 'altar')
@@ -89,7 +89,7 @@ describe('a temple built from its ways', () => {
   })
 
   // The border is walled EXCEPT at the gates. It used to be asserted walled everywhere, which is what made
-  // "seal the map border so the dungeon is fully enclosed" erase every exit the ways had planned.
+  // "seal the map border so the dungeon is fully enclosed" erase every exit the pathways had planned.
   it('keeps the border walled except at its gates, and the floor between an eighth and two thirds of the map', () => {
     const s = temple({ exits: '4', pathways: '4' })
     const gateCells = new Set(s.routes!.gates.flatMap(g => g.cells.map(c => `${c.col},${c.row}`)))
@@ -106,7 +106,7 @@ describe('a temple built from its ways', () => {
   })
 })
 
-describe('a temple that serves no ways is the temple it always was', () => {
+describe('a temple that serves no pathways is the temple it always was', () => {
   it('still builds its fixed rooms, with the altar north and one connected floor', () => {
     const s = temple(undefined)
     expect(s.routes).toBeNull()

@@ -8,13 +8,13 @@
  * WHAT WAS THERE, measured on a 40x40 before any of this:
  *
  *   · a woodland trail swapped the ground for the flat floor tile and tinted it;
- *   · a meadow and a jungle did not even do that, their ways were the SAME `meadow` ground as the field
+ *   · a meadow and a jungle did not even do that, their pathways were the SAME `meadow` ground as the field
  *     beside them wearing a different colour;
  *   · every template was 3 cells across, because the width was `WOODLAND.pathWidth`, a constant in the
  *     engine read at five places that cut a way.
  *
  * So a rainforest machete trail, a clifftop path above a beach and a four lane seafront street were one
- * rectangle in three colours. These cases pin the opposite: that the difference between two templates' ways
+ * rectangle in three colours. These cases pin the opposite: that the difference between two templates' pathways
  * is real, comes from the backend, and survives being built.
  */
 import '@/__tests__/helpers/installTilesetSeed'
@@ -72,7 +72,7 @@ const TEMPLATES = [
   'forest_jungle', 'forest_jungle_swamp', 'forest_jungle_island', 'town_small', 'town_beach', 'city_modern',
 ]
 
-describe('every template lays its ways in the material the backend serves', () => {
+describe('every template lays its pathways in the material the backend serves', () => {
   for (const key of TEMPLATES) {
     it(`${key} paves with its own surface`, () => {
       const surface = pathwayOf(key)?.surface

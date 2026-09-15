@@ -18,7 +18,7 @@ import { type UiBar, type UiBarSlot, saveBars, uiActions, uiProfile } from '@/ga
  * Spec: `2026-09-06-ui-system-spec-and-plan.md` §2.7, tab 3.
  */
 
-/** The ways a bar can be gated, in the requirement. `null` = always up. */
+/** The pathways a bar can be gated, in the requirement. `null` = always up. */
 const WHEN_OPTIONS: ReadonlyArray<{ value: string; label: string }> = [
   { value: 'always', label: 'Always' },
   { value: 'filled', label: 'Once something is in it' },

@@ -313,7 +313,7 @@ export function depthCells(col: number, row: number, depth: number, dir: DepthDi
 /** Normalize a BIDIRECTIONAL span (anchor + `depth` ahead along `dir`, plus `depthBack` behind it) into the
  *  one-way span every depth fn already understands: the anchor moves BACK `depthBack` cells along −dir and the
  *  depth grows to depthBack+depth. depthBack ≤ 0 → anchor + depth unchanged (today's one-way span, byte-identical).
- * So authoring can z-width BOTH ways while depthCells / isoDepthBox / spanBackmost / the depth
+ * So authoring can z-width BOTH pathways while depthCells / isoDepthBox / spanBackmost / the depth
  *  sort keep their single "anchor is the start, depth runs along dir" contract untouched. Pure, unit-tested. */
 export function normalizeDepthSpan(col: number, row: number, depth: number | undefined, depthBack: number | undefined, dir: DepthDir): { col: number; row: number; depth: number } {
   const b = Math.max(0, Math.floor(depthBack ?? 0))

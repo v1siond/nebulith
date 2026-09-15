@@ -95,9 +95,9 @@ describe('the shared control body — a unit uses the SAME settings UX as a tile
   })
 
   // The NAME, the SIZE and the STATS all live in the Character window now. What is left in this
-  // section is the ways OUT to the big editors (inventory, quests, attacks), which are real windows of their
+  // section is the pathways OUT to the big editors (inventory, quests, attacks), which are real windows of their
   // own rather than a button behind a button.
-  it('renders the unit-only section a tile never gets: the ways out to the big editors', () => {
+  it('renders the unit-only section a tile never gets: the pathways out to the big editors', () => {
     render(<><TileControls tile={makeUnitTile()} /><UnitSettingsSection unit={makeUnit()} /></>)
     expect(screen.getByRole('button', { name: /Inventory/ })).toBeInTheDocument()
     expect(screen.queryByLabelText('Entity name')).toBeNull() // it is in the Character window

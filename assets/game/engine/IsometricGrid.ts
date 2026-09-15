@@ -69,7 +69,7 @@ export interface GridAsset {
   depthDir?: DepthDir   // Which iso diagonal the depth extrudes along: right-up/left-up/left-down/right-down.
   depthBack?: number    // BIDIRECTIONAL z-width: EXTRA blocks the box extends the OPPOSITE way
                         // from `depthDir` (backward from the anchor). Default 0 = today's one-way span. So one
-                        // tile z-widths BOTH ways (`depthBack` behind + `depth` ahead) — a 4-cell roof → 1 tile.
+                        // tile z-widths BOTH pathways (`depthBack` behind + `depth` ahead) — a 4-cell roof → 1 tile.
                         // Normalized to a one-way span (anchor − depthBack·step, total depth depthBack+depth) so
                         // every depth fn (depthCells/isoDepthBox/spanBackmost/the sort) keeps working. ISO view.
   depthPerp?: number    // 2-AXIS z-width: cells the box ALSO spans along

@@ -57,7 +57,7 @@ describe('stackAt, the y stack position', () => {
     expect(cellStackTop(grid, 1, 1)).toBe(1)
   })
 
-  it('a per-instance value beats the tile row, both ways', () => {
+  it('a per-instance value beats the tile row, both pathways', () => {
     expect(cellStackTop(cellWith('thicket', { settings: { stackAt: 0 } }), 1, 1)).toBe(0)
     expect(cellStackTop(cellWith('flower', { height: 1, settings: { stackAt: 1 } }), 1, 1)).toBe(1)
   })

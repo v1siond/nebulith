@@ -7,7 +7,7 @@
  * Measured before the fix, across 5 generators × 4 exits × 4 pathways × 3 seeds, 240 builds: **204 did not
  * carry the number of exits asked for.** A cave and a temple had **0 of 156 border cells walkable**, so there
  * was no way out at all and the `exits` option had never once changed a map. Two passes were the reason, both
- * running AFTER the ways were planned: the temple's *"seal the map border so the dungeon is fully enclosed"*
+ * running AFTER the pathways were planned: the temple's *"seal the map border so the dungeon is fully enclosed"*
  * walls the whole ring, and every cave carve is guarded with `!isEdge(...)` so it stops one cell short.
  *
  * `openGates` cuts them as a LAYER in `generateStage`, after the archetype has sealed whatever it seals, so no
@@ -84,7 +84,7 @@ function openBorderCells(stage: StageData): number {
 }
 
 describe.each(ENCLOSED)('$gen, a map with a real border', c => {
-  // A pathway spends one or two exits, so E <= 2P is the planner's own rule and 1 pathway cannot carry 4 ways
+  // A pathway spends one or two exits, so E <= 2P is the planner's own rule and 1 pathway cannot carry 4 pathways
   // out. Only the combinations the model actually allows are asserted; the rest are the UI offering something
   // the model forbids, which is its own ticket.
   const allowed: Array<[number, number]> = []
@@ -110,10 +110,10 @@ describe.each(ENCLOSED)('$gen, a map with a real border', c => {
   it('every reachable hole in the border belongs to a way, none of it is somewhere else', () => {
     const stage = build(c, 2, 2, 7)
     const { collision, cols, rows, spawn } = stage
-    const onWay = new Set<string>(stage.routes!.cells)
+    const onPathway = new Set<string>(stage.routes!.cells)
     for (const g of stage.routes!.gates) {
-      onWay.add(`${g.inside.col},${g.inside.row}`)
-      for (const cell of g.cells) onWay.add(`${cell.col},${cell.row}`)
+      onPathway.add(`${g.inside.col},${g.inside.row}`)
+      for (const cell of g.cells) onPathway.add(`${cell.col},${cell.row}`)
     }
     const seen = new Set<string>()
     const st: Array<[number, number]> = [[spawn!.col, spawn!.row]]
@@ -128,7 +128,7 @@ describe.each(ENCLOSED)('$gen, a map with a real border', c => {
     const strays = [...seen].filter(k => {
       const [col, row] = k.split(',').map(Number)
       const border = col === 0 || row === 0 || col === cols - 1 || row === rows - 1
-      return border && !onWay.has(k)
+      return border && !onPathway.has(k)
     })
     expect(strays).toEqual([])
   })
@@ -228,11 +228,11 @@ describe('the border shows exactly the openings that were asked for', () => {
  * or whatever"* (2026-09-14), after he found that *"pathways is good in forests ... is not working on towns
  * nor cities"*.
  *
- * Measured then: a 50x50 town had 196 of 196 border cells walkable and read 4 ways out whatever was asked for,
+ * Measured then: a 50x50 town had 196 of 196 border cells walkable and read 4 pathways out whatever was asked for,
  * exactly as a forest did before its treeline. Its generator also served NO way options at all, so there was
  * nothing to ask for in the first place.
  */
-describe('a town and a city carry their ways like everything else', () => {
+describe('a town and a city carry their pathways like everything else', () => {
   const SETTLEMENTS = ['town', 'city'] as const
 
   function settle(variant: (typeof SETTLEMENTS)[number], exits: number, pathways: number, seed: number): StageData {
@@ -254,7 +254,7 @@ describe('a town and a city carry their ways like everything else', () => {
   }
 
   describe.each(SETTLEMENTS)('%s', variant => {
-    it.each([1, 2, 3, 4])('carries the %i ways out it was asked for', exits => {
+    it.each([1, 2, 3, 4])('carries the %i pathways out it was asked for', exits => {
       for (const seed of [3, 7, 11]) {
         expect(reachableSides(settle(variant, exits, 3, seed)).size).toBe(exits)
       }
@@ -262,7 +262,7 @@ describe('a town and a city carry their ways like everything else', () => {
 
     it('closes the rest of its border: it was 196 of 196 open', () => {
       const open = walkableBorder(settle(variant, 2, 3, 7))
-      expect(open).toBeGreaterThan(0)   // the ways are still there
+      expect(open).toBeGreaterThan(0)   // the pathways are still there
       expect(open).toBeLessThan(40)     // …and the rest of the edge is not
     })
 
