@@ -107,6 +107,12 @@ export function rotateFootprintOffset(dx: number, dy: number, w: number, h: numb
   return { dx: cur.dx, dy: cur.dy }
 }
 
+/** A composition's AUTHORED footprint, before any rotation. Null when the tileset is not loaded, which every
+ *  caller must read as "no footprint", never as a default size. */
+export function compositionFootprint(kind: string): { w: number; h: number } | null {
+  return resolveComposition(styleCatalog('ascii'), kind)?.footprint ?? null
+}
+
 /** The on-grid footprint (w×h) of a building composition once rotated to `facing`. East/west swap the
  *  south footprint's axes (length↔depth). Null when the composition isn't loaded. */
 export function buildingFootprint(kind: string, facing: Facing): { w: number; h: number } | null {

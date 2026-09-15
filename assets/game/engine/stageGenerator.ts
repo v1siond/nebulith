@@ -10,7 +10,7 @@
  */
 import { styleCatalog, styleTile } from '@/engine/tileset/styleTiles'
 import { type BuildingType } from './buildingTypes'
-import { buildingCompositionKind, buildingDoorOffset, facingRotation, isRoadGround, rotateFootprintOffset } from './buildingCatalog'
+import { buildingCompositionKind, buildingDoorOffset, compositionFootprint, facingRotation, isRoadGround, rotateFootprintOffset } from './buildingCatalog'
 import { composedKind } from '@/lib/buildingSizes'
 import { type BuildingSizes, type SettlementTuning, planVillage, streetRoom, type VillageLayout, type Settlement, type Plot, type Facing, type PlazaRect, type StreetPlan } from './villageLayout'
 // The planner is pure: it takes the building sizes rather than reading them. They come from the BACKEND
@@ -1860,12 +1860,37 @@ function stampEntrances(ctx: ArchetypeContext): void {
   const kind = ctx.entrance
   if (!kind) return
   for (const gate of plan.gates) {
-    // The MIDDLE of the gate's edge cells: the entrance is authored around its own middle cell.
     const middle = gate.cells[Math.floor(gate.cells.length / 2)]
     if (!middle || !inBounds(middle.col, middle.row, ctx.cols, ctx.rows)) continue
     clearForEntrance(ctx, gate)
-    ctx.compositions.push({ kind, col: middle.col, row: middle.row, variant: 0, rotation: ENTRANCE_TURN[gate.side] })
+    const rotation = ENTRANCE_TURN[gate.side]
+    const at = entranceAnchor(kind, middle, rotation)
+    ctx.compositions.push({ kind, col: at.col, row: at.row, variant: 0, rotation })
   }
+}
+
+/**
+ * WHERE AN ENTRANCE IS ANCHORED SO ITS MOUTH LANDS ON THE MIDDLE OF THE PATHWAY.
+ *
+ * *"please make sure the proposal is located in the actual cetner of the pathway"* (2026-09-14).
+ *
+ * A composition's anchor is its TOP-LEFT, not its middle, and this used to place the anchor ON the gate's
+ * middle cell. A 3-wide entrance therefore started at the middle and ran off one cell past the pathway, so it
+ * sat a cell to the side of the way out on every gate. The old comment said it was "authored around its own
+ * middle cell", which is what a composition anchor is not.
+ *
+ * The cell that must land on the middle of the pathway is the MOUTH: the middle of the authored front edge,
+ * `(floor((w-1)/2), 0)` south-facing. Rotating that offset and subtracting it puts the mouth on the gate
+ * whichever side the gate is on, because the same turn is applied to the cells themselves.
+ *
+ * No footprint loaded means no size to reason about, so the anchor stays where it was rather than inventing
+ * one, the same rule the settlement planner follows for a building with no served size.
+ */
+function entranceAnchor(kind: string, middle: RouteCell, rotation: number): RouteCell {
+  const foot = compositionFootprint(kind)
+  if (!foot) return middle
+  const mouth = rotateFootprintOffset(Math.floor((foot.w - 1) / 2), 0, foot.w, foot.h, rotation)
+  return { col: middle.col - mouth.dx, row: middle.row - mouth.dy }
 }
 
 /**
