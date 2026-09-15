@@ -887,6 +887,14 @@ interface ArchetypeContext {
   pools: Set<string>
   /** The walkable bank the water layer left along its edge, which the pathways layer routes to. */
   banks: Set<string>
+  /** A settlement's street and plot plan, made by its pathways phase and built on by its objects phase. */
+  villageLayout?: VillageLayout
+  /** A cave's mouth, cut by terrain and reopened by pathways after the walls went in. */
+  caveEntrance?: Rect
+  /** A cave's chambers, so the water phase knows which floor it may flood. */
+  caveChambers?: ReadonlySet<string>
+  /** A temple's rooms, cut by terrain and dressed by objects. */
+  templeRooms?: TempleRoom[]
   /** The species this template grows. A jungle is not a meadow with more trees in it. */
   treeMix?: readonly GeneratorTreeWeight[]
   /** What a river is crossed on, by kind (`config.crossings`), picked by the `bridge` option. */
@@ -943,19 +951,23 @@ interface VariantPhases {
   objects?: (ctx: ArchetypeContext, rngs: LayerRngs) => void
 }
 
-const BUILD: Partial<Record<VariantId, VariantPhases>> = {
-  town: { terrain: placeTown },
-  city: { terrain: placeCity },
+// BUILT LAZILY, so a phase object declared further down the file can still be in it. A `const` table would
+// have to sit below every phase it names, which puts the shape of the whole generator at the bottom.
+const buildFor = (variant: VariantId): VariantPhases | undefined => BUILD()[variant]
+
+const BUILD = (): Partial<Record<VariantId, VariantPhases>> => ({
+  town: settlementPhases('town'),
+  city: settlementPhases('city'),
   forest: {
     terrain: placeForest,
     water: (ctx, rngs) => forestPhases(ctx)?.water?.(ctx, rngs),
     pathways: (ctx, rngs) => forestPhases(ctx)?.pathways?.(ctx, rngs),
     objects: (ctx, rngs) => forestPhases(ctx)?.objects?.(ctx, rngs),
   },
-  temple: { terrain: placeTemple },
-  cave: { terrain: placeCave },
-  'boss-stage': { terrain: placeBossStage },
-}
+  temple: templePhases,
+  cave: cavePhases,
+  'boss-stage': bossStagePhases,
+})
 
 
 // ── the floor is a colour ────────────────────────────────────────────────
@@ -1079,21 +1091,23 @@ export function blankStage(zone: ZoneId, cols: number, rows: number): StageData 
  * optional `when` guard, and a `run`. `runLayers` does not change, and neither does anything above.
  */
 const STAGE_LAYERS: ReadonlyArray<StageLayer<ArchetypeContext, LayerRngs>> = [
-  // THE PLAN for the pathways, which `terrain` builds around. It sits ahead of terrain because every archetype
-  // reads `ctx.routes` while it builds, and THAT is the inversion still to fix: the model says water is laid
-  // first and the pathways adapt to what it left, so this belongs inside `pathways` once water is its own
-  // layer. Marked rather than moved, because moving it changes every map and that is his call to see.
+  // THE PLAN: how many exits the map has and where its pathways run, as a skeleton.
+  //
+  // It is drawn in the `pathways` layer below, AFTER the water, which is the order he asked for. The plan
+  // itself is made here because the two INTERIORS carve their terrain out of it: a cave's tunnels and a
+  // temple's corridors ARE its pathways, so their rock has to know where the ways go before there is any rock.
+  // Nothing outdoors reads it during `terrain` any more.
   { name: 'pathways:plan', run: (ctx, rngs) => { planPathways(ctx, rngs.pathways) } },
 
   // TERRAIN: the grid's ground, by zone, region and season. Still carries WATER and OBJECTS inside it,
   // because each archetype paints, floods and plants in one pass. Splitting those three apart is the work
   // this list is being straightened out for.
-  { name: 'terrain', run: (ctx, rngs) => BUILD[ctx.variant]?.terrain(ctx, rngs) },
+  { name: 'terrain', run: (ctx, rngs) => buildFor(ctx.variant)?.terrain(ctx, rngs) },
 
   // WATER, laid before the pathways because it is what they go around: *"we should have water go first, because
   // then the pathway can footprint the actual navigable layout, including potentially using bridges"*. Empty
   // for every variant that still carves its own inside `terrain`; they move across one at a time.
-  { name: 'water', when: ctx => !!BUILD[ctx.variant]?.water, run: (ctx, rngs) => BUILD[ctx.variant]?.water?.(ctx, rngs) },
+  { name: 'water', when: ctx => !!buildFor(ctx.variant)?.water, run: (ctx, rngs) => buildFor(ctx.variant)?.water?.(ctx, rngs) },
 
   // PATHWAYS: the map's STRUCTURE. *"what the pathways determine is the map structure, what is a pathway,
   // what is a section to put objects, what are the exits, how's the pathway draw"*.
@@ -1108,9 +1122,9 @@ const STAGE_LAYERS: ReadonlyArray<StageLayer<ArchetypeContext, LayerRngs>> = [
     // plan was served, and gating the whole layer on `ctx.routes` skipped it: measured, zero lamp posts and
     // no entrance at all on a plain generate. The GATE steps keep their own check, because a gate needs a
     // plan to be cut from; the variant's own way-drawing does not.
-    when: ctx => !!ctx.routes || !!BUILD[ctx.variant]?.pathways,
+    when: ctx => !!ctx.routes || !!buildFor(ctx.variant)?.pathways,
     run: (ctx, rngs) => {
-      BUILD[ctx.variant]?.pathways?.(ctx, rngs) // where this variant's pathways actually run
+      buildFor(ctx.variant)?.pathways?.(ctx, rngs) // where this variant's pathways actually run
       // AND THE GROUND THEY TOOK IS SPOKEN FOR, so the objects layer chooses from what is genuinely left.
       //
       // Without this the canopy still CHOSE pathway cells (it scores every plantable cell and takes the
@@ -1134,9 +1148,9 @@ const STAGE_LAYERS: ReadonlyArray<StageLayer<ArchetypeContext, LayerRngs>> = [
     name: 'objects',
     // Same as pathways: a map with no served plan is still dressed. Only the two steps that dress a GATE
     // need one.
-    when: ctx => !!ctx.routes || !!BUILD[ctx.variant]?.objects,
+    when: ctx => !!ctx.routes || !!buildFor(ctx.variant)?.objects,
     run: (ctx, rngs) => {
-      BUILD[ctx.variant]?.objects?.(ctx, rngs) // everything this variant plants and builds
+      buildFor(ctx.variant)?.objects?.(ctx, rngs) // everything this variant plants and builds
       if (!ctx.routes) return
       // THE BORDER IS BLOCKED WITH OBJECTS, which is what an edge IS: *"edge is part of objects, we just used
       // it to determine how to block towns borders with objects with the exception of pathway exits...so for
@@ -1153,10 +1167,10 @@ const STAGE_LAYERS: ReadonlyArray<StageLayer<ArchetypeContext, LayerRngs>> = [
     },
   },
 
-  // TERRAIN, FINISHED. Both of these are terrain steps and they run here because they have to see the built
-  // map: the flatten swaps a textured ground for the flat tile keeping its colour, and the transitions blend
-  // the shorelines over whatever ended up painted. They fold into `terrain` when water and objects come out
-  // of it and the phases can be ordered properly.
+  // TERRAIN, FINISHED. Both of these are terrain steps and both have to see the BUILT map: the flatten swaps
+  // a textured ground for the flat tile keeping its colour, and the transitions blend the shorelines over
+  // whatever ended up painted. A shoreline cannot be drawn before the thing it borders exists, so this is the
+  // terrain layer's last word rather than a layer of its own.
   { name: 'terrain:finish', run: ctx => { flattenFloors(ctx, FLOOR_MATERIALS[ctx.variant]?.(ctx) ?? []); addTerrainTransitions(ctx) } },
 ]
 
@@ -1232,12 +1246,6 @@ export function generateStage(opts: GenerateOptions): StageData {
 const NATURE_MULT: Record<Settlement, number> = { town: 1.15, city: 0.4 }
 
 // Hoisted function decls (not const arrows) so the BUILD table above can reference them.
-function placeTown(ctx: ArchetypeContext, rngs: LayerRngs): void {
-  placeSettlement(ctx, 'town', rngs)
-}
-function placeCity(ctx: ArchetypeContext, rngs: LayerRngs): void {
-  placeSettlement(ctx, 'city', rngs)
-}
 
 /**
  * Compose a settlement from independent, SEEDABLE layer passes (GENERATION-SPEC §"layer passes"):
@@ -1247,11 +1255,50 @@ function placeCity(ctx: ArchetypeContext, rngs: LayerRngs): void {
  * buildings reserve plots, and decor paves the plaza BEFORE nature plants, so no tree lands on the
  * square — the same order this generator always ran, just named + separable now.
  */
-function placeSettlement(ctx: ArchetypeContext, settlement: Settlement, rngs: LayerRngs): void {
-  const layout = layoutPass(withRand(ctx, rngs.layout), settlement)
-  buildingsPass(withRand(ctx, rngs.buildings), layout)
-  decorPass(withRand(ctx, rngs.decor), layout)
-  naturePass(withRand(ctx, rngs.nature), layout, settlement)
+/**
+ * A SETTLEMENT, IN PHASES. Its four passes already matched the layers almost exactly, so the cut is where
+ * they already were: the layout pass is the map's STRUCTURE, and buildings, decor and nature are objects.
+ *
+ * AND ITS RIVER IS FINALLY WIRED. `carveMapWater` was written and deliberately left out of the stack, with
+ * the measurement that said why: run after `terrain`, a 50x50 town came out severed (three exits asked for,
+ * two reachable sides) and with one to three BUILDINGS standing in the water. Both followed from the order,
+ * and the note ended *"His own stack puts water BEFORE the rest ... Moving it there is the next step"*. This
+ * is that step: water runs before the streets are planned and before anything is built, so the pathways
+ * footprint the navigable ground and no house lands in the channel.
+ */
+function settlementPhases(settlement: Settlement): VariantPhases {
+  return {
+    // The ground a settlement stands on is the season's, laid before any layer runs. Its own terrain work is
+    // the plaza and the street surfacing, which belong to the structure below.
+    terrain: () => {},
+
+    water: carveMapWater,
+
+    pathways: (ctx, rngs) => {
+      ctx.villageLayout = layoutPass(withRand(ctx, rngs.layout), settlement)
+    },
+
+    objects: (ctx, rngs) => {
+      const layout = ctx.villageLayout
+      if (!layout) return
+      buildingsPass(withRand(ctx, rngs.buildings), layout)
+      decorPass(withRand(ctx, rngs.decor), layout)
+      naturePass(withRand(ctx, rngs.nature), layout, settlement)
+      // AND GET ACROSS IT. A bridge is an object, and it is the first thing the objects phase owes the
+      // pathways: *"if you want to put actual tiles or objects specifically related to pathways, like a
+      // bridge to go over a river for example ... it'll still happen at the end of the process and can be the
+      // start of the objects phase"*.
+      const course = riverCourse(ctx, 'through')
+      if (!course || ctx.water.size === 0) return
+      bridgeRiver(ctx, ctx.water, ctx.pathwayCells, course, ctx.palette)
+
+      // AND THE TOWN IS ONE PLACE. A settlement had NO connectivity repair at all, which was harmless while it
+      // had no water: measured the moment the river was wired, a 50x50 town came out in up to four pieces with
+      // small pockets stranded behind the channel. The forests have answered this since they got rivers, with
+      // the same function and the same bound, and after the bridge so the deck is never filled back in.
+      repairFloorConnectivity(ctx, MEADOW_MAX_POCKET)
+    },
+  }
 }
 
 /**
@@ -1817,7 +1864,7 @@ function riverCourse(ctx: ArchetypeContext, legacy: RiverCourse): RiverCourse | 
 
 /** Carve the river along its course. `around` is the existing perimeter river; the other two are channels
  *  that cross the whole map, which is what makes them cross it or cut it. */
-function carveRiver(ctx: ArchetypeContext, course: RiverCourse, pal: GeneratorPalette | undefined, pathways?: RoutePlan | null): Set<string> {
+function carveRiver(ctx: ArchetypeContext, course: RiverCourse, pal: GeneratorPalette | undefined): Set<string> {
   if (course === 'around') {
     const water = paintMeadowRiver(ctx)
     // A template that serves its own water colour wears it here too, not the meadow's blue. THE TONE, FLAT:
@@ -1831,7 +1878,6 @@ function carveRiver(ctx: ArchetypeContext, course: RiverCourse, pal: GeneratorPa
   const water = course === 'divides'
     ? carveChannel(ctx, pal, { half: 2.3, swing: 0.05, horizontal: true })
     : carveChannel(ctx, pal, { half: 1.6, swing: 0.26 })
-  narrowPathways(ctx, pathways, water)
   return water
 }
 
@@ -1846,11 +1892,18 @@ function carveRiver(ctx: ArchetypeContext, course: RiverCourse, pal: GeneratorPa
  * The `around` course does not come through here on purpose: a perimeter river has the map's edge on one side,
  * so its "pathways" are the bridge it always had.
  */
-function narrowPathways(ctx: ArchetypeContext, pathways: RoutePlan | null | undefined, water: ReadonlySet<string>): void {
-  if (!pathways) return
-  narrowPathwaysToCrossings(ctx, pathways.cells, water)
-  narrowPathwaysToCrossings(ctx, pathways.spine, water)
-}
+/*
+ * THE PATHWAYS USED TO GIVE GROUND TO THE RIVER, and they no longer have to.
+ *
+ * `narrowPathways` ran inside `carveRiver`: the ways were drawn FIRST, so whatever stretch of one the channel
+ * landed on stopped being a way, except for the single crossing that kept both banks joined. It was the only
+ * way to reconcile the two while the river was cut after the roads.
+ *
+ * With water as its own layer that runs before them, the reconciling is not needed: *"we should have water go
+ * first, because then the pathway can footprint the actual navigable layout, including potentially using
+ * bridges. if we do water after, then we'd have to run pathways twice or separate it into more layers, we
+ * don't need nor want that"*. A pathway meets the water and is crossed, rather than being cut back from it.
+ */
 
 /**
  * Get across it, the way its course says. Several crossings make `through` traversable; exactly ONE makes
@@ -1977,10 +2030,10 @@ const EDGE_TREELINE = 2
 function carveMapWater(ctx: ArchetypeContext): void {
   const course = riverCourse(ctx, 'through')
   if (!course) return
-  const water = carveRiver(ctx, course, ctx.palette, ctx.routes)
-  if (water.size === 0) return
-  const routes = new Set<string>(ctx.routes?.cells ?? [])
-  bridgeRiver(ctx, water, routes, course, ctx.palette)
+  for (const key of carveRiver(ctx, course, ctx.palette)) {
+    ctx.water.add(key)
+    ctx.claimed.add(key)
+  }
 }
 
 /**
@@ -4934,65 +4987,50 @@ const TEMPLE_CORRIDOR_HALF = 1 // → 3-wide corridors (narrow dungeon halls, no
 
 const roomCentre = (room: Rect): Cell => ({ col: room.col + Math.floor(room.w / 2), row: room.row + Math.floor(room.h / 2) })
 
-function placeTemple(ctx: ArchetypeContext): void {
-  const { cols, rows, zone } = ctx
-  // Falls back to SUMMER's palette, as it always did — but by READING it, since the table is backend data
-  // now. No palette at all (the catalog has not answered) and there is nothing to draw a temple from.
-  const pal = templePalette(zone) ?? templePalette('summer')
-  if (!pal) { console.warn('[generate] no temple palette served — nothing built'); return }
+/**
+ * A TEMPLE, IN PHASES. Its corridors ARE its pathways, so carving the rooms and the ways between them is the
+ * structure, the masonry around them is terrain, and the altar, the pillars, the torches, the hazards and the
+ * gate are what is placed in it.
+ */
+const templePhases: VariantPhases = {
+  terrain: ctx => {
+    const { cols, rows, zone } = ctx
+    const pal = templePalette(zone) ?? templePalette('summer')
+    if (!pal) { console.warn('[generate] no temple palette served — nothing built'); return }
+    forEachCell(cols, rows, (col, row) => { ctx.ground[row][col] = pal.floor })
 
-  // 1. Repaint the whole ground to the seasonal temple floor; start fully walled (solid stone).
-  forEachCell(cols, rows, (col, row) => {
-    ctx.ground[row][col] = pal.floor
-  })
-  const wall = makeGrid(cols, rows, () => true)
+    const wall = makeGrid(cols, rows, () => true)
+    const plan = ctx.routes ?? null
+    const rooms = plan ? templeRoomsFromPlan(ctx, plan) : templeRooms(cols, rows)
+    rooms.forEach(room => carveTempleRoom(wall, room, cols, rows))
+    if (plan) carveTempleWays(wall, plan, cols, rows)
+    else connectTempleRooms(wall, rooms, cols, rows)
+    forEachCell(cols, rows, (col, row) => {
+      if (isEdge(col, row, cols, rows)) wall[row][col] = true
+    })
+    commitTempleWalls(ctx, wall, pal)
+    ctx.templeRooms = rooms
+  },
 
-  // 2. Carve the ROOMS. With pathways served they come FROM the plan (sanctum at its deepest point, chapels at the
-  //    other stops, the hall at the way in); without, the fixed list this always used.
-  const plan = plannedRoutes(ctx)
-  const rooms = plan ? templeRoomsFromPlan(ctx, plan) : templeRooms(cols, rows)
-  rooms.forEach(room => carveTempleRoom(wall, room, cols, rows))
+  objects: ctx => {
+    const pal = templePalette(ctx.zone) ?? templePalette('summer')
+    const rooms = ctx.templeRooms
+    if (!pal || !rooms) return
+    const plan = ctx.routes ?? null
+    const boss = rooms.find(r => r.role === 'boss')!
+    const entrance = rooms.find(r => r.role === 'entrance')!
 
-  // 3. Wire them together. The planned pathways ARE the halls when there are pathways; otherwise the old corridors.
-  if (plan) carveTempleWays(wall, plan, cols, rows)
-  else connectTempleRooms(wall, rooms, cols, rows)
-
-  // 4. Seal the map border so the dungeon is fully enclosed.
-  forEachCell(cols, rows, (col, row) => {
-    if (isEdge(col, row, cols, rows)) wall[row][col] = true
-  })
-
-  // 5. Commit the seasonal stone walls (blocking) over the negative space.
-  commitTempleWalls(ctx, wall, pal)
-
-  const boss = rooms.find(r => r.role === 'boss')!
-  const entrance = rooms.find(r => r.role === 'entrance')!
-
-  // 6. Ornate checker inlay over the room floors (the tiled temple look).
-  paintTempleInlay(ctx, rooms, pal)
-
-  // 7. Pillared halls — colonnades lining every room but the entrance (kept clear for spawn).
-  rooms.forEach(room => {
-    if (room.role !== 'entrance') placePillaredHall(ctx, room, pal)
-  })
-
-  // 8. The grand BOSS chamber: a central altar, flanking braziers, a pillar ring.
-  placeAltarChamber(ctx, boss, pal)
-
-  // 9. Wall torches lighting the halls.
-  placeTorches(ctx, rooms, pal)
-
-  // 10. Seasonal HAZARDS — spike traps on room floors + water/ice/lava/sand-trap pools (kept out
-  //     of the entrance + boss chambers so the critical path is never gated).
-  placeTempleHazards(ctx, rooms, pal, plan?.cells ?? new Set())
-
-  // 11. Guarantee ONE connected floor — fill any pocket a blocking pool stranded with wall.
-  repairTempleFloor(ctx, pal)
-
-  // 12. The narratively-locked GATEWAY (a walkable threshold) + its KEY. On a planned temple the gate sits on
-  //      the sanctum's own corridor and the key in a chapel, so the key is reachable WITHOUT crossing the gate.
-  if (plan) placeSanctumGate(ctx, boss, rooms, plan, pal)
-  else placeLockedDoorAndKey(ctx, boss, entrance, rooms, pal)
+    paintTempleInlay(ctx, rooms, pal)
+    rooms.forEach(room => {
+      if (room.role !== 'entrance') placePillaredHall(ctx, room, pal)
+    })
+    placeAltarChamber(ctx, boss, pal)
+    placeTorches(ctx, rooms, pal)
+    placeTempleHazards(ctx, rooms, pal, plan?.cells ?? new Set())
+    repairTempleFloor(ctx, pal)
+    if (plan) { placeSanctumGate(ctx, boss, rooms, plan, pal); return }
+    placeLockedDoorAndKey(ctx, boss, entrance, rooms, pal)
+  },
 }
 
 /** Lay out the dungeon rooms: a south ENTRANCE hall (spawn), a grand north BOSS chamber, and a
@@ -5383,67 +5421,58 @@ const mouthRect = (gate: Gate): Rect => ({
   h: CAVE_MOUTH_RADIUS * 2 + 1,
 })
 
-function placeCave(ctx: ArchetypeContext): void {
-  const { cols, rows, zone } = ctx
-  const pal = cavePalette(zone) ?? cavePalette('summer')
-  if (!pal) { console.warn('[generate] no cave palette served — nothing built'); return }
+/**
+ * A CAVE, IN PHASES. Its tunnels ARE its pathways, so the carve is the structure phase and the rock around it
+ * is terrain. An interior serves no river option, so its water is the pools its own palette asks for.
+ */
+const cavePhases: VariantPhases = {
+  terrain: ctx => {
+    const { cols, rows, zone } = ctx
+    const pal = cavePalette(zone) ?? cavePalette('summer')
+    if (!pal) { console.warn('[generate] no cave palette served — nothing built'); return }
+    forEachCell(cols, rows, (col, row) => { ctx.ground[row][col] = pal.floor })
 
-  // 1. Repaint the whole ground to the seasonal cave floor (walls cover their cells).
-  forEachCell(cols, rows, (col, row) => {
-    ctx.ground[row][col] = pal.floor
-  })
+    const plan = ctx.routes ?? null
+    let rock: boolean[][]
+    if (plan) {
+      rock = makeGrid(cols, rows, () => true)
+      ctx.caveChambers = carveCaveSpider(ctx, rock, plan)
+      ctx.caveEntrance = mouthRect(plan.entrance)
+    } else {
+      rock = makeGrid(cols, rows, () => Math.random() < CAVE_FILL)
+      for (let i = 0; i < CAVE_ITERATIONS; i++) rock = smoothCave(rock, cols, rows)
+      const cavern = keepLargestClearing(rock, cols, rows) // true = rock
+      ctx.caveEntrance = carveEntranceChamber(rock, cols, rows)
+      joinEntranceToCavern(rock, ctx.caveEntrance, cavern, cols, rows)
+    }
+    forEachCell(cols, rows, (col, row) => {
+      if (isEdge(col, row, cols, rows)) rock[row][col] = true
+    })
+    commitCaveWalls(ctx, rock, pal)
+  },
 
-  const plan = plannedRoutes(ctx)
-  let rock: boolean[][]
-  let entrance: Rect
-  // The rooms you stand in: the hub, every stop, every mouth. A pool belongs in the cavern AROUND them.
-  let chambers: ReadonlySet<string> = new Set<string>()
+  water: ctx => {
+    const pal = cavePalette(ctx.zone) ?? cavePalette('summer')
+    if (!pal || !ctx.caveEntrance) return
+    carveCavePools(ctx, pal, ctx.caveEntrance, ctx.caveChambers ?? new Set<string>())
+  },
 
-  if (plan) {
-    // 2. THE SPIDER, carved out of solid rock: chambers where you arrive, where the pathways meet, and where each
-    //    one ends; galleries between them.
-    rock = makeGrid(cols, rows, () => true)
-    chambers = carveCaveSpider(ctx, rock, plan)
-    entrance = mouthRect(plan.entrance)
-  } else {
-    // 2. CA cavern skeleton → keep ONE connected cavern (stray pockets fill back to rock).
-    rock = makeGrid(cols, rows, () => Math.random() < CAVE_FILL)
-    for (let i = 0; i < CAVE_ITERATIONS; i++) rock = smoothCave(rock, cols, rows)
-    const cavern = keepLargestClearing(rock, cols, rows) // true = rock
+  pathways: ctx => {
+    const pal = cavePalette(ctx.zone) ?? cavePalette('summer')
+    if (!pal || !ctx.caveEntrance) return
+    if (ctx.routes) keepSpineOpen(ctx, ctx.routes, pal)
+    reopenCaveEntrance(ctx, pal, ctx.caveEntrance)
+    repairCaveFloor(ctx, pal)
+  },
 
-    // 3. Carve the south entrance chamber and join it to the cavern with a wide corridor.
-    entrance = carveEntranceChamber(rock, cols, rows)
-    joinEntranceToCavern(rock, entrance, cavern, cols, rows)
-  }
-
-  // 4. Seal the map border so the cavern is fully ENCLOSED (the CA can leave stray
-  //    open border cells; force them rock — the interior floor is repaired below).
-  forEachCell(cols, rows, (col, row) => {
-    if (isEdge(col, row, cols, rows)) rock[row][col] = true
-  })
-
-  // 5. Commit the seasonal rock walls (blocking) over the negative space.
-  commitCaveWalls(ctx, rock, pal)
-
-  // 6. Seasonal water / ice / lava pools in the cavern (kept north of the entrance).
-  carveCavePools(ctx, pal, entrance, chambers)
-
-  // 6b. A pool never cuts a gallery. The same rule the forests got: where a planned way meets water the way
-  //     wins (there it is planked, here the cave simply does not flood its own corridor).
-  if (plan) keepSpineOpen(ctx, plan, pal)
-
-  // 7. Guarantee ONE connected floor — but RE-OPEN the way in first. A pool can land across the corridor
-  //    that joins the entrance chamber to the cavern, and the repair below keeps the LARGEST region, so the
-  //    severed entrance was the pocket it filled: ~3% of caves came out with no entrance at all. Reconnecting
-  //    before repairing means the entrance is part of the kept region by construction.
-  reopenCaveEntrance(ctx, pal, entrance)
-  repairCaveFloor(ctx, pal)
-
-  // 8. Populate: moss/leaf accents, crystal clusters, a mushroom patch, floor rubble.
-  paintFloorAccents(ctx, pal)
-  scatterCrystalClusters(ctx, pal)
-  if (pal.mushrooms) placeMushroomPatch(ctx, pal)
-  scatterCaveRubble(ctx, pal)
+  objects: ctx => {
+    const pal = cavePalette(ctx.zone) ?? cavePalette('summer')
+    if (!pal) return
+    paintFloorAccents(ctx, pal)
+    scatterCrystalClusters(ctx, pal)
+    if (pal.mushrooms) placeMushroomPatch(ctx, pal)
+    scatterCaveRubble(ctx, pal)
+  },
 }
 
 /** Carve the guaranteed south entrance chamber (a clear starting region just inside
@@ -5745,21 +5774,27 @@ function countRockNeighbours(rock: boolean[][], col: number, row: number, cols: 
 const ARENA_MARGIN = 3 // cells of wall between the arena and the grid edge
 const ARENA_CORRIDOR_WIDTH = 4
 
-function placeBossStage(ctx: ArchetypeContext): void {
-  const { cols, rows } = ctx
-  const arena = arenaRect(cols, rows)
+/**
+ * A BOSS STAGE, IN PHASES. The arena walls are terrain, the corridor in is the pathway, and the boss anchor
+ * and the dressing are objects.
+ */
+const bossStagePhases: VariantPhases = {
+  terrain: ctx => {
+    const { cols, rows } = ctx
+    const arena = arenaRect(cols, rows)
+    const wall = makeGrid(cols, rows, () => true)
+    openArena(wall, arena)
+    openEntranceCorridor(wall, arena, rows)
+    commitArenaWalls(ctx, wall)
+    paveArena(ctx, arena)
+  },
 
-  // LAYOUT FIRST: wall everything, open the central arena, drive an entrance
-  // corridor in from the south, then drop the single boss anchor.
-  const wall = makeGrid(cols, rows, () => true)
-  openArena(wall, arena)
-  openEntranceCorridor(wall, arena, rows)
-
-  commitArenaWalls(ctx, wall)
-  paveArena(ctx, arena)
-  placeBossAnchor(ctx, arena)
-  decorateArena(ctx, arena)
-  scatterGroundCover(ctx, 0.15) // light detail on any unpaved ground around the arena (skips stone)
+  objects: ctx => {
+    const arena = arenaRect(ctx.cols, ctx.rows)
+    placeBossAnchor(ctx, arena)
+    decorateArena(ctx, arena)
+    scatterGroundCover(ctx, 0.15) // light detail on any unpaved ground around the arena (skips stone)
+  },
 }
 
 /** Floor the open arena with ancient stone (reads as a built hall, not raw ground). */
