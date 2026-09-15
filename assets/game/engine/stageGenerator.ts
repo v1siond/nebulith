@@ -1996,6 +1996,18 @@ function clearForEntrance(ctx: ArchetypeContext, gate: Gate): void {
  * NEVER THE BORDER BAND. A tree there is holding the edge closed, and pulling one out would open a way nobody
  * asked for, which is the bug two layers above this one exists to prevent.
  */
+/**
+ * THE PROPS THAT GROW, and are therefore swept off a pathway.
+ *
+ * Only these. An altar, a key, a door, a brazier and a temple wall are STRUCTURE: a temple puts its altar and
+ * its key where the ways reach them ON PURPOSE, and clearing those broke three temple tests outright. A rock
+ * is left too, because a stone beside a track is scenery and the caves place them deliberately.
+ *
+ * So the rule is narrow by design: a path a bloom is growing out of is not a path, and a path with a locked
+ * door on it is a temple.
+ */
+const GROWS: ReadonlySet<string> = new Set(['flower', 'mushroom', 'ground_decor'])
+
 function clearPathSightlines(ctx: ArchetypeContext): void {
   const plan = ctx.routes
   if (!plan) return
@@ -2034,7 +2046,6 @@ function clearPathSightlines(ctx: ArchetypeContext): void {
   }
   if (mustSee.size === 0) return
   const kept = trees.filter(t => !mustSee.has(`${t.col},${t.row}`))
-  if (kept.length === trees.length) return
   const stillTreed = new Set(kept.map(t => `${t.col},${t.row}`))
   for (const t of trees) {
     const key = `${t.col},${t.row}`
@@ -2043,6 +2054,20 @@ function clearPathSightlines(ctx: ArchetypeContext): void {
   }
   trees.length = 0
   trees.push(...kept)
+
+  // AND THE UNDERGROWTH WITH THEM.
+  //
+  // *"we have trees in the pathway, we shouldn't have any trees in the pathway, just in grass or dirt zones,
+  // same with flowers"*. This cleared TREES only, so a way came out swept of trunks and still carrying
+  // flowers, mushrooms and tall grass down the middle of it. They are `props`, a different list, and nothing
+  // was ever taking them off a road.
+  //
+  // A path a bloom is growing out of is not a path. Same rule, same cells, one list further.
+  const { props } = ctx
+  const keptProps = props.filter(p => GROWS.has(p.type) === false || !mustSee.has(`${p.col},${p.row}`))
+  if (keptProps.length === props.length) return
+  props.length = 0
+  props.push(...keptProps)
 }
 
 /**
