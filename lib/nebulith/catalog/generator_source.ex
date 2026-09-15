@@ -673,7 +673,7 @@ defmodule Nebulith.Catalog.GeneratorSource do
         category: "forest", parent: "forest_woodland", key: "forest_woodland_beech", name: "Beech stand",
         layout: "woodland", position: 0,
         description: "Tall straight trunks at even spacing over a clear floor.",
-        config: %{"formation" => @formations["stand"], "nature" => %{"canopy" => 0.45},
+        config: %{"entrance" => "beech_entrance", "formation" => @formations["stand"], "nature" => %{"canopy" => 0.45},
                   "trees" => [%{"kind" => "tree_column", "weight" => 55}, %{"kind" => "tree_tall", "weight" => 25}, %{"kind" => "tree", "weight" => 20}]}
       },
       # image #15 — the floor is the hard part: deep undergrowth, a trail through it
@@ -688,7 +688,7 @@ defmodule Nebulith.Catalog.GeneratorSource do
         # Undergrowth has its OWN channel (`groundCover`), so the bushes move there where they belong and the
         # table is trees only. Real cover is 0.60 now, half again as much as plain woodland, and still under
         # the jungle's 0.62 so a dense wood does not out-thicket a rainforest.
-        config: %{"formation" => @formations["understory"], "nature" => %{"canopy" => 0.6, "groundCover" => 0.5},
+        config: %{"entrance" => "dense_woodland_entrance", "formation" => @formations["understory"], "nature" => %{"canopy" => 0.6, "groundCover" => 0.5},
                   "trees" => [%{"kind" => "tree_column", "weight" => 35}, %{"kind" => "tree_tall", "weight" => 28}, %{"kind" => "tree", "weight" => 20}, %{"kind" => "tree_big", "weight" => 10}, %{"kind" => "tree_sapling", "weight" => 7}]}
       },
       # image #12 — conifers in patches over an open hillside
@@ -696,7 +696,7 @@ defmodule Nebulith.Catalog.GeneratorSource do
         category: "forest", parent: "forest_woodland", key: "forest_woodland_mountain", name: "Mountain forest",
         layout: "woodland", position: 2,
         description: "Conifers over a hillside that actually climbs: ridges, slopes and sheltered vales.",
-        config: %{"formation" => @formations["clumped"], "nature" => %{"canopy" => 0.28},
+        config: %{"entrance" => "mountain_forest_entrance", "formation" => @formations["clumped"], "nature" => %{"canopy" => 0.28},
                   "subZones" => sub_zones(@mountain_sub_zones, %{"ridge" => 2, "slope" => 3, "vale" => 2}),
                   "trees" => [%{"kind" => "tree_conifer", "weight" => 70}, %{"kind" => "tree_tall", "weight" => 15}, %{"kind" => "tree_stub", "weight" => 15}]},
         options: @way_options ++ region_options(@mountain_sub_zones, ~w(ridge slope vale)) ++ @water_options
@@ -706,7 +706,7 @@ defmodule Nebulith.Catalog.GeneratorSource do
         category: "forest", parent: "forest_woodland", key: "forest_woodland_glades", name: "Woodland with meadows",
         layout: "woodland", position: 3,
         description: "Closed stands of trees with open meadow between them.",
-        config: %{"formation" => @formations["clumped"], "nature" => %{"canopy" => 0.4},
+        config: %{"entrance" => "glades_entrance", "formation" => @formations["clumped"], "nature" => %{"canopy" => 0.4},
                   "subZones" => sub_zones(@woodland_sub_zones, %{"stand" => 3, "meadow" => 2}),
                   "trees" => [%{"kind" => "tree", "weight" => 30}, %{"kind" => "tree_round", "weight" => 25}, %{"kind" => "tree_broadleaf", "weight" => 25}, %{"kind" => "tree_gnarled", "weight" => 20}]},
         options: @way_options ++ region_options(@woodland_sub_zones, ~w(stand meadow)) ++ @water_options
@@ -716,7 +716,7 @@ defmodule Nebulith.Catalog.GeneratorSource do
         category: "forest", parent: "forest_jungle", key: "forest_jungle_dense", name: "Super dense jungle",
         layout: "jungle", position: 0,
         description: "A closed canopy wall to wall, almost no open ground.",
-        config: %{"nature" => %{"canopy" => 0.72}, "subZones" => sub_zones(%{"dense" => 5, "open" => 1})},
+        config: %{"entrance" => "dense_jungle_entrance", "nature" => %{"canopy" => 0.72}, "subZones" => sub_zones(%{"dense" => 5, "open" => 1})},
         options: @way_options ++ region_options(~w(open dense)) ++ @water_options
       },
       # image #13 — cypress standing in the water
@@ -769,7 +769,7 @@ defmodule Nebulith.Catalog.GeneratorSource do
         category: "forest", parent: "forest_jungle", key: "forest_jungle_ruins", name: "Jungle ruins",
         layout: "jungle", position: 3,
         description: "Ruins the jungle has taken back.",
-        config: %{"subZones" => sub_zones(%{"ruins" => 5, "dense" => 2, "open" => 2})},
+        config: %{"entrance" => "jungle_ruins_entrance", "subZones" => sub_zones(%{"ruins" => 5, "dense" => 2, "open" => 2})},
         options: @way_options ++ region_options(~w(open dense ruins)) ++ @water_options
       },
       # image #10 — big lone trees wide apart on open grass
@@ -777,14 +777,14 @@ defmodule Nebulith.Catalog.GeneratorSource do
         category: "forest", parent: "forest_meadow", key: "forest_meadow_pasture", name: "Wood pasture",
         layout: "meadow", position: 0,
         description: "Big lone trees standing wide apart on open grass.",
-        config: %{"formation" => @formations["scattered"],
+        config: %{"entrance" => "wood_pasture_entrance", "formation" => @formations["scattered"],
                   "trees" => [%{"kind" => "tree_gnarled", "weight" => 60}, %{"kind" => "tree_broadleaf", "weight" => 25}, %{"kind" => "bush_round", "weight" => 15}]}
       },
       %{
         category: "forest", parent: "forest_meadow", key: "forest_meadow_open", name: "Open meadow",
         layout: "meadow", position: 1,
         description: "The open clearing, as it is.",
-        config: %{}
+        config: %{"entrance" => "open_meadow_entrance", }
       },
       # ── SETTLEMENTS, BUILT LIKE FORESTS ─────────────────────────────────────────────────────────────
       # and

@@ -3776,20 +3776,38 @@ defmodule Nebulith.Catalog.TileSource do
   """
   def seed_forest_entrances do
     for {name, opts} <- %{
-          # A WOODLAND: mid height, mid density, mushrooms on the verge.
+          # ── WOODLAND AND ITS STANDS ───────────────────────────────────────────────────────────────────
+          # The middle of the range: mid trunks, mid crowns, a brown gloom.
           "woodland_entrance" => [trunk: 0.5, tall: 3.4, crown: 1.35, density: 6, foot: "mushroom", gloom: "#2a2418", wet: 0],
-          # A JUNGLE: a tall dark tunnel. The trunks run to twice a woodland's and the crowns close overhead.
-          # A DEEP forest is DARK. The canopy closes and the light under it goes green black.
+          # A BEECH STAND: tall straight boles and an open floor. Little undergrowth, so the gloom is thin.
+          "beech_entrance" => [trunk: 0.38, tall: 5.6, crown: 1.5, density: 5, foot: "mushroom", gloom: "#3b3324", wet: 0],
+          # DENSE WOODLAND: packed trunks, and the way through is genuinely hard to see into.
+          "dense_woodland_entrance" => [trunk: 0.56, tall: 4.2, crown: 1.6, density: 10, foot: "mushroom", gloom: "#191509", wet: 0],
+          # WOODLAND WITH MEADOWS: the stand opens out, so the way keeps its light.
+          "glades_entrance" => [trunk: 0.45, tall: 3.0, crown: 1.2, density: 4, foot: "bouquet", gloom: "#4a4230", wet: 0],
+          # MOUNTAIN FOREST: thin tall conifers, stone at the feet, a cold gloom.
+          "mountain_forest_entrance" => [trunk: 0.34, tall: 6.4, crown: 1.1, density: 7, foot: "rock", gloom: "#232a2a", wet: 0],
+
+          # ── JUNGLE AND ITS DEPTHS ─────────────────────────────────────────────────────────────────────
+          # Tall, wide crowned, and wet underfoot.
           "jungle_entrance" => [trunk: 0.62, tall: 9.5, crown: 2.6, density: 10, foot: "mushroom", gloom: "#060c07", wet: 1],
-          # A MEADOW: open and sunny. Short, sparse, and blooms on the verge instead of fungus.
-          # A MEADOW is the opposite: open, and the light that reaches the floor is warm.
-          "meadow_entrance" => [trunk: 0.4, tall: 2.4, crown: 1.05, density: 4, foot: "bouquet", gloom: "#3a3426", wet: 0],
-          # A SWAMP: squat and thick, closing in low.
-          # A SWAMP is dark AND wet: standing water either side of the way through.
+          # SUPER DENSE JUNGLE: the darkest way out in the game. You cannot see where it goes at all.
+          "dense_jungle_entrance" => [trunk: 0.7, tall: 11.0, crown: 3.0, density: 10, foot: "mushroom", gloom: "#020603", wet: 2],
+          # ISLAND JUNGLE: palms over pale sand. The one whose way out is BRIGHT, because an island edge opens
+          # onto glare rather than shade.
+          "island_entrance" => [trunk: 0.42, tall: 4.6, crown: 1.25, density: 5, foot: "bouquet", gloom: "#8a7f5e", wet: 2],
+          # JUNGLE RUINS: stone standing among the trees, so the feet are rock and the gloom is stony.
+          "jungle_ruins_entrance" => [trunk: 0.55, tall: 7.5, crown: 2.2, density: 8, foot: "rock", gloom: "#101610", wet: 1],
+          # SWAMP JUNGLE: squat, thick, standing in water.
           "swamp_entrance" => [trunk: 0.72, tall: 2.6, crown: 1.3, density: 9, foot: "red-mushroom", gloom: "#0a110d", wet: 3],
-          # AN ISLAND: palms, a bright sand mouth rather than a dark one, shells at the way through. Its
-          # threshold is the one that is LIGHT, because an island edge opens onto glare, not onto shade.
-          "island_entrance" => [trunk: 0.42, tall: 4.6, crown: 1.25, density: 5, foot: "bouquet", gloom: "#4a4233", wet: 2]
+
+          # ── MEADOW AND ITS OPEN GROUND ────────────────────────────────────────────────────────────────
+          # Short and sparse, blooms at the feet, barely any gloom at all.
+          "meadow_entrance" => [trunk: 0.4, tall: 2.4, crown: 1.05, density: 4, foot: "bouquet", gloom: "#3a3426", wet: 0],
+          # OPEN MEADOW: the brightest way out. Almost no trees, so the way is plain to see.
+          "open_meadow_entrance" => [trunk: 0.36, tall: 2.0, crown: 0.9, density: 2, foot: "flower", gloom: "#6b6446", wet: 0],
+          # WOOD PASTURE: a few BIG scattered trees over open grass, which is the opposite of dense woodland.
+          "wood_pasture_entrance" => [trunk: 0.6, tall: 5.0, crown: 2.2, density: 3, foot: "bouquet", gloom: "#4f4634", wet: 0]
         } do
       {:ok, _} =
         Nebulith.Catalog.upsert_composition_with_cells(
