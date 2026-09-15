@@ -3742,152 +3742,150 @@ defmodule Nebulith.Catalog.TileSource do
 
   # A FOREST ENTRANCE IS A CORRIDOR, NOT A GATEWAY.
   #
-  # Measured off his own reference (`references/sheets/dense-forest-dark-entrance.webp`), the path is 0.25 of
-  # the picture and foliage is 0.41 of it. The first attempt was two trees beside a two-cell path stub, about
-  # 0.05 path and 0.15 foliage on mostly empty grass, which is why *"none look like part of pathways"*.
-  #
-  # So: the PATH is the spine and runs the full depth, three cells wide, which is `WOODLAND.pathWidth`, so it
-  # continues the pathway it sits on instead of interrupting it. Two columns of wood crowd it on each side,
-  # every cell a trunk under a crown wider than its own cell, so the crowns overlap into one canopy.
+  # Measured off his reference (`references/sheets/dense-forest-dark-entrance.webp`): the path is 0.25 of the
+  # picture and foliage 0.41. The path is the SPINE and runs the full depth, three cells wide, which is
+  # `WOODLAND.pathWidth`, so it continues the pathway it sits on. Two columns of wood crowd it each side.
   @forest_w 7
   @forest_h 5
-  # The three path columns, centred so the middle one is the cell that lands on the gate.
   @forest_path 2..4
 
+  # THE SPECIES, AS THIS ENGINE ACTUALLY BUILDS THEM. Read off the live `tree_*` compositions rather than
+  # invented: `{trunk_scale, trunk_scaleY, crown_scale, crown_scaleY, crown_shape}`. This is the whole reason
+  # the variants differ, and the first attempt ignored it and made up thirteen sets of numbers from the
+  # generator NAMES instead.
+  @species %{
+    "tree_column" => {0.5, 5.0, 1.2, 2.2, "circle"},
+    "tree_tall" => {0.6, 4.4, 1.35, 2.0, "circle"},
+    "tree" => {0.6, 3.15, 1.35, 2.0, "circle"},
+    "tree_round" => {0.6, 3.15, 1.35, 2.0, "circle"},
+    "tree_big" => {0.7, 4.2, 1.9, 2.8, "circle"},
+    "tree_giant" => {0.75, 5.8, 2.1, 2.8, "circle"},
+    "tree_palm" => {0.4, 4.6, 1.15, 1.0, "circle"},
+    "tree_coconut" => {0.38, 5.4, 1.3, 1.1, "circle"},
+    "tree_mangrove" => {0.7, 2.2, 1.8, 1.5, "circle"},
+    "tree_gnarled" => {0.6, 2.0, 1.85, 1.3, "circle"},
+    "tree_broadleaf" => {0.55, 2.4, 1.75, 1.7, "circle"},
+    # A CONIFER IS A CONE, and the renderer draws square or circle only, so it keeps its square crown. That is
+    # what makes a mountain wood read as conifers rather than as more round trees.
+    "tree_conifer" => {0.45, 3.8, 0.9, 3.4, "square"},
+    "bush_round" => {0.0, 0.0, 1.35, 1.2, "circle"},
+    "tree_banana" => {0.5, 1.6, 1.95, 1.6, "circle"},
+    "tree_sapling" => {0.3, 1.6, 0.7, 1.0, "circle"},
+    "tree_stub" => {0.55, 1.1, 0.0, 0.0, "circle"}
+  }
+
   @doc """
-  A FOREST ENTRANCE IS MADE OF THE FOREST'S OWN TREES, and there is one per kind of forest.
+  A FOREST ENTRANCE IS MADE OF THAT FOREST'S OWN TREES.
 
-  *"forest entrance depends on type of firest, is not the same entering ajungle than entering a meadow or a
-  woodland or a swamp, each one must have their own tree guided entry"* (2026-09-14). `forest_entrance` was one
-  object for all of them, named after a place rather than a thing, and it ended up holding a cave mouth.
+  *"forest entrance depends on type of firest ... each one must have their own tree guided entry"*, and
+  *"you didn't analyzed the specific details that make each sub zone of each type of forest unique"*.
 
-  These are TREE GUIDED: the way through is a gap between trunks with the canopies leaning over it. There is
-  deliberately NO beam across the top, because a beam is what makes `temple_entrance` a built gateway, and a
-  wood does not build one.
+  Both are answered the same way: every generator already SERVES the species it grows, its palette and its
+  canopy density, and an entrance is built from those rather than from numbers picked to match a name. A beech
+  stand is `tree_column`, `tree_tall`, `tree`, so its way out is tall straight boles. An island is
+  `tree_coconut`, `tree_palm`, `tree_banana`, `tree_mangrove`, so its way out is thin stems under flat crowns.
+  A wood pasture is `tree_gnarled` and `tree_broadleaf`, so its way out is low and wide. None of that is a
+  decision made here: it is the template's own data, drawn.
 
-  The four differ by PROPORTION, which is the lever the objects he likes all pull. A jungle's trunks are tall
-  and its canopies wide; a meadow's are short and sparse; a swamp's are squat and close; a woodland sits
-  between them. Same builder, four sets of numbers, exactly as the two caves share one builder and differ by a
-  single setting.
-
-  The layout is the cave's: the way through sits in the middle of the anti-diagonal `dx + dy == 4`, with the
-  trees that flank it ON that diagonal so they read as one face toward the camera, and the rest of the wood
-  BEHIND it. Put a flanking tree in the same ROW instead and the near one is drawn over the gap.
+  `canopy` is the generator's served nature density, so a dense wood's way out is genuinely denser. `gloom` is
+  the template's own canopy colour, darkened, so the dark you walk into is the colour of that wood's leaves.
   """
   def seed_forest_entrances do
-    for {name, opts} <- %{
-          # ── WOODLAND AND ITS STANDS ───────────────────────────────────────────────────────────────────
-          # The middle of the range: mid trunks, mid crowns, a brown gloom.
-          "woodland_entrance" => [trunk: 0.5, tall: 3.4, crown: 1.35, density: 6, foot: "mushroom", gloom: "#2a2418", wet: 0],
-          # A BEECH STAND: tall straight boles and an open floor. Little undergrowth, so the gloom is thin.
-          "beech_entrance" => [trunk: 0.38, tall: 5.6, crown: 1.5, density: 5, foot: "mushroom", gloom: "#3b3324", wet: 0],
-          # DENSE WOODLAND: packed trunks, and the way through is genuinely hard to see into.
-          "dense_woodland_entrance" => [trunk: 0.56, tall: 4.2, crown: 1.6, density: 10, foot: "mushroom", gloom: "#191509", wet: 0],
-          # WOODLAND WITH MEADOWS: the stand opens out, so the way keeps its light.
-          "glades_entrance" => [trunk: 0.45, tall: 3.0, crown: 1.2, density: 4, foot: "bouquet", gloom: "#4a4230", wet: 0],
-          # MOUNTAIN FOREST: thin tall conifers, stone at the feet, a cold gloom.
-          "mountain_forest_entrance" => [trunk: 0.34, tall: 6.4, crown: 1.1, density: 7, foot: "rock", gloom: "#232a2a", wet: 0],
-
-          # ── JUNGLE AND ITS DEPTHS ─────────────────────────────────────────────────────────────────────
-          # Tall, wide crowned, and wet underfoot.
-          "jungle_entrance" => [trunk: 0.62, tall: 9.5, crown: 2.6, density: 10, foot: "mushroom", gloom: "#060c07", wet: 1],
-          # SUPER DENSE JUNGLE: the darkest way out in the game. You cannot see where it goes at all.
-          "dense_jungle_entrance" => [trunk: 0.7, tall: 11.0, crown: 3.0, density: 10, foot: "mushroom", gloom: "#020603", wet: 2],
-          # ISLAND JUNGLE: palms over pale sand. The one whose way out is BRIGHT, because an island edge opens
-          # onto glare rather than shade.
-          "island_entrance" => [trunk: 0.42, tall: 4.6, crown: 1.25, density: 5, foot: "bouquet", gloom: "#8a7f5e", wet: 2],
-          # JUNGLE RUINS: stone standing among the trees, so the feet are rock and the gloom is stony.
-          "jungle_ruins_entrance" => [trunk: 0.55, tall: 7.5, crown: 2.2, density: 8, foot: "rock", gloom: "#101610", wet: 1],
-          # SWAMP JUNGLE: squat, thick, standing in water.
-          "swamp_entrance" => [trunk: 0.72, tall: 2.6, crown: 1.3, density: 9, foot: "red-mushroom", gloom: "#0a110d", wet: 3],
-
-          # ── MEADOW AND ITS OPEN GROUND ────────────────────────────────────────────────────────────────
-          # Short and sparse, blooms at the feet, barely any gloom at all.
-          "meadow_entrance" => [trunk: 0.4, tall: 2.4, crown: 1.05, density: 4, foot: "bouquet", gloom: "#3a3426", wet: 0],
-          # OPEN MEADOW: the brightest way out. Almost no trees, so the way is plain to see.
-          "open_meadow_entrance" => [trunk: 0.36, tall: 2.0, crown: 0.9, density: 2, foot: "flower", gloom: "#6b6446", wet: 0],
-          # WOOD PASTURE: a few BIG scattered trees over open grass, which is the opposite of dense woodland.
-          "wood_pasture_entrance" => [trunk: 0.6, tall: 5.0, crown: 2.2, density: 3, foot: "bouquet", gloom: "#4f4634", wet: 0]
-        } do
+    for {name, species, canopy, gloom, foot, wet} <- [
+          # ── WOODLAND: its served species, its served canopy density, its palette canopy colour ──
+          {"woodland_entrance", ~w(tree_column tree tree_tall tree_round tree_conifer tree_stub tree_sapling), 0.434, "#5d7340", "mushroom", 0},
+          {"beech_entrance", ~w(tree_column tree_tall tree), 0.45, "#5d7340", "mushroom", 0},
+          {"dense_woodland_entrance", ~w(tree_column tree_tall tree tree_big tree_sapling), 0.6, "#5d7340", "mushroom", 0},
+          {"glades_entrance", ~w(tree tree_round tree_broadleaf tree_gnarled), 0.4, "#5d7340", "bouquet", 0},
+          {"mountain_forest_entrance", ~w(tree_conifer tree_column tree_stub), 0.45, "#4a5f42", "rock", 0},
+          # ── JUNGLE ──
+          {"jungle_entrance", ~w(tree_round tree_big bush_round tree_giant tree_palm), 0.62, "#2e6b32", "mushroom", 1},
+          {"dense_jungle_entrance", ~w(tree_giant tree_big tree_round bush_round), 0.72, "#2e6b32", "mushroom", 1},
+          {"island_entrance", ~w(tree_coconut tree_palm tree_banana tree_mangrove bush_round), 0.62, "#4f9147", "bouquet", 2},
+          {"jungle_ruins_entrance", ~w(tree_round tree_big tree_giant bush_round), 0.62, "#2e6b32", "rock", 1},
+          {"swamp_entrance", ~w(tree_mangrove tree_gnarled tree_round bush_round), 0.62, "#2e6b32", "red-mushroom", 3},
+          # ── MEADOW ──
+          {"meadow_entrance", ~w(tree_gnarled tree_broadleaf tree_round tree_big bush_round), 0.2, "#6b8049", "bouquet", 0},
+          {"open_meadow_entrance", ~w(tree_gnarled tree_broadleaf bush_round), 0.12, "#6b8049", "flower", 0},
+          {"wood_pasture_entrance", ~w(tree_gnarled tree_broadleaf bush_round), 0.18, "#6b8049", "bouquet", 0}
+        ] do
       {:ok, _} =
         Nebulith.Catalog.upsert_composition_with_cells(
           %{name: name, footprint_w: @forest_w, footprint_h: @forest_h, category: "props"},
-          forest_entrance_cells(opts)
+          forest_entrance_cells(species, canopy, gloom, foot, wet)
         )
     end
 
     :ok
   end
 
-
-  # Move a gloom colour toward the light by `amount` (0 keeps it, 1 nearly clears it). Used so the dark way
-  # fades as it comes toward the viewer instead of standing as one flat black wall.
-  defp lighten(hex, amount) do
+  # Darken a served palette colour toward black by `amount`, so the gloom is THAT wood's leaf colour in shadow
+  # rather than a black invented here.
+  defp shade(hex, amount) do
     <<?#, r::binary-2, g::binary-2, b::binary-2>> = hex
-    up = fn c -> c |> String.to_integer(16) |> then(&round(&1 + (150 - &1) * amount)) |> min(255) |> max(0) end
-    "#" <> (Enum.map_join([r, g, b], fn c -> c |> up.() |> Integer.to_string(16) |> String.pad_leading(2, "0") end))
+    down = fn c -> c |> String.to_integer(16) |> then(&round(&1 * (1.0 - amount))) |> max(0) end
+    "#" <> Enum.map_join([r, g, b], fn c -> c |> down.() |> Integer.to_string(16) |> String.pad_leading(2, "0") end)
   end
 
-  defp forest_entrance_cells(opts) do
-    trunk_w = Keyword.fetch!(opts, :trunk)
-    trunk_h = Keyword.fetch!(opts, :tall)
-    crown = Keyword.fetch!(opts, :crown)
-    density = Keyword.fetch!(opts, :density)
-    # Where the crowns meet above the path: just over the tallest trunk, so the canopy is a lid not a hat.
-    over = max(2, round(trunk_w * trunk_h) + 1)
-    foot = Keyword.fetch!(opts, :foot)
-    gloom = Keyword.fetch!(opts, :gloom)
+  defp forest_entrance_cells(species, canopy, gloom, foot, wet) do
+    # ONE TREE, of a named species, at its OWN proportions. `vary` only scales the whole thing so a stand is
+    # not an orchard; it never changes what the species IS.
+    tree = fn dx, dy, kind, vary ->
+      {tw, th, cw, ch, shape} = Map.fetch!(@species, kind)
+      trunk_h = Float.round(th * vary, 2)
+      top = max(0, round(tw * trunk_h))
 
-    wet = Keyword.fetch!(opts, :wet)
+      trunk =
+        if tw > 0.0,
+          do: [%{dx: dx, dy: dy, level: 0, label: "trunk_mid", walkable: false,
+                 scale: Float.round(tw * vary, 2), settings: %{"scaleY" => trunk_h}}],
+          else: []
 
-    # A tree is this engine's tree: a thin trunk under a crown wider than its cell, which is `tree_round`
-    # itself. `vary` keeps the stand from reading as an orchard.
-    tree = fn dx, dy, vary ->
-      h = Float.round(trunk_h * vary, 2)
-      top = max(1, round(trunk_w * h))
+      crown =
+        if cw > 0.0,
+          do: [%{dx: dx, dy: dy, level: top, label: "leaf_center", walkable: false,
+                 scale: Float.round(cw * vary, 2),
+                 settings: %{"scaleY" => ch, "shape" => shape}}],
+          else: []
 
-      [
-        %{dx: dx, dy: dy, level: 0, label: "trunk_mid", walkable: false, scale: trunk_w,
-          settings: %{"scaleY" => h}},
-        %{dx: dx, dy: dy, level: top, label: "leaf_center", walkable: false,
-          scale: Float.round(crown * vary, 2),
-          settings: %{"scaleY" => 1.6, "shape" => "circle"}}
-      ]
+      trunk ++ crown
     end
 
-    # THE WOOD, both sides, full depth. A deterministic wobble per cell so the stand varies without a seed.
+    # THE WOOD, both sides, full depth. The generator's served CANOPY density decides how much of it is filled,
+    # so a dense woodland at 0.6 really is denser than a glade at 0.4 and an open meadow at 0.12 is nearly bare.
     wood =
       for dx <- 0..(@forest_w - 1),
           dx not in @forest_path,
           dy <- 0..(@forest_h - 1),
-          rem(dx * 7 + dy * 5, 10) < density do
-        inner = dx == Enum.min(@forest_path) - 1 or dx == Enum.max(@forest_path) + 1
-        tree.(dx, dy, (if inner, do: 1.05, else: 0.8) + rem(dx * 3 + dy * 7, 5) * 0.11)
+          rem(dx * 7 + dy * 5, 100) < round(canopy * 100) + 22 do
+        kind = Enum.at(species, rem(dx * 3 + dy * 5, length(species)))
+        tree.(dx, dy, kind, 0.85 + rem(dx * 3 + dy * 7, 4) * 0.1)
       end
 
-    # THE PATH IS LEFT EMPTY ON PURPOSE.
-    #
-    # It laid its own floor slab down these three columns, and a run of thin slabs shows mostly its own dark
-    # SIDES, so the way through came out as a pit: *"none look like part of pathways"*. The object stands ON a
-    # pathway the generator already paved, and laying another over it can only interrupt it. These cells carry
-    # no floor at all, so the map's path runs straight through, which is what continuity is.
-    #
-    # THE CANOPY CLOSES OVER IT INSTEAD. *"tighten the gap"*. The gap cannot be narrowed on the GROUND: the
-    # pathway is three cells wide and a blocking cell on any of them walls up the way out, and this layer runs
-    # after `ways-clear` so nothing would re-open it. So the crowns lean across overhead on cells that stay
-    # WALKABLE, which is the reference exactly: a corridor you walk through under a canopy that meets above.
-    canopy =
+    # THE CANOPY CLOSING OVER THE WAY, on cells that stay WALKABLE. The pathway is three cells wide and a
+    # blocking cell on any of them walls up the exit, so the gap is tightened overhead, never on the ground.
+    canopy_over =
       for dx <- @forest_path,
           dy <- 0..(@forest_h - 1),
           rem(dx + dy * 2, 3) == 0 do
+        kind = Enum.at(species, rem(dx + dy, length(species)))
+        {_, _, cw, ch, shape} = Map.fetch!(@species, kind)
+        over = max(2, round(canopy * 6) + 2)
         %{dx: dx, dy: dy, level: over, label: "leaf_center", walkable: true,
-          scale: Float.round(crown * 1.15, 2),
-          settings: %{"scaleY" => 1.4, "shape" => "circle"}}
+          scale: Float.round(cw * 1.1, 2), settings: %{"scaleY" => ch, "shape" => shape}}
       end
 
-    # UNDERGROWTH where the wood meets the path. `foot` is a real PROP tile (a mushroom, a bouquet), never a
-    # ground tile: a ground tile placed as a prop draws as a coloured CUBE, which is how a green block ended up
-    # sitting on the grass beside the way through.
+    # THE WAY GOES DARK, running BACK into the wood and fading toward you, so it reads as a way that carries on
+    # rather than a door. It is the cave mouth's form: a tall WALKABLE block, never a square on the floor.
+    dark =
+      for dx <- @forest_path,
+          dy <- 2..(@forest_h - 1),
+          mix = 1.0 - (@forest_h - 1 - dy) * 0.33,
+          mix > 0.2 do
+        %{dx: dx, dy: dy, level: 0, label: "trunk_mid", walkable: true, scale: 1.0,
+          settings: %{"scaleY" => 1.2 + mix * 1.6, "color" => shade(gloom, 0.55 + mix * 0.4)}}
+      end
+
     verge =
       for dy <- 0..(@forest_h - 1),
           dx <- [Enum.min(@forest_path) - 1, Enum.max(@forest_path) + 1],
@@ -3895,8 +3893,6 @@ defmodule Nebulith.Catalog.TileSource do
           do: %{dx: dx, dy: dy, level: 1, label: foot, walkable: false,
                 scale: 0.45 + rem(dy, 3) * 0.06, settings: %{"scaleY" => 0.5}}
 
-    # A SWAMP STANDS IN WATER. `wet` is how many cells of it flank the way through; every other wood says 0 and
-    # gets none, which is the whole difference between a swamp edge and a wood's.
     water =
       for dy <- 0..(@forest_h - 1),
           dx <- [Enum.min(@forest_path) - 1, Enum.max(@forest_path) + 1],
@@ -3905,27 +3901,7 @@ defmodule Nebulith.Catalog.TileSource do
           do: %{dx: dx, dy: dy, level: 0, label: "water_c", walkable: false, scale: 1.0,
                 settings: %{"scaleY" => 0.12}}
 
-    # THE WAY GOES DARK, RUNNING BACK INTO THE WOOD.
-    #
-    # *"the dark region should be backwarks into the trees and pathway"* and *"shoud be less black and more
-    # transparent"*. A single black wall at the front edge is a door, not a way that fades out of sight. So the
-    # gloom runs the DEPTH of the corridor and lightens as it comes toward you: darkest where the path leaves,
-    # nearly clear where you stand. That is what makes the way look like it carries on rather than stopping.
-    #
-    # It is still the cave's mouth in form, a tall walkable block rather than a square painted on the floor,
-    # because a floor slab shows its own dark sides and reads as a pit.
-    dark =
-      for dx <- @forest_path,
-          dy <- 2..(@forest_h - 1),
-          # nearest the border is the deepest; each step toward the viewer lifts it. `mix` is 1.0 at the far
-          # end and falls to about 0.35 at the near one, which is the "more transparent" he asked for.
-          mix = 1.0 - (@forest_h - 1 - dy) * 0.33,
-          mix > 0.2 do
-        %{dx: dx, dy: dy, level: 0, label: "trunk_mid", walkable: true,
-          scale: 1.0, settings: %{"scaleY" => 1.2 + mix * 1.6, "color" => lighten(gloom, 1.0 - mix)}}
-      end
-
-    List.flatten(wood) ++ canopy ++ verge ++ water ++ dark
+    List.flatten(wood) ++ canopy_over ++ verge ++ water ++ dark
   end
 
   def seed_entrances do
