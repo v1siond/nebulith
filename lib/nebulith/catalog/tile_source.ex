@@ -3740,6 +3740,20 @@ defmodule Nebulith.Catalog.TileSource do
       ]
   end
 
+  # A FOREST ENTRANCE IS A CORRIDOR, NOT A GATEWAY.
+  #
+  # Measured off his own reference (`references/sheets/dense-forest-dark-entrance.webp`), the path is 0.25 of
+  # the picture and foliage is 0.41 of it. The first attempt was two trees beside a two-cell path stub, about
+  # 0.05 path and 0.15 foliage on mostly empty grass, which is why *"none look like part of pathways"*.
+  #
+  # So: the PATH is the spine and runs the full depth, three cells wide, which is `WOODLAND.pathWidth`, so it
+  # continues the pathway it sits on instead of interrupting it. Two columns of wood crowd it on each side,
+  # every cell a trunk under a crown wider than its own cell, so the crowns overlap into one canopy.
+  @forest_w 7
+  @forest_h 5
+  # The three path columns, centred so the middle one is the cell that lands on the gate.
+  @forest_path 2..4
+
   @doc """
   A FOREST ENTRANCE IS MADE OF THE FOREST'S OWN TREES, and there is one per kind of forest.
 
@@ -3762,14 +3776,18 @@ defmodule Nebulith.Catalog.TileSource do
   """
   def seed_forest_entrances do
     for {name, opts} <- %{
-          "woodland_entrance" => [trunk: 0.5, tall: 4.2, crown: 1.5, deep: 3, foot: "mushroom", floor: "path_dirt"],
-          "jungle_entrance" => [trunk: 0.45, tall: 6.0, crown: 1.85, deep: 4, foot: "mushroom", floor: "path_dirt"],
-          "meadow_entrance" => [trunk: 0.38, tall: 2.9, crown: 1.15, deep: 2, foot: "bouquet", floor: "path"],
-          "swamp_entrance" => [trunk: 0.58, tall: 3.2, crown: 1.3, deep: 3, foot: "red-mushroom", floor: "path_dirt"]
+          # A WOODLAND: mid height, mid density, mushrooms on the verge.
+          "woodland_entrance" => [trunk: 0.55, tall: 4.0, crown: 1.5, density: 8, foot: "mushroom", floor: "path_dirt"],
+          # A JUNGLE: a tall dark tunnel. The trunks run to twice a woodland's and the crowns close overhead.
+          "jungle_entrance" => [trunk: 0.5, tall: 7.0, crown: 2.0, density: 10, foot: "mushroom", floor: "path_dirt"],
+          # A MEADOW: open and sunny. Short, sparse, and blooms on the verge instead of fungus.
+          "meadow_entrance" => [trunk: 0.4, tall: 2.4, crown: 1.05, density: 4, foot: "bouquet", floor: "path"],
+          # A SWAMP: squat and thick, closing in low.
+          "swamp_entrance" => [trunk: 0.72, tall: 2.6, crown: 1.3, density: 9, foot: "red-mushroom", floor: "path_dirt"]
         } do
       {:ok, _} =
         Nebulith.Catalog.upsert_composition_with_cells(
-          %{name: name, footprint_w: 5, footprint_h: 5, category: "props"},
+          %{name: name, footprint_w: @forest_w, footprint_h: @forest_h, category: "props"},
           forest_entrance_cells(opts)
         )
     end
@@ -3777,55 +3795,61 @@ defmodule Nebulith.Catalog.TileSource do
     :ok
   end
 
-  # The diagonal the entry faces the camera along, and the cell you actually walk through.
-  @forest_face 4
-  @forest_gap {2, 2}
 
   defp forest_entrance_cells(opts) do
     trunk_w = Keyword.fetch!(opts, :trunk)
     trunk_h = Keyword.fetch!(opts, :tall)
     crown = Keyword.fetch!(opts, :crown)
-    deep = Keyword.fetch!(opts, :deep)
+    density = Keyword.fetch!(opts, :density)
     foot = Keyword.fetch!(opts, :foot)
     floor = Keyword.fetch!(opts, :floor)
-    {gap_dx, gap_dy} = @forest_gap
 
-    # A TREE is a thin trunk and a wide round crown, which is `tree_round` itself: 0.6 wide by 1.89 tall under
-    # a canopy 2.25x its width. `size` shrinks the whole tree so the wood reads as having depth.
-    tree = fn dx, dy, size ->
-      top = Float.round(trunk_w * size * trunk_h * size, 2)
+    # A tree is this engine's tree: a thin trunk under a crown wider than its cell, which is `tree_round`
+    # itself. `vary` keeps the stand from reading as an orchard.
+    tree = fn dx, dy, vary ->
+      h = Float.round(trunk_h * vary, 2)
+      top = max(1, round(trunk_w * h))
 
       [
-        %{dx: dx, dy: dy, level: 0, label: "trunk_mid", walkable: false, scale: Float.round(trunk_w * size, 2),
-          settings: %{"scaleY" => trunk_h}},
-        %{dx: dx, dy: dy, level: max(1, trunc(top)), label: "leaf_center", walkable: false,
-          scale: Float.round(crown * size, 2), settings: %{"scaleY" => 1.5, "shape" => "circle"}}
+        %{dx: dx, dy: dy, level: 0, label: "trunk_mid", walkable: false, scale: trunk_w,
+          settings: %{"scaleY" => h}},
+        %{dx: dx, dy: dy, level: top, label: "leaf_center", walkable: false,
+          scale: Float.round(crown * vary, 2), settings: %{"scaleY" => 1.6, "shape" => "circle"}}
       ]
     end
 
-    # THE TWO THAT FLANK THE WAY THROUGH, on the face diagonal so neither is drawn over the gap. They differ in
-    # size on purpose: a matched pair reads as something somebody built.
-    flanking = tree.(gap_dx - 1, gap_dy + 1, 1.0) ++ tree.(gap_dx + 1, gap_dy - 1, 0.88)
+    # THE WOOD, both sides, full depth. A deterministic wobble per cell so the stand varies without a seed.
+    wood =
+      for dx <- 0..(@forest_w - 1),
+          dx not in @forest_path,
+          dy <- 0..(@forest_h - 1),
+          rem(dx * 7 + dy * 5, 10) < density do
+        tree.(dx, dy, 0.8 + rem(dx * 3 + dy * 7, 5) * 0.11)
+      end
 
-    # THE WOOD BEHIND, on the diagonals further back, smaller so the stand recedes.
-    behind =
-      for d <- 1..min(3, deep),
-          dx <- 0..4,
-          dy = d - dx,
-          dy >= 0 and dy <= 4,
-          rem(dx + dy * 2, 2) == 0,
-          do: tree.(dx, dy, 0.62)
+    # THE PATH IS LEFT EMPTY ON PURPOSE.
+    #
+    # It laid its own floor slab down these three columns, and a run of thin slabs shows mostly its own dark
+    # SIDES, so the way through came out as a pit rather than a path: *"none look like part of pathways"*. The
+    # object stands ON a pathway the generator already paved. Laying another one over it can only interrupt it.
+    # So these cells carry nothing and the map's own path runs straight through, which is what continuity is.
+    #
+    # `floor` is still read, for the one cell that marks the threshold, so a place that paves in stone gets
+    # stone and one that paves in dirt gets dirt.
+    path = [
+      %{dx: Enum.at(Enum.to_list(@forest_path), 1), dy: @forest_h - 1, level: 0, label: floor,
+        walkable: true, scale: 1.0, settings: %{"scaleY" => 0.06}}
+    ]
 
-    # UNDERGROWTH at the feet, and the floor you walk in on. No canopy over the gap: the sky through the gap
-    # IS the signal that this is a way out.
-    [
-      %{dx: gap_dx, dy: gap_dy, level: 0, label: floor, walkable: true, scale: 1.0, settings: %{"scaleY" => 0.08}},
-      %{dx: gap_dx, dy: gap_dy + 1, level: 0, label: floor, walkable: true, scale: 1.0, settings: %{"scaleY" => 0.08}},
-      %{dx: gap_dx - 2, dy: @forest_face - (gap_dx - 2), level: 0, label: foot, walkable: false, scale: 0.55,
-        settings: %{"scaleY" => 0.6}},
-      %{dx: gap_dx + 2, dy: @forest_face - (gap_dx + 2), level: 0, label: foot, walkable: false, scale: 0.45,
-        settings: %{"scaleY" => 0.5}}
-    ] ++ flanking ++ List.flatten(behind)
+    # UNDERGROWTH where the wood meets the path, which is what stops the edge reading as a cut line.
+    verge =
+      for dy <- 0..(@forest_h - 1),
+          dx <- [Enum.min(@forest_path) - 1, Enum.max(@forest_path) + 1],
+          rem(dx + dy * 3, 3) == 0,
+          do: %{dx: dx, dy: dy, level: 1, label: foot, walkable: false,
+                scale: 0.5 + rem(dy, 3) * 0.08, settings: %{"scaleY" => 0.55}}
+
+    path ++ List.flatten(wood) ++ verge
   end
 
   def seed_entrances do
