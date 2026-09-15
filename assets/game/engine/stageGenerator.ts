@@ -930,7 +930,7 @@ function buildingFootprints(buildings: readonly PlacedBuilding[]): Set<string> {
  *  the backend happens to serve a `nature` layer today, so these are filled in after the served ones. This is
  *  not a second list of layers: it is the set of names the CODE in this file uses, and it shrinks as passes
  *  move out into layers of their own. */
-const ENGINE_PASS_RNGS: readonly string[] = ['ways', 'layout', 'buildings', 'nature', 'decor']
+const ENGINE_PASS_RNGS: readonly string[] = ['pathways', 'ways', 'layout', 'buildings', 'nature', 'decor']
 
 const layerRng = (seeds: GenerateOptions['seeds'], layer: EngineLayerId): Rng => {
   const seed = seeds?.[layer]
@@ -985,30 +985,53 @@ export function blankStage(zone: ZoneId, cols: number, rows: number): StageData 
  * optional `when` guard, and a `run`. `runLayers` does not change, and neither does anything above.
  */
 const STAGE_LAYERS: ReadonlyArray<StageLayer<ArchetypeContext, LayerRngs>> = [
-  // THE WAYS, before anything is built on them: how many exits the map has and where its paths run.
-  { name: 'ways', run: (ctx, rngs) => { planWays(ctx, rngs.ways) } },
-  // THE MAP ITSELF: ground, water, walls, plots, vegetation — whichever archetype this variant is.
+  // THE PLAN for the ways, which `terrain` builds around. It sits ahead of terrain because every archetype
+  // reads `ctx.routes` while it builds, and THAT is the inversion still to fix: the model says water is laid
+  // first and the pathways adapt to what it left, so this belongs inside `pathways` once water is its own
+  // layer. Marked rather than moved, because moving it changes every map and that is his call to see.
+  { name: 'pathways:plan', run: (ctx, rngs) => { planWays(ctx, rngs.pathways ?? rngs.ways) } },
+
+  // TERRAIN: the grid's ground, by zone, region and season. Still carries WATER and OBJECTS inside it,
+  // because each archetype paints, floods and plants in one pass. Splitting those three apart is the work
+  // this list is being straightened out for.
   { name: 'terrain', run: (ctx, rngs) => ARCHETYPES[ctx.variant]?.(ctx, rngs) },
-  // WATER FOR A MAP THAT DID NOT MAKE ITS OWN is NOT wired yet, and `carveMapWater` below says why.
-  // Deliberately absent rather than shipped severing towns.
-  // THE EDGE IS DEFINED BY THE EXITS: everywhere else on the border is closed. Every map, not just a wood. A
-  // cave and a temple already wall their own, so this finds nothing to do there and plants nothing.
-  { name: 'edge', when: ctx => !!ctx.routes, run: sealMapEdge },
-  // THE EXITS, cut through whatever the layers above sealed. Last word on the border, by construction.
-  { name: 'gates', when: ctx => !!ctx.routes, run: openGates },
-  // A WAY STAYS WALKABLE. After everything that builds, so nothing can wall a gate in behind it.
-  { name: 'ways-clear', when: ctx => !!ctx.routes, run: keepWaysWalkable },
-  // NOTHING STANDS IN FRONT OF A ROAD. Runs after every layer that plants, so it sees the finished map.
-  { name: 'sightlines', when: ctx => !!ctx.routes, run: clearPathSightlines },
-  // AFTER the sweep, so nothing pulls off the dressing that was put down on purpose, and BEFORE the
-  // entrances, so a gate's composition lands on the surface the way actually wears.
-  { name: 'pathway', when: ctx => !!ctx.routes && !!ctx.pathway, run: layWays },
-  // AND THE WAY OUT LOOKS LIKE ONE. After the gates are cut, so it dresses an opening rather than making one.
-  { name: 'entrances', when: ctx => !!ctx.routes, run: stampEntrances },
-  // The open ground's texture swapped for the flat tile, keeping its colour.
-  { name: 'floors', run: ctx => flattenFloors(ctx, FLOOR_MATERIALS[ctx.variant]?.(ctx) ?? []) },
-  // Blended shorelines and lava banks over the painted ground.
-  { name: 'transitions', run: addTerrainTransitions },
+
+  // PATHWAYS: the map's STRUCTURE. *"what the pathways determine is the map structure, what is a pathway,
+  // what is a section to put objects, what are the exits, how's the pathway draw"*.
+  //
+  // This was FOUR entries (`edge`, `gates`, `ways-clear`, `sightlines`) plus a fifth (`ways`) at the top and
+  // a sixth (`pathway`) below, six names for one layer. None of them is a layer: the border is defined by the
+  // exits, the gates are the exits, keeping a way walkable and clearing what stands in it are both the way
+  // still being a way. They ran consecutively already, so this is the same order under one name.
+  {
+    name: 'pathways',
+    when: ctx => !!ctx.routes,
+    run: ctx => {
+      sealMapEdge(ctx) // the border is closed everywhere the exits are not
+      openGates(ctx) // and cut open where they are, so the exits get the last word on it
+      keepWaysWalkable(ctx) // nothing built above may wall a gate in behind it
+      clearPathSightlines(ctx) // and nothing stands in a way or in front of one
+    },
+  },
+
+  // OBJECTS: what the map is dressed with, which is where the LOOK of a way and of an exit is decided.
+  // *"then on the objects phase we can pick the type of pathway, type of exit, etc"*.
+  //
+  // Only two of its steps are here so far. The rest is still inside `terrain`, planted by each archetype.
+  {
+    name: 'objects',
+    when: ctx => !!ctx.routes,
+    run: ctx => {
+      layWays(ctx) // the surface a way wears, what lies on it and what stands beside it
+      stampEntrances(ctx) // and the way out looks like one, on the surface the way actually wears
+    },
+  },
+
+  // TERRAIN, FINISHED. Both of these are terrain steps and they run here because they have to see the built
+  // map: the flatten swaps a textured ground for the flat tile keeping its colour, and the transitions blend
+  // the shorelines over whatever ended up painted. They fold into `terrain` when water and objects come out
+  // of it and the phases can be ordered properly.
+  { name: 'terrain:finish', run: ctx => { flattenFloors(ctx, FLOOR_MATERIALS[ctx.variant]?.(ctx) ?? []); addTerrainTransitions(ctx) } },
 ]
 
 export function generateStage(opts: GenerateOptions): StageData {
