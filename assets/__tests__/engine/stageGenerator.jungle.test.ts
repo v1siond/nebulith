@@ -104,9 +104,10 @@ describe('a jungle is structurally a different place from a woodland', () => {
       const paint = WOOD_PAL.trail ?? groundTileColor(zonePalette(s.zone)?.trail ?? '', 0, 0)
       if (!paint) return 0
       let n = 0
-      s.ground.forEach((row, r) => row.forEach((g, c) => {
-        if (g === FLAT_FLOOR && s.floorColors[r][c] === paint) n++
-      }))
+      // THE COLOUR, WHATEVER TILE IT IS ON. This also required the ground to be the flat floor, which held
+      // only while a way SWAPPED the tile under it for a trail tile and the flatten swapped it back. A way
+      // is a colour on the ground block it crosses, so the tile under it is the field's own.
+      s.floorColors.forEach(row => row.forEach(tone => { if (tone === paint) n++ }))
       return n
     }
     expect(trail(woodland())).toBeGreaterThan(0)

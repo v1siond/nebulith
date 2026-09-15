@@ -2486,13 +2486,107 @@ function paveLane(ctx: ArchetypeContext, lane: ReadonlySet<string>, way: Generat
   // raised road-tile trench"*. Swapping the tile puts a second block on the map, which is why it read as
   // *"BLACK ULGY TILES ON TOP"* and why every floor came out wrong at once.
   //
-  // The surface still decides the LOOK, because a tile's colour is what it is made of: `road` gives asphalt,
-  // `gravel` grey, `path_dirt` tan, `cobblestone` its own. The template's trail tone overrides it where one is
-  // served, which is how a season shades the same material.
-  const tone = ctx.palette?.trail
+  // WHICH COLOUR is `wayTone`'s to answer, from the served pathway. The surface still decides what the way is
+  // MADE of, and the tone what that material looks like here.
+  const base = wayTone(ctx) ?? groundTileColor(surface, 0, 0)
+  if (!base) return
   for (const key of lane) {
     const { col, row } = toCell(key)
-    ctx.floorColors[row][col] = tone ?? groundTileColor(surface, col, row)
+    ctx.floorColors[row][col] = wornTone(base, col, row)
+  }
+  paintMarking(ctx, lane, way)
+}
+
+/**
+ * THE COLOUR THIS MAP'S MADE GROUND WEARS: its ways, its decks, its bridges, the paving in its gateways.
+ *
+ * One answer, in one place, because it had two and they disagreed. The pathway's own `tone` is the template
+ * saying what its way looks like, and it WINS: the alternative is what we had, where a mountain forest asked
+ * for a gravel track and the woodland palette it inherits painted the gravel brown, and a swamp asked for a
+ * boardwalk and the jungle palette painted the planks dirt. A template with no pathway block at all falls
+ * back to the palette, which is every saved recipe made before pathways were served.
+ */
+function wayTone(ctx: ArchetypeContext): string | undefined {
+  // NOTHING SERVED, NOTHING PAINTED. The season's own trail was the last resort here for one run, and its own
+  // compliance case is why it is not: *"paints NOTHING when the backend serves no palette"*. A way with no
+  // served tone is a way the backend has not described yet, and inventing one for it is the whole defect
+  // this file keeps being corrected for.
+  return ctx.pathway?.tone ?? ctx.palette?.trail
+}
+
+/**
+ * The tone one cell of a way wears: the way's colour, stepped.
+ *
+ * MEASURED, and the previous measurement was wrong, which is worth writing down because the number looked
+ * rigorous. The nine references were segmented by hue and the path's "own pixels" came out at 39.3 luminance
+ * stdev, so the wear was set to 0.55 to match it. That mask was sweeping in tree trunks, outlines and the
+ * backdrop. Cropping patches that are ACTUALLY path and looking at them gives 6.1 on the woodland crossroads,
+ * 14.4 to 18.9 on the park path, and 12.5 on the swamp: a way in these pictures is nearly FLAT, and what
+ * gives it life is the pebbles and stones lying ON it, which `scatter` already places.
+ *
+ * At 0.55 a woodland's way wore 227 distinct colours over some 300 cells. That is the salt-and-pepper he was
+ * looking at, and it is also an FPS defect: `compressGround` merges only floors sharing a tile AND a colour,
+ * so a way where no two cells agree cannot merge into a run at all. STEPS rather than a continuous mottle,
+ * so a way is a handful of tones that still merge, at a range that lands inside the references' own spread.
+ */
+function wornTone(base: string, col: number, row: number): string {
+  const step = Math.floor(shadeNoise(col * 2.3 + row * 1.9) * PATHWAY_WEAR_STEPS) / (PATHWAY_WEAR_STEPS - 1)
+  return varyIntensity(base, step, PATHWAY_WEAR)
+}
+
+/** How far a way's tone moves either side of itself. 0.16 puts the spread at about 11, inside the 6 to 19
+ *  measured on the references' own paths. It was 0.55, which measured 39. */
+const PATHWAY_WEAR = 0.16
+
+/** How many tones a way wears. Few, so the runs still merge. */
+const PATHWAY_WEAR_STEPS = 3
+
+/**
+ * THE LINE DOWN THE MIDDLE, where the way is one somebody painted.
+ *
+ * *"ALL WE NEEDED WAS TO ADD THE WHITE RECTANGULAR LINES IN MIDDLE AS ORNAMENT IF WE WANTED, NOT ADD BLACK
+ * ULGY TILES ON TOP"*. So it is a COLOUR, like the way under it, and the backend serves which colour: it is
+ * the reference's own marking white, measured off the pixels lying on its asphalt.
+ *
+ * The middle is found per RUN rather than per cell: the cells of a lane that share a row are one stretch of
+ * street, and the marking goes down the centre of that stretch, dashed at the rhythm the backend serves.
+ */
+function paintMarking(ctx: ArchetypeContext, lane: ReadonlySet<string>, way: GeneratorPathway): void {
+  const marking = way.marking
+  if (!marking) return
+  const tone = marking.color
+  // A run WIDER than the carriageway is not a cross-section of this street, it is the street running the other
+  // way, or a junction. Those get no line, which is what a junction looks like.
+  const span = (way.width ?? 3) + 1
+  markAcross(ctx, lane, tone, marking.every, span, 'down')
+  markAcross(ctx, lane, tone, marking.every, span, 'across')
+}
+
+/**
+ * Paint the middle cell of every carriageway cross-section on one axis, dashed.
+ *
+ * `down` walks the columns and reads each one's run of rows, which is the cross-section of a street running
+ * ACROSS the map; `across` does the mirror. A street gets its line from whichever pass sees it edge-on.
+ */
+function markAcross(ctx: ArchetypeContext, lane: ReadonlySet<string>, tone: string, every: number, span: number, axis: 'down' | 'across'): void {
+  const { cols, rows } = ctx
+  const alongCount = axis === 'down' ? cols : rows
+  const acrossCount = axis === 'down' ? rows : cols
+  const key = (along: number, across: number): string => (axis === 'down' ? `${along},${across}` : `${across},${along}`)
+  for (let along = 0; along < alongCount; along++) {
+    let start = -1
+    for (let across = 0; across <= acrossCount; across++) {
+      const paved = across < acrossCount && lane.has(key(along, across))
+      if (paved && start < 0) start = across
+      if (paved || start < 0) continue
+      const from = start
+      start = -1
+      const run = across - from
+      if (run < 2 || run > span) continue // a single cell has no middle; a wide one is a junction
+      if (along % every !== 0) continue   // the dash rhythm along the street
+      const { col, row } = toCell(key(along, from + ((run - 1) >> 1)))
+      ctx.floorColors[row][col] = tone
+    }
   }
 }
 
@@ -2771,15 +2865,23 @@ const woodlandPhases: VariantPhases = {
     }
 
     // PAVE them. A trail has to be visible to be a trail. THE TEMPLATE PAVES, NOT THE SEASON, whenever the
-    // template says what its pathways are made of: this tile came from `zonePalette(zone).trail`, so which
-    // material a trail was laid in depended on whether it was autumn and every forest in a season shared one.
-    // A template with no pathway block keeps the season's tile exactly as before, and one that states a
-    // surface is surfaced by the objects layer, where the LOOK of a way belongs.
-    if (!ctx.pathway?.surface) paveWoodlandTrail(ctx, trail, zonePalette(ctx.zone)?.trail ?? '')
+    // template says what its pathways are made of: this came from `zonePalette(zone).trail`, so which material
+    // a trail was laid in depended on whether it was autumn and every forest in a season shared one. A
+    // template that serves a pathway is paved by the pathway layer, where the LOOK of a way belongs.
+    //
+    // One that serves none is painted with whatever IS served and nothing otherwise. Its own function laid
+    // the season's trail TILE into `ground`, which is the raised trench again in the last place that still
+    // did it, and it cleared the colour underneath while it was there.
+    //
+    // NO PLAN IS ALSO NO PAVING. The guard was the surface alone, and `layPathways` needs a ROUTE PLAN as
+    // well as a surface, so a plain generate with no exits asked for carved its trails between the clearings
+    // and left every one of them the colour of the grass. Painted here whenever the pathways layer will not,
+    // and skipped when it will, so the ragged edge it eats back is not filled in behind it.
+    if (!ctx.routes || !ctx.pathway?.surface) tintCells(ctx, trail, wayTone(ctx))
 
     // AND PLANK IT where the river runs across it. After the paving, never before: the paving skips water, so
     // a deck laid first would be paved straight back over.
-    if (ctx.routes) deckRoutes(ctx, ctx.routes, ctx.water, ctx.palette?.trail)
+    if (ctx.routes) deckRoutes(ctx, ctx.routes, ctx.water, wayTone(ctx))
   },
 
   objects: ctx => {
@@ -2834,7 +2936,7 @@ const woodlandPhases: VariantPhases = {
     // woodland wears its own trail between flanking trunks rather than the meadow's cobble and lamps.
     paintGateways(ctx, ctx.routes, ctx.water, ctx.pathwayCells, {
       ground: FLAT_FLOOR,
-      paving: ctx.palette?.trail,
+      paving: wayTone(ctx),
       flank: flankingTrees,
     })
 
@@ -3000,7 +3102,7 @@ const junglePhases: VariantPhases = {
     if (!ctx.routes) return
     // Every planned cell, the wet ones too: a tree planted on a boardwalk is a blocked pathway.
     for (const key of ctx.routes.cells) { ctx.claimed.add(key); ctx.pathwayCells.add(key) }
-    paveRoutes(ctx, ctx.routes, ctx.water, pal?.trail)
+    tintCells(ctx, ctx.routes.cells, wayTone(ctx))
 
     // …AND THE MOUTH OF EACH WAY. NARROWER AND SHALLOWER than the meadow's, measured rather than chosen: a
     // gate lane is CLEARED, so it unblocks cells, and five wide by eleven deep at every gate moved the
@@ -3009,8 +3111,8 @@ const junglePhases: VariantPhases = {
     const gateLanes = gateLaneCells(ctx, ctx.routes, ctx.water, 1, 6)
     clearMeadowCells(ctx, gateLanes)
     for (const key of gateLanes) { ctx.claimed.add(key); ctx.pathwayCells.add(key) }
-    tintCells(ctx, gateLanes, pal?.trail)
-    deckRoutes(ctx, ctx.routes, ctx.water, pal?.trail)
+    tintCells(ctx, gateLanes, wayTone(ctx))
+    deckRoutes(ctx, ctx.routes, ctx.water, wayTone(ctx))
   },
 
   objects: ctx => {
@@ -3062,7 +3164,7 @@ const junglePhases: VariantPhases = {
     // THE WAYS OUT. Same lane as the meadow's, wearing the jungle's own trail and flanked by its growth.
     paintGateways(ctx, ctx.routes, ctx.water, ctx.claimed, {
       ground: FLAT_FLOOR,
-      paving: pal?.trail,
+      paving: wayTone(ctx),
       flank: flankingTrees,
     })
 
@@ -3159,7 +3261,10 @@ function paintGateway(ctx: ArchetypeContext, gate: Gateway, water: ReadonlySet<s
       const { col, row } = at(depth, w)
       if (!lane.has(`${col},${row}`) || collision[row][col]) continue
       ground[row][col] = gate.ground
-      floorColors[row][col] = gate.paving
+      // NO PAVING TONE, NO REPAINT. Writing `undefined` here CLEARED the colour the trail pass had already
+      // laid, so a template that states no tone came out with a way that stopped dead at its own gateway.
+      // Worn the same way the way itself is worn, because a gateway is that way continuing to the border.
+      if (gate.paving) floorColors[row][col] = wornTone(gate.paving, col, row)
       routes.add(`${col},${row}`)
     }
     for (const w of [-GATEWAY_HALF - 1, GATEWAY_HALF + 1]) {
@@ -3298,22 +3403,21 @@ function gateLaneCells(
   return lane
 }
 
-/** Tint a set of cells, for a layout whose pathways are a colour rather than a paved tile (the jungle's track). */
+/**
+ * WEAR A SET OF CELLS INTO A WAY: the same stepped tone `paveLane` lays, for a layout that decides its own
+ * cells rather than taking them off the plan.
+ *
+ * `paveRoutes` stood here beside it and did the same work from a `RoutePlan`, one flat tone with a water
+ * skip. Two painters mean two looks for one thing, which is what put a flat cobble way beside a mottled dirt
+ * one on the same meadow. Water is skipped here as it was there: a river is crossed on a deck, never paved.
+ */
 function tintCells(ctx: ArchetypeContext, cells: ReadonlySet<string>, tone: string | undefined): void {
   if (!tone) return
   for (const key of cells) {
     const { col, row } = toCell(key)
     if (!inBounds(col, row, ctx.cols, ctx.rows)) continue
-    ctx.floorColors[row][col] = tone
-  }
-}
-
-function paveRoutes(ctx: ArchetypeContext, plan: RoutePlan, water: ReadonlySet<string>, tone: string | undefined): void {
-  if (!tone) return
-  for (const key of plan.cells) {
-    const { col, row } = toCell(key)
-    if (!inBounds(col, row, ctx.cols, ctx.rows) || water.has(key)) continue
-    ctx.floorColors[row][col] = tone
+    if (isWaterGround(ctx.ground[row][col]) || ctx.wet.has(key) || ctx.decks.has(key)) continue
+    ctx.floorColors[row][col] = wornTone(tone, col, row)
   }
 }
 
@@ -3417,7 +3521,7 @@ function cutRoute(ctx: ArchetypeContext, route: readonly Cell[], bridgeWater: bo
     ctx.collision[row][col] = false
   }
   clearMeadowCells(ctx, dry)
-  if (bridgeWater && wet.size > 0) layDeck(ctx, wet, ctx.palette?.trail)
+  if (bridgeWater && wet.size > 0) layDeck(ctx, wet, wayTone(ctx))
 }
 
 /** The nearest of an already-materialised cell list. Separate from `nearestCell` because that one re-parses
@@ -3477,7 +3581,7 @@ function fellLogsAcross(ctx: ArchetypeContext, water: Set<string>, pal: Generato
         if (inBounds(col, row, ctx.cols, ctx.rows)) deck.add(`${col},${row}`)
       }
     }
-    layDeck(ctx, deck, pal?.trail)
+    layDeck(ctx, deck, wayTone(ctx))
     // The woodland's and jungle's crossings come through HERE, not through placeRiverCrossing, which only runs
     // when the `crossing` option joins one to the paths. Fixing only that one would have left a bridge absent
     // from the common case, which is exactly the map in the screenshots. `vertical` is the CREEK's long axis
@@ -4100,31 +4204,6 @@ function carveClearing(ctx: ArchetypeContext, centre: Cell, open: Set<string>): 
  * An L with a wobble rather than a straight line: a forest track bends. It walks the column first or the
  * row first at random, so a map does not read as a grid of right angles all turning the same way.
  */
-/**
- * Pave the woodland's trail cells with the SEASON's trail tile.
- *
- * Kept for templates that serve no pathway of their own, which is what every saved recipe was built against.
- * A template that states its own surface is paved by the `pathway` layer instead, from one place, in the
- * material the TEMPLATE names rather than the one the season does.
- */
-function paveWoodlandTrail(ctx: ArchetypeContext, trailCells: ReadonlySet<string>, trail: string): void {
-  if (!trail) return
-  const { cols, rows, ground, floorColors } = ctx
-  for (const key of trailCells) {
-    const { col, row } = toCell(key)
-    // A trail never paves WATER, of any name: a trail tile laid on water leaves a blocked stripe of path
-    // across it, which is neither a river nor a way over one. Water is crossed on a deck.
-    if (!inBounds(col, row, cols, rows) || isWaterGround(ground[row][col])) continue
-    ground[row][col] = trail
-    // AND TAKE THE COLOUR WITH IT. Laying the tile alone was not enough: the grass pass has already written a
-    // colour into `floorColors` for every cell and `flattenFloors` prefers that over the tile's own, so every
-    // trail cell was paved correctly and then flattened back out wearing grass green. The served trail colour
-    // wins where a template states one; otherwise the override is CLEARED so the tile's own colour comes
-    // through. Neither branch invents a colour.
-    floorColors[row][col] = ctx.palette?.trail ?? undefined
-  }
-}
-
 function carveWoodlandPath(ctx: ArchetypeContext, from: Cell, to: Cell, open: Set<string>, trailCells: Set<string>): void {
   const { cols, rows } = ctx
   const colFirst = ctx.rand() < 0.5
@@ -4611,7 +4690,7 @@ function stampMeadowTree(ctx: ArchetypeContext, col: number, row: number, tall: 
  *  dropped on it, then painted the cobble tone on the flat meadow floor: a COLOUR, not a tile, like every other
  *  way in this layout paves. */
 function paveMeadowRoutes(ctx: ArchetypeContext, plan: RoutePlan, water: Set<string>, routes: Set<string>): void {
-  const pal = MEADOW_PALETTES[ctx.zone] ?? MEADOW_PALETTES.summer
+  const tone = wayTone(ctx) ?? (MEADOW_PALETTES[ctx.zone] ?? MEADOW_PALETTES.summer).cobble
   const lane = new Set<string>()
   for (const key of plan.cells) if (!water.has(key)) lane.add(key)
   clearMeadowCells(ctx, lane)
@@ -4619,10 +4698,13 @@ function paveMeadowRoutes(ctx: ArchetypeContext, plan: RoutePlan, water: Set<str
     const { col, row } = toCell(key)
     if (!inBounds(col, row, ctx.cols, ctx.rows)) continue
     ctx.ground[row][col] = 'meadow'
-    ctx.floorColors[row][col] = pal.cobble
     routes.add(key)
   }
-  deckRoutes(ctx, plan, water, pal.cobble)
+  // The colour is `tintCells`', not this function's: it was the meadow's seasonal cobble, laid flat, so a
+  // meadow wore two different ways at once, this one and the served park path the pathway layer lays over
+  // the same cells. The cobble is kept only as the fallback for a template that serves no pathway at all.
+  tintCells(ctx, lane, tone)
+  deckRoutes(ctx, plan, water, tone)
 }
 
 /** Pave the ONE bottom-left entrance LANE with cobblestone (the flat 'meadow' floor tinted the cobble tone —
@@ -4631,8 +4713,11 @@ function paveMeadowRoutes(ctx: ArchetypeContext, plan: RoutePlan, water: Set<str
  *  opening. */
 /** The meadow's pathways out: its cobble lane, its beds, its lamps, on whichever edge each gate sits. */
 function paintMeadowGateways(ctx: ArchetypeContext, plan: RoutePlan, water: ReadonlySet<string>, routes: Set<string>): void {
+  // THE WAY'S OWN TONE, not the season's cobble. A gateway is the way continuing to the border, and these
+  // two painted a different material from the way they open onto: measured, a meadow wore its park path
+  // across the middle and seasonal cobble for the last eleven cells at every gate.
   const pal = MEADOW_PALETTES[ctx.zone] ?? MEADOW_PALETTES.summer
-  paintGateways(ctx, plan, water, routes, { ground: 'meadow', paving: pal.cobble, flank: bedsAndLamps })
+  paintGateways(ctx, plan, water, routes, { ground: 'meadow', paving: wayTone(ctx) ?? pal.cobble, flank: bedsAndLamps })
 }
 
 function paintMeadowEntrance(ctx: ArchetypeContext, water: Set<string>, routes: Set<string>, fromTop = false, frac = MEADOW_ENTRANCE_FRAC): void {
@@ -4642,7 +4727,7 @@ function paintMeadowEntrance(ctx: ArchetypeContext, water: Set<string>, routes: 
     side: fromTop ? 'north' : 'south',
     inside: { col, row: fromTop ? 0 : ctx.rows - 1 },
     ground: 'meadow',
-    paving: pal.cobble,
+    paving: wayTone(ctx) ?? pal.cobble,
     flank: bedsAndLamps,
   }, water, routes)
 }
@@ -4837,7 +4922,7 @@ function placeRiverCrossing(ctx: ArchetypeContext, water: Set<string>, routes: S
   // A crossing wears the route it joins: the template's own trail tone when it serves one, and the meadow's
   // stone when it does not, because a bridge over a meadow river IS cobble. That is this layout's design
   // choice, not a stand-in for a served value it failed to read.
-  layDeck(ctx, deck, ctx.palette?.trail ?? (MEADOW_PALETTES[ctx.zone] ?? MEADOW_PALETTES.summer).cobble)
+  layDeck(ctx, deck, wayTone(ctx) ?? (MEADOW_PALETTES[ctx.zone] ?? MEADOW_PALETTES.summer).cobble)
   // …and a real BRIDGE standing on it. `horizontal` is the deck's own axis, decided above by which way the
   // river is narrower here, so the bridge lies ACROSS the water rather than along it.
   recordBridgeSpan(ctx, deck, horizontal, back + forward - 1) // back/forward each add one dry landing

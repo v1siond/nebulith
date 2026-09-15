@@ -60,7 +60,6 @@
               "floorAlt": "#7d8a55",
               "litter": "#7a6a44",
               "swamp": "#3f8a84",
-              "trail": "#9a8a62",
               "undergrowth": "#6d7f45",
               "water": "#4f93b3",
               "waterDeep": "#2a5f8a",
@@ -125,6 +124,7 @@
                 }
               ],
               "surface": "path_dirt",
+              "tone": "#cfa37b",
               "width": 3
             }
           },
@@ -318,7 +318,6 @@
                   "floorAlt": "#7d8a55",
                   "litter": "#7a6a44",
                   "swamp": "#3f8a84",
-                  "trail": "#9a8a62",
                   "undergrowth": "#6d7f45",
                   "water": "#4f93b3",
                   "waterDeep": "#2a5f8a",
@@ -362,6 +361,7 @@
                     }
                   ],
                   "surface": "path_dirt",
+                  "tone": "#cfa37b",
                   "width": 3
                 }
               },
@@ -564,7 +564,6 @@
                   "floorAlt": "#7d8a55",
                   "litter": "#7a6a44",
                   "swamp": "#3f8a84",
-                  "trail": "#9a8a62",
                   "undergrowth": "#6d7f45",
                   "water": "#4f93b3",
                   "waterDeep": "#2a5f8a",
@@ -616,6 +615,7 @@
                     }
                   ],
                   "surface": "path_dirt",
+                  "tone": "#8a7550",
                   "width": 2
                 }
               },
@@ -818,7 +818,6 @@
                   "floorAlt": "#7d8a55",
                   "litter": "#7a6a44",
                   "swamp": "#3f8a84",
-                  "trail": "#9a8a62",
                   "undergrowth": "#6d7f45",
                   "water": "#4f93b3",
                   "waterDeep": "#2a5f8a",
@@ -948,6 +947,7 @@
                     }
                   ],
                   "surface": "gravel",
+                  "tone": "#b1ab9a",
                   "width": 3
                 }
               },
@@ -1174,7 +1174,6 @@
                   "floorAlt": "#7d8a55",
                   "litter": "#7a6a44",
                   "swamp": "#3f8a84",
-                  "trail": "#9a8a62",
                   "undergrowth": "#6d7f45",
                   "water": "#4f93b3",
                   "waterDeep": "#2a5f8a",
@@ -1282,6 +1281,7 @@
                     }
                   ],
                   "surface": "path_dirt",
+                  "tone": "#ddb985",
                   "width": 3
                 }
               },
@@ -1513,7 +1513,6 @@
               "floorAlt": "#38552f",
               "litter": "#46442a",
               "swamp": "#3a8278",
-              "trail": "#8a7550",
               "undergrowth": "#25532a",
               "water": "#3f86b0",
               "waterDeep": "#23547e",
@@ -1525,15 +1524,15 @@
                 "floor": "#3f5f33",
                 "flowers": [
                   {
-                    "char": "\u273f",
+                    "char": "✿",
                     "color": "#c2513f"
                   },
                   {
-                    "char": "\u273e",
+                    "char": "✾",
                     "color": "#8d5fa8"
                   },
                   {
-                    "char": "\u274b",
+                    "char": "❋",
                     "color": "#c9b063"
                   }
                 ],
@@ -1570,15 +1569,15 @@
                 "floor": "#24381f",
                 "flowers": [
                   {
-                    "char": "\u273f",
+                    "char": "✿",
                     "color": "#c2513f"
                   },
                   {
-                    "char": "\u273e",
+                    "char": "✾",
                     "color": "#8d5fa8"
                   },
                   {
-                    "char": "\u274b",
+                    "char": "❋",
                     "color": "#c9b063"
                   }
                 ],
@@ -1615,15 +1614,15 @@
                 "floor": "#3b4a2e",
                 "flowers": [
                   {
-                    "char": "\u273e",
+                    "char": "✾",
                     "color": "#7b5fa8"
                   },
                   {
-                    "char": "\u274b",
+                    "char": "❋",
                     "color": "#4f8f7a"
                   },
                   {
-                    "char": "\u273f",
+                    "char": "✿",
                     "color": "#b89a3c"
                   }
                 ],
@@ -1657,15 +1656,15 @@
                 "floor": "#4a4a3c",
                 "flowers": [
                   {
-                    "char": "\u273f",
+                    "char": "✿",
                     "color": "#c2513f"
                   },
                   {
-                    "char": "\u273e",
+                    "char": "✾",
                     "color": "#8d5fa8"
                   },
                   {
-                    "char": "\u274b",
+                    "char": "❋",
                     "color": "#c9b063"
                   }
                 ],
@@ -1750,6 +1749,7 @@
                 }
               ],
               "surface": "path_dirt",
+              "tone": "#8a7550",
               "width": 2
             }
           },
@@ -1970,7 +1970,6 @@
                   "floorAlt": "#38552f",
                   "litter": "#46442a",
                   "swamp": "#3a8278",
-                  "trail": "#8a7550",
                   "undergrowth": "#25532a",
                   "water": "#3f86b0",
                   "waterDeep": "#23547e",
@@ -1982,15 +1981,15 @@
                     "floor": "#3f5f33",
                     "flowers": [
                       {
-                        "char": "\u273f",
+                        "char": "✿",
                         "color": "#c2513f"
                       },
                       {
-                        "char": "\u273e",
+                        "char": "✾",
                         "color": "#8d5fa8"
                       },
                       {
-                        "char": "\u274b",
+                        "char": "❋",
                         "color": "#c9b063"
                       }
                     ],
@@ -2027,15 +2026,15 @@
                     "floor": "#24381f",
                     "flowers": [
                       {
-                        "char": "\u273f",
+                        "char": "✿",
                         "color": "#c2513f"
                       },
                       {
-                        "char": "\u273e",
+                        "char": "✾",
                         "color": "#8d5fa8"
                       },
                       {
-                        "char": "\u274b",
+                        "char": "❋",
                         "color": "#c9b063"
                       }
                     ],
@@ -2118,6 +2117,7 @@
                     }
                   ],
                   "surface": "path_dirt",
+                  "tone": "#8a7550",
                   "width": 2
                 }
               },
@@ -2339,7 +2339,6 @@
                   "floorAlt": "#38552f",
                   "litter": "#46442a",
                   "swamp": "#3a8278",
-                  "trail": "#8a7550",
                   "undergrowth": "#25532a",
                   "water": "#3f86b0",
                   "waterDeep": "#23547e",
@@ -2351,15 +2350,15 @@
                     "floor": "#3f5f33",
                     "flowers": [
                       {
-                        "char": "\u273e",
+                        "char": "✾",
                         "color": "#7b5fa8"
                       },
                       {
-                        "char": "\u274b",
+                        "char": "❋",
                         "color": "#4f8f7a"
                       },
                       {
-                        "char": "\u273f",
+                        "char": "✿",
                         "color": "#b89a3c"
                       }
                     ],
@@ -2392,15 +2391,15 @@
                     "floor": "#24381f",
                     "flowers": [
                       {
-                        "char": "\u273e",
+                        "char": "✾",
                         "color": "#7b5fa8"
                       },
                       {
-                        "char": "\u274b",
+                        "char": "❋",
                         "color": "#4f8f7a"
                       },
                       {
-                        "char": "\u273f",
+                        "char": "✿",
                         "color": "#b89a3c"
                       }
                     ],
@@ -2437,15 +2436,15 @@
                     "floor": "#3b4a2e",
                     "flowers": [
                       {
-                        "char": "\u273e",
+                        "char": "✾",
                         "color": "#7b5fa8"
                       },
                       {
-                        "char": "\u274b",
+                        "char": "❋",
                         "color": "#4f8f7a"
                       },
                       {
-                        "char": "\u273f",
+                        "char": "✿",
                         "color": "#b89a3c"
                       }
                     ],
@@ -2516,6 +2515,7 @@
                   ],
                   "scatter": [],
                   "surface": "wooden_planks",
+                  "tone": "#aa8250",
                   "width": 2
                 }
               },
@@ -2741,7 +2741,6 @@
                   "floorAlt": "#8c9a5b",
                   "litter": "#9a8d5a",
                   "swamp": "#3a8278",
-                  "trail": "#cdb684",
                   "undergrowth": "#618c48",
                   "water": "#2aa8c0",
                   "waterDeep": "#1a7891",
@@ -2753,15 +2752,15 @@
                     "floor": "#3f5f33",
                     "flowers": [
                       {
-                        "char": "\u273f",
+                        "char": "✿",
                         "color": "#e2739b"
                       },
                       {
-                        "char": "\u274b",
+                        "char": "❋",
                         "color": "#6aa9c4"
                       },
                       {
-                        "char": "\u273e",
+                        "char": "✾",
                         "color": "#e0c877"
                       }
                     ],
@@ -2798,15 +2797,15 @@
                     "floor": "#24381f",
                     "flowers": [
                       {
-                        "char": "\u273f",
+                        "char": "✿",
                         "color": "#e2739b"
                       },
                       {
-                        "char": "\u274b",
+                        "char": "❋",
                         "color": "#6aa9c4"
                       },
                       {
-                        "char": "\u273e",
+                        "char": "✾",
                         "color": "#e0c877"
                       }
                     ],
@@ -2885,6 +2884,7 @@
                     }
                   ],
                   "surface": "path_dirt",
+                  "tone": "#cdb684",
                   "width": 2
                 }
               },
@@ -3106,7 +3106,6 @@
                   "floorAlt": "#38552f",
                   "litter": "#46442a",
                   "swamp": "#3a8278",
-                  "trail": "#8a7550",
                   "undergrowth": "#25532a",
                   "water": "#3f86b0",
                   "waterDeep": "#23547e",
@@ -3118,15 +3117,15 @@
                     "floor": "#3f5f33",
                     "flowers": [
                       {
-                        "char": "\u273f",
+                        "char": "✿",
                         "color": "#c2513f"
                       },
                       {
-                        "char": "\u273e",
+                        "char": "✾",
                         "color": "#8d5fa8"
                       },
                       {
-                        "char": "\u274b",
+                        "char": "❋",
                         "color": "#c9b063"
                       }
                     ],
@@ -3163,15 +3162,15 @@
                     "floor": "#24381f",
                     "flowers": [
                       {
-                        "char": "\u273f",
+                        "char": "✿",
                         "color": "#c2513f"
                       },
                       {
-                        "char": "\u273e",
+                        "char": "✾",
                         "color": "#8d5fa8"
                       },
                       {
-                        "char": "\u274b",
+                        "char": "❋",
                         "color": "#c9b063"
                       }
                     ],
@@ -3208,15 +3207,15 @@
                     "floor": "#4a4a3c",
                     "flowers": [
                       {
-                        "char": "\u273f",
+                        "char": "✿",
                         "color": "#c2513f"
                       },
                       {
-                        "char": "\u273e",
+                        "char": "✾",
                         "color": "#8d5fa8"
                       },
                       {
-                        "char": "\u274b",
+                        "char": "❋",
                         "color": "#c9b063"
                       }
                     ],
@@ -3300,6 +3299,7 @@
                     }
                   ],
                   "surface": "path_dirt",
+                  "tone": "#cfa37b",
                   "width": 3
                 }
               },
@@ -3581,6 +3581,7 @@
                 }
               ],
               "surface": "path_dirt",
+              "tone": "#ddb985",
               "width": 3
             }
           },
@@ -3810,6 +3811,7 @@
                     }
                   ],
                   "surface": "path_dirt",
+                  "tone": "#ddb985",
                   "width": 3
                 }
               },
@@ -4056,6 +4058,7 @@
                     }
                   ],
                   "surface": "path_dirt",
+                  "tone": "#ddb985",
                   "width": 3
                 }
               },
@@ -4372,6 +4375,7 @@
                 }
               ],
               "surface": "path_stone",
+              "tone": "#ccbbaa",
               "width": 3
             }
           },
@@ -4661,6 +4665,7 @@
                     }
                   ],
                   "surface": "path_stone",
+                  "tone": "#ccbbaa",
                   "width": 3
                 }
               },
@@ -4959,6 +4964,7 @@
                     }
                   ],
                   "surface": "path_dirt",
+                  "tone": "#cfa37b",
                   "width": 3
                 }
               },
@@ -5260,6 +5266,7 @@
                     }
                   ],
                   "surface": "cobblestone",
+                  "tone": "#b9b2a3",
                   "width": 3
                 }
               },
@@ -5541,6 +5548,7 @@
                     }
                   ],
                   "surface": "path_dirt",
+                  "tone": "#dcc190",
                   "width": 3
                 }
               },
@@ -5816,6 +5824,7 @@
                   ],
                   "scatter": [],
                   "surface": "wooden_planks",
+                  "tone": "#aa8250",
                   "width": 2
                 }
               },
@@ -6122,8 +6131,13 @@
                   "tile": "shrub"
                 }
               ],
+              "marking": {
+                "color": "#eae7db",
+                "every": 3
+              },
               "scatter": [],
               "surface": "road",
+              "tone": "#3d3d44",
               "width": 4
             }
           },
@@ -6406,8 +6420,13 @@
                       "tile": "shrub"
                     }
                   ],
+                  "marking": {
+                    "color": "#eae7db",
+                    "every": 3
+                  },
                   "scatter": [],
                   "surface": "road",
+                  "tone": "#3d3d44",
                   "width": 4
                 }
               },
@@ -6717,6 +6736,7 @@
                     }
                   ],
                   "surface": "cobblestone",
+                  "tone": "#b9b2a3",
                   "width": 3
                 }
               },

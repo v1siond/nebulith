@@ -194,9 +194,27 @@ export interface GeneratorPathwayDressing {
  * a MATERIAL, a WIDTH, an EDGE that is ragged wherever nobody laid a kerb, and what lies on it and stands
  * beside it. The lining is what tells you which place you are in before you have looked at anything else.
  */
+export interface GeneratorPathwayMarking {
+  /** The colour the line is painted in. A line is PAINT, so it is a colour, never a tile laid on the road. */
+  color: string
+  /** One dash every this many cells along the way. */
+  every: number
+}
+
 export interface GeneratorPathway {
   /** The ground tile the way is paved with, by label (`path_dirt`, `gravel`, `wooden_planks`, `road`, …). */
   surface?: string
+  /**
+   * The COLOUR the way wears.
+   *
+   * It used to come from the template's `palette.trail`, and that is why a mountain forest's gravel was
+   * painted the woodland's dirt and a swamp's boardwalk the jungle's: a template said what its way was made
+   * of and the palette it inherited said what colour, and the palette won. The kind IS the look of the way,
+   * so it carries the colour, and the palette is left owning the ground, the water and the shore.
+   */
+  tone?: string
+  /** The line down the middle of a carriageway, where the way is one somebody painted. */
+  marking?: GeneratorPathwayMarking
   /** How many cells across it runs. */
   width?: number
   /** How ragged the edge is: the share of its border cells the field takes back. 0 is a laid kerb. */
@@ -631,6 +649,16 @@ function parseDressing(v: unknown): readonly GeneratorPathwayDressing[] | undefi
   return rows.length > 0 ? rows : undefined
 }
 
+/** The served centre line. Both halves are required: a marking with no colour has nothing to paint and one
+ *  with no rhythm has no shape, and neither is something this file may decide. */
+function parseMarking(v: unknown): GeneratorPathwayMarking | undefined {
+  if (!isObject(v)) return undefined
+  const color = str(v.color)
+  const every = num(v.every)
+  if (!color || every === undefined || every < 1) return undefined
+  return { color, every: Math.round(every) }
+}
+
 /** The served pathway block. An absent field stays absent, so the generator keeps what it did before for it
  *  rather than being handed a number this file made up. */
 function parsePathway(v: unknown): GeneratorPathway | undefined {
@@ -638,6 +666,10 @@ function parsePathway(v: unknown): GeneratorPathway | undefined {
   const out: GeneratorPathway = {}
   const surface = str(v.surface)
   if (surface) out.surface = surface
+  const tone = str(v.tone)
+  if (tone) out.tone = tone
+  const marking = parseMarking(v.marking)
+  if (marking) out.marking = marking
   const width = num(v.width)
   if (width !== undefined && width >= 1) out.width = Math.round(width)
   const edge = num(v.edge)

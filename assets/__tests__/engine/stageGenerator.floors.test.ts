@@ -24,7 +24,10 @@ function grow(variant: VariantId, zone: ZoneId, seed = 7, layout?: ForestLayout)
   try {
     return generateStage({
       zone, variant, cols: 40, rows: 30, layout,
-      nature: config?.nature, palette: config?.palette, formation: config?.formation, treeMix: config?.trees, subZones: config?.subZones,
+      // AND ITS PATHWAY, which the editor passes and this omitted, so every case here was measuring a forest
+      // with no served way rather than the one the app builds.
+      nature: config?.nature, palette: config?.palette, formation: config?.formation, pathway: config?.pathway,
+      treeMix: config?.trees, subZones: config?.subZones,
     })
   } finally {
     Math.random = orig
@@ -69,10 +72,11 @@ describe('a season whose ground is textured lays it as colour, not tiles', () =>
     expect(cellsWhere(s, g => g === FLAT_FLOOR).filter(([c, r]) => !s.floorColors[r][c])).toEqual([])
     const trail = zonePalette('winter')!.trail
     expect(count(s, trail)).toBe(0)
-    // THE COLOUR THE GENERATOR ACTUALLY PAINTS WITH: the template's served trail where it states one, else
-    // the trail tile's own. Reading only the tile's colour asserted half the rule, and until the ascii `path`
-    // row was given a colour that half resolved to GRASS, so this counted the field and called it a path.
-    const paint = findGenerator(CATALOG, 'forest', 'woodland')?.config.palette?.trail ?? groundTileColor(trail, 0, 0)
+    // THE COLOUR THE GENERATOR ACTUALLY PAINTS WITH: the tone its own PATHWAY serves. It read the palette's
+    // trail, which is where the colour used to live and no longer does. The pathway kind carries it, so a
+    // template that picks gravel is painted gravel rather than whatever its parent's palette said.
+    const paint = (findGenerator(CATALOG, 'forest', 'woodland')?.config as { pathway?: { tone?: string } } | undefined)?.pathway?.tone
+    expect(typeof paint).toBe('string')
     const trailCells = cellsWhere(s, g => g === FLAT_FLOOR).filter(([c, r]) => s.floorColors[r][c] === paint)
     expect(trailCells.length).toBeGreaterThan(0)
   })

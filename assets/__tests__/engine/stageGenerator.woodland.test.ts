@@ -12,7 +12,11 @@
  */
 import '@/__tests__/helpers/installTilesetSeed' // the generator reads all tile/composition data from the loaded fixture
 import { generateStage, type ForestLayout, type NatureDensity } from '@/engine/stageGenerator'
+import { findGenerator, parseGeneratorCatalog, type GeneratorPathway } from '@/lib/generatorCatalog'
 import { makeRng } from '@/lib/math'
+import liveBody from '@/__tests__/fixtures/generators.json'
+
+const CATALOG = parseGeneratorCatalog(liveBody)
 
 const COLS = 60, ROWS = 40
 
@@ -25,10 +29,14 @@ const JUNGLE: NatureDensity = { canopy: 0.62, groundCover: 0.5, flowers: 0.1 }
  *  day. Comparing two stochastic quantities across unseeded runs is how a test becomes a coin flip — this
  *  suite asserts ratios, so it has to hold the randomness still. */
 const build = (layout: ForestLayout, nature: NatureDensity, seed = 1, options?: Record<string, boolean>) => {
+  // THE DENSITY IS THE ARGUMENT, THE WAY IS THE TEMPLATE'S. `nature` stays explicit because these cases are
+  // about what a served density does; the pathway comes from the same template the app builds from, because
+  // a forest with no served way has nothing to paint one with and *"a trail has to be visible to be a trail"*.
+  const pathway = (findGenerator(CATALOG, 'forest', layout)?.config as { pathway?: GeneratorPathway } | undefined)?.pathway
   const orig = Math.random
   Math.random = makeRng(seed)
   try {
-    return generateStage({ zone: 'summer', variant: 'forest', layout, cols: COLS, rows: ROWS, nature, options })
+    return generateStage({ zone: 'summer', variant: 'forest', layout, cols: COLS, rows: ROWS, nature, options, pathway })
   } finally {
     Math.random = orig
   }
@@ -44,16 +52,15 @@ const cellsOf = (stage: ReturnType<typeof build>, tile: string): Array<[number, 
   return out
 }
 
-/** The tile this stage's trails are paved with — read off the map rather than hardcoded, because the trail
- *  tile comes from the zone's palette and a season is free to pave differently. It is the commonest ground
- *  tile that is neither the floor nor the water nor the deck. */
-const trailTile = (stage: ReturnType<typeof build>): string => {
-  const tally = new Map<string, number>()
-  for (const t of stage.ground.flat()) tally.set(t, (tally.get(t) ?? 0) + 1)
-  const floor = [...tally.entries()].sort((a, b) => b[1] - a[1])[0][0]
-  const rest = [...tally.entries()].filter(([t]) => t !== floor && t !== 'water' && t !== 'bridge')
-  return rest.sort((a, b) => b[1] - a[1])[0]?.[0] ?? ''
-}
+/**
+ * The cells this stage's ways run through, as the stage itself publishes them.
+ *
+ * It used to hunt for the commonest ground TILE that was not the floor, which worked only while a way swapped
+ * the ground for a trail tile. A way is a COLOUR on the ground block, never a tile laid on top of it, so
+ * there is no trail tile to count any more and the hunt returned the deck or nothing. `stage.pathways` is
+ * the set the pathways layer actually drew, which is the thing these cases are about.
+ */
+const wayCells = (stage: ReturnType<typeof build>): ReadonlySet<string> => stage.pathways ?? new Set<string>()
 
 /** Trees averaged over several SEEDED maps — one map says nothing about a density, and the seeds make the
  *  average reproducible so the band below is a real bound rather than a lucky one. */
@@ -79,8 +86,27 @@ describe('every canopy layout builds a navigable forest', () => {
     const open = COLS * ROWS - trunks.size
     expect(open / (COLS * ROWS)).toBeGreaterThan(0.5)
     // …and the open ground is PAVED somewhere — a trail has to be visible to be a trail.
-    const floor = countGround(stage, 'meadow')
-    expect(floor).toBeLessThan(COLS * ROWS) // some ground is something other than the bare forest floor
+    //
+    // VISIBLE MEANS A DIFFERENT COLOUR, not a different tile. This counted cells whose ground tile was not
+    // the forest floor, which passed only while a way swapped the tile underneath it, and that swap is the
+    // raised trench: *"NOT ADD BLACK ULGY TILES ON TOP"*. The way wears the template's tone on the same floor
+    // block, so what makes it visible is that its colour is not the colour of the field around it.
+    // A JUNGLE HAS NO ROADS. Its way through is the animal track, *"not a road and not paved: it is the line
+    // of least undergrowth"*, so it publishes no pathway cells and there is no paving to find. The woodland
+    // paves its corridors, and that is the difference these two layouts exist to have.
+    if (layout === 'jungle') return
+    const ways = wayCells(stage)
+    expect(ways.size).toBeGreaterThan(0)
+    const onTheWay = new Set<string | undefined>()
+    const offIt = new Set<string | undefined>()
+    for (let row = 0; row < stage.rows; row++) {
+      for (let col = 0; col < stage.cols; col++) {
+        const painted = stage.floorColors[row][col]
+        if (!painted) continue
+        ;(ways.has(`${col},${row}`) ? onTheWay : offIt).add(painted)
+      }
+    }
+    expect([...onTheWay].some(tone => !offIt.has(tone))).toBe(true)
   })
 })
 
@@ -109,9 +135,9 @@ describe('a path is wide enough to walk down', () => {
   /** For every trail cell, the narrower of its horizontal and vertical trail run — the local corridor width.
    *  Reported as the tightest PINCH on the map, because the narrowest point is what decides if you get through. */
   const trailPinch = (stage: ReturnType<typeof build>): number => {
-    const tile = trailTile(stage)
+    const ways = wayCells(stage)
     const isTrail = (c: number, r: number) =>
-      r >= 0 && r < stage.rows && c >= 0 && c < stage.cols && stage.ground[r][c] === tile
+      r >= 0 && r < stage.rows && c >= 0 && c < stage.cols && ways.has(`${c},${r}`)
     const run = (c: number, r: number, dc: number, dr: number) => {
       let n = 1
       for (let k = 1; isTrail(c + dc * k, r + dr * k); k++) n++
@@ -170,7 +196,7 @@ describe('woodland + river', () => {
     for (const seed of [1, 2, 3, 4, 5]) {
       const stage = build('woodland', WOODLAND, seed, { river: true, crossing: true })
       const deck = cellsOf(stage, 'bridge')
-      const paved = new Set(cellsOf(stage, trailTile(stage)).map(([c, r]) => `${c},${r}`))
+      const paved = wayCells(stage)
       const touching = deck.some(([c, r]) =>
         [[1, 0], [-1, 0], [0, 1], [0, -1]].some(([dc, dr]) => paved.has(`${c + dc},${r + dr}`)))
       expect({ seed, touching }).toEqual({ seed, touching: true })

@@ -21,13 +21,14 @@ const ZONE = 'summer' as const
 const LAYOUTS: Array<[ForestLayout]> = [['woodland'], ['jungle'], ['meadow']]
 const key = (c: { col: number; row: number }) => `${c.col},${c.row}`
 
-/** What a layout PAINTS its trails with: the colour its template serves, else the trail tile's own.
- *  The same precedence `layoutWoodland` uses, read from the same served config, so the test cannot drift
- *  from the generator the way the old oracle did (it compared against a fallback that returned GRASS, so it
- *  passed while the woodland had no visible path at all). */
-const trailPaint = (layout: ForestLayout, col: number, row: number): string =>
-  findGenerator(CATALOG, 'forest', layout)?.config.palette?.trail
-  ?? groundTileColor(zonePalette(ZONE)!.trail, col, row)
+/** What a layout PAINTS its ways with: the tone its own PATHWAY serves.
+ *
+ *  It read `palette.trail` and fell back to the season's trail tile, which is the model this replaced: a
+ *  mountain forest asked for gravel and the woodland palette it inherits painted dirt, and a meadow served
+ *  no trail at all so its park path fell through to the raw tile and came out darker than the lawn. The
+ *  pathway kind carries the colour now, so the oracle reads it from the same place the generator does. */
+const trailPaint = (layout: ForestLayout): string | undefined =>
+  (findGenerator(CATALOG, 'forest', layout)?.config as { pathway?: { tone?: string } } | undefined)?.pathway?.tone
 
 /** A forest built from its served template, the way the editor builds it, with the pathways the person picked. */
 function grow(layout: ForestLayout, pathways: Record<string, string> | undefined, seed = 7): StageData {
@@ -38,7 +39,9 @@ function grow(layout: ForestLayout, pathways: Record<string, string> | undefined
     return generateStage({
       zone: ZONE, variant: 'forest', layout, cols: COLS, rows: ROWS,
       options: pathways,
-      nature: config?.nature, palette: config?.palette, formation: config?.formation,
+      // THE PATHWAY TOO, which the editor passes and this omitted: every case below was building a forest
+      // with no served way, so what it measured was the fallback rather than the map the app makes.
+      nature: config?.nature, palette: config?.palette, formation: config?.formation, pathway: config?.pathway,
       treeMix: config?.trees, subZones: config?.subZones, crossings: config?.crossings,
     })
   } finally {
@@ -102,18 +105,33 @@ describe('the pathways the generator serves reach the map it builds', () => {
   })
 })
 
+/** Luminance of a `#rrggbb` or `rgb()` colour. */
+function lum(colour: string): number {
+  const m = colour.match(/rgba?\((\d+)[,\s]+(\d+)[,\s]+(\d+)/)
+  const [r, g, b] = m ? [+m[1], +m[2], +m[3]] : [0, 2, 4].map(i => parseInt(colour.replace('#', '').slice(i, i + 2), 16))
+  return 0.2126 * r + 0.7152 * g + 0.0722 * b
+}
+
+/** Is this colour the way's tone, or one of the steps the paver wears either side of it? */
+const near = (painted: string | undefined, tone: string): boolean =>
+  painted !== undefined && Math.abs(lum(painted) - lum(tone)) <= lum(tone) * 0.25 + 8
+
 describe('a path is something you can SEE, not just walk', () => {
-  it('a woodland paves its pathways with the trail the season serves', () => {
+  it('a woodland paves its pathways with the tone its own template serves', () => {
+    const tone = trailPaint('woodland')
+    expect(typeof tone).toBe('string')
     const s = grow('woodland', { exits: '3', pathways: '3' })
     for (const gate of s.routes!.gates) {
       const { col, row } = gate.inside
       expect(s.ground[row][col]).toBe(FLAT_FLOOR)
-      expect(s.floorColors[row][col]).toBe(trailPaint('woodland', col, row))
+      // The way is worn a step either side of its tone, so a gateway cell carries the tone or one of its
+      // steps. What it must never be is the field's colour, which is what "a path you can SEE" means.
+      expect(near(s.floorColors[row][col], tone!)).toBe(true)
     }
   })
 
   it('a jungle track wears the template\'s own trail tone, the whole way through', () => {
-    const trail = findGenerator(CATALOG, 'forest', 'jungle')!.config.palette!.trail
+    const trail = trailPaint('jungle')
     expect(trail).toBeTruthy()
     const s = grow('jungle', { exits: '2', pathways: '3' })
     const water = new Set<string>()
@@ -124,18 +142,27 @@ describe('a path is something you can SEE, not just walk', () => {
       const [c, r] = k.split(',').map(Number)
       tones.add(s.floorColors[r][c])
     }
-    expect([...tones]).toEqual([trail])
+    // Its own tone and the two steps either side of it, and nothing else: a track that wandered off its
+    // material half way along is not one track.
+    expect([...tones].every(t => near(t, trail!))).toBe(true)
+    expect(tones.size).toBeLessThanOrEqual(4)
   })
 
-  it('a meadow lays every way in cobble, one tone against a floor that changes by row', () => {
+  it('a meadow lays every way in its own tone, against a floor that changes by row', () => {
     const s = grow('meadow', { exits: '3', pathways: '3' })
+    const tone = trailPaint('meadow')
     const tones = new Set<string | undefined>()
     for (const k of s.routes!.cells) {
       const [c, r] = k.split(',').map(Number)
       if (s.ground[r][c] !== 'meadow') continue // a crossing deck is not the lane
       tones.add(s.floorColors[r][c])
     }
-    expect(tones.size).toBe(1) // the cobble way is one colour all the way across
+    // A FEW tones, not one and not one per cell. It asserted exactly one, which was true of the flat cobble
+    // it used to lay; measured on the references, a way is nearly flat but not dead flat (6.1 luminance
+    // stdev on the woodland crossroads, 14.4 to 18.9 on the park path), so it wears its tone in steps.
+    expect(tones.size).toBeGreaterThan(0)
+    expect(tones.size).toBeLessThanOrEqual(4)
+    expect([...tones].every(t => near(t, tone!))).toBe(true)
     // and the season gradient it crosses is NOT that colour, so the way reads as a way
     const gradient = new Set<string | undefined>()
     s.floorColors.forEach((row, r) => row.forEach((tone, c) => { if (!s.routes!.cells.has(`${c},${r}`)) gradient.add(tone) }))

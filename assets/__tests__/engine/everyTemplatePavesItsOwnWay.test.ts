@@ -57,28 +57,40 @@ function build(key: string, seed: number): StageData {
 }
 
 const pathwayOf = (key: string) =>
-  (served(key).config as { pathway?: { surface?: string; width?: number; edge?: number } }).pathway
+  (served(key).config as {
+    pathway?: { surface?: string; width?: number; edge?: number; tone?: string; marking?: { color: string; every: number } }
+  }).pathway
 
 /**
- * How many cells wear this surface's COLOUR.
+ * How many cells wear this way's COLOUR.
  *
  * This counted cells whose GROUND was the surface tile, and that was asserting the defect: a way is a colour
  * on the ground block, never a tile laid on top of it. *"CITY STREETS FUCKING SUCK, WE ALREADY HAD GOOD
  * STREETS, ALL WE NEEDED WAS TO ADD THE WHITE RECTANGULAR LINES IN MIDDLE AS ORNAMENT IF WE WANTED, NOT ADD
  * BLACK ULGY TILES ON TOP"*. The engine paver said so all along: the base ground stays and is tinted, so a
  * road is flush with the grass and there is no raised road-tile trench.
+ *
+ * The served TONE is what a way is painted in, worn a step either side of itself, so a cell counts when it
+ * sits within that step of it. The surface tile's own colour is the fallback for a way that states no tone.
  */
-let servedTrail: string | undefined
+let servedTone: string | undefined
+
+/** Luminance of a `#rrggbb` or `rgb()` colour. */
+function lum(colour: string): number {
+  const m = colour.match(/rgba?\((\d+)[,\s]+(\d+)[,\s]+(\d+)/)
+  const [r, g, b] = m ? [+m[1], +m[2], +m[3]] : [0, 2, 4].map(i => parseInt(colour.replace('#', '').slice(i, i + 2), 16))
+  return 0.2126 * r + 0.7152 * g + 0.0722 * b
+}
 
 function cellsOf(s: StageData, tile: string): number {
-  const tone = groundTileColor(tile, 0, 0)
+  const base = lum(servedTone ?? groundTileColor(tile, 0, 0) ?? '#000000')
   let n = 0
   for (let row = 0; row < s.rows; row++) {
     for (let col = 0; col < s.cols; col++) {
       const painted = s.floorColors[row][col]
       if (!painted) continue
-      // the template's own trail tone wins where it serves one, so either reads as surfaced
-      if (painted === tone || painted === (servedTrail ?? '\u0000')) n++
+      // within the wear the paver applies either side of the served tone
+      if (Math.abs(lum(painted) - base) <= base * 0.25 + 8) n++
     }
   }
   return n
@@ -94,7 +106,7 @@ describe('every template lays its pathways in the material the backend serves', 
   for (const key of TEMPLATES) {
     it(`${key} paves with its own surface`, () => {
       const surface = pathwayOf(key)?.surface
-      servedTrail = (served(key).config as { palette?: { trail?: string } } | undefined)?.palette?.trail
+      servedTone = pathwayOf(key)?.tone
       expect({ key, states: typeof surface }).toEqual({ key, states: 'string' })
       // Not a threshold, a presence: the way was built out of the served tile and not out of the field.
       expect({ key, paved: cellsOf(build(key, 4), surface!) > 20 }).toEqual({ key, paved: true })
@@ -166,6 +178,114 @@ describe('a settlement street is its pathway, not a second opinion', () => {
     for (const key of settlements) {
       const config = served(key).config as { pathway?: { surface?: string }; settlement?: { streets?: string } }
       expect({ key, streets: config.settlement?.streets }).toEqual({ key, streets: config.pathway?.surface })
+    }
+  })
+})
+
+/**
+ * WHAT THE REFERENCES ACTUALLY SHOW, measured off the stored pictures rather than described.
+ *
+ * The way in every one of them is a FLAT tone that does not belong to the ground beside it, with pebbles and
+ * stones lying on it for interest. Measured on patches that are genuinely path: 6.1 luminance stdev on the
+ * woodland crossroads, 14.4 to 18.9 on the park path, 12.5 on the swamp. An earlier pass measured 39.3 and
+ * set the wear to match, but that mask was sweeping in trunks, outlines and the backdrop, so a woodland's way
+ * came out wearing 227 different colours over some 300 cells.
+ */
+describe('a way is the flat tone the references show', () => {
+  /** Every colour worn by a cell of this map's ways, minus the centre line, which is paint ON the way rather
+   *  than the way's own material. */
+  function wayTones(s: StageData, marking?: string): Map<string, number> {
+    const tones = new Map<string, number>()
+    for (const key of s.pathways ?? []) {
+      const [col, row] = key.split(',').map(Number)
+      const painted = s.floorColors[row]?.[col]
+      if (!painted || painted === marking) continue
+      tones.set(painted, (tones.get(painted) ?? 0) + 1)
+    }
+    return tones
+  }
+
+  it.each(TEMPLATES)('%s wears a handful of tones, not one per cell', key => {
+    const tones = wayTones(build(key, 4), pathwayOf(key)?.marking?.color)
+    expect({ key, cells: tones.size > 0 }).toEqual({ key, cells: true })
+    // A few, so the runs still merge: `compressGround` joins only floors sharing a tile AND a colour, so a
+    // way where no two cells agree is a way that cannot merge into a single floor at all.
+    expect({ key, tones: tones.size <= 12 }).toEqual({ key, tones: true })
+  })
+
+  it.each(TEMPLATES)('%s paints its ways in the tone the backend serves for them', key => {
+    const tone = pathwayOf(key)?.tone
+    expect({ key, serves: typeof tone }).toEqual({ key, serves: 'string' })
+    const tones = wayTones(build(key, 4), pathwayOf(key)?.marking?.color)
+    // The served tone is one of the tones worn, and the way as a whole SITS on it: the wear steps stand
+    // either side, so the average of the way is the served tone give or take a step.
+    expect({ key, wears: tones.has(tone!) }).toEqual({ key, wears: true })
+    let sum = 0, cells = 0
+    for (const [colour, n] of tones) { sum += lum(colour) * n; cells += n }
+    const drift = Math.abs(sum / cells - lum(tone!))
+    expect({ key, drift: drift < lum(tone!) * 0.2 + 6 }).toEqual({ key, drift: true })
+  })
+
+  it('a meadow path is LIGHTER than the lawn it crosses, as its own reference is', () => {
+    // `meadow_park`: sand at 173.6 over grass at 141. The meadow served NO trail before this and fell through
+    // to the raw tile, so its way measured 45 points DARKER than the field.
+    const s = build('forest_meadow', 4)
+    const on: number[] = [], off: number[] = []
+    for (let row = 0; row < s.rows; row++) {
+      for (let col = 0; col < s.cols; col++) {
+        const painted = s.floorColors[row][col]
+        if (!painted) continue
+        ;(s.pathways?.has(`${col},${row}`) ? on : off).push(lum(painted))
+      }
+    }
+    const mean = (xs: number[]) => xs.reduce((a, b) => a + b, 0) / xs.length
+    expect({ lighter: mean(on) > mean(off) }).toEqual({ lighter: true })
+  })
+
+  it('a mountain forest wears its own gravel, not the woodland dirt it inherits', () => {
+    // It states `rocky_track` and inherited `@woodland_palette`, whose trail won: the template said gravel
+    // and the map painted dirt. The palettes carry no trail at all now, so there is nothing left to override.
+    expect(pathwayOf('forest_woodland_mountain')?.tone).not.toEqual(pathwayOf('forest_woodland')?.tone)
+    const tones = [...(build('forest_woodland_mountain', 4).pathways ?? [])]
+    expect(tones.length).toBeGreaterThan(0)
+  })
+
+  it('a swamp boardwalk wears planks, not the jungle dirt it inherits', () => {
+    expect(pathwayOf('forest_jungle_swamp')?.tone).not.toEqual(pathwayOf('forest_jungle')?.tone)
+  })
+})
+
+describe('the white lines in the middle', () => {
+  it('a city street carries them, down the middle of the carriageway', () => {
+    // *"ALL WE NEEDED WAS TO ADD THE WHITE RECTANGULAR LINES IN MIDDLE AS ORNAMENT IF WE WANTED"*.
+    const marking = pathwayOf('city_modern')?.marking
+    expect({ serves: typeof marking?.color }).toEqual({ serves: 'string' })
+    const s = build('city_modern', 4)
+    let painted = 0, offTheWay = 0
+    for (let row = 0; row < s.rows; row++) {
+      for (let col = 0; col < s.cols; col++) {
+        if (s.floorColors[row][col] !== marking!.color) continue
+        painted++
+        if (!s.pathways?.has(`${col},${row}`)) offTheWay++
+      }
+    }
+    // Every dash is ON a street, and there are enough of them to read as a line.
+    expect({ painted: painted > 8, offTheWay }).toEqual({ painted: true, offTheWay: 0 })
+  })
+
+  it('a medieval city has none: its cobbles are not a carriageway', () => {
+    // A subtype that names a different pathway kind gets that kind WHOLE. Merged key by key, `city_medieval`
+    // swapped the asphalt for cobbles and went on inheriting the asphalt's centre line.
+    expect(pathwayOf('city_medieval')?.marking).toBeUndefined()
+    const s = build('city_medieval', 4)
+    let white = 0
+    for (let row = 0; row < s.rows; row++) for (let col = 0; col < s.cols; col++) if (s.floorColors[row][col] === '#eae7db') white++
+    expect(white).toBe(0)
+  })
+
+  it('and no forest or town has them either', () => {
+    for (const key of ['forest_woodland', 'forest_meadow', 'forest_jungle', 'town_small', 'town_beach']) {
+      expect({ key, marking: pathwayOf(key)?.marking }).toEqual({ key, marking: undefined })
     }
   })
 })
