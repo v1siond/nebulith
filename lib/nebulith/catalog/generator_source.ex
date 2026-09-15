@@ -43,6 +43,10 @@ defmodule Nebulith.Catalog.GeneratorSource do
   # randomness it wants to keep is one of them rather than the only behaviour.
   @water_options [
     %{
+      # THERE IS NO "crossing" TOGGLE. It read "A crossing joined to the paths" and he asked what it even
+      # meant and why it was in the UI. It meant: off, the river got fallen logs at random spots and a path
+      # walked into the water and stopped; on, a real crossing went where the path meets the river. There is
+      # no map that wants the first, so a river crossing a path is ALWAYS crossed now.
       "key" => "river",
       "label" => "River",
       "type" => "choice",
@@ -55,13 +59,7 @@ defmodule Nebulith.Catalog.GeneratorSource do
         %{"key" => "around", "label" => "Around the edge"}
       ]
     },
-    %{
-      "key" => "crossing",
-      "label" => "A crossing joined to the paths",
-      "type" => "toggle",
-      "default" => false,
-      "requires" => "river"
-    },
+
     # HOW DEEP the channel is cut. and
     #
     # So the depth is a served number, not a constant the generator picks. `flat` keeps the old behaviour
@@ -224,7 +222,10 @@ defmodule Nebulith.Catalog.GeneratorSource do
   # Ground cover more than doubles and the blooms go with it, so the floor is choked rather than walkable
   # lawn between trunks. Same STRUCTURE as the woodland (clearings, trails); only these numbers differ, which
   # is why it needs no generator of its own. Starting values — tune them here by eye.
-  @jungle_nature %{"groundCover" => 0.5, "flowers" => 0.1, "canopy" => 0.62}
+  # THIRTY PER CENT FEWER TREES, on his instruction 2026-09-15: *"we need to reduce trees density by 30% on
+  # all jungle templates variants too"*. 0.62 -> 0.434. Every jungle variant inherits this, so island,
+  # ruins and swamp all thin with it; the dense variant overrides it and is cut by the same 30%.
+  @jungle_nature %{"groundCover" => 0.5, "flowers" => 0.1, "canopy" => 0.434}
 
   # THE FOREST PALETTES. and
   # It is right, and the reason was structural: every colour in a forest came from the SEASON (spring, autumn)
@@ -716,7 +717,7 @@ defmodule Nebulith.Catalog.GeneratorSource do
         category: "forest", parent: "forest_jungle", key: "forest_jungle_dense", name: "Super dense jungle",
         layout: "jungle", position: 0,
         description: "A closed canopy wall to wall, almost no open ground.",
-        config: %{"nature" => %{"canopy" => 0.72}, "subZones" => sub_zones(%{"dense" => 5, "open" => 1})},
+        config: %{"nature" => %{"canopy" => 0.504}, "subZones" => sub_zones(%{"dense" => 5, "open" => 1})},
         options: @way_options ++ region_options(~w(open dense)) ++ @water_options
       },
       # image #13 — cypress standing in the water
