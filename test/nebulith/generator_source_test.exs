@@ -81,16 +81,18 @@ defmodule Nebulith.GeneratorSourceTest do
         # This walks the three PARENT rows only. A jungle offers its region picker there; the woodland and
         # meadow parents do not, because the woodland rows that have regions are its CHILDREN (glades, and the
         # mountain forest), and each of those states its own options.
+        # THE `crossing` TOGGLE IS GONE: *"'A crossing joined to the paths' what does even mean???? I don't
+        # know why we have it in the UI"*. A river that cuts a path in half always gets a crossing now, so
+        # there was nothing for the toggle to decide. `bridge` stays, because WHICH crossing is a real choice.
         expected =
           if g.key == "forest_jungle",
-            do: ~w(exits pathways region river crossing depth bridge),
-            else: ~w(exits pathways river crossing depth bridge)
+            do: ~w(exits pathways region river depth bridge),
+            else: ~w(exits pathways river depth bridge)
 
         assert Enum.map(g.options, & &1["key"]) == expected, "#{g.key} offers #{inspect(g.options)}"
-        # Nothing runs by default: no river, and so no crossing either, whatever kind it would be.
-        [river, crossing, kind] = Enum.filter(g.options, &(&1["key"] in ~w(river crossing bridge)))
+        # Nothing runs by default: no river, and so nothing to cross.
+        [river, kind] = Enum.filter(g.options, &(&1["key"] in ~w(river bridge)))
         assert river["default"] == "none", "#{g.key} runs a river by default"
-        assert crossing["default"] == false
         assert kind["requires"] == "river"
 
         # HOW DEEP the channel is cut is served, not chosen by the generator. It hangs
@@ -102,19 +104,17 @@ defmodule Nebulith.GeneratorSourceTest do
       end
     end
 
-    test "a crossing DECLARES that it needs a river — the panel does not have to know" do
+    test "the KIND of crossing declares that it needs a river - the panel does not have to know" do
       GeneratorSource.seed()
       woodland = Catalog.list_generator_categories() |> generator("forest", "forest_woodland")
 
-      [river, crossing, kind] = Enum.filter(woodland.options, &(&1["key"] in ~w(river crossing bridge)))
+      [river, kind] = Enum.filter(woodland.options, &(&1["key"] in ~w(river bridge)))
 
-      # The next ticket was A crossing over dry ground is
-      # nonsense, so the row says what it depends on and the editor greys the toggle out from the DATA.
+      # A crossing over dry ground is nonsense, so the row says what it depends on and the editor greys it out
+      # from the DATA. This used to guard the `crossing` toggle too; that option is gone and `bridge` carries
+      # the rule on its own now.
       refute Map.has_key?(river, "requires")
-      assert crossing["requires"] == "river"
-      assert crossing["type"] == "toggle"
       assert river["type"] == "choice"
-      # the kind of crossing needs a river just the same
       assert kind["requires"] == "river"
       assert kind["type"] == "choice"
     end
@@ -244,17 +244,28 @@ defmodule Nebulith.GeneratorSourceTest do
       end
     end
 
-    test "a jungle is a woodland grown over — denser canopy AND far more undergrowth" do
+    test "a jungle is a woodland grown over - its floor BLOCKS where a wood's floor is grass" do
       GeneratorSource.seed()
       cats = Catalog.list_generator_categories() |> by_key()
-      nature = for g <- cats["forest"].generators, into: %{}, do: {g.layout, g.config["nature"]}
+      forest = for g <- cats["forest"].generators, into: %{}, do: {g.layout, g.config}
 
-      # Ticket 48, the requirement: What makes it one is these numbers, not a
-      # separate generator — same clearings, same trails, choked floor. If the two ever read the same the
-      # preset is decorative, so the test asserts the GAP rather than the values.
-      assert nature["jungle"]["canopy"] > nature["woodland"]["canopy"]
-      assert nature["jungle"]["groundCover"] > nature["woodland"]["groundCover"] * 2
-      assert nature["jungle"]["flowers"] > nature["woodland"]["flowers"]
+      # THE CANOPY NUMBER WAS NEVER THE DIFFERENCE, and this test used to say it was: it asserted the jungle
+      # carried the bigger `canopy` and more than twice the `groundCover`. Both went away when the jungle was
+      # thinned for being unplayable (*"user can't move, we can't put any treasures nor units around"*), and
+      # the jungle is still, measured in the engine, far the tighter map: 78% of its interior walkable against
+      # a woodland's 90%, and 98 thicket cells against a woodland's nil.
+      #
+      # That last number is the whole difference. A wood's understory is `tall_grass`, which you walk through.
+      # A jungle's is `thicket`, which stops you, and it plants nearly three times as much of it. A jungle
+      # with FEWER trees than a wood is still a jungle; one whose floor you can stroll across is not.
+      jungle = forest["jungle"]["formation"]
+      woodland = forest["woodland"]["formation"]
+
+      assert jungle["understoryTile"] == "thicket", "a jungle floor has to block"
+      assert woodland["understoryTile"] == "tall_grass", "a wood floor has to be walkable"
+      assert jungle["understory"] > woodland["understory"] * 2
+      # and it still grows more flowers, which is the one nature number that always did separate them
+      assert forest["jungle"]["nature"]["flowers"] > forest["woodland"]["nature"]["flowers"]
     end
 
     test "a generator runs in seasons the editor offers, and narrows them when its climate implies one" do
@@ -443,7 +454,7 @@ defmodule Nebulith.GeneratorSourceTest do
       end
     end
 
-    test "a variation called dense IS denser, counting trees and not bushes", %{categories: cats} do
+    test "a variation called dense IS denser, in canopy and in the floor under it", %{categories: cats} do
       # `canopy` is the share of plantable floor that takes an entry from the TREE table, so a table with
       # bushes in it spends part of that share on shrubs. Comparing the canopy numbers alone said dense was
       # denser; comparing what actually grows said the opposite. This compares what grows.
@@ -458,16 +469,47 @@ defmodule Nebulith.GeneratorSourceTest do
         (get_in(g.config, ["nature", "canopy"]) || 0.0) * share
       end
 
-      assert tree_cover.(dense) > tree_cover.(woodland) * 1.3,
+      # THE MARGIN USED TO BE 1.3x AND IT WAS NOT MEASURING TREES. Cover is canopy times the tree share, and
+      # the number of trunks that actually land is that against the FORMATION: 0.47 on this row's lattice of
+      # 7 at spacing 0 plants 336 trees on a 40x40, while plain woodland's 0.434 on a lattice of 5 at spacing
+      # 2 plants 133. Two and a half times the trees, at 1.15x the "cover". Demanding 1.3x here was demanding
+      # something nobody could see, and paying for it in a map measured at 46% walkable.
+      #
+      # So the assertion is the direction, not a margin, and it is made of BOTH halves of what this row is:
+      # more canopy than a plain wood, over a floor that blocks where a plain wood's is grass. How it comes
+      # out on an actual map is measured where a map can be built, in aJungleYouCanWalkAcross.test.ts.
+      assert tree_cover.(dense) > tree_cover.(woodland),
              "dense #{Float.round(tree_cover.(dense), 3)} vs plain #{Float.round(tree_cover.(woodland), 3)}"
+
+      assert get_in(dense.config, ["formation", "understoryTile"]) == "thicket"
+      assert get_in(woodland.config, ["formation", "understoryTile"]) == "tall_grass"
 
       # and its table is trees, not shrubs: undergrowth has its own channel
       refute Enum.any?(dense.config["trees"], &String.starts_with?(&1["kind"], "bush"))
-      assert get_in(dense.config, ["nature", "groundCover"]) > get_in(woodland.config, ["nature", "groundCover"])
 
-      # a dense WOOD still is not a rainforest
+      # HOW MUCH FLOOR IS CHOKED is the served share times the formation's own multiplier, not the share on
+      # its own. Both rows carry groundCover 0.2 and they are nothing alike underfoot: this one runs it
+      # through an understory of 1.1 into thicket, a plain wood through 0.45 into grass.
+      choke = fn g -> (get_in(g.config, ["nature", "groundCover"]) || 0.0) * (get_in(g.config, ["formation", "understory"]) || 1.0) end
+      assert choke.(dense) > choke.(woodland) * 2
+
+      # A DENSE WOOD STILL IS NOT A RAINFOREST, and this is the line that stopped saying so. It compared a
+      # dense wood's tree cover against the jungle's raw `canopy`, which worked only while that number was
+      # 0.62. The jungle has been thinned three times since, to 0.31, and this row sat at 0.60: measured in
+      # the engine the dense wood had become the most impassable template there is, 46% of its interior
+      # walkable against a super dense jungle's 64%.
+      #
+      # What makes a rainforest a rainforest is its FLOOR, so that is what gets compared: both grow a blocking
+      # thicket, and the jungle's is the thicker of the two. Nothing here is pinned to a literal, so thinning
+      # either template again cannot quietly invert them a fourth time.
       jungle = generator(cats, "forest", "forest_jungle")
-      assert tree_cover.(dense) < get_in(jungle.config, ["nature", "canopy"])
+      choke = fn g -> (get_in(g.config, ["nature", "groundCover"]) || 0.0) * (get_in(g.config, ["formation", "understory"]) || 1.0) end
+
+      assert get_in(dense.config, ["formation", "understoryTile"]) == "thicket"
+      assert get_in(jungle.config, ["formation", "understoryTile"]) == "thicket"
+
+      assert choke.(jungle) > choke.(dense),
+             "a dense wood out-thickets the rainforest: #{Float.round(choke.(dense), 3)} vs #{Float.round(choke.(jungle), 3)}"
     end
 
     test "units: settlements scatter townsfolk, dungeons scatter their own enemies", %{categories: cats} do

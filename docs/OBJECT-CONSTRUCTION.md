@@ -1389,6 +1389,32 @@ Close enough is silhouette, proportion, contact and hierarchy. Colour exactness 
 of it. **The numbers never close the gate: they tell you where to look and when to stop guessing.** Only his
 verdict at :3000 closes it.
 
+## 10.1 Three more facts, learned placing the forest entrances
+
+These cost a render each and none of them is guessable from the code.
+
+**`light` IS NIGHT ONLY.** `drawNightLighting` is the only thing that draws it, so a `light` setting shows
+NOTHING in daylight. To make a deep forest read as dark *while the sun is up*, the darkness has to be the
+object's own COLOUR: a jungle's crowns are near black green, a meadow's are pale. Colour is a per-cell setting,
+so it belongs to the object and it reads at every hour. A true cast shadow is the lighting LAYER, still ahead
+of us, and a tint is not pretending to be one.
+
+**NEVER LAY A FLOOR OVER A PATH THAT EXISTS.** A run of thin floor slabs shows mostly its own dark SIDES, so a
+paved strip comes out as a pit. An object standing on a pathway the generator already paved should carry no
+floor at all and let the map's own surface run through. This caught me twice in one object: once as the path,
+once as the cells I added to carry a light.
+
+**THE MOUTH IS THE FRONT EDGE, THE ONE THAT MEETS THE BORDER.** Authored south-facing that is the LARGEST
+`dy`, not `dy 0`. Anchoring on `dy 0` puts the object's back on the border and grows it outward, so a 5-deep
+entrance at a south gate on a 40-row map got rows 39 to 43 and four fifths of it fell off the world. A 2-deep
+object loses one row and nobody notices, which is how it survived.
+
+**And a warning that is not about art at all:** the test fixtures are captured payloads and they DRIFT. A
+composition renamed in the backend still had the old name in `generators.json` and no entry at all in
+`tilesets.json`, so `compositionFootprint` returned null, the centring silently did nothing, and the tests
+stayed green while the real map was wrong. Top a fixture up field by field against live before trusting a test
+about placement.
+
 ## Worked numbers, the three approved objects
 
 Against the cave mound reference, both cropped to the object:

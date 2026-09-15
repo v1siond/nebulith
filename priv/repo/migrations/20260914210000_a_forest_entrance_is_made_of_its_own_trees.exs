@@ -1,24 +1,21 @@
 defmodule Nebulith.Repo.Migrations.AForestEntranceIsMadeOfItsOwnTrees do
   @moduledoc """
-  One tree-guided entrance per kind of forest, and each generator names its own.
+  WITHDRAWN. This migration does nothing, and is kept only because it has already run.
 
-  *"forest entrance depends on type of firest, is not the same entering ajungle than entering a meadow or a
-  woodland or a swamp, each one must have their own tree guided entry"* (2026-09-14).
+  It seeded `woodland_entrance`, `jungle_entrance`, `meadow_entrance` and `swamp_entrance`, one tree-guided
+  entrance per kind of forest. All of it was thrown out on his instruction: *"still not good, remove the black
+  entrance... NONE of the entrances is adapted to the suptypes, like this is actually outrageous, throw away
+  whatever framework you built"*. The compositions and the code that built them went with the revert, and this
+  file was the piece left behind: it still called `TileSource.seed_forest_entrances/0`, which no longer exists,
+  so every fresh database (the test one included) crashed here instead of migrating.
 
-  `forest_entrance` was one object for every wood, named after a place rather than a thing, which is how it
-  ended up holding a cave mouth and every forest gate wore one. It is replaced by `woodland_entrance`,
-  `jungle_entrance`, `meadow_entrance` and `swamp_entrance`, which differ by PROPORTION: a jungle's trunks are
-  tall and its crowns wide, a meadow's short and sparse, a swamp's squat and close.
-
-  None of them has a beam across the top. That is what makes `temple_entrance` a built gateway, and a wood does
-  not build one.
+  The body is empty rather than the file deleted, because the version is recorded as run in environments that
+  migrated before the revert. A forest entrance will come back as its own migration, built the way the cave
+  mouths and the temple were.
   """
   use Ecto.Migration
 
-  def up do
-    Nebulith.Catalog.TileSource.seed_forest_entrances()
-    Nebulith.Catalog.GeneratorSource.seed()
-  end
+  def up, do: :ok
 
   def down, do: :ok
 end

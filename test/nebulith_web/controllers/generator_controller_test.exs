@@ -50,11 +50,15 @@ defmodule NebulithWeb.GeneratorControllerTest do
       data = json_response(get(conn, ~p"/api/generators"), 200)["data"]
       woodland = hd(data) |> Map.fetch!("generators") |> hd()
 
-      # The editor draws these toggles straight from here and greys the crossing out until the river is on.
-      # It never hardcodes the pair, so the shape is the contract — keys, labels, defaults and `requires`.
-      # THE WAYS COME FIRST, since 2026-09-11: the Their own shape is
-      # pinned in `generator_source_test`; here it matters that they ride over the wire, and in what order.
-      assert Enum.map(woodland["options"], & &1["key"]) == ~w(exits pathways river crossing depth bridge)
+      # The editor draws these straight from here and greys each one out until the river it needs is on. It
+      # never hardcodes them, so the shape is the contract: keys, labels, defaults and `requires`. The ways
+      # come first. Their own shape is pinned in `generator_source_test`; here it matters that they ride over
+      # the wire, and in what order.
+      #
+      # `crossing` was a toggle in this list and is gone: *"'A crossing joined to the paths' what does even
+      # mean???? I don't know why we have it in the UI"*. A river that cuts a path always gets a crossing now,
+      # so there was nothing for it to decide. `bridge` stays, because WHICH crossing is a real choice.
+      assert Enum.map(woodland["options"], & &1["key"]) == ~w(exits pathways river depth bridge)
 
       assert Enum.drop(woodland["options"], 2) == [
                %{
@@ -69,13 +73,6 @@ defmodule NebulithWeb.GeneratorControllerTest do
                    %{"key" => "divides", "label" => "Divides the map in two"},
                    %{"key" => "around", "label" => "Around the edge"}
                  ]
-               },
-               %{
-                 "key" => "crossing",
-                 "label" => "A crossing joined to the paths",
-                 "type" => "toggle",
-                 "default" => false,
-                 "requires" => "river"
                },
                # HOW DEEP the channel is cut, and it rides the wire like the rest.
                # `flat` is the old

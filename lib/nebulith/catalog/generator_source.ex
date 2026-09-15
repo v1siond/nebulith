@@ -225,7 +225,26 @@ defmodule Nebulith.Catalog.GeneratorSource do
   # THIRTY PER CENT FEWER TREES, on his instruction 2026-09-15: *"we need to reduce trees density by 30% on
   # all jungle templates variants too"*. 0.62 -> 0.434. Every jungle variant inherits this, so island,
   # ruins and swamp all thin with it; the dense variant overrides it and is cut by the same 30%.
-  @jungle_nature %{"groundCover" => 0.5, "flowers" => 0.1, "canopy" => 0.434}
+  # FEWER TREES, AND FEWER OF EVERYTHING THAT BLOCKS. *"the density of trees is conflicting with the
+  # functionality of the map, user can't move, we can't put any treasures nor units around"*, and
+  # *"let's reduce trees 10-15% more"*.
+  #
+  # THE UNDERGROWTH GROWS BACK WHATEVER THE CANOPY GIVES UP, which is why the first cut did nothing. A
+  # jungle's thicket density is `groundCover * jungleFloorReach`, and that reach is the walkable floor over
+  # what is left to plant on. Thin the trees and the floor gets bigger, so the same served number plants MORE
+  # thicket. Measured across four seeds on a 40x40, holding groundCover at 0.3:
+  #
+  #     canopy 0.369 -> 168 trees, 159 thicket, 71% walkable
+  #     canopy 0.240 -> 116 trees, 183 thicket, 73% walkable   (trees down 31%, thicket UP, floor unchanged)
+  #
+  # So the canopy alone cannot open a jungle up, and the 0.62 -> 0.434 -> 0.369 cuts each read as no change
+  # for exactly that reason. BOTH numbers have to come down together. At canopy 0.31 with groundCover 0.20:
+  # 143 trees (the 15% asked for), 119 thicket, 76% walkable and 42% of the interior with room on all four
+  # sides to stand a unit or a chest. A woodland is 90%/47% and a meadow 93%/68%, so the jungle is still far
+  # and away the densest forest, it is simply one you can now cross and place things in.
+  #
+  # Every variant inherits this: dense, swamp, island and ruins all thin with it.
+  @jungle_nature %{"groundCover" => 0.2, "flowers" => 0.1, "canopy" => 0.31}
 
   # THE FOREST PALETTES. and
   # It is right, and the reason was structural: every colour in a forest came from the SEASON (spring, autumn)
@@ -359,7 +378,10 @@ defmodule Nebulith.Catalog.GeneratorSource do
     "closed" => %{"lattice" => 13, "spacing" => 0, "understory" => 1.25, "understoryTile" => "thicket"},
     # Image #15 — tall dense trunks over deep green undergrowth, with a narrow trail winding through. The
     # canopy is not the hard part here, the floor is.
-    "understory" => %{"lattice" => 7, "spacing" => 0, "understory" => 1.9, "understoryTile" => "thicket"},
+    # 1.9 MADE THE DENSE WOODLAND THE WORST MAP IN THE GAME: 46% of its interior walkable, against a super
+    # dense JUNGLE's 64%. Only `forest_woodland_dense` uses this, so the number is tuned there and nowhere
+    # else suffers for it. Same rule as everywhere: the floor may be hard work, it may not be a wall.
+    "understory" => %{"lattice" => 7, "spacing" => 0, "understory" => 1.1, "understoryTile" => "thicket"},
     # Image #13 — cypress standing IN the water, well apart, buttressed bases. Spaced like a pasture but wet.
     "flooded" => %{"lattice" => 5, "spacing" => 3, "understory" => 0.7}
   }
@@ -491,13 +513,28 @@ defmodule Nebulith.Catalog.GeneratorSource do
     },
     %{
       "key" => "dense",
-      "weight" => 4,
+      # WEIGHT 4 MADE THIS THE WHOLE MAP. It was the heaviest jungle region AND it multiplies canopy by
+      # 1.3, so cutting the base density twice moved the walkable share from 56% to 56%: whatever the base
+      # said, most of the map was this. It is one region among several now, not the default state.
+      "weight" => 2,
       "name" => "Dense growth",
-      "canopy" => 1.3,
-      "undergrowth" => 1.45,
+      # THREE MULTIPLIERS ON ONE REGION IS A WALL. It raised the canopy 1.3x, the undergrowth 1.45x AND the
+      # understory another 1.3x, and those last two compound: thicket came out at 1.885x the served number.
+      # Measured on the variants that lean on this region, the ones the base cut could not reach:
+      #
+      #     super dense  57% walkable, 35% placeable, 274 trees, 258 thicket
+      #     island       68% walkable, 43% placeable, 183 trees, 199 thicket
+      #     ruins        68% walkable, 38% placeable, 206 trees, 166 thicket
+      #
+      # Every multiplier stays ABOVE ONE, so this is still the thickest region a jungle has, by the same
+      # ordering as before (open 0.45, ruins 0.55, swamp 0.85, dense highest). It just stops stacking.
+      # After: super dense 65%/42% at 240 trees, island 74%/49% at 161, ruins 72%/41% at 178, so each shed
+      # another 12-14% of its trees, which is the cut asked for, applied where the variants actually live.
+      "canopy" => 1.15,
+      "undergrowth" => 1.2,
       "floor" => "#24381f",
       # wall to wall, nothing between — reference image #14
-      "formation" => %{"lattice" => 13, "spacing" => 0, "understory" => 1.3},
+      "formation" => %{"lattice" => 13, "spacing" => 0, "understory" => 1.1},
       "trees" => [%{"kind" => "tree_giant", "weight" => 25}, %{"kind" => "tree_big", "weight" => 25}, %{"kind" => "bush", "weight" => 25}, %{"kind" => "tree_round", "weight" => 25}],
       "flowers" => @jungle_blooms
     },
@@ -687,9 +724,21 @@ defmodule Nebulith.Catalog.GeneratorSource do
         # tree cover was 0.55 x 0.70 = 0.39, against plain woodland's 0.434 x 0.95 = 0.41. It was thinner.
         #
         # Undergrowth has its OWN channel (`groundCover`), so the bushes move there where they belong and the
-        # table is trees only. Real cover is 0.60 now, half again as much as plain woodland, and still under
-        # the jungle's 0.62 so a dense wood does not out-thicket a rainforest.
-        config: %{"formation" => @formations["understory"], "nature" => %{"canopy" => 0.6, "groundCover" => 0.5},
+        # table is trees only.
+        #
+        # AN INVARIANT PINNED TO A NUMBER THAT MOVED. The rule is right: a dense wood must not out-thicket a
+        # rainforest. It was written as "still under the jungle's 0.62", and the jungle has been thinned three
+        # times since, to 0.31, while this row sat at 0.60 and never noticed. Measured, it had become the most
+        # impassable template in the game by a distance:
+        #
+        #     dense woodland        46% walkable, 29% placeable, 420 trees, 278 thicket
+        #     super dense jungle    64% walkable, 42% placeable, 240 trees, 192 thicket
+        #     plain woodland        90% walkable, 47% placeable, 133 trees, nil thicket
+        #
+        # It sits at 68%/48% now, with 336 trees against a plain wood's 133 and a real thicket under them:
+        # deep undergrowth with a trail cut through it, which is the description, and the ordering the rule
+        # asks for is real again rather than asserted against a stale constant.
+        config: %{"formation" => @formations["understory"], "nature" => %{"canopy" => 0.47, "groundCover" => 0.2},
                   "trees" => [%{"kind" => "tree_column", "weight" => 35}, %{"kind" => "tree_tall", "weight" => 28}, %{"kind" => "tree", "weight" => 20}, %{"kind" => "tree_big", "weight" => 10}, %{"kind" => "tree_sapling", "weight" => 7}]}
       },
       # image #12 — conifers in patches over an open hillside
@@ -717,7 +766,9 @@ defmodule Nebulith.Catalog.GeneratorSource do
         category: "forest", parent: "forest_jungle", key: "forest_jungle_dense", name: "Super dense jungle",
         layout: "jungle", position: 0,
         description: "A closed canopy wall to wall, almost no open ground.",
-        config: %{"nature" => %{"canopy" => 0.504}, "subZones" => sub_zones(%{"dense" => 5, "open" => 1})},
+        # Thinned by the same ratio as the parent (0.84x), so it stays the densest jungle without being the
+        # one map you cannot walk across.
+        config: %{"nature" => %{"canopy" => 0.36}, "subZones" => sub_zones(%{"dense" => 5, "open" => 1})},
         options: @way_options ++ region_options(~w(open dense)) ++ @water_options
       },
       # image #13 — cypress standing in the water
