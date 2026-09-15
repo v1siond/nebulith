@@ -578,7 +578,12 @@ export function render(params: IsoRenderParams) {
   const camCell = turn === 0
     ? { col: camX / cellSize, row: camZ / cellSize }
     : deorientCellTurn(fc, fr, grid.cols, grid.rows, turn)
-  drawGridSkirt(ctx, grid, toScreen, tileW, tileH, Math.floor(camCell.col), Math.floor(camCell.row), halfSpan, heightStep, facing)
+  // THE RANGE, before the skirt: the map body has to obey it too, or the cull only hides the things ON the
+  // map and leaves the map itself. `pcol`/`prow` are read below for the asset cull; they are the same numbers.
+  const skirtRange = typeof playerViewRange === 'number' && playerViewRange > 0
+    ? { col: player.x / cellSize, row: player.z / cellSize, cells: playerViewRange }
+    : undefined
+  drawGridSkirt(ctx, grid, toScreen, tileW, tileH, Math.floor(camCell.col), Math.floor(camCell.row), halfSpan, heightStep, facing, skirtRange)
 
   const rectAssets = grid.getVisibleAssets(
     Math.floor(camCell.col),
@@ -1513,6 +1518,17 @@ export function drawGridSkirt(
    *  it has to ask about turns with the camera. Without this the skirt closed the wrong two sides of every
    *  step and the real ones were left open to the background. */
   facing: Orientation = 0,
+  /**
+   * THE PLAYER RANGE, when one is on. The skirt is the map's BODY: the earth slab under the ground and the
+   * walls at its edges. It was drawn for every cell in the camera window and never asked about the range, so
+   * with the range on the elements vanished and the whole map body stayed, which is exactly what he saw:
+   * *"it looks like it's fake, like it only hides stuff that it's there, instead of actually conditionally
+   * rendering when inside range"*. The body IS the map, so leaving it drawn is what made the cull look like
+   * a mask laid over a finished picture.
+   *
+   * Undefined or <= 0 means no range, and every cell in the window draws exactly as before.
+   */
+  range?: { col: number; row: number; cells: number },
 ): void {
   // The grid step that currently PROJECTS toward a given screen diagonal. At facing 0 down-right is +col and
   // down-left is +row; a quarter turn of the camera turns all four, so the base step turns the opposite way.
@@ -1580,6 +1596,9 @@ export function drawGridSkirt(
 
   for (let row = r0; row <= r1; row++) {
     for (let col = c0; col <= c1; col++) {
+      // Outside the player's range the map body is not drawn at all, so what is beyond it is genuinely absent
+      // rather than covered over.
+      if (range && Math.hypot(col - range.col, row - range.row) > range.cells) continue
       const floor = grid.floorAt(col, row)
       if (!floor) continue // no ground here → nothing to hold up
       // ONLY THE MAP'S OUTER EDGE. This first asked "is the neighbouring FLOOR missing", which fired all over
