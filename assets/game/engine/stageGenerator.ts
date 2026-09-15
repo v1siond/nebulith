@@ -1889,7 +1889,11 @@ function stampEntrances(ctx: ArchetypeContext): void {
 function entranceAnchor(kind: string, middle: RouteCell, rotation: number): RouteCell {
   const foot = compositionFootprint(kind)
   if (!foot) return middle
-  const mouth = rotateFootprintOffset(Math.floor((foot.w - 1) / 2), 0, foot.w, foot.h, rotation)
+  // THE MOUTH IS THE MIDDLE OF THE FRONT EDGE, and the front edge is the one that MEETS THE BORDER: authored
+  // south-facing that is the largest `dy`, nearest the viewer. Taking `dy = 0` put the object's BACK on the
+  // border and grew it outward, so a south gate at row 39 of 40 got rows 39 to 43 and four of its five rows
+  // fell off the map. A 2-deep entrance lost one row and nobody saw it; a 5-deep one is almost entirely gone.
+  const mouth = rotateFootprintOffset(Math.floor((foot.w - 1) / 2), foot.h - 1, foot.w, foot.h, rotation)
   return { col: middle.col - mouth.dx, row: middle.row - mouth.dy }
 }
 
