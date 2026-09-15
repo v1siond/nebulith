@@ -3777,10 +3777,10 @@ defmodule Nebulith.Catalog.TileSource do
   def seed_forest_entrances do
     for {name, opts} <- %{
           # A WOODLAND: mid height, mid density, mushrooms on the verge.
-          "woodland_entrance" => [trunk: 0.55, tall: 4.0, crown: 1.5, density: 8, foot: "mushroom", gloom: "#17130d", wet: 0],
+          "woodland_entrance" => [trunk: 0.5, tall: 3.4, crown: 1.35, density: 6, foot: "mushroom", gloom: "#2a2418", wet: 0],
           # A JUNGLE: a tall dark tunnel. The trunks run to twice a woodland's and the crowns close overhead.
           # A DEEP forest is DARK. The canopy closes and the light under it goes green black.
-          "jungle_entrance" => [trunk: 0.5, tall: 7.0, crown: 2.0, density: 10, foot: "mushroom", gloom: "#070d08", wet: 0],
+          "jungle_entrance" => [trunk: 0.62, tall: 9.5, crown: 2.6, density: 10, foot: "mushroom", gloom: "#060c07", wet: 1],
           # A MEADOW: open and sunny. Short, sparse, and blooms on the verge instead of fungus.
           # A MEADOW is the opposite: open, and the light that reaches the floor is warm.
           "meadow_entrance" => [trunk: 0.4, tall: 2.4, crown: 1.05, density: 4, foot: "bouquet", gloom: "#3a3426", wet: 0],
@@ -3801,6 +3801,14 @@ defmodule Nebulith.Catalog.TileSource do
     :ok
   end
 
+
+  # Move a gloom colour toward the light by `amount` (0 keeps it, 1 nearly clears it). Used so the dark way
+  # fades as it comes toward the viewer instead of standing as one flat black wall.
+  defp lighten(hex, amount) do
+    <<?#, r::binary-2, g::binary-2, b::binary-2>> = hex
+    up = fn c -> c |> String.to_integer(16) |> then(&round(&1 + (150 - &1) * amount)) |> min(255) |> max(0) end
+    "#" <> (Enum.map_join([r, g, b], fn c -> c |> up.() |> Integer.to_string(16) |> String.pad_leading(2, "0") end))
+  end
 
   defp forest_entrance_cells(opts) do
     trunk_w = Keyword.fetch!(opts, :trunk)
@@ -3879,20 +3887,24 @@ defmodule Nebulith.Catalog.TileSource do
           do: %{dx: dx, dy: dy, level: 0, label: "water_c", walkable: false, scale: 1.0,
                 settings: %{"scaleY" => 0.12}}
 
-    # THE WAY GOES DARK. This is the whole point of the object: *"all we want is to obscure the WAY of the
-    # pathway"*, and in his reference the path does not end, it disappears into blackness under the trees.
+    # THE WAY GOES DARK, RUNNING BACK INTO THE WOOD.
     #
-    # It is the CAVE'S MOUTH, exactly: a TALL dark block you walk into, `walkable: true`, sitting where the way
-    # leaves. Not a flat square painted on the ground. A slab of floor shows its own dark sides and reads as a
-    # pit, which is what the last attempt was, and deleting the darkness to fix the slab threw away the feature
-    # instead of its form.
+    # *"the dark region should be backwarks into the trees and pathway"* and *"shoud be less black and more
+    # transparent"*. A single black wall at the front edge is a door, not a way that fades out of sight. So the
+    # gloom runs the DEPTH of the corridor and lightens as it comes toward you: darkest where the path leaves,
+    # nearly clear where you stand. That is what makes the way look like it carries on rather than stopping.
     #
-    # It sits on the FRONT edge, the one that meets the border, because that is where the path goes somewhere
-    # else. Its colour is per sub forest, because a jungle's dark is not a meadow's.
+    # It is still the cave's mouth in form, a tall walkable block rather than a square painted on the floor,
+    # because a floor slab shows its own dark sides and reads as a pit.
     dark =
-      for dx <- @forest_path do
-        %{dx: dx, dy: @forest_h - 1, level: 0, label: "trunk_mid", walkable: true, scale: 1.0,
-          settings: %{"scaleY" => 2.6, "color" => gloom}}
+      for dx <- @forest_path,
+          dy <- 2..(@forest_h - 1),
+          # nearest the border is the deepest; each step toward the viewer lifts it. `mix` is 1.0 at the far
+          # end and falls to about 0.35 at the near one, which is the "more transparent" he asked for.
+          mix = 1.0 - (@forest_h - 1 - dy) * 0.33,
+          mix > 0.2 do
+        %{dx: dx, dy: dy, level: 0, label: "trunk_mid", walkable: true,
+          scale: 1.0, settings: %{"scaleY" => 1.2 + mix * 1.6, "color" => lighten(gloom, 1.0 - mix)}}
       end
 
     List.flatten(wood) ++ canopy ++ verge ++ water ++ dark
