@@ -15,6 +15,14 @@ defmodule Nebulith.Catalog.TileSource do
   untouched; a later task moves the API off it.
   """
 
+  # The color-only RIVER blue, a flat water floor the meadow_river layout tints per-cell (sampled from #17).
+  #
+  # DEFINED UP HERE BECAUSE A MODULE ATTRIBUTE IS READ WHERE IT STANDS. It used to sit at line 1468, three
+  # hundred lines BELOW the emoji list that uses it, and Elixir does not look ahead: `@water_color` read as
+  # nil there, so emoji's `water_deep` and `water_shallow` were seeded with no colour at all. The compiler
+  # said so twice on every build ("undefined module attribute @water_color") and it read as noise.
+  @water_color "#4f93b3"
+
   alias Nebulith.Catalog
   alias Nebulith.Catalog.BuildingCompositions
   # `seed_frame_rows/4` reads a base row with `Repo.get_by(Tile, ...)`. Without this alias `Tile` is the atom
@@ -105,7 +113,6 @@ defmodule Nebulith.Catalog.TileSource do
     seed_meadow_tiles(ascii_id, emoji_id)
     seed_floor_tiles(ascii_id, emoji_id)
     seed_water_color()
-    seed_water_surface()
     seed_water_current()
     seed_autotile_pieces(ascii_id, emoji_id)
     seed_tree_pieces(ascii_id, emoji_id, ascii["palettes"])
@@ -119,6 +126,17 @@ defmodule Nebulith.Catalog.TileSource do
     # It also has to stay AHEAD of the normalizers below, so the frame rows it writes get their per-label facts
     # and colours agreed like every other row. This spot is the only one that satisfies both.
     seed_water_look()
+    # THE SAME TRAP THE COMMENT ABOVE DESCRIBES, one line below where it was written. `seed_water_surface/0`
+    # copies the emoji and the colour from each tileset's own `water_shallow` row, and it sat up beside
+    # `seed_water_color/0`, ahead of the list that gives EMOJI its shallow band. So the `nil -> :ok` arm took
+    # it every time and `water_still` was seeded into ascii alone: an emoji player got a `?` where a puddle
+    # should be, and only the 1:1-vocabulary test could see it.
+    seed_water_surface()
+    # NEVER CALLED. `seed_bridge_tiles/0` was written, documented and left unwired, so `bridge_deck` and
+    # `bridge_rail` existed only in databases where it had been run by hand. Fifteen bridge compositions
+    # reference the pair, which on a fresh seed is fifteen crossings built out of a label nothing serves.
+    # It has to come before the compositions that name it, like every other tile seeder.
+    seed_bridge_tiles()
     seed_compositions(ascii["compositions"])
     seed_new_compositions()
     seed_building_compositions()
@@ -1453,9 +1471,6 @@ defmodule Nebulith.Catalog.TileSource do
         }
       })
   end
-
-  # The color-only RIVER blue — a flat water floor the meadow_river layout tints per-cell (sampled from #17).
-  @water_color "#4f93b3"
 
   defp seed_meadow_tiles(ascii_id, emoji_id) do
     # HEIGHT 1.0: the meadow floor is a RAISED colour block with visible side faces — ornaments STACK on top of it. It

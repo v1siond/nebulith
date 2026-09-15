@@ -47,6 +47,7 @@ defmodule Nebulith.SeedDriftTest do
       {comp.name,
        %{
          footprint: {comp.footprint_w, comp.footprint_h},
+         category: comp.category,
          cells: Enum.map(comp.cells, &served_cell/1)
        }}
     end
@@ -178,20 +179,29 @@ defmodule Nebulith.SeedDriftTest do
   end
 
   describe "the drift comparison is colour-free by construction (no false-positive on the load-time salt)" do
-    test "no served composition cell carries a colour/material/appearance field" do
-      # Cells hold geometry + structural settings ONLY; colour is a per-TILE setting and building
-      # roof/wall colour is re-rolled at load via a salt (§5.4). If a colour key ever leaks onto a cell
-      # a drift check would start false-positiving — this pins the contract.
+    test "no BUILDING bakes a colour onto its cells - a building picks its material per instance" do
+      # A building uses ONE consistent wall material and the generator rolls WHICH one per building, so a
+      # colour baked into a building composition would hand every house on the map the same walls and make
+      # the drift comparison false-positive on the roll besides.
+      #
+      # IT USED TO SAY NO COMPOSITION AT ALL, and that stopped being true the moment objects got authored
+      # rather than assembled. Colour is how one pair of tiles serves the wooden, plank and stone crossing:
+      # `bridge_deck` and `bridge_rail` are drawn once and the CELL says which crossing this is. The three
+      # approved entrances do the same for the dark of the mouth. Measured when this was rewritten, the
+      # compositions that colour a cell are exactly those: 15 bridges and 3 entrances, no building among them.
       appearance = ~w(color colour bg bgColor material roofColor wallColor tint)
+      built = ~w(buildings roofs walls)
 
       leaked =
-        for %{cells: cells} <- Map.values(served_compositions()),
+        for {name, %{cells: cells, category: category}} <- served_compositions(),
+            category in built,
             %{settings: s} when is_map(s) <- cells,
             key <- Map.keys(s),
             key in appearance,
-            do: key
+            do: "#{name}/#{key}"
 
-      assert leaked == [], "appearance keys leaked onto composition cells (would false-positive the drift check): #{inspect(Enum.uniq(leaked))}"
+      assert leaked == [],
+             "a building baked its appearance into a cell, so every one of them wears it: #{inspect(Enum.uniq(leaked))}"
     end
   end
 end

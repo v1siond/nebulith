@@ -44,8 +44,12 @@ defmodule Nebulith.CatalogTilesTest do
         [%{dx: 0, dy: 0, level: 0, label: "trunk_base", walkable: false}]
       )
 
-    [loaded] = Catalog.list_compositions()
-    assert loaded.name == "tree_small"
+    # BY NAME, NOT BY BEING THE ONLY ROW. This matched the whole table against a one-element list, so it
+    # passed only while nothing else had ever seeded a composition, and it started failing the day a
+    # migration seeded the cave entrances. What it is testing is that THIS composition round-tripped.
+    loaded = Enum.find(Catalog.list_compositions(), &(&1.name == "tree_small"))
+    assert loaded, "the composition just written is not in the catalog"
+    assert {loaded.footprint_w, loaded.footprint_h} == {5, 3}
     assert [%{label: "trunk_base"}] = loaded.cells
   end
 end

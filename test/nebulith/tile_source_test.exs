@@ -93,13 +93,25 @@ defmodule Nebulith.TileSourceTest do
     refute Enum.any?(comps, &(&1.name in ["big_tree_a", "big_tree_b", "bush_a", "bush_b"]))
   end
 
-  test "the round variant ships a CIRCLE canopy (shape on the leaf cell); the square tree carries none" do
+  test "a broadleaf crown is a CIRCLE and a conifer crown stays a box" do
     comps = Catalog.list_compositions()
-    round_leaf = Enum.find(comps, &(&1.name == "tree_round")).cells |> Enum.find(&(&1.label == "leaf_center"))
-    square_leaf = Enum.find(comps, &(&1.name == "tree")).cells |> Enum.find(&(&1.label == "leaf_center"))
+    crown = fn name -> Enum.find(comps, &(&1.name == name)).cells |> Enum.find(&(&1.label == "leaf_center")) end
 
-    assert round_leaf.settings["shape"] == "circle"
-    refute Map.has_key?(square_leaf.settings, "shape")
+    # THIS USED TO SAY THE PLAIN `tree` CARRIED NO SHAPE, and that was overtaken. A crown's outline comes from
+    # the composition and not from the picture, because the renderer paints the shaded block and then lays the
+    # tile image over it, so a transparent corner shows the block rather than cutting it: a round tree with no
+    # `shape` is a leafy cube. Seven species were rounded off for that reason and `tree` is one of them.
+    #
+    # What is still true is that it is not blanket. A conifer and a cypress are CONES, and rounding them is as
+    # wrong as boxing an oak, so they keep the box until the renderer can draw a cone. That distinction is the
+    # thing worth pinning, and the frontend twin of this test (treeCrownShape) sweeps all fifteen species.
+    for round <- ~w(tree tree_round tree_big tree_palm) do
+      assert crown.(round).settings["shape"] == "circle", "#{round} is round-crowned and has no circle"
+    end
+
+    for cone <- ~w(tree_conifer tree_cypress) do
+      refute Map.has_key?(crown.(cone).settings, "shape"), "#{cone} is a cone and must not be rounded off"
+    end
 
     # skinny/thick TRUNK width is a per-variant setting: tall = 0.85
     # (skinnier), stub = 1.2 (thicker); the standard trunk omits Width entirely (default 1).
