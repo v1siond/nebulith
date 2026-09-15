@@ -2590,8 +2590,12 @@ const woodlandPhases: VariantPhases = {
     }
     const floor = zonePalette(zone)?.groundTypes[0] ?? ''
     forEachCell(cols, rows, (col, row) => { ground[row][col] = floor })
+    // AND ITS SERVED COLOUR, which nothing applied before. All five woodland templates serve
+    // `palette.floor` and only the jungle's painter ever read one, so a wood's field rendered as the season's
+    // grass and its own colour was parsed and dropped.
+    paintFloor(ctx, { floor: ctx.palette?.floor, floorAlt: ctx.palette?.floorAlt, litter: ctx.palette?.litter })
 
-    // THE REGIONS. Only `layoutJungle` ever called `partitionSubZones`, so a woodland's served regions were
+    // THE REGIONS. Only the jungle ever called `partitionSubZones`, so a woodland's served regions were
     // parsed and dropped: served-and-ignored, the exact defect that keeps turning up. Both forest layouts
     // share the one mechanism, and `subZoneCanopyField` runs `woodlandCanopyField` once per region, so a map
     // with no regions takes the same single call it always did.
@@ -2818,7 +2822,7 @@ const junglePhases: VariantPhases = {
     // floor is litter and roots and standing shade, not lawn. Absent palette means the tile's own colour.
     const floor = zonePalette(ctx.zone)?.groundTypes[0] ?? ''
     forEachCell(cols, rows, (col, row) => { ground[row][col] = floor })
-    paintJungleFloor(ctx, ctx.palette)
+    paintFloor(ctx, { floor: ctx.palette?.floor, floorAlt: ctx.palette?.floorAlt, litter: ctx.palette?.litter })
 
     // THE REGIONS. A jungle is not one uniform density, it is several kinds of ground you walk between: open
     // canopy, dense growth, swamp, ruins. The region the person picked LEADS the map.
@@ -3705,14 +3709,64 @@ function stampRuin(ctx: ArchetypeContext, body: ReadonlySet<string>, keepOut: Re
 
 /** The shaded floor, mottled over coarse patches. Two tones from the served palette so it reads as litter and
  *  shade rather than one fill; the patch size matches the meadow's for the same run-merging reason. */
-function paintJungleFloor(ctx: ArchetypeContext, pal: GeneratorPalette | undefined): void {
-  if (!pal?.floor) return // the backend states no floor colour → keep the tile's own
+/**
+ * PAINT THE FLOOR. One helper, whatever kind of floor it is.
+ *
+ * *"instead of having paintJungleFloor it'd expect to just have a paintFloor helper that receives whatever
+ * data is required to make the jungle, or maybe the paintFloor has a case inside that says 'when type is X,
+ * do this' 'when type is X, do that'. basically, we don't want to have duplicated and redundant and poor
+ * performing code"*.
+ *
+ * There were seven base floor painters, one per variant, and measured against the live catalogue the damage
+ * was not the duplication but what it hid: `paintJungleFloor` was the ONLY function in the engine that
+ * applied a template's served `palette.floor`, so all five WOODLAND templates served `#6f7f4a` and nothing
+ * ever read it. Their field rendered as the season's grass, which is why a woodland path came out darker than
+ * the ground beside it when every reference has it lighter.
+ *
+ * Two kinds of floor, chosen by what the data HAS rather than by which variant asked:
+ *
+ *   · MOTTLED, when it states tones. Coherent noise over coarse patches picks between them, so the floor
+ *     reads as litter and shade rather than one flat fill.
+ *   · A GRADIENT, when it states two ends. One tone lerped down the map in steps.
+ *
+ * States neither and nothing is painted, which is the honest default everywhere here: the tile keeps its own
+ * colour rather than this file inventing one.
+ */
+interface FloorPaint {
+  /** The base tone. */
+  floor?: string
+  /** A second tone the mottle picks, for shade. */
+  floorAlt?: string
+  /** A third, for litter. */
+  litter?: string
+  /** How coarse the patches are, in cells. */
+  patch?: number
+  /** A gradient's top and bottom, for a floor that changes down the map instead of in patches. */
+  top?: string
+  bottom?: string
+  /** How many steps the gradient is quantised into, so it reads as bands rather than a smear. */
+  steps?: number
+}
+
+const FLOOR_PATCH = 4
+
+function paintFloor(ctx: ArchetypeContext, paint: FloorPaint): void {
   const { cols, rows, floorColors } = ctx
-  const alt = pal.floorAlt ?? pal.floor
-  const litter = pal.litter ?? pal.floor
+  if (paint.top && paint.bottom) {
+    const steps = paint.steps ?? MEADOW_GRADIENT_STEPS
+    forEachCell(cols, rows, (col, row) => {
+      const t = clamp01(row / Math.max(1, rows - 1))
+      floorColors[row][col] = lerpHex(paint.top!, paint.bottom!, Math.round(t * steps) / steps)
+    })
+    return
+  }
+  if (!paint.floor) return // the backend states no floor colour, so the tile keeps its own
+  const alt = paint.floorAlt ?? paint.floor
+  const litter = paint.litter ?? paint.floor
+  const patch = paint.patch ?? FLOOR_PATCH
   forEachCell(cols, rows, (col, row) => {
-    const n = shadeNoise(Math.floor(col / 4) * 1.7 + Math.floor(row / 4) * 2.3)
-    floorColors[row][col] = n > 0.78 ? litter : n > 0.45 ? alt : pal.floor
+    const n = shadeNoise(Math.floor(col / patch) * 1.7 + Math.floor(row / patch) * 2.3)
+    floorColors[row][col] = n > 0.78 ? litter : n > 0.45 ? alt : paint.floor!
   })
 }
 
@@ -4275,7 +4329,10 @@ function meadowPhases(twoPathways: boolean): VariantPhases {
   return {
     terrain: ctx => {
       floodMeadowFloor(ctx) // flat 'meadow' tile everywhere (a raised, tintable block)
-      paintMeadowGradient(ctx) // the season's olive greens and yellows, as per-cell floor state
+      // ITS OWN PALETTE STILL, because the backend serves a meadow no `palette.floor` to paint from. A
+      // gradient is what the meadow has always had; where the tones come from is a data gap, not a code one.
+      const meadowPal = MEADOW_PALETTES[ctx.zone] ?? MEADOW_PALETTES.summer
+      paintFloor(ctx, { top: meadowPal.top, bottom: meadowPal.bottom })
     },
 
     water: ctx => {
@@ -4330,7 +4387,7 @@ function crossRiver(ctx: ArchetypeContext, water: Set<string>, routes: Set<strin
 }
 
 /** Flat 'meadow' floor tile in every cell — a raised, colour-tintable block (its per-cell colour is
- *  written by paintMeadowGradient). Overrides the season default so the floor is always the flat tile. */
+ *  written by the floor paint). Overrides the season default so the floor is always the flat tile. */
 function floodMeadowFloor(ctx: ArchetypeContext): void {
   forEachCell(ctx.cols, ctx.rows, (col, row) => { ctx.ground[row][col] = 'meadow' })
 }
@@ -4340,15 +4397,6 @@ function floodMeadowFloor(ctx: ArchetypeContext): void {
  *  SAME colour, so compressGround merges each row into ONE z-width run — the perf fix (the old col*0.3 diagonal
  *  changed the colour every few columns, so a row broke into ~11 un-mergeable pieces and FPS tanked). The
  *  season top→bottom ramp look is kept; only the subtle diagonal shading is dropped for large mergeable runs. */
-function paintMeadowGradient(ctx: ArchetypeContext): void {
-  const { cols, rows } = ctx
-  const pal = MEADOW_PALETTES[ctx.zone] ?? MEADOW_PALETTES.summer
-  forEachCell(cols, rows, (col, row) => {
-    const t = clamp01(row / Math.max(1, rows - 1))
-    const q = Math.round(t * MEADOW_GRADIENT_STEPS) / MEADOW_GRADIENT_STEPS
-    ctx.floorColors[row][col] = lerpHex(pal.top, pal.bottom, q)
-  })
-}
 
 /** Paint the WINDING river (river variant): a meandering channel hugging THREE sides — the TOP, LEFT and
  *  RIGHT edges — set in from the edge by a wobbling inset, leaving the NEAR (bottom) edge OPEN for the
