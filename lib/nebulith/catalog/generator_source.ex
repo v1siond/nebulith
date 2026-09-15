@@ -742,6 +742,9 @@ defmodule Nebulith.Catalog.GeneratorSource do
         # brighter and paler than rainforest: sand where a jungle has peat, turquoise where a jungle has
         # blue-brown, and a canopy that is yellow-green rather than near-black.
         config: %{"subZones" => sub_zones_in(%{"open" => 3, "dense" => 2}, @island_regions),
+                  # An island edge opens onto glare, not onto shade, so its way out is the one whose
+                  # threshold is LIGHT: pale sand and shells instead of a dark mouth and fungus.
+                  "entrance" => "island_entrance",
                   "palette" => Map.merge(@jungle_palette, %{
                     "floor" => "#7c8a4e",
                     "floorAlt" => "#8c9a5b",

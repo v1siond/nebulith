@@ -3777,13 +3777,24 @@ defmodule Nebulith.Catalog.TileSource do
   def seed_forest_entrances do
     for {name, opts} <- %{
           # A WOODLAND: mid height, mid density, mushrooms on the verge.
-          "woodland_entrance" => [trunk: 0.55, tall: 4.0, crown: 1.5, density: 8, foot: "mushroom", floor: "path_dirt"],
+          "woodland_entrance" => [trunk: 0.55, tall: 4.0, crown: 1.5, density: 8, foot: "mushroom", floor: "path_dirt",
+            mouth: "#2a2118", mark: "mushroom", wet: 0],
           # A JUNGLE: a tall dark tunnel. The trunks run to twice a woodland's and the crowns close overhead.
-          "jungle_entrance" => [trunk: 0.5, tall: 7.0, crown: 2.0, density: 10, foot: "mushroom", floor: "path_dirt"],
+          # A DEEP forest is DARK. The canopy closes and the light under it goes green black.
+          "jungle_entrance" => [trunk: 0.5, tall: 7.0, crown: 2.0, density: 10, foot: "mushroom", floor: "path_dirt",
+            mouth: "#0b1410", mark: "tropical_grass", wet: 0],
           # A MEADOW: open and sunny. Short, sparse, and blooms on the verge instead of fungus.
-          "meadow_entrance" => [trunk: 0.4, tall: 2.4, crown: 1.05, density: 4, foot: "bouquet", floor: "path"],
+          # A MEADOW is the opposite: open, and the light that reaches the floor is warm.
+          "meadow_entrance" => [trunk: 0.4, tall: 2.4, crown: 1.05, density: 4, foot: "bouquet", floor: "path",
+            mouth: "#6b5f43", mark: "flower", wet: 0],
           # A SWAMP: squat and thick, closing in low.
-          "swamp_entrance" => [trunk: 0.72, tall: 2.6, crown: 1.3, density: 9, foot: "red-mushroom", floor: "path_dirt"]
+          # A SWAMP is dark AND wet: standing water either side of the way through.
+          "swamp_entrance" => [trunk: 0.72, tall: 2.6, crown: 1.3, density: 9, foot: "red-mushroom", floor: "path_dirt",
+            mouth: "#141d18", mark: "red-mushroom", wet: 3],
+          # AN ISLAND: palms, a bright sand mouth rather than a dark one, shells at the way through. Its
+          # threshold is the one that is LIGHT, because an island edge opens onto glare, not onto shade.
+          "island_entrance" => [trunk: 0.42, tall: 4.6, crown: 1.25, density: 5, foot: "bouquet", floor: "sand",
+            mouth: "#e6d6a8", mark: "decor_shell", wet: 2]
         } do
       {:ok, _} =
         Nebulith.Catalog.upsert_composition_with_cells(
@@ -3805,6 +3816,9 @@ defmodule Nebulith.Catalog.TileSource do
     over = max(2, round(trunk_w * trunk_h) + 1)
     foot = Keyword.fetch!(opts, :foot)
     floor = Keyword.fetch!(opts, :floor)
+    mouth = Keyword.fetch!(opts, :mouth)
+    mark = Keyword.fetch!(opts, :mark)
+    wet = Keyword.fetch!(opts, :wet)
 
     # A tree is this engine's tree: a thin trunk under a crown wider than its cell, which is `tree_round`
     # itself. `vary` keeps the stand from reading as an orchard.
@@ -3816,7 +3830,8 @@ defmodule Nebulith.Catalog.TileSource do
         %{dx: dx, dy: dy, level: 0, label: "trunk_mid", walkable: false, scale: trunk_w,
           settings: %{"scaleY" => h}},
         %{dx: dx, dy: dy, level: top, label: "leaf_center", walkable: false,
-          scale: Float.round(crown * vary, 2), settings: %{"scaleY" => 1.6, "shape" => "circle"}}
+          scale: Float.round(crown * vary, 2),
+          settings: %{"scaleY" => 1.6, "shape" => "circle"}}
       ]
     end
 
@@ -3846,7 +3861,8 @@ defmodule Nebulith.Catalog.TileSource do
           dy <- 0..(@forest_h - 1),
           rem(dx + dy * 2, 3) == 0 do
         %{dx: dx, dy: dy, level: over, label: "leaf_center", walkable: true,
-          scale: Float.round(crown * 1.15, 2), settings: %{"scaleY" => 1.4, "shape" => "circle"}}
+          scale: Float.round(crown * 1.15, 2),
+          settings: %{"scaleY" => 1.4, "shape" => "circle"}}
       end
 
     # UNDERGROWTH where the wood meets the path, which is what stops the edge reading as a cut line.
@@ -3857,7 +3873,42 @@ defmodule Nebulith.Catalog.TileSource do
           do: %{dx: dx, dy: dy, level: 1, label: foot, walkable: false,
                 scale: 0.5 + rem(dy, 3) * 0.08, settings: %{"scaleY" => 0.55}}
 
-    List.flatten(wood) ++ canopy ++ verge
+    # THE INDICATOR IS THE ENTRANCE ITSELF, not the wood around it.
+    #
+    # *"i didn't want to change or darken the trees, I was asking to customize the entrance ITSELF; the thing
+    # you go through to go to the next template... on the cave we have the black entrance, on forest we have to
+    # find a different way, like maybe adding a dar square"*.
+    #
+    # So it is a DARK SQUARE on the one cell you walk through: the way on, in shadow, the same signal the
+    # cave's black mouth gives. ONE cell, never a run, because a run of thin slabs shows its own dark sides and
+    # comes out as a pit. Its colour is per sub forest, because a jungle's dark is not a meadow's.
+    #
+    # `light` was tried here first and shows NOTHING in daylight: `drawNightLighting` is the only thing that
+    # draws it. The colour is the setting that reads at every hour.
+    threshold = [
+      %{dx: Enum.at(Enum.to_list(@forest_path), 1), dy: @forest_h - 1, level: 0, label: floor,
+        walkable: true, scale: 1.0, settings: %{"scaleY" => 0.06, "color" => mouth}}
+    ]
+
+    # AND THE DETAIL THAT SAYS WHICH WOOD THIS IS. A marker either side of the way through, one tile, chosen
+    # per sub forest: a jungle is not a swamp is not an island.
+    markers =
+      for dx <- [Enum.min(@forest_path), Enum.max(@forest_path)],
+          mark != nil,
+          do: %{dx: dx, dy: @forest_h - 1, level: 0, label: mark, walkable: false, scale: 0.6,
+                settings: %{"scaleY" => 0.9}}
+
+    # A SWAMP STANDS IN WATER. `wet` is how many cells of it flank the way through; every other wood says 0 and
+    # gets none, which is the whole difference between a swamp edge and a wood's.
+    water =
+      for dy <- 0..(@forest_h - 1),
+          dx <- [Enum.min(@forest_path) - 1, Enum.max(@forest_path) + 1],
+          wet > 0,
+          rem(dx + dy * 2, 5) < wet - 1,
+          do: %{dx: dx, dy: dy, level: 0, label: "water_c", walkable: false, scale: 1.0,
+                settings: %{"scaleY" => 0.12}}
+
+    List.flatten(wood) ++ canopy ++ verge ++ water ++ threshold ++ markers
   end
 
   def seed_entrances do
