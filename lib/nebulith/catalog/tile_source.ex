@@ -3801,6 +3801,8 @@ defmodule Nebulith.Catalog.TileSource do
     trunk_h = Keyword.fetch!(opts, :tall)
     crown = Keyword.fetch!(opts, :crown)
     density = Keyword.fetch!(opts, :density)
+    # Where the crowns meet above the path: just over the tallest trunk, so the canopy is a lid not a hat.
+    over = max(2, round(trunk_w * trunk_h) + 1)
     foot = Keyword.fetch!(opts, :foot)
     floor = Keyword.fetch!(opts, :floor)
 
@@ -3824,22 +3826,28 @@ defmodule Nebulith.Catalog.TileSource do
           dx not in @forest_path,
           dy <- 0..(@forest_h - 1),
           rem(dx * 7 + dy * 5, 10) < density do
-        tree.(dx, dy, 0.8 + rem(dx * 3 + dy * 7, 5) * 0.11)
+        inner = dx == Enum.min(@forest_path) - 1 or dx == Enum.max(@forest_path) + 1
+        tree.(dx, dy, (if inner, do: 1.05, else: 0.8) + rem(dx * 3 + dy * 7, 5) * 0.11)
       end
 
     # THE PATH IS LEFT EMPTY ON PURPOSE.
     #
     # It laid its own floor slab down these three columns, and a run of thin slabs shows mostly its own dark
-    # SIDES, so the way through came out as a pit rather than a path: *"none look like part of pathways"*. The
-    # object stands ON a pathway the generator already paved. Laying another one over it can only interrupt it.
-    # So these cells carry nothing and the map's own path runs straight through, which is what continuity is.
+    # SIDES, so the way through came out as a pit: *"none look like part of pathways"*. The object stands ON a
+    # pathway the generator already paved, and laying another over it can only interrupt it. These cells carry
+    # no floor at all, so the map's path runs straight through, which is what continuity is.
     #
-    # `floor` is still read, for the one cell that marks the threshold, so a place that paves in stone gets
-    # stone and one that paves in dirt gets dirt.
-    path = [
-      %{dx: Enum.at(Enum.to_list(@forest_path), 1), dy: @forest_h - 1, level: 0, label: floor,
-        walkable: true, scale: 1.0, settings: %{"scaleY" => 0.06}}
-    ]
+    # THE CANOPY CLOSES OVER IT INSTEAD. *"tighten the gap"*. The gap cannot be narrowed on the GROUND: the
+    # pathway is three cells wide and a blocking cell on any of them walls up the way out, and this layer runs
+    # after `ways-clear` so nothing would re-open it. So the crowns lean across overhead on cells that stay
+    # WALKABLE, which is the reference exactly: a corridor you walk through under a canopy that meets above.
+    canopy =
+      for dx <- @forest_path,
+          dy <- 0..(@forest_h - 1),
+          rem(dx + dy * 2, 3) == 0 do
+        %{dx: dx, dy: dy, level: over, label: "leaf_center", walkable: true,
+          scale: Float.round(crown * 1.15, 2), settings: %{"scaleY" => 1.4, "shape" => "circle"}}
+      end
 
     # UNDERGROWTH where the wood meets the path, which is what stops the edge reading as a cut line.
     verge =
@@ -3849,7 +3857,7 @@ defmodule Nebulith.Catalog.TileSource do
           do: %{dx: dx, dy: dy, level: 1, label: foot, walkable: false,
                 scale: 0.5 + rem(dy, 3) * 0.08, settings: %{"scaleY" => 0.55}}
 
-    path ++ List.flatten(wood) ++ verge
+    List.flatten(wood) ++ canopy ++ verge
   end
 
   def seed_entrances do
