@@ -86,8 +86,8 @@ defmodule Nebulith.GeneratorSourceTest do
         # there was nothing for the toggle to decide. `bridge` stays, because WHICH crossing is a real choice.
         expected =
           if g.key == "forest_jungle",
-            do: ~w(exits pathways upTo region river depth bridge),
-            else: ~w(exits pathways upTo river depth bridge)
+            do: ~w(exits pathways region river depth bridge),
+            else: ~w(exits pathways river depth bridge)
 
         assert Enum.map(g.options, & &1["key"]) == expected, "#{g.key} offers #{inspect(g.options)}"
         # Nothing runs by default: no river, and so nothing to cross.

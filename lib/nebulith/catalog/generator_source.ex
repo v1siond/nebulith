@@ -118,29 +118,6 @@ defmodule Nebulith.Catalog.GeneratorSource do
   # So a map carries TWO numbers, not one. EXITS are the ways out to another map (the connectors). PATHWAYS are the
   # paths inside it: the ones that are not an exit end somewhere in the map, which is where a closed or gated
   # section belongs. One exit and no extra pathway is the end of a chain; one exit and three pathways is a junction.
-  # HOW FAR TO RUN THE SYSTEM, which is a parameter like every other one on this panel.
-  #
-  # *"LAYOUT IN THE UI JUST REFERS TO I WANT TO ONLY EXECUTE THE SYSTEM UP TO THIS SPECIFIC LAYER. IE: ONLY
-  # GIVE ME AN EMPTY MAP WITH ALL PATHWAYS, GIVE AN EMPTY MAP WITH A RIVER, GIVE THE FULL MAP, ETC. IS JUST A
-  # FILTER, ANOTHER PARAMETER FOR THE GENERATOR"*, and *"we should also have preview for the exits and
-  # pathways selected"*, which is this stopping at `pathways`.
-  #
-  # The keys ARE the layer keys, so this list cannot drift from the layers: a stop names the layer it stops
-  # after, and the engine runs the stack up to it. Nothing is drawn differently for a stop, so what a preview
-  # shows is the real ground and the real tiles rather than a sketch of them.
-  @up_to_option %{
-    "key" => "upTo",
-    "label" => "Build up to",
-    "type" => "choice",
-    "default" => "objects",
-    "choices" => [
-      %{"key" => "terrain", "label" => "Terrain only: the bare ground"},
-      %{"key" => "water", "label" => "…and the water"},
-      %{"key" => "pathways", "label" => "…and the pathways and exits"},
-      %{"key" => "objects", "label" => "The whole map"}
-    ]
-  }
-
   @way_options [
     %{
       "key" => "exits",
@@ -850,19 +827,19 @@ defmodule Nebulith.Catalog.GeneratorSource do
         category: "forest", key: "forest_woodland", name: "Woodland", layout: "woodland", variant: "forest", position: 0,
         description: "Dense trees with clearings cut into them, joined by paths.",
         config: %{"pathway" => pathway("forest_track"), "grid" => @small_grid, "nature" => @woodland_nature, "units" => townsfolk(3), "palette" => @woodland_palette, "formation" => @formations["stand"], "trees" => @woodland_trees, "crossings" => @crossings},
-        options: @way_options ++ [@up_to_option] ++ @water_options
+        options: @way_options ++ @water_options
       },
       %{
         category: "forest", key: "forest_jungle", name: "Jungle", layout: "jungle", variant: "forest", position: 1,
         description: "A closed canopy over choked undergrowth, with clearings cut into it.",
         config: %{"pathway" => pathway("cut_trail"), "grid" => @small_grid, "nature" => @jungle_nature, "units" => townsfolk(2), "palette" => @jungle_palette, "subZones" => @jungle_sub_zones, "formation" => @formations["closed"], "trees" => @jungle_trees, "crossings" => @crossings},
-        options: @way_options ++ [@up_to_option] ++ region_options(~w(open dense swamp ruins)) ++ @water_options
+        options: @way_options ++ region_options(~w(open dense swamp ruins)) ++ @water_options
       },
       %{
         category: "forest", key: "forest_meadow", name: "Meadow", layout: "meadow", variant: "forest", position: 2,
         description: "An open clearing framed by trees, with two ways in.",
         config: %{"pathway" => pathway("park_path"), "grid" => @small_grid, "nature" => @outdoor_nature, "units" => townsfolk(5), "formation" => @formations["scattered"], "trees" => @meadow_trees, "palette" => @meadow_palette, "crossings" => @crossings},
-        options: @way_options ++ [@up_to_option] ++ @water_options
+        options: @way_options ++ @water_options
       },
       # ── SUBTYPES ────────────────────────────────────────────────────────────────────────────────────
       # Each one
@@ -912,7 +889,7 @@ defmodule Nebulith.Catalog.GeneratorSource do
         config: %{"pathway" => pathway("rocky_track"), "formation" => @formations["clumped"], "nature" => %{"canopy" => 0.28},
                   "subZones" => sub_zones(@mountain_sub_zones, %{"ridge" => 2, "slope" => 3, "vale" => 2}),
                   "trees" => [%{"kind" => "tree_conifer", "weight" => 70}, %{"kind" => "tree_tall", "weight" => 15}, %{"kind" => "tree_stub", "weight" => 15}]},
-        options: @way_options ++ [@up_to_option] ++ region_options(@mountain_sub_zones, ~w(ridge slope vale)) ++ @water_options
+        options: @way_options ++ region_options(@mountain_sub_zones, ~w(ridge slope vale)) ++ @water_options
       },
       # image #12 again — woodland broken by open meadow sections
       %{
@@ -922,7 +899,7 @@ defmodule Nebulith.Catalog.GeneratorSource do
         config: %{"pathway" => pathway("park_path"), "formation" => @formations["clumped"], "nature" => %{"canopy" => 0.4},
                   "subZones" => sub_zones(@woodland_sub_zones, %{"stand" => 3, "meadow" => 2}),
                   "trees" => [%{"kind" => "tree", "weight" => 30}, %{"kind" => "tree_round", "weight" => 25}, %{"kind" => "tree_broadleaf", "weight" => 25}, %{"kind" => "tree_gnarled", "weight" => 20}]},
-        options: @way_options ++ [@up_to_option] ++ region_options(@woodland_sub_zones, ~w(stand meadow)) ++ @water_options
+        options: @way_options ++ region_options(@woodland_sub_zones, ~w(stand meadow)) ++ @water_options
       },
       # image #14 — wall to wall, no floor visible
       %{
@@ -932,7 +909,7 @@ defmodule Nebulith.Catalog.GeneratorSource do
         # Thinned by the same ratio as the parent (0.84x), so it stays the densest jungle without being the
         # one map you cannot walk across.
         config: %{"pathway" => pathway("cut_trail"), "nature" => %{"canopy" => 0.36}, "subZones" => sub_zones(%{"dense" => 5, "open" => 1})},
-        options: @way_options ++ [@up_to_option] ++ region_options(~w(open dense)) ++ @water_options
+        options: @way_options ++ region_options(~w(open dense)) ++ @water_options
       },
       # image #13 — cypress standing in the water
       %{
@@ -940,7 +917,7 @@ defmodule Nebulith.Catalog.GeneratorSource do
         layout: "jungle", position: 1,
         description: "Mostly swamp, cypress standing in the water.",
         config: %{"pathway" => pathway("boardwalk"), "subZones" => sub_zones_in(%{"swamp" => 6, "dense" => 2, "open" => 1}, @swamp_regions)},
-        options: @way_options ++ [@up_to_option] ++ region_options(~w(open dense swamp)) ++ @water_options
+        options: @way_options ++ region_options(~w(open dense swamp)) ++ @water_options
       },
       # an island: water around it, palms
       %{
@@ -972,14 +949,14 @@ defmodule Nebulith.Catalog.GeneratorSource do
                   # to THIS list, which was the generic palm-and-round set. On a map where the regions cover part of
                   # the ground, most trees came from here.
                   "trees" => [%{"kind" => "tree_coconut", "weight" => 30}, %{"kind" => "tree_palm", "weight" => 25}, %{"kind" => "tree_banana", "weight" => 20}, %{"kind" => "tree_mangrove", "weight" => 15}, %{"kind" => "bush_round", "weight" => 10}]},
-        options: @way_options ++ [@up_to_option] ++ region_options(~w(open dense)) ++ water_options("around")
+        options: @way_options ++ region_options(~w(open dense)) ++ water_options("around")
       },
       %{
         category: "forest", parent: "forest_jungle", key: "forest_jungle_ruins", name: "Jungle ruins",
         layout: "jungle", position: 3,
         description: "Ruins the jungle has taken back.",
         config: %{"pathway" => pathway("forest_track"), "subZones" => sub_zones(%{"ruins" => 5, "dense" => 2, "open" => 2})},
-        options: @way_options ++ [@up_to_option] ++ region_options(~w(open dense ruins)) ++ @water_options
+        options: @way_options ++ region_options(~w(open dense ruins)) ++ @water_options
       },
       # image #10 — big lone trees wide apart on open grass
       %{

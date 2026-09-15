@@ -3588,8 +3588,30 @@ defmodule Nebulith.Catalog.TileSource do
   #
   # Every piece is a real catalogue tile. Nothing is drawn for this. An earlier attempt at these was reverted
   # for being invented rather than modelled, which is the mistake the reference picture exists to stop.
+  # THE MOUTH, when the place has one. A dark stain on the GROUND under the arch, never a dark block standing
+  # in it: a composition cell carries its tile's own height, so a floor label stamped as a cell comes out a
+  # full cube tall, which is the black box the first render showed. `scaleY` flattens it to a stain.
+  defp mouth_cell(floor, nil), do: %{dx: 1, dy: 0, level: 0, label: floor, walkable: true, settings: %{"scaleY" => 0.06}}
+
+  defp mouth_cell(floor, colour) do
+    %{dx: 1, dy: 0, level: 0, label: floor, walkable: true, settings: %{"color" => colour, "scaleY" => 0.06}}
+  end
+
   defp entrance_cells({left_upright, right_upright}, span, floor, foot_left, foot_right, opts) do
-    mouth = Keyword.get(opts, :mouth, "#0d0d12")
+    # NO DARK MOUTH UNLESS THE OPENING IS ACTUALLY DARK.
+    #
+    # This defaulted to `#0d0d12`, a near-black slab under every arch, and it was defended by an early quote
+    # asking for *"a whuite or dark light right in the exit cells"*. He has rejected it twice since, the second
+    # time pointing at a town square: *"still not good, remove the black entrance"*, and then *"WHAT IS THIS
+    # SHIT EXIT?"* with a picture of a black diamond lying on the paving.
+    #
+    # A CAVE MOUTH IS DARK BECAUSE A CAVE IS DARK. A town gateway is not, and painting one black is a hole in
+    # the square. So the mouth is opt-in: a place whose opening really is a dark hole asks for it, and a built
+    # gateway simply has ground under its arch like everywhere else.
+    #
+    # The `light` that went with it did nothing in daylight anyway. `drawNightLighting` is the only thing that
+    # draws a light setting, so all it ever contributed to a day map was the black.
+    mouth = Keyword.get(opts, :mouth)
 
     [
       # THE UPRIGHTS, on the border row. They block: a doorway you cannot brush past the side of. The two
@@ -3619,18 +3641,7 @@ defmodule Nebulith.Catalog.TileSource do
       # The colour is the one this function sets, and it is the feature itself: *"a whuite or dark light right
       # in the exit cells"*. It sits in the cell's settings like every other per-cell setting, so it is
       # editable on the object.
-      %{
-        dx: 1,
-        dy: 0,
-        level: 0,
-        label: floor,
-        walkable: true,
-        settings: %{
-          "color" => mouth,
-          "scaleY" => 0.06,
-          "light" => %{"intensity" => 0.85, "distance" => 2.4, "color" => mouth, "on" => true}
-        }
-      },
+      mouth_cell(floor, mouth),
       # THE SPAN: an arch ACROSS all three cells, so it springs from one upright and lands on the other.
       #
       # It was one piece at level 1 over the middle cell, which hung in the air touching nothing. Z-width is
