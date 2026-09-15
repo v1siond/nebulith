@@ -14,8 +14,8 @@
  * So a test that watches only the tree count cannot see this. These cases measure the two things he actually
  * named, against the two forests he has already called correct:
  *
- *   · WALKABLE  — the share of the interior you can stand on at all.
- *   · PLACEABLE — the share with open ground on all four sides, which is what it takes to put a chest or a
+ *   · WALKABLE, the share of the interior you can stand on at all.
+ *   · PLACEABLE, the share with open ground on all four sides, which is what it takes to put a chest or a
  *                 unit somewhere without it being wedged against a trunk.
  *
  * The border ring is excluded from both. `sealMapEdge` deliberately plants a tree on every un-collided cell
