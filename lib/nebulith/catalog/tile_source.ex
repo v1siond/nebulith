@@ -3740,6 +3740,94 @@ defmodule Nebulith.Catalog.TileSource do
       ]
   end
 
+  @doc """
+  A FOREST ENTRANCE IS MADE OF THE FOREST'S OWN TREES, and there is one per kind of forest.
+
+  *"forest entrance depends on type of firest, is not the same entering ajungle than entering a meadow or a
+  woodland or a swamp, each one must have their own tree guided entry"* (2026-09-14). `forest_entrance` was one
+  object for all of them, named after a place rather than a thing, and it ended up holding a cave mouth.
+
+  These are TREE GUIDED: the way through is a gap between trunks with the canopies leaning over it. There is
+  deliberately NO beam across the top, because a beam is what makes `temple_entrance` a built gateway, and a
+  wood does not build one.
+
+  The four differ by PROPORTION, which is the lever the objects he likes all pull. A jungle's trunks are tall
+  and its canopies wide; a meadow's are short and sparse; a swamp's are squat and close; a woodland sits
+  between them. Same builder, four sets of numbers, exactly as the two caves share one builder and differ by a
+  single setting.
+
+  The layout is the cave's: the way through sits in the middle of the anti-diagonal `dx + dy == 4`, with the
+  trees that flank it ON that diagonal so they read as one face toward the camera, and the rest of the wood
+  BEHIND it. Put a flanking tree in the same ROW instead and the near one is drawn over the gap.
+  """
+  def seed_forest_entrances do
+    for {name, opts} <- %{
+          "woodland_entrance" => [trunk: 0.5, tall: 4.2, crown: 1.5, deep: 3, foot: "mushroom", floor: "path_dirt"],
+          "jungle_entrance" => [trunk: 0.45, tall: 6.0, crown: 1.85, deep: 4, foot: "mushroom", floor: "path_dirt"],
+          "meadow_entrance" => [trunk: 0.38, tall: 2.9, crown: 1.15, deep: 2, foot: "bouquet", floor: "path"],
+          "swamp_entrance" => [trunk: 0.58, tall: 3.2, crown: 1.3, deep: 3, foot: "red-mushroom", floor: "path_dirt"]
+        } do
+      {:ok, _} =
+        Nebulith.Catalog.upsert_composition_with_cells(
+          %{name: name, footprint_w: 5, footprint_h: 5, category: "props"},
+          forest_entrance_cells(opts)
+        )
+    end
+
+    :ok
+  end
+
+  # The diagonal the entry faces the camera along, and the cell you actually walk through.
+  @forest_face 4
+  @forest_gap {2, 2}
+
+  defp forest_entrance_cells(opts) do
+    trunk_w = Keyword.fetch!(opts, :trunk)
+    trunk_h = Keyword.fetch!(opts, :tall)
+    crown = Keyword.fetch!(opts, :crown)
+    deep = Keyword.fetch!(opts, :deep)
+    foot = Keyword.fetch!(opts, :foot)
+    floor = Keyword.fetch!(opts, :floor)
+    {gap_dx, gap_dy} = @forest_gap
+
+    # A TREE is a thin trunk and a wide round crown, which is `tree_round` itself: 0.6 wide by 1.89 tall under
+    # a canopy 2.25x its width. `size` shrinks the whole tree so the wood reads as having depth.
+    tree = fn dx, dy, size ->
+      top = Float.round(trunk_w * size * trunk_h * size, 2)
+
+      [
+        %{dx: dx, dy: dy, level: 0, label: "trunk_mid", walkable: false, scale: Float.round(trunk_w * size, 2),
+          settings: %{"scaleY" => trunk_h}},
+        %{dx: dx, dy: dy, level: max(1, trunc(top)), label: "leaf_center", walkable: false,
+          scale: Float.round(crown * size, 2), settings: %{"scaleY" => 1.5, "shape" => "circle"}}
+      ]
+    end
+
+    # THE TWO THAT FLANK THE WAY THROUGH, on the face diagonal so neither is drawn over the gap. They differ in
+    # size on purpose: a matched pair reads as something somebody built.
+    flanking = tree.(gap_dx - 1, gap_dy + 1, 1.0) ++ tree.(gap_dx + 1, gap_dy - 1, 0.88)
+
+    # THE WOOD BEHIND, on the diagonals further back, smaller so the stand recedes.
+    behind =
+      for d <- 1..min(3, deep),
+          dx <- 0..4,
+          dy = d - dx,
+          dy >= 0 and dy <= 4,
+          rem(dx + dy * 2, 2) == 0,
+          do: tree.(dx, dy, 0.62)
+
+    # UNDERGROWTH at the feet, and the floor you walk in on. No canopy over the gap: the sky through the gap
+    # IS the signal that this is a way out.
+    [
+      %{dx: gap_dx, dy: gap_dy, level: 0, label: floor, walkable: true, scale: 1.0, settings: %{"scaleY" => 0.08}},
+      %{dx: gap_dx, dy: gap_dy + 1, level: 0, label: floor, walkable: true, scale: 1.0, settings: %{"scaleY" => 0.08}},
+      %{dx: gap_dx - 2, dy: @forest_face - (gap_dx - 2), level: 0, label: foot, walkable: false, scale: 0.55,
+        settings: %{"scaleY" => 0.6}},
+      %{dx: gap_dx + 2, dy: @forest_face - (gap_dx + 2), level: 0, label: foot, walkable: false, scale: 0.45,
+        settings: %{"scaleY" => 0.5}}
+    ] ++ flanking ++ List.flatten(behind)
+  end
+
   def seed_entrances do
     entrances = %{
       # A wood opening onto somewhere else: a bare gnarled trunk one side, a full crown the other, a boulder

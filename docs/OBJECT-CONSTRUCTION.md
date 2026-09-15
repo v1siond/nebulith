@@ -1300,3 +1300,120 @@ Still to build, and it is the same point: **a forest entrance depends on the for
 entering ajungle than entering a meadow or a woodland or a swamp, each one must have their own tree guided
 entry"*. Four objects, each guided by its own trees, none of them named `forest_entrance`.
 
+---
+
+# 10. THE RECIPE: turning a reference into an object, consistently
+
+*"I just want to make sure we always have a step by step guide on how to make an object out of a reference
+consistently"* (2026-09-14). This is that guide. It is the process of section 4 reduced to what you actually
+DO, with the measurement that tells you when to stop.
+
+Everything here was used to build `temple_entrance`, `cave_entrance_cube` and `cave_entrance_rounded`.
+
+## The loop
+
+```
+  reference  ->  measure it  ->  block it out  ->  render  ->  measure ours  ->  read the deltas  ->  adjust
+                                                      ^                                                |
+                                                      +------------------------------------------------+
+```
+
+### 1. Get the reference, and CROP IT TO THE OBJECT
+
+One object, nothing else. The reference of a cave that still has half a forest in it measures the forest: the
+first run said `fill 0.57` for a whole woodland scene, which described nothing. Crop, then check the crop by
+eye before using it.
+
+```
+convert reference-sheet.jpg -crop 250x150+35+65 +repage reference-object.png
+```
+
+A sheet holding many objects splits into one file each (see `references/SOURCES.md`).
+
+### 2. MEASURE the reference. Write the four numbers down.
+
+```
+python3 .probe/silhouette.py reference-object.png reference-object.png
+```
+
+| number | what it means | what it catches |
+|---|---|---|
+| **aspect** | width over height of the silhouette | tall and narrow when the thing is wide and low. The single most common error |
+| **fill** | ink over bounding box | a SOLID block. Near 1.0 is architecture. The rejected temple measured **0.98**, which is the number saying "building" |
+| **centroid** | where the mass sits vertically, 0 is top heavy, 1 is grounded | a shape that floats instead of sitting |
+| **jag** | how uneven the skyline is | a dead flat roofline is built, a broken one is natural |
+
+### 3. BLOCK OUT to those numbers, not to instinct
+
+Pick the footprint and the heights so the aspect lands near the reference's. Remember `scale * scaleY` is the
+drawn height in LEVELS, and that one level is only 0.45 of a cell width, so heights need bigger numbers than
+they look like they need. Read section 9.1 before placing anything.
+
+Decide the SHAPE FAMILY from the reference: a beam across two supports is architecture, a hole cut into a mass
+is natural. They are different objects and no retexturing converts one into the other.
+
+### 4. RENDER the real thing
+
+```
+# seed it, then shoot it: this goes through the real path with the real colours
+SPEC=cells.json mix run --no-start -e 'Application.ensure_all_started(:nebulith); Code.eval_file("upsert-one-composition.exs")'
+OUT=/tmp/shots NAME=thing COMP=thing FP=5x5 HEROAWAY=14 node .probe/objshot.mjs
+```
+
+`HEROAWAY` matters: `fadeNear` ghosts a whole structure when the hero stands next to it (9.1, fact 5).
+
+### 5. CROP OURS the same way, and MEASURE
+
+The same rule as step 1: the render sits on grass, so crop to the object or the grass gets measured as part of
+it. An uncropped frame measures `aspect 1.03` for everything, which is the frame, not the object.
+
+```
+convert shot.png -crop 900x680+310+230 +repage ours.png
+python3 .probe/silhouette.py reference-object.png ours.png
+```
+
+### 6. READ THE DELTAS. Each one has one fix.
+
+| delta | means | do this |
+|---|---|---|
+| `aspect` too low | too narrow | widen the footprint, or lower the heights |
+| `fill` too high | too solid, reads as built | break the silhouette: vary heights, open gaps, vary scale per cell |
+| `fill` too low | too sparse, reads as scattered junk | merge masses, overlap them, `shape: circle` at scale > 1 |
+| `centroid` too low | top heavy | move weight down, widen the base |
+| `jag` too low | flat skyline, reads as architecture | vary the top of each cell |
+| `jag` too high | noisy skyline | fewer, larger masses |
+
+### 7. STOP when the deltas are small AND his eyes agree
+
+Close enough is silhouette, proportion, contact and hierarchy. Colour exactness and texture detail are not part
+of it. **The numbers never close the gate: they tell you where to look and when to stop guessing.** Only his
+verdict at :3000 closes it.
+
+## Worked numbers, the three approved objects
+
+Against the cave mound reference, both cropped to the object:
+
+| | aspect | fill | centroid | jag |
+|---|---|---|---|---|
+| **reference** | **1.67** | **0.59** | **0.49** | **0.054** |
+| `cave_entrance_rounded` | 1.32 | 0.81 | 0.52 | 0.169 |
+| `cave_entrance_cube` | 1.32 | 0.82 | 0.53 | 0.166 |
+| `temple_entrance` | 0.62 | 0.70 | 0.54 | 0.173 |
+
+What the rows say, and it matches what he said by eye:
+
+- The caves are **still too narrow (1.32 against 1.67) and too solid (0.81 against 0.59)**. Those are the two
+  named next moves for them, and neither needs an opinion to find.
+- Their `centroid` matches the reference almost exactly. The mass sits right.
+- Their `jag` is HIGHER than the reference, not lower: the trees poking out of the mound make a more broken
+  skyline than the real thing.
+- `temple_entrance` measures `aspect 0.62` against a cave, which means nothing. **A temple needs a temple
+  reference.** Measuring against the wrong reference produces a confident wrong answer, which is worse than no
+  measurement.
+
+## What this does NOT do
+
+It measures ONE silhouette from ONE camera angle. It says nothing about colour, material, readability at small
+size, or whether the object is the right object. It is a tool for closing the gap to a reference you have
+already agreed is the right reference.
+
