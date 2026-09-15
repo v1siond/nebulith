@@ -3823,11 +3823,19 @@ defmodule Nebulith.Catalog.TileSource do
   # rather than a black invented here.
   defp shade(hex, amount) do
     <<?#, r::binary-2, g::binary-2, b::binary-2>> = hex
-    down = fn c -> c |> String.to_integer(16) |> then(&round(&1 * (1.0 - amount))) |> max(0) end
+    # A negative `amount` LIGHTENS, which is how the alternate leaf tone is made from the same served colour.
+    down = fn c ->
+      c |> String.to_integer(16) |> then(&round(&1 * (1.0 - amount))) |> max(0) |> min(255)
+    end
     "#" <> Enum.map_join([r, g, b], fn c -> c |> down.() |> Integer.to_string(16) |> String.pad_leading(2, "0") end)
   end
 
   defp forest_entrance_cells(species, canopy, gloom, foot, wet) do
+    # THE CROWNS WEAR THIS WOOD'S OWN LEAF COLOUR. Every palette serves `canopy` and `canopyAlt` and they are
+    # genuinely different numbers per template, and they were being used for the gloom ONLY. Every crown drew
+    # the tile's default green, so thirteen objects came out as one pile of green blobs: *"they all suck,
+    # there's no difference between none of them"*. Two tones, alternating, so a stand has depth.
+    leaf = {gloom, shade(gloom, -0.22)}
     # ONE TREE, of a named species, at its OWN proportions. `vary` only scales the whole thing so a stand is
     # not an orchard; it never changes what the species IS.
     tree = fn dx, dy, kind, vary ->
@@ -3845,7 +3853,8 @@ defmodule Nebulith.Catalog.TileSource do
         if cw > 0.0,
           do: [%{dx: dx, dy: dy, level: top, label: "leaf_center", walkable: false,
                  scale: Float.round(cw * vary, 2),
-                 settings: %{"scaleY" => ch, "shape" => shape}}],
+                 settings: %{"scaleY" => ch, "shape" => shape,
+                             "color" => elem(leaf, rem(dx + dy, 2))}}],
           else: []
 
       trunk ++ crown
@@ -3872,18 +3881,21 @@ defmodule Nebulith.Catalog.TileSource do
         {_, _, cw, ch, shape} = Map.fetch!(@species, kind)
         over = max(2, round(canopy * 6) + 2)
         %{dx: dx, dy: dy, level: over, label: "leaf_center", walkable: true,
-          scale: Float.round(cw * 1.1, 2), settings: %{"scaleY" => ch, "shape" => shape}}
+          scale: Float.round(cw * 1.1, 2),
+          settings: %{"scaleY" => ch, "shape" => shape, "color" => elem(leaf, rem(dx + dy, 2))}}
       end
 
     # THE WAY GOES DARK, running BACK into the wood and fading toward you, so it reads as a way that carries on
     # rather than a door. It is the cave mouth's form: a tall WALKABLE block, never a square on the floor.
+    # *"the dark section is still bad because is not further down the path enough"*. It covered three cells of
+    # five and stopped. It runs the WHOLE depth now, deepest where the path leaves the map and thinning to
+    # almost nothing at the near end, so the way fades out of sight instead of ending at a wall.
     dark =
       for dx <- @forest_path,
-          dy <- 2..(@forest_h - 1),
-          mix = 1.0 - (@forest_h - 1 - dy) * 0.33,
-          mix > 0.2 do
+          dy <- 0..(@forest_h - 1),
+          deep = dy / (@forest_h - 1) do
         %{dx: dx, dy: dy, level: 0, label: "trunk_mid", walkable: true, scale: 1.0,
-          settings: %{"scaleY" => 1.2 + mix * 1.6, "color" => shade(gloom, 0.55 + mix * 0.4)}}
+          settings: %{"scaleY" => 0.35 + deep * 2.9, "color" => shade(gloom, 0.35 + deep * 0.62)}}
       end
 
     verge =
