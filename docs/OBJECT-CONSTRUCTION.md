@@ -25,6 +25,63 @@ axes, because those axes become the checklist.
 Every claim below is measured from `curl http://localhost:6328/api/tilesets` and from renders of the live app
 at :3000. The shots are in `renders/`.
 
+## 1.0 THE MEASURED ANSWER, 2026-09-14
+
+Counted off the live `/api/tilesets`, not asserted. 53 compositions, 824 composition cells, 378 tiles.
+
+### Why the house, the well, the fountain and the trees read
+
+**They are built from PIECE FAMILIES and PROPORTION. Nothing else.**
+
+| Object | How it is actually made |
+|---|---|
+| `lamp_post` | TWO cells. A `post` at `scale 0.3`, `scaleY 7.0`, so it draws 2.1 levels tall and 0.3 of a cell wide: a post, not a cube. Then a `lamp` bulb at `scale 0.6` with `display: single` and a `pose` of `dy -1.8` to sit it on top |
+| `tree_round` | TWO cells. `trunk_mid` at `scale 0.6`, `scaleY 3.15`, so 1.89 levels tall and 0.6 wide. Then `leaf_center` at `scale 1.35` with `shape: circle`, at level 2. The crown is **2.25x the trunk's width and overhangs its own cell** |
+| `house_4` | 30 cells over a 4x4 footprint. Walls are ONE block each at `scaleY 4`, not four stacked cubes. The corners and edges come from the `wall_wood` family. `window` and `door` are their own labels, which is what breaks the run. The roof is ONE cell with `depth: 4, depthDir: left-down`, spanning the whole footprint as a single block |
+| `well` / `fountain` | A pure 9-slice. `fountain_tl/_t/_tr/_l/_r/_bl/_b/_br` makes the rim, `water_c` fills the middle at `scale 1.15`, slightly oversized so it meets the rim with no seam |
+
+### The counts that settle the bridge
+
+| Object | Pieces available to build it from |
+|---|---|
+| A house wall | **33**: `wall_stone` 9, `wall_plaster` 9, `wall_brick` 8, `wall_wood` 7 |
+| A fountain rim | **8**, a complete 9-slice |
+| A tree crown | **9** `canopy_*` pieces exist as a complete family, and ZERO compositions use them |
+| **A bridge** | **3**. `bridge`, `bridge_deck`, `bridge_rail` |
+| **An arch** | **0**. Searching 378 tiles for arch, span, vault, keystone, lintel or voussoir returns one hit, `spanish_tile`, which is a roof |
+
+That is the whole diagnosis. The house has thirty-three pieces to say "corner", "edge", "middle" with. The bridge
+has three, so one of them has to play three structural roles at once and the rest is faked with scale. It is not
+that the bridge was built carelessly. **It was built with nothing to build from.**
+
+### And the thing that proves it
+
+Of 824 composition cells, **20 carry `transparent` and 22 carry `display: single`. Every single one of those is
+in an entrance I built.** Apart from the lamp bulb, which is a genuine billboard, no object he approves of uses
+either setting anywhere.
+
+So the entrances were built by a method used nowhere else in the catalogue: take a WHOLE-OBJECT tile (`oak-tree`
+is an entire tree baked into one tile) and flatten it into a billboard. Every good object instead takes
+CONSTRUCTION pieces (`trunk_mid`, `leaf_center`, `wall_stone_tl`, `fountain_b`) and gives them proportions.
+
+His words for it: *"the principle of objects is to use tiles as decoration, look how we build lamp post, trees
+and houses"*. Measured, that principle is:
+
+1. **Proportion does the work, not the display mode.** Drawn height in levels is `scale x scaleY`. A post is
+   0.3 wide, a trunk 0.6, a crown 1.35. The cube shell is fine once the proportions are right.
+2. **A piece FAMILY wherever the shape changes at a boundary.** Corner, edge, middle.
+3. **One tall block, never a stack.** `scaleY: 4` for a four-level wall.
+4. **`depth` to SPAN.** The house roof is one cell reaching four cells. That is already the answer to how an
+   arch or a bridge deck crosses a gap, and it was never applied to either.
+5. **Slight oversize to kill a seam**, the 1.15 on `water_c`.
+6. **`display: single` only for a true billboard.** Never for structure.
+
+### What this means for the next attempt
+
+The arch, the pier, the deck and the parapet families do not exist, so there is nothing to compose. Per step 3
+they get AUTHORED first, through `priv/tilegen/tiles.json` and `bake.mjs`. There is no version of this that
+works by picking a different existing tile, and every attempt so far has failed trying.
+
 ## 1.1 The scoreboard
 
 | Axis | tree | well / fountain | house / skyscraper | **bridges** |
