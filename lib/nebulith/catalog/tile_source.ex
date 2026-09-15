@@ -3831,106 +3831,49 @@ defmodule Nebulith.Catalog.TileSource do
   end
 
   defp forest_entrance_cells(species, canopy, gloom, foot, wet, ground) do
-    # THE CROWNS WEAR THIS WOOD'S OWN LEAF COLOUR. Every palette serves `canopy` and `canopyAlt` and they are
-    # genuinely different numbers per template, and they were being used for the gloom ONLY. Every crown drew
-    # the tile's default green, so thirteen objects came out as one pile of green blobs: *"they all suck,
-    # there's no difference between none of them"*. Two tones, alternating, so a stand has depth.
-    leaf = {gloom, shade(gloom, -0.22)}
-
-    # THE CANOPY IS A LAYER, NOT A PILE.
+    # THE CANOPY IS A SHEET, AND THE WAY IS THE SHADOW UNDER IT.
     #
-    # Measured against his reference: its skyline varies by 0.013 of its height, ours by 0.132, ten times as
-    # uneven, and its fill is 0.57 against our 0.84. Ours was a heap of different sized balls because each
-    # crown sat at the top of its OWN trunk, so a `tree_column` crowned at level 2 beside a `tree_giant` at 4.
+    # Measured off his reference (art.ngfiles 1168374, top third): the canopy is ONE tone covering 0.59 of the
+    # area, the hollow beneath it is 0.10, and the sheet is 2.7x brighter than the shadow. **One** distinct
+    # canopy tone, quantised. There are no trunks and no round crowns up there at all.
     #
-    # A real wood does not do that: the canopy closes at one height and the trunks below it are whatever length
-    # they need to be. So the crown level is the STAND's, taken from its tallest species, and every trunk
-    # stretches to reach it. Varied trunks, one roof, which is what the reference shows.
-    roof =
-      species
-      |> Enum.map(fn k -> {tw, th, _, _, _} = Map.fetch!(@species, k); round(tw * th) end)
-      |> Enum.max()
-      |> max(2)
+    # Every attempt before this built rows of separate lollipop trees with sky between them, which is why
+    # nothing read as a forest you walk INTO: *"all we needed was to obscure the pathway like it happens on the
+    # top part of this reference"*. The obscuring is not an object you place. It is the canopy closing OVER the
+    # path and the shadow it throws.
+    #
+    # So: a sheet of leaf over the wood columns, and the path cells carry the same sheet HIGHER, at the
+    # brightness of shadow, so you walk under it and cannot see where it goes.
+    leaf = {gloom, shade(gloom, -0.18)}
+    # 2.7x darker than the sheet, which is the measured ratio.
+    under = shade(gloom, 0.63)
 
-    # ONE TREE, of a named species, at its OWN proportions. `vary` only scales the whole thing so a stand is
-    # not an orchard; it never changes what the species IS.
-    tree = fn dx, dy, kind, vary ->
-      {tw, th, cw, ch, shape} = Map.fetch!(@species, kind)
-      # The trunk is stretched so its top MEETS the stand's canopy, whatever species it is. Its own `th` still
-      # sets how thick and how tall it reads relative to its neighbours; what it no longer does is decide where
-      # the roof is.
-      top = if tw > 0.0, do: roof, else: 0
-      trunk_h = if tw > 0.0, do: Float.round(top / tw, 2), else: 0.0
+    # THE SHEET. One tile per cell, oversized so neighbours MEET with no sky between them, which is what makes
+    # it a sheet rather than a row of trees.
+    sheet =
+      for dx <- 0..(@forest_w - 1),
+          dy <- 0..(@forest_h - 1),
+          on_path = dx in @forest_path do
+        %{dx: dx, dy: dy, level: if(on_path, do: 4, else: 3), label: "leaf_center",
+          walkable: on_path, scale: 1.5,
+          settings: %{"scaleY" => 1.4, "shape" => "circle",
+                      "color" => if(on_path, do: under, else: elem(leaf, rem(dx + dy, 2)))}}
+      end
 
-      trunk =
-        if tw > 0.0,
-          do: [%{dx: dx, dy: dy, level: 0, label: "trunk_mid", walkable: false,
-                 scale: Float.round(tw * vary, 2), settings: %{"scaleY" => trunk_h}}],
-          else: []
-
-      crown =
-        if cw > 0.0,
-          do: [%{dx: dx, dy: dy, level: top, label: "leaf_center", walkable: false,
-                 scale: Float.round(cw * vary, 2),
-                 settings: %{"scaleY" => ch, "shape" => shape,
-                             "color" => elem(leaf, rem(dx + dy, 2))}}],
-          else: []
-
-      trunk ++ crown
-    end
-
-    # THE WOOD, both sides, full depth. The generator's served CANOPY density decides how much of it is filled,
-    # so a dense woodland at 0.6 really is denser than a glade at 0.4 and an open meadow at 0.12 is nearly bare.
-    wood =
+    # THE TRUNKS HOLDING IT UP, only where the wood is, never on the path. Each is its own species at its own
+    # width, which is what keeps a beech stand unlike a mangrove swamp, and they are all stretched to the sheet.
+    trunks =
       for dx <- 0..(@forest_w - 1),
           dx not in @forest_path,
           dy <- 0..(@forest_h - 1),
-          # fill measured +0.26 over the reference, so the stand is thinned rather than packed. The served
-          # density still decides how much, it is simply no longer topped up by a constant that filled it in.
-          rem(dx * 7 + dy * 5, 100) < round(canopy * 100) do
+          rem(dx * 7 + dy * 5, 100) < round(canopy * 100) + 30 do
         kind = Enum.at(species, rem(dx * 3 + dy * 5, length(species)))
-        tree.(dx, dy, kind, 0.85 + rem(dx * 3 + dy * 7, 4) * 0.1)
+        {tw, _, _, _, _} = Map.fetch!(@species, kind)
+        w = max(tw, 0.28)
+        %{dx: dx, dy: dy, level: 0, label: "trunk_mid", walkable: false, scale: w,
+          settings: %{"scaleY" => Float.round(3.0 / w, 2)}}
       end
 
-    # THE CANOPY CLOSING OVER THE WAY, on cells that stay WALKABLE. The pathway is three cells wide and a
-    # blocking cell on any of them walls up the exit, so the gap is tightened overhead, never on the ground.
-    canopy_over =
-      for dx <- @forest_path,
-          dy <- 0..(@forest_h - 1),
-          rem(dx + dy * 2, 3) == 0 do
-        kind = Enum.at(species, rem(dx + dy, length(species)))
-        {_, _, cw, ch, shape} = Map.fetch!(@species, kind)
-        over = max(2, round(canopy * 6) + 2)
-        %{dx: dx, dy: dy, level: over, label: "leaf_center", walkable: true,
-          scale: Float.round(cw * 1.1, 2),
-          settings: %{"scaleY" => ch, "shape" => shape, "color" => elem(leaf, rem(dx + dy, 2))}}
-      end
-
-    # THE WAY GOES DARK, running BACK into the wood and fading toward you, so it reads as a way that carries on
-    # rather than a door. It is the cave mouth's form: a tall WALKABLE block, never a square on the floor.
-    # THE DARK SITS AT THE END OF THE PATHWAY.
-    #
-    # *"the back zone should be at the end of the pathway, not in middle of trees"*. It was spread down every
-    # path cell, so the darkness sat among the trunks halfway along instead of where the way actually leaves.
-    # It is the LAST two rows only now: full strength on the border row where the path goes off the map, half
-    # on the one behind it so the edge is not a hard line.
-    #
-    # Still the cave mouth's form, a tall WALKABLE block, never a square painted on the floor.
-    dark =
-      for dx <- @forest_path,
-          {dy, deep} <- [{@forest_h - 1, 1.0}, {@forest_h - 2, 0.45}] do
-        %{dx: dx, dy: dy, level: 0, label: "trunk_mid", walkable: true, scale: 1.0,
-          settings: %{"scaleY" => 0.6 + deep * 2.6, "color" => shade(gloom, 0.4 + deep * 0.55)}}
-      end
-
-    # THE WOOD'S OWN FLOOR, on the cells this object owns.
-    #
-    # Rendering all thirteen maps side by side, the LOUDEST difference between them is the ground: island is
-    # pale sand, open meadow bright grass-field, mountain bare dirt, jungle and swamp dark. Every entrance was
-    # standing on the same default grass, which is a large part of why thirteen objects read as one.
-    #
-    # The PATH columns are untouched: the map's own pathway runs through, and laying a floor over it is what
-    # made a pit, twice.
     floor =
       for dx <- 0..(@forest_w - 1),
           dx not in @forest_path,
@@ -3953,7 +3896,7 @@ defmodule Nebulith.Catalog.TileSource do
           do: %{dx: dx, dy: dy, level: 0, label: "water_c", walkable: false, scale: 1.0,
                 settings: %{"scaleY" => 0.12}}
 
-    floor ++ List.flatten(wood) ++ canopy_over ++ verge ++ water ++ dark
+    floor ++ trunks ++ verge ++ water ++ sheet
   end
 
   def seed_entrances do
