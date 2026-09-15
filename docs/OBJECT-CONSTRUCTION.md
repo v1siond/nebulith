@@ -1168,3 +1168,73 @@ Env: `PRESET` (default Meadow), `VIEW` (iso/2d/top), `ZOOM`, `SIZE`, `PAD`, `FP`
 ---
 
 *Beam*
+
+---
+
+# 8. THE ART TO AUTHOR, awaiting approval
+
+Step 3's hard stop landed: the pieces do not exist, so nothing can be composed until they do. This is the
+proposal, and it stops here per step 1b. Nothing is authored, baked or seeded.
+
+**Where they go.** `priv/tilegen/tiles.json` takes one entry per label per style: `{label, mode, style}` plus a
+`glyph` for ascii, an `emoji` for emoji, or an inline 128x128 `svg` that `bake.mjs` renders to a PNG. Then a
+migration seeds the tile row. That is the whole pipeline and `bridge_deck` already uses the `svg` form.
+
+**Why these and not others.** The family structure is not invented here: every object he approves of is built
+from one (`wall_stone` 9 pieces, `fountain` 8, `wall_wood` 7), and the shapes come from the references he gave.
+The bridge kit shows the exact set a deck needs: a flat run, a ramp, a run on piers, a run with posts.
+
+## 8.1 ARCH, for the gateway and entrance spans
+
+From `gateway-arch` and `gatehouse-town`: an arch is not a lintel balanced on two posts. It is a MASS with a
+curve cut through it, and a cap that oversails.
+
+| Label | What it is | Composes as |
+|---|---|---|
+| `arch_pier` | The vertical mass either side of the opening | One block, `scaleY` to height. The `wall_*` trick |
+| `arch_spring_l` / `arch_spring_r` | Where the curve leaves the pier, handed | One cell each, at the top of its pier |
+| `arch_key` | The crown of the curve | One cell between the springers |
+| `arch_cap` | The entablature that oversails both piers | ONE cell with `depth`, the way `roof` spans `house_4` |
+
+## 8.2 DECK, for every bridge
+
+| Label | What it is | Composes as |
+|---|---|---|
+| `deck_c` | The walking run | ONE cell with `depth` across the water, as the roof does |
+| `deck_l` / `deck_r` | The ends, where the deck meets the bank | One cell each, which is what stops the deck floating |
+| `deck_ramp` | The sloped approach up from the bank | One cell, handed by rotation |
+
+## 8.3 PIER, for what holds a deck up
+
+| Label | What it is |
+|---|---|
+| `pier_stone` | A masonry pier, `scaleY` to reach the bed |
+| `pier_timber` | A driven timber pile, thinner, for the wood bridge |
+
+## 8.4 PARAPET and RAIL, for the sides
+
+| Label | What it is |
+|---|---|
+| `parapet_c` / `parapet_l` / `parapet_r` | Stone, a low solid wall along the deck |
+| `rail_post` / `rail_span` | Timber, a post and the rail between, for the wood bridge |
+
+## 8.5 What this gives each of the four objects
+
+- **Forest entrance**: `arch_pier` x2 with a rock material, `arch_spring_l/r`, `arch_key`, the dark mouth INSIDE
+  the mass rather than painted on the floor, and existing nature tiles crowding the feet.
+- **Town entrance**: the same arch family in dressed stone, plus `lamp_post` either side, which is his own
+  instruction: *"for towns you can use lamp post and similar things like we do on meadow"*.
+- **Stone bridge**: `deck_c` spanning by `depth`, `deck_l`/`deck_r` at the banks, `pier_stone` beneath,
+  `parapet_*` down both sides.
+- **Wood bridge**: the same deck family with a timber material, `pier_timber`, `rail_post` and `rail_span`.
+
+**14 pieces.** For comparison, a house wall has 33 and a fountain rim has 8. Three is what a bridge has today.
+
+## 8.6 Still open before any of this starts
+
+- **His approval**, per step 1b.
+- **References for the game entrances he named**: Pokemon towns and cities, Zelda, Death's Door, Ori, Hollow
+  Knight. Not gathered: this session's web search budget is spent, so they need either a raised budget or links.
+- **The nine `canopy_*` pieces** are a complete family that zero compositions use. Either wire them or drop
+  them; leaving authored art unreferenced is what makes the catalogue look emptier than it is.
+
