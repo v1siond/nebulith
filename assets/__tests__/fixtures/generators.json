@@ -188,6 +188,30 @@
             {
               "choices": [
                 {
+                  "key": "terrain",
+                  "label": "Terrain only: the bare ground"
+                },
+                {
+                  "key": "water",
+                  "label": "\u2026and the water"
+                },
+                {
+                  "key": "pathways",
+                  "label": "\u2026and the pathways and exits"
+                },
+                {
+                  "key": "objects",
+                  "label": "The whole map"
+                }
+              ],
+              "default": "objects",
+              "key": "upTo",
+              "label": "Build up to",
+              "type": "choice"
+            },
+            {
+              "choices": [
+                {
                   "key": "none",
                   "label": "No river"
                 },
@@ -212,13 +236,6 @@
               "key": "river",
               "label": "River",
               "type": "choice"
-            },
-            {
-              "default": false,
-              "key": "crossing",
-              "label": "A crossing joined to the paths",
-              "requires": "river",
-              "type": "toggle"
             },
             {
               "choices": [
@@ -432,6 +449,30 @@
                 {
                   "choices": [
                     {
+                      "key": "terrain",
+                      "label": "Terrain only: the bare ground"
+                    },
+                    {
+                      "key": "water",
+                      "label": "\u2026and the water"
+                    },
+                    {
+                      "key": "pathways",
+                      "label": "\u2026and the pathways and exits"
+                    },
+                    {
+                      "key": "objects",
+                      "label": "The whole map"
+                    }
+                  ],
+                  "default": "objects",
+                  "key": "upTo",
+                  "label": "Build up to",
+                  "type": "choice"
+                },
+                {
+                  "choices": [
+                    {
                       "key": "none",
                       "label": "No river"
                     },
@@ -456,13 +497,6 @@
                   "key": "river",
                   "label": "River",
                   "type": "choice"
-                },
-                {
-                  "default": false,
-                  "key": "crossing",
-                  "label": "A crossing joined to the paths",
-                  "requires": "river",
-                  "type": "toggle"
                 },
                 {
                   "choices": [
@@ -693,6 +727,30 @@
                 {
                   "choices": [
                     {
+                      "key": "terrain",
+                      "label": "Terrain only: the bare ground"
+                    },
+                    {
+                      "key": "water",
+                      "label": "\u2026and the water"
+                    },
+                    {
+                      "key": "pathways",
+                      "label": "\u2026and the pathways and exits"
+                    },
+                    {
+                      "key": "objects",
+                      "label": "The whole map"
+                    }
+                  ],
+                  "default": "objects",
+                  "key": "upTo",
+                  "label": "Build up to",
+                  "type": "choice"
+                },
+                {
+                  "choices": [
+                    {
                       "key": "none",
                       "label": "No river"
                     },
@@ -717,13 +775,6 @@
                   "key": "river",
                   "label": "River",
                   "type": "choice"
-                },
-                {
-                  "default": false,
-                  "key": "crossing",
-                  "label": "A crossing joined to the paths",
-                  "requires": "river",
-                  "type": "toggle"
                 },
                 {
                   "choices": [
@@ -1032,6 +1083,30 @@
                 {
                   "choices": [
                     {
+                      "key": "terrain",
+                      "label": "Terrain only: the bare ground"
+                    },
+                    {
+                      "key": "water",
+                      "label": "\u2026and the water"
+                    },
+                    {
+                      "key": "pathways",
+                      "label": "\u2026and the pathways and exits"
+                    },
+                    {
+                      "key": "objects",
+                      "label": "The whole map"
+                    }
+                  ],
+                  "default": "objects",
+                  "key": "upTo",
+                  "label": "Build up to",
+                  "type": "choice"
+                },
+                {
+                  "choices": [
+                    {
                       "key": "random",
                       "label": "Random"
                     },
@@ -1080,13 +1155,6 @@
                   "key": "river",
                   "label": "River",
                   "type": "choice"
-                },
-                {
-                  "default": false,
-                  "key": "crossing",
-                  "label": "A crossing joined to the paths",
-                  "requires": "river",
-                  "type": "toggle"
                 },
                 {
                   "choices": [
@@ -1373,6 +1441,30 @@
                 {
                   "choices": [
                     {
+                      "key": "terrain",
+                      "label": "Terrain only: the bare ground"
+                    },
+                    {
+                      "key": "water",
+                      "label": "\u2026and the water"
+                    },
+                    {
+                      "key": "pathways",
+                      "label": "\u2026and the pathways and exits"
+                    },
+                    {
+                      "key": "objects",
+                      "label": "The whole map"
+                    }
+                  ],
+                  "default": "objects",
+                  "key": "upTo",
+                  "label": "Build up to",
+                  "type": "choice"
+                },
+                {
+                  "choices": [
+                    {
                       "key": "random",
                       "label": "Random"
                     },
@@ -1417,13 +1509,6 @@
                   "key": "river",
                   "label": "River",
                   "type": "choice"
-                },
-                {
-                  "default": false,
-                  "key": "crossing",
-                  "label": "A crossing joined to the paths",
-                  "requires": "river",
-                  "type": "toggle"
                 },
                 {
                   "choices": [
@@ -1848,6 +1933,30 @@
             {
               "choices": [
                 {
+                  "key": "terrain",
+                  "label": "Terrain only: the bare ground"
+                },
+                {
+                  "key": "water",
+                  "label": "\u2026and the water"
+                },
+                {
+                  "key": "pathways",
+                  "label": "\u2026and the pathways and exits"
+                },
+                {
+                  "key": "objects",
+                  "label": "The whole map"
+                }
+              ],
+              "default": "objects",
+              "key": "upTo",
+              "label": "Build up to",
+              "type": "choice"
+            },
+            {
+              "choices": [
+                {
                   "key": "random",
                   "label": "Random"
                 },
@@ -1900,13 +2009,6 @@
               "key": "river",
               "label": "River",
               "type": "choice"
-            },
-            {
-              "default": false,
-              "key": "crossing",
-              "label": "A crossing joined to the paths",
-              "requires": "river",
-              "type": "toggle"
             },
             {
               "choices": [
@@ -2223,6 +2325,30 @@
                 {
                   "choices": [
                     {
+                      "key": "terrain",
+                      "label": "Terrain only: the bare ground"
+                    },
+                    {
+                      "key": "water",
+                      "label": "\u2026and the water"
+                    },
+                    {
+                      "key": "pathways",
+                      "label": "\u2026and the pathways and exits"
+                    },
+                    {
+                      "key": "objects",
+                      "label": "The whole map"
+                    }
+                  ],
+                  "default": "objects",
+                  "key": "upTo",
+                  "label": "Build up to",
+                  "type": "choice"
+                },
+                {
+                  "choices": [
+                    {
                       "key": "random",
                       "label": "Random"
                     },
@@ -2267,13 +2393,6 @@
                   "key": "river",
                   "label": "River",
                   "type": "choice"
-                },
-                {
-                  "default": false,
-                  "key": "crossing",
-                  "label": "A crossing joined to the paths",
-                  "requires": "river",
-                  "type": "toggle"
                 },
                 {
                   "choices": [
@@ -2628,6 +2747,30 @@
                 {
                   "choices": [
                     {
+                      "key": "terrain",
+                      "label": "Terrain only: the bare ground"
+                    },
+                    {
+                      "key": "water",
+                      "label": "\u2026and the water"
+                    },
+                    {
+                      "key": "pathways",
+                      "label": "\u2026and the pathways and exits"
+                    },
+                    {
+                      "key": "objects",
+                      "label": "The whole map"
+                    }
+                  ],
+                  "default": "objects",
+                  "key": "upTo",
+                  "label": "Build up to",
+                  "type": "choice"
+                },
+                {
+                  "choices": [
+                    {
                       "key": "random",
                       "label": "Random"
                     },
@@ -2676,13 +2819,6 @@
                   "key": "river",
                   "label": "River",
                   "type": "choice"
-                },
-                {
-                  "default": false,
-                  "key": "crossing",
-                  "label": "A crossing joined to the paths",
-                  "requires": "river",
-                  "type": "toggle"
                 },
                 {
                   "choices": [
@@ -3004,6 +3140,30 @@
                 {
                   "choices": [
                     {
+                      "key": "terrain",
+                      "label": "Terrain only: the bare ground"
+                    },
+                    {
+                      "key": "water",
+                      "label": "\u2026and the water"
+                    },
+                    {
+                      "key": "pathways",
+                      "label": "\u2026and the pathways and exits"
+                    },
+                    {
+                      "key": "objects",
+                      "label": "The whole map"
+                    }
+                  ],
+                  "default": "objects",
+                  "key": "upTo",
+                  "label": "Build up to",
+                  "type": "choice"
+                },
+                {
+                  "choices": [
+                    {
                       "key": "random",
                       "label": "Random"
                     },
@@ -3048,13 +3208,6 @@
                   "key": "river",
                   "label": "River",
                   "type": "choice"
-                },
-                {
-                  "default": false,
-                  "key": "crossing",
-                  "label": "A crossing joined to the paths",
-                  "requires": "river",
-                  "type": "toggle"
                 },
                 {
                   "choices": [
@@ -3426,6 +3579,30 @@
                 {
                   "choices": [
                     {
+                      "key": "terrain",
+                      "label": "Terrain only: the bare ground"
+                    },
+                    {
+                      "key": "water",
+                      "label": "\u2026and the water"
+                    },
+                    {
+                      "key": "pathways",
+                      "label": "\u2026and the pathways and exits"
+                    },
+                    {
+                      "key": "objects",
+                      "label": "The whole map"
+                    }
+                  ],
+                  "default": "objects",
+                  "key": "upTo",
+                  "label": "Build up to",
+                  "type": "choice"
+                },
+                {
+                  "choices": [
+                    {
                       "key": "random",
                       "label": "Random"
                     },
@@ -3474,13 +3651,6 @@
                   "key": "river",
                   "label": "River",
                   "type": "choice"
-                },
-                {
-                  "default": false,
-                  "key": "crossing",
-                  "label": "A crossing joined to the paths",
-                  "requires": "river",
-                  "type": "toggle"
                 },
                 {
                   "choices": [
@@ -3714,6 +3884,30 @@
             {
               "choices": [
                 {
+                  "key": "terrain",
+                  "label": "Terrain only: the bare ground"
+                },
+                {
+                  "key": "water",
+                  "label": "\u2026and the water"
+                },
+                {
+                  "key": "pathways",
+                  "label": "\u2026and the pathways and exits"
+                },
+                {
+                  "key": "objects",
+                  "label": "The whole map"
+                }
+              ],
+              "default": "objects",
+              "key": "upTo",
+              "label": "Build up to",
+              "type": "choice"
+            },
+            {
+              "choices": [
+                {
                   "key": "none",
                   "label": "No river"
                 },
@@ -3738,13 +3932,6 @@
               "key": "river",
               "label": "River",
               "type": "choice"
-            },
-            {
-              "default": false,
-              "key": "crossing",
-              "label": "A crossing joined to the paths",
-              "requires": "river",
-              "type": "toggle"
             },
             {
               "choices": [
@@ -3950,6 +4137,30 @@
                 {
                   "choices": [
                     {
+                      "key": "terrain",
+                      "label": "Terrain only: the bare ground"
+                    },
+                    {
+                      "key": "water",
+                      "label": "\u2026and the water"
+                    },
+                    {
+                      "key": "pathways",
+                      "label": "\u2026and the pathways and exits"
+                    },
+                    {
+                      "key": "objects",
+                      "label": "The whole map"
+                    }
+                  ],
+                  "default": "objects",
+                  "key": "upTo",
+                  "label": "Build up to",
+                  "type": "choice"
+                },
+                {
+                  "choices": [
+                    {
                       "key": "none",
                       "label": "No river"
                     },
@@ -3974,13 +4185,6 @@
                   "key": "river",
                   "label": "River",
                   "type": "choice"
-                },
-                {
-                  "default": false,
-                  "key": "crossing",
-                  "label": "A crossing joined to the paths",
-                  "requires": "river",
-                  "type": "toggle"
                 },
                 {
                   "choices": [
@@ -4203,6 +4407,30 @@
                 {
                   "choices": [
                     {
+                      "key": "terrain",
+                      "label": "Terrain only: the bare ground"
+                    },
+                    {
+                      "key": "water",
+                      "label": "\u2026and the water"
+                    },
+                    {
+                      "key": "pathways",
+                      "label": "\u2026and the pathways and exits"
+                    },
+                    {
+                      "key": "objects",
+                      "label": "The whole map"
+                    }
+                  ],
+                  "default": "objects",
+                  "key": "upTo",
+                  "label": "Build up to",
+                  "type": "choice"
+                },
+                {
+                  "choices": [
+                    {
                       "key": "none",
                       "label": "No river"
                     },
@@ -4227,13 +4455,6 @@
                   "key": "river",
                   "label": "River",
                   "type": "choice"
-                },
-                {
-                  "default": false,
-                  "key": "crossing",
-                  "label": "A crossing joined to the paths",
-                  "requires": "river",
-                  "type": "toggle"
                 },
                 {
                   "choices": [
@@ -4538,6 +4759,80 @@
               "key": "pathways",
               "label": "Streets",
               "type": "choice"
+            },
+            {
+              "choices": [
+                {
+                  "key": "none",
+                  "label": "No river"
+                },
+                {
+                  "key": "random",
+                  "label": "Random"
+                },
+                {
+                  "key": "through",
+                  "label": "Winds through (easy to cross)"
+                },
+                {
+                  "key": "divides",
+                  "label": "Divides the map in two"
+                },
+                {
+                  "key": "around",
+                  "label": "Around the edge"
+                }
+              ],
+              "default": "none",
+              "key": "river",
+              "label": "River",
+              "type": "choice"
+            },
+            {
+              "choices": [
+                {
+                  "key": "1",
+                  "label": "One block down"
+                },
+                {
+                  "key": "2",
+                  "label": "Two blocks down"
+                }
+              ],
+              "default": "1",
+              "key": "depth",
+              "label": "How deep the channel is cut",
+              "requires": "river",
+              "type": "choice"
+            },
+            {
+              "choices": [
+                {
+                  "key": "random",
+                  "label": "Random"
+                },
+                {
+                  "key": "dirt",
+                  "label": "Dirt path"
+                },
+                {
+                  "key": "wood",
+                  "label": "Wooden bridge"
+                },
+                {
+                  "key": "planks",
+                  "label": "Plank walkway"
+                },
+                {
+                  "key": "stone",
+                  "label": "Stone bridge"
+                }
+              ],
+              "default": "random",
+              "key": "bridge",
+              "label": "Kind of crossing",
+              "requires": "river",
+              "type": "choice"
             }
           ],
           "description": "Houses along stone pathways, a square in the middle, trees between the lots.",
@@ -4681,7 +4976,154 @@
                   "width": 3
                 }
               },
-              "options": [],
+              "options": [
+                {
+                  "choices": [
+                    {
+                      "key": "random",
+                      "label": "Random"
+                    },
+                    {
+                      "key": "1",
+                      "label": "1: in and out the same way"
+                    },
+                    {
+                      "key": "2",
+                      "label": "2: in one side, out the other"
+                    },
+                    {
+                      "key": "3",
+                      "label": "3"
+                    },
+                    {
+                      "key": "4",
+                      "label": "4"
+                    }
+                  ],
+                  "default": "random",
+                  "key": "exits",
+                  "label": "Exits",
+                  "type": "choice"
+                },
+                {
+                  "choices": [
+                    {
+                      "key": "random",
+                      "label": "Random"
+                    },
+                    {
+                      "key": "1",
+                      "label": "1"
+                    },
+                    {
+                      "key": "2",
+                      "label": "2"
+                    },
+                    {
+                      "key": "3",
+                      "label": "3"
+                    },
+                    {
+                      "key": "4",
+                      "label": "4"
+                    },
+                    {
+                      "key": "5",
+                      "label": "5"
+                    },
+                    {
+                      "key": "6",
+                      "label": "6"
+                    },
+                    {
+                      "key": "7",
+                      "label": "7"
+                    },
+                    {
+                      "key": "8",
+                      "label": "8"
+                    }
+                  ],
+                  "default": "random",
+                  "key": "pathways",
+                  "label": "Streets",
+                  "type": "choice"
+                },
+                {
+                  "choices": [
+                    {
+                      "key": "none",
+                      "label": "No river"
+                    },
+                    {
+                      "key": "random",
+                      "label": "Random"
+                    },
+                    {
+                      "key": "through",
+                      "label": "Winds through (easy to cross)"
+                    },
+                    {
+                      "key": "divides",
+                      "label": "Divides the map in two"
+                    },
+                    {
+                      "key": "around",
+                      "label": "Around the edge"
+                    }
+                  ],
+                  "default": "none",
+                  "key": "river",
+                  "label": "River",
+                  "type": "choice"
+                },
+                {
+                  "choices": [
+                    {
+                      "key": "1",
+                      "label": "One block down"
+                    },
+                    {
+                      "key": "2",
+                      "label": "Two blocks down"
+                    }
+                  ],
+                  "default": "1",
+                  "key": "depth",
+                  "label": "How deep the channel is cut",
+                  "requires": "river",
+                  "type": "choice"
+                },
+                {
+                  "choices": [
+                    {
+                      "key": "random",
+                      "label": "Random"
+                    },
+                    {
+                      "key": "dirt",
+                      "label": "Dirt path"
+                    },
+                    {
+                      "key": "wood",
+                      "label": "Wooden bridge"
+                    },
+                    {
+                      "key": "planks",
+                      "label": "Plank walkway"
+                    },
+                    {
+                      "key": "stone",
+                      "label": "Stone bridge"
+                    }
+                  ],
+                  "default": "random",
+                  "key": "bridge",
+                  "label": "Kind of crossing",
+                  "requires": "river",
+                  "type": "choice"
+                }
+              ],
               "description": "A handful of timber houses and green between every one of them.",
               "key": "town_small",
               "layout": "town",
@@ -4832,7 +5274,154 @@
                   "width": 3
                 }
               },
-              "options": [],
+              "options": [
+                {
+                  "choices": [
+                    {
+                      "key": "random",
+                      "label": "Random"
+                    },
+                    {
+                      "key": "1",
+                      "label": "1: in and out the same way"
+                    },
+                    {
+                      "key": "2",
+                      "label": "2: in one side, out the other"
+                    },
+                    {
+                      "key": "3",
+                      "label": "3"
+                    },
+                    {
+                      "key": "4",
+                      "label": "4"
+                    }
+                  ],
+                  "default": "random",
+                  "key": "exits",
+                  "label": "Exits",
+                  "type": "choice"
+                },
+                {
+                  "choices": [
+                    {
+                      "key": "random",
+                      "label": "Random"
+                    },
+                    {
+                      "key": "1",
+                      "label": "1"
+                    },
+                    {
+                      "key": "2",
+                      "label": "2"
+                    },
+                    {
+                      "key": "3",
+                      "label": "3"
+                    },
+                    {
+                      "key": "4",
+                      "label": "4"
+                    },
+                    {
+                      "key": "5",
+                      "label": "5"
+                    },
+                    {
+                      "key": "6",
+                      "label": "6"
+                    },
+                    {
+                      "key": "7",
+                      "label": "7"
+                    },
+                    {
+                      "key": "8",
+                      "label": "8"
+                    }
+                  ],
+                  "default": "random",
+                  "key": "pathways",
+                  "label": "Streets",
+                  "type": "choice"
+                },
+                {
+                  "choices": [
+                    {
+                      "key": "none",
+                      "label": "No river"
+                    },
+                    {
+                      "key": "random",
+                      "label": "Random"
+                    },
+                    {
+                      "key": "through",
+                      "label": "Winds through (easy to cross)"
+                    },
+                    {
+                      "key": "divides",
+                      "label": "Divides the map in two"
+                    },
+                    {
+                      "key": "around",
+                      "label": "Around the edge"
+                    }
+                  ],
+                  "default": "none",
+                  "key": "river",
+                  "label": "River",
+                  "type": "choice"
+                },
+                {
+                  "choices": [
+                    {
+                      "key": "1",
+                      "label": "One block down"
+                    },
+                    {
+                      "key": "2",
+                      "label": "Two blocks down"
+                    }
+                  ],
+                  "default": "1",
+                  "key": "depth",
+                  "label": "How deep the channel is cut",
+                  "requires": "river",
+                  "type": "choice"
+                },
+                {
+                  "choices": [
+                    {
+                      "key": "random",
+                      "label": "Random"
+                    },
+                    {
+                      "key": "dirt",
+                      "label": "Dirt path"
+                    },
+                    {
+                      "key": "wood",
+                      "label": "Wooden bridge"
+                    },
+                    {
+                      "key": "planks",
+                      "label": "Plank walkway"
+                    },
+                    {
+                      "key": "stone",
+                      "label": "Stone bridge"
+                    }
+                  ],
+                  "default": "random",
+                  "key": "bridge",
+                  "label": "Kind of crossing",
+                  "requires": "river",
+                  "type": "choice"
+                }
+              ],
               "description": "Timber houses under the trees, joined by paths of stone.",
               "key": "town_forest",
               "layout": "town",
@@ -4986,7 +5575,154 @@
                   "width": 3
                 }
               },
-              "options": [],
+              "options": [
+                {
+                  "choices": [
+                    {
+                      "key": "random",
+                      "label": "Random"
+                    },
+                    {
+                      "key": "1",
+                      "label": "1: in and out the same way"
+                    },
+                    {
+                      "key": "2",
+                      "label": "2: in one side, out the other"
+                    },
+                    {
+                      "key": "3",
+                      "label": "3"
+                    },
+                    {
+                      "key": "4",
+                      "label": "4"
+                    }
+                  ],
+                  "default": "random",
+                  "key": "exits",
+                  "label": "Exits",
+                  "type": "choice"
+                },
+                {
+                  "choices": [
+                    {
+                      "key": "random",
+                      "label": "Random"
+                    },
+                    {
+                      "key": "1",
+                      "label": "1"
+                    },
+                    {
+                      "key": "2",
+                      "label": "2"
+                    },
+                    {
+                      "key": "3",
+                      "label": "3"
+                    },
+                    {
+                      "key": "4",
+                      "label": "4"
+                    },
+                    {
+                      "key": "5",
+                      "label": "5"
+                    },
+                    {
+                      "key": "6",
+                      "label": "6"
+                    },
+                    {
+                      "key": "7",
+                      "label": "7"
+                    },
+                    {
+                      "key": "8",
+                      "label": "8"
+                    }
+                  ],
+                  "default": "random",
+                  "key": "pathways",
+                  "label": "Streets",
+                  "type": "choice"
+                },
+                {
+                  "choices": [
+                    {
+                      "key": "none",
+                      "label": "No river"
+                    },
+                    {
+                      "key": "random",
+                      "label": "Random"
+                    },
+                    {
+                      "key": "through",
+                      "label": "Winds through (easy to cross)"
+                    },
+                    {
+                      "key": "divides",
+                      "label": "Divides the map in two"
+                    },
+                    {
+                      "key": "around",
+                      "label": "Around the edge"
+                    }
+                  ],
+                  "default": "none",
+                  "key": "river",
+                  "label": "River",
+                  "type": "choice"
+                },
+                {
+                  "choices": [
+                    {
+                      "key": "1",
+                      "label": "One block down"
+                    },
+                    {
+                      "key": "2",
+                      "label": "Two blocks down"
+                    }
+                  ],
+                  "default": "1",
+                  "key": "depth",
+                  "label": "How deep the channel is cut",
+                  "requires": "river",
+                  "type": "choice"
+                },
+                {
+                  "choices": [
+                    {
+                      "key": "random",
+                      "label": "Random"
+                    },
+                    {
+                      "key": "dirt",
+                      "label": "Dirt path"
+                    },
+                    {
+                      "key": "wood",
+                      "label": "Wooden bridge"
+                    },
+                    {
+                      "key": "planks",
+                      "label": "Plank walkway"
+                    },
+                    {
+                      "key": "stone",
+                      "label": "Stone bridge"
+                    }
+                  ],
+                  "default": "random",
+                  "key": "bridge",
+                  "label": "Kind of crossing",
+                  "requires": "river",
+                  "type": "choice"
+                }
+              ],
               "description": "Stone walls under slate, cobbled streets, conifers around the edge.",
               "key": "town_mountain",
               "layout": "town",
@@ -5120,7 +5856,154 @@
                   "width": 3
                 }
               },
-              "options": [],
+              "options": [
+                {
+                  "choices": [
+                    {
+                      "key": "random",
+                      "label": "Random"
+                    },
+                    {
+                      "key": "1",
+                      "label": "1: in and out the same way"
+                    },
+                    {
+                      "key": "2",
+                      "label": "2: in one side, out the other"
+                    },
+                    {
+                      "key": "3",
+                      "label": "3"
+                    },
+                    {
+                      "key": "4",
+                      "label": "4"
+                    }
+                  ],
+                  "default": "random",
+                  "key": "exits",
+                  "label": "Exits",
+                  "type": "choice"
+                },
+                {
+                  "choices": [
+                    {
+                      "key": "random",
+                      "label": "Random"
+                    },
+                    {
+                      "key": "1",
+                      "label": "1"
+                    },
+                    {
+                      "key": "2",
+                      "label": "2"
+                    },
+                    {
+                      "key": "3",
+                      "label": "3"
+                    },
+                    {
+                      "key": "4",
+                      "label": "4"
+                    },
+                    {
+                      "key": "5",
+                      "label": "5"
+                    },
+                    {
+                      "key": "6",
+                      "label": "6"
+                    },
+                    {
+                      "key": "7",
+                      "label": "7"
+                    },
+                    {
+                      "key": "8",
+                      "label": "8"
+                    }
+                  ],
+                  "default": "random",
+                  "key": "pathways",
+                  "label": "Streets",
+                  "type": "choice"
+                },
+                {
+                  "choices": [
+                    {
+                      "key": "none",
+                      "label": "No river"
+                    },
+                    {
+                      "key": "random",
+                      "label": "Random"
+                    },
+                    {
+                      "key": "through",
+                      "label": "Winds through (easy to cross)"
+                    },
+                    {
+                      "key": "divides",
+                      "label": "Divides the map in two"
+                    },
+                    {
+                      "key": "around",
+                      "label": "Around the edge"
+                    }
+                  ],
+                  "default": "none",
+                  "key": "river",
+                  "label": "River",
+                  "type": "choice"
+                },
+                {
+                  "choices": [
+                    {
+                      "key": "1",
+                      "label": "One block down"
+                    },
+                    {
+                      "key": "2",
+                      "label": "Two blocks down"
+                    }
+                  ],
+                  "default": "1",
+                  "key": "depth",
+                  "label": "How deep the channel is cut",
+                  "requires": "river",
+                  "type": "choice"
+                },
+                {
+                  "choices": [
+                    {
+                      "key": "random",
+                      "label": "Random"
+                    },
+                    {
+                      "key": "dirt",
+                      "label": "Dirt path"
+                    },
+                    {
+                      "key": "wood",
+                      "label": "Wooden bridge"
+                    },
+                    {
+                      "key": "planks",
+                      "label": "Plank walkway"
+                    },
+                    {
+                      "key": "stone",
+                      "label": "Stone bridge"
+                    }
+                  ],
+                  "default": "random",
+                  "key": "bridge",
+                  "label": "Kind of crossing",
+                  "requires": "river",
+                  "type": "choice"
+                }
+              ],
               "description": "Bleached timber along sandy tracks, hardly a tree in sight.",
               "key": "town_beach",
               "layout": "town",
@@ -5248,7 +6131,154 @@
                   "width": 2
                 }
               },
-              "options": [],
+              "options": [
+                {
+                  "choices": [
+                    {
+                      "key": "random",
+                      "label": "Random"
+                    },
+                    {
+                      "key": "1",
+                      "label": "1: in and out the same way"
+                    },
+                    {
+                      "key": "2",
+                      "label": "2: in one side, out the other"
+                    },
+                    {
+                      "key": "3",
+                      "label": "3"
+                    },
+                    {
+                      "key": "4",
+                      "label": "4"
+                    }
+                  ],
+                  "default": "random",
+                  "key": "exits",
+                  "label": "Exits",
+                  "type": "choice"
+                },
+                {
+                  "choices": [
+                    {
+                      "key": "random",
+                      "label": "Random"
+                    },
+                    {
+                      "key": "1",
+                      "label": "1"
+                    },
+                    {
+                      "key": "2",
+                      "label": "2"
+                    },
+                    {
+                      "key": "3",
+                      "label": "3"
+                    },
+                    {
+                      "key": "4",
+                      "label": "4"
+                    },
+                    {
+                      "key": "5",
+                      "label": "5"
+                    },
+                    {
+                      "key": "6",
+                      "label": "6"
+                    },
+                    {
+                      "key": "7",
+                      "label": "7"
+                    },
+                    {
+                      "key": "8",
+                      "label": "8"
+                    }
+                  ],
+                  "default": "random",
+                  "key": "pathways",
+                  "label": "Streets",
+                  "type": "choice"
+                },
+                {
+                  "choices": [
+                    {
+                      "key": "none",
+                      "label": "No river"
+                    },
+                    {
+                      "key": "random",
+                      "label": "Random"
+                    },
+                    {
+                      "key": "through",
+                      "label": "Winds through (easy to cross)"
+                    },
+                    {
+                      "key": "divides",
+                      "label": "Divides the map in two"
+                    },
+                    {
+                      "key": "around",
+                      "label": "Around the edge"
+                    }
+                  ],
+                  "default": "none",
+                  "key": "river",
+                  "label": "River",
+                  "type": "choice"
+                },
+                {
+                  "choices": [
+                    {
+                      "key": "1",
+                      "label": "One block down"
+                    },
+                    {
+                      "key": "2",
+                      "label": "Two blocks down"
+                    }
+                  ],
+                  "default": "1",
+                  "key": "depth",
+                  "label": "How deep the channel is cut",
+                  "requires": "river",
+                  "type": "choice"
+                },
+                {
+                  "choices": [
+                    {
+                      "key": "random",
+                      "label": "Random"
+                    },
+                    {
+                      "key": "dirt",
+                      "label": "Dirt path"
+                    },
+                    {
+                      "key": "wood",
+                      "label": "Wooden bridge"
+                    },
+                    {
+                      "key": "planks",
+                      "label": "Plank walkway"
+                    },
+                    {
+                      "key": "stone",
+                      "label": "Stone bridge"
+                    }
+                  ],
+                  "default": "random",
+                  "key": "bridge",
+                  "label": "Kind of crossing",
+                  "requires": "river",
+                  "type": "choice"
+                }
+              ],
               "description": "Wooden huts on boardwalks over a green flat.",
               "key": "town_swamp",
               "layout": "town",
@@ -5481,6 +6511,80 @@
               "key": "pathways",
               "label": "Streets",
               "type": "choice"
+            },
+            {
+              "choices": [
+                {
+                  "key": "none",
+                  "label": "No river"
+                },
+                {
+                  "key": "random",
+                  "label": "Random"
+                },
+                {
+                  "key": "through",
+                  "label": "Winds through (easy to cross)"
+                },
+                {
+                  "key": "divides",
+                  "label": "Divides the map in two"
+                },
+                {
+                  "key": "around",
+                  "label": "Around the edge"
+                }
+              ],
+              "default": "none",
+              "key": "river",
+              "label": "River",
+              "type": "choice"
+            },
+            {
+              "choices": [
+                {
+                  "key": "1",
+                  "label": "One block down"
+                },
+                {
+                  "key": "2",
+                  "label": "Two blocks down"
+                }
+              ],
+              "default": "1",
+              "key": "depth",
+              "label": "How deep the channel is cut",
+              "requires": "river",
+              "type": "choice"
+            },
+            {
+              "choices": [
+                {
+                  "key": "random",
+                  "label": "Random"
+                },
+                {
+                  "key": "dirt",
+                  "label": "Dirt path"
+                },
+                {
+                  "key": "wood",
+                  "label": "Wooden bridge"
+                },
+                {
+                  "key": "planks",
+                  "label": "Plank walkway"
+                },
+                {
+                  "key": "stone",
+                  "label": "Stone bridge"
+                }
+              ],
+              "default": "random",
+              "key": "bridge",
+              "label": "Kind of crossing",
+              "requires": "river",
+              "type": "choice"
             }
           ],
           "description": "Blocks and towers on paved streets, wide junctions, little green.",
@@ -5619,7 +6723,154 @@
                   "width": 4
                 }
               },
-              "options": [],
+              "options": [
+                {
+                  "choices": [
+                    {
+                      "key": "random",
+                      "label": "Random"
+                    },
+                    {
+                      "key": "1",
+                      "label": "1: in and out the same way"
+                    },
+                    {
+                      "key": "2",
+                      "label": "2: in one side, out the other"
+                    },
+                    {
+                      "key": "3",
+                      "label": "3"
+                    },
+                    {
+                      "key": "4",
+                      "label": "4"
+                    }
+                  ],
+                  "default": "random",
+                  "key": "exits",
+                  "label": "Exits",
+                  "type": "choice"
+                },
+                {
+                  "choices": [
+                    {
+                      "key": "random",
+                      "label": "Random"
+                    },
+                    {
+                      "key": "1",
+                      "label": "1"
+                    },
+                    {
+                      "key": "2",
+                      "label": "2"
+                    },
+                    {
+                      "key": "3",
+                      "label": "3"
+                    },
+                    {
+                      "key": "4",
+                      "label": "4"
+                    },
+                    {
+                      "key": "5",
+                      "label": "5"
+                    },
+                    {
+                      "key": "6",
+                      "label": "6"
+                    },
+                    {
+                      "key": "7",
+                      "label": "7"
+                    },
+                    {
+                      "key": "8",
+                      "label": "8"
+                    }
+                  ],
+                  "default": "random",
+                  "key": "pathways",
+                  "label": "Streets",
+                  "type": "choice"
+                },
+                {
+                  "choices": [
+                    {
+                      "key": "none",
+                      "label": "No river"
+                    },
+                    {
+                      "key": "random",
+                      "label": "Random"
+                    },
+                    {
+                      "key": "through",
+                      "label": "Winds through (easy to cross)"
+                    },
+                    {
+                      "key": "divides",
+                      "label": "Divides the map in two"
+                    },
+                    {
+                      "key": "around",
+                      "label": "Around the edge"
+                    }
+                  ],
+                  "default": "none",
+                  "key": "river",
+                  "label": "River",
+                  "type": "choice"
+                },
+                {
+                  "choices": [
+                    {
+                      "key": "1",
+                      "label": "One block down"
+                    },
+                    {
+                      "key": "2",
+                      "label": "Two blocks down"
+                    }
+                  ],
+                  "default": "1",
+                  "key": "depth",
+                  "label": "How deep the channel is cut",
+                  "requires": "river",
+                  "type": "choice"
+                },
+                {
+                  "choices": [
+                    {
+                      "key": "random",
+                      "label": "Random"
+                    },
+                    {
+                      "key": "dirt",
+                      "label": "Dirt path"
+                    },
+                    {
+                      "key": "wood",
+                      "label": "Wooden bridge"
+                    },
+                    {
+                      "key": "planks",
+                      "label": "Plank walkway"
+                    },
+                    {
+                      "key": "stone",
+                      "label": "Stone bridge"
+                    }
+                  ],
+                  "default": "random",
+                  "key": "bridge",
+                  "label": "Kind of crossing",
+                  "requires": "river",
+                  "type": "choice"
+                }
+              ],
               "description": "Towers and blocks of flats under flat grey decks.",
               "key": "city_modern",
               "layout": "city",
@@ -5781,7 +7032,154 @@
                   "width": 3
                 }
               },
-              "options": [],
+              "options": [
+                {
+                  "choices": [
+                    {
+                      "key": "random",
+                      "label": "Random"
+                    },
+                    {
+                      "key": "1",
+                      "label": "1: in and out the same way"
+                    },
+                    {
+                      "key": "2",
+                      "label": "2: in one side, out the other"
+                    },
+                    {
+                      "key": "3",
+                      "label": "3"
+                    },
+                    {
+                      "key": "4",
+                      "label": "4"
+                    }
+                  ],
+                  "default": "random",
+                  "key": "exits",
+                  "label": "Exits",
+                  "type": "choice"
+                },
+                {
+                  "choices": [
+                    {
+                      "key": "random",
+                      "label": "Random"
+                    },
+                    {
+                      "key": "1",
+                      "label": "1"
+                    },
+                    {
+                      "key": "2",
+                      "label": "2"
+                    },
+                    {
+                      "key": "3",
+                      "label": "3"
+                    },
+                    {
+                      "key": "4",
+                      "label": "4"
+                    },
+                    {
+                      "key": "5",
+                      "label": "5"
+                    },
+                    {
+                      "key": "6",
+                      "label": "6"
+                    },
+                    {
+                      "key": "7",
+                      "label": "7"
+                    },
+                    {
+                      "key": "8",
+                      "label": "8"
+                    }
+                  ],
+                  "default": "random",
+                  "key": "pathways",
+                  "label": "Streets",
+                  "type": "choice"
+                },
+                {
+                  "choices": [
+                    {
+                      "key": "none",
+                      "label": "No river"
+                    },
+                    {
+                      "key": "random",
+                      "label": "Random"
+                    },
+                    {
+                      "key": "through",
+                      "label": "Winds through (easy to cross)"
+                    },
+                    {
+                      "key": "divides",
+                      "label": "Divides the map in two"
+                    },
+                    {
+                      "key": "around",
+                      "label": "Around the edge"
+                    }
+                  ],
+                  "default": "none",
+                  "key": "river",
+                  "label": "River",
+                  "type": "choice"
+                },
+                {
+                  "choices": [
+                    {
+                      "key": "1",
+                      "label": "One block down"
+                    },
+                    {
+                      "key": "2",
+                      "label": "Two blocks down"
+                    }
+                  ],
+                  "default": "1",
+                  "key": "depth",
+                  "label": "How deep the channel is cut",
+                  "requires": "river",
+                  "type": "choice"
+                },
+                {
+                  "choices": [
+                    {
+                      "key": "random",
+                      "label": "Random"
+                    },
+                    {
+                      "key": "dirt",
+                      "label": "Dirt path"
+                    },
+                    {
+                      "key": "wood",
+                      "label": "Wooden bridge"
+                    },
+                    {
+                      "key": "planks",
+                      "label": "Plank walkway"
+                    },
+                    {
+                      "key": "stone",
+                      "label": "Stone bridge"
+                    }
+                  ],
+                  "default": "random",
+                  "key": "bridge",
+                  "label": "Kind of crossing",
+                  "requires": "river",
+                  "type": "choice"
+                }
+              ],
               "description": "Stone under slate on cobbled streets, a cathedral and a castle, nothing tall.",
               "key": "city_medieval",
               "layout": "city",

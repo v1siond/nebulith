@@ -3686,6 +3686,9 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
       // how many trees they hold.
       formation: generator.config.formation,
       pathway: generator.config.pathway,
+      // HOW FAR TO RUN, the served `upTo` filter. It is a parameter like any other on the panel, so it comes
+      // through the options the person set rather than being a mode the page knows about.
+      upTo: typeof recipe.options?.upTo === 'string' ? recipe.options?.upTo : undefined,
       // WHICH species grow here — every forest used to roll one shared table.
       treeMix: generator.config.trees,
       crossings: generator.config.crossings,
@@ -3908,6 +3911,9 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
       // how many trees they hold.
       formation: generator.config.formation,
       pathway: generator.config.pathway,
+      // HOW FAR TO RUN, the served `upTo` filter. It is a parameter like any other on the panel, so it comes
+      // through the options the person set rather than being a mode the page knows about.
+      upTo: typeof options?.upTo === 'string' ? options?.upTo : undefined,
       // WHICH species grow here — every forest used to roll one shared table.
       treeMix: generator.config.trees,
       crossings: generator.config.crossings,

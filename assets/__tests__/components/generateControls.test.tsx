@@ -129,7 +129,7 @@ describe('picking is not building — §4.6\'s "why did my map just vanish" trap
     fireEvent.click(preset(second.label))
     build()
     // `second` is the Jungle, and a jungle carries the region picker, so its build says which region leads.
-    expect(onGenerate).toHaveBeenCalledWith('spring', 'forest', second.id, { exits: 'random', pathways: 'random', region: 'random', river: 'none', crossing: false, depth: 'none', bridge: 'none' })
+    expect(onGenerate).toHaveBeenCalledWith('spring', 'forest', second.id, { exits: 'random', pathways: 'random', upTo: 'objects', region: 'random', river: 'none', depth: 'none', bridge: 'none' })
   })
 
   it('builds the category\'s FIRST preset when the kind was chosen but no preset was', () => {
@@ -137,7 +137,7 @@ describe('picking is not building — §4.6\'s "why did my map just vanish" trap
     fireEvent.change(kinds(), { target: { value: 'forest' } })
     build()
     const [first] = categoryLayouts(CATALOG, 'forest')
-    expect(onGenerate).toHaveBeenCalledWith('spring', 'forest', first.id, { exits: 'random', pathways: 'random', river: 'none', crossing: false, depth: 'none', bridge: 'none' })
+    expect(onGenerate).toHaveBeenCalledWith('spring', 'forest', first.id, { exits: 'random', pathways: 'random', upTo: 'objects', river: 'none', depth: 'none', bridge: 'none' })
   })
 
   it('passes NO preset for a kind that has none, and hides the preset group', () => {
@@ -165,8 +165,17 @@ describe('picking is not building — §4.6\'s "why did my map just vanish" trap
     // matters is that nothing came ACROSS from the kind of place clicked before.
     const [, , layout, options] = onGenerate.mock.calls[onGenerate.mock.calls.length - 1]
     expect(layout).toBe(firstOfOther.id)
+    // ITS OWN DEFAULTS, WITH THE DEPENDENCIES HONOURED. An option that declares `requires` is OFF while the
+    // one it names is off, which is the panel's whole dependency contract, so reading the raw `default` off
+    // every row and expecting that to be sent describes a panel that ignores it.
+    const rows = other.generators[0].options ?? []
+    const stated = Object.fromEntries(rows.map(o => [o.key, o.default]).filter(([, d]) => d !== undefined))
     const ownDefaults = Object.fromEntries(
-      (other.generators[0].options ?? []).map(o => [o.key, o.default]).filter(([, d]) => d !== undefined),
+      Object.entries(stated).map(([key, value]) => {
+        const requires = rows.find(o => o.key === key)?.requires
+        const off = requires !== undefined && (stated[requires] === 'none' || stated[requires] === false)
+        return [key, off ? 'none' : value]
+      }),
     )
     expect(options).toEqual(ownDefaults)
   })
@@ -191,22 +200,13 @@ describe('variations are options on a preset, not more presets', () => {
     fireEvent.change(kinds(), { target: { value: 'forest' } })
     fireEvent.change(control(/^river$/i), { target: { value: 'divides' } })
     build()
-    expect(onGenerate).toHaveBeenCalledWith('spring', 'forest', expect.any(String), { exits: 'random', pathways: 'random', river: 'divides', crossing: false, depth: '1', bridge: 'random' })
+    expect(onGenerate).toHaveBeenCalledWith('spring', 'forest', expect.any(String), { exits: 'random', pathways: 'random', upTo: 'objects', river: 'divides', depth: '1', bridge: 'random' })
   })
 
-  it('will not send a crossing without the river it declares it needs', () => {
-    const onGenerate = setup()
-    fireEvent.change(kinds(), { target: { value: 'forest' } })
-    // The dependency is DATA — the served row says `requires: "river"`, and "no river" is off for a choice.
-    expect(control(/a crossing joined to the paths/i).disabled).toBe(true)
-    fireEvent.change(control(/^river$/i), { target: { value: 'through' } })
-    expect(control(/a crossing joined to the paths/i).disabled).toBe(false)
-    fireEvent.click(control(/a crossing joined to the paths/i))
-    fireEvent.change(control(/^river$/i), { target: { value: 'none' } }) // the river goes, the crossing goes with it
-    build()
-    expect(onGenerate).toHaveBeenCalledWith('spring', 'forest', expect.any(String), { exits: 'random', pathways: 'random', river: 'none', crossing: false, depth: 'none', bridge: 'none' })
-  })
 
+  // THE `crossing` TOGGLE IS GONE ("'A crossing joined to the paths' what does even mean???? I don't know
+  // why we have it in the UI"), and the test that pinned it went with it. The rule it covered, that an option
+  // declaring `requires: "river"` is off without one, is the subject of the two below.
   it('offers the kind of crossing, greyed out until there is a river, and forwards the one picked', () => {
     const onGenerate = setup()
     fireEvent.change(kinds(), { target: { value: 'forest' } })
@@ -217,7 +217,7 @@ describe('variations are options on a preset, not more presets', () => {
     expect(kind().disabled).toBe(false)
     fireEvent.change(kind(), { target: { value: 'stone' } })
     build()
-    expect(onGenerate).toHaveBeenCalledWith('spring', 'forest', expect.any(String), { exits: 'random', pathways: 'random', river: 'divides', crossing: false, depth: '1', bridge: 'stone' })
+    expect(onGenerate).toHaveBeenCalledWith('spring', 'forest', expect.any(String), { exits: 'random', pathways: 'random', upTo: 'objects', river: 'divides', depth: '1', bridge: 'stone' })
   })
 
   it('offers HOW DEEP the channel is cut, greyed out until there is a river, and forwards it', () => {
@@ -233,7 +233,7 @@ describe('variations are options on a preset, not more presets', () => {
     expect(depth().disabled).toBe(false)
     fireEvent.change(depth(), { target: { value: '2' } })
     build()
-    expect(onGenerate).toHaveBeenCalledWith('spring', 'forest', expect.any(String), { exits: 'random', pathways: 'random', river: 'divides', crossing: false, depth: '2', bridge: 'random' })
+    expect(onGenerate).toHaveBeenCalledWith('spring', 'forest', expect.any(String), { exits: 'random', pathways: 'random', upTo: 'objects', river: 'divides', depth: '2', bridge: 'random' })
   })
 
   it('offers nothing to switch on for a kind of place that has no options', () => {
@@ -270,7 +270,7 @@ describe('forest > type > subtype — pick one, go deeper, or randomize', () => 
     // The mountain forest carries REGIONS now (ridge, slope and vale, at three different levels), so like the
     // jungle above it offers a region picker, and its served default is random. Nothing here is invented: the
     // key appears because the row's own options say it does.
-    expect(onGenerate).toHaveBeenCalledWith('spring', 'forest', 'woodland', { exits: 'random', pathways: 'random', region: 'random', river: 'none', crossing: false, depth: 'none', bridge: 'none' }, 'forest_woodland_mountain')
+    expect(onGenerate).toHaveBeenCalledWith('spring', 'forest', 'woodland', { exits: 'random', pathways: 'random', upTo: 'objects', region: 'random', river: 'none', depth: 'none', bridge: 'none' }, 'forest_woodland_mountain')
   })
 
   it('Random builds one of the subtypes, rolled on the build itself', () => {
@@ -300,7 +300,7 @@ describe('forest > type > subtype — pick one, go deeper, or randomize', () => 
 
     fireEvent.change(region, { target: { value: 'swamp' } })
     build()
-    expect(onGenerate).toHaveBeenCalledWith('spring', 'forest', 'jungle', { exits: 'random', pathways: 'random', region: 'swamp', river: 'none', crossing: false, depth: 'none', bridge: 'none' })
+    expect(onGenerate).toHaveBeenCalledWith('spring', 'forest', 'jungle', { exits: 'random', pathways: 'random', upTo: 'objects', region: 'swamp', river: 'none', depth: 'none', bridge: 'none' })
   })
 
   it('a subtype offers only the regions it carries', () => {
@@ -539,7 +539,7 @@ describe('the preview window shows the world to build, its size, and the options
     fireEvent.change(within(into).getByLabelText(/^river$/i), { target: { value: 'through' } })
     fireEvent.change(within(into).getByLabelText(/^kind of crossing$/i), { target: { value: 'planks' } })
     fireEvent.click(screen.getByRole('button', { name: /build this world/i }))
-    expect(p.onGenerate).toHaveBeenCalledWith('spring', 'forest', expect.any(String), { exits: 'random', pathways: 'random', river: 'through', crossing: false, depth: '1', bridge: 'planks' })
+    expect(p.onGenerate).toHaveBeenCalledWith('spring', 'forest', expect.any(String), { exits: 'random', pathways: 'random', upTo: 'objects', river: 'through', depth: '1', bridge: 'planks' })
   })
 
   /**

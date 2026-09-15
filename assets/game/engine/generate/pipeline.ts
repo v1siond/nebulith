@@ -68,16 +68,28 @@ export function runLayers<Ctx, Rngs>(
   layers: ReadonlyArray<StageLayer<Ctx, Rngs>>,
   ctx: Ctx,
   rngs: Rngs,
+  /**
+   * STOP AFTER THIS LAYER, which is the UI's "layout" choice: *"LAYOUT IN THE UI JUST REFERS TO I WANT TO
+   * ONLY EXECUTE THE SYSTEM UP TO THIS SPECIFIC LAYER. IE: ONLY GIVE ME AN EMPTY MAP WITH ALL PATHWAYS, GIVE
+   * AN EMPTY MAP WITH A RIVER, GIVE THE FULL MAP, ETC. IS JUST A FILTER, ANOTHER PARAMETER FOR THE
+   * GENERATOR"*.
+   *
+   * A layer beyond the stop is reported as not run, exactly like one whose guard said no, so the readout
+   * still accounts for every layer. Absent, or naming a layer this stack does not have, runs all of them.
+   */
+  stopAfter?: string,
 ): LayerTiming[] {
   const timings: LayerTiming[] = []
+  let stopped = false
   for (const layer of layers) {
-    if (layer.when && !layer.when(ctx)) {
+    if (stopped || (layer.when && !layer.when(ctx))) {
       timings.push({ name: layer.name, ms: 0, ran: false })
       continue
     }
     const started = performance.now()
     layer.run(ctx, rngs)
     timings.push({ name: layer.name, ms: performance.now() - started, ran: true })
+    if (layer.name === stopAfter) stopped = true
   }
   ;(globalThis as unknown as TimingHost).__stageLayerMs = timings
   return timings

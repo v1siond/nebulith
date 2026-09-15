@@ -318,6 +318,18 @@ export interface GenerateOptions {
   /** The composition this template's gates wear, served on its generator config. */
   entrance?: string
   /**
+   * RUN THE SYSTEM ONLY UP TO THIS LAYER, by name. The UI's "layout" choice, and the preview behind it.
+   *
+   * *"LAYOUT IN THE UI JUST REFERS TO I WANT TO ONLY EXECUTE THE SYSTEM UP TO THIS SPECIFIC LAYER. IE: ONLY
+   * GIVE ME AN EMPTY MAP WITH ALL PATHWAYS, GIVE AN EMPTY MAP WITH A RIVER, GIVE THE FULL MAP, ETC. IS JUST A
+   * FILTER, ANOTHER PARAMETER FOR THE GENERATOR"*.
+   *
+   * So `upTo: 'water'` is the empty map with its river, `upTo: 'pathways'` is that plus the ways and the
+   * exits and nothing built on them, and absent is the whole map. What it shows is real ground and real
+   * tiles, because it is the same layers stopping early rather than a second way of drawing a map.
+   */
+  upTo?: string
+  /**
    * Where footprints come from. Defaults to the composition-backed source so a caller that does not care (every
    * test) is unaffected.
    */
@@ -1203,7 +1215,7 @@ export function generateStage(opts: GenerateOptions): StageData {
   for (const key of ENGINE_PASS_RNGS) rngs[key] ??= layerRng(opts.seeds, key)
   // Single-pass archetypes (forest/cave/temple/boss) read `ctx.rand`; the layout rng is their source.
   const ctx: ArchetypeContext = { variant, zone, ground, collision, floorColors, elevation, buildings, props, trees, compositions, cols, rows, layout, options: opts.options, nature: opts.nature, settlement: opts.settlement, palette: opts.palette, subZones: opts.subZones, formation: opts.formation, pathway: opts.pathway, treeMix: opts.treeMix, crossings: opts.crossings, entrance: opts.entrance, pathwayCells: new Set<string>(), water: new Set<string>(), pools: new Set<string>(), banks: new Set<string>(), claimed: new Set<string>(), decks: new Set<string>(), wet: new Set<string>(), flow: new Map<string, number>(), buildingSizes: opts.buildingSizes, rand: rngs.layout }
-  runLayers(STAGE_LAYERS, ctx, rngs)
+  runLayers(STAGE_LAYERS, ctx, rngs, opts.upTo)
 
   return {
     zone,
