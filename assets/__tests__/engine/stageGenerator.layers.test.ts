@@ -145,6 +145,20 @@ function genSeeded(opts: Parameters<typeof generateStage>[0], seed: number): Sta
 // The blast radius is the proof the change is what it says: only the two archetypes that hold POOLS moved.
 // The three settlements place no water, and the forest's river is off by default, so all four are byte
 // identical. Any wider spread than this and the fix had reached something it should not have.
+// RELOCKED AGAIN, same day, for the WOODLAND going the same way as the meadow. Two things move a map:
+//
+//   · its whole TRAIL NETWORK stops growing trees, not only its planned routes. The sweep this replaces ran
+//     on `plan.cells`, 170 of the 487 cells a woodland actually cuts as trail, so two thirds of its own paths
+//     were never cleared. Objects now choose from ground the pathways layer did not claim, which is the
+//     difference between a rule and a repair.
+//   · the BORDER TREELINE is planted in objects rather than in pathways, because it is a line of trees:
+//     *"edge is part of objects, we just used it to determine how to block towns borders with objects with
+//     the exception of pathway exits"*. Running it before the planting let the passes that repair and join
+//     the floor cut back out through it, measured as six holes in a border that belonged to no exit.
+//
+// Only `forest` moves, again. The three settlements, the cave, the temple and the boss stage are byte
+// identical because none of them is split yet.
+//
 // RELOCKED 2026-09-15, and the blast radius is again the proof.
 //
 // The MEADOW is the first variant split into the layer phases the backend serves: terrain paints the floor,
@@ -164,7 +178,7 @@ const BASELINE: Record<string, string> = {
   'town|autumn|40x40|1': 'affafaf3',
   'town|summer|50x40|7': '9c0fd03a',
   'city|summer|56x44|3': 'b8a0077c',
-  'forest|summer|30x24|42': '18b10cd1',
+  'forest|summer|30x24|42': '4b8b2192',
   'cave|autumn|40x30|99': '94c7579b',
   'temple|winter|36x30|5': 'c6258d72',
   'boss-stage|winter|36x30|11': 'e081dcd4',

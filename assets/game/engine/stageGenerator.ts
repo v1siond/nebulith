@@ -102,7 +102,7 @@ type LayerRngs = Record<EngineLayerId, Rng>
 
 /** General forest LAYOUT the user steers; the generator randomizes the rest. The old passages/open/lake
  * generators were RETIRED — the forest now builds one of the meadow layouts, and a plain generate
- *  with no explicit layout RANDOMLY picks one (seeded). All are registered in FOREST_LAYOUTS. `meadow_pass` is a
+ *  with no explicit layout RANDOMLY picks one (seeded). All are registered in the forest layout table. `meadow_pass` is a
  *  NEW variation: the open meadow opened on TWO opposite edges (top + bottom) for a through-route map (#26). */
 export type ForestLayout = 'woodland' | 'jungle' | 'meadow' | 'meadow_pass'
 
@@ -687,8 +687,14 @@ function placeLampPost(ctx: ArchetypeContext, col: number, row: number): Composi
  * a GUARD at the moment of placing rather than a repair afterwards. Empty until the pathways layer has run, so
  * this costs a set lookup and changes nothing for a variant that has not been split yet.
  */
-const standsOnPathway = (ctx: ArchetypeContext, col: number, row: number): boolean =>
-  ctx.pathwayCells.has(`${col},${row}`)
+const standsOnPathway = (ctx: ArchetypeContext, col: number, row: number): boolean => {
+  if (ctx.pathwayCells.has(`${col},${row}`)) return true
+  // …OR IN FRONT OF ONE, which hides it. Screen depth is `col + row`, so the cells drawn in front of a way
+  // cell are the ones at +1 col and +1 row: this cell is in front of a way when a way is at -1 col or -1 row.
+  // The sweep this guard replaces cleared exactly these two, and dropping them showed up at once as six trees
+  // a seed standing in front of a woodland road.
+  return ctx.pathwayCells.has(`${col - 1},${row}`) || ctx.pathwayCells.has(`${col},${row - 1}`)
+}
 
 /** What a placement is allowed to ignore. Way DRESSING is put on the way on purpose, so it says so. */
 interface PlaceOptions {
@@ -701,7 +707,13 @@ function placeProp(ctx: ArchetypeContext, prop: StageProp, opts?: PlaceOptions):
   if (!inBounds(prop.col, prop.row, cols, rows)) return
   if (collision[prop.row][prop.col]) return
   if (!isLandCell(ctx, prop.col, prop.row)) return // land-only: no prop (flower / rock / …) in water
-  if (!opts?.onPathway && standsOnPathway(ctx, prop.col, prop.row)) return // and nothing grows in a road
+  // NOTHING IS PUT IN A ROAD unless it is the road's own dressing, which says so.
+  //
+  // The sweep this replaces filtered on `grows`, because it ran at the END and had to leave the structures
+  // alone. A guard at the moment of placing does not need that: a meadow's field stones are not marked
+  // `grows` and the sweep never touched them, but the cobble way used to be paved over them AFTERWARDS and
+  // that is what kept them off it. With the ways drawn first, three rocks a seed simply sat in the road.
+  if (!opts?.onPathway && standsOnPathway(ctx, prop.col, prop.row)) return
   props.push(prop)
   if (prop.blocking) collision[prop.row][prop.col] = true
 }
@@ -858,6 +870,19 @@ interface ArchetypeContext {
   water: Set<string>
   /** Which forest layout this map is, resolved once in the terrain phase so all four phases agree. */
   forestLayout?: ForestLayout
+  /**
+   * EVERY CELL AN EARLIER LAYER SPOKE FOR, so the objects layer knows what is left.
+   *
+   * *"objects are put in the free spaces that the map has after pathways and river has run"*. Water, the
+   * ways, the gate mouths and a wood's clearings all claim ground before anything is planted on it, and each
+   * variant used to carry that as a local `open` set that died with its build function. On the ctx it is
+   * simply what "free space" means, for every variant, in one place.
+   */
+  claimed: Set<string>
+  /** Which REGION each cell belongs to, decided by terrain and read by every layer after it. */
+  zoneAt?: (GeneratorSubZone | undefined)[][]
+  /** The regions this map actually has, in the order terrain resolved them. */
+  zones?: readonly GeneratorSubZone[]
   /** The species this template grows. A jungle is not a meadow with more trees in it. */
   treeMix?: readonly GeneratorTreeWeight[]
   /** What a river is crossed on, by kind (`config.crossings`), picked by the `bridge` option. */
@@ -1082,11 +1107,18 @@ const STAGE_LAYERS: ReadonlyArray<StageLayer<ArchetypeContext, LayerRngs>> = [
     when: ctx => !!ctx.routes || !!BUILD[ctx.variant]?.pathways,
     run: (ctx, rngs) => {
       BUILD[ctx.variant]?.pathways?.(ctx, rngs) // where this variant's pathways actually run
-      if (!ctx.routes) return
-      sealMapEdge(ctx) // the border is closed everywhere the exits are not
-      openGates(ctx) // and cut open where they are, so the exits get the last word on it
-      keepPathwaysWalkable(ctx) // nothing built above may wall a gate in behind it
-      clearPathSightlines(ctx) // and nothing stands in a way or in front of one
+      // AND THE GROUND THEY TOOK IS SPOKEN FOR, so the objects layer chooses from what is genuinely left.
+      //
+      // Without this the canopy still CHOSE pathway cells (it scores every plantable cell and takes the
+      // lowest N) and the guard then refused them one by one, so a region the road ran through came out
+      // thinner than the density it was served: measured on a woodland stand, 0.042 against the 0.048 its own
+      // test asks for. Claiming the ground first means the field picks other cells and hits the number.
+      for (const key of ctx.pathwayCells) {
+        const { col, row } = toCell(key)
+        ctx.claimed.add(key)
+        ctx.claimed.add(`${col + 1},${row}`) // and the two cells drawn in FRONT of it, which would hide it
+        ctx.claimed.add(`${col},${row + 1}`)
+      }
     },
   },
 
@@ -1102,6 +1134,16 @@ const STAGE_LAYERS: ReadonlyArray<StageLayer<ArchetypeContext, LayerRngs>> = [
     run: (ctx, rngs) => {
       BUILD[ctx.variant]?.objects?.(ctx, rngs) // everything this variant plants and builds
       if (!ctx.routes) return
+      // THE BORDER IS BLOCKED WITH OBJECTS, which is what an edge IS: *"edge is part of objects, we just used
+      // it to determine how to block towns borders with objects with the exception of pathway exits...so for
+      // example a edge in a town help us to put a bunch of trees around it"*. It ran in the pathways layer
+      // and that was wrong twice over: it is a treeline, and running it before the planting let the passes
+      // that repair and join the floor cut straight back out through it. Measured, six holes in a woodland's
+      // border that belonged to no exit.
+      sealMapEdge(ctx)
+      openGates(ctx) // and the exits are cut through it, so they get the last word on the border
+      keepPathwaysWalkable(ctx) // nothing placed above may wall a gate in behind it
+      clearPathSightlines(ctx) // and nothing that grew is left standing in a way or in front of one
       layPathways(ctx) // the surface a way wears, what lies on it and what stands beside it
       stampEntrances(ctx) // and the way out looks like one, on the surface the way actually wears
     },
@@ -1142,7 +1184,7 @@ export function generateStage(opts: GenerateOptions): StageData {
   for (const key of generationLayerKeys()) rngs[key] = layerRng(opts.seeds, key)
   for (const key of ENGINE_PASS_RNGS) rngs[key] ??= layerRng(opts.seeds, key)
   // Single-pass archetypes (forest/cave/temple/boss) read `ctx.rand`; the layout rng is their source.
-  const ctx: ArchetypeContext = { variant, zone, ground, collision, floorColors, elevation, buildings, props, trees, compositions, cols, rows, layout, options: opts.options, nature: opts.nature, settlement: opts.settlement, palette: opts.palette, subZones: opts.subZones, formation: opts.formation, pathway: opts.pathway, treeMix: opts.treeMix, crossings: opts.crossings, entrance: opts.entrance, pathwayCells: new Set<string>(), water: new Set<string>(), decks: new Set<string>(), wet: new Set<string>(), flow: new Map<string, number>(), buildingSizes: opts.buildingSizes, rand: rngs.layout }
+  const ctx: ArchetypeContext = { variant, zone, ground, collision, floorColors, elevation, buildings, props, trees, compositions, cols, rows, layout, options: opts.options, nature: opts.nature, settlement: opts.settlement, palette: opts.palette, subZones: opts.subZones, formation: opts.formation, pathway: opts.pathway, treeMix: opts.treeMix, crossings: opts.crossings, entrance: opts.entrance, pathwayCells: new Set<string>(), water: new Set<string>(), claimed: new Set<string>(), decks: new Set<string>(), wet: new Set<string>(), flow: new Map<string, number>(), buildingSizes: opts.buildingSizes, rand: rngs.layout }
   runLayers(STAGE_LAYERS, ctx, rngs)
 
   return {
@@ -1834,19 +1876,19 @@ function bridgeRiver(ctx: ArchetypeContext, water: Set<string>, routes: Set<stri
 /** Forest layout builders, keyed by the user-steered ForestLayout. Each runs on the already-floored ctx
  *  and is fully responsible for the floor gradient / trees / river / ornaments / repair.
  *  Open/Closed: register a layout here, no dispatcher edits. */
-const FOREST_LAYOUTS: Readonly<Partial<Record<ForestLayout, VariantPhases>>> = {
+const forestLayoutTable = (): Readonly<Partial<Record<ForestLayout, VariantPhases>>> => ({
   // A RIVER IS AN OPTION, not a layout.
   // It was already an option INSIDE the builder — `layoutWoodland(ctx, {river: true})` — and only the
   // catalog row and the layout string duplicated per combination. Now the option reaches the builder from
   // the generator's declared options, and `woodland_river` / `meadow_river` are gone as layouts.
-  woodland: { terrain: ctx => layoutWoodland(ctx, { ...forestWater(ctx, 'around'), routes: plannedRoutes(ctx) }) },
+  woodland: woodlandPhases,
   // A JUNGLE HAS ITS OWN BUILDER. It used to share the woodland's with heavier numbers, but density is not
   // the difference: light gaps instead of clearings, a creek instead of trails, blocking undergrowth,
   // emergents.
   jungle: { terrain: ctx => layoutJungle(ctx, { ...forestWater(ctx, 'through'), routes: plannedRoutes(ctx) }) },
   meadow: meadowPhases(false),
   meadow_pass: meadowPhases(true),
-}
+})
 
 /**
  * WHICH FOREST THIS IS, decided once and remembered.
@@ -1858,9 +1900,9 @@ const FOREST_LAYOUTS: Readonly<Partial<Record<ForestLayout, VariantPhases>>> = {
 function forestPhases(ctx: ArchetypeContext): VariantPhases | undefined {
   if (!ctx.forestLayout) {
     const named = ctx.layout as ForestLayout | undefined
-    ctx.forestLayout = named && FOREST_LAYOUTS[named] ? named : pickMeadowLayout(ctx.rand, ctx.nature)
+    ctx.forestLayout = named && forestLayoutTable()[named] ? named : pickMeadowLayout(ctx.rand, ctx.nature)
   }
-  return FOREST_LAYOUTS[ctx.forestLayout]
+  return forestLayoutTable()[ctx.forestLayout]
 }
 
 // ── 'woodland' layout — an ACTUAL forest ──────────────────────────────────────
@@ -2496,185 +2538,167 @@ function plannedRoutes(ctx: ArchetypeContext): RoutePlan | null {
 /** `woodland` (dense trees, clearings, trails) and `woodland_river` (the same, cut by a river with a bridge).
  * Mirrors the meadow pair — one builder, an
  *  options object — so the two never drift apart. A JUNGLE is not here: it is the same STRUCTURE at a heavier
- *  served density, so it is a preset over this builder, not a fourth code path (see FOREST_LAYOUTS). */
-function layoutWoodland(ctx: ArchetypeContext, opts: ForestBuild = {}): void {
-  const { cols, rows, collision, ground, zone, trees, floorColors } = ctx
-  const canopy = ctx.nature?.canopy
-  if (canopy === undefined) {
-    console.warn('[generate] this generator serves no `nature.canopy`, so a woodland has no tree density to build from — nothing planted')
-    return
-  }
-
-  const floor = zonePalette(zone)?.groundTypes[0] ?? ''
-  forEachCell(cols, rows, (col, row) => { ground[row][col] = floor })
-
-  // 0a · THE REGIONS. and
-  // then 2026-09-12:
-  //
-  //      I gave glades its stands and meadows and reported the ticket done, and it did NOTHING: only
-  //      `layoutJungle` ever called `partitionSubZones`, so a woodland's served regions were parsed and
-  //      dropped. Served-and-ignored, the exact defect I keep finding elsewhere, this time mine.
-  //
-  //      Both forest layouts share the one mechanism now. `subZoneCanopyField` runs `woodlandCanopyField`
-  //      once per region, so a map with no regions takes the same single call it always did.
-  const zones = leadRegion(ctx, ctx.subZones)
-  const zoneAt = partitionSubZones(ctx, zones)
-  paintSubZoneFloors(ctx, zoneAt)
-
-  // 0b · RELIEF: a region may stand ABOVE the rest of the map. A region that states no level is flat,
-  //      so every existing template is unmoved.
-  raiseRegions(ctx, zoneAt)
-
-  // 0 · THE RIVER, if this variant has one — carved BEFORE anything is planted, so its cells are already
-  //     spoken for. It joins `open` (the not-plantable mask) rather than getting its own check, which is why
-  //     the canopy pass below needs no river branch at all: water is simply somewhere a tree cannot go.
-  const open = new Set<string>()
-  const water = opts.river ? carveRiver(ctx, opts.river, ctx.palette, opts.routes) : new Set<string>()
-  for (const key of water) open.add(key)
-
-  // 1 · CLEARINGS, as a mask, so the canopy pass can simply avoid them. Deciding the holes before
-  //     the fill is cheaper and more controllable than planting everything and cutting back.
-  // The corridor cells specifically. `open` also holds the clearings, and paving those would turn every
-  // glade into a courtyard — a trail is the route BETWEEN them.
-  const trailCells = new Set<string>()
-  const clearings: Cell[] = []
-
-  // 1a · THE PATHS, FIRST. When
-  //      the generator serves the pathways, the network is already decided: its cells join `open` so nothing can be
-  //      planted on them, and they are paved in step 2b with the rest. A GLADE goes where the paths meet and at
-  //      every stop, so a pathway that is not an exit ends somewhere worth walking to rather than in a wall of
-  //      trunks. That is where a closed or gated section will go.
-  if (opts.routes) {
-    for (const key of opts.routes.cells) { open.add(key); trailCells.add(key) }
-    clearings.push(opts.routes.hub, ...opts.routes.deadEnds)
-    for (const centre of clearings) carveClearing(ctx, centre, open)
-    // …AND THE MOUTH OF EACH WAY. The corridor alone stopped dead at the border, so a woodland had pathways you
-    // could walk and could not see (). These join `trailCells`, so step 2b paves them with the season's own trail
-    // rather than
-    // this pass inventing a second way to draw a path.
-    //
-    // A MOUTH IS THE WIDTH OF ITS OWN TRACK, 3 across, not the meadow's 5. Measured, after two wrong guesses:
-    // a lane is CLEARED, so it unblocks cells, and 5x11 at every gate lifted the WOODLAND's walkable share
-    // enough to break the jungle's own choked-forest test, which compares the two (`openPct(jungle) <
-    // openPct(woodland) * 0.6`). The jungle number never moved; the woodland baseline did. The meadow keeps 5
-    // because a cobble way into a clearing is that layout's design, and it has no such comparison to break.
-    const gateLanes = gateLaneCells(ctx, opts.routes, water, 1, 6)
-    clearMeadowCells(ctx, gateLanes) // nothing standing in the gateway
-    for (const key of gateLanes) { open.add(key); trailCells.add(key) }
-  }
-
-  const wanted = Math.max(2, Math.round((cols * rows / 1000) * WOODLAND.clearingsPerThousand))
-  for (let i = 0; i < wanted; i++) {
-    const centre = {
-      col: randIntWith(ctx.rand, 3, Math.max(3, cols - 4)),
-      row: randIntWith(ctx.rand, 3, Math.max(3, rows - 4)),
+ *  served density, so it is a preset over this builder, not a fourth code path (see the forest layout table). */
+/**
+ * A WOODLAND, IN PHASES, one per layer the backend serves.
+ *
+ * It was one 180-line function that painted the floor, partitioned the regions, carved the river, cut the
+ * trails, planted the canopy, dressed the clearings, repaired the floor and bridged the water, in that order,
+ * with five local sets threaded through all of it. The cut is at the layer boundaries, and what used to be a
+ * local `open` set is `ctx.claimed`: the ground an earlier layer spoke for, which is what "free space" means
+ * for every variant rather than for this one.
+ */
+const woodlandPhases: VariantPhases = {
+  terrain: ctx => {
+    const { cols, rows, ground, zone } = ctx
+    if (ctx.nature?.canopy === undefined) {
+      console.warn('[generate] this generator serves no `nature.canopy`, so a woodland has no tree density to build from — nothing planted')
+      return
     }
-    clearings.push(centre)
-    carveClearing(ctx, centre, open)
-  }
+    const floor = zonePalette(zone)?.groundTypes[0] ?? ''
+    forEachCell(cols, rows, (col, row) => { ground[row][col] = floor })
 
-  // 2 · TRAILS joining the clearings in a chain, so every one is reachable from every other, plus a spur
-  //     from the first and last clearing to the map EDGE — a forest you cannot enter or leave is a room.
-  //
-  // The first version stopped here and only
-  //     removed canopy, so a trail was an absence rather than a route: nothing marked it, nothing paved it,
-  //     and with two clearings there was one of them. Now the corridors are PAVED (step 2b) and there are
-  //     enough of them to form a network.
-  for (let i = 1; i < clearings.length; i++) carveWoodlandPath(ctx, clearings[i - 1], clearings[i], open, trailCells)
-  // The two spurs to the nearest EDGE are what a forest with no plan uses to avoid being a sealed room. With a
-  // plan the gates already run off the border, and a spur would be a way out nobody asked for.
-  if (!opts.routes && clearings.length > 0) {
-    carveWoodlandPath(ctx, clearings[0], nearestEdgeCell(clearings[0], cols, rows), open, trailCells)
-    const last = clearings[clearings.length - 1]
-    carveWoodlandPath(ctx, last, nearestEdgeCell(last, cols, rows), open, trailCells)
-  }
+    // THE REGIONS. Only `layoutJungle` ever called `partitionSubZones`, so a woodland's served regions were
+    // parsed and dropped: served-and-ignored, the exact defect that keeps turning up. Both forest layouts
+    // share the one mechanism, and `subZoneCanopyField` runs `woodlandCanopyField` once per region, so a map
+    // with no regions takes the same single call it always did.
+    ctx.zones = leadRegion(ctx, ctx.subZones)
+    ctx.zoneAt = partitionSubZones(ctx, ctx.zones)
+    paintSubZoneFloors(ctx, ctx.zoneAt)
 
-  // 2b · PAVE them. A trail has to be visible to be a trail — this is the half that was missing. The tile
-  //      comes from the zone's palette, so a season can pave its trails differently without a branch here.
-  // THE TEMPLATE PAVES, NOT THE SEASON, whenever the template says what its pathways are made of. This tile came
-  // from `zonePalette(zone).trail`, so which material a trail was laid in depended on whether it was autumn,
-  // and every forest in a given season shared one. That is the same root as *"none of the forest entrances is
-  // unique enough to their BIO"*: the thing that should vary per template was varying per season instead.
-  // A template with no pathway block keeps the season's tile exactly as before.
-  for (const key of trailCells) ctx.pathwayCells.add(key)
-  // SKIP, do not pave with nothing. Handing the loop an empty tile wrote `''` into 55 cells of ground, and a
-  // cell with no tile at all is not the same thing as a cell the pathway layer is about to surface.
-  if (!ctx.pathway?.surface) paveWoodlandTrail(ctx, trailCells, zonePalette(zone)?.trail ?? '')
+    // RELIEF: a region may stand ABOVE the rest of the map. A region that states no level is flat, so every
+    // existing template is unmoved.
+    raiseRegions(ctx, ctx.zoneAt)
+  },
 
-  // 2c · AND PLANK IT where the river runs across it. After the paving, never before: the paving skips water,
-  //      so a deck laid first would be paved straight back over.
-  if (opts.routes) deckRoutes(ctx, opts.routes, water, ctx.palette?.trail)
+  // THE RIVER, carved before anything is planted OR drawn, so its cells are already spoken for. It joins
+  // `ctx.claimed`, which is why the canopy pass needs no river branch at all: water is simply somewhere a
+  // tree cannot go.
+  water: ctx => {
+    const course = riverCourse(ctx, 'around')
+    if (!course) return
+    for (const key of carveRiver(ctx, course, ctx.palette)) {
+      ctx.water.add(key)
+      ctx.claimed.add(key)
+    }
+  },
 
-  // 3 · CANOPY everywhere else — chosen, not thrown.
-  //
-  //     Two attempts failed here and both failures are worth keeping, because they are the same mistake
-  //     twice: treating a density as an input to a lossy process instead of as the outcome.
-  //
-  //       (a) `clumps = cells * canopy / radius²`, run that many times. Gave 27% for a configured 42%:
-  //           thinning, overlap and clearing-skips all ate cells with nothing accounting for them.
-  //       (b) Random anchors until a planted-count target was hit. Hit the number, but the distribution
-  //           was ruinous — the loop terminated as soon as the count filled, so wherever the early darts
-  //           happened to land became dense forest and the rest of the map stayed bare grass.
-  //
-  //     So: score EVERY plantable cell with spatially-coherent noise, then take the lowest-scoring
-  //     `target` of them. Coverage is exact by construction, and it clumps because neighbouring cells
-  //     score alike. Nothing is random-walked and nothing terminates early.
-  const field = zones.length > 0
-    ? subZoneCanopyField(ctx, open, canopy, zoneAt, zones)
-    : woodlandCanopyField(ctx, open, canopy, ctx.formation)
-  for (const { col, row } of field) {
-    // A region's OWN species where it states them, the template's otherwise: a stand of columns beside a
-    // meadow of gnarled singles is the difference you can actually see.
-    const kind: LivingTreeKind | 'tree_dead' = ctx.rand() < 0.06 ? 'tree_dead' : pickLivingTree(ctx.rand(), zoneAt[row][col]?.trees ?? ctx.treeMix)
-    trees.push({ col, row, kind, variant: massVariant(col, row) })
-    collision[row][col] = true // the trunk blocks; the canopy is walkable overhead, as everywhere else
-  }
+  pathways: ctx => {
+    const { cols, rows } = ctx
+    if (ctx.nature?.canopy === undefined) return
+    const trail = ctx.pathwayCells
+    const clearings: Cell[] = []
 
-  // 4 · The clearings get whatever ground cover and flowers the generator asked for. Absent → bare.
-  dressWoodlandClearings(ctx, open, zoneAt)
-  scatterTallGrass(ctx) // patches of walkable long grass, as much as the generator serves
+    // THE PATHS, FIRST. When the generator serves the pathways the network is already decided: its cells
+    // join `claimed` so nothing can be planted on them. A GLADE goes where the paths meet and at every stop,
+    // so a pathway that is not an exit ends somewhere worth walking to rather than in a wall of trunks.
+    if (ctx.routes) {
+      for (const key of ctx.routes.cells) { ctx.claimed.add(key); trail.add(key) }
+      clearings.push(ctx.routes.hub, ...ctx.routes.deadEnds)
+      for (const centre of clearings) carveClearing(ctx, centre, ctx.claimed)
+      // …AND THE MOUTH OF EACH WAY. The corridor alone stopped dead at the border, so a woodland had pathways
+      // you could walk and could not see.
+      //
+      // A MOUTH IS THE WIDTH OF ITS OWN TRACK, not the meadow's 5. Measured, after two wrong guesses: a lane
+      // is CLEARED, so it unblocks cells, and 5x11 at every gate lifted the woodland's walkable share enough
+      // to break the jungle's own choked-forest test, which compares the two. The jungle number never moved;
+      // the woodland baseline did.
+      const gateLanes = gateLaneCells(ctx, ctx.routes, ctx.water, 1, 6)
+      clearMeadowCells(ctx, gateLanes) // nothing standing in the gateway
+      for (const key of gateLanes) { ctx.claimed.add(key); trail.add(key) }
+    }
 
-  // 4b · UNDERSTORY between the trunks, when the formation asks for one. Image #15 is a woodland whose hard
-  //      part is the FLOOR — deep green growth you cannot walk through, with a narrow trail cut through it —
-  //      and no amount of canopy tuning produces that, because it is not about the canopy. A formation that
-  //      states no understory runs nothing here, so an ordinary wood is unchanged.
-  if (ctx.formation?.understory !== undefined) {
-    plantUndergrowth(ctx, open, water, ctx.palette, zoneAt)
-    // Undergrowth BLOCKS, so this pinches the floor into islands (363 on one seed). They are joined in step
-    // 7, AFTER the river is bridged — see there for why the order matters.
-  }
+    const wanted = Math.max(2, Math.round((cols * rows / 1000) * WOODLAND.clearingsPerThousand))
+    for (let i = 0; i < wanted; i++) {
+      const centre = {
+        col: randIntWith(ctx.rand, 3, Math.max(3, cols - 4)),
+        row: randIntWith(ctx.rand, 3, Math.max(3, rows - 4)),
+      }
+      clearings.push(centre)
+      carveClearing(ctx, centre, ctx.claimed)
+    }
 
-  // 5 · KEEP THE FLOOR ONE PLACE. A river can strand a pocket of forest floor behind it, and a pocket you
-  //     cannot walk to is a hole in the map. Only the river variant needs this — a plain woodland carves no
-  //     water — and it runs BEFORE the bridge so the repair can never fill the deck back in. Same bound and
-  //     same ordering as the meadow's, because it is the same problem.
-  if (opts.river) repairFloorConnectivity(ctx, MEADOW_MAX_POCKET)
+    // TRAILS joining the clearings in a chain, so every one is reachable from every other, plus a spur from
+    // the first and last to the map EDGE: a forest you cannot enter or leave is a room.
+    for (let i = 1; i < clearings.length; i++) carveWoodlandPath(ctx, clearings[i - 1], clearings[i], ctx.claimed, trail)
+    // The two spurs are what a forest with NO plan uses to avoid being sealed. With a plan the gates already
+    // run off the border, and a spur would be a way out nobody asked for.
+    if (!ctx.routes && clearings.length > 0) {
+      carveWoodlandPath(ctx, clearings[0], nearestEdgeCell(clearings[0], cols, rows), ctx.claimed, trail)
+      const last = clearings[clearings.length - 1]
+      carveWoodlandPath(ctx, last, nearestEdgeCell(last, cols, rows), ctx.claimed, trail)
+    }
 
-  // 6 · THE CROSSING, last — a river you cannot cross splits the forest in two, and the deck has to be laid
-  //     after the planting so nothing puts a trunk back on it. Same ordering reason as the meadow's.
-  //     The trails carved in step 2 are this layout's path network, so a joined crossing lands on one of them
-  //     rather than in the middle of the trees — which is the whole of ticket 36.
-  if (opts.river) bridgeRiver(ctx, water, trailCells, opts.river, ctx.palette)
+    // PAVE them. A trail has to be visible to be a trail. THE TEMPLATE PAVES, NOT THE SEASON, whenever the
+    // template says what its pathways are made of: this tile came from `zonePalette(zone).trail`, so which
+    // material a trail was laid in depended on whether it was autumn and every forest in a season shared one.
+    // A template with no pathway block keeps the season's tile exactly as before, and one that states a
+    // surface is surfaced by the objects layer, where the LOOK of a way belongs.
+    if (!ctx.pathway?.surface) paveWoodlandTrail(ctx, trail, zonePalette(ctx.zone)?.trail ?? '')
 
-  // 7 · ONE PLACE, cutting tracks through the brush to anything the undergrowth walled off. AFTER the bridge,
-  //     and that order is a fix, not a preference: run before it, the join saw the far bank of a river as a
-  //     stray region and cut a track straight across the water, which made the river walkable. A region the
-  //     water separates is joined by its crossing, never by a track.
-  if (ctx.formation?.understory !== undefined) joinStrandedRegions(ctx)
+    // AND PLANK IT where the river runs across it. After the paving, never before: the paving skips water, so
+    // a deck laid first would be paved straight back over.
+    if (ctx.routes) deckRoutes(ctx, ctx.routes, ctx.water, ctx.palette?.trail)
+  },
 
-  // 8 · THE WAYS OUT, drawn. After the planting and the joins, so nothing puts a trunk back on a lane. A
-  //     woodland wears its own trail between flanking trunks rather than the meadow's cobble and lamps.
-  paintGateways(ctx, opts.routes, water, trailCells, {
-    ground: FLAT_FLOOR,
-    paving: ctx.palette?.trail,
-    flank: flankingTrees,
-  })
+  objects: ctx => {
+    const { collision, trees } = ctx
+    const canopy = ctx.nature?.canopy
+    if (canopy === undefined) return
+    const zones = ctx.zones ?? []
+    const zoneAt = ctx.zoneAt!
 
-  // 9 · The water settles by depth, last.
-  settleWaterDepth(ctx, ctx.palette)
+    // CANOPY everywhere else, chosen rather than thrown. Two attempts failed here and both are the same
+    // mistake: treating a density as an input to a lossy process instead of as the outcome. Clump counts gave
+    // 27% for a configured 42%; random anchors until a count filled hit the number with a ruinous
+    // distribution. So: score EVERY plantable cell with spatially-coherent noise and take the lowest-scoring
+    // `target` of them. Coverage is exact by construction, and it clumps because neighbours score alike.
+    const field = zones.length > 0
+      ? subZoneCanopyField(ctx, ctx.claimed, canopy, zoneAt, zones)
+      : woodlandCanopyField(ctx, ctx.claimed, canopy, ctx.formation)
+    for (const { col, row } of field) {
+      if (standsOnPathway(ctx, col, row)) continue // the ways are drawn by now, and nothing grows in one
+      // A region's OWN species where it states them, the template's otherwise: a stand of columns beside a
+      // meadow of gnarled singles is the difference you can actually see.
+      const kind: LivingTreeKind | 'tree_dead' = ctx.rand() < 0.06 ? 'tree_dead' : pickLivingTree(ctx.rand(), zoneAt[row][col]?.trees ?? ctx.treeMix)
+      trees.push({ col, row, kind, variant: massVariant(col, row) })
+      collision[row][col] = true // the trunk blocks; the canopy is walkable overhead, as everywhere else
+    }
 
-  void collision
-  void trees
+    // The clearings get whatever ground cover and flowers the generator asked for. Absent means bare.
+    dressWoodlandClearings(ctx, ctx.claimed, zoneAt)
+    scatterTallGrass(ctx) // patches of walkable long grass, as much as the generator serves
+
+    // UNDERSTORY between the trunks, when the formation asks for one. Image #15 is a woodland whose hard part
+    // is the FLOOR, and no amount of canopy tuning produces that because it is not about the canopy. A
+    // formation that states no understory runs nothing here, so an ordinary wood is unchanged.
+    if (ctx.formation?.understory !== undefined) plantUndergrowth(ctx, ctx.claimed, ctx.water, ctx.palette, zoneAt)
+
+    // KEEP THE FLOOR ONE PLACE. A river can strand a pocket of forest floor behind it, and a pocket you
+    // cannot walk to is a hole in the map. Before the bridge, so the repair can never fill the deck back in.
+    const course = riverCourse(ctx, 'around')
+    if (course) repairFloorConnectivity(ctx, MEADOW_MAX_POCKET)
+
+    // THE CROSSING. A river you cannot cross splits the forest in two, and the deck is laid after the
+    // planting so nothing puts a trunk back on it. The trails are this layout's path network, so a joined
+    // crossing lands on one of them rather than in the middle of the trees.
+    if (course) bridgeRiver(ctx, ctx.water, ctx.pathwayCells, course, ctx.palette)
+
+    // ONE PLACE, cutting tracks through the brush to anything the undergrowth walled off. AFTER the bridge,
+    // and that order is a fix rather than a preference: run before it, the join saw the far bank as a stray
+    // region and cut a track straight across the water, which made the river walkable.
+    if (ctx.formation?.understory !== undefined) joinStrandedRegions(ctx)
+
+    // THE WAYS OUT, drawn. After the planting and the joins, so nothing puts a trunk back on a lane. A
+    // woodland wears its own trail between flanking trunks rather than the meadow's cobble and lamps.
+    paintGateways(ctx, ctx.routes, ctx.water, ctx.pathwayCells, {
+      ground: FLAT_FLOOR,
+      paving: ctx.palette?.trail,
+      flank: flankingTrees,
+    })
+
+    settleWaterDepth(ctx, ctx.palette) // the water settles by depth, last
+  },
 }
 
 // ── 'jungle' — a JUNGLE, not a dense woodland ─────────────────────────────────
