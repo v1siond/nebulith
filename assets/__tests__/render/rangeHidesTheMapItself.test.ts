@@ -63,3 +63,46 @@ describe('the map body obeys the player range', () => {
     expect(skirtFills({ col: 500, row: 500, cells: 3 })).toBe(0)
   })
 })
+
+/**
+ * A SPANNING TILE IS CUT DOWN TO THE PART THAT IS IN RANGE.
+ *
+ * *"range should determine the grid, whatever is on range, defined the cells from the grid we care about,
+ * anything outside of that we don't care, we shouldn't see ANYTHING nor render ANYTHING not in range"*
+ * (2026-09-15, Image #82: a green band running clear across the screen, far outside the ring).
+ *
+ * The range test keeps a tile when ANY cell of it is in range, and the renderer then drew the WHOLE tile. A
+ * floor is not one asset per cell: measured, 161 of 172 floors on a forest are `depth` runs and the longest
+ * covers 33 cells. One run touching the ring therefore painted a band right across the map.
+ *
+ * Keeping a tile whole is correct for the SCREEN cull, where a long run genuinely is visible. It is wrong for
+ * the range, which is a statement about what exists.
+ */
+import { clipAssetToRange } from '@/engine/render/iso'
+
+describe('a spanning tile is cut to the range', () => {
+  const run = { col: 0, row: 10, depth: 33, depthDir: 'right-down' as const }
+
+  it('keeps a run that lies wholly inside, unchanged', () => {
+    const a = { col: 8, row: 10, depth: 3, depthDir: 'right-down' as const }
+    expect(clipAssetToRange(a as never, 10, 10, 20)).toBe(a)
+  })
+
+  it('trims a 33-cell run reaching in from far away to the cells that are in range', () => {
+    const cut = clipAssetToRange(run as never, 10, 10, 4) as typeof run
+    expect(cut.depth).toBeLessThan(run.depth)
+    expect(cut.depth).toBeLessThanOrEqual(9) // a radius of 4 spans at most 9 cells along one axis
+    expect(cut.col).toBeGreaterThan(run.col)
+  })
+
+  it('leaves a tile with no span alone', () => {
+    const one = { col: 3, row: 3 }
+    expect(clipAssetToRange(one as never, 10, 10, 2)).toBe(one)
+  })
+
+  it('drops the perpendicular span, so a 2-axis tile cannot stick out sideways', () => {
+    const rect = { col: 0, row: 10, depth: 20, depthPerp: 6, depthDir: 'right-down' as const }
+    const cut = clipAssetToRange(rect as never, 10, 10, 3) as typeof rect
+    expect(cut.depthPerp).toBe(0)
+  })
+})

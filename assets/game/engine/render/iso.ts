@@ -19,7 +19,7 @@ import { drawWeather, type WeatherId } from './weather'
 import { resolveAssetDrawSize } from './assetDimensions'
 import { resolveAssetAnimation, spriteFrame } from './assetAnimation'
 import { getStack, assetStackIndexer, unitStandLevel, type TileSource } from '@/engine/cellStack'
-import { isoBlockFaces, isoDepthBox, depthCells, depthFrontExtent, isoZOffset, rotateDepthDir, spanBackmost, normalizeDepthSpan, assetRectExtents, reachGroundQuad, rotateThicknessReach, thicknessThins, turnFaceTexture, textureTurnForHeading, type BlockFace, type DepthDir, type ThicknessReach } from './isoBlock'
+import { DEPTH_CELL_STEP, isoBlockFaces, isoDepthBox, depthCells, depthFrontExtent, isoZOffset, rotateDepthDir, spanBackmost, normalizeDepthSpan, assetRectExtents, reachGroundQuad, rotateThicknessReach, thicknessThins, turnFaceTexture, textureTurnForHeading, type BlockFace, type DepthDir, type ThicknessReach } from './isoBlock'
 import { type Orientation } from './isoOrientation'
 import { cellOrienterFor, orientCellTurn, deorientCellTurn, orientedDimsForTurn, facingForTurn, wrapTurn } from './isoTurn'
 import { resolveTileHeight, blockLayers, layerBlockScale } from '@/engine/tileset/tileHeight'
@@ -620,6 +620,24 @@ export function render(params: IsoRenderParams) {
   }
   const tileInRange = (a: GridAsset): boolean =>
     coveredCells(a).some(c => withinPlayerRange(c.col, c.row, pcol, prow, playerViewRange!))
+
+  /**
+   * THE RANGE DECIDES THE GRID, so a tile that only PARTLY reaches into it is CUT DOWN to the part that does.
+   *
+   * *"range should determine the grid, whatever is on range, defined the cells from the grid we care about,
+   * anything outside of that we don't care, we shouldn't see ANYTHING nor render ANYTHING not in range"*.
+   *
+   * `tileInRange` keeps a tile when ANY cell of it is in range, and the renderer then draws the WHOLE tile. A
+   * floor is not one asset per cell: measured, 161 of 172 floors on a forest are `depth` runs and the longest
+   * covers 33 cells. So one run touching the ring painted a green band clear across the map, which is exactly
+   * what he photographed.
+   *
+   * Keeping a tile whole is right for the SCREEN cull, where a long run genuinely is visible. It is wrong for
+   * the range, which is a statement about what exists. So a spanning tile is shortened here: the anchor moves
+   * to the first covered cell inside the range and the span is trimmed to the last one. A single-cell tile is
+   * untouched, and with no range on nothing is cloned at all.
+   */
+  const clipToRange = (a: GridAsset): GridAsset => clipAssetToRange(a, pcol, prow, playerViewRange!)
   // GLOBAL RANGE — the browser's visible area, always on. and
   //
   // That was right that something was off, though not where it looked. The rectangle above IS derived from the
@@ -648,7 +666,7 @@ export function render(params: IsoRenderParams) {
     })
   }
   const onScreenAssets = rectAssets.filter(onScreen)
-  const visibleAssets = rangeOn ? onScreenAssets.filter(tileInRange) : onScreenAssets
+  const visibleAssets = rangeOn ? onScreenAssets.filter(tileInRange).map(clipToRange) : onScreenAssets
   // WHAT EACH CULL THREW AWAY, published like `__isoRenderMs`.
   //
   // *"sometimes maps would stop showing the floor, specially when zoomed in"*. A floor that is missing was
@@ -1721,6 +1739,49 @@ export function isoDepthCompare(
   if (d !== 0) return d
   if (a.asset && b.asset) return (a.asset.heightLevel ?? 0) - (b.asset.heightLevel ?? 0)
   return 0
+}
+
+/**
+ * A SPANNING TILE, CUT DOWN TO THE PART OF IT THAT IS IN RANGE.
+ *
+ * *"range should determine the grid, whatever is on range, defined the cells from the grid we care about,
+ * anything outside of that we don't care"*. The range test keeps a tile when ANY of its cells is in range, and
+ * the renderer then draws the WHOLE tile. A floor is not one asset per cell: measured, 161 of 172 floors on a
+ * forest are `depth` runs and the longest covers 33 cells, so one run touching the ring painted a green band
+ * clear across the map.
+ *
+ * Keeping a tile whole is right for the SCREEN cull, where a long run genuinely is visible. It is wrong for
+ * the range, which is a statement about what EXISTS.
+ *
+ * Returns the asset itself when nothing needs cutting, so a map with no spans allocates nothing.
+ */
+export function clipAssetToRange(a: GridAsset, pcol: number, prow: number, range: number): GridAsset {
+  const dir = a.depthDir
+  if (!dir) return a
+  const span = normalizeDepthSpan(a.col, a.row, a.depth, a.depthBack, dir)
+  if (span.depth <= 1) return a
+  const { dc, dr } = DEPTH_CELL_STEP[dir]
+  let first = -1
+  let last = -1
+  for (let k = 0; k < span.depth; k++) {
+    if (!withinPlayerRange(span.col + k * dc, span.row + k * dr, pcol, prow, range)) continue
+    if (first < 0) first = k
+    last = k
+  }
+  if (first < 0) return a // nothing of it is in range; the range filter has already dropped it
+  if (first === 0 && last === span.depth - 1 && !a.depthPerp && !a.depthPerpBack) return a // wholly inside
+  // The PERPENDICULAR span is dropped rather than trimmed: a 2-axis tile is a rectangle, and cutting one axis
+  // while keeping the other whole leaves a strip sticking out sideways past the ring, which is the same leak
+  // in a different direction. That axis is rare on ground runs and always small.
+  return {
+    ...a,
+    col: span.col + first * dc,
+    row: span.row + first * dr,
+    depth: last - first + 1,
+    depthBack: 0,
+    depthPerp: 0,
+    depthPerpBack: 0,
+  }
 }
 
 /** Is (col,row) within `range` cells of the player, measured RADIALLY (straight-line distance, not a box)?
