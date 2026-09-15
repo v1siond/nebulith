@@ -386,6 +386,141 @@ defmodule Nebulith.Catalog.GeneratorSource do
     "flooded" => %{"lattice" => 5, "spacing" => 3, "understory" => 0.7}
   }
 
+  # WHAT A PATHWAY IS MADE OF, per template.
+  #
+  # *"we need better pathways definitions on all templates too, here's what I expect"*, with nine isometric
+  # references, and *"we need the same variance for towns, we need towns with rustic pathways, street
+  # pathways, etc based of their specific characteristics"* (2026-09-15).
+  #
+  # WHAT WE HAD. Measured on a 40x40 before any of this: a woodland trail swapped the ground to the flat
+  # floor tile and tinted it, and a meadow and a jungle did not even do that. Their pathways were the SAME
+  # `meadow` ground as the field beside them, wearing a different colour. Every template was 3 cells across
+  # because `WOODLAND.pathWidth` was a constant in the engine, so a beach lane, a rainforest machete trail
+  # and a city street were one rectangle in three colours. Nothing lined any of them and nothing lay on them.
+  #
+  # WHAT THE REFERENCES SHOW, read off the nine he gave:
+  #
+  #   · a pathway is a MATERIAL, not a tint. Pale sand in the wood, warm dirt on the headland, grey asphalt
+  #     with markings in the beach town, planks over the swamp, flagstone where the built thing starts.
+  #   · WIDTH is the character. The park path and the forest crossroads are broad enough for three abreast.
+  #     The clifftop path above the beach is a single winding line. The seafront street is four lanes.
+  #   · the EDGE is ragged everywhere it is not built. Grass comes back into the dirt in tongues; only the
+  #     town kerb and the boardwalk are straight.
+  #   · things LIE ON IT: pebbles and leaf litter, scattered thinly, walkable. Both the wood and the park
+  #     show this and it is what stops a path reading as a painted stripe.
+  #   · things STAND BESIDE IT: boulders and ferns in the wood, tufts and a bench in the park, a regular row
+  #     of palms and lamp posts along the seafront. The lining is what tells you which place you are in
+  #     before you have looked at anything else.
+  #
+  # `surface` is a label the tilesets already serve, so a pathway is built from the catalogue like everything
+  # else. `edge` is the share of the border cells the field takes back, so 0 is a kerb and 0.5 is a track
+  # people wore. `scatter` lies ON the surface and never blocks. `lining` stands on the field cells that
+  # touch the path, and it blocks, which is what makes a lined path read as a corridor you follow.
+  @pathways %{
+    # The crossroads under the conifers: a broad pale track, pebbles across it, boulders and low scrub set
+    # back off the edge, and the grass coming back into it everywhere.
+    "forest_track" => %{
+      "surface" => "path_dirt", "width" => 3, "edge" => 0.35,
+      "scatter" => [%{"tile" => "decor_pebbles", "rate" => 0.1}],
+      "lining" => [%{"tile" => "rock", "rate" => 0.08}, %{"tile" => "shrub", "rate" => 0.1}]
+    },
+    # Rocky ground: the same track laid on stone rather than soil, so it is gravel, and the boulders are the
+    # thing you see. Fewer plants, because they are not what grows here.
+    "rocky_track" => %{
+      "surface" => "gravel", "width" => 3, "edge" => 0.4,
+      "scatter" => [%{"tile" => "decor_pebbles", "rate" => 0.16}],
+      "lining" => [%{"tile" => "rock", "rate" => 0.16}, %{"tile" => "shrub", "rate" => 0.05}]
+    },
+    # The park path: as broad as the forest track and far tidier, with the tufts and blooms a kept place has
+    # along it rather than boulders.
+    "park_path" => %{
+      "surface" => "path_dirt", "width" => 3, "edge" => 0.28,
+      "scatter" => [%{"tile" => "decor_pebbles", "rate" => 0.12}],
+      "lining" => [%{"tile" => "flower", "rate" => 0.1}, %{"tile" => "rock", "rate" => 0.04}]
+    },
+    # A trail cut through undergrowth, not a track laid down. Narrow, and the thing lining it is the
+    # undergrowth it was cut through, which is why it reads as a corridor.
+    "cut_trail" => %{
+      "surface" => "path_dirt", "width" => 2, "edge" => 0.5,
+      "scatter" => [%{"tile" => "decor_pebbles", "rate" => 0.05}],
+      # LINED WITH THE GRASS, NOT THE THICKET, and this is measured rather than chosen. Of every tile a
+      # pathway can be dressed with, `thicket` is the only one that BLOCKS, and lining a cut trail with it at
+      # 0.14 cost the plain jungle 8 points of placeable room on a map that had just been thinned to get that
+      # room back. It was redundant besides: thicket already grows over the whole jungle floor, so a hedge of
+      # it at the verge adds no information. Long grass crowding the trail is what makes the edge legible,
+      # and you walk through it.
+      "lining" => [%{"tile" => "tall_grass", "rate" => 0.22}, %{"tile" => "thicket", "rate" => 0.03}]
+    },
+    # The clifftop path above the beach: one winding line of warm dirt, scrub and the odd rock along it,
+    # nothing laid and nothing kept.
+    "coast_path" => %{
+      "surface" => "path_dirt", "width" => 2, "edge" => 0.45,
+      "scatter" => [%{"tile" => "decor_pebbles", "rate" => 0.08}],
+      "lining" => [%{"tile" => "shrub", "rate" => 0.12}, %{"tile" => "rock", "rate" => 0.06}]
+    },
+    # A boardwalk. It is BUILT, so its edge is straight and nothing lies on it; reeds stand off the side of
+    # it in the water it crosses.
+    "boardwalk" => %{
+      "surface" => "wooden_planks", "width" => 2, "edge" => 0.0,
+      "scatter" => [],
+      "lining" => [%{"tile" => "bush", "rate" => 0.1}]
+    },
+    # A village lane: stone underfoot, a near straight edge because somebody laid it, lamps along it and
+    # flowers at the foot of them.
+    "village_lane" => %{
+      "surface" => "path_stone", "width" => 3, "edge" => 0.15,
+      "scatter" => [%{"tile" => "decor_pebbles", "rate" => 0.05}],
+      "lining" => [%{"tile" => "lamp", "rate" => 0.1}, %{"tile" => "flower", "rate" => 0.07}]
+    },
+    # Cobbles between the houses of an older town, worn at the sides, lamps along them.
+    "cobbled_lane" => %{
+      "surface" => "cobblestone", "width" => 3, "edge" => 0.12,
+      "scatter" => [%{"tile" => "decor_pebbles", "rate" => 0.06}],
+      "lining" => [%{"tile" => "lamp", "rate" => 0.12}]
+    },
+    # A CITY STREET, which is what the beach town reference actually shows: four lanes of asphalt with a kerb
+    # you could rule, a lamp post rhythm down both sides, and nothing lying on it because a road is swept.
+    "city_street" => %{
+      "surface" => "road", "width" => 4, "edge" => 0.0,
+      "scatter" => [],
+      "lining" => [%{"tile" => "lamp", "rate" => 0.14}, %{"tile" => "shrub", "rate" => 0.06}]
+    },
+    # Sandy tracks through a beach town: the same dirt as the clifftop path, widened because carts use it,
+    # still nobody laying anything.
+    "sand_track" => %{
+      "surface" => "path_dirt", "width" => 3, "edge" => 0.3,
+      "scatter" => [%{"tile" => "decor_pebbles", "rate" => 0.1}],
+      "lining" => [%{"tile" => "shrub", "rate" => 0.1}]
+    }
+  }
+
+  # A SETTLEMENT'S STREETS ARE ITS PATHWAY, and they are read off the same block rather than repeated beside
+  # it. *"pathways size must apply to the streets distribution logic, in fact, they're rendundant, street is
+  # just a form of pathway"*. As two literals they had already drifted: a modern city's ways said asphalt
+  # while its streets said cobbles, a forest town's ways said dirt while its streets said stone, and a
+  # mountain town's said gravel against cobbles. One literal, so there is nothing left to disagree with.
+
+  # A SETTLEMENT'S STREETS ARE ITS OWN PATHWAY, derived rather than written twice.
+  #
+  # They are the same fact: *"pathways size must apply to the streets distribution logic, in fact, they're
+  # rendundant, street is just a form of pathway"*. As two literals they drifted, and INHERITANCE is what made
+  # it invisible. A modern city overrides its pathway to asphalt and says nothing about streets, so it went on
+  # inheriting its parent's cobbles and nobody had written a contradiction anywhere. Measured across the nine
+  # settlements when this was added: three disagreed with themselves.
+  #
+  # Deriving it here makes the contradiction unrepresentable instead of merely absent, and a row that states
+  # no pathway keeps whatever streets it has, so nothing that predates the pathway block moves.
+  defp streets_follow_the_pathway(%{config: %{"pathway" => %{"surface" => surface}, "settlement" => settlement} = config} = attrs)
+       when is_binary(surface) and is_map(settlement) do
+    %{attrs | config: %{config | "settlement" => Map.put(settlement, "streets", surface)}}
+  end
+
+  defp streets_follow_the_pathway(attrs), do: attrs
+
+  # One pathway definition, by key. A template names the kind of way it has and the block comes from the one
+  # table, so two templates that share a kind cannot drift apart on what it is.
+  defp pathway(key), do: Map.fetch!(@pathways, key)
+
   # THE JUNGLE'S SUB-ZONES. and 2026-09-11 on the shape: REGIONS INSIDE ONE MAP, not more rows in
   # the template list. You walk out of the open canopy into dense growth, through a swamp, up to the ruins,
   # without loading anything.
@@ -686,19 +821,19 @@ defmodule Nebulith.Catalog.GeneratorSource do
       %{
         category: "forest", key: "forest_woodland", name: "Woodland", layout: "woodland", variant: "forest", position: 0,
         description: "Dense trees with clearings cut into them, joined by paths.",
-        config: %{"grid" => @small_grid, "nature" => @woodland_nature, "units" => townsfolk(3), "palette" => @woodland_palette, "formation" => @formations["stand"], "trees" => @woodland_trees, "crossings" => @crossings},
+        config: %{"pathway" => pathway("forest_track"), "grid" => @small_grid, "nature" => @woodland_nature, "units" => townsfolk(3), "palette" => @woodland_palette, "formation" => @formations["stand"], "trees" => @woodland_trees, "crossings" => @crossings},
         options: @way_options ++ @water_options
       },
       %{
         category: "forest", key: "forest_jungle", name: "Jungle", layout: "jungle", variant: "forest", position: 1,
         description: "A closed canopy over choked undergrowth, with clearings cut into it.",
-        config: %{"grid" => @small_grid, "nature" => @jungle_nature, "units" => townsfolk(2), "palette" => @jungle_palette, "subZones" => @jungle_sub_zones, "formation" => @formations["closed"], "trees" => @jungle_trees, "crossings" => @crossings},
+        config: %{"pathway" => pathway("cut_trail"), "grid" => @small_grid, "nature" => @jungle_nature, "units" => townsfolk(2), "palette" => @jungle_palette, "subZones" => @jungle_sub_zones, "formation" => @formations["closed"], "trees" => @jungle_trees, "crossings" => @crossings},
         options: @way_options ++ region_options(~w(open dense swamp ruins)) ++ @water_options
       },
       %{
         category: "forest", key: "forest_meadow", name: "Meadow", layout: "meadow", variant: "forest", position: 2,
         description: "An open clearing framed by trees, with two ways in.",
-        config: %{"grid" => @small_grid, "nature" => @outdoor_nature, "units" => townsfolk(5), "formation" => @formations["scattered"], "trees" => @meadow_trees, "palette" => @meadow_palette, "crossings" => @crossings},
+        config: %{"pathway" => pathway("park_path"), "grid" => @small_grid, "nature" => @outdoor_nature, "units" => townsfolk(5), "formation" => @formations["scattered"], "trees" => @meadow_trees, "palette" => @meadow_palette, "crossings" => @crossings},
         options: @way_options ++ @water_options
       },
       # ── SUBTYPES ────────────────────────────────────────────────────────────────────────────────────
@@ -711,7 +846,7 @@ defmodule Nebulith.Catalog.GeneratorSource do
         category: "forest", parent: "forest_woodland", key: "forest_woodland_beech", name: "Beech stand",
         layout: "woodland", position: 0,
         description: "Tall straight trunks at even spacing over a clear floor.",
-        config: %{"formation" => @formations["stand"], "nature" => %{"canopy" => 0.45},
+        config: %{"pathway" => pathway("forest_track"), "formation" => @formations["stand"], "nature" => %{"canopy" => 0.45},
                   "trees" => [%{"kind" => "tree_column", "weight" => 55}, %{"kind" => "tree_tall", "weight" => 25}, %{"kind" => "tree", "weight" => 20}]}
       },
       # image #15 — the floor is the hard part: deep undergrowth, a trail through it
@@ -738,7 +873,7 @@ defmodule Nebulith.Catalog.GeneratorSource do
         # It sits at 68%/48% now, with 336 trees against a plain wood's 133 and a real thicket under them:
         # deep undergrowth with a trail cut through it, which is the description, and the ordering the rule
         # asks for is real again rather than asserted against a stale constant.
-        config: %{"formation" => @formations["understory"], "nature" => %{"canopy" => 0.47, "groundCover" => 0.2},
+        config: %{"pathway" => pathway("cut_trail"), "formation" => @formations["understory"], "nature" => %{"canopy" => 0.47, "groundCover" => 0.2},
                   "trees" => [%{"kind" => "tree_column", "weight" => 35}, %{"kind" => "tree_tall", "weight" => 28}, %{"kind" => "tree", "weight" => 20}, %{"kind" => "tree_big", "weight" => 10}, %{"kind" => "tree_sapling", "weight" => 7}]}
       },
       # image #12 — conifers in patches over an open hillside
@@ -746,7 +881,7 @@ defmodule Nebulith.Catalog.GeneratorSource do
         category: "forest", parent: "forest_woodland", key: "forest_woodland_mountain", name: "Mountain forest",
         layout: "woodland", position: 2,
         description: "Conifers over a hillside that actually climbs: ridges, slopes and sheltered vales.",
-        config: %{"formation" => @formations["clumped"], "nature" => %{"canopy" => 0.28},
+        config: %{"pathway" => pathway("rocky_track"), "formation" => @formations["clumped"], "nature" => %{"canopy" => 0.28},
                   "subZones" => sub_zones(@mountain_sub_zones, %{"ridge" => 2, "slope" => 3, "vale" => 2}),
                   "trees" => [%{"kind" => "tree_conifer", "weight" => 70}, %{"kind" => "tree_tall", "weight" => 15}, %{"kind" => "tree_stub", "weight" => 15}]},
         options: @way_options ++ region_options(@mountain_sub_zones, ~w(ridge slope vale)) ++ @water_options
@@ -756,7 +891,7 @@ defmodule Nebulith.Catalog.GeneratorSource do
         category: "forest", parent: "forest_woodland", key: "forest_woodland_glades", name: "Woodland with meadows",
         layout: "woodland", position: 3,
         description: "Closed stands of trees with open meadow between them.",
-        config: %{"formation" => @formations["clumped"], "nature" => %{"canopy" => 0.4},
+        config: %{"pathway" => pathway("park_path"), "formation" => @formations["clumped"], "nature" => %{"canopy" => 0.4},
                   "subZones" => sub_zones(@woodland_sub_zones, %{"stand" => 3, "meadow" => 2}),
                   "trees" => [%{"kind" => "tree", "weight" => 30}, %{"kind" => "tree_round", "weight" => 25}, %{"kind" => "tree_broadleaf", "weight" => 25}, %{"kind" => "tree_gnarled", "weight" => 20}]},
         options: @way_options ++ region_options(@woodland_sub_zones, ~w(stand meadow)) ++ @water_options
@@ -768,7 +903,7 @@ defmodule Nebulith.Catalog.GeneratorSource do
         description: "A closed canopy wall to wall, almost no open ground.",
         # Thinned by the same ratio as the parent (0.84x), so it stays the densest jungle without being the
         # one map you cannot walk across.
-        config: %{"nature" => %{"canopy" => 0.36}, "subZones" => sub_zones(%{"dense" => 5, "open" => 1})},
+        config: %{"pathway" => pathway("cut_trail"), "nature" => %{"canopy" => 0.36}, "subZones" => sub_zones(%{"dense" => 5, "open" => 1})},
         options: @way_options ++ region_options(~w(open dense)) ++ @water_options
       },
       # image #13 — cypress standing in the water
@@ -776,7 +911,7 @@ defmodule Nebulith.Catalog.GeneratorSource do
         category: "forest", parent: "forest_jungle", key: "forest_jungle_swamp", name: "Swamp jungle",
         layout: "jungle", position: 1,
         description: "Mostly swamp, cypress standing in the water.",
-        config: %{"subZones" => sub_zones_in(%{"swamp" => 6, "dense" => 2, "open" => 1}, @swamp_regions)},
+        config: %{"pathway" => pathway("boardwalk"), "subZones" => sub_zones_in(%{"swamp" => 6, "dense" => 2, "open" => 1}, @swamp_regions)},
         options: @way_options ++ region_options(~w(open dense swamp)) ++ @water_options
       },
       # an island: water around it, palms
@@ -790,7 +925,7 @@ defmodule Nebulith.Catalog.GeneratorSource do
         # jungle's, down to the hex. Only the tree weights differed and you cannot see a weight. An island is
         # brighter and paler than rainforest: sand where a jungle has peat, turquoise where a jungle has
         # blue-brown, and a canopy that is yellow-green rather than near-black.
-        config: %{"subZones" => sub_zones_in(%{"open" => 3, "dense" => 2}, @island_regions),
+        config: %{"pathway" => pathway("coast_path"), "subZones" => sub_zones_in(%{"open" => 3, "dense" => 2}, @island_regions),
                   "palette" => Map.merge(@jungle_palette, %{
                     "floor" => "#7c8a4e",
                     "floorAlt" => "#8c9a5b",
@@ -815,7 +950,7 @@ defmodule Nebulith.Catalog.GeneratorSource do
         category: "forest", parent: "forest_jungle", key: "forest_jungle_ruins", name: "Jungle ruins",
         layout: "jungle", position: 3,
         description: "Ruins the jungle has taken back.",
-        config: %{"subZones" => sub_zones(%{"ruins" => 5, "dense" => 2, "open" => 2})},
+        config: %{"pathway" => pathway("forest_track"), "subZones" => sub_zones(%{"ruins" => 5, "dense" => 2, "open" => 2})},
         options: @way_options ++ region_options(~w(open dense ruins)) ++ @water_options
       },
       # image #10 — big lone trees wide apart on open grass
@@ -823,14 +958,14 @@ defmodule Nebulith.Catalog.GeneratorSource do
         category: "forest", parent: "forest_meadow", key: "forest_meadow_pasture", name: "Wood pasture",
         layout: "meadow", position: 0,
         description: "Big lone trees standing wide apart on open grass.",
-        config: %{"formation" => @formations["scattered"],
+        config: %{"pathway" => pathway("park_path"), "formation" => @formations["scattered"],
                   "trees" => [%{"kind" => "tree_gnarled", "weight" => 60}, %{"kind" => "tree_broadleaf", "weight" => 25}, %{"kind" => "bush_round", "weight" => 15}]}
       },
       %{
         category: "forest", parent: "forest_meadow", key: "forest_meadow_open", name: "Open meadow",
         layout: "meadow", position: 1,
         description: "The open clearing, as it is.",
-        config: %{}
+        config: %{"pathway" => pathway("park_path"), }
       },
       # ── SETTLEMENTS, BUILT LIKE FORESTS ─────────────────────────────────────────────────────────────
       # and
@@ -849,12 +984,11 @@ defmodule Nebulith.Catalog.GeneratorSource do
       %{
         category: "settlement", key: "town", name: "Town", layout: "town", variant: "town", position: 0,
         description: "Houses along stone pathways, a square in the middle, trees between the lots.",
-        config: %{
+        config: %{"pathway" => pathway("village_lane"), 
           "grid" => @small_grid,
           "settlement" => settlement(plaza: 5, lot_gap: [1, 2], max_per_frontage: 6, cap: 18,
                                      houses: [4, 6], nature_mult: 1.3,
-                                     mix: [{"temple", 1, 1}, {"church", 1, 1}, {"stable", 1, 2}, {"barn", 1, 2}, {"smithy", 1, 1}],
-                                     streets: "path_stone"),
+                                     mix: [{"temple", 1, 1}, {"church", 1, 1}, {"stable", 1, 2}, {"barn", 1, 2}, {"smithy", 1, 1}]),
           "nature" => @outdoor_nature,
           "entrance" => "town_entrance",
           "units" => townsfolk(8),
@@ -870,12 +1004,11 @@ defmodule Nebulith.Catalog.GeneratorSource do
       %{
         category: "settlement", key: "city", name: "City", layout: "city", variant: "city", position: 1,
         description: "Blocks and towers on paved streets, wide junctions, little green.",
-        config: %{
+        config: %{"pathway" => pathway("city_street"), 
           "grid" => @city_grid,
           "settlement" => settlement(plaza: 7, lot_gap: [1, 1], max_per_frontage: 99, cap: 72,
                                      houses: [7, 11], demanded_houses: {3, 5}, nature_mult: 0.5,
-                                     mix: [{"temple", 1, 1}, {"tower", 3, 5}, {"apartment", 4, 7}, {"office", 2, 4}],
-                                     streets: "road"),
+                                     mix: [{"temple", 1, 1}, {"tower", 3, 5}, {"apartment", 4, 7}, {"office", 2, 4}]),
           "nature" => @outdoor_nature,
           "entrance" => "town_entrance",
           "units" => townsfolk(14),
@@ -894,7 +1027,7 @@ defmodule Nebulith.Catalog.GeneratorSource do
         category: "settlement", parent: "town", key: "town_small", name: "Small town",
         layout: "town", position: 0,
         description: "A handful of timber houses and green between every one of them.",
-        config: %{
+        config: %{"pathway" => pathway("village_lane"), 
           "settlement" => %{
             "buildingCap" => 12, "houseRange" => [3, 5], "natureMultiplier" => 1.8,
             "mix" => mix([{"church", 1, 1}, {"stable", 1, 1}, {"barn", 1, 1}])
@@ -908,10 +1041,9 @@ defmodule Nebulith.Catalog.GeneratorSource do
         category: "settlement", parent: "town", key: "town_forest", name: "Forest village",
         layout: "town", position: 1,
         description: "Timber houses under the trees, joined by paths of stone.",
-        config: %{
+        config: %{"pathway" => pathway("forest_track"), 
           "settlement" => %{
             "buildingCap" => 14, "houseRange" => [4, 6], "natureMultiplier" => 2.4,
-            "streets" => "path_stone",
             "mix" => mix([{"stable", 1, 1}, {"barn", 1, 2}, {"smithy", 1, 1}])
           },
           "nature" => %{"groundCover" => 0.28, "flowers" => 0.08, "tallGrass" => 0.22},
@@ -924,9 +1056,9 @@ defmodule Nebulith.Catalog.GeneratorSource do
         category: "settlement", parent: "town", key: "town_mountain", name: "Mountain town",
         layout: "town", position: 2,
         description: "Stone walls under slate, cobbled streets, conifers around the edge.",
-        config: %{
+        config: %{"pathway" => pathway("cobbled_lane"), 
           "settlement" => %{
-            "buildingCap" => 16, "natureMultiplier" => 1.5, "streets" => "cobblestone",
+            "buildingCap" => 16, "natureMultiplier" => 1.5,
             "mix" => mix([{"church", 1, 1}, {"manor", 1, 1}, {"stable", 1, 1}, {"smithy", 1, 1}])
           },
           "units" => townsfolk(7),
@@ -943,9 +1075,9 @@ defmodule Nebulith.Catalog.GeneratorSource do
         category: "settlement", parent: "town", key: "town_beach", name: "Beach town",
         layout: "town", position: 3,
         description: "Bleached timber along sandy tracks, hardly a tree in sight.",
-        config: %{
+        config: %{"pathway" => pathway("sand_track"), 
           "settlement" => %{
-            "buildingCap" => 14, "natureMultiplier" => 0.6, "streets" => "path_dirt",
+            "buildingCap" => 14, "natureMultiplier" => 0.6,
             "mix" => mix([{"store", 1, 2}, {"barn", 1, 1}])
           },
           "nature" => %{"groundCover" => 0.06, "flowers" => 0.03, "tallGrass" => 0.08},
@@ -962,10 +1094,10 @@ defmodule Nebulith.Catalog.GeneratorSource do
         category: "settlement", parent: "town", key: "town_swamp", name: "Swamp village",
         layout: "town", position: 4, zones: ~w(spring summer),
         description: "Wooden huts on boardwalks over a green flat.",
-        config: %{
+        config: %{"pathway" => pathway("boardwalk"), 
           "settlement" => %{
             "plazaSize" => 3, "maxPerFrontage" => 4, "buildingCap" => 12,
-            "natureMultiplier" => 2.0, "streets" => "wooden_planks",
+            "natureMultiplier" => 2.0,
             # No barn and no stable: there is no pasture in a swamp and nothing to keep in one. Huts, and a
             # forge for the boats. Leaving the farm buildings in made this the forest village in other colours.
             "mix" => mix([{"smithy", 1, 1}])
@@ -989,7 +1121,7 @@ defmodule Nebulith.Catalog.GeneratorSource do
         category: "settlement", parent: "city", key: "city_modern", name: "Modern city",
         layout: "city", position: 0,
         description: "Towers and blocks of flats under flat grey decks.",
-        config: %{
+        config: %{"pathway" => pathway("city_street"), 
           "settlement" => %{
             "mix" => mix([{"tower", 4, 6}, {"apartment", 5, 8}, {"office", 2, 4}])
           },
@@ -1001,9 +1133,9 @@ defmodule Nebulith.Catalog.GeneratorSource do
         category: "settlement", parent: "city", key: "city_medieval", name: "Medieval city",
         layout: "city", position: 1,
         description: "Stone under slate on cobbled streets, a cathedral and a castle, nothing tall.",
-        config: %{
+        config: %{"pathway" => pathway("cobbled_lane"), 
           "settlement" => %{
-            "buildingCap" => 54, "lotGap" => [1, 1], "natureMultiplier" => 0.8, "streets" => "cobblestone",
+            "buildingCap" => 54, "lotGap" => [1, 1], "natureMultiplier" => 0.8,
             "mix" => mix([{"cathedral", 1, 1}, {"castle", 1, 1}, {"manor", 2, 4}, {"smithy", 1, 2}, {"church", 1, 2}])
           },
           "units" => townsfolk(14),
@@ -1059,6 +1191,7 @@ defmodule Nebulith.Catalog.GeneratorSource do
       params =
         attrs
         |> Map.drop([:category, :parent])
+        |> streets_follow_the_pathway()
         |> Map.put(:category_id, Map.fetch!(ids, attrs.category))
         # A ROW MAY IMPLY ITS SEASON. A row that states its own seasons keeps them; everything else runs in all of
         # them.
@@ -1107,13 +1240,15 @@ defmodule Nebulith.Catalog.GeneratorSource do
       "houseWidths" => [3, 3, 4, 4, 4, 5, 6],
       "natureMultiplier" => Keyword.fetch!(opts, :nature_mult),
       "mix" => mix(Keyword.fetch!(opts, :mix), Keyword.get(opts, :demanded_houses, {1, 3})),
-      # WHAT THIS PLACE PAVES ITS STREETS WITH.
+      # WHAT THIS PLACE PAVES ITS STREETS WITH, and it is no longer stated here.
       #
-      # Measured before writing this: the settlement pass painted every street `road` for a town and a city
-      # alike, so a village had asphalt through it. A street is a COLOUR on the ground block, not a tile
-      # (tickets #34/#48), so this names the ground whose colour a street takes. Every label here is one both
-      # tilesets already carry, so no place is asking for art that does not exist.
-      "streets" => Keyword.fetch!(opts, :streets)
+      # Measured before this existed: the settlement pass painted every street `road` for a town and a city
+      # alike, so a village had asphalt through it. Naming it per settlement fixed that and introduced a
+      # second problem, because a settlement's streets and its `pathway` are the same fact written twice, and
+      # written twice they drifted. `streets_follow_the_pathway/1` derives it at seed time from the row's own
+      # pathway, so the two cannot disagree. A placeholder is kept so the key exists at the shape the editor
+      # and the frontend expect; the derivation overwrites it for every row that states a pathway.
+      "streets" => Keyword.get(opts, :streets, "path_stone")
     }
   end
 
