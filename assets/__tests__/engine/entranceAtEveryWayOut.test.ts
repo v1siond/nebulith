@@ -59,12 +59,13 @@ describe.each(CASES)('$cat $layout', c => {
   it('turns each one to face the side its gate is on', () => {
     const s = build(c, 4)
     const TURN: Record<string, number> = { south: 0, west: 1, north: 2, east: 3 }
-    for (const gate of s.routes!.gates) {
-      const middle = gate.cells[Math.floor(gate.cells.length / 2)]
-      const at = entrances(s).find(e => e.col === middle.col && e.row === middle.row)
-      expect(at).toBeDefined()
-      expect(at!.rotation ?? 0).toBe(TURN[gate.side])
-    }
+    // MATCHED BY ROTATION, NOT BY POSITION. This used to find each entrance by asking which one was anchored
+    // ON the gate's middle cell, which assumed the anchor IS that cell. That assumption was the bug: a
+    // composition anchors at its top-left, so anchoring it on the gate middle put a 7-wide entrance three
+    // columns to the side and grew it off the map. The turns are what this case is about, so it compares the
+    // turns, and `entranceSitsOnThePathway` is where the anchor arithmetic is pinned.
+    const turned = entrances(s).map(e => e.rotation ?? 0).sort()
+    expect(turned).toEqual(s.routes!.gates.map(g => TURN[g.side]).sort())
   })
 
   it('serves no entrance → stamps none, and the opening is simply bare', () => {
