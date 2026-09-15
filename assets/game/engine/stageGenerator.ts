@@ -2035,6 +2035,12 @@ function clearPathSightlines(ctx: ArchetypeContext): void {
   const inBand = (c: number, r: number) => Math.min(c, r, cols - 1 - c, rows - 1 - r) < EDGE_TREELINE
   for (const key of plan.cells) {
     const { col, row } = toCell(key)
+    // NOTHING STANDS IN A ROAD, INCLUDING IN THE BAND.
+    //
+    // `mayClear` keeps the RING shut where no gate runs, which is right: a tree there holds the map's edge.
+    // But a way's own cells one and two rows in from the ring were being spared as well, and that is the
+    // gate CORRIDOR: the stretch you walk out through. Measured on his meadow, trees stood at 15,38 and
+    // 15,39 on a gate at 12 to 14, so the way out had trees in it and the exit was off to the side.
     if (inBounds(col, row, cols, rows) && mayClear(col, row)) mustSee.add(key) // nothing stands IN a road
     for (const [dc, dr] of [[1, 0], [0, 1]] as const) {
       const c = col + dc, r = row + dr
