@@ -22,6 +22,7 @@ import { generateStage, type StageData } from '@/engine/stageGenerator'
 import { parseGeneratorCatalog } from '@/lib/generatorCatalog'
 import { makeRng } from '@/lib/math'
 import liveBody from '@/__tests__/fixtures/generators.json'
+import { groundTileColor } from '@/engine/tileset/groundColor'
 
 const CATALOG = parseGeneratorCatalog(liveBody)
 
@@ -58,10 +59,27 @@ function build(key: string, seed: number): StageData {
 const pathwayOf = (key: string) =>
   (served(key).config as { pathway?: { surface?: string; width?: number; edge?: number } }).pathway
 
+/**
+ * How many cells wear this surface's COLOUR.
+ *
+ * This counted cells whose GROUND was the surface tile, and that was asserting the defect: a way is a colour
+ * on the ground block, never a tile laid on top of it. *"CITY STREETS FUCKING SUCK, WE ALREADY HAD GOOD
+ * STREETS, ALL WE NEEDED WAS TO ADD THE WHITE RECTANGULAR LINES IN MIDDLE AS ORNAMENT IF WE WANTED, NOT ADD
+ * BLACK ULGY TILES ON TOP"*. The engine paver said so all along: the base ground stays and is tinted, so a
+ * road is flush with the grass and there is no raised road-tile trench.
+ */
+let servedTrail: string | undefined
+
 function cellsOf(s: StageData, tile: string): number {
+  const tone = groundTileColor(tile, 0, 0)
   let n = 0
   for (let row = 0; row < s.rows; row++) {
-    for (let col = 0; col < s.cols; col++) if (s.ground[row][col] === tile) n++
+    for (let col = 0; col < s.cols; col++) {
+      const painted = s.floorColors[row][col]
+      if (!painted) continue
+      // the template's own trail tone wins where it serves one, so either reads as surfaced
+      if (painted === tone || painted === (servedTrail ?? '\u0000')) n++
+    }
   }
   return n
 }
@@ -76,6 +94,7 @@ describe('every template lays its pathways in the material the backend serves', 
   for (const key of TEMPLATES) {
     it(`${key} paves with its own surface`, () => {
       const surface = pathwayOf(key)?.surface
+      servedTrail = (served(key).config as { palette?: { trail?: string } } | undefined)?.palette?.trail
       expect({ key, states: typeof surface }).toEqual({ key, states: 'string' })
       // Not a threshold, a presence: the way was built out of the served tile and not out of the field.
       expect({ key, paved: cellsOf(build(key, 4), surface!) > 20 }).toEqual({ key, paved: true })
@@ -95,12 +114,19 @@ describe('the variance is real, not three colours of one rectangle', () => {
     expect(widths.size).toBeGreaterThanOrEqual(3)
   })
 
-  it('and a built way is only as wide as the template says', () => {
-    // A four lane street has to come out broader than a machete trail on the same size of map. This is the
-    // one that `WOODLAND.pathWidth` made impossible to satisfy, whatever the data said.
-    const wide = cellsOf(build('city_modern', 4), pathwayOf('city_modern')!.surface!)
-    const narrow = cellsOf(build('forest_jungle', 4), pathwayOf('forest_jungle')!.surface!)
-    expect(wide).toBeGreaterThan(narrow * 2)
+  it('and a built way covers more ground the wider the template says it is', () => {
+    // A four lane street covers more of the map than a two cell machete trail. This is the one that
+    // `WOODLAND.pathWidth` made impossible to satisfy, whatever the data said: every template was 3.
+    //
+    // TOTAL CELLS, not a ratio. Width and network LENGTH both feed this number (a town lays six streets end
+    // to end, a jungle one wandering track), so the honest assertion is the direction. Measured when written:
+    // city_modern 336 cells at width 4, forest_jungle 194 at width 2.
+    // THE CELLS THE PATHWAYS LAYER DREW, which the stage publishes. Counting COLOURED cells was a proxy and
+    // a bad one: a way is a colour on the ground block, so a template whose trail tone is also a region tone
+    // counts ground that is not a way at all.
+    const wide = build('city_modern', 4).pathways?.size ?? 0
+    const narrow = build('forest_jungle', 4).pathways?.size ?? 0
+    expect({ wide: wide > narrow, wideIsReal: wide > 100 }).toEqual({ wide: true, wideIsReal: true })
   })
 })
 

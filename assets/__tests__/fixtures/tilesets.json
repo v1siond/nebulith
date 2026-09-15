@@ -23820,6 +23820,187 @@
             "h": 5,
             "w": 5
           }
+        },
+        "town_entrance": {
+          "title": null,
+          "category": "props",
+          "cells": [
+            {
+              "label": "pillar",
+              "level": 0,
+              "scale": 1.0,
+              "settings": {
+                "display": "single",
+                "transparent": true
+              },
+              "dx": 0,
+              "dy": 0,
+              "walkable": false,
+              "zIndex": 0
+            },
+            {
+              "label": "torii-gate",
+              "level": 1,
+              "scale": 1.0,
+              "settings": {
+                "depth": 3,
+                "depthDir": "right-down",
+                "display": "single",
+                "scaleY": 0.55,
+                "transparent": true
+              },
+              "dx": 0,
+              "dy": 0,
+              "walkable": true,
+              "zIndex": 0
+            },
+            {
+              "label": "lamp",
+              "level": 0,
+              "scale": 0.7,
+              "settings": {
+                "display": "single",
+                "transparent": true
+              },
+              "dx": 0,
+              "dy": 1,
+              "walkable": true,
+              "zIndex": 0
+            },
+            {
+              "label": "path_stone",
+              "level": 0,
+              "scale": 1.0,
+              "settings": {
+                "scaleY": 0.06
+              },
+              "dx": 1,
+              "dy": 0,
+              "walkable": true,
+              "zIndex": 0
+            },
+            {
+              "label": "pillar",
+              "level": 0,
+              "scale": 1.0,
+              "settings": {
+                "display": "single",
+                "transparent": true
+              },
+              "dx": 2,
+              "dy": 0,
+              "walkable": false,
+              "zIndex": 0
+            },
+            {
+              "label": "lamp",
+              "level": 0,
+              "scale": 0.7,
+              "settings": {
+                "display": "single",
+                "transparent": true
+              },
+              "dx": 2,
+              "dy": 1,
+              "walkable": true,
+              "zIndex": 0
+            }
+          ],
+          "footprint": {
+            "h": 2,
+            "w": 3
+          }
+        },
+        "cave_entrance": {
+          "title": null,
+          "category": "props",
+          "cells": [
+            {
+              "label": "cliff_face",
+              "level": 0,
+              "scale": 1.0,
+              "settings": {
+                "display": "single",
+                "transparent": true
+              },
+              "dx": 0,
+              "dy": 0,
+              "walkable": false,
+              "zIndex": 0
+            },
+            {
+              "label": "boulder",
+              "level": 1,
+              "scale": 1.0,
+              "settings": {
+                "depth": 3,
+                "depthDir": "right-down",
+                "display": "single",
+                "scaleY": 0.55,
+                "transparent": true
+              },
+              "dx": 0,
+              "dy": 0,
+              "walkable": true,
+              "zIndex": 0
+            },
+            {
+              "label": "boulder",
+              "level": 0,
+              "scale": 0.7,
+              "settings": {
+                "display": "single",
+                "transparent": true
+              },
+              "dx": 0,
+              "dy": 1,
+              "walkable": true,
+              "zIndex": 0
+            },
+            {
+              "label": "cave_floor",
+              "level": 0,
+              "scale": 1.0,
+              "settings": {
+                "color": "#08080c",
+                "scaleY": 0.06
+              },
+              "dx": 1,
+              "dy": 0,
+              "walkable": true,
+              "zIndex": 0
+            },
+            {
+              "label": "cliff_face",
+              "level": 0,
+              "scale": 1.0,
+              "settings": {
+                "display": "single",
+                "transparent": true
+              },
+              "dx": 2,
+              "dy": 0,
+              "walkable": false,
+              "zIndex": 0
+            },
+            {
+              "label": "boulder",
+              "level": 0,
+              "scale": 0.7,
+              "settings": {
+                "display": "single",
+                "transparent": true
+              },
+              "dx": 2,
+              "dy": 1,
+              "walkable": true,
+              "zIndex": 0
+            }
+          ],
+          "footprint": {
+            "h": 2,
+            "w": 3
+          }
         }
       }
     },
@@ -46699,6 +46880,187 @@
           "footprint": {
             "h": 5,
             "w": 5
+          }
+        },
+        "town_entrance": {
+          "title": null,
+          "category": "props",
+          "cells": [
+            {
+              "label": "pillar",
+              "level": 0,
+              "scale": 1.0,
+              "settings": {
+                "display": "single",
+                "transparent": true
+              },
+              "dx": 0,
+              "dy": 0,
+              "walkable": false,
+              "zIndex": 0
+            },
+            {
+              "label": "torii-gate",
+              "level": 1,
+              "scale": 1.0,
+              "settings": {
+                "depth": 3,
+                "depthDir": "right-down",
+                "display": "single",
+                "scaleY": 0.55,
+                "transparent": true
+              },
+              "dx": 0,
+              "dy": 0,
+              "walkable": true,
+              "zIndex": 0
+            },
+            {
+              "label": "lamp",
+              "level": 0,
+              "scale": 0.7,
+              "settings": {
+                "display": "single",
+                "transparent": true
+              },
+              "dx": 0,
+              "dy": 1,
+              "walkable": true,
+              "zIndex": 0
+            },
+            {
+              "label": "path_stone",
+              "level": 0,
+              "scale": 1.0,
+              "settings": {
+                "scaleY": 0.06
+              },
+              "dx": 1,
+              "dy": 0,
+              "walkable": true,
+              "zIndex": 0
+            },
+            {
+              "label": "pillar",
+              "level": 0,
+              "scale": 1.0,
+              "settings": {
+                "display": "single",
+                "transparent": true
+              },
+              "dx": 2,
+              "dy": 0,
+              "walkable": false,
+              "zIndex": 0
+            },
+            {
+              "label": "lamp",
+              "level": 0,
+              "scale": 0.7,
+              "settings": {
+                "display": "single",
+                "transparent": true
+              },
+              "dx": 2,
+              "dy": 1,
+              "walkable": true,
+              "zIndex": 0
+            }
+          ],
+          "footprint": {
+            "h": 2,
+            "w": 3
+          }
+        },
+        "cave_entrance": {
+          "title": null,
+          "category": "props",
+          "cells": [
+            {
+              "label": "cliff_face",
+              "level": 0,
+              "scale": 1.0,
+              "settings": {
+                "display": "single",
+                "transparent": true
+              },
+              "dx": 0,
+              "dy": 0,
+              "walkable": false,
+              "zIndex": 0
+            },
+            {
+              "label": "boulder",
+              "level": 1,
+              "scale": 1.0,
+              "settings": {
+                "depth": 3,
+                "depthDir": "right-down",
+                "display": "single",
+                "scaleY": 0.55,
+                "transparent": true
+              },
+              "dx": 0,
+              "dy": 0,
+              "walkable": true,
+              "zIndex": 0
+            },
+            {
+              "label": "boulder",
+              "level": 0,
+              "scale": 0.7,
+              "settings": {
+                "display": "single",
+                "transparent": true
+              },
+              "dx": 0,
+              "dy": 1,
+              "walkable": true,
+              "zIndex": 0
+            },
+            {
+              "label": "cave_floor",
+              "level": 0,
+              "scale": 1.0,
+              "settings": {
+                "color": "#08080c",
+                "scaleY": 0.06
+              },
+              "dx": 1,
+              "dy": 0,
+              "walkable": true,
+              "zIndex": 0
+            },
+            {
+              "label": "cliff_face",
+              "level": 0,
+              "scale": 1.0,
+              "settings": {
+                "display": "single",
+                "transparent": true
+              },
+              "dx": 2,
+              "dy": 0,
+              "walkable": false,
+              "zIndex": 0
+            },
+            {
+              "label": "boulder",
+              "level": 0,
+              "scale": 0.7,
+              "settings": {
+                "display": "single",
+                "transparent": true
+              },
+              "dx": 2,
+              "dy": 1,
+              "walkable": true,
+              "zIndex": 0
+            }
+          ],
+          "footprint": {
+            "h": 2,
+            "w": 3
           }
         }
       }

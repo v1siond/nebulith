@@ -249,6 +249,15 @@ export interface StageData {
    * READS.
    */
   decks?: ReadonlySet<string>
+  /**
+   * EVERY CELL THE PATHWAYS LAYER DREW AS A WAY.
+   *
+   * The structure that layer produced, which nothing downstream could ask for. Anything that wanted to know
+   * "is this cell a way" had to guess from the ground label or from a colour, and a way is a COLOUR on the
+   * ground block, so both guesses are wrong the moment two things share a tone. Undefined when the map has
+   * none. Carried for the same reason as `decks`: state the generator PICKS and everything after it READS.
+   */
+  pathways?: ReadonlySet<string>
   connectors: Connector[]
   spawn: { col: number; row: number }
   /** THE WAYS THROUGH THIS MAP as they were planned, before anything was planted (see `pathNetwork`), or null
@@ -1249,6 +1258,7 @@ export function generateStage(opts: GenerateOptions): StageData {
     // anything downstream that needed to ask "is this a bridge" had to guess from tile NAMES. Undefined when
     // the map has no crossing, so nothing changes for a map without one.
     decks: ctx.decks.size === 0 ? undefined : ctx.decks,
+    pathways: ctx.pathwayCells.size === 0 ? undefined : ctx.pathwayCells,
   }
 }
 
@@ -1349,7 +1359,13 @@ export function layoutPass(ctx: ArchetypeContext, settlement: Settlement): Villa
       // and is tinted asphalt, so a
       // road is FLUSH with the grass — no raised road-tile trench. Road IDENTITY lives in `layout.roads` (read by
       // placement + scatter), never re-derived from the ground kind.
-      if (layout.roads[r][c]) ctx.floorColors[r][c] = groundTileColor(streets, c, r)
+      if (!layout.roads[r][c]) continue
+      ctx.floorColors[r][c] = groundTileColor(streets, c, r)
+      // AND A STREET IS A PATHWAY, so it says so. Nothing recorded a settlement's streets as pathway cells,
+      // so `ctx.pathwayCells` was empty for every town and city: the served pathway surface, its scatter and
+      // its lining all had nothing to act on, and the guard that keeps things out of a road saw no road. The
+      // forests have filled this since they were split into phases; a settlement simply never did.
+      ctx.pathwayCells.add(`${c},${r}`)
     }
   }
   snapGatesToStreets(ctx, layout)
@@ -2462,11 +2478,21 @@ function pavableLane(ctx: ArchetypeContext, plan: RoutePlan): Set<string> {
 function paveLane(ctx: ArchetypeContext, lane: ReadonlySet<string>, way: GeneratorPathway): void {
   const surface = way.surface
   if (!surface) return
+  // A WAY IS A COLOUR ON THE GROUND BLOCK, NEVER A TILE LAID ON TOP OF IT.
+  //
+  // This wrote `ground[row][col] = surface`, which is the exact thing the settlement paver forty lines up has
+  // warned against since it was written: *"Roads are a COLOUR on the ground BLOCK, not a separate ROAD tile.
+  // The base ground stays (a height-1 block) and is tinted asphalt, so a road is FLUSH with the grass, no
+  // raised road-tile trench"*. Swapping the tile puts a second block on the map, which is why it read as
+  // *"BLACK ULGY TILES ON TOP"* and why every floor came out wrong at once.
+  //
+  // The surface still decides the LOOK, because a tile's colour is what it is made of: `road` gives asphalt,
+  // `gravel` grey, `path_dirt` tan, `cobblestone` its own. The template's trail tone overrides it where one is
+  // served, which is how a season shades the same material.
   const tone = ctx.palette?.trail
   for (const key of lane) {
     const { col, row } = toCell(key)
-    ctx.ground[row][col] = surface
-    if (tone) ctx.floorColors[row][col] = tone
+    ctx.floorColors[row][col] = tone ?? groundTileColor(surface, col, row)
   }
 }
 
@@ -2518,9 +2544,31 @@ function lineTheLane(ctx: ArchetypeContext, lane: ReadonlySet<string>, way: Gene
       if (ctx.rand() >= rate) continue
       const { col, row } = toCell(key)
       if (ctx.collision[row][col]) continue
-      placeProp(ctx, makePlant(ctx.zone, col, row, tile))
+      placeLining(ctx, col, row, tile)
     }
   }
+}
+
+/**
+ * PUT DOWN ONE LINING ITEM, as whatever the catalogue says it IS.
+ *
+ * *"you keep using tiles as standalone elements when they're just lego pieces in our system"*, and this is
+ * exactly that: the lining placed every served name as a bare tile, so `lamp` came out as a yellow cube with
+ * a bulb painted on it standing beside every street. A lamp is a COMPOSITION, a post with the lamp on top,
+ * and the generator has said so in `placeLampPost` all along: *"stamped at load, NOT a single lamp prop, so
+ * both art styles render the IDENTICAL post+lamp structure"*.
+ *
+ * So the name is asked of the catalogue rather than assumed to be a tile. A composition is stamped as one; a
+ * tile is a prop. Nothing here lists which is which, so a composition added in the backend simply works.
+ */
+function placeLining(ctx: ArchetypeContext, col: number, row: number, name: string): void {
+  if (resolveComposition(styleCatalog('ascii'), name)) {
+    if (!isLandCell(ctx, col, row)) return
+    ctx.compositions.push({ kind: name, col, row })
+    ctx.collision[row][col] = true
+    return
+  }
+  placeProp(ctx, makePlant(ctx.zone, col, row, name))
 }
 
 /**

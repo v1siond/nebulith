@@ -188,30 +188,6 @@
             {
               "choices": [
                 {
-                  "key": "terrain",
-                  "label": "Terrain only: the bare ground"
-                },
-                {
-                  "key": "water",
-                  "label": "\u2026and the water"
-                },
-                {
-                  "key": "pathways",
-                  "label": "\u2026and the pathways and exits"
-                },
-                {
-                  "key": "objects",
-                  "label": "The whole map"
-                }
-              ],
-              "default": "objects",
-              "key": "upTo",
-              "label": "Build up to",
-              "type": "choice"
-            },
-            {
-              "choices": [
-                {
                   "key": "none",
                   "label": "No river"
                 },
@@ -444,30 +420,6 @@
                   "default": "random",
                   "key": "pathways",
                   "label": "Pathways",
-                  "type": "choice"
-                },
-                {
-                  "choices": [
-                    {
-                      "key": "terrain",
-                      "label": "Terrain only: the bare ground"
-                    },
-                    {
-                      "key": "water",
-                      "label": "\u2026and the water"
-                    },
-                    {
-                      "key": "pathways",
-                      "label": "\u2026and the pathways and exits"
-                    },
-                    {
-                      "key": "objects",
-                      "label": "The whole map"
-                    }
-                  ],
-                  "default": "objects",
-                  "key": "upTo",
-                  "label": "Build up to",
                   "type": "choice"
                 },
                 {
@@ -722,30 +674,6 @@
                   "default": "random",
                   "key": "pathways",
                   "label": "Pathways",
-                  "type": "choice"
-                },
-                {
-                  "choices": [
-                    {
-                      "key": "terrain",
-                      "label": "Terrain only: the bare ground"
-                    },
-                    {
-                      "key": "water",
-                      "label": "\u2026and the water"
-                    },
-                    {
-                      "key": "pathways",
-                      "label": "\u2026and the pathways and exits"
-                    },
-                    {
-                      "key": "objects",
-                      "label": "The whole map"
-                    }
-                  ],
-                  "default": "objects",
-                  "key": "upTo",
-                  "label": "Build up to",
                   "type": "choice"
                 },
                 {
@@ -1083,30 +1011,6 @@
                 {
                   "choices": [
                     {
-                      "key": "terrain",
-                      "label": "Terrain only: the bare ground"
-                    },
-                    {
-                      "key": "water",
-                      "label": "\u2026and the water"
-                    },
-                    {
-                      "key": "pathways",
-                      "label": "\u2026and the pathways and exits"
-                    },
-                    {
-                      "key": "objects",
-                      "label": "The whole map"
-                    }
-                  ],
-                  "default": "objects",
-                  "key": "upTo",
-                  "label": "Build up to",
-                  "type": "choice"
-                },
-                {
-                  "choices": [
-                    {
                       "key": "random",
                       "label": "Random"
                     },
@@ -1436,30 +1340,6 @@
                   "default": "random",
                   "key": "pathways",
                   "label": "Pathways",
-                  "type": "choice"
-                },
-                {
-                  "choices": [
-                    {
-                      "key": "terrain",
-                      "label": "Terrain only: the bare ground"
-                    },
-                    {
-                      "key": "water",
-                      "label": "\u2026and the water"
-                    },
-                    {
-                      "key": "pathways",
-                      "label": "\u2026and the pathways and exits"
-                    },
-                    {
-                      "key": "objects",
-                      "label": "The whole map"
-                    }
-                  ],
-                  "default": "objects",
-                  "key": "upTo",
-                  "label": "Build up to",
                   "type": "choice"
                 },
                 {
@@ -1933,30 +1813,6 @@
             {
               "choices": [
                 {
-                  "key": "terrain",
-                  "label": "Terrain only: the bare ground"
-                },
-                {
-                  "key": "water",
-                  "label": "\u2026and the water"
-                },
-                {
-                  "key": "pathways",
-                  "label": "\u2026and the pathways and exits"
-                },
-                {
-                  "key": "objects",
-                  "label": "The whole map"
-                }
-              ],
-              "default": "objects",
-              "key": "upTo",
-              "label": "Build up to",
-              "type": "choice"
-            },
-            {
-              "choices": [
-                {
                   "key": "random",
                   "label": "Random"
                 },
@@ -2320,30 +2176,6 @@
                   "default": "random",
                   "key": "pathways",
                   "label": "Pathways",
-                  "type": "choice"
-                },
-                {
-                  "choices": [
-                    {
-                      "key": "terrain",
-                      "label": "Terrain only: the bare ground"
-                    },
-                    {
-                      "key": "water",
-                      "label": "\u2026and the water"
-                    },
-                    {
-                      "key": "pathways",
-                      "label": "\u2026and the pathways and exits"
-                    },
-                    {
-                      "key": "objects",
-                      "label": "The whole map"
-                    }
-                  ],
-                  "default": "objects",
-                  "key": "upTo",
-                  "label": "Build up to",
                   "type": "choice"
                 },
                 {
@@ -2747,30 +2579,6 @@
                 {
                   "choices": [
                     {
-                      "key": "terrain",
-                      "label": "Terrain only: the bare ground"
-                    },
-                    {
-                      "key": "water",
-                      "label": "\u2026and the water"
-                    },
-                    {
-                      "key": "pathways",
-                      "label": "\u2026and the pathways and exits"
-                    },
-                    {
-                      "key": "objects",
-                      "label": "The whole map"
-                    }
-                  ],
-                  "default": "objects",
-                  "key": "upTo",
-                  "label": "Build up to",
-                  "type": "choice"
-                },
-                {
-                  "choices": [
-                    {
                       "key": "random",
                       "label": "Random"
                     },
@@ -3135,30 +2943,6 @@
                   "default": "random",
                   "key": "pathways",
                   "label": "Pathways",
-                  "type": "choice"
-                },
-                {
-                  "choices": [
-                    {
-                      "key": "terrain",
-                      "label": "Terrain only: the bare ground"
-                    },
-                    {
-                      "key": "water",
-                      "label": "\u2026and the water"
-                    },
-                    {
-                      "key": "pathways",
-                      "label": "\u2026and the pathways and exits"
-                    },
-                    {
-                      "key": "objects",
-                      "label": "The whole map"
-                    }
-                  ],
-                  "default": "objects",
-                  "key": "upTo",
-                  "label": "Build up to",
                   "type": "choice"
                 },
                 {
@@ -3579,30 +3363,6 @@
                 {
                   "choices": [
                     {
-                      "key": "terrain",
-                      "label": "Terrain only: the bare ground"
-                    },
-                    {
-                      "key": "water",
-                      "label": "\u2026and the water"
-                    },
-                    {
-                      "key": "pathways",
-                      "label": "\u2026and the pathways and exits"
-                    },
-                    {
-                      "key": "objects",
-                      "label": "The whole map"
-                    }
-                  ],
-                  "default": "objects",
-                  "key": "upTo",
-                  "label": "Build up to",
-                  "type": "choice"
-                },
-                {
-                  "choices": [
-                    {
                       "key": "random",
                       "label": "Random"
                     },
@@ -3884,30 +3644,6 @@
             {
               "choices": [
                 {
-                  "key": "terrain",
-                  "label": "Terrain only: the bare ground"
-                },
-                {
-                  "key": "water",
-                  "label": "\u2026and the water"
-                },
-                {
-                  "key": "pathways",
-                  "label": "\u2026and the pathways and exits"
-                },
-                {
-                  "key": "objects",
-                  "label": "The whole map"
-                }
-              ],
-              "default": "objects",
-              "key": "upTo",
-              "label": "Build up to",
-              "type": "choice"
-            },
-            {
-              "choices": [
-                {
                   "key": "none",
                   "label": "No river"
                 },
@@ -4132,30 +3868,6 @@
                   "default": "random",
                   "key": "pathways",
                   "label": "Pathways",
-                  "type": "choice"
-                },
-                {
-                  "choices": [
-                    {
-                      "key": "terrain",
-                      "label": "Terrain only: the bare ground"
-                    },
-                    {
-                      "key": "water",
-                      "label": "\u2026and the water"
-                    },
-                    {
-                      "key": "pathways",
-                      "label": "\u2026and the pathways and exits"
-                    },
-                    {
-                      "key": "objects",
-                      "label": "The whole map"
-                    }
-                  ],
-                  "default": "objects",
-                  "key": "upTo",
-                  "label": "Build up to",
                   "type": "choice"
                 },
                 {
@@ -4402,30 +4114,6 @@
                   "default": "random",
                   "key": "pathways",
                   "label": "Pathways",
-                  "type": "choice"
-                },
-                {
-                  "choices": [
-                    {
-                      "key": "terrain",
-                      "label": "Terrain only: the bare ground"
-                    },
-                    {
-                      "key": "water",
-                      "label": "\u2026and the water"
-                    },
-                    {
-                      "key": "pathways",
-                      "label": "\u2026and the pathways and exits"
-                    },
-                    {
-                      "key": "objects",
-                      "label": "The whole map"
-                    }
-                  ],
-                  "default": "objects",
-                  "key": "upTo",
-                  "label": "Build up to",
                   "type": "choice"
                 },
                 {

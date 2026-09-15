@@ -145,6 +145,17 @@ function genSeeded(opts: Parameters<typeof generateStage>[0], seed: number): Sta
 // The blast radius is the proof the change is what it says: only the two archetypes that hold POOLS moved.
 // The three settlements place no water, and the forest's river is off by default, so all four are byte
 // identical. Any wider spread than this and the fix had reached something it should not have.
+// RELOCKED FOR THE PAVING, and this one moves every variant, which is the point of it.
+//
+// A way is a COLOUR ON THE GROUND BLOCK, never a tile laid on top: *"CITY STREETS FUCKING SUCK ... NOT ADD
+// BLACK ULGY TILES ON TOP"*, *"THESE STREETS ARE A REGRESION"*. The paver was writing `ground[row][col] =
+// surface`, which is exactly what the settlement paver has warned against in its own comment since it was
+// written, and it put a second block on the map wherever a way ran.
+//
+// A settlement's streets also record themselves as pathway cells now. Nothing did, so `pathwayCells` was
+// empty for every town and city: the served surface, its scatter and its lining had nothing to act on, and
+// the guard that keeps things out of a road saw no road.
+//
 // RELOCKED AGAIN, same day, for the WOODLAND going the same way as the meadow. Two things move a map:
 //
 //   · its whole TRAIL NETWORK stops growing trees, not only its planned routes. The sweep this replaces ran
@@ -175,9 +186,9 @@ function genSeeded(opts: Parameters<typeof generateStage>[0], seed: number): Sta
 // because none of them is split yet. Any wider spread than this and the change had reached something it
 // should not have.
 const BASELINE: Record<string, string> = {
-  'town|autumn|40x40|1': 'affafaf3',
-  'town|summer|50x40|7': '9c0fd03a',
-  'city|summer|56x44|3': 'b8a0077c',
+  'town|autumn|40x40|1': 'b6b7674a',
+  'town|summer|50x40|7': 'c74a0a7d',
+  'city|summer|56x44|3': 'd7402cde',
   'forest|summer|30x24|42': '4b8b2192',
   'cave|autumn|40x30|99': '94c7579b',
   'temple|winter|36x30|5': 'c6258d72',
