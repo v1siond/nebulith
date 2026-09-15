@@ -1302,13 +1302,22 @@ function settlementPhases(settlement: Settlement): VariantPhases {
       // start of the objects phase"*.
       const course = riverCourse(ctx, 'through')
       if (!course || ctx.water.size === 0) return
-      bridgeRiver(ctx, ctx.water, ctx.pathwayCells, course, ctx.palette)
+      bridgeRiver(ctx, ctx.water, ctx.pathwayCells, course, waterPalette(ctx))
 
       // AND THE TOWN IS ONE PLACE. A settlement had NO connectivity repair at all, which was harmless while it
       // had no water: measured the moment the river was wired, a 50x50 town came out in up to four pieces with
       // small pockets stranded behind the channel. The forests have answered this since they got rivers, with
       // the same function and the same bound, and after the bridge so the deck is never filled back in.
       repairFloorConnectivity(ctx, MEADOW_MAX_POCKET)
+
+      // AND IT SETTLES BY DEPTH, which is what makes it a RIVER rather than a patch of blue.
+      //
+      // *"a river is not a river withouyt a channel"*. Every forest has ended its build with this since it
+      // got water, and the settlement was wired up without it: measured, a town's river came out as ONE flat
+      // `water` tile end to end, no wadeable shallow at the edge, no deep middle, no bend where it turns,
+      // and its banks standing above it only 74% of the time against a forest's 100%. A water ZONE, which is
+      // exactly what he called it. Last, after the bridge, for the same reason the forests do it last.
+      settleWaterDepth(ctx, waterPalette(ctx))
     },
   }
 }
@@ -1456,6 +1465,16 @@ function adoptStreetsAsPathways(ctx: ArchetypeContext, layout: VillageLayout): v
  * (material / roof / wall colour) is rolled at load (applyStageToGrid), which is what a
  * "randomize buildings only" re-rolls.
  */
+/** Is every cell of this footprint dry land? A building stands on the ground, never in the water. */
+function rectOnLand(ctx: ArchetypeContext, rect: { col: number; row: number; w: number; h: number }): boolean {
+  for (let row = rect.row; row < rect.row + rect.h; row++) {
+    for (let col = rect.col; col < rect.col + rect.w; col++) {
+      if (!isLandCell(ctx, col, row)) return false
+    }
+  }
+  return true
+}
+
 export function buildingsPass(ctx: ArchetypeContext, layout: VillageLayout): void {
   const { buildings, cols, rows } = ctx
   for (const plot of layout.plots) {
@@ -1468,6 +1487,11 @@ export function buildingsPass(ctx: ArchetypeContext, layout: VillageLayout): voi
       : buildingCompositionKind(plot.type, plot.length)
     const rect = footprintRect(plot)
     if (!rectInBounds(rect, cols, rows)) continue // planner's rectClear guarantees this; stay safe
+    // AND NOT IN THE RIVER. The plot planner lays its grid geometrically and knows nothing about water, which
+    // was harmless while a settlement had none. Measured the moment it got one: two houses in a town and one
+    // in a city standing in the channel. It read as fine for a while only because the PLAZA was paving over
+    // the river first, so by the time anything asked, those cells were no longer water.
+    if (!rectOnLand(ctx, rect)) continue
     buildings.push(placeBuilding(ctx, plot, rect, kind))
   }
 }
@@ -1586,9 +1610,15 @@ function placeCentrepiece(ctx: ArchetypeContext, plaza: PlazaRect | null): void 
   if (!plaza) return
   const { cols, rows, ground, collision } = ctx
   const { c0, r0, size } = plaza
-  // Pave the whole square as a walkable stone plaza (the ring you stroll around the basin).
+  // Pave the whole square as a walkable stone plaza (the ring you stroll around the basin), EXCEPT where the
+  // water already is. *"objects are put in the free spaces that the map has after pathways and river has
+  // run"*, and this stamped straight over a river: measured on a town with a `divides` course, 20 channel
+  // cells came out as `path_stone` still sunk at elevation -1, a paved street lying in the river bed.
   for (let r = r0; r < r0 + size; r++)
-    for (let c = c0; c < c0 + size; c++) if (inBounds(c, r, cols, rows)) ground[r][c] = PLAZA_STONE
+    for (let c = c0; c < c0 + size; c++) {
+      if (!inBounds(c, r, cols, rows) || !isLandCell(ctx, c, r)) continue
+      ground[r][c] = PLAZA_STONE
+    }
 
   // The centrepiece is a COMPOSITION (rim + water), not a special prop: pick the variant by settlement size,
   // record its anchor centred in the square (footprint TOP-LEFT, the origin stampComposition places from).
@@ -1803,6 +1833,7 @@ function placeBuilding(
   for (let row = rect.row; row <= lastRow; row++) {
     for (let col = rect.col; col <= lastCol; col++) {
       if (!inBounds(col, row, cols, rows)) continue
+      if (!isLandCell(ctx, col, row)) continue // and never a foundation laid in the river
       ground[row][col] = 'path_stone' // brown stone BASE under the building (freed from roads, §2b)
       const shell = col === rect.col || col === lastCol || row === rect.row || row === lastRow
       collision[row][col] = shell && !isDoor.has(`${col},${row}`)
@@ -2039,10 +2070,23 @@ const EDGE_TREELINE = 2
  *
  * The OPTIONS are served on a town regardless, because that half is backend data and costs nothing.
  */
+/**
+ * THE COLOURS THIS MAP'S WATER WEARS.
+ *
+ * A settlement serves no `palette` at all, so handing `ctx.palette` to the water passes `undefined` and the
+ * river comes out with no water colour, no bank and no shallow: the three tones that make a channel read as
+ * one. A forest states its own; everything else falls back to the meadow's, which is the water every map had
+ * before any template stated one.
+ */
+function waterPalette(ctx: ArchetypeContext): GeneratorPalette | undefined {
+  if (ctx.palette?.water) return ctx.palette
+  return meadowWater(ctx)
+}
+
 function carveMapWater(ctx: ArchetypeContext): void {
   const course = riverCourse(ctx, 'through')
   if (!course) return
-  for (const key of carveRiver(ctx, course, ctx.palette)) {
+  for (const key of carveRiver(ctx, course, waterPalette(ctx))) {
     ctx.water.add(key)
     ctx.claimed.add(key)
   }
