@@ -257,6 +257,8 @@ defmodule Nebulith.Catalog.GeneratorSource do
 
   # A TEMPERATE WOOD. Muted, grey-green, a lot of brown showing through — a pine or oak floor is needles and
   # leaf litter with light reaching it, so it reads dry and open even under the canopy.
+  # A PALETTE IS THE GROUND, THE WATER AND THE SHORE. What the WAY across it wears is the pathway kind's, in
+  # `@pathways`, see the note there for why it cannot be in both.
   @woodland_palette %{
     "floor" => "#6f7f4a",
     "floorAlt" => "#7d8a55",
@@ -269,8 +271,7 @@ defmodule Nebulith.Catalog.GeneratorSource do
     "waterShallow" => "#8ccbe8",
     "waterDeep" => "#2a5f8a",
     "swamp" => "#3f8a84",
-    "bank" => "#c1a877",
-    "trail" => "#9a8a62"
+    "bank" => "#c1a877"
   }
 
   # AN AMAZONAS. Deep, wet, saturated, and DARK: a closed canopy puts the floor in permanent shade, so the
@@ -290,13 +291,7 @@ defmodule Nebulith.Catalog.GeneratorSource do
     "waterShallow" => "#86c5e2",
     "waterDeep" => "#23547e",
     "swamp" => "#3a8278",
-    "bank" => "#6b5f3c",
-    # A PATH READS AS A PATH BECAUSE IT IS LIGHTER THAN THE GROUND BESIDE IT. Measured on the five isometric
-    # references he gave, the path is lighter than the field EVERY time, by 35 to 128 points of luminance.
-    # This was 79.1 against an open canopy floor of 85.0, so the jungle's trail was DARKER than the ground it
-    # crossed and read as a stain rather than a way through. 118.8 now, clear of every region this jungle has
-    # (dense 49.9, base 65.9, swamp 68.8, ruins 73.0, open 85.0).
-    "trail" => "#8a7550"
+    "bank" => "#6b5f3c"
   }
 
   # WHICH TREES GROW HERE. Every forest rolled from one global weighted
@@ -421,32 +416,52 @@ defmodule Nebulith.Catalog.GeneratorSource do
   # else. `edge` is the share of the border cells the field takes back, so 0 is a kerb and 0.5 is a track
   # people wore. `scatter` lies ON the surface and never blocks. `lining` stands on the field cells that
   # touch the path, and it blocks, which is what makes a lined path read as a corridor you follow.
+  #
+  # `tone` IS THE COLOUR THE WAY WEARS, and it lives here rather than in a template's palette. It used to live
+  # in both, and the palette won: a mountain forest asked for `rocky_track` and inherited the woodland's dirt
+  # tone, so its gravel was painted brown, and a swamp asked for `boardwalk` and inherited the jungle's, so
+  # its planks were painted dirt. The template's own statement lost to the one it inherited. A pathway kind is
+  # the LOOK of the way, so the look belongs to the kind, once.
+  #
+  # Every tone here is MEASURED off the stored reference for that kind, not chosen: the reference's own path
+  # colour, scaled to sit over OUR ground at the same distance it sits over the ground in the picture. The
+  # numbers are in the comment on each one.
   @pathways %{
     # The crossroads under the conifers: a broad pale track, pebbles across it, boulders and low scrub set
     # back off the edge, and the grass coming back into it everywhere.
+    # `alongside_river`: its tracks are #a78463, 137.1, over a forest floor around 67. Our woodland floor is
+    # 119.6, so the same distance puts the track at 170.
     "forest_track" => %{
-      "surface" => "path_dirt", "width" => 3, "edge" => 0.35,
+      "surface" => "path_dirt", "tone" => "#cfa37b", "width" => 3, "edge" => 0.35,
       "scatter" => [%{"tile" => "decor_pebbles", "rate" => 0.1}],
       "lining" => [%{"tile" => "rock", "rate" => 0.08}, %{"tile" => "shrub", "rate" => 0.1}]
     },
     # Rocky ground: the same track laid on stone rather than soil, so it is gravel, and the boulders are the
     # thing you see. Fewer plants, because they are not what grows here.
+    # `woodland_mountain`: a pale grey-beige gravel track, #ded6c1 at 214.2 over grass at 145, so +69. Our
+    # mountain floor is 103.1, which puts it at 171. This is the one the woodland's dirt tone was overriding.
     "rocky_track" => %{
-      "surface" => "gravel", "width" => 3, "edge" => 0.4,
+      "surface" => "gravel", "tone" => "#b1ab9a", "width" => 3, "edge" => 0.4,
       "scatter" => [%{"tile" => "decor_pebbles", "rate" => 0.16}],
       "lining" => [%{"tile" => "rock", "rate" => 0.16}, %{"tile" => "shrub", "rate" => 0.05}]
     },
     # The park path: as broad as the forest track and far tidier, with the tufts and blooms a kept place has
     # along it rather than boulders.
+    # `meadow_park`: sand at #cbaa7a, 173.6, over grass at 141, so +22. A park path is the gentlest step of
+    # the set, because a kept lawn is already bright. Our meadow floor is 166.9, so 189. The meadow served NO
+    # trail at all before this, which is why its way came out 45 points DARKER than the grass beside it.
     "park_path" => %{
-      "surface" => "path_dirt", "width" => 3, "edge" => 0.28,
+      "surface" => "path_dirt", "tone" => "#ddb985", "width" => 3, "edge" => 0.28,
       "scatter" => [%{"tile" => "decor_pebbles", "rate" => 0.12}],
       "lining" => [%{"tile" => "flower", "rate" => 0.1}, %{"tile" => "rock", "rate" => 0.04}]
     },
     # A trail cut through undergrowth, not a track laid down. Narrow, and the thing lining it is the
     # undergrowth it was cut through, which is why it reads as a corridor.
+    # The jungle's own tone, moved here from `@jungle_palette` where it was tuned: 118.8, clear of every region
+    # the jungle has (dense 49.9, base 65.9, swamp 68.8, ruins 73.0, open 85.0). `swamp_straightforward` is the
+    # reference and agrees: a trail cut through wet shaded ground is the smallest step of all, +15.
     "cut_trail" => %{
-      "surface" => "path_dirt", "width" => 2, "edge" => 0.5,
+      "surface" => "path_dirt", "tone" => "#8a7550", "width" => 2, "edge" => 0.5,
       "scatter" => [%{"tile" => "decor_pebbles", "rate" => 0.05}],
       # LINED WITH THE GRASS, NOT THE THICKET, and this is measured rather than chosen. Of every tile a
       # pathway can be dressed with, `thicket` is the only one that BLOCKS, and lining a cut trail with it at
@@ -458,42 +473,60 @@ defmodule Nebulith.Catalog.GeneratorSource do
     },
     # The clifftop path above the beach: one winding line of warm dirt, scrub and the odd rock along it,
     # nothing laid and nothing kept.
+    # The island's own tone, moved here from its palette override: 183.3 on a bright sand floor. Its reference
+    # `beach_hill_path` puts the clifftop path at #e9cc98, 206.4, over scrub at 129.
     "coast_path" => %{
-      "surface" => "path_dirt", "width" => 2, "edge" => 0.45,
+      "surface" => "path_dirt", "tone" => "#cdb684", "width" => 2, "edge" => 0.45,
       "scatter" => [%{"tile" => "decor_pebbles", "rate" => 0.08}],
       "lining" => [%{"tile" => "shrub", "rate" => 0.12}, %{"tile" => "rock", "rate" => 0.06}]
     },
     # A boardwalk. It is BUILT, so its edge is straight and nothing lies on it; reeds stand off the side of
     # it in the water it crosses.
+    # The PLANKS' own colour, said out loud. A boardwalk is built of a material the tileset already describes,
+    # so its tone is that material's; what it must never be is the dirt tone of the swamp it was built over,
+    # which is what it inherited.
     "boardwalk" => %{
-      "surface" => "wooden_planks", "width" => 2, "edge" => 0.0,
+      "surface" => "wooden_planks", "tone" => "#aa8250", "width" => 2, "edge" => 0.0,
       "scatter" => [],
       "lining" => [%{"tile" => "bush", "rate" => 0.1}]
     },
     # A village lane: stone underfoot, a near straight edge because somebody laid it, lamps along it and
     # flowers at the foot of them.
+    # The stone's own colour. *"WE ALREADY HAD GOOD STREETS"*, so a settlement's tone is the material it is
+    # laid in and nothing is moved.
     "village_lane" => %{
-      "surface" => "path_stone", "width" => 3, "edge" => 0.15,
+      "surface" => "path_stone", "tone" => "#ccbbaa", "width" => 3, "edge" => 0.15,
       "scatter" => [%{"tile" => "decor_pebbles", "rate" => 0.05}],
       "lining" => [%{"tile" => "lamp", "rate" => 0.1}, %{"tile" => "flower", "rate" => 0.07}]
     },
     # Cobbles between the houses of an older town, worn at the sides, lamps along them.
     "cobbled_lane" => %{
-      "surface" => "cobblestone", "width" => 3, "edge" => 0.12,
+      "surface" => "cobblestone", "tone" => "#b9b2a3", "width" => 3, "edge" => 0.12,
       "scatter" => [%{"tile" => "decor_pebbles", "rate" => 0.06}],
       "lining" => [%{"tile" => "lamp", "rate" => 0.12}]
     },
     # A CITY STREET, which is what the beach town reference actually shows: four lanes of asphalt with a kerb
     # you could rule, a lamp post rhythm down both sides, and nothing lying on it because a road is swept.
+    # Asphalt, and DARKER than the grass on purpose: `beach_city_street` is the reference and its streets are
+    # near-black against pale sand. A way is not always the lighter thing, it is always the OTHER material.
+    #
+    # `marking` is the centre line: *"ALL WE NEEDED WAS TO ADD THE WHITE RECTANGULAR LINES IN MIDDLE AS
+    # ORNAMENT"*. A dash every `every` cells down the middle of the carriageway, painted as a COLOUR like the
+    # way under it, never a tile laid on top. #eae7db is the reference's own marking, median-sampled off the
+    # pixels lying on its asphalt; that asphalt measures #3e403f against our `road` at #3d3d44, so the pair is
+    # the picture's pair.
     "city_street" => %{
-      "surface" => "road", "width" => 4, "edge" => 0.0,
+      "surface" => "road", "tone" => "#3d3d44", "width" => 4, "edge" => 0.0,
+      "marking" => %{"color" => "#eae7db", "every" => 3},
       "scatter" => [],
       "lining" => [%{"tile" => "lamp", "rate" => 0.14}, %{"tile" => "shrub", "rate" => 0.06}]
     },
     # Sandy tracks through a beach town: the same dirt as the clifftop path, widened because carts use it,
     # still nobody laying anything.
+    # `beach_hill_path` again, held back off its 206.4 because a cart track through a town is trodden rather
+    # than bleached.
     "sand_track" => %{
-      "surface" => "path_dirt", "width" => 3, "edge" => 0.3,
+      "surface" => "path_dirt", "tone" => "#dcc190", "width" => 3, "edge" => 0.3,
       "scatter" => [%{"tile" => "decor_pebbles", "rate" => 0.1}],
       "lining" => [%{"tile" => "shrub", "rate" => 0.1}]
     }
@@ -941,8 +974,7 @@ defmodule Nebulith.Catalog.GeneratorSource do
                     "water" => "#2aa8c0",
                     "waterShallow" => "#86e0ea",
                     "waterDeep" => "#1a7891",
-                    "bank" => "#e8d6a6",
-                    "trail" => "#cdb684"
+                    "bank" => "#e8d6a6"
                   }),
                   # THE WHOLE ISLAND, not just its two regions. It is right and this line was why:
                   # a cell inside `open` or `dense` takes that region's mix, and everything OUTSIDE them falls back

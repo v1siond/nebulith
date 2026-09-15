@@ -365,9 +365,16 @@ defmodule Nebulith.Catalog do
   # Maps merge key by key, recursively; anything else (a list, a number) is REPLACED by the subtype's value.
   # A subtype's tree mix replaces its parent's rather than being appended to it, which is the point of it.
   defp deep_merge(base, over) when is_map(base) and is_map(over),
-    do: Map.merge(base, over, fn _k, a, b -> deep_merge(a, b) end)
+    do: Map.merge(base, over, &merge_key/3)
 
   defp deep_merge(_base, over), do: over
+
+  # A PATHWAY IS SERVED WHOLE, so a subtype that names a different kind gets that kind and nothing of the one
+  # it replaced. `city_medieval` says `cobbled_lane` where its parent city says `city_street`, and merged key
+  # by key the cobbles inherited the asphalt's white centre line. Every pathway comes out of the one table
+  # complete, so there is nothing in it a subtype could have meant to keep.
+  defp merge_key("pathway", _base, over), do: over
+  defp merge_key(_key, base, over), do: deep_merge(base, over)
   # ── GENERATION LAYERS ──────────────────────────────────────────────────────────────────────────────────
   # The stack generation runs in, as data. The engine binds a pass to each `key`; the editor builds its
   # re-roll panel from the same list, so adding a layer is a row rather than an edit in two repos.
