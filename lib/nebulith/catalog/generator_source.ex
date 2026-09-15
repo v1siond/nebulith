@@ -291,7 +291,12 @@ defmodule Nebulith.Catalog.GeneratorSource do
     "waterDeep" => "#23547e",
     "swamp" => "#3a8278",
     "bank" => "#6b5f3c",
-    "trail" => "#57502f"
+    # A PATH READS AS A PATH BECAUSE IT IS LIGHTER THAN THE GROUND BESIDE IT. Measured on the five isometric
+    # references he gave, the path is lighter than the field EVERY time, by 35 to 128 points of luminance.
+    # This was 79.1 against an open canopy floor of 85.0, so the jungle's trail was DARKER than the ground it
+    # crossed and read as a stain rather than a way through. 118.8 now, clear of every region this jungle has
+    # (dense 49.9, base 65.9, swamp 68.8, ruins 73.0, open 85.0).
+    "trail" => "#8a7550"
   }
 
   # WHICH TREES GROW HERE. Every forest rolled from one global weighted
