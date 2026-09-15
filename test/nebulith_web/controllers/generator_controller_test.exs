@@ -58,9 +58,12 @@ defmodule NebulithWeb.GeneratorControllerTest do
       # `crossing` was a toggle in this list and is gone: *"'A crossing joined to the paths' what does even
       # mean???? I don't know why we have it in the UI"*. A river that cuts a path always gets a crossing now,
       # so there was nothing for it to decide. `bridge` stays, because WHICH crossing is a real choice.
-      assert Enum.map(woodland["options"], & &1["key"]) == ~w(exits pathways river depth bridge)
+      assert Enum.map(woodland["options"], & &1["key"]) == ~w(exits pathways upTo river depth bridge)
 
-      assert Enum.drop(woodland["options"], 2) == [
+      # DROP THREE: the two way counts and the `upTo` filter that sits with them, which is a parameter like
+      # any other ("LAYOUT IN THE UI JUST REFERS TO I WANT TO ONLY EXECUTE THE SYSTEM UP TO THIS SPECIFIC
+      # LAYER ... IS JUST A FILTER, ANOTHER PARAMETER FOR THE GENERATOR").
+      assert Enum.drop(woodland["options"], 3) == [
                %{
                  "key" => "river",
                  "label" => "River",
