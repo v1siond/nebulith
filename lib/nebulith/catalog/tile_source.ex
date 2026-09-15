@@ -3610,6 +3610,136 @@ defmodule Nebulith.Catalog.TileSource do
   workflow he described: *"any time we add a new functionality it just becomes a new object we can just place
   and play with"*.
   """
+  @doc """
+  THE APPROVED ENTRANCES, built the way the objects he likes are built.
+
+  NAMED FOR WHAT THEY ARE: *"we need to rename them to temple entrance, cave entrance cube cave entrance
+  rounded ... in short, always name in relation to the object itself"* (2026-09-14). `forest_entrance` was the
+  old name and it named a PLACE rather than an object, which is why it ended up holding a cave.
+
+  THE METHOD, measured off `lamp_post`, `tree_round`, `house_4`, `well` and `fountain`:
+
+    * PROPORTION does the work, not the display mode. A cell's drawn height in levels is `scale * scaleY`, so
+      the next piece stacks at that level, not at the one you meant. No `display: single`, no `transparent`:
+      of 824 composition cells, the only ones carrying those were the entrances that got rejected.
+    * `depth` SPANS. `house_4`'s roof is one cell reaching four. The temple's lintel and the cave's overhang
+      are the same trick.
+    * `shape: circle` makes a MASS. The tree canopy was the only user; rock lumps as circles merge into one
+      organic outcrop instead of reading as a stack of boxes. That one setting is the whole difference between
+      `cave_entrance_cube` and `cave_entrance_rounded`, which is why they share a builder.
+
+  AND THE ISOMETRIC FACT THAT DECIDED THE LAYOUT: screen depth is `col + row`, so cells in the same ROW sit at
+  different depths and a row-shaped face is drawn over by its own near end. A façade that reads flat toward the
+  camera lies on a constant `col + row`. The cave's mouth sits in the middle of that diagonal with the mass
+  BEHIND it; before that it was at depth 3 while the mound's near corner was at depth 6, and the cave was drawn
+  in front of its own opening.
+  """
+  def seed_approved_entrances do
+    for {name, comp} <- %{
+          "temple_entrance" => %{w: 3, h: 2, cells: temple_entrance_cells()},
+          "cave_entrance_cube" => %{w: 5, h: 5, cells: cave_entrance_cells(false)},
+          "cave_entrance_rounded" => %{w: 5, h: 5, cells: cave_entrance_cells(true)}
+        } do
+      {:ok, _} =
+        Nebulith.Catalog.upsert_composition_with_cells(
+          %{name: name, footprint_w: comp.w, footprint_h: comp.h, category: "props"},
+          comp.cells
+        )
+    end
+
+    :ok
+  end
+
+  # A BUILT gateway: two piers of real mass, a lintel that oversails them, a dark opening between, foliage over
+  # the top and stones at the feet. Post, lintel, post, which is exactly what a cave must NOT be.
+  defp temple_entrance_cells do
+    pier = fn dx -> %{dx: dx, dy: 0, level: 0, label: "wall_stone_c", walkable: false, scale: 1.0,
+                      settings: %{"scaleY" => 3.0}} end
+
+    [
+      pier.(0),
+      pier.(2),
+      # The opening. Dark, and WALKABLE because it is the way through.
+      %{dx: 1, dy: 0, level: 0, label: "wall_stone_c", walkable: true, scale: 1.0,
+        settings: %{"scaleY" => 2.35, "color" => "#12100e"}},
+      # The lintel: ONE cell reaching across all three, and wider than the piers so it reads as a cap.
+      %{dx: 0, dy: 0, level: 3, label: "wall_stone_c", walkable: false, scale: 1.12,
+        settings: %{"scaleY" => 0.62, "depth" => 3, "depthDir" => "right-down"}},
+      %{dx: 0, dy: 0, level: 4, label: "leaf_center", walkable: false, scale: 0.95,
+        settings: %{"scaleY" => 0.95, "shape" => "circle"}},
+      %{dx: 1, dy: 0, level: 4, label: "leaf_center", walkable: false, scale: 0.7,
+        settings: %{"scaleY" => 0.8, "shape" => "circle"}},
+      %{dx: 2, dy: 0, level: 4, label: "leaf_center", walkable: false, scale: 0.8,
+        settings: %{"scaleY" => 0.95, "shape" => "circle"}},
+      %{dx: 0, dy: 1, level: 0, label: "rock", walkable: false, scale: 0.5, settings: %{"scaleY" => 0.8}},
+      %{dx: 2, dy: 1, level: 0, label: "rock", walkable: false, scale: 0.4, settings: %{"scaleY" => 0.7}},
+      %{dx: 1, dy: 1, level: 0, label: "path_dirt", walkable: true, scale: 1.0, settings: %{"scaleY" => 0.08}}
+    ]
+  end
+
+  # The cave FACE lies on this anti-diagonal (dx + dy). Everything with a smaller sum is the mass behind it;
+  # anything larger would be drawn in front of the mouth, so only low scatter goes there.
+  @cave_face 4
+  @cave_mouth {2, 2}
+
+  # ONE layout, two objects. `rounded` is the only difference: it turns every rock block into a `circle`, and
+  # the lumps then merge into a continuous outcrop instead of reading as stacked boxes.
+  defp cave_entrance_cells(rounded) do
+    rock = fn dx, dy, scale, h ->
+      settings = if rounded, do: %{"scaleY" => h, "shape" => "circle"}, else: %{"scaleY" => h}
+      %{dx: dx, dy: dy, level: 0, label: "wall_stone_c", walkable: false, scale: scale, settings: settings}
+    end
+
+    {mouth_dx, mouth_dy} = @cave_mouth
+
+    # THE MASS, sloping down toward the viewer over four diagonals.
+    bulk =
+      for {d, {scale, h}} <- %{0 => {0.75, 1.0}, 1 => {1.0, 1.9}, 2 => {1.15, 2.6}, 3 => {1.15, 2.4}},
+          dx <- 0..4,
+          dy = d - dx,
+          dy >= 0 and dy <= 4,
+          do: rock.(dx, dy, scale, h)
+
+    # THE FACE, flanking the mouth. The two beside it stand tallest so the opening reads as cut INTO rock.
+    face =
+      for dx <- 0..4,
+          dy = @cave_face - dx,
+          dy >= 0 and dy <= 4,
+          {dx, dy} != @cave_mouth do
+        near? = abs(dx - mouth_dx) == 1
+        rock.(dx, dy, if(near?, do: 1.1, else: 0.85), if(near?, do: 1.9, else: 1.2))
+      end
+
+    lip_settings =
+      %{"scaleY" => 0.7, "depth" => 3, "depthDir" => "right-up"}
+      |> then(&if rounded, do: Map.put(&1, "shape", "circle"), else: &1)
+
+    bulk ++
+      face ++
+      [
+        # THE MOUTH: full cell width, tall, dark, walkable. It is the object's whole point.
+        %{dx: mouth_dx, dy: mouth_dy, level: 0, label: "wall_stone_c", walkable: true, scale: 1.0,
+          settings: %{"scaleY" => 2.3, "color" => "#141109"}},
+        # THE OVERHANG: one block spanning the three face cells ALONG the diagonal, which is the roof's
+        # `depth` trick pointed at the other axis.
+        %{dx: 1, dy: 3, level: 2, label: "wall_stone_c", walkable: false, scale: 1.25, settings: lip_settings},
+        # TREES GROWING OUT of the mound, seated on the tall back diagonal rather than floating over it.
+        %{dx: 1, dy: 1, level: 3, label: "trunk_mid", walkable: false, scale: 0.32, settings: %{"scaleY" => 2.8}},
+        %{dx: 1, dy: 1, level: 4, label: "leaf_center", walkable: false, scale: 1.15,
+          settings: %{"scaleY" => 1.2, "shape" => "circle"}},
+        %{dx: 2, dy: 1, level: 3, label: "trunk_mid", walkable: false, scale: 0.28, settings: %{"scaleY" => 2.2}},
+        %{dx: 2, dy: 1, level: 4, label: "leaf_center", walkable: false, scale: 0.95,
+          settings: %{"scaleY" => 1.2, "shape" => "circle"}},
+        # SCATTER on the open ground, small enough that it never hides the mouth.
+        rock.(0, 4, 0.5, 0.45),
+        rock.(4, 1, 0.45, 0.4),
+        rock.(3, 3, 0.4, 0.36),
+        rock.(4, 2, 0.35, 0.32),
+        # THE THRESHOLD you walk in on.
+        %{dx: 2, dy: 3, level: 0, label: "path_dirt", walkable: true, scale: 1.0, settings: %{"scaleY" => 0.08}}
+      ]
+  end
+
   def seed_entrances do
     entrances = %{
       # A wood opening onto somewhere else: a bare gnarled trunk one side, a full crown the other, a boulder

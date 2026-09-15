@@ -1238,3 +1238,65 @@ curve cut through it, and a cap that oversails.
 - **The nine `canopy_*` pieces** are a complete family that zero compositions use. Either wire them or drop
   them; leaving authored art unreferenced is what makes the catalogue look emptier than it is.
 
+---
+
+# 9. HOW THE APPROVED ENTRANCES WERE ACTUALLY OBTAINED
+
+Three objects passed: `temple_entrance`, `cave_entrance_cube`, `cave_entrance_rounded`. This is the record of
+what produced them, so the next object starts here instead of rediscovering it. *"once these improvement are
+implemented, then we can update the framework specifying how these results were obtained and replicate that
+with other objects"* (2026-09-14).
+
+**No new art was authored.** Every one is built from tiles that were already in the catalogue. The whole
+difference between the rejected version and the approved ones is HOW the blocks are shaped and placed.
+
+## 9.1 The five facts that did it
+
+1. **`scale * scaleY` is the drawn height in levels.** This governs every stack: the next piece sits at that
+   level, not at the one you meant. The first attempt put piers at `0.85 * 4.0 = 3.4` and a cap at `level: 4`,
+   and the cap floated. Compute the top, do not guess it.
+2. **`depth` SPANS.** `house_4`'s roof is one cell reaching four, and it had been doing that all along while
+   arches and bridge decks were faked with scale. The temple's lintel and the cave's overhang are that trick.
+   Point it along the other axis (`right-up`) and it spans the diagonal instead of the row.
+3. **`shape: circle` makes a MASS.** The tree canopy was its only user. Rock lumps as circles MERGE into one
+   organic outcrop; as cubes they read as stacked boxes. It is one setting, and it is the entire difference
+   between `cave_entrance_cube` and `cave_entrance_rounded`, which is why they share one builder.
+4. **A FAÇADE LIES ON AN ANTI-DIAGONAL, NEVER ON A ROW.** Screen depth is `col + row`. Cells in the same ROW
+   sit at different depths, so a row-shaped face is drawn over by its own near end: the cave's mouth sat at
+   depth 3 while the mound's near corner sat at depth 6, and the mound was drawn in front of its own opening.
+   The cells at a constant `col + row` are the ones that read as one flat face toward the camera. Put the
+   opening in the middle of that diagonal, the mass BEHIND it (smaller sum), and nothing but low scatter in
+   front (larger sum).
+5. **`fadeNear` is a tile setting and it will ghost a whole structure.** `wall_stone_c`, `rock` and `boulder`
+   all carry it, so anything built from them goes semi-transparent when the hero is close. A solid rock mound
+   looked like soap bubbles until the hero was moved away. Check it before blaming the geometry.
+
+## 9.2 The shape rule that separates the two kinds
+
+A **temple** is post, lintel, post: two piers with a beam ACROSS them. A **cave** is a hole cut INTO a mass,
+with no beam at all. Removing the lintel did most of the work of turning one into the other, and no amount of
+retexturing would have.
+
+And the proportion: the rejected version was tall and narrow (3 wide, 4 levels) where the reference mound is
+wide and low (5 wide, about 2 levels). The SQUINT TEST names this in one look. Threshold the render to pure
+black and white and compare the silhouette: the rejected one reads as a solid upright rectangle, which is a
+building. Do this before tuning anything else, because no detail rescues a wrong silhouette.
+
+## 9.3 The loop that made iterating cheap
+
+`.claude-workspace/game-website/iterations/upsert-one-composition.exs` takes a JSON cell list and surgically
+upserts ONE composition; `.probe/objshot.mjs` then renders that real seeded object through the real path with
+its real colours. Edit JSON, upsert, render, compare: about ninety seconds a pass. Four passes took the cave
+from a temple to something approved. Building through the probe's SPEC mode instead is faster still but LIES
+about colour, because it has no tileset to resolve a label against.
+
+## 9.4 Naming
+
+*"always name in relation to the object itself"*. `forest_entrance` named a PLACE, which says nothing about
+what the thing looks like, and it is how a cave mouth ended up as the forest's entrance. `temple_entrance`,
+`cave_entrance_cube` and `cave_entrance_rounded` each say what they are.
+
+Still to build, and it is the same point: **a forest entrance depends on the forest.** *"is not the same
+entering ajungle than entering a meadow or a woodland or a swamp, each one must have their own tree guided
+entry"*. Four objects, each guided by its own trees, none of them named `forest_entrance`.
+
