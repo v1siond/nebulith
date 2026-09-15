@@ -15,9 +15,6 @@ import { resolveComposition } from './tileset/tileset'
 import { isTileCategory, TILE_CATEGORY } from './tileset/tileCategory'
 
 // ── road / path grounds ──────────────────────────────────────────────────
-/** The primary paved road/driveway ground (what the settlement generator carves streets + driveways as). */
-export const ROAD_GROUND = 'path_stone'
-
 /**
  * IS THIS GROUND A ROAD? Asked of the backend, which files every tile under a `category`.
  *

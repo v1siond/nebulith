@@ -54,6 +54,11 @@ function build(key: string, seed: number): StageData {
       zone: 'summer', variant: 'forest', layout: (node.layout ?? 'jungle') as never, cols: 40, rows: 40,
       options: { exits: '2', pathways: '2' }, nature: c.nature, palette: c.palette, formation: c.formation,
       treeMix: c.trees, subZones: c.subZones, crossings: c.crossings, entrance: c.entrance,
+      // THE PATHWAY TOO, and leaving it off made this test measure a map nobody gets. A way is dressed with
+      // what the template serves, and some of that dressing BLOCKS: a cut trail is lined with the thicket it
+      // was cut through. Measured when it was added, that cost the plain jungle 8 points of placeable room
+      // and put it under the floor below, while this file went on reporting the undressed map as fine.
+      pathway: c.pathway,
     })
   } finally {
     Math.random = orig

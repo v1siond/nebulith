@@ -174,6 +174,39 @@ export interface GeneratorFormation {
   understoryTile?: string
 }
 
+/** One thing sprinkled along a pathway: a tile label and how much of the eligible ground takes it. */
+export interface GeneratorPathwayDressing {
+  /** The tile the backend serves for this, by label. Never a name this file invents. */
+  tile: string
+  /** Share of eligible cells that get one, 0..1. */
+  rate: number
+}
+
+/**
+ * WHAT A PATHWAY IS MADE OF, served per template.
+ *
+ * A pathway used to be a tint. A woodland trail swapped the ground for the flat floor tile and recoloured it,
+ * and a meadow and a jungle did not even do that: their paths were the same `meadow` ground as the field
+ * beside them, in a different colour. Width was `WOODLAND.pathWidth`, a constant in the engine, so a beach
+ * lane, a rainforest machete trail and a city street came out as one 3-wide rectangle in three colours.
+ *
+ * Read off the references he gave, a pathway is four things and every one of them is data:
+ * a MATERIAL, a WIDTH, an EDGE that is ragged wherever nobody laid a kerb, and what lies on it and stands
+ * beside it. The lining is what tells you which place you are in before you have looked at anything else.
+ */
+export interface GeneratorPathway {
+  /** The ground tile the way is paved with, by label (`path_dirt`, `gravel`, `wooden_planks`, `road`, …). */
+  surface?: string
+  /** How many cells across it runs. */
+  width?: number
+  /** How ragged the edge is: the share of its border cells the field takes back. 0 is a laid kerb. */
+  edge?: number
+  /** What lies ON the surface. Walkable, always: a pebble is not an obstacle. */
+  scatter?: readonly GeneratorPathwayDressing[]
+  /** What stands BESIDE it, on the field cells that touch it. This is what makes a path read as a corridor. */
+  lining?: readonly GeneratorPathwayDressing[]
+}
+
 export interface GeneratorSubZone {
   key: string
   name?: string
@@ -215,6 +248,8 @@ export interface GeneratorConfig {
   subZones?: readonly GeneratorSubZone[]
   /** How this template distributes its trees. Absent → the generator's own default grouping. */
   formation?: GeneratorFormation
+  /** What this template's ways are made of. Absent → the engine's own plain track. */
+  pathway?: GeneratorPathway
   /**
    * WHICH trees grow here. Absent → the global weighted table every template used to share.
    */
@@ -498,6 +533,7 @@ function parseConfig(v: unknown): GeneratorConfig {
   const palette = parsePalette(v.palette)
   const subZones = parseSubZones(v.subZones)
   const formation = parseFormation(v.formation)
+  const pathway = parsePathway(v.pathway)
   const trees = parseTreeMix(v.trees)
   const crossings = parseCrossings(v.crossings)
   const entrance = typeof v.entrance === 'string' && v.entrance !== '' ? v.entrance : undefined
@@ -509,6 +545,7 @@ function parseConfig(v: unknown): GeneratorConfig {
   if (palette) out.palette = palette
   if (subZones) out.subZones = subZones
   if (formation) out.formation = formation
+  if (pathway) out.pathway = pathway
   if (trees) out.trees = trees
   if (crossings) out.crossings = crossings
   if (entrance) out.entrance = entrance
@@ -576,6 +613,39 @@ function parseFormation(v: unknown): GeneratorFormation | undefined {
   }
   const tile = v.understoryTile
   if (typeof tile === 'string' && tile.length > 0) out.understoryTile = tile
+  return Object.keys(out).length > 0 ? out : undefined
+}
+
+/** The served dressing rows. A row with no tile or no usable rate is DROPPED rather than defaulted: a thing
+ *  the backend could not name is not one the generator may choose for it. */
+function parseDressing(v: unknown): readonly GeneratorPathwayDressing[] | undefined {
+  if (!Array.isArray(v)) return undefined
+  const rows: GeneratorPathwayDressing[] = []
+  for (const raw of v) {
+    if (!isObject(raw)) continue
+    const tile = str(raw.tile)
+    const rate = num(raw.rate)
+    if (!tile || rate === undefined || rate <= 0) continue
+    rows.push({ tile, rate })
+  }
+  return rows.length > 0 ? rows : undefined
+}
+
+/** The served pathway block. An absent field stays absent, so the generator keeps what it did before for it
+ *  rather than being handed a number this file made up. */
+function parsePathway(v: unknown): GeneratorPathway | undefined {
+  if (!isObject(v)) return undefined
+  const out: GeneratorPathway = {}
+  const surface = str(v.surface)
+  if (surface) out.surface = surface
+  const width = num(v.width)
+  if (width !== undefined && width >= 1) out.width = Math.round(width)
+  const edge = num(v.edge)
+  if (edge !== undefined && edge >= 0 && edge <= 1) out.edge = edge
+  const scatter = parseDressing(v.scatter)
+  if (scatter) out.scatter = scatter
+  const lining = parseDressing(v.lining)
+  if (lining) out.lining = lining
   return Object.keys(out).length > 0 ? out : undefined
 }
 

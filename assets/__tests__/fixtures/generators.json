@@ -105,7 +105,28 @@
               "enemyTypes": [],
               "townsfolk": 3
             },
-            "entrance": "woodland_entrance"
+            "entrance": "woodland_entrance",
+            "pathway": {
+              "edge": 0.35,
+              "lining": [
+                {
+                  "rate": 0.08,
+                  "tile": "rock"
+                },
+                {
+                  "rate": 0.1,
+                  "tile": "shrub"
+                }
+              ],
+              "scatter": [
+                {
+                  "rate": 0.1,
+                  "tile": "decor_pebbles"
+                }
+              ],
+              "surface": "path_dirt",
+              "width": 3
+            }
           },
           "options": [
             {
@@ -328,6 +349,27 @@
                   "enemies": 0,
                   "enemyTypes": [],
                   "townsfolk": 3
+                },
+                "pathway": {
+                  "edge": 0.35,
+                  "lining": [
+                    {
+                      "rate": 0.08,
+                      "tile": "rock"
+                    },
+                    {
+                      "rate": 0.1,
+                      "tile": "shrub"
+                    }
+                  ],
+                  "scatter": [
+                    {
+                      "rate": 0.1,
+                      "tile": "decor_pebbles"
+                    }
+                  ],
+                  "surface": "path_dirt",
+                  "width": 3
                 }
               },
               "options": [
@@ -568,6 +610,27 @@
                   "enemies": 0,
                   "enemyTypes": [],
                   "townsfolk": 3
+                },
+                "pathway": {
+                  "edge": 0.5,
+                  "lining": [
+                    {
+                      "rate": 0.22,
+                      "tile": "tall_grass"
+                    },
+                    {
+                      "rate": 0.03,
+                      "tile": "thicket"
+                    }
+                  ],
+                  "scatter": [
+                    {
+                      "rate": 0.05,
+                      "tile": "decor_pebbles"
+                    }
+                  ],
+                  "surface": "path_dirt",
+                  "width": 2
                 }
               },
               "options": [
@@ -886,6 +949,27 @@
                   "enemies": 0,
                   "enemyTypes": [],
                   "townsfolk": 3
+                },
+                "pathway": {
+                  "edge": 0.4,
+                  "lining": [
+                    {
+                      "rate": 0.16,
+                      "tile": "rock"
+                    },
+                    {
+                      "rate": 0.05,
+                      "tile": "shrub"
+                    }
+                  ],
+                  "scatter": [
+                    {
+                      "rate": 0.16,
+                      "tile": "decor_pebbles"
+                    }
+                  ],
+                  "surface": "gravel",
+                  "width": 3
                 }
               },
               "options": [
@@ -1206,6 +1290,27 @@
                   "enemies": 0,
                   "enemyTypes": [],
                   "townsfolk": 3
+                },
+                "pathway": {
+                  "edge": 0.28,
+                  "lining": [
+                    {
+                      "rate": 0.1,
+                      "tile": "flower"
+                    },
+                    {
+                      "rate": 0.04,
+                      "tile": "rock"
+                    }
+                  ],
+                  "scatter": [
+                    {
+                      "rate": 0.12,
+                      "tile": "decor_pebbles"
+                    }
+                  ],
+                  "surface": "path_dirt",
+                  "width": 3
                 }
               },
               "options": [
@@ -1660,7 +1765,28 @@
               "enemyTypes": [],
               "townsfolk": 2
             },
-            "entrance": "woodland_entrance"
+            "entrance": "woodland_entrance",
+            "pathway": {
+              "edge": 0.5,
+              "lining": [
+                {
+                  "rate": 0.22,
+                  "tile": "tall_grass"
+                },
+                {
+                  "rate": 0.03,
+                  "tile": "thicket"
+                }
+              ],
+              "scatter": [
+                {
+                  "rate": 0.05,
+                  "tile": "decor_pebbles"
+                }
+              ],
+              "surface": "path_dirt",
+              "width": 2
+            }
           },
           "options": [
             {
@@ -2014,6 +2140,27 @@
                   "enemies": 0,
                   "enemyTypes": [],
                   "townsfolk": 2
+                },
+                "pathway": {
+                  "edge": 0.5,
+                  "lining": [
+                    {
+                      "rate": 0.22,
+                      "tile": "tall_grass"
+                    },
+                    {
+                      "rate": 0.03,
+                      "tile": "thicket"
+                    }
+                  ],
+                  "scatter": [
+                    {
+                      "rate": 0.05,
+                      "tile": "decor_pebbles"
+                    }
+                  ],
+                  "surface": "path_dirt",
+                  "width": 2
                 }
               },
               "options": [
@@ -2407,6 +2554,18 @@
                   "enemies": 0,
                   "enemyTypes": [],
                   "townsfolk": 2
+                },
+                "pathway": {
+                  "edge": 0.0,
+                  "lining": [
+                    {
+                      "rate": 0.1,
+                      "tile": "bush"
+                    }
+                  ],
+                  "scatter": [],
+                  "surface": "wooden_planks",
+                  "width": 2
                 }
               },
               "options": [
@@ -2762,6 +2921,27 @@
                   "enemies": 0,
                   "enemyTypes": [],
                   "townsfolk": 2
+                },
+                "pathway": {
+                  "edge": 0.45,
+                  "lining": [
+                    {
+                      "rate": 0.12,
+                      "tile": "shrub"
+                    },
+                    {
+                      "rate": 0.06,
+                      "tile": "rock"
+                    }
+                  ],
+                  "scatter": [
+                    {
+                      "rate": 0.08,
+                      "tile": "decor_pebbles"
+                    }
+                  ],
+                  "surface": "path_dirt",
+                  "width": 2
                 }
               },
               "options": [
@@ -3163,6 +3343,27 @@
                   "enemies": 0,
                   "enemyTypes": [],
                   "townsfolk": 2
+                },
+                "pathway": {
+                  "edge": 0.35,
+                  "lining": [
+                    {
+                      "rate": 0.08,
+                      "tile": "rock"
+                    },
+                    {
+                      "rate": 0.1,
+                      "tile": "shrub"
+                    }
+                  ],
+                  "scatter": [
+                    {
+                      "rate": 0.1,
+                      "tile": "decor_pebbles"
+                    }
+                  ],
+                  "surface": "path_dirt",
+                  "width": 3
                 }
               },
               "options": [
@@ -3430,7 +3631,28 @@
               "enemyTypes": [],
               "townsfolk": 5
             },
-            "entrance": "woodland_entrance"
+            "entrance": "woodland_entrance",
+            "pathway": {
+              "edge": 0.28,
+              "lining": [
+                {
+                  "rate": 0.1,
+                  "tile": "flower"
+                },
+                {
+                  "rate": 0.04,
+                  "tile": "rock"
+                }
+              ],
+              "scatter": [
+                {
+                  "rate": 0.12,
+                  "tile": "decor_pebbles"
+                }
+              ],
+              "surface": "path_dirt",
+              "width": 3
+            }
           },
           "options": [
             {
@@ -3645,6 +3867,27 @@
                   "enemies": 0,
                   "enemyTypes": [],
                   "townsfolk": 5
+                },
+                "pathway": {
+                  "edge": 0.28,
+                  "lining": [
+                    {
+                      "rate": 0.1,
+                      "tile": "flower"
+                    },
+                    {
+                      "rate": 0.04,
+                      "tile": "rock"
+                    }
+                  ],
+                  "scatter": [
+                    {
+                      "rate": 0.12,
+                      "tile": "decor_pebbles"
+                    }
+                  ],
+                  "surface": "path_dirt",
+                  "width": 3
                 }
               },
               "options": [
@@ -3877,6 +4120,27 @@
                   "enemies": 0,
                   "enemyTypes": [],
                   "townsfolk": 5
+                },
+                "pathway": {
+                  "edge": 0.28,
+                  "lining": [
+                    {
+                      "rate": 0.1,
+                      "tile": "flower"
+                    },
+                    {
+                      "rate": 0.04,
+                      "tile": "rock"
+                    }
+                  ],
+                  "scatter": [
+                    {
+                      "rate": 0.12,
+                      "tile": "decor_pebbles"
+                    }
+                  ],
+                  "surface": "path_dirt",
+                  "width": 3
                 }
               },
               "options": [
@@ -4179,7 +4443,28 @@
               "enemyTypes": [],
               "townsfolk": 8
             },
-            "entrance": "town_entrance"
+            "entrance": "town_entrance",
+            "pathway": {
+              "edge": 0.15,
+              "lining": [
+                {
+                  "rate": 0.1,
+                  "tile": "lamp"
+                },
+                {
+                  "rate": 0.07,
+                  "tile": "flower"
+                }
+              ],
+              "scatter": [
+                {
+                  "rate": 0.05,
+                  "tile": "decor_pebbles"
+                }
+              ],
+              "surface": "path_stone",
+              "width": 3
+            }
           },
           "options": [
             {
@@ -4373,6 +4658,27 @@
                   "enemies": 0,
                   "enemyTypes": [],
                   "townsfolk": 5
+                },
+                "pathway": {
+                  "edge": 0.15,
+                  "lining": [
+                    {
+                      "rate": 0.1,
+                      "tile": "lamp"
+                    },
+                    {
+                      "rate": 0.07,
+                      "tile": "flower"
+                    }
+                  ],
+                  "scatter": [
+                    {
+                      "rate": 0.05,
+                      "tile": "decor_pebbles"
+                    }
+                  ],
+                  "surface": "path_stone",
+                  "width": 3
                 }
               },
               "options": [],
@@ -4497,12 +4803,33 @@
                   "plazaSize": 5,
                   "roadWidth": 4,
                   "setback": 1,
-                  "streets": "path_stone"
+                  "streets": "path_dirt"
                 },
                 "units": {
                   "enemies": 0,
                   "enemyTypes": [],
                   "townsfolk": 6
+                },
+                "pathway": {
+                  "edge": 0.35,
+                  "lining": [
+                    {
+                      "rate": 0.08,
+                      "tile": "rock"
+                    },
+                    {
+                      "rate": 0.1,
+                      "tile": "shrub"
+                    }
+                  ],
+                  "scatter": [
+                    {
+                      "rate": 0.1,
+                      "tile": "decor_pebbles"
+                    }
+                  ],
+                  "surface": "path_dirt",
+                  "width": 3
                 }
               },
               "options": [],
@@ -4640,6 +4967,23 @@
                   "enemies": 0,
                   "enemyTypes": [],
                   "townsfolk": 7
+                },
+                "pathway": {
+                  "edge": 0.12,
+                  "lining": [
+                    {
+                      "rate": 0.12,
+                      "tile": "lamp"
+                    }
+                  ],
+                  "scatter": [
+                    {
+                      "rate": 0.06,
+                      "tile": "decor_pebbles"
+                    }
+                  ],
+                  "surface": "cobblestone",
+                  "width": 3
                 }
               },
               "options": [],
@@ -4757,6 +5101,23 @@
                   "enemies": 0,
                   "enemyTypes": [],
                   "townsfolk": 7
+                },
+                "pathway": {
+                  "edge": 0.3,
+                  "lining": [
+                    {
+                      "rate": 0.1,
+                      "tile": "shrub"
+                    }
+                  ],
+                  "scatter": [
+                    {
+                      "rate": 0.1,
+                      "tile": "decor_pebbles"
+                    }
+                  ],
+                  "surface": "path_dirt",
+                  "width": 3
                 }
               },
               "options": [],
@@ -4873,6 +5234,18 @@
                   "enemies": 0,
                   "enemyTypes": [],
                   "townsfolk": 6
+                },
+                "pathway": {
+                  "edge": 0.0,
+                  "lining": [
+                    {
+                      "rate": 0.1,
+                      "tile": "bush"
+                    }
+                  ],
+                  "scatter": [],
+                  "surface": "wooden_planks",
+                  "width": 2
                 }
               },
               "options": [],
@@ -5018,7 +5391,23 @@
               "enemyTypes": [],
               "townsfolk": 14
             },
-            "entrance": "town_entrance"
+            "entrance": "town_entrance",
+            "pathway": {
+              "edge": 0.0,
+              "lining": [
+                {
+                  "rate": 0.14,
+                  "tile": "lamp"
+                },
+                {
+                  "rate": 0.06,
+                  "tile": "shrub"
+                }
+              ],
+              "scatter": [],
+              "surface": "road",
+              "width": 4
+            }
           },
           "options": [
             {
@@ -5212,6 +5601,22 @@
                   "enemies": 0,
                   "enemyTypes": [],
                   "townsfolk": 16
+                },
+                "pathway": {
+                  "edge": 0.0,
+                  "lining": [
+                    {
+                      "rate": 0.14,
+                      "tile": "lamp"
+                    },
+                    {
+                      "rate": 0.06,
+                      "tile": "shrub"
+                    }
+                  ],
+                  "scatter": [],
+                  "surface": "road",
+                  "width": 4
                 }
               },
               "options": [],
@@ -5357,6 +5762,23 @@
                   "enemies": 0,
                   "enemyTypes": [],
                   "townsfolk": 14
+                },
+                "pathway": {
+                  "edge": 0.12,
+                  "lining": [
+                    {
+                      "rate": 0.12,
+                      "tile": "lamp"
+                    }
+                  ],
+                  "scatter": [
+                    {
+                      "rate": 0.06,
+                      "tile": "decor_pebbles"
+                    }
+                  ],
+                  "surface": "cobblestone",
+                  "width": 3
                 }
               },
               "options": [],

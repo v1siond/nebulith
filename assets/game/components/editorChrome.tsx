@@ -734,6 +734,7 @@ export function GenerateControls({
       palette: def?.config.palette,
       subZones: def?.config.subZones,
       formation: def?.config.formation,
+      pathway: def?.config.pathway,
       treeMix: def?.config.trees,
       crossings: def?.config.crossings,
       // Seeded from the preset's identity, so a card's picture is stable across renders and every card shows

@@ -3682,6 +3682,7 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
       // HOW the trees group — a wood pasture, an even-aged stand and a closed canopy differ in this, not in
       // how many trees they hold.
       formation: generator.config.formation,
+      pathway: generator.config.pathway,
       // WHICH species grow here — every forest used to roll one shared table.
       treeMix: generator.config.trees,
       crossings: generator.config.crossings,
@@ -3903,6 +3904,7 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
       // HOW the trees group — a wood pasture, an even-aged stand and a closed canopy differ in this, not in
       // how many trees they hold.
       formation: generator.config.formation,
+      pathway: generator.config.pathway,
       // WHICH species grow here — every forest used to roll one shared table.
       treeMix: generator.config.trees,
       crossings: generator.config.crossings,
