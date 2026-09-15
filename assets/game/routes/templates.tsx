@@ -121,6 +121,7 @@ import { CharacterPanel } from '@/components/game/shell/CharacterPanel'
 import { SwapTilePanel } from '@/components/game/shell/SwapTilePanel'
 import { NO_ZONES_SHUT, ZoneCollapse, zoneClasses, type EditorZoneId, type EditorZoneShut } from '@/components/game/shell/ZoneCollapse'
 import { HudOverlay, PlayerUiPanel, useHudLayout } from '@/components/game/shell/PlayerUiPanel'
+import { armedSubject, shouldOpenPreview } from '@/components/game/previewOpening'
 import { connectorEditFromSelection } from '@/game/editor/connectors'
 import { useEditorHistory } from '@/game/editor/useEditorHistory'
 import { spawnInMainArea } from '@/game/runtime/spawn'
@@ -1005,18 +1006,21 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
   const [tuningSlot, setTuningSlot] = useState<HTMLElement | null>(null)
   // The New world panel works WITH the preview window, so opening the panel opens the window.
   /**
-   * THE PREVIEW COMES BACK WHEN YOU CHANGE WHAT YOU ARE LOOKING AT.
+   * CHANGING RAIL IS NOT SELECTING SOMETHING, so it does not open the preview.
    *
-   * One flag gates EVERY rail's preview, and the only thing that turned it back on was
-   * this effect, for the generate rail alone. So closing the window while building a world took the object and
-   * tile previews with it, and nothing in those panels could ask for it back.
+   * This used to call `setPreviewOpen(true)` on every rail change, to answer a different complaint: one flag
+   * gates every rail's preview, so closing the window while building a world took the object and tile
+   * previews with it and nothing in those panels could ask for it back.
    *
-   * Any rail change restores it, which is the behaviour it had already spotted from the other side:
-   * Closing it still closes it for as long as you stay where you are.
+   * REGRESSION, and the cause is that a React effect also fires on MOUNT. With nothing armed and no rail
+   * touched, this ran once on the first frame and opened the window over the map, which is exactly what
+   * *"I only want to open when an actual element is selected"* rules out, twice reported.
+   *
+   * Arming a tool, a tile or a unit is what opens it (the effect below), and that fires on whichever rail you
+   * are on, so the panels can still ask for it back. This one only drops the stale world.
    */
   useEffect(() => {
-    setPreviewOpen(true)
-    // AND DROP THE STALE WORLD, so the caption and the panel agree with the rail you are actually on.
+    // DROP THE STALE WORLD, so the caption and the panel agree with the rail you are actually on.
     if (activeRailId !== 'generate') setGenPeek(null)
   }, [activeRailId])
 
@@ -1030,16 +1034,15 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
    * Keyed on what is ARMED, not on what is hovered: a hover is not a decision, and reopening a window you
    * just shut every time the cursor crossed the library would be its own bug.
    */
-  const armedSubject = `${activeRailId}:${buildingTool ?? ''}:${armedTile?.id ?? ''}:${unitTile?.id ?? ''}`
-  // …AND ONLY WHEN SOMETHING IS ACTUALLY ARMED. This fired on mount too, with nothing selected, so the window
-  // opened over the map from the first frame however the initial state was set: *"I only want to open when an
-  // actual element is selected"*. Changing the rail alone is not a selection either, so it is the TOOL or the
-  // tile that counts.
-  const armedAnything = !!buildingTool || !!armedTile || !!unitTile
+  // THE RULE IS IN ONE PLACE, `previewOpening.ts`, because it regressed twice while it lived inline here as
+  // two effects that each half-stated it.
+  const armed = { buildingTool, armedTileId: armedTile?.id ?? null, unitTileId: unitTile?.id ?? null }
+  const subject = armedSubject(activeRailId, armed)
+  const openable = shouldOpenPreview(armed)
   useEffect(() => {
-    if (!armedAnything) return
+    if (!openable) return
     setPreviewOpen(true)
-  }, [armedSubject, armedAnything])
+  }, [subject, openable])
   /** Is the level map open BIG, in its own panel? Separate from `levelMapOpen`, which is the corner one. */
   const [levelMapBig, setLevelMapBig] = useState(false)
 
