@@ -2862,6 +2862,44 @@ defmodule Nebulith.Catalog.TileSource do
   end
 
   @doc """
+  THE CANOPY 9-SLICE, as real leaf art.
+
+  The nine `canopy_*` pieces existed as a glyph and an emoji and were referenced by ZERO compositions, so a
+  forest had no way to draw a SHEET of leaf. Measured off his reference (art.ngfiles 1168374): the canopy there
+  is ONE tone over 0.59 of the picture with a hollow of 0.10 beneath it, no trunks and no round crowns.
+  Building that out of `leaf_center` circles is what produced eight rejected attempts.
+
+  So the family is authored as overlapping leaf blobs on a 128 square (`priv/tilegen/tiles.json`), near-white
+  like every other authored tile so the tile's own COLOUR setting tints it and one art serves every wood and
+  every season. The edge pieces fade toward the outside so a sheet has a foliage rim rather than a cut line,
+  and `canopy_under` is the sparse dark piece you see from below when you are walking under it.
+  """
+  def seed_canopy_sheet do
+    ascii_id = ensure_tileset("ascii", "ASCII").id
+    emoji_id = ensure_tileset("emoji", "Emoji").id
+    pieces = ~w(canopy_tl canopy_t canopy_tr canopy_l canopy_c canopy_r canopy_bl canopy_b canopy_br canopy_under)
+
+    for {id, style} <- [{emoji_id, "emoji"}, {ascii_id, "ascii"}], label <- pieces do
+      {:ok, _} =
+        Catalog.upsert_tile(%{
+          tileset_id: id,
+          label: label,
+          color_role: nil,
+          blocking: false,
+          # A canopy piece is CONTENT hung in the air, not ground: the composition places it at the level its
+          # trunks reach, so its own height must not add to that.
+          height: 0,
+          category: "nature",
+          title: "Canopy",
+          image_url: "/tiles/#{style}/#{label}.png",
+          settings: %{"color" => "#5d7340"}
+        })
+    end
+
+    :ok
+  end
+
+  @doc """
   Upsert ONLY the compositions (trees, fountains, buildings), by name.
 
   The full `seed/0` also rewrites tile rows, and the runtime tileset carries poses tuned by hand in the editor
@@ -3831,47 +3869,63 @@ defmodule Nebulith.Catalog.TileSource do
   end
 
   defp forest_entrance_cells(species, canopy, gloom, foot, wet, ground) do
-    # THE CANOPY IS A SHEET, AND THE WAY IS THE SHADOW UNDER IT.
+    # THE CANOPY IS A SHEET OF LEAF, AND THE WAY IS THE SHADOW UNDER IT.
     #
-    # Measured off his reference (art.ngfiles 1168374, top third): the canopy is ONE tone covering 0.59 of the
-    # area, the hollow beneath it is 0.10, and the sheet is 2.7x brighter than the shadow. **One** distinct
-    # canopy tone, quantised. There are no trunks and no round crowns up there at all.
+    # Measured off his reference (art.ngfiles 1168374, the top third he pointed at): the canopy is ONE tone
+    # over 0.59 of the area, the hollow beneath it is 0.10, and the sheet is 2.7x brighter than that shadow.
+    # No trunks and no round crowns up there at all.
     #
-    # Every attempt before this built rows of separate lollipop trees with sky between them, which is why
-    # nothing read as a forest you walk INTO: *"all we needed was to obscure the pathway like it happens on the
-    # top part of this reference"*. The obscuring is not an object you place. It is the canopy closing OVER the
-    # path and the shadow it throws.
-    #
-    # So: a sheet of leaf over the wood columns, and the path cells carry the same sheet HIGHER, at the
-    # brightness of shadow, so you walk under it and cannot see where it goes.
+    # Built the way the cave entrance was: out of a PIECE FAMILY. The nine `canopy_*` pieces are authored leaf
+    # art now, so the edge pieces make a foliage rim and `canopy_under` is what you see from below. Eight
+    # attempts made of `leaf_center` circles failed because a circle is a crown, and a crown is not a sheet.
     leaf = {gloom, shade(gloom, -0.18)}
-    # 2.7x darker than the sheet, which is the measured ratio.
     under = shade(gloom, 0.63)
+    # The sheet sits at the height the trunks reach, so it is held UP rather than floating.
+    roof = 3
 
-    # THE SHEET. One tile per cell, oversized so neighbours MEET with no sky between them, which is what makes
-    # it a sheet rather than a row of trees.
+    # WHICH PIECE EACH CELL TAKES. The 9-slice: corners at the corners, edges along the sides, centre inside,
+    # which is what gives the sheet a rim instead of a cut line.
+    piece = fn dx, dy ->
+      h = cond do
+        dx == 0 -> "l"
+        dx == @forest_w - 1 -> "r"
+        true -> ""
+      end
+
+      v = cond do
+        dy == 0 -> "t"
+        dy == @forest_h - 1 -> "b"
+        true -> ""
+      end
+
+      case v <> h do
+        "" -> "canopy_c"
+        one -> "canopy_" <> one
+      end
+    end
+
     sheet =
       for dx <- 0..(@forest_w - 1),
           dy <- 0..(@forest_h - 1),
           on_path = dx in @forest_path do
-        %{dx: dx, dy: dy, level: if(on_path, do: 4, else: 3), label: "leaf_center",
-          walkable: on_path, scale: 1.5,
-          settings: %{"scaleY" => 1.4, "shape" => "circle",
+        %{dx: dx, dy: dy, level: roof, label: if(on_path, do: "canopy_under", else: piece.(dx, dy)),
+          walkable: on_path, scale: 1.0,
+          settings: %{"scaleY" => 1.0,
                       "color" => if(on_path, do: under, else: elem(leaf, rem(dx + dy, 2)))}}
       end
 
-    # THE TRUNKS HOLDING IT UP, only where the wood is, never on the path. Each is its own species at its own
-    # width, which is what keeps a beech stand unlike a mangrove swamp, and they are all stretched to the sheet.
+    # THE TRUNKS HOLDING THE SHEET UP, only in the wood, never on the path. Each is its own species at its own
+    # width, which is what keeps a beech stand unlike a mangrove swamp, and every one reaches the sheet.
     trunks =
       for dx <- 0..(@forest_w - 1),
           dx not in @forest_path,
           dy <- 0..(@forest_h - 1),
-          rem(dx * 7 + dy * 5, 100) < round(canopy * 100) + 30 do
+          rem(dx * 7 + dy * 5, 100) < round(canopy * 100) + 34 do
         kind = Enum.at(species, rem(dx * 3 + dy * 5, length(species)))
         {tw, _, _, _, _} = Map.fetch!(@species, kind)
-        w = max(tw, 0.28)
+        w = max(tw, 0.3)
         %{dx: dx, dy: dy, level: 0, label: "trunk_mid", walkable: false, scale: w,
-          settings: %{"scaleY" => Float.round(3.0 / w, 2)}}
+          settings: %{"scaleY" => Float.round(roof / w, 2)}}
       end
 
     floor =
