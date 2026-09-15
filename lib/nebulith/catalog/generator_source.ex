@@ -1289,32 +1289,58 @@ defmodule Nebulith.Catalog.GeneratorSource do
   defp townsfolk(count), do: %{"townsfolk" => count, "enemies" => 0, "enemyTypes" => []}
   defp enemies(types), do: %{"townsfolk" => 0, "enemies" => 10, "enemyTypes" => types}
   @doc """
-  The GENERATION LAYERS: the stack map generation runs, in order.
+  THE GENERATION LAYERS: the model, as rows.
 
-  Six today. `ways` leads because the exits and paths are planned before anything is built around them, and
-  `units` trails because the editor scatters those, not the generator.
+  A layer is a set of things in a given context, and the context is A LEVEL BEING COMPLETE, which is wider than
+  the map generator: *"A LAYER DOESN'T NECESSARILLY RUNS IN THE GENERATOR, IS JUST A THING IN THE CONTEXT OF
+  THE LEVEL COMPLETION"*. Units are a layer even though the generator does not scatter them.
 
-  `seedable: false` is the honest half. `edge`, `gates`, `floors` and `transitions` are decided entirely by the
-  ways above them, so re-rolling one changes nothing, and the editor reads this flag rather than offering a
-  button that does nothing.
+  The order, his: *"grid (defined by size, cell, rows) > terrain builder (by zone/region/season which
+  determines what objects will be added, type of floor, etc) > water (which blocks pathways) > pathways (which
+  adapts to available space left by water on grid) > objects (this is where the generator enters into play)
+  ... > fog (to optimize, handle distance) > lighning (which affects all elements) > shadow (which depends on
+  lightning and positioned elements) > post processing/optimization"*.
 
-  More are coming and each is a row: *"we can apply shadow and lightning as extra layers, we'll also add fog
-  layer, then we probably will add some reprocess layer too, we'll add water reflection layer"*.
+  GRID AND TERRAIN ARE ONE LAYER, and the inputs are its parameters rather than a layer of their own:
+  *"THE INPUTS ARE WHAT DEFINE THE PARAMETERS OF THE FIRST LAYER, IN FACT EVERY INPUT FROM THE GENERATOR UI
+  DOES EXACTLY THE SAME, IS A PARAMETER IN A GIVEN LAYER OF THE SYSTEM"*.
+
+  `group` is the name for a run of layers. `layout` is terrain, water and pathways together; `objects` is
+  buildings, nature and decor. Both used to be served as if they were layers themselves, which is exactly what
+  let a SECOND pathways layer be added beside the first without anything noticing.
+
+  PATHWAYS IS STRUCTURE, NOT LOOK: *"what the pathways determine is the map structure, what is a pathway, what
+  is a section to put objects, what are the exits, how's the pathway draw, etc. then on the objects phase we
+  can pick the type of pathway, type of exit, etc"*. Which tile a way is surfaced with, and what lines it,
+  belong to objects.
+
+  `seedable: false` is the honest half: a layer nothing re-rolls yet gets no button rather than one that does
+  nothing.
   """
   def seed_generation_layers do
     layers = [
-      %{key: "ways", label: "Ways", position: 10, seedable: true,
-        hint: "the exits and the paths between them. re-roll to move where you come in and go out"},
-      %{key: "layout", label: "Layout", position: 20, seedable: true,
-        hint: "the bare shape: streets, plots and clearings, with structures and nature stripped"},
-      %{key: "buildings", label: "Buildings", position: 30, seedable: true,
+      %{key: "terrain", label: "Terrain", position: 10, group: "layout", seedable: true,
+        hint: "the grid and the ground on it, by zone, region and season. decides the floor and what may grow"},
+      %{key: "water", label: "Water", position: 20, group: "layout", seedable: true,
+        hint: "rivers, pools and shallows. water is laid before the paths, because it is what they go around"},
+      %{key: "pathways", label: "Pathways", position: 30, group: "layout", seedable: true,
+        hint: "the map's structure: where the ways run, where the exits are, and which ground is left to build on"},
+      %{key: "buildings", label: "Buildings", position: 40, group: "objects", seedable: true,
         hint: "the structures, re-rolled in place"},
-      %{key: "nature", label: "Nature", position: 40, seedable: true,
+      %{key: "nature", label: "Nature", position: 50, group: "objects", seedable: true,
         hint: "the trees, plants and greenery"},
-      %{key: "decor", label: "Decor", position: 50, seedable: true,
-        hint: "the dressing: plazas, lamps and fountains"},
-      %{key: "units", label: "Units", position: 60, seedable: true,
-        hint: "the creatures and townsfolk"}
+      %{key: "decor", label: "Decor", position: 60, group: "objects", seedable: true,
+        hint: "the dressing: what surfaces a way, what lines it, plazas, lamps and fountains"},
+      %{key: "units", label: "Units", position: 70, seedable: true,
+        hint: "the creatures and townsfolk. they depend on everything above them"},
+      %{key: "fog", label: "Fog", position: 80, seedable: false,
+        hint: "distance and what it hides. not built yet"},
+      %{key: "lightning", label: "Lightning", position: 90, seedable: false,
+        hint: "the light, which affects every element on the map. not built yet"},
+      %{key: "shadow", label: "Shadow", position: 100, seedable: false,
+        hint: "cast from the light and from where things ended up standing. not built yet"},
+      %{key: "post_processing", label: "Post processing", position: 110, seedable: false,
+        hint: "the final pass over the finished frame. not built yet"}
     ]
 
     for attrs <- layers, do: {:ok, _} = Nebulith.Catalog.upsert_generation_layer(attrs)

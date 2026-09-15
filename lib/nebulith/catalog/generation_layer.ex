@@ -33,6 +33,13 @@ defmodule Nebulith.Catalog.GenerationLayer do
     field :hint, :string
     field :position, :integer, default: 0
     field :seedable, :boolean, default: true
+    # WHICH GROUP OF LAYERS THIS ONE BELONGS TO, or null when it stands alone.
+    #
+    # `layout` groups terrain, water and pathways; `objects` groups buildings, nature and decor. They were both
+    # served as if they were layers themselves, which is what let a second pathways layer be added beside the
+    # first without anything noticing. A group is a NAME for a run of layers, and in the UI it is also the
+    # filter: run the system up to here.
+    field :group, :string
 
     timestamps(type: :utc_datetime)
   end
@@ -40,7 +47,7 @@ defmodule Nebulith.Catalog.GenerationLayer do
   @doc false
   def changeset(layer, attrs) do
     layer
-    |> cast(attrs, [:key, :label, :hint, :position, :seedable])
+    |> cast(attrs, [:key, :label, :hint, :position, :seedable, :group])
     |> validate_required([:key, :label])
     |> validate_format(:key, ~r/^[a-z][a-z0-9_]*$/,
       message: "is the id the engine binds its pass to, so it is lower snake_case"

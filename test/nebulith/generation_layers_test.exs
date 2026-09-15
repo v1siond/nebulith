@@ -23,12 +23,45 @@ defmodule Nebulith.GenerationLayersTest do
   defp keys, do: Enum.map(Catalog.list_generation_layers(), & &1.key)
 
   test "the layers we have are seeded, in the order generation runs them" do
-    assert keys() == ~w(ways layout buildings nature decor units)
+    assert keys() ==
+             ~w(terrain water pathways buildings nature decor units fog lightning shadow post_processing)
   end
 
-  test "ways leads, because the exits and paths are planned before anything is built around them" do
-    assert List.first(keys()) == "ways"
+  test "terrain leads, and the water is laid before the pathways that go around it" do
+    # THE ORDER IS HIS, and this test used to assert the opposite of it. It said `ways` led, "because the
+    # exits and paths are planned before anything is built around them", which is backwards: *"water (which
+    # blocks pathways) > pathways (which adapts to available space left by water on grid)"*. A path cannot
+    # adapt to water that has not been laid yet.
+    order = keys()
+    assert List.first(order) == "terrain"
+    assert index(order, "water") < index(order, "pathways")
+    assert index(order, "pathways") < index(order, "buildings")
   end
+
+  test "a group is a NAME for a run of layers, not a layer of its own" do
+    # `layout` and `objects` were both served as if they were layers. They are the names of the groups that
+    # terrain/water/pathways and buildings/nature/decor form, which is why a SECOND pathways layer could be
+    # added beside the first without anything noticing.
+    by_key = Map.new(Catalog.list_generation_layers(), &{&1.key, &1})
+
+    refute Map.has_key?(by_key, "layout"), "layout is a group, not a layer"
+    refute Map.has_key?(by_key, "objects"), "objects is a group, not a layer"
+
+    for key <- ~w(terrain water pathways), do: assert by_key[key].group == "layout"
+    for key <- ~w(buildings nature decor), do: assert by_key[key].group == "objects"
+    assert by_key["units"].group == nil
+  end
+
+  test "the layers he named and nobody built are rows, and offer no button" do
+    by_key = Map.new(Catalog.list_generation_layers(), &{&1.key, &1})
+
+    for key <- ~w(fog lightning shadow post_processing) do
+      assert Map.has_key?(by_key, key), "#{key} is a layer he named and it has to be in the list"
+      refute by_key[key].seedable, "#{key} has no pass yet, so the panel must not offer a re-roll for it"
+    end
+  end
+
+  defp index(list, key), do: Enum.find_index(list, &(&1 == key))
 
   test "every seeded layer says what it is and what it does" do
     for layer <- Catalog.list_generation_layers() do
@@ -40,33 +73,35 @@ defmodule Nebulith.GenerationLayersTest do
 
   describe "a layer that does not exist yet" do
     test "can be created, and lands in the run order its position asks for" do
-      {:ok, fog} =
+      {:ok, added} =
         Catalog.create_generation_layer(%{
-          "key" => "fog",
-          "label" => "Fog",
-          "hint" => "a fog pass over the finished map",
+          "key" => "reflection",
+          "label" => "Water reflection",
+          "hint" => "what the water gives back, once there is water to give it",
           "position" => 35,
           "seedable" => true
         })
 
-      assert fog.key == "fog"
-      # 35 sits between buildings (30) and nature (40), and the list says so without being re-sorted by hand
-      assert keys() == ~w(ways layout buildings fog nature decor units)
+      assert added.key == "reflection"
+      # 35 sits between pathways (30) and buildings (40), and the list says so without being re-sorted by hand
+      assert keys() ==
+               ~w(terrain water pathways reflection buildings nature decor units fog lightning shadow post_processing)
     end
 
     test "can be updated and deleted, so the list is edited rather than deployed" do
-      {:ok, fog} = Catalog.create_generation_layer(%{"key" => "fog", "label" => "Fog", "position" => 70})
-      {:ok, renamed} = Catalog.update_generation_layer(fog, %{"label" => "Fog and haze"})
-      assert renamed.label == "Fog and haze"
+      {:ok, fog} = Catalog.create_generation_layer(%{"key" => "haze", "label" => "Haze", "position" => 75})
+      {:ok, renamed} = Catalog.update_generation_layer(fog, %{"label" => "Haze and murk"})
+      assert renamed.label == "Haze and murk"
 
       {:ok, _} = Catalog.delete_generation_layer(renamed)
-      refute "fog" in keys()
+      refute "haze" in keys()
     end
   end
 
   describe "what the table refuses" do
     test "two layers cannot share a key, because the engine binds its pass to that key" do
-      assert {:error, changeset} = Catalog.create_generation_layer(%{"key" => "ways", "label" => "Ways again"})
+      assert {:error, changeset} =
+               Catalog.create_generation_layer(%{"key" => "pathways", "label" => "Pathways again"})
       assert %{key: ["has already been taken"]} = errors_on(changeset)
     end
 
@@ -76,7 +111,7 @@ defmodule Nebulith.GenerationLayersTest do
     end
 
     test "a layer with no label is refused: the panel has nothing to show for it" do
-      assert {:error, changeset} = Catalog.create_generation_layer(%{"key" => "shadow"})
+      assert {:error, changeset} = Catalog.create_generation_layer(%{"key" => "reflection"})
       assert %{label: ["can't be blank"]} = errors_on(changeset)
     end
   end
