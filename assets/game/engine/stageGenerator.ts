@@ -60,6 +60,7 @@ import type { Connector } from '@/lib/api'
 import { clamp, randInt, randIntWith, manhattan, makeRng, type Rng } from '@/lib/math'
 import { runLayers, type StageLayer } from '@/engine/generate/pipeline'
 import { generationLayerKeys } from '@/engine/generate/generationLayers'
+import { isTileCategory, TILE_CATEGORY } from '@/engine/tileset/tileCategory'
 import { planRoutes, resolveWays, type Gate, type RouteCell, type RoutePlan, type Side, type Ways } from '@/engine/pathNetwork'
 import {
   carveChannel, deckRoutes, digChannel, flowField, isWaterGround, layDeck, recordBridgeSpan,
@@ -115,6 +116,18 @@ export interface StageProp {
   /** generator-marked tree-base cell → always casts a ground shadow (even when another
    *  tree sits directly below it). */
   baseShadow?: boolean
+  /**
+   * THIS PROP GREW HERE, so a pass that clears a pathway may pull it out.
+   *
+   * A hand-written list of type names was tried and it is the wrong shape twice over: it goes stale when a
+   * plant is added, and no served field can replace it, because `rock` and `key` are BOTH `category: nature`
+   * while one is scenery and the other is a temple's puzzle. Only the thing that PLANTED it knows which it
+   * is, so the planter says so, the way `baseShadow` already does.
+   *
+   * Absent means structure: an altar, a door, a key, a wall. Clearing those broke three temple tests when a
+   * name list tried to guess.
+   */
+  grows?: boolean
   /** Cell-label naming this cell's part (e.g. tree_leaf_top, tree_interior).
    *  Drives per-label collision + the eventual ASCII→tileset mapping. */
   label?: string
@@ -222,6 +235,20 @@ export interface StageData {
    * kind of thing: state the generator PICKS and the render READS.
    */
   flow?: (number | undefined)[][]
+  /**
+   * EVERY CELL A CROSSING SPANS, as `col,row` keys.
+   *
+   * The generator has always known this: `layDeck` records each deck cell as it lays it, because a deck is a
+   * fact about the map that later passes have to respect (nothing plants on a bridge). It simply never left
+   * the generator, so anything downstream that needed to ask "is this cell a bridge" had no way to, and the
+   * only route left was to guess from tile NAMES. That is the thing that must never happen: the tiles a
+   * crossing is built from are backend data, a new crossing style is a row in the database, and a name list
+   * in this repo goes stale the moment one is added.
+   *
+   * Carried for the same reason as `flow` and `elevation`: state the generator PICKS and everything after it
+   * READS.
+   */
+  decks?: ReadonlySet<string>
   connectors: Connector[]
   spawn: { col: number; row: number }
   /** THE WAYS THROUGH THIS MAP as they were planned, before anything was planted (see `pathNetwork`), or null
@@ -387,7 +414,7 @@ function scatterTallGrass(ctx: ArchetypeContext): void {
   const occupied = new Set(ctx.props.map(p => `${p.col},${p.row}`))
   forEachCell(cols, rows, (col, row) => {
     if (collision[row][col] || isWaterGround(ground[row][col])) return
-    if (BUILT_FLOOR.has(ground[row][col]) || isRoadGround(ground[row][col])) return // keep paving and roads clear
+    if (isBuiltFloor(ground[row][col]) || isRoadGround(ground[row][col])) return // keep paving and roads clear
     if (occupied.has(`${col},${row}`)) return
     if (shadeNoise(Math.floor(col / TALL_GRASS_PATCH) * 2.3 + Math.floor(row / TALL_GRASS_PATCH) * 3.7) > share) return
     placeProp(ctx, makePlant(ctx.zone, col, row, 'tall_grass'))
@@ -404,7 +431,7 @@ const makeFlower = (rng: Rng, zone: ZoneId, col: number, row: number, regionSet?
   // LABEL 'flower' routes it through the label→image path (render/shared.labelTileImage) so it draws the BAKED
   // flower tile in EVERY style (ascii + emoji), colour-composited — never a per-style glyph (ASCII_STYLE.map is
   // empty, so a label-less prop would fall to the legacy '+' glyph drawer). The colour stays a per-instance tint.
-  return { col, row, type: 'flower', char: pick.char, label: 'flower', blocking: false, color: varyIntensity(pick.color, shadeNoise(col * 2.7 + row * 3.1)) }
+  return { col, row, type: 'flower', char: pick.char, label: 'flower', blocking: false, grows: true, color: varyIntensity(pick.color, shadeNoise(col * 2.7 + row * 3.1)) }
 }
 
 /** Per-instance RENDER the generator stamps onto specific prop TYPES — the SAME per-asset settings a hand-painter
@@ -473,7 +500,7 @@ const makeCrystal = (col: number, row: number, tint: string): StageProp => ({
 // A cave mushroom (damp seasons only) — a red/tan toadstool on the floor. Non-blocking.
 // Cap tone from the zone-data mushroomTones() palette (zones.ts).
 const makeMushroom = (col: number, row: number): StageProp => ({
-  col, row, type: 'mushroom', char: '♠', label: 'mushroom', blocking: false,
+  col, row, type: 'mushroom', char: '♠', label: 'mushroom', blocking: false, grows: true,
   color: mushroomTones()[Math.abs(col * 3 + row * 5) % mushroomTones().length],
 })
 
@@ -497,7 +524,7 @@ export const makeGroundDecor = (zone: ZoneId, col: number, row: number): StagePr
   if (!d) return null
   // Carry the decor tile's LABEL so the render resolves its BAKED image (labelTileImage) per active style —
   // decor draws its own tile image, colour-composited, NOT a glyph (see render/shared.groundDecorImage).
-  return { col, row, type: 'ground_decor', char: d.char, blocking: false, color: d.color, label: d.label }
+  return { col, row, type: 'ground_decor', char: d.char, blocking: false, grows: true, color: d.color, label: d.label }
 }
 
 /** Fill most empty, walkable, non-edge cells with non-blocking zone ground decor so a
@@ -506,7 +533,18 @@ export const makeGroundDecor = (zone: ZoneId, col: number, row: number): StagePr
  *  so walkable connectivity is unchanged. */
 // Built/paved floors should NOT get nature decor (no grass on marble) — they're
 // already detailed by their tile pattern.
-const BUILT_FLOOR: ReadonlySet<string> = new Set(['marble', 'gold_tile', 'ancient_stone', 'plaza', 'path_stone', 'rune_floor'])
+/**
+ * IS THIS GROUND A BUILT FLOOR, one nothing plants on? Asked of the backend.
+ *
+ * This was a hand-written set of six names. Measured against the live catalogue: the backend files **21**
+ * tiles under `floors`, so `courtyard_stone`, `temple_floor`, `cave_floor`, `tatami`, `terracotta`,
+ * `wooden_planks` and a dozen more were never recognised, and a flower could grow out of a temple's paving.
+ * A floor added by a migration was invisible here.
+ *
+ * `path_stone` was in the old list and is a ROAD to the backend, which `isRoadGround` already covers, so
+ * every caller pairs the two questions and nothing is lost.
+ */
+const isBuiltFloor = (ground: string | undefined): boolean => isTileCategory(ground, TILE_CATEGORY.floors)
 
 function scatterGroundCover(ctx: ArchetypeContext, density = 0.18, layout?: VillageLayout): void {
   const { props, collision, ground, cols, rows, zone } = ctx
@@ -516,7 +554,7 @@ function scatterGroundCover(ctx: ArchetypeContext, density = 0.18, layout?: Vill
     if (isEdge(col, row, cols, rows)) return
     if (collision[row][col]) return // walkable floor only
     if (isWaterGround(ground[row][col])) return // land-only: no ground cover in water
-    if (BUILT_FLOOR.has(ground[row][col]) || isRoadGround(ground[row][col]) || layout?.roads[row]?.[col]) return // keep paved floors + ROADS clean (roads are colour-only now → layout.roads)
+    if (isBuiltFloor(ground[row][col]) || isRoadGround(ground[row][col]) || layout?.roads[row]?.[col]) return // keep paved floors + ROADS clean (roads are colour-only now → layout.roads)
     if (occupied.has(`${col},${row}`)) return // don't cover trees / buildings / decor
     if (ctx.rand() > density) return // breathing room
     const prop = makeGroundDecor(zone, col, row)
@@ -538,7 +576,7 @@ function scatterFlowers(ctx: ArchetypeContext, density: number, layout?: Village
     if (isEdge(col, row, cols, rows)) return
     if (collision[row][col]) return // walkable grass only
     if (isWaterGround(ground[row][col])) return // land-only: no blooms in water
-    if (BUILT_FLOOR.has(ground[row][col]) || isRoadGround(ground[row][col]) || layout?.roads[row]?.[col]) return // keep streets/paved clean (roads are colour-only now → layout.roads)
+    if (isBuiltFloor(ground[row][col]) || isRoadGround(ground[row][col]) || layout?.roads[row]?.[col]) return // keep streets/paved clean (roads are colour-only now → layout.roads)
     if (occupied.has(`${col},${row}`)) return // don't cover trees / buildings / decor
     if (ctx.rand() > density) return
     fresh.push(makeFlower(ctx.rand, zone, col, row)) // seeded pick → the nature layer stays reproducible per-seed
@@ -1009,6 +1047,10 @@ export function generateStage(opts: GenerateOptions): StageData {
     // of an entrance; a map that planned none keeps the old choice, so every existing template is unmoved.
     spawn: routeSpawn(ctx) ?? chooseSpawn(buildings, collision, cols, rows),
     routes: ctx.routes ?? null,
+    // WHICH CELLS A CROSSING SPANS. The generator has always recorded these; they simply never left it, so
+    // anything downstream that needed to ask "is this a bridge" had to guess from tile NAMES. Undefined when
+    // the map has no crossing, so nothing changes for a map without one.
+    decks: ctx.decks.size === 0 ? undefined : ctx.decks,
   }
 }
 
@@ -2002,18 +2044,6 @@ function clearForEntrance(ctx: ArchetypeContext, gate: Gate): void {
  * NEVER THE BORDER BAND. A tree there is holding the edge closed, and pulling one out would open a way nobody
  * asked for, which is the bug two layers above this one exists to prevent.
  */
-/**
- * THE PROPS THAT GROW, and are therefore swept off a pathway.
- *
- * Only these. An altar, a key, a door, a brazier and a temple wall are STRUCTURE: a temple puts its altar and
- * its key where the ways reach them ON PURPOSE, and clearing those broke three temple tests outright. A rock
- * is left too, because a stone beside a track is scenery and the caves place them deliberately.
- *
- * So the rule is narrow by design: a path a bloom is growing out of is not a path, and a path with a locked
- * door on it is a temple.
- */
-const GROWS: ReadonlySet<string> = new Set(['flower', 'mushroom', 'ground_decor'])
-
 function clearPathSightlines(ctx: ArchetypeContext): void {
   const plan = ctx.routes
   if (!plan) return
@@ -2076,7 +2106,11 @@ function clearPathSightlines(ctx: ArchetypeContext): void {
   //
   // A path a bloom is growing out of is not a path. Same rule, same cells, one list further.
   const { props } = ctx
-  const keptProps = props.filter(p => GROWS.has(p.type) === false || !mustSee.has(`${p.col},${p.row}`))
+  // ASK THE PROP, DO NOT GUESS ITS NAME. This filtered on a hand-written set of three type names, which
+  // goes stale the moment a plant is added and cannot be replaced by a served field either: `rock` and `key`
+  // are BOTH `category: nature` while one is scenery and the other is a temple's puzzle. The planter marks
+  // what it plants, so an altar, a door and a key are never swept.
+  const keptProps = props.filter(p => !p.grows || !mustSee.has(`${p.col},${p.row}`))
   if (keptProps.length === props.length) return
   props.length = 0
   props.push(...keptProps)
@@ -2718,7 +2752,7 @@ function canPlantBloom(ctx: ArchetypeContext, col: number, row: number): boolean
   if (ctx.decks.has(`${col},${row}`)) return false // never on a bridge or a boardwalk
   const ground = ctx.ground[row][col]
   if (isWaterGround(ground)) return false
-  if (BUILT_FLOOR.has(ground) || isRoadGround(ground)) return false
+  if (isBuiltFloor(ground) || isRoadGround(ground)) return false
   return true
 }
 
@@ -3238,7 +3272,7 @@ function bodiesOf(cells: ReadonlySet<string>): Array<Set<string>> {
 
 /** RUINS — fallen masonry in a ruins region. Blocking stone, scattered rather than laid out, because what is
  *  left of a jungle ruin is rubble and the odd standing wall, not a building. */
-/** The floor a ruin stands on. Already in `BUILT_FLOOR`, so nothing plants on a ruin's platform. */
+/** The floor a ruin stands on. The backend files it under `floors`, so nothing plants on a ruin's platform. */
 const RUIN_FLOOR = 'ancient_stone'
 /** Coarse patch the sites cluster on, exactly as the swamp's pools do. A patch is in or out whole, so a ruin
  *  comes out as a FOOTPRINT rather than as speckle. */
@@ -4463,7 +4497,10 @@ function treeFits(collision: boolean[][], baseCol: number, baseRow: number, cols
  * and occupies no ground, so only the trunk cell is checked.) Pure — reads `ground` only.
  */
 export function treeColumnClearsPaving(ground: string[][], col: number, baseRow: number): boolean {
-  return !BUILT_FLOOR.has(ground[baseRow]?.[col])
+  // PAVING IS BOTH KINDS: a built floor and a road. `path_stone` is filed under `roads` by the backend, not
+  // `floors`, so asking only one of the two let a trunk stand in the middle of a plaza path.
+  const g = ground[baseRow]?.[col]
+  return !isBuiltFloor(g) && !isRoadGround(g)
 }
 
 /** Record a TREE anchor (trunk-base cell + composition kind + canopy shade). The generator no longer bakes flat

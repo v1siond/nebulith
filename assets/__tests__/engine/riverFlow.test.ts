@@ -72,18 +72,19 @@ describe('every channel cell states its heading', () => {
       // as off-channel. The heading is correct, the river really does flow that way; it is this set that was
       // missing the span.
       const wet = new Set(wetCells(s).map(([c, r]) => `${c},${r}`))
-      // …and the BRIDGE the river runs under. A deck REPLACES the water in the ground, which `layDeck`
-      // documents and defends (a cell cannot be both dug below the walking floor and forced to elevation 0),
-      // so a crossing reads as dry BANK here. Once crossings became unconditional the cell beside a deck
-      // pointed straight at it and counted as off-channel. The heading is right, the river really does flow
-      // that way; this set was missing the span. `decks` is generation state and never reaches StageData, so
-      // the span is found the way the renderer finds it: by its ground label.
-      for (let r = 0; r < s.rows; r++) {
-        for (let c = 0; c < s.cols; c++) {
-          const g = s.ground[r]?.[c]
-          if (g === 'bridge' || g === 'bridge_deck' || g === 'wooden_planks') wet.add(`${c},${r}`)
-        }
-      }
+      // …AND THE BRIDGE THE RIVER RUNS UNDER, asked of the STAGE rather than guessed from tile names.
+      //
+      // A deck REPLACES the water in the ground, which `layDeck` documents and defends: a cell cannot be both
+      // dug below the walking floor and forced to elevation 0. So a crossing reads as dry BANK to a test that
+      // only looks at water, and once crossings became unconditional the cell beside a deck pointed straight
+      // at it and counted as off-channel. The heading is right; this set was missing the span.
+      //
+      // The first version of this listed three tile names. That is the violation he caught: the tiles a
+      // crossing is built from are BACKEND data, a new crossing style is a row in the database, and a name
+      // list here goes stale the moment one is added. `stage.decks` is the generator saying which cells it
+      // spanned, which is the fact itself rather than a guess at it.
+      for (const key of s.decks ?? []) wet.add(key)
+
       let offChannel = 0
       for (const [c, r] of wetCells(s)) {
         const dir = s.flow?.[r]?.[c]

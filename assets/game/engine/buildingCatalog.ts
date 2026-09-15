@@ -12,22 +12,25 @@ import type { BuildingSizes, Facing } from './villageLayout'
 import type { IsometricGrid } from './IsometricGrid'
 import type { Composition } from './tileset/tileset'
 import { resolveComposition } from './tileset/tileset'
+import { isTileCategory, TILE_CATEGORY } from './tileset/tileCategory'
 
 // ── road / path grounds ──────────────────────────────────────────────────
 /** The primary paved road/driveway ground (what the settlement generator carves streets + driveways as). */
 export const ROAD_GROUND = 'path_stone'
 
-/** EVERY ground type that reads as a walkable ROAD/PATH a building's footprint may NOT cover. A building
- *  fronts a road from one cell away, so its footprint never sits on the road itself; impassable terrain
- *  (water/lava) is already collision, so only the *walkable* road types need a ground-level exclusion. */
-export const ROAD_GROUNDS: ReadonlySet<string> = new Set([
-  'road', 'road_center', 'road_edge', 'plaza', 'path_stone', 'path_dirt', 'bridge',
-  'snow_path', 'desert_road', 'wooden_planks', 'courtyard_stone',
-])
-
-/** True iff a ground type reads as a road/path (buildings never sit on these). */
+/**
+ * IS THIS GROUND A ROAD? Asked of the backend, which files every tile under a `category`.
+ *
+ * This was a hand-written set of eleven names. Measured against the live catalogue: the backend serves **12**
+ * tiles under `roads` and the list was missing `cobblestone`, `dirt-path`, `gravel` and `path`, while naming
+ * `plaza`, `wooden_planks` and `courtyard_stone`, which it files under `floors`. So it was not merely impure,
+ * it was WRONG, and a road added by a migration was invisible to the planner: *"ALL VARIATIONS ALL REGIONS
+ * ALL TYPES, EVERYTHING COMNES FROM BACKEND, SO WHY ARE WE DOING HARDCODED WITH WHAT SHOULD BE DATA???"*
+ *
+ * A building never sits on a road, so this decides where a plot may go.
+ */
 export function isRoadGround(ground: string | undefined): boolean {
-  return ground != null && ROAD_GROUNDS.has(ground)
+  return isTileCategory(ground, TILE_CATEGORY.roads)
 }
 
 // ── composition catalog ───────────────────────────────────────────────────
