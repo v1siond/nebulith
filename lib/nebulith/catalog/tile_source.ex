@@ -3836,12 +3836,31 @@ defmodule Nebulith.Catalog.TileSource do
     # the tile's default green, so thirteen objects came out as one pile of green blobs: *"they all suck,
     # there's no difference between none of them"*. Two tones, alternating, so a stand has depth.
     leaf = {gloom, shade(gloom, -0.22)}
+
+    # THE CANOPY IS A LAYER, NOT A PILE.
+    #
+    # Measured against his reference: its skyline varies by 0.013 of its height, ours by 0.132, ten times as
+    # uneven, and its fill is 0.57 against our 0.84. Ours was a heap of different sized balls because each
+    # crown sat at the top of its OWN trunk, so a `tree_column` crowned at level 2 beside a `tree_giant` at 4.
+    #
+    # A real wood does not do that: the canopy closes at one height and the trunks below it are whatever length
+    # they need to be. So the crown level is the STAND's, taken from its tallest species, and every trunk
+    # stretches to reach it. Varied trunks, one roof, which is what the reference shows.
+    roof =
+      species
+      |> Enum.map(fn k -> {tw, th, _, _, _} = Map.fetch!(@species, k); round(tw * th) end)
+      |> Enum.max()
+      |> max(2)
+
     # ONE TREE, of a named species, at its OWN proportions. `vary` only scales the whole thing so a stand is
     # not an orchard; it never changes what the species IS.
     tree = fn dx, dy, kind, vary ->
       {tw, th, cw, ch, shape} = Map.fetch!(@species, kind)
-      trunk_h = Float.round(th * vary, 2)
-      top = max(0, round(tw * trunk_h))
+      # The trunk is stretched so its top MEETS the stand's canopy, whatever species it is. Its own `th` still
+      # sets how thick and how tall it reads relative to its neighbours; what it no longer does is decide where
+      # the roof is.
+      top = if tw > 0.0, do: roof, else: 0
+      trunk_h = if tw > 0.0, do: Float.round(top / tw, 2), else: 0.0
 
       trunk =
         if tw > 0.0,
@@ -3866,7 +3885,9 @@ defmodule Nebulith.Catalog.TileSource do
       for dx <- 0..(@forest_w - 1),
           dx not in @forest_path,
           dy <- 0..(@forest_h - 1),
-          rem(dx * 7 + dy * 5, 100) < round(canopy * 100) + 22 do
+          # fill measured +0.26 over the reference, so the stand is thinned rather than packed. The served
+          # density still decides how much, it is simply no longer topped up by a constant that filled it in.
+          rem(dx * 7 + dy * 5, 100) < round(canopy * 100) do
         kind = Enum.at(species, rem(dx * 3 + dy * 5, length(species)))
         tree.(dx, dy, kind, 0.85 + rem(dx * 3 + dy * 7, 4) * 0.1)
       end
@@ -3887,15 +3908,19 @@ defmodule Nebulith.Catalog.TileSource do
 
     # THE WAY GOES DARK, running BACK into the wood and fading toward you, so it reads as a way that carries on
     # rather than a door. It is the cave mouth's form: a tall WALKABLE block, never a square on the floor.
-    # *"the dark section is still bad because is not further down the path enough"*. It covered three cells of
-    # five and stopped. It runs the WHOLE depth now, deepest where the path leaves the map and thinning to
-    # almost nothing at the near end, so the way fades out of sight instead of ending at a wall.
+    # THE DARK SITS AT THE END OF THE PATHWAY.
+    #
+    # *"the back zone should be at the end of the pathway, not in middle of trees"*. It was spread down every
+    # path cell, so the darkness sat among the trunks halfway along instead of where the way actually leaves.
+    # It is the LAST two rows only now: full strength on the border row where the path goes off the map, half
+    # on the one behind it so the edge is not a hard line.
+    #
+    # Still the cave mouth's form, a tall WALKABLE block, never a square painted on the floor.
     dark =
       for dx <- @forest_path,
-          dy <- 0..(@forest_h - 1),
-          deep = dy / (@forest_h - 1) do
+          {dy, deep} <- [{@forest_h - 1, 1.0}, {@forest_h - 2, 0.45}] do
         %{dx: dx, dy: dy, level: 0, label: "trunk_mid", walkable: true, scale: 1.0,
-          settings: %{"scaleY" => 0.35 + deep * 2.9, "color" => shade(gloom, 0.35 + deep * 0.62)}}
+          settings: %{"scaleY" => 0.6 + deep * 2.6, "color" => shade(gloom, 0.4 + deep * 0.55)}}
       end
 
     verge =
