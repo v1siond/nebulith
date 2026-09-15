@@ -855,14 +855,42 @@ interface ArchetypeContext {
  *  settlement pass run on its own seed while sharing the grid it mutates. */
 const withRand = (ctx: ArchetypeContext, rand: Rng): ArchetypeContext => ({ ...ctx, rand })
 
-const ARCHETYPES: Partial<Record<VariantId, (ctx: ArchetypeContext, rngs: LayerRngs) => void>> = {
-  town: placeTown,
-  city: placeCity,
-  forest: placeForest,
-  temple: placeTemple,
-  cave: placeCave,
-  'boss-stage': placeBossStage,
+/**
+ * THE PHASES A VARIANT IS BUILT IN, one per layer the backend serves.
+ *
+ * *"having a layer or a subsystem that is not present in the rest of templates makes no sense, all it does is
+ * segment the general core logic"*. Every variant used to be ONE function that painted, flooded, carved and
+ * planted in a single pass, so `terrain` was three layers wearing one name and each variant owned a private
+ * pipeline nobody could read the order of.
+ *
+ * A variant declares the four phases instead, and the layers call them. What a variant does not do, it does
+ * not declare, rather than the engine leaving a call out.
+ *
+ * MIGRATING ONE AT A TIME, on purpose. A variant that has not been split yet declares everything under
+ * `terrain`, which is exactly where its code runs today, so the suite stays green while they move across.
+ * The order only becomes his (terrain, water, pathways, objects) once the last one is split, because until
+ * then the archetypes still read `ctx.routes` while they build and the plan has to be made first.
+ */
+interface VariantPhases {
+  /** The ground: the grid's floor by zone, region and season. Decides what may grow and what it looks like. */
+  terrain: (ctx: ArchetypeContext, rngs: LayerRngs) => void
+  /** Rivers, creeks and pools. Laid BEFORE the ways, because it is what they have to go around. */
+  water?: (ctx: ArchetypeContext, rngs: LayerRngs) => void
+  /** The map's STRUCTURE: where the ways run, and which ground is left to build on. */
+  ways?: (ctx: ArchetypeContext, rngs: LayerRngs) => void
+  /** Everything placed on it, and the LOOK of the ways and the exits. */
+  objects?: (ctx: ArchetypeContext, rngs: LayerRngs) => void
 }
+
+const BUILD: Partial<Record<VariantId, VariantPhases>> = {
+  town: { terrain: placeTown },
+  city: { terrain: placeCity },
+  forest: { terrain: placeForest },
+  temple: { terrain: placeTemple },
+  cave: { terrain: placeCave },
+  'boss-stage': { terrain: placeBossStage },
+}
+
 
 // ── the floor is a colour ────────────────────────────────────────────────
 // The meadow lays ONE flat tile and paints each cell's colour on it; textured tiles are spent on ornaments. The
@@ -994,7 +1022,12 @@ const STAGE_LAYERS: ReadonlyArray<StageLayer<ArchetypeContext, LayerRngs>> = [
   // TERRAIN: the grid's ground, by zone, region and season. Still carries WATER and OBJECTS inside it,
   // because each archetype paints, floods and plants in one pass. Splitting those three apart is the work
   // this list is being straightened out for.
-  { name: 'terrain', run: (ctx, rngs) => ARCHETYPES[ctx.variant]?.(ctx, rngs) },
+  { name: 'terrain', run: (ctx, rngs) => BUILD[ctx.variant]?.terrain(ctx, rngs) },
+
+  // WATER, laid before the ways because it is what they go around: *"we should have water go first, because
+  // then the pathway can footprint the actual navigable layout, including potentially using bridges"*. Empty
+  // for every variant that still carves its own inside `terrain`; they move across one at a time.
+  { name: 'water', when: ctx => !!BUILD[ctx.variant]?.water, run: (ctx, rngs) => BUILD[ctx.variant]?.water?.(ctx, rngs) },
 
   // PATHWAYS: the map's STRUCTURE. *"what the pathways determine is the map structure, what is a pathway,
   // what is a section to put objects, what are the exits, how's the pathway draw"*.
@@ -1006,7 +1039,8 @@ const STAGE_LAYERS: ReadonlyArray<StageLayer<ArchetypeContext, LayerRngs>> = [
   {
     name: 'pathways',
     when: ctx => !!ctx.routes,
-    run: ctx => {
+    run: (ctx, rngs) => {
+      BUILD[ctx.variant]?.ways?.(ctx, rngs) // where this variant's ways actually run
       sealMapEdge(ctx) // the border is closed everywhere the exits are not
       openGates(ctx) // and cut open where they are, so the exits get the last word on it
       keepWaysWalkable(ctx) // nothing built above may wall a gate in behind it
@@ -1021,7 +1055,8 @@ const STAGE_LAYERS: ReadonlyArray<StageLayer<ArchetypeContext, LayerRngs>> = [
   {
     name: 'objects',
     when: ctx => !!ctx.routes,
-    run: ctx => {
+    run: (ctx, rngs) => {
+      BUILD[ctx.variant]?.objects?.(ctx, rngs) // everything this variant plants and builds
       layWays(ctx) // the surface a way wears, what lies on it and what stands beside it
       stampEntrances(ctx) // and the way out looks like one, on the surface the way actually wears
     },
@@ -1105,7 +1140,7 @@ export function generateStage(opts: GenerateOptions): StageData {
 // paved. Towns lean green here per design.
 const NATURE_MULT: Record<Settlement, number> = { town: 1.15, city: 0.4 }
 
-// Hoisted function decls (not const arrows) so ARCHETYPES above can reference them.
+// Hoisted function decls (not const arrows) so the BUILD table above can reference them.
 function placeTown(ctx: ArchetypeContext, rngs: LayerRngs): void {
   placeSettlement(ctx, 'town', rngs)
 }
