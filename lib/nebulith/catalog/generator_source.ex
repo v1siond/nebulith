@@ -1,23 +1,23 @@
 defmodule Nebulith.Catalog.GeneratorSource do
   @moduledoc """
-  The SEED for the map-generator catalog — the categories the editor offers and the generators in
+  The SEED for the map-generator catalog: the categories the editor offers and the generators in
   them, ported verbatim from the constants that used to be scattered across the frontend.
 
   and
 
-  Every number here is the value the shipped generator uses TODAY, so seeding changes no behaviour —
-  it only moves where the number lives. Provenance, so the port can be re-checked:
+  Every number here is the value the shipped generator uses TODAY, so seeding changes no behaviour.
+  It only moves where the number lives. Provenance, so the port can be re-checked:
 
-    * grid ranges — `templates.tsx` `generateStageInEditor` (city 52-71 x 42-57, else 30-45 x 24-35)
-    * cellSize / isoScale — `levels/village.ts` `VILLAGE_CONFIG`
-    * settlement tuning — `engine/villageLayout.ts` (`PLAZA_SIZE`, `SETBACK`, `ROAD_W`, `LOT_GAP_BY`,
+    * grid ranges, `templates.tsx` `generateStageInEditor` (city 52-71 x 42-57, else 30-45 x 24-35)
+    * cellSize / isoScale, `levels/village.ts` `VILLAGE_CONFIG`
+    * settlement tuning, `engine/villageLayout.ts` (`PLAZA_SIZE`, `SETBACK`, `ROAD_W`, `LOT_GAP_BY`,
       `MAX_PER_FRONTAGE`, `BUILDING_CAP`, `HOUSE_RANGE`, `HOUSE_WIDTHS`)
-    * natureMultiplier — `engine/stageGenerator.ts` `NATURE_MULT`
-    * nature densities — `engine/stageGenerator.ts` nature pass (`scatterGroundCover` 0.12,
+    * natureMultiplier, `engine/stageGenerator.ts` `NATURE_MULT`
+    * nature densities, `engine/stageGenerator.ts` nature pass (`scatterGroundCover` 0.12,
       `scatterFlowers` 0.06)
-    * townsfolk / enemies — `templates.tsx` (`townCount` 14/8/5, `seedStageEnemies` count 10) and
+    * townsfolk / enemies, `templates.tsx` (`townCount` 14/8/5, `seedStageEnemies` count 10) and
       `game/spawner.ts` (`CAVE_ENEMY_TYPES`, `TEMPLE_ENEMY_TYPES`)
-    * building materials + colours — `templates.tsx` `applyStageToGrid`
+    * building materials + colours, `templates.tsx` `applyStageToGrid`
 
   Idempotent: `seed/0` upserts by `key`, so re-running never duplicates and never clobbers a row's
   id (the same contract `TileSource.seed/0` has).
@@ -36,15 +36,15 @@ defmodule Nebulith.Catalog.GeneratorSource do
   # woodland + river + bridge…).
   #
   # `requires` is what keeps the panel honest: a crossing is meaningless without a river, so it says so
-  # rather than the frontend knowing it. That was the next ticket too — — and as an option it is one more row here,
+  # rather than the frontend knowing it. That was the next ticket too, and as an option it is one more row here,
   # never another template.
   #
   # THE RIVER IS A CHOICE OF COURSE, not an on/off. So each course it named is a choice, and the
   # randomness it wants to keep is one of them rather than the only behaviour.
   @water_options [
     %{
-      # THERE IS NO "crossing" TOGGLE. It read "A crossing joined to the paths" and he asked what it even
-      # meant and why it was in the UI. It meant: off, the river got fallen logs at random spots and a path
+      # THERE IS NO "crossing" TOGGLE. It read "A crossing joined to the paths", which said nothing about
+      # what it did. It meant: off, the river got fallen logs at random spots and a path
       # walked into the water and stopped; on, a real crossing went where the path meets the river. There is
       # no map that wants the first, so a river crossing a path is ALWAYS crossed now.
       "key" => "river",
@@ -147,10 +147,9 @@ defmodule Nebulith.Catalog.GeneratorSource do
     }
   ]
 
-  # A SETTLEMENT'S WAYS. The same exits as everywhere else, *"exits are maintained as they're now"*, and more
-  # pathways to choose from: *"pathways in towns has higher ceiling (not limited to 4, we should determine the
-  # limit from the grid size"*. A town is a street grid and a street grid carries as many streets as it has
-  # room for, so the list goes to 8 and the engine holds it to what the map measures.
+  # A SETTLEMENT'S WAYS. The same exits as everywhere else, and more pathways to choose from. A town is a
+  # street grid and a street grid carries as many streets as it has room for, so the list goes to 8 and the
+  # engine holds it to what the map measures rather than to a forest's four.
   @settlement_way_options [
     List.first(@way_options),
     %{
@@ -205,29 +204,28 @@ defmodule Nebulith.Catalog.GeneratorSource do
   @outdoor_nature %{"groundCover" => 0.12, "flowers" => 0.06, "tallGrass" => 0.18}
 
   # A WOODLAND's densities. `canopy` is the share of cells carrying a tree, and it is the number that
-  # makes a forest read as a forest. — measured, the meadow presets produced ~10% tree cover scattered over an open
+  # makes a forest read as a forest. Measured, the meadow presets produced ~10% tree cover scattered over an open
   # field. At
   # 0.62 the canopy dominates the forest floor and the carved clearings read as clearings rather than as
-  # the default state. Note the share is of the PLANTABLE floor, not the whole grid — the clearings and
+  # the default state. Note the share is of the PLANTABLE floor, not the whole grid. The clearings and
   # paths are excluded, so this number is not diluted by how many clearings a map happens to roll.
   # Ground cover is richer than the meadow's because a forest floor is not lawn.
   # 0.62 → 0.434. The trees
-  # were reading as a wall rather than as a wood — thinning them lets the clearings and trails breathe and
+  # were reading as a wall rather than as a wood. Thinning them lets the clearings and trails breathe and
   # lets you see through the trunks. The density lives HERE, not in the generator, so tuning it is a data
   # change and not a code change.
   @woodland_nature %{"groundCover" => 0.2, "flowers" => 0.04, "canopy" => 0.434, "tallGrass" => 0.12}
 
   # A JUNGLE is a woodland grown over: the canopy already accepted as forest-dense (the 0.62 the
-  # woodland used to carry), plus the thing that actually distinguishes a jungle from a wood — UNDERGROWTH.
+  # woodland used to carry), plus the thing that actually distinguishes a jungle from a wood, UNDERGROWTH.
   # Ground cover more than doubles and the blooms go with it, so the floor is choked rather than walkable
   # lawn between trunks. Same STRUCTURE as the woodland (clearings, trails); only these numbers differ, which
-  # is why it needs no generator of its own. Starting values — tune them here by eye.
-  # THIRTY PER CENT FEWER TREES, on his instruction 2026-09-15: *"we need to reduce trees density by 30% on
-  # all jungle templates variants too"*. 0.62 -> 0.434. Every jungle variant inherits this, so island,
-  # ruins and swamp all thin with it; the dense variant overrides it and is cut by the same 30%.
-  # FEWER TREES, AND FEWER OF EVERYTHING THAT BLOCKS. *"the density of trees is conflicting with the
-  # functionality of the map, user can't move, we can't put any treasures nor units around"*, and
-  # *"let's reduce trees 10-15% more"*.
+  # is why it needs no generator of its own. Starting values, tune them here by eye.
+  # THIRTY PER CENT FEWER TREES, 2026-09-15: 0.62 -> 0.434. Every environment built on these numbers thins
+  # with it.
+  # FEWER TREES, AND FEWER OF EVERYTHING THAT BLOCKS: the tree density was conflicting with the map being
+  # usable, there was nowhere to move and nowhere to stand a treasure or a unit, so another 10 to 15% came
+  # off on top.
   #
   # THE UNDERGROWTH GROWS BACK WHATEVER THE CANOPY GIVES UP, which is why the first cut did nothing. A
   # jungle's thicket density is `groundCover * jungleFloorReach`, and that reach is the walkable floor over
@@ -255,7 +253,7 @@ defmodule Nebulith.Catalog.GeneratorSource do
   # The generator paints these onto cells as floor STATE. That is the sanctioned path: a generator PICKS and
   # WRITES colour, the renderer only reads. Nothing here is a render-time fallback.
 
-  # A TEMPERATE WOOD. Muted, grey-green, a lot of brown showing through — a pine or oak floor is needles and
+  # A TEMPERATE WOOD. Muted, grey-green, a lot of brown showing through. A pine or oak floor is needles and
   # leaf litter with light reaching it, so it reads dry and open even under the canopy.
   # A PALETTE IS THE GROUND, THE WATER AND THE SHORE. What the WAY across it wears is the pathway kind's, in
   # `@pathways`, see the note there for why it cannot be in both.
@@ -277,7 +275,7 @@ defmodule Nebulith.Catalog.GeneratorSource do
   # AN AMAZONAS. Deep, wet, saturated, and DARK: a closed canopy puts the floor in permanent shade, so the
   # ground is near-black green rather than the woodland's lit olive. The canopy above it is the brightest
   # thing on the map because it is the layer actually getting the sun, which is the inversion that makes a
-  # jungle read as a jungle. Water is silt-brown, not blue — a jungle river carries the forest in it.
+  # jungle read as a jungle. Water is silt-brown, not blue, a jungle river carries the forest in it.
   @jungle_palette %{
     "floor" => "#2f4a2a",
     "floorAlt" => "#38552f",
@@ -341,10 +339,10 @@ defmodule Nebulith.Catalog.GeneratorSource do
   #
   # Two numbers do most of the work:
   #
-  #   * `lattice` — the scale of the noise the canopy is scored against, in cells. SMALL means the score
+  #   * `lattice`, the scale of the noise the canopy is scored against, in cells. SMALL means the score
   #     changes every few cells, so trees land as fine scatter. LARGE means neighbouring cells score alike,
   #     so they land as big continuous masses. This is the "grouping" it is describing.
-  #   * `spacing` — the minimum gap between two trunks. 0 lets them touch and read as a wall; 3 forces the
+  #   * `spacing`, the minimum gap between two trunks. 0 lets them touch and read as a wall; 3 forces the
   #     open, individually-readable spacing of a wood pasture. NEVER 1: claiming only the four orthogonal
   #     neighbours leaves a CHECKERBOARD, which is passable diagonally (the iso view's movement) but not
   #     orthogonally (the top view's), so the floor measures as hundreds of regions and the repair has to cut
@@ -365,32 +363,31 @@ defmodule Nebulith.Catalog.GeneratorSource do
   # `tall_grass`, which the catalog already authors walkable and FLAT (height 0) in both styles, and which a
   # woodland already scatters elsewhere for exactly this purpose.
   @formations %{
-    # Image #10 — a wood pasture. Big gnarled trees standing alone on open grass, wide apart, nothing
+    # Image #10, a wood pasture. Big gnarled trees standing alone on open grass, wide apart, nothing
     # between them. The trees are individuals, not a canopy.
     "scattered" => %{"lattice" => 3, "spacing" => 4, "understory" => 0.35, "understoryTile" => "tall_grass"},
-    # Image #11 — an even-aged beech stand. Straight trunks at regular spacing, a clear walkable floor, and
+    # Image #11, an even-aged beech stand. Straight trunks at regular spacing, a clear walkable floor, and
     # a broad track through it. Ordered rather than clumped.
     "stand" => %{"lattice" => 5, "spacing" => 2, "understory" => 0.45, "understoryTile" => "tall_grass"},
-    # Image #12 — conifers scattered in patches over an open hillside. Clear ground between the groups, so
+    # Image #12, conifers scattered in patches over an open hillside. Clear ground between the groups, so
     # a large lattice (real clumps) but a low overall density.
     "clumped" => %{"lattice" => 10, "spacing" => 0, "understory" => 0.6, "understoryTile" => "tall_grass"},
-    # Image #14 — a closed canopy seen from across the valley. Wall to wall, no floor visible anywhere.
+    # Image #14, a closed canopy seen from across the valley. Wall to wall, no floor visible anywhere.
     "closed" => %{"lattice" => 13, "spacing" => 0, "understory" => 1.25, "understoryTile" => "thicket"},
-    # Image #15 — tall dense trunks over deep green undergrowth, with a narrow trail winding through. The
+    # Image #15, tall dense trunks over deep green undergrowth, with a narrow trail winding through. The
     # canopy is not the hard part here, the floor is.
     # 1.9 MADE THE DENSE WOODLAND THE WORST MAP IN THE GAME: 46% of its interior walkable, against a super
     # dense JUNGLE's 64%. Only `forest_woodland_dense` uses this, so the number is tuned there and nowhere
     # else suffers for it. Same rule as everywhere: the floor may be hard work, it may not be a wall.
     "understory" => %{"lattice" => 7, "spacing" => 0, "understory" => 1.1, "understoryTile" => "thicket"},
-    # Image #13 — cypress standing IN the water, well apart, buttressed bases. Spaced like a pasture but wet.
+    # Image #13, cypress standing IN the water, well apart, buttressed bases. Spaced like a pasture but wet.
     "flooded" => %{"lattice" => 5, "spacing" => 3, "understory" => 0.7}
   }
 
   # WHAT A PATHWAY IS MADE OF, per template.
   #
-  # *"we need better pathways definitions on all templates too, here's what I expect"*, with nine isometric
-  # references, and *"we need the same variance for towns, we need towns with rustic pathways, street
-  # pathways, etc based of their specific characteristics"* (2026-09-15).
+  # Nine isometric references, and the same variance asked for in towns: rustic ways, street ways, each one
+  # chosen from what the place itself is (2026-09-15).
   #
   # WHAT WE HAD. Measured on a 40x40 before any of this: a woodland trail swapped the ground to the flat
   # floor tile and tinted it, and a meadow and a jungle did not even do that. Their pathways were the SAME
@@ -492,8 +489,8 @@ defmodule Nebulith.Catalog.GeneratorSource do
     },
     # A village lane: stone underfoot, a near straight edge because somebody laid it, lamps along it and
     # flowers at the foot of them.
-    # The stone's own colour. *"WE ALREADY HAD GOOD STREETS"*, so a settlement's tone is the material it is
-    # laid in and nothing is moved.
+    # The stone's own colour. The settlement streets were already right, so a settlement's tone is the
+    # material it is laid in and nothing is moved.
     "village_lane" => %{
       "surface" => "path_stone", "tone" => "#ccbbaa", "width" => 3, "edge" => 0.15,
       "scatter" => [%{"tile" => "decor_pebbles", "rate" => 0.05}],
@@ -510,9 +507,8 @@ defmodule Nebulith.Catalog.GeneratorSource do
     # Asphalt, and DARKER than the grass on purpose: `beach_city_street` is the reference and its streets are
     # near-black against pale sand. A way is not always the lighter thing, it is always the OTHER material.
     #
-    # `marking` is the centre line: *"ALL WE NEEDED WAS TO ADD THE WHITE RECTANGULAR LINES IN MIDDLE AS
-    # ORNAMENT"*. A dash every `every` cells down the middle of the carriageway, painted as a COLOUR like the
-    # way under it, never a tile laid on top. #eae7db is the reference's own marking, median-sampled off the
+    # `marking` is the centre line: a dash every `every` cells down the middle of the carriageway, painted
+    # as a COLOUR like the way under it, never a tile laid on top. #eae7db is the reference's own marking, median-sampled off the
     # pixels lying on its asphalt; that asphalt measures #3e403f against our `road` at #3d3d44, so the pair is
     # the picture's pair.
     "city_street" => %{
@@ -533,15 +529,15 @@ defmodule Nebulith.Catalog.GeneratorSource do
   }
 
   # A SETTLEMENT'S STREETS ARE ITS PATHWAY, and they are read off the same block rather than repeated beside
-  # it. *"pathways size must apply to the streets distribution logic, in fact, they're rendundant, street is
-  # just a form of pathway"*. As two literals they had already drifted: a modern city's ways said asphalt
+  # it. A street is a form of pathway, so the pathway's size is the street distribution's size, and the two
+  # were redundant. As two literals they had already drifted: a modern city's ways said asphalt
   # while its streets said cobbles, a forest town's ways said dirt while its streets said stone, and a
   # mountain town's said gravel against cobbles. One literal, so there is nothing left to disagree with.
 
   # A SETTLEMENT'S STREETS ARE ITS OWN PATHWAY, derived rather than written twice.
   #
-  # They are the same fact: *"pathways size must apply to the streets distribution logic, in fact, they're
-  # rendundant, street is just a form of pathway"*. As two literals they drifted, and INHERITANCE is what made
+  # They are the same fact: a street is just a form of pathway, so its size is the pathway's size. As two
+  # literals they drifted, and INHERITANCE is what made
   # it invisible. A modern city overrides its pathway to asphalt and says nothing about streets, so it went on
   # inheriting its parent's cobbles and nobody had written a contradiction anywhere. Measured across the nine
   # settlements when this was added: three disagreed with themselves.
@@ -559,210 +555,622 @@ defmodule Nebulith.Catalog.GeneratorSource do
   # table, so two templates that share a kind cannot drift apart on what it is.
   defp pathway(key), do: Map.fetch!(@pathways, key)
 
-  # THE JUNGLE'S SUB-ZONES. and 2026-09-11 on the shape: REGIONS INSIDE ONE MAP, not more rows in
-  # the template list. You walk out of the open canopy into dense growth, through a swamp, up to the ruins,
-  # without loading anything.
+  # ── WHAT BLOOMS IN A PLACE ──────────────────────────────────────────────────────────────────────
   #
-  # `canopy` and `undergrowth` are MULTIPLIERS on the generator's served base densities, not absolutes. That
-  # keeps one knob in charge: tune `@jungle_nature` and the whole map moves together, tune a multiplier here
-  # and only that kind of ground changes. `weight` is how much of the map a kind tends to claim.
+  # A region could state its SPECIES and had no way to state its BLOOMS, so every wet and tropical map
+  # fell through to the SEASON's set, and summer's carries `✽ #f4f4ec`, a near white. A rainforest floor
+  # is not a daisy meadow and neither is a swamp.
   #
-  # The river is not in this list because it is not a region — it is the watercourse that runs THROUGH them,
-  # and every jungle has one.
-  # WOODLAND REGIONS.
-  #
-  # Measured, it was right: glades ran `canopy 0.35` and mountain forest `0.28`, both under the SAME `clumped`
-  # formation with the same ground cover, on ground that is flat everywhere. One thin uniform scatter, twice.
-  #
-  # "Stands of trees broken by open meadow" is its own description and it is TWO REGIONS, not one average. A
-  # region's `canopy` is a MULTIPLIER of the template's, so a stand closes over and a meadow is grass with the
-  # odd tree standing alone in it. The jungle has had this machinery since its open/dense split; no woodland
-  # ever used it.
-  @woodland_sub_zones [
-    %{
-      "key" => "stand",
-      "name" => "Tree stand",
-      "weight" => 3,
-      "canopy" => 1.7,
-      "undergrowth" => 0.9,
-      "floor" => "#5c6e3d",
-      # close together, floor barely visible inside a stand
-      "formation" => %{"lattice" => 7, "spacing" => 1, "understory" => 0.8},
-      "trees" => [%{"kind" => "tree_column", "weight" => 30}, %{"kind" => "tree_tall", "weight" => 25}, %{"kind" => "tree", "weight" => 25}, %{"kind" => "tree_sapling", "weight" => 20}]
-    },
-    %{
-      "key" => "meadow",
-      "name" => "Open meadow",
-      "weight" => 2,
-      # almost nothing: a meadow is the ABSENCE of canopy, which is what makes the stands read as stands
-      "canopy" => 0.06,
-      "undergrowth" => 0.4,
-      "floor" => "#8b9a5a",
-      "formation" => %{"lattice" => 3, "spacing" => 5, "understory" => 0.3},
-      "trees" => [%{"kind" => "tree_gnarled", "weight" => 60}, %{"kind" => "tree_round", "weight" => 25}, %{"kind" => "bush_round", "weight" => 15}]
-    }
-  ]
+  # These colours are a PROPOSAL rather than a derivation: the instruction was negative (no white), so
+  # each set is the growth that place actually has, to accept or replace in review. A temperate wood, a
+  # meadow and a mountain state none, because the season's set is right for them.
 
-  # THE MOUNTAIN'S SUB-ZONES, and the first regions that stand at DIFFERENT HEIGHTS.
-  # and 2026-09-12:
-  #
-  # `level` is what makes this a mountain instead of a colour change: the cells of a region stand at that level
-  # and the step down to the next region is drawn as a cliff face. A ridge at 3 over a slope at 1 is a two-level
-  # wall, the slope down to the vale is one. Nothing else in the catalog states a level, so nothing else moves.
-  #
-  # NO "stone" here on purpose: in this pipeline stone means RUINS (a platform with columns on it), which is a
-  # jungle thing. A bare ridge is bare.
-  @mountain_sub_zones [
-    %{
-      "key" => "ridge",
-      "name" => "Exposed ridge",
-      "weight" => 2,
-      "level" => 3,
-      # the treeline: almost nothing grows up here, which is why the rock reads as rock
-      "canopy" => 0.14,
-      "undergrowth" => 0.25,
-      "floor" => "#8a8d76",
-      "formation" => %{"lattice" => 3, "spacing" => 4, "understory" => 0.2},
-      "trees" => [%{"kind" => "tree_stub", "weight" => 55}, %{"kind" => "tree_conifer", "weight" => 45}]
-    },
-    %{
-      "key" => "slope",
-      "name" => "Wooded slope",
-      "weight" => 3,
-      "level" => 1,
-      "canopy" => 0.32,
-      "undergrowth" => 0.5,
-      "floor" => "#5f7047",
-      "formation" => %{"lattice" => 10, "spacing" => 0, "understory" => 0.6},
-      "trees" => [%{"kind" => "tree_conifer", "weight" => 65}, %{"kind" => "tree_tall", "weight" => 20}, %{"kind" => "tree_stub", "weight" => 15}]
-    },
-    %{
-      "key" => "vale",
-      "name" => "Sheltered vale",
-      "weight" => 2,
-      "level" => 0,
-      # the bottom is where the water and the soil end up, so it is the thickest part of the map
-      "canopy" => 0.45,
-      "undergrowth" => 0.8,
-      "floor" => "#47603a",
-      "formation" => %{"lattice" => 7, "spacing" => 0, "understory" => 1.1},
-      "trees" => [%{"kind" => "tree_conifer", "weight" => 45}, %{"kind" => "tree_tall", "weight" => 25}, %{"kind" => "tree_broadleaf", "weight" => 20}, %{"kind" => "tree_sapling", "weight" => 10}]
-    }
-  ]
-
-  # A JUNGLE'S OWN BLOOMS. Measured 2026-09-13: the shared `open`, `dense` and `ruins` regions stated none, so
-  # every jungle variant that did not override them fell through to the SEASON's set, and summer's carries
-  # `✽ #f4f4ec`, the near-white rejected twice. A rainforest floor is not a daisy meadow.
-  #
-  # Like the swamp's and the island's, these colours are a PROPOSAL rather than a derivation: heliconia red,
-  # orchid violet and a waxy cream-yellow, to accept or replace in review.
+  # Heliconia red, orchid violet and a waxy cream yellow.
   @jungle_blooms [
     %{"char" => "✿", "color" => "#c2513f"},
     %{"char" => "✾", "color" => "#8d5fa8"},
     %{"char" => "❋", "color" => "#c9b063"}
   ]
 
-  # The swamp's blooms, named once because the swamp VARIANT gives them to its other regions too (ticket 27).
-  # These colours are a PROPOSAL, not a derivation: the instruction was negative (no white), so the set is
-  # muted swamp growth (iris violet, dull marsh gold, a blue green sedge) to accept or replace in review.
+  # Iris violet, dull marsh gold and a blue green sedge.
   @swamp_blooms [
     %{"char" => "✾", "color" => "#7b5fa8"},
     %{"char" => "❋", "color" => "#4f8f7a"},
     %{"char" => "✿", "color" => "#b89a3c"}
   ]
 
-  @jungle_sub_zones [
+  # Shore growth: hibiscus pink, sea holly blue and a bleached sand yellow.
+  @island_blooms [
+    %{"char" => "✿", "color" => "#e2739b"},
+    %{"char" => "❋", "color" => "#6aa9c4"},
+    %{"char" => "✾", "color" => "#e0c877"}
+  ]
+
+  # ── THE REGIONS OF A WILD PLACE ─────────────────────────────────────────────────────────────────
+  #
+  # ONE region set, shared by EVERY wild environment. A region is a part of the same map you walk into,
+  # never another row in the menu: the margin of a wood, its middle, an opening in it, a tangle of low
+  # growth, and the wet ground down at the water. A forest in the middle is not the same as its edge, and
+  # some of it stands in water.
+  #
+  # `canopy` and `undergrowth` are MULTIPLIERS on the row's served densities, so tuning an environment
+  # moves all five regions together and tuning one here moves only that kind of ground. `weight` is how
+  # much of a map that kind tends to claim.
+  #
+  # `species` is an AUTHORING key and is never served: it names WHICH of the environment's four species
+  # tables the region draws from, which is what lets one region set grow palms on a beach and conifers on
+  # a mountain without either being written out twice. `wild_regions/1` takes it back out.
+  #
+  # Swamp and ruins used to live here as regions of the jungle. They are ENVIRONMENTS now, because a swamp
+  # is a place you generate, not a corner of a rainforest, and the same goes for a ruin.
+  #
+  # `spacing` is never 1: claiming only the four orthogonal neighbours leaves a checkerboard, passable
+  # diagonally and not orthogonally, which measures as hundreds of floor regions.
+  @wild_regions [
     %{
-      "key" => "open",
-      "name" => "Open canopy",
+      "key" => "edge",
+      "name" => "Edge of the wood",
       "weight" => 3,
-      "canopy" => 0.45,
-      "undergrowth" => 0.5,
-      "floor" => "#3f5f33",
-      # an open region reads as individual trees on visible ground — reference image #12
-      "formation" => %{"lattice" => 9, "spacing" => 3, "understory" => 0.5},
-      "trees" => [%{"kind" => "tree_palm", "weight" => 30}, %{"kind" => "tree_round", "weight" => 30}, %{"kind" => "tree_big", "weight" => 20}, %{"kind" => "bush_round", "weight" => 20}],
-      "flowers" => @jungle_blooms
+      "canopy" => 0.75,
+      "undergrowth" => 0.7,
+      "species" => "open",
+      "formation" => %{"lattice" => 9, "spacing" => 3, "understory" => 0.5}
     },
     %{
-      "key" => "dense",
-      # WEIGHT 4 MADE THIS THE WHOLE MAP. It was the heaviest jungle region AND it multiplies canopy by
-      # 1.3, so cutting the base density twice moved the walkable share from 56% to 56%: whatever the base
-      # said, most of the map was this. It is one region among several now, not the default state.
-      "weight" => 2,
-      "name" => "Dense growth",
-      # THREE MULTIPLIERS ON ONE REGION IS A WALL. It raised the canopy 1.3x, the undergrowth 1.45x AND the
-      # understory another 1.3x, and those last two compound: thicket came out at 1.885x the served number.
-      # Measured on the variants that lean on this region, the ones the base cut could not reach:
-      #
-      #     super dense  57% walkable, 35% placeable, 274 trees, 258 thicket
-      #     island       68% walkable, 43% placeable, 183 trees, 199 thicket
-      #     ruins        68% walkable, 38% placeable, 206 trees, 166 thicket
-      #
-      # Every multiplier stays ABOVE ONE, so this is still the thickest region a jungle has, by the same
-      # ordering as before (open 0.45, ruins 0.55, swamp 0.85, dense highest). It just stops stacking.
-      # After: super dense 65%/42% at 240 trees, island 74%/49% at 161, ruins 72%/41% at 178, so each shed
-      # another 12-14% of its trees, which is the cut asked for, applied where the variants actually live.
+      "key" => "deep",
+      "name" => "Deep wood",
+      "weight" => 3,
       "canopy" => 1.15,
       "undergrowth" => 1.2,
-      "floor" => "#24381f",
-      # wall to wall, nothing between — reference image #14
-      "formation" => %{"lattice" => 13, "spacing" => 0, "understory" => 1.1},
-      "trees" => [%{"kind" => "tree_giant", "weight" => 25}, %{"kind" => "tree_big", "weight" => 25}, %{"kind" => "bush", "weight" => 25}, %{"kind" => "tree_round", "weight" => 25}],
-      "flowers" => @jungle_blooms
+      "species" => "canopy",
+      "formation" => %{"lattice" => 13, "spacing" => 0, "understory" => 1.1}
     },
     %{
-      "key" => "swamp",
-      "name" => "Swamp",
+      "key" => "glade",
+      "name" => "Glade",
+      "weight" => 2,
+      # almost nothing: a glade is the ABSENCE of canopy, which is what makes the wood around it read as wood
+      "canopy" => 0.12,
+      "undergrowth" => 0.4,
+      "species" => "open",
+      "formation" => %{"lattice" => 3, "spacing" => 5, "understory" => 0.3}
+    },
+    %{
+      "key" => "thicket",
+      "name" => "Thicket",
+      "weight" => 2,
+      # the floor is the hard part here, not the canopy: low growth you push through under short trees
+      "canopy" => 0.5,
+      "undergrowth" => 1.45,
+      "species" => "scrub",
+      "formation" => %{"lattice" => 7, "spacing" => 2, "understory" => 1.35}
+    },
+    %{
+      "key" => "lakeside",
+      "name" => "Lakeside",
       "weight" => 2,
       "canopy" => 0.85,
       "undergrowth" => 1.1,
-      "floor" => "#3b4a2e",
-      # the share of the zone that stands under water — pools, not a channel
+      # the share of the region standing under water: pools, not a channel
       "pools" => 0.22,
-      # cypress standing IN the water, well apart — reference image #13
-      "formation" => %{"lattice" => 5, "spacing" => 3, "understory" => 0.7},
-      # the cypress IS the swamp — image #13
-      "trees" => [%{"kind" => "tree_cypress", "weight" => 60}, %{"kind" => "bush_round", "weight" => 25}, %{"kind" => "tree_round", "weight" => 15}],
-      # WHAT BLOOMS HERE. A region could already state its SPECIES (`trees` above) and had no way
-      # to state its BLOOMS, so a swamp planted the season's set, and summer's carries `✽ #f4f4ec`, a near
-      # white. Measured in a swamp jungle before this: whites among the blooms, exactly as was seen.
-      #
-      # These colours are a PROPOSAL, not a derivation: the instruction was negative (no white), so the set is
-      # muted swamp growth (iris violet, dull marsh gold, a blue green sedge) to accept or replace in review.
-      "flowers" => @swamp_blooms
-    },
-    %{
-      "key" => "ruins",
-      "name" => "Ruins",
-      "weight" => 2,
-      "canopy" => 0.55,
-      "undergrowth" => 0.65,
-      "floor" => "#4a4a3c",
-      # the trees have taken the ruins back, but unevenly — clumps with open stone between
-      "stone" => 0.16,
-      "formation" => %{"lattice" => 8, "spacing" => 2, "understory" => 0.6},
-      "trees" => [%{"kind" => "tree_round", "weight" => 30}, %{"kind" => "bush", "weight" => 30}, %{"kind" => "tree_stub", "weight" => 20}, %{"kind" => "tree_sapling", "weight" => 20}],
-      "flowers" => @jungle_blooms
+      "species" => "wet",
+      # trees standing IN the water, well apart, buttressed bases
+      "formation" => @formations["flooded"]
     }
   ]
 
-  # How many ancestors a seed row has — parents seed first.
+  # THE NEIGHBOURHOODS OF A CITY, and they are the same three in every city: upper, middle and lower
+  # class. The difference you can SEE is the architecture money buys, so each one owns its wall material,
+  # its roof tile and its colours rather than being the same houses in another tint. Upper class is stone
+  # under slate in pale renders, middle class is brick and plaster under tile, lower class is timber and
+  # brick under a flat deck in drab tones.
+  @city_class_zones [
+    %{
+      "key" => "upper",
+      "name" => "Upper class neighbourhood",
+      "weight" => 1,
+      "buildings" => %{
+        "roof" => "roof_slate",
+        "materials" => ["wall_stone"],
+        "roofColors" => ["#3f464c", "#2f3439", "#4a4f55"],
+        "wallColors" => ["#f0e7d0", "#e8dcc0", "#ded3b4"]
+      }
+    },
+    %{
+      "key" => "middle",
+      "name" => "Middle class neighbourhood",
+      "weight" => 3,
+      "buildings" => %{
+        "roof" => "roof",
+        "materials" => ["wall_brick", "wall_plaster"],
+        "roofColors" => ["#b5533a", "#8a4b2f", "#5a636b"],
+        "wallColors" => ["#d3d8dc", "#c9a66b", "#bcc3c9"]
+      }
+    },
+    %{
+      "key" => "lower",
+      "name" => "Lower class neighbourhood",
+      "weight" => 2,
+      "buildings" => %{
+        "roof" => "flat_roof",
+        "materials" => ["wall_wood", "wall_brick"],
+        "roofColors" => ["#5c4433", "#4a4239", "#6b5540"],
+        "wallColors" => ["#a89f7a", "#8a8580", "#9e4b3b"]
+      }
+    }
+  ]
+
+  # A BEACH IS A COAST, not the Amazon: sand where a jungle has peat, turquoise where it has blue-brown,
+  # and a canopy that is yellow-green rather than near-black. Everything it does not restate is the
+  # rainforest's, because the water depths and the swamp tone read the same in both.
+  @beach_palette Map.merge(@jungle_palette, %{
+                   "floor" => "#7c8a4e",
+                   "floorAlt" => "#8c9a5b",
+                   "litter" => "#9a8d5a",
+                   "canopy" => "#4f9147",
+                   "canopyAlt" => "#68ab56",
+                   "undergrowth" => "#618c48",
+                   "water" => "#2aa8c0",
+                   "waterShallow" => "#86e0ea",
+                   "waterDeep" => "#1a7891",
+                   "bank" => "#e8d6a6"
+                 })
+
+  # ── THE ENVIRONMENTS ────────────────────────────────────────────────────────────────────────────
+  #
+  # THE TYPE IS THE ENVIRONMENT, and it is the same list for wild country, villages, towns and cities, so
+  # a swamp forest, a swamp village, a swamp town and a swamp city all exist and all mean the same thing
+  # about the place: what the climate is, what grows there, what the ground is made of and what people
+  # build out of. Size is NOT a type, because the number of columns and rows is what decides size.
+  #
+  # One entry per environment, four rows out of it, so there is nothing to keep in step by hand. What a
+  # kind of settlement is (a village against a city) lives in `@settlement_kinds`; what a PLACE is lives
+  # here.
+  #
+  # `wild` says whether the environment also stands on its own with nobody living in it. `kinds` says
+  # which settlements it builds, which is how a standalone type like a futuristic or a medieval city says
+  # it is a city and nothing else.
+  #
+  # Every key not stated falls back to `@environment_defaults`.
+  @environment_defaults %{
+    wild: true,
+    kinds: ~w(village town city),
+    blooms: nil,
+    levels: %{},
+    region_extra: %{},
+    river: "none",
+    seasons: @zones,
+    folk: 3,
+    settlement_folk: nil,
+    settlement_nature: @outdoor_nature,
+    nature_scale: 1.0,
+    buildings: %{},
+    mix_adds: [],
+    mix_drops: [],
+    mix_replace: nil,
+    settlement_overrides: %{}
+  }
+
+  @environments [
+    %{
+      key: "woodland",
+      name: "Woodland",
+      wild_blurb: "A temperate wood: grey-green, a lot of brown showing through, light reaching the floor.",
+      place_blurb: "under temperate trees.",
+      layout: "woodland",
+      palette: @woodland_palette,
+      nature: @woodland_nature,
+      formation: @formations["stand"],
+      trees: @woodland_trees,
+      ways: %{"wild" => "forest_track", "village" => "forest_track", "town" => "village_lane", "city" => "city_street"},
+      floors: %{"edge" => "#7d8a55", "deep" => "#5c6e3d", "glade" => "#8b9a5a", "thicket" => "#66753f", "lakeside" => "#5a6b48"},
+      species: %{
+        "canopy" => [%{"kind" => "tree_column", "weight" => 30}, %{"kind" => "tree_tall", "weight" => 25}, %{"kind" => "tree", "weight" => 25}, %{"kind" => "tree_sapling", "weight" => 20}],
+        "open" => [%{"kind" => "tree_gnarled", "weight" => 60}, %{"kind" => "tree_round", "weight" => 25}, %{"kind" => "bush_round", "weight" => 15}],
+        "scrub" => [%{"kind" => "bush", "weight" => 45}, %{"kind" => "bush_round", "weight" => 30}, %{"kind" => "tree_sapling", "weight" => 25}],
+        "wet" => [%{"kind" => "tree_broadleaf", "weight" => 40}, %{"kind" => "tree_round", "weight" => 35}, %{"kind" => "bush_round", "weight" => 25}]
+      }
+    },
+    %{
+      key: "jungle",
+      name: "Jungle",
+      wild_blurb: "A closed canopy over choked undergrowth, the floor in permanent shade.",
+      place_blurb: "cut into the rainforest.",
+      layout: "jungle",
+      palette: @jungle_palette,
+      nature: @jungle_nature,
+      formation: @formations["closed"],
+      trees: @jungle_trees,
+      folk: 2,
+      blooms: @jungle_blooms,
+      ways: %{"wild" => "cut_trail", "village" => "cut_trail", "town" => "village_lane", "city" => "city_street"},
+      floors: %{"edge" => "#3f5f33", "deep" => "#24381f", "glade" => "#4c6b38", "thicket" => "#2c4526", "lakeside" => "#3b4a2e"},
+      species: %{
+        "canopy" => [%{"kind" => "tree_giant", "weight" => 25}, %{"kind" => "tree_big", "weight" => 25}, %{"kind" => "bush", "weight" => 25}, %{"kind" => "tree_round", "weight" => 25}],
+        "open" => [%{"kind" => "tree_palm", "weight" => 30}, %{"kind" => "tree_round", "weight" => 30}, %{"kind" => "tree_big", "weight" => 20}, %{"kind" => "bush_round", "weight" => 20}],
+        "scrub" => [%{"kind" => "bush", "weight" => 45}, %{"kind" => "bush_round", "weight" => 35}, %{"kind" => "tree_sapling", "weight" => 20}],
+        "wet" => [%{"kind" => "tree_cypress", "weight" => 60}, %{"kind" => "bush_round", "weight" => 25}, %{"kind" => "tree_round", "weight" => 15}]
+      },
+      settlement_nature: %{"groundCover" => 0.35, "flowers" => 0.1, "tallGrass" => 0.25},
+      nature_scale: 1.4,
+      buildings: %{
+        "materials" => ["wall_wood"],
+        "roofColors" => ["#5a6b3a", "#6b7a45", "#4c5c31"],
+        "wallColors" => ["#a98b5f", "#8f7450", "#c0a375"]
+      }
+    },
+    %{
+      key: "meadow",
+      name: "Meadow",
+      wild_blurb: "Open grass with the odd tree standing alone in it, and the sky on it all day.",
+      place_blurb: "out on open grass.",
+      layout: "meadow",
+      palette: @meadow_palette,
+      nature: @outdoor_nature,
+      formation: @formations["scattered"],
+      trees: @meadow_trees,
+      folk: 5,
+      ways: %{"wild" => "park_path", "village" => "park_path", "town" => "village_lane", "city" => "city_street"},
+      floors: %{"edge" => "#7f9050", "deep" => "#6b7d45", "glade" => "#93a463", "thicket" => "#77894c", "lakeside" => "#6f8352"},
+      species: %{
+        "canopy" => [%{"kind" => "tree_broadleaf", "weight" => 40}, %{"kind" => "tree_round", "weight" => 30}, %{"kind" => "tree_big", "weight" => 30}],
+        "open" => [%{"kind" => "tree_gnarled", "weight" => 60}, %{"kind" => "tree_round", "weight" => 25}, %{"kind" => "bush_round", "weight" => 15}],
+        "scrub" => [%{"kind" => "bush_round", "weight" => 50}, %{"kind" => "bush", "weight" => 30}, %{"kind" => "tree_sapling", "weight" => 20}],
+        "wet" => [%{"kind" => "tree_broadleaf", "weight" => 40}, %{"kind" => "tree_round", "weight" => 35}, %{"kind" => "bush_round", "weight" => 25}]
+      },
+      nature_scale: 1.1,
+      buildings: %{
+        "roofColors" => ["#b5533a", "#a34a33", "#8a4b2f"],
+        "wallColors" => ["#e8dcc0", "#d8c79a", "#c9a66b"]
+      }
+    },
+    %{
+      key: "swamp",
+      name: "Swamp",
+      wild_blurb: "Cypress standing in the water, boardwalks over it, nothing dry underfoot.",
+      place_blurb: "on boardwalks over the water.",
+      layout: "jungle",
+      palette: @jungle_palette,
+      nature: @jungle_nature,
+      formation: @formations["closed"],
+      trees: [%{"kind" => "tree_cypress", "weight" => 45}, %{"kind" => "tree_mangrove", "weight" => 25}, %{"kind" => "bush_round", "weight" => 18}, %{"kind" => "tree_round", "weight" => 12}],
+      folk: 2,
+      blooms: @swamp_blooms,
+      # a swamp does not freeze over and it is not a desert either
+      seasons: ~w(spring summer),
+      ways: %{"wild" => "boardwalk", "village" => "boardwalk", "town" => "boardwalk", "city" => "boardwalk"},
+      floors: %{"edge" => "#3d5233", "deep" => "#2a3a24", "glade" => "#4a5c37", "thicket" => "#33472b", "lakeside" => "#35462c"},
+      species: %{
+        "canopy" => [%{"kind" => "tree_cypress", "weight" => 35}, %{"kind" => "tree_giant", "weight" => 25}, %{"kind" => "bush", "weight" => 25}, %{"kind" => "tree_round", "weight" => 15}],
+        "open" => [%{"kind" => "tree_cypress", "weight" => 40}, %{"kind" => "tree_mangrove", "weight" => 30}, %{"kind" => "bush_round", "weight" => 30}],
+        "scrub" => [%{"kind" => "bush", "weight" => 45}, %{"kind" => "bush_round", "weight" => 35}, %{"kind" => "tree_sapling", "weight" => 20}],
+        "wet" => [%{"kind" => "tree_cypress", "weight" => 60}, %{"kind" => "tree_mangrove", "weight" => 25}, %{"kind" => "bush_round", "weight" => 15}]
+      },
+      settlement_nature: %{"groundCover" => 0.45, "flowers" => 0.08, "tallGrass" => 0.3},
+      nature_scale: 1.5,
+      buildings: %{
+        "materials" => ["wall_wood"],
+        "roofColors" => ["#6b5a34", "#5c4f2c", "#7a6a3e"],
+        "wallColors" => ["#a98b5f", "#8f7450", "#c0a375"]
+      },
+      # no pasture in a swamp and nothing to keep in one. Huts, and a forge for the boats.
+      mix_adds: [{"smithy", 1, 1}],
+      mix_drops: ~w(barn stable)
+    },
+    %{
+      key: "mountain",
+      name: "Mountain",
+      wild_blurb: "Conifers over ground that actually climbs: a bare ridge, wooded slopes, a sheltered vale.",
+      place_blurb: "on the rock, in among the conifers.",
+      layout: "woodland",
+      palette: @woodland_palette,
+      nature: %{"groundCover" => 0.2, "flowers" => 0.04, "canopy" => 0.28, "tallGrass" => 0.12},
+      formation: @formations["clumped"],
+      trees: [%{"kind" => "tree_conifer", "weight" => 70}, %{"kind" => "tree_tall", "weight" => 15}, %{"kind" => "tree_stub", "weight" => 15}],
+      ways: %{"wild" => "rocky_track", "village" => "rocky_track", "town" => "cobbled_lane", "city" => "cobbled_lane"},
+      floors: %{"edge" => "#6b7a4e", "deep" => "#47603a", "glade" => "#8a8d76", "thicket" => "#5f7047", "lakeside" => "#52664a"},
+      # WHAT MAKES IT A MOUNTAIN rather than a colour change: the cells of a region stand at that level and
+      # the step down to the next is drawn as a cliff. The glade is the exposed ridge at the top, where
+      # almost nothing grows, and the deep wood is the vale at the bottom, where the water and the soil end
+      # up. Nothing else in the catalog states a level except its volcanic placeholder.
+      levels: %{"glade" => 3, "edge" => 2, "thicket" => 2, "deep" => 0, "lakeside" => 0},
+      species: %{
+        "canopy" => [%{"kind" => "tree_conifer", "weight" => 65}, %{"kind" => "tree_tall", "weight" => 20}, %{"kind" => "tree_stub", "weight" => 15}],
+        "open" => [%{"kind" => "tree_stub", "weight" => 55}, %{"kind" => "tree_conifer", "weight" => 45}],
+        "scrub" => [%{"kind" => "tree_stub", "weight" => 50}, %{"kind" => "bush", "weight" => 30}, %{"kind" => "tree_sapling", "weight" => 20}],
+        "wet" => [%{"kind" => "tree_conifer", "weight" => 45}, %{"kind" => "tree_tall", "weight" => 25}, %{"kind" => "tree_broadleaf", "weight" => 20}, %{"kind" => "tree_sapling", "weight" => 10}]
+      },
+      nature_scale: 0.9,
+      buildings: %{
+        "roof" => "roof_slate",
+        "materials" => ["wall_stone"],
+        "roofColors" => ["#3f464c", "#4a4f55", "#2f3439"],
+        "wallColors" => ["#8a8580", "#9c9792", "#767168"]
+      },
+      mix_adds: [{"manor", 1, 1}, {"smithy", 1, 1}]
+    },
+    %{
+      key: "beach",
+      name: "Beach",
+      wild_blurb: "Palms over pale sand, ringed by shallow turquoise water.",
+      place_blurb: "on the sand by the sea.",
+      layout: "jungle",
+      palette: @beach_palette,
+      nature: @jungle_nature,
+      formation: @formations["closed"],
+      trees: [%{"kind" => "tree_coconut", "weight" => 30}, %{"kind" => "tree_palm", "weight" => 25}, %{"kind" => "tree_banana", "weight" => 20}, %{"kind" => "tree_mangrove", "weight" => 15}, %{"kind" => "bush_round", "weight" => 10}],
+      blooms: @island_blooms,
+      # a coast starts ringed by water
+      river: "around",
+      ways: %{"wild" => "coast_path", "village" => "coast_path", "town" => "sand_track", "city" => "city_street"},
+      floors: %{"edge" => "#8c9a5b", "deep" => "#6b7a45", "glade" => "#9aa768", "thicket" => "#7c8a4e", "lakeside" => "#b8a978"},
+      species: %{
+        "canopy" => [%{"kind" => "tree_banana", "weight" => 30}, %{"kind" => "tree_coconut", "weight" => 25}, %{"kind" => "tree_mangrove", "weight" => 25}, %{"kind" => "bush", "weight" => 20}],
+        "open" => [%{"kind" => "tree_coconut", "weight" => 35}, %{"kind" => "tree_palm", "weight" => 25}, %{"kind" => "tree_banana", "weight" => 25}, %{"kind" => "bush_round", "weight" => 15}],
+        "scrub" => [%{"kind" => "bush_round", "weight" => 50}, %{"kind" => "bush", "weight" => 30}, %{"kind" => "tree_sapling", "weight" => 20}],
+        "wet" => [%{"kind" => "tree_mangrove", "weight" => 60}, %{"kind" => "tree_palm", "weight" => 25}, %{"kind" => "bush_round", "weight" => 15}]
+      },
+      settlement_nature: %{"groundCover" => 0.06, "flowers" => 0.03, "tallGrass" => 0.08},
+      nature_scale: 0.45,
+      buildings: %{
+        "materials" => ["wall_wood", "wall_plaster"],
+        "roofColors" => ["#9c8f6f", "#b5a888", "#87795c"],
+        "wallColors" => ["#e8dcc0", "#d8c79a", "#f0e7d0"]
+      },
+      mix_adds: [{"store", 1, 2}]
+    },
+    %{
+      key: "ruins",
+      name: "Ruins",
+      wild_blurb: "Old stone the wood has taken back, unevenly: clumps of trees with open masonry between.",
+      place_blurb: "built over old stone.",
+      layout: "jungle",
+      palette: @jungle_palette,
+      nature: @jungle_nature,
+      formation: @formations["closed"],
+      trees: [%{"kind" => "tree_round", "weight" => 30}, %{"kind" => "bush", "weight" => 30}, %{"kind" => "tree_stub", "weight" => 20}, %{"kind" => "tree_sapling", "weight" => 20}],
+      folk: 2,
+      blooms: @jungle_blooms,
+      ways: %{"wild" => "forest_track", "village" => "forest_track", "town" => "cobbled_lane", "city" => "cobbled_lane"},
+      floors: %{"edge" => "#4a4a3c", "deep" => "#3a3c30", "glade" => "#5d5c4a", "thicket" => "#414433", "lakeside" => "#46503a"},
+      # fallen masonry everywhere, which is the whole point of the place: it rides on every region rather
+      # than on one, because the ruin is the environment now and not a corner of a rainforest
+      region_extra: %{"stone" => 0.16},
+      species: %{
+        "canopy" => [%{"kind" => "tree_round", "weight" => 30}, %{"kind" => "bush", "weight" => 30}, %{"kind" => "tree_stub", "weight" => 20}, %{"kind" => "tree_sapling", "weight" => 20}],
+        "open" => [%{"kind" => "tree_stub", "weight" => 40}, %{"kind" => "tree_round", "weight" => 30}, %{"kind" => "bush_round", "weight" => 30}],
+        "scrub" => [%{"kind" => "bush", "weight" => 45}, %{"kind" => "tree_sapling", "weight" => 30}, %{"kind" => "bush_round", "weight" => 25}],
+        "wet" => [%{"kind" => "tree_round", "weight" => 40}, %{"kind" => "bush", "weight" => 35}, %{"kind" => "tree_sapling", "weight" => 25}]
+      },
+      settlement_nature: %{"groundCover" => 0.22, "flowers" => 0.05, "tallGrass" => 0.16},
+      nature_scale: 0.9,
+      buildings: %{
+        "materials" => ["wall_stone"],
+        "roofColors" => ["#5c4433", "#4a3d2e", "#6b5540"],
+        "wallColors" => ["#a89f7a", "#8a8580", "#9c9080"]
+      },
+      mix_adds: [{"church", 1, 1}]
+    },
+    # PLACEHOLDER, awaiting its own flavour. A desert has no data anywhere in this file yet, so it runs on
+    # the BEACH's numbers, which are the closest thing we have: pale open ground, sparse growth, sand
+    # underfoot and almost no green in the settlements. Everything below is the beach's until a desert
+    # palette, a desert species list and desert floors are authored. The seasons are the honest half: the
+    # editor already offers a desert season and that is the one this belongs in.
+    %{
+      key: "desert",
+      name: "Desert",
+      wild_blurb: "Open sand and sparse growth. Running on the beach's numbers until it gets its own.",
+      place_blurb: "out on the open sand.",
+      layout: "jungle",
+      palette: @beach_palette,
+      nature: @jungle_nature,
+      formation: @formations["closed"],
+      trees: [%{"kind" => "tree_palm", "weight" => 40}, %{"kind" => "tree_coconut", "weight" => 25}, %{"kind" => "tree_stub", "weight" => 20}, %{"kind" => "bush_round", "weight" => 15}],
+      folk: 2,
+      blooms: @island_blooms,
+      seasons: ~w(summer desert),
+      ways: %{"wild" => "coast_path", "village" => "sand_track", "town" => "sand_track", "city" => "sand_track"},
+      floors: %{"edge" => "#8c9a5b", "deep" => "#6b7a45", "glade" => "#9aa768", "thicket" => "#7c8a4e", "lakeside" => "#b8a978"},
+      species: %{
+        "canopy" => [%{"kind" => "tree_banana", "weight" => 30}, %{"kind" => "tree_coconut", "weight" => 25}, %{"kind" => "tree_mangrove", "weight" => 25}, %{"kind" => "bush", "weight" => 20}],
+        "open" => [%{"kind" => "tree_coconut", "weight" => 35}, %{"kind" => "tree_palm", "weight" => 25}, %{"kind" => "tree_banana", "weight" => 25}, %{"kind" => "bush_round", "weight" => 15}],
+        "scrub" => [%{"kind" => "bush_round", "weight" => 50}, %{"kind" => "bush", "weight" => 30}, %{"kind" => "tree_sapling", "weight" => 20}],
+        "wet" => [%{"kind" => "tree_mangrove", "weight" => 60}, %{"kind" => "tree_palm", "weight" => 25}, %{"kind" => "bush_round", "weight" => 15}]
+      },
+      settlement_nature: %{"groundCover" => 0.06, "flowers" => 0.03, "tallGrass" => 0.08},
+      nature_scale: 0.45,
+      buildings: %{
+        "materials" => ["wall_plaster", "wall_stone"],
+        "roofColors" => ["#9c8f6f", "#b5a888", "#87795c"],
+        "wallColors" => ["#e8dcc0", "#d8c79a", "#f0e7d0"]
+      },
+      mix_adds: [{"store", 1, 2}]
+    },
+    # PLACEHOLDER, awaiting its own flavour. Nothing volcanic exists in this file, so it runs on the
+    # MOUNTAIN's numbers: the same relief, the same conifers, the same stone under slate. What it is
+    # missing is exactly what would make it volcanic, ash floors, black rock, lava water and a canopy that
+    # gives up near the vents. Author those here and nothing else has to move.
+    %{
+      key: "volcanic",
+      name: "Volcanic",
+      wild_blurb: "Rock that climbs in steps. Running on the mountain's numbers until it gets its own.",
+      place_blurb: "on the black rock under the mountain.",
+      layout: "woodland",
+      palette: @woodland_palette,
+      nature: %{"groundCover" => 0.2, "flowers" => 0.04, "canopy" => 0.28, "tallGrass" => 0.12},
+      formation: @formations["clumped"],
+      trees: [%{"kind" => "tree_conifer", "weight" => 70}, %{"kind" => "tree_tall", "weight" => 15}, %{"kind" => "tree_stub", "weight" => 15}],
+      folk: 2,
+      ways: %{"wild" => "rocky_track", "village" => "rocky_track", "town" => "rocky_track", "city" => "cobbled_lane"},
+      floors: %{"edge" => "#6b7a4e", "deep" => "#47603a", "glade" => "#8a8d76", "thicket" => "#5f7047", "lakeside" => "#52664a"},
+      levels: %{"glade" => 3, "edge" => 2, "thicket" => 2, "deep" => 0, "lakeside" => 0},
+      species: %{
+        "canopy" => [%{"kind" => "tree_conifer", "weight" => 65}, %{"kind" => "tree_tall", "weight" => 20}, %{"kind" => "tree_stub", "weight" => 15}],
+        "open" => [%{"kind" => "tree_stub", "weight" => 55}, %{"kind" => "tree_conifer", "weight" => 45}],
+        "scrub" => [%{"kind" => "tree_stub", "weight" => 50}, %{"kind" => "bush", "weight" => 30}, %{"kind" => "tree_sapling", "weight" => 20}],
+        "wet" => [%{"kind" => "tree_conifer", "weight" => 45}, %{"kind" => "tree_tall", "weight" => 25}, %{"kind" => "tree_broadleaf", "weight" => 20}, %{"kind" => "tree_sapling", "weight" => 10}]
+      },
+      nature_scale: 0.9,
+      buildings: %{
+        "roof" => "roof_slate",
+        "materials" => ["wall_stone"],
+        "roofColors" => ["#3f464c", "#4a4f55", "#2f3439"],
+        "wallColors" => ["#8a8580", "#9c9792", "#767168"]
+      },
+      mix_adds: [{"manor", 1, 1}, {"smithy", 1, 1}]
+    },
+    # ── THE STANDALONE TYPES ──────────────────────────────────────────────────────────────────────
+    # Not every type is an environment. A futuristic city and a medieval city are a KIND of place in their
+    # own right, so they say they are cities and nothing else, and no wild country or village is generated
+    # for them. They are entries in the same table because they are the same shape of fact, and that is
+    # what stops them drifting away from the rest.
+
+    # The old Modern city, under the name it should have had. It keeps everything that made it itself: the
+    # asphalt with the white lines down the middle, the towers and blocks of flats, and the lamp rhythm the
+    # street lining gives it. Nothing else is built from it.
+    %{
+      key: "futuristic",
+      name: "Futuristic",
+      place_blurb: "towers and blocks of flats under flat grey decks.",
+      wild: false,
+      kinds: ["city"],
+      ways: %{"city" => "city_street"},
+      settlement_folk: 16,
+      mix_replace: [{"tower", 4, 6}, {"apartment", 5, 8}, {"office", 2, 4}]
+    },
+    # Stone under slate on cobbled streets, a cathedral and a castle, and nothing tall anywhere in it.
+    %{
+      key: "medieval",
+      name: "Medieval",
+      place_blurb: "stone under slate on cobbles, a cathedral and a castle, nothing tall.",
+      wild: false,
+      kinds: ["city"],
+      ways: %{"city" => "cobbled_lane"},
+      nature_scale: 1.6,
+      settlement_overrides: %{"buildingCap" => 54},
+      buildings: %{
+        "roof" => "roof_slate",
+        "materials" => ["wall_stone", "wall_brick"],
+        "roofColors" => ["#3f464c", "#4a4f55", "#5c4433"],
+        "wallColors" => ["#8a8580", "#a89f7a", "#9e4b3b"]
+      },
+      mix_replace: [{"cathedral", 1, 1}, {"castle", 1, 1}, {"manor", 2, 4}, {"smithy", 1, 2}, {"church", 1, 2}]
+    }
+  ]
+
+  # ── THE KINDS OF SETTLEMENT ─────────────────────────────────────────────────────────────────────
+  #
+  # A village, a town and a city are fundamentally different places and the difference is ARCHITECTURE,
+  # not size, because size is the number of columns and rows the grid rolls. So there is no small town and
+  # no big city here, there is what each one is made of:
+  #
+  #   * a village is rural. Small timber houses, nothing in concrete, no landmark, and green everywhere
+  #     between them.
+  #   * a town is a decent size place with defined areas and better architecture, brick and timber, a
+  #     square, a church and a smithy, and nothing tall.
+  #   * a city is large and modern, many zones, plaster and flat decks, towers and blocks of flats, and
+  #     hardly any green left.
+  #
+  # Each one is crossed with every environment, so what is written here is said once and lands in nine
+  # rows. `sub_zones` is what a kind divides ITSELF into, which is where a city's three neighbourhoods by
+  # money live.
+  @settlement_kinds [
+    %{
+      key: "village",
+      noun: "village",
+      layout: "town",
+      variant: "town",
+      blurb: "Small houses, no concrete and green between every one of them,",
+      grid: @small_grid,
+      plaza: 3,
+      road_width: 3,
+      lot_gap: [2, 3],
+      max_per_frontage: 4,
+      cap: 12,
+      houses: [3, 5],
+      demanded_houses: {1, 3},
+      nature_mult: 2.2,
+      folk: 6,
+      mix: [{"barn", 1, 2}, {"stable", 1, 2}],
+      buildings: %{
+        "roof" => "roof",
+        "materials" => ["wall_wood"],
+        "roofColors" => ["#6b5a34", "#7a6a3e", "#5c4f2c"],
+        "wallColors" => ["#b08d5b", "#c9a66b", "#9c7c4e"]
+      },
+      sub_zones: []
+    },
+    %{
+      key: "town",
+      noun: "town",
+      layout: "town",
+      variant: "town",
+      blurb: "Defined areas and better architecture, nothing tall,",
+      grid: @small_grid,
+      plaza: 5,
+      road_width: 4,
+      lot_gap: [1, 2],
+      max_per_frontage: 6,
+      cap: 18,
+      houses: [4, 6],
+      demanded_houses: {1, 3},
+      nature_mult: 1.3,
+      folk: 8,
+      mix: [{"temple", 1, 1}, {"church", 1, 1}, {"stable", 1, 2}, {"barn", 1, 2}, {"smithy", 1, 1}],
+      buildings: %{
+        "roof" => "roof",
+        "materials" => ["wall_brick", "wall_wood"],
+        "roofColors" => ["#8a4b2f", "#7a4326", "#6b4a2b"],
+        "wallColors" => ["#c9a66b", "#b08d5b", "#d8c79a"]
+      },
+      sub_zones: []
+    },
+    %{
+      key: "city",
+      noun: "city",
+      layout: "city",
+      variant: "city",
+      blurb: "Many zones, modern architecture and towers,",
+      grid: @city_grid,
+      plaza: 7,
+      road_width: 4,
+      lot_gap: [1, 1],
+      max_per_frontage: 99,
+      cap: 72,
+      houses: [7, 11],
+      demanded_houses: {3, 5},
+      nature_mult: 0.5,
+      folk: 14,
+      mix: [{"temple", 1, 1}, {"tower", 3, 5}, {"apartment", 4, 7}, {"office", 2, 4}],
+      buildings: %{
+        "roof" => "flat_roof",
+        "materials" => ["wall_plaster"],
+        "roofColors" => ["#4a4f55", "#3f464c", "#5a636b"],
+        "wallColors" => ["#e8ecef", "#d3d8dc", "#bcc3c9"]
+      },
+      sub_zones: @city_class_zones
+    }
+  ]
+
+  # THE KEYS THAT PREDATE THE CROSS PRODUCT. A generated key is `<kind>_<environment>`, and five rows
+  # already existed under another name before the environments were a table. They are the same place, so
+  # they keep the key and nothing that points at one breaks.
+  @kept_keys %{
+    {"town", "woodland"} => "town",
+    {"city", "woodland"} => "city",
+    {"town", "mountain"} => "town_mountain",
+    {"town", "swamp"} => "town_swamp"
+  }
+
+  # How many ancestors a seed row has. Parents seed first.
   defp depth(%{parent: parent}, by_key) when is_binary(parent), do: 1 + depth(Map.fetch!(by_key, parent), by_key)
   defp depth(_row, _by_key), do: 0
 
-  @doc false
-  # THE REGION PICKER. regions" in it, but it's badly implemented, we should just have variations, similar to "which
-  # jungle" "which region""*.
-  #
-  # Tick boxes are gone. You pick a region to LEAD and the map leans that way, which is the same idiom as
-  # picking a preset or a subtype. Built from the KEYS a row actually carries, so a subtype that holds two
-  # regions offers two, and the names come from one place.
-  defp region_options(keys), do: region_options(@jungle_sub_zones, keys)
+  # THE REGION PICKER. You pick a region to LEAD and the map leans that way, which is the same idiom as
+  # picking a type. Built from the regions a row actually carries, so the names come from one place.
+  defp region_options([]), do: []
 
-  defp region_options(list, keys) do
-    named = Map.new(list, &{&1["key"], &1["name"]})
-
+  defp region_options(regions) do
     [
       %{
         "key" => "region",
@@ -771,419 +1179,167 @@ defmodule Nebulith.Catalog.GeneratorSource do
         "default" => "random",
         "choices" => [
           %{"key" => "random", "label" => "Random"}
-          | for(k <- keys, do: %{"key" => k, "label" => Map.fetch!(named, k)})
+          | for(z <- regions, do: %{"key" => z["key"], "label" => z["name"]})
         ]
       }
     ]
   end
 
-  # The jungle's regions at different weights — a swamp jungle is the same regions, mostly swamp. A weight of
-  # zero leaves that region out.
-  defp sub_zones(list, weights) do
-    for z <- list, w = Map.get(weights, z["key"], 0), w > 0, do: Map.put(z, "weight", w)
-  end
-
-  defp sub_zones(weights), do: sub_zones(@jungle_sub_zones, weights)
-
-  @doc false
-  # THE SAME REGION, IN A DIFFERENT PLACE. `open` and `dense` are shared by every jungle variant, which is
-  # why a SWAMP's open patch grew rainforest palms under summer's near-white daisies: it was, literally, the
-  # rainforest's open patch.
-  #
-  # A variant overrides the regions it borrows. Anything it does not name is inherited unchanged, so a plain
-  # jungle is untouched.
-  defp sub_zones_in(weights, overrides) do
-    for z <- sub_zones(weights), do: Map.merge(z, Map.get(overrides, z["key"], %{}))
-  end
-
-  # A SWAMP'S own growth, reusing the bloom set the `swamp` region already authors rather than inventing a
-  # second palette for the same place. The species lean cypress, because that is what stands in this water.
-  @swamp_regions %{
-    "open" => %{
-      "trees" => [%{"kind" => "tree_cypress", "weight" => 40}, %{"kind" => "tree_mangrove", "weight" => 30}, %{"kind" => "bush_round", "weight" => 30}],
-      "flowers" => @swamp_blooms
-    },
-    "dense" => %{
-      "trees" => [%{"kind" => "tree_cypress", "weight" => 35}, %{"kind" => "tree_giant", "weight" => 25}, %{"kind" => "bush", "weight" => 25}, %{"kind" => "tree_round", "weight" => 15}],
-      "flowers" => @swamp_blooms
-    }
-  }
-
-  # AN ISLAND IS A COAST, not the Amazon. Its palette was already
-  # its own; its regions were still the rainforest's, so palms grew under inland blooms.
-  #
-  # Like the swamp set, these colours are a PROPOSAL rather than a derivation: shore growth, hibiscus pink,
-  # sea-holly blue and a bleached sand yellow, to accept or replace in review.
-  @island_blooms [
-    %{"char" => "✿", "color" => "#e2739b"},
-    %{"char" => "❋", "color" => "#6aa9c4"},
-    %{"char" => "✾", "color" => "#e0c877"}
-  ]
-
-  @island_regions %{
-    # THE TROPICS, not a temperate wood with palms in it. `tree_coconut`, `tree_banana` and `tree_mangrove` are
-    # authored in `tile_source.ex` the same way
-    # every other species is, as proportions on the shared two-tile tree.
-    "open" => %{
-      "trees" => [%{"kind" => "tree_coconut", "weight" => 35}, %{"kind" => "tree_palm", "weight" => 25}, %{"kind" => "tree_banana", "weight" => 25}, %{"kind" => "bush_round", "weight" => 15}],
-      "flowers" => @island_blooms
-    },
-    "dense" => %{
-      "trees" => [%{"kind" => "tree_banana", "weight" => 30}, %{"kind" => "tree_coconut", "weight" => 25}, %{"kind" => "tree_mangrove", "weight" => 25}, %{"kind" => "bush", "weight" => 20}],
-      "flowers" => @island_blooms
-    }
-  }
-
-  # The water options with a different starting river — an island starts ringed by water.
+  # The water options with a different starting river: a coast starts ringed by water.
   defp water_options(river_default) do
     [river | rest] = @water_options
     [Map.put(river, "default", river_default) | rest]
   end
 
-  @doc "The categories to seed, in menu order (`editorConfig.ts` STAGE_VARIANTS)."
+  # THE SAME FIVE REGIONS, IN THIS PLACE'S COLOURS. The shapes come from `@wild_regions` and the floor
+  # tones, the species and the blooms come from the environment, which is the whole of reusing one set of
+  # sub zones across every type instead of authoring five regions nine times.
+  defp wild_regions(env) do
+    for region <- @wild_regions do
+      region
+      |> Map.merge(%{"floor" => Map.fetch!(env.floors, region["key"]), "trees" => Map.fetch!(env.species, region["species"])})
+      |> Map.merge(env.region_extra)
+      |> with_blooms(env.blooms)
+      |> with_level(Map.get(env.levels, region["key"]))
+      |> Map.delete("species")
+    end
+  end
+
+  # Absent means the season decides, which is right for a temperate wood and wrong for a rainforest.
+  defp with_blooms(region, nil), do: region
+  defp with_blooms(region, blooms), do: Map.put(region, "flowers", blooms)
+
+  # Only a place with relief states a level. Everywhere else every cell stands on the walking floor.
+  defp with_level(region, nil), do: region
+  defp with_level(region, level), do: Map.put(region, "level", level)
+
+  defp environments, do: Enum.map(@environments, &Map.merge(@environment_defaults, &1))
+
+  defp settlement_key(kind, env), do: Map.get(@kept_keys, {kind.key, env.key}, "#{kind.key}_#{env.key}")
+
+  # A standalone type may say how many people live in it; everything else takes the kind's count.
+  defp settlement_folk(%{settlement_folk: count}, _kind) when is_integer(count), do: count
+  defp settlement_folk(_env, kind), do: kind.folk
+
+  # A standalone type states the whole list, because adding towers to a medieval city's cathedral is not
+  # what a medieval city is. An environment only ever adds to its kind's list, or drops what does not
+  # belong in that climate.
+  defp building_mix(_kind, %{mix_replace: entries}) when is_list(entries), do: entries
+
+  defp building_mix(kind, env) do
+    Enum.reject(kind.mix ++ env.mix_adds, fn {type, _lo, _hi} -> type in env.mix_drops end)
+  end
+
+  defp wilderness_row(env, position) do
+    %{
+      category: "wilderness",
+      key: "forest_#{env.key}",
+      name: env.name,
+      layout: env.layout,
+      variant: "forest",
+      position: position,
+      zones: env.seasons,
+      description: env.wild_blurb,
+      config: %{
+        "pathway" => pathway(env.ways["wild"]),
+        "grid" => @small_grid,
+        "nature" => env.nature,
+        "units" => townsfolk(env.folk),
+        "palette" => env.palette,
+        "formation" => env.formation,
+        "trees" => env.trees,
+        "subZones" => wild_regions(env),
+        "crossings" => @crossings
+      },
+      options: @way_options ++ region_options(@wild_regions) ++ water_options(env.river)
+    }
+  end
+
+  defp settlement_row(kind, env, position) do
+    %{
+      category: kind.key,
+      key: settlement_key(kind, env),
+      name: "#{env.name} #{kind.noun}",
+      layout: kind.layout,
+      variant: kind.variant,
+      position: position,
+      zones: env.seasons,
+      description: "#{kind.blurb} #{env.place_blurb}",
+      config: settlement_config(kind, env),
+      options: @settlement_way_options ++ region_options(kind.sub_zones) ++ @water_options
+    }
+  end
+
+  defp settlement_config(kind, env) do
+    tuning =
+      settlement(
+        plaza: kind.plaza,
+        road_width: kind.road_width,
+        lot_gap: kind.lot_gap,
+        max_per_frontage: kind.max_per_frontage,
+        cap: kind.cap,
+        houses: kind.houses,
+        demanded_houses: kind.demanded_houses,
+        nature_mult: Float.round(kind.nature_mult * env.nature_scale, 2),
+        mix: building_mix(kind, env)
+      )
+
+    %{
+      "pathway" => pathway(Map.fetch!(env.ways, kind.key)),
+      "grid" => kind.grid,
+      "settlement" => Map.merge(tuning, env.settlement_overrides),
+      "nature" => env.settlement_nature,
+      "entrance" => "town_entrance",
+      "units" => townsfolk(settlement_folk(env, kind)),
+      "buildings" => Map.merge(@building_palette, Map.merge(kind.buildings, env.buildings))
+    }
+    |> with_sub_zones(kind.sub_zones)
+  end
+
+  defp with_sub_zones(config, []), do: config
+  defp with_sub_zones(config, zones), do: Map.put(config, "subZones", zones)
+
+  @doc """
+  The categories to seed, in menu order.
+
+  A category is the TERRAIN KIND now, and each one means something you can point at. The old four had a
+  `settlement` bucket holding a town and a city, which are not the same kind of place at all, and a
+  `forest` bucket that had to hold a swamp and a beach as well.
+  """
   def categories do
     [
-      %{key: "forest", name: "Forest", position: 0, description: "Woodland and open meadows, with no settlement in them."},
-      # So a
-      # town and a city are two PRESETS of one kind of place, the way a woodland and a meadow are two presets
-      # of forest. The row says which archetype it runs, so the engine still builds a town for Town.
-      %{key: "settlement", name: "Settlement", position: 1, description: "Towns and cities: the same streets and squares at different densities."},
-      %{key: "cave", name: "Cave", position: 2, description: "A seasonal cavern with enemies instead of townsfolk."},
-      %{key: "temple", name: "Temple", position: 3, description: "A seasonal temple dungeon."}
+      %{key: "wilderness", name: "Wilderness", position: 0,
+        description: "Wild country with nobody living in it: wood, marsh, rock, sand and ruin."},
+      %{key: "village", name: "Village", position: 1,
+        description: "A rural place. Small houses, nothing in concrete, nothing modern."},
+      %{key: "town", name: "Town", position: 2,
+        description: "A decent size settlement with defined areas and better architecture, and nothing tall."},
+      %{key: "city", name: "City", position: 3,
+        description: "A large settlement of many zones, modern architecture and towers."},
+      %{key: "cave", name: "Cave", position: 4, description: "A seasonal cavern with enemies instead of townsfolk."},
+      %{key: "temple", name: "Temple", position: 5, description: "A seasonal temple dungeon."}
     ]
   end
 
-  @doc "The generators to seed, keyed to their category."
-  def generators do
-    [
-      %{
-        category: "forest", key: "forest_woodland", name: "Woodland", layout: "woodland", variant: "forest", position: 0,
-        description: "Dense trees with clearings cut into them, joined by paths.",
-        config: %{"pathway" => pathway("forest_track"), "grid" => @small_grid, "nature" => @woodland_nature, "units" => townsfolk(3), "palette" => @woodland_palette, "formation" => @formations["stand"], "trees" => @woodland_trees, "crossings" => @crossings},
-        options: @way_options ++ @water_options
-      },
-      %{
-        category: "forest", key: "forest_jungle", name: "Jungle", layout: "jungle", variant: "forest", position: 1,
-        description: "A closed canopy over choked undergrowth, with clearings cut into it.",
-        config: %{"pathway" => pathway("cut_trail"), "grid" => @small_grid, "nature" => @jungle_nature, "units" => townsfolk(2), "palette" => @jungle_palette, "subZones" => @jungle_sub_zones, "formation" => @formations["closed"], "trees" => @jungle_trees, "crossings" => @crossings},
-        options: @way_options ++ region_options(~w(open dense swamp ruins)) ++ @water_options
-      },
-      %{
-        category: "forest", key: "forest_meadow", name: "Meadow", layout: "meadow", variant: "forest", position: 2,
-        description: "An open clearing framed by trees, with two ways in.",
-        config: %{"pathway" => pathway("park_path"), "grid" => @small_grid, "nature" => @outdoor_nature, "units" => townsfolk(5), "formation" => @formations["scattered"], "trees" => @meadow_trees, "palette" => @meadow_palette, "crossings" => @crossings},
-        options: @way_options ++ @water_options
-      },
-      # ── SUBTYPES ────────────────────────────────────────────────────────────────────────────────────
-      # Each one
-      # states ONLY what makes it different; the catalog merges its parent's config under it. The woodland and
-      # meadow sets are the six reference photographs, named by image.
+  @doc """
+  The generators to seed, keyed to their category.
 
-      # image #11 — straight trunks at even spacing, a clear floor
-      %{
-        category: "forest", parent: "forest_woodland", key: "forest_woodland_beech", name: "Beech stand",
-        layout: "woodland", position: 0,
-        description: "Tall straight trunks at even spacing over a clear floor.",
-        config: %{"pathway" => pathway("forest_track"), "formation" => @formations["stand"], "nature" => %{"canopy" => 0.45},
-                  "trees" => [%{"kind" => "tree_column", "weight" => 55}, %{"kind" => "tree_tall", "weight" => 25}, %{"kind" => "tree", "weight" => 20}]}
-      },
-      # image #15 — the floor is the hard part: deep undergrowth, a trail through it
-      %{
-        category: "forest", parent: "forest_woodland", key: "forest_woodland_dense", name: "Dense woodland",
-        layout: "woodland", position: 1,
-        description: "Tall trunks over deep undergrowth, with a trail cut through it.",
-        # A BUSH IS NOT A TREE. It was right and it was arithmetic: `canopy` is the share of plantable
-        # floor that gets an entry from the TREE table, and 30% of this one's table was `bush`. So its real
-        # tree cover was 0.55 x 0.70 = 0.39, against plain woodland's 0.434 x 0.95 = 0.41. It was thinner.
-        #
-        # Undergrowth has its OWN channel (`groundCover`), so the bushes move there where they belong and the
-        # table is trees only.
-        #
-        # AN INVARIANT PINNED TO A NUMBER THAT MOVED. The rule is right: a dense wood must not out-thicket a
-        # rainforest. It was written as "still under the jungle's 0.62", and the jungle has been thinned three
-        # times since, to 0.31, while this row sat at 0.60 and never noticed. Measured, it had become the most
-        # impassable template in the game by a distance:
-        #
-        #     dense woodland        46% walkable, 29% placeable, 420 trees, 278 thicket
-        #     super dense jungle    64% walkable, 42% placeable, 240 trees, 192 thicket
-        #     plain woodland        90% walkable, 47% placeable, 133 trees, nil thicket
-        #
-        # It sits at 68%/48% now, with 336 trees against a plain wood's 133 and a real thicket under them:
-        # deep undergrowth with a trail cut through it, which is the description, and the ordering the rule
-        # asks for is real again rather than asserted against a stale constant.
-        config: %{"pathway" => pathway("cut_trail"), "formation" => @formations["understory"], "nature" => %{"canopy" => 0.47, "groundCover" => 0.2},
-                  "trees" => [%{"kind" => "tree_column", "weight" => 35}, %{"kind" => "tree_tall", "weight" => 28}, %{"kind" => "tree", "weight" => 20}, %{"kind" => "tree_big", "weight" => 10}, %{"kind" => "tree_sapling", "weight" => 7}]}
-      },
-      # image #12 — conifers in patches over an open hillside
-      %{
-        category: "forest", parent: "forest_woodland", key: "forest_woodland_mountain", name: "Mountain forest",
-        layout: "woodland", position: 2,
-        description: "Conifers over a hillside that actually climbs: ridges, slopes and sheltered vales.",
-        config: %{"pathway" => pathway("rocky_track"), "formation" => @formations["clumped"], "nature" => %{"canopy" => 0.28},
-                  "subZones" => sub_zones(@mountain_sub_zones, %{"ridge" => 2, "slope" => 3, "vale" => 2}),
-                  "trees" => [%{"kind" => "tree_conifer", "weight" => 70}, %{"kind" => "tree_tall", "weight" => 15}, %{"kind" => "tree_stub", "weight" => 15}]},
-        options: @way_options ++ region_options(@mountain_sub_zones, ~w(ridge slope vale)) ++ @water_options
-      },
-      # image #12 again — woodland broken by open meadow sections
-      %{
-        category: "forest", parent: "forest_woodland", key: "forest_woodland_glades", name: "Woodland with meadows",
-        layout: "woodland", position: 3,
-        description: "Closed stands of trees with open meadow between them.",
-        config: %{"pathway" => pathway("park_path"), "formation" => @formations["clumped"], "nature" => %{"canopy" => 0.4},
-                  "subZones" => sub_zones(@woodland_sub_zones, %{"stand" => 3, "meadow" => 2}),
-                  "trees" => [%{"kind" => "tree", "weight" => 30}, %{"kind" => "tree_round", "weight" => 25}, %{"kind" => "tree_broadleaf", "weight" => 25}, %{"kind" => "tree_gnarled", "weight" => 20}]},
-        options: @way_options ++ region_options(@woodland_sub_zones, ~w(stand meadow)) ++ @water_options
-      },
-      # image #14 — wall to wall, no floor visible
-      %{
-        category: "forest", parent: "forest_jungle", key: "forest_jungle_dense", name: "Super dense jungle",
-        layout: "jungle", position: 0,
-        description: "A closed canopy wall to wall, almost no open ground.",
-        # Thinned by the same ratio as the parent (0.84x), so it stays the densest jungle without being the
-        # one map you cannot walk across.
-        config: %{"pathway" => pathway("cut_trail"), "nature" => %{"canopy" => 0.36}, "subZones" => sub_zones(%{"dense" => 5, "open" => 1})},
-        options: @way_options ++ region_options(~w(open dense)) ++ @water_options
-      },
-      # image #13 — cypress standing in the water
-      %{
-        category: "forest", parent: "forest_jungle", key: "forest_jungle_swamp", name: "Swamp jungle",
-        layout: "jungle", position: 1,
-        description: "Mostly swamp, cypress standing in the water.",
-        config: %{"pathway" => pathway("boardwalk"), "subZones" => sub_zones_in(%{"swamp" => 6, "dense" => 2, "open" => 1}, @swamp_regions)},
-        options: @way_options ++ region_options(~w(open dense swamp)) ++ @water_options
-      },
-      # an island: water around it, palms
-      %{
-        category: "forest", parent: "forest_jungle", key: "forest_jungle_island", name: "Island jungle",
-        layout: "jungle", position: 2,
-        description: "Palms over pale sand, ringed by shallow turquoise water.",
-        # AN ISLAND IS NOT THE AMAZON.
-        #
-        # Measured: it inherited the jungle palette WHOLE, so its colours were the same numbers as the swamp
-        # jungle's, down to the hex. Only the tree weights differed and you cannot see a weight. An island is
-        # brighter and paler than rainforest: sand where a jungle has peat, turquoise where a jungle has
-        # blue-brown, and a canopy that is yellow-green rather than near-black.
-        config: %{"pathway" => pathway("coast_path"), "subZones" => sub_zones_in(%{"open" => 3, "dense" => 2}, @island_regions),
-                  "palette" => Map.merge(@jungle_palette, %{
-                    "floor" => "#7c8a4e",
-                    "floorAlt" => "#8c9a5b",
-                    "litter" => "#9a8d5a",
-                    "canopy" => "#4f9147",
-                    "canopyAlt" => "#68ab56",
-                    "undergrowth" => "#618c48",
-                    "water" => "#2aa8c0",
-                    "waterShallow" => "#86e0ea",
-                    "waterDeep" => "#1a7891",
-                    "bank" => "#e8d6a6"
-                  }),
-                  # THE WHOLE ISLAND, not just its two regions. It is right and this line was why:
-                  # a cell inside `open` or `dense` takes that region's mix, and everything OUTSIDE them falls back
-                  # to THIS list, which was the generic palm-and-round set. On a map where the regions cover part of
-                  # the ground, most trees came from here.
-                  "trees" => [%{"kind" => "tree_coconut", "weight" => 30}, %{"kind" => "tree_palm", "weight" => 25}, %{"kind" => "tree_banana", "weight" => 20}, %{"kind" => "tree_mangrove", "weight" => 15}, %{"kind" => "bush_round", "weight" => 10}]},
-        options: @way_options ++ region_options(~w(open dense)) ++ water_options("around")
-      },
-      %{
-        category: "forest", parent: "forest_jungle", key: "forest_jungle_ruins", name: "Jungle ruins",
-        layout: "jungle", position: 3,
-        description: "Ruins the jungle has taken back.",
-        config: %{"pathway" => pathway("forest_track"), "subZones" => sub_zones(%{"ruins" => 5, "dense" => 2, "open" => 2})},
-        options: @way_options ++ region_options(~w(open dense ruins)) ++ @water_options
-      },
-      # image #10 — big lone trees wide apart on open grass
-      %{
-        category: "forest", parent: "forest_meadow", key: "forest_meadow_pasture", name: "Wood pasture",
-        layout: "meadow", position: 0,
-        description: "Big lone trees standing wide apart on open grass.",
-        config: %{"pathway" => pathway("park_path"), "formation" => @formations["scattered"],
-                  "trees" => [%{"kind" => "tree_gnarled", "weight" => 60}, %{"kind" => "tree_broadleaf", "weight" => 25}, %{"kind" => "bush_round", "weight" => 15}]}
-      },
-      %{
-        category: "forest", parent: "forest_meadow", key: "forest_meadow_open", name: "Open meadow",
-        layout: "meadow", position: 1,
-        description: "The open clearing, as it is.",
-        config: %{"pathway" => pathway("park_path"), }
-      },
-      # ── SETTLEMENTS, BUILT LIKE FORESTS ─────────────────────────────────────────────────────────────
-      # and
-      #
-      # So the shape is the forest's. What you pick is the KIND, and a town and a city really are the two
-      # different things: a town is low and green with stone pathways through it, a city is dense and paved. A
-      # VARIATION hangs under its kind and states ONLY what makes it itself, because `generator_tree` inherits
-      # the archetype and the options and deep-merges the config (a list, like the building mix, REPLACES its
-      # parent's rather than adding to it, which is the point of stating one).
-      #
-      # Four of the old rows are gone: andean town, mediterranean city and tropical city, and
-      #
-      # NOT here yet, deliberately: the city with a
-      # lake (image #34). A settlement generator places no WATER at all today, so both would be a normal place
-      # with browner walls, which is the exact paint it rejected. They wait on the water work.
-      %{
-        category: "settlement", key: "town", name: "Town", layout: "town", variant: "town", position: 0,
-        description: "Houses along stone pathways, a square in the middle, trees between the lots.",
-        config: %{"pathway" => pathway("village_lane"), 
-          "grid" => @small_grid,
-          "settlement" => settlement(plaza: 5, lot_gap: [1, 2], max_per_frontage: 6, cap: 18,
-                                     houses: [4, 6], nature_mult: 1.3,
-                                     mix: [{"temple", 1, 1}, {"church", 1, 1}, {"stable", 1, 2}, {"barn", 1, 2}, {"smithy", 1, 1}]),
-          "nature" => @outdoor_nature,
-          "entrance" => "town_entrance",
-          "units" => townsfolk(8),
-          "buildings" => Map.merge(@building_palette, %{
-            "roof" => "roof",
-            "materials" => ["wall_brick", "wall_wood"],
-            "roofColors" => ["#8a4b2f", "#7a4326", "#6b4a2b"],
-            "wallColors" => ["#c9a66b", "#b08d5b", "#d8c79a"]
-          })
-        },
-        options: @settlement_way_options ++ @water_options
-      },
-      %{
-        category: "settlement", key: "city", name: "City", layout: "city", variant: "city", position: 1,
-        description: "Blocks and towers on paved streets, wide junctions, little green.",
-        config: %{"pathway" => pathway("city_street"), 
-          "grid" => @city_grid,
-          "settlement" => settlement(plaza: 7, lot_gap: [1, 1], max_per_frontage: 99, cap: 72,
-                                     houses: [7, 11], demanded_houses: {3, 5}, nature_mult: 0.5,
-                                     mix: [{"temple", 1, 1}, {"tower", 3, 5}, {"apartment", 4, 7}, {"office", 2, 4}]),
-          "nature" => @outdoor_nature,
-          "entrance" => "town_entrance",
-          "units" => townsfolk(14),
-          "buildings" => Map.merge(@building_palette, %{
-            "roof" => "flat_roof",
-            "materials" => ["wall_plaster"],
-            "roofColors" => ["#4a4f55", "#3f464c", "#5a636b"],
-            "wallColors" => ["#e8ecef", "#d3d8dc", "#bcc3c9"]
-          })
-        },
-        options: @settlement_way_options ++ @water_options
-      },
-      # ── VARIATIONS OF A TOWN ────────────────────────────────────────────────────────────────────────
-      # image #31 - a small town: a handful of houses and a lot of green between them
-      %{
-        category: "settlement", parent: "town", key: "town_small", name: "Small town",
-        layout: "town", position: 0,
-        description: "A handful of timber houses and green between every one of them.",
-        config: %{"pathway" => pathway("village_lane"), 
-          "settlement" => %{
-            "buildingCap" => 12, "houseRange" => [3, 5], "natureMultiplier" => 1.8,
-            "mix" => mix([{"church", 1, 1}, {"stable", 1, 1}, {"barn", 1, 1}])
-          },
-          "units" => townsfolk(5),
-          "buildings" => %{"materials" => ["wall_wood"], "wallColors" => ["#b08d5b", "#c9a66b", "#9c7c4e"]}
-        }
-      },
-      # image #29 - a forest village: the roads are made of stone and the trees come right up to the houses
-      %{
-        category: "settlement", parent: "town", key: "town_forest", name: "Forest village",
-        layout: "town", position: 1,
-        description: "Timber houses under the trees, joined by paths of stone.",
-        config: %{"pathway" => pathway("forest_track"), 
-          "settlement" => %{
-            "buildingCap" => 14, "houseRange" => [4, 6], "natureMultiplier" => 2.4,
-            "mix" => mix([{"stable", 1, 1}, {"barn", 1, 2}, {"smithy", 1, 1}])
-          },
-          "nature" => %{"groundCover" => 0.28, "flowers" => 0.08, "tallGrass" => 0.22},
-          "units" => townsfolk(6),
-          "buildings" => %{"materials" => ["wall_wood"], "wallColors" => ["#8f7450", "#a98b5f", "#7d6544"]}
-        }
-      },
-      # "Like mountain town" - stone walls under slate, cobbled streets
-      %{
-        category: "settlement", parent: "town", key: "town_mountain", name: "Mountain town",
-        layout: "town", position: 2,
-        description: "Stone walls under slate, cobbled streets, conifers around the edge.",
-        config: %{"pathway" => pathway("cobbled_lane"), 
-          "settlement" => %{
-            "buildingCap" => 16, "natureMultiplier" => 1.5,
-            "mix" => mix([{"church", 1, 1}, {"manor", 1, 1}, {"stable", 1, 1}, {"smithy", 1, 1}])
-          },
-          "units" => townsfolk(7),
-          "buildings" => %{
-            "roof" => "roof_slate",
-            "materials" => ["wall_stone"],
-            "roofColors" => ["#3f464c", "#4a4f55", "#2f3439"],
-            "wallColors" => ["#8a8580", "#9c9792", "#767168"]
-          }
-        }
-      },
-      # "beach town" - timber on sand, dirt tracks instead of paving, barely any tree cover
-      %{
-        category: "settlement", parent: "town", key: "town_beach", name: "Beach town",
-        layout: "town", position: 3,
-        description: "Bleached timber along sandy tracks, hardly a tree in sight.",
-        config: %{"pathway" => pathway("sand_track"), 
-          "settlement" => %{
-            "buildingCap" => 14, "natureMultiplier" => 0.6,
-            "mix" => mix([{"store", 1, 2}, {"barn", 1, 1}])
-          },
-          "nature" => %{"groundCover" => 0.06, "flowers" => 0.03, "tallGrass" => 0.08},
-          "units" => townsfolk(7),
-          "buildings" => %{
-            "materials" => ["wall_wood", "wall_plaster"],
-            "roofColors" => ["#9c8f6f", "#b5a888", "#87795c"],
-            "wallColors" => ["#e8dcc0", "#d8c79a", "#f0e7d0"]
-          }
-        }
-      },
-      # image #22 - a swamp village: wooden huts, and the water still to come (see the note above)
-      %{
-        category: "settlement", parent: "town", key: "town_swamp", name: "Swamp village",
-        layout: "town", position: 4, zones: ~w(spring summer),
-        description: "Wooden huts on boardwalks over a green flat.",
-        config: %{"pathway" => pathway("boardwalk"), 
-          "settlement" => %{
-            "plazaSize" => 3, "maxPerFrontage" => 4, "buildingCap" => 12,
-            "natureMultiplier" => 2.0,
-            # No barn and no stable: there is no pasture in a swamp and nothing to keep in one. Huts, and a
-            # forge for the boats. Leaving the farm buildings in made this the forest village in other colours.
-            "mix" => mix([{"smithy", 1, 1}])
-          },
-          # CHOKED, not lawn. The wood it already had. This is the jungle half: undergrowth to the
-          # doorstep and trees pressing in, the same numbers that separate a jungle from a woodland.
-          # The RIVERS it wants are the one part that cannot be served yet, because a settlement generator
-          # places no water at all. That is the same blocker as the swamp city and the lake city.
-          "nature" => %{"groundCover" => 0.45, "flowers" => 0.08, "tallGrass" => 0.3},
-          "units" => townsfolk(6),
-          "buildings" => %{
-            "materials" => ["wall_wood"],
-            "roofColors" => ["#6b5a34", "#5c4f2c", "#7a6a3e"],
-            "wallColors" => ["#a98b5f", "#8f7450", "#c0a375"]
-          }
-        }
-      },
-      # ── VARIATIONS OF A CITY ────────────────────────────────────────────────────────────────────────
-      # images #27 and #33 - the modern city: towers and blocks of flats, flat grey decks, wide roads
-      %{
-        category: "settlement", parent: "city", key: "city_modern", name: "Modern city",
-        layout: "city", position: 0,
-        description: "Towers and blocks of flats under flat grey decks.",
-        config: %{"pathway" => pathway("city_street"), 
-          "settlement" => %{
-            "mix" => mix([{"tower", 4, 6}, {"apartment", 5, 8}, {"office", 2, 4}])
-          },
-          "units" => townsfolk(16)
-        }
-      },
-      # image #30 - a medieval city: stone under slate on cobbles, a cathedral and a castle, and no towers
-      %{
-        category: "settlement", parent: "city", key: "city_medieval", name: "Medieval city",
-        layout: "city", position: 1,
-        description: "Stone under slate on cobbled streets, a cathedral and a castle, nothing tall.",
-        config: %{"pathway" => pathway("cobbled_lane"), 
-          "settlement" => %{
-            "buildingCap" => 54, "lotGap" => [1, 1], "natureMultiplier" => 0.8,
-            "mix" => mix([{"cathedral", 1, 1}, {"castle", 1, 1}, {"manor", 2, 4}, {"smithy", 1, 2}, {"church", 1, 2}])
-          },
-          "units" => townsfolk(14),
-          "buildings" => %{
-            "roof" => "roof_slate",
-            "materials" => ["wall_stone", "wall_brick"],
-            "roofColors" => ["#3f464c", "#4a4f55", "#5c4433"],
-            "wallColors" => ["#8a8580", "#a89f7a", "#9e4b3b"]
-          }
-        }
-      },
+  Four of the six categories are the SAME environment list, so they are generated as a cross product
+  rather than written out. Nothing here is a hand-copied row.
+  """
+  def generators do
+    wild = for {env, i} <- Enum.with_index(Enum.filter(environments(), & &1.wild)), do: wilderness_row(env, i)
+
+    settlements =
+      for kind <- @settlement_kinds,
+          {env, i} <- Enum.with_index(Enum.filter(environments(), &(kind.key in &1.kinds))),
+          do: settlement_row(kind, env, i)
+
+    wild ++ settlements ++ dungeons()
+  end
+
+  defp dungeons do
+    [
       %{
         category: "cave", key: "cave_default", name: "Cave", variant: "cave", position: 0,
         description: "A cavern floor: bats, spiders and skeletons instead of townsfolk.",
@@ -1266,7 +1422,9 @@ defmodule Nebulith.Catalog.GeneratorSource do
     %{
       "plazaSize" => Keyword.fetch!(opts, :plaza),
       "setback" => 1,
-      "roadWidth" => 4,
+      # A village's lanes are narrower than a town's and a city's, which is one of the things you read as
+      # rural before you have looked at a single building.
+      "roadWidth" => Keyword.fetch!(opts, :road_width),
       "lotGap" => Keyword.fetch!(opts, :lot_gap),
       "maxPerFrontage" => Keyword.fetch!(opts, :max_per_frontage),
       "buildingCap" => Keyword.fetch!(opts, :cap),
@@ -1298,7 +1456,7 @@ defmodule Nebulith.Catalog.GeneratorSource do
   # Store and hospital are not in the lists because every settlement has them: that pair is the guaranteed civic
   # minimum and it was already true before this. Houses are not here either, they are counted by `houseRange`
   # above, and a wide house is now just a house with a bigger footprint. What a row names makes it ITSELF.
-  defp mix(entries, demanded_houses \\ {1, 3}) do
+  defp mix(entries, demanded_houses) do
     # ONE ENTRY PER TYPE. A row that names a type the essentials already carry (a beach town wanting more than
     # one store) used to emit it twice, which reads as a mistake in the served data and makes the count hard to
     # see. The counts ADD instead, so the list says what it means: a seafront asks for two or three stores.
@@ -1328,28 +1486,27 @@ defmodule Nebulith.Catalog.GeneratorSource do
   @doc """
   THE GENERATION LAYERS: the model, as rows.
 
-  A layer is a set of things in a given context, and the context is A LEVEL BEING COMPLETE, which is wider than
-  the map generator: *"A LAYER DOESN'T NECESSARILLY RUNS IN THE GENERATOR, IS JUST A THING IN THE CONTEXT OF
-  THE LEVEL COMPLETION"*. Units are a layer even though the generator does not scatter them.
+  A layer is a set of things in a given context, and the context is A LEVEL BEING COMPLETE, which is wider
+  than the map generator: a layer does not necessarily run in the generator, it is a thing in the context of
+  the level being finished. Units are a layer even though the generator does not scatter them.
 
-  The order, his: *"grid (defined by size, cell, rows) > terrain builder (by zone/region/season which
-  determines what objects will be added, type of floor, etc) > water (which blocks pathways) > pathways (which
-  adapts to available space left by water on grid) > objects (this is where the generator enters into play)
-  ... > fog (to optimize, handle distance) > lighning (which affects all elements) > shadow (which depends on
-  lightning and positioned elements) > post processing/optimization"*.
+  The order: grid (size, cell, rows) > terrain (by zone, region and season, which decides what objects will
+  be added and what the floor is) > water (which blocks pathways) > pathways (which adapt to the space the
+  water left) > objects (where the generator enters into play) > fog (distance, and optimizing for it) >
+  lightning (which affects every element) > shadow (which depends on the light and on where things ended up
+  standing) > post processing and optimization.
 
-  GRID AND TERRAIN ARE ONE LAYER, and the inputs are its parameters rather than a layer of their own:
-  *"THE INPUTS ARE WHAT DEFINE THE PARAMETERS OF THE FIRST LAYER, IN FACT EVERY INPUT FROM THE GENERATOR UI
-  DOES EXACTLY THE SAME, IS A PARAMETER IN A GIVEN LAYER OF THE SYSTEM"*.
+  GRID AND TERRAIN ARE ONE LAYER, and the inputs are its parameters rather than a layer of their own: every
+  input on the generator UI does the same thing, it sets a parameter in a given layer of the system.
 
   `group` is the name for a run of layers. `layout` is terrain, water and pathways together; `objects` is
   buildings, nature and decor. Both used to be served as if they were layers themselves, which is exactly what
   let a SECOND pathways layer be added beside the first without anything noticing.
 
-  PATHWAYS IS STRUCTURE, NOT LOOK: *"what the pathways determine is the map structure, what is a pathway, what
-  is a section to put objects, what are the exits, how's the pathway draw, etc. then on the objects phase we
-  can pick the type of pathway, type of exit, etc"*. Which tile a way is surfaced with, and what lines it,
-  belong to objects.
+  PATHWAYS IS STRUCTURE, NOT LOOK: what the pathways decide is the map's structure, which cells are a way,
+  which are a section to put objects in, where the exits are and how a way is drawn. The objects phase then
+  picks the KIND of way and the kind of exit. Which tile a way is surfaced with, and what lines it, belong to
+  objects.
 
   `seedable: false` is the honest half: a layer nothing re-rolls yet gets no button rather than one that does
   nothing.

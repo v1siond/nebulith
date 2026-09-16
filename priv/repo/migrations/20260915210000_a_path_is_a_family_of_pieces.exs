@@ -12,7 +12,16 @@ defmodule Nebulith.Repo.Migrations.APathIsAFamilyOfPieces do
 
   alias Nebulith.Catalog.TileSource
 
-  def up, do: TileSource.seed_path_pieces()
+  def up, do: if(tilesets_present?(), do: TileSource.seed_path_pieces())
 
   def down, do: :ok
+
+  # ONLY A DB THAT ALREADY HAS TILES. Every data migration in this repo carries this guard and this one did
+  # not, so it seeded the ascii and emoji tilesets into the FRESH TEST database, where three suites create
+  # their own "ascii" tileset in setup and hit the unique index on the key. A data migration describes a
+  # change to data that exists; on an empty database there is nothing to change.
+  defp tilesets_present? do
+    %{rows: [[count]]} = repo().query!("SELECT count(*) FROM tilesets")
+    count > 0
+  end
 end

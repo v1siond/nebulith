@@ -1,14 +1,25 @@
 defmodule Nebulith.GeneratorSourceTest do
   @moduledoc """
   The map-generator CATALOG is backend data (T-113). These tests exercise the seed the way the app
-  does — seed, read back through the context, re-seed — and assert the ported NUMBERS, because the
+  does: seed, read back through the context, re-seed, and assert the ported NUMBERS, because the
   whole point of the move is that the frontend stops carrying them.
+
+  The catalog is two tables crossed: a CATEGORY is the terrain kind (wilderness, village, town, city)
+  and a TYPE is the environment (woodland, jungle, meadow, swamp, mountain, beach, ruins, desert,
+  volcanic). So most of what is asserted here is asserted over the cross product rather than over a row,
+  which is the point of generating it: a fact stated once has to hold in thirty-six places.
   """
   use Nebulith.DataCase
 
   alias Nebulith.Catalog
   alias Nebulith.Catalog.{Generator, GeneratorCategory}
   alias Nebulith.Catalog.GeneratorSource
+
+  # The categories that are built from the environment list. Caves and temples are not.
+  @outdoor ~w(wilderness village town city)
+
+  # The regions every wild environment divides itself into, in the order they are served.
+  @regions ~w(edge deep glade thicket lakeside)
 
   defp by_key(categories), do: Map.new(categories, &{&1.key, &1})
 
@@ -17,7 +28,7 @@ defmodule Nebulith.GeneratorSourceTest do
     {r, g, b}
   end
 
-  # Rough perceived brightness of "#rrggbb" — enough to assert which of two colours is the darker one.
+  # Rough perceived brightness of "#rrggbb", enough to assert which of two colours is the darker one.
   defp luminance("#" <> hex) do
     {r, g, b} = {String.slice(hex, 0, 2), String.slice(hex, 2, 2), String.slice(hex, 4, 2)}
     [r, g, b] = Enum.map([r, g, b], &elem(Integer.parse(&1, 16), 0))
@@ -28,75 +39,110 @@ defmodule Nebulith.GeneratorSourceTest do
     categories |> by_key() |> Map.fetch!(cat_key) |> Map.fetch!(:generators) |> Enum.find(&(&1.key == gen_key))
   end
 
+  # Every generator in the catalog, keyed by its own key.
+  defp rows(categories), do: Map.new(Enum.flat_map(categories, & &1.generators), &{&1.key, &1})
+
   describe "seed/0" do
     test "creates every category and generator, and reports what it wrote" do
-      assert {4, 24} = GeneratorSource.seed()
+      assert {6, 40} = GeneratorSource.seed()
 
       categories = Catalog.list_generator_categories()
-      assert Enum.map(categories, & &1.key) == ~w(forest settlement cave temple)
-      assert Enum.map(categories, & &1.name) == ["Forest", "Settlement", "Cave", "Temple"]
-      assert Enum.sum(Enum.map(categories, &length(&1.generators))) == 7
+      assert Enum.map(categories, & &1.key) == ~w(wilderness village town city cave temple)
+      assert Enum.map(categories, & &1.name) == ["Wilderness", "Village", "Town", "City", "Cave", "Temple"]
+      # nine environments in each of the four outdoor categories, two standalone city types, two dungeons
+      assert Enum.sum(Enum.map(categories, &length(&1.generators))) == 40
     end
 
     test "categories come back in MENU order, not insertion or alphabetical order" do
       GeneratorSource.seed()
       keys = Catalog.list_generator_categories() |> Enum.map(& &1.key)
 
-      assert keys == ~w(forest settlement cave temple)
+      assert keys == ~w(wilderness village town city cave temple)
       refute keys == Enum.sort(keys)
     end
 
-    test "a forest lists the three KINDS of forest, and nothing that is only a variation of one" do
+    test "a village, a town and a city are their OWN categories, not sizes of one" do
       GeneratorSource.seed()
       cats = Catalog.list_generator_categories() |> by_key()
 
-      # Order matters and is asserted, because the category's FIRST preset is the one the panel opens on.
-      # — every preset here
-      # used to be a clearing, so a category called Forest opened on something that was not one.
-      assert Enum.map(cats["forest"].generators, & &1.layout) == ["woodland", "jungle", "meadow"]
-      # THE LOOK IS THE PRESET: modern city, swamp village and so on, rather than a bare "town" and "city".
-      # Each one says which archetype builds it.
-      assert Enum.map(cats["settlement"].generators, & &1.name) == [
-               "Town",
-               "City"
-             ]
+      # They are fundamentally different places and the difference is architecture. A village is timber and
+      # no landmark, a town is brick under a pitched roof, a city is plaster under a flat deck with towers.
+      # Size is the grid, so no row here is named for one.
+      assert Map.has_key?(cats, "village") and Map.has_key?(cats, "town") and Map.has_key?(cats, "city")
+      refute Map.has_key?(cats, "settlement")
 
-      builds = Map.new(cats["settlement"].generators, &{&1.layout, &1.variant})
+      names = for c <- Map.values(cats), g <- c.generators, do: g.name
 
-      # The KIND is what a settlement row names now, and a variation inherits its archetype.
-      assert builds == %{"town" => "town", "city" => "city"}
+      for word <- ~w(Small Big Large Standard Modern) do
+        refute Enum.any?(names, &String.contains?(&1, word)), "a row is still named by size or by nothing: #{word}"
+      end
     end
 
-    test "a river is an OPTION on a forest, never a row of its own" do
+    test "the SAME environment list runs in wilderness, village, town and city" do
       GeneratorSource.seed()
       cats = Catalog.list_generator_categories() |> by_key()
-      layouts = Enum.map(cats["forest"].generators, & &1.layout)
 
-      # `forest_meadow_river` used to be its own row, which is exactly the growth it named:
-      # one boolean doubled the category. The river survives as a toggle, so the count stays at three.
-      refute "meadow_river" in layouts
-      assert length(layouts) == 3
+      # A swamp forest, a swamp village, a swamp town and a swamp city all exist, and they exist because one
+      # table is crossed with another rather than because thirty-six rows were typed out.
+      assert Enum.map(cats["wilderness"].generators, & &1.name) ==
+               ["Woodland", "Jungle", "Meadow", "Swamp", "Mountain", "Beach", "Ruins", "Desert", "Volcanic"]
 
-      for g <- cats["forest"].generators do
-        # This walks the three PARENT rows only. A jungle offers its region picker there; the woodland and
-        # meadow parents do not, because the woodland rows that have regions are its CHILDREN (glades, and the
-        # mountain forest), and each of those states its own options.
-        # THE `crossing` TOGGLE IS GONE: *"'A crossing joined to the paths' what does even mean???? I don't
-        # know why we have it in the UI"*. A river that cuts a path in half always gets a crossing now, so
-        # there was nothing for the toggle to decide. `bridge` stays, because WHICH crossing is a real choice.
-        expected =
-          if g.key == "forest_jungle",
-            do: ~w(exits pathways region river depth bridge),
-            else: ~w(exits pathways river depth bridge)
+      for category <- @outdoor do
+        present = for g <- cats[category].generators, do: g.name
 
-        assert Enum.map(g.options, & &1["key"]) == expected, "#{g.key} offers #{inspect(g.options)}"
-        # Nothing runs by default: no river, and so nothing to cross.
+        for env <- ~w(Woodland Jungle Meadow Swamp Mountain Beach Ruins Desert Volcanic) do
+          assert Enum.any?(present, &String.starts_with?(&1, env)), "#{category} has no #{env}"
+        end
+      end
+
+      # The standalone types are cities and nothing else: no wild volcano of futurism, no medieval village.
+      standalone = for g <- cats["city"].generators, g.key in ~w(city_futuristic city_medieval), do: g.name
+      assert standalone == ["Futuristic city", "Medieval city"]
+
+      for category <- ~w(wilderness village town) do
+        keys = Enum.map(cats[category].generators, & &1.key)
+        refute Enum.any?(keys, &String.contains?(&1, "futuristic"))
+        refute Enum.any?(keys, &String.contains?(&1, "medieval"))
+      end
+    end
+
+    test "the rows that said nothing are GONE, and nothing is categorised by size" do
+      GeneratorSource.seed()
+      all = Catalog.list_generator_categories() |> rows()
+
+      # Each of these was the standard template under another name (a beech stand, glades, an open meadow, a
+      # wood pasture, a super dense jungle), a size indicator (a small town), or a word that said nothing
+      # about the place (a modern city, which is the Futuristic city now).
+      for gone <- ~w(forest_woodland_beech forest_woodland_glades forest_woodland_dense forest_meadow_open
+                     forest_meadow_pasture forest_jungle_dense forest_jungle_swamp forest_jungle_island
+                     forest_jungle_ruins forest_woodland_mountain town_small town_forest city_modern) do
+        refute Map.has_key?(all, gone), "#{gone} is still in the catalog"
+      end
+
+      # And nothing is a subtype of anything any more: an environment is a type, and where in it you are is
+      # a region of the same map.
+      for {key, row} <- all, do: assert(row.children == [], "#{key} still carries subtypes")
+    end
+
+    test "a river is an OPTION on a wild map, never a row of its own" do
+      GeneratorSource.seed()
+      cats = Catalog.list_generator_categories() |> by_key()
+
+      for g <- cats["wilderness"].generators do
+        # Every wild environment offers the same region picker now, so every one of them offers the same
+        # list: the ways, the region to lead with, and the river.
+        assert Enum.map(g.options, & &1["key"]) == ~w(exits pathways region river depth bridge),
+               "#{g.key} offers #{inspect(Enum.map(g.options, & &1["key"]))}"
+
         [river, kind] = Enum.filter(g.options, &(&1["key"] in ~w(river bridge)))
-        assert river["default"] == "none", "#{g.key} runs a river by default"
         assert kind["requires"] == "river"
 
-        # HOW DEEP the channel is cut is served, not chosen by the generator. It hangs
-        # off the river like the crossing does, so it greys out when there is no river to cut.
+        # A beach starts ringed by water; nothing else runs a river unless it is asked for.
+        expected = if g.key == "forest_beach", do: "around", else: "none"
+        assert river["default"] == expected, "#{g.key} starts with river #{river["default"]}"
+
+        # HOW DEEP the channel is cut is served, not chosen by the generator. It hangs off the river like
+        # the crossing does, so it greys out when there is no river to cut.
         depth = Enum.find(g.options, &(&1["key"] == "depth"))
         assert depth["requires"] == "river", "#{g.key} offers a depth with no river"
         assert depth["default"] == "1"
@@ -106,29 +152,27 @@ defmodule Nebulith.GeneratorSourceTest do
 
     test "the KIND of crossing declares that it needs a river - the panel does not have to know" do
       GeneratorSource.seed()
-      woodland = Catalog.list_generator_categories() |> generator("forest", "forest_woodland")
+      woodland = Catalog.list_generator_categories() |> generator("wilderness", "forest_woodland")
 
       [river, kind] = Enum.filter(woodland.options, &(&1["key"] in ~w(river bridge)))
 
-      # A crossing over dry ground is nonsense, so the row says what it depends on and the editor greys it out
-      # from the DATA. This used to guard the `crossing` toggle too; that option is gone and `bridge` carries
-      # the rule on its own now.
+      # A crossing over dry ground is nonsense, so the row says what it depends on and the editor greys it
+      # out from the DATA.
       refute Map.has_key?(river, "requires")
       assert river["type"] == "choice"
       assert kind["requires"] == "river"
       assert kind["type"] == "choice"
     end
 
-    test "the river offers each COURSE he named, and random as one of them" do
+    test "the river offers each COURSE by name, and random as one of them" do
       GeneratorSource.seed()
+
       river =
         Catalog.list_generator_categories()
-        |> generator("forest", "forest_woodland")
+        |> generator("wilderness", "forest_woodland")
         |> Map.fetch!(:options)
         |> Enum.find(&(&1["key"] == "river"))
 
-      # and
-      # — random stays, as one choice among the courses.
       assert Enum.map(river["choices"], & &1["key"]) == ~w(none random through divides around)
       assert river["default"] in Enum.map(river["choices"], & &1["key"])
     end
@@ -137,85 +181,77 @@ defmodule Nebulith.GeneratorSourceTest do
       GeneratorSource.seed()
       cats = Catalog.list_generator_categories() |> by_key()
 
-      # It used to offer nothing, which is why a town ignored the exits and pathways you set: *"pathways is
-      # good in forests ... is not working on towns nor cities"*.
-      for g <- cats["settlement"].generators do
+      # It used to offer nothing, which is why a town ignored the exits and pathways you set.
+      for category <- ~w(village town city), g <- cats[category].generators do
         keys = Enum.map(g.options, & &1["key"])
         assert "exits" in keys, "#{g.key} offers no exits"
         assert "pathways" in keys, "#{g.key} offers no pathways"
 
-        # EXITS ARE UNCHANGED: *"exits are maintained as they're now"*, so the same random plus 1 to 4.
         exits = Enum.find(g.options, &(&1["key"] == "exits"))
         assert length(exits["choices"]) == 5
 
-        # STREETS GO HIGHER. *"pathways in towns has higher ceiling (not limited to 4, we should determine
-        # the limit from the grid size"*: the list offers more than a forest's four and the engine holds it
-        # to what the map measures.
+        # STREETS GO HIGHER: a street grid carries as many streets as it has room for, so the list offers
+        # more than a wild map's four and the engine holds it to what the map measures.
         streets = Enum.find(g.options, &(&1["key"] == "pathways"))
-        assert length(streets["choices"]) > 5, "#{g.key} caps its streets at a forest's four"
+        assert length(streets["choices"]) > 5, "#{g.key} caps its streets at a wild map's four"
       end
     end
 
-    test "every forest, cave and temple says how many EXITS and PATHWAYS it has" do
+    test "every wild map, cave and temple says how many EXITS and PATHWAYS it has" do
       GeneratorSource.seed()
       cats = Catalog.list_generator_categories() |> by_key()
 
-      # and the cave it drew out: That is TWO numbers, not one. An exit leaves the map (a connector to the next
-      # one), a pathway runs inside it, and a pathway that is not an exit has to end somewhere, which is where
-      # a closed or gated section goes.
-      for key <- ~w(forest cave temple), g <- cats[key].generators do
+      # TWO numbers, not one. An exit leaves the map (a connector to the next one), a pathway runs inside
+      # it, and a pathway that is not an exit has to end somewhere, which is where a gated section goes.
+      for key <- ~w(wilderness cave temple), g <- cats[key].generators do
         [exits, pathways] = Enum.filter(g.options, &(&1["key"] in ~w(exits pathways)))
 
         assert exits["type"] == "choice", "#{g.key}"
         assert pathways["type"] == "choice", "#{g.key}"
-        # Random by default, so a preset nobody has touched still rolls ways through the map.
         assert exits["default"] == "random", "#{g.key}"
         assert pathways["default"] == "random", "#{g.key}"
         assert Enum.map(exits["choices"], & &1["key"]) == ~w(random 1 2 3 4), "#{g.key}"
         assert Enum.map(pathways["choices"], & &1["key"]) == ~w(random 1 2 3 4), "#{g.key}"
-        # Neither depends on anything: the ways are what the map is built around, they are never greyed out.
+        # Neither depends on anything: the ways are what the map is built around, never greyed out.
         refute Map.has_key?(exits, "requires"), "#{g.key}"
         refute Map.has_key?(pathways, "requires"), "#{g.key}"
       end
     end
 
-    test "only the treed layouts state a canopy — a clearing has no tree density to state" do
+    test "only the treed environments state a canopy, a clearing has no tree density to state" do
       GeneratorSource.seed()
-      cats = Catalog.list_generator_categories() |> by_key()
+      all = Catalog.list_generator_categories() |> rows()
 
-      canopies =
-        for g <- cats["forest"].generators, into: %{} do
-          {g.layout, g.config["nature"]["canopy"]}
-        end
-
-      # The woodland layout plants nothing without this and says so, rather than inventing a density —
-      # which is also why the random layout pool skips it when a generator does not serve one.
-      assert canopies["woodland"] > 0
-      assert canopies["meadow"] == nil
+      # A layout plants nothing without this and says so, rather than inventing a density.
+      assert all["forest_woodland"].config["nature"]["canopy"] > 0
+      assert all["forest_jungle"].config["nature"]["canopy"] > 0
+      assert all["forest_meadow"].config["nature"]["canopy"] == nil
     end
 
     test "a jungle and a woodland are painted from DIFFERENT colours" do
       GeneratorSource.seed()
-      cats = Catalog.list_generator_categories() |> by_key()
-      pal = for g <- cats["forest"].generators, into: %{}, do: {g.layout, g.config["palette"]}
+      all = Catalog.list_generator_categories() |> rows()
+      pal = for key <- ~w(forest_woodland forest_jungle), into: %{}, do: {key, all[key].config["palette"]}
 
-      # Every colour in a forest used to come from the SEASON, so a spring
-      # jungle and a spring woodland were painted from the same numbers and looked identical. The assertion
-      # is that they SHARE NOTHING, not that either is a particular hex — tune the hexes freely, just never
-      # back into agreement.
-      assert MapSet.disjoint?(MapSet.new(Map.values(pal["woodland"])), MapSet.new(Map.values(pal["jungle"])))
+      # Every colour in a forest used to come from the SEASON, so a spring jungle and a spring woodland were
+      # painted from the same numbers. The assertion is that they SHARE NOTHING, not that either is a
+      # particular hex. Tune the hexes freely, just never back into agreement.
+      assert MapSet.disjoint?(
+               MapSet.new(Map.values(pal["forest_woodland"])),
+               MapSet.new(Map.values(pal["forest_jungle"]))
+             )
 
       # And the one that carries the look: a jungle floor is in permanent shade under a closed canopy, so it
       # is DARKER than the canopy above it. A temperate wood is the other way round.
-      assert luminance(pal["jungle"]["floor"]) < luminance(pal["jungle"]["canopy"])
-      assert luminance(pal["woodland"]["floor"]) > luminance(pal["woodland"]["canopy"])
+      assert luminance(pal["forest_jungle"]["floor"]) < luminance(pal["forest_jungle"]["canopy"])
+      assert luminance(pal["forest_woodland"]["floor"]) > luminance(pal["forest_woodland"]["canopy"])
     end
 
     test "every kind of crossing the river offers is served with the tile it lays" do
       GeneratorSource.seed()
       cats = Catalog.list_generator_categories() |> by_key()
 
-      for g <- cats["forest"].generators do
+      for g <- cats["wilderness"].generators do
         kind = Enum.find(g.options, &(&1["key"] == "bridge"))
         assert kind, "#{g.key} offers no kind of crossing"
         assert kind["requires"] == "river"
@@ -234,7 +270,7 @@ defmodule Nebulith.GeneratorSourceTest do
       GeneratorSource.seed()
       cats = Catalog.list_generator_categories() |> by_key()
 
-      for g <- cats["forest"].generators, pal = g.config["palette"], pal != nil do
+      for g <- cats["wilderness"].generators, pal = g.config["palette"], pal != nil do
         {r, gr, b} = rgb(pal["water"])
         assert b > r and b > gr, "#{g.key} water is not blue: #{pal["water"]}"
         assert luminance(pal["waterShallow"]) > luminance(pal["water"]), "#{g.key} shallow is not lighter"
@@ -246,34 +282,26 @@ defmodule Nebulith.GeneratorSourceTest do
 
     test "a jungle is a woodland grown over - its floor BLOCKS where a wood's floor is grass" do
       GeneratorSource.seed()
-      cats = Catalog.list_generator_categories() |> by_key()
-      forest = for g <- cats["forest"].generators, into: %{}, do: {g.layout, g.config}
+      all = Catalog.list_generator_categories() |> rows()
 
-      # THE CANOPY NUMBER WAS NEVER THE DIFFERENCE, and this test used to say it was: it asserted the jungle
-      # carried the bigger `canopy` and more than twice the `groundCover`. Both went away when the jungle was
-      # thinned for being unplayable (*"user can't move, we can't put any treasures nor units around"*), and
-      # the jungle is still, measured in the engine, far the tighter map: 78% of its interior walkable against
-      # a woodland's 90%, and 98 thicket cells against a woodland's nil.
-      #
-      # That last number is the whole difference. A wood's understory is `tall_grass`, which you walk through.
-      # A jungle's is `thicket`, which stops you, and it plants nearly three times as much of it. A jungle
-      # with FEWER trees than a wood is still a jungle; one whose floor you can stroll across is not.
-      jungle = forest["jungle"]["formation"]
-      woodland = forest["woodland"]["formation"]
+      # A wood's understory is `tall_grass`, which you walk through. A jungle's is `thicket`, which stops
+      # you, and it plants far more of it. A jungle with FEWER trees than a wood is still a jungle; one
+      # whose floor you can stroll across is not.
+      jungle = all["forest_jungle"].config
+      woodland = all["forest_woodland"].config
 
-      assert jungle["understoryTile"] == "thicket", "a jungle floor has to block"
-      assert woodland["understoryTile"] == "tall_grass", "a wood floor has to be walkable"
-      assert jungle["understory"] > woodland["understory"] * 2
+      assert jungle["formation"]["understoryTile"] == "thicket", "a jungle floor has to block"
+      assert woodland["formation"]["understoryTile"] == "tall_grass", "a wood floor has to be walkable"
+      assert jungle["formation"]["understory"] > woodland["formation"]["understory"] * 2
       # and it still grows more flowers, which is the one nature number that always did separate them
-      assert forest["jungle"]["nature"]["flowers"] > forest["woodland"]["nature"]["flowers"]
+      assert jungle["nature"]["flowers"] > woodland["nature"]["flowers"]
     end
 
     test "a generator runs in seasons the editor offers, and narrows them when its climate implies one" do
       GeneratorSource.seed()
 
-      # This used to assert EVERY generator ran in EVERY season. So a row may narrow its own list; what must hold is
-      # that it names at
-      # least one season and never invents one the editor cannot offer.
+      # A row may narrow its own list; what must hold is that it names at least one season and never invents
+      # one the editor cannot offer.
       offered = MapSet.new(~w(spring summer autumn winter desert))
       cats = Catalog.list_generator_categories()
 
@@ -284,25 +312,33 @@ defmodule Nebulith.GeneratorSourceTest do
                "#{g.key} names a season the editor cannot offer: #{inspect(g.zones)}"
       end
 
-      # A place whose climate really does narrow its seasons.
-      # So the snowy town is gone, and a swamp, which does not freeze over, is the honest example.
-      swamp = Enum.find(generator(cats, "settlement", "town").children, &(&1.key == "town_swamp"))
-      assert swamp.zones == ["spring", "summer"]
+      all = rows(cats)
+
+      # A climate really does narrow the seasons, and it does it for EVERY category the environment runs in:
+      # a swamp does not freeze over whether people live in it or not.
+      for key <- ~w(forest_swamp village_swamp town_swamp city_swamp) do
+        assert all[key].zones == ["spring", "summer"], "#{key} freezes over"
+      end
+
+      for key <- ~w(forest_desert village_desert town_desert city_desert) do
+        assert all[key].zones == ["summer", "desert"], "#{key} runs in seasons a desert does not have"
+      end
+
       # and a place with no implied climate still runs in all of them
-      assert MapSet.new(generator(cats, "forest", "forest_woodland").zones) == offered
+      assert MapSet.new(all["forest_woodland"].zones) == offered
     end
 
-    test "re-seeding is idempotent — no duplicates, and the rows keep their ids" do
+    test "re-seeding is idempotent: no duplicates, and the rows keep their ids" do
       GeneratorSource.seed()
       before = Catalog.list_generator_categories()
       ids = Enum.map(before, & &1.id)
 
-      assert {4, 24} = GeneratorSource.seed()
+      assert {6, 40} = GeneratorSource.seed()
 
       again = Catalog.list_generator_categories()
       assert Enum.map(again, & &1.id) == ids
-      assert Repo.aggregate(GeneratorCategory, :count) == 4
-      assert Repo.aggregate(Generator, :count) == 24
+      assert Repo.aggregate(GeneratorCategory, :count) == 6
+      assert Repo.aggregate(Generator, :count) == 40
     end
 
     test "re-seeding REFRESHES a row someone edited by hand" do
@@ -312,8 +348,122 @@ defmodule Nebulith.GeneratorSourceTest do
 
       GeneratorSource.seed()
 
-      assert Repo.get_by!(Generator, key: "town").name == "Town"
+      assert Repo.get_by!(Generator, key: "town").name == "Woodland town"
       assert Repo.get_by!(Generator, key: "town").id == town.id
+    end
+  end
+
+  describe "the sub-zones, where in a place you are" do
+    setup do
+      GeneratorSource.seed()
+      %{categories: Catalog.list_generator_categories()}
+    end
+
+    test "every wild environment divides into the SAME five regions", %{categories: cats} do
+      for g <- by_key(cats)["wilderness"].generators do
+        assert Enum.map(g.config["subZones"], & &1["key"]) == @regions, "#{g.key} has its own region set"
+
+        # and the picker offers exactly them, plus random
+        region = Enum.find(g.options, &(&1["key"] == "region"))
+        assert Enum.map(region["choices"], & &1["key"]) == ["random" | @regions], "#{g.key}"
+      end
+    end
+
+    test "each environment colours those regions with its OWN floors and species", %{categories: cats} do
+      wild = by_key(cats)["wilderness"].generators
+
+      # The shape of a region is shared and its LOOK is not: that is the difference between reusing a sub
+      # zone and every forest being the same forest. No two environments paint the five floors alike.
+      floors = for g <- wild, do: Enum.map(g.config["subZones"], & &1["floor"])
+      assert length(Enum.uniq(floors)) == length(wild) - 2, "environments share a floor set"
+
+      # and the species differ too: a beach grows palms in its deep wood where a mountain grows conifers
+      species = fn key, region ->
+        g = Enum.find(wild, &(&1.key == key))
+        g.config["subZones"] |> Enum.find(&(&1["key"] == region)) |> Map.fetch!("trees") |> Enum.map(& &1["kind"])
+      end
+
+      assert "tree_conifer" in species.("forest_mountain", "deep")
+      assert "tree_coconut" in species.("forest_beach", "edge")
+      assert "tree_cypress" in species.("forest_swamp", "lakeside")
+      refute "tree_conifer" in species.("forest_beach", "deep")
+    end
+
+    test "the deep wood is the thick part and the glade is the thin one, everywhere", %{categories: cats} do
+      # A region's canopy is a MULTIPLIER of the row's, so this ordering has to hold in every environment or
+      # the names are lying about what you walk into.
+      for g <- by_key(cats)["wilderness"].generators do
+        canopy = Map.new(g.config["subZones"], &{&1["key"], &1["canopy"]})
+
+        assert canopy["deep"] > canopy["edge"], "#{g.key}: its deep wood is thinner than its margin"
+        assert canopy["edge"] > canopy["glade"], "#{g.key}: its margin is thinner than its glade"
+
+        # and the lakeside is the only region standing in water
+        pools = Map.new(g.config["subZones"], &{&1["key"], &1["pools"]})
+        assert pools["lakeside"] > 0, "#{g.key} has a lakeside with no water in it"
+        assert Enum.count(pools, fn {_k, v} -> v != nil end) == 1, "#{g.key} floods more than its lakeside"
+      end
+    end
+
+    test "a swamp and a ruin are TYPES now, not corners of a rainforest", %{categories: cats} do
+      all = rows(cats)
+
+      # They were regions of the jungle, which is why a swamp was something you found inside a rainforest
+      # rather than somewhere you could generate, and why neither ever got a village or a city.
+      refute Enum.any?(all["forest_jungle"].config["subZones"], &(&1["key"] in ~w(swamp ruins)))
+
+      for key <- ~w(forest_swamp village_swamp town_swamp city_swamp forest_ruins village_ruins town_ruins city_ruins) do
+        assert Map.has_key?(all, key), "#{key} does not exist"
+      end
+
+      # a ruin carries its fallen masonry on every region, because the ruin is the whole place now
+      for z <- all["forest_ruins"].config["subZones"], do: assert(z["stone"] > 0)
+      refute Enum.any?(all["forest_woodland"].config["subZones"], &Map.has_key?(&1, "stone"))
+    end
+
+    test "every city has upper, middle and lower class neighbourhoods", %{categories: cats} do
+      for g <- by_key(cats)["city"].generators do
+        assert Enum.map(g.config["subZones"], & &1["key"]) == ~w(upper middle lower), "#{g.key}"
+
+        region = Enum.find(g.options, &(&1["key"] == "region"))
+
+        assert Enum.map(region["choices"], & &1["label"]) ==
+                 ["Random", "Upper class neighbourhood", "Middle class neighbourhood", "Lower class neighbourhood"],
+               "#{g.key}"
+      end
+    end
+
+    test "the class neighbourhoods differ by ARCHITECTURE, not by a tint", %{categories: cats} do
+      zones = generator(cats, "city", "city").config["subZones"]
+      looks = for z <- zones, b = z["buildings"], do: {z["key"], hd(b["materials"]), b["roof"]}
+
+      # Money buys a different house, not the same house in another colour, so each neighbourhood owns its
+      # wall material and its roof outright.
+      pairs = for {_key, material, roof} <- looks, do: {material, roof}
+      assert length(Enum.uniq(pairs)) == 3, "two neighbourhoods build the same thing: #{inspect(looks)}"
+
+      for z <- zones do
+        b = z["buildings"]
+        assert b["materials"] != [], "#{z["key"]} states no material"
+        assert length(b["roofColors"]) == 3 and length(b["wallColors"]) == 3, "#{z["key"]}"
+      end
+    end
+
+    test "only a place with RELIEF states a level", %{categories: cats} do
+      levelled =
+        for category <- cats, g <- category.generators, z <- g.config["subZones"] || [], z["level"] not in [nil, 0], do: g.key
+
+      # A mountain is built at different heights and the step between two regions is a cliff. Its volcanic
+      # placeholder runs on the same numbers, so it climbs too. Nothing else does, and a settlement does
+      # not: a city divides itself by money, not by altitude.
+      assert Enum.uniq(levelled) |> Enum.sort() == ~w(forest_mountain forest_volcanic)
+
+      levels = Map.new(generator(cats, "wilderness", "forest_mountain").config["subZones"], &{&1["key"], &1["level"]})
+
+      # Three DISTINCT levels, or the regions are just three colours of flat ground. The ridge is the glade
+      # up at the top where nothing grows; the vale is the deep wood at the bottom where everything does.
+      assert length(Enum.uniq(Map.values(levels))) == 3
+      assert levels["glade"] > levels["edge"] and levels["edge"] > levels["deep"]
     end
   end
 
@@ -324,8 +474,8 @@ defmodule Nebulith.GeneratorSourceTest do
     end
 
     test "grid: a city is markedly bigger than a town, and both carry the cell geometry", %{categories: cats} do
-      town = generator(cats, "settlement", "town").config["grid"]
-      city = generator(cats, "settlement", "city").config["grid"]
+      town = generator(cats, "town", "town").config["grid"]
+      city = generator(cats, "city", "city").config["grid"]
 
       assert town == %{"cols" => %{"min" => 30, "max" => 45}, "rows" => %{"min" => 24, "max" => 35}, "cellSize" => 16, "isoScale" => 2.5}
       assert city["cols"] == %{"min" => 52, "max" => 71}
@@ -335,7 +485,7 @@ defmodule Nebulith.GeneratorSourceTest do
     end
 
     test "settlement tuning matches villageLayout's constants exactly", %{categories: cats} do
-      assert generator(cats, "settlement", "town").config["settlement"] == %{
+      assert generator(cats, "town", "town").config["settlement"] == %{
                "plazaSize" => 5,
                "setback" => 1,
                "roadWidth" => 4,
@@ -358,7 +508,7 @@ defmodule Nebulith.GeneratorSourceTest do
                "streets" => "path_stone"
              }
 
-      city = generator(cats, "settlement", "city").config["settlement"]
+      city = generator(cats, "city", "city").config["settlement"]
       assert city["buildingCap"] == 72
       assert city["lotGap"] == [1, 1]
       assert city["maxPerFrontage"] == 99
@@ -367,155 +517,115 @@ defmodule Nebulith.GeneratorSourceTest do
       assert city["buildingCap"] > 18 and city["natureMultiplier"] < 1.15
     end
 
+    test "a village, a town and a city are built to different NUMBERS", %{categories: cats} do
+      tuning = for k <- ~w(village town city), do: generator(cats, k, "#{k}_woodland") || generator(cats, k, k)
+      [village, town, city] = Enum.map(tuning, & &1.config["settlement"])
+
+      # Not sizes of one place: a village is fewer, looser, greener buildings on narrower lanes, a city is
+      # the opposite on all four counts. The grid decides how big the map is, these decide what is on it.
+      assert village["buildingCap"] < town["buildingCap"] and town["buildingCap"] < city["buildingCap"]
+      assert village["natureMultiplier"] > town["natureMultiplier"]
+      assert town["natureMultiplier"] > city["natureMultiplier"]
+      assert village["roadWidth"] < town["roadWidth"]
+      assert hd(village["houseRange"]) < hd(city["houseRange"])
+    end
+
     test "every place is made of DIFFERENT buildings, not the same ones in another colour", %{categories: cats} do
-      # and
-      #
-      # Kinds AND their variations. Walking the top level alone would check two rows and miss every variation,
-      # which is exactly the thing this test exists to hold. Type AND count, because two places asking for the
-      # same buildings in different numbers are genuinely different places and the count is what makes a city
-      # dense.
       places =
-        for kind <- by_key(cats)["settlement"].generators,
-            row <- [kind | kind.children],
-            into: %{} do
-          {row.key, get_in(row.config, ["settlement", "mix"]) |> Enum.map(&{&1["type"], &1["count"]})}
+        for {key, row} <- rows(cats), mix = get_in(row.config, ["settlement", "mix"]), mix != nil, into: %{} do
+          {key, Enum.map(mix, & &1["type"])}
         end
 
-      assert map_size(places) == 9, "expected two kinds and seven variations, got #{map_size(places)}"
-      # No two places build the same list. This is the assertion that fails if a "look" goes back to paint.
-      assert map_size(places) == places |> Map.values() |> Enum.uniq() |> length()
+      assert map_size(places) == 29, "expected nine environments in three kinds plus two standalone cities"
 
-      wants = Map.new(places, fn {key, mix} -> {key, Enum.map(mix, &elem(&1, 0))} end)
-
-      # The civic pair every settlement has, kinds and variations alike: `mix/1` prepends it.
-      for {key, list} <- wants do
+      # The civic pair every settlement has, whatever it is: `mix/2` prepends it.
+      for {key, list} <- places do
         assert "store" in list and "hospital" in list, "#{key} lost its store or hospital"
       end
 
-      # The grand TEMPLE landmark rides with the KIND. A variation states its own mix, which replaces its
-      # parent's, so a small town having no temple is correct; the kind it is a variation OF still has one.
-      for key <- ~w(town city) do
-        assert "temple" in wants[key], "the #{key} kind lost its temple landmark"
-      end
+      # The grand TEMPLE landmark rides with a town and a city. A village is rural and has no landmark.
+      assert "temple" in places["town"]
+      assert "temple" in places["city"]
+      refute "temple" in places["village_woodland"]
 
-      # A town builds at least one of its OWN things and never a tower. Note the swamp village has neither a
-      # stable nor a barn on purpose: there is no pasture in a swamp.
-      for {key, list} <- wants, String.starts_with?(key, "town_") do
-        assert Enum.any?(list, &(&1 in ~w(stable barn smithy church manor))),
-               "#{key} has none of a town's own buildings"
-
-        refute "tower" in list, "#{key} is a town with a tower in it"
+      # A village and a town build their OWN things and never a tower.
+      for {key, list} <- places, String.starts_with?(key, "village_") or String.starts_with?(key, "town") do
+        assert Enum.any?(list, &(&1 in ~w(stable barn smithy church manor))), "#{key} has none of its own buildings"
+        refute "tower" in list, "#{key} is not a city and has a tower in it"
       end
 
       # And a city builds at least one of its own, with none of a town's farm buildings.
-      for {key, list} <- wants, String.starts_with?(key, "city_") do
-        assert Enum.any?(list, &(&1 in ~w(tower apartment office cathedral castle))),
-               "#{key} has none of a city's own buildings"
-
+      for {key, list} <- places, String.starts_with?(key, "city") do
+        assert Enum.any?(list, &(&1 in ~w(tower apartment office cathedral castle))), "#{key} has none of a city's own buildings"
         refute "stable" in list, "#{key} is a city with a stable in it"
         refute "barn" in list, "#{key} is a city with a barn in it"
       end
 
-      # The two it named first: the modern city is the tall one, and a medieval city is the same KIND with
+      # An ENVIRONMENT changes the list too, and it changes it the same way in every kind: there is no
+      # pasture in a swamp and nothing to keep in one, and a seafront asks for more than one store.
+      for kind <- ~w(village town city) do
+        swamp = places[if(kind == "town", do: "town_swamp", else: "#{kind}_swamp")]
+        refute "barn" in swamp, "a #{kind} in a swamp keeps a barn"
+        refute "stable" in swamp, "a #{kind} in a swamp keeps a stable"
+      end
+
+      beach = generator(cats, "town", "town_beach").config["settlement"]["mix"]
+      assert Enum.find(beach, &(&1["type"] == "store"))["count"] == [2, 3]
+
+      # The two standalone types: the futuristic city is the tall one, the medieval city is a city with
       # nothing tall in it at all.
-      assert "tower" in wants["city_modern"]
-      assert "apartment" in wants["city_modern"]
-      refute "tower" in wants["city_medieval"]
-      refute "apartment" in wants["city_medieval"]
-      assert "cathedral" in wants["city_medieval"]
+      assert "tower" in places["city_futuristic"] and "apartment" in places["city_futuristic"]
+      refute "tower" in places["city_medieval"]
+      refute "apartment" in places["city_medieval"]
+      assert "cathedral" in places["city_medieval"]
     end
 
-    test "a town paves with stone and a city with road", %{categories: cats} do
-      # Every street used to be painted `road` whatever the place was.
-      streets =
-        for kind <- by_key(cats)["settlement"].generators,
-            row <- [kind | kind.children],
-            into: %{} do
-          {row.key, get_in(row.config, ["settlement", "streets"])}
-        end
+    test "a settlement paves with what the place is made of", %{categories: cats} do
+      streets = for {key, row} <- rows(cats), s = get_in(row.config, ["settlement", "streets"]), into: %{}, do: {key, s}
 
+      # Every street used to be painted `road` whatever the place was. The surface is derived from the row's
+      # own pathway now, so a settlement's streets and its ways cannot disagree.
       assert streets["town"] == "path_stone"
       assert streets["city"] == "road"
-      refute streets["town"] == streets["city"]
+      assert streets["village_woodland"] == "path_dirt"
 
-      # A variation paves with its own. The reference is
-      # the KIND's default; a mountain town cobbles, a beach town has dirt tracks, a swamp village boardwalks.
+      # and the environment changes it: a mountain cobbles, a beach has dirt tracks, a swamp boardwalks.
       assert streets["town_mountain"] == "cobblestone"
       assert streets["town_beach"] == "path_dirt"
       assert streets["town_swamp"] == "wooden_planks"
+      assert streets["city_swamp"] == "wooden_planks"
       assert streets["city_medieval"] == "cobblestone"
 
       # Nothing may ask for a ground the tilesets do not carry, or the street paints as nothing at all.
       real = ~w(road road_center road_edge path_stone path_dirt cobblestone snow_path desert_road bridge
-                wooden_planks courtyard_stone plaza marble)
+                wooden_planks courtyard_stone plaza marble gravel)
 
       for {key, ground} <- streets do
         assert ground in real, "#{key} paves with #{inspect(ground)}, which no tileset carries"
       end
     end
 
-    test "a variation called dense IS denser, in canopy and in the floor under it", %{categories: cats} do
-      # `canopy` is the share of plantable floor that takes an entry from the TREE table, so a table with
-      # bushes in it spends part of that share on shrubs. Comparing the canopy numbers alone said dense was
-      # denser; comparing what actually grows said the opposite. This compares what grows.
-      woodland = generator(cats, "forest", "forest_woodland")
-      dense = Enum.find(woodland.children, &(&1.key == "forest_woodland_dense"))
+    test "a region's floor is the same kind of fact as a template's density", %{categories: cats} do
+      # The deep wood has to be thicker underfoot than the glade in the same map, because the undergrowth
+      # multiplier is what makes the two read as different ground rather than as two colours.
+      for g <- by_key(cats)["wilderness"].generators do
+        zones = Map.new(g.config["subZones"], &{&1["key"], &1})
 
-      tree_cover = fn g ->
-        table = g.config["trees"] || []
-        total = table |> Enum.map(& &1["weight"]) |> Enum.sum()
-        bushes = table |> Enum.filter(&String.starts_with?(&1["kind"], "bush")) |> Enum.map(& &1["weight"]) |> Enum.sum()
-        share = if total == 0, do: 0.0, else: (total - bushes) / total
-        (get_in(g.config, ["nature", "canopy"]) || 0.0) * share
+        assert zones["thicket"]["undergrowth"] > zones["glade"]["undergrowth"], "#{g.key}"
+        assert zones["deep"]["formation"]["understory"] > zones["glade"]["formation"]["understory"], "#{g.key}"
+        # never 1: claiming only the four orthogonal neighbours leaves a checkerboard the floor repair has
+        # to cut through the whole wood to fix
+        for {key, z} <- zones, do: refute(z["formation"]["spacing"] == 1, "#{g.key}/#{key} spaces trees at 1")
       end
-
-      # THE MARGIN USED TO BE 1.3x AND IT WAS NOT MEASURING TREES. Cover is canopy times the tree share, and
-      # the number of trunks that actually land is that against the FORMATION: 0.47 on this row's lattice of
-      # 7 at spacing 0 plants 336 trees on a 40x40, while plain woodland's 0.434 on a lattice of 5 at spacing
-      # 2 plants 133. Two and a half times the trees, at 1.15x the "cover". Demanding 1.3x here was demanding
-      # something nobody could see, and paying for it in a map measured at 46% walkable.
-      #
-      # So the assertion is the direction, not a margin, and it is made of BOTH halves of what this row is:
-      # more canopy than a plain wood, over a floor that blocks where a plain wood's is grass. How it comes
-      # out on an actual map is measured where a map can be built, in aJungleYouCanWalkAcross.test.ts.
-      assert tree_cover.(dense) > tree_cover.(woodland),
-             "dense #{Float.round(tree_cover.(dense), 3)} vs plain #{Float.round(tree_cover.(woodland), 3)}"
-
-      assert get_in(dense.config, ["formation", "understoryTile"]) == "thicket"
-      assert get_in(woodland.config, ["formation", "understoryTile"]) == "tall_grass"
-
-      # and its table is trees, not shrubs: undergrowth has its own channel
-      refute Enum.any?(dense.config["trees"], &String.starts_with?(&1["kind"], "bush"))
-
-      # HOW MUCH FLOOR IS CHOKED is the served share times the formation's own multiplier, not the share on
-      # its own. Both rows carry groundCover 0.2 and they are nothing alike underfoot: this one runs it
-      # through an understory of 1.1 into thicket, a plain wood through 0.45 into grass.
-      choke = fn g -> (get_in(g.config, ["nature", "groundCover"]) || 0.0) * (get_in(g.config, ["formation", "understory"]) || 1.0) end
-      assert choke.(dense) > choke.(woodland) * 2
-
-      # A DENSE WOOD STILL IS NOT A RAINFOREST, and this is the line that stopped saying so. It compared a
-      # dense wood's tree cover against the jungle's raw `canopy`, which worked only while that number was
-      # 0.62. The jungle has been thinned three times since, to 0.31, and this row sat at 0.60: measured in
-      # the engine the dense wood had become the most impassable template there is, 46% of its interior
-      # walkable against a super dense jungle's 64%.
-      #
-      # What makes a rainforest a rainforest is its FLOOR, so that is what gets compared: both grow a blocking
-      # thicket, and the jungle's is the thicker of the two. Nothing here is pinned to a literal, so thinning
-      # either template again cannot quietly invert them a fourth time.
-      jungle = generator(cats, "forest", "forest_jungle")
-      choke = fn g -> (get_in(g.config, ["nature", "groundCover"]) || 0.0) * (get_in(g.config, ["formation", "understory"]) || 1.0) end
-
-      assert get_in(dense.config, ["formation", "understoryTile"]) == "thicket"
-      assert get_in(jungle.config, ["formation", "understoryTile"]) == "thicket"
-
-      assert choke.(jungle) > choke.(dense),
-             "a dense wood out-thickets the rainforest: #{Float.round(choke.(dense), 3)} vs #{Float.round(choke.(jungle), 3)}"
     end
 
     test "units: settlements scatter townsfolk, dungeons scatter their own enemies", %{categories: cats} do
-      assert generator(cats, "settlement", "town").config["units"] == %{"townsfolk" => 8, "enemies" => 0, "enemyTypes" => []}
-      assert generator(cats, "settlement", "city").config["units"]["townsfolk"] == 14
-      assert generator(cats, "forest", "forest_meadow").config["units"]["townsfolk"] == 5
+      assert generator(cats, "town", "town").config["units"] == %{"townsfolk" => 8, "enemies" => 0, "enemyTypes" => []}
+      assert generator(cats, "city", "city").config["units"]["townsfolk"] == 14
+      assert generator(cats, "village", "village_woodland").config["units"]["townsfolk"] == 6
+      assert generator(cats, "wilderness", "forest_meadow").config["units"]["townsfolk"] == 5
+      # a standalone type may say how many people live in it
+      assert generator(cats, "city", "city_futuristic").config["units"]["townsfolk"] == 16
 
       cave = generator(cats, "cave", "cave_default").config["units"]
       temple = generator(cats, "temple", "temple_default").config["units"]
@@ -523,7 +633,7 @@ defmodule Nebulith.GeneratorSourceTest do
       assert temple["enemyTypes"] == ~w(skeleton guardian wraith)
     end
 
-    test "a dungeon carries NO settlement or building config — a missing key means it does not do that", %{categories: cats} do
+    test "a dungeon carries NO settlement or building config: a missing key means it does not do that", %{categories: cats} do
       cave = generator(cats, "cave", "cave_default").config
 
       refute Map.has_key?(cave, "settlement")
@@ -532,35 +642,54 @@ defmodule Nebulith.GeneratorSourceTest do
     end
 
     test "building materials and colours ride with the settlements that place buildings", %{categories: cats} do
-      buildings = generator(cats, "settlement", "town").config["buildings"]
+      buildings = generator(cats, "town", "town").config["buildings"]
 
       assert buildings["materials"] == ["wall_brick", "wall_wood"]
       assert buildings["storeRoof"] == "#235a96"
       assert buildings["hospitalRoof"] == "#2f7e50"
       assert length(buildings["roofColors"]) == 3 and length(buildings["wallColors"]) == 3
-      assert generator(cats, "forest", "forest_meadow").config["buildings"] == nil
+      assert generator(cats, "wilderness", "forest_meadow").config["buildings"] == nil
     end
 
-    test "every settlement look owns its own material and its own roof", %{categories: cats} do
-      # and A look that shares its family AND its
-      # roof with another look is the bug it reported, so this refuses to let two of them match.
+    test "each KIND of settlement owns its own material and its own roof", %{categories: cats} do
+      # A kind that shares its wall family AND its roof with another kind is the bug: three categories that
+      # build the same house in three colours.
       looks =
-        for look <- by_key(cats)["settlement"].generators do
-          b = look.config["buildings"]
-          assert b["roof"] in ~w(roof roof_slate flat_roof), "#{look.key} lays #{inspect(b["roof"])}"
-          assert b["materials"] != [], "#{look.key} states no materials"
-          {look.name, hd(b["materials"]), b["roof"]}
+        for {key, row} <- [{"village", "village_woodland"}, {"town", "town"}, {"city", "city"}] do
+          b = generator(cats, key, row).config["buildings"]
+          assert b["roof"] in ~w(roof roof_slate flat_roof), "#{row} lays #{inspect(b["roof"])}"
+          assert b["materials"] != [], "#{row} states no materials"
+          {row, hd(b["materials"]), b["roof"]}
         end
 
-      assert length(looks) == 2
-      # no two looks share BOTH their dominant wall family and their roof
-      pairs = Enum.map(looks, fn {_name, material, roof} -> {material, roof} end)
-      assert length(Enum.uniq(pairs)) == length(pairs), "two looks are the same material on the same roof: #{inspect(looks)}"
-      # and the plaster family is actually used by something, since it was sitting unused
-      assert Enum.any?(looks, fn {_n, material, _r} -> material == "wall_plaster" end)
+      pairs = Enum.map(looks, fn {_row, material, roof} -> {material, roof} end)
+      assert length(Enum.uniq(pairs)) == 3, "two kinds are the same material on the same roof: #{inspect(looks)}"
+      # a village builds in timber and a city does not build in timber at all
+      assert {"village_woodland", "wall_wood", "roof"} in looks
+      assert Enum.any?(looks, fn {_r, material, _roof} -> material == "wall_plaster" end)
     end
 
-    test "SIZES are absent on purpose — a building's footprint is composition data", %{categories: cats} do
+    test "an ENVIRONMENT repaints a settlement, in every kind it runs in", %{categories: cats} do
+      all = rows(cats)
+
+      # The same fact stated once: a mountain builds in stone under slate whether it is a village, a town or
+      # a city, and a swamp builds in timber in all three.
+      for key <- ~w(village_mountain town_mountain city_mountain) do
+        assert all[key].config["buildings"]["roof"] == "roof_slate", "#{key}"
+        assert all[key].config["buildings"]["materials"] == ["wall_stone"], "#{key}"
+      end
+
+      for key <- ~w(village_swamp town_swamp city_swamp) do
+        assert all[key].config["buildings"]["materials"] == ["wall_wood"], "#{key}"
+      end
+
+      # and it repaints the nature with it: a beach is bare and a swamp is choked, whoever lives there
+      assert all["city_beach"].config["nature"]["groundCover"] < all["city"].config["nature"]["groundCover"]
+      assert all["town_swamp"].config["nature"]["groundCover"] > all["town"].config["nature"]["groundCover"]
+      assert all["town_beach"].config["settlement"]["natureMultiplier"] < all["town"].config["settlement"]["natureMultiplier"]
+    end
+
+    test "SIZES are absent on purpose: a building's footprint is composition data", %{categories: cats} do
       for category <- cats, g <- category.generators do
         refute Map.has_key?(g.config, "buildingSizes")
         refute get_in(g.config, ["settlement", "buildingDepth"])
@@ -568,113 +697,23 @@ defmodule Nebulith.GeneratorSourceTest do
     end
   end
 
-  describe "the catalog is a TREE — forest > type > subtype" do
-    setup do
-      GeneratorSource.seed()
-      %{forest: Catalog.list_generator_categories() |> by_key() |> Map.fetch!("forest")}
-    end
-
-    test "each forest type carries its subtypes, and only the top level sits in the category", %{forest: f} do
-      assert Enum.map(f.generators, & &1.key) == ~w(forest_woodland forest_jungle forest_meadow)
-      subs = Map.new(f.generators, &{&1.key, Enum.map(&1.children, fn c -> c.key end)})
-      assert subs["forest_woodland"] == ~w(forest_woodland_beech forest_woodland_dense forest_woodland_mountain forest_woodland_glades)
-      assert subs["forest_jungle"] == ~w(forest_jungle_dense forest_jungle_swamp forest_jungle_island forest_jungle_ruins)
-      assert subs["forest_meadow"] == ~w(forest_meadow_pasture forest_meadow_open)
-    end
-
-    test "a subtype serves its parent's config merged UNDER its own", %{forest: f} do
-      woodland = Enum.find(f.generators, &(&1.key == "forest_woodland"))
-      mountain = Enum.find(woodland.children, &(&1.key == "forest_woodland_mountain"))
-
-      # its own: the canopy it overrides, and the species
-      assert mountain.config["nature"]["canopy"] == 0.28
-      assert hd(mountain.config["trees"])["kind"] == "tree_conifer"
-      # inherited: everything it did not state, down to the nested keys
-      assert mountain.config["nature"]["groundCover"] == woodland.config["nature"]["groundCover"]
-      assert mountain.config["grid"] == woodland.config["grid"]
-      assert mountain.config["palette"] == woodland.config["palette"]
-    end
-
-    test "a list is REPLACED by the subtype, never appended to", %{forest: f} do
-      woodland = Enum.find(f.generators, &(&1.key == "forest_woodland"))
-      beech = Enum.find(woodland.children, &(&1.key == "forest_woodland_beech"))
-      assert Enum.map(beech.config["trees"], & &1["kind"]) == ~w(tree_column tree_tall tree)
-    end
-
-    test "options inherit unless a subtype states its own — an island starts ringed by water", %{forest: f} do
-      jungle = Enum.find(f.generators, &(&1.key == "forest_jungle"))
-      island = Enum.find(jungle.children, &(&1.key == "forest_jungle_island"))
-      swamp = Enum.find(jungle.children, &(&1.key == "forest_jungle_swamp"))
-
-      assert Enum.find(island.options, &(&1["key"] == "river"))["default"] == "around"
-
-      # A subtype with nothing of its own INHERITS: a beech stand offers exactly the woodland's options.
-      woodland = Enum.find(f.generators, &(&1.key == "forest_woodland"))
-      beech = Enum.find(woodland.children, &(&1.key == "forest_woodland_beech"))
-      assert beech.options == woodland.options
-
-      # A jungle subtype states its own REGION picker, listing only the regions it carries.
-      assert swamp.options |> Enum.find(&(&1["key"] == "region")) |> Map.fetch!("choices") |> Enum.map(& &1["key"]) ==
-               ~w(random open dense swamp)
-    end
-
-    test "a swamp jungle is the same regions, mostly swamp", %{forest: f} do
-      jungle = Enum.find(f.generators, &(&1.key == "forest_jungle"))
-      swamp = Enum.find(jungle.children, &(&1.key == "forest_jungle_swamp"))
-      weights = Map.new(swamp.config["subZones"], &{&1["key"], &1["weight"]})
-      assert weights["swamp"] > weights["dense"] and weights["dense"] > weights["open"]
-      refute Map.has_key?(weights, "ruins")
-    end
-
-    test "a mountain forest is built at THREE LEVELS, which is what makes it a mountain", %{forest: f} do
-      # It was a meadow because every cell stood at 0.
-      woodland = Enum.find(f.generators, &(&1.key == "forest_woodland"))
-      mountain = Enum.find(woodland.children, &(&1.key == "forest_woodland_mountain"))
-      levels = Map.new(mountain.config["subZones"], &{&1["key"], &1["level"]})
-
-      assert levels == %{"ridge" => 3, "slope" => 1, "vale" => 0}
-      # Three DISTINCT levels, or the regions are just three colours of flat ground.
-      assert length(Enum.uniq(Map.values(levels))) == 3
-      # The ridge is bare and the vale is thick, which is the other half of reading as a mountain.
-      canopies = Map.new(mountain.config["subZones"], &{&1["key"], &1["canopy"]})
-      assert canopies["vale"] > canopies["slope"] and canopies["slope"] > canopies["ridge"]
-      # A ridge is bare rock, NOT a ruin: stone means a platform with columns in this pipeline.
-      refute Enum.any?(mountain.config["subZones"], &Map.has_key?(&1, "stone"))
-    end
-
-    test "no OTHER template states a level, so relief turns up only where it was asked for", %{forest: f} do
-      levelled =
-        for type <- f.generators, child <- [type | type.children], z <- child.config["subZones"] || [],
-            z["level"] not in [nil, 0],
-            do: child.key
-
-      assert Enum.uniq(levelled) == ["forest_woodland_mountain"]
-    end
-
-    test "deleting a type takes its subtypes with it" do
-      woodland = Repo.get_by!(Generator, key: "forest_woodland")
-      Repo.delete!(woodland)
-      refute Repo.get_by(Generator, key: "forest_woodland_beech")
-    end
-  end
-
   describe "changesets reject incomplete rows" do
     test "a category needs a key and a name" do
-      refute GeneratorCategory.changeset(%GeneratorCategory{}, %{name: "Forest"}).valid?
-      refute GeneratorCategory.changeset(%GeneratorCategory{}, %{key: "forest"}).valid?
-      assert GeneratorCategory.changeset(%GeneratorCategory{}, %{key: "forest", name: "Forest"}).valid?
+      refute GeneratorCategory.changeset(%GeneratorCategory{}, %{name: "Wilderness"}).valid?
+      refute GeneratorCategory.changeset(%GeneratorCategory{}, %{key: "wilderness"}).valid?
+      assert GeneratorCategory.changeset(%GeneratorCategory{}, %{key: "wilderness", name: "Wilderness"}).valid?
     end
 
-    test "a generator needs a category — it cannot float loose" do
+    test "a generator needs a category, it cannot float loose" do
       refute Generator.changeset(%Generator{}, %{key: "x", name: "X"}).valid?
 
-      {:ok, cat} = %GeneratorCategory{} |> GeneratorCategory.changeset(%{key: "forest", name: "Forest"}) |> Repo.insert()
+      {:ok, cat} = %GeneratorCategory{} |> GeneratorCategory.changeset(%{key: "wilderness", name: "Wilderness"}) |> Repo.insert()
       assert Generator.changeset(%Generator{}, %{key: "x", name: "X", category_id: cat.id}).valid?
     end
 
     test "two generators cannot share a key" do
       GeneratorSource.seed()
-      cat = Repo.get_by!(GeneratorCategory, key: "forest")
+      cat = Repo.get_by!(GeneratorCategory, key: "wilderness")
 
       assert {:error, changeset} =
                %Generator{}
@@ -686,15 +725,15 @@ defmodule Nebulith.GeneratorSourceTest do
 
     test "deleting a category takes its generators with it (no orphans)" do
       GeneratorSource.seed()
-      cat = Repo.get_by!(GeneratorCategory, key: "forest")
-      # Counted, not typed: the forest carries subtypes and the number changes every time one is added.
+      cat = Repo.get_by!(GeneratorCategory, key: "wilderness")
+      # Counted, not typed: the number of environments changes every time one is added.
       total = Repo.aggregate(Generator, :count)
-      forest_rows = cat |> Repo.preload(:generators) |> Map.fetch!(:generators) |> length()
+      wild_rows = cat |> Repo.preload(:generators) |> Map.fetch!(:generators) |> length()
 
       Repo.delete!(cat)
 
-      assert Repo.aggregate(Generator, :count) == total - forest_rows
-      assert Catalog.list_generator_categories() |> Enum.map(& &1.key) == ~w(settlement cave temple)
+      assert Repo.aggregate(Generator, :count) == total - wild_rows
+      assert Catalog.list_generator_categories() |> Enum.map(& &1.key) == ~w(village town city cave temple)
     end
   end
 end

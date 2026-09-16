@@ -1,5 +1,5 @@
 defmodule NebulithWeb.GeneratorControllerTest do
-  @moduledoc "GET /api/generators — the whole map-generator catalog the editor loads at mount."
+  @moduledoc "GET /api/generators: the whole map-generator catalog the editor loads at mount."
   use NebulithWeb.ConnCase
 
   alias Nebulith.Catalog.GeneratorSource
@@ -19,16 +19,24 @@ defmodule NebulithWeb.GeneratorControllerTest do
     test "serves every category in menu order, each with its generators", %{conn: conn} do
       data = json_response(get(conn, ~p"/api/generators"), 200)["data"]
 
-      assert Enum.map(data, & &1["key"]) == ~w(forest settlement cave temple)
-      forest = hd(data)
-      assert forest["name"] == "Forest"
-      assert Enum.map(forest["generators"], & &1["key"]) == ~w(forest_woodland forest_jungle forest_meadow)
-      assert Enum.map(forest["generators"], & &1["layout"]) == ["woodland", "jungle", "meadow"]
+      assert Enum.map(data, & &1["key"]) == ~w(wilderness village town city cave temple)
+      wilderness = hd(data)
+      assert wilderness["name"] == "Wilderness"
+
+      # The TYPE is the environment, and the same nine run in the three settlement categories too.
+      assert Enum.map(wilderness["generators"], & &1["key"]) ==
+               ~w(forest_woodland forest_jungle forest_meadow forest_swamp forest_mountain forest_beach
+                  forest_ruins forest_desert forest_volcanic)
+
+      # `layout` is the BUILDER the engine runs, not the row's identity: a swamp and a beach are both built
+      # by the jungle builder wearing their own palette, species and regions.
+      assert Enum.map(wilderness["generators"], & &1["layout"]) ==
+               ~w(woodland jungle meadow jungle woodland jungle jungle jungle woodland)
     end
 
     test "a generator's whole config rides through the JSON untouched", %{conn: conn} do
       data = json_response(get(conn, ~p"/api/generators"), 200)["data"]
-      town = Enum.find(data, &(&1["key"] == "settlement")) |> Map.fetch!("generators") |> hd()
+      town = Enum.find(data, &(&1["key"] == "town")) |> Map.fetch!("generators") |> hd()
 
       assert town["config"]["grid"]["cols"] == %{"min" => 30, "max" => 45}
       assert town["config"]["settlement"]["buildingCap"] == 18
@@ -37,7 +45,7 @@ defmodule NebulithWeb.GeneratorControllerTest do
       assert town["zones"] == ~w(spring summer autumn winter desert)
     end
 
-    test "the response carries no database bookkeeping — just what the editor needs", %{conn: conn} do
+    test "the response carries no database bookkeeping, just what the editor needs", %{conn: conn} do
       data = json_response(get(conn, ~p"/api/generators"), 200)["data"]
       category = hd(data)
       generator = hd(category["generators"])
@@ -55,12 +63,12 @@ defmodule NebulithWeb.GeneratorControllerTest do
       # come first. Their own shape is pinned in `generator_source_test`; here it matters that they ride over
       # the wire, and in what order.
       #
-      # `crossing` was a toggle in this list and is gone: *"'A crossing joined to the paths' what does even
-      # mean???? I don't know why we have it in the UI"*. A river that cuts a path always gets a crossing now,
-      # so there was nothing for it to decide. `bridge` stays, because WHICH crossing is a real choice.
-      assert Enum.map(woodland["options"], & &1["key"]) == ~w(exits pathways river depth bridge)
+      # `crossing` was a toggle in this list and is gone: "A crossing joined to the paths" said nothing about
+      # what it decided. A river that cuts a path always gets a crossing now, so there was nothing left for it
+      # to decide. `bridge` stays, because WHICH crossing is a real choice.
+      assert Enum.map(woodland["options"], & &1["key"]) == ~w(exits pathways region river depth bridge)
 
-      assert Enum.drop(woodland["options"], 2) == [
+      assert Enum.drop(woodland["options"], 3) == [
                %{
                  "key" => "river",
                  "label" => "River",
@@ -105,14 +113,34 @@ defmodule NebulithWeb.GeneratorControllerTest do
              ]
     end
 
-    test "subtypes ride nested, each with its merged config ready to run", %{conn: conn} do
+    test "an environment rides as a TYPE of its own, ready to run, with nothing nested under it", %{conn: conn} do
       data = json_response(get(conn, ~p"/api/generators"), 200)["data"]
-      woodland = hd(data) |> Map.fetch!("generators") |> hd()
-      mountain = Enum.find(woodland["children"], &(&1["key"] == "forest_woodland_mountain"))
+      wilderness = hd(data) |> Map.fetch!("generators")
+      woodland = hd(wilderness)
+      mountain = Enum.find(wilderness, &(&1["key"] == "forest_mountain"))
 
+      # A mountain forest used to be a subtype of the woodland, inheriting most of what it was. It is a type
+      # now, so what it is arrives whole: its own canopy, its own regions, and the grid every wild map shares.
       assert mountain["config"]["nature"]["canopy"] == 0.28
       assert mountain["config"]["grid"] == woodland["config"]["grid"]
+      assert Enum.map(mountain["config"]["subZones"], & &1["key"]) == ~w(edge deep glade thicket lakeside)
       assert mountain["children"] == []
+      assert woodland["children"] == []
+    end
+
+    test "a city's neighbourhoods ride over the wire with their architecture", %{conn: conn} do
+      data = json_response(get(conn, ~p"/api/generators"), 200)["data"]
+      city = Enum.find(data, &(&1["key"] == "city")) |> Map.fetch!("generators") |> hd()
+
+      zones = city["config"]["subZones"]
+      assert Enum.map(zones, & &1["key"]) == ~w(upper middle lower)
+
+      # The editor draws the difference between rich and poor from HERE: the material, the roof tile and the
+      # colours, per neighbourhood, never derived at render.
+      for zone <- zones do
+        assert zone["buildings"]["materials"] != []
+        assert is_binary(zone["buildings"]["roof"])
+      end
     end
 
     test "a generator with nothing to switch on serves an empty list, not null", %{conn: conn} do

@@ -12,7 +12,18 @@ defmodule Nebulith.Repo.Migrations.SeedGenerationLayers do
 
   alias Nebulith.Catalog.GeneratorSource
 
-  def up, do: GeneratorSource.seed_generation_layers()
+  # ONLY A DATABASE THAT ALREADY HAS THE TABLE'S LATER SHAPE. This calls TODAY's seeder, and today's seeder
+  # writes a `group` that a LATER migration adds, so on a database migrated from empty it selects a column
+  # that does not exist yet and the whole run stops. A data migration edits data that is already there; a
+  # database built from scratch gets its rows from priv/repo/seeds.exs, which runs against the final schema.
+  def up, do: if(layers_table_ready?(), do: GeneratorSource.seed_generation_layers())
+
+  defp layers_table_ready? do
+    %{rows: [[count]]} =
+      repo().query!("SELECT count(*) FROM information_schema.columns WHERE table_name = 'generation_layers' AND column_name = 'group'")
+
+    count > 0
+  end
 
   def down do
     # IRREVERSIBLE, and harmless: without rows the engine has no stack to run, so the useful "undo" is to fix
