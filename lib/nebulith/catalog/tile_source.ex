@@ -3038,11 +3038,11 @@ defmodule Nebulith.Catalog.TileSource do
   @bridge_materials %{
     "stone" => %{
       block: "bridge_stone_block", deck: "bridge_stone_deck", side: "bridge_stone_parapet",
-      cap: "bridge_stone_bollard", solid_side?: true
+      cap: "bridge_stone_bollard"
     },
     "timber" => %{
       block: "bridge_timber_rib", deck: "bridge_timber_deck", side: "bridge_timber_rail",
-      cap: "bridge_timber_post", solid_side?: false
+      cap: "bridge_timber_post"
     }
   }
 
@@ -3064,22 +3064,12 @@ defmodule Nebulith.Catalog.TileSource do
   # the walls came out as a lip around a big flat plane of deck, so the object read as a platform. The side
   # has to be the dominant mass, which puts it near a full level.
   @parapet_height 1.0
-  # THE BOLLARD, standing at level 1 on the wall's coping: drawn 0.26 x 1.7 = 0.44 levels, about half the
-  # wall's own height, which is the proportion the reference shows.
-  @bollard_zoom 0.26
-  @bollard_height 1.7
-  @bollard_thickness 0.5
-  # THE RAIL POST of a timber crossing: drawn 0.26 x 3.9 = 1.01 levels, so the handrail at level 1 lands on it.
-  @post_zoom 0.26
-  @rail_post_height 3.9
-  # THE HANDRAIL: a bar as wide across its row as the posts carrying it, so the two line up.
-  #
-  # Tall enough to BRIDGE THE PROFILE'S STEPS. A humped deck climbs about 0.44 of a level per column at the
-  # ramp, and a 0.2 bar is shorter than that, so consecutive cells stopped touching and the rail came out as
-  # scattered planks hanging over the posts. The stone parapet never had the problem because it is a full
-  # level tall and swallows the step.
-  @handrail_height 0.55
-  @handrail_width 0.3
+  # THE UPRIGHT that stands on the side's coping: a bollard on the stone bridge, a rail post on the timber
+  # one, the same shape in both because the material is the TILE. Drawn 0.26 x 1.7 = 0.44 levels, about half
+  # the side's own height, which is the proportion the reference shows.
+  @upright_zoom 0.26
+  @upright_height 1.7
+  @upright_thickness 0.5
   # THE TWO OUTER ROWS, which are the bridge's SIDES.
   #
   # NOTHING HERE IS THINNED, and that is the detached-rail fix rather than a better `thicknessDir`. A thinned
@@ -3091,7 +3081,6 @@ defmodule Nebulith.Catalog.TileSource do
   # coping with the arch cut through it, not a band of masonry with a separate rail balanced on top. A side
   # that is the full width of its own row is that wall, it lands squarely on the substructure under it, and
   # there is no direction left to get backwards.
-  @post_thickness 0.28
 
   defp seed_new_compositions do
     for {name, %{footprint_w: w, footprint_h: h, cells: cells} = comp} <- compositions() do
@@ -3636,70 +3625,34 @@ defmodule Nebulith.Catalog.TileSource do
   defp column_offset(_dx, 0.0), do: 0.0
   defp column_offset(dx, centre), do: abs(dx - centre) / centre
 
-  # A STONE CROSSING's side is a solid wall, with bollards standing along its top.
-  defp bridge_sides(%{solid_side?: true} = pieces, span, arch) do
-    # PER COLUMN, not one z-width run, and this is the exception the framework already names: `depth` is right
-    # for a genuinely uniform run and wrong for anything that ARTICULATES along its length. A parapet has
-    # bollards standing on it every other column, so it articulates.
-    #
-    # It also stopped the wall drawing its full length. A merged run spans many camera depths under ONE sort
-    # key, so the deck's run and the parapet's run each get a single turn and one overdraws the other part of
-    # the way along: measured on a span of seven, the far wall stopped around the fourth column while its own
-    # bollards carried on past the end of it, standing on the grass. A cell per column gets a turn per column.
-    # A FILLED STACK, like the deck beside it: the wall occupies every level from the base up to its own
-    # column's height. Authored as one cell at the top it left the same empty level underneath, so the wall
-    # over the crown floated clear of the wall either side of it.
-    parapets =
+  # ONE SIDE, TWO MATERIALS.
+  #
+  # *"the sides don't look like part of the bridge, look like they're floating or part of water"*. The stone
+  # bridge reads and the timber one did not, and the difference was never the art. A stone side is a
+  # CONTINUOUS run touching its deck the whole way with an upright standing on it every other column; the
+  # timber side was post, gap, post, gap, and a row of separate blocks with holes between them is exactly what
+  # floating pieces look like.
+  #
+  # So both materials are built the same way and only the LABELS differ, which is the rule the framework
+  # states for material anyway: variety of material is a different tile, not different numbers.
+  defp bridge_sides(pieces, span, arch) do
+    sides =
       for dx <- 0..(span - 1),
           dy <- @side_rows,
           cell <- wall_column(pieces.side, dx, dy, deck_top(span, dx), MapSet.member?(arch, dx)) do
         cell
       end
 
-    # ON TOP OF THE WALL: one level above the coping of its own column, so a bollard over the crown rides up
-    # with it instead of staying down at the height of the ends.
-    bollards =
+    # THE UPRIGHT stands on the coping of its OWN column, so it rides the hump with the deck rather than
+    # staying at the height of the ends.
+    uprights =
       for dx <- upright_columns(span), dy <- @side_rows do
         %{dx: dx, dy: dy, level: deck_top(span, dx) + 1, label: pieces.cap, walkable: false,
-          scale: @bollard_zoom,
-          settings: %{"scaleY" => @bollard_height, "thickness" => post_reach(@bollard_thickness)}}
+          scale: @upright_zoom,
+          settings: %{"scaleY" => @upright_height, "thickness" => post_reach(@upright_thickness)}}
       end
 
-    parapets ++ bollards
-  end
-
-  # A TIMBER CROSSING has uprights with a handrail run between them, and the GAPS between the uprights are
-  # most of why its silhouette measures 0.38 solid rather than 0.72.
-  defp bridge_sides(%{solid_side?: false} = pieces, span, _arch) do
-    # THE POST stands at the top of its own column's stack, so it rides the hump with the deck.
-    posts =
-      for dx <- upright_columns(span), dy <- @side_rows do
-        %{dx: dx, dy: dy, level: deck_top(span, dx), label: pieces.cap, walkable: false, scale: @post_zoom,
-          settings: %{"scaleY" => @rail_post_height, "thickness" => post_reach(@post_thickness)}}
-      end
-
-    # THE RAIL RUNS BETWEEN THE POSTS, at the deck's own level, filling its cell.
-    #
-    # Three goes at this floated. It was a THINNED block a level above the deck, positioned by a `thickness`
-    # reach map, and the reach never put it where the arithmetic said it would: rendered, the rails hung
-    # clear of the deck both laterally and vertically whichever face they were told to hug. A thinned block
-    # is positioned inside its own cell and a full one simply fills it, so a full-width piece in the side row
-    # ABUTS the deck row and cannot float. That is why the stone parapet reads and this did not.
-    #
-    # Between the posts, because a post and a rail in the same column would be two cells in one
-    # (dx, dy, level) — and because that is what a post-and-rail fence is.
-    uprights = MapSet.new(upright_columns(span))
-
-    rails =
-      for dx <- 0..(span - 1), not MapSet.member?(uprights, dx), dy <- @side_rows do
-        %{dx: dx, dy: dy, level: deck_top(span, dx), label: pieces.side, walkable: false,
-          settings: %{
-            "scaleY" => @handrail_height,
-            "collision" => [%{"x" => 0.0, "y" => 0.0, "w" => 1.0, "h" => 1.0}]
-          }}
-      end
-
-    posts ++ rails
+    sides ++ uprights
   end
 
   # WHERE AN UPRIGHT STANDS: both ends, and every other column between them.
