@@ -31,7 +31,13 @@ defmodule Nebulith.Catalog.ZoneSource do
       },
       tiles: %{
         "tree" => "emoji:cherry-blossom",
-        "decor" => "emoji:blossom",
+        # A BLOOM IS NOT GROUND COVER. Spring served a FLOWER here, and the ground cover pass scatters this
+        # tile over every walkable cell of every map, so every spring map in the catalogue came out strewn
+        # with blossom whatever it was: a volcano, a mountain, a desert. Which blooms grow somewhere is the
+        # ENVIRONMENT's to say, and it already says it, region by region, in the generator catalogue. Four
+        # environments serve no blooms at all and got 94 of them each. Clover is ground cover, which is what
+        # this field is for, and what the season legitimately decides.
+        "decor" => "emoji:clover",
         "flower" => "emoji:tulip"
       },
       flowers: %{

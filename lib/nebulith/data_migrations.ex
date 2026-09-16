@@ -92,7 +92,8 @@ defmodule Nebulith.DataMigrations do
     Nebulith.DataMigration.AsciiEmojiVocabularyParity,
     Nebulith.DataMigration.BackfillCompositionCategories,
     Nebulith.DataMigration.FlatTilesZeroHeight,
-    Nebulith.DataMigration.GroundTilesAreFlat
+    Nebulith.DataMigration.GroundTilesAreFlat,
+    Nebulith.DataMigration.ABloomIsNotGroundCover
   ]
 
   @doc "Every registered data migration module, in run order."
