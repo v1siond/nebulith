@@ -44,18 +44,30 @@ describe('chooseBridgeSpan', () => {
     expect(chooseBridgeSpan(2, LONG_RUN, ODD_ONLY)).toBe(5)
   })
 
-  it('falls back to the longest that fits rather than leaving the crossing bare', () => {
+  it('falls back to the longest authored rather than leaving the crossing bare', () => {
     // Nothing authored reaches 10 + 2, and a deck with no structure on it does not read as a bridge.
     expect(chooseBridgeSpan(10, LONG_RUN, WOOD)).toBe(7)
-    // The run itself is the limit here: a 4-wide river wants 6, but only 5 cells of run exist.
-    expect(chooseBridgeSpan(4, 5, WOOD)).toBe(5)
+  })
+
+  it('REACHES ACROSS even when the deck run is shorter than the river', () => {
+    // The run used to cap the choice, so a deck shorter than its own river picked a span that could not
+    // cross it: measured on a generated map, water five cells wide with a span-4 bridge on it and open river
+    // left past the far end. The run is where the PATH met the water, a fact about the path; the span has one
+    // job and it is to get you to the other side. A bridge overhanging its deck onto the bank is a bridge
+    // with abutments.
+    expect(chooseBridgeSpan(4, 5, WOOD)).toBe(6)
+    expect(chooseBridgeSpan(5, 4, WOOD)).toBeGreaterThanOrEqual(5)
+    expect(chooseBridgeSpan(7, 3, WOOD)).toBeGreaterThanOrEqual(7)
   })
 
   it('answers null when the family has no authored spans at all', () => {
     expect(chooseBridgeSpan(4, LONG_RUN, () => false)).toBeNull()
   })
 
-  it('answers null when the run is too short for even the minimum', () => {
-    expect(chooseBridgeSpan(1, 2, WOOD)).toBeNull()
+  it('and a tiny run is no reason to refuse a crossing, because the run is not the river', () => {
+    // This asserted null for a short run. A two-cell run over a one-cell creek still wants the smallest
+    // authored bridge: refusing left the deck bare, which is the one outcome the fallback above exists to
+    // prevent.
+    expect(chooseBridgeSpan(1, 2, WOOD)).toBe(3)
   })
 })

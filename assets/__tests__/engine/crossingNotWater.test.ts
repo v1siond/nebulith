@@ -146,8 +146,9 @@ describe('the river runs under the crossing', () => {
       [1, 2, 3, 4, 5, 8, 13].flatMap(seed =>
         (forest(course, seed).compositions ?? []).filter(c => c.kind.startsWith('bridge_'))))
     expect(bridges.length).toBeGreaterThan(0)
-    // LIFTED by what was dug. Resting on the bed is how a bridge ends up underwater.
-    for (const b of bridges) expect({ kind: b.kind, lift: b.lift }).toEqual({ kind: b.kind, lift: 1 })
+    // AT ITS BANKS' LEVEL, stated outright. Resting on the anchor cell's stack is how the same bridge came out
+    // at levels 4 to 7 on one seed and 0.5 to 3.5 on another.
+    for (const b of bridges) expect({ kind: b.kind, baseLevel: b.baseLevel }).toEqual({ kind: b.kind, baseLevel: 0 })
   })
 })
 

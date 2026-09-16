@@ -2060,16 +2060,15 @@ function bridgeRiver(ctx: ArchetypeContext, water: Set<string>, routes: Set<stri
   // There is no map where the first is wanted. A path that walks into a river and ends is a broken map, not a
   // variation, so the crossing is unconditional now and the option is gone.
   if (course === 'around') { crossRiver(ctx, water, routes, true); return }
-  if (placeRiverCrossing(ctx, water, routes)) {
-    // The crossing sits ON the path network, so ONE ford elsewhere is enough to make the river easy to
-    // cross. It asked for two here and three below, and a ford is a plank deck four rows wide: measured on a
-    // swamp, 56 cells of planking that no way leads to, against 37 where the ways actually cross. That is
-    // what reads as brown rectangles lying in the landscape.
-    if (course === 'through') fellLogsAcross(ctx, water, pal, [0.24, 0.76])
-    return
-  }
-  // Nothing crosses on the paths here, so the fords ARE the crossings and there are two of them.
-  fellLogsAcross(ctx, water, pal, course === 'divides' ? [0.5] : [0.3, 0.7])
+  if (placeRiverCrossing(ctx, water, routes)) return
+  // NOTHING CROSSES ON THE PATHS HERE, so this is the one case that still needs a ford of its own.
+  //
+  // It used to add MORE on top of a crossing that had already been placed, at fixed fractions of the river,
+  // and they are the "extra zones" that keep getting reported. They are also the cells you end up standing in
+  // plain water on: `fellLogsAcross` swaps the ground for shallow water, so unlike a crossing laid by
+  // `deckRoutes` there is no route under it and no film over it, just river you can walk on. One ford, where
+  // the map genuinely has no other way over.
+  fellLogsAcross(ctx, water, pal, [0.5])
 }
 
 /** Every cell the route network PROMISES you can reach: the mouths of its ways out, and the stops where a
@@ -5160,7 +5159,9 @@ function placeMeadowBridge(ctx: ArchetypeContext, water: Set<string>): void {
   // …and the STRUCTURE on it. This function's own doc calls itself "a stone BRIDGE crossing the river", so it
   // is the one deck of the six that most obviously needs a real bridge. The deck runs along +row here (it
   // spans the top-edge arm at a fixed column), so the span axis is rows, not cols.
-  recordBridgeSpan(ctx, deck, false, span.length) // every water row at this column
+  // The WET EXTENT along the span axis, which here is rows at a fixed column: the bridge is placed over the
+  // water rather than centred in the deck, so both ends land on a bank.
+  recordBridgeSpan(ctx, deck, false, { from: Math.min(...span), to: Math.max(...span) })
 }
 
 /**
@@ -5205,7 +5206,15 @@ function placeRiverCrossing(ctx: ArchetypeContext, water: Set<string>, routes: S
   layDeck(ctx, deck, wayTone(ctx) ?? (MEADOW_PALETTES[ctx.zone] ?? MEADOW_PALETTES.summer).cobble)
   // …and a real BRIDGE standing on it. `horizontal` is the deck's own axis, decided above by which way the
   // river is narrower here, so the bridge lies ACROSS the water rather than along it.
-  recordBridgeSpan(ctx, deck, horizontal, back + forward - 1) // back/forward each add one dry landing
+  // The WET EXTENT along the deck's own axis. `back`/`forward` each already step one cell onto dry land, so
+  // the water is what lies between them, and that is what the span has to reach across.
+  const wetAlong = [...deck]
+    .map(toCell)
+    .filter(c => water.has(`${c.col},${c.row}`))
+    .map(c => (horizontal ? c.col : c.row))
+  if (wetAlong.length > 0) {
+    recordBridgeSpan(ctx, deck, horizontal, { from: Math.min(...wetAlong), to: Math.max(...wetAlong) })
+  }
 
   // JOIN IT. Both banks, because a crossing you can only reach from one side is a pier.
   for (const end of [at(-back), at(forward)]) {

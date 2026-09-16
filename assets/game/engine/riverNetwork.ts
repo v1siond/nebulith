@@ -534,15 +534,27 @@ export function chooseBridgeSpan(waterWidth: number, runLength: number, authored
   //
   // So it searches OUTWARD from what is needed and takes the CLOSEST authored span, up only as far as the run
   // allows and down only as far as a bridge still reads as one.
-  const needed = Math.max(MIN_BRIDGE_SPAN, Math.min(waterWidth + 2, Math.max(MIN_BRIDGE_SPAN, runLength)))
-  for (let out = 0; out <= runLength; out++) {
+  // IT MUST REACH THE OTHER SIDE, and that is not negotiable against anything else here.
+  //
+  // `needed` used to be clamped by `runLength`, so a deck shorter than its own river chose a span that could
+  // not cross it: measured, water five cells wide and a span-4 bridge on it, with open river left past the
+  // far end. *"the bridge is not adapting to the river distance at all, you can see it doesn't even get to
+  // the edge of the other side"*.
+  //
+  // The run is where the path met the water, which is a fact about the path, not about the river. A bridge
+  // that overhangs its deck onto the bank is just a bridge with abutments, so the run no longer caps the
+  // choice: it only breaks ties, by preferring the span closest to what is needed.
+  const needed = Math.max(MIN_BRIDGE_SPAN, waterWidth + 2)
+  const reaches = (span: number) => span >= waterWidth && span >= MIN_BRIDGE_SPAN && authored(span)
+  for (let out = 0; out <= needed; out++) {
     const longer = needed + out
-    if (longer <= runLength && authored(longer)) return longer
+    if (reaches(longer)) return longer
     const shorter = needed - out
-    // Still bounded by the run: a bridge longer than the deck it sits on is not a bridge, which is what the
-    // "too short for even the minimum" case asserts.
-    if (shorter >= MIN_BRIDGE_SPAN && shorter <= runLength && authored(shorter)) return shorter
+    if (reaches(shorter)) return shorter
   }
+  // NOTHING AUTHORED IS LONG ENOUGH. A reach wider than the widest bridge in the catalogue gets the widest
+  // one rather than nothing: a slightly short bridge reads as a bridge, a bare deck does not.
+  for (let span = needed; span >= MIN_BRIDGE_SPAN; span--) if (authored(span)) return span
   return null
 }
 
@@ -789,15 +801,12 @@ function recordCrossingStructure(
   // span matches that width the run is square.
   const spanAlongCol = crossingAxis(run, axes)
   if (spanAlongCol === undefined) return
-  const wet = [...run].filter(key => water.has(key))
-  if (wet.length === 0) return
-  // How wide the WATER is under it, not how long the run is: the span is sized to the river so a 4-wide
-  // channel does not get a 7-span bridge.
-  const wetCells = wet.map(toCell)
-  const waterWidth = spanAlongCol
-    ? new Set(wetCells.map(c => c.col)).size
-    : new Set(wetCells.map(c => c.row)).size
-  recordBridgeSpan(ctx, run, spanAlongCol, waterWidth)
+  const wetCells = [...run].filter(key => water.has(key)).map(toCell)
+  if (wetCells.length === 0) return
+  // WHERE THE WATER STARTS AND ENDS along the span, not merely how much of it there is. A count says how long
+  // the bridge must be; only the extent says where it has to begin for both ends to land on a bank.
+  const along = wetCells.map(c => (spanAlongCol ? c.col : c.row))
+  recordBridgeSpan(ctx, run, spanAlongCol, { from: Math.min(...along), to: Math.max(...along) })
 }
 
 /**
@@ -840,7 +849,7 @@ export function recordBridgeSpan(
   ctx: RiverDeck,
   deck: ReadonlySet<string>,
   spanAlongCol: boolean,
-  waterWidth: number,
+  wet: { from: number; to: number },
 ): void {
   const family = crossingStyle(ctx)?.composition
   if (!family) return
@@ -866,13 +875,23 @@ export function recordBridgeSpan(
   // UP and takes the SMALLEST authored span that covers the water plus one landing each side. Spans 4 and 6 are
   // authored in the backend for exactly this, so a 3-wide river lands on 5 and a 4-wide on 6 rather than both
   // rounding up to 7.
+  const waterWidth = wet.to - wet.from + 1
   const span = chooseBridgeSpan(waterWidth, runLength, s => resolveComposition(styleCatalog('ascii'), `${family}_${s}`) !== null)
   if (span === null) return
-  const offset = Math.floor((runLength - span) / 2)
+  // ANCHORED ON THE WATER, not centred in the run.
+  //
+  // *"the bridge is not adapting to the river distance at all, you can see it doesn't even get to the edge of
+  // the other side"*. It centred the span inside the DECK RUN, and the run is a path's wet stretch, which
+  // starts and ends wherever the path happened to meet the bank. Measured on two seeds, that left a cell of
+  // open river outside the bridge's own end: the river carried on past it.
+  //
+  // The span has one job, to reach from the land on one side to the land on the other, so it is placed over
+  // the WATER and any slack is shared between the two landings.
+  const start = wet.from - Math.max(0, Math.round((span - waterWidth) / 2))
   ctx.compositions.push({
     kind: `${family}_${span}`,
-    col: spanAlongCol ? minCol + offset : minCol,
-    row: spanAlongCol ? minRow : minRow + offset,
+    col: spanAlongCol ? start : minCol,
+    row: spanAlongCol ? minRow : start,
     variant: 0,
     rotation: spanAlongCol ? 0 : 1,
     // AT THE LEVEL OF ITS BANKS, stated rather than stacked. A composition normally rests on whatever fills
