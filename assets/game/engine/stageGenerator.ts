@@ -63,7 +63,7 @@ import { generationLayerKeys } from '@/engine/generate/generationLayers'
 import { isTileCategory, TILE_CATEGORY } from '@/engine/tileset/tileCategory'
 import { planRoutes, resolvePathways, type Gate, type RouteCell, type RoutePlan, type Side, type Pathways } from '@/engine/pathNetwork'
 import {
-  carveChannel, channelDepth, deckRoutes, digChannel, flowField, isWaterGround, layDeck, recordBridgeSpan,
+  carveChannel, channelDepth, deckRoutes, digChannel, flowField, isWaterGround, layDeck, recordBridgeSpan, WATER_BANDS,
   narrowestLine, narrowPathwaysToCrossings, resolveRiverCourse, CROSSING_ROWS, settleWaterDepth, strewRiverRocks, wadeableShallows, waterBand, waterReach,
   FLOW_STEPS, type RiverCourse,
 } from '@/engine/riverNetwork'
@@ -3777,10 +3777,6 @@ function nearestOf(from: Cell, cells: readonly Cell[]): Cell | null {
  *  built bridge, whose width comes from the composition stamped on it. */
 const FORD_ROWS = 2
 
-/** The river at its shallowest, which is what a ford is made of. The same tile the river already uses at its
- *  own edges, so a ford reads as part of the water rather than as something laid over it. */
-const SHALLOW_WATER = 'water_shallow'
-
 function fellLogsAcross(ctx: ArchetypeContext, water: Set<string>, pal: GeneratorPalette | undefined, fractions: readonly number[] = [0.32, 0.72]): void {
   if (water.size === 0) return
   // HOW MANY FORDS IS THE CALLER'S CALL, and it is the number that matters.
@@ -3845,7 +3841,7 @@ function fellLogsAcross(ctx: ArchetypeContext, water: Set<string>, pal: Generato
         const row = vertical ? at + w : a
         if (!inBounds(col, row, ctx.cols, ctx.rows)) continue
         if (!isWaterGround(ctx.ground[row][col])) continue // the banks either side stay land
-        ctx.ground[row][col] = SHALLOW_WATER
+        ctx.ground[row][col] = WATER_BANDS.shallow.label
         ctx.collision[row][col] = false
         // AND IT RISES TO ITS BANKS, which is what makes it a ford rather than a hole you fall into. Leaving
         // it in the cut was tried: the cells are walkable but a whole block down, so they join nothing and the

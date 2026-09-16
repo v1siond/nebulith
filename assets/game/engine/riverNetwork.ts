@@ -575,6 +575,8 @@ export function crossingStyle(ctx: RiverCrossings): GeneratorCrossing | undefine
 export interface RiverDeck extends RiverCarve, RiverCrossings {
   /** Every cell a deck covers, so later passes know not to plant on one. */
   decks: Set<string>
+  /** Every cell the river is shallow enough to walk through. Not a deck: see `wadeCrossing`. */
+  fords: Set<string>
   trees: Array<{ col: number; row: number }>
   props: Array<{ col: number; row: number }>
   compositions: Array<{ kind: string; col: number; row: number; variant?: number; rotation?: number }>
@@ -674,6 +676,21 @@ export function deckRoutes(
   narrowPathwaysToCrossings(ctx, cut, water, required, axes)
   const wet = new Set<string>()
   for (const key of cut) if (water.has(key)) wet.add(key)
+  // A DIRT CROSSING IS NOT A STRUCTURE, it is the river being shallow here.
+  //
+  // *"dirt path should have transparent water on top that user can walk through"*. It laid the `floor` tile
+  // tinted like `path_dirt`, so what crossed the river was an opaque brown slab. A crossing that names no
+  // composition is exactly the one that is not built, which `recordBridgeSpan` already says in as many words,
+  // so that absence is the signal and nothing new has to be served to express it.
+  if (!crossingStyle(ctx)?.composition) {
+    for (const key of required ?? []) if (water.has(key)) wet.add(key)
+    wadeCrossing(ctx, wet)
+    // AND A FORD IS NOT A WAY. It is the river, and you happen to be able to walk through it here, so it
+    // leaves the network: left in, every rule about what a way looks like judges a stretch of river. Measured,
+    // it put the trail tone on the water and pool overlays on "the path".
+    for (const key of wet) network?.delete(key)
+    return
+  }
   // AND A PROMISED DESTINATION IS ALWAYS STANDABLE. A route plan is laid on dry ground and the water is
   // carved over it, so a gate mouth or a dead-end stop can end up inside the channel. The narrowing is right
   // to refuse it a crossing (it touches one bank, which is a spur into the river rather than a way over it)
@@ -685,6 +702,26 @@ export function deckRoutes(
   if (wet.size === 0) return
   layDeck(ctx, wet, tone)
   for (const run of crossingRuns(wet)) recordCrossingStructure(ctx, run, water, axes)
+}
+
+/**
+ * MAKE THESE CELLS WADEABLE: the river stays, shallow, walkable, level with its banks.
+ *
+ * The water KEEPS its ground and its colour, so it still reads as the river and `settleWaterDepth` still
+ * grades it afterwards. All that changes is that it is raised out of the cut (adding back exactly what
+ * `digChannel` took off, so a creek crossing a raised region comes level with THAT region) and stops
+ * blocking.
+ */
+function wadeCrossing(ctx: RiverDeck, wet: ReadonlySet<string>): void {
+  const cut = channelDepth(ctx)
+  for (const key of wet) {
+    const { col, row } = toCell(key)
+    if (!inBounds(col, row, ctx.cols, ctx.rows)) continue
+    ctx.ground[row][col] = WATER_BANDS.shallow.label
+    ctx.collision[row][col] = false
+    ctx.elevation[row][col] += cut
+    ctx.fords.add(key)
+  }
 }
 
 /** The deck cells split into the separate crossings they form, one group per place you can get over. */
