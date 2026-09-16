@@ -670,7 +670,8 @@ export function deckRoutes(
   //
   // It is given the WHOLE network on purpose. Deciding whether a crossing can go means asking whether the way
   // survives without it, and a set holding only the wet cells cannot answer that.
-  narrowPathwaysToCrossings(ctx, cut, water, required)
+  const axes = new Map<string, boolean>()
+  narrowPathwaysToCrossings(ctx, cut, water, required, axes)
   const wet = new Set<string>()
   for (const key of cut) if (water.has(key)) wet.add(key)
   // AND A PROMISED DESTINATION IS ALWAYS STANDABLE. A route plan is laid on dry ground and the water is
@@ -683,7 +684,7 @@ export function deckRoutes(
   for (const key of required ?? []) if (water.has(key)) wet.add(key)
   if (wet.size === 0) return
   layDeck(ctx, wet, tone)
-  for (const run of crossingRuns(wet)) recordCrossingStructure(ctx, run, water)
+  for (const run of crossingRuns(wet)) recordCrossingStructure(ctx, run, water, axes)
 }
 
 /** The deck cells split into the separate crossings they form, one group per place you can get over. */
@@ -723,12 +724,17 @@ function crossingRuns(deck: ReadonlySet<string>): Set<string>[] {
  * already guarantees the one thing `recordBridgeSpan` needs: a straight run widened to exactly CROSSING_ROWS,
  * which is the rectangle a bridge composition is authored on.
  */
-function recordCrossingStructure(ctx: RiverDeck, run: ReadonlySet<string>, water: ReadonlySet<string>): void {
-  const cells = [...run].map(toCell)
-  const cols = new Set(cells.map(c => c.col))
-  const rows = new Set(cells.map(c => c.row))
-  // Which way it SPANS: the axis it covers more of. A crossing is longer across the channel than along it.
-  const spanAlongCol = cols.size >= rows.size
+function recordCrossingStructure(
+  ctx: RiverDeck,
+  run: ReadonlySet<string>,
+  water: ReadonlySet<string>,
+  axes: ReadonlyMap<string, boolean>,
+): void {
+  // WHICH WAY IT SPANS, taken from the pass that CUT it. Asking the bounding box which side is longer was the
+  // old answer and it is unanswerable for the common case: the band is CROSSING_ROWS wide, so as soon as the
+  // span matches that width the run is square.
+  const spanAlongCol = crossingAxis(run, axes)
+  if (spanAlongCol === undefined) return
   const wet = [...run].filter(key => water.has(key))
   if (wet.length === 0) return
   // How wide the WATER is under it, not how long the run is: the span is sized to the river so a 4-wide
@@ -738,6 +744,26 @@ function recordCrossingStructure(ctx: RiverDeck, run: ReadonlySet<string>, water
     ? new Set(wetCells.map(c => c.col)).size
     : new Set(wetCells.map(c => c.row)).size
   recordBridgeSpan(ctx, run, spanAlongCol, waterWidth)
+}
+
+/**
+ * The axis this crossing was cut along, as the narrowing recorded it.
+ *
+ * Undefined when no cell of the run carries one, which means the run is a staircase ford rather than a
+ * straight crossing. There is no rectangle to stamp a bridge on there, and guessing an axis for it would put
+ * one down crooked.
+ */
+function crossingAxis(run: ReadonlySet<string>, axes: ReadonlyMap<string, boolean>): boolean | undefined {
+  let alongCol = 0
+  let alongRow = 0
+  for (const key of run) {
+    const axis = axes.get(key)
+    if (axis === undefined) continue
+    if (axis) alongCol++
+    else alongRow++
+  }
+  if (alongCol === 0 && alongRow === 0) return undefined
+  return alongCol >= alongRow
 }
 
 /**
@@ -1327,6 +1353,7 @@ export function narrowPathwaysToCrossings(
   pathways: Set<string>,
   water: ReadonlySet<string>,
   required: ReadonlySet<string> = new Set(),
+  axes?: Map<string, boolean>,
 ): number {
   if (water.size === 0) return 0
   const banks = bankLabels(bounds, water)
@@ -1355,7 +1382,7 @@ export function narrowPathwaysToCrossings(
     }
     // It is load bearing, so it stays, narrowed to what a crossing IS. A stretch that runs along the channel
     // is mostly plank road and only a little of it is the bit that gets you over.
-    const keep = crossingThrough(stretch, shoresOf(stretch, banks), banks, bounds)
+    const keep = crossingThrough(stretch, shoresOf(stretch, banks), banks, bounds, axes)
     for (const key of stretch) {
       if (keep.has(key)) continue
       pathways.delete(key)
@@ -1411,6 +1438,7 @@ function crossingThrough(
   shores: ReadonlyMap<number, string[]>,
   banks: ReadonlyMap<string, number>,
   bounds: RiverBounds,
+  axes?: Map<string, boolean>,
 ): Set<string> {
   const keep = new Set<string>()
   const reached = [...shores.keys()]
@@ -1421,7 +1449,16 @@ function crossingThrough(
   for (let i = 1; i < reached.length; i++) {
     const run = straightThrough(stretch, near, reached[i], banks)
     if (run) {
-      for (const key of widenAcross(run.cells, run.step, stretch, bounds, CROSSING_ROWS)) keep.add(key)
+      // WHICH WAY THIS CROSSING RUNS, recorded rather than re-derived. `run.step` IS the direction it was cut
+      // in, and it was being thrown away here and guessed back later off the deck's bounding box. That guess
+      // cannot work: a crossing band is CROSSING_ROWS wide, so a span-4 crossing is a 4 by 4 square with no
+      // axis to read, and measured across the templates 13 of 20 bridges came out turned a quarter. A bridge
+      // turned a quarter lies its side walls ACROSS the way, which is a crossing you cannot cross.
+      const spanAlongCol = run.step[0] !== 0
+      for (const key of widenAcross(run.cells, run.step, stretch, bounds, CROSSING_ROWS)) {
+        keep.add(key)
+        axes?.set(key, spanAlongCol)
+      }
       continue
     }
     // No straight line joins these two banks on this stretch, so there is no rectangle to put a bridge on.
