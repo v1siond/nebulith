@@ -143,19 +143,38 @@ describe('the variance is real, not three colours of one rectangle', () => {
 })
 
 describe('a built way is dressed the way the template says', () => {
-  it('what the backend says lies on a forest track actually lies on it', () => {
-    const key = 'forest_woodland'
-    const way = (served(key).config as { pathway?: { scatter?: { tile: string }[] } }).pathway
-    const tiles = new Set((way?.scatter ?? []).map(d => d.tile))
-    expect(tiles.size).toBeGreaterThan(0)
-    const s = build(key, 4)
-    const dressed = s.props.filter(p => tiles.has(p.type))
-    expect({ key, laid: dressed.length > 0 }).toEqual({ key, laid: true })
+  it('what the backend says lies on a way lies on it, and nothing else does', () => {
+    // BOTH DIRECTIONS, because only one of them was ever checked. This asserted that a forest track's served
+    // scatter lands, and hardcoded the expectation that there IS one, so the day every kind's scatter was
+    // emptied the test failed for the data rather than for a defect. The scatter mechanism is untouched: what
+    // changed is that `decor_pebbles` has no art in either style, so nothing is strewn until something does.
+    //
+    // The honest property is the seam itself. Whatever the catalogue names lands, and a template that names
+    // nothing gets nothing invented for it. That survives re-arming a kind and it catches the failure the
+    // old one could not: the generator strewing something the backend never asked for.
+    let checked = 0
+    for (const key of TEMPLATES) {
+      const way = (served(key).config as { pathway?: { scatter?: { tile: string }[] } }).pathway
+      const tiles = new Set((way?.scatter ?? []).map(d => d.tile))
+      const s = build(key, 4)
+      const onTheWay = s.props.filter(p => (s.pathways?.has(`${p.col},${p.row}`) ?? false) && p.type !== 'ground_decor')
+      if (tiles.size === 0) {
+        expect({ key, strewnWithNothingServed: onTheWay.map(p => p.type) }).toEqual({ key, strewnWithNothingServed: [] })
+        checked++
+        continue
+      }
+      expect({ key, laid: s.props.some(p => tiles.has(p.type)) }).toEqual({ key, laid: true })
+      checked++
+    }
+    expect(checked).toBe(TEMPLATES.length)
   })
 
   it('and nothing laid on a way BLOCKS it, whatever the template dresses it with', () => {
     // Scatter is dressing, not an obstacle course. Whether a tile blocks is the catalogue's business
     // (`makePlant` reads the tile's own row), so this asserts the outcome rather than a list of names.
+    // VACUOUS TODAY, and said out loud rather than left to be discovered: every kind's scatter is empty while
+    // `decor_pebbles` has no art, so the loop skips every template. It is kept because it is the guard that
+    // has to be in place before a kind is re-armed, not because it is proving anything right now.
     for (const key of TEMPLATES) {
       const way = (served(key).config as { pathway?: { surface?: string; scatter?: { tile: string }[] } }).pathway
       const scatter = new Set((way?.scatter ?? []).map(d => d.tile))

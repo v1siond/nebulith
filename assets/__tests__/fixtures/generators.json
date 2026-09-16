@@ -77,12 +77,7 @@
                   "tile": "shrub"
                 }
               ],
-              "scatter": [
-                {
-                  "rate": 0.1,
-                  "tile": "decor_pebbles"
-                }
-              ],
+              "scatter": [],
               "surface": "path_dirt",
               "tone": "#cfa37b",
               "width": 3
@@ -516,12 +511,7 @@
                   "tile": "thicket"
                 }
               ],
-              "scatter": [
-                {
-                  "rate": 0.05,
-                  "tile": "decor_pebbles"
-                }
-              ],
+              "scatter": [],
               "surface": "path_dirt",
               "tone": "#8a7550",
               "width": 2
@@ -532,15 +522,15 @@
                 "floor": "#3f5f33",
                 "flowers": [
                   {
-                    "char": "✿",
+                    "char": "\u273f",
                     "color": "#c2513f"
                   },
                   {
-                    "char": "✾",
+                    "char": "\u273e",
                     "color": "#8d5fa8"
                   },
                   {
-                    "char": "❋",
+                    "char": "\u274b",
                     "color": "#c9b063"
                   }
                 ],
@@ -577,15 +567,15 @@
                 "floor": "#24381f",
                 "flowers": [
                   {
-                    "char": "✿",
+                    "char": "\u273f",
                     "color": "#c2513f"
                   },
                   {
-                    "char": "✾",
+                    "char": "\u273e",
                     "color": "#8d5fa8"
                   },
                   {
-                    "char": "❋",
+                    "char": "\u274b",
                     "color": "#c9b063"
                   }
                 ],
@@ -622,15 +612,15 @@
                 "floor": "#4c6b38",
                 "flowers": [
                   {
-                    "char": "✿",
+                    "char": "\u273f",
                     "color": "#c2513f"
                   },
                   {
-                    "char": "✾",
+                    "char": "\u273e",
                     "color": "#8d5fa8"
                   },
                   {
-                    "char": "❋",
+                    "char": "\u274b",
                     "color": "#c9b063"
                   }
                 ],
@@ -667,15 +657,15 @@
                 "floor": "#2c4526",
                 "flowers": [
                   {
-                    "char": "✿",
+                    "char": "\u273f",
                     "color": "#c2513f"
                   },
                   {
-                    "char": "✾",
+                    "char": "\u273e",
                     "color": "#8d5fa8"
                   },
                   {
-                    "char": "❋",
+                    "char": "\u274b",
                     "color": "#c9b063"
                   }
                 ],
@@ -708,15 +698,15 @@
                 "floor": "#3b4a2e",
                 "flowers": [
                   {
-                    "char": "✿",
+                    "char": "\u273f",
                     "color": "#c2513f"
                   },
                   {
-                    "char": "✾",
+                    "char": "\u273e",
                     "color": "#8d5fa8"
                   },
                   {
-                    "char": "❋",
+                    "char": "\u274b",
                     "color": "#c9b063"
                   }
                 ],
@@ -1019,12 +1009,7 @@
                   "tile": "rock"
                 }
               ],
-              "scatter": [
-                {
-                  "rate": 0.12,
-                  "tile": "decor_pebbles"
-                }
-              ],
+              "scatter": [],
               "surface": "path_dirt",
               "tone": "#ddb985",
               "width": 3
@@ -1449,15 +1434,15 @@
                 "floor": "#3d5233",
                 "flowers": [
                   {
-                    "char": "✾",
+                    "char": "\u273e",
                     "color": "#7b5fa8"
                   },
                   {
-                    "char": "❋",
+                    "char": "\u274b",
                     "color": "#4f8f7a"
                   },
                   {
-                    "char": "✿",
+                    "char": "\u273f",
                     "color": "#b89a3c"
                   }
                 ],
@@ -1490,15 +1475,15 @@
                 "floor": "#2a3a24",
                 "flowers": [
                   {
-                    "char": "✾",
+                    "char": "\u273e",
                     "color": "#7b5fa8"
                   },
                   {
-                    "char": "❋",
+                    "char": "\u274b",
                     "color": "#4f8f7a"
                   },
                   {
-                    "char": "✿",
+                    "char": "\u273f",
                     "color": "#b89a3c"
                   }
                 ],
@@ -1535,15 +1520,15 @@
                 "floor": "#4a5c37",
                 "flowers": [
                   {
-                    "char": "✾",
+                    "char": "\u273e",
                     "color": "#7b5fa8"
                   },
                   {
-                    "char": "❋",
+                    "char": "\u274b",
                     "color": "#4f8f7a"
                   },
                   {
-                    "char": "✿",
+                    "char": "\u273f",
                     "color": "#b89a3c"
                   }
                 ],
@@ -1576,15 +1561,15 @@
                 "floor": "#33472b",
                 "flowers": [
                   {
-                    "char": "✾",
+                    "char": "\u273e",
                     "color": "#7b5fa8"
                   },
                   {
-                    "char": "❋",
+                    "char": "\u274b",
                     "color": "#4f8f7a"
                   },
                   {
-                    "char": "✿",
+                    "char": "\u273f",
                     "color": "#b89a3c"
                   }
                 ],
@@ -1617,15 +1602,15 @@
                 "floor": "#35462c",
                 "flowers": [
                   {
-                    "char": "✾",
+                    "char": "\u273e",
                     "color": "#7b5fa8"
                   },
                   {
-                    "char": "❋",
+                    "char": "\u274b",
                     "color": "#4f8f7a"
                   },
                   {
-                    "char": "✿",
+                    "char": "\u273f",
                     "color": "#b89a3c"
                   }
                 ],
@@ -1924,12 +1909,7 @@
                   "tile": "shrub"
                 }
               ],
-              "scatter": [
-                {
-                  "rate": 0.16,
-                  "tile": "decor_pebbles"
-                }
-              ],
+              "scatter": [],
               "surface": "gravel",
               "tone": "#b1ab9a",
               "width": 3
@@ -2340,12 +2320,7 @@
                   "tile": "rock"
                 }
               ],
-              "scatter": [
-                {
-                  "rate": 0.08,
-                  "tile": "decor_pebbles"
-                }
-              ],
+              "scatter": [],
               "surface": "path_dirt",
               "tone": "#cdb684",
               "width": 2
@@ -2356,15 +2331,15 @@
                 "floor": "#8c9a5b",
                 "flowers": [
                   {
-                    "char": "✿",
+                    "char": "\u273f",
                     "color": "#e2739b"
                   },
                   {
-                    "char": "❋",
+                    "char": "\u274b",
                     "color": "#6aa9c4"
                   },
                   {
-                    "char": "✾",
+                    "char": "\u273e",
                     "color": "#e0c877"
                   }
                 ],
@@ -2401,15 +2376,15 @@
                 "floor": "#6b7a45",
                 "flowers": [
                   {
-                    "char": "✿",
+                    "char": "\u273f",
                     "color": "#e2739b"
                   },
                   {
-                    "char": "❋",
+                    "char": "\u274b",
                     "color": "#6aa9c4"
                   },
                   {
-                    "char": "✾",
+                    "char": "\u273e",
                     "color": "#e0c877"
                   }
                 ],
@@ -2446,15 +2421,15 @@
                 "floor": "#9aa768",
                 "flowers": [
                   {
-                    "char": "✿",
+                    "char": "\u273f",
                     "color": "#e2739b"
                   },
                   {
-                    "char": "❋",
+                    "char": "\u274b",
                     "color": "#6aa9c4"
                   },
                   {
-                    "char": "✾",
+                    "char": "\u273e",
                     "color": "#e0c877"
                   }
                 ],
@@ -2491,15 +2466,15 @@
                 "floor": "#7c8a4e",
                 "flowers": [
                   {
-                    "char": "✿",
+                    "char": "\u273f",
                     "color": "#e2739b"
                   },
                   {
-                    "char": "❋",
+                    "char": "\u274b",
                     "color": "#6aa9c4"
                   },
                   {
-                    "char": "✾",
+                    "char": "\u273e",
                     "color": "#e0c877"
                   }
                 ],
@@ -2532,15 +2507,15 @@
                 "floor": "#b8a978",
                 "flowers": [
                   {
-                    "char": "✿",
+                    "char": "\u273f",
                     "color": "#e2739b"
                   },
                   {
-                    "char": "❋",
+                    "char": "\u274b",
                     "color": "#6aa9c4"
                   },
                   {
-                    "char": "✾",
+                    "char": "\u273e",
                     "color": "#e0c877"
                   }
                 ],
@@ -2845,12 +2820,7 @@
                   "tile": "shrub"
                 }
               ],
-              "scatter": [
-                {
-                  "rate": 0.1,
-                  "tile": "decor_pebbles"
-                }
-              ],
+              "scatter": [],
               "surface": "path_dirt",
               "tone": "#cfa37b",
               "width": 3
@@ -2861,15 +2831,15 @@
                 "floor": "#4a4a3c",
                 "flowers": [
                   {
-                    "char": "✿",
+                    "char": "\u273f",
                     "color": "#c2513f"
                   },
                   {
-                    "char": "✾",
+                    "char": "\u273e",
                     "color": "#8d5fa8"
                   },
                   {
-                    "char": "❋",
+                    "char": "\u274b",
                     "color": "#c9b063"
                   }
                 ],
@@ -2903,15 +2873,15 @@
                 "floor": "#3a3c30",
                 "flowers": [
                   {
-                    "char": "✿",
+                    "char": "\u273f",
                     "color": "#c2513f"
                   },
                   {
-                    "char": "✾",
+                    "char": "\u273e",
                     "color": "#8d5fa8"
                   },
                   {
-                    "char": "❋",
+                    "char": "\u274b",
                     "color": "#c9b063"
                   }
                 ],
@@ -2949,15 +2919,15 @@
                 "floor": "#5d5c4a",
                 "flowers": [
                   {
-                    "char": "✿",
+                    "char": "\u273f",
                     "color": "#c2513f"
                   },
                   {
-                    "char": "✾",
+                    "char": "\u273e",
                     "color": "#8d5fa8"
                   },
                   {
-                    "char": "❋",
+                    "char": "\u274b",
                     "color": "#c9b063"
                   }
                 ],
@@ -2991,15 +2961,15 @@
                 "floor": "#414433",
                 "flowers": [
                   {
-                    "char": "✿",
+                    "char": "\u273f",
                     "color": "#c2513f"
                   },
                   {
-                    "char": "✾",
+                    "char": "\u273e",
                     "color": "#8d5fa8"
                   },
                   {
-                    "char": "❋",
+                    "char": "\u274b",
                     "color": "#c9b063"
                   }
                 ],
@@ -3033,15 +3003,15 @@
                 "floor": "#46503a",
                 "flowers": [
                   {
-                    "char": "✿",
+                    "char": "\u273f",
                     "color": "#c2513f"
                   },
                   {
-                    "char": "✾",
+                    "char": "\u273e",
                     "color": "#8d5fa8"
                   },
                   {
-                    "char": "❋",
+                    "char": "\u274b",
                     "color": "#c9b063"
                   }
                 ],
@@ -3343,12 +3313,7 @@
                   "tile": "rock"
                 }
               ],
-              "scatter": [
-                {
-                  "rate": 0.08,
-                  "tile": "decor_pebbles"
-                }
-              ],
+              "scatter": [],
               "surface": "path_dirt",
               "tone": "#cdb684",
               "width": 2
@@ -3359,15 +3324,15 @@
                 "floor": "#8c9a5b",
                 "flowers": [
                   {
-                    "char": "✿",
+                    "char": "\u273f",
                     "color": "#e2739b"
                   },
                   {
-                    "char": "❋",
+                    "char": "\u274b",
                     "color": "#6aa9c4"
                   },
                   {
-                    "char": "✾",
+                    "char": "\u273e",
                     "color": "#e0c877"
                   }
                 ],
@@ -3404,15 +3369,15 @@
                 "floor": "#6b7a45",
                 "flowers": [
                   {
-                    "char": "✿",
+                    "char": "\u273f",
                     "color": "#e2739b"
                   },
                   {
-                    "char": "❋",
+                    "char": "\u274b",
                     "color": "#6aa9c4"
                   },
                   {
-                    "char": "✾",
+                    "char": "\u273e",
                     "color": "#e0c877"
                   }
                 ],
@@ -3449,15 +3414,15 @@
                 "floor": "#9aa768",
                 "flowers": [
                   {
-                    "char": "✿",
+                    "char": "\u273f",
                     "color": "#e2739b"
                   },
                   {
-                    "char": "❋",
+                    "char": "\u274b",
                     "color": "#6aa9c4"
                   },
                   {
-                    "char": "✾",
+                    "char": "\u273e",
                     "color": "#e0c877"
                   }
                 ],
@@ -3494,15 +3459,15 @@
                 "floor": "#7c8a4e",
                 "flowers": [
                   {
-                    "char": "✿",
+                    "char": "\u273f",
                     "color": "#e2739b"
                   },
                   {
-                    "char": "❋",
+                    "char": "\u274b",
                     "color": "#6aa9c4"
                   },
                   {
-                    "char": "✾",
+                    "char": "\u273e",
                     "color": "#e0c877"
                   }
                 ],
@@ -3535,15 +3500,15 @@
                 "floor": "#b8a978",
                 "flowers": [
                   {
-                    "char": "✿",
+                    "char": "\u273f",
                     "color": "#e2739b"
                   },
                   {
-                    "char": "❋",
+                    "char": "\u274b",
                     "color": "#6aa9c4"
                   },
                   {
-                    "char": "✾",
+                    "char": "\u273e",
                     "color": "#e0c877"
                   }
                 ],
@@ -3842,12 +3807,7 @@
                   "tile": "shrub"
                 }
               ],
-              "scatter": [
-                {
-                  "rate": 0.16,
-                  "tile": "decor_pebbles"
-                }
-              ],
+              "scatter": [],
               "surface": "gravel",
               "tone": "#b1ab9a",
               "width": 3
@@ -4249,12 +4209,7 @@
                   "tile": "shrub"
                 }
               ],
-              "scatter": [
-                {
-                  "rate": 0.1,
-                  "tile": "decor_pebbles"
-                }
-              ],
+              "scatter": [],
               "surface": "path_dirt",
               "tone": "#cfa37b",
               "width": 3
@@ -4542,12 +4497,7 @@
                   "tile": "thicket"
                 }
               ],
-              "scatter": [
-                {
-                  "rate": 0.05,
-                  "tile": "decor_pebbles"
-                }
-              ],
+              "scatter": [],
               "surface": "path_dirt",
               "tone": "#8a7550",
               "width": 2
@@ -4835,12 +4785,7 @@
                   "tile": "rock"
                 }
               ],
-              "scatter": [
-                {
-                  "rate": 0.12,
-                  "tile": "decor_pebbles"
-                }
-              ],
+              "scatter": [],
               "surface": "path_dirt",
               "tone": "#ddb985",
               "width": 3
@@ -5402,12 +5347,7 @@
                   "tile": "shrub"
                 }
               ],
-              "scatter": [
-                {
-                  "rate": 0.16,
-                  "tile": "decor_pebbles"
-                }
-              ],
+              "scatter": [],
               "surface": "gravel",
               "tone": "#b1ab9a",
               "width": 3
@@ -5710,12 +5650,7 @@
                   "tile": "rock"
                 }
               ],
-              "scatter": [
-                {
-                  "rate": 0.08,
-                  "tile": "decor_pebbles"
-                }
-              ],
+              "scatter": [],
               "surface": "path_dirt",
               "tone": "#cdb684",
               "width": 2
@@ -6003,12 +5938,7 @@
                   "tile": "shrub"
                 }
               ],
-              "scatter": [
-                {
-                  "rate": 0.1,
-                  "tile": "decor_pebbles"
-                }
-              ],
+              "scatter": [],
               "surface": "path_dirt",
               "tone": "#cfa37b",
               "width": 3
@@ -6300,12 +6230,7 @@
                   "tile": "shrub"
                 }
               ],
-              "scatter": [
-                {
-                  "rate": 0.1,
-                  "tile": "decor_pebbles"
-                }
-              ],
+              "scatter": [],
               "surface": "path_dirt",
               "tone": "#dcc190",
               "width": 3
@@ -6590,12 +6515,7 @@
                   "tile": "shrub"
                 }
               ],
-              "scatter": [
-                {
-                  "rate": 0.16,
-                  "tile": "decor_pebbles"
-                }
-              ],
+              "scatter": [],
               "surface": "gravel",
               "tone": "#b1ab9a",
               "width": 3
@@ -6906,12 +6826,7 @@
                   "tile": "flower"
                 }
               ],
-              "scatter": [
-                {
-                  "rate": 0.05,
-                  "tile": "decor_pebbles"
-                }
-              ],
+              "scatter": [],
               "surface": "path_stone",
               "tone": "#ccbbaa",
               "width": 3
@@ -7220,12 +7135,7 @@
                   "tile": "flower"
                 }
               ],
-              "scatter": [
-                {
-                  "rate": 0.05,
-                  "tile": "decor_pebbles"
-                }
-              ],
+              "scatter": [],
               "surface": "path_stone",
               "tone": "#ccbbaa",
               "width": 3
@@ -7535,12 +7445,7 @@
                   "tile": "flower"
                 }
               ],
-              "scatter": [
-                {
-                  "rate": 0.05,
-                  "tile": "decor_pebbles"
-                }
-              ],
+              "scatter": [],
               "surface": "path_stone",
               "tone": "#ccbbaa",
               "width": 3
@@ -8133,12 +8038,7 @@
                   "tile": "lamp"
                 }
               ],
-              "scatter": [
-                {
-                  "rate": 0.06,
-                  "tile": "decor_pebbles"
-                }
-              ],
+              "scatter": [],
               "surface": "cobblestone",
               "tone": "#b9b2a3",
               "width": 3
@@ -8451,12 +8351,7 @@
                   "tile": "shrub"
                 }
               ],
-              "scatter": [
-                {
-                  "rate": 0.1,
-                  "tile": "decor_pebbles"
-                }
-              ],
+              "scatter": [],
               "surface": "path_dirt",
               "tone": "#dcc190",
               "width": 3
@@ -8761,12 +8656,7 @@
                   "tile": "lamp"
                 }
               ],
-              "scatter": [
-                {
-                  "rate": 0.06,
-                  "tile": "decor_pebbles"
-                }
-              ],
+              "scatter": [],
               "surface": "cobblestone",
               "tone": "#b9b2a3",
               "width": 3
@@ -9072,12 +8962,7 @@
                   "tile": "shrub"
                 }
               ],
-              "scatter": [
-                {
-                  "rate": 0.1,
-                  "tile": "decor_pebbles"
-                }
-              ],
+              "scatter": [],
               "surface": "path_dirt",
               "tone": "#dcc190",
               "width": 3
@@ -9383,12 +9268,7 @@
                   "tile": "shrub"
                 }
               ],
-              "scatter": [
-                {
-                  "rate": 0.16,
-                  "tile": "decor_pebbles"
-                }
-              ],
+              "scatter": [],
               "surface": "gravel",
               "tone": "#b1ab9a",
               "width": 3
@@ -11292,12 +11172,7 @@
                   "tile": "lamp"
                 }
               ],
-              "scatter": [
-                {
-                  "rate": 0.06,
-                  "tile": "decor_pebbles"
-                }
-              ],
+              "scatter": [],
               "surface": "cobblestone",
               "tone": "#b9b2a3",
               "width": 3
@@ -12098,12 +11973,7 @@
                   "tile": "lamp"
                 }
               ],
-              "scatter": [
-                {
-                  "rate": 0.06,
-                  "tile": "decor_pebbles"
-                }
-              ],
+              "scatter": [],
               "surface": "cobblestone",
               "tone": "#b9b2a3",
               "width": 3
@@ -12500,12 +12370,7 @@
                   "tile": "shrub"
                 }
               ],
-              "scatter": [
-                {
-                  "rate": 0.1,
-                  "tile": "decor_pebbles"
-                }
-              ],
+              "scatter": [],
               "surface": "path_dirt",
               "tone": "#dcc190",
               "width": 3
@@ -12891,12 +12756,7 @@
                   "tile": "lamp"
                 }
               ],
-              "scatter": [
-                {
-                  "rate": 0.06,
-                  "tile": "decor_pebbles"
-                }
-              ],
+              "scatter": [],
               "surface": "cobblestone",
               "tone": "#b9b2a3",
               "width": 3
@@ -13690,12 +13550,7 @@
                   "tile": "lamp"
                 }
               ],
-              "scatter": [
-                {
-                  "rate": 0.06,
-                  "tile": "decor_pebbles"
-                }
-              ],
+              "scatter": [],
               "surface": "cobblestone",
               "tone": "#b9b2a3",
               "width": 3
