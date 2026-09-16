@@ -2535,14 +2535,80 @@ function wayTone(ctx: ArchetypeContext): string | undefined {
  * `compressGround` merge it (it joins only floors sharing a tile AND a colour).
  */
 function wearTheWay(ctx: ArchetypeContext, cells: ReadonlySet<string>, tone: string): void {
-  const rim = darkenColor(tone, PATHWAY_RIM)
   for (const key of cells) {
     const { col, row } = toCell(key)
     if (!inBounds(col, row, ctx.cols, ctx.rows)) continue
     if (isWaterGround(ctx.ground[row][col]) || ctx.wet.has(key) || ctx.decks.has(key)) continue
-    ctx.floorColors[row][col] = isRim(cells, col, row) ? rim : tone
+    // THE BODY OF THE WAY IS STILL A COLOUR ON THE GROUND BLOCK. A cell with the way on every side is dirt
+    // across its whole footprint, so it needs no art to say where dirt ends: it is the cheapest thing the
+    // renderer can draw and it merges into a run with its neighbours.
+    if (!atLaneEdge(cells, col, row)) {
+      ctx.floorColors[row][col] = tone
+      continue
+    }
+    // THE BOUNDARY IS ART, and only the boundary. The field keeps this cell's floor and its colour, and the
+    // piece is laid over it as a flat overlay whose transparent half lets that field show through. That is
+    // what puts the dirt-to-grass line INSIDE the cell instead of at its edge, which is the whole difference
+    // between a path and a polygon of tinted cells, and it is the same flat ground overlay the pebbles and
+    // the puddles already use.
+    ctx.props.push({
+      col, row, type: 'ground_decor', char: '', label: wayPiece(cells, col, row),
+      blocking: false, grows: false, color: tone,
+    })
   }
 }
+
+/**
+ * WHICH PIECE OF THE WAY THIS CELL IS.
+ *
+ * The 9-piece autotile the tileset authoring guide describes: `_c` where the way continues on every side,
+ * `_t _b _l _r` where it meets the field on one, `_tl _tr _bl _br` on two. The art carries the boundary, so
+ * the wander between dirt and grass is inside the tile rather than at the cell edge, which is the whole
+ * difference between a path and a polygon of tinted cells.
+ *
+ * Three cuts of each piece, chosen from the cell's own position, so a long edge does not repeat.
+ */
+function wayPiece(cells: ReadonlySet<string>, col: number, row: number): string {
+  const open = ('t' + 'b' + 'l' + 'r')
+    .split('')
+    .filter(side => !cells.has(NEIGHBOUR[side](col, row)))
+    .join('')
+  const cut = Math.abs((col * 73856093) ^ (row * 19349663)) % WAY_PIECE_CUTS
+  return `${WAY_FAMILY}_${wayPosition(open)}${cut === 0 ? '' : cut + 1}`
+}
+
+/** Where each named side of a cell is. */
+const NEIGHBOUR: Record<string, (col: number, row: number) => string> = {
+  t: (col, row) => `${col},${row - 1}`,
+  b: (col, row) => `${col},${row + 1}`,
+  l: (col, row) => `${col - 1},${row}`,
+  r: (col, row) => `${col + 1},${row}`,
+}
+
+/**
+ * The piece name for a set of open sides.
+ *
+ * A cell open on two OPPOSITE sides, or on three, has no piece of its own in a nine-piece family: it is a
+ * way one cell wide, which the corner and edge pieces cannot describe between them. It takes the strongest
+ * single edge it does have rather than nothing, because a missing piece is a hole in the way.
+ */
+function wayPosition(open: string): string {
+  if (open === '') return 'c'
+  if (WAY_POSITIONS.has(open)) return open
+  for (const pick of ['tl', 'tr', 'bl', 'br', 't', 'b', 'l', 'r']) {
+    if ([...pick].every(side => open.includes(side))) return pick
+  }
+  return 'c'
+}
+
+const WAY_POSITIONS = new Set(['t', 'b', 'l', 'r', 'tl', 'tr', 'bl', 'br'])
+
+/** The autotile family a way is built from. One family, tinted per template, is what lets a woodland track, a
+ *  beach sand track and a mountain gravel track share one set of art. */
+const WAY_FAMILY = 'path_dirt'
+
+/** How many cuts of each piece the backend serves. */
+const WAY_PIECE_CUTS = 3
 
 /** A cell of the way with the field on one side of it. Orthogonal only: a way meets the field along its
  *  sides, and counting diagonals would rim every cell of a 2-wide track and leave it with no middle. */

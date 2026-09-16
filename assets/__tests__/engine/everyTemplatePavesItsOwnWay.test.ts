@@ -205,29 +205,57 @@ describe('a way is the flat tone the references show', () => {
     return tones
   }
 
-  it.each(TEMPLATES)('%s is DARKER along its edge than down its middle', key => {
+  it.each(TEMPLATES)('%s carries its boundary as ART, not as a recolour of the cell', key => {
+    // *"usually darker dirt with clear dirt in the middle"*, and the measured reason it has to be art: the
+    // boundary in the reference wanders about 0.17 of a CELL, so a per-cell tone can only ever draw it as a
+    // staircase. The body of the way is a colour on the ground block; every cell of it that meets the field
+    // carries a piece of the `path_dirt` family instead, whose art holds the wander and the darker margin.
+    const s = build(key, 4)
+    const ways = s.pathways ?? new Set<string>()
+    const surface = new Map(s.props.filter(p => (p.label ?? '').startsWith('path_dirt_')).map(p => [`${p.col},${p.row}`, p]))
+    const ORTHO = [[1, 0], [-1, 0], [0, 1], [0, -1]]
+    const touchesField = (col: number, row: number) => ORTHO.some(([dc, dr]) => !ways.has(`${col + dc},${row + dr}`))
+    let edges = 0, dressed = 0
+    for (const k of ways) {
+      const [col, row] = k.split(',').map(Number)
+      if (!touchesField(col, row)) continue
+      edges++
+      if (surface.has(k)) dressed++
+    }
+    if (edges === 0) return
+    // A real share of the boundary wears a piece. Not all of it: the gateways paint their own lane, and a
+    // cell the water or a deck took is left alone, so this is the presence of the mechanism rather than a
+    // count to tune.
+    expect({ key, dressed: dressed > edges * 0.3 }).toEqual({ key, dressed: true })
+    // And the piece is tinted the way's own tone, so one family of art serves every environment.
+    const tones = new Set([...surface.values()].map(p => p.color))
+    expect({ key, tones: tones.size }).toEqual({ key, tones: 1 })
+  })
+
+  it.each(TEMPLATES)('%s keeps its middle a colour on the ground block', key => {
     // *"usually darker dirt with clear dirt in the middle"*. Measured on all ten stored references by eroding
     // the warm pixels to a core and taking what the erosion removed as the rim: the rim is darker in EVERY
     // one, at 0.78, 0.79, 0.80, 0.81, 0.84, 0.87, 0.88 and 0.89 of the core (one outlier at 0.64). That is
     // what makes a path read as a path rather than as a patch of different ground.
+    const tone = pathwayOf(key)?.tone
     const s = build(key, 4)
     const ways = s.pathways ?? new Set<string>()
     const ORTHO = [[1, 0], [-1, 0], [0, 1], [0, -1]]
     const touchesField = (col: number, row: number) => ORTHO.some(([dc, dr]) => !ways.has(`${col + dc},${row + dr}`))
-    // A rim is the edge OF A MIDDLE: it touches the field and it touches a cell of the way that does not.
-    // A track too narrow to have a middle is all edge and wears one tone, which is what a narrow track is.
-    const edge = (col: number, row: number) => touchesField(col, row) &&
-      ORTHO.some(([dc, dr]) => ways.has(`${col + dc},${row + dr}`) && !touchesField(col + dc, row + dr))
-    const rim: number[] = [], core: number[] = []
+    const middle: string[] = []
     for (const k of ways) {
       const [col, row] = k.split(',').map(Number)
+      if (touchesField(col, row)) continue
       const painted = s.floorColors[row]?.[col]
-      if (!painted) continue
-      ;(edge(col, row) ? rim : core).push(lum(painted))
+      if (painted) middle.push(painted)
     }
-    if (core.length === 0) return // a track too narrow to have a middle wears one tone, which is correct
-    const mean = (xs: number[]) => xs.reduce((a, b) => a + b, 0) / xs.length
-    expect({ key, darkerAtTheEdge: mean(rim) < mean(core) }).toEqual({ key, darkerAtTheEdge: true })
+    if (middle.length === 0) return // a track too narrow to have a middle is all boundary, and all art
+    // The body wears the served tone. A gateway paints its own lane over the top of some of these cells, so
+    // the assertion is what the body is MADE of rather than a count of how many tones touch it.
+    const tally = new Map<string, number>()
+    for (const c of middle) tally.set(c, (tally.get(c) ?? 0) + 1)
+    const commonest = [...tally].sort((a, b) => b[1] - a[1])[0][0]
+    expect({ key, wears: commonest }).toEqual({ key, wears: tone })
   })
 
   it.each(TEMPLATES)('%s wears a handful of tones, not one per cell', key => {
@@ -241,9 +269,21 @@ describe('a way is the flat tone the references show', () => {
   it.each(TEMPLATES)('%s paints its ways in the tone the backend serves for them', key => {
     const tone = pathwayOf(key)?.tone
     expect({ key, serves: typeof tone }).toEqual({ key, serves: 'string' })
-    const tones = wayTones(build(key, 4), pathwayOf(key)?.marking?.color)
-    // The served tone is one of the tones worn, and the way as a whole SITS on it: the wear steps stand
-    // either side, so the average of the way is the served tone give or take a step.
+    // THE BODY of the way, which is the part that is a colour. Its boundary cells keep the FIELD's floor and
+    // wear the dirt as art laid over it, so averaging every way cell measures the field as much as the way.
+    const s = build(key, 4)
+    const ways = s.pathways ?? new Set<string>()
+    const touchesField = (col: number, row: number) => [[1, 0], [-1, 0], [0, 1], [0, -1]]
+      .some(([dc, dr]) => !ways.has(`${col + dc},${row + dr}`))
+    const tones = new Map<string, number>()
+    for (const k of ways) {
+      const [col, row] = k.split(',').map(Number)
+      if (touchesField(col, row)) continue
+      const painted = s.floorColors[row]?.[col]
+      if (!painted || painted === pathwayOf(key)?.marking?.color) continue
+      tones.set(painted, (tones.get(painted) ?? 0) + 1)
+    }
+    if (tones.size === 0) return // all boundary, so all art: the case above covers it
     expect({ key, wears: tones.has(tone!) }).toEqual({ key, wears: true })
     let sum = 0, cells = 0
     for (const [colour, n] of tones) { sum += lum(colour) * n; cells += n }

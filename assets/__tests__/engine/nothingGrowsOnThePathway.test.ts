@@ -59,7 +59,20 @@ describe.each(FORESTS)('%s', layout => {
   it.each([3, 7, 11])('has no FLOWER or undergrowth on its pathway, seed %i', seed => {
     const s = build(layout, seed)
     const way = insideWay(s)
-    expect(s.props.filter(p => way.has(`${p.col},${p.row}`)).map(p => `${p.col},${p.row} ${p.type}`)).toEqual([])
+    // WHAT GREW, which is what this file is about. It asserted that NO prop at all stands on a way, and the
+    // way's own surface is a prop: the pieces that carry the dirt-to-grass boundary are laid as flat ground
+    // overlays, the same kind of asset the puddles and the pebbles use. Those are the way, not something
+    // growing in it, and they are marked `grows: false` exactly as the sweeps that clear a way read.
+    const growing = s.props.filter(p => way.has(`${p.col},${p.row}`) && p.grows !== false)
+    expect(growing.map(p => `${p.col},${p.row} ${p.type}`)).toEqual([])
+  })
+
+  it('and what IS on its pathway is the way itself', () => {
+    const s = build(layout, 5)
+    const way = insideWay(s)
+    const onIt = s.props.filter(p => way.has(`${p.col},${p.row}`))
+    // Every one of them is a surface piece of the way, so nothing has crept in under the exemption above.
+    expect(onIt.filter(p => !(p.label ?? '').startsWith('path_dirt_')).map(p => `${p.col},${p.row} ${p.label}`)).toEqual([])
   })
 
   it('keeps its wood: clearing the way costs only a small share of what grows', () => {

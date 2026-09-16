@@ -97,6 +97,8 @@ describe('every canopy layout builds a navigable forest', () => {
     if (layout === 'jungle') return
     const ways = wayCells(stage)
     expect(ways.size).toBeGreaterThan(0)
+    // A way is visible either as its own colour on the ground block, or as a piece of surface art laid over
+    // the field where it meets it. Both count: what must never happen is a way you cannot tell from the grass.
     const onTheWay = new Set<string | undefined>()
     const offIt = new Set<string | undefined>()
     for (let row = 0; row < stage.rows; row++) {
@@ -106,7 +108,8 @@ describe('every canopy layout builds a navigable forest', () => {
         ;(ways.has(`${col},${row}`) ? onTheWay : offIt).add(painted)
       }
     }
-    expect([...onTheWay].some(tone => !offIt.has(tone))).toBe(true)
+    const surfaced = stage.props.some(p => (p.label ?? '').startsWith('path_dirt_'))
+    expect([...onTheWay].some(tone => !offIt.has(tone)) || surfaced).toBe(true)
   })
 })
 

@@ -136,12 +136,19 @@ describe('a path is something you can SEE, not just walk', () => {
     const s = grow('jungle', { exits: '2', pathways: '3' })
     const water = new Set<string>()
     s.ground.forEach((row, r) => row.forEach((g, c) => { if (g.includes('water') || g === 'swamp') water.add(`${c},${r}`) }))
+    // THE BODY of the track. Its boundary cells keep the field's floor and carry the dirt as a piece of art
+    // laid over it, so reading the floor colour there measures the field, not the track.
+    const ways = s.pathways ?? new Set<string>()
+    const touchesField = (c: number, r: number) => [[1, 0], [-1, 0], [0, 1], [0, -1]]
+      .some(([dc, dr]) => !ways.has(`${c + dc},${r + dr}`))
     const tones = new Set<string | undefined>()
     for (const k of s.routes!.cells) {
       if (water.has(k)) continue
       const [c, r] = k.split(',').map(Number)
+      if (touchesField(c, r)) continue
       tones.add(s.floorColors[r][c])
     }
+    expect(tones.size).toBeGreaterThan(0)
     // Its own tone and the two steps either side of it, and nothing else: a track that wandered off its
     // material half way along is not one track.
     expect([...tones].every(t => near(t, trail!))).toBe(true)
@@ -151,10 +158,14 @@ describe('a path is something you can SEE, not just walk', () => {
   it('a meadow lays every way in its own tone, against a floor that changes by row', () => {
     const s = grow('meadow', { exits: '3', pathways: '3' })
     const tone = trailPaint('meadow')
+    const ways = s.pathways ?? new Set<string>()
+    const touchesField = (c: number, r: number) => [[1, 0], [-1, 0], [0, 1], [0, -1]]
+      .some(([dc, dr]) => !ways.has(`${c + dc},${r + dr}`))
     const tones = new Set<string | undefined>()
     for (const k of s.routes!.cells) {
       const [c, r] = k.split(',').map(Number)
       if (s.ground[r][c] !== 'meadow') continue // a crossing deck is not the lane
+      if (touchesField(c, r)) continue          // the boundary is art over the field, not a floor colour
       tones.add(s.floorColors[r][c])
     }
     // A FEW tones, not one and not one per cell. It asserted exactly one, which was true of the flat cobble
