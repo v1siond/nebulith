@@ -42,17 +42,16 @@ defmodule Nebulith.DataMigration.ABloomIsNotGroundCover do
         """
       )
 
-    # AND SPRING KEEPS GROUND COVER. Those two blooms were the ONLY decor tiles serving a spring colour, so
-    # moving them out left spring with none at all and every spring map bare. Clover is what summer already
-    # uses as its cover and it grows in spring too, so it serves both rather than a new tile being authored.
+    # AND SPRING GETS NO SUBSTITUTE COVER. Those two blooms were the only decor tiles serving a spring
+    # colour, and clover was given one here so spring would not be bare. Rejected on sight: 85 clovers a map,
+    # and none of the flat decor has baked art for the emoji style anyway, so each one draws as a coloured
+    # square. Ground cover comes back when it has art and a reason to be there, not before.
     %{num_rows: cover} =
       Repo.query!(
         """
         UPDATE tiles
-        SET settings = jsonb_set(settings, '{colors,spring}', settings->'colors'->'summer')
-        WHERE label = 'decor_clover'
-          AND settings->'colors' ? 'summer'
-          AND NOT settings->'colors' ? 'spring'
+        SET settings = settings #- '{colors,spring}'
+        WHERE label = 'decor_clover' AND settings->'colors' ? 'spring'
         """
       )
 
