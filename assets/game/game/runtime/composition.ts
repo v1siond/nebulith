@@ -200,13 +200,17 @@ function cellSettings(comp: Composition, cell: CompositionCell, tile: ResolvedTi
   }
 }
 
-export function stampComposition(grid: IsometricGrid, kind: string, anchorCol: number, anchorRow: number, zone: ZoneId, variant = 0, rotation = 0, material?: string, roofColor?: string, wallColor?: string, roofTile?: string): number {
+export function stampComposition(grid: IsometricGrid, kind: string, anchorCol: number, anchorRow: number, zone: ZoneId, variant = 0, rotation = 0, material?: string, roofColor?: string, wallColor?: string, roofTile?: string, lift = 0): number {
   const comp = resolveComposition(styleCatalog('ascii'), kind)
   if (!comp) return 0
   // ONE global rule for EVERY composition (building, tree, fountain, lamp): it stacks ON TOP of whatever already
-  // fills its anchor cell — the shared cell stack top. No caller passes a lift; a composition is just ordered
-  // tiles and they ALL land through this same funnel, so a house lifts onto the height-1 grass exactly like a tree.
-  const baseLevel = cellStackTop(grid, anchorCol, anchorRow)
+  // fills its anchor cell — the shared cell stack top, so a house lifts onto the height-1 grass exactly like a tree.
+  //
+  // `lift` is the one exception and it is a different question, not a loophole. Stacking asks what this object
+  // RESTS on; a bridge rests on nothing, it SPANS a cut. Its anchor is a river bed dug below the banks, so
+  // stacking alone puts the deck underwater. The caller adds back exactly what was dug. Everything else passes
+  // no lift and is unchanged.
+  const baseLevel = cellStackTop(grid, anchorCol, anchorRow) + lift
   const { w, h } = comp.footprint
   // PERF + "intelligent building": collapse each vertical RUN of the SAME tile at a footprint cell
   // into ONE block sized `scaleY = run length`, instead of N stacked unit cubes — a wall column of 4 becomes 1

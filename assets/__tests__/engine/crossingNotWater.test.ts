@@ -1,17 +1,20 @@
 /**
- * A BRIDGE MUST NOT LOOK LIKE WATER.
+ * THE RIVER RUNS UNDER THE CROSSING, because a bridge is an OBJECT and the river is a LAYER.
  *
- * That was right. The cause was a single `else if`. A crossing cell is river a moment before the deck is
- * laid, so `floorColors` is holding the river's blue when `layDeck` runs. `layDeck` wrote the tile (`bridge`)
- * and the elevation, then reached `else if (tone) floorColors[…] = tone` and, with no served tone, LEFT THE
- * BLUE THERE. The tile said bridge and the colour said water, so you got a blue walkway over a blue river.
+ * *"it looks like we're trying to replace the river section with the bridge, but that's NOT what we should be
+ * doing, a bridge is just an object, a composition of tiles. the river is a layer, we just draw the river
+ * regularly, then we add the bridge as needed... they don't overwrite any of the terrain"* (2026-09-16).
  *
- * The old code carried a comment defending it ("a default here would be a hardcoded fallback for a SERVED
- * value"), which is the compliance rule pointed at the wrong thing. Clearing a STALE override is not
- * inventing a value: an undefined override means "no override", so the bridge tile's own served colour
- * shows. Inventing a brown would have been the violation.
+ * This file used to assert the opposite, and it was written in good faith against the model of the day: a
+ * crossing cell had its ground SWAPPED for the bridge tile, its elevation forced to 0 and its colour
+ * repainted, so "a crossing must not wear the water's colour" was the right question to ask about it. Three
+ * writes to the TERRAIN to express an OBJECT, and each one was visible on the map: the river stopped dead
+ * under every bridge, and the raised cells stood a block proud of the channel as rectangles behind and beside
+ * it, which is what got reported.
  *
- * The oracle is the requirement, measured: no cell you can walk on may wear a colour the water wears.
+ * So the contract is inverted, and it is the stronger one. A crossing cell keeps EVERYTHING the river layer
+ * gave it, its label, its colour and its cut, and the only marks of a crossing are that you can walk there
+ * and that a composition stands over it lifted clear of the channel.
  */
 import '@/__tests__/helpers/installTilesetSeed'
 import { generateStage } from '@/engine/stageGenerator'
@@ -21,7 +24,7 @@ import liveBody from '@/__tests__/fixtures/generators.json'
 
 const CATALOG = parseGeneratorCatalog(liveBody)
 
-function forest(course: string, seed: number) {
+function forest(course: string, seed: number, bridge = 'stone') {
   const cfg = findGenerator(CATALOG, 'wilderness', 'woodland')!.config
   const orig = Math.random
   Math.random = makeRng(seed)
@@ -29,56 +32,122 @@ function forest(course: string, seed: number) {
     return generateStage({
       zone: 'summer', variant: 'forest', layout: 'woodland', cols: 60, rows: 40,
       nature: cfg.nature, palette: cfg.palette, formation: cfg.formation, treeMix: cfg.trees,
-      options: { river: course, crossing: true },
+      crossings: cfg.crossings,
+      // EXITS AND PATHWAYS, the way the editor builds. A crossing is placed where a WAY meets the water, so a
+      // map with no route network has nothing for one to land on: without these the sweep found decks on dry
+      // landings only and not one bridge across twenty-one maps.
+      options: { river: course, depth: '1', bridge, exits: '2', pathways: '2' },
     })
   } finally { Math.random = orig }
 }
 
-/** Every colour this template paints water with, lower-cased for comparison. */
-const waterColours = (s: ReturnType<typeof forest>): Set<string> => {
-  const pal = s.palette ?? {}
-  return new Set([pal.water, pal.waterShallow, pal.waterDeep, pal.swamp]
-    .filter((c): c is string => typeof c === 'string').map(c => c.toLowerCase()))
+const isWater = (label: string) => label.includes('water')
+
+/** The map's sealed edge, where a blocked cell is the border doing its job rather than a broken crossing. */
+const BAND = 2
+const inBorderBand = (s: ReturnType<typeof forest>, col: number, row: number): boolean =>
+  Math.min(col, row, s.cols - 1 - col, s.rows - 1 - row) < BAND
+
+/** The elevation of a river cell beside this one that no crossing covers, or undefined if there is none. */
+function neighbourRiver(s: ReturnType<typeof forest>, col: number, row: number): number | undefined {
+  for (const [dc, dr] of [[1, 0], [-1, 0], [0, 1], [0, -1]] as const) {
+    const c = col + dc
+    const r = row + dr
+    if (c < 0 || r < 0 || c >= s.cols || r >= s.rows) continue
+    if (!isWater(s.ground[r][c])) continue
+    if (s.decks?.has(`${c},${r}`) || s.fords?.has(`${c},${r}`)) continue
+    return s.elevation?.[r]?.[c] ?? 0
+  }
+  return undefined
 }
 
-/** Cells whose GROUND is a crossing you walk over, not water. */
-const crossingCells = (s: ReturnType<typeof forest>): Array<[number, number]> => {
-  const out: Array<[number, number]> = []
-  s.ground.forEach((row, r) => row.forEach((g, c) => {
-    if (/bridge|plank|deck|boardwalk|log/.test(g) && !s.collision[r][c]) out.push([c, r])
-  }))
-  return out
-}
-
-describe('nothing you walk on wears the water it crosses', () => {
-  it.each(['divides', 'through', 'around'])('%s: not one crossing cell keeps the river colour', course => {
-    // Several seeds, because a crossing is placed stochastically and one map proves very little.
-    const offenders: string[] = []
-    let crossings = 0
+describe('the river runs under the crossing', () => {
+  it.each(['divides', 'through', 'around'])('%s: a decked cell is still river in every respect', course => {
+    const notWater: string[] = []
+    const filledIn: string[] = []
+    const blocked: string[] = []
+    let decked = 0
     for (const seed of [1, 2, 3, 5, 8, 13]) {
-      const stage = forest(course, seed)
-      const wet = waterColours(stage)
-      for (const [col, row] of crossingCells(stage)) {
-        crossings++
-        const worn = stage.floorColors?.[row]?.[col]?.toLowerCase()
-        if (worn && wet.has(worn)) offenders.push(`${course} seed=${seed} (${col},${row}) wears ${worn}`)
+      const s = forest(course, seed)
+      // WHICH DECK CELLS THE RIVER EVER OWNED, asked of the water itself rather than assumed.
+      const wasRiver = new Set([...(s.decks ?? [])].filter(k => {
+        const [c, r] = k.split(',').map(Number)
+        return isWater(s.ground[r][c]) || (s.elevation?.[r]?.[c] ?? 0) < 0
+      }))
+      for (const key of s.decks ?? []) {
+        const [col, row] = key.split(',').map(Number)
+        // The one thing a crossing changes ANYWHERE it covers: you can get across it.
+        //
+        // The border BAND is exempt, and for the same reason it is exempt everywhere else: the map's edge is
+        // sealed on purpose, and a crossing that happens to reach into it does not get to open a way out.
+        if (s.collision[row][col] && !inBorderBand(s, col, row)) blocked.push(`${course} s${seed} ${key}`)
+        // A crossing band reaches a cell of BANK at each end on purpose, so it has something to land on.
+        // Those were never river and the river layer owes them nothing; the rest is what this is about.
+        if (!wasRiver.has(key)) continue
+        // A FORD is raised out of the cut on purpose, that being what a ford is, so it is not evidence of a
+        // bridge filling the channel in. Only a BUILT crossing is under test here.
+        if (s.fords?.has(key)) continue
+        decked++
+        // The LABEL the river layer wrote, untouched. A crossing lays no tile of its own any more.
+        if (!isWater(s.ground[row][col])) notWater.push(`${course} s${seed} ${key} is ${s.ground[row][col]}`)
+        // And the CUT it was given, asked as "is it level with the river beside it" rather than "is it below
+        // zero". Not every water cell was dug (a map can turn ground wet after the channel is carved), so the
+        // absolute test flags cells no bridge ever touched. The property is that a crossing changes the
+        // river's profile NOWHERE: forcing its cells back up to 0 is what stood them proud of the channel and
+        // made the rectangles beside every bridge.
+        // NEVER HIGHER than the river beside it. Lower is fine, that is the channel; a river's own bed is not
+        // flat end to end, so demanding equality measures the river rather than the bridge.
+        const beside = neighbourRiver(s, col, row)
+        if (beside !== undefined && (s.elevation?.[row]?.[col] ?? 0) > beside) {
+          filledIn.push(`${course} s${seed} ${key} stands at ${s.elevation?.[row]?.[col]} over river at ${beside}`)
+        }
       }
     }
-    expect({ course, sawACrossing: crossings > 0, offenders }).toEqual({ course, sawACrossing: true, offenders: [] })
+    expect({ course, sawACrossing: decked > 0 }).toEqual({ course, sawACrossing: true })
+    expect({ notWater: notWater.slice(0, 4), filledIn: filledIn.slice(0, 4), blocked: blocked.slice(0, 4) })
+      .toEqual({ notWater: [], filledIn: [], blocked: [] })
   })
 
-  it('a crossing cell is left with NO colour override when none is served, so the tile decides', () => {
-    // The positive half: clearing is what lets the bridge tile's own served colour through. If a later change
-    // starts stamping a colour here, that is a hardcoded fallback and this test says so.
-    const stage = forest('divides', 3)
-    const cells = crossingCells(stage)
-    expect(cells.length).toBeGreaterThan(0)
-    const wet = waterColours(stage)
-    for (const [col, row] of cells) {
-      const worn = stage.floorColors?.[row]?.[col]
-      expect({ cell: `${col},${row}`, wearsWater: !!worn && wet.has(worn.toLowerCase()) })
-        .toEqual({ cell: `${col},${row}`, wearsWater: false })
+  it('and it keeps the river COLOUR, because the river does not stop to go under a bridge', () => {
+    // The old contract was that this colour must be cleared. It was cleared because the ground had been
+    // replaced and a bridge wearing the water's blue looked wrong; with the water still there it is right.
+    const strangers: string[] = []
+    let checked = 0
+    // Across seeds and courses: whether a given map's crossing lands on water at all is geometry, so one map
+    // would be testing the seed.
+    for (const course of ['divides', 'through', 'around']) {
+      for (const seed of [1, 2, 3, 5, 8, 13]) {
+        const s = forest(course, seed)
+        // THE SERVED palette, not the stage's echo of it. Reading `s.palette` made the whole sweep vacuous:
+        // the stage does not carry one, so every map was skipped and the test passed having checked nothing.
+        const pal = findGenerator(CATALOG, 'wilderness', 'woodland')!.config.palette ?? {}
+        const wet = new Set([pal.water, pal.waterShallow, pal.waterDeep]
+          .filter((c): c is string => typeof c === 'string').map(c => c.toLowerCase()))
+        expect(wet.size).toBeGreaterThan(0)
+        for (const key of s.decks ?? []) {
+          const [col, row] = key.split(',').map(Number)
+          if (!isWater(s.ground[row][col])) continue
+          checked++
+          const worn = s.floorColors?.[row]?.[col]?.toLowerCase()
+          if (worn !== undefined && !wet.has(worn)) strangers.push(`${course} s${seed} ${key} wears ${worn}`)
+        }
+      }
     }
+    expect(checked).toBeGreaterThan(0)
+    expect(strangers.slice(0, 5)).toEqual([])
+  })
+
+  it('what you actually walk on is a COMPOSITION, standing clear of the channel', () => {
+    // A built crossing is expressed entirely as an object now, so if the stamp stopped happening there would
+    // be nothing over the water at all and the map would look bridgeless while still being crossable.
+    // Across seeds: whether a span FITS a given river is the geometry's business, so pinning one map would be
+    // testing the seed rather than the rule.
+    const bridges = ['divides', 'through', 'around'].flatMap(course =>
+      [1, 2, 3, 4, 5, 8, 13].flatMap(seed =>
+        (forest(course, seed).compositions ?? []).filter(c => c.kind.startsWith('bridge_'))))
+    expect(bridges.length).toBeGreaterThan(0)
+    // LIFTED by what was dug. Resting on the bed is how a bridge ends up underwater.
+    for (const b of bridges) expect({ kind: b.kind, lift: b.lift }).toEqual({ kind: b.kind, lift: 1 })
   })
 })
 

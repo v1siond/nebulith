@@ -244,7 +244,11 @@ describe('water by depth: wade the shallows, the rest blocks', () => {
       // `water_bend` is a cell where the channel TURNS, at whatever depth it happens to be, so it is not
       // evidence of depth either way. Only the bands past the shallow edge count as deep here.
       const shallowish = new Set(['water_shallow', 'water_bend'])
-      const walkableDeep = channel.filter(([c, r]) => !shallowish.has(s.ground[r][c]) && !s.collision[r][c])
+      // AND NOT UNDER A CROSSING. A crossing no longer replaces the water it spans, so its cells are deep
+      // river that you can nonetheless walk over, because there is a bridge there. That is the point of the
+      // change, not a hole in this rule.
+      const crossed = (c: number, r: number) => (s.decks?.has(`${c},${r}`) ?? false) || (s.fords?.has(`${c},${r}`) ?? false)
+      const walkableDeep = channel.filter(([c, r]) => !shallowish.has(s.ground[r][c]) && !s.collision[r][c] && !crossed(c, r))
       expect({ layout, course, walkableDeep: walkableDeep.length }).toEqual({ layout, course, walkableDeep: 0 })
     }
   })
@@ -356,14 +360,22 @@ describe('the kind of crossing: a dirt path, or one of several bridges', () => {
   // bridges" that we use on rivers, we must have multiple variations too / it can be a simple dirt path, it can be an
   // actual bridge, which again, are multiple variations"*.
   const kinds = (layout: 'woodland' | 'meadow' | 'jungle') => findGenerator(CATALOG, 'wilderness', layout)!.config.crossings!
-  const deckOf = (s: Stage, style: GeneratorCrossing): Set<string> => {
-    const out = new Set<string>()
-    s.ground.forEach((row, r) => row.forEach((g, c) => {
-      if (g !== style.tile) return
-      if (style.colorOf && s.floorColors[r][c] !== groundTileColor(style.colorOf, c, r)) return
-      out.add(`${c},${r}`)
-    }))
-    return out
+  /**
+   * THE CELLS A CROSSING COVERS, asked of the stage rather than read off the ground.
+   *
+   * This used to look for cells whose GROUND was the kind's tile, which worked while a crossing overwrote the
+   * river with its own tile. It does not any more: a crossing writes no terrain at all, the water stays under
+   * it, and what you walk on is a composition standing over the top. So the stage's own record is the only
+   * thing that still knows, and it is also the thing every other pass reads.
+   */
+  const deckOf = (s: Stage): Set<string> => new Set([...(s.decks ?? []), ...(s.fords ?? [])])
+
+  /** Which crossing family this map actually built, by the composition it stamped. `dirt` builds none: it is
+   *  a ford, the river shallow enough to wade, and that absence is how it is recognised. */
+  const builtKind = (s: Stage): string => {
+    const comp = (s.compositions ?? []).find(c => c.kind.startsWith('bridge_'))
+    if (!comp) return 'dirt'
+    return comp.kind.split('_')[1]
   }
 
   it('serves a dirt path and at least three bridges, every one naming its tile', () => {
@@ -373,21 +385,32 @@ describe('the kind of crossing: a dirt path, or one of several bridges', () => {
     expect(Object.values(served).every(k => typeof k.tile === 'string' && k.tile.length > 0)).toBe(true)
   })
 
-  it.each(['dirt', 'wood', 'planks', 'stone'])('%s: every deck is that kind, and the map is still one place', kind => {
+  // `planks` is gone: it named nothing anybody could picture and its compositions were byte-identical to the
+  // wooden ones.
+  it.each(['dirt', 'wood', 'stone'])('%s: the crossing is that kind, and the map is still one place', kind => {
     for (const layout of ['woodland', 'meadow', 'jungle'] as const) {
-      const style = kinds(layout)[kind]
       const s = growKind(layout, 'divides', kind, 2)
-      expect({ layout, kind, decks: deckOf(s, style).size > 0 }).toEqual({ layout, kind, decks: true })
-      if (style.tile !== 'bridge') expect({ layout, kind, classic: s.ground.flat().filter(g => g === 'bridge').length }).toEqual({ layout, kind, classic: 0 })
+      expect({ layout, kind, crossed: deckOf(s).size > 0 }).toEqual({ layout, kind, crossed: true })
+      // A BUILT kind stamps its own family; a dirt path stamps nothing, because it is the river being
+      // shallow rather than a thing standing over it.
+      if (kind !== 'dirt') expect({ layout, kind, built: builtKind(s) }).toEqual({ layout, kind, built: kind })
+      // AND NOTHING IS PAINTED ONTO THE MAP to express it. A crossing that writes terrain is the defect this
+      // whole change removed, so the old `bridge` ground must not come back by any route.
+      expect({ layout, kind, painted: s.ground.flat().filter(g => g === 'bridge').length }).toEqual({ layout, kind, painted: 0 })
       expect({ layout, kind, regions: regionSizes(s).length }).toEqual({ layout, kind, regions: 1 })
     }
   })
 
-  it('a dirt path is the flat floor in the dirt path colour, and it still divides like a bridge does', () => {
-    const style = kinds('woodland').dirt
+  it('a dirt path is the river shallow enough to wade, and it still divides like a bridge does', () => {
     const s = growKind('woodland', 'divides', 'dirt', 2)
-    const deck = deckOf(s, style)
+    const deck = deckOf(s)
     expect(deck.size).toBeGreaterThan(0)
+    // IT IS STILL RIVER. The old contract was the flat floor in the dirt path colour, an opaque brown slab
+    // laid over the water, which is what got reported.
+    for (const key of deck) {
+      const [c, r] = key.split(',').map(Number)
+      expect({ key, water: s.ground[r][c].includes('water') }).toEqual({ key, water: true })
+    }
     // take the path away and the river splits the map, so the path IS the crossing, not a gap in the water
     expect(regionSizes(s, deck).filter(n => n > 40).length).toBeGreaterThanOrEqual(2)
   })
@@ -396,7 +419,7 @@ describe('the kind of crossing: a dirt path, or one of several bridges', () => {
     const seen = new Set<string>()
     for (let seed = 1; seed <= 12; seed++) {
       const s = growKind('woodland', 'divides', 'random', seed)
-      for (const [key, style] of Object.entries(kinds('woodland'))) if (deckOf(s, style).size > 0) seen.add(key)
+      if (deckOf(s).size > 0) seen.add(builtKind(s))
     }
     expect(seen.size).toBeGreaterThanOrEqual(2)
   })

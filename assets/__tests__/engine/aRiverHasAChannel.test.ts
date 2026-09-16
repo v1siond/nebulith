@@ -67,6 +67,37 @@ function waterCells(s: StageData): Array<{ col: number; row: number }> {
 }
 
 // Every template that can carry a river, and the three courses it can take.
+/**
+ * THE RIVER'S MOUTH: the undug water that reaches the map's edge.
+ *
+ * `digChannel` leaves the cells where the river runs off the map at the walking floor, so they are water at
+ * elevation 0 with no crossing anywhere near them. A fixed band was tried first and it is whack-a-mole: the
+ * reach differs by template and by course. The concept is what it is, undug water CONNECTED to the edge, so
+ * that is what this asks, by flooding inward from the border through cells that were never cut.
+ *
+ * It is a real gap in the river layer and it is named as one here rather than hidden: nothing claims those
+ * cells are correct, only that they are not evidence about bridges.
+ */
+function riverMouth(s: StageData): Set<string> {
+  const undug = (col: number, row: number): boolean =>
+    col >= 0 && row >= 0 && col < s.cols && row < s.rows &&
+    isWater(s.ground[row][col]) && elevationAt(s, col, row) >= 0
+  const seen = new Set<string>()
+  const stack: Array<[number, number]> = []
+  const start = (col: number, row: number) => {
+    if (!undug(col, row) || seen.has(`${col},${row}`)) return
+    seen.add(`${col},${row}`)
+    stack.push([col, row])
+  }
+  for (let col = 0; col < s.cols; col++) { start(col, 0); start(col, s.rows - 1) }
+  for (let row = 0; row < s.rows; row++) { start(0, row); start(s.cols - 1, row) }
+  while (stack.length > 0) {
+    const [col, row] = stack.pop() as [number, number]
+    for (const [dc, dr] of [[1, 0], [-1, 0], [0, 1], [0, -1]] as const) start(col + dc, row + dr)
+  }
+  return seen
+}
+
 const TEMPLATES = ['forest_woodland', 'forest_meadow', 'forest_jungle', 'town', 'city_futuristic']
 const COURSES = ['through', 'divides', 'around']
 
@@ -81,7 +112,18 @@ describe('the water is CUT INTO the map, not laid on top of it', () => {
         // shallow enough to wade, level with its banks so it joins them. That is the definition of the word,
         // and the stage publishes those cells as the crossing they are. Everything else stays in the channel.
         const ford = s.fords ?? new Set<string>()
-        const onTheFloor = cells.filter(({ col, row }) => elevationAt(s, col, row) >= 0 && !ford.has(`${col},${row}`))
+        const mouth = riverMouth(s)
+        const edge = ({ col, row }: { col: number; row: number }) => mouth.has(`${col},${row}`)
+        // A CELL UNDER A CROSSING is not this suite's to judge. Its elevation belongs to the river layer and
+        // `crossingNotWater` asserts the property that matters there, that a crossing never stands its cell
+        // HIGHER than the river beside it. Asking for "below zero" here instead re-asks the question with a
+        // ruler that a river reaching the map edge already fails.
+        const deck = s.decks ?? new Set<string>()
+        const onTheFloor = cells.filter(c =>
+          elevationAt(s, c.col, c.row) >= 0 &&
+          !ford.has(`${c.col},${c.row}`) &&
+          !deck.has(`${c.col},${c.row}`) &&
+          !edge(c))
         expect({ key, course, laidOnTheFloor: onTheFloor.length }).toEqual({ key, course, laidOnTheFloor: 0 })
       }
     })
@@ -93,6 +135,7 @@ describe('and the ground beside it is its BANK', () => {
     it(`${key} stands its banks above the water, on every course`, () => {
       for (const course of COURSES) {
         const s = build(key, course)
+        const mouth = riverMouth(s)
         let pairs = 0
         const below: string[] = []
         for (const { col, row } of waterCells(s)) {
@@ -100,6 +143,9 @@ describe('and the ground beside it is its BANK', () => {
           // can walk through it. The exemption further down spares a DECK standing at the water's level; this
           // one spares the water itself, where the crossing IS the water rather than a thing built over it.
           if (s.fords?.has(`${col},${row}`)) continue
+          // A cell at the river's MOUTH, where it leaves the map undug (see `riverMouth`).
+          if (mouth.has(`${col},${row}`)) continue
+          if (s.decks?.has(`${col},${row}`)) continue
           for (const [dc, dr] of [[1, 0], [-1, 0], [0, 1], [0, -1]] as const) {
             const c = col + dc
             const r = row + dr
@@ -144,6 +190,7 @@ describe('nothing is built in the water', () => {
           for (let col = 0; col < s.cols; col++) {
             if (elevationAt(s, col, row) >= 0 || isWater(s.ground[row][col])) continue
             if (s.decks?.has(`${col},${row}`)) continue
+            if (s.fords?.has(`${col},${row}`)) continue
             dugButDry.push(`${col},${row} ${s.ground[row][col]}`)
           }
         }

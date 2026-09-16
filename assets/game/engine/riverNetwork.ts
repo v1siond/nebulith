@@ -579,7 +579,7 @@ export interface RiverDeck extends RiverCarve, RiverCrossings {
   fords: Set<string>
   trees: Array<{ col: number; row: number }>
   props: Array<{ col: number; row: number }>
-  compositions: Array<{ kind: string; col: number; row: number; variant?: number; rotation?: number }>
+  compositions: Array<{ kind: string; col: number; row: number; variant?: number; rotation?: number; lift?: number }>
 }
 
 /**
@@ -606,40 +606,34 @@ function deckTone(style: GeneratorCrossing | undefined, col: number, row: number
   return groundTileColor(style.colorOf ?? style.tile, col, row) || undefined
 }
 
-export function layDeck(ctx: RiverDeck, deck: Set<string>, tone: string | undefined): void {
-  const { cols, rows, ground, collision, floorColors } = ctx
-  const style = crossingStyle(ctx)
+/**
+ * A BRIDGE WRITES NOTHING. Ticket 105, and it was right all along.
+ *
+ * *"it looks like we're trying to replace the river section with the bridge, but that's NOT what we should be
+ * doing, a bridge is just an object, a composition of tiles. the river is a layer, we just draw the river
+ * regularly, then we add the bridge as needed"*.
+ *
+ * This used to swap the cell's ground for the crossing's tile, force its elevation to 0 and repaint it. Three
+ * writes to the TERRAIN to express an OBJECT, and every one of them showed:
+ *
+ *   · the river stopped under the crossing, because the water tile had been replaced
+ *   · the cells stood a block proud of the channel around them, which is the rectangles behind and beside
+ *     every bridge: they are the raised terrain, not the bridge
+ *   · and the deck's tone was painted onto the map, so a slab of it survived wherever the composition did not
+ *     cover the run exactly
+ *
+ * The comment that used to live here said the same thing and deferred it: the fix is for the COMPOSITION to be
+ * lifted to the bank's level over a cell that stays river. So the terrain is left exactly as the river layer
+ * made it, and the only thing recorded is that you can walk here and that a crossing covers these cells.
+ */
+export function layDeck(ctx: RiverDeck, deck: Set<string>, _tone: string | undefined): void {
   clearForDeck(ctx, deck)
   for (const key of deck) {
     const { col, row } = toCell(key)
-    if (!inBounds(col, row, cols, rows)) continue
-    // NOT YET: THE WATER DOES NOT STAY UNDER THE DECK. and it is right, but keeping the cell wet here is not the way
-    // to get there.
-    //
-    // Tried and reverted, measured: leaving the deck cells as water broke four documented invariants at once.
-    // `divides` went from one crossing to two (the wadeable shallows the extra water created became a second
-    // way over), and "the river is cut below the walking floor" failed, because a deck cell is forced to
-    // elevation 0 while a river cell is dug below it. Those two facts cannot both hold on one cell.
-    //
-    // The real fix is for the deck COMPOSITION to be lifted to the bank's level over a cell that stays river,
-    // which is a change to how the stamp picks its level, not to what the ground says. Ticket 105.
-    ground[row][col] = style?.tile ?? 'bridge'
-    collision[row][col] = false
+    if (!inBounds(col, row, ctx.cols, ctx.rows)) continue
+    // The one thing that is not terrain: the water no longer stops you, because there is a bridge over it.
+    ctx.collision[row][col] = false
     ctx.decks.add(key)
-    // A DECK SPANS THE CHANNEL, it does not lie in the bottom of it. The dig runs inside `carveChannel`, which
-    // is before any crossing is laid, so a deck cell was still carrying the bed's negative elevation and a
-    // bridge came out sunk in the water. Measured on a `divides` river: 14 of its cells.
-    ctx.elevation[row][col] = 0
-    // A DECK NEVER KEEPS THE WATER'S COLOUR.
-    //
-    // This cell was river a moment ago and `floorColors` still held the river's blue. The old branch was
-    // `else if (tone)`, so a deck with no served tone was LEFT wearing it: the tile said bridge, the colour
-    // said water, and you got a blue walkway over a blue river.
-    //
-    // Clearing it is not the hardcoded fallback the old comment worried about. An undefined override means
-    // "no override", so the bridge tile's OWN served colour shows through, which is the data doing its job.
-    // Inventing a brown here would have been the violation; leaving a stale blue was just a bug.
-    floorColors[row][col] = deckTone(style, col, row, tone)
   }
 }
 
@@ -858,6 +852,10 @@ export function recordBridgeSpan(
     row: spanAlongCol ? minRow : minRow + offset,
     variant: 0,
     rotation: spanAlongCol ? 0 : 1,
+    // LIFTED OUT OF THE CHANNEL. A composition normally rests on whatever fills its anchor cell, and this one
+    // is anchored over a river bed dug `channelDepth` below the banks, so resting is how a bridge ends up
+    // sunk in the water. It spans the cut rather than sitting in it, so it is raised by exactly what was dug.
+    lift: channelDepth(ctx),
   })
 }
 
@@ -1073,7 +1071,12 @@ export function settleWaterDepth(ctx: RiverSurface, pal: GeneratorPalette | unde
     const band = waterBand(d)
     ground[row][col] = frozen ? 'frozen_water' : bends.has(key) ? 'water_bend' : band.label
     // The BAND is the label; whether you can stand here is `wadeableShallows`, which refuses a cut channel.
-    collision[row][col] = frozen ? false : !wadeable.has(key)
+    //
+    // EXCEPT UNDER A CROSSING. A deck cell is river now, with a bridge standing over it, so this pass sees it
+    // as ordinary deep water and blocks it: measured the moment the deck stopped overwriting the ground, a
+    // `divides` map fell into two walkable halves of 1010 and 951 with a bridge sitting uselessly between
+    // them. What you walk on there is the composition, not the water.
+    collision[row][col] = frozen || ctx.decks.has(key) ? false : !wadeable.has(key)
     if (pal?.water) floorColors[row][col] = pal.water
   }
   if (!pal?.swamp) return

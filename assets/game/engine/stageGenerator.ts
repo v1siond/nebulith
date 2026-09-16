@@ -200,6 +200,16 @@ export interface CompositionAnchor {
    * save path (`stageToTemplate` -> `anchorAssets`) reads the same field.
    */
   rotation?: number
+  /**
+   * EXTRA LEVELS ABOVE WHAT THIS COMPOSITION WOULD OTHERWISE REST ON. Absent means none, which is every
+   * composition but a crossing.
+   *
+   * The lego rule is that an object stacks on whatever fills its anchor cell, and it holds for everything that
+   * STANDS on the map. A bridge does not stand on what is under it, it SPANS it: its anchor is a river bed dug
+   * below the banks, and resting there is how a bridge ends up sunk in the water. So it carries the lift that
+   * puts its deck back at the level of the ground either side.
+   */
+  lift?: number
 }
 
 export interface StageData {
