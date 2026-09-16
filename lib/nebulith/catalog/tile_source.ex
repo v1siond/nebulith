@@ -1879,9 +1879,26 @@ defmodule Nebulith.Catalog.TileSource do
   # reads as a statement about the vocabulary rather than a string literal in a loop.
   @transposed_water ~w(water_y water_y_f1 water_y_f2 water_y_f3)
 
+  # EACH PIECE BRINGS ITS OWN COLOUR, which is what stops a composition inventing a palette.
+  #
+  # The two tones are measured off the references rather than chosen. The stone crossing is red sandstone:
+  # sampled on the reference, #893640 is the body, with #682931 and #b94546 being the same material under the
+  # engine's own per-face shading, so ONE colour here reproduces all three. The timber is #b2855c, the warm
+  # oak of the arched footbridge.
+  #
+  # `bridge_deck` and `bridge_rail` stay: they are what every already-seeded crossing in a live database is
+  # made of, and removing a tile a composition still names would empty it.
   @bridge_tiles [
-    {"bridge_deck", "Bridge deck", "#a8794a"},
-    {"bridge_rail", "Bridge rail", "#8a6a45"}
+    {"bridge_deck", "Bridge deck", "#a8794a", "="},
+    {"bridge_rail", "Bridge rail", "#8a6a45", "="},
+    {"bridge_stone_block", "Bridge masonry", "#893640", "#"},
+    {"bridge_stone_deck", "Bridge flagstones", "#9c4a4a", "="},
+    {"bridge_stone_parapet", "Bridge parapet", "#893640", "n"},
+    {"bridge_stone_bollard", "Bridge bollard", "#7a3038", "o"},
+    {"bridge_timber_rib", "Bridge timber rib", "#8f6842", "H"},
+    {"bridge_timber_deck", "Bridge planking", "#b2855c", "="},
+    {"bridge_timber_post", "Bridge rail post", "#96704a", "|"},
+    {"bridge_timber_rail", "Bridge handrail", "#a67c53", "-"}
   ]
 
   @doc """
@@ -1892,18 +1909,23 @@ defmodule Nebulith.Catalog.TileSource do
   so every block extruded from them shows its own dark interior through the gap. That is the open crate, and
   it would happen to anything built from those tiles, not just a bridge.
 
-  `bridge_deck` and `bridge_rail` are authored FULL BLEED, measured at 0% transparent, so a block made of
-  them is a solid body. Colour stays a per-cell setting, which is what lets one pair of tiles serve the
-  wooden, plank and stone crossings instead of three pairs of pictures.
+  Every bridge tile is authored FULL BLEED, measured at 0% transparent, so a block made of one is a solid
+  body.
+
+  Colour used to be a per-cell setting so that one pair of tiles could serve the wooden, plank and stone
+  crossings instead of three sets of pictures. That was an optimisation for tile count and it cost the object
+  its material: `bridge_plank_*` came out byte-identical to `bridge_wood_*`, and the "stone" bridge drew a
+  wood-brown deck because the deck cell carried no tint at all. Each piece owns its colour now, and no bridge
+  composition states one.
   """
   def seed_bridge_tiles do
-    for tileset <- Catalog.list_tilesets(), {label, title, color} <- @bridge_tiles do
+    for tileset <- Catalog.list_tilesets(), {label, title, color, glyph} <- @bridge_tiles do
       {:ok, _} =
         Catalog.upsert_tile(%{
           tileset_id: tileset.id,
           label: label,
           title: title,
-          glyph: "=",
+          glyph: glyph,
           emoji: "🟫",
           color_role: nil,
           blocking: false,
@@ -3002,20 +3024,73 @@ defmodule Nebulith.Catalog.TileSource do
     :ok
   end
 
-  # The rail colours. A WOODEN bridge's rail is the darker wood under its own deck (`wooden_planks` is
-  # #aa8250), and a STONE bridge's is the pillar tile's own stone. Both are the family's material said once,
-  # not a new palette: the shared `post` tile stays charcoal for the lamp post that actually wants it.
-  @wood_rail "#8a6a45"
-  @stone_rail "#b9b2a3"
+  # A MATERIAL IS A SET OF PIECES, not a colour poured over one picture.
+  #
+  # Every bridge was the same ten cells and the only difference between a wooden one and a stone one was a
+  # `color` on three of them, which is the thing `TILESET-AUTHORING.md` forbids in as many words: variety of
+  # colour is a setting, variety of MATERIAL is a different tile. `bridge_plank_*` was byte-identical to
+  # `bridge_wood_*`, fifteen names for ten objects, and the stone bridge drew a wood-brown deck because the
+  # deck cell carried no tint at all.
+  #
+  # So each material names its own pieces, each piece does ONE job and brings its own colour, and no cell here
+  # states a colour. `arch?` is the shape, not a finish: an arched crossing springs from its abutments and a
+  # flat one stands on piles, and no retexturing turns one into the other.
+  @bridge_materials %{
+    "stone" => %{
+      block: "bridge_stone_block", deck: "bridge_stone_deck", side: "bridge_stone_parapet",
+      cap: "bridge_stone_bollard", arch?: true, solid_side?: true
+    },
+    "timber" => %{
+      block: "bridge_timber_rib", deck: "bridge_timber_deck", side: "bridge_timber_rail",
+      cap: "bridge_timber_post", arch?: true, solid_side?: false
+    },
+    "plank" => %{
+      block: "bridge_timber_rib", deck: "bridge_timber_deck", side: "bridge_timber_rail",
+      cap: "bridge_timber_post", arch?: false, solid_side?: false
+    }
+  }
 
   @deck_rows [1, 2]
-  @deck_thickness 0.09
-  @rail_height 0.55
-  @rail_thickness 0.3
-  # The BEARERS: the beams in the channel the walkway rests on, one block BELOW it. Thicker than a rail (they
-  # are carrying something) and tall enough to reach from the water up to the deck.
-  @bearer_height 0.9
-  @bearer_thickness 0.45
+  # The footprint is span x 4: a side, two walking rows so two can pass, and a side.
+  @bridge_width 4
+  @last_row 3
+  # The two OUTER rows, which are the bridge's sides.
+  @side_rows [0, @last_row]
+  @deck_thickness 0.16
+  # THE ABUTMENT fills its whole level, so the deck lands on it rather than hovering over it.
+  @abutment_height 1.0
+  # THE SPANDREL is the masonry between the abutment and the crown of the arch. It hangs from the DECK rather
+  # than standing on the bed, so it is drawn short and lifted: `pose.dy` is in tileH units and one level is
+  # 1.8 of them, so -0.9 is half a level up.
+  @spandrel_height 0.5
+  @spandrel_lift -0.9
+  # THE PARAPET, the part of the side wall that stands ABOVE the deck.
+  #
+  # Read off the reference rather than derived from it. What you actually SEE of a stone bridge is its SIDE:
+  # a wall with an arch through it, with the roadway a strip glimpsed between the two walls. Authored at 0.42
+  # the walls came out as a lip around a big flat plane of deck, so the object read as a platform. The side
+  # has to be the dominant mass, which puts it near a full level.
+  @parapet_height 0.85
+  # THE BOLLARD, standing at level 0 so it shares the deck's base: drawn 0.26 x 4.6 = 1.2 levels, which leaves
+  # it 0.35 proud of the parapet, the proportion the reference shows.
+  @bollard_zoom 0.26
+  @bollard_height 4.6
+  @bollard_thickness 0.5
+  # THE RAIL POST of a timber crossing: drawn 0.26 x 3.9 = 1.01 levels, so the handrail at level 1 lands on it.
+  @post_zoom 0.26
+  @rail_post_height 3.9
+  @handrail_height 0.2
+  # THE TWO OUTER ROWS, which are the bridge's SIDES.
+  #
+  # NOTHING HERE IS THINNED, and that is the detached-rail fix rather than a better `thicknessDir`. A thinned
+  # block hugs one face of its own cell, so a thin parapet standing on a full-width substructure lines up with
+  # neither face of it: measured both directions off the render and both left a strip of air between the side
+  # and the deck it edges, the original's gap simply mirrored.
+  #
+  # The reference settles it anyway. The side of a stone bridge is ONE WALL running from the bed up to the
+  # coping with the arch cut through it, not a band of masonry with a separate rail balanced on top. A side
+  # that is the full width of its own row is that wall, it lands squarely on the substructure under it, and
+  # there is no direction left to get backwards.
   # The POSTS at the four corners, standing proud of the rail line so the crossing has ends you can see.
   @post_height 1.05
   @post_thickness 0.28
@@ -3207,21 +3282,21 @@ defmodule Nebulith.Catalog.TileSource do
       # when we only have to connect a small river?? we just need something like 4 cells long x whatever the river
       # size"*, and With only odd spans authored, a 4-wide river needed 4 plus a landing each side and rounded
       # straight up to 7, which is the size it rejected.
-      "bridge_wood_3" => %{footprint_w: 3, footprint_h: 4, category: "props", cells: bridge_cells("bridge_deck", "bridge_rail", 3, @wood_rail)},
-      "bridge_wood_4" => %{footprint_w: 4, footprint_h: 4, category: "props", cells: bridge_cells("bridge_deck", "bridge_rail", 4, @wood_rail)},
-      "bridge_wood_5" => %{footprint_w: 5, footprint_h: 4, category: "props", cells: bridge_cells("bridge_deck", "bridge_rail", 5, @wood_rail)},
-      "bridge_wood_6" => %{footprint_w: 6, footprint_h: 4, category: "props", cells: bridge_cells("bridge_deck", "bridge_rail", 6, @wood_rail)},
-      "bridge_wood_7" => %{footprint_w: 7, footprint_h: 4, category: "props", cells: bridge_cells("bridge_deck", "bridge_rail", 7, @wood_rail)},
-      "bridge_stone_3" => %{footprint_w: 3, footprint_h: 4, category: "props", cells: bridge_cells("bridge_deck", "bridge_rail", 3, @stone_rail)},
-      "bridge_stone_4" => %{footprint_w: 4, footprint_h: 4, category: "props", cells: bridge_cells("bridge_deck", "bridge_rail", 4, @stone_rail)},
-      "bridge_stone_5" => %{footprint_w: 5, footprint_h: 4, category: "props", cells: bridge_cells("bridge_deck", "bridge_rail", 5, @stone_rail)},
-      "bridge_stone_6" => %{footprint_w: 6, footprint_h: 4, category: "props", cells: bridge_cells("bridge_deck", "bridge_rail", 6, @stone_rail)},
-      "bridge_stone_7" => %{footprint_w: 7, footprint_h: 4, category: "props", cells: bridge_cells("bridge_deck", "bridge_rail", 7, @stone_rail)},
-      "bridge_plank_3" => %{footprint_w: 3, footprint_h: 4, category: "props", cells: bridge_cells("bridge_deck", "bridge_rail", 3, @wood_rail)},
-      "bridge_plank_4" => %{footprint_w: 4, footprint_h: 4, category: "props", cells: bridge_cells("bridge_deck", "bridge_rail", 4, @wood_rail)},
-      "bridge_plank_5" => %{footprint_w: 5, footprint_h: 4, category: "props", cells: bridge_cells("bridge_deck", "bridge_rail", 5, @wood_rail)},
-      "bridge_plank_6" => %{footprint_w: 6, footprint_h: 4, category: "props", cells: bridge_cells("bridge_deck", "bridge_rail", 6, @wood_rail)},
-      "bridge_plank_7" => %{footprint_w: 7, footprint_h: 4, category: "props", cells: bridge_cells("bridge_deck", "bridge_rail", 7, @wood_rail)},
+      "bridge_wood_3" => %{footprint_w: 3, footprint_h: 4, category: "props", cells: bridge_cells("timber", 3)},
+      "bridge_wood_4" => %{footprint_w: 4, footprint_h: 4, category: "props", cells: bridge_cells("timber", 4)},
+      "bridge_wood_5" => %{footprint_w: 5, footprint_h: 4, category: "props", cells: bridge_cells("timber", 5)},
+      "bridge_wood_6" => %{footprint_w: 6, footprint_h: 4, category: "props", cells: bridge_cells("timber", 6)},
+      "bridge_wood_7" => %{footprint_w: 7, footprint_h: 4, category: "props", cells: bridge_cells("timber", 7)},
+      "bridge_stone_3" => %{footprint_w: 3, footprint_h: 4, category: "props", cells: bridge_cells("stone", 3)},
+      "bridge_stone_4" => %{footprint_w: 4, footprint_h: 4, category: "props", cells: bridge_cells("stone", 4)},
+      "bridge_stone_5" => %{footprint_w: 5, footprint_h: 4, category: "props", cells: bridge_cells("stone", 5)},
+      "bridge_stone_6" => %{footprint_w: 6, footprint_h: 4, category: "props", cells: bridge_cells("stone", 6)},
+      "bridge_stone_7" => %{footprint_w: 7, footprint_h: 4, category: "props", cells: bridge_cells("stone", 7)},
+      "bridge_plank_3" => %{footprint_w: 3, footprint_h: 4, category: "props", cells: bridge_cells("plank", 3)},
+      "bridge_plank_4" => %{footprint_w: 4, footprint_h: 4, category: "props", cells: bridge_cells("plank", 4)},
+      "bridge_plank_5" => %{footprint_w: 5, footprint_h: 4, category: "props", cells: bridge_cells("plank", 5)},
+      "bridge_plank_6" => %{footprint_w: 6, footprint_h: 4, category: "props", cells: bridge_cells("plank", 6)},
+      "bridge_plank_7" => %{footprint_w: 7, footprint_h: 4, category: "props", cells: bridge_cells("plank", 7)},
       "well" => %{footprint_w: 5, footprint_h: 3, category: "props", cells: well_cells()},
       "fountain" => %{footprint_w: 5, footprint_h: 5, category: "props", cells: fountain_cells()},
       # LIGHT POSTS — a composition, NOT a single lamp tile. ONE 1×1 column of TWO cells, each shaped by its OWN tuned
@@ -3428,87 +3503,125 @@ defmodule Nebulith.Catalog.TileSource do
   # A WOODEN BRIDGE HAS WOODEN RAILS. `post` is shared with the lamp post and is authored charcoal (#43474d),
   # which is right for a lamp and wrong here, so the CELL states its colour (the per-cell `settings.color` the
   # stamp already honours) rather than the shared tile being repainted for one caller.
-  defp bridge_cells(deck_label, rail_label, span, rail_color) do
-    last_row = List.last(@deck_rows) + 1
+  # THE BRIDGE, built in four courses bottom to top:
+  #
+  #   level -1  SUBSTRUCTURE  the abutments and the spandrels, with the arch OPEN between them
+  #   level  0  DECK          the walking surface, two rows so two can pass
+  #   level  0  SIDE          a solid parapet, or the uprights of a post-and-rail
+  #   level  1  CAP           the bollards on the parapet, or the handrail on the posts
+  #
+  # Measured against the reference before any of this was touched: fill 0.72 against 0.39 and jag 0.08 against
+  # 0.19. Both numbers name the same two absences. A bridge is mostly HOLE, and the biggest hole is the one it
+  # spans; and its skyline is BROKEN, by uprights standing at intervals rather than at the four corners.
+  defp bridge_cells(material, span) do
+    pieces = Map.fetch!(@bridge_materials, material)
 
-    # A BRIDGE IS BUILT IN LAYERS, like everything else here. Four of them, bottom to top:
-    #
-    #   level -1  BEARERS   the beams down in the channel that hold the thing up
-    #   level  0  WALKWAY   the planks, two rows so two can pass
-    #   level  0  RAILS     a thin panel down each side
-    #   level  0  POSTS     uprights at the four corners, standing above the rail line
-    #
-    # It used to be one flat layer of planks with a rail beside it, which reads as a plank laid on the ground
-    # rather than as a structure spanning a river.
+    bridge_substructure(pieces, span) ++
+      bridge_deck(pieces.deck, span) ++
+      bridge_sides(pieces, span)
+  end
 
-    # LAYER -1 — THE BEARERS. One per walking row, spanning the crossing through z-width, a block below the
-    # deck so they sit IN the channel. No collision: nothing walks at that level, and the ground course is the
-    # only one that may write to the 2D collision map.
-    bearers =
-      for dy <- @deck_rows do
-        %{dx: 0, dy: dy, level: -1, label: rail_label, walkable: true,
+  # THE ARCH IS AN ABSENCE, and that is the whole of it.
+  #
+  # This was ONE cell carrying `depth: span`, which extrudes a single unbroken box the entire way across, so
+  # the underside of every bridge in the catalogue was solid from bank to bank. A solid underside is a
+  # causeway. What makes a shape read as spanning something is the air you can see under it.
+  #
+  # So the substructure is authored per COLUMN and the columns in the middle are simply not there. Each one
+  # still uses `depth` across the WIDTH, which is the one direction it genuinely is uniform in.
+  defp bridge_substructure(pieces, span) do
+    abutments = for dx <- [0, span - 1], do: substructure_cell(pieces.block, dx, @abutment_height, 0.0)
+    abutments ++ bridge_haunches(pieces, span)
+  end
+
+  # A SHORT SPAN HAS NOTHING TO SPRING FROM, and the threshold is measured rather than guessed. At five cells
+  # a pair of spandrels leaves ONE open column out of five, and an opening that narrow does not read as an
+  # arch at all: the bridge came out a solid trough with a notch in it. Six is where there is still an opening
+  # left after the springing.
+  defp bridge_haunches(_pieces, span) when span < 6, do: []
+
+  defp bridge_haunches(%{arch?: true, block: block}, span),
+    do: for(dx <- [1, span - 2], do: substructure_cell(block, dx, @spandrel_height, @spandrel_lift))
+
+  # A FLAT CROSSING springs no arch, so it stands on PILES at intervals instead. The same gaps, reaching the
+  # whole way up to the deck rather than being closed off by a spandrel.
+  defp bridge_haunches(%{arch?: false, block: block}, span),
+    do: for(dx <- Enum.take_every(1..(span - 2), 2), do: substructure_cell(block, dx, @abutment_height, 0.0))
+
+  defp substructure_cell(label, dx, height, lift) do
+    %{dx: dx, dy: 0, level: -1, label: label, walkable: true, settings: substructure_settings(height, lift)}
+  end
+
+  defp substructure_settings(height, 0.0),
+    do: %{"scaleY" => height, "depth" => @bridge_width, "depthDir" => "left-down"}
+
+  defp substructure_settings(height, lift),
+    do: Map.put(substructure_settings(height, 0.0), "pose", %{"dy" => lift})
+
+  # THE DECK. Two rows, each ONE tile spanning the crossing through z-width, so the walking surface draws as
+  # one run with no column seams down the middle of it. This is the one place a stretch is the right answer:
+  # a deck genuinely is uniform along its length.
+  defp bridge_deck(label, span) do
+    for dy <- @deck_rows do
+      %{dx: 0, dy: dy, level: 0, label: label, walkable: true,
+        settings: %{"scaleY" => @deck_thickness, "depth" => span, "depthDir" => "right-down"}}
+    end
+  end
+
+  # A STONE CROSSING's side is a solid wall, with bollards standing along its top.
+  defp bridge_sides(%{solid_side?: true} = pieces, span) do
+    parapets =
+      for dy <- @side_rows do
+        %{dx: 0, dy: dy, level: 0, label: pieces.side, walkable: false,
           settings: %{
-            "scaleY" => @bearer_height,
-            "scaleZ" => @bearer_thickness,
-            # WHICH WAY IT IS THIN. Without a direction, `scaleZ` stays the old screen-axis squash, which
-            # thins along no world axis at all and leaves a z-width beam reading as displaced from the deck
-            # it belongs to. Naming the side it hugs makes it a world-axis panel, the same as a door.
-            "thicknessDir" => "left-down",
+            "scaleY" => @parapet_height,
             "depth" => span,
             "depthDir" => "right-down",
-            "color" => rail_color
+            "collision" => [%{"x" => 0.0, "y" => 0.0, "w" => 1.0, "h" => 1.0}]
           }}
       end
 
-    # LAYER 0 — THE WALKWAY. Two rows, so two can pass, and each row is ONE tile that z-widths the whole
-    # crossing. It used to be `span` separate planks per row, which is 2×span tiles for a surface that is one
-    # flat run: *"you can use less tiles to make the sides too, with z-width"*. A span-7 bridge goes from 18
-    # tiles to 10, and the deck draws as one solid top with no column seams down the middle of the walkway.
-    deck =
-      for dy <- @deck_rows do
-        %{dx: 0, dy: dy, level: 0, label: deck_label, walkable: true,
-          settings: %{"scaleY" => @deck_thickness, "depth" => span, "depthDir" => "right-down"}}
+    # NEVER AT dx 0, which is where the parapet's own z-width run is anchored: two cells in one
+    # (dx, dy, level) is the bug the building compositions have a test for.
+    bollards =
+      for dx <- upright_columns(span), dx > 0, dy <- @side_rows do
+        %{dx: dx, dy: dy, level: 0, label: pieces.cap, walkable: false, scale: @bollard_zoom,
+          settings: %{"scaleY" => @bollard_height, "thickness" => post_reach(@bollard_thickness)}}
       end
 
-    # LAYER 0 — THE RAILS. One cell per side spanning the crossing through z-width, thinned to a DOOR's
-    # thickness: `scaleZ` 0.3 is what the `door` tile carries, so a rail is the same kind of panel a door is
-    # rather than a wall of its own invention. The collision is that size too: a rail blocks the strip it
-    # occupies, not its whole cell.
-    rails =
-      for {dy, hug} <- [{0, "right-up"}, {last_row, "left-down"}] do
-        %{dx: 0, dy: dy, level: 0, label: rail_label, walkable: false,
-          settings: %{
-            "scaleY" => @rail_height,
-            "scaleZ" => @rail_thickness,
-            # Each rail hugs the OUTER edge of its own row, so the pair frames the walkway instead of sitting
-            # in the middle of it. `scaleZ` alone has no world direction, so it squashed on the screen axis
-            # and the rail read as floating beside the deck rather than running along its edge.
-            "thicknessDir" => hug,
-            "depth" => span,
-            "depthDir" => "right-down",
-            "color" => rail_color,
-            "collision" => [%{"x" => 0.0, "y" => 0.35, "w" => 1.0, "h" => @rail_thickness}]
-          }}
-      end
+    parapets ++ bollards
+  end
 
-    # LAYER 0 — THE POSTS. Taller than the rail and thin on both ground axes, so each end of the crossing has
-    # an upright rather than the railing simply stopping.
-    #
-    # Thin by REACH, not by scale. `scaleX`/`scaleZ` squash the drawn diamond on the SCREEN axes, so a post
-    # keeps its shape only while the camera is at its default corner and shears the moment the map is turned:
-    # *"you're using width instead of z-width to control the sides and structure, hence why it looks bad"*.
-    # A reach is a WORLD axis, the same thing a door states, so the post stays a post at all four facings.
+  # A TIMBER CROSSING has uprights with a handrail run between them, and the GAPS between the uprights are
+  # most of why its silhouette measures 0.38 solid rather than 0.72.
+  defp bridge_sides(%{solid_side?: false} = pieces, span) do
     posts =
-      for dx <- [0, span - 1], dy <- [0, last_row] do
-        %{dx: dx, dy: dy, level: 0, label: "post", walkable: false,
+      for dx <- upright_columns(span), dy <- @side_rows do
+        %{dx: dx, dy: dy, level: 0, label: pieces.cap, walkable: false, scale: @post_zoom,
+          settings: %{"scaleY" => @rail_post_height, "thickness" => post_reach(@post_thickness)}}
+      end
+
+    rails =
+      for dy <- @side_rows do
+        %{dx: 0, dy: dy, level: 1, label: pieces.side, walkable: false,
           settings: %{
-            "scaleY" => @post_height,
-            "thickness" => post_reach(@post_thickness),
-            "color" => rail_color
+            "scaleY" => @handrail_height,
+            "depth" => span,
+            "depthDir" => "right-down",
+            "collision" => [%{"x" => 0.0, "y" => 0.0, "w" => 1.0, "h" => 1.0}]
           }}
       end
 
-    bearers ++ deck ++ rails ++ posts
+    posts ++ rails
+  end
+
+  # WHERE AN UPRIGHT STANDS: both ends, and every other column between them.
+  #
+  # The RHYTHM is what reads as length. Four posts at the four corners gave a dead flat skyline whatever the
+  # span, measured at jag 0.08 against the reference's 0.19, and a smooth bar reads as a plank however long
+  # you make it.
+  defp upright_columns(span) do
+    (Enum.take_every(0..(span - 1), 2) ++ [span - 1]) |> Enum.uniq() |> Enum.sort()
   end
 
   # A block CENTRED in its cell and `width` of it across, on BOTH ground axes — the four reaches that say so.

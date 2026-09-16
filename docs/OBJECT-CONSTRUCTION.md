@@ -188,6 +188,37 @@ air between it and the deck it is supposed to edge. That gap is clearly visible 
 carries no `color` override, so it draws `bridge_deck`'s own tile colour `#a8794a`, which is wood brown. Grey
 rails, brown deck, no arch, no pier, no abutment.
 
+## 1.3b What the rebuild actually cost, 2026-09-16
+
+Recorded because three of these are not guessable and each one ate a render cycle.
+
+**`thicknessDir` cannot be reasoned out from the axis table, and the answer was to stop thinning.** Fault 4
+says the parapets hug the wrong face, and it is right that they were wrong. Authoring the other direction is
+not the fix: measured both ways off the render, both left a strip of air between the side and the deck, the
+original's gap simply mirrored. A thinned block hugs one face of its OWN cell, so a thin parapet standing on
+a full-width substructure lines up with neither face of it. The reference settles it anyway, and it is a
+structural point rather than a setting: **the side of a stone bridge is ONE WALL from the bed to the coping
+with the arch cut through it**, not a band of masonry with a rail balanced on top. A side that is the full
+width of its row is that wall, it lands squarely on what is under it, and there is no direction left to get
+backwards.
+
+**THE ARCH IS AN ABSENCE, and art transparency cannot make one.** `fillIsoFaceWithTile` paints the art over a
+solid colour fill, so a transparent region in the PNG reveals the block's own shaded interior, not the
+background (3.3 fact 2 says this about margins; it is the same mechanism). A hole is an absent CELL and
+nothing else. Authored per column with the middle columns simply not there.
+
+**A span of five is too short for a spandrel.** A pair of them leaves ONE open column out of five, and an
+opening that narrow does not read as an arch: the bridge came out a solid trough with a notch in it. Six is
+where there is still an opening after the springing.
+
+**And the thing that made all of it invisible: no generated map could stamp a bridge at all.**
+`recordBridgeSpan` was reachable only from `placeRiverCrossing` and `crossRiver`, and on a generated map
+neither got there. Measured across every forest template, every river course and every value of the served
+`bridge` option including `stone` and `wood` outright: decks laid, 21 to 57 cells of them, and zero bridge
+compositions. **Before judging an object, check that the generator can reach it.** An object nothing places
+can stay broken indefinitely without anyone seeing it in place, which is most of why these were as bad as
+they were.
+
 ## 1.4 The one sentence
 
 **The good objects are ASSEMBLED from pieces that each do one job and bring their own colour. The bridges are
@@ -625,6 +656,14 @@ NAME=well COMP=well FP=5x3 ZOOM=7 SIZE=560 node .probe/objshot.mjs              
 `.probe/objshot.mjs` builds the cell list live on the running grid with the same field mapping the stamp uses,
 so you can see a design before you seed it.
 **Gate:** the two pictures are in the document, side by side. Not a description of the picture. The picture.
+
+**RENDER IT IN THE CONDITION IT LIVES IN, not just on open ground.** "Alone on open ground" is right for
+judging a silhouette and it is WRONG for anything whose defining feature is a void. A bridge's is the hole
+under it, and on flat ground that hole is UNDERGROUND: the level -1 cells are buried, so the picture cannot
+show an arch whatever you author. Four rounds of arch tuning were judged against a render that could not have
+shown the difference. `objshot.mjs` takes `CHANNEL=<cells>` and cuts the strip the object spans, confined to
+the object's own rows (running it wider puts the far bank in the foreground, a block proud of everything,
+drawn straight over the thing being judged).
 
 ### Step 9. Report, part by part
 Walk the part list from step 1 and say, for each, whether it matches. His rule:
