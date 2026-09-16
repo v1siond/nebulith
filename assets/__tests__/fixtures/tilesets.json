@@ -7809,7 +7809,6 @@
           "image_url": "/tiles/ascii/decor_clover.png",
           "settings": {
             "colors": {
-              "spring": "#2a722a",
               "summer": "#2a722a"
             },
             "collision": [],
@@ -31492,7 +31491,6 @@
           "settings": {
             "color": "#5aaf5a",
             "colors": {
-              "spring": "#2a722a",
               "summer": "#2a722a"
             },
             "collision": [],
