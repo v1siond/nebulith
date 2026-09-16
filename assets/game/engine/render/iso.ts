@@ -2503,14 +2503,25 @@ export function drawIsoAssetAscii(
     // direction, `scaleZ` keeps its historical screen-axis meaning.
     const bd = tileH * (assetThickness(asset) ? 1 : (asset.scaleZ ?? 1)) * zoom
     // Height — the tile's OWN DB block-height turned into pixels: partialBlockScale draws a sub-block cell as a
-    // partial slab and a standing cell as a full block, × the per-instance Height multiplier (scaleY). The
-    // height VALUE is DATA (from the DB); nothing invented here.
-    const bh = tileW * ISO_BLOCK_H_FRAC * (asset.scaleY ?? 1) * layerBlockScale(asset.height ?? 0) * zoom
+    // partial slab and a standing cell as a full block, × the per-instance Height multiplier (scaleY).
+    //
+    // IT HAS TO ASK THE TILE. This read `asset.height ?? 0`, and the comment right here said the value comes
+    // from the DB while the code read only the placed asset, so anything placed WITHOUT an explicit height
+    // drew zero blocks tall. `rock` is served at height 1 and the generator sets no per-instance height, so
+    // every generated rock rendered as a flat diamond on the ground: *"ROCKS ARE LOADING WITH 0 HEIGHT...
+    // when I inspect them, it says 1, but they're clearly 0. And as soon as I edit them they act normal"* —
+    // the inspector read the tile and the renderer read the asset, and editing wrote a height onto the asset
+    // which is why touching one cured it.
+    //
+    // `resolveTileHeight` is the shared rule and it says it in one line: the asset's height when it pins one,
+    // the TILE's otherwise. Resolved by LABEL, which is the only input this whole branch uses.
+    const labelBlocks = resolveTileHeight(asset.label ? styleTileArt(asset.label, style.id) : undefined, asset)
+    const bh = tileW * ISO_BLOCK_H_FRAC * (asset.scaleY ?? 1) * layerBlockScale(labelBlocks) * zoom
     // …stacked as many times as the tile is tall. This used to be hardcoded to ONE layer, so a labeled cell
     // drew a single block however tall you made it — raise it to 5 and the tiles above rose while the tile
     // itself stayed put.
     // No composition tile ships a DB height above 1, so generated maps render exactly as before.
-    const layers = blockLayers(asset.height ?? 0)
+    const layers = blockLayers(labelBlocks)
     const tint = asset.color ?? '#cccccc'
     // The label's own glyph in the ACTIVE style (one lookup, no style branch) — the last-resort char if the
     // baked PNG is genuinely missing; falls back to the asset's authored art when the style has no such tile.

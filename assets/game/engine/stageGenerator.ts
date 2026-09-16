@@ -201,15 +201,16 @@ export interface CompositionAnchor {
    */
   rotation?: number
   /**
-   * EXTRA LEVELS ABOVE WHAT THIS COMPOSITION WOULD OTHERWISE REST ON. Absent means none, which is every
-   * composition but a crossing.
+   * THE LEVEL THIS COMPOSITION'S OWN LEVEL 0 SITS AT, absolutely. Absent means "rest on the cell stack", which
+   * is every composition but a crossing.
    *
    * The lego rule is that an object stacks on whatever fills its anchor cell, and it holds for everything that
-   * STANDS on the map. A bridge does not stand on what is under it, it SPANS it: its anchor is a river bed dug
-   * below the banks, and resting there is how a bridge ends up sunk in the water. So it carries the lift that
-   * puts its deck back at the level of the ground either side.
+   * STANDS on the map. A bridge does not stand on what is under it, it SPANS it, so reading its height off
+   * the contents of one anchor cell gives a different answer on every map: measured across three woodland
+   * seeds, the same bridge came out at levels 4 to 7, 1 to 4 and 0.5 to 3.5. A crossing states 0, the level
+   * its banks are at, and the deck lands where the ground either side is.
    */
-  lift?: number
+  baseLevel?: number
 }
 
 export interface StageData {

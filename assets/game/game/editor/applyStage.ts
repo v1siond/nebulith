@@ -144,9 +144,9 @@ export function applyStageToGrid(stage: StageData, grid: IsometricGrid, building
   // ROTATION comes from the anchor now. It was hardcoded 0 here, which was true while the only anchored
   // compositions were fountains and wells (square, and never turned). A bridge is span x 3 and has to lie
   // ACROSS its river, so it records the quarter-turns it needs and the save path reads the same field.
-  // `lift` is how a CROSSING clears the channel it spans: every other composition passes none and rests on the
-  // cell stack exactly as before.
-  for (const c of stage.compositions ?? []) stampComposition(grid, c.kind, c.col, c.row, stage.zone, c.variant ?? 0, c.rotation ?? 0, undefined, undefined, undefined, undefined, c.lift ?? 0)
+  // `baseLevel` is how a CROSSING states where it sits instead of resting on whatever is in its anchor cell:
+  // every other composition passes none and stacks exactly as before.
+  for (const c of stage.compositions ?? []) stampComposition(grid, c.kind, c.col, c.row, stage.zone, c.variant ?? 0, c.rotation ?? 0, undefined, undefined, undefined, undefined, c.baseLevel)
   // MERGE THE GROUND into z-width runs — the "optimized footprints" pass. and 2026-09-10:
   //
   // Measured on the generators: 1600 floor tiles → 93 on a town, 2464 → 116 on a city, 2400 → 163 on a forest.

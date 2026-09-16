@@ -331,6 +331,9 @@ export function digChannel(cut: RiverCut, water: ReadonlySet<string>): void {
 
 // A band decides the LABEL and whether you can wade it. It used to decide a COLOUR too, which is what put
 // three blues in one river; the surface takes one served tone now (see the depth pass).
+/** THE FILM a puddle and a ford are both made of: standing water, served flat, stackAt 0, see-through. */
+const FILM = 'water_still'
+
 export interface WaterBand { label: string; walkable: boolean }
 export const WATER_BANDS: Readonly<Record<'shallow' | 'open' | 'deep', WaterBand>> = {
   shallow: { label: 'water_shallow', walkable: true },
@@ -577,9 +580,13 @@ export interface RiverDeck extends RiverCarve, RiverCrossings {
   decks: Set<string>
   /** Every cell the river is shallow enough to walk through. Not a deck: see `wadeCrossing`. */
   fords: Set<string>
+  /** Cells wearing a film of water over dry ground. A ford is one: the route stays, the water lies over it. */
+  wet: Set<string>
+  /** Read to resolve the film tile's own colour, the same way every other pass resolves a tile. */
+  zone: ZoneId
   trees: Array<{ col: number; row: number }>
-  props: Array<{ col: number; row: number }>
-  compositions: Array<{ kind: string; col: number; row: number; variant?: number; rotation?: number; lift?: number }>
+  props: RiverProp[]
+  compositions: Array<{ kind: string; col: number; row: number; variant?: number; rotation?: number; baseLevel?: number }>
 }
 
 /**
@@ -678,7 +685,7 @@ export function deckRoutes(
   // so that absence is the signal and nothing new has to be served to express it.
   if (!crossingStyle(ctx)?.composition) {
     for (const key of required ?? []) if (water.has(key)) wet.add(key)
-    wadeCrossing(ctx, wet)
+    wadeCrossing(ctx, wet, tone)
     // AND A FORD IS NOT A WAY. It is the river, and you happen to be able to walk through it here, so it
     // leaves the network: left in, every rule about what a way looks like judges a stretch of river. Measured,
     // it put the trail tone on the water and pool overlays on "the path".
@@ -699,21 +706,37 @@ export function deckRoutes(
 }
 
 /**
- * MAKE THESE CELLS WADEABLE: the river stays, shallow, walkable, level with its banks.
+ * A DIRT CROSSING IS THE ROUTE WITH WATER LYING OVER IT, and the water you can see through.
  *
- * The water KEEPS its ground and its colour, so it still reads as the river and `settleWaterDepth` still
- * grades it afterwards. All that changes is that it is raised out of the cut (adding back exactly what
- * `digChannel` took off, so a creek crossing a raised region comes level with THAT region) and stops
- * blocking.
+ * *"we take a section of the river, select the water, then we make it transparent and we reduce the stacking
+ * point to .5, then we add regular floor tiles"*, and then *"THE WATER SHOULDN'T stack ON THE ROUTE, or stack
+ * at the bottom OF IT and should be TRANSPARENT to see the WAY, THE ROUTE"*.
+ *
+ * This laid `water_shallow` as the GROUND, which is an opaque block of river standing where the path should
+ * be: there was nothing underneath to see, because the route had been replaced by water.
+ *
+ * The model that does this already exists and is the swamp PUDDLE, which is three layers and not one. The
+ * floor stays the floor, and the water is a FILM stacked over it: `water_still` is served at height 0.05 with
+ * `stackAt` 0 and its own opacity, so you neither step up onto it nor drop into it and you see the ground
+ * through it. So a ford is the route, laid at the level of its banks, with that film on top.
  */
-function wadeCrossing(ctx: RiverDeck, wet: ReadonlySet<string>): void {
+function wadeCrossing(ctx: RiverDeck, wet: ReadonlySet<string>, tone: string | undefined): void {
+  const style = crossingStyle(ctx)
   const cut = channelDepth(ctx)
+  const film = resolveTile(styleCatalog('ascii'), ctx.zone, FILM)
   for (const key of wet) {
     const { col, row } = toCell(key)
     if (!inBounds(col, row, ctx.cols, ctx.rows)) continue
-    ctx.ground[row][col] = WATER_BANDS.shallow.label
+    // THE ROUTE ITSELF, which is what the crossing kind names: `dirt` serves the flat floor in the path's own
+    // colour. It is the thing you are meant to be able to see.
+    ctx.ground[row][col] = style?.tile ?? WATER_BANDS.shallow.label
+    ctx.floorColors[row][col] = deckTone(style, col, row, tone)
     ctx.collision[row][col] = false
+    // Level with the banks, adding back exactly what `digChannel` took off, so a crossing on a raised region
+    // comes level with THAT region rather than snapping to the map's base.
     ctx.elevation[row][col] += cut
+    ctx.wet.add(key)
+    ctx.props.push({ col, row, type: 'ground_decor', char: film.char, label: FILM, blocking: false, color: film.color })
     ctx.fords.add(key)
   }
 }
@@ -852,10 +875,10 @@ export function recordBridgeSpan(
     row: spanAlongCol ? minRow : minRow + offset,
     variant: 0,
     rotation: spanAlongCol ? 0 : 1,
-    // LIFTED OUT OF THE CHANNEL. A composition normally rests on whatever fills its anchor cell, and this one
-    // is anchored over a river bed dug `channelDepth` below the banks, so resting is how a bridge ends up
-    // sunk in the water. It spans the cut rather than sitting in it, so it is raised by exactly what was dug.
-    lift: channelDepth(ctx),
+    // AT THE LEVEL OF ITS BANKS, stated rather than stacked. A composition normally rests on whatever fills
+    // its anchor cell; this one is anchored over a river bed, and what is in that cell has nothing to do with
+    // where a bridge belongs. The banks are the walking floor, which is level 0.
+    baseLevel: 0,
   })
 }
 
