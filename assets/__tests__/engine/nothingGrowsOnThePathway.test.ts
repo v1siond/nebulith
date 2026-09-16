@@ -38,10 +38,25 @@ function build(layout: string, seed: number): StageData {
   } finally { Math.random = orig }
 }
 
-/** The way cells that are genuinely inside the map, which is where the rule applies. */
+/**
+ * The way cells that are genuinely inside the map, which is where the rule applies.
+ *
+ * THE WAY THE MAP BUILT, not the way it planned. This read `routes.cells`, the planned centreline, and the two
+ * are different sets in both directions: the built way is WIDER than its centreline, so the plan missed most
+ * of it, and a planned cell the map declined to build is not a way at all. The second half is what a river
+ * makes true. A route is planned on dry ground and the water is carved over it, and where a crossing turns out
+ * to be a second way to somewhere already reachable the map leaves it as open river. A puddle lying in that
+ * river is water, not something growing in a path.
+ *
+ * `pathways` is the map's own answer and it is the stricter one: measured on these seeds, 207 built cells
+ * against 173 planned on a woodland.
+ */
 function insideWay(s: StageData): Set<string> {
+  const built = s.pathways ?? s.routes!.cells
+  // Never let this go quiet. An empty set would pass every assertion below without checking anything.
+  expect(built.size).toBeGreaterThan(0)
   const out = new Set<string>()
-  for (const key of s.routes!.cells) {
+  for (const key of built) {
     const [col, row] = key.split(',').map(Number)
     if (Math.min(col, row, s.cols - 1 - col, s.rows - 1 - row) < BAND) continue
     out.add(key)

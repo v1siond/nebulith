@@ -2061,6 +2061,15 @@ function bridgeRiver(ctx: ArchetypeContext, water: Set<string>, routes: Set<stri
   fellLogsAcross(ctx, water, pal, course === 'divides' ? [0.5] : [0.3, 0.7])
 }
 
+/** Every cell the route network PROMISES you can reach: the mouths of its ways out, and the stops where a
+ *  path ends on purpose. A crossing carrying one of these is never the redundant one. */
+function promisedCells(plan: RoutePlan, gateLanes: ReadonlySet<string>): Set<string> {
+  const out = new Set<string>(gateLanes)
+  for (const stop of plan.deadEnds) out.add(`${stop.col},${stop.row}`)
+  for (const gate of plan.gates) for (const cell of gate.cells) out.add(`${cell.col},${cell.row}`)
+  return out
+}
+
 /** Forest layout builders, keyed by the user-steered ForestLayout. Each runs on the already-floored ctx
  *  and is fully responsible for the floor gradient / trees / river / ornaments / repair.
  *  Open/Closed: register a layout here, no dispatcher edits. */
@@ -3101,7 +3110,7 @@ const woodlandPhases: VariantPhases = {
 
     // AND PLANK IT where the river runs across it. After the paving, never before: the paving skips water, so
     // a deck laid first would be paved straight back over.
-    if (ctx.routes) deckRoutes(ctx, ctx.routes, ctx.water, wayTone(ctx))
+    if (ctx.routes) deckRoutes(ctx, ctx.routes, ctx.water, wayTone(ctx), ctx.pathwayCells)
   },
 
   objects: ctx => {
@@ -3330,7 +3339,10 @@ const junglePhases: VariantPhases = {
     clearMeadowCells(ctx, gateLanes)
     for (const key of gateLanes) { ctx.claimed.add(key); ctx.pathwayCells.add(key) }
     tintCells(ctx, gateLanes, wayTone(ctx))
-    deckRoutes(ctx, ctx.routes, ctx.water, wayTone(ctx))
+    // THE GATE LANES AND THE STOPS ARE WHAT THE NETWORK PROMISES. A lane is the way OUT and a stop is where a
+    // path ends on purpose, so neither is ever the spare crossing: dropping one left a gate you could stand on
+    // and could not walk to, and a stop the planner had put in the river.
+    deckRoutes(ctx, ctx.routes, ctx.water, wayTone(ctx), ctx.pathwayCells, promisedCells(ctx.routes, gateLanes))
   },
 
   objects: ctx => {

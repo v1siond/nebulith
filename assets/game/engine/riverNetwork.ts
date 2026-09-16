@@ -650,10 +650,39 @@ export function layDeck(ctx: RiverDeck, deck: Set<string>, tone: string | undefi
  * leave a way out that nobody can use (measured: three jungle seeds in eight). Every planned cell that came out
  * wet gets a deck, which is the same crossing the map uses everywhere else, so it wears the served kind too.
  */
-export function deckRoutes(ctx: RiverDeck, plan: RoutePlan, water: ReadonlySet<string>, tone: string | undefined): void {
+export function deckRoutes(
+  ctx: RiverDeck,
+  plan: RoutePlan,
+  water: ReadonlySet<string>,
+  tone: string | undefined,
+  network?: Set<string>,
+  required?: ReadonlySet<string>,
+): void {
+  // The cells the layout actually CUT as a way, and the planned centreline for a layout that records none.
+  // The same rule `pavableLane` uses, because it has to be the same answer: what gets decked and what gets
+  // paved are two halves of one way. A layout that records its network is narrowed IN PLACE, so a cell that
+  // stops being a crossing stops being a way, and every later pass sees open river rather than a path.
+  const cut = network && network.size > 0 ? network : new Set(plan.cells)
+  // NARROW IT TO THE CROSSINGS FIRST, which is what `narrowPathwaysToCrossings` was written for and what
+  // nothing called. Every wet cell of the route plan was planked, so a way that ran along the channel came out
+  // as a plank road down the middle of the river, and a network that crossed the same river three times got
+  // three separate decks joining the same two banks. Measured on a woodland: 85 deck cells in 3 runs.
+  //
+  // It is given the WHOLE network on purpose. Deciding whether a crossing can go means asking whether the way
+  // survives without it, and a set holding only the wet cells cannot answer that.
+  narrowPathwaysToCrossings(ctx, cut, water, required)
   const wet = new Set<string>()
-  for (const key of plan.cells) if (water.has(key)) wet.add(key)
-  if (wet.size > 0) layDeck(ctx, wet, tone)
+  for (const key of cut) if (water.has(key)) wet.add(key)
+  // AND A PROMISED DESTINATION IS ALWAYS STANDABLE. A route plan is laid on dry ground and the water is
+  // carved over it, so a gate mouth or a dead-end stop can end up inside the channel. The narrowing is right
+  // to refuse it a crossing (it touches one bank, which is a spur into the river rather than a way over it)
+  // and the cell still has to be reachable, because the network promises you can get there.
+  //
+  // This is the cell itself, not a stretch: one plank to stand on where the planner put the end of a path in
+  // the water. The planner placing it on dry ground instead is the better fix and it is a different layer.
+  for (const key of required ?? []) if (water.has(key)) wet.add(key)
+  if (wet.size === 0) return
+  layDeck(ctx, wet, tone)
 }
 
 /**
@@ -1222,46 +1251,56 @@ function widenAcross(
  *   · a stretch that touches TWO OR MORE banks keeps the shortest line through it to each further bank, one
  *     cell either side so you are not walking a tightrope. Everything else goes.
  *
- * Connectivity is kept BY CONSTRUCTION: every bank the network reached through the water it still reaches,
- * along the shortest path there was. Nothing downstream changes, the paving and the decking simply see a
- * network that no longer runs down the river.
+ * AND ONE CROSSING PER PAIR OF BANKS, not one per place the network happens to get wet.
+ *
+ * A route network planned on dry ground can wander over the same river three times, and each wet stretch was
+ * narrowed and kept on its own, so a map came out with three separate crossings joining the same two pieces of
+ * land. Two of them join nothing that is not already joined: they are structures standing in the water for no
+ * reason, and they are what reads as a landscape littered with bridges.
+ *
+ * So the stretches are considered NARROWEST FIRST and a crossing is kept only when it joins two banks that
+ * nothing has joined yet. On a river that cuts the map in two that is exactly one crossing. A river that forks
+ * into three pieces gets two, because one is genuinely not enough, and a stretch that leaves one bank and
+ * returns to it still goes entirely.
+ *
+ * Connectivity is kept BY CONSTRUCTION, and more tightly than before: a bank is a connected component of dry
+ * land, so a spanning forest over those components reaches every one of them. What is dropped is only ever a
+ * second way to somewhere already reachable.
  */
 export function narrowPathwaysToCrossings(
   bounds: RiverBounds,
   pathways: Set<string>,
   water: ReadonlySet<string>,
+  required: ReadonlySet<string> = new Set(),
 ): number {
   if (water.size === 0) return 0
   const banks = bankLabels(bounds, water)
   let dropped = 0
-  for (const stretch of wetStretches(pathways, water)) {
-    const shores = shoresOf(stretch, banks)
-    const keep = new Set<string>()
-    const reached = [...shores.keys()]
-    // The FIRST bank is the near side. A crossing is kept to each of the others, so a stretch that happens to
-    // touch three banks does not silently lose one of them.
-    for (let i = 1; i < reached.length; i++) {
-      const near = shores.get(reached[0]) as string[]
-      const run = straightThrough(stretch, near, reached[i], banks)
-      if (run) {
-        for (const key of widenAcross(run.cells, run.step, stretch, bounds, CROSSING_ROWS)) keep.add(key)
-        continue
+  // WIDEST FIRST, AND REQUIRED LAST. The question asked of each stretch is whether the network can do without
+  // it, so the biggest swallowed stretches are offered up first and a stretch carrying an exit is only ever
+  // asked once everything else has been settled around it.
+  const wet = wetStretches(pathways, water)
+    .map(stretch => ({ stretch, needed: carries(stretch, required) }))
+    .sort((a, b) => (a.needed === b.needed ? b.stretch.size - a.stretch.size : a.needed ? 1 : -1))
+  for (const { stretch, needed } of wet) {
+    // CAN THE NETWORK DO WITHOUT THIS CROSSING ENTIRELY? Asked by taking it out and counting the pieces,
+    // rather than reasoned about from the geometry. A crossing whose removal leaves the way in one piece is a
+    // SECOND way to somewhere already reachable, and a landscape littered with those is what was reported.
+    //
+    // This replaces a spanning forest over the map's BANKS, which was the near miss: a bank is every dry cell
+    // you could in principle stand on, so two crossings over the same two banks looked interchangeable when
+    // the ground between them is whatever the map grew. Undergrowth is a wall. The way is what has to survive,
+    // so the way is what gets counted.
+    if (!needed && !severs(pathways, stretch)) {
+      for (const key of stretch) {
+        pathways.delete(key)
+        dropped++
       }
-      // No straight line joins these two banks on this stretch, so there is no rectangle to put a bridge on.
-      // Take the narrow staircase instead and let it read as a ford. Keeping the WHOLE stretch here was the
-      // causeway all over again, measured as a 14-wide slab of deck on one seed.
-      const ford = shortestThrough(stretch, near, shores.get(reached[i]) as string[])
-      // The path plus the water immediately beside it, so it is walkable rather than a tightrope. One pass
-      // over the path, four looks per cell, nothing re-scanned.
-      for (const key of ford) {
-        const { col, row } = toCell(key)
-        keep.add(key)
-        for (const [dc, dr] of ORTHO) {
-          const k = cellKey(col + dc, row + dr)
-          if (stretch.has(k)) keep.add(k)
-        }
-      }
+      continue
     }
+    // It is load bearing, so it stays, narrowed to what a crossing IS. A stretch that runs along the channel
+    // is mostly plank road and only a little of it is the bit that gets you over.
+    const keep = crossingThrough(stretch, shoresOf(stretch, banks), banks, bounds)
     for (const key of stretch) {
       if (keep.has(key)) continue
       pathways.delete(key)
@@ -1269,4 +1308,81 @@ export function narrowPathwaysToCrossings(
     }
   }
   return dropped
+}
+
+/** Whether taking `stretch` out would break the network into more pieces than it is in now. */
+function severs(pathways: ReadonlySet<string>, stretch: ReadonlySet<string>): boolean {
+  const without = new Set<string>()
+  for (const key of pathways) if (!stretch.has(key)) without.add(key)
+  return pieces(without) > pieces(pathways)
+}
+
+/** How many connected pieces a set of cells is in, walking orthogonally. */
+function pieces(cells: ReadonlySet<string>): number {
+  const seen = new Set<string>()
+  let n = 0
+  for (const start of cells) {
+    if (seen.has(start)) continue
+    n++
+    const stack = [start]
+    seen.add(start)
+    while (stack.length > 0) {
+      const { col, row } = toCell(stack.pop() as string)
+      for (const [dc, dr] of ORTHO) {
+        const key = cellKey(col + dc, row + dr)
+        if (!cells.has(key) || seen.has(key)) continue
+        seen.add(key)
+        stack.push(key)
+      }
+    }
+  }
+  return n
+}
+
+/** Whether this stretch carries any cell the caller said must keep its crossing. */
+function carries(stretch: ReadonlySet<string>, required: ReadonlySet<string>): boolean {
+  for (const key of stretch) if (required.has(key)) return true
+  return false
+}
+
+/**
+ * The cells of ONE wet stretch that are worth keeping: the straight runs across it that get you to a far bank.
+ *
+ * Returns an empty set for a stretch that touches one bank or none: it leads from the shore into the water and
+ * back to the same shore, which is a paddle rather than a way.
+ */
+function crossingThrough(
+  stretch: ReadonlySet<string>,
+  shores: ReadonlyMap<number, string[]>,
+  banks: ReadonlyMap<string, number>,
+  bounds: RiverBounds,
+): Set<string> {
+  const keep = new Set<string>()
+  const reached = [...shores.keys()]
+  if (reached.length < 2) return keep
+  // The FIRST bank is the near side. A crossing is kept to each of the others, so a stretch that happens to
+  // touch three banks does not silently lose one of them.
+  const near = shores.get(reached[0]) as string[]
+  for (let i = 1; i < reached.length; i++) {
+    const run = straightThrough(stretch, near, reached[i], banks)
+    if (run) {
+      for (const key of widenAcross(run.cells, run.step, stretch, bounds, CROSSING_ROWS)) keep.add(key)
+      continue
+    }
+    // No straight line joins these two banks on this stretch, so there is no rectangle to put a bridge on.
+    // Take the narrow staircase instead and let it read as a ford. Keeping the WHOLE stretch here was the
+    // causeway all over again, measured as a 14-wide slab of deck on one seed.
+    const ford = shortestThrough(stretch, near, shores.get(reached[i]) as string[])
+    // The path plus the water immediately beside it, so it is walkable rather than a tightrope. One pass
+    // over the path, four looks per cell, nothing re-scanned.
+    for (const key of ford) {
+      const { col, row } = toCell(key)
+      keep.add(key)
+      for (const [dc, dr] of ORTHO) {
+        const k = cellKey(col + dc, row + dr)
+        if (stretch.has(k)) keep.add(k)
+      }
+    }
+  }
+  return keep
 }
