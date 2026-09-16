@@ -162,9 +162,12 @@
 
 /* ── movable modals — Alexander: "what's wrong with having separate movable
       modals ????? which I said was preferred" ─────────────────────────── */
+/* A panel is as tall as what is IN it, and stops at the room between the top bar and the view bar: the body
+   scrolls only once the content is taller than that. `--mw-cap` is measured and set by FloatingPanel, so the
+   rule lives here and the number comes from the running editor. A dragged height overrides both. */
 .neb .mw{position:fixed;z-index:200;background:var(--panel);border:1px solid var(--line2);border-radius:12px;
-  box-shadow:0 20px 60px #000c;display:flex;flex-direction:column;min-width:300px;min-height:180px;
-  max-height:86vh;overflow:hidden;font:14px/1.5 var(--sans)}
+  box-shadow:0 20px 60px #000c;display:flex;flex-direction:column;min-width:300px;
+  height:max-content;max-height:var(--mw-cap,86vh);overflow:hidden;font:14px/1.5 var(--sans)}
 .neb .mw>.bar{display:flex;align-items:center;gap:10px;padding:11px 14px;background:#0d1017;
   border-bottom:1px solid var(--line);cursor:grab;user-select:none;flex-shrink:0}
 .neb .mw>.bar:active{cursor:grabbing}
@@ -590,6 +593,13 @@
    its fixed parts exceed the height, the grid scrolls within whatever is left. */
 .neb .z-panel{overflow-y:auto}
 .neb .z-panel .pfix{flex-shrink:0}
+
+/* ── THE PANEL'S OWN ACTIONS STAY REACHABLE ────────────────────────────────
+   A panel's verb (Build this world, Apply to this map) sat under everything it acts on, so pressing it meant
+   scrolling the whole column first. `.pstick` pins that block to the top of the panel's scrollport and the
+   content passes behind it, which is why it carries the panel's own background and a rule to sit on. */
+.neb .pstick{position:sticky;top:0;z-index:4;background:var(--panel);
+  padding:2px 0 8px;margin-bottom:6px;border-bottom:1px solid var(--line)}
 
 /* The rail's bands when the zone element belongs to the caller (which owns the collapse handle). */
 .neb .railbands{display:flex;flex-direction:column;gap:5px;min-height:0;overflow-y:auto}

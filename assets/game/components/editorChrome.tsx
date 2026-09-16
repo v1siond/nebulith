@@ -16,9 +16,10 @@ import { catalogZones, categoryLayouts, findCategory, findGenerator, type Genera
 import { CELL_SIZE_MIN, atLeast, cellCount, mapSizeProblem, mapSizeValid, type MapSize } from '@/lib/mapSize'
 import { PreviewThumb, type PreviewContext } from '@/components/game/shell/PreviewThumb'
 import { subjectFor } from '@/engine/preview/previewScene'
+import type { PeekReason } from './previewOpening'
 import { SHOW_2D_VIEW, EDITOR_BANDS, EDITOR_RAIL, type RailEntry, type RailId, type EditorMode, generatorLayers, SEASON_BTN, SEASON_BTN_ACTIVE, SELECT_CLS, INPUT_CLS } from './editorConfig'
 import { COMPOSITION_CATEGORY_GLYPH, type CompositionPaletteGroup } from '@/engine/compositionCatalog'
-import { headroomFps } from '@/components/useFps'
+import { headroomFps, useFps, useRenderMs, type RenderMsProbe } from '@/components/useFps'
 import { CameraRotateButton, PlayerRangeControl } from './cameraControls'
 import { MapMatrixSection, GroundThicknessControl } from './gridPanel'
 import { HelpButton } from './editorHelp'
@@ -573,6 +574,20 @@ function previewCells(size: MapSize | undefined): { cols: number; rows: number }
 }
 
 /**
+ * What a build will produce, said next to the numbers that decide it.
+ *
+ * The promise has to stay TRUE. Building goes through clampMapSize, which holds a size inside the cap, so at
+ * 400 columns the map comes back 100 wide while a line like this would still claim 400. That silent rewrite
+ * is a bug that was hit twice, so the panel says what is wrong instead of promising a size it will not build.
+ */
+function sizePromise(draft: MapSize | undefined): string {
+  if (!draft) return 'The generator picks the size.'
+  const problem = mapSizeProblem(draft)
+  if (problem) return `${problem} Fix it and this will build exactly what you typed.`
+  return `At ${draft.cols} × ${draft.rows} cells of ${draft.cellSize}px: the numbers you typed, exactly.`
+}
+
+/**
  * A stable seed for one preset's thumbnail, from its identity rather than a counter.
  *
  * Identity, not index: a counter would give the same card a different world whenever the list reordered,
@@ -598,10 +613,8 @@ export function GenerateControls({
   onGenerate,
   onApply,
   onRandomizeLayer,
-  selectedCount = 0,
-  onRandomizeSelection,
   onPeek,
-  onOpenPreview,
+  hasPreviewWindow = false,
   sizeDraft,
   size,
   onSizeDraft,
@@ -631,22 +644,22 @@ export function GenerateControls({
   /** When provided, shows the universal "re-roll one layer" row that re-rolls a single layer of the current
    *  map (leaving the others intact). Omitted where there is no current map to scope. */
   onRandomizeLayer?: (layer: string) => void
-  /** §4.6's `RE-ROLL THE SELECTION (R)` section: re-roll just the tiles you have selected, leaving the rest
-   *  of the map alone. Omitted when nothing is selected — the action has no subject then, and §4.6 draws the
-   *  count in the label so you can see what it will touch. */
-  selectedCount?: number
-  onRandomizeSelection?: () => void
-  /** Show this preset's world in the big Preview panel — on hover, and on the click that selects it. */
-  onPeek?: (subject: { kind: 'stage' } & Record<string, unknown>) => void
   /**
-   * Put the Preview window back on screen.
+   * Show this preset's world in the big Preview panel, saying WHY it is being shown.
    *
-   * Both halves of that are this component: the options fall back INLINE
-   * when there is no `tuningSlot` to portal them into (that is the "goes inside the sidebar"), and nothing
-   * could ask for the window again, so the only way back was switching rails. Same shape as `onOpenLibrary`
-   * and the other reopen props.
+   * The reason is what decides whether the window comes back: a `pick` is a click on a card and opens it, a
+   * `hover` and the panel's own `resting` peeks only change the picture in a window that is already open.
+   * The rule itself is `shouldOpenPreviewOnPeek`, so this component never decides it.
    */
-  onOpenPreview?: () => void
+  onPeek?: (subject: { kind: 'stage' } & Record<string, unknown>, reason: PeekReason) => void
+  /**
+   * Does the page have a Preview window at all?
+   *
+   * It decides where the options live when the window is SHUT: with a window they wait for it to come back
+   * (clicking a preset brings it), and with no window at all they fall back inline, which is the only place
+   * left to draw them.
+   */
+  hasPreviewWindow?: boolean
   /** The matrix as TYPED — what this build will produce. Owned by the parent because `Build this world`
    *  and the resize button both read it. */
   sizeDraft?: MapSize
@@ -813,7 +826,7 @@ export function GenerateControls({
     if (chosen) setLayout(chosen)
     // A different preset has different subtypes and regions, so the picks below it start over.
     setPath([])
-    onPeek?.(presetSubject(key, chosen, enforceRequires(options), undefined, peekCells()))
+    onPeek?.(presetSubject(key, chosen, enforceRequires(options), undefined, peekCells()), 'pick')
   }
 
   /**
@@ -825,6 +838,18 @@ export function GenerateControls({
    */
   const selectedSubject = () =>
     activeKey === null ? null : presetSubject(activeKey, layouts.some(l => l.id === layout) ? layout ?? undefined : layouts[0]?.id, chosenOptions(), activeGenerator, peekCells())
+
+  /**
+   * A HOVER ONLY SPEAKS TO AN OPEN WINDOW.
+   *
+   * `tuningSlot` exists exactly while the Preview window is on screen, so with it shut there is nothing to
+   * repaint and the peek would still cost a world: the big preview is built at the MAP's size, and running
+   * the cursor across the cards rebuilt one per card for a picture nobody could see.
+   */
+  const peekOnHover = (subject: ReturnType<typeof presetSubject> | null) => {
+    if (!tuningSlot || !subject) return
+    onPeek?.(subject as never, 'hover')
+  }
 
   // Generating is the explicit act. A type with no layouts sends `undefined` so the category's own default
   // generator runs; otherwise the picked shape, or that type's first when the user has not chosen one.
@@ -887,7 +912,7 @@ export function GenerateControls({
   // its own instead of waiting for a hover. The other picks re-peek in their own handlers.
   useEffect(() => {
     const subject = selectedSubject()
-    if (subject) onPeek?.(subject as never)
+    if (subject) onPeek?.(subject as never, 'resting')
   }, [zone, activeKey, sizeDraft?.cols, sizeDraft?.rows, catalog]) // eslint-disable-line react-hooks/exhaustive-deps
 
   if (catalog.length === 0) {
@@ -938,7 +963,7 @@ export function GenerateControls({
               const nextPath = [...path.slice(0, level), e.target.value]
               setPath(nextPath)
                         const nextChain = walk(nextPath)
-              if (activeKey) onPeek?.(presetSubject(activeKey, layouts.some(l => l.id === layout) ? layout ?? undefined : layouts[0]?.id, enforceRequires(options), nextChain[nextChain.length - 1], peekCells()) as never)
+              if (activeKey) onPeek?.(presetSubject(activeKey, layouts.some(l => l.id === layout) ? layout ?? undefined : layouts[0]?.id, enforceRequires(options), nextChain[nextChain.length - 1], peekCells()) as never, 'resting')
             }}
           >
             <option value="">{`${node.name} (standard)`}</option>
@@ -960,7 +985,7 @@ export function GenerateControls({
             const set = (value: GeneratorOptionValue) => {
               const next = { ...options, [opt.key]: value }
               setOptions(next)
-              if (activeKey) onPeek?.(presetSubject(activeKey, layouts.some(l => l.id === layout) ? layout ?? undefined : layouts[0]?.id, enforceRequires(next), activeGenerator, peekCells()) as never)
+              if (activeKey) onPeek?.(presetSubject(activeKey, layouts.some(l => l.id === layout) ? layout ?? undefined : layouts[0]?.id, enforceRequires(next), activeGenerator, peekCells()) as never, 'resting')
             }
             return (
               <label key={opt.key} className="ctl" style={blocked ? { opacity: 0.45 } : undefined}>
@@ -996,21 +1021,32 @@ export function GenerateControls({
           </div>
         </>
       )}
-
-      {/* HOW BIG — back inside this panel. The thickness is deliberately NOT here: it rebuilds nothing, so it lives
-          in the view bar with the camera controls. */}
+    </>
+  )
+  /**
+   * HOW BIG, and it reads FIRST: the size is what you decide before anything else, so it sits above the
+   * preset cards instead of under every option the way it did.
+   *
+   * The thickness is deliberately NOT here: it rebuilds nothing, so it lives in the view bar with the camera
+   * controls.
+   */
+  const sizeSection = (
+    <>
       {size && onSizeDraft && onResize && sizeDraft && (
         <>
           <div className="sub">Size</div>
           <MapMatrixSection draft={sizeDraft} size={size} onDraft={onSizeDraft} onResize={onResize} />
         </>
       )}
+      <div className="hint">{sizePromise(sizeDraft)}</div>
     </>
   )
   const building = (
-    <>
-      {/* THE EXPLICIT ACT, LAST.
-          Until it is clicked nothing above has touched the open map. */}
+    <div className="pstick">
+      {/* THE EXPLICIT ACT, PINNED TO THE TOP OF THE PANEL.
+          It used to sit under the cards, the options and the size, so using it meant scrolling the whole
+          column to reach it. Nothing else changed about it: until it is clicked, nothing in this panel has
+          touched the open map. */}
       <button
         type="button"
         onClick={() => { void generate() }}
@@ -1018,15 +1054,10 @@ export function GenerateControls({
         aria-busy={buildingWorld}
         title={`Build a ${zone} ${typeLabel.toLowerCase()}${sizeDraft ? ` at ${sizeDraft.cols} × ${sizeDraft.rows}` : ''}. This replaces the open map`}
         className="b pri"
-        style={{ width: '100%', margin: '16px 0 4px', padding: 13, fontSize: 15, justifyContent: 'center' }}
+        style={{ width: '100%', margin: '0 0 4px', padding: 13, fontSize: 15, justifyContent: 'center' }}
       >
         {buildingWorld ? 'Building this world…' : '⚡ Build this world'}
       </button>
-      {buildError && (
-        <div className="hint" role="alert" style={{ color: 'var(--bad)', marginTop: 6 }}>
-          This world could not be built: {buildError}
-        </div>
-      )}
       {/* THE SAME MAP, WITH THE CHANGE IN IT. Build rolls a new world; this keeps the one on screen and only moves
           what you changed, because every seed is kept. */}
       {onApply && (
@@ -1040,22 +1071,15 @@ export function GenerateControls({
           ✓ Apply to this map
         </button>
       )}
-      <div className="hint">
-        {/* "the numbers above, exactly" has to stay TRUE. Building goes through clampMapSize, which holds a size
-            inside the cap, so at 400 columns the map would come back 100 wide while this line claimed 400. That
-            silent rewrite is the exact bug hit twice (), so the panel says what is wrong instead of
-            promising a size it will not build. */}
-        {!sizeDraft
-          ? 'The generator picks the size.'
-          : mapSizeProblem(sizeDraft)
-            ? `${mapSizeProblem(sizeDraft)} Fix it above and this will build exactly what you typed.`
-            : `At ${sizeDraft.cols} × ${sizeDraft.rows} cells of ${sizeDraft.cellSize}px: the numbers above, exactly.`}
-      </div>
-    </>
+      {buildError && (
+        <div className="hint" role="alert" style={{ color: 'var(--bad)', marginTop: 6 }}>
+          This world could not be built: {buildError}
+        </div>
+      )}
+    </div>
   )
 
-  // REBUILD ONE LAYER, and re-roll a selection: both shape the world rather than pick the place, so both sit
-  // on the right with the options.
+  // REBUILD ONE LAYER: it shapes the world rather than picks the place, so it sits with the options.
   const layers = onRandomizeLayer && (
     <>
       {/* Change ONE layer: the same five parts on every kind of place. Named LAYERS for what it is, rather
@@ -1076,27 +1100,15 @@ export function GenerateControls({
       <div className="hint">Everything else stays exactly as it is. “Build this world” rebuilds all of it.</div>
     </>
   )
-  // The third scope: the whole map, one layer, or just what you picked.
-  const randomize = onRandomizeSelection && (
-    <>
-      <div className="sub">Randomize</div>
-      <button
-        type="button"
-        onClick={onRandomizeSelection}
-        disabled={selectedCount === 0}
-        className="b sm"
-        style={{ width: '100%', justifyContent: 'center' }}
-      >
-        {`🎲 Randomize ${selectedCount > 0 ? `${selectedCount} selected tile${selectedCount === 1 ? '' : 's'}` : 'the selection'} (R)`}
-      </button>
-      {/* A missing prerequisite is OFFERED, never enforced by a bare disabled control. */}
-      {selectedCount === 0 && <div className="hint">Select some cells on the map first. Shift-drag picks several.</div>}
-    </>
-  )
-
   return (
-    <div className="pfix" style={{ overflowY: 'auto' }}>
+    // No scroll box of its own: the sticky build actions resolve against the PANEL's scrollport, and an
+    // overflow ancestor here would pin them to a box that never scrolls, which is the same as not pinning.
+    <div className="pfix">
+      {building}
       <div className="hint">Builds a whole level from a preset. Replaces whatever is on this level now.</div>
+
+      {/* THE SIZE, before anything that is picked for it. */}
+      {sizeSection}
 
       {/* A selectable LIST, not a grid of pills. Each row carries how many shapes it offers, which is the
           information that makes the row worth clicking. */}
@@ -1130,8 +1142,8 @@ export function GenerateControls({
           <div className="pgrid">
             {presets.map(({ id, label }) => (
               <button
-                onPointerEnter={() => activeKey && onPeek?.(presetSubject(activeKey, id, chosenOptions(), undefined, peekCells()))}
-                onPointerLeave={() => onPeek?.(selectedSubject() as never)}
+                onPointerEnter={() => peekOnHover(activeKey === null ? null : presetSubject(activeKey, id, chosenOptions(), undefined, peekCells()))}
+                onPointerLeave={() => peekOnHover(selectedSubject())}
                 key={id ?? `${activeKey}-default`}
                 type="button"
                 onClick={() => select(activeKey as string, id)}
@@ -1167,28 +1179,12 @@ export function GenerateControls({
         </>
       )}
 
-      {/* THE WAY BACK OUT, shown exactly when the options have fallen back into the sidebar. It emits a PEEK
-          as well as opening: the window is gated on having something to show, so opening alone would leave it
-          shut and the button looking broken. Disabled with nothing picked, because then there is no world to
-          draw. */}
-      {!tuningSlot && onOpenPreview && (
-        <button
-          type="button"
-          className="b sm"
-          disabled={activeKey === null}
-          title="Show the Preview window again, with these options in it"
-          onClick={() => { onPeek?.(selectedSubject() as never); onOpenPreview() }}
-        >
-          ◰ Preview window
-        </button>
-      )}
-      {/* THE OPTIONS LIVE IN THE WINDOW. They fell back inline whenever there was no slot, which is right when the
-          page cannot show a window at all, and wrong when you just closed one: closing moved the controls instead
-          of closing. With `onOpenPreview` the page HAS a window, so the fallback is off and the button above is the
-          way back. */}
-      {!tuningSlot && !onOpenPreview && <>{season}{tuning}{layers}{randomize}</>}
-      {building}
-      {tuningSlot && createPortal(<>{sizeLine}{season}{tuning}{layers}{randomize}</>, tuningSlot)}
+      {/* THE OPTIONS LIVE IN THE WINDOW. They fall back inline only where the page cannot show a window at all;
+          closing one must close it, not move its controls into the sidebar. The way back is the card: clicking a
+          preset is a PICK, and a pick reopens the window. There is no reopen button, and there was one at the
+          foot of the sidebar, which is the far end of the scroll from the card you just clicked. */}
+      {!tuningSlot && !hasPreviewWindow && <>{season}{tuning}{layers}</>}
+      {tuningSlot && createPortal(<>{sizeLine}{season}{tuning}{layers}</>, tuningSlot)}
     </div>
   )
 }
@@ -1823,7 +1819,8 @@ export { ArtSection, WEAPON_KINDS, PoseControls, TileControls, PropertiesPanel, 
 const fpsColor = (v: number) => (v >= 55 ? '#22c55e' : v >= 45 ? '#eab308' : v >= 30 ? '#f97316' : '#ef4444')
 
 /** Compact FPS readout (#86). `variant='nav'` = an inline pill for the editor top bar (edit/show);
- *  `variant='floating'` = a fixed corner box for play mode. One upstream `useFps()` feeds both. */
+ *  `variant='floating'` = a fixed corner box for play mode. Presentational: it is GIVEN the numbers, and
+ *  {@link LiveFpsReadout} is the one that samples them. */
 export function FpsReadout({ fps, renderMs = 0, variant }: { fps: number; renderMs?: number; variant: 'nav' | 'floating' }) {
   // The frame rate is CAPPED by the monitor (rAF = display refresh), so it flatlines at 60 on a 60Hz screen
   // and hides whether the engine has room to spare. The per-frame cost does not lie — show it, and the rate
@@ -1847,6 +1844,21 @@ export function FpsReadout({ fps, renderMs = 0, variant }: { fps: number; render
     return <div className="fixed right-4 top-4 z-30 rounded-lg border border-white/10 bg-black/80 px-3 py-1.5 shadow-lg">{body}</div>
   }
   return <span className="shrink-0 rounded bg-white/5 px-2 py-1">{body}</span>
+}
+
+/**
+ * THE READOUT SAMPLES ITSELF.
+ *
+ * `useFps` sets state once a second and `useRenderMs` twice, so wherever those hooks live is re-rendered
+ * three times a second for a number nothing else reads. They lived in the page component that draws the whole
+ * editor, and one of its renders is tens of milliseconds, which is a permanent tax on every frame the editor
+ * is visible and on nothing else.
+ *
+ * Sampling HERE keeps those three updates inside this pill. The presentational {@link FpsReadout} stays
+ * injectable, which is how its numbers are tested.
+ */
+export function LiveFpsReadout({ variant, probe }: { variant: 'nav' | 'floating'; probe: RenderMsProbe }) {
+  return <FpsReadout fps={useFps()} renderMs={useRenderMs(probe)} variant={variant} />
 }
 
 // ── Inspector selection placeholder (stage B builds the real morph) ──
@@ -2017,7 +2029,6 @@ export function ViewBar({
   showDebug, onDebug,
   showCollisions, onCollisions,
   hideEntities, onHideEntities,
-  fps, renderMs,
   onHelp,
   onGuides,
   zoomPct,
@@ -2050,8 +2061,6 @@ export function ViewBar({
   onCollisions: () => void
   hideEntities: boolean
   onHideEntities: () => void
-  fps: number
-  renderMs: number
   onHelp: () => void
   /** Open the step-by-step guides. Its own button beside Help, because "what does this key do" and "how do I build a
    *  level" are different questions and burying one inside the other is how this went missing. */
@@ -2160,7 +2169,8 @@ export function ViewBar({
       {/* 🎨 Style is NOT here — it is so it is a rail entry (`artstyle`) with its own panel. */}
 
       <span className="ml-auto flex shrink-0 items-center gap-2">
-        <FpsReadout fps={fps} renderMs={renderMs} variant="nav" />
+        {/* The bar already knows which view is drawing, which is the only thing the sampler needs. */}
+        <LiveFpsReadout variant="nav" probe={activeView === '2d' ? '__2dRenderMs' : '__isoRenderMs'} />
         <button
           type="button"
           className="b sm"

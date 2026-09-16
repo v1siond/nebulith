@@ -63,12 +63,24 @@ type FloatingPanelProps = {
 }
 
 /**
+ * The size a panel opens at: a remembered one, else the caller's WIDTH with no height.
+ *
+ * A default carries no height any more. A panel grows to its content (`h: 0` says so), and the only height
+ * worth restoring is one the person dragged the grip to.
+ */
+function openingSize(remembered: PanelGeometry | undefined, def: { w: number } | undefined): { w: number; h: number } | undefined {
+  if (remembered) return { w: remembered.w, h: remembered.h }
+  if (def) return { w: def.w, h: 0 }
+  return undefined
+}
+
+/**
  * Restores + persists each floating panel's position/size via nebulith (the backend owns it — geometry is
  * never hardcoded in the frontend). Loads the whole map once on mount; the returned `floatingProps(key, def)`
  * yields the FloatingPanel props for one panel and debounces a save on every move/resize END.
  * Lifted verbatim out of TemplateEditor.
  */
-export function useFloatingPanels(): (key: string, def?: { w: number; h: number }) => FloatingPanelProps {
+export function useFloatingPanels(): (key: string, def?: { w: number }) => FloatingPanelProps {
   const [panelGeo, setPanelGeo] = useState<EditorSettings>({})
   const panelGeoTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({})
   useEffect(() => { getEditorSettings().then(setPanelGeo).catch(err => console.warn('Failed to load editor settings', err)) }, [])
@@ -77,11 +89,11 @@ export function useFloatingPanels(): (key: string, def?: { w: number; h: number 
     clearTimeout(panelGeoTimers.current[key])
     panelGeoTimers.current[key] = setTimeout(() => { void saveEditorSetting(key, geometry).catch(err => console.warn('Failed to save editor setting', key, err)) }, 350)
   }, [])
-  return useCallback((key: string, def?: { w: number; h: number }): FloatingPanelProps => {
+  return useCallback((key: string, def?: { w: number }): FloatingPanelProps => {
     const g = readGeometrySetting(panelGeo, key) // a malformed row must not place a panel off-screen
     return {
       initialPos: g ? { x: g.x, y: g.y } : undefined,
-      initialSize: g ? { w: g.w, h: g.h } : def,
+      initialSize: openingSize(g, def),
       onGeometryChange: (geometry: PanelGeometry) => savePanelGeo(key, geometry),
     }
   }, [panelGeo, savePanelGeo])

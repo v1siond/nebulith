@@ -77,7 +77,7 @@ export function applyStageToGrid(stage: StageData, grid: IsometricGrid, building
     const propLift = cellStackTop(grid, a.col, a.row)
     // Per-instance render for standing props (a flower = single billboard, height 1) — the SAME override the
     // SAVE path (stageToTemplate) writes, so live + saved/loaded match. Spreads height + settings.display.
-    grid.placeAsset([a.char], a.col, a.row, { type: a.type, blocking: a.blocking, color: a.color, label: a.label, baseShadow: a.baseShadow, buildingType: a.buildingType, edge: a.edge, footprint: a.footprint, cellPart: a.label, tileOverride: override, heightLevel: propLift, ...generatedPropRender(a.type) })
+    grid.placeAsset([a.char], a.col, a.row, { type: a.type, blocking: a.blocking, color: a.color, label: a.label, baseShadow: a.baseShadow, buildingType: a.buildingType, edge: a.edge, footprint: a.footprint, cellPart: a.label, tileOverride: override, heightLevel: propLift, ...generatedPropRender(a.type, a.label) })
   }
   // Mirror the generator's authoritative collision into the grid so trees/water/
   // features are truly blocked — enemies (manual placement + scatter) only land on

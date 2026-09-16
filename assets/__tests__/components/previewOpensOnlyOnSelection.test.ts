@@ -8,7 +8,7 @@
  * opened the window on every rail change, and an effect FIRES ON MOUNT, so the first frame of a fresh editor
  * opened it over the map with nothing picked. These cases pin the sentence instead of the effects.
  */
-import { armedSubject, hasArmedSelection, shouldOpenPreview } from '@/components/game/previewOpening'
+import { armedSubject, hasArmedSelection, shouldOpenPreview, shouldOpenPreviewOnPeek } from '@/components/game/previewOpening'
 
 const NOTHING = { buildingTool: null, armedTileId: null, unitTileId: null }
 
@@ -52,5 +52,35 @@ describe('something is selected', () => {
       expect(shouldOpenPreview({ armedTileId: 'grass' })).toBe(true)
       expect(armedSubject(rail, { armedTileId: 'grass' })).toContain(rail)
     }
+  })
+})
+
+/**
+ * THE NEW WORLD PANEL ARMS NOTHING, so its window opens on the PICK itself.
+ *
+ * The reopen button at the foot of the sidebar is gone: clicking a preset shows the window, and clicking the
+ * same preset after closing it shows it again. That is why the rule reads the REASON for a peek rather than a
+ * change of subject, and why a hover still cannot open anything.
+ */
+describe('a peek opens the window only when it is a pick', () => {
+  it('a pick opens it', () => {
+    expect(shouldOpenPreviewOnPeek('pick')).toBe(true)
+  })
+
+  it('the same pick twice opens it both times, which is what replaced the button', () => {
+    expect([shouldOpenPreviewOnPeek('pick'), shouldOpenPreviewOnPeek('pick')]).toEqual([true, true])
+  })
+
+  it('a hover does not, so crossing the cards never reopens a window you shut', () => {
+    expect(shouldOpenPreviewOnPeek('hover')).toBe(false)
+  })
+
+  it('and neither does the resting peek, which is the one that fires on MOUNT', () => {
+    expect(shouldOpenPreviewOnPeek('resting')).toBe(false)
+  })
+
+  it('arming nothing still opens nothing: the two rules are independent', () => {
+    expect(shouldOpenPreview(NOTHING)).toBe(false)
+    expect(shouldOpenPreviewOnPeek('resting')).toBe(false)
   })
 })

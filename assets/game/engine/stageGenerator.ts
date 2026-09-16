@@ -493,14 +493,27 @@ export const GENERATED_PROP_RENDER: Readonly<Record<string, { height?: number; d
   ground_decor: { height: 1, display: 'single', transparent: true, scale: 0.85 },
 }
 
+/** Does the backend state a height for this label? Then nothing here may stamp one over it. */
+function servesOwnHeight(label: string | undefined): boolean {
+  if (!label) return false
+  const tile = styleTile('ascii', label) ?? styleTile('emoji', label)
+  return typeof (tile as { height?: number } | undefined)?.height === 'number'
+}
+
 /** The GridAsset overrides (`height` + `scale` + `settings`) a generated prop of `type` carries — ONE source BOTH
  *  the live grid (applyStageToGrid) and the saved payload (stageToTemplate) apply, so the two paths never diverge.
  *  Returns {} for a type with no override (the default tile-driven flat render). */
-export function generatedPropRender(type: string): { height?: number; scale?: number; settings?: { display?: TileDisplay; transparent?: boolean } } {
+export function generatedPropRender(type: string, label?: string): { height?: number; scale?: number; settings?: { display?: TileDisplay; transparent?: boolean } } {
   const o = GENERATED_PROP_RENDER[type]
   if (!o) return {}
   const out: { height?: number; scale?: number; settings?: { display?: TileDisplay; transparent?: boolean } } = {}
-  if (o.height !== undefined) out.height = o.height
+  // THE BACKEND'S HEIGHT WINS WHERE THE BACKEND STATES ONE.
+  //
+  // This stamped `height: 1` onto every ground decor, and `resolveTileHeight` takes the ASSET's height over
+  // the TILE's, so a served height was overridden by a constant in this file. `water_still` is served at 0.05
+  // with `stackAt: 0` and a 0.72 opacity, which is a thin translucent film lying on the floor, and it was
+  // drawn as a block a full cell tall. A puddle is a data question and the data already answered it.
+  if (o.height !== undefined && !servesOwnHeight(label)) out.height = o.height
   if (o.scale !== undefined) out.scale = o.scale
   const settings: { display?: TileDisplay; transparent?: boolean } = {}
   if (o.display !== undefined) settings.display = o.display
@@ -6510,7 +6523,7 @@ export function stageToTemplate(stage: StageData, name: string): StageTemplatePa
     tileOverride: stagePropTileOverride(stage.zone, a.type),
     // Per-instance render for standing props (a flower = single billboard, height 1) — the SAME override the
     // live grid applies, so save/load matches. Spreads height + settings.display when the type has one.
-    ...generatedPropRender(a.type),
+    ...generatedPropRender(a.type, a.label),
   }))
 
   // TREES, BUILDINGS and DECOR (the plaza centrepiece + the street lamps) are all recorded as composition

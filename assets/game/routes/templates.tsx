@@ -95,9 +95,8 @@ import { applyStageToGrid } from '@/game/editor/applyStage'
 import { makeRng } from '@/lib/math'
 import { RulesWorkspace } from '@/components/game/rulesWorkspace'
 import { connectionRows, questBlockedReason, questRows, triggerBlockedReason, triggerRows, type RulesTabId } from '@/game/editor/rulesWorkspace'
-import { CompositionPalette, Dropdown, UnitPlacementBody, FpsReadout, GenerateControls, PoseControls, PropertiesPanel, type TileControlModel, SelectionHeader, StylePicker, TileAnimationEditor, TileLibraryBody, TilePalette, ToolRail, TriggerEditor, UnitPicker, WEAPON_KINDS, ViewBar } from '@/components/game/editorChrome'
+import { CompositionPalette, Dropdown, UnitPlacementBody, LiveFpsReadout, GenerateControls, PoseControls, PropertiesPanel, type TileControlModel, SelectionHeader, StylePicker, TileAnimationEditor, TileLibraryBody, TilePalette, ToolRail, TriggerEditor, UnitPicker, WEAPON_KINDS, ViewBar } from '@/components/game/editorChrome'
 import type { Animation as TileAnim } from '@/engine/animation/tileAnimation'
-import { useFps, useRenderMs } from '@/components/useFps'
 import { commonValue, commonBool, cellsFromKeys, removeSelectedBlock, resolveSelectionTargets } from '@/game/editor/selectionEdit'
 import { editMap } from '@/game/editor/mapEdit'
 import { applyRectSelection, applyCellSelection, blockKeyForPick } from '@/game/editor/selection'
@@ -121,7 +120,7 @@ import { CharacterPanel } from '@/components/game/shell/CharacterPanel'
 import { SwapTilePanel } from '@/components/game/shell/SwapTilePanel'
 import { NO_ZONES_SHUT, ZoneCollapse, zoneClasses, type EditorZoneId, type EditorZoneShut } from '@/components/game/shell/ZoneCollapse'
 import { HudOverlay, PlayerUiPanel, useHudLayout } from '@/components/game/shell/PlayerUiPanel'
-import { armedSubject, shouldOpenPreview } from '@/components/game/previewOpening'
+import { armedSubject, shouldOpenPreview, shouldOpenPreviewOnPeek } from '@/components/game/previewOpening'
 import { connectorEditFromSelection } from '@/game/editor/connectors'
 import { useEditorHistory } from '@/game/editor/useEditorHistory'
 import { spawnInMainArea } from '@/game/runtime/spawn'
@@ -674,10 +673,9 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
   const [playMode, setPlayMode] = useState(false)
   const playModeRef = useRef(false) // live playMode for the raf render loop (mirrors activeStyleRef)
   useEffect(() => { playModeRef.current = playMode }, [playMode])
-  const fps = useFps() // #86 — one sampler feeds the nav readout (edit/show) + the play-mode floating box
-  // rAF (and therefore `fps`) is capped by the display refresh — 60 on a 60Hz screen no matter how much
-  // headroom the engine has. The active view's per-frame COST is the number that shows real performance.
-  const renderMs = useRenderMs(viewType === '2d' ? '__2dRenderMs' : '__isoRenderMs')
+  // The frame rate and the per-frame cost are SAMPLED BY THE READOUT (`LiveFpsReadout`), not here: those two
+  // hooks set state three times a second, and from this component that meant re-rendering the whole editor
+  // three times a second for a number only the pill reads.
   // TILESET LOADING GATE — the frontend ships NO bundled tile data, so the map cannot be drawn until the
   // backend tileset is installed. `tilesetReady` gates the RAF render (via tilesetReadyRef) AND the canvas
   // overlay below: until it flips true we show a loader (never a frontend-tile flash); on an empty/failed
@@ -1129,8 +1127,8 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
   // blocks (name, size, the stat grid, the figure picker with its search), so at everyone else's 330x380 the
   // figure fell off the bottom and the stat fields were squeezed to slivers. Only the default differs —
   // every panel is still freely resizable and remembers where it was left.
-  const SECTION_SIZE: Partial<Record<InspectorSectionId, { w: number; h: number }>> = {
-    identity: { w: 420, h: 640 },
+  const SECTION_SIZE: Partial<Record<InspectorSectionId, { w: number }>> = {
+    identity: { w: 420 },
   }
   const presentInspectorSection: SectionPresenter = (id, title, body, onClose) => (
     <FloatingPanel
@@ -1139,7 +1137,7 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
       accent="cyan"
       openBeside=".z-insp"
       onClose={onClose}
-      {...floatingProps(`inspector.panel.${id}`, SECTION_SIZE[id] ?? { w: 330, h: 380 })}
+      {...floatingProps(`inspector.panel.${id}`, SECTION_SIZE[id] ?? { w: 330 })}
     >
       {body}
     </FloatingPanel>
@@ -5344,7 +5342,7 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
               title="This level"
               accent="cyan"
               onClose={() => setLevelMapBig(false)}
-              {...floatingProps('levelMap', { w: 620, h: 560 })}
+              {...floatingProps('levelMap', { w: 620 })}
             >
               <LevelMinimap
                 big
@@ -5424,8 +5422,6 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
             onCollisions={toggleCollisions}
             hideEntities={hideEntities}
             onHideEntities={() => setHideEntities(h => !h)}
-            fps={fps}
-            renderMs={renderMs}
             onHelp={() => setHelpOpen(true)}
             onGuides={() => setGuidesOpen(true)}
             zoomPct={zoomPct}
@@ -5741,7 +5737,7 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
             ⨯ Exit Game
           </button>
         )}
-        {playMode && <FpsReadout fps={fps} renderMs={renderMs} variant="floating" />}
+        {playMode && <LiveFpsReadout variant="floating" probe={viewType === '2d' ? '__2dRenderMs' : '__isoRenderMs'} />}
 
         {/* LEFT — tool-rail: the editor modes (Select / Paint / Unit / Building / Connector) */}
         {isChromeVisible && (
@@ -5894,10 +5890,14 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
                   }
                   onApply={(z, options) => { void applyToCurrentMap(z as ZoneId, options) }}
                   onRandomizeLayer={layer => randomizeLayerInEditor(layer as LayerId)}
-                  selectedCount={selectedCells.size}
-                  onRandomizeSelection={randomizeSelected}
-                  onPeek={next => setGenPeek((next ?? null) as ReturnType<typeof subjectFor>)}
-                  onOpenPreview={() => setPreviewOpen(true)}
+                  // A PICK is what brings the window back: clicking a preset shows it, closing it and
+                  // clicking the preset again shows it again. The rule lives in `previewOpening`, with the
+                  // one that keeps it shut while nothing is selected.
+                  onPeek={(next, reason) => {
+                    setGenPeek((next ?? null) as ReturnType<typeof subjectFor>)
+                    if (shouldOpenPreviewOnPeek(reason)) setPreviewOpen(true)
+                  }}
+                  hasPreviewWindow
                   sizeDraft={gridDraft}
                   size={gridSize}
                   onSizeDraft={next => setGridDraft(prev => ({ ...prev, ...next }))}
@@ -6144,7 +6144,7 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
                         `animations` when a unit predates the field); on change we write `unitAnimations` AND keep the
                         render projection `animations` (its sprite subset) in sync for the untouched frame renderer. */}
                     {animEditorOpen && (
-                      <FloatingPanel title={`${selEntity.name || selEntity.kind} — Animation`} accent="cyan" onClose={() => setAnimEditorOpen(false)} {...floatingProps('animation', { w: 380, h: 520 })}>
+                      <FloatingPanel title={`${selEntity.name || selEntity.kind} — Animation`} accent="cyan" onClose={() => setAnimEditorOpen(false)} {...floatingProps('animation', { w: 380 })}>
                         <TileAnimationEditor
                           animations={selEntity.unitAnimations ?? unitAnimationsFromEntity(selEntity.animations)}
                           elementType="Character"
@@ -6161,7 +6161,7 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
                         CharacterWindow now. */}
                     {/* Triggers — a floating modal (like settings) to manage this unit's on-defeat triggers. */}
                     {triggersOpen && (
-                      <FloatingPanel title={`${selEntity.name || selEntity.kind} — Rules`} accent="yellow" onClose={() => setTriggersOpen(false)} {...floatingProps('triggers', { w: 360, h: 380 })}>
+                      <FloatingPanel title={`${selEntity.name || selEntity.kind} — Rules`} accent="yellow" onClose={() => setTriggersOpen(false)} {...floatingProps('triggers', { w: 360 })}>
                         <TriggerEditor
                           triggers={selEntity.triggers ?? []}
                           events={['defeat']}
@@ -6173,7 +6173,7 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
                     )}
                     {/* Attacks — folded off the card into a floating modal (enemies only). */}
                     {isEnemy && unitAttacksOpen && (
-                      <FloatingPanel title={`${selEntity.name || selEntity.kind} — Attacks`} accent="orange" onClose={() => setUnitAttacksOpen(false)} {...floatingProps('attacks', { w: 340, h: 420 })}>
+                      <FloatingPanel title={`${selEntity.name || selEntity.kind} — Attacks`} accent="orange" onClose={() => setUnitAttacksOpen(false)} {...floatingProps('attacks', { w: 340 })}>
                         <EntityAttackBody entity={selEntity} onPatch={patchSelectedEntity} />
                       </FloatingPanel>
                     )}
@@ -6399,7 +6399,7 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
                                 geometry persists under id "tileAnimation". Writes fan out to the i-th stacked tile
                                 of every selected cell via setAssetAnimations. */}
                             {tileAnimatorOpen && animatorCtx && (
-                              <FloatingPanel title={`${animatorCtx.label} — Animation`} accent="purple" onClose={() => setTileAnimatorOpen(false)} {...floatingProps('tileAnimation', { w: 460, h: 560 })}>
+                              <FloatingPanel title={`${animatorCtx.label} — Animation`} accent="purple" onClose={() => setTileAnimatorOpen(false)} {...floatingProps('tileAnimation', { w: 460 })}>
                                 <TileAnimationEditor
                                   animations={animatorCtx.animations}
                                   elementType="Tile"
@@ -6412,7 +6412,7 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
                             {/* Triggers — the cell's enter/interact triggers, managed in a floating modal (like
                                 settings), opened by the card's "⚑ Triggers…" button. Geometry id "triggers". */}
                             {triggersOpen && (
-                              <FloatingPanel title={`Cell ${cellLabel} — Rules`} accent="yellow" onClose={() => setTriggersOpen(false)} {...floatingProps('triggers', { w: 360, h: 380 })}>
+                              <FloatingPanel title={`Cell ${cellLabel} — Rules`} accent="yellow" onClose={() => setTriggersOpen(false)} {...floatingProps('triggers', { w: 360 })}>
                                 <TriggerEditor
                                   triggers={triggersAtCell(cellTriggers, trigCol, trigRow)}
                                   events={['enter', 'interact']}
@@ -6484,7 +6484,7 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
             title="Guides"
             accent="purple"
             onClose={() => setGuidesOpen(false)}
-            {...floatingProps('guides', { w: 380, h: 460 })}
+            {...floatingProps('guides', { w: 380 })}
           >
             <GuidesPanel />
           </FloatingPanel>
@@ -6594,7 +6594,7 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
             under id "connectors"), opened from the right-sidebar ↗ Connectors button. Same controls as before
             (Edit/Exit authoring, the saved list, and the target/when/spawn form) — just relocated. */}
         {connectorPanelOpen && !playMode && !showGamesView && (
-          <FloatingPanel title="Doorways" accent="purple" onClose={closeConnectorPanel} {...floatingProps('connectors', { w: 320, h: 440 })}>
+          <FloatingPanel title="Doorways" accent="purple" onClose={closeConnectorPanel} {...floatingProps('connectors', { w: 320 })}>
             <ConnectorsPanelBody
               connectorMode={connectorMode}
               onToggleMode={() => { setConnectorMode(m => !m); setEditingConnector(null) }}
@@ -6640,7 +6640,7 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
             accent="cyan"
             openBeside=".z-panel"
             onClose={() => setPreviewOpen(false)}
-            {...(activeRailId === 'generate' ? floatingProps('worldPreview', { w: 360, h: 640 }) : floatingProps('preview', { w: 330, h: 392 }))}
+            {...(activeRailId === 'generate' ? floatingProps('worldPreview', { w: 360 }) : floatingProps('preview', { w: 330 }))}
           >
             <MapPreview
               subject={previewSubject}
@@ -6665,7 +6665,7 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
             title="Behaviour"
             accent="orange"
             onClose={() => setPlacementOpen(false)}
-            {...floatingProps('placement', { w: 372, h: 420 })}
+            {...floatingProps('placement', { w: 372 })}
           >
             <UnitPlacementBody
               mode={unitPlaceMode}
@@ -6725,7 +6725,7 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
               title={isUnit ? 'Change figure' : 'Swap this tile'}
               accent="cyan"
               onClose={close}
-              {...floatingProps('tileLibrary', { w: 430, h: 560 })}
+              {...floatingProps('tileLibrary', { w: 430 })}
             >
               {scope ? (
                 /* The design's swap panel: BEFORE → AFTER, what carries over, and the one exception. It

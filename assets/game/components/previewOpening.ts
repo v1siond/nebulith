@@ -41,3 +41,26 @@ export function armedSubject(railId: string, armed: ArmedState): string {
 export function shouldOpenPreview(armed: ArmedState): boolean {
   return hasArmedSelection(armed)
 }
+
+/**
+ * WHY A PEEK HAPPENED, for the panels that peek a world rather than arm a tool.
+ *
+ *  · `pick`    the person clicked the thing. A decision.
+ *  · `hover`   the cursor crossed it. Not a decision.
+ *  · `resting` the panel is drawing what is already chosen: a mount, a season change, a re-render.
+ */
+export type PeekReason = 'pick' | 'hover' | 'resting'
+
+/**
+ * Should this peek put the window back on screen? Only a pick.
+ *
+ * A pick opens the window EVERY time, including the second click on the same thing. That is why this reads
+ * the REASON rather than a change of subject: clicking what is already picked changes no state, and it still
+ * has to bring the window back, which is what replaced the separate reopen button.
+ *
+ * The other two reasons are the regression this module exists to prevent. `resting` fires on mount, and a
+ * window that reopens every time the cursor crosses a card is the bug a `hover` would be.
+ */
+export function shouldOpenPreviewOnPeek(reason: PeekReason): boolean {
+  return reason === 'pick'
+}

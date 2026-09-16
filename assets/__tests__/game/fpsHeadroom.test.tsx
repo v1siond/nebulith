@@ -10,7 +10,7 @@
  * honestly shows 60. So the readout reports BOTH: the true frame rate, and the headroom behind it.
  */
 import { render, screen, renderHook, act } from '@testing-library/react'
-import { FpsReadout } from '@/components/game/editorChrome'
+import { FpsReadout, LiveFpsReadout } from '@/components/game/editorChrome'
 import { headroomFps, useRenderMs } from '@/components/useFps'
 
 describe('useRenderMs — samples the ACTIVE view\'s render-cost probe', () => {
@@ -87,5 +87,25 @@ describe('FpsReadout shows the headroom next to the capped frame rate', () => {
     render(<FpsReadout fps={42} variant="floating" />)
 
     expect(screen.getByText('42')).toBeInTheDocument()
+  })
+})
+
+
+/**
+ * THE READOUT SAMPLES ITSELF.
+ *
+ * `useFps` and `useRenderMs` set state three times a second between them, so whatever component holds them
+ * re-renders three times a second. They used to sit in the page component that draws the WHOLE editor, which
+ * made the editor cost a full re-render three times a second for a number only this pill reads.
+ */
+describe('LiveFpsReadout samples its own numbers', () => {
+  afterEach(() => { delete (window as unknown as Record<string, unknown>).__isoRenderMs })
+
+  it('reads the probe it is pointed at, with no numbers passed in', () => {
+    ;(window as unknown as Record<string, number>).__isoRenderMs = 5
+    render(<LiveFpsReadout variant="nav" probe="__isoRenderMs" />)
+    // The probe is read on mount, so the pill has a number before its first poll comes round.
+    expect(screen.getByText('5.0ms')).toBeInTheDocument()
+    expect(screen.getByText(`≈${headroomFps(5)}`)).toBeInTheDocument()
   })
 })

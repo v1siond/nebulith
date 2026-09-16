@@ -35,6 +35,7 @@ import { GenerateControls } from '@/components/game/editorChrome'
 import { installGenerationLayers } from '@/engine/generate/generationLayers'
 import { generatorLayers } from '@/components/game/editorConfig'
 import { EMPTY_GENERATOR_CATALOG, catalogZones, categoryLayouts, parseGeneratorCatalog } from '@/lib/generatorCatalog'
+import { shouldOpenPreviewOnPeek } from '@/components/game/previewOpening'
 import liveBody from '@/__tests__/fixtures/generators.json'
 
 const CATALOG = parseGeneratorCatalog(liveBody)
@@ -359,21 +360,81 @@ describe('rebuild ONE part, keep the rest', () => {
   })
 })
 
-describe('re-roll the selection — it names the count and says what to do first', () => {
-  it('names how many tiles it will touch', () => {
-    render(
-      <GenerateControls catalog={CATALOG} zone="spring" onZone={noop} onGenerate={noop}
-        selectedCount={7} onRandomizeSelection={noop} />,
+/**
+ * THE RE-ROLL-THE-SELECTION SECTION IS GONE FROM THIS PANEL.
+ *
+ * The action itself is untouched: the cell card and the unit card in the right sidebar each carry their own
+ * randomize button, and R still fires it. What it lost is the third copy, in a panel about building a NEW
+ * world, where a selection on the map that is open has nothing to do with the subject.
+ */
+describe('re-rolling a selection is not this panel\'s business', () => {
+  it('draws no randomize section, inline or in the preview window', () => {
+    const into = document.body.appendChild(document.createElement('div'))
+    try {
+      const { container } = render(
+        <GenerateControls catalog={CATALOG} zone="spring" onZone={noop} onGenerate={noop} tuningSlot={into} />,
+      )
+      expect(within(container).queryByText(/^randomize$/i)).toBeNull()
+      expect(within(into).queryByText(/^randomize$/i)).toBeNull()
+      expect(screen.queryByRole('button', { name: /randomize .*(selected|selection)/i })).toBeNull()
+      expect(screen.queryByText(/select some cells on the map first/i)).toBeNull()
+    } finally {
+      into.remove()
+    }
+  })
+})
+
+/**
+ * THE ORDER THE PANEL READS IN.
+ *
+ * Two things had to stop costing a scroll: the build actions sat under every card and every option, and the
+ * size sat under the variations when it is the first thing anyone sets.
+ *
+ * Both are DOM ORDER, which is what this suite can hold: the actions come first so they can pin to the top of
+ * the panel, and the size is asked for before the cards that get picked for it. The pinning itself is the
+ * `.pstick` rule in the editor stylesheet, so the class is asserted rather than the offset.
+ */
+describe('the panel reads in the order things are set', () => {
+  const SIZE_PROPS = { sizeDraft: SIZE, size: SIZE, onSizeDraft: noop, onResize: noop }
+  /** True when `first` really is earlier in the document than `second`. */
+  const comesBefore = (first: Element, second: Element) =>
+    (first.compareDocumentPosition(second) & Node.DOCUMENT_POSITION_FOLLOWING) !== 0
+
+  it('puts the build actions above everything they act on, in the block that pins to the top', () => {
+    const { container } = render(
+      <GenerateControls catalog={CATALOG} zone="spring" onZone={noop} onGenerate={noop} onApply={noop} {...SIZE_PROPS} />,
     )
-    expect(screen.getByRole('button', { name: /7 selected tiles/i })).toBeInTheDocument()
+    const build = screen.getByRole('button', { name: /build this world/i })
+    const apply = screen.getByRole('button', { name: /apply to this map/i })
+    expect(comesBefore(build, apply)).toBe(true)
+    expect(comesBefore(apply, kinds())).toBe(true)
+    expect(comesBefore(apply, screen.getByLabelText(/^map columns$/i))).toBe(true)
+    expect(build.closest('.pstick')).not.toBeNull()
+    expect(apply.closest('.pstick')).toBe(build.closest('.pstick'))
+    expect(container.querySelectorAll('.pstick')).toHaveLength(1)
   })
 
-  it('offers the missing prerequisite instead of only disabling itself', () => {
-    render(
-      <GenerateControls catalog={CATALOG} zone="spring" onZone={noop} onGenerate={noop}
-        selectedCount={0} onRandomizeSelection={noop} />,
+  it('asks for the size before the preset cards, because the size is the first thing set', () => {
+    render(<GenerateControls catalog={CATALOG} zone="spring" onZone={noop} onGenerate={noop} {...SIZE_PROPS} />)
+    fireEvent.change(kinds(), { target: { value: 'wilderness' } })
+    const [{ label }] = categoryLayouts(CATALOG, 'wilderness')
+    for (const field of ['Map columns', 'Map rows', 'Cell size in pixels']) {
+      expect(comesBefore(screen.getByLabelText(field), preset(label))).toBe(true)
+    }
+  })
+
+  it('promises what the build will produce next to the numbers that decide it', () => {
+    render(<GenerateControls catalog={CATALOG} zone="spring" onZone={noop} onGenerate={noop} {...SIZE_PROPS} />)
+    const promise = screen.getByText(
+      `At ${SIZE.cols} × ${SIZE.rows} cells of ${SIZE.cellSize}px: the numbers you typed, exactly.`,
     )
-    expect(screen.getByText(/select some cells on the map first/i)).toBeInTheDocument()
+    expect(comesBefore(screen.getByLabelText('Cell size in pixels'), promise)).toBe(true)
+  })
+
+  it('says the generator decides when the panel is given no size at all', () => {
+    render(<GenerateControls catalog={CATALOG} zone="spring" onZone={noop} onGenerate={noop} />)
+    expect(screen.getByText('The generator picks the size.')).toBeInTheDocument()
+    expect(screen.queryByLabelText(/^map columns$/i)).toBeNull()
   })
 })
 
@@ -412,19 +473,22 @@ describe('the preview window shows the world to build, its size, and the options
     expect(into.textContent).toContain('100 × 80 = 8,000 cells, 12px each')
   })
 
-  it('with a preview window, the options and the size live in it, and the build button stays in the panel', () => {
+  it('with a preview window, the options live in it while the size and the build button stay in the panel', () => {
     const into = slot()
     const p = props({ tuningSlot: into })
     const { container } = render(<GenerateControls {...p} />)
     fireEvent.change(kinds(), { target: { value: 'wilderness' } })
     expect(within(into).getByLabelText(/^river$/i)).toBeInTheDocument()
     expect(within(into).getByLabelText(/^kind of crossing$/i)).toBeInTheDocument()
-    expect(within(into).getByLabelText(/^map columns$/i)).toBeInTheDocument()
     expect(within(into).getByLabelText(/^season$/i)).toBeInTheDocument() // the season shapes the world, so it travels too
     expect(into.textContent).toContain('60 × 40 = 2,400 cells, 16px each')
     expect(within(container).queryByLabelText(/^river$/i)).toBeNull()
     expect(within(container).getByRole('button', { name: /build this world/i })).toBeInTheDocument()
     expect(within(into).queryByRole('button', { name: /build this world/i })).toBeNull()
+    // The SIZE is set before the world is picked, so its inputs stay in the panel rather than travelling
+    // into the window with the options.
+    expect(within(container).getByLabelText(/^map columns$/i)).toBeInTheDocument()
+    expect(within(into).queryByLabelText(/^map columns$/i)).toBeNull()
     // the place itself is still picked in the panel
     expect(within(container).getByLabelText(/kind of place/i)).toBeInTheDocument()
   })
@@ -448,32 +512,83 @@ describe('the preview window shows the world to build, its size, and the options
   })
 
   /**
-   * With no window to portal into, the options fall back inline (that is
-   * the sidebar half), and nothing could ask for the window back.
+   * THE WAY BACK IS THE CARD, and there is no button.
+   *
+   * A reopen button at the foot of the sidebar is the far end of the scroll from the card you just clicked,
+   * so clicking a preset is what shows the window: the peek it emits says `pick`, and `shouldOpenPreviewOnPeek`
+   * (the page's half of this) opens the window for a pick and for nothing else. Clicking the SAME preset again
+   * is still a pick, which is what makes closing and reopening work with no button to press.
    */
   describe('the way back to the preview window', () => {
-    const reopen = () => screen.getByRole('button', { name: /preview window/i })
+    const reasonOf = (onPeek: jest.Mock) => onPeek.mock.calls[onPeek.mock.calls.length - 1][1]
 
-    it('offers it exactly when the options have fallen back into the sidebar', () => {
-      render(<GenerateControls {...props({ onOpenPreview: jest.fn() })} />)
-      expect(reopen()).toBeInTheDocument()
-    })
-
-    it('is absent while the window is already open', () => {
-      const into = slot()
-      render(<GenerateControls {...props({ tuningSlot: into, onOpenPreview: jest.fn() })} />)
+    it('offers no reopen button, in either place the options can live', () => {
+      const { rerender } = render(<GenerateControls {...props({ hasPreviewWindow: true })} />)
+      expect(screen.queryByRole('button', { name: /preview window/i })).toBeNull()
+      rerender(<GenerateControls {...props({ hasPreviewWindow: true, tuningSlot: slot() })} />)
       expect(screen.queryByRole('button', { name: /preview window/i })).toBeNull()
     })
 
-    it('opens the window AND gives it something to draw', () => {
-      const onOpenPreview = jest.fn()
-      const p = props({ onOpenPreview })
+    it('reports a PICK when a preset is clicked, which is what reopens the window', () => {
+      const p = props({ hasPreviewWindow: true })
       render(<GenerateControls {...p} />)
+      fireEvent.change(kinds(), { target: { value: 'wilderness' } })
+      const [{ label }] = categoryLayouts(CATALOG, 'wilderness')
+      fireEvent.click(preset(label))
+      expect(reasonOf(p.onPeek as jest.Mock)).toBe('pick')
+      expect(shouldOpenPreviewOnPeek(reasonOf(p.onPeek as jest.Mock))).toBe(true)
+    })
+
+    it('reports a pick again on the SECOND click of the same preset, so it can be shown again', () => {
+      const p = props({ hasPreviewWindow: true })
+      render(<GenerateControls {...p} />)
+      fireEvent.change(kinds(), { target: { value: 'wilderness' } })
+      const [{ label }] = categoryLayouts(CATALOG, 'wilderness')
+      fireEvent.click(preset(label))
       ;(p.onPeek as jest.Mock).mockClear()
-      fireEvent.click(reopen())
-      expect(onOpenPreview).toHaveBeenCalled()
-      // Opening alone leaves it shut: the window only renders when it has a subject.
-      expect(lastPeek(p.onPeek as jest.Mock)).toMatchObject({ kind: 'stage' })
+      fireEvent.click(preset(label))
+      expect(reasonOf(p.onPeek as jest.Mock)).toBe('pick')
+    })
+
+    it('never reports a pick for a hover, or for the resting peek it draws itself with', () => {
+      const p = props({ hasPreviewWindow: true, tuningSlot: slot() })
+      render(<GenerateControls {...p} />)
+      // The peek the panel emits on mount is the resting one: a window closed by hand must stay closed.
+      expect(reasonOf(p.onPeek as jest.Mock)).toBe('resting')
+      // Choosing the kind of place is a pick of its own, so the cursor's own peeks are counted from here.
+      fireEvent.change(kinds(), { target: { value: 'wilderness' } })
+      ;(p.onPeek as jest.Mock).mockClear()
+      const [{ label }] = categoryLayouts(CATALOG, 'wilderness')
+      fireEvent.pointerEnter(preset(label))
+      expect(reasonOf(p.onPeek as jest.Mock)).toBe('hover')
+      fireEvent.pointerLeave(preset(label))
+      expect(reasonOf(p.onPeek as jest.Mock)).toBe('hover')
+      expect((p.onPeek as jest.Mock).mock.calls.every(([, reason]) => !shouldOpenPreviewOnPeek(reason))).toBe(true)
+    })
+
+    /**
+     * A hover peek is a WORLD: the big preview is built at the map's size, so running the cursor across the
+     * cards with the window shut rebuilt one per card for a picture nobody could see. With no window on
+     * screen a hover says nothing; the click still does.
+     */
+    it('says nothing on hover while the window is shut, and still reports the click', () => {
+      const p = props({ hasPreviewWindow: true })
+      render(<GenerateControls {...p} />)
+      fireEvent.change(kinds(), { target: { value: 'wilderness' } })
+      const [{ label }] = categoryLayouts(CATALOG, 'wilderness')
+      ;(p.onPeek as jest.Mock).mockClear()
+      fireEvent.pointerEnter(preset(label))
+      fireEvent.pointerLeave(preset(label))
+      expect(p.onPeek).not.toHaveBeenCalled()
+      fireEvent.click(preset(label))
+      expect(reasonOf(p.onPeek as jest.Mock)).toBe('pick')
+    })
+
+    it('keeps the options out of the sidebar while the page has a window, and inline when it has none', () => {
+      const { container, rerender } = render(<GenerateControls {...props({ hasPreviewWindow: true })} />)
+      expect(within(container).queryByLabelText(/^season$/i)).toBeNull()
+      rerender(<GenerateControls {...props({ hasPreviewWindow: false })} />)
+      expect(within(container).getByLabelText(/^season$/i)).toBeInTheDocument()
     })
   })
 

@@ -98,11 +98,37 @@ interface WH { w: number; h: number }
 const FLOATING_MIN: WH = { w: 260, h: 200 } // small enough to tuck aside, big enough to grab
 
 /** Keep at least the header grabbable: clamp so the panel can never be dragged fully off-screen. */
-function clampToViewport(pos: XY, size: WH): XY {
+function clampToViewport(pos: XY, width: number): XY {
   if (typeof window === 'undefined') return pos
   const maxX = window.innerWidth - 80 // leave a sliver + the ✕ reachable
   const maxY = window.innerHeight - 40
-  return { x: Math.max(8 - (size.w - 80), Math.min(pos.x, maxX)), y: Math.max(8, Math.min(pos.y, maxY)) }
+  return { x: Math.max(8 - (width - 80), Math.min(pos.x, maxX)), y: Math.max(8, Math.min(pos.y, maxY)) }
+}
+
+/**
+ * The height a panel was GIVEN, or null to grow to its content.
+ *
+ * A panel is content-height until someone drags the grip, and only a drag of the grip writes a height worth
+ * remembering. A remembered 0 is how "never resized" survives a save: moving a panel persists its geometry
+ * too, and writing the measured height there would freeze the panel at whatever it happened to hold.
+ */
+function pinnedHeight(h: number | undefined): number | null {
+  return typeof h === 'number' && h > 0 ? h : null
+}
+
+/** The breathing room between a panel at full height and the bars it stops short of. */
+const CHROME_GAP = 28
+
+/**
+ * The room a panel has: the viewport, less the editor's top bar and view bar.
+ *
+ * Measured rather than declared, because both bars are content-height rows and wrap at narrow widths. The
+ * floor keeps a panel usable on a short screen even if that means overlapping a bar.
+ */
+function chromeCap(): number {
+  if (typeof document === 'undefined') return 0
+  const barHeight = (selector: string) => document.querySelector(selector)?.getBoundingClientRect().height ?? 0
+  return Math.max(FLOATING_MIN.h, Math.round(window.innerHeight - barHeight('.z-top') - barHeight('.z-bar') - CHROME_GAP))
 }
 
 /**
@@ -136,13 +162,26 @@ export function FloatingPanel({ title, accent = 'cyan', onClose, children, initi
    *  backend editor setting (debounced), so the panel reopens where the user left it. */
   onGeometryChange?: (geometry: { x: number; y: number; w: number; h: number }) => void
 }) {
-  const [size, setSize] = useState<WH>(() => initialSize ?? { w: 340, h: 440 })
+  const [width, setWidth] = useState<number>(() => initialSize?.w ?? 340)
+  /** A number is a height the person dragged; null grows the panel to its content, capped by the room. */
+  const [height, setHeight] = useState<number | null>(() => pinnedHeight(initialSize?.h))
   const [pos, setPos] = useState<XY>(() => {
     if (initialPos) return initialPos
     if (typeof window === 'undefined') return { x: 24, y: 96 }
     const w = initialSize?.w ?? 340
     return { x: window.innerWidth - w - 24, y: 96 }
   })
+  /** The panel itself, so a resize can start from the height the content is actually drawing at. */
+  const panel = useRef<HTMLDivElement | null>(null)
+  // THE CAP FOLLOWS THE WINDOW. Measured on mount and on every window resize, and published as a custom
+  // property so the stylesheet owns the rule and this owns the number.
+  const [cap, setCap] = useState(0)
+  useEffect(() => {
+    const measure = () => setCap(chromeCap())
+    measure()
+    window.addEventListener('resize', measure)
+    return () => window.removeEventListener('resize', measure)
+  }, [])
 
   /**
    * OPEN BESIDE an element — measured after mount, not while rendering.
@@ -167,16 +206,16 @@ export function FloatingPanel({ title, accent = 'cyan', onClose, children, initi
     const beside = document.querySelector(openBeside)?.getBoundingClientRect()
     if (!beside) return
     const GAP = 10
-    const fitsRight = beside.right + GAP + size.w <= window.innerWidth - 12
+    const fitsRight = beside.right + GAP + width <= window.innerWidth - 12
     const slot = besidePlaced++ % 4
     // Cascade AWAY from the anchor, so a stack of panels never creeps back over the thing it opened from.
     const step = (fitsRight ? 1 : -1) * CASCADE.x * slot
-    const x = (fitsRight ? beside.right + GAP : beside.left - GAP - size.w) + step
+    const x = (fitsRight ? beside.right + GAP : beside.left - GAP - width) + step
     setPos({
-      x: Math.max(12, Math.min(x, window.innerWidth - size.w - 12)),
+      x: Math.max(12, Math.min(x, window.innerWidth - width - 12)),
       y: Math.max(12, Math.min(beside.top + CASCADE.y * slot, window.innerHeight - 90)),
     })
-  }, [openBeside, initialPos, size.w])
+  }, [openBeside, initialPos, width])
 
   // Release the cascade slot, so closing and reopening does not walk panels off the screen.
   useEffect(() => () => { if (placed.current) besidePlaced = Math.max(0, besidePlaced - 1) }, [])
@@ -195,13 +234,13 @@ export function FloatingPanel({ title, accent = 'cyan', onClose, children, initi
     const origin = { mx: e.clientX, my: e.clientY, x: pos.x, y: pos.y }
     let latest = pos
     const onMove = (ev: MouseEvent) => {
-      latest = clampToViewport({ x: origin.x + (ev.clientX - origin.mx), y: origin.y + (ev.clientY - origin.my) }, size)
+      latest = clampToViewport({ x: origin.x + (ev.clientX - origin.mx), y: origin.y + (ev.clientY - origin.my) }, width)
       setPos(latest)
     }
     const onUp = () => {
       window.removeEventListener('mousemove', onMove)
       window.removeEventListener('mouseup', onUp)
-      onGeometryChange?.({ x: latest.x, y: latest.y, w: size.w, h: size.h })
+      onGeometryChange?.({ x: latest.x, y: latest.y, w: width, h: height ?? 0 })
     }
     window.addEventListener('mousemove', onMove)
     window.addEventListener('mouseup', onUp)
@@ -212,14 +251,17 @@ export function FloatingPanel({ title, accent = 'cyan', onClose, children, initi
   const startResize = (e: React.MouseEvent) => {
     e.preventDefault()
     e.stopPropagation()
-    const origin = { mx: e.clientX, my: e.clientY, w: size.w, h: size.h }
-    let latest = size
+    // A content-height panel starts its resize from the height it is DRAWING at, so the grip does not jump.
+    const drawn = height ?? panel.current?.offsetHeight ?? 0
+    const origin = { mx: e.clientX, my: e.clientY, w: width, h: Math.max(FLOATING_MIN.h, drawn) }
+    let latest: WH = { w: origin.w, h: origin.h }
     const onMove = (ev: MouseEvent) => {
       latest = {
         w: Math.max(FLOATING_MIN.w, origin.w + (ev.clientX - origin.mx)),
         h: Math.max(FLOATING_MIN.h, origin.h + (ev.clientY - origin.my)),
       }
-      setSize(latest)
+      setWidth(latest.w)
+      setHeight(latest.h)
     }
     const onUp = () => {
       window.removeEventListener('mousemove', onMove)
@@ -239,8 +281,11 @@ export function FloatingPanel({ title, accent = 'cyan', onClose, children, initi
   // grid (it is `position:fixed`).
   return (
     <div
+      ref={panel}
       className="neb mw"
-      style={{ left: pos.x, top: pos.y, width: size.w, height: size.h }}
+      // The HEIGHT is the stylesheet's (`max-content`, capped) until the person drags the grip; `--mw-cap` is
+      // the measured room, so the rule stays in CSS and only the number comes from here.
+      style={{ left: pos.x, top: pos.y, width, ...(height === null ? {} : { height }), ...(cap > 0 ? { ['--mw-cap' as string]: `${cap}px` } : {}) } as React.CSSProperties}
       role="dialog"
       aria-label={title}
     >

@@ -87,3 +87,73 @@ describe('FloatingPanel — geometry restore + persist', () => {
     global.fetch = origFetch
   })
 })
+
+
+/**
+ * A PANEL IS AS TALL AS WHAT IS IN IT.
+ *
+ * The ask: every modal grows to its content height, capped at the room between the top bar and the view bar,
+ * and scrolls inside only past that. So a panel writes NO inline height until someone drags the grip, which
+ * is what lets the stylesheet's `height:max-content` decide. A remembered 0 is how "never resized" survives a
+ * save: moving a panel persists its geometry too, and writing the drawn height there would freeze it.
+ */
+describe('FloatingPanel grows to its content until it is resized', () => {
+  it('writes no height of its own when none was remembered', () => {
+    render(
+      <FloatingPanel title="Settings" onClose={() => {}} initialPos={{ x: 10, y: 10 }} initialSize={{ w: 340, h: 0 }}>
+        <div>body</div>
+      </FloatingPanel>,
+    )
+    const dialog = screen.getByRole('dialog')
+    expect(dialog.style.height).toBe('')
+    expect(dialog.style.width).toBe('340px') // the width still is the panel's own
+  })
+
+  it('and none either when it is given no size at all', () => {
+    render(
+      <FloatingPanel title="Settings" onClose={() => {}} initialPos={{ x: 10, y: 10 }}>
+        <div>body</div>
+      </FloatingPanel>,
+    )
+    expect(screen.getByRole('dialog').style.height).toBe('')
+  })
+
+  it('caps itself at the room between the editor bars, as a custom property the stylesheet reads', () => {
+    render(
+      <FloatingPanel title="Settings" onClose={() => {}} initialPos={{ x: 10, y: 10 }}>
+        <div>body</div>
+      </FloatingPanel>,
+    )
+    const cap = screen.getByRole('dialog').style.getPropertyValue('--mw-cap')
+    expect(cap).toMatch(/^\d+px$/)
+    expect(parseInt(cap, 10)).toBeLessThanOrEqual(window.innerHeight)
+  })
+
+  it('MOVING one keeps it content-height: the saved height stays 0', () => {
+    const onGeometryChange = jest.fn()
+    render(
+      <FloatingPanel title="Settings" onClose={() => {}} initialPos={{ x: 200, y: 120 }} initialSize={{ w: 340, h: 0 }} onGeometryChange={onGeometryChange}>
+        <div>body</div>
+      </FloatingPanel>,
+    )
+    fireEvent.mouseDown(dragHandle(), { clientX: 250, clientY: 140 })
+    fireEvent.mouseMove(window, { clientX: 300, clientY: 170 })
+    fireEvent.mouseUp(window)
+    expect(onGeometryChange).toHaveBeenCalledWith({ x: 250, y: 150, w: 340, h: 0 })
+  })
+
+  it('DRAGGING THE GRIP pins a height, which is then the one it draws and remembers', () => {
+    const onGeometryChange = jest.fn()
+    render(
+      <FloatingPanel title="Settings" onClose={() => {}} initialPos={{ x: 100, y: 100 }} initialSize={{ w: 340, h: 0 }} onGeometryChange={onGeometryChange}>
+        <div>body</div>
+      </FloatingPanel>,
+    )
+    fireEvent.mouseDown(resizeGrip(), { clientX: 440, clientY: 540 })
+    fireEvent.mouseMove(window, { clientX: 500, clientY: 640 })
+    fireEvent.mouseUp(window)
+    const geometry = onGeometryChange.mock.calls[0][0]
+    expect(geometry.h).toBeGreaterThan(0)
+    expect(screen.getByRole('dialog').style.height).toBe(`${geometry.h}px`)
+  })
+})
