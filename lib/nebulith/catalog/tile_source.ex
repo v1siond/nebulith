@@ -3054,9 +3054,6 @@ defmodule Nebulith.Catalog.TileSource do
   # so the arch opening is at ground level and you can see THROUGH it: at level -1 the opening is underground
   # and no amount of authoring makes it visible.
   @deck_rise 1.0
-  # `pose.dy` is in tileH units and one level is 1.8 of them, so this converts a height in levels into the
-  # nudge that expresses its fractional part.
-  @tile_h_per_level 1.8
   @deck_thickness 0.16
   # THE ABUTMENT fills its whole level, so the deck lands on it rather than hovering over it.
   @abutment_height 1.0
@@ -3512,9 +3509,11 @@ defmodule Nebulith.Catalog.TileSource do
   defp bridge_cells(material, span) do
     pieces = Map.fetch!(@bridge_materials, material)
 
-    bridge_substructure(pieces, span) ++
-      bridge_deck(pieces.deck, span) ++
-      bridge_sides(pieces, span)
+    arch = MapSet.new(arch_columns(span))
+
+    bridge_substructure(pieces, span, arch) ++
+      bridge_deck(pieces.deck, span, arch) ++
+      bridge_sides(pieces, span, arch)
   end
 
   # THE ARCH IS AN ABSENCE, and it is cut through the SIDE, because the side is what you see.
@@ -3527,9 +3526,7 @@ defmodule Nebulith.Catalog.TileSource do
   # Now the deck rises a level over the middle of its span, so the space under it at ground level is open air
   # you can see the far bank through. The pier columns carry the side wall from the bed up to that deck and
   # the arch columns carry nothing at all.
-  defp bridge_substructure(pieces, span) do
-    arch = MapSet.new(arch_columns(span))
-
+  defp bridge_substructure(pieces, span, arch) do
     0..(span - 1)
     |> Enum.reject(&MapSet.member?(arch, &1))
     |> Enum.flat_map(&pier_column(pieces, span, &1))
@@ -3537,12 +3534,15 @@ defmodule Nebulith.Catalog.TileSource do
 
   # ONE COLUMN OF PIER: every level from the bed up to the one the deck sits in, on the two side rows (which
   # is the wall you see) and once across the walking rows (which is the vault the deck rests on).
-  defp pier_column(pieces, span, dx) do
-    {deck_level, _pose} = raised(0, deck_profile(span, dx))
-    levels = Enum.to_list(-1..(deck_level - 1))
-
-    walls = for level <- levels, dy <- @side_rows, do: pier_cell(pieces.block, dx, dy, level, 1)
-    vault = for level <- levels, do: pier_cell(pieces.block, dx, hd(@deck_rows), level, length(@deck_rows))
+  # ONE COLUMN OF PIER, and it owns only what is BELOW the walking floor.
+  #
+  # It used to fill every level from the bed up to the deck, which is the same levels the deck's own bed and
+  # the side wall fill, so a column came out with two cells in one (dx, dy, level): the exact case the
+  # building compositions have a test against. Everything at level 0 and above belongs to the deck stack and
+  # the wall stack; the pier is what stands in the water under them.
+  defp pier_column(pieces, _span, dx) do
+    walls = for dy <- @side_rows, do: pier_cell(pieces.block, dx, dy, -1, 1)
+    vault = [pier_cell(pieces.block, dx, hd(@deck_rows), -1, length(@deck_rows))]
     walls ++ vault
   end
 
@@ -3581,42 +3581,82 @@ defmodule Nebulith.Catalog.TileSource do
     %{"left-down" => across, "right-up" => across, "right-down" => 1.0, "left-up" => 1.0}
   end
 
-  defp bridge_deck(label, span) do
-    for dx <- 0..(span - 1), dy <- @deck_rows do
-      {level, pose} = raised(0, deck_profile(span, dx))
-
-      %{dx: dx, dy: dy, level: level, label: label, walkable: true,
-        settings: with_pose(%{"scaleY" => @deck_thickness}, pose)}
+  # THE DECK, AND THE HUMP IS BUILT AS LEGOS.
+  #
+  # *"in order to BUMP you need a flat base first, then you stack cells with their tiles on top to get the
+  # bump, like legos. the problem right now is that you're putting the BUMP at the correct height without the
+  # base, creating the gap we see"*. `MAP-MODEL.md` §6 says the same thing as a law: *"elevation is stacked
+  # cells/blocks"*. A raised surface is a STACK, never one cell placed high.
+  #
+  # This authored ONE deck cell per column at its profile level, so the crown sat at level 1 with nothing at
+  # level 0 underneath it and the columns either side sat at level 0. That empty level IS the gap: you could
+  # see straight through the bridge between the middle and the ends.
+  #
+  # So a column fills every level from the base up to its own height. The courses below the top are solid
+  # roadbed, the top one is the walking surface, and a column at the banks is just that surface at level 0,
+  # unchanged and flush with the path.
+  defp bridge_deck(label, span, arch) do
+    for dx <- 0..(span - 1),
+        dy <- @deck_rows,
+        cell <- deck_column(label, dx, dy, deck_top(span, dx), MapSet.member?(arch, dx)) do
+      cell
     end
   end
 
-  # HOW HIGH THE DECK STANDS AT EACH COLUMN, in levels: zero at the two banks, `@deck_rise` at the crown, on a
+  # OVER THE ARCH there is only the walking surface, because the space under it is the opening: filling the
+  # levels below would close the arch back up and put the bridge back on the causeway it started as.
+  defp deck_column(label, dx, dy, top, true), do: [deck_surface(label, dx, dy, top)]
+
+  # EVERYWHERE ELSE the roadbed is solid from the walking floor up to the surface, which is the lego.
+  defp deck_column(label, dx, dy, top, false) do
+    bed =
+      for level <- 0..(top - 1)//1 do
+        %{dx: dx, dy: dy, level: level, label: label, walkable: true, settings: %{"scaleY" => 1.0}}
+      end
+
+    bed ++ [deck_surface(label, dx, dy, top)]
+  end
+
+  defp deck_surface(label, dx, dy, top),
+    do: %{dx: dx, dy: dy, level: top, label: label, walkable: true, settings: %{"scaleY" => @deck_thickness}}
+
+  # ONE COLUMN OF SIDE WALL: solid from the base up to the level its own deck reaches, then the parapet course
+  # standing above that deck. Same law as the deck, and for the same reason.
+  # OVER THE ARCH the wall is only the parapet above the deck: what is under it is the opening.
+  defp wall_column(label, dx, dy, top, true), do: [coping(label, dx, dy, top)]
+
+  defp wall_column(label, dx, dy, top, false) do
+    below =
+      for level <- 0..(top - 1)//1 do
+        %{dx: dx, dy: dy, level: level, label: label, walkable: false,
+          settings: %{"scaleY" => 1.0, "collision" => [%{"x" => 0.0, "y" => 0.0, "w" => 1.0, "h" => 1.0}]}}
+      end
+
+    below ++ [coping(label, dx, dy, top)]
+  end
+
+  defp coping(label, dx, dy, top),
+    do: %{dx: dx, dy: dy, level: top, label: label, walkable: false,
+          settings: %{"scaleY" => @parapet_height, "collision" => [%{"x" => 0.0, "y" => 0.0, "w" => 1.0, "h" => 1.0}]}}
+
+  # HOW MANY LEVELS UP THE DECK STANDS AT EACH COLUMN: zero at the two banks, `@deck_rise` at the crown, on a
   # parabola between them. Zero at the banks is not decoration, it is what lets you step on: the ends meet the
   # path at the height the path is at, and the rise happens over the span.
-  defp deck_profile(span, dx) do
+  #
+  # A WHOLE NUMBER OF LEVELS, because a level is a whole block. The fractional part used to be expressed with
+  # `pose.dy`, which moves the PICTURE and not the block, so the pieces lined up with nothing: a rail sat half
+  # a level off the deck it belonged to and the two read as separate floating plates.
+  defp deck_top(span, dx) do
     centre = (span - 1) / 2
     u = column_offset(dx, centre)
-    @deck_rise * (1 - u * u)
+    round(@deck_rise * (1 - u * u))
   end
 
   defp column_offset(_dx, 0.0), do: 0.0
   defp column_offset(dx, centre), do: abs(dx - centre) / centre
 
-  # A HEIGHT IN LEVELS, split into the LEVEL a cell sits in and the nudge that expresses the rest.
-  #
-  # A level is a whole block, so a profile of 0.89 cannot be a level on its own. Rounding alone gives a
-  # staircase; rounding plus the remainder as `pose.dy` gives the same stack with a smooth line over it, which
-  # is the one job a pose is for.
-  defp raised(base, height) do
-    level = base + round(height)
-    {level, -((base + height) - level) * @tile_h_per_level}
-  end
-
-  defp with_pose(settings, pose) when abs(pose) < 0.01, do: settings
-  defp with_pose(settings, pose), do: Map.put(settings, "pose", %{"dy" => pose})
-
   # A STONE CROSSING's side is a solid wall, with bollards standing along its top.
-  defp bridge_sides(%{solid_side?: true} = pieces, span) do
+  defp bridge_sides(%{solid_side?: true} = pieces, span, arch) do
     # PER COLUMN, not one z-width run, and this is the exception the framework already names: `depth` is right
     # for a genuinely uniform run and wrong for anything that ARTICULATES along its length. A parapet has
     # bollards standing on it every other column, so it articulates.
@@ -3625,34 +3665,23 @@ defmodule Nebulith.Catalog.TileSource do
     # key, so the deck's run and the parapet's run each get a single turn and one overdraws the other part of
     # the way along: measured on a span of seven, the far wall stopped around the fourth column while its own
     # bollards carried on past the end of it, standing on the grass. A cell per column gets a turn per column.
+    # A FILLED STACK, like the deck beside it: the wall occupies every level from the base up to its own
+    # column's height. Authored as one cell at the top it left the same empty level underneath, so the wall
+    # over the crown floated clear of the wall either side of it.
     parapets =
-      for dx <- 0..(span - 1), dy <- @side_rows do
-        {level, pose} = raised(0, deck_profile(span, dx))
-
-        %{dx: dx, dy: dy, level: level, label: pieces.side, walkable: false,
-          settings:
-            with_pose(
-              %{
-                "scaleY" => @parapet_height,
-                "collision" => [%{"x" => 0.0, "y" => 0.0, "w" => 1.0, "h" => 1.0}]
-              },
-              pose
-            )}
+      for dx <- 0..(span - 1),
+          dy <- @side_rows,
+          cell <- wall_column(pieces.side, dx, dy, deck_top(span, dx), MapSet.member?(arch, dx)) do
+        cell
       end
 
-    # ON TOP OF THE WALL, at level 1, because the wall now occupies level 0 in every column and two cells in
-    # one (dx, dy, level) is the bug the building compositions have a test for. The wall is drawn 0.85 of a
-    # level, so a bollard based at 1.0 overlaps it by nothing and sits exactly on its coping.
+    # ON TOP OF THE WALL: one level above the coping of its own column, so a bollard over the crown rides up
+    # with it instead of staying down at the height of the ends.
     bollards =
       for dx <- upright_columns(span), dy <- @side_rows do
-        {level, pose} = raised(1, deck_profile(span, dx))
-
-        %{dx: dx, dy: dy, level: level, label: pieces.cap, walkable: false, scale: @bollard_zoom,
-          settings:
-            with_pose(
-              %{"scaleY" => @bollard_height, "thickness" => post_reach(@bollard_thickness)},
-              pose
-            )}
+        %{dx: dx, dy: dy, level: deck_top(span, dx) + 1, label: pieces.cap, walkable: false,
+          scale: @bollard_zoom,
+          settings: %{"scaleY" => @bollard_height, "thickness" => post_reach(@bollard_thickness)}}
       end
 
     parapets ++ bollards
@@ -3660,34 +3689,24 @@ defmodule Nebulith.Catalog.TileSource do
 
   # A TIMBER CROSSING has uprights with a handrail run between them, and the GAPS between the uprights are
   # most of why its silhouette measures 0.38 solid rather than 0.72.
-  defp bridge_sides(%{solid_side?: false} = pieces, span) do
+  defp bridge_sides(%{solid_side?: false} = pieces, span, _arch) do
+    # THE POST stands at the top of its own column's stack, so it rides the hump with the deck.
     posts =
       for dx <- upright_columns(span), dy <- @side_rows do
-        {level, pose} = raised(0, deck_profile(span, dx))
-
-        %{dx: dx, dy: dy, level: level, label: pieces.cap, walkable: false, scale: @post_zoom,
-          settings:
-            with_pose(
-              %{"scaleY" => @rail_post_height, "thickness" => post_reach(@post_thickness)},
-              pose
-            )}
+        %{dx: dx, dy: dy, level: deck_top(span, dx), label: pieces.cap, walkable: false, scale: @post_zoom,
+          settings: %{"scaleY" => @rail_post_height, "thickness" => post_reach(@post_thickness)}}
       end
 
-    # THE HANDRAIL follows the posts up and over, so it is a cell per column too. A z-width run cannot bend.
+    # THE HANDRAIL one level above its own column's deck, a cell per column so it follows the hump up and
+    # over. A z-width run cannot bend, and a single level for the whole run left the rail crossing the deck.
     rails =
       for dx <- 0..(span - 1), dy <- @side_rows do
-        {level, pose} = raised(1, deck_profile(span, dx))
-
-        %{dx: dx, dy: dy, level: level, label: pieces.side, walkable: false,
-          settings:
-            with_pose(
-              %{
-                "scaleY" => @handrail_height,
-                "thickness" => rail_reach(@handrail_width),
-                "collision" => [%{"x" => 0.0, "y" => 0.35, "w" => 1.0, "h" => @handrail_width}]
-              },
-              pose
-            )}
+        %{dx: dx, dy: dy, level: deck_top(span, dx) + 1, label: pieces.side, walkable: false,
+          settings: %{
+            "scaleY" => @handrail_height,
+            "thickness" => rail_reach(@handrail_width),
+            "collision" => [%{"x" => 0.0, "y" => 0.35, "w" => 1.0, "h" => @handrail_width}]
+          }}
       end
 
     posts ++ rails
