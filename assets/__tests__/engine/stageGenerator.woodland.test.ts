@@ -108,7 +108,7 @@ describe('every canopy layout builds a navigable forest', () => {
         ;(ways.has(`${col},${row}`) ? onTheWay : offIt).add(painted)
       }
     }
-    const surfaced = stage.props.some(p => (p.label ?? '').startsWith('path_dirt_'))
+    const surfaced = stage.props.some(p => (p.label ?? '').startsWith('path_edge_'))
     expect([...onTheWay].some(tone => !offIt.has(tone)) || surfaced).toBe(true)
   })
 })

@@ -72,7 +72,7 @@ describe.each(FORESTS)('%s', layout => {
     const way = insideWay(s)
     const onIt = s.props.filter(p => way.has(`${p.col},${p.row}`))
     // Every one of them is a surface piece of the way, so nothing has crept in under the exemption above.
-    expect(onIt.filter(p => !(p.label ?? '').startsWith('path_dirt_')).map(p => `${p.col},${p.row} ${p.label}`)).toEqual([])
+    expect(onIt.filter(p => !(p.label ?? '').startsWith('path_edge_')).map(p => `${p.col},${p.row} ${p.label}`)).toEqual([])
   })
 
   it('keeps its wood: clearing the way costs only a small share of what grows', () => {

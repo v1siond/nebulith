@@ -121,3 +121,145 @@ describe('the region you PICK leads the map', () => {
     expect(cypress({ region: 'glade' })).toBeGreaterThan(0)
   })
 })
+
+/**
+ * *"AND THERE'S NOT A SINGLE DIFFERENCE BETWEEN THE FOREST REGIONS, THEY'RE EXACTLY THE SAME"* (2026-09-15).
+ *
+ * The case above counts the CYPRESS, which only the jungle's lakeside grows, so it moves whenever a single
+ * region-aware planter runs. It passed while the regions were making almost no difference to the map: measured
+ * on a 40x40 woodland, 290 of 343 trees stand in the two-cell border treeline, and that planter rolled the
+ * TEMPLATE's global mix wherever it stood. So asking for the thicket, whose served species are bushes and
+ * saplings, and asking for the deep wood both produced the same five species in the same order, led by the
+ * `tree_column` the template serves and the thicket does not grow at all.
+ *
+ * What the eye reads is the DOMINANT species, so that is what is asserted.
+ */
+describe('the region you pick decides what the wood is MADE of, not just its rare tree', () => {
+  const woodland = findGenerator(CATALOG, 'wilderness', 'forest_woodland')!
+  const regionOf = (key: string) => woodland.config.subZones!.find(z => z.key === key)!
+
+  /** Every tree a woodland grows when the given region leads it, tallied over three seeds. Three, because a
+   *  lead is a WEIGHT: on any one seed the ten region seeds can fall so that two leads partition the map
+   *  identically, and that is the dice rather than the generator. */
+  const grown = (region: string) => {
+    const config = woodland.config
+    const counts = new Map<string, number>()
+    for (const seed of [4, 9, 17]) {
+      const orig = Math.random
+      Math.random = makeRng(seed)
+      try {
+        const stage = generateStage({
+          zone: 'summer', variant: 'forest', layout: 'woodland', cols: 40, rows: 40,
+          options: { exits: '2', pathways: '3', region },
+          nature: config.nature, palette: config.palette, formation: config.formation, pathway: config.pathway,
+          subZones: config.subZones, treeMix: config.trees,
+        })
+        for (const t of stage.trees) if (t.kind !== 'tree_dead') counts.set(t.kind, (counts.get(t.kind) ?? 0) + 1)
+      } finally {
+        Math.random = orig
+      }
+    }
+    return counts
+  }
+
+  const share = (counts: Map<string, number>, kinds: readonly string[]) => {
+    const total = [...counts.values()].reduce((a, b) => a + b, 0)
+    return kinds.reduce((n, k) => n + (counts.get(k) ?? 0), 0) / total
+  }
+
+  // The woodland's EDGE and its GLADE are served the same three species, so no map can tell those two apart
+  // by species and there is nothing here to assert about them. Every region with a set of its own is tested.
+  const ownSpecies = (key: string) => regionOf(key).trees!.map(t => t.kind).join(',')
+  const ALL = woodland.config.subZones!.map(z => z.key)
+  const DISTINCT = ALL.filter(key => ALL.filter(other => ownSpecies(other) === ownSpecies(key)).length === 1)
+
+  it.each(DISTINCT)('a woodland led by its %s grows more of that region\'s species than any other lead does', key => {
+    const served = regionOf(key).trees!.map(t => t.kind)
+    const mine = share(grown(key), served)
+    expect([...grown(key).values()].reduce((a, b) => a + b, 0)).toBeGreaterThan(50) // a wood to measure at all
+    // A comparison, not a tuned number: whichever region you ask for, its own species must come out ahead of
+    // where they land when you ask for a different one. That is the whole of what picking a region means.
+    for (const other of ['edge', 'deep', 'glade', 'thicket', 'lakeside']) {
+      if (ownSpecies(other) === ownSpecies(key)) continue
+      expect({ key, other, leads: mine > share(grown(other), served) }).toEqual({ key, other, leads: true })
+    }
+  })
+
+  it('the THICKET is bushes and the DEEP WOOD is trunks, so two regions do not read alike', () => {
+    const bushes = (region: string) => share(grown(region), ['bush', 'bush_round'])
+    // The thicket serves bushes and saplings; the deep wood serves columns, tall trunks and standards. The
+    // two have to come apart, and by a margin you could see rather than a count you could squint at.
+    expect(bushes('thicket')).toBeGreaterThan(bushes('deep') * 1.5)
+  })
+
+  /**
+   * THE BORDER TREELINE IS MOST OF THE WOOD, so it is most of what a region decides.
+   *
+   * Measured on a 40x40: 287 of a woodland's trees stand in the two-cell band and 53 anywhere else. It rolled
+   * the template's global mix, so the species only the REGIONS serve were 2.8% of that band on a woodland and
+   * 1.6% on a jungle. A wood whose regions could not be seen, because the thing filling it was not asking.
+   */
+  describe.each(['forest_woodland', 'forest_jungle'])('%s: the treeline grows what the region under it grows', key => {
+    const gen = findGenerator(CATALOG, 'wilderness', key)!
+
+    /** The species a REGION serves and the template does not, derived from the served catalog rather than
+     *  retyped, so this breaks if the data changes rather than quietly measuring nothing. */
+    const regionOnly = (() => {
+      const template = new Set((gen.config.trees ?? []).map(t => t.kind))
+      const only = new Set<string>()
+      for (const zone of gen.config.subZones ?? []) {
+        for (const t of zone.trees ?? []) if (!template.has(t.kind)) only.add(t.kind)
+      }
+      return only
+    })()
+
+    it.each([4, 9, 17])('seed %i', seed => {
+      const config = gen.config
+      const orig = Math.random
+      Math.random = makeRng(seed)
+      let stage
+      try {
+        stage = generateStage({
+          zone: 'summer', variant: 'forest', layout: gen.layout as never, cols: 40, rows: 40,
+          options: { exits: '2', pathways: '3' },
+          nature: config.nature, palette: config.palette, formation: config.formation, pathway: config.pathway,
+          subZones: config.subZones, treeMix: config.trees,
+        })
+      } finally {
+        Math.random = orig
+      }
+      expect(regionOnly.size).toBeGreaterThan(0) // the row has regions that differ from it, or nothing is being tested
+      const inBand = (t: { col: number; row: number }) =>
+        Math.min(t.col, t.row, stage!.cols - 1 - t.col, stage!.rows - 1 - t.row) < 2
+      const band = stage.trees.filter(inBand)
+      const field = stage.trees.filter(t => !inBand(t))
+      expect(band.length).toBeGreaterThan(50) // there IS a treeline
+      const regional = (list: typeof band) => list.filter(t => regionOnly.has(t.kind)).length / list.length
+      // THE FIELD IS THE YARDSTICK, not a number typed in here. The canopy has read the regions all along, so
+      // whatever share of region-only species the field carries is what this map's regions are worth, and the
+      // treeline has to be in the same country. It was at a twentieth of it: 0.028 against 0.466 on a
+      // woodland, 0.016 against 0.310 on a jungle.
+      expect(regional(field)).toBeGreaterThan(0) // the regions are live at all, or there is nothing to compare
+      expect({ seed, treeline: regional(band) >= regional(field) * 0.5 }).toEqual({ seed, treeline: true })
+    })
+  })
+
+  it('a template that serves regions with no species still grows its own mix', () => {
+    // The fallback, which is the compliance half: a cell no region claims, or a region stating no species,
+    // takes the template's mix exactly as it always did.
+    const config = woodland.config
+    const orig = Math.random
+    Math.random = makeRng(4)
+    try {
+      const stage = generateStage({
+        zone: 'summer', variant: 'forest', layout: 'woodland', cols: 40, rows: 40,
+        nature: config.nature, palette: config.palette, treeMix: config.trees,
+      })
+      const kinds = new Set(stage.trees.map(t => t.kind))
+      expect(kinds.has('tree_column')).toBe(true) // the template's own leading species, with no regions served
+      expect(kinds.has('tree_gnarled')).toBe(false) // and none of the region-only ones
+    } finally {
+      Math.random = orig
+    }
+  })
+})

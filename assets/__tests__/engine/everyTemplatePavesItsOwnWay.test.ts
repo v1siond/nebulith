@@ -212,7 +212,7 @@ describe('a way is the flat tone the references show', () => {
     // carries a piece of the `path_dirt` family instead, whose art holds the wander and the darker margin.
     const s = build(key, 4)
     const ways = s.pathways ?? new Set<string>()
-    const surface = new Map(s.props.filter(p => (p.label ?? '').startsWith('path_dirt_')).map(p => [`${p.col},${p.row}`, p]))
+    const surface = new Map(s.props.filter(p => (p.label ?? '').startsWith('path_edge_')).map(p => [`${p.col},${p.row}`, p]))
     const ORTHO = [[1, 0], [-1, 0], [0, 1], [0, -1]]
     const touchesField = (col: number, row: number) => ORTHO.some(([dc, dr]) => !ways.has(`${col + dc},${row + dr}`))
     let edges = 0, dressed = 0
@@ -223,16 +223,25 @@ describe('a way is the flat tone the references show', () => {
       if (surface.has(k)) dressed++
     }
     if (edges === 0) return
-    // A real share of the boundary wears a piece. Not all of it: the gateways paint their own lane, and a
-    // cell the water or a deck took is left alone, so this is the presence of the mechanism rather than a
-    // count to tune.
+    // A KERB IS A KERB. `edge` 0 is a way somebody laid an edge to, a city street or a boardwalk, and the
+    // field does not come into it: its boundary IS the cell edge and it must wear no verge at all.
+    if ((pathwayOf(key)?.edge ?? 0) <= 0) {
+      expect({ key, kerb: dressed }).toEqual({ key, kerb: 0 })
+      return
+    }
+    // Everywhere else a real share of the boundary wears a piece. Not all of it: the gateways paint their own
+    // lane and a cell the water or a deck took is left alone, so this is the presence of the mechanism rather
+    // than a count to tune.
     expect({ key, dressed: dressed > edges * 0.3 }).toEqual({ key, dressed: true })
-    // And the piece is tinted the way's own tone, so one family of art serves every environment.
+    // The piece is tinted with the FIELD's colour, because it IS the field: the tongue of grass reaching into
+    // the way. So there are as many tones as the field has, and what must be true is that none of them is the
+    // way's own tone, or the verge would be invisible.
     const tones = new Set([...surface.values()].map(p => p.color))
-    expect({ key, tones: tones.size }).toEqual({ key, tones: 1 })
+    expect({ key, tones: tones.size > 0 }).toEqual({ key, tones: true })
+    expect({ key, notTheWay: !tones.has(pathwayOf(key)?.tone) }).toEqual({ key, notTheWay: true })
   })
 
-  it.each(TEMPLATES)('%s keeps its middle a colour on the ground block', key => {
+  it.each(TEMPLATES)('%s wears ONE tone across every cell of its way', key => {
     // *"usually darker dirt with clear dirt in the middle"*. Measured on all ten stored references by eroding
     // the warm pixels to a core and taking what the erosion removed as the rim: the rim is darker in EVERY
     // one, at 0.78, 0.79, 0.80, 0.81, 0.84, 0.87, 0.88 and 0.89 of the core (one outlier at 0.64). That is
@@ -245,17 +254,16 @@ describe('a way is the flat tone the references show', () => {
     const middle: string[] = []
     for (const k of ways) {
       const [col, row] = k.split(',').map(Number)
-      if (touchesField(col, row)) continue
       const painted = s.floorColors[row]?.[col]
-      if (painted) middle.push(painted)
+      // The centre line is PAINT on the way, not the way's material, so it is not one of its tones.
+      if (painted && painted !== pathwayOf(key)?.marking?.color) middle.push(painted)
     }
-    if (middle.length === 0) return // a track too narrow to have a middle is all boundary, and all art
-    // The body wears the served tone. A gateway paints its own lane over the top of some of these cells, so
-    // the assertion is what the body is MADE of rather than a count of how many tones touch it.
-    const tally = new Map<string, number>()
-    for (const c of middle) tally.set(c, (tally.get(c) ?? 0) + 1)
-    const commonest = [...tally].sort((a, b) => b[1] - a[1])[0][0]
-    expect({ key, wears: commonest }).toEqual({ key, wears: tone })
+    if (middle.length === 0) return
+    // ONE TONE, across every cell of the way, which is the whole point of the inversion: the body used to be
+    // the only part that wore it and the boundary kept the field's colour, so more than half of a path was
+    // painted the colour of the grass.
+    expect({ key, tones: new Set(middle).size }).toEqual({ key, tones: 1 })
+    expect({ key, wears: middle[0] }).toEqual({ key, wears: tone })
   })
 
   it.each(TEMPLATES)('%s wears a handful of tones, not one per cell', key => {

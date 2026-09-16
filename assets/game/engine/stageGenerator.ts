@@ -399,6 +399,24 @@ export function pickLivingTree(rand: number, mix?: readonly GeneratorTreeWeight[
   return table[0].kind as LivingTreeKind
 }
 
+/**
+ * WHICH SPECIES GROW AT THIS CELL: the REGION's own where it states them, the template's otherwise.
+ *
+ * Six planters asked this question and two of them asked it of the region. The other four rolled the
+ * template's one global mix wherever they stood, and the border treeline is by far the biggest of them:
+ * measured on a 40x40 woodland, 290 of 343 trees stand in the two-cell edge band, so 85% of a map's wood
+ * never knew which region it grew in. What that looks like is *"THERE'S NOT A SINGLE DIFFERENCE BETWEEN THE
+ * FOREST REGIONS, THEY'RE EXACTLY THE SAME"*: asking for the thicket, whose served species are bushes and
+ * saplings, and asking for the deep wood both gave the same five species in the same order, led by the
+ * column the template serves and the thicket does not grow at all.
+ *
+ * One answer, in one place, so a planter added later cannot quietly go back to the global table. A map with
+ * no regions, or a cell no region claimed, falls through to the template's mix and is unmoved.
+ */
+function speciesAt(ctx: ArchetypeContext, col: number, row: number): readonly GeneratorTreeWeight[] | undefined {
+  return ctx.zoneAt?.[row]?.[col]?.trees ?? ctx.treeMix
+}
+
 /** One blocking biome-feature cell (mountain / peak / spill) — appearance from
  *  the tileset's per-zone feature palette (ember crater in lava, snowcap + blue
  *  waterfall otherwise). Always blocks (it's terrain). */
@@ -578,7 +596,6 @@ const isBuiltFloor = (ground: string | undefined): boolean => isTileCategory(gro
 function scatterGroundCover(ctx: ArchetypeContext, density = 0.18, layout?: VillageLayout): void {
   const { props, collision, ground, cols, rows, zone } = ctx
   const occupied = new Set(props.map(p => `${p.col},${p.row}`))
-  const fill: StageProp[] = []
   forEachCell(cols, rows, (col, row) => {
     if (isEdge(col, row, cols, rows)) return
     if (collision[row][col]) return // walkable floor only
@@ -587,9 +604,8 @@ function scatterGroundCover(ctx: ArchetypeContext, density = 0.18, layout?: Vill
     if (occupied.has(`${col},${row}`)) return // don't cover trees / buildings / decor
     if (ctx.rand() > density) return // breathing room
     const prop = makeGroundDecor(zone, col, row)
-    if (prop) fill.push(prop) // no decor tile for this zone (tileset not loaded) → leave the cell bare
+    if (prop) placeProp(ctx, prop) // no decor tile for this zone (tileset not loaded) → leave the cell bare
   })
-  props.push(...fill)
 }
 
 /** Scatter standing BLOOMS over a settlement's OPEN grass (skips edges, collisions, paved/built floor, roads, and
@@ -600,7 +616,6 @@ function scatterFlowers(ctx: ArchetypeContext, density: number, layout?: Village
   const { props, collision, ground, cols, rows, zone } = ctx
   if (zoneFlowers(zone) === undefined) return // non-flowering zone → no blooms
   const occupied = new Set(props.map(p => `${p.col},${p.row}`))
-  const fresh: StageProp[] = []
   forEachCell(cols, rows, (col, row) => {
     if (isEdge(col, row, cols, rows)) return
     if (collision[row][col]) return // walkable grass only
@@ -608,9 +623,8 @@ function scatterFlowers(ctx: ArchetypeContext, density: number, layout?: Village
     if (isBuiltFloor(ground[row][col]) || isRoadGround(ground[row][col]) || layout?.roads[row]?.[col]) return // keep streets/paved clean (roads are colour-only now → layout.roads)
     if (occupied.has(`${col},${row}`)) return // don't cover trees / buildings / decor
     if (ctx.rand() > density) return
-    fresh.push(makeFlower(ctx.rand, zone, col, row)) // seeded pick → the nature layer stays reproducible per-seed
+    placeProp(ctx, makeFlower(ctx.rand, zone, col, row)) // seeded pick → the nature layer stays reproducible per-seed
   })
-  props.push(...fresh)
 }
 
 // Structural decor for temple / boss arena / village (readable single-glyph props). Glyph + fallback
@@ -1968,6 +1982,22 @@ function carveRiver(ctx: ArchetypeContext, course: RiverCourse, pal: GeneratorPa
  * Get across it, the way its course says. Several crossings make `through` traversable; exactly ONE makes
  * `divides` a real division; `around` keeps the bridge it always had over its near arm.
  */
+/** The longest unbroken run in a sorted list of positions, as its first and last. A river that meanders
+ *  touches one straight line in several places, and a crossing belongs to ONE of them: the widest, which is
+ *  the channel rather than a puddle the same slice happens to clip. */
+function widestRun(sorted: readonly number[]): { from: number; to: number } {
+  let bestFrom = sorted[0], bestTo = sorted[0]
+  let from = sorted[0], prev = sorted[0]
+  for (const at of sorted.slice(1)) {
+    if (at === prev + 1) { prev = at; continue }
+    if (prev - from > bestTo - bestFrom) { bestFrom = from; bestTo = prev }
+    from = at
+    prev = at
+  }
+  if (prev - from > bestTo - bestFrom) { bestFrom = from; bestTo = prev }
+  return { from: bestFrom, to: bestTo }
+}
+
 function bridgeRiver(ctx: ArchetypeContext, water: Set<string>, routes: Set<string>, course: RiverCourse, pal: GeneratorPalette | undefined): void {
   // A RIVER THAT CUTS A PATH IS ALWAYS CROSSED. It used to be a toggle, "A crossing joined to the paths",
   // and he asked what it even meant and why it was in the UI. It meant: off, the river got fallen logs at
@@ -1978,11 +2008,15 @@ function bridgeRiver(ctx: ArchetypeContext, water: Set<string>, routes: Set<stri
   // variation, so the crossing is unconditional now and the option is gone.
   if (course === 'around') { crossRiver(ctx, water, routes, true); return }
   if (placeRiverCrossing(ctx, water, routes)) {
-    // The crossing sits ON the path network; a river that is easy to cross gets fords elsewhere too.
-    if (course === 'through') fellLogsAcross(ctx, water, pal, [0.2, 0.8])
+    // The crossing sits ON the path network, so ONE ford elsewhere is enough to make the river easy to
+    // cross. It asked for two here and three below, and a ford is a plank deck four rows wide: measured on a
+    // swamp, 56 cells of planking that no way leads to, against 37 where the ways actually cross. That is
+    // what reads as brown rectangles lying in the landscape.
+    if (course === 'through') fellLogsAcross(ctx, water, pal, [0.24, 0.76])
     return
   }
-  fellLogsAcross(ctx, water, pal, course === 'divides' ? [0.5] : [0.25, 0.55, 0.85])
+  // Nothing crosses on the paths here, so the fords ARE the crossings and there are two of them.
+  fellLogsAcross(ctx, water, pal, course === 'divides' ? [0.5] : [0.3, 0.7])
 }
 
 /** Forest layout builders, keyed by the user-steered ForestLayout. Each runs on the already-floored ctx
@@ -2125,9 +2159,10 @@ function carveMapWater(ctx: ArchetypeContext): void {
  * could never mean anything: every one of them read 4 pathways out however many were asked for.
  *
  * His call on what closes a wood: a dense treeline, broken only at the gates. The band is planted with the
- * template's OWN species (`ctx.treeMix`, the same served mix the canopy rolls), which is why a jungle edge is
- * jungle and a meadow edge is meadow without this function knowing anything about either, and why a town's
- * edge is whatever its own template grows.
+ * species that grow WHERE EACH CELL IS (`speciesAt`), which is why a jungle edge is jungle and a meadow edge
+ * is meadow without this function knowing anything about either, and why a town's edge is whatever its own
+ * template grows. It asked the TEMPLATE alone before, and it plants 290 of a woodland's 343 trees, so the
+ * regions it runs through decided nothing about a map's wood.
  *
  * Runs BEFORE `openGates`, which then cuts the pathways back through it. Cells the route network already claimed
  * are left alone, so a path that reaches the border is not planted over on its way out.
@@ -2142,7 +2177,16 @@ function sealMapEdge(ctx: ArchetypeContext): void {
   // its way out, but where that network TOUCHES the border it was leaving extra holes: measured, a lone cell
   // three along from the gate, and a three-cell run beside another gate, each counting as one more opening
   // than was asked for. Inside the map the whole network is spared; on the ring, only the gates.
+  //
+  // WHAT IT SPARES IS THE PUBLISHED WAY, not the planned one. The plan is the centreline a layout was cut
+  // from; the way the map actually carries is `pathwayCells`, and a forest's gate LANES are in one and not
+  // the other. So the treeline planted straight into the mouth you walk out through: measured at seed 4, 3
+  // of a woodland's 7 trees standing on a way, 3 of a meadow's 8 and 1 of a jungle's 4.
   const spared = new Set<string>()
+  for (const key of ctx.pathwayCells) {
+    const { col, row } = toCell(key)
+    if (!isEdge(col, row, cols, rows)) spared.add(key)
+  }
   for (const key of plan.cells) {
     const { col, row } = toCell(key)
     if (!isEdge(col, row, cols, rows)) spared.add(key)
@@ -2162,8 +2206,16 @@ function sealMapEdge(ctx: ArchetypeContext): void {
     // The band closes over it, which is what a wooded bank looks like anyway.
     const wet = isWaterGround(ctx.ground[row][col]) || ctx.wet.has(`${col},${row}`)
     if (collision[row][col] && !wet) return          // something already stands here, and it is not the river
-    trees.push({ col, row, kind: pickLivingTree(ctx.rand(), ctx.treeMix), variant: massVariant(col, row) })
+    trees.push({ col, row, kind: pickLivingTree(ctx.rand(), speciesAt(ctx, col, row)), variant: massVariant(col, row) })
     collision[row][col] = true
+    // AND A CELL THE WOOD CLOSED IS NO LONGER A WAY. Only a ring cell reaches here, since everything else the
+    // map publishes as a way is spared above, and a ring cell with no gate on it is a place the border stays
+    // shut. It stayed in `pathwayCells` all the same, so the map went on calling it a way: a street that runs
+    // the full span reaches the edge at both ends and a town published 12 such cells, each now paved, counted
+    // as pathway, and holding the trunk that closes it. The sweeps could not answer that, because taking the
+    // tree out is the one thing the border rule forbids. Dropping the claim is the honest half, and it takes
+    // the paving with it, so the way now stops where the wood does.
+    ctx.pathwayCells.delete(`${col},${row}`)
   })
 }
 
@@ -2457,30 +2509,20 @@ function pavableLane(ctx: ArchetypeContext, plan: RoutePlan): Set<string> {
     if (ctx.decks.has(key)) continue
     lane.add(key)
   }
-  if (edge <= 0) return lane
-  // A cell is on the BORDER when one of its four neighbours is not in the lane. Only those are eaten, so the
-  // middle of the way stays continuous however ragged the sides get: a path you cannot walk down is not one.
+  // THE FIELD TAKES ITS SHARE BACK IN THE ART, NOT IN WHOLE CELLS.
   //
-  // IN TONGUES, NOT IN SPECKLE. This rolled `ctx.rand()` per cell, and a coin flip per cell is a DITHER: at
-  // 0.35 it took every third border cell at random, which along a straight side is a chequer and is half of
-  // *"this looks like weird chessboard"*. The grass comes back into a path in PATCHES, so the roll is taken
-  // per patch of `EDGE_BITE` cells and every border cell in that patch goes or stays together. Same share of
-  // the border eaten, in bites you can see the shape of.
-  const bitten = new Set<string>()
-  for (const key of lane) {
-    const { col, row } = toCell(key)
-    if (!atLaneEdge(lane, col, row)) continue
-    const patch = shadeNoise(Math.floor(col / EDGE_BITE) * 2.3 + Math.floor(row / EDGE_BITE) * 3.7)
-    if (patch >= edge) continue
-    bitten.add(key)
-  }
-  for (const key of bitten) lane.delete(key)
+  // This ate border cells out of the lane, first one at a time and then in patches of three, to make the edge
+  // ragged. The verge pieces do that now and they do it INSIDE the cell, which is where the reference puts
+  // it: measured, the boundary there wanders about 0.17 of a cell. Eating whole cells as well was the same
+  // job done twice at ten times the scale, and it left those cells in `pathwayCells` wearing the field's own
+  // colour, which is 32 of a woodland's 334 way cells reading as grass in the middle of a path.
+  //
+  // `edge` still decides, and still means what the backend says it means: 0 is a kerb somebody laid, so a
+  // city street and a boardwalk get a clean straight boundary and no verge at all. Anything above 0 is a way
+  // the field comes back into, and `wearTheWay` lays the verge.
+  void edge
   return lane
 }
-
-/** How many cells across one bite of field taken back out of a path's edge. Three, so a bite reads as the
- *  grass coming into the dirt rather than as a missing tile. */
-const EDGE_BITE = 3
 
 /** Lay the served surface over the lane and tint it with the template's trail tone. The tone is what makes
  *  one dirt path an autumn one and another a summer one; the TILE is what makes it a path at all. */
@@ -2539,23 +2581,52 @@ function wearTheWay(ctx: ArchetypeContext, cells: ReadonlySet<string>, tone: str
     const { col, row } = toCell(key)
     if (!inBounds(col, row, ctx.cols, ctx.rows)) continue
     if (isWaterGround(ctx.ground[row][col]) || ctx.wet.has(key) || ctx.decks.has(key)) continue
-    // THE BODY OF THE WAY IS STILL A COLOUR ON THE GROUND BLOCK. A cell with the way on every side is dirt
-    // across its whole footprint, so it needs no art to say where dirt ends: it is the cheapest thing the
-    // renderer can draw and it merges into a run with its neighbours.
-    if (!atLaneEdge(cells, col, row)) {
-      ctx.floorColors[row][col] = tone
-      continue
-    }
-    // THE BOUNDARY IS ART, and only the boundary. The field keeps this cell's floor and its colour, and the
-    // piece is laid over it as a flat overlay whose transparent half lets that field show through. That is
-    // what puts the dirt-to-grass line INSIDE the cell instead of at its edge, which is the whole difference
-    // between a path and a polygon of tinted cells, and it is the same flat ground overlay the pebbles and
-    // the puddles already use.
+    // ONE TONE, ON EVERY CELL OF THE WAY.
+    //
+    // This painted only the cells with the way on every side and left the boundary cells wearing the FIELD's
+    // colour with the dirt laid over them as art. Measured on a woodland: 334 way cells in SIX colours, and
+    // only 144 of them on the way's own tone, so more than half of a path was painted the colour of the
+    // grass. That is the patchwork, and it was this line.
+    ctx.floorColors[row][col] = tone
+    // A KERB IS A KERB. `edge` 0 is a way somebody laid an edge to, so the field does not come into it and
+    // there is no verge to draw: a city street's boundary is the cell edge, which is exactly right for it.
+    if ((ctx.pathway?.edge ?? 0) <= 0) continue
+    const field = fieldBeside(ctx, cells, col, row)
+    if (!field) continue
+    // A VERGE THE COLOUR OF THE PATH IS NOT A VERGE. The way is painted by several passes (the layout's own
+    // track, the gate lanes, the gateways), so a cell can find a neighbour that a later pass will make part
+    // of the way, or that an earlier one already did. Measured: 3% of a woodland's verges and 12% of a
+    // jungle's. Laying one would cost an asset to draw nothing.
+    if (field === tone) continue
+    // AND THE FIELD COMES OVER THE TOP, where the way meets it. The piece is the tongue of grass reaching in,
+    // tinted with the colour of the field cell it reaches from, laid as the same flat ground overlay the
+    // pebbles and the puddles use. The boundary therefore lives INSIDE the cell, which is where the
+    // reference puts it and the one thing a colour per cell can never do.
     ctx.props.push({
       col, row, type: 'ground_decor', char: '', label: wayPiece(cells, col, row),
-      blocking: false, grows: false, color: tone,
+      blocking: false, grows: false, color: field,
     })
   }
+}
+
+/** The colour of the first field cell beside this one, or nothing when the way surrounds it. That colour is
+ *  what the encroaching grass is tinted with, so a verge always matches the ground it grew from. */
+function fieldBeside(ctx: ArchetypeContext, cells: ReadonlySet<string>, col: number, row: number): string | undefined {
+  for (const [dc, dr] of ORTHO) {
+    const c = col + dc
+    const r = row + dr
+    const key = `${c},${r}`
+    if (!inBounds(c, r, ctx.cols, ctx.rows)) continue
+    // NOT PART OF ANY WAY, not merely outside the set this call was handed. A gateway lane and a layout's own
+    // track are painted by separate calls, so a cell of one is "field" to the other and the verge came out
+    // tinted the path's own colour, which is a verge you cannot see.
+    // A DECK IS NOT FIELD EITHER. It wears the way's tone because it is the way carried over water, so a verge
+    // sampling one came out the colour of the path it was meant to edge.
+    if (cells.has(key) || ctx.pathwayCells.has(key) || ctx.decks.has(key)) continue
+    const painted = ctx.floorColors[r][c] ?? groundTileColor(ctx.ground[r][c], c, r)
+    if (painted) return painted
+  }
+  return undefined
 }
 
 /**
@@ -2603,9 +2674,9 @@ function wayPosition(open: string): string {
 
 const WAY_POSITIONS = new Set(['t', 'b', 'l', 'r', 'tl', 'tr', 'bl', 'br'])
 
-/** The autotile family a way is built from. One family, tinted per template, is what lets a woodland track, a
- *  beach sand track and a mountain gravel track share one set of art. */
-const WAY_FAMILY = 'path_dirt'
+/** The autotile family a way's EDGE is built from. Each piece is the field reaching into the way, tinted with
+ *  that field's own colour, so one set of art serves every environment's grass, sand and ash. */
+const WAY_FAMILY = 'path_edge'
 
 /** How many cuts of each piece the backend serves. */
 const WAY_PIECE_CUTS = 3
@@ -3008,9 +3079,7 @@ const woodlandPhases: VariantPhases = {
       : woodlandCanopyField(ctx, ctx.claimed, canopy, ctx.formation)
     for (const { col, row } of field) {
       if (standsOnPathway(ctx, col, row)) continue // the ways are drawn by now, and nothing grows in one
-      // A region's OWN species where it states them, the template's otherwise: a stand of columns beside a
-      // meadow of gnarled singles is the difference you can actually see.
-      const kind: LivingTreeKind | 'tree_dead' = ctx.rand() < 0.06 ? 'tree_dead' : pickLivingTree(ctx.rand(), zoneAt[row][col]?.trees ?? ctx.treeMix)
+      const kind: LivingTreeKind | 'tree_dead' = ctx.rand() < 0.06 ? 'tree_dead' : pickLivingTree(ctx.rand(), speciesAt(ctx, col, row))
       trees.push({ col, row, kind, variant: massVariant(col, row) })
       collision[row][col] = true // the trunk blocks; the canopy is walkable overhead, as everywhere else
     }
@@ -3238,7 +3307,7 @@ const junglePhases: VariantPhases = {
       : woodlandCanopyField(ctx, ctx.claimed, canopy, ctx.formation)
     for (const { col, row } of field) {
       if (standsOnPathway(ctx, col, row)) continue
-      const kind: LivingTreeKind | 'tree_dead' = ctx.rand() < 0.04 ? 'tree_dead' : pickLivingTree(ctx.rand(), zoneAt[row][col]?.trees ?? ctx.treeMix)
+      const kind: LivingTreeKind | 'tree_dead' = ctx.rand() < 0.04 ? 'tree_dead' : pickLivingTree(ctx.rand(), speciesAt(ctx, col, row))
       trees.push({ col, row, kind, variant: massVariant(col, row) })
       collision[row][col] = true
     }
@@ -3371,10 +3440,11 @@ function paintGateway(ctx: ArchetypeContext, gate: Gateway, water: ReadonlySet<s
       // NO PAVING TONE, NO REPAINT. Writing `undefined` here CLEARED the colour the trail pass had already
       // laid, so a template that states no tone came out with a way that stopped dead at its own gateway.
       //
-      // And it wears the same RIM, because a gateway is the way continuing to the border: its outermost cell
-      // on each side is its edge, exactly as `wearTheWay` finds one. Collecting the lane and handing it over
-      // would be the same answer the long way round, since `w` already says how far across this cell sits.
-      if (gate.paving) floorColors[row][col] = Math.abs(w) === GATEWAY_HALF ? darkenColor(gate.paving, PATHWAY_RIM) : gate.paving
+      // ONE TONE, like every other cell of the way. It darkened the outermost cell on each side, which was the
+      // rim trick from when a boundary was a colour, and it left a gateway wearing two tones where the way it
+      // continues wears one. The boundary is art now, laid by `wearTheWay` over whichever cells meet the
+      // field, and a gateway's cells are in `routes` so they get it like the rest.
+      if (gate.paving) floorColors[row][col] = gate.paving
       routes.add(`${col},${row}`)
     }
     for (const w of [-GATEWAY_HALF - 1, GATEWAY_HALF + 1]) {
@@ -3649,8 +3719,22 @@ function nearestOf(from: Cell, cells: readonly Cell[]): Cell | null {
  * Placed along the creek's run rather than at a fixed point, because a creek that meanders has no single
  * "middle", and two of them so a crossing is never a long detour.
  */
+/** How many rows of planking a FORD is. Two: it is a log across a creek, not the four-row bridge the path
+ *  network gets, whose width comes from the composition stamped on it. */
+const FORD_ROWS = 2
+
 function fellLogsAcross(ctx: ArchetypeContext, water: Set<string>, pal: GeneratorPalette | undefined, fractions: readonly number[] = [0.32, 0.72]): void {
   if (water.size === 0) return
+  // HOW MANY FORDS IS THE CALLER'S CALL, and it is the number that matters.
+  //
+  // This laid a log at two or three fixed fractions of the river on every map with water, on top of the decks
+  // the ways already got where they cross it. Measured on a swamp: 37 deck cells from the routes, which are
+  // the crossings a person walks to, plus 56 more from here that nothing leads to. A ford is four rows of
+  // planking, so those 56 are what read as brown rectangles lying in the landscape.
+  //
+  // Gating this on the floor being in pieces was tried and is wrong: the crossing on the path network joins
+  // the floor first, so the guard then refuses every ford and a river stops being crossable anywhere but at
+  // the one path. Fewer fords, not no fords.
   const cells = [...water].map(toCell)
   // Which way the creek RUNS — the axis it spans more of. The log lies across the other one.
   const cols = cells.map(c => c.col)
@@ -3673,14 +3757,26 @@ function fellLogsAcross(ctx: ArchetypeContext, water: Set<string>, pal: Generato
     const band = cells.filter(c => along(c) === at)
     if (band.length === 0) continue
     const across = (c: Cell) => (vertical ? c.col : c.row)
-    const from = Math.min(...band.map(across)) - 1
-    const to = Math.max(...band.map(across)) + 1
+    // THE CHANNEL, NOT THE WHOLE SLICE.
+    //
+    // This took the min and the max of the water on the line and decked everything between them. A river
+    // MEANDERS, so one straight slice can touch it at two places with dry land in the gap, and the deck then
+    // ran over that dry land as planking. Measured on a swamp: 86 deck cells in six separate decks, the
+    // biggest 32 long, and only 24 of the 86 touching water at all. Two thirds of every crossing was a
+    // plank road over solid ground, which is what the brown rectangles are.
+    //
+    // A crossing spans ONE channel: the contiguous run of water, plus a cell of landing on each bank.
+    const span = widestRun(band.map(across).sort((a, b) => a - b))
+    const from = span.from - 1
+    const to = span.to + 1
     const deck = new Set<string>()
-    // AS WIDE AS THE BRIDGE THAT GOES ON IT. This laid 3 cells across while the composition authors four rows
-    // (a rail, two walking rows, a rail), so the fourth row of every bridge was stamped off the deck.
-    const half = Math.floor(CROSSING_ROWS / 2)
+    // A FORD IS NOT A BRIDGE. The bridge on the path network is four rows because its composition authors
+    // four (a rail, two walking rows, a rail); a fallen log you cross a creek on is two. Laying every ford at
+    // the bridge's width is half of why they read as plank rectangles rather than as logs, and at two rows
+    // apiece a river can have two fords for the planking one used to cost.
+    const half = Math.floor(FORD_ROWS / 2)
     for (let a = from; a <= to; a++) {
-      for (let w = half - CROSSING_ROWS + 1; w <= half; w++) {
+      for (let w = half - FORD_ROWS + 1; w <= half; w++) {
         const col = vertical ? a : at + w
         const row = vertical ? at + w : a
         if (inBounds(col, row, ctx.cols, ctx.rows)) deck.add(`${col},${row}`)
@@ -4786,7 +4882,7 @@ function stampMeadowTree(ctx: ArchetypeContext, col: number, row: number, tall: 
   const variant = randIntWith(ctx.rand, 0, canopyCount(styleCatalog('ascii'), zone) - 1)
   // The green/verdant reference meadows show NO bare snags — only a HARSH season sprinkles a little dead wood.
   const dead = HARSH_ZONES.has(zone) && ctx.rand() < DEAD_TREE_CHANCE[zone] * 0.4
-  const kind: LivingTreeKind | 'tree_dead' = dead ? 'tree_dead' : tall ? 'tree_tall' : pickLivingTree(ctx.rand(), ctx.treeMix)
+  const kind: LivingTreeKind | 'tree_dead' = dead ? 'tree_dead' : tall ? 'tree_tall' : pickLivingTree(ctx.rand(), speciesAt(ctx, col, row))
   trees.push({ col, row, kind, variant })
   collision[row][col] = true
 }
@@ -5155,7 +5251,7 @@ function repairFloorConnectivity(ctx: ArchetypeContext, maxPocket = Infinity): v
     region.forEach(key => {
       const { col, row } = toCell(key)
       collision[row][col] = true
-      anchors.push({ col, row, kind: pickLivingTree(shadeNoise(col * 17 + row * 43), ctx.treeMix), variant: massVariant(col, row) % canopyCount(styleCatalog('ascii'), zone) }) // tiny dead pocket → forest fills it
+      anchors.push({ col, row, kind: pickLivingTree(shadeNoise(col * 17 + row * 43), speciesAt(ctx, col, row)), variant: massVariant(col, row) % canopyCount(styleCatalog('ascii'), zone) }) // tiny dead pocket → forest fills it
     })
   }
 }
@@ -5259,7 +5355,7 @@ function stampTree(ctx: ArchetypeContext, baseCol: number, baseRow: number, dead
   if (!isLandCell(ctx, baseCol, baseRow)) return // land-only: no tree in water
   if (standsOnPathway(ctx, baseCol, baseRow)) return // and no tree in a road
   const variant = randIntWith(ctx.rand, 0, canopyCount(styleCatalog('ascii'), zone) - 1) // this tree's canopy tone (green…pink)
-  const kind = dead ? 'tree_dead' : pickLivingTree(ctx.rand(), ctx.treeMix) // random shape variant (standard/tall/small/round/bush)
+  const kind = dead ? 'tree_dead' : pickLivingTree(ctx.rand(), speciesAt(ctx, baseCol, baseRow)) // random shape variant (standard/tall/small/round/bush)
   trees.push({ col: baseCol, row: baseRow, kind, variant })
   if (inBounds(baseCol, baseRow, cols, rows)) collision[baseRow][baseCol] = true // only the trunk cell blocks
 }
