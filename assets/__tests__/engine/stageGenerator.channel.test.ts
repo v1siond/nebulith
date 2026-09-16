@@ -43,7 +43,11 @@ describe('the river is cut below the walking floor', () => {
 
     expect(water.length).toBeGreaterThan(0)
     expect(dug.size).toBeGreaterThan(0)
-    expect(water.filter(k => !dug.has(k))).toEqual([]) // nothing wet is left un-cut
+    // EXCEPT AT A FORD. A ford is the one stretch a river is deliberately NOT cut through: it is raised back
+    // level with its banks so it can be waded, which is the definition of the word rather than an exception
+    // slipped into the rule. Everything else wet stays in the channel.
+    const ford = s.fords ?? new Set<string>()
+    expect(water.filter(k => !dug.has(k) && !ford.has(k))).toEqual([])
     expect(floor(s)).toBe(-1)
   })
 

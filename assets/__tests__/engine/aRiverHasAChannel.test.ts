@@ -77,7 +77,11 @@ describe('the water is CUT INTO the map, not laid on top of it', () => {
         const s = build(key, course)
         const cells = waterCells(s)
         expect({ key, course, hasWater: cells.length > 0 }).toEqual({ key, course, hasWater: true })
-        const onTheFloor = cells.filter(({ col, row }) => elevationAt(s, col, row) >= 0)
+        // EXCEPT AT A FORD, which is the one place a river is deliberately NOT cut below the floor: a stretch
+        // shallow enough to wade, level with its banks so it joins them. That is the definition of the word,
+        // and the stage publishes those cells as the crossing they are. Everything else stays in the channel.
+        const ford = s.fords ?? new Set<string>()
+        const onTheFloor = cells.filter(({ col, row }) => elevationAt(s, col, row) >= 0 && !ford.has(`${col},${row}`))
         expect({ key, course, laidOnTheFloor: onTheFloor.length }).toEqual({ key, course, laidOnTheFloor: 0 })
       }
     })
@@ -92,6 +96,10 @@ describe('and the ground beside it is its BANK', () => {
         let pairs = 0
         const below: string[] = []
         for (const { col, row } of waterCells(s)) {
+          // A FORD HAS NO BANK ABOVE IT, and that is what a ford is: the river level with the ground so you
+          // can walk through it. The exemption further down spares a DECK standing at the water's level; this
+          // one spares the water itself, where the crossing IS the water rather than a thing built over it.
+          if (s.fords?.has(`${col},${row}`)) continue
           for (const [dc, dr] of [[1, 0], [-1, 0], [0, 1], [0, -1]] as const) {
             const c = col + dc
             const r = row + dr

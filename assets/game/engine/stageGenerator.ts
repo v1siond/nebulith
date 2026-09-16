@@ -63,7 +63,7 @@ import { generationLayerKeys } from '@/engine/generate/generationLayers'
 import { isTileCategory, TILE_CATEGORY } from '@/engine/tileset/tileCategory'
 import { planRoutes, resolvePathways, type Gate, type RouteCell, type RoutePlan, type Side, type Pathways } from '@/engine/pathNetwork'
 import {
-  carveChannel, deckRoutes, digChannel, flowField, isWaterGround, layDeck, recordBridgeSpan,
+  carveChannel, channelDepth, deckRoutes, digChannel, flowField, isWaterGround, layDeck, recordBridgeSpan,
   narrowestLine, narrowPathwaysToCrossings, resolveRiverCourse, CROSSING_ROWS, settleWaterDepth, strewRiverRocks, wadeableShallows, waterBand, waterReach,
   FLOW_STEPS, type RiverCourse,
 } from '@/engine/riverNetwork'
@@ -249,6 +249,13 @@ export interface StageData {
    * READS.
    */
   decks?: ReadonlySet<string>
+  /**
+   * EVERY CELL WHERE THE RIVER IS WADEABLE: a ford, not a built crossing.
+   *
+   * Separate from `decks` because they are separate things. A deck is a structure standing over the water; a
+   * ford is the water itself, shallow and flush with its banks. Undefined when the map has none.
+   */
+  fords?: ReadonlySet<string>
   /**
    * EVERY CELL THE PATHWAYS LAYER DREW AS A WAY.
    *
@@ -882,6 +889,9 @@ interface ArchetypeContext {
   /** Every cell laid as a crossing deck. The depth pass has to tell a deck from a bank, and the tile no longer
    *  says which (a dirt-path crossing is the flat floor). */
   decks: Set<string>
+  /** Every cell laid as a ford: river shallow enough to walk through, raised back to the level of its banks.
+   *  The depth pass, the dry-area walk and the wading rule each need to tell one from a deck. */
+  fords: Set<string>
   /**
    * CELLS WITH STANDING WATER LYING ON TOP OF DRY GROUND.
    *
@@ -1268,7 +1278,7 @@ export function generateStage(opts: GenerateOptions): StageData {
   for (const key of generationLayerKeys()) rngs[key] = layerRng(opts.seeds, key)
   for (const key of ENGINE_PASS_RNGS) rngs[key] ??= layerRng(opts.seeds, key)
   // Single-pass archetypes (forest/cave/temple/boss) read `ctx.rand`; the layout rng is their source.
-  const ctx: ArchetypeContext = { variant, zone, ground, collision, floorColors, elevation, buildings, props, trees, compositions, cols, rows, layout, options: opts.options, nature: opts.nature, settlement: opts.settlement, palette: opts.palette, subZones: opts.subZones, formation: opts.formation, pathway: opts.pathway, treeMix: opts.treeMix, crossings: opts.crossings, entrance: opts.entrance, pathwayCells: new Set<string>(), water: new Set<string>(), pools: new Set<string>(), banks: new Set<string>(), claimed: new Set<string>(), decks: new Set<string>(), wet: new Set<string>(), flow: new Map<string, number>(), buildingSizes: opts.buildingSizes, rand: rngs.layout }
+  const ctx: ArchetypeContext = { variant, zone, ground, collision, floorColors, elevation, buildings, props, trees, compositions, cols, rows, layout, options: opts.options, nature: opts.nature, settlement: opts.settlement, palette: opts.palette, subZones: opts.subZones, formation: opts.formation, pathway: opts.pathway, treeMix: opts.treeMix, crossings: opts.crossings, entrance: opts.entrance, pathwayCells: new Set<string>(), water: new Set<string>(), pools: new Set<string>(), banks: new Set<string>(), claimed: new Set<string>(), decks: new Set<string>(), fords: new Set<string>(), wet: new Set<string>(), flow: new Map<string, number>(), buildingSizes: opts.buildingSizes, rand: rngs.layout }
   runLayers(STAGE_LAYERS, ctx, rngs, opts.upTo)
 
   return {
@@ -1303,6 +1313,7 @@ export function generateStage(opts: GenerateOptions): StageData {
     // anything downstream that needed to ask "is this a bridge" had to guess from tile NAMES. Undefined when
     // the map has no crossing, so nothing changes for a map without one.
     decks: ctx.decks.size === 0 ? undefined : ctx.decks,
+    fords: ctx.fords.size === 0 ? undefined : ctx.fords,
     pathways: ctx.pathwayCells.size === 0 ? undefined : ctx.pathwayCells,
   }
 }
@@ -3750,9 +3761,13 @@ function nearestOf(from: Cell, cells: readonly Cell[]): Cell | null {
  * Placed along the creek's run rather than at a fixed point, because a creek that meanders has no single
  * "middle", and two of them so a crossing is never a long detour.
  */
-/** How many rows of planking a FORD is. Two: it is a log across a creek, not the four-row bridge the path
- *  network gets, whose width comes from the composition stamped on it. */
+/** How many rows wide a FORD is: the stretch of river shallow enough to wade. Two, against the four of a
+ *  built bridge, whose width comes from the composition stamped on it. */
 const FORD_ROWS = 2
+
+/** The river at its shallowest, which is what a ford is made of. The same tile the river already uses at its
+ *  own edges, so a ford reads as part of the water rather than as something laid over it. */
+const SHALLOW_WATER = 'water_shallow'
 
 function fellLogsAcross(ctx: ArchetypeContext, water: Set<string>, pal: GeneratorPalette | undefined, fractions: readonly number[] = [0.32, 0.72]): void {
   if (water.size === 0) return
@@ -3800,30 +3815,44 @@ function fellLogsAcross(ctx: ArchetypeContext, water: Set<string>, pal: Generato
     const span = widestRun(band.map(across).sort((a, b) => a - b))
     const from = span.from - 1
     const to = span.to + 1
-    const deck = new Set<string>()
-    // A FORD IS NOT A BRIDGE. The bridge on the path network is four rows because its composition authors
-    // four (a rail, two walking rows, a rail); a fallen log you cross a creek on is two. Laying every ford at
-    // the bridge's width is half of why they read as plank rectangles rather than as logs, and at two rows
-    // apiece a river can have two fords for the planking one used to cost.
+    // A FORD IS NOT A BRIDGE AND LAYS NO PLANKING.
+    //
+    // A ford is a stretch of river too shallow to stop you, not a structure: you walk THROUGH it. This called
+    // `layDeck`, which swaps the cell's ground for `bridge` and paints it the way's tone, so every ford came
+    // out as a dirt coloured plank rectangle lying across the water.
+    //
+    // So the water STAYS. It is raised back flush with its banks, undoing exactly the cut `digChannel` made,
+    // so there is no rim to climb into or out of, and it stops blocking. The shallow tile is what the river
+    // already uses at its own edges, so a ford reads as a continuation of the water rather than as a thing
+    // built on it.
     const half = Math.floor(FORD_ROWS / 2)
+    const cut = channelDepth(ctx)
     for (let a = from; a <= to; a++) {
       for (let w = half - FORD_ROWS + 1; w <= half; w++) {
         const col = vertical ? a : at + w
         const row = vertical ? at + w : a
-        if (inBounds(col, row, ctx.cols, ctx.rows)) deck.add(`${col},${row}`)
+        if (!inBounds(col, row, ctx.cols, ctx.rows)) continue
+        if (!isWaterGround(ctx.ground[row][col])) continue // the banks either side stay land
+        ctx.ground[row][col] = SHALLOW_WATER
+        ctx.collision[row][col] = false
+        // AND IT RISES TO ITS BANKS, which is what makes it a ford rather than a hole you fall into. Leaving
+        // it in the cut was tried: the cells are walkable but a whole block down, so they join nothing and the
+        // jungle came apart into pieces again. A ford is the one place a river is NOT cut below the floor.
+        //
+        // It adds back what `digChannel` took off rather than snapping to 0, so a creek crossing a raised
+        // region comes level with THAT region instead of dropping to the map's base.
+        ctx.elevation[row][col] += cut
+        if (pal?.waterShallow) ctx.floorColors[row][col] = pal.waterShallow
+        // RECORDED AS A FORD, NOT AS A DECK. The depth pass, the dry-area walk and the wading rule each ask a
+        // crossing a different question, and a ford answers all three differently from planking: it is
+        // channel, it is not land, and it is wadeable even where the rest of the river is cut.
+        ctx.fords.add(`${col},${row}`)
       }
     }
-    layDeck(ctx, deck, wayTone(ctx))
-    // The woodland's and jungle's crossings come through HERE, not through placeRiverCrossing, which only runs
-    // when the `crossing` option joins one to the paths. Fixing only that one would have left a bridge absent
-    // from the common case, which is exactly the map in the screenshots. `vertical` is the CREEK's long axis
-    // and this deck runs across it, so the span lies along +col when the creek runs down the map.
-    //
-    // THREE of the six `layDeck` callers get a bridge: this one, placeRiverCrossing, and placeMeadowBridge.
-    // The other three stay bare ON PURPOSE, because they are PATHWAYS over water rather than spans: `cutRoute`
-    // decks the wet cells of a route it is carving, and `deckRoutes` is the swamp BOARDWALK (). It draws that line
-    // himself: a dirt pathway (#62) is not a bridge.
-    recordBridgeSpan(ctx, deck, vertical, band.length) // the wet cells on this line ARE the river's width here
+    // AND NO STRUCTURE ON IT. A ford is a shallow stretch of river, so there is nothing to stamp a bridge
+    // composition onto: those rails and abutments are what a BUILT crossing is made of, and standing them in
+    // the water with no deck under them is what put tall plank boxes in the middle of the landscape.
+    // `placeRiverCrossing` still builds a real bridge where a way meets the water, which is where one belongs.
   }
 }
 

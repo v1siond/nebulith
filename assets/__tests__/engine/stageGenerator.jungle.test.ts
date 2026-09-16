@@ -127,13 +127,23 @@ describe('a jungle is structurally a different place from a woodland', () => {
     expect(tall).toBeGreaterThan(0)
   })
 
-  it('crosses its own creek on FALLEN LOGS, wearing the trail tone and not cobble', () => {
+  it('crosses its own creek by WADING it, and builds nothing to do it', () => {
+    // THIS USED TO ASSERT PLANKING, and planking is what was removed. A jungle creek is crossed at a FORD: a
+    // stretch of river shallow enough to walk through, level with its banks, laying no structure at all. The
+    // property is the same one either way, you can get over the creek, so the test keeps it and drops the
+    // implementation it happened to be written against.
     const s = jungle()
-    const deck: Array<[number, number]> = []
-    s.ground.forEach((rowArr, r) => rowArr.forEach((g, c) => { if (g === 'bridge') deck.push([c, r]) }))
-    expect(deck.length).toBeGreaterThan(0)
-    expect(deck.every(([c, r]) => s.collision[r][c] === false)).toBe(true)
-    expect(deck.some(([c, r]) => s.floorColors[r][c] === JUNG_PAL.trail)).toBe(true)
+    const ford = [...(s.fords ?? [])].map(k => k.split(',').map(Number) as [number, number])
+    expect(ford.length).toBeGreaterThan(0)
+    // Wadeable: nothing stops you, and it is flush with the bank rather than a block down in the cut.
+    expect(ford.every(([c, r]) => s.collision[r][c] === false)).toBe(true)
+    expect(ford.every(([c, r]) => (s.elevation?.[r]?.[c] ?? 0) === 0)).toBe(true)
+    // And it is still the RIVER, not a path laid over it: the water keeps its own ground and its own colour.
+    expect(ford.every(([c, r]) => s.ground[r][c].includes('water'))).toBe(true)
+    expect(ford.some(([c, r]) => s.floorColors[r][c] === JUNG_PAL.trail)).toBe(false)
+    // Nothing anywhere on the map is decked, because the jungle's only crossing is the ford.
+    const planking = s.ground.flat().filter(g => g === 'bridge').length
+    expect(planking).toBe(0)
   })
 })
 

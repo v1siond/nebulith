@@ -84,8 +84,11 @@ const edges = (s: Stage) => {
 
 /** Separate crossings: each connected group of deck cells is one place you can get over. */
 function crossings(s: Stage): number {
-  const deck = new Set<string>()
-  s.ground.forEach((row, r) => row.forEach((g, c) => { if (g === 'bridge') deck.add(`${c},${r}`) }))
+  // A CROSSING IS A WAY OVER, not planking. This counted `bridge` GROUND, which was the only crossing there
+  // was; a ford is the other kind, a stretch of river shallow enough to wade, and it lays no planking at all.
+  // The two are published separately because the river model has to tell dry planking from shallow water, but
+  // "how many places can you get over" is the one question they answer the same way, so this unions them.
+  const deck = new Set<string>([...(s.decks ?? []), ...(s.fords ?? [])])
   const seen = new Set<string>()
   let n = 0
   for (const start of deck) {

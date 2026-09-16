@@ -737,6 +737,19 @@ export interface RiverSurface extends RiverCarve {
   zone: ZoneId
   /** Cells a crossing covers. Not banks, so the water beside a deck stays as deep as the river around it. */
   decks: ReadonlySet<string>
+  /**
+   * CELLS WHERE THE RIVER IS SHALLOW ENOUGH TO WALK THROUGH.
+   *
+   * A ford is not a deck and the two cannot share a set. A deck is DRY planking standing over the water, so
+   * the depth pass treats it as neither bank nor channel and the flow walk bridges across it. A ford IS the
+   * river, just not deep: it keeps its label, its colour and its current, and the only thing that changes is
+   * that it sits flush with its banks and lets you through.
+   *
+   * Recorded separately because three passes ask different questions of a crossing and get the wrong answer
+   * for a ford from `decks`: the depth walk would read it as a gap in the channel, `dryAreas` would count it
+   * as land, and `wadeableShallows` would refuse it along with every other cell of a cut channel.
+   */
+  fords: ReadonlySet<string>
   /** Cells wearing a film of water over dry ground (a puddle). Not banks either. */
   wet: ReadonlySet<string>
   /** Which way each channel cell runs, written here and read by the renderer to turn the tile's picture. */
@@ -794,7 +807,10 @@ export function wadeableShallows(ctx: RiverSurface, depth: ReadonlyMap<string, n
   //
   // Measured before this: 68 of 159 wet cells were open on a one-block cut, so a walker stepped off a
   // 0.65-block bank straight into the river.
-  if (channelDepth(ctx) > 0) return new Set()
+  // EXCEPT AT A FORD, which is the one place the channel is not cut: it was raised back to the level of its
+  // banks when it was laid, so there is no rim to climb and walking through is the whole point of it. Without
+  // this the cut check below refuses every cell of a cut river and a jungle comes apart at its creek.
+  if (channelDepth(ctx) > 0) return new Set(ctx.fords)
   const area = dryAreas(ctx)
   const joined = new Map<string, number>()
   const pending = new Set([...depth].filter(([, d]) => d === 1).map(([key]) => key))
@@ -814,7 +830,7 @@ export function wadeableShallows(ctx: RiverSurface, depth: ReadonlyMap<string, n
       grew = true
     }
   }
-  return new Set(joined.keys())
+  return new Set([...joined.keys(), ...ctx.fords])
 }
 
 /**
@@ -947,8 +963,19 @@ function waterDepth(ctx: RiverSurface, pools: ReadonlySet<string>): Map<string, 
     inBounds(c, r, cols, rows) && !isWaterGround(ground[r][c]) && !ctx.decks.has(`${c},${r}`) && !ctx.wet.has(`${c},${r}`)
   const depth = new Map<string, number>()
   const queue: Cell[] = []
+  // A FORD IS AS SHALLOW AS THE RIVER GETS, wherever it lies. The walk grows depth inward from the banks, so
+  // a crossing out in midstream would otherwise be handed the depth of the middle of the river and come out
+  // wearing the deep band. Seeding it at 1 says the shallow thing directly rather than hoping the geometry
+  // agrees, and it still spreads outward from here like any other shallow cell.
+  for (const key of ctx.fords) {
+    const { col, row } = toCell(key)
+    if (!isChannel(col, row)) continue
+    depth.set(key, 1)
+    queue.push({ col, row })
+  }
   forEachCell(cols, rows, (col, row) => {
-    if (!isChannel(col, row) || !ORTHO.some(([dc, dr]) => isBank(col + dc, row + dr))) return
+    if (!isChannel(col, row) || depth.has(`${col},${row}`)) return
+    if (!ORTHO.some(([dc, dr]) => isBank(col + dc, row + dr))) return
     depth.set(`${col},${row}`, 1)
     queue.push({ col, row })
   })
@@ -976,7 +1003,7 @@ function dryAreas(ctx: RiverSurface): Map<string, number> {
   // every seeded map comes out as, so it is a fix with a before/after to look at, not a line to slip into a
   // move. Recorded here so it stops being invisible.
   const isDry = (c: number, r: number) =>
-    inBounds(c, r, cols, rows) && !collision[r][c] && ground[r][c] !== 'water' && !ctx.decks.has(`${c},${r}`)
+    inBounds(c, r, cols, rows) && !collision[r][c] && ground[r][c] !== 'water' && !ctx.decks.has(`${c},${r}`) && !ctx.fords.has(`${c},${r}`)
   const seen = new Set<string>()
   const area = new Map<string, number>()
   let next = 0
