@@ -3071,10 +3071,10 @@ defmodule Nebulith.Catalog.TileSource do
   # the walls came out as a lip around a big flat plane of deck, so the object read as a platform. The side
   # has to be the dominant mass, which puts it near a full level.
   @parapet_height 0.85
-  # THE BOLLARD, standing at level 0 so it shares the deck's base: drawn 0.26 x 4.6 = 1.2 levels, which leaves
-  # it 0.35 proud of the parapet, the proportion the reference shows.
+  # THE BOLLARD, standing at level 1 on the wall's coping: drawn 0.26 x 1.7 = 0.44 levels, about half the
+  # wall's own height, which is the proportion the reference shows.
   @bollard_zoom 0.26
-  @bollard_height 4.6
+  @bollard_height 1.7
   @bollard_thickness 0.5
   # THE RAIL POST of a timber crossing: drawn 0.26 x 3.9 = 1.01 levels, so the handrail at level 1 lands on it.
   @post_zoom 0.26
@@ -3570,22 +3570,29 @@ defmodule Nebulith.Catalog.TileSource do
 
   # A STONE CROSSING's side is a solid wall, with bollards standing along its top.
   defp bridge_sides(%{solid_side?: true} = pieces, span) do
+    # PER COLUMN, not one z-width run, and this is the exception the framework already names: `depth` is right
+    # for a genuinely uniform run and wrong for anything that ARTICULATES along its length. A parapet has
+    # bollards standing on it every other column, so it articulates.
+    #
+    # It also stopped the wall drawing its full length. A merged run spans many camera depths under ONE sort
+    # key, so the deck's run and the parapet's run each get a single turn and one overdraws the other part of
+    # the way along: measured on a span of seven, the far wall stopped around the fourth column while its own
+    # bollards carried on past the end of it, standing on the grass. A cell per column gets a turn per column.
     parapets =
-      for dy <- @side_rows do
-        %{dx: 0, dy: dy, level: 0, label: pieces.side, walkable: false,
+      for dx <- 0..(span - 1), dy <- @side_rows do
+        %{dx: dx, dy: dy, level: 0, label: pieces.side, walkable: false,
           settings: %{
             "scaleY" => @parapet_height,
-            "depth" => span,
-            "depthDir" => "right-down",
             "collision" => [%{"x" => 0.0, "y" => 0.0, "w" => 1.0, "h" => 1.0}]
           }}
       end
 
-    # NEVER AT dx 0, which is where the parapet's own z-width run is anchored: two cells in one
-    # (dx, dy, level) is the bug the building compositions have a test for.
+    # ON TOP OF THE WALL, at level 1, because the wall now occupies level 0 in every column and two cells in
+    # one (dx, dy, level) is the bug the building compositions have a test for. The wall is drawn 0.85 of a
+    # level, so a bollard based at 1.0 overlaps it by nothing and sits exactly on its coping.
     bollards =
-      for dx <- upright_columns(span), dx > 0, dy <- @side_rows do
-        %{dx: dx, dy: dy, level: 0, label: pieces.cap, walkable: false, scale: @bollard_zoom,
+      for dx <- upright_columns(span), dy <- @side_rows do
+        %{dx: dx, dy: dy, level: 1, label: pieces.cap, walkable: false, scale: @bollard_zoom,
           settings: %{"scaleY" => @bollard_height, "thickness" => post_reach(@bollard_thickness)}}
       end
 
