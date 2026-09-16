@@ -683,6 +683,61 @@ export function deckRoutes(
   for (const key of required ?? []) if (water.has(key)) wet.add(key)
   if (wet.size === 0) return
   layDeck(ctx, wet, tone)
+  for (const run of crossingRuns(wet)) recordCrossingStructure(ctx, run, water)
+}
+
+/** The deck cells split into the separate crossings they form, one group per place you can get over. */
+function crossingRuns(deck: ReadonlySet<string>): Set<string>[] {
+  const seen = new Set<string>()
+  const out: Set<string>[] = []
+  for (const start of deck) {
+    if (seen.has(start)) continue
+    const run = new Set<string>([start])
+    const stack = [start]
+    seen.add(start)
+    while (stack.length > 0) {
+      const { col, row } = toCell(stack.pop() as string)
+      for (const [dc, dr] of ORTHO) {
+        const key = cellKey(col + dc, row + dr)
+        if (!deck.has(key) || seen.has(key)) continue
+        seen.add(key)
+        run.add(key)
+        stack.push(key)
+      }
+    }
+    out.push(run)
+  }
+  return out
+}
+
+/**
+ * PUT THE BRIDGE ON THE CROSSING, which is the step that was missing entirely.
+ *
+ * `recordBridgeSpan` was only ever reached from `placeRiverCrossing` and `crossRiver`, and on the generated
+ * maps neither of them got there: measured across every forest template, every river course and every value
+ * of the served `bridge` option including `stone` and `wood` outright, the answer was the same. Decks laid,
+ * 21 to 57 cells of them, and ZERO bridge compositions. The object existed in the catalogue and no map could
+ * reach it, which is why a bridge could stay broken for as long as it did without ever being seen in place.
+ *
+ * Here is where it belongs now. The crossing is whatever `narrowPathwaysToCrossings` kept, and that pass
+ * already guarantees the one thing `recordBridgeSpan` needs: a straight run widened to exactly CROSSING_ROWS,
+ * which is the rectangle a bridge composition is authored on.
+ */
+function recordCrossingStructure(ctx: RiverDeck, run: ReadonlySet<string>, water: ReadonlySet<string>): void {
+  const cells = [...run].map(toCell)
+  const cols = new Set(cells.map(c => c.col))
+  const rows = new Set(cells.map(c => c.row))
+  // Which way it SPANS: the axis it covers more of. A crossing is longer across the channel than along it.
+  const spanAlongCol = cols.size >= rows.size
+  const wet = [...run].filter(key => water.has(key))
+  if (wet.length === 0) return
+  // How wide the WATER is under it, not how long the run is: the span is sized to the river so a 4-wide
+  // channel does not get a 7-span bridge.
+  const wetCells = wet.map(toCell)
+  const waterWidth = spanAlongCol
+    ? new Set(wetCells.map(c => c.col)).size
+    : new Set(wetCells.map(c => c.row)).size
+  recordBridgeSpan(ctx, run, spanAlongCol, waterWidth)
 }
 
 /**
