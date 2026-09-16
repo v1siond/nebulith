@@ -253,6 +253,17 @@ export interface GeneratorSubZone {
    * planted summer's set, which carries a near-white. Absent means the season decides, as before.
    */
   flowers?: readonly FlowerKind[]
+  /** Any other NUMBER the backend serves for this region. The named fields above are the ones the engine
+   *  reads today; this is what keeps a newly served one from being dropped before anything can read it. */
+  readonly [served: string]: unknown
+  /**
+   * What this region is BUILT of, where the region is part of a settlement rather than a wood.
+   *
+   * A city's neighbourhoods differ by money, and money shows in the architecture: stone under slate on one
+   * side of town, timber under a flat roof on the other. Same shape as a row's own `buildings`, so a region
+   * states only what makes it different from the city it sits in.
+   */
+  buildings?: GeneratorBuildings
 }
 
 export interface GeneratorConfig {
@@ -681,6 +692,9 @@ function parsePathway(v: unknown): GeneratorPathway | undefined {
   return Object.keys(out).length > 0 ? out : undefined
 }
 
+/** The region fields this parser reads by NAME, so the sweep below knows which ones it has already taken. */
+const SUBZONE_NAMED = new Set(['key', 'name', 'weight', 'floor', 'formation', 'trees', 'flowers', 'buildings'])
+
 /** The served sub-zones. A row without a key or a usable weight is DROPPED rather than defaulted — a region
  *  the backend could not describe is one the generator must not invent a character for. */
 function parseSubZones(v: unknown): readonly GeneratorSubZone[] | undefined {
@@ -694,9 +708,19 @@ function parseSubZones(v: unknown): readonly GeneratorSubZone[] | undefined {
     const row: GeneratorSubZone = { key, weight }
     const name = str(raw.name)
     if (name) row.name = name
-    for (const k of ['canopy', 'undergrowth', 'pools', 'stone', 'level'] as const) {
-      const n = num(raw[k])
-      if (n !== undefined) row[k] = n
+    const buildings = parseBuildings(raw.buildings)
+    if (buildings) row.buildings = buildings
+    // EVERY NUMBER THE BACKEND SERVES FOR THIS REGION, not the five this file happens to list.
+    //
+    // It named them by hand, which makes the frontend the place that decides which of the backend's own
+    // fields exist: serve a sixth and it is dropped here in silence, with nothing failing to say so. The
+    // comment below records that `parseSettlement` and `parseBuildings` have each already lost a newly
+    // served field this exact way. Copying whatever arrives means the backend can describe a region however
+    // it needs to and the frontend carries it through without being edited.
+    for (const [field, value] of Object.entries(raw)) {
+      if (SUBZONE_NAMED.has(field)) continue
+      const n = num(value)
+      if (n !== undefined) (row as Record<string, unknown>)[field] = n
     }
     const floor = str(raw.floor)
     if (floor) row.floor = floor
@@ -829,9 +853,14 @@ export function categoryLayouts(catalog: GeneratorCatalog, categoryKey: string):
   const category = findCategory(catalog, categoryKey)
   if (!category) return []
   const out: CatalogLayout[] = []
-  for (const generator of category.generators) {
-    if (generator.layout) out.push({ id: generator.layout, label: generator.name })
-  }
+  // A CARD IS A ROW, identified by that row's KEY.
+  //
+  // It was identified by its `layout`, which names the ENGINE BUILDER, and that was the same thing as the row
+  // only while every row had a builder of its own. It no longer is: a type is an ENVIRONMENT now, and nine
+  // wilderness environments share three builders between them, so a swamp and a jungle and a beach all say
+  // `layout: "jungle"`. Keyed by layout, picking Swamp resolved to the first row that says jungle, which is
+  // the Jungle, and the person got a different world from the one they clicked with nothing to tell them.
+  for (const generator of category.generators) out.push({ id: generator.key, label: generator.name })
   return out
 }
 
@@ -850,7 +879,10 @@ export function findGenerator(
   const category = findCategory(catalog, categoryKey)
   if (!category) return undefined
   if (layout === undefined) return category.generators[0]
-  return category.generators.find(g => g.layout === layout)
+  // THE ROW'S KEY FIRST, because that is what a card carries now and it names exactly one row. A layout still
+  // resolves for a caller that has one, and it takes the first row that runs it, which is all a layout can
+  // ever mean when several rows share one.
+  return category.generators.find(g => g.key === layout) ?? category.generators.find(g => g.layout === layout)
 }
 
 /**
@@ -871,7 +903,9 @@ export function findGeneratorForVariant(
   const rows = catalog.flatMap(c => c.generators).filter(g => g.variant === variant)
   if (rows.length === 0) return findGenerator(catalog, variant, layout)
   if (layout === undefined) return rows[0]
-  return rows.find(g => g.layout === layout) ?? rows[0]
+  // A ROW'S KEY RESOLVES IT EXACTLY; a layout only narrows to the first row that runs that builder, which is
+  // all a layout can mean once several rows share one.
+  return rows.find(g => g.key === layout) ?? rows.find(g => g.layout === layout) ?? rows[0]
 }
 
 /** Any generator in the catalog by its key, at any depth — how the editor finds the SUBTYPE that was picked. */

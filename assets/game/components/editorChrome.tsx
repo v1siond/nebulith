@@ -852,9 +852,15 @@ export function GenerateControls({
       // Random rolls HERE, on each build, so the same pick builds a different subtype every time.
       const pool = randomParent?.children ?? []
       const leaf = pool.length > 0 ? pool[Math.floor(Math.random() * pool.length)] : activeGenerator
-      // Only a SUBTYPE travels as a key; the type itself is what (category, layout) already names.
-      if (leaf && leaf !== presetGenerator) await onGenerate(zone, archetypeOf(leaf), picked ?? undefined, chosenOptions(), leaf.key)
-      else await onGenerate(zone, archetypeOf(leaf), picked ?? undefined, chosenOptions())
+      // THE ROW TRAVELS BY KEY, always, and its LAYOUT travels as the layout.
+      //
+      // The picked card used to travel as the layout on its own, which named the row only while every row
+      // had a builder to itself. A type is an environment now and nine of them share three builders, so the
+      // key is the only thing that says WHICH row, and the layout is the only thing that says which builder
+      // runs it. Sending the key as a layout resolved to the first row with that builder, which is a
+      // different world from the one that was clicked.
+      const row = (leaf && leaf !== presetGenerator ? leaf : undefined) ?? findGenerator(catalog, activeKey, picked ?? undefined) ?? leaf
+      await onGenerate(zone, archetypeOf(row), row?.layout ?? undefined, chosenOptions(), row?.key)
     } catch (err) {
       // LOUD, not silent, and on the SCREEN. Awaiting the build means a generator that throws rejects here, and
       // letting that escape would be an unhandled rejection AND a button stuck on "Building…" forever. The
