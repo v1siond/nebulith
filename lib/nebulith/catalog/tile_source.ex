@@ -847,6 +847,75 @@ defmodule Nebulith.Catalog.TileSource do
     end
   end
 
+  # The dirt a way wears when nothing overrides it, measured off the forest reference: #bdab7b at luminance
+  # 169.5 over grass at 146.8. A template's own pathway tone overrides it, which is how one family of art
+  # serves a woodland track, a beach sand track and a mountain gravel one.
+  @path_piece_color "#bdab7b"
+
+  @doc """
+  Seeds the `path_dirt` autotile FAMILY: a centre piece, four edges, four corners, three cuts of each.
+
+  A way was a flat fill tile wearing a colour, and a flat fill on a grid can only ever draw a polygon with
+  staircase edges, which is why it never looked like a path however the colour was tuned. Measured on the
+  forest reference: the boundary between dirt and grass wanders about 0.17 of a CELL, so it lives inside the
+  art, not at the cell edge. Each edge piece carries that wander, each corner piece is cut on the diagonal so
+  a lane that climbs a cell per row reads as a ribbon rather than a stair, and the pieces meet because every
+  boundary is pinned to the same inset at the tile corners.
+
+  Three cuts of each piece so a long edge does not repeat visibly; the generator picks one from the cell's own
+  position. Near-white art, so the tile's colour setting tints it and ONE family serves every environment's
+  dirt, sand and gravel. Where the art is transparent the field shows through, which is how the grass comes
+  back into the way in tongues.
+
+  Safe and idempotent (upsert by [tileset_id, label]), so it runs on the shared dev DB without a full reseed.
+  """
+  def seed_path_pieces do
+    ascii_id = ensure_tileset("ascii", "ASCII").id
+    emoji_id = ensure_tileset("emoji", "Emoji").id
+    seed_path_pieces(ascii_id, emoji_id)
+    IO.puts("seeded #{length(path_piece_labels())} path pieces (ascii + emoji)")
+    :ok
+  end
+
+  defp seed_path_pieces(ascii_id, emoji_id) do
+    for label <- path_piece_labels() do
+      common = %{
+        label: label,
+        blocking: false,
+        height: 0.0,
+        # A ROAD, which is what puts it in the ground family the floor renderer reads.
+        category: "roads"
+      }
+
+      {:ok, _} =
+        common
+        |> Map.merge(%{
+          tileset_id: ascii_id,
+          glyph: "·",
+          image_url: "/tiles/ascii/#{label}.png",
+          settings: %{"color" => @path_piece_color}
+        })
+        |> Catalog.upsert_tile()
+
+      {:ok, _} =
+        common
+        |> Map.merge(%{
+          tileset_id: emoji_id,
+          emoji: "🟫",
+          image_url: "/tiles/emoji/#{label}.png",
+          settings: %{"color" => @path_piece_color}
+        })
+        |> Catalog.upsert_tile()
+    end
+  end
+
+  # The nine autotile positions, each in three cuts. `_c` is the interior, `_t _b _l _r` face the field on one
+  # side, `_tl _tr _bl _br` on two. The unsuffixed name is the first cut, so a caller that wants one piece and
+  # not a variant asks for the label it always asked for.
+  defp path_piece_labels do
+    for pos <- ~w(c t b l r tl tr bl br), cut <- ["", "2", "3"], do: "path_dirt_#{pos}#{cut}"
+  end
+
   # Each tree piece: {label, ascii glyph, emoji, colour ROLE (per-zone palette path), blocking, emoji_color}. The
   # trunk is a woody ║ / 🟫 column (blocks); the canopy is a rounded leaf crown — dense ♣ centre, ♧ leafy edges,
   # ╭╮╰╯ rounded corners in ascii / 🍃 in emoji (walkable overhead). ASCII colour is a per-zone SETTING (trunk →
