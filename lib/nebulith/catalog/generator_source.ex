@@ -414,6 +414,12 @@ defmodule Nebulith.Catalog.GeneratorSource do
   # people wore. `scatter` lies ON the surface and never blocks. `lining` stands on the field cells that
   # touch the path, and it blocks, which is what makes a lined path read as a corridor you follow.
   #
+  # EVERY `scatter` IS EMPTY, and it is the ART that is missing rather than the idea. Eight of the ten kinds
+  # strewed `decor_pebbles` across the way, which is exactly what the references show. But `decor_pebbles`
+  # has no picture of its own in either style: emoji points it at `sq_brown.png` and ascii at a flat pebble
+  # field, so what landed on the path was a scatter of brown rectangles. The field stays because the design
+  # is right and re-arming it is one line per kind, once a pebble tile is authored that draws pebbles.
+  #
   # `tone` IS THE COLOUR THE WAY WEARS, and it lives here rather than in a template's palette. It used to live
   # in both, and the palette won: a mountain forest asked for `rocky_track` and inherited the woodland's dirt
   # tone, so its gravel was painted brown, and a swamp asked for `boardwalk` and inherited the jungle's, so
@@ -430,7 +436,7 @@ defmodule Nebulith.Catalog.GeneratorSource do
     # 119.6, so the same distance puts the track at 170.
     "forest_track" => %{
       "surface" => "path_dirt", "tone" => "#cfa37b", "width" => 3, "edge" => 0.35,
-      "scatter" => [%{"tile" => "decor_pebbles", "rate" => 0.1}],
+      "scatter" => [],
       "lining" => [%{"tile" => "rock", "rate" => 0.08}, %{"tile" => "shrub", "rate" => 0.1}]
     },
     # Rocky ground: the same track laid on stone rather than soil, so it is gravel, and the boulders are the
@@ -439,7 +445,7 @@ defmodule Nebulith.Catalog.GeneratorSource do
     # mountain floor is 103.1, which puts it at 171. This is the one the woodland's dirt tone was overriding.
     "rocky_track" => %{
       "surface" => "gravel", "tone" => "#b1ab9a", "width" => 3, "edge" => 0.4,
-      "scatter" => [%{"tile" => "decor_pebbles", "rate" => 0.16}],
+      "scatter" => [],
       "lining" => [%{"tile" => "rock", "rate" => 0.16}, %{"tile" => "shrub", "rate" => 0.05}]
     },
     # The park path: as broad as the forest track and far tidier, with the tufts and blooms a kept place has
@@ -449,7 +455,7 @@ defmodule Nebulith.Catalog.GeneratorSource do
     # trail at all before this, which is why its way came out 45 points DARKER than the grass beside it.
     "park_path" => %{
       "surface" => "path_dirt", "tone" => "#ddb985", "width" => 3, "edge" => 0.28,
-      "scatter" => [%{"tile" => "decor_pebbles", "rate" => 0.12}],
+      "scatter" => [],
       "lining" => [%{"tile" => "flower", "rate" => 0.1}, %{"tile" => "rock", "rate" => 0.04}]
     },
     # A trail cut through undergrowth, not a track laid down. Narrow, and the thing lining it is the
@@ -459,7 +465,7 @@ defmodule Nebulith.Catalog.GeneratorSource do
     # reference and agrees: a trail cut through wet shaded ground is the smallest step of all, +15.
     "cut_trail" => %{
       "surface" => "path_dirt", "tone" => "#8a7550", "width" => 2, "edge" => 0.5,
-      "scatter" => [%{"tile" => "decor_pebbles", "rate" => 0.05}],
+      "scatter" => [],
       # LINED WITH THE GRASS, NOT THE THICKET, and this is measured rather than chosen. Of every tile a
       # pathway can be dressed with, `thicket` is the only one that BLOCKS, and lining a cut trail with it at
       # 0.14 cost the plain jungle 8 points of placeable room on a map that had just been thinned to get that
@@ -474,7 +480,7 @@ defmodule Nebulith.Catalog.GeneratorSource do
     # `beach_hill_path` puts the clifftop path at #e9cc98, 206.4, over scrub at 129.
     "coast_path" => %{
       "surface" => "path_dirt", "tone" => "#cdb684", "width" => 2, "edge" => 0.45,
-      "scatter" => [%{"tile" => "decor_pebbles", "rate" => 0.08}],
+      "scatter" => [],
       "lining" => [%{"tile" => "shrub", "rate" => 0.12}, %{"tile" => "rock", "rate" => 0.06}]
     },
     # A boardwalk. It is BUILT, so its edge is straight and nothing lies on it; reeds stand off the side of
@@ -493,13 +499,13 @@ defmodule Nebulith.Catalog.GeneratorSource do
     # material it is laid in and nothing is moved.
     "village_lane" => %{
       "surface" => "path_stone", "tone" => "#ccbbaa", "width" => 3, "edge" => 0.15,
-      "scatter" => [%{"tile" => "decor_pebbles", "rate" => 0.05}],
+      "scatter" => [],
       "lining" => [%{"tile" => "lamp", "rate" => 0.1}, %{"tile" => "flower", "rate" => 0.07}]
     },
     # Cobbles between the houses of an older town, worn at the sides, lamps along them.
     "cobbled_lane" => %{
       "surface" => "cobblestone", "tone" => "#b9b2a3", "width" => 3, "edge" => 0.12,
-      "scatter" => [%{"tile" => "decor_pebbles", "rate" => 0.06}],
+      "scatter" => [],
       "lining" => [%{"tile" => "lamp", "rate" => 0.12}]
     },
     # A CITY STREET, which is what the beach town reference actually shows: four lanes of asphalt with a kerb
@@ -523,7 +529,7 @@ defmodule Nebulith.Catalog.GeneratorSource do
     # than bleached.
     "sand_track" => %{
       "surface" => "path_dirt", "tone" => "#dcc190", "width" => 3, "edge" => 0.3,
-      "scatter" => [%{"tile" => "decor_pebbles", "rate" => 0.1}],
+      "scatter" => [],
       "lining" => [%{"tile" => "shrub", "rate" => 0.1}]
     }
   }

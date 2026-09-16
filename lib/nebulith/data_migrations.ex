@@ -94,7 +94,9 @@ defmodule Nebulith.DataMigrations do
     Nebulith.DataMigration.FlatTilesZeroHeight,
     Nebulith.DataMigration.GroundTilesAreFlat,
     Nebulith.DataMigration.ABloomIsNotGroundCover,
-    Nebulith.DataMigration.FlatDecorStacksAtTheBottomFace
+    Nebulith.DataMigration.FlatDecorStacksAtTheBottomFace,
+    Nebulith.DataMigration.GroundCoverNeedsRealArt,
+    Nebulith.DataMigration.NothingIsStrewnAcrossTheWay
   ]
 
   @doc "Every registered data migration module, in run order."
