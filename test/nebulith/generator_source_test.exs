@@ -255,13 +255,20 @@ defmodule Nebulith.GeneratorSourceTest do
         kind = Enum.find(g.options, &(&1["key"] == "bridge"))
         assert kind, "#{g.key} offers no kind of crossing"
         assert kind["requires"] == "river"
-        picks = Enum.map(kind["choices"], & &1["key"]) -- ["random"]
+        # `random` and `none` are ANSWERS, not kinds: one defers the choice and the other declines it, so
+        # neither names a crossing and neither has a tile to serve. Every kind that IS one does.
+        picks = Enum.map(kind["choices"], & &1["key"]) -- ["random", "none"]
         assert length(picks) >= 3, "#{g.key} offers #{inspect(picks)}, not a dirt path and several bridges"
 
         for pick <- picks do
           crossing = g.config["crossings"][pick]
           assert is_binary(crossing["tile"]), "#{g.key} offers #{pick} but serves no tile for it"
         end
+
+        # AND NO BRIDGE IS OFFERABLE. A river left uncrossed is a map, and it used to happen only by accident.
+        assert "none" in Enum.map(kind["choices"], & &1["key"]), "#{g.key} cannot be asked for no bridge"
+        refute g.config["crossings"]["none"], "#{g.key} serves a crossing for the refusal"
+
       end
     end
 

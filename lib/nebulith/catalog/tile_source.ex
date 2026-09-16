@@ -3576,25 +3576,6 @@ defmodule Nebulith.Catalog.TileSource do
   #
   # This is not the thinning that caused the detached parapet. That one hugged ONE FACE of its cell while the
   # thing under it filled the whole cell. This is centred, and so are the posts.
-  defp rail_reach(width) do
-    across = (1 + width) / 2
-    %{"left-down" => across, "right-up" => across, "right-down" => 1.0, "left-up" => 1.0}
-  end
-
-  # THE DECK, AND THE HUMP IS BUILT AS LEGOS.
-  #
-  # *"in order to BUMP you need a flat base first, then you stack cells with their tiles on top to get the
-  # bump, like legos. the problem right now is that you're putting the BUMP at the correct height without the
-  # base, creating the gap we see"*. `MAP-MODEL.md` §6 says the same thing as a law: *"elevation is stacked
-  # cells/blocks"*. A raised surface is a STACK, never one cell placed high.
-  #
-  # This authored ONE deck cell per column at its profile level, so the crown sat at level 1 with nothing at
-  # level 0 underneath it and the columns either side sat at level 0. That empty level IS the gap: you could
-  # see straight through the bridge between the middle and the ends.
-  #
-  # So a column fills every level from the base up to its own height. The courses below the top are solid
-  # roadbed, the top one is the walking surface, and a column at the banks is just that surface at level 0,
-  # unchanged and flush with the path.
   defp bridge_deck(label, span, arch) do
     for dx <- 0..(span - 1),
         dy <- @deck_rows,
@@ -3697,15 +3678,24 @@ defmodule Nebulith.Catalog.TileSource do
           settings: %{"scaleY" => @rail_post_height, "thickness" => post_reach(@post_thickness)}}
       end
 
-    # THE HANDRAIL one level above its own column's deck, a cell per column so it follows the hump up and
-    # over. A z-width run cannot bend, and a single level for the whole run left the rail crossing the deck.
+    # THE RAIL RUNS BETWEEN THE POSTS, at the deck's own level, filling its cell.
+    #
+    # Three goes at this floated. It was a THINNED block a level above the deck, positioned by a `thickness`
+    # reach map, and the reach never put it where the arithmetic said it would: rendered, the rails hung
+    # clear of the deck both laterally and vertically whichever face they were told to hug. A thinned block
+    # is positioned inside its own cell and a full one simply fills it, so a full-width piece in the side row
+    # ABUTS the deck row and cannot float. That is why the stone parapet reads and this did not.
+    #
+    # Between the posts, because a post and a rail in the same column would be two cells in one
+    # (dx, dy, level) — and because that is what a post-and-rail fence is.
+    uprights = MapSet.new(upright_columns(span))
+
     rails =
-      for dx <- 0..(span - 1), dy <- @side_rows do
-        %{dx: dx, dy: dy, level: deck_top(span, dx) + 1, label: pieces.side, walkable: false,
+      for dx <- 0..(span - 1), not MapSet.member?(uprights, dx), dy <- @side_rows do
+        %{dx: dx, dy: dy, level: deck_top(span, dx), label: pieces.side, walkable: false,
           settings: %{
             "scaleY" => @handrail_height,
-            "thickness" => rail_reach(@handrail_width),
-            "collision" => [%{"x" => 0.0, "y" => 0.35, "w" => 1.0, "h" => @handrail_width}]
+            "collision" => [%{"x" => 0.0, "y" => 0.0, "w" => 1.0, "h" => 1.0}]
           }}
       end
 

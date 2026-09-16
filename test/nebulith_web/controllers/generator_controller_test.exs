@@ -104,6 +104,9 @@ defmodule NebulithWeb.GeneratorControllerTest do
                  "requires" => "river",
                  "choices" => [
                    %{"key" => "random", "label" => "Random"},
+                   # NO BRIDGE is a choice rather than an omission: it used to happen only when the geometry
+                   # failed to place one, which is not the same as being able to ask for it.
+                   %{"key" => "none", "label" => "No bridge"},
                    # A DIRT PATH IS NOT A BUILT CROSSING. It names no composition, and that absence is what
                    # makes it a ford: the river shallow enough to walk through rather than a structure over it.
                    %{"key" => "dirt", "label" => "Dirt path"},

@@ -87,6 +87,8 @@ defmodule Nebulith.Catalog.GeneratorSource do
       "requires" => "river",
       "choices" => [
         %{"key" => "random", "label" => "Random"},
+        # NO BRIDGE is a choice, not an omission: a river you have to go around is a map.
+        %{"key" => "none", "label" => "No bridge"},
         %{"key" => "dirt", "label" => "Dirt path"},
         %{"key" => "wood", "label" => "Wooden bridge"},
         %{"key" => "stone", "label" => "Stone bridge"}

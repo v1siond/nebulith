@@ -98,7 +98,8 @@ defmodule Nebulith.DataMigrations do
     Nebulith.DataMigration.GroundCoverNeedsRealArt,
     Nebulith.DataMigration.NothingIsStrewnAcrossTheWay,
     Nebulith.DataMigration.ABridgeIsAssembledNotStretched,
-    Nebulith.DataMigration.ASolidBlockAndAStoneThatReadsAsStone
+    Nebulith.DataMigration.ASolidBlockAndAStoneThatReadsAsStone,
+    Nebulith.DataMigration.NoBridgeIsAChoice
   ]
 
   @doc "Every registered data migration module, in run order."
