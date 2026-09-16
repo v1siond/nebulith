@@ -1,1 +1,443 @@
-{"data":[{"name":"Spring","position":0,"key":"spring","tiles":{"decor":"emoji:blossom","flower":"emoji:tulip","tree":"emoji:cherry-blossom"},"cave":{"accent":"cave_moss","accentChance":0.14,"crystal":"#e79ec8","floor":"cave_floor","mushrooms":true,"pool":"water","poolBlocks":true,"wall":["#4c4a44","#565248","#42403a","#514d46"]},"flowers":{"variants":[{"char":"✿","color":"#ff8fc8"},{"char":"❀","color":"#ffd24a"},{"char":"✾","color":"#c89bff"},{"char":"❁","color":"#ff7a7a"},{"char":"✽","color":"#ffffff"},{"char":"❋","color":"#7ad0ff"}]},"palette":{"accentColor":"#ff9ecf","groundTypes":["meadow","grass_tall","grass"],"hazard":"water","id":"spring","trail":"path","wallColor":"#6a5a3a"},"temple":{"accent":"cave_moss","altar":"#d8f0b0","floor":"temple_floor","pillar":"#b9c6a6","pool":"water","poolBlocks":true,"spikeChar":"▲","spikeColor":"#6a9f4a","torch":"#ffb24a","wall":["#5b6a52","#53614b","#4c5945","#616e58"]}},{"name":"Summer","position":1,"key":"summer","tiles":{"decor":"emoji:clover","flower":"emoji:sunflower","tree":"emoji:oak-tree"},"cave":{"accent":"cave_moss","accentChance":0.24,"crystal":"#5fd0e0","floor":"cave_floor","mushrooms":true,"pool":"water","poolBlocks":true,"wall":["#46493f","#3f463a","#4e5145","#3a3f36"]},"flowers":{"variants":[{"char":"*","color":"#ff88cc"},{"char":"✿","color":"#ffd24a"},{"char":"❁","color":"#ff6f6f"},{"char":"✽","color":"#f4f4ec"},{"char":"✾","color":"#b892ff"},{"char":"❋","color":"#7ac6ff"}]},"palette":{"accentColor":"#2e8b2e","groundTypes":["meadow","grass_tall","grass"],"hazard":"water","id":"summer","trail":"path","wallColor":"#5a4a30"},"temple":{"accent":"marble","altar":"#ffe7a8","floor":"ancient_stone","pillar":"#e6ddc8","pool":"water","poolBlocks":true,"spikeChar":"▲","spikeColor":"#c0402a","torch":"#ff9a3a","wall":["#7a736a","#6f6860","#847c72","#655f57"]}},{"name":"Autumn","position":2,"key":"autumn","tiles":{"decor":"emoji:fallen-leaf","flower":"emoji:rose","tree":"emoji:maple-leaf"},"cave":{"accent":"autumn_leaves","accentChance":0.16,"crystal":"#e0a020","floor":"cave_floor","mushrooms":true,"pool":"water","poolBlocks":true,"wall":["#5a4a38","#6a5540","#4e4030","#5f4c3a"]},"flowers":null,"palette":{"accentColor":"#d2691e","groundTypes":["autumn_ground","autumn_leaves","autumn_ground"],"hazard":"water","id":"autumn","trail":"path","wallColor":"#6a4a28"},"temple":{"accent":"gold_tile","altar":"#ffcf8a","floor":"ancient_stone","pillar":"#d8c090","pool":"water","poolBlocks":true,"spikeChar":"▲","spikeColor":"#b5602a","torch":"#ff8a3a","wall":["#6a5540","#5f4c3a","#74604a","#544433"]}},{"name":"Winter","position":3,"key":"winter","tiles":{"decor":"emoji:snowflake","flower":"emoji:blossom","tree":"emoji:dead-tree"},"cave":{"accent":"ice","accentChance":0.2,"crystal":"#bfe8f5","floor":"frost","mushrooms":false,"pool":"ice_water","poolBlocks":false,"wall":["#5a6a7a","#647486","#516070","#6d7d8e"]},"flowers":null,"palette":{"accentColor":"#a0e0ff","groundTypes":["snow","ice","frost"],"hazard":"ice_water","id":"winter","trail":"path","wallColor":"#3a5a7a"},"temple":{"accent":"ice","altar":"#dff0ff","floor":"frost","pillar":"#bcd6e6","pool":"ice_water","poolBlocks":false,"spikeChar":"❆","spikeColor":"#bfe8f5","torch":"#8fd0ff","wall":["#5a6a7a","#647486","#516070","#6d7d8e"]}},{"name":"Desert","position":4,"key":"desert","tiles":{"decor":"emoji:wheat","flower":"emoji:hibiscus","tree":"emoji:cactus"},"cave":{"accent":"sandstone","accentChance":0.2,"crystal":"#e8c060","floor":"sand","mushrooms":false,"pool":"water","poolBlocks":true,"wall":["#b08a52","#c2975c","#9c7a46","#b89060"]},"flowers":null,"palette":{"accentColor":"#e8c97a","groundTypes":["sand","sand_dune","sand"],"hazard":"water","id":"desert","trail":"path","wallColor":"#b89a5a"},"temple":{"accent":"sand","altar":"#ffe6a0","floor":"sandstone","pillar":"#e2c88a","pool":"sand_trap","poolBlocks":true,"spikeChar":"▲","spikeColor":"#c99a52","torch":"#ffc24a","wall":["#b08a52","#c2975c","#9c7a46","#b89060"]}},{"name":"Beach","position":5,"key":"beach","tiles":{"decor":"emoji:seashell","flower":"emoji:hibiscus","tree":"emoji:palm-tree"},"cave":{"accent":"cave_floor","accentChance":0.16,"crystal":"#7fd0c0","floor":"sand","mushrooms":false,"pool":"water","poolBlocks":true,"wall":["#9a8a6a","#a89a78","#8a7c5e","#b0a284"]},"flowers":null,"palette":{"accentColor":"#7fd0c0","groundTypes":["sand","sand_dune","sand"],"hazard":"water","id":"beach","trail":"path","wallColor":"#c2a878"},"temple":{"accent":"temple_floor","altar":"#ffe6c0","floor":"sandstone","pillar":"#d8c9a4","pool":"water","poolBlocks":true,"spikeChar":"▲","spikeColor":"#a8926a","torch":"#ffb86a","wall":["#9a8a6a","#a89a78","#8a7c5e","#b0a284"]}},{"name":"Lava","position":6,"key":"lava","tiles":{"decor":"emoji:boulder","flower":"emoji:wilted-flower","tree":"emoji:dead-tree"},"cave":{"accent":"ash","accentChance":0.22,"crystal":"#ff7a30","floor":"basalt","mushrooms":false,"pool":"lava","poolBlocks":true,"wall":["#2e2824","#3a322c","#241f1c","#332b26"]},"flowers":null,"palette":{"accentColor":"#ff7a30","groundTypes":["ash","rock","basalt"],"hazard":"lava","id":"lava","trail":"path","wallColor":"#4a4038"},"temple":{"accent":"obsidian","altar":"#ff9a5a","floor":"basalt","pillar":"#8a6a52","pool":"lava","poolBlocks":true,"spikeChar":"▲","spikeColor":"#ff6a2a","torch":"#ff5a1f","wall":["#2e2824","#3a322c","#241f1c","#332b26"]}}]}
+{
+  "data": [
+    {
+      "name": "Spring",
+      "position": 0,
+      "key": "spring",
+      "tiles": {
+        "decor": "emoji:clover",
+        "flower": "emoji:tulip",
+        "tree": "emoji:cherry-blossom"
+      },
+      "cave": {
+        "accent": "cave_moss",
+        "accentChance": 0.14,
+        "crystal": "#e79ec8",
+        "floor": "cave_floor",
+        "mushrooms": true,
+        "pool": "water",
+        "poolBlocks": true,
+        "wall": [
+          "#4c4a44",
+          "#565248",
+          "#42403a",
+          "#514d46"
+        ]
+      },
+      "flowers": {
+        "variants": [
+          {
+            "char": "✿",
+            "color": "#ff8fc8"
+          },
+          {
+            "char": "❀",
+            "color": "#ffd24a"
+          },
+          {
+            "char": "✾",
+            "color": "#c89bff"
+          },
+          {
+            "char": "❁",
+            "color": "#ff7a7a"
+          },
+          {
+            "char": "✽",
+            "color": "#ffffff"
+          },
+          {
+            "char": "❋",
+            "color": "#7ad0ff"
+          }
+        ]
+      },
+      "palette": {
+        "accentColor": "#ff9ecf",
+        "groundTypes": [
+          "meadow",
+          "grass_tall",
+          "grass"
+        ],
+        "hazard": "water",
+        "id": "spring",
+        "trail": "path",
+        "wallColor": "#6a5a3a"
+      },
+      "temple": {
+        "accent": "cave_moss",
+        "altar": "#d8f0b0",
+        "floor": "temple_floor",
+        "pillar": "#b9c6a6",
+        "pool": "water",
+        "poolBlocks": true,
+        "spikeChar": "▲",
+        "spikeColor": "#6a9f4a",
+        "torch": "#ffb24a",
+        "wall": [
+          "#5b6a52",
+          "#53614b",
+          "#4c5945",
+          "#616e58"
+        ]
+      }
+    },
+    {
+      "name": "Summer",
+      "position": 1,
+      "key": "summer",
+      "tiles": {
+        "decor": "emoji:clover",
+        "flower": "emoji:sunflower",
+        "tree": "emoji:oak-tree"
+      },
+      "cave": {
+        "accent": "cave_moss",
+        "accentChance": 0.24,
+        "crystal": "#5fd0e0",
+        "floor": "cave_floor",
+        "mushrooms": true,
+        "pool": "water",
+        "poolBlocks": true,
+        "wall": [
+          "#46493f",
+          "#3f463a",
+          "#4e5145",
+          "#3a3f36"
+        ]
+      },
+      "flowers": {
+        "variants": [
+          {
+            "char": "*",
+            "color": "#ff88cc"
+          },
+          {
+            "char": "✿",
+            "color": "#ffd24a"
+          },
+          {
+            "char": "❁",
+            "color": "#ff6f6f"
+          },
+          {
+            "char": "✽",
+            "color": "#f4f4ec"
+          },
+          {
+            "char": "✾",
+            "color": "#b892ff"
+          },
+          {
+            "char": "❋",
+            "color": "#7ac6ff"
+          }
+        ]
+      },
+      "palette": {
+        "accentColor": "#2e8b2e",
+        "groundTypes": [
+          "meadow",
+          "grass_tall",
+          "grass"
+        ],
+        "hazard": "water",
+        "id": "summer",
+        "trail": "path",
+        "wallColor": "#5a4a30"
+      },
+      "temple": {
+        "accent": "marble",
+        "altar": "#ffe7a8",
+        "floor": "ancient_stone",
+        "pillar": "#e6ddc8",
+        "pool": "water",
+        "poolBlocks": true,
+        "spikeChar": "▲",
+        "spikeColor": "#c0402a",
+        "torch": "#ff9a3a",
+        "wall": [
+          "#7a736a",
+          "#6f6860",
+          "#847c72",
+          "#655f57"
+        ]
+      }
+    },
+    {
+      "name": "Autumn",
+      "position": 2,
+      "key": "autumn",
+      "tiles": {
+        "decor": "emoji:fallen-leaf",
+        "flower": "emoji:rose",
+        "tree": "emoji:maple-leaf"
+      },
+      "cave": {
+        "accent": "autumn_leaves",
+        "accentChance": 0.16,
+        "crystal": "#e0a020",
+        "floor": "cave_floor",
+        "mushrooms": true,
+        "pool": "water",
+        "poolBlocks": true,
+        "wall": [
+          "#5a4a38",
+          "#6a5540",
+          "#4e4030",
+          "#5f4c3a"
+        ]
+      },
+      "flowers": null,
+      "palette": {
+        "accentColor": "#d2691e",
+        "groundTypes": [
+          "autumn_ground",
+          "autumn_leaves",
+          "autumn_ground"
+        ],
+        "hazard": "water",
+        "id": "autumn",
+        "trail": "path",
+        "wallColor": "#6a4a28"
+      },
+      "temple": {
+        "accent": "gold_tile",
+        "altar": "#ffcf8a",
+        "floor": "ancient_stone",
+        "pillar": "#d8c090",
+        "pool": "water",
+        "poolBlocks": true,
+        "spikeChar": "▲",
+        "spikeColor": "#b5602a",
+        "torch": "#ff8a3a",
+        "wall": [
+          "#6a5540",
+          "#5f4c3a",
+          "#74604a",
+          "#544433"
+        ]
+      }
+    },
+    {
+      "name": "Winter",
+      "position": 3,
+      "key": "winter",
+      "tiles": {
+        "decor": "emoji:snowflake",
+        "flower": "emoji:blossom",
+        "tree": "emoji:dead-tree"
+      },
+      "cave": {
+        "accent": "ice",
+        "accentChance": 0.2,
+        "crystal": "#bfe8f5",
+        "floor": "frost",
+        "mushrooms": false,
+        "pool": "ice_water",
+        "poolBlocks": false,
+        "wall": [
+          "#5a6a7a",
+          "#647486",
+          "#516070",
+          "#6d7d8e"
+        ]
+      },
+      "flowers": null,
+      "palette": {
+        "accentColor": "#a0e0ff",
+        "groundTypes": [
+          "snow",
+          "ice",
+          "frost"
+        ],
+        "hazard": "ice_water",
+        "id": "winter",
+        "trail": "path",
+        "wallColor": "#3a5a7a"
+      },
+      "temple": {
+        "accent": "ice",
+        "altar": "#dff0ff",
+        "floor": "frost",
+        "pillar": "#bcd6e6",
+        "pool": "ice_water",
+        "poolBlocks": false,
+        "spikeChar": "❆",
+        "spikeColor": "#bfe8f5",
+        "torch": "#8fd0ff",
+        "wall": [
+          "#5a6a7a",
+          "#647486",
+          "#516070",
+          "#6d7d8e"
+        ]
+      }
+    },
+    {
+      "name": "Desert",
+      "position": 4,
+      "key": "desert",
+      "tiles": {
+        "decor": "emoji:wheat",
+        "flower": "emoji:hibiscus",
+        "tree": "emoji:cactus"
+      },
+      "cave": {
+        "accent": "sandstone",
+        "accentChance": 0.2,
+        "crystal": "#e8c060",
+        "floor": "sand",
+        "mushrooms": false,
+        "pool": "water",
+        "poolBlocks": true,
+        "wall": [
+          "#b08a52",
+          "#c2975c",
+          "#9c7a46",
+          "#b89060"
+        ]
+      },
+      "flowers": null,
+      "palette": {
+        "accentColor": "#e8c97a",
+        "groundTypes": [
+          "sand",
+          "sand_dune",
+          "sand"
+        ],
+        "hazard": "water",
+        "id": "desert",
+        "trail": "path",
+        "wallColor": "#b89a5a"
+      },
+      "temple": {
+        "accent": "sand",
+        "altar": "#ffe6a0",
+        "floor": "sandstone",
+        "pillar": "#e2c88a",
+        "pool": "sand_trap",
+        "poolBlocks": true,
+        "spikeChar": "▲",
+        "spikeColor": "#c99a52",
+        "torch": "#ffc24a",
+        "wall": [
+          "#b08a52",
+          "#c2975c",
+          "#9c7a46",
+          "#b89060"
+        ]
+      }
+    },
+    {
+      "name": "Beach",
+      "position": 5,
+      "key": "beach",
+      "tiles": {
+        "decor": "emoji:seashell",
+        "flower": "emoji:hibiscus",
+        "tree": "emoji:palm-tree"
+      },
+      "cave": {
+        "accent": "cave_floor",
+        "accentChance": 0.16,
+        "crystal": "#7fd0c0",
+        "floor": "sand",
+        "mushrooms": false,
+        "pool": "water",
+        "poolBlocks": true,
+        "wall": [
+          "#9a8a6a",
+          "#a89a78",
+          "#8a7c5e",
+          "#b0a284"
+        ]
+      },
+      "flowers": null,
+      "palette": {
+        "accentColor": "#7fd0c0",
+        "groundTypes": [
+          "sand",
+          "sand_dune",
+          "sand"
+        ],
+        "hazard": "water",
+        "id": "beach",
+        "trail": "path",
+        "wallColor": "#c2a878"
+      },
+      "temple": {
+        "accent": "temple_floor",
+        "altar": "#ffe6c0",
+        "floor": "sandstone",
+        "pillar": "#d8c9a4",
+        "pool": "water",
+        "poolBlocks": true,
+        "spikeChar": "▲",
+        "spikeColor": "#a8926a",
+        "torch": "#ffb86a",
+        "wall": [
+          "#9a8a6a",
+          "#a89a78",
+          "#8a7c5e",
+          "#b0a284"
+        ]
+      }
+    },
+    {
+      "name": "Lava",
+      "position": 6,
+      "key": "lava",
+      "tiles": {
+        "decor": "emoji:boulder",
+        "flower": "emoji:wilted-flower",
+        "tree": "emoji:dead-tree"
+      },
+      "cave": {
+        "accent": "ash",
+        "accentChance": 0.22,
+        "crystal": "#ff7a30",
+        "floor": "basalt",
+        "mushrooms": false,
+        "pool": "lava",
+        "poolBlocks": true,
+        "wall": [
+          "#2e2824",
+          "#3a322c",
+          "#241f1c",
+          "#332b26"
+        ]
+      },
+      "flowers": null,
+      "palette": {
+        "accentColor": "#ff7a30",
+        "groundTypes": [
+          "ash",
+          "rock",
+          "basalt"
+        ],
+        "hazard": "lava",
+        "id": "lava",
+        "trail": "path",
+        "wallColor": "#4a4038"
+      },
+      "temple": {
+        "accent": "obsidian",
+        "altar": "#ff9a5a",
+        "floor": "basalt",
+        "pillar": "#8a6a52",
+        "pool": "lava",
+        "poolBlocks": true,
+        "spikeChar": "▲",
+        "spikeColor": "#ff6a2a",
+        "torch": "#ff5a1f",
+        "wall": [
+          "#2e2824",
+          "#3a322c",
+          "#241f1c",
+          "#332b26"
+        ]
+      }
+    }
+  ]
+}

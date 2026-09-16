@@ -37,20 +37,28 @@ describe('canopyCount — reads the leaf_center canopy-shade count from the load
 describe('decorTilesForZone — the decor tiles that opt into a zone via settings.colors', () => {
   useSeedTileset()
 
-  // The per-zone counts ported from the old GROUND_DECOR (spring 2, summer 1, rest 2).
-  const EXPECTED_COUNT: Record<ZoneId, number> = {
-    spring: 2, summer: 1, autumn: 2, winter: 2, desert: 2, beach: 2, lava: 2,
-  }
-
   it('returns only category==="decor" tiles whose colours carry the zone', () => {
+    // THE PROPERTY, not a count. This carried a per-zone tally copied from the old hardcoded table, so it
+    // failed the moment the catalogue described its own tiles differently: two blooms moved out of `decor`
+    // and into `nature`, where the other flowers live, and this said the code was broken. What the function
+    // promises is that every tile it returns is decor AND carries a colour for the zone, and that a zone is
+    // never left with nothing to cover its ground with.
     for (const zone of ZONES) {
       const decors = decorTilesForZone(styleCatalog('ascii'), zone)
-      expect(decors.length).toBe(EXPECTED_COUNT[zone])
+      expect({ zone, has: decors.length > 0 }).toEqual({ zone, has: true })
       for (const t of decors) {
         expect(t.category).toBe('decor')
         const colors = (t.settings as { colors: Record<string, string> }).colors
         expect(colors[zone]).toBeDefined()
       }
+    }
+  })
+
+  it('carries no BLOOM: a flower is nature, and which blooms grow somewhere is the environment to say', () => {
+    for (const zone of ZONES) {
+      const labels = decorTilesForZone(styleCatalog('ascii'), zone).map(t => t.label)
+      expect({ zone, blooms: labels.filter(l => l.includes('flower') || l.includes('blossom')) })
+        .toEqual({ zone, blooms: [] })
     }
   })
 
@@ -90,11 +98,18 @@ describe('pickGroundDecor — deterministic per-cell selection resolved to glyph
   })
 
   it('covers every decor variant of a multi-decor zone across the grid', () => {
+    // THE ZONE COMES FROM THE DATA. This named spring and asserted "two decor glyphs", so it broke when the
+    // catalogue moved spring's two blooms into `nature` where the other flowers live. What it defends is that
+    // the per-cell pick REACHES every variant a zone has rather than settling on one, which is a property of
+    // any zone carrying more than one.
+    const zone = ZONES.find(z => decorTilesForZone(styleCatalog('ascii'), z).length > 1)
+    expect({ aZoneWithSeveral: zone !== undefined }).toEqual({ aZoneWithSeveral: true })
+    const variants = decorTilesForZone(styleCatalog('ascii'), zone!).length
     const seen = new Set<string>()
     for (let col = 0; col < 12; col++) for (let row = 0; row < 12; row++) {
-      const r = pickGroundDecor(styleCatalog('ascii'), 'spring', col, row)
+      const r = pickGroundDecor(styleCatalog('ascii'), zone!, col, row)
       if (r) seen.add(r.char)
     }
-    expect(seen.size).toBe(2) // spring has two decor glyphs
+    expect({ zone, reached: seen.size }).toEqual({ zone, reached: variants })
   })
 })

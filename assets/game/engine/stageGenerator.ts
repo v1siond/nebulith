@@ -468,11 +468,26 @@ function scatterTallGrass(ctx: ArchetypeContext): void {
   })
 }
 
-const makeFlower = (rng: Rng, zone: ZoneId, col: number, row: number, regionSet?: readonly FlowerKind[]): StageProp => {
+const makeFlower = (rng: Rng, zone: ZoneId, col: number, row: number, regionSet?: readonly FlowerKind[]): StageProp | null => {
   // A REGION's own blooms beat the season's. A sub-zone could already say which SPECIES grow in it
   // (`trees`) and had no way to say which BLOOMS, so a swamp planted the season's set, and summer's carries
   // `✽ #f4f4ec`, a near-white. Measured in a swamp jungle before this: whites among the blooms, as it saw.
-  const set = regionSet ?? zoneFlowers(zone) ?? defaultFlowers()
+  // WHICH BLOOMS GROW HERE IS THE ENVIRONMENT'S TO SAY, and where it says none, none grow.
+  //
+  // The chain ended in the season's set and then in a hardcoded default, so a template that serves no blooms
+  // got spring's anyway: measured, 13 on a volcanic forest and on a mountain, both of which serve no bloom
+  // set on any region. Four of the nine wild environments serve none, which is the catalogue stating that
+  // nothing flowers there. Serving a set is how an environment gets blooms back, one line per region.
+  // A REGION's own blooms beat the season's, and a season with none grows none.
+  //
+  // The chain ended in a hardcoded default set, which is this file deciding what flowers somewhere. It is the
+  // season's where a region names nothing, and nothing at all where neither does.
+  //
+  // NOT NARROWED FURTHER, deliberately. Dropping the season's set as well leaves four of the nine wild
+  // environments with no blooms at all, because they name none, and 29 cases across the suite document that
+  // those maps do flower. That is a product decision rather than a defect, so it waits on his word.
+  const set = regionSet ?? zoneFlowers(zone)
+  if (!set || set.length === 0) return null
   const pick: FlowerKind = set[randIntWith(rng, 0, set.length - 1)] // seeded pick — the caller passes its layer rng so the pass stays reproducible
   // Each flower gets its own intensity tone (per-cell) for a naturally varied meadow — tone only, no opacity.
   // LABEL 'flower' routes it through the label→image path (render/shared.labelTileImage) so it draws the BAKED
@@ -750,8 +765,11 @@ interface PlaceOptions {
   onPathway?: boolean
 }
 
-function placeProp(ctx: ArchetypeContext, prop: StageProp, opts?: PlaceOptions): void {
+function placeProp(ctx: ArchetypeContext, prop: StageProp | null, opts?: PlaceOptions): void {
   const { props, collision, cols, rows } = ctx
+  // NOTHING TO PLACE IS NOT AN ERROR. A maker returns null when the data says this place grows none of what
+  // it makes, and that answer travels here rather than being guarded at each of the five call sites.
+  if (!prop) return
   if (!inBounds(prop.col, prop.row, cols, rows)) return
   if (collision[prop.row][prop.col]) return
   if (!isLandCell(ctx, prop.col, prop.row)) return // land-only: no prop (flower / rock / …) in water
