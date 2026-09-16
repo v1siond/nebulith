@@ -1019,7 +1019,8 @@
               "winter": "#ccdbe7"
             },
             "collision": [],
-            "color": "#ccdbe7"
+            "color": "#ccdbe7",
+            "stackAt": 0
           }
         },
         "leaf_center": {
@@ -5843,7 +5844,8 @@
               "desert": "#bba360"
             },
             "collision": [],
-            "color": "#bba360"
+            "color": "#bba360",
+            "stackAt": 0
           }
         },
         "grass-field": {
@@ -6514,7 +6516,8 @@
               "autumn": "#a06a2c"
             },
             "collision": [],
-            "color": "#a06a2c"
+            "color": "#a06a2c",
+            "stackAt": 0
           }
         },
         "roof_top_store": {
@@ -6736,7 +6739,8 @@
               "spring": "#c79bb4"
             },
             "collision": [],
-            "color": "#c79bb4"
+            "color": "#c79bb4",
+            "stackAt": 0
           }
         },
         "bow": {
@@ -7152,7 +7156,8 @@
               "winter": "#c8d6e2"
             },
             "collision": [],
-            "color": "#b0894e"
+            "color": "#b0894e",
+            "stackAt": 0
           }
         },
         "ice": {
@@ -7311,7 +7316,8 @@
               "spring": "#c4b061"
             },
             "collision": [],
-            "color": "#c4b061"
+            "color": "#c4b061",
+            "stackAt": 0
           }
         },
         "tropical_grass": {
@@ -7807,7 +7813,8 @@
               "summer": "#2a722a"
             },
             "collision": [],
-            "color": "#5aaf5a"
+            "color": "#5aaf5a",
+            "stackAt": 0
           }
         },
         "leaf_top": {
@@ -8815,7 +8822,8 @@
               "beach": "#cfe6ee"
             },
             "collision": [],
-            "color": "#cfe6ee"
+            "color": "#cfe6ee",
+            "stackAt": 0
           }
         },
         "bolt": {
@@ -10144,7 +10152,8 @@
               "beach": "#bfe0ec"
             },
             "collision": [],
-            "color": "#8fc7e0"
+            "color": "#8fc7e0",
+            "stackAt": 0
           }
         },
         "tree_bottom_right": {
@@ -26177,7 +26186,8 @@
               "lava": "#e6661f",
               "winter": "#ccdbe7"
             },
-            "collision": []
+            "collision": [],
+            "stackAt": 0
           }
         },
         "leaf_center": {
@@ -30000,7 +30010,8 @@
             "colors": {
               "desert": "#bba360"
             },
-            "collision": []
+            "collision": [],
+            "stackAt": 0
           }
         },
         "grass-field": {
@@ -30557,7 +30568,8 @@
             "colors": {
               "autumn": "#a06a2c"
             },
-            "collision": []
+            "collision": [],
+            "stackAt": 0
           }
         },
         "roof_top_store": {
@@ -30714,7 +30726,8 @@
             "colors": {
               "spring": "#c79bb4"
             },
-            "collision": []
+            "collision": [],
+            "stackAt": 0
           }
         },
         "bow": {
@@ -31001,7 +31014,8 @@
               "lava": "#56382e",
               "winter": "#c8d6e2"
             },
-            "collision": []
+            "collision": [],
+            "stackAt": 0
           }
         },
         "ice": {
@@ -31104,7 +31118,8 @@
             "colors": {
               "spring": "#c4b061"
             },
-            "collision": []
+            "collision": [],
+            "stackAt": 0
           }
         },
         "tropical_grass": {
@@ -31480,7 +31495,8 @@
               "spring": "#2a722a",
               "summer": "#2a722a"
             },
-            "collision": []
+            "collision": [],
+            "stackAt": 0
           }
         },
         "leaf_top": {
@@ -32315,7 +32331,8 @@
             "colors": {
               "beach": "#cfe6ee"
             },
-            "collision": []
+            "collision": [],
+            "stackAt": 0
           }
         },
         "bolt": {
@@ -33367,7 +33384,8 @@
             "colors": {
               "beach": "#bfe0ec"
             },
-            "collision": []
+            "collision": [],
+            "stackAt": 0
           }
         },
         "tree_bottom_right": {

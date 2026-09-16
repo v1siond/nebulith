@@ -13,7 +13,7 @@ import '@/__tests__/helpers/installTilesetSeed'
 import { cellStackTop, unitStandLevel } from '@/engine/cellStack'
 import { IsometricGrid } from '@/engine/IsometricGrid'
 import { GENERATED_PROP_RENDER, generatedPropRender } from '@/engine/stageGenerator'
-import { styleTile } from '@/engine/tileset/styleTiles'
+import { styleCatalog, styleTile } from '@/engine/tileset/styleTiles'
 
 /** Place one tile in a fresh cell, exactly the way `applyStageToGrid` places a generated prop. */
 const cellWith = (label: string, extra?: Record<string, unknown>) => {
@@ -75,6 +75,24 @@ describe('stackAt, the y stack position', () => {
       const tile = styleTile('ascii', label)
       expect({ label, stackAt: (tile?.settings as { stackAt?: number } | undefined)?.stackAt }).toEqual({ label, stackAt: 0 })
     }
+  })
+
+  it('and so do the FLAT ornaments, which is the half that was missing', () => {
+    // The standing plants said 0 from the day this was built; the flat `decor_*` family never did, and that
+    // family is what the ground cover pass lays. So a tree sharing a cell with a bloom was still lifted a
+    // block clear of the floor, which is the same photograph again with a different tile in it.
+    const flat = Object.values(styleCatalog('ascii').tiles).filter(t => t.label.startsWith('decor_'))
+    expect(flat.length).toBeGreaterThan(0)
+    for (const tile of flat) {
+      expect({ label: tile.label, stackAt: (tile.settings as { stackAt?: number } | undefined)?.stackAt })
+        .toEqual({ label: tile.label, stackAt: 0 })
+    }
+  })
+
+  it('so a tree dropped on a scattered BLOOM lands on the floor, not on its head', () => {
+    // Placed exactly as `applyStageToGrid` places a generated bloom, per-instance render and all.
+    const grid = cellWith('decor_blossom', { type: 'ground_decor', ...generatedPropRender('ground_decor', 'decor_blossom') })
+    expect(cellStackTop(grid, 1, 1)).toBe(0)
   })
 
   it('a unit is unaffected, because it stands on the GROUND and never on a plant', () => {

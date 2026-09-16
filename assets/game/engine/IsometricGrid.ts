@@ -546,6 +546,15 @@ export class IsometricGrid {
       edge: options.edge,
       footprint: options.footprint,
       cellPart: options.cellPart,
+      // THE LABEL, which every by-label lookup needs and which this list dropped.
+      //
+      // A caller passed `label` and it was silently discarded, so `assetStackAt`, `assetBlocks` and
+      // `assetActsAsTile` all fell back to the asset's TYPE when they went looking for the tile row. For a
+      // flower that works by accident, because `flower` is also a tile label; for a scattered bloom the type
+      // is `ground_decor` and no tile is called that, so the tile's `stackAt: 0` was never read and a tree
+      // sharing the cell was lifted a block clear of the floor. The comment below this list says a caller
+      // should set the field on the returned asset afterwards, and no caller ever did.
+      label: options.label,
       tileOverride: options.tileOverride, // per-cell art-style pin (e.g. a season's tree tile) — was dropped
       heightLevel: options.heightLevel,   // stack level: the editor brush stacks assets on one cell
       height: options.height,             // per-instance block-height (a generated flower stands 1 block); undefined ⇒ tile height
