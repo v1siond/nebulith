@@ -1,9 +1,16 @@
-# Seed the built-in catalog: ports every tile + composition from the exported
-# tileset JSON (priv/repo/tilesets/*.json) into the tiles/compositions tables.
-# Idempotent: upserts by natural key. Run: mix run priv/repo/seeds.exs
+# A fresh database gets its rows from ONE path: the data-migration ledger.
+#
+# The catalog seed itself is the first entry in that ledger (`Nebulith.DataMigration.BuiltInCatalog`), and
+# every pass that has shaped the data since is an entry after it, in order. Running them here means a fresh
+# database ends up holding exactly what a live one holds, and the `data_migrations` table records what ran.
+#
+#     mix run priv/repo/seeds.exs      # or `mix ecto.setup`, which calls this
+#     mix nebulith.data_migrate        # the same thing, by hand, once the server is already up
+#
+# Nothing here runs on boot: migrations are schema only, so `mix ecto.migrate` stays fast and cannot time out.
 
-# Backend admin account for the /admin area. Idempotent (upsert by email).
-# Override the defaults with NEBULITH_ADMIN_EMAIL / NEBULITH_ADMIN_PASSWORD.
+# Backend admin account for the /admin area. Idempotent (upsert by email). This is an ACCOUNT, not catalog
+# data, and it reads its credentials from the environment, so it stays here rather than in the ledger.
 admin_email = System.get_env("NEBULITH_ADMIN_EMAIL") || "admin@nebulith.local"
 admin_password = System.get_env("NEBULITH_ADMIN_PASSWORD") || "nebulith-admin"
 
@@ -12,33 +19,7 @@ admin_password = System.get_env("NEBULITH_ADMIN_PASSWORD") || "nebulith-admin"
 
 IO.puts("seeded admin user '#{admin.email}' (role: #{admin.role})")
 
-# Height normalisation across styles is part of seed/0 now — a fresh seed is correct on its own.
-Nebulith.Catalog.TileSource.seed()
-
-# The item catalog: weapons / armour / consumables + the starter kits (§3.14b #1 — moved out of gear.ts).
-items = Nebulith.Catalog.ItemSource.seed()
-IO.puts("seeded #{items} items")
-
-# The ability registry (§3.14b #2 — moved out of abilities.ts).
-abilities = Nebulith.Catalog.AbilitySource.seed()
-IO.puts("seeded #{abilities} abilities")
-
-# The map-generator catalog: categories (forest/town/city/cave/temple) + their generators.
-{cats, gens} = Nebulith.Catalog.GeneratorSource.seed()
-IO.puts("seeded #{cats} generator categories and #{gens} generators")
-
-# The ZONE catalog: the seven seasons/biomes, plus the season-independent rule bundles (trees, props) that the
-# generators read. Its own seed writes those bundles through CombatSource.put_rules/1.
-%{zones: zones, rules: zone_rules} = Nebulith.Catalog.ZoneSource.seed()
-IO.puts("seeded #{zones} zones and #{zone_rules} zone rule bundles")
-
-# The COMBAT rules: damage formulas, special-resource costs, per-kind base stats. These land under different
-# `game_rules` keys than the zone bundles above ("combat"/"stats" against "trees"/"props"), so the two cannot
-# clobber each other and the order between them does not matter.
-%{rules: combat_rules} = Nebulith.Catalog.CombatSource.seed()
-IO.puts("seeded #{combat_rules} combat rule bundles")
-
-# The player UI: the action registry plus the default profile's bars, bindings and elements. Without this the
-# Player UI panel and every key binding serve empty on a fresh database.
-%{actions: ui_actions, elements: ui_elements, profile: ui_profile} = Nebulith.Catalog.UiSource.seed()
-IO.puts("seeded #{ui_actions} ui actions and #{ui_elements} elements into profile '#{ui_profile}'")
+case Nebulith.DataMigrations.run_pending() do
+  [] -> IO.puts("no data migration was pending, the catalog is already seeded")
+  names -> IO.puts("ran #{length(names)} data migrations: #{Enum.join(names, ", ")}")
+end

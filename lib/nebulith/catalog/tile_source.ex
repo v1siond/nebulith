@@ -23,6 +23,8 @@ defmodule Nebulith.Catalog.TileSource do
   # said so twice on every build ("undefined module attribute @water_color") and it read as noise.
   @water_color "#4f93b3"
 
+  import Ecto.Query, only: [from: 2]
+
   alias Nebulith.Catalog
   alias Nebulith.Catalog.BuildingCompositions
   # `seed_frame_rows/4` reads a base row with `Repo.get_by(Tile, ...)`. Without this alias `Tile` is the atom
@@ -847,31 +849,35 @@ defmodule Nebulith.Catalog.TileSource do
     end
   end
 
-  # The dirt a way wears when nothing overrides it, measured off the forest reference: #bdab7b at luminance
-  # 169.5 over grass at 146.8. A template's own pathway tone overrides it, which is how one family of art
-  # serves a woodland track, a beach sand track and a mountain gravel one.
-  @path_piece_color "#bdab7b"
+  # The FIELD tone a verge wears when nothing overrides it, measured off the forest reference: #80a65c at
+  # luminance 146.8, the grass the path crosses. The generator tints each piece with the colour of the field
+  # cell beside it, so this is only the fallback for a map that states none.
+  @path_piece_color "#80a65c"
 
   @doc """
-  Seeds the `path_dirt` autotile FAMILY: a centre piece, four edges, four corners, three cuts of each.
+  Seeds the `path_edge` autotile FAMILY: four edges, four corners, three cuts of each.
 
-  A way was a flat fill tile wearing a colour, and a flat fill on a grid can only ever draw a polygon with
-  staircase edges, which is why it never looked like a path however the colour was tuned. Measured on the
-  forest reference: the boundary between dirt and grass wanders about 0.17 of a CELL, so it lives inside the
-  art, not at the cell edge. Each edge piece carries that wander, each corner piece is cut on the diagonal so
-  a lane that climbs a cell per row reads as a ribbon rather than a stair, and the pieces meet because every
-  boundary is pinned to the same inset at the tile corners.
+  A piece is the tongue of FIELD that reaches into the way from one side, not the way itself. Measured on a
+  built woodland the other way round: laying the dirt as art over a field-coloured floor left 334 way cells
+  wearing six colours, only 144 of them the way's own tone, because every boundary cell kept the grass
+  underneath. More than half of a path was painted the colour of the grass, which is the patchwork it read as.
+
+  So the way wears ONE tone across all of its cells and the field comes over the top. The boundary still lives
+  inside the art, which is the point: measured on the forest reference it wanders about 0.17 of a CELL, so it
+  can never be the cell edge. Each corner piece is cut on the diagonal, so a lane that climbs a cell per row
+  reads as a ribbon rather than a stair.
 
   Three cuts of each piece so a long edge does not repeat visibly; the generator picks one from the cell's own
-  position. Near-white art, so the tile's colour setting tints it and ONE family serves every environment's
-  dirt, sand and gravel. Where the art is transparent the field shows through, which is how the grass comes
-  back into the way in tongues.
+  position, and tints it with the colour of the field cell beside it. Near-white art, so one family serves
+  every environment's grass, sand and ash.
 
   Safe and idempotent (upsert by [tileset_id, label]), so it runs on the shared dev DB without a full reseed.
   """
   def seed_path_pieces do
     ascii_id = ensure_tileset("ascii", "ASCII").id
     emoji_id = ensure_tileset("emoji", "Emoji").id
+    # The family this replaces. Leaving it seeded would leave 27 tiles in the browser that nothing places.
+    Repo.delete_all(from(t in Tile, where: like(t.label, "path_dirt\\_%")))
     seed_path_pieces(ascii_id, emoji_id)
     IO.puts("seeded #{length(path_piece_labels())} path pieces (ascii + emoji)")
     :ok
@@ -909,11 +915,11 @@ defmodule Nebulith.Catalog.TileSource do
     end
   end
 
-  # The nine autotile positions, each in three cuts. `_c` is the interior, `_t _b _l _r` face the field on one
-  # side, `_tl _tr _bl _br` on two. The unsuffixed name is the first cut, so a caller that wants one piece and
-  # not a variant asks for the label it always asked for.
+  # The eight autotile positions, each in three cuts. `_t _b _l _r` face the field on one side, `_tl _tr _bl
+  # _br` on two. There is no interior piece: a cell with the way on every side has no field reaching into it,
+  # so it is the way's tone and nothing else, which is also the cheapest thing the renderer can draw.
   defp path_piece_labels do
-    for pos <- ~w(c t b l r tl tr bl br), cut <- ["", "2", "3"], do: "path_dirt_#{pos}#{cut}"
+    for pos <- ~w(t b l r tl tr bl br), cut <- ["", "2", "3"], do: "path_edge_#{pos}#{cut}"
   end
 
   # Each tree piece: {label, ascii glyph, emoji, colour ROLE (per-zone palette path), blocking, emoji_color}. The

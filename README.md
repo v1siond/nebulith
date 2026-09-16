@@ -65,15 +65,43 @@ mix deps.get
 mix ecto.setup       # ecto.create + ecto.migrate + run priv/repo/seeds.exs
 ```
 
-### Seeding the catalog
+### Schema and data are separate
 
-`priv/repo/seeds.exs` (run by `mix setup` / `mix ecto.setup`) seeds an admin user and then calls
-`Nebulith.Catalog.TileSource.seed()` — the full, **idempotent upsert** of the ascii + emoji tiles
-and all compositions from the Elixir data module. Re-run any time:
+**Migrations are schema only.** Nothing in `priv/repo/migrations/` writes a row, so `mix ecto.migrate`
+on an empty database is a couple of seconds and can never time out a boot or a deploy.
+
+**Data lives in `lib/nebulith/data_migrations/`,** one module per pass, each with a `run/0` and the
+reason it exists. `Nebulith.DataMigrations` holds the ordered registry and the runner, and what has
+run is recorded in the `data_migrations` table. They are run BY HAND, after the server is up:
 
 ```bash
-mix run priv/repo/seeds.exs
+mix nebulith.data_migrate                      # every pass that has not run yet
+mix nebulith.data_migrate --list               # what is registered, what is pending
+mix nebulith.data_migrate --only SeedEntrances # one pass by name
+mix nebulith.data_migrate --baseline           # record pending as run WITHOUT running it
 ```
+
+The task starts the repo only, never the endpoint, so it is safe to run while the dev server is serving.
+
+`--baseline` is for a database that already carries the effects, from back when these passes lived in
+the migrations folder. It writes the ledger without touching a row, which is what keeps a seeder from
+overwriting poses tuned by hand in the editor.
+
+### Seeding the catalog
+
+`priv/repo/seeds.exs` (run by `mix setup` / `mix ecto.setup`) seeds an admin user and then runs the
+data-migration runner. The catalog seed is the FIRST entry in that ledger
+(`Nebulith.DataMigration.BuiltInCatalog`, the idempotent upsert of the ascii + emoji tiles, all
+compositions, items, abilities, generators, zones, combat rules and the player UI), so a fresh
+database and a live one end up holding the same thing by the same path. Re-run any time:
+
+```bash
+mix run priv/repo/seeds.exs   # or, with the server already up: mix nebulith.data_migrate
+```
+
+Adding a data pass: write the module under `lib/nebulith/data_migrations/`, name it for what it does,
+give it an idempotent `run/0`, and append it to `@migrations` in `Nebulith.DataMigrations`. A module
+nobody registers never runs, and `Nebulith.SeedsCoverageTest` fails if you forget.
 
 For an incremental reseed of just the sample tiles + compositions, from IEx:
 
