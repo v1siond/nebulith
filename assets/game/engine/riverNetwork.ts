@@ -576,6 +576,18 @@ export function resolveCrossing(
   * dirt path, it can be an actual bridge, which again, are multiple variations"*. One per map, so every crossing on
   * it matches, picked the first time a deck is laid.
  */
+/**
+ * DID THE PERSON ASK FOR NO CROSSING AT ALL.
+ *
+ * *"from time to time, the system doesn't add any bridge even when I have a river, which is fine, but we
+ * should have an explicit option 'no bridge'"*. It happening by accident is not the same as being able to ask
+ * for it, so this is the choice, and a river left uncrossed is then the answer rather than an omission.
+ */
+export function crossingRefused(ctx: RiverCrossings): boolean {
+  const asked = ctx.options?.bridge
+  return asked === 'none' || asked === false
+}
+
 export function crossingStyle(ctx: RiverCrossings): GeneratorCrossing | undefined {
   if (ctx.crossing === undefined) ctx.crossing = resolveCrossing(ctx.options?.bridge, ctx.crossings, ctx.rand) ?? null
   return ctx.crossing ?? undefined
@@ -677,6 +689,7 @@ export function deckRoutes(
   // The same rule `pavableLane` uses, because it has to be the same answer: what gets decked and what gets
   // paved are two halves of one way. A layout that records its network is narrowed IN PLACE, so a cell that
   // stops being a crossing stops being a way, and every later pass sees open river rather than a path.
+  if (crossingRefused(ctx)) return
   const cut = network && network.size > 0 ? network : new Set(plan.cells)
   // NARROW IT TO THE CROSSINGS FIRST, which is what `narrowPathwaysToCrossings` was written for and what
   // nothing called. Every wet cell of the route plan was planked, so a way that ran along the channel came out
@@ -732,7 +745,7 @@ export function deckRoutes(
  * `stackAt` 0 and its own opacity, so you neither step up onto it nor drop into it and you see the ground
  * through it. So a ford is the route, laid at the level of its banks, with that film on top.
  */
-function wadeCrossing(ctx: RiverDeck, wet: ReadonlySet<string>, tone: string | undefined): void {
+export function wadeCrossing(ctx: RiverDeck, wet: ReadonlySet<string>, tone: string | undefined): void {
   const style = crossingStyle(ctx)
   const cut = channelDepth(ctx)
   const film = resolveTile(styleCatalog('ascii'), ctx.zone, FILM)
@@ -748,7 +761,14 @@ function wadeCrossing(ctx: RiverDeck, wet: ReadonlySet<string>, tone: string | u
     // comes level with THAT region rather than snapping to the map's base.
     ctx.elevation[row][col] += cut
     ctx.wet.add(key)
-    ctx.props.push({ col, row, type: 'ground_decor', char: film.char, label: FILM, blocking: false, color: film.color })
+    // `grows: false` because the water is not something GROWING on the way, it is the river the way runs
+    // through. The sweeps that clear a path of vegetation read that flag, and without it they took the film
+    // off: measured on one seed, 10 of 18 ford cells left as bare opaque route with no water over them, which
+    // is the half of the crossing that does not look like a ford.
+    ctx.props.push({
+      col, row, type: 'ground_decor', char: film.char, label: FILM,
+      blocking: false, grows: false, color: film.color,
+    })
     ctx.fords.add(key)
   }
 }
@@ -916,6 +936,8 @@ export interface RiverProp {
   blocking: boolean
   color: string
   label?: string
+  /** False for anything that is not VEGETATION, so the sweeps that clear a way of growth leave it alone. */
+  grows?: boolean
 }
 
 /** What a map hands over to have its water settled. */

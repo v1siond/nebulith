@@ -63,7 +63,7 @@ import { generationLayerKeys } from '@/engine/generate/generationLayers'
 import { isTileCategory, TILE_CATEGORY } from '@/engine/tileset/tileCategory'
 import { planRoutes, resolvePathways, type Gate, type RouteCell, type RoutePlan, type Side, type Pathways } from '@/engine/pathNetwork'
 import {
-  carveChannel, channelDepth, deckRoutes, digChannel, flowField, isWaterGround, layDeck, recordBridgeSpan, WATER_BANDS,
+  carveChannel, channelDepth, crossingRefused, crossingStyle, deckRoutes, digChannel, flowField, isWaterGround, layDeck, recordBridgeSpan, wadeCrossing, WATER_BANDS,
   narrowestLine, narrowPathwaysToCrossings, resolveRiverCourse, CROSSING_ROWS, settleWaterDepth, strewRiverRocks, wadeableShallows, waterBand, waterReach,
   FLOW_STEPS, type RiverCourse,
 } from '@/engine/riverNetwork'
@@ -1987,6 +1987,21 @@ function riverCourse(ctx: ArchetypeContext, legacy: RiverCourse): RiverCourse | 
   return resolveRiverCourse(ctx.options?.river, legacy, ctx.rand)
 }
 
+/**
+ * DID THE PERSON SAY NO RIVER, as opposed to saying nothing at all.
+ *
+ * `resolveRiverCourse` answers null for both, which is right for every layout that simply has no river when
+ * none is asked for. It is not enough for a layout with a river OF ITS OWN: the jungle carves its creek when
+ * no course is picked, so *"sometimes I select 'no river' and still get one"* — measured, 180 water cells on
+ * a jungle and a swamp with `river: none`, against 0 on the six templates that have no creek of their own.
+ *
+ * A default is what you get when nobody chose. A choice is not a default.
+ */
+function riverRefused(ctx: ArchetypeContext): boolean {
+  const asked = ctx.options?.river
+  return asked === 'none' || asked === false
+}
+
 
 /** Carve the river along its course. `around` is the existing perimeter river; the other two are channels
  *  that cross the whole map, which is what makes them cross it or cut it. */
@@ -2059,6 +2074,20 @@ function bridgeRiver(ctx: ArchetypeContext, water: Set<string>, routes: Set<stri
   //
   // There is no map where the first is wanted. A path that walks into a river and ends is a broken map, not a
   // variation, so the crossing is unconditional now and the option is gone.
+  // NO BRIDGE, ASKED FOR. A river nobody built a way over is a river you go around, which is a map, not a
+  // defect: the only thing that was missing was being able to choose it.
+  if (crossingRefused(ctx)) return
+  // A DIRT CROSSING IS ALREADY DONE, and laying a deck over it UNDOES it.
+  //
+  // `deckRoutes` fords the route where it meets the water. This then laid a second crossing over the same
+  // river, and `clearForDeck` strips every prop on a deck's cells, so it wiped the water films off the ford
+  // that was already there: measured, 10 of a map's 18 ford cells left as bare opaque route.
+  //
+  // Nothing to add, then, unless no route crossed at all and the map has no ford yet.
+  if (!crossingStyle(ctx)?.composition) {
+    if (ctx.fords.size === 0) fellLogsAcross(ctx, water, pal, [0.5])
+    return
+  }
   if (course === 'around') { crossRiver(ctx, water, routes, true); return }
   if (placeRiverCrossing(ctx, water, routes)) return
   // NOTHING CROSSES ON THE PATHS HERE, so this is the one case that still needs a ford of its own.
@@ -2267,7 +2296,7 @@ function sealMapEdge(ctx: ArchetypeContext): void {
     // The band closes over it, which is what a wooded bank looks like anyway.
     const wet = isWaterGround(ctx.ground[row][col]) || ctx.wet.has(`${col},${row}`)
     if (collision[row][col] && !wet) return          // something already stands here, and it is not the river
-    trees.push({ col, row, kind: pickLivingTree(ctx.rand(), speciesAt(ctx, col, row)), variant: massVariant(col, row) })
+    plantTree(ctx, { col, row, kind: pickLivingTree(ctx.rand(), speciesAt(ctx, col, row)), variant: massVariant(col, row) })
     collision[row][col] = true
     // AND A CELL THE WOOD CLOSED IS NO LONGER A WAY. Only a ring cell reaches here, since everything else the
     // map publishes as a way is spared above, and a ring cell with no gate on it is a place the border stays
@@ -2412,7 +2441,7 @@ function clearForEntrance(ctx: ArchetypeContext, gate: Gate): void {
   const kept = ctx.trees.filter(t => !taken.has(`${t.col},${t.row}`))
   if (kept.length !== ctx.trees.length) {
     ctx.trees.length = 0
-    ctx.trees.push(...kept)
+    for (const tree of kept) plantTree(ctx, tree)
   }
   // …and whatever else was stamped there, so an upright is not sharing its cell with a trunk.
   const keptComps = ctx.compositions.filter(c => !taken.has(`${c.col},${c.row}`))
@@ -2494,7 +2523,7 @@ function clearPathSightlines(ctx: ArchetypeContext): void {
     collision[t.row][t.col] = false // the trunk was what blocked it; nothing else stands here
   }
   trees.length = 0
-  trees.push(...kept)
+  for (const tree of kept) plantTree(ctx, tree)
 
   // AND THE UNDERGROWTH WITH THEM.
   //
@@ -3141,7 +3170,7 @@ const woodlandPhases: VariantPhases = {
     for (const { col, row } of field) {
       if (standsOnPathway(ctx, col, row)) continue // the ways are drawn by now, and nothing grows in one
       const kind: LivingTreeKind | 'tree_dead' = ctx.rand() < 0.06 ? 'tree_dead' : pickLivingTree(ctx.rand(), speciesAt(ctx, col, row))
-      trees.push({ col, row, kind, variant: massVariant(col, row) })
+      plantTree(ctx, { col, row, kind, variant: massVariant(col, row) })
       collision[row][col] = true // the trunk blocks; the canopy is walkable overhead, as everywhere else
     }
 
@@ -3281,9 +3310,11 @@ const junglePhases: VariantPhases = {
     const pal = ctx.palette
     const course = riverCourse(ctx, 'through')
     // No course picked means the jungle's own narrow creek; `through` is the same creek, wide; the other
-    // courses carve their own channel.
+    // courses carve their own channel. Unless no river was ASKED for, which is a different answer from none
+    // being picked for you.
     const channel = course === 'through' ? carveJungleCreek(ctx, pal, true)
       : course ? carveRiver(ctx, course, pal)
+      : riverRefused(ctx) ? new Set<string>()
       : carveJungleCreek(ctx, pal, false)
     for (const key of channel) ctx.water.add(key)
 
@@ -3372,7 +3403,7 @@ const junglePhases: VariantPhases = {
     for (const { col, row } of field) {
       if (standsOnPathway(ctx, col, row)) continue
       const kind: LivingTreeKind | 'tree_dead' = ctx.rand() < 0.04 ? 'tree_dead' : pickLivingTree(ctx.rand(), speciesAt(ctx, col, row))
-      trees.push({ col, row, kind, variant: massVariant(col, row) })
+      plantTree(ctx, { col, row, kind, variant: massVariant(col, row) })
       collision[row][col] = true
     }
 
@@ -3843,30 +3874,23 @@ function fellLogsAcross(ctx: ArchetypeContext, water: Set<string>, pal: Generato
     // so there is no rim to climb into or out of, and it stops blocking. The shallow tile is what the river
     // already uses at its own edges, so a ford reads as a continuation of the water rather than as a thing
     // built on it.
+    // ONE KIND OF FORD, MADE ONE WAY. This wrote its own cells: shallow water as the GROUND, no route under
+    // it and no film over it, which is not what a dirt crossing is any more. Two makers meant two looks, and
+    // measured on one seed, 10 of a map's 18 ford cells came out as bare opaque route with no water on them
+    // because these were later paved over: *"that's how the FULL dirt path should look like, right now is not
+    // entirely correct"*. So this one decides WHERE and `wadeCrossing` decides WHAT, for every ford.
     const half = Math.floor(FORD_ROWS / 2)
-    const cut = channelDepth(ctx)
+    const wet = new Set<string>()
     for (let a = from; a <= to; a++) {
       for (let w = half - FORD_ROWS + 1; w <= half; w++) {
         const col = vertical ? a : at + w
         const row = vertical ? at + w : a
         if (!inBounds(col, row, ctx.cols, ctx.rows)) continue
         if (!isWaterGround(ctx.ground[row][col])) continue // the banks either side stay land
-        ctx.ground[row][col] = WATER_BANDS.shallow.label
-        ctx.collision[row][col] = false
-        // AND IT RISES TO ITS BANKS, which is what makes it a ford rather than a hole you fall into. Leaving
-        // it in the cut was tried: the cells are walkable but a whole block down, so they join nothing and the
-        // jungle came apart into pieces again. A ford is the one place a river is NOT cut below the floor.
-        //
-        // It adds back what `digChannel` took off rather than snapping to 0, so a creek crossing a raised
-        // region comes level with THAT region instead of dropping to the map's base.
-        ctx.elevation[row][col] += cut
-        if (pal?.waterShallow) ctx.floorColors[row][col] = pal.waterShallow
-        // RECORDED AS A FORD, NOT AS A DECK. The depth pass, the dry-area walk and the wading rule each ask a
-        // crossing a different question, and a ford answers all three differently from planking: it is
-        // channel, it is not land, and it is wadeable even where the rest of the river is cut.
-        ctx.fords.add(`${col},${row}`)
+        wet.add(`${col},${row}`)
       }
     }
+    wadeCrossing(ctx, wet, wayTone(ctx))
     // AND NO STRUCTURE ON IT. A ford is a shallow stretch of river, so there is nothing to stamp a bridge
     // composition onto: those rails and abutments are what a BUILT crossing is made of, and standing them in
     // the water with no deck under them is what put tall plank boxes in the middle of the landscape.
@@ -4442,7 +4466,7 @@ function plantEmergents(ctx: ArchetypeContext, open: Set<string>, water: Set<str
     const row = randIntWith(ctx.rand, 2, Math.max(2, rows - 3))
     const key = `${col},${row}`
     if (open.has(key) || water.has(key)) continue
-    trees.push({ col, row, kind: 'tree_giant', variant: massVariant(col, row) })
+    plantTree(ctx, { col, row, kind: 'tree_giant', variant: massVariant(col, row) })
     collision[row][col] = true
   }
 }
@@ -4961,7 +4985,7 @@ function stampMeadowTree(ctx: ArchetypeContext, col: number, row: number, tall: 
   // The green/verdant reference meadows show NO bare snags — only a HARSH season sprinkles a little dead wood.
   const dead = HARSH_ZONES.has(zone) && ctx.rand() < DEAD_TREE_CHANCE[zone] * 0.4
   const kind: LivingTreeKind | 'tree_dead' = dead ? 'tree_dead' : tall ? 'tree_tall' : pickLivingTree(ctx.rand(), speciesAt(ctx, col, row))
-  trees.push({ col, row, kind, variant })
+  plantTree(ctx, { col, row, kind, variant })
   collision[row][col] = true
 }
 
@@ -5423,6 +5447,30 @@ function treeFits(collision: boolean[][], baseCol: number, baseRow: number, cols
 }
 
 /**
+ * NOTHING GROWS IN THE RIVER, and this is the one place that decides it.
+ *
+ * *"please fix the trees being planted on the river, river DOESN'T HAVE TREES IN THE EDGE"*, asked twice.
+ *
+ * Measured before the fix, on a 60x40 map at one seed: 12 to 20 trees standing in the channel on EVERY
+ * template, towns included, and almost all of them in the dug part rather than in a pool.
+ *
+ * The canopy field already refused water and said so in its own comment. It was never the only placer: eight
+ * separate sites push onto `ctx.trees` and exactly one of them checked the ground. A rule that lives in one
+ * of eight callers is not a rule, so it lives at the COMMIT instead and every placer goes through here.
+ *
+ * `ctx.water` as well as the label, because the two disagree at different points in the build: the river
+ * layer records its cells before some passes have painted them, and a ford carries a route label over water
+ * it never stopped owning.
+ */
+export function plantTree(ctx: ArchetypeContext, tree: TreeAnchor): void {
+  if (!inBounds(tree.col, tree.row, ctx.cols, ctx.rows)) return
+  if (ctx.water.has(`${tree.col},${tree.row}`)) return
+  if (isWaterGround(ctx.ground[tree.row][tree.col])) return
+  if (ctx.wet.has(`${tree.col},${tree.row}`)) return
+  ctx.trees.push(tree)
+}
+
+/**
  * A tree's trunk cell must stand on UNPAVED ground — not the paved plaza, driveways, or roads. `treeFits` guards
  * collision; this guards the GROUND, so a tree never lands on the town square. (The canopy is walkable overhead
  * and occupies no ground, so only the trunk cell is checked.) Pure — reads `ground` only.
@@ -5444,7 +5492,7 @@ function stampTree(ctx: ArchetypeContext, baseCol: number, baseRow: number, dead
   if (standsOnPathway(ctx, baseCol, baseRow)) return // and no tree in a road
   const variant = randIntWith(ctx.rand, 0, canopyCount(styleCatalog('ascii'), zone) - 1) // this tree's canopy tone (green…pink)
   const kind = dead ? 'tree_dead' : pickLivingTree(ctx.rand(), speciesAt(ctx, baseCol, baseRow)) // random shape variant (standard/tall/small/round/bush)
-  trees.push({ col: baseCol, row: baseRow, kind, variant })
+  plantTree(ctx, { col: baseCol, row: baseRow, kind, variant })
   if (inBounds(baseCol, baseRow, cols, rows)) collision[baseRow][baseCol] = true // only the trunk cell blocks
 }
 
