@@ -54,7 +54,7 @@ function groundBlockHeight(slug: string): number {
 // so a generated stage RELOADS exactly as it was stamped (height / z-width / scale / pose / animations).
 import { compositionCellRender } from '@/game/runtime/composition'
 import { flood, forEachCell, inBounds, isEdge, toCell, ORTHO, type Cell } from './grid'
-import { varyIntensity } from './colors'
+import { darkenColor, varyIntensity } from './colors'
 import { groundTileColor } from './tileset/groundColor'
 import type { Connector } from '@/lib/api'
 import { clamp, randInt, randIntWith, manhattan, makeRng, type Rng } from '@/lib/math'
@@ -2460,18 +2460,27 @@ function pavableLane(ctx: ArchetypeContext, plan: RoutePlan): Set<string> {
   if (edge <= 0) return lane
   // A cell is on the BORDER when one of its four neighbours is not in the lane. Only those are eaten, so the
   // middle of the way stays continuous however ragged the sides get: a path you cannot walk down is not one.
+  //
+  // IN TONGUES, NOT IN SPECKLE. This rolled `ctx.rand()` per cell, and a coin flip per cell is a DITHER: at
+  // 0.35 it took every third border cell at random, which along a straight side is a chequer and is half of
+  // *"this looks like weird chessboard"*. The grass comes back into a path in PATCHES, so the roll is taken
+  // per patch of `EDGE_BITE` cells and every border cell in that patch goes or stays together. Same share of
+  // the border eaten, in bites you can see the shape of.
   const bitten = new Set<string>()
   for (const key of lane) {
     const { col, row } = toCell(key)
-    const border = !lane.has(`${col - 1},${row}`) || !lane.has(`${col + 1},${row}`) ||
-      !lane.has(`${col},${row - 1}`) || !lane.has(`${col},${row + 1}`)
-    if (!border) continue
-    if (ctx.rand() >= edge) continue
+    if (!atLaneEdge(lane, col, row)) continue
+    const patch = shadeNoise(Math.floor(col / EDGE_BITE) * 2.3 + Math.floor(row / EDGE_BITE) * 3.7)
+    if (patch >= edge) continue
     bitten.add(key)
   }
   for (const key of bitten) lane.delete(key)
   return lane
 }
+
+/** How many cells across one bite of field taken back out of a path's edge. Three, so a bite reads as the
+ *  grass coming into the dirt rather than as a missing tile. */
+const EDGE_BITE = 3
 
 /** Lay the served surface over the lane and tint it with the template's trail tone. The tone is what makes
  *  one dirt path an autumn one and another a summer one; the TILE is what makes it a path at all. */
@@ -2490,10 +2499,7 @@ function paveLane(ctx: ArchetypeContext, lane: ReadonlySet<string>, way: Generat
   // MADE of, and the tone what that material looks like here.
   const base = wayTone(ctx) ?? groundTileColor(surface, 0, 0)
   if (!base) return
-  for (const key of lane) {
-    const { col, row } = toCell(key)
-    ctx.floorColors[row][col] = wornTone(base, col, row)
-  }
+  wearTheWay(ctx, lane, base)
   paintMarking(ctx, lane, way)
 }
 
@@ -2515,31 +2521,58 @@ function wayTone(ctx: ArchetypeContext): string | undefined {
 }
 
 /**
- * The tone one cell of a way wears: the way's colour, stepped.
+ * A WAY IS TWO TONES: its own in the middle, and that tone darkened along the edge where it meets the field.
  *
- * MEASURED, and the previous measurement was wrong, which is worth writing down because the number looked
- * rigorous. The nine references were segmented by hue and the path's "own pixels" came out at 39.3 luminance
- * stdev, so the wear was set to 0.55 to match it. That mask was sweeping in tree trunks, outlines and the
- * backdrop. Cropping patches that are ACTUALLY path and looking at them gives 6.1 on the woodland crossroads,
- * 14.4 to 18.9 on the park path, and 12.5 on the swamp: a way in these pictures is nearly FLAT, and what
- * gives it life is the pebbles and stones lying ON it, which `scatter` already places.
+ * *"the pathway I shared has more consistent coloring and a clear path look, usually darker dirt with clear
+ * dirt in the middle"*. MEASURED on all ten stored references, by eroding the warm pixels to a core and
+ * taking what the erosion removed as the rim: the rim is darker than the core in EVERY one of them, and the
+ * ratio barely moves (0.78, 0.79, 0.80, 0.81, 0.84, 0.87, 0.88, 0.89, with a single 0.64). So it is not a
+ * flourish, it is what makes a path read as a path, and 0.81 is the number.
  *
- * At 0.55 a woodland's way wore 227 distinct colours over some 300 cells. That is the salt-and-pepper he was
- * looking at, and it is also an FPS defect: `compressGround` merges only floors sharing a tile AND a colour,
- * so a way where no two cells agree cannot merge into a run at all. STEPS rather than a continuous mottle,
- * so a way is a handful of tones that still merge, at a range that lands inside the references' own spread.
+ * TWO tones, placed by POSITION. Before this it was three tones placed by a per-cell hash, and a per-cell
+ * hash is a dither: *"this looks like weird chessboard"*. A rim is contiguous by construction, so it draws
+ * an outline rather than confetti, and a way is two colours in long runs, which is also what lets
+ * `compressGround` merge it (it joins only floors sharing a tile AND a colour).
  */
-function wornTone(base: string, col: number, row: number): string {
-  const step = Math.floor(shadeNoise(col * 2.3 + row * 1.9) * PATHWAY_WEAR_STEPS) / (PATHWAY_WEAR_STEPS - 1)
-  return varyIntensity(base, step, PATHWAY_WEAR)
+function wearTheWay(ctx: ArchetypeContext, cells: ReadonlySet<string>, tone: string): void {
+  const rim = darkenColor(tone, PATHWAY_RIM)
+  for (const key of cells) {
+    const { col, row } = toCell(key)
+    if (!inBounds(col, row, ctx.cols, ctx.rows)) continue
+    if (isWaterGround(ctx.ground[row][col]) || ctx.wet.has(key) || ctx.decks.has(key)) continue
+    ctx.floorColors[row][col] = isRim(cells, col, row) ? rim : tone
+  }
 }
 
-/** How far a way's tone moves either side of itself. 0.16 puts the spread at about 11, inside the 6 to 19
- *  measured on the references' own paths. It was 0.55, which measured 39. */
-const PATHWAY_WEAR = 0.16
+/** A cell of the way with the field on one side of it. Orthogonal only: a way meets the field along its
+ *  sides, and counting diagonals would rim every cell of a 2-wide track and leave it with no middle. */
+function atLaneEdge(cells: ReadonlySet<string>, col: number, row: number): boolean {
+  return !cells.has(`${col - 1},${row}`) || !cells.has(`${col + 1},${row}`) ||
+    !cells.has(`${col},${row - 1}`) || !cells.has(`${col},${row + 1}`)
+}
 
-/** How many tones a way wears. Few, so the runs still merge. */
-const PATHWAY_WEAR_STEPS = 3
+/**
+ * A RIM IS THE EDGE OF A MIDDLE. A cell is rim when it touches the field AND it touches a cell of the way
+ * that does not, which is what makes it the border of something rather than the whole of it.
+ *
+ * Without the second half, a two-wide track is entirely edge and comes out entirely dark: the jungle's cut
+ * trail, which is two cells across, would lose a fifth of its luminance along its whole length and stop
+ * matching the tone its own reference was measured from. A track too narrow to have a middle simply wears one
+ * tone, which is also what a narrow track looks like.
+ */
+function isRim(cells: ReadonlySet<string>, col: number, row: number): boolean {
+  if (!atLaneEdge(cells, col, row)) return false
+  for (const [dc, dr] of ORTHO) {
+    const c = col + dc
+    const r = row + dr
+    if (cells.has(`${c},${r}`) && !atLaneEdge(cells, c, r)) return true
+  }
+  return false
+}
+
+/** How dark a way's edge is against its middle. Measured across the ten references: 0.81 of the core's
+ *  luminance, and every one of them sits between 0.78 and 0.89. */
+const PATHWAY_RIM = 0.81
 
 /**
  * THE LINE DOWN THE MIDDLE, where the way is one somebody painted.
@@ -2855,13 +2888,21 @@ const woodlandPhases: VariantPhases = {
 
     // TRAILS joining the clearings in a chain, so every one is reachable from every other, plus a spur from
     // the first and last to the map EDGE: a forest you cannot enter or leave is a room.
-    for (let i = 1; i < clearings.length; i++) carveWoodlandPath(ctx, clearings[i - 1], clearings[i], ctx.claimed, trail)
+    //
+    // WITH A PLAN, THE PLAN IS THE MAP'S PATHWAYS, and the glade links are gaps rather than ways. Measured on
+    // a 40x40 asked for two pathways: seven glades chained by six L-shaped corridors at the full served width
+    // paved 486 cells, 30% of the map, against 18.7% in the references. The way stopped reading as a way and
+    // became a tan field with green islands in it, which is *"this looks like weird chessboard"* and *"the
+    // pathways don't look like paths at all"*. The links are still CARVED, so no glade is stranded and
+    // nothing is planted in them; they are simply not painted as a way the person did not ask for.
+    const glades = ctx.routes ? new Set<string>() : trail
+    for (let i = 1; i < clearings.length; i++) carveWoodlandPath(ctx, clearings[i - 1], clearings[i], ctx.claimed, glades)
     // The two spurs are what a forest with NO plan uses to avoid being sealed. With a plan the gates already
     // run off the border, and a spur would be a way out nobody asked for.
     if (!ctx.routes && clearings.length > 0) {
-      carveWoodlandPath(ctx, clearings[0], nearestEdgeCell(clearings[0], cols, rows), ctx.claimed, trail)
+      carveWoodlandPath(ctx, clearings[0], nearestEdgeCell(clearings[0], cols, rows), ctx.claimed, glades)
       const last = clearings[clearings.length - 1]
-      carveWoodlandPath(ctx, last, nearestEdgeCell(last, cols, rows), ctx.claimed, trail)
+      carveWoodlandPath(ctx, last, nearestEdgeCell(last, cols, rows), ctx.claimed, glades)
     }
 
     // PAVE them. A trail has to be visible to be a trail. THE TEMPLATE PAVES, NOT THE SEASON, whenever the
@@ -3263,8 +3304,11 @@ function paintGateway(ctx: ArchetypeContext, gate: Gateway, water: ReadonlySet<s
       ground[row][col] = gate.ground
       // NO PAVING TONE, NO REPAINT. Writing `undefined` here CLEARED the colour the trail pass had already
       // laid, so a template that states no tone came out with a way that stopped dead at its own gateway.
-      // Worn the same way the way itself is worn, because a gateway is that way continuing to the border.
-      if (gate.paving) floorColors[row][col] = wornTone(gate.paving, col, row)
+      //
+      // And it wears the same RIM, because a gateway is the way continuing to the border: its outermost cell
+      // on each side is its edge, exactly as `wearTheWay` finds one. Collecting the lane and handing it over
+      // would be the same answer the long way round, since `w` already says how far across this cell sits.
+      if (gate.paving) floorColors[row][col] = Math.abs(w) === GATEWAY_HALF ? darkenColor(gate.paving, PATHWAY_RIM) : gate.paving
       routes.add(`${col},${row}`)
     }
     for (const w of [-GATEWAY_HALF - 1, GATEWAY_HALF + 1]) {
@@ -3413,12 +3457,7 @@ function gateLaneCells(
  */
 function tintCells(ctx: ArchetypeContext, cells: ReadonlySet<string>, tone: string | undefined): void {
   if (!tone) return
-  for (const key of cells) {
-    const { col, row } = toCell(key)
-    if (!inBounds(col, row, ctx.cols, ctx.rows)) continue
-    if (isWaterGround(ctx.ground[row][col]) || ctx.wet.has(key) || ctx.decks.has(key)) continue
-    ctx.floorColors[row][col] = wornTone(tone, col, row)
-  }
+  wearTheWay(ctx, cells, tone)
 }
 
 /** How big a stranded pocket the jungle repair absorbs. Higher than the meadow's 12 because undergrowth

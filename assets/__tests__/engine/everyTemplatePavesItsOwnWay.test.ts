@@ -205,6 +205,31 @@ describe('a way is the flat tone the references show', () => {
     return tones
   }
 
+  it.each(TEMPLATES)('%s is DARKER along its edge than down its middle', key => {
+    // *"usually darker dirt with clear dirt in the middle"*. Measured on all ten stored references by eroding
+    // the warm pixels to a core and taking what the erosion removed as the rim: the rim is darker in EVERY
+    // one, at 0.78, 0.79, 0.80, 0.81, 0.84, 0.87, 0.88 and 0.89 of the core (one outlier at 0.64). That is
+    // what makes a path read as a path rather than as a patch of different ground.
+    const s = build(key, 4)
+    const ways = s.pathways ?? new Set<string>()
+    const ORTHO = [[1, 0], [-1, 0], [0, 1], [0, -1]]
+    const touchesField = (col: number, row: number) => ORTHO.some(([dc, dr]) => !ways.has(`${col + dc},${row + dr}`))
+    // A rim is the edge OF A MIDDLE: it touches the field and it touches a cell of the way that does not.
+    // A track too narrow to have a middle is all edge and wears one tone, which is what a narrow track is.
+    const edge = (col: number, row: number) => touchesField(col, row) &&
+      ORTHO.some(([dc, dr]) => ways.has(`${col + dc},${row + dr}`) && !touchesField(col + dc, row + dr))
+    const rim: number[] = [], core: number[] = []
+    for (const k of ways) {
+      const [col, row] = k.split(',').map(Number)
+      const painted = s.floorColors[row]?.[col]
+      if (!painted) continue
+      ;(edge(col, row) ? rim : core).push(lum(painted))
+    }
+    if (core.length === 0) return // a track too narrow to have a middle wears one tone, which is correct
+    const mean = (xs: number[]) => xs.reduce((a, b) => a + b, 0) / xs.length
+    expect({ key, darkerAtTheEdge: mean(rim) < mean(core) }).toEqual({ key, darkerAtTheEdge: true })
+  })
+
   it.each(TEMPLATES)('%s wears a handful of tones, not one per cell', key => {
     const tones = wayTones(build(key, 4), pathwayOf(key)?.marking?.color)
     expect({ key, cells: tones.size > 0 }).toEqual({ key, cells: true })
