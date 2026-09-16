@@ -93,7 +93,8 @@ defmodule Nebulith.DataMigrations do
     Nebulith.DataMigration.BackfillCompositionCategories,
     Nebulith.DataMigration.FlatTilesZeroHeight,
     Nebulith.DataMigration.GroundTilesAreFlat,
-    Nebulith.DataMigration.ABloomIsNotGroundCover
+    Nebulith.DataMigration.ABloomIsNotGroundCover,
+    Nebulith.DataMigration.FlatDecorStacksAtTheBottomFace
   ]
 
   @doc "Every registered data migration module, in run order."
