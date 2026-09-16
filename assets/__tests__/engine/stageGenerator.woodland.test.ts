@@ -32,7 +32,7 @@ const build = (layout: ForestLayout, nature: NatureDensity, seed = 1, options?: 
   // THE DENSITY IS THE ARGUMENT, THE WAY IS THE TEMPLATE'S. `nature` stays explicit because these cases are
   // about what a served density does; the pathway comes from the same template the app builds from, because
   // a forest with no served way has nothing to paint one with and *"a trail has to be visible to be a trail"*.
-  const pathway = (findGenerator(CATALOG, 'forest', layout)?.config as { pathway?: GeneratorPathway } | undefined)?.pathway
+  const pathway = (findGenerator(CATALOG, 'wilderness', layout)?.config as { pathway?: GeneratorPathway } | undefined)?.pathway
   const orig = Math.random
   Math.random = makeRng(seed)
   try {

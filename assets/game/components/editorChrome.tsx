@@ -723,7 +723,17 @@ export function GenerateControls({
        * picture and the button agree, which is the entire purpose of this object.
        */
       variant: (def?.variant ?? categoryKey) as never,
-      layout: layoutId,
+      /**
+       * THE ROW'S ENGINE BUILDER, never the card's id.
+       *
+       * The card's id is the row KEY now, and the preview hands this field straight to `generateStage`, which
+       * looks up a BUILDER by it. So the picture asked the engine to run a builder called `forest_swamp` and
+       * there is no such builder: every row whose key differs from its layout previewed as something else,
+       * which is nine of the wilderness rows and every settlement but two. The comment three lines up says
+       * this object exists so the picture and the button agree, and the block above it records the identical
+       * bug being fixed once already for `variant`.
+       */
+      layout: def?.layout ?? undefined,
       // The picked world's NAME, not its layout, so the preview can say "Mountain forest" and not "woodland".
       name: def?.name,
       nature: def?.config.nature,

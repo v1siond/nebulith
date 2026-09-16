@@ -22,7 +22,7 @@ import liveBody from '@/__tests__/fixtures/generators.json'
 
 const CATALOG = parseGeneratorCatalog(liveBody)
 const SHORE = ['l', 'r', 't', 'b', 'tl', 'tr', 'bl', 'br'].map(a => `shore_${a}`)
-const TEMPLATES = ['forest_jungle', 'forest_jungle_swamp', 'forest_jungle_island', 'forest_woodland', 'forest_meadow']
+const TEMPLATES = ['forest_jungle', 'forest_swamp', 'forest_beach', 'forest_woodland', 'forest_meadow']
 
 function grow(key: string, zone = 'summer', seed = 3) {
   const g = findGeneratorByKey(CATALOG, key)!

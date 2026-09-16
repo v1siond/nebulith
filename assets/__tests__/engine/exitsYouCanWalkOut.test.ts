@@ -27,18 +27,18 @@ import liveBody from '@/__tests__/fixtures/generators.json'
 const CATALOG = parseGeneratorCatalog(liveBody)
 const COLS = 40, ROWS = 40
 const ENCLOSED = [
-  { cat: 'forest', gen: 'forest_woodland', variant: 'forest' as const, layout: 'woodland' },
-  { cat: 'forest', gen: 'forest_jungle', variant: 'forest' as const, layout: 'jungle' },
-  { cat: 'forest', gen: 'forest_meadow', variant: 'forest' as const, layout: 'meadow' },
+  { cat: 'wilderness', gen: 'forest_woodland', variant: 'forest' as const, layout: 'woodland' },
+  { cat: 'wilderness', gen: 'forest_jungle', variant: 'forest' as const, layout: 'jungle' },
+  { cat: 'wilderness', gen: 'forest_meadow', variant: 'forest' as const, layout: 'meadow' },
   { cat: 'cave', gen: 'cave_default', variant: 'cave' as const, layout: undefined },
   { cat: 'temple', gen: 'temple_default', variant: 'temple' as const, layout: undefined },
 ]
 
 function build(c: (typeof ENCLOSED)[number], exits: number, pathways: number, seed: number): StageData {
-  // `findGenerator` matches on LAYOUT. A forest is found by its layout; a cave and a temple have none and
-  // take their category's only generator. Passing the generator KEY here found nothing, and every build ran
-  // with no served config: no tree mix for the treeline to plant from, no nature, no sub-zones.
-  const config = findGenerator(CATALOG, c.cat, c.layout)?.config
+  // BY THE ROW'S KEY. A layout names the engine BUILDER, and nine wilderness environments share three
+  // builders between them, so looking a row up by its layout hands back whichever row says that builder
+  // first. The key names exactly one row; the layout is only what `generateStage` is then asked to run.
+  const config = findGenerator(CATALOG, c.cat, c.gen)?.config
   expect(config).toBeDefined() // the fixture really does serve this one — an undefined config proves nothing
   const orig = Math.random
   Math.random = makeRng(seed)
@@ -151,7 +151,12 @@ describe.each(ENCLOSED)('$gen, a map with a real border', c => {
  * The rule now: inside the map the whole network is spared, and on the ring only the gates are.
  */
 describe('the border shows exactly the openings that were asked for', () => {
-  const FORESTS = ['woodland', 'jungle', 'meadow'] as const
+  // KEY first, builder second: the row is what is being grown, and its own `layout` is what runs it.
+  const FORESTS = [
+    { key: 'forest_woodland', layout: 'woodland' },
+    { key: 'forest_jungle', layout: 'jungle' },
+    { key: 'forest_meadow', layout: 'meadow' },
+  ] as const
   const RIVERS = ['none', 'through', 'divides', 'around'] as const
 
   /** A gap is a cell you can see and walk through. Water with a tree standing in it is closed: the tree blocks
@@ -177,14 +182,15 @@ describe('the border shows exactly the openings that were asked for', () => {
     return runs
   }
 
-  function forest(layout: (typeof FORESTS)[number], river: string, exits: number, seed = 7): StageData {
-    const config = findGenerator(CATALOG, 'forest', layout)?.config
-    expect(config).toBeDefined()
+  function forest(key: string, river: string, exits: number, seed = 7): StageData {
+    const row = findGenerator(CATALOG, 'wilderness', key)
+    expect(row).toBeDefined()
+    const config = row?.config
     const orig = Math.random
     Math.random = makeRng(seed)
     try {
       return generateStage({
-        zone: 'summer', variant: 'forest', layout, cols: COLS, rows: ROWS,
+        zone: 'summer', variant: 'forest', layout: row?.layout as never, cols: COLS, rows: ROWS,
         options: { exits: String(exits), pathways: '2', river, crossing: 'bridge' },
         nature: config?.nature, palette: config?.palette, formation: config?.formation,
         treeMix: config?.trees, subZones: config?.subZones, crossings: config?.crossings,
@@ -192,22 +198,22 @@ describe('the border shows exactly the openings that were asked for', () => {
     } finally { Math.random = orig }
   }
 
-  const cases = FORESTS.flatMap(l => RIVERS.flatMap(r => [1, 2, 3, 4].map(e => [l, r, e] as const)))
+  const cases = FORESTS.flatMap(f => RIVERS.flatMap(r => [1, 2, 3, 4].map(e => [f.key, r, e] as const)))
 
-  it.each(cases)('%s with a %s river, %i exits: that many openings, no more', (layout, river, exits) => {
-    const openings = openingsOn(forest(layout, river, exits))
+  it.each(cases)('%s with a %s river, %i exits: that many openings, no more', (key, river, exits) => {
+    const openings = openingsOn(forest(key, river, exits))
     expect(openings).toHaveLength(exits)
     // …and every one of them is a gate. A river mouth is not an opening at all any more.
     expect(openings.filter(o => !o.gate)).toEqual([])
   })
 
   it('a river changes nothing about how many openings a map has', () => {
-    const counts = RIVERS.map(river => openingsOn(forest('woodland', river, 2)).length)
+    const counts = RIVERS.map(river => openingsOn(forest('forest_woodland', river, 2)).length)
     expect(counts).toEqual([2, 2, 2, 2])
   })
 
   it('the treeline closes over the river where it runs off the map', () => {
-    const stage = forest('woodland', 'through', 2)
+    const stage = forest('forest_woodland', 'through', 2)
     const treeAt = new Set(stage.trees.map(t => `${t.col},${t.row}`))
     const borderWater: string[] = []
     for (let c = 0; c < stage.cols; c++) for (const r of [0, stage.rows - 1]) {

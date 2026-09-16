@@ -112,9 +112,9 @@ function genSeeded(opts: Parameters<typeof generateStage>[0], seed: number): Sta
 // Regenerated 2026-09-12, the three SETTLEMENT cases only: naturePass now reads the numbers the backend has
 // been serving all along. `settlement.natureMultiplier` was parsed into `GeneratorSettlement` and never
 // declared on `SettlementTuning`, so it was invisible to types and eight served rows (town 1.3, city 0.5,
-// town_small 1.8, town_forest 2.4, town_swamp 2.0 and more) could not reach `fillVillageNature`, which used
+// town 1.8, village_woodland 2.4, town_swamp 2.0 and more) could not reach `fillVillageNature`, which used
 // the frontend `NATURE_MULT` instead. The ground-cover and flower densities were literals (0.12 / 0.06) with
-// the served `nature` block sitting in scope, so town_forest's 0.28/0.08 and town_swamp's 0.45/0.08 were dead.
+// the served `nature` block sitting in scope, so village_woodland's 0.28/0.08 and town_swamp's 0.45/0.08 were dead.
 // A deliberate generation change: tree, tuft and bloom counts move on every settlement. Only the three
 // settlements run this pass, so the forest/cave/temple/boss cases below are byte-identical.
 // Regenerated 2026-09-12, the CAVE and TEMPLE only: the shoreline is real tiles now. A land cell bordering

@@ -67,7 +67,7 @@ function waterCells(s: StageData): Array<{ col: number; row: number }> {
 }
 
 // Every template that can carry a river, and the three courses it can take.
-const TEMPLATES = ['forest_woodland', 'forest_meadow', 'forest_jungle', 'town_small', 'city_modern']
+const TEMPLATES = ['forest_woodland', 'forest_meadow', 'forest_jungle', 'town', 'city_futuristic']
 const COURSES = ['through', 'divides', 'around']
 
 describe('the water is CUT INTO the map, not laid on top of it', () => {
@@ -124,7 +124,7 @@ describe('a reach is GRADED, which is what tells a river from a patch of blue', 
 })
 
 describe('nothing is built in the water', () => {
-  for (const key of ['town_small', 'city_modern']) {
+  for (const key of ['town', 'city_futuristic']) {
     it(`${key} lays no building and no paving in its channel`, () => {
       for (const course of COURSES) {
         const s = build(key, course)

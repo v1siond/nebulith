@@ -49,7 +49,7 @@ function grow(variant: VariantId, layout: ForestLayout | undefined, genKey: stri
 const CASES: Array<[string, VariantId, ForestLayout | undefined, string | undefined]> = [
   ['a woodland', 'forest', 'woodland', 'forest_woodland'],
   ['a jungle', 'forest', 'jungle', 'forest_jungle'],
-  ['a swamp jungle', 'forest', 'jungle', 'forest_jungle_swamp'],
+  ['a swamp jungle', 'forest', 'jungle', 'forest_swamp'],
   ['a meadow', 'forest', 'meadow', 'forest_meadow'],
   ['a town', 'town', undefined, 'town_default'],
   ['a cave', 'cave', undefined, 'cave_default'],

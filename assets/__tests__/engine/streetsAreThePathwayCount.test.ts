@@ -17,7 +17,7 @@ import '@/__tests__/helpers/installTilesetSeed'
 import { generateStage, type StageData } from '@/engine/stageGenerator'
 import { planVillage, streetRoom, type BuildingSizes, type StreetPlan, type VillageLayout } from '@/engine/villageLayout'
 import { planRoutes, resolvePathways, type Side } from '@/engine/pathNetwork'
-import { findGenerator, parseGeneratorCatalog } from '@/lib/generatorCatalog'
+import { findGeneratorForVariant, parseGeneratorCatalog } from '@/lib/generatorCatalog'
 import { makeRng } from '@/lib/math'
 import liveBody from '@/__tests__/fixtures/generators.json'
 
@@ -132,7 +132,9 @@ function paintedStreets(stage: StageData): number {
 
 describe('the whole chain, through the real generator', () => {
   const build = (variant: 'town' | 'city', exits: number, pathways: number, seed: number): StageData => {
-    const config = findGenerator(CATALOG, 'settlement', variant)?.config
+    // BY THE ROW'S KEY, not by a category. A settlement is a category per size now (village, town, city),
+    // and the row that runs the plain archetype is the one whose key is the archetype's own name.
+    const config = findGeneratorForVariant(CATALOG, variant, variant)?.config
     expect(config).toBeDefined()
     const orig = Math.random
     Math.random = makeRng(seed)

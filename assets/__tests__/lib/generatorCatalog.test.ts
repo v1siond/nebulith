@@ -9,6 +9,11 @@
  *   - the negative paths prove the client never fills a gap in: a category the backend does not serve
  *     does not exist, a config section it omits reads `undefined`, and a malformed row is dropped, not
  *     defaulted (the no-fallback law, MAP-MODEL §8).
+ *
+ * A TYPE IS AN ENVIRONMENT and a CATEGORY is the kind of terrain: wilderness, village, town, city, cave,
+ * temple. A row's `layout` names the engine BUILDER, and nine wilderness environments share three builders
+ * between them, so a row is identified by its KEY and never by its layout. The catalog is flat: nothing
+ * carries children.
  */
 import { EMPTY_GENERATOR_CATALOG, catalogZones, categoryLayouts, fetchGeneratorCatalog, findCategory, findGenerator, parseGeneratorCatalog, rollGridSize, findGeneratorByKey, findGeneratorForVariant} from '@/lib/generatorCatalog'
 import { makeRng } from '@/lib/math'
@@ -18,33 +23,39 @@ const LIVE = parseGeneratorCatalog(liveBody)
 
 describe('parseGeneratorCatalog — the live /api/generators body', () => {
   it('reads every category the backend serves, in menu order', () => {
-    expect(LIVE.map(c => c.key)).toEqual(['forest', 'settlement', 'cave', 'temple'])
-    expect(LIVE.map(c => c.name)).toEqual(['Forest', 'Settlement', 'Cave', 'Temple'])
+    expect(LIVE.map(c => c.key)).toEqual(['wilderness', 'village', 'town', 'city', 'cave', 'temple'])
+    expect(LIVE.map(c => c.name)).toEqual(['Wilderness', 'Village', 'Town', 'City', 'Cave', 'Temple'])
   })
 
   it('reads each category\'s generators, in menu order', () => {
-    expect(findCategory(LIVE, 'forest')!.generators.map(g => g.key)).toEqual(['forest_woodland', 'forest_jungle', 'forest_meadow'])
-    expect(findCategory(LIVE, 'settlement')!.generators.map(g => g.key)).toEqual(['town', 'city'])
+    expect(findCategory(LIVE, 'wilderness')!.generators.map(g => g.key)).toEqual([
+      'forest_woodland', 'forest_jungle', 'forest_meadow', 'forest_swamp', 'forest_mountain',
+      'forest_beach', 'forest_ruins', 'forest_desert', 'forest_volcanic',
+    ])
+    expect(findCategory(LIVE, 'city')!.generators.map(g => g.key)).toEqual([
+      'city', 'city_jungle', 'city_meadow', 'city_swamp', 'city_mountain', 'city_beach',
+      'city_ruins', 'city_desert', 'city_volcanic', 'city_futuristic', 'city_medieval',
+    ])
   })
 
   it('reads the grid range the town rolls — the numbers templates.tsx used to hardcode', () => {
-    expect(findGenerator(LIVE, 'settlement', 'town')!.config.grid).toEqual({
+    expect(findGenerator(LIVE, 'town', 'town')!.config.grid).toEqual({
       cols: { min: 30, max: 45 }, rows: { min: 24, max: 35 }, cellSize: 16, isoScale: 2.5,
     })
   })
 
   it('reads the CITY\'s bigger grid — the `variant === city` branch is data now', () => {
-    expect(findGenerator(LIVE, 'settlement', 'city')!.config.grid).toEqual({
+    expect(findGenerator(LIVE, 'city', 'city')!.config.grid).toEqual({
       cols: { min: 52, max: 71 }, rows: { min: 42, max: 57 }, cellSize: 16, isoScale: 2.5,
     })
   })
 
   it('reads the townsfolk counts the editor scattered from a 14/8/5 ternary', () => {
-    expect(findGenerator(LIVE, 'settlement', 'city')!.config.units!.townsfolk).toBe(14)
-    expect(findGenerator(LIVE, 'settlement', 'town')!.config.units!.townsfolk).toBe(8)
-    // The forest's FIRST row is the woodland now, and a wood scatters fewer people than an open meadow.
-    expect(findGenerator(LIVE, 'forest')!.config.units!.townsfolk).toBe(3)
-    expect(findGenerator(LIVE, 'forest', 'meadow')!.config.units!.townsfolk).toBe(5)
+    expect(findGenerator(LIVE, 'city', 'city')!.config.units!.townsfolk).toBe(14)
+    expect(findGenerator(LIVE, 'town', 'town')!.config.units!.townsfolk).toBe(8)
+    // The wilderness's FIRST row is the woodland, and a wood scatters fewer people than an open meadow.
+    expect(findGenerator(LIVE, 'wilderness')!.config.units!.townsfolk).toBe(3)
+    expect(findGenerator(LIVE, 'wilderness', 'forest_meadow')!.config.units!.townsfolk).toBe(5)
   })
 
   it('reads the dungeon enemy rosters — CAVE_ENEMY_TYPES / TEMPLE_ENEMY_TYPES as data', () => {
@@ -56,7 +67,7 @@ describe('parseGeneratorCatalog — the live /api/generators body', () => {
     // A LOOK'S OWN PALETTE. Since 2026-09-11 the settlement presets ARE the looks, so this reads Traditional
     // town's: brick and timber under warm gables, and the roof TILE it lays, which is the half that colours
     // alone could never express ().
-    expect(findGenerator(LIVE, 'settlement', 'town')!.config.buildings).toEqual({
+    expect(findGenerator(LIVE, 'town', 'town')!.config.buildings).toEqual({
       roof: 'roof',
       materials: ['wall_brick', 'wall_wood'],
       roofColors: ['#8a4b2f', '#7a4326', '#6b4a2b'],
@@ -66,7 +77,7 @@ describe('parseGeneratorCatalog — the live /api/generators body', () => {
   })
 
   it("reads the settlement tuning that lives in villageLayout as consts, and the MIX that makes a place itself", () => {
-    expect(findGenerator(LIVE, 'settlement', 'town')!.config.settlement).toEqual({
+    expect(findGenerator(LIVE, 'town', 'town')!.config.settlement).toEqual({
       plazaSize: 5, roadWidth: 4, setback: 1, lotGap: [1, 2], maxPerFrontage: 6,
       buildingCap: 18, houseRange: [4, 6],
       houseWidths: [3, 3, 4, 4, 4, 5, 6], natureMultiplier: 1.3,
@@ -84,7 +95,7 @@ describe('parseGeneratorCatalog — the live /api/generators body', () => {
         { type: 'house', count: [1, 3] },
       ],
     })
-    expect(findGenerator(LIVE, 'settlement', 'city')!.config.settlement).toMatchObject({
+    expect(findGenerator(LIVE, 'city', 'city')!.config.settlement).toMatchObject({
       plazaSize: 7, maxPerFrontage: 99, buildingCap: 72, natureMultiplier: 0.5,
     })
   })
@@ -94,8 +105,8 @@ describe('parseGeneratorCatalog — the live /api/generators body', () => {
    * so this asserts it SURVIVES the parse: a dropped key here would put every place back to the same buildings.
    */
   it('a town and a city are served DIFFERENT buildings, and the parse keeps them', () => {
-    const town = findGenerator(LIVE, 'settlement', 'town')!.config.settlement!.mix!.map(e => e.type)
-    const city = findGenerator(LIVE, 'settlement', 'city')!.config.settlement!.mix!.map(e => e.type)
+    const town = findGenerator(LIVE, 'town', 'town')!.config.settlement!.mix!.map(e => e.type)
+    const city = findGenerator(LIVE, 'city', 'city')!.config.settlement!.mix!.map(e => e.type)
 
     expect(town).toContain('stable')
     expect(town).not.toContain('tower')
@@ -133,23 +144,35 @@ describe('catalogZones — the season chips are the union of what generators run
   })
 })
 
-describe('categoryLayouts — a map type\'s shapes are DATA, not a `key === forest` branch', () => {
-  it('lists the forest\'s three KINDS of forest with their display names', () => {
-    // Three, not five. A river is an OPTION on each of these now, so it is not a layout and never shows up
-    // here — which is the whole of ticket 47: the list stopped growing when a variation stopped being a row.
-    expect(categoryLayouts(LIVE, 'forest')).toEqual([
-      { id: 'woodland', label: 'Woodland' },
-      { id: 'jungle', label: 'Jungle' },
-      { id: 'meadow', label: 'Meadow' },
+describe('categoryLayouts: a card is a ROW, identified by that row\'s KEY', () => {
+  it('lists every wilderness environment with its display name', () => {
+    // A river is an OPTION on each of these, so it is not a card and never shows up here.
+    expect(categoryLayouts(LIVE, 'wilderness')).toEqual([
+      { id: 'forest_woodland', label: 'Woodland' },
+      { id: 'forest_jungle', label: 'Jungle' },
+      { id: 'forest_meadow', label: 'Meadow' },
+      { id: 'forest_swamp', label: 'Swamp' },
+      { id: 'forest_mountain', label: 'Mountain' },
+      { id: 'forest_beach', label: 'Beach' },
+      { id: 'forest_ruins', label: 'Ruins' },
+      { id: 'forest_desert', label: 'Desert' },
+      { id: 'forest_volcanic', label: 'Volcanic' },
     ])
   })
 
-  it('lists NO layouts for a map type whose generator names no shape', () => {
-    expect(categoryLayouts(LIVE, 'settlement')).toEqual([
-      { id: 'town', label: 'Town' },
-      { id: 'city', label: 'City' },
-    ])
-    expect(categoryLayouts(LIVE, 'cave')).toEqual([])
+  it('carries the KEY, not the layout, so two rows on one builder are two cards', () => {
+    // Keyed by layout, the swamp, the beach, the ruins and the desert all said `jungle` and every one of them
+    // resolved to the Jungle. Whoever clicked Swamp got a rainforest with nothing to tell them.
+    const jungleBuilt = findCategory(LIVE, 'wilderness')!.generators.filter(g => g.layout === 'jungle')
+    expect(jungleBuilt.length).toBeGreaterThan(1) // the builders really are shared
+    const ids = categoryLayouts(LIVE, 'wilderness').map(l => l.id)
+    expect(ids).toEqual(expect.arrayContaining(jungleBuilt.map(g => g.key)))
+    expect(new Set(ids).size).toBe(ids.length) // …and no two cards collapse onto one id
+  })
+
+  it('lists the ONE card of a map type that serves a single generator', () => {
+    expect(categoryLayouts(LIVE, 'cave')).toEqual([{ id: 'cave_default', label: 'Cave' }])
+    expect(categoryLayouts(LIVE, 'temple')).toEqual([{ id: 'temple_default', label: 'Temple' }])
   })
 
   it('lists no layouts for a map type the backend does not serve', () => {
@@ -158,18 +181,26 @@ describe('categoryLayouts — a map type\'s shapes are DATA, not a `key === fore
 })
 
 describe('findGenerator — the editor runs exactly the world the user asked for', () => {
-  it('picks the generator whose layout was chosen', () => {
-    expect(findGenerator(LIVE, 'forest', 'jungle')!.key).toBe('forest_jungle')
-    expect(findGenerator(LIVE, 'forest', 'meadow')!.key).toBe('forest_meadow')
+  it('picks the row whose KEY was chosen, which names exactly one world', () => {
+    expect(findGenerator(LIVE, 'wilderness', 'forest_jungle')!.key).toBe('forest_jungle')
+    expect(findGenerator(LIVE, 'wilderness', 'forest_swamp')!.key).toBe('forest_swamp')
+    expect(findGenerator(LIVE, 'wilderness', 'forest_meadow')!.key).toBe('forest_meadow')
+  })
+
+  it('still resolves a bare LAYOUT, to the first row that runs that builder', () => {
+    // All a layout can mean once several rows share one. A caller holding only a builder gets a world that
+    // builder makes; a caller holding the key gets the exact row.
+    expect(findGenerator(LIVE, 'wilderness', 'jungle')!.key).toBe('forest_jungle')
+    expect(findGenerator(LIVE, 'wilderness', 'woodland')!.key).toBe('forest_woodland')
   })
 
   it('picks the first generator when no layout is chosen', () => {
-    expect(findGenerator(LIVE, 'forest')!.key).toBe('forest_woodland')
+    expect(findGenerator(LIVE, 'wilderness')!.key).toBe('forest_woodland')
   })
 
-  it('finds NOTHING for a layout the category does not carry — never a silent substitution', () => {
-    expect(findGenerator(LIVE, 'forest', 'swamp')).toBeUndefined()
-    expect(findGenerator(LIVE, 'town', 'meadow')).toBeUndefined()
+  it('finds NOTHING for a row the category does not carry, never a silent substitution', () => {
+    expect(findGenerator(LIVE, 'wilderness', 'swamp')).toBeUndefined()
+    expect(findGenerator(LIVE, 'town', 'forest_meadow')).toBeUndefined()
   })
 
   it('finds nothing for a map type the backend does not serve', () => {
@@ -178,8 +209,8 @@ describe('findGenerator — the editor runs exactly the world the user asked for
 })
 
 describe('rollGridSize — the size comes from the served range', () => {
-  const town = findGenerator(LIVE, 'settlement', 'town')
-  const city = findGenerator(LIVE, 'settlement', 'city')
+  const town = findGenerator(LIVE, 'town', 'town')
+  const city = findGenerator(LIVE, 'city', 'city')
 
   it('rolls the range MINIMUM at rand 0 and the MAXIMUM just under 1', () => {
     expect(rollGridSize(town, () => 0)).toEqual({ cols: 30, rows: 24 })
@@ -292,7 +323,7 @@ describe('fetchGeneratorCatalog — the wire', () => {
     global.fetch = fetchMock as unknown as typeof fetch
 
     const catalog = await fetchGeneratorCatalog()
-    expect(catalog.map(c => c.key)).toEqual(['forest', 'settlement', 'cave', 'temple'])
+    expect(catalog.map(c => c.key)).toEqual(['wilderness', 'village', 'town', 'city', 'cave', 'temple'])
     expect(fetchMock.mock.calls[0][0]).toContain('/generators')
   })
 
@@ -302,25 +333,30 @@ describe('fetchGeneratorCatalog — the wire', () => {
   })
 })
 
-describe('the catalog is a TREE — forest > type > subtype', () => {
-  it('parses each type\'s subtypes, in menu order', () => {
-    expect(findGenerator(LIVE, 'forest', 'woodland')!.children?.map(c => c.key)).toEqual([
-      'forest_woodland_beech', 'forest_woodland_dense', 'forest_woodland_mountain', 'forest_woodland_glades',
-    ])
-  })
-
-  it('finds a subtype by key at any depth, and nothing for a key that is not there', () => {
-    expect(findGeneratorByKey(LIVE, 'forest_jungle_island')?.name).toBe('Island jungle')
+describe('the catalog is FLAT: every environment is a type of its own', () => {
+  it('finds a row by its key, in whatever category it sits, and nothing for a key that is not there', () => {
+    expect(findGeneratorByKey(LIVE, 'forest_beach')?.name).toBe('Beach')
     expect(findGeneratorByKey(LIVE, 'forest_woodland')?.name).toBe('Woodland')
+    expect(findGeneratorByKey(LIVE, 'city_futuristic')?.name).toBe('Futuristic city')
     expect(findGeneratorByKey(LIVE, 'no_such_thing')).toBeUndefined()
   })
 
-  it('a subtype arrives with its parent\'s config merged under its own, ready to run', () => {
-    const woodland = findGenerator(LIVE, 'forest', 'woodland')!
-    const mountain = findGeneratorByKey(LIVE, 'forest_woodland_mountain')!
-    expect(mountain.config.nature?.canopy).toBe(0.28)
-    expect(mountain.config.nature?.groundCover).toBe(woodland.config.nature?.groundCover)
-    expect(mountain.config.grid).toEqual(woodland.config.grid)
+  it('serves NO subtypes anywhere: a swamp is a type, not a jungle with a setting', () => {
+    // The old tree was forest > type > subtype, and a subtype's config was the parent's with its own laid
+    // over. Every one of them is a row in its own right now, so nothing carries children and nothing is
+    // merged: what a row states is what it runs.
+    const withChildren = LIVE.flatMap(c => c.generators).filter(g => (g.children?.length ?? 0) > 0)
+    expect(withChildren.map(g => g.key)).toEqual([])
+  })
+
+  it('states its whole config on the row, so a promoted type runs on its own numbers', () => {
+    // The swamp and the ruins were subtypes of the jungle and inherited its nature. As types they state
+    // theirs, and a row that stated nothing would build an empty world rather than borrowing one.
+    for (const key of ['forest_swamp', 'forest_ruins', 'forest_mountain']) {
+      const row = findGeneratorByKey(LIVE, key)!
+      expect({ key, canopy: typeof row.config.nature?.canopy }).toEqual({ key, canopy: 'number' })
+      expect({ key, grid: row.config.grid !== undefined }).toEqual({ key, grid: true })
+    }
   })
 })
 

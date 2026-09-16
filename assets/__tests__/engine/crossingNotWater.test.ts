@@ -22,7 +22,7 @@ import liveBody from '@/__tests__/fixtures/generators.json'
 const CATALOG = parseGeneratorCatalog(liveBody)
 
 function forest(course: string, seed: number) {
-  const cfg = findGenerator(CATALOG, 'forest', 'woodland')!.config
+  const cfg = findGenerator(CATALOG, 'wilderness', 'woodland')!.config
   const orig = Math.random
   Math.random = makeRng(seed)
   try {
@@ -108,7 +108,7 @@ describe('a walkable floor never wears water, whatever painted it', () => {
   const isWaterTile = (label: string) => label.includes('water')
 
   function swampJungle(seed: number) {
-    const cfg = findGenerator(CATALOG, 'forest', 'jungle')!.config
+    const cfg = findGenerator(CATALOG, 'wilderness', 'jungle')!.config
     const orig = Math.random
     Math.random = makeRng(seed)
     try {

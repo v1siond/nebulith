@@ -4,15 +4,19 @@
  * This sits BESIDE `stageGenerator.woodland.test.ts`, which owns the thinning, the path widths and the river
  * crossings. This file owns only the regions inside one woodland map, and their elevation.
  *
- * WHY THIS FILE EXISTS, and it is not a flattering reason. I "fixed" glades by serving it a stand region and a
- * meadow region, and I reported the ticket done. It did nothing on screen: only `layoutJungle` ever called
- * `partitionSubZones`, so a woodland's regions were served, parsed, and dropped on the floor. Served and
- * ignored, the exact defect I keep finding in other code, this time mine. It was caught in review:
+ * Every wild environment serves the same five regions: the edge of the wood, the deep wood, a glade, a thicket
+ * and a lakeside. The deep wood and the glade are the two ends of the canopy, so they are what a "is this
+ * partitioned at all" case measures.
+ *
+ * WHY THIS FILE EXISTS, and it is not a flattering reason. I "fixed" the woodland by serving it regions and I
+ * reported the ticket done. It did nothing on screen: only `layoutJungle` ever called `partitionSubZones`, so
+ * a woodland's regions were served, parsed, and dropped on the floor. Served and ignored, the exact defect I
+ * keep finding in other code, this time mine. It was caught in review:
  *
  * So these tests do not assert that the data parses. Parsing is what fooled me. They assert what the finished
- * map CONTAINS: both region tones present, a stand measurably thicker than the meadow beside it, and, for
- * a raised region actually sitting above the ground with
- * the river cutting relative to whatever it flows through.
+ * map CONTAINS: every region tone present, the deep wood measurably thicker than the glade beside it, and a
+ * raised region actually sitting above the ground with the river cutting relative to whatever it flows
+ * through.
  */
 import '@/__tests__/helpers/installTilesetSeed'
 import { generateStage, type StageData, type NatureDensity } from '@/engine/stageGenerator'
@@ -36,8 +40,8 @@ function byKey(key: string): GeneratorDef {
   return hit
 }
 
-/** Glades, exactly as the live backend serves it. Transcribing the numbers here would let the real row rot. */
-const GLADES = byKey('forest_woodland_glades')
+/** The woodland, exactly as the live backend serves it. Transcribing the numbers here would let the real row rot. */
+const WOODLAND = byKey('forest_woodland')
 
 type Opts = {
   /** The generator row to grow. Its served config is used whole, so a test cannot quietly invent a number. */
@@ -50,9 +54,9 @@ type Opts = {
 
 function grow(o: Opts = {}): StageData {
   // `in`, NOT a default parameter. `grow({ subZones: undefined })` has to mean "the backend serves no regions",
-  // and a default parameter silently puts glades' own regions back, so the no-regions test grew the regions it
+  // and a default parameter silently puts the row's own regions back, so the no-regions test grew the regions it
   // was asserting the absence of and the failure read like a bug in the generator.
-  const def = o.def ?? GLADES
+  const def = o.def ?? WOODLAND
   const subZones = 'subZones' in o ? o.subZones : def.config.subZones
   const { options, seed = 7 } = o
   const nature = o.nature ?? def.config.nature
@@ -83,38 +87,37 @@ function canopyRate(s: StageData, tone: string): number {
 }
 
 const zone = (key: string): GeneratorSubZone => {
-  const hit = GLADES.config.subZones?.find(z => z.key === key)
-  if (!hit) throw new Error(`glades no longer serves the ${key} region`)
+  const hit = WOODLAND.config.subZones?.find(z => z.key === key)
+  if (!hit) throw new Error(`the woodland no longer serves the ${key} region`)
   return hit
 }
 
 describe('a woodland is PARTITIONED into regions, the same as a jungle', () => {
-  it('serves glades two regions in the first place, or there is nothing to render', () => {
-    expect(GLADES.config.subZones?.map(z => z.key)).toEqual(['stand', 'meadow'])
+  it('serves the woodland regions in the first place, each with a tone, or there is nothing to render', () => {
+    const served = WOODLAND.config.subZones ?? []
+    expect(served.length).toBeGreaterThan(1)
+    for (const z of served) expect({ region: z.key, floor: z.floor }).toEqual({ region: z.key, floor: expect.any(String) })
   })
 
-  it('puts BOTH region tones on the finished map, not just the template floor', () => {
+  it('puts EVERY region tone on the finished map, not just the template floor', () => {
     const tones = new Set(grow().floorColors.flat().filter(Boolean))
-    for (const z of GLADES.config.subZones ?? []) {
+    for (const z of WOODLAND.config.subZones ?? []) {
       expect({ region: z.key, painted: tones.has(z.floor!) }).toEqual({ region: z.key, painted: true })
     }
   })
 
-  it('grows a STAND measurably thicker than the MEADOW beside it, on the same map', () => {
-    // ACROSS SEEDS, because one map is a sample and not the property.
-    //
-    // This asserted `stand > meadow * 3` on seed 7 alone. Measured over five seeds the ratio runs 2.7x, 4.8x,
-    // 4.8x, 6.3x and 7.1x, so the distinction is real and obvious everywhere, and seed 7 is simply the
-    // thinnest of them. A single-sample assertion at the edge of the range fails the day anything moves the
-    // planting by a cell, which is what it did when the woodland was split into layer phases and its whole
-    // trail network stopped growing trees rather than only its planned routes.
+  it('grows the DEEP WOOD measurably thicker than the GLADE beside it, on the same map', () => {
+    // ACROSS SEEDS, because one map is a sample and not the property. A single-sample assertion at the edge of
+    // the range fails the day anything moves the planting by a cell, which is what it did when the woodland
+    // was split into layer phases and its whole trail network stopped growing trees rather than only its
+    // planned routes.
     //
     // What must never be true is that the two read IDENTICALLY, so every seed has to show the gap.
     const ratios = [7, 1, 2, 3, 4].map(seed => {
       const s = grow({ seed })
-      const stand = canopyRate(s, zone('stand').floor!)
-      const meadow = canopyRate(s, zone('meadow').floor!)
-      return { seed, ratio: meadow === 0 ? Infinity : stand / meadow }
+      const deep = canopyRate(s, zone('deep').floor!)
+      const glade = canopyRate(s, zone('glade').floor!)
+      return { seed, ratio: glade === 0 ? Infinity : deep / glade }
     })
     for (const { seed, ratio } of ratios) {
       expect({ seed, obviouslyThicker: ratio > 2 }).toEqual({ seed, obviouslyThicker: true })
@@ -127,12 +130,12 @@ describe('a woodland is PARTITIONED into regions, the same as a jungle', () => {
   it('still grows a plain woodland when the backend serves NO regions', () => {
     const bare = grow({ subZones: undefined })
     expect(bare.trees.length).toBeGreaterThan(0)
-    expect(new Set(bare.floorColors.flat().filter(Boolean)).has(zone('stand').floor!)).toBe(false)
+    expect(new Set(bare.floorColors.flat().filter(Boolean)).has(zone('deep').floor!)).toBe(false)
   })
 })
 
 describe('RELIEF: a region can stand above the rest of the map', () => {
-  const raised: readonly GeneratorSubZone[] = [{ ...zone('stand'), level: 2 }, zone('meadow')]
+  const raised: readonly GeneratorSubZone[] = [{ ...zone('deep'), level: 2 }, zone('glade')]
 
   it('lifts every cell of a region that states a level, and lifts nothing else', () => {
     const s = grow({ subZones: raised })
@@ -141,8 +144,8 @@ describe('RELIEF: a region can stand above the rest of the map', () => {
       s.floorColors.forEach((row, r) => row.forEach((c, col) => { if (c === tone) out.add(s.elevation![r][col]) }))
       return out
     }
-    expect([...byTone(zone('stand').floor!)]).toEqual([2])
-    expect([...byTone(zone('meadow').floor!)]).toEqual([0])
+    expect([...byTone(zone('deep').floor!)]).toEqual([2])
+    expect([...byTone(zone('glade').floor!)]).toEqual([0])
   })
 
   it('leaves the whole map FLAT when no region asks for a level, so every old template is unmoved', () => {
@@ -167,7 +170,7 @@ describe('RELIEF: a region can stand above the rest of the map', () => {
 })
 
 describe('the MOUNTAIN FOREST is the template that actually climbs', () => {
-  const MOUNTAIN = byKey('forest_woodland_mountain')
+  const MOUNTAIN = byKey('forest_mountain')
   const mountain = (seed = 7) => grow({ def: MOUNTAIN, seed })
   const region = (key: string) => {
     const hit = MOUNTAIN.config.subZones?.find(z => z.key === key)
@@ -175,13 +178,19 @@ describe('the MOUNTAIN FOREST is the template that actually climbs', () => {
     return hit
   }
 
-  it('is served three regions at three distinct levels', () => {
-    expect(MOUNTAIN.config.subZones?.map(z => [z.key, z.level])).toEqual([['ridge', 3], ['slope', 1], ['vale', 0]])
+  it('states a level on EVERY region it serves, at more than one height', () => {
+    // The relief is the mountain's whole point, so a region with no level would be a flat patch in it. The
+    // heights themselves are the backend's to choose; what this pins is that they are stated and that they
+    // differ.
+    const served = MOUNTAIN.config.subZones ?? []
+    expect(served.length).toBeGreaterThan(1)
+    for (const z of served) expect({ region: z.key, level: z.level }).toEqual({ region: z.key, level: expect.any(Number) })
+    expect(new Set(served.map(z => z.level)).size).toBeGreaterThan(1)
   })
 
   it('RAISES REAL GROUND when grown, which is the whole difference from a meadow', () => {
     const levels = [...new Set(mountain().elevation!.flat())].sort((a, b) => a - b)
-    expect(levels).toEqual([0, 1, 3])
+    expect(levels).toEqual([...new Set((MOUNTAIN.config.subZones ?? []).map(z => z.level!))].sort((a, b) => a - b))
   })
 
   it('steps between regions by more than one level somewhere, so there is a cliff to see', () => {
@@ -198,12 +207,13 @@ describe('the MOUNTAIN FOREST is the template that actually climbs', () => {
     expect(steps.has(0)).toBe(true) // and the inside of a region is level, not a staircase
   })
 
-  it('grows the VALE thick and leaves the RIDGE bare, counting trunks and not settings', () => {
+  it('grows the DEEP WOOD thick and leaves the GLADE bare, counting trunks and not settings', () => {
     const s = mountain()
-    expect(canopyRate(s, region('vale').floor!)).toBeGreaterThan(canopyRate(s, region('ridge').floor!) * 2)
+    expect(canopyRate(s, region('deep').floor!)).toBeGreaterThan(canopyRate(s, region('glade').floor!) * 2)
   })
 
   it('holds on ANOTHER seed too, so this is the template and not one lucky map', () => {
-    expect([...new Set(mountain(21).elevation!.flat())].sort((a, b) => a - b)).toEqual([0, 1, 3])
+    const served = [...new Set((MOUNTAIN.config.subZones ?? []).map(z => z.level!))].sort((a, b) => a - b)
+    expect([...new Set(mountain(21).elevation!.flat())].sort((a, b) => a - b)).toEqual(served)
   })
 })

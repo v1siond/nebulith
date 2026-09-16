@@ -29,7 +29,7 @@ const LAYOUTS = ['woodland', 'jungle', 'meadow'] as const
 const BAND = 2
 
 function forest(layout: (typeof LAYOUTS)[number], seed: number): StageData {
-  const config = findGenerator(CATALOG, 'forest', layout)?.config
+  const config = findGenerator(CATALOG, 'wilderness', layout)?.config
   expect(config).toBeDefined()
   const orig = Math.random
   Math.random = makeRng(seed)

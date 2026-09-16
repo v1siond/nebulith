@@ -28,11 +28,11 @@ const key = (c: { col: number; row: number }) => `${c.col},${c.row}`
  *  no trail at all so its park path fell through to the raw tile and came out darker than the lawn. The
  *  pathway kind carries the colour now, so the oracle reads it from the same place the generator does. */
 const trailPaint = (layout: ForestLayout): string | undefined =>
-  (findGenerator(CATALOG, 'forest', layout)?.config as { pathway?: { tone?: string } } | undefined)?.pathway?.tone
+  (findGenerator(CATALOG, 'wilderness', layout)?.config as { pathway?: { tone?: string } } | undefined)?.pathway?.tone
 
 /** A forest built from its served template, the way the editor builds it, with the pathways the person picked. */
 function grow(layout: ForestLayout, pathways: Record<string, string> | undefined, seed = 7): StageData {
-  const config = findGenerator(CATALOG, 'forest', layout)?.config
+  const config = findGenerator(CATALOG, 'wilderness', layout)?.config
   const orig = Math.random
   Math.random = makeRng(seed)
   try {

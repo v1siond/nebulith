@@ -3,8 +3,11 @@
  *
  * Measured against the live catalog: of the 40 tiles in the `nature` category, `thicket` is the ONLY one that
  * blocks. Everything else, flowers and clover and mushrooms included, is walkable. And `plantUndergrowth`
- * could plant nothing but the thicket, so every forest template from the meadow up grew waist-high walls
+ * could plant nothing but the thicket, so every wilderness row from the meadow up grew waist-high walls
  * wearing a plant picture.
+ *
+ * A row is found by its KEY. A type is an ENVIRONMENT now and the nine wilderness rows share three engine
+ * builders between them, so the builder names the pass to run and never the row.
  *
  * The formations are named after the own reference images, and three of the five say in their own notes that
  * the floor is clear: "nothing between them" (#10), "a clear walkable floor" (#11), "clear ground between the
@@ -18,6 +21,9 @@ import { makeRng } from '@/lib/math'
 import liveBody from '@/__tests__/fixtures/generators.json'
 
 const CATALOG = parseGeneratorCatalog(liveBody)
+
+/** Every wilderness row the backend serves, so this file never keeps a list of them. */
+const wilderness = () => CATALOG.find(c => c.key === 'wilderness')?.generators ?? []
 
 /** Build a template from its REAL served config, exactly as the editor does. */
 function grow(key: string, seed = 3) {
@@ -67,32 +73,23 @@ describe('the understory is the plant the backend serves', () => {
     expect(blockedUnder(jungle, 'thicket')).toBe(thicket.length)
   })
 
-  it('a DENSE woodland still chokes too, which is his image #15', () => {
-    const dense = grow('forest_woodland_dense')
-    const thicket = plants(dense, 'thicket')
-    expect(thicket.length).toBeGreaterThan(0)
-    expect(blockedUnder(dense, 'thicket')).toBe(thicket.length)
-  })
-
   it('a REGION inside a woodland inherits its plant, it does not fall back to the thicket', () => {
-    // All 19 served sub-zone formations state an `understory` number and none states a tile. Reading only the
+    // Every served region states an `understory` number and none states a tile of its own. Reading only the
     // region's own dropped a glade and a mountain vale straight back onto the blocking thicket: 29 of them on
-    // one glades seed, measured.
-    for (const key of ['forest_woodland_glades', 'forest_woodland_mountain']) {
+    // one woodland seed, measured.
+    for (const key of ['forest_woodland', 'forest_mountain']) {
       expect({ key, thickets: plants(grow(key), 'thicket').length }).toEqual({ key, thickets: 0 })
     }
   })
 
-  it('every served forest template names the plant its understory is made of', () => {
+  it('every served wilderness row names the plant its understory is made of', () => {
     // A formation with an understory and no tile falls back to the thicket, so a gap here is an invisible
-    // wall on that template. Assert the DATA rather than the map it happens to produce.
-    const keys = ['forest_woodland', 'forest_woodland_beech', 'forest_woodland_dense', 'forest_woodland_glades',
-      'forest_woodland_mountain', 'forest_meadow', 'forest_meadow_open', 'forest_meadow_pasture',
-      'forest_jungle', 'forest_jungle_dense', 'forest_jungle_swamp', 'forest_jungle_island', 'forest_jungle_ruins']
-    const missing = keys.filter(k => {
-      const f = findGeneratorByKey(CATALOG, k)?.config.formation
+    // wall on that template. Assert the DATA rather than the map it happens to produce, and walk the rows the
+    // backend actually serves so a new environment is covered the day it is seeded.
+    const missing = wilderness().filter(g => {
+      const f = g.config.formation
       return f?.understory !== undefined && f.understoryTile === undefined
-    })
+    }).map(g => g.key)
     expect(missing).toEqual([])
   })
 })

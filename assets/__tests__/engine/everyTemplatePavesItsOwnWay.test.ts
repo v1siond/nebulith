@@ -98,8 +98,8 @@ function cellsOf(s: StageData, tile: string): number {
 
 // One per kind of way the catalogue serves, so every definition is exercised by at least one template.
 const TEMPLATES = [
-  'forest_woodland', 'forest_woodland_mountain', 'forest_woodland_dense', 'forest_meadow',
-  'forest_jungle', 'forest_jungle_swamp', 'forest_jungle_island', 'town_small', 'town_beach', 'city_modern',
+  'forest_woodland', 'forest_mountain', 'forest_woodland', 'forest_meadow',
+  'forest_jungle', 'forest_swamp', 'forest_beach', 'town', 'town_beach', 'city_futuristic',
 ]
 
 describe('every template lays its pathways in the material the backend serves', () => {
@@ -132,11 +132,11 @@ describe('the variance is real, not three colours of one rectangle', () => {
     //
     // TOTAL CELLS, not a ratio. Width and network LENGTH both feed this number (a town lays six streets end
     // to end, a jungle one wandering track), so the honest assertion is the direction. Measured when written:
-    // city_modern 336 cells at width 4, forest_jungle 194 at width 2.
+    // city_futuristic 336 cells at width 4, forest_jungle 194 at width 2.
     // THE CELLS THE PATHWAYS LAYER DREW, which the stage publishes. Counting COLOURED cells was a proxy and
     // a bad one: a way is a colour on the ground block, so a template whose trail tone is also a region tone
     // counts ground that is not a way at all.
-    const wide = build('city_modern', 4).pathways?.size ?? 0
+    const wide = build('city_futuristic', 4).pathways?.size ?? 0
     const narrow = build('forest_jungle', 4).pathways?.size ?? 0
     expect({ wide: wide > narrow, wideIsReal: wide > 100 }).toEqual({ wide: true, wideIsReal: true })
   })
@@ -173,8 +173,8 @@ describe('a settlement street is its pathway, not a second opinion', () => {
     // just a form of pathway"*. As two literals they had already drifted: measured across the nine
     // settlements, three disagreed with themselves, and inheritance is what hid it (a modern city overrode
     // its pathway to asphalt, said nothing about streets, and went on inheriting its parent's cobbles).
-    const settlements = ['town', 'town_small', 'town_forest', 'town_mountain', 'town_beach', 'town_swamp',
-      'city', 'city_modern', 'city_medieval']
+    const settlements = ['town', 'town', 'village_woodland', 'town_mountain', 'town_beach', 'town_swamp',
+      'city', 'city_futuristic', 'city_medieval']
     for (const key of settlements) {
       const config = served(key).config as { pathway?: { surface?: string }; settlement?: { streets?: string } }
       expect({ key, streets: config.settlement?.streets }).toEqual({ key, streets: config.pathway?.surface })
@@ -310,22 +310,22 @@ describe('a way is the flat tone the references show', () => {
   it('a mountain forest wears its own gravel, not the woodland dirt it inherits', () => {
     // It states `rocky_track` and inherited `@woodland_palette`, whose trail won: the template said gravel
     // and the map painted dirt. The palettes carry no trail at all now, so there is nothing left to override.
-    expect(pathwayOf('forest_woodland_mountain')?.tone).not.toEqual(pathwayOf('forest_woodland')?.tone)
-    const tones = [...(build('forest_woodland_mountain', 4).pathways ?? [])]
+    expect(pathwayOf('forest_mountain')?.tone).not.toEqual(pathwayOf('forest_woodland')?.tone)
+    const tones = [...(build('forest_mountain', 4).pathways ?? [])]
     expect(tones.length).toBeGreaterThan(0)
   })
 
   it('a swamp boardwalk wears planks, not the jungle dirt it inherits', () => {
-    expect(pathwayOf('forest_jungle_swamp')?.tone).not.toEqual(pathwayOf('forest_jungle')?.tone)
+    expect(pathwayOf('forest_swamp')?.tone).not.toEqual(pathwayOf('forest_jungle')?.tone)
   })
 })
 
 describe('the white lines in the middle', () => {
   it('a city street carries them, down the middle of the carriageway', () => {
     // *"ALL WE NEEDED WAS TO ADD THE WHITE RECTANGULAR LINES IN MIDDLE AS ORNAMENT IF WE WANTED"*.
-    const marking = pathwayOf('city_modern')?.marking
+    const marking = pathwayOf('city_futuristic')?.marking
     expect({ serves: typeof marking?.color }).toEqual({ serves: 'string' })
-    const s = build('city_modern', 4)
+    const s = build('city_futuristic', 4)
     let painted = 0, offTheWay = 0
     for (let row = 0; row < s.rows; row++) {
       for (let col = 0; col < s.cols; col++) {
@@ -349,7 +349,7 @@ describe('the white lines in the middle', () => {
   })
 
   it('and no forest or town has them either', () => {
-    for (const key of ['forest_woodland', 'forest_meadow', 'forest_jungle', 'town_small', 'town_beach']) {
+    for (const key of ['forest_woodland', 'forest_meadow', 'forest_jungle', 'town', 'town_beach']) {
       expect({ key, marking: pathwayOf(key)?.marking }).toEqual({ key, marking: undefined })
     }
   })

@@ -30,7 +30,7 @@ const CATALOG = parseGeneratorCatalog(liveBody)
 function grow(layout: 'woodland' | 'meadow' | 'jungle', river: GeneratorOptionValue, seed = 5, extra: Record<string, GeneratorOptionValue> | boolean = false) {
   const crossing = typeof extra === 'boolean' ? extra : false
   const more = typeof extra === 'boolean' ? {} : extra
-  const config = findGenerator(CATALOG, 'forest', layout)!.config
+  const config = findGenerator(CATALOG, 'wilderness', layout)!.config
   const orig = Math.random
   Math.random = makeRng(seed)
   try {
@@ -45,7 +45,7 @@ function grow(layout: 'woodland' | 'meadow' | 'jungle', river: GeneratorOptionVa
 }
 /** The same, crossed on one KIND of crossing (the `bridge` option), with the template's served crossings. */
 function growKind(layout: 'woodland' | 'meadow' | 'jungle', river: GeneratorOptionValue, bridge: string, seed = 5) {
-  const config = findGenerator(CATALOG, 'forest', layout)!.config
+  const config = findGenerator(CATALOG, 'wilderness', layout)!.config
   const orig = Math.random
   Math.random = makeRng(seed)
   try {
@@ -236,7 +236,7 @@ describe('water by depth: wade the shallows, the rest blocks', () => {
       const s = grow(layout, course, 3)
       // THE CHANNEL ONLY. A jungle also carries swamp pools, and a pool at ground level is walkable on purpose
       // now, so counting it here measured the wrong thing. Pools are the cells wearing the served swamp tone.
-      const pal = findGenerator(CATALOG, 'forest', layout)!.config.palette
+      const pal = findGenerator(CATALOG, 'wilderness', layout)!.config.palette
       const channel = waterCells(s).filter(([c, r]) => !(pal?.swamp && s.floorColors[r][c] === pal.swamp))
       // `water_bend` is a cell where the channel TURNS, at whatever depth it happens to be, so it is not
       // evidence of depth either way. Only the bands past the shallow edge count as deep here.
@@ -283,7 +283,7 @@ describe('water by depth: wade the shallows, the rest blocks', () => {
    * fix, would fail the first expectation rather than quietly pass.
    */
   it('paints the WHOLE channel one served tone, whatever the band', () => {
-    const pal = findGenerator(CATALOG, 'forest', 'woodland')!.config.palette!
+    const pal = findGenerator(CATALOG, 'wilderness', 'woodland')!.config.palette!
     const s = grow('woodland', 'divides', 2)
     const channel = waterCells(s).filter(([c, r]) => !(pal.swamp && s.floorColors[r][c] === pal.swamp))
     expect([...new Set(channel.map(([c, r]) => s.floorColors[r][c]))]).toEqual([pal.water])
@@ -301,7 +301,7 @@ describe('water by depth: wade the shallows, the rest blocks', () => {
     // A POOL IS A FILM NOW, not a ground tile. It stopped replacing the ground on 2026-09-13 because its own
     // height could never match the floor it landed on, so a drop happened into every one of them. The pool
     // is therefore a prop carrying the swamp tone, sitting over ground that is left alone.
-    const config = findGenerator(CATALOG, 'forest', 'jungle')!.config
+    const config = findGenerator(CATALOG, 'wilderness', 'jungle')!.config
     const s = grow('jungle', 'none', 7)
     const pools = s.props.filter(p => p.label === 'water_still')
     expect(pools.length).toBeGreaterThan(0)
@@ -316,7 +316,7 @@ describe('water by depth: wade the shallows, the rest blocks', () => {
    * yet; walking over it does.
    */
   it('a WINTER river is ice, and you walk over it', () => {
-    const config = findGenerator(CATALOG, 'forest', 'woodland')!.config
+    const config = findGenerator(CATALOG, 'wilderness', 'woodland')!.config
     const orig = Math.random
     Math.random = makeRng(5)
     const s = (() => {
@@ -352,7 +352,7 @@ describe('water by depth: wade the shallows, the rest blocks', () => {
 describe('the kind of crossing: a dirt path, or one of several bridges', () => {
   // bridges" that we use on rivers, we must have multiple variations too / it can be a simple dirt path, it can be an
   // actual bridge, which again, are multiple variations"*.
-  const kinds = (layout: 'woodland' | 'meadow' | 'jungle') => findGenerator(CATALOG, 'forest', layout)!.config.crossings!
+  const kinds = (layout: 'woodland' | 'meadow' | 'jungle') => findGenerator(CATALOG, 'wilderness', layout)!.config.crossings!
   const deckOf = (s: Stage, style: GeneratorCrossing): Set<string> => {
     const out = new Set<string>()
     s.ground.forEach((row, r) => row.forEach((g, c) => {

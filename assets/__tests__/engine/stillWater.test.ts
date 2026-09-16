@@ -46,7 +46,7 @@ describe('still water is its own tile', () => {
   it('a puddle is a FILM STACKED ON the ground, and the ground is still under it', () => {
     // It used to REPLACE the ground, so its own height had to match whatever floor it landed
     // on and never could.
-    const swamp = grow('forest_jungle_swamp')
+    const swamp = grow('forest_swamp')
     const film = swamp.props.filter(p => p.label === 'water_still')
     expect(film.length).toBeGreaterThan(0)
     expect(groundCount(swamp, 'water_still')).toBe(0) // it is not a ground tile at all
@@ -58,7 +58,7 @@ describe('still water is its own tile', () => {
   it('YOU DO NOT DROP INTO IT: the level in a puddle is the level beside it', () => {
     // The whole complaint: A unit stands on the cell's GROUND
     // (`unitStandLevel` counts floor assets only), so a film that leaves the floor alone cannot move it.
-    const swamp = grow('forest_jungle_swamp')
+    const swamp = grow('forest_swamp')
     const grid = new IsometricGrid(swamp.cols, swamp.rows, 32)
     applyStageToGrid(swamp, grid)
     const film = swamp.props.filter(p => p.label === 'water_still')
@@ -123,7 +123,7 @@ describe('still water is its own tile', () => {
   it('a puddle is still WATER to every consumer, so nothing floods into it', () => {
     // isWaterGround matches any label containing "water". If that ever stops, tall grass, blooms and the
     // terrain pass all start planting inside pools.
-    const swamp = grow('forest_jungle_swamp')
+    const swamp = grow('forest_swamp')
     const pools = new Set<string>()
     swamp.ground.forEach((r, y) => r.forEach((g, x) => { if (g === 'water_still') pools.add(`${x},${y}`) }))
     const propsInPools = swamp.props.filter(p => pools.has(`${p.col},${p.row}`))

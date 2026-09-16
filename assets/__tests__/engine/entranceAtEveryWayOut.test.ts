@@ -8,43 +8,43 @@
  * WHICH entrance is BACKEND DATA, on the generator's own config beside its crossings and its trees: *"this
  * should be backend data, we receive the existing objects from backend and are correctly processed by the
  * frontend methods"*. So these assert that the engine stamps WHAT IT WAS SERVED, not a name this repo keeps.
+ *
+ * The rows are WALKED, not listed: one per kind of place that serves an entrance at all. A row is found by its
+ * KEY, because a layout names the engine BUILDER and several rows share one.
  */
 import '@/__tests__/helpers/installTilesetSeed'
 import { generateStage, type StageData } from '@/engine/stageGenerator'
-import { findGenerator, parseGeneratorCatalog } from '@/lib/generatorCatalog'
+import { parseGeneratorCatalog, type GeneratorDef } from '@/lib/generatorCatalog'
 import { makeRng } from '@/lib/math'
 import liveBody from '@/__tests__/fixtures/generators.json'
 
 const CATALOG = parseGeneratorCatalog(liveBody)
-const CASES = [
-  { cat: 'forest', layout: 'woodland' as const, variant: 'forest' as const },
-  { cat: 'forest', layout: 'jungle' as const, variant: 'forest' as const },
-  { cat: 'forest', layout: 'meadow' as const, variant: 'forest' as const },
-  { cat: 'cave', layout: undefined, variant: 'cave' as const },
-  { cat: 'temple', layout: undefined, variant: 'temple' as const },
-]
+/** The first row of each kind of place that the backend serves an entrance for. */
+const CASES: GeneratorDef[] = CATALOG
+  .map(c => c.generators.find(g => g.config.entrance !== undefined))
+  .filter((g): g is GeneratorDef => g !== undefined)
 
-function build(c: (typeof CASES)[number], exits: number, entrance?: string | null): StageData {
-  const config = findGenerator(CATALOG, c.cat, c.layout)?.config
-  expect(config).toBeDefined()
+function build(row: GeneratorDef, exits: number, entrance?: string | null): StageData {
+  const config = row.config
   const orig = Math.random
   Math.random = makeRng(7)
   try {
     return generateStage({
-      zone: 'summer', variant: c.variant, layout: c.layout as never, cols: 40, rows: 40,
+      zone: 'summer', variant: (row.variant ?? 'forest') as never, layout: row.layout as never, cols: 40, rows: 40,
       options: { exits: String(exits), pathways: '2', river: 'through', crossing: 'bridge' },
-      nature: config?.nature, palette: config?.palette, formation: config?.formation,
-      treeMix: config?.trees, subZones: config?.subZones, crossings: config?.crossings,
-      entrance: entrance === null ? undefined : entrance ?? config?.entrance,
+      nature: config.nature, palette: config.palette, formation: config.formation,
+      treeMix: config.trees, subZones: config.subZones, crossings: config.crossings,
+      settlement: config.settlement, buildings: config.buildings,
+      entrance: entrance === null ? undefined : entrance ?? config.entrance,
     })
   } finally { Math.random = orig }
 }
 
 const entrances = (s: StageData) => s.compositions.filter(c => c.kind.endsWith('_entrance'))
 
-describe.each(CASES)('$cat $layout', c => {
+describe.each(CASES.map(row => [row.key, row] as const))('%s', (_key, c) => {
   it('carries the entrance its generator was SERVED, not one the engine chose', () => {
-    const served = findGenerator(CATALOG, c.cat, c.layout)?.config.entrance
+    const served = c.config.entrance
     expect(served).toBeDefined() // the backend really does say which one
     const stamped = entrances(build(c, 2))
     expect(stamped.length).toBeGreaterThan(0)

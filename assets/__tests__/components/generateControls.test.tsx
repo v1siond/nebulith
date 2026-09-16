@@ -21,6 +21,11 @@
  * Everything else the old suite proved is proved here too: a click selects rather than generates, the
  * picked preset id is forwarded verbatim, and a preset does not survive changing the kind of place.
  *
+ * WHAT CHANGED AGAIN. A TYPE is an ENVIRONMENT and a CATEGORY is the kind of terrain, so the forest category
+ * is `wilderness` and it carries nine cards. The catalog is FLAT: what used to be a subtype under a card is a
+ * card of its own. A card travels by its row KEY and the engine BUILDER travels beside it as the layout,
+ * because nine environments share three builders and a builder cannot say which one was clicked.
+ *
  * WHAT MOVED OUT, 2026-09-10. The matrix (columns / rows / cell pixels) and the ground
  * thickness are the GRID's, so their tests moved with them to `gridPanel.test.tsx`. This panel takes no
  * size at all now: `onGenerate` has three arguments and the caller reads the grid.
@@ -46,6 +51,9 @@ const kinds = () => screen.getByLabelText(/kind of place/i)
  * quantifier — `new RegExp('Meadow + River')` matches "Meadow River" and finds nothing.
  */
 const rx = (text: string) => new RegExp(text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i')
+
+/** What a wilderness row sends when nothing has been switched: its served defaults, dependencies honoured. */
+const WILD_DEFAULTS = { exits: 'random', pathways: 'random', region: 'random', river: 'none', depth: 'none', bridge: 'none' }
 
 /**
  * Found by its NAME element, exactly, then walked up to the card.
@@ -81,8 +89,8 @@ describe('the menu IS the catalog', () => {
 
   it('says how many presets each kind offers, so the label carries information', () => {
     render(<GenerateControls catalog={CATALOG} zone="summer" onZone={noop} onGenerate={noop} />)
-    const forest = [...kinds().querySelectorAll('option')].find(o => o.textContent?.startsWith('Forest'))
-    expect(forest?.textContent).toMatch(new RegExp(`\\(${categoryLayouts(CATALOG, 'forest').length}\\)`))
+    const wild = [...kinds().querySelectorAll('option')].find(o => o.textContent?.startsWith('Wilderness'))
+    expect(wild?.textContent).toMatch(new RegExp(`\\(${categoryLayouts(CATALOG, 'wilderness').length}\\)`))
   })
 
   it('reports a season change without generating', () => {
@@ -105,9 +113,9 @@ describe('picking is not building — §4.6\'s "why did my map just vanish" trap
 
   it('touches the open map on NO click but the build one', () => {
     const onGenerate = setup()
-    fireEvent.change(kinds(), { target: { value: 'forest' } })
+    fireEvent.change(kinds(), { target: { value: 'wilderness' } })
     expect(onGenerate).not.toHaveBeenCalled()
-    const [{ label }] = categoryLayouts(CATALOG, 'forest')
+    const [{ label }] = categoryLayouts(CATALOG, 'wilderness')
     fireEvent.click(preset(label))
     expect(onGenerate).not.toHaveBeenCalled()
     build()
@@ -116,46 +124,40 @@ describe('picking is not building — §4.6\'s "why did my map just vanish" trap
 
   it('marks the clicked preset as the selection', () => {
     setup()
-    fireEvent.change(kinds(), { target: { value: 'forest' } })
-    const [, second] = categoryLayouts(CATALOG, 'forest')
+    fireEvent.change(kinds(), { target: { value: 'wilderness' } })
+    const [, second] = categoryLayouts(CATALOG, 'wilderness')
     fireEvent.click(preset(second.label))
     expect(preset(second.label)).toHaveAttribute('aria-pressed', 'true')
   })
 
   it('forwards the picked preset id verbatim — the seam templates.tsx turns into generateStage({layout})', () => {
     const onGenerate = setup()
-    fireEvent.change(kinds(), { target: { value: 'forest' } })
-    const [, second] = categoryLayouts(CATALOG, 'forest')
+    fireEvent.change(kinds(), { target: { value: 'wilderness' } })
+    const [, second] = categoryLayouts(CATALOG, 'wilderness')
     fireEvent.click(preset(second.label))
     build()
-    // `second` is the Jungle, and a jungle carries the region picker, so its build says which region leads.
-    expect(onGenerate).toHaveBeenCalledWith('spring', 'forest', second.id, { exits: 'random', pathways: 'random', region: 'random', river: 'none', depth: 'none', bridge: 'none' })
+    // THE ROW TRAVELS BY KEY and its BUILDER travels as the layout. `second` is the Jungle, and the swamp,
+    // the beach, the ruins and the desert all run that same jungle builder, so the key is the only thing that
+    // says which of the five was clicked.
+    expect(second.id).toBe('forest_jungle')
+    expect(onGenerate).toHaveBeenCalledWith('spring', 'forest', 'jungle', WILD_DEFAULTS, 'forest_jungle')
   })
 
   it('builds the category\'s FIRST preset when the kind was chosen but no preset was', () => {
     const onGenerate = setup()
-    fireEvent.change(kinds(), { target: { value: 'forest' } })
+    fireEvent.change(kinds(), { target: { value: 'wilderness' } })
     build()
-    const [first] = categoryLayouts(CATALOG, 'forest')
-    expect(onGenerate).toHaveBeenCalledWith('spring', 'forest', first.id, { exits: 'random', pathways: 'random', river: 'none', depth: 'none', bridge: 'none' })
-  })
-
-  it('passes NO preset for a kind that has none, and hides the preset group', () => {
-    const onGenerate = setup()
-    const bare = CATALOG.find(c => categoryLayouts(CATALOG, c.key).length === 0)
-    if (!bare) return // every category in the fixture has presets; nothing to assert
-    fireEvent.change(kinds(), { target: { value: bare.key } })
-    expect(screen.queryByText(/^which /i)).not.toBeInTheDocument()
-    build()
-    expect(onGenerate).toHaveBeenCalledWith('spring', bare.key, undefined, { exits: 'random', pathways: 'random' })
+    const [first] = categoryLayouts(CATALOG, 'wilderness')
+    expect(first.id).toBe('forest_woodland')
+    expect(onGenerate).toHaveBeenCalledWith('spring', 'forest', 'woodland', WILD_DEFAULTS, 'forest_woodland')
   })
 
   it('does NOT carry a preset across kinds of place', () => {
     const onGenerate = setup()
-    fireEvent.change(kinds(), { target: { value: 'forest' } })
-    const [, second] = categoryLayouts(CATALOG, 'forest')
+    fireEvent.change(kinds(), { target: { value: 'wilderness' } })
+    const [, second] = categoryLayouts(CATALOG, 'wilderness')
     fireEvent.click(preset(second.label))
-    const other = CATALOG.find(c => c.key !== 'forest' && categoryLayouts(CATALOG, c.key).length > 0)
+    const other = CATALOG.find(c => c.key !== 'wilderness' && categoryLayouts(CATALOG, c.key).length > 0)
     if (!other) return
     fireEvent.change(kinds(), { target: { value: other.key } })
     build()
@@ -163,8 +165,8 @@ describe('picking is not building — §4.6\'s "why did my map just vanish" trap
     // The options sent are that kind of place's OWN defaults, not the ones the previous pick carried. A town
     // serves pathways now, so it sends its own `random` pathways rather than the empty map this used to expect: what
     // matters is that nothing came ACROSS from the kind of place clicked before.
-    const [, , layout, options] = onGenerate.mock.calls[onGenerate.mock.calls.length - 1]
-    expect(layout).toBe(firstOfOther.id)
+    const [, , , options, key] = onGenerate.mock.calls[onGenerate.mock.calls.length - 1]
+    expect(key).toBe(firstOfOther.id)
     // ITS OWN DEFAULTS, WITH THE DEPENDENCIES HONOURED. An option that declares `requires` is OFF while the
     // one it names is off, which is the panel's whole dependency contract, so reading the raw `default` off
     // every row and expecting that to be sent describes a panel that ignores it.
@@ -191,16 +193,16 @@ describe('variations are options on a preset, not more presets', () => {
 
   it('offers the river as a choice of COURSE — each one he named, random among them', () => {
     setup()
-    fireEvent.change(kinds(), { target: { value: 'forest' } })
+    fireEvent.change(kinds(), { target: { value: 'wilderness' } })
     expect([...control(/^river$/i).options].map(o => o.value)).toEqual(['none', 'random', 'through', 'divides', 'around'])
   })
 
   it('forwards the course that was picked, so a river never needs a row of its own', () => {
     const onGenerate = setup()
-    fireEvent.change(kinds(), { target: { value: 'forest' } })
+    fireEvent.change(kinds(), { target: { value: 'wilderness' } })
     fireEvent.change(control(/^river$/i), { target: { value: 'divides' } })
     build()
-    expect(onGenerate).toHaveBeenCalledWith('spring', 'forest', expect.any(String), { exits: 'random', pathways: 'random', river: 'divides', depth: '1', bridge: 'random' })
+    expect(onGenerate).toHaveBeenCalledWith('spring', 'forest', expect.any(String), { ...WILD_DEFAULTS, river: 'divides', depth: '1', bridge: 'random' }, expect.any(String))
   })
 
 
@@ -209,7 +211,7 @@ describe('variations are options on a preset, not more presets', () => {
   // declaring `requires: "river"` is off without one, is the subject of the two below.
   it('offers the kind of crossing, greyed out until there is a river, and forwards the one picked', () => {
     const onGenerate = setup()
-    fireEvent.change(kinds(), { target: { value: 'forest' } })
+    fireEvent.change(kinds(), { target: { value: 'wilderness' } })
     const kind = () => control(/^kind of crossing$/i)
     expect([...kind().options].map(o => o.value)).toEqual(['random', 'dirt', 'wood', 'planks', 'stone'])
     expect(kind().disabled).toBe(true)
@@ -217,14 +219,14 @@ describe('variations are options on a preset, not more presets', () => {
     expect(kind().disabled).toBe(false)
     fireEvent.change(kind(), { target: { value: 'stone' } })
     build()
-    expect(onGenerate).toHaveBeenCalledWith('spring', 'forest', expect.any(String), { exits: 'random', pathways: 'random', river: 'divides', depth: '1', bridge: 'stone' })
+    expect(onGenerate).toHaveBeenCalledWith('spring', 'forest', expect.any(String), { ...WILD_DEFAULTS, river: 'divides', depth: '1', bridge: 'stone' }, expect.any(String))
   })
 
   it('offers HOW DEEP the channel is cut, greyed out until there is a river, and forwards it', () => {
     // and Same shape as the crossing and its kind: served, dependent, forwarded. A variation is an
     // option, so it gets the same coverage the other options have.
     const onGenerate = setup()
-    fireEvent.change(kinds(), { target: { value: 'forest' } })
+    fireEvent.change(kinds(), { target: { value: 'wilderness' } })
     const depth = () => control(/how deep the channel is cut/i)
 
     expect([...depth().options].map(o => o.value)).toEqual(['1', '2']) // not-cut is the off value, not a choice
@@ -233,7 +235,7 @@ describe('variations are options on a preset, not more presets', () => {
     expect(depth().disabled).toBe(false)
     fireEvent.change(depth(), { target: { value: '2' } })
     build()
-    expect(onGenerate).toHaveBeenCalledWith('spring', 'forest', expect.any(String), { exits: 'random', pathways: 'random', river: 'divides', depth: '2', bridge: 'random' })
+    expect(onGenerate).toHaveBeenCalledWith('spring', 'forest', expect.any(String), { ...WILD_DEFAULTS, river: 'divides', depth: '2', bridge: 'random' }, expect.any(String))
   })
 
   it('offers nothing to switch on for a kind of place that has no options', () => {
@@ -244,72 +246,48 @@ describe('variations are options on a preset, not more presets', () => {
   })
 })
 
-describe('forest > type > subtype — pick one, go deeper, or randomize', () => {
+describe('a card is a TYPE, and a type carries the regions it is made of', () => {
+  /**
+   * THE SUBTYPE PICKER IS GONE, and so are the four cases that drove it. The catalog was forest > type >
+   * subtype, and a woodland's standard version, its subtypes and Random were a second `<select>` under the
+   * card. Every one of those subtypes is a TYPE now with a card of its own, the catalog carries no children
+   * at all, and the panel renders that select only for a row that has some. There is nothing left to pick, so
+   * there is nothing left to assert: what survives is the REGION, which is the picker a type really does
+   * carry.
+   */
   const setup = () => {
     const onGenerate = jest.fn()
     render(<GenerateControls catalog={CATALOG} zone="spring" onZone={noop} onGenerate={onGenerate} />)
     return onGenerate
   }
-  // Labelled by the thing it picks, not by a question: "Preset", not "which forest?".
-  const which = (name: string) => screen.getByLabelText(new RegExp(`^${name}$`, 'i')) as HTMLSelectElement
-  const WOODLANDS = ['forest_woodland_beech', 'forest_woodland_dense', 'forest_woodland_mountain', 'forest_woodland_glades']
 
-  it('offers the woodland\'s own standard version, every subtype, and Random', () => {
-    setup()
-    fireEvent.change(kinds(), { target: { value: 'forest' } })
-    fireEvent.click(preset('Woodland'))
-    expect([...which('woodland').options].map(o => o.value)).toEqual(['', ...WOODLANDS, 'random'])
-  })
+  /** The `region` choices the row itself declares, so this file never keeps its own list of them. */
+  const servedRegions = (key: string) =>
+    (CATALOG.flatMap(c => c.generators).find(g => g.key === key)?.options ?? [])
+      .find(o => o.key === 'region')?.choices.map(c => c.key) ?? []
 
-  it('builds exactly the subtype that was picked', () => {
+  it('a jungle offers the REGIONS its row declares, and forwards the one picked', () => {
     const onGenerate = setup()
-    fireEvent.change(kinds(), { target: { value: 'forest' } })
-    fireEvent.click(preset('Woodland'))
-    fireEvent.change(which('woodland'), { target: { value: 'forest_woodland_mountain' } })
-    build()
-    // The mountain forest carries REGIONS now (ridge, slope and vale, at three different levels), so like the
-    // jungle above it offers a region picker, and its served default is random. Nothing here is invented: the
-    // key appears because the row's own options say it does.
-    expect(onGenerate).toHaveBeenCalledWith('spring', 'forest', 'woodland', { exits: 'random', pathways: 'random', region: 'random', river: 'none', depth: 'none', bridge: 'none' }, 'forest_woodland_mountain')
-  })
-
-  it('Random builds one of the subtypes, rolled on the build itself', () => {
-    const onGenerate = setup()
-    fireEvent.change(kinds(), { target: { value: 'forest' } })
-    fireEvent.click(preset('Woodland'))
-    fireEvent.change(which('woodland'), { target: { value: 'random' } })
-    build()
-    expect(WOODLANDS).toContain(onGenerate.mock.calls[0][4])
-  })
-
-  it('the standard version sends no subtype — exactly the call it always made', () => {
-    const onGenerate = setup()
-    fireEvent.change(kinds(), { target: { value: 'forest' } })
-    fireEvent.click(preset('Woodland'))
-    build()
-    expect(onGenerate.mock.calls[0]).toHaveLength(4)
-  })
-
-  it('a jungle offers the REGION that leads it, and forwards the one picked', () => {
-    // Variations are offered as a picker, the same as the jungle and the region, not as tick boxes.
-    const onGenerate = setup()
-    fireEvent.change(kinds(), { target: { value: 'forest' } })
+    fireEvent.change(kinds(), { target: { value: 'wilderness' } })
     fireEvent.click(preset('Jungle'))
     const region = screen.getByLabelText(/^region$/i) as HTMLSelectElement
-    expect([...region.options].map(o => o.value)).toEqual(['random', 'open', 'dense', 'swamp', 'ruins'])
+    const served = servedRegions('forest_jungle')
+    expect(served.length).toBeGreaterThan(1) // the row really does declare some
+    expect([...region.options].map(o => o.value)).toEqual(served)
 
-    fireEvent.change(region, { target: { value: 'swamp' } })
+    fireEvent.change(region, { target: { value: 'lakeside' } })
     build()
-    expect(onGenerate).toHaveBeenCalledWith('spring', 'forest', 'jungle', { exits: 'random', pathways: 'random', region: 'swamp', river: 'none', depth: 'none', bridge: 'none' })
+    expect(onGenerate).toHaveBeenCalledWith('spring', 'forest', 'jungle', { ...WILD_DEFAULTS, region: 'lakeside' }, 'forest_jungle')
   })
 
-  it('a subtype offers only the regions it carries', () => {
+  it('a CITY offers its own neighbourhoods, not the wood\'s regions', () => {
+    // The region picker is the row's, not one list the panel keeps: a city is divided by class, a wood by
+    // canopy, and neither knows the other's keys.
     setup()
-    fireEvent.change(kinds(), { target: { value: 'forest' } })
-    fireEvent.click(preset('Jungle'))
-    fireEvent.change(which('jungle'), { target: { value: 'forest_jungle_dense' } })
+    fireEvent.change(kinds(), { target: { value: 'city' } })
     const region = screen.getByLabelText(/^region$/i) as HTMLSelectElement
-    expect([...region.options].map(o => o.value)).toEqual(['random', 'open', 'dense'])
+    expect([...region.options].map(o => o.value)).toEqual(servedRegions('city'))
+    expect([...region.options].map(o => o.value)).not.toEqual(servedRegions('forest_jungle'))
   })
 })
 
@@ -414,7 +392,8 @@ describe('the preview window shows the world to build, its size, and the options
   it('peeks the selected world the moment the panel opens, at the size it will be built', () => {
     const p = props()
     render(<GenerateControls {...p} />)
-    expect(lastPeek(p.onPeek as jest.Mock)).toMatchObject({ kind: 'stage', zone: 'spring', variant: CATALOG[0].key, cols: 60, rows: 40 })
+    // The ROW's archetype, which is `forest` for a wilderness row and never the category's own key.
+    expect(lastPeek(p.onPeek as jest.Mock)).toMatchObject({ kind: 'stage', zone: 'spring', variant: 'forest', cols: 60, rows: 40 })
   })
 
   it('a new season re-peeks on its own, no hover needed', () => {
@@ -437,7 +416,7 @@ describe('the preview window shows the world to build, its size, and the options
     const into = slot()
     const p = props({ tuningSlot: into })
     const { container } = render(<GenerateControls {...p} />)
-    fireEvent.change(kinds(), { target: { value: 'forest' } })
+    fireEvent.change(kinds(), { target: { value: 'wilderness' } })
     expect(within(into).getByLabelText(/^river$/i)).toBeInTheDocument()
     expect(within(into).getByLabelText(/^kind of crossing$/i)).toBeInTheDocument()
     expect(within(into).getByLabelText(/^map columns$/i)).toBeInTheDocument()
@@ -460,11 +439,12 @@ describe('the preview window shows the world to build, its size, and the options
   it('a settlement peeks the ROW\'s archetype, never the category key', () => {
     const p = props()
     render(<GenerateControls {...p} />)
-    fireEvent.change(kinds(), { target: { value: 'settlement' } })
+    fireEvent.change(kinds(), { target: { value: 'village' } })
     const peek = lastPeek(p.onPeek as jest.Mock)
-    expect(peek.variant).toBe('town') // the first settlement KIND is a town
-    expect(peek.variant).not.toBe('settlement') // which is not an archetype the engine builds
-    expect(peek).toMatchObject({ kind: 'stage', layout: 'town' })
+    expect(peek.variant).toBe('town') // a village RUNS the town archetype
+    expect(peek.variant).not.toBe('village') // which is not an archetype the engine builds
+    // …and it is the ROW that was peeked, named by the backend, not the category standing in for it.
+    expect(peek).toMatchObject({ kind: 'stage', name: 'Woodland village' })
   })
 
   /**
@@ -508,7 +488,7 @@ describe('the preview window shows the world to build, its size, and the options
       const onApply = jest.fn()
       const p = props({ onApply })
       render(<GenerateControls {...p} />)
-      fireEvent.change(kinds(), { target: { value: 'forest' } })
+      fireEvent.change(kinds(), { target: { value: 'wilderness' } })
       fireEvent.click(apply())
       expect(onApply).toHaveBeenCalledWith('spring', expect.any(Object))
       expect(p.onGenerate).not.toHaveBeenCalled() // the whole point: the map is kept
@@ -519,7 +499,7 @@ describe('the preview window shows the world to build, its size, and the options
       const onApply = jest.fn()
       const p = props({ tuningSlot: into, onApply })
       render(<GenerateControls {...p} />)
-      fireEvent.change(kinds(), { target: { value: 'forest' } })
+      fireEvent.change(kinds(), { target: { value: 'wilderness' } })
       fireEvent.change(within(into).getByLabelText(/^river$/i), { target: { value: 'through' } })
       fireEvent.click(apply())
       expect(onApply).toHaveBeenCalledWith('spring', expect.objectContaining({ river: 'through' }))
@@ -535,11 +515,11 @@ describe('the preview window shows the world to build, its size, and the options
     const into = slot()
     const p = props({ tuningSlot: into })
     render(<GenerateControls {...p} />)
-    fireEvent.change(kinds(), { target: { value: 'forest' } })
+    fireEvent.change(kinds(), { target: { value: 'wilderness' } })
     fireEvent.change(within(into).getByLabelText(/^river$/i), { target: { value: 'through' } })
     fireEvent.change(within(into).getByLabelText(/^kind of crossing$/i), { target: { value: 'planks' } })
     fireEvent.click(screen.getByRole('button', { name: /build this world/i }))
-    expect(p.onGenerate).toHaveBeenCalledWith('spring', 'forest', expect.any(String), { exits: 'random', pathways: 'random', river: 'through', depth: '1', bridge: 'planks' })
+    expect(p.onGenerate).toHaveBeenCalledWith('spring', 'forest', expect.any(String), { ...WILD_DEFAULTS, river: 'through', depth: '1', bridge: 'planks' }, expect.any(String))
   })
 
   /**

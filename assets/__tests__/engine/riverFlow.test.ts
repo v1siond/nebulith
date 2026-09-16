@@ -23,7 +23,7 @@ import liveBody from '@/__tests__/fixtures/generators.json'
 const CATALOG = parseGeneratorCatalog(liveBody)
 
 function river(course: string, seed = 5) {
-  const cfg = findGenerator(CATALOG, 'forest', 'woodland')!.config
+  const cfg = findGenerator(CATALOG, 'wilderness', 'woodland')!.config
   const orig = Math.random
   Math.random = makeRng(seed)
   try {

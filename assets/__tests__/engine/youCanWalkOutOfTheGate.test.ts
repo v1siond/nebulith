@@ -26,7 +26,7 @@ const CATALOG = parseGeneratorCatalog(liveBody)
 const FORESTS = ['woodland', 'jungle', 'meadow'] as const
 
 function build(layout: string, seed: number): StageData {
-  const config = findGenerator(CATALOG, 'forest', layout)?.config
+  const config = findGenerator(CATALOG, 'wilderness', layout)?.config
   expect(config).toBeDefined()
   const orig = Math.random
   Math.random = makeRng(seed)

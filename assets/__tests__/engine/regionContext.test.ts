@@ -1,9 +1,15 @@
 /**
  * A REGION BELONGS TO ITS PLACE.
  *
- * `open` and `dense` are one shared pair reused by every jungle variant, so a SWAMP's open patch was, literally,
- * the rainforest's open patch: palms under summer's near-white daisy. A variant overrides the regions it
- * borrows now, and anything it does not name is inherited unchanged.
+ * Every wild environment serves the SAME five regions now: the edge of the wood, the deep wood, a glade, a
+ * thicket and a lakeside. What differs between a swamp and a beach is not which regions they have, it is what
+ * each region is made of, so a region that stated no blooms of its own planted the season's near-white daisy
+ * into a rainforest. A row states its own, and nothing falls back to the season.
+ *
+ * These iterate the regions a row actually SERVES rather than naming them. The backend decides what regions
+ * exist, and a test that keeps its own list of them breaks the day the catalog describes them better, which
+ * is exactly how the old `open` / `dense` / `swamp` / `ruins` set died: swamp and ruins were promoted to
+ * environments of their own.
  *
  * These assert the DATA rather than a rendered map, because that is where the answer lives and because a
  * generated map only samples it.
@@ -29,46 +35,57 @@ const region = (key: string, name: string): GeneratorSubZone => {
 }
 const species = (key: string, name: string) => (region(key, name).trees ?? []).map(t => t.kind)
 
-describe('a swamp jungle grows swamp things in every region', () => {
-  it.each(['open', 'dense', 'swamp'])('the %s region states its own blooms, so none falls back to the season', name => {
-    expect(region('forest_jungle_swamp', name).flowers ?? []).not.toHaveLength(0)
+/** Bushes and saplings, the ground cover every environment shares. What is left is a row's own canopy. */
+const UNDERGROWTH = ['bush', 'bush_round', 'tree_sapling']
+const canopyOf = (key: string, name: string) => species(key, name).filter(k => !UNDERGROWTH.includes(k))
+
+describe('a swamp grows swamp things in every region', () => {
+  it.each(regions('forest_swamp').map(z => z.key))('the %s region states its own blooms, so none falls back to the season', name => {
+    expect(region('forest_swamp', name).flowers ?? []).not.toHaveLength(0)
   })
 
   it('no region anywhere in it plants the near-white the season carries', () => {
     // #f4f4ec is summer's daisy, the exact colour that was rejected.
-    for (const z of regions('forest_jungle_swamp')) {
+    for (const z of regions('forest_swamp')) {
       const whites = (z.flowers ?? []).filter(f => f.color?.toLowerCase() === '#f4f4ec')
       expect({ region: z.key, whites: whites.length }).toEqual({ region: z.key, whites: 0 })
     }
   })
 
-  it('the CYPRESS runs through it, because that is what stands in this water', () => {
-    for (const name of ['open', 'dense', 'swamp']) {
-      expect({ name, cypress: species('forest_jungle_swamp', name).includes('tree_cypress') })
-        .toEqual({ name, cypress: true })
+  it('the CYPRESS runs through every region that grows a canopy, because that is what stands in this water', () => {
+    // The thicket is bramble in every environment, so it grows no canopy to put a cypress in. Every region
+    // that DOES grow one has to carry the swamp's own tree, or the map reads as some other wood.
+    const wooded = regions('forest_swamp').filter(z => canopyOf('forest_swamp', z.key).length > 0)
+    expect(wooded.length).toBeGreaterThan(2) // and the filter never silently empties the case
+    for (const z of wooded) {
+      expect({ region: z.key, cypress: species('forest_swamp', z.key).includes('tree_cypress') })
+        .toEqual({ region: z.key, cypress: true })
     }
   })
 })
 
-describe('an island jungle grows coastal things', () => {
-  it.each(['open', 'dense'])('the %s region states its own blooms', name => {
-    expect(region('forest_jungle_island', name).flowers ?? []).not.toHaveLength(0)
+describe('a beach grows coastal things', () => {
+  it.each(regions('forest_beach').map(z => z.key))('the %s region states its own blooms', name => {
+    expect(region('forest_beach', name).flowers ?? []).not.toHaveLength(0)
   })
 
   it('grows TROPICAL species, not a temperate wood with palms dropped in', () => {
-    // and, when I called it blocked on art,
-    // That was right: a species is proportions on the shared two-tile tree.
+    // A species is proportions on the shared two-tile tree, so the whole of the coast's canopy has to come
+    // out of the tropical set. One temperate trunk anywhere in it is the defect this case is named for.
     const tropical = ['tree_coconut', 'tree_banana', 'tree_mangrove', 'tree_palm']
-    for (const name of ['open', 'dense']) {
-      const grown = species('forest_jungle_island', name)
-      expect({ name, tropical: grown.filter(k => tropical.includes(k)).length }).toEqual({ name, tropical: 3 })
-      expect({ name, giant: grown.includes('tree_giant') }).toEqual({ name, giant: false })
+    for (const z of regions('forest_beach')) {
+      const foreign = canopyOf('forest_beach', z.key).filter(k => !tropical.includes(k))
+      expect({ region: z.key, foreign }).toEqual({ region: z.key, foreign: [] })
+      expect({ region: z.key, giant: species('forest_beach', z.key).includes('tree_giant') })
+        .toEqual({ region: z.key, giant: false })
     }
+    // and it really is a canopy, not five regions of bare bramble that pass the line above for free
+    expect(regions('forest_beach').filter(z => canopyOf('forest_beach', z.key).length > 0).length).toBeGreaterThan(2)
   })
 
   it('the coast keeps its WATER species, which is what he meant by water nature', () => {
-    expect(species('forest_jungle_island', 'dense')).toContain('tree_mangrove')
-    expect(species('forest_jungle_swamp', 'open')).toContain('tree_mangrove')
+    expect(species('forest_beach', 'deep')).toContain('tree_mangrove')
+    expect(species('forest_swamp', 'glade')).toContain('tree_mangrove')
   })
 
   it('each tropical species is BROWSEABLE, so it shows in the objects list', () => {
@@ -92,27 +109,29 @@ describe('an island jungle grows coastal things', () => {
   })
 })
 
-describe('NO jungle anywhere falls through to the season', () => {
+describe('NO tropical row anywhere falls through to the season', () => {
   /**
-   * Measured 2026-09-13, and it is why the map showed the daisies again after the swamp was fixed: giving the SWAMP
-   * variant its own regions did nothing for the plain jungle, whose shared `open`, `dense` and `ruins` still
-   * stated no blooms and so planted summer's near-white. A rainforest floor is not a daisy meadow.
+   * Measured 2026-09-13, and it is why the map showed the daisies again after the swamp was fixed: giving the
+   * SWAMP its own regions did nothing for the plain jungle, whose regions still stated no blooms and so
+   * planted summer's near-white. A rainforest floor is not a daisy meadow.
    */
-  it.each(['open', 'dense', 'ruins', 'swamp'])('the shared %s region states its own blooms', name => {
+  const TROPICAL = ['forest_jungle', 'forest_swamp', 'forest_beach', 'forest_ruins', 'forest_desert']
+
+  it.each(regions('forest_jungle').map(z => z.key))('the jungle\'s %s region states its own blooms', name => {
     expect(region('forest_jungle', name).flowers ?? []).not.toHaveLength(0)
   })
 
-  it('every region of every jungle variant, with none left on the season', () => {
-    for (const key of ['forest_jungle', 'forest_jungle_swamp', 'forest_jungle_island', 'forest_jungle_dense', 'forest_jungle_ruins']) {
+  it('every region of every tropical row, with none left on the season', () => {
+    for (const key of TROPICAL) {
       const bare = regions(key).filter(z => (z.flowers ?? []).length === 0).map(z => z.key)
       expect({ key, bare }).toEqual({ key, bare: [] })
     }
   })
 
-  it('the SPECIES still differ per variant, so shared blooms did not flatten them', () => {
-    // The blooms are shared; the trees are not. Island is palms, swamp is cypress, plain is the giant.
-    expect(species('forest_jungle_island', 'open')).toContain('tree_palm')
-    expect(species('forest_jungle_swamp', 'open')).toContain('tree_cypress')
-    expect(species('forest_jungle', 'dense')).toContain('tree_giant')
+  it('the SPECIES still differ per row, so shared blooms did not flatten them', () => {
+    // The blooms are shared; the trees are not. The beach is palms, the swamp is cypress, the jungle is the giant.
+    expect(species('forest_beach', 'glade')).toContain('tree_palm')
+    expect(species('forest_swamp', 'glade')).toContain('tree_cypress')
+    expect(species('forest_jungle', 'deep')).toContain('tree_giant')
   })
 })

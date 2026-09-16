@@ -18,7 +18,7 @@ const CATALOG = parseGeneratorCatalog(liveBody)
 
 /** A forest layout is built from its served template, the way the editor builds it. */
 function grow(variant: VariantId, zone: ZoneId, seed = 7, layout?: ForestLayout): StageData {
-  const config = layout ? findGenerator(CATALOG, 'forest', layout)?.config : undefined
+  const config = layout ? findGenerator(CATALOG, 'wilderness', layout)?.config : undefined
   const orig = Math.random
   Math.random = makeRng(seed)
   try {
@@ -75,7 +75,7 @@ describe('a season whose ground is textured lays it as colour, not tiles', () =>
     // THE COLOUR THE GENERATOR ACTUALLY PAINTS WITH: the tone its own PATHWAY serves. It read the palette's
     // trail, which is where the colour used to live and no longer does. The pathway kind carries it, so a
     // template that picks gravel is painted gravel rather than whatever its parent's palette said.
-    const paint = (findGenerator(CATALOG, 'forest', 'woodland')?.config as { pathway?: { tone?: string } } | undefined)?.pathway?.tone
+    const paint = (findGenerator(CATALOG, 'wilderness', 'woodland')?.config as { pathway?: { tone?: string } } | undefined)?.pathway?.tone
     expect(typeof paint).toBe('string')
     const trailCells = cellsWhere(s, g => g === FLAT_FLOOR).filter(([c, r]) => s.floorColors[r][c] === paint)
     expect(trailCells.length).toBeGreaterThan(0)

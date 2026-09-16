@@ -12,7 +12,7 @@
  * the walkable share exactly where it started, because thicket went 159 -> 183.
  *
  * So a test that watches only the tree count cannot see this. These cases measure the two things he actually
- * named, against the two forests he has already called correct:
+ * named, across every wilderness environment the backend serves:
  *
  *   · WALKABLE, the share of the interior you can stand on at all.
  *   · PLACEABLE, the share with open ground on all four sides, which is what it takes to put a chest or a
@@ -96,52 +96,33 @@ function measure(key: string): { walkable: number; placeable: number } {
   return { walkable: mean(r => r.walkable), placeable: mean(r => r.placeable) }
 }
 
-// Every template whose whole point is being dense, with the floor each one has to clear. They differ because
-// a super dense jungle is SUPPOSED to be the tightest map in the game; what it may not be is one you cannot
-// cross. Measured values at the time of writing sit 3 to 7 points above each floor, so a real regression
-// trips these and seed noise does not.
+// ONE FLOOR, EVERY ROW THE BACKEND SERVES.
 //
-// `forest_woodland_dense` is in here because measuring the jungles turned it up: it was the most impassable
-// template in the game, at 46% walkable with 420 trees and 278 thicket, worse than any rainforest. Its rule
-// was already written in the generator source, that a dense wood must not out-thicket a rainforest, but it
-// was written as "under the jungle's 0.62" and the jungle had been thinned to 0.31 without it noticing. That
-// is what this file is for: a number nobody can measure by reading it.
-const JUNGLES: ReadonlyArray<readonly [string, number, number]> = [
-  ['forest_jungle', 0.72, 0.38],
-  ['forest_jungle_dense', 0.60, 0.36],
-  ['forest_jungle_swamp', 0.75, 0.50],
-  ['forest_jungle_island', 0.68, 0.42],
-  ['forest_jungle_ruins', 0.66, 0.35],
-  ['forest_woodland_dense', 0.62, 0.42],
-]
+// This was a hand-kept table of keys and per-key floors, and it named subtypes that no longer exist: a super
+// dense jungle and a dense wood were rows of their own, each calibrated to its own number. A type is an
+// ENVIRONMENT now, there are nine of them, and the property has not changed with the shape of the catalog:
+// whatever a row is tuned to, it has to be a map you can cross and put things on. So the rows are walked
+// rather than listed, and a new environment is held to the same bar the day it is seeded.
+//
+// The floor sits a few points under the tightest row measured (the ruins, at 0.69 walkable, and the swamp, at
+// 0.40 placeable), so a real regression trips it and seed noise does not.
+const MIN_WALKABLE = 0.64
+const MIN_PLACEABLE = 0.34
 
-describe('every jungle is a map you can cross and put things on', () => {
-  for (const [key, minWalkable, minPlaceable] of JUNGLES) {
-    it(`${key} leaves room to walk and to place`, () => {
-      const { walkable, placeable } = measure(key)
-      expect({ key, walkable: walkable >= minWalkable, placeable: placeable >= minPlaceable })
-        .toEqual({ key, walkable: true, placeable: true })
-    })
-  }
+/** Every wilderness row, so this file keeps no list of them. */
+const wilderness = () => CATALOG.find(c => c.key === 'wilderness')?.generators ?? []
+
+describe('every wilderness row is a map you can cross and put things on', () => {
+  it.each(wilderness().map(g => g.key))('%s leaves room to walk and to place', key => {
+    const { walkable, placeable } = measure(key)
+    expect({ key, walkable: walkable >= MIN_WALKABLE, placeable: placeable >= MIN_PLACEABLE })
+      .toEqual({ key, walkable: true, placeable: true })
+  })
 })
 
 describe('a jungle is still the densest forest', () => {
   it('is tighter than the woodland it is a grown-over version of', () => {
     expect(measure('forest_jungle').walkable).toBeLessThan(measure('forest_woodland').walkable)
-  })
-
-  it('and its super dense variant is the tightest map of the lot', () => {
-    const dense = measure('forest_jungle_dense').walkable
-    for (const [key] of JUNGLES.filter(([k]) => k !== 'forest_jungle_dense')) {
-      expect({ key, tighterThanDense: measure(key).walkable <= dense }).toEqual({ key, tighterThanDense: false })
-    }
-  })
-
-  it('a dense WOOD does not out-thicket a rainforest, whatever either one is tuned to', () => {
-    // The invariant the generator source states in words, measured instead of pinned to a literal.
-    expect(measure('forest_woodland_dense').walkable).toBeGreaterThan(measure('forest_jungle_dense').walkable)
-    // and it is still a DENSE wood: far tighter than the plain one it is a variation of
-    expect(measure('forest_woodland_dense').walkable).toBeLessThan(measure('forest_woodland').walkable - 0.1)
   })
 })
 
