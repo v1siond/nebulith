@@ -1776,7 +1776,8 @@
     "label": "sq_green",
     "mode": "emoji",
     "style": "emoji",
-    "emoji": "🟩"
+    "emoji": "🟩",
+    "svg": "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 128 128\"><rect width=\"128\" height=\"128\" fill=\"#f0f0f0\"/><g stroke=\"#e2e2e2\" stroke-width=\"2\" fill=\"none\"><path d=\"M0 32 H128\"/><path d=\"M0 64 H128\"/><path d=\"M0 96 H128\"/></g></svg>"
   },
   {
     "label": "sq_blue",
@@ -1788,7 +1789,8 @@
     "label": "sq_brown",
     "mode": "emoji",
     "style": "emoji",
-    "emoji": "🟫"
+    "emoji": "🟫",
+    "svg": "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 128 128\"><rect width=\"128\" height=\"128\" fill=\"#f0f0f0\"/><g stroke=\"#e2e2e2\" stroke-width=\"2\" fill=\"none\"><path d=\"M0 32 H128\"/><path d=\"M0 64 H128\"/><path d=\"M0 96 H128\"/></g></svg>"
   },
   {
     "label": "sq_yellow",
@@ -1800,7 +1802,8 @@
     "label": "sq_white",
     "mode": "emoji",
     "style": "emoji",
-    "emoji": "⬜"
+    "emoji": "⬜",
+    "svg": "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 128 128\"><rect width=\"128\" height=\"128\" fill=\"#f2f2f2\"/><g stroke=\"#e2e2e2\" stroke-width=\"2\" fill=\"none\"><path d=\"M0 32 H128\"/><path d=\"M0 64 H128\"/><path d=\"M0 96 H128\"/></g></svg>"
   },
   {
     "label": "sq_black",

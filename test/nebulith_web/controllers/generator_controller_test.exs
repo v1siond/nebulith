@@ -104,9 +104,13 @@ defmodule NebulithWeb.GeneratorControllerTest do
                  "requires" => "river",
                  "choices" => [
                    %{"key" => "random", "label" => "Random"},
+                   # A DIRT PATH IS NOT A BUILT CROSSING. It names no composition, and that absence is what
+                   # makes it a ford: the river shallow enough to walk through rather than a structure over it.
                    %{"key" => "dirt", "label" => "Dirt path"},
                    %{"key" => "wood", "label" => "Wooden bridge"},
-                   %{"key" => "planks", "label" => "Plank walkway"},
+                   # "Plank walkway" sat here between the wooden bridge and the stone one and named nothing
+                   # anybody could picture. Removed on request, along with its crossing entry and its five
+                   # compositions, which were byte-identical to the wooden ones anyway.
                    %{"key" => "stone", "label" => "Stone bridge"}
                  ]
                }

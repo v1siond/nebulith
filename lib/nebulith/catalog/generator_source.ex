@@ -89,7 +89,6 @@ defmodule Nebulith.Catalog.GeneratorSource do
         %{"key" => "random", "label" => "Random"},
         %{"key" => "dirt", "label" => "Dirt path"},
         %{"key" => "wood", "label" => "Wooden bridge"},
-        %{"key" => "planks", "label" => "Plank walkway"},
         %{"key" => "stone", "label" => "Stone bridge"}
       ]
     }
@@ -108,7 +107,6 @@ defmodule Nebulith.Catalog.GeneratorSource do
   @crossings %{
     "dirt" => %{"tile" => "floor", "colorOf" => "path_dirt"},
     "wood" => %{"tile" => "bridge", "composition" => "bridge_wood"},
-    "planks" => %{"tile" => "wooden_planks", "composition" => "bridge_plank"},
     "stone" => %{"tile" => "cobblestone", "composition" => "bridge_stone"}
   }
 

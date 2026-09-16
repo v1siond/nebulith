@@ -1891,10 +1891,10 @@ defmodule Nebulith.Catalog.TileSource do
   @bridge_tiles [
     {"bridge_deck", "Bridge deck", "#a8794a", "="},
     {"bridge_rail", "Bridge rail", "#8a6a45", "="},
-    {"bridge_stone_block", "Bridge masonry", "#893640", "#"},
-    {"bridge_stone_deck", "Bridge flagstones", "#9c4a4a", "="},
-    {"bridge_stone_parapet", "Bridge parapet", "#893640", "n"},
-    {"bridge_stone_bollard", "Bridge bollard", "#7a3038", "o"},
+    {"bridge_stone_block", "Bridge masonry", "#8f8b80", "#"},
+    {"bridge_stone_deck", "Bridge flagstones", "#9a968b", "="},
+    {"bridge_stone_parapet", "Bridge parapet", "#8f8b80", "n"},
+    {"bridge_stone_bollard", "Bridge bollard", "#76736a", "o"},
     {"bridge_timber_rib", "Bridge timber rib", "#8f6842", "H"},
     {"bridge_timber_deck", "Bridge planking", "#b2855c", "="},
     {"bridge_timber_post", "Bridge rail post", "#96704a", "|"},
@@ -3038,15 +3038,11 @@ defmodule Nebulith.Catalog.TileSource do
   @bridge_materials %{
     "stone" => %{
       block: "bridge_stone_block", deck: "bridge_stone_deck", side: "bridge_stone_parapet",
-      cap: "bridge_stone_bollard", arch?: true, solid_side?: true
+      cap: "bridge_stone_bollard", solid_side?: true
     },
     "timber" => %{
       block: "bridge_timber_rib", deck: "bridge_timber_deck", side: "bridge_timber_rail",
-      cap: "bridge_timber_post", arch?: true, solid_side?: false
-    },
-    "plank" => %{
-      block: "bridge_timber_rib", deck: "bridge_timber_deck", side: "bridge_timber_rail",
-      cap: "bridge_timber_post", arch?: false, solid_side?: false
+      cap: "bridge_timber_post", solid_side?: false
     }
   }
 
@@ -3297,11 +3293,6 @@ defmodule Nebulith.Catalog.TileSource do
       "bridge_stone_5" => %{footprint_w: 5, footprint_h: 4, category: "props", cells: bridge_cells("stone", 5)},
       "bridge_stone_6" => %{footprint_w: 6, footprint_h: 4, category: "props", cells: bridge_cells("stone", 6)},
       "bridge_stone_7" => %{footprint_w: 7, footprint_h: 4, category: "props", cells: bridge_cells("stone", 7)},
-      "bridge_plank_3" => %{footprint_w: 3, footprint_h: 4, category: "props", cells: bridge_cells("plank", 3)},
-      "bridge_plank_4" => %{footprint_w: 4, footprint_h: 4, category: "props", cells: bridge_cells("plank", 4)},
-      "bridge_plank_5" => %{footprint_w: 5, footprint_h: 4, category: "props", cells: bridge_cells("plank", 5)},
-      "bridge_plank_6" => %{footprint_w: 6, footprint_h: 4, category: "props", cells: bridge_cells("plank", 6)},
-      "bridge_plank_7" => %{footprint_w: 7, footprint_h: 4, category: "props", cells: bridge_cells("plank", 7)},
       "well" => %{footprint_w: 5, footprint_h: 3, category: "props", cells: well_cells()},
       "fountain" => %{footprint_w: 5, footprint_h: 5, category: "props", cells: fountain_cells()},
       # LIGHT POSTS — a composition, NOT a single lamp tile. ONE 1×1 column of TWO cells, each shaped by its OWN tuned
@@ -3537,7 +3528,7 @@ defmodule Nebulith.Catalog.TileSource do
   # you can see the far bank through. The pier columns carry the side wall from the bed up to that deck and
   # the arch columns carry nothing at all.
   defp bridge_substructure(pieces, span) do
-    arch = MapSet.new(arch_columns(pieces, span))
+    arch = MapSet.new(arch_columns(span))
 
     0..(span - 1)
     |> Enum.reject(&MapSet.member?(arch, &1))
@@ -3562,15 +3553,14 @@ defmodule Nebulith.Catalog.TileSource do
 
   # WHICH COLUMNS ARE THE OPENING, which is to say which ones have nothing under the deck at all.
   #
+  # Both materials arch. The catalogue used to carry a third, flat crossing that stood on piles, and it was
+  # the "Plank walkway" kind: removed on request, and with it the only caller of the flat branch.
+  #
   # A SHORT SPAN HAS NOTHING TO SPRING FROM, and the threshold is measured rather than guessed: at three cells
   # an opening is one column wide and reads as a notch in a solid block rather than as an arch.
-  defp arch_columns(_pieces, span) when span < 4, do: []
-  defp arch_columns(%{arch?: true}, span) when span < 6, do: Enum.to_list(1..(span - 2))
-  defp arch_columns(%{arch?: true}, span), do: Enum.to_list(2..(span - 3))
-
-  # A FLAT CROSSING springs no arch. It stands on PILES at intervals, so the gaps are every other column
-  # rather than one opening in the middle.
-  defp arch_columns(%{arch?: false}, span), do: Enum.to_list(1..(span - 2)) |> Enum.take_every(2)
+  defp arch_columns(span) when span < 4, do: []
+  defp arch_columns(span) when span < 6, do: Enum.to_list(1..(span - 2))
+  defp arch_columns(span), do: Enum.to_list(2..(span - 3))
 
   # THE DECK, a cell per column so it can HUMP.
   #

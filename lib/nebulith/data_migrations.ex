@@ -97,7 +97,8 @@ defmodule Nebulith.DataMigrations do
     Nebulith.DataMigration.FlatDecorStacksAtTheBottomFace,
     Nebulith.DataMigration.GroundCoverNeedsRealArt,
     Nebulith.DataMigration.NothingIsStrewnAcrossTheWay,
-    Nebulith.DataMigration.ABridgeIsAssembledNotStretched
+    Nebulith.DataMigration.ABridgeIsAssembledNotStretched,
+    Nebulith.DataMigration.ASolidBlockAndAStoneThatReadsAsStone
   ]
 
   @doc "Every registered data migration module, in run order."
