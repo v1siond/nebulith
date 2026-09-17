@@ -1482,3 +1482,41 @@ It measures ONE silhouette from ONE camera angle. It says nothing about colour, 
 size, or whether the object is the right object. It is a tool for closing the gap to a reference you have
 already agreed is the right reference.
 
+
+
+## 10.2 The volcano, and the four things it cost, 2026-09-17
+
+Built from his three references, to the loop in 10. Worth reading before the next object, because three of
+the four were the loop itself being wrong rather than the design.
+
+**1. The fast path lies, and it lied for four passes.** `SPEC` mode in `.probe/objshot.mjs` builds a cell list
+live with nothing seeded, which is quick, and 9.3 says in one line that it "LIES about colour, because it has
+no tileset to resolve a label against". What that looks like in practice is every block drawn near black with
+a bright white rim, so a mass built to MERGE reads as a tray of separate lozenges. Four passes were spent
+tuning a profile against that, and one of them went looking for a debug overlay to switch off. Seeding the
+composition and rendering it with `COMP` changed the picture completely and instantly: the same cells came out
+as one merged faceted outcrop. **Use SPEC for placement and footprint, never for whether a shape reads.**
+
+**2. Height needs a bigger number than it looks like it needs.** The first seeded pass was a rock pancake. One
+level is 0.45 of a cell width, so a 7 cell footprint at his reference's roughly 2.2 to 1 needs about 6.5
+levels of rim, not 3. This is 9.1 fact 1 arriving from the other direction: compute the drawn height, do not
+eyeball it.
+
+**3. A bowl cannot be seen into unless its near lip is lower.** Screen depth is `col + row`, so the rim cells
+nearest the camera are drawn in front of the crater. A rim at one even height hides its own mouth, and the
+crater was invisible for three passes while the profile was blamed. Every reference shows the mouth because
+the near side is lower. Leaning the rim toward the front by about 40 per cent is what made it visible. Same
+family of error as 9.1 fact 4.
+
+**4. `shape: circle` is for the FLANKS, not for a floor.** A domed floor is not a floor: the lava pool sat on
+a hill and spilled out past the rim as an orange collar around the summit. The bowl cells keep square tops and
+only the flanks are rounded, and the two coexist happily in one object.
+
+And one that was right first time and is worth keeping: `wall_stone_c`, which the approved cave mound is made
+of, carries `fadeNear`, so anything built from it ghosts when the hero walks up. 9.1 fact 5 said so. The
+volcano is built from `volcanic_rock`, which does not.
+
+**What is NOT built.** The references carry five masses: cone, crater, lava tongues down the flanks, a plume,
+and vegetation thinning with height. The cone and the crater are this object. The thinning is not art at all,
+it is `AVolcanoBurnsInBands`. The tongues and the plume are still open.
+

@@ -125,7 +125,8 @@ defmodule Nebulith.DataMigrations do
     Nebulith.DataMigration.TheGroundAPlaceIsMadeOf,
     Nebulith.DataMigration.TwoBiomesOutOfOrder,
     Nebulith.DataMigration.AVolcanoBurnsInBands,
-    Nebulith.DataMigration.ABeachGrowsDuneGrass
+    Nebulith.DataMigration.ABeachGrowsDuneGrass,
+    Nebulith.DataMigration.AVolcanoYouCanSee
   ]
 
   @doc "Every registered data migration module, in run order."

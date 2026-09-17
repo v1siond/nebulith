@@ -214,3 +214,18 @@ His stated reason for sending it: *"useful to do lots of different grass types"*
 a density plus a placement rule, which is data we already serve. The gap is that every biome currently
 reaches for `thicket` or `tall_grass` and nothing else, so a beach has a woodland's shrub in it. More grass
 types is a catalog job, not an engine job.
+
+
+### 2.9 A floor tile and a block are different tiles, and height is what says which
+
+`volcanic_rock` was `category: terrain` at `height: 0.0`, which is a FLOOR: it paints a cell and occupies no
+block. Building a composition out of it gives cells that extrude to nothing, which is the same defect
+`ACactusIsAnObject` recorded from the other side ("Copying `tree_dead`'s 0.0 left a visible GAP between the
+stacked segments").
+
+Before using a label as a block, check its height. If it is 0.0 it is a floor, whatever its name suggests.
+
+Promoting one is allowed and is usually better than minting a rival name: 2.8 says converge rather than add a
+third spelling. Check what references it first. `volcanic_rock` was referenced by zero generators and zero
+compositions, so promoting it broke nothing.
+
