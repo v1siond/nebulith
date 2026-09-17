@@ -134,6 +134,8 @@ export interface GeneratorPalette {
   leafSeasonality?: number
   /** Brightness multiplier on the season's shade. Below 1 darker (jungle), above 1 brighter (beach). */
   leafValue?: number
+  /** The TILE this biome's open ground is made of (`sand`, `beach-sand`, `basalt`). Absent → the season's. */
+  groundTile?: string
   /** the choked layer between the trunks */
   undergrowth?: string
   /** a watercourse, and the ground either side of it */

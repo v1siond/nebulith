@@ -1130,19 +1130,25 @@ const PLAZA_STONE = 'path_stone'
 /** The stone a boss arena is paved with. */
 const ARENA_STONE = 'ancient_stone'
 
-const seasonGround = (ctx: ArchetypeContext): string | undefined => zonePalette(ctx.zone)?.groundTypes[0]
+/** The open ground a place is MADE of.
+ *
+ * The biome's own tile when the generator serves one, the SEASON's otherwise. It was the season's only, so a
+ * desert city was paved in spring meadow grass: the ground a place is made of is a fact about the PLACE, and
+ * the season is what colour it happens to be today. Absent → unchanged, so nothing that looked right moves. */
+const openGround = (ctx: ArchetypeContext): string | undefined =>
+  ctx.palette?.groundTile ?? zonePalette(ctx.zone)?.groundTypes[0]
 
 /** The OPEN-GROUND labels of each kind of place, read from the served palettes where they come from there. */
 const FLOOR_MATERIALS: Readonly<Record<VariantId, (ctx: ArchetypeContext) => ReadonlyArray<string | undefined>>> = {
-  town: ctx => [seasonGround(ctx), PLAZA_STONE],
-  city: ctx => [seasonGround(ctx), PLAZA_STONE],
-  forest: ctx => [seasonGround(ctx), zonePalette(ctx.zone)?.trail],
+  town: ctx => [openGround(ctx), PLAZA_STONE],
+  city: ctx => [openGround(ctx), PLAZA_STONE],
+  forest: ctx => [openGround(ctx), zonePalette(ctx.zone)?.trail],
   cave: ctx => [(cavePalette(ctx.zone) ?? cavePalette('summer'))?.floor],
   temple: ctx => {
     const pal = templePalette(ctx.zone) ?? templePalette('summer')
     return [pal?.floor, pal?.accent]
   },
-  'boss-stage': ctx => [seasonGround(ctx), ARENA_STONE],
+  'boss-stage': ctx => [openGround(ctx), ARENA_STONE],
 }
 
 /** Swap every open-ground material for the flat floor, keeping the colour it wore. */
@@ -1243,7 +1249,19 @@ const STAGE_LAYERS: ReadonlyArray<StageLayer<ArchetypeContext, LayerRngs>> = [
   // TERRAIN: the grid's ground, by zone, region and season. Still carries WATER and OBJECTS inside it,
   // because each archetype paints, floods and plants in one pass. Splitting those three apart is the work
   // this list is being straightened out for.
-  { name: 'terrain', run: (ctx, rngs) => buildFor(ctx.variant)?.terrain(ctx, rngs) },
+  // THE BIOME'S FLOOR AS A BASE COAT, before the variant paints anything.
+  //
+  // Only the forest and meadow layouts ever called `paintFloor`, so a town, a village and a city never got
+  // their biome's ground at all: they laid the SEASON's grass tile and kept its own colour, which is why a
+  // desert city was green (measured: 749 cells of #a4ac48, the meadow tile's own colour, on a desert).
+  //
+  // A base coat rather than a new pipeline layer, and it runs FIRST so every layout that paints its own
+  // floor still overwrites it exactly as before. A generator serving no floor colour paints nothing, which
+  // is what `paintFloor` already does with an absent `floor`.
+  { name: 'terrain', run: (ctx, rngs) => {
+    paintFloor(ctx, { floor: ctx.palette?.floor, floorAlt: ctx.palette?.floorAlt, litter: ctx.palette?.litter })
+    buildFor(ctx.variant)?.terrain(ctx, rngs)
+  } },
 
   // WATER, laid before the pathways because it is what they go around: *"we should have water go first, because
   // then the pathway can footprint the actual navigable layout, including potentially using bridges"*. Empty
