@@ -144,3 +144,31 @@ Three observations that only show up once it is measured:
 Use the HUE relationships and the RELATIVE ordering, never the absolute value: a photo's 0.27 carries the
 scene's lighting, and transplanting it onto a tile tint would paint a near-black tree. The tile art already
 carries the tone (`colour-tints-luminance-stays`), so the tint moves the hue.
+
+## Cactus, 2026-09-17
+
+His, with *"here's the cactus variants I expected"*, after calling the first attempt *"a bit weird"*
+(Image #146: tall thin pointed columns that read as green arrowheads).
+
+| File | What to take |
+|---|---|
+| `by-subject/cactus/cactus-variants-expected.png` | A botanical plate of cactus FORMS. Saved in the workspace, not the repo. |
+
+What the plate actually shows, form by form, because "a cactus" is not one shape:
+
+1. **Saguaro**: a tall heavily ribbed column with ARMS that leave the trunk low and curve UP to run parallel
+   to it. The arms are the single most recognisable thing about it and the first attempt had none.
+2. **Barrel**: squat, round, much wider than tall, ribs running pole to pole, often flowering on top.
+3. **Prickly pear**: flat oval PADS branching off each other, not a column at all.
+4. **Cluster**: several short ribbed columns from one base.
+5. **Single pad**, a lone oval, for scatter.
+
+### Three measured reasons the first attempt read wrong
+
+1. **No arms.** A 1x1 footprint cannot carry them. The plate's saguaro is unmistakable BECAUSE of them.
+2. **Pointed top.** The crown art's dome collapsed to a point once `scaleX` narrowed the cell, so it read as
+   an arrowhead. Every cactus on the plate is rounded at the top.
+3. **Vertical ribs chevron on an iso cube.** A cube shows two faces at opposing skews, so vertical stripes
+   mirror into a herringbone and the shape reads as a leaf. This is a general TILE-DESIGN fact and it is why
+   the leaf tiles use a non-directional clump pattern rather than stripes. Ribbing on a cactus has to be
+   carried by DOTS (areoles) and subtle shading, not by strong vertical lines.

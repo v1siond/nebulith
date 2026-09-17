@@ -40,6 +40,9 @@ defmodule Nebulith.DataMigration.ACactusIsAnObject do
   @segments [
     {"cactus_stem", "ǂ", "🌵", "Cactus stem"},
     {"cactus_crown", "Ω", "🌵", "Cactus crown"},
+    {"cactus_arm_l", "Γ", "🌵", "Cactus arm, left"},
+    {"cactus_arm_r", "Ꞁ", "🌵", "Cactus arm, right"},
+    {"cactus_barrel", "◍", "🌵", "Barrel cactus"},
     {"cactus_pad", "❋", "🌵", "Cactus pad"}
   ]
 

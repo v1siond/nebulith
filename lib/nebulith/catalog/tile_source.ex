@@ -3254,35 +3254,29 @@ defmodule Nebulith.Catalog.TileSource do
   # A CACTUS, AS AN OBJECT MADE OF CELLS.
   #
   # *"I REQUESTED TREES, WHICH MEAN OBJECTS, COMPOSITIONS, AND YOU JUST USED A FUCKING TILE IN A FUCKING
-  # CELL."* The first attempt was one billboard tile per cactus, which is the thing that sentence rejects.
+  # CELL."* Each form below is several cells, and the FORM is what separates the species, measured off his
+  # botanical plate (`references/SOURCES.md`, Cactus):
   #
-  # Built on `tree_dead`'s pattern instead, which is this catalog's established shape for a plant with no
-  # canopy: a 1x1 footprint, one cell per LEVEL, a different tile per segment. A saguaro is a stem, a stem
-  # and a crown. Segment art is full-bleed greyscale in the `canopy_*` style, because that is how a plant
-  # MASS is drawn on a cube face here, and the served colour tints it.
+  #   saguaro       a tall ribbed column with ARMS that leave it low and turn UP to run parallel
+  #   barrel        squat and round, much wider than tall
+  #   prickly pear  flat oval PADS branching off each other, not a column at all
   #
-  # `width` is what makes it a cactus rather than a wall: a narrow column reads as a succulent, a squat
-  # wide one as a barrel.
-  defp cactus_comp(segments) do
+  # The arms are the whole reason the saguaro is recognisable, and a 1x1 footprint cannot carry them, which
+  # is why this one is three cells wide. `dx` stays non-negative because nothing else in the catalog uses a
+  # negative offset and `rotateFootprintOffset` assumes the 0..w-1 range.
+  defp cactus_cell(dx, level, label, width, height, shape \\ nil) do
+    # WIDTH IS scaleX, NOT scale. `scale` shrinks the drawn cube on every axis while the per-level lift stays
+    # a full block, so a narrowed segment at level 1 floats above the one at level 0.
     %{
-      footprint_w: 1,
-      footprint_h: 1,
-      category: "nature",
-      cells:
-        for {seg, level} <- Enum.with_index(segments) do
-          %{
-            dx: 0,
-            dy: 0,
-            level: level,
-            label: seg.label,
-            walkable: false,
-            # WIDTH IS scaleX, NOT scale. `scale` shrinks the drawn cube on every axis while the per-level
-            # lift stays a full block, so a 0.44-scaled segment at level 1 FLOATS above the one at level 0.
-            # `tree_comp` already narrows a trunk with `scaleX` for exactly this reason.
-            scale: 1.0,
-            settings: %{"scaleX" => seg.width, "scaleY" => seg.height}
-          }
-        end
+      dx: dx,
+      dy: 0,
+      level: level,
+      label: label,
+      walkable: false,
+      scale: 1.0,
+      settings:
+        %{"scaleX" => width, "scaleY" => height}
+        |> then(fn s -> if shape, do: Map.put(s, "shape", shape), else: s end)
     }
   end
 
@@ -3399,27 +3393,39 @@ defmodule Nebulith.Catalog.TileSource do
       "tree_encina" => tree_comp(%{trunk_h: 2.4, trunk_zoom: 0.58, trunk_w: 1.15, leaf_h: 2.0, leaf_zoom: 1.9, shape: "circle"}),
       # THE DRY COUNTRY. A desert grew bananas and mangroves and had no cactus at all.
       #
-      # saguaro: a tall narrow column, two stem segments under a domed crown
-      "cactus_saguaro" =>
-        cactus_comp([
-          # SLIGHTLY OVERSIZE, the fountain's 1.15 trick (OBJECT-CONSTRUCTION §1.0): each segment overruns
-          # its block so the joins between them close instead of showing a seam.
-          %{label: "cactus_stem", width: 0.42, height: 1.2},
-          %{label: "cactus_stem", width: 0.42, height: 1.2},
-          %{label: "cactus_crown", width: 0.46, height: 1.2}
-        ]),
-      # barrel: squat and wide, a ribbed body under a low dome
-      "cactus_barrel" =>
-        cactus_comp([
-          %{label: "cactus_stem", width: 0.78, height: 0.55},
-          %{label: "cactus_crown", width: 0.72, height: 0.45}
-        ]),
+      # saguaro: a three-block trunk with an arm either side, each arm turning up to run beside it. The
+      # segments run slightly oversize (the fountain's 1.15 trick) so the joins close instead of showing a seam.
+      "cactus_saguaro" => %{
+        footprint_w: 3,
+        footprint_h: 1,
+        category: "nature",
+        cells: [
+          cactus_cell(1, 0, "cactus_stem", 0.52, 1.2),
+          cactus_cell(1, 1, "cactus_stem", 0.52, 1.2),
+          cactus_cell(1, 2, "cactus_crown", 0.52, 1.2),
+          # the arms are ONE block each, so the trunk stays clearly the tallest thing and the silhouette
+          # reads as a saguaro rather than as a cluster of equal columns
+          cactus_cell(0, 1, "cactus_arm_l", 0.44, 1.2),
+          cactus_cell(2, 1, "cactus_arm_r", 0.44, 1.2)
+        ]
+      },
+      # barrel: squat and round, wider than tall, with a low domed cap
+      "cactus_barrel" => %{
+        footprint_w: 1,
+        footprint_h: 1,
+        category: "nature",
+        cells: [cactus_cell(0, 0, "cactus_barrel", 0.92, 0.8, "circle")]
+      },
       # prickly pear: a clump of pads, the wider one at the bottom
-      "cactus_prickly" =>
-        cactus_comp([
-          %{label: "cactus_pad", width: 0.86, height: 0.85},
-          %{label: "cactus_pad", width: 0.6, height: 0.75}
-        ]),
+      "cactus_prickly" => %{
+        footprint_w: 1,
+        footprint_h: 1,
+        category: "nature",
+        cells: [
+          cactus_cell(0, 0, "cactus_pad", 0.9, 0.9, "circle"),
+          cactus_cell(0, 1, "cactus_pad", 0.62, 0.8, "circle")
+        ]
+      },
       # TWO water variants of the town-square basin, both COMPOSITIONS assembled from AUTOTILE PIECES
       # (TILESET-AUTHORING §3), not one fill: a rim of the RIGHT edge/corner piece per cell (`fountain_tl/tr/
       # bl/br` corners + `fountain_t/b/l/r` sides) around a `water_c` (blue water) interior. Every cell blocks
