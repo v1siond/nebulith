@@ -2899,9 +2899,13 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
       const grid = gridRef.current
       if (!grid) return null
       const tally = new Map<string, number>()
+      // COUNT THE BASE CELL of each stamped composition, not `trunk_mid`. A cactus has no trunk (it is one
+      // succulent body) and a bush has none either, so a trunk-counting tally reported zero cacti on a
+      // desert that was full of them, which looks exactly like the data being wrong.
       for (const a of grid.assets) {
-        if ((a.label ?? '') !== 'trunk_mid') continue
-        const kind = a.type ?? '?'
+        const kind = a.type ?? ''
+        if (!/^(tree|cactus|bush)/.test(kind)) continue
+        if ((a.heightLevel ?? 0) !== 0) continue
         tally.set(kind, (tally.get(kind) ?? 0) + 1)
       }
       return [...tally].sort((x, y) => y[1] - x[1]).map(([kind, count]) => ({ kind, count }))
