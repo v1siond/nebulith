@@ -5009,6 +5009,19 @@ function meadowPhases(twoPathways: boolean): VariantPhases {
       // gradient is what the meadow has always had; where the tones come from is a data gap, not a code one.
       const meadowPal = MEADOW_PALETTES[ctx.zone] ?? MEADOW_PALETTES.summer
       paintFloor(ctx, { top: meadowPal.top, bottom: meadowPal.bottom })
+
+      // AND ITS REGIONS, which it served and never used. `partitionSubZones` was called by the jungle, then
+      // by the woodland when the same gap was found there, and the meadow was left out of both passes: its
+      // five sub-zones were parsed, carried on the context and never asked for. A tree reads its region in
+      // `leafToneAt`, so with no partition every meadow tree could only ever wear one of the four season
+      // shades. Measured in summer, every other biome renders 16 to 20 distinct leaf tones and the meadow
+      // rendered FOUR, which is the exact inverse of what its own reference says it is: *"more mix of colors,
+      // due to flowers, they even have trees that are orange, pink, more varied"*.
+      //
+      // The FLOOR is deliberately not part of this. `paintSubZoneFloors` would paint over the gradient above,
+      // and that gradient is the meadow's approved look, so the regions reach its planting and nothing else.
+      ctx.zones = leadRegion(ctx, ctx.subZones)
+      ctx.zoneAt = partitionSubZones(ctx, ctx.zones)
     },
 
     water: ctx => {
