@@ -46,7 +46,16 @@ defmodule Nebulith.DataMigration.ARegionFloorComesFromItsBiome do
     "edge" => {0.05, 2},
     "thicket" => {-0.04, -2},
     "deep" => {-0.08, -4},
-    "lakeside" => {0.02, -6}
+    "lakeside" => {0.02, -6},
+    # THE VOLCANO'S OWN BANDS, added with `AVolcanoBurnsInBands`. Same idea, read as height up the cone
+    # instead of as canopy cover: the crater is bare ash and the sheltered wood is the living forest at the
+    # foot of it. Keeping them here rather than writing their floors into that migration is the point of this
+    # one: a region's floor is derived from its biome in one place, so a biome floor change reaches them free.
+    "crater" => {-0.14, -6},
+    "burnt" => {-0.10, -4},
+    "ashfall" => {-0.04, -2},
+    "sheltered" => {0.06, 3},
+    "lavaside" => {0.02, -6}
   }
 
   def run do
