@@ -184,6 +184,57 @@ Two facts to keep: the motion is **non-linear in time** (frames duplicated and d
 
 We already compute the bank set in `riverNetwork.ts`, so the edge cells are known. What is missing is the edge ART and its frames.
 
+### Layer 5b, why a shoreline lands in the wrong place
+
+Three separate defects put a border in open water, and they compound, so fixing one leaves the picture nearly
+unchanged. Each is measurable on its own and each has a test.
+
+**1. A body with no interior.** A border is drawn on cells whose orthogonal neighbour is not water, so a
+channel only has banks if it has a middle. `carveChannel` paints ONE HORIZONTAL RUN PER ROW around a
+meandering centreline, which measures the width across the MAP, not across the current. On a centreline of
+slope `m` the perpendicular half-width of that run is only `half / sqrt(1 + m^2)`, and the meander reaches
+about 4 columns per row on a 60-wide map, so a river configured 3.2 wide came out under one cell thick
+wherever it ran at an angle. Every cell then touches land, every cell is honestly a bank, and there is no
+middle left to be the middle of. The same arithmetic breaks the body into pieces: consecutive runs stop
+overlapping once the slope passes `2 * half`. Measured on woodland seeds 1 to 5 before the fix: **11, 9, 11, 3
+and 12 separate bodies**, with 20% of cells midstream. After: **one body every time, 40% midstream**.
+
+The fix is to divide the run by `cos(theta)`, which is exact for a locally straight line: the perpendicular
+distance from a point to a line is its horizontal offset times `cos(theta)`, so asking for
+`|offset| <= half * sec(theta)` asks for a true perpendicular distance of `half`. Connectivity comes free,
+since `2 * half * sqrt(1 + m^2)` always exceeds `m`.
+
+**2. A rim on the wrong edge of its own cell.** The autotile label names a WORLD side (`_t` is
+`!filled(col, row - 1)`, so its land is north) and the art paints that rim along one edge of its own IMAGE.
+Those two frames are not the same frame. The iso top face hands the texture `eA = top.b - top.a`, which points
+NORTH, and `eB = top.d - top.a`, which points EAST, while a tile is authored as an ordinary top-down square,
+x east and y south. So a picture sits one quarter-turn off the face it lands on, and at rest `_t` laid its rim
+on the cell's WEST edge. On a river running north to south that is white water straight across the channel.
+
+This is not a new claim about the engine: `textureTurnForHeading` is `heading + 1`, and the `1` in it is this
+same correction. It is why a river's CURRENT has always run the right way while the border pieces, which never
+turned at all, did not.
+
+**3. The camera turns the map but not the picture.** `orientCell` turns the grid coordinate into the view
+frame before the fixed projection, so the map rotates. The texture was drawn unturned, so at any facing but 0
+the rim kept pointing at the screen edge it pointed at before the map moved under it.
+
+2 and 3 are one rule: **a tile's picture is authored in the world frame, so it takes the same quarter-turns
+the camera gives the coordinate.** `turns = PICTURE_TO_GRID + facing`, measured correct at all four facings in
+`waterRimFacesItsBank`. It is sound rather than a nudge because the nine-piece family is CLOSED under a
+quarter-turn (`tl -> tr -> br -> bl`, `t -> r -> b -> l`, interior to itself), so turning a piece's texture is
+the same answer as relabelling the cell for the rotated grid.
+
+**Every other grid-authored family has defect 2 and 3 too** (roads, tree masses, building footprints). Only
+water is corrected today, because only water's edge art is directional enough to see it. A family joins by
+being named alongside `isWaterSetLabel` at the one site in `iso.ts` that sets `turns`.
+
+**Two traps when measuring any of this.** Measure the rim direction from the TOP FACE's own centre, not the
+cell's base: the top face is drawn a block higher, and taking the base centre adds a constant upward bias that
+reads `_b` as pointing north, which no quarter-turn of that basis can produce. And do not try to settle it
+from screenshots: every build is a different random map, half the water sits under canopy, and a photograph
+cannot say which of two shorelines a pale band belongs to. The geometry is pure, so ask it.
+
 ### Layer 6, light and shadow
 
 Out of scope for this doc beyond one rule: the water layers are RECEIVERS. A shadow falling across a river is the shadow layer's business and must land on the surface, not be baked into a water tile. See [`LIGHTING.md`](LIGHTING.md), and `SHADOWS.md` when it exists.
@@ -249,5 +300,7 @@ Before calling any water work done:
 - [ ] Surface animation shows no direction at any of the four facings
 - [ ] Reflections clipped to water and wobbling with the surface
 - [ ] Shoreline animates non-linearly and carries foam and a wet edge
+- [ ] Every body is ONE connected body, and a channel has interior cells to be the middle of
+- [ ] Each border piece's rim faces the bank its label names, at ALL FOUR camera facings
 - [ ] Nothing branches on a tile label containing the word "water"
 - [ ] Judged at :3000
