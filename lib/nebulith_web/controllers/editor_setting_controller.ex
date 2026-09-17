@@ -1,6 +1,6 @@
 defmodule NebulithWeb.EditorSettingController do
   @moduledoc """
-  Editor UI settings — GET the whole key→value store, PUT one key. The backend owns the
+  Editor UI settings, GET the whole key→value store, PUT one key. The backend owns the
   editor's chrome state (a floating panel's position + size), so geometry is never hardcoded
   in the frontend. Returns camelCase JSON (`editorSettings`) the editor expects.
   """

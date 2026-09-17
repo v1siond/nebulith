@@ -1,6 +1,6 @@
 defmodule Nebulith.Catalog.Ability do
   @moduledoc """
-  One ability in the registry. `animation` names the FX tile it plays — the tile carries the tint, so an
+  One ability in the registry. `animation` names the FX tile it plays, the tile carries the tint, so an
   ability never declares a colour of its own.
   """
   use Ecto.Schema

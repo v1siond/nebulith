@@ -1,9 +1,9 @@
 defmodule Nebulith.ParametricBuildingsTest do
   @moduledoc """
-  BUILDINGS AT ANY SIZE — `BuildingCompositions.compose_building/4`.
+  BUILDINGS AT ANY SIZE, `BuildingCompositions.compose_building/4`.
 
   `building_compositions_test.exs` already asserts the ELEVEN authored buildings cell-for-cell, and they are
-  now composed through this same function — so that suite is the proof that this generalises the seeds
+  now composed through this same function, so that suite is the proof that this generalises the seeds
   rather than replacing them with something merely similar. This suite covers what it adds: the sizes nobody
   authored.
   """
@@ -22,7 +22,7 @@ defmodule Nebulith.ParametricBuildingsTest do
   end
 
   describe "every type composes at a size nobody authored" do
-    test "each type builds at 9 x 5 — a footprint no seed has" do
+    test "each type builds at 9 x 5, a footprint no seed has" do
       for type <- BC.building_types() do
         comp = BC.compose_building(type, 9, 5, seed: 1)
         assert comp.footprint_w == 9, "#{type} lost its width"
@@ -31,7 +31,7 @@ defmodule Nebulith.ParametricBuildingsTest do
       end
     end
 
-    test "a store of any size — the ask, literally" do
+    test "a store of any size, the ask, literally" do
       for w <- [4, 5, 7, 11], d <- [3, 4, 6] do
         comp = BC.compose_building("store", w, d)
         assert comp.footprint_w == w and comp.footprint_h == d
@@ -77,7 +77,7 @@ defmodule Nebulith.ParametricBuildingsTest do
     end
   end
 
-  describe "what the user may override — the selected roof, walls, windows and doors\"" do
+  describe "what the user may override, the selected roof, walls, windows and doors\"" do
     test "the wall material" do
       comp = BC.compose_building("house", 6, 4, material: "wall_stone")
       assert Enum.any?(labels(comp), &String.starts_with?(&1, "wall_stone"))
@@ -99,7 +99,7 @@ defmodule Nebulith.ParametricBuildingsTest do
   end
 
   describe "the material is ROLLED, not fixed" do
-    test "a house's material varies across seeds — that is the wall variety the world generator wants" do
+    test "a house's material varies across seeds, that is the wall variety the world generator wants" do
       materials =
         for seed <- 0..8 do
           BC.compose_building("house", 6, 4, seed: seed)
@@ -114,7 +114,7 @@ defmodule Nebulith.ParametricBuildingsTest do
       assert length(materials) > 1, "every seed gave the same material: #{inspect(materials)}"
     end
 
-    test "the same seed gives the same building — a thumbnail must not re-roll" do
+    test "the same seed gives the same building, a thumbnail must not re-roll" do
       a = BC.compose_building("house", 7, 4, seed: 42)
       b = BC.compose_building("house", 7, 4, seed: 42)
       assert a == b
@@ -138,7 +138,7 @@ defmodule Nebulith.ParametricBuildingsTest do
 
     test "composes EXACTLY the size asked for, without silently applying the minimum" do
       # The minimum is advice for the caller. A composer that rewrites its input is the same defect as a
-      # map-size field that rewrites yours — and the authored `house_3` is a live 3-wide building.
+      # map-size field that rewrites yours, and the authored `house_3` is a live 3-wide building.
       comp = BC.compose_building("house", 3, 4)
       assert comp.footprint_w == 3
     end

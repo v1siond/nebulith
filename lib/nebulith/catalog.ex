@@ -23,7 +23,7 @@ defmodule Nebulith.Catalog do
   """
   def list_tilesets do
     # In PICKER order: a tileset row is an art style, and `position` is the order the style picker shows
-    # them in (ascii first — the editor's default). Key breaks ties so the order is stable.
+    # them in (ascii first, the editor's default). Key breaks ties so the order is stable.
     Repo.all(from(t in Tileset, order_by: [asc: t.position, asc: t.key]))
   end
 
@@ -129,7 +129,7 @@ defmodule Nebulith.Catalog do
   @doc """
   A saved map by id, or `{:error, :not_found}`.
 
-  The bang version RAISES, which reached the client as an `Ecto.NoResultsError` debug page — HTML, to a
+  The bang version RAISES, which reached the client as an `Ecto.NoResultsError` debug page, HTML, to a
   caller that asked for JSON. `FallbackController` has had a `{:error, :not_found}` clause all along; this
   is what lets a controller reach it. A missing map is an ordinary answer to an ordinary question, not an
   exception.
@@ -250,7 +250,7 @@ defmodule Nebulith.Catalog do
   end
 
   @doc """
-  Every ITEM in the catalog, in its declared order (§3.14b #1 — the item catalog moved out of the frontend).
+  Every ITEM in the catalog, in its declared order (§3.14b #1, the item catalog moved out of the frontend).
   """
   def list_items do
     Repo.all(from(i in Nebulith.Catalog.Item, order_by: [asc: i.position, asc: i.slug]))
@@ -319,7 +319,7 @@ defmodule Nebulith.Catalog do
     end)
   end
   @doc """
-  Every generator CATEGORY in menu order, each with its generators (also ordered) preloaded — the
+  Every generator CATEGORY in menu order, each with its generators (also ordered) preloaded, the
   one read `/api/generators` serves. Ordering is data (`position`), never the insertion order or an
   alphabetical accident, so the editor's map-type menu is authored here.
   """
@@ -401,7 +401,7 @@ defmodule Nebulith.Catalog do
   def delete_generation_layer(%GenerationLayer{} = layer), do: Repo.delete(layer)
 
   @doc """
-  Upsert by key — the seed path, so re-seeding never duplicates a layer and never clobbers an edit to a key
+  Upsert by key, the seed path, so re-seeding never duplicates a layer and never clobbers an edit to a key
   that is already there with something the code happens to say today.
   """
   def upsert_generation_layer(attrs) do

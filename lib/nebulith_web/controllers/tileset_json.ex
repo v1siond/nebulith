@@ -57,20 +57,20 @@ defmodule NebulithWeb.TilesetJSON do
     %{
       footprint: %{w: c.footprint_w, h: c.footprint_h},
       title: c.title,
-      # Sidebar BUCKET — the SAME `category` a tile carries (tile_data/1). The palette groups compositions
+      # Sidebar BUCKET, the SAME `category` a tile carries (tile_data/1). The palette groups compositions
       # by this served value, exactly like tiles, instead of deriving the group on the frontend.
       category: c.category,
       # DETERMINISTIC cell order: the DB heap order is unstable (a reseed's delete+insert reuses tuple slots),
-      # which would make the served list — and any fixture captured from it — reorder run to run. Sort by grid
+      # which would make the served list, and any fixture captured from it, reorder run to run. Sort by grid
       # position (dx, dy, level, label) so the payload is reproducible; the render is order-independent (every
       # cell carries its own dx/dy/level and the views depth-sort), so this only stabilises the data, not the look.
       cells: c.cells |> Enum.sort_by(&{&1.dx, &1.dy, &1.level, &1.label}) |> Enum.map(&cell_data/1)
     }
   end
 
-  # `zIndex` (camelCase) so the frontend loader maps it straight onto CompositionCell.zIndex — the same
+  # `zIndex` (camelCase) so the frontend loader maps it straight onto CompositionCell.zIndex, the same
   # pass-through `scale` uses. The DB column is `z_index`; the JSON key the renderer reads is `zIndex`.
-  # `animations` (the cell's default `Animation[]`) is added ONLY when the cell carries some — so every
+  # `animations` (the cell's default `Animation[]`) is added ONLY when the cell carries some, so every
   # non-animated cell serves byte-identically to before (only the fountain's water cells gain the key).
   defp cell_data(cell) do
     base = %{dx: cell.dx, dy: cell.dy, level: cell.level, label: cell.label, walkable: cell.walkable, scale: cell.scale, zIndex: cell.z_index}
@@ -84,7 +84,7 @@ defmodule NebulithWeb.TilesetJSON do
   defp maybe_put_animations(base, []), do: base
   defp maybe_put_animations(base, animations), do: Map.put(base, :animations, animations)
 
-  # The cell's TUNED tile settings (camelCase keys authored in TileSource — `scaleY`/`display`/`pose`) ride
+  # The cell's TUNED tile settings (camelCase keys authored in TileSource, `scaleY`/`display`/`pose`) ride
   # through VERBATIM, added ONLY when the cell carries some, so every untuned cell serves byte-identically to
   # before (only the lamp_post's post + bulb cells gain the key). stampComposition applies them onto the asset.
   defp maybe_put_settings(base, nil), do: base

@@ -44,13 +44,13 @@ defmodule Nebulith.LevelsTest do
       assert "has already been taken" in errors_on(changeset).game_id
     end
 
-    test "a level needs a name and a game — it cannot float loose", %{game: game} do
+    test "a level needs a name and a game, it cannot float loose", %{game: game} do
       assert {:error, changeset} = Levels.create_level(game.id, %{"description" => "nameless"})
       assert "can't be blank" in errors_on(changeset).name
     end
   end
 
-  describe "a level has many templates — the jungle and its four caves" do
+  describe "a level has many templates, the jungle and its four caves" do
     test "holds the whole set, in order, as ONE level", %{game: game} do
       {:ok, level} = Levels.create_level(game.id, %{"name" => "Jungle"})
       maps = ["jungle", "cave-a", "cave-b", "cave-c", "cave-d"]

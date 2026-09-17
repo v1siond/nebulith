@@ -2,9 +2,9 @@ defmodule Nebulith.TilesetParityTest do
   @moduledoc """
   PERMANENT cross-style guard (the test that stops the ascii/emoji drift recurring).
 
-  The user's non-negotiable rule: a tile must behave IDENTICALLY in ascii and emoji — the SAME label
+  The user's non-negotiable rule: a tile must behave IDENTICALLY in ascii and emoji, the SAME label
   carries the SAME height, category and collision, only the ART differs (MAP-MODEL §4, "all tiles behave
-  the same regardless of style"). And EVERY tile, EVERY style, is a baked IMAGE resolved by LABEL — a tile
+  the same regardless of style"). And EVERY tile, EVERY style, is a baked IMAGE resolved by LABEL, a tile
   is NEVER `image_url: nil` + a raw glyph (that is exactly what renders `?` on a font-less machine).
 
   This asserts both, on the REAL seeded rows:
@@ -18,17 +18,16 @@ defmodule Nebulith.TilesetParityTest do
   alias Nebulith.DataMigration.AsciiEmojiBehaviorParity
 
   # Labels that are DELIBERATELY a different concept per style, so parity does NOT apply:
-  # `rock`/`crystal`/`coral` are ascii GROUND-terrain tiles (category terrain, with char/fg/bg variants —
-  # they feed `buildAsciiTerrain`, e.g. the lava biome's `rock` ground), while in emoji the same labels are
+  # `rock`/`crystal`/`coral` are ascii GROUND-terrain tiles (category terrain, with char/fg/bg variants, # they feed `buildAsciiTerrain`, e.g. the lava biome's `rock` ground), while in emoji the same labels are
   # STANDING nature objects (a boulder / a gem). Forcing them to agree would drop the ascii tile out of the
   # ground map (buildAsciiTerrain only keeps terrain/roads/floors WITH variants) and the lava ground would
   # fall back to grass. Documented divergence, not a bug.
   @intentional_divergence ~w(rock crystal coral)
 
-  # COLOR-ONLY FLOOR tiles: `meadow` + `water` are flat colour floors (MAP-MODEL — grass/water are a COLOUR on
+  # COLOR-ONLY FLOOR tiles: `meadow` + `water` are flat colour floors (MAP-MODEL, grass/water are a COLOUR on
   # a flat tile, not a tiled texture). Their EMOJI twin is a baked flat square (tinted by the per-cell floor
   # colour); their ASCII twin is a terrain glyph (`.` / `~`) over a solid `bg` FILL, so image_url is
-  # deliberately nil — there is no `?` risk (the glyph is a universal ASCII char AND the cell is colour-filled).
+  # deliberately nil, there is no `?` risk (the glyph is a universal ASCII char AND the cell is colour-filled).
   # This is the documented exception to "every tile is a baked image"; the ascii image check excuses them.
   @color_only_floors ~w(meadow water)
 
@@ -55,7 +54,7 @@ defmodule Nebulith.TilesetParityTest do
            "tiles with no baked image (would render `?`):\n" <> Enum.join(offenders, "\n")
   end
 
-  test "EVERY label exists in BOTH styles (full 1:1 vocabulary — only the documented divergence is excused)",
+  test "EVERY label exists in BOTH styles (full 1:1 vocabulary, only the documented divergence is excused)",
        ctx do
     excused = MapSet.new(@intentional_divergence)
     ascii = MapSet.new(Map.keys(ctx.ascii))

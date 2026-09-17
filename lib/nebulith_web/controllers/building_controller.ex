@@ -3,12 +3,12 @@ defmodule NebulithWeb.BuildingController do
   BUILDINGS AT ANY SIZE.
 
   `index` lists the types the composer can build, each with its DEFAULT footprint
-  (— so each default IS
+  (, so each default IS
   that type's authored footprint) and the smallest size worth offering.
 
   `show` composes one at an arbitrary size and serves it in the SAME shape `/api/tilesets` serves a seeded
   composition, so the frontend stamps it through the path it already has and needs no second code path for
-  "a generated building" — that distinction exists only here.
+  "a generated building", that distinction exists only here.
   """
   use NebulithWeb, :controller
 
@@ -44,7 +44,7 @@ defmodule NebulithWeb.BuildingController do
   end
 
   # The requested footprint, defaulting to the type's own. An unknown type is a 404 rather than a composed
-  # guess — the editor must not receive a building for something the catalog cannot describe.
+  # guess, the editor must not receive a building for something the catalog cannot describe.
   defp footprint(type, params) do
     case Buildings.default_footprint(type) do
       nil -> {:error, :not_found}
@@ -74,7 +74,7 @@ defmodule NebulithWeb.BuildingController do
     end
   end
 
-  # The SAME shape `/api/tilesets` serves for a seeded composition — see `tileset_json.comp_data/1`. Cells
+  # The SAME shape `/api/tilesets` serves for a seeded composition, see `tileset_json.comp_data/1`. Cells
   # are sorted by grid position for the same reason they are there: a reproducible payload.
   defp composition_data(type, comp) do
     %{

@@ -60,7 +60,7 @@ defmodule NebulithWeb.Router do
     put "/ui", UiController, :update
     resources "/templates", TemplateController, except: [:new, :edit]
     resources "/games", GameController, except: [:new, :edit] do
-      # A game's LEVELS, nested so the route itself carries whose levels these are. — the layer that was missing, and
+      # A game's LEVELS, nested so the route itself carries whose levels these are., the layer that was missing, and
       # the reason "Manage levels" could only show
       # a list of games.
       resources "/levels", LevelController, only: [:index, :create]
@@ -68,16 +68,16 @@ defmodule NebulithWeb.Router do
     end
 
     resources "/levels", LevelController, only: [:show, :update, :delete]
-    # Editor UI settings — a key→value store for editor chrome geometry (per modal id).
-    # The map-generator CATALOG — categories + their generators, with every knob a generate takes.
+    # Editor UI settings, a key→value store for editor chrome geometry (per modal id).
+    # The map-generator CATALOG, categories + their generators, with every knob a generate takes.
     # Read-only; the editor loads it at mount so nothing about a generator is hardcoded frontend-side.
     get "/generators", GeneratorController, :index
-    # BUILDINGS AT ANY SIZE — the types the composer offers, and one composed to order.
+    # BUILDINGS AT ANY SIZE, the types the composer offers, and one composed to order.
     # 2026-09-08: `show` serves the SAME composition shape /api/tilesets does, so
     # the editor stamps a generated building through the path it already has.
     get "/buildings", BuildingController, :index
     get "/buildings/:type", BuildingController, :show
-    # The item catalog — weapons / armour / consumables + starter kits (§3.14b #1).
+    # The item catalog, weapons / armour / consumables + starter kits (§3.14b #1).
     get "/items", ItemController, :index
     # The ability registry (§3.14b #2).
     get "/abilities", AbilityController, :index

@@ -1,14 +1,14 @@
 defmodule Nebulith.CV do
   @moduledoc """
   CV / portfolio read model. Serves the combined CV payload the frontend's `getAllCVData(locale)` used to
-  build with Prisma — now read here from the shared DB via SCHEMALESS Ecto queries (read-only, no schema
+  build with Prisma, now read here from the shared DB via SCHEMALESS Ecto queries (read-only, no schema
   modules needed). i18n: each localisable field has `_es`/`_it` twins; `loc/3` picks the localised value,
   falling back to English.
   """
   import Ecto.Query
   alias Nebulith.Repo
 
-  @doc "The whole CV payload for a locale — same shape the old `getAllCVData` returned."
+  @doc "The whole CV payload for a locale, same shape the old `getAllCVData` returned."
   def all_cv_data(locale) do
     %{
       professionalSummary: professional_summary(locale),

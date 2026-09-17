@@ -113,7 +113,7 @@ defmodule NebulithWeb.TilesetControllerTest do
       assert t["tiles"]["trunk"]["settings"]["colors"]["spring"] == "#7a5a3a"
       assert t["compositions"]["tree_small"]["footprint"] == %{"w" => 5, "h" => 3}
       assert [%{"label" => "trunk"}] = t["compositions"]["tree_small"]["cells"]
-      # every cell carries its draw-priority `zIndex` (camelCase) — 0 here since the cell set none.
+      # every cell carries its draw-priority `zIndex` (camelCase), 0 here since the cell set none.
       assert [%{"zIndex" => 0}] = t["compositions"]["tree_small"]["cells"]
     end
 
@@ -137,7 +137,7 @@ defmodule NebulithWeb.TilesetControllerTest do
       [t] = json_response(conn, 200)["data"]
       # the authored bucket rides through so the palette groups the composition like a tile (no frontend derivation)
       assert t["compositions"]["house_4"]["category"] == "buildings"
-      # a category-less row serves nil — no crash, no invented bucket (it just isn't browseable in the palette)
+      # a category-less row serves nil, no crash, no invented bucket (it just isn't browseable in the palette)
       assert t["compositions"]["loose"]["category"] == nil
     end
 

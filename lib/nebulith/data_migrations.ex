@@ -99,7 +99,20 @@ defmodule Nebulith.DataMigrations do
     Nebulith.DataMigration.NothingIsStrewnAcrossTheWay,
     Nebulith.DataMigration.ABridgeIsAssembledNotStretched,
     Nebulith.DataMigration.ASolidBlockAndAStoneThatReadsAsStone,
-    Nebulith.DataMigration.NoBridgeIsAChoice
+    Nebulith.DataMigration.NoBridgeIsAChoice,
+    Nebulith.DataMigration.TwoSetsOfWaterAndThreeCorrections,
+    Nebulith.DataMigration.AWaterSetIsAChoice,
+    Nebulith.DataMigration.YouWalkOverABridgeNotUnderIt,
+    Nebulith.DataMigration.ATempleHasItsOwnMouth,
+    Nebulith.DataMigration.AnOptionBelongsToAGroup,
+    Nebulith.DataMigration.AnElementShowsWhatItDoes,
+    Nebulith.DataMigration.AnOrnamentIsASingleTileAndARockStopsYou,
+    Nebulith.DataMigration.ATownBuildsTheCrossingYouPicked,
+    Nebulith.DataMigration.LiquidsLavaAndAMountainThatErupted,
+    Nebulith.DataMigration.TreesGoBackToWhatWorked,
+    Nebulith.DataMigration.AForestWearsItsOwnRegion,
+    Nebulith.DataMigration.UndergrowthBelongsToItsBiome,
+    Nebulith.DataMigration.FourSpeciesHeAskedFor
   ]
 
   @doc "Every registered data migration module, in run order."

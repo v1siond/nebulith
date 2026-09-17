@@ -1,11 +1,11 @@
 defmodule Nebulith.Catalog.Generator do
   @moduledoc """
-  One runnable MAP GENERATOR — a named configuration inside a `GeneratorCategory`.
+  One runnable MAP GENERATOR, a named configuration inside a `GeneratorCategory`.
 
   Everything the run is steered by lives in `config`, a jsonb blob, because the knobs differ per
   category and adding one must not need a migration (the same reason a tile's `settings` is jsonb).
   The frontend reads it as one typed object; nothing is re-derived and nothing is defaulted in the
-  frontend — a missing key means the generator does not do that thing.
+  frontend, a missing key means the generator does not do that thing.
 
   ## `config` shape
 
@@ -65,7 +65,7 @@ defmodule Nebulith.Catalog.Generator do
     field :variant, :string
     field :position, :integer, default: 0
     belongs_to :category, Nebulith.Catalog.GeneratorCategory
-    # A SUBTYPE of another generator — Nil for
+    # A SUBTYPE of another generator, Nil for
     # a top-level type. `children` is filled when the catalog is read as a tree, never persisted.
     belongs_to :parent, Nebulith.Catalog.Generator
     field :children, :any, virtual: true, default: []

@@ -1,6 +1,6 @@
 defmodule NebulithWeb.UiControllerTest do
   @moduledoc """
-  `GET /api/ui` — the action catalog and the UI profile in force.
+  `GET /api/ui`, the action catalog and the UI profile in force.
 
   Shaped by the answers to the UI spec: one profile per game plus a seeded
   default, author-controlled player limits, unlimited bars with conditional swapping, and a Desktop AND a
@@ -22,7 +22,7 @@ defmodule NebulithWeb.UiControllerTest do
   describe "seeded" do
     setup do
       UiSource.seed()
-      # A profile hangs off a REAL game — the foreign key says so, and a test that invents a uuid is
+      # A profile hangs off a REAL game, the foreign key says so, and a test that invents a uuid is
       # testing something the database would never allow.
       {:ok, game} = Games.create_game(%{"name" => "Test game"})
       {:ok, game_id: game.id}
@@ -86,7 +86,7 @@ defmodule NebulithWeb.UiControllerTest do
       assert saved["gameId"] == game
       assert [%{"name" => "Vehicle"}] = saved["bars"]
 
-      # the shared default is untouched — it still has the seeded Powers bar
+      # the shared default is untouched, it still has the seeded Powers bar
       default = json_response(get(conn, ~p"/api/ui"), 200)["data"]["profile"]
       assert default["key"] == "default"
       assert [%{"name" => "Powers"}] = default["bars"]
@@ -125,7 +125,7 @@ defmodule NebulithWeb.UiControllerTest do
       vitals = Enum.find(elements, &(&1["elementKey"] == "vitals" and &1["form"] == "Desktop"))
       assert vitals["placement"]["a"] == "TR"
 
-      # The MOBILE row for the same element is untouched — compared against the default rather than a
+      # The MOBILE row for the same element is untouched, compared against the default rather than a
       # literal, because the property under test is "a desktop save left it alone", not what it happens
       # to be seeded as.
       seeded =
@@ -136,7 +136,7 @@ defmodule NebulithWeb.UiControllerTest do
       assert mobile["placement"] == seeded["placement"]
     end
 
-    test "re-seeding is idempotent — no duplicate bindings, elements or bars", %{conn: conn} do
+    test "re-seeding is idempotent, no duplicate bindings, elements or bars", %{conn: conn} do
       before = json_response(get(conn, ~p"/api/ui"), 200)["data"]["profile"]
       UiSource.seed()
       again = json_response(get(conn, ~p"/api/ui"), 200)["data"]["profile"]

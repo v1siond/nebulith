@@ -4,14 +4,13 @@ defmodule Nebulith.Catalog.TileSource do
   (`priv/repo/tilesets/*.json`) into the relational `tiles` / `compositions` /
   `composition_cells` tables.
 
-  Per the map model, *everything is a tile row* — terrain included — and every
+  Per the map model, *everything is a tile row*, terrain included, and every
   extra per-tile datum lives in the tile's `settings` jsonb: the ascii
   per-zone palette colors, the autotile `position`, the emoji `pose`/`views`,
   and the terrain `char`/`fg`/`bg` variants. There are no palette or terrain
   side tables and nothing stays in a blob.
 
-  Every write is an upsert keyed on a natural key, so `seed/0` is idempotent —
-  re-running only adds or refreshes rows. The tilesets' own `data` blob is left
+  Every write is an upsert keyed on a natural key, so `seed/0` is idempotent, re-running only adds or refreshes rows. The tilesets' own `data` blob is left
   untouched; a later task moves the API off it.
   """
 
@@ -38,7 +37,7 @@ defmodule Nebulith.Catalog.TileSource do
   # ── Behavior settings ─────────────────────────────────────────────────────
   # Generic per-label BEHAVIOR flags merged into every tile's settings during
   # the port below, regardless of style. These aren't a "buildings" special
-  # case — any label (a wall, a tree, whatever) can carry a behavior; today
+  # case, any label (a wall, a tree, whatever) can carry a behavior; today
   # only wall/window/door/roof_top ease translucent as the player approaches
   # (fadeNear), and roof lifts off / hides entirely (cutawayRoof).
   #
@@ -48,15 +47,15 @@ defmodule Nebulith.Catalog.TileSource do
   # block: "all-faces" (DEFAULT, absent == this) paints the tile on the block's
   # top + two visible faces; "single" shows ONE centered tile INSIDE the block
   # volume (a single water droplet floating in the block). It is intentionally
-  # UNSET on every tile here — the default is "all-faces", so a normal town is
-  # byte-identical — and is authored per tile only when a tile should default to
+  # UNSET on every tile here, the default is "all-faces", so a normal town is
+  # byte-identical, and is authored per tile only when a tile should default to
   # a single inside-the-block instance, e.g. `"water" => %{"display" => "single"}`.
   @behavior_settings %{
     "wall" => %{"fadeNear" => true},
     "window" => %{"fadeNear" => true},
-    # A DOOR stays opaque and obvious while the wall around it fades — it is the thing you are looking FOR
+    # A DOOR stays opaque and obvious while the wall around it fades, it is the thing you are looking FOR
     # . `minAlpha` is the floor the reveal may never take a tile below.
-    # `scaleZ` is THICKNESS — a door is a thin panel in the wall, not a full cube. Distinct from the editor's
+    # `scaleZ` is THICKNESS, a door is a thin panel in the wall, not a full cube. Distinct from the editor's
     # "z-width" (`depth`), which counts CELLS spanned and is
     # always >= 1 because a tile occupies its own cell.
     #
@@ -67,8 +66,8 @@ defmodule Nebulith.Catalog.TileSource do
     # stamp ROTATES it by the building's rotation, so every door is thin toward ITS OWN house's front.
     "door" => %{"fadeNear" => true, "minAlpha" => 0.9, "scaleZ" => 0.3, "thicknessDir" => "left-down"},
     # The ridge apex is ROOF, so it lifts off with the rest of it. It used to carry `fadeNear` (it was the
-    # "walkable apex cap"), which left a hero standing under a PEAK column — the door columns of every gable
-    # house — under no cutaway tile at all, so the roof stayed solid over their head (
+    # "walkable apex cap"), which left a hero standing under a PEAK column, the door columns of every gable
+    # house, under no cutaway tile at all, so the roof stayed solid over their head (
     # "I'm inside but I can't see inside, the roof is not transparent").
     "roof_top" => %{"cutawayRoof" => true},
     "roof" => %{"cutawayRoof" => true},
@@ -79,8 +78,7 @@ defmodule Nebulith.Catalog.TileSource do
     "flat_roof" => %{"cutawayRoof" => true},
     "parapet" => %{"cutawayRoof" => true},
     "rooftop_unit" => %{"cutawayRoof" => true},
-    # FLOWERS render as a single centered BILLBOARD in a transparent block (a standing bloom, not a cube) —
-    # EVERYWHERE: scattered AND inside compositions. Set on the flower TILE so it's global, not
+    # FLOWERS render as a single centered BILLBOARD in a transparent block (a standing bloom, not a cube), # EVERYWHERE: scattered AND inside compositions. Set on the flower TILE so it's global, not
     # per-composition. Every flower reuses `decor_flower`'s art, so they all take the same behavior.
     "decor_flower" => %{"display" => "single", "transparent" => true},
     "blossom" => %{"display" => "single", "transparent" => true},
@@ -150,14 +148,14 @@ defmodule Nebulith.Catalog.TileSource do
     flatten_ground_heights()
     # …and then make every OTHER style agree, because height is DATA and the same label is the same shape in
     # every style. This used to live in seeds.exs, which meant `seed()` on its own left 32 of 358 shared
-    # labels disagreeing (ascii 0.0 vs emoji 1.0) — a caller had to remember a second call for the DB to be
+    # labels disagreeing (ascii 0.0 vs emoji 1.0), a caller had to remember a second call for the DB to be
     # correct. An invariant that depends on being remembered is not an invariant.
     normalize_tile_heights()
     # Seven seeders write glyphs and none can see the others' choices. The curated file says what each ascii
     # tile should look like; the algorithm then catches anything it does not cover yet. Without this pair,
-    # two tiles share a glyph and therefore share a picture — the "fake tiles" report.
+    # two tiles share a glyph and therefore share a picture, the "fake tiles" report.
     apply_curated_glyphs()
-    # The UNIT FIGURES — a unit is a GRID of characters, not one character (see `apply_unit_art/0`).
+    # The UNIT FIGURES, a unit is a GRID of characters, not one character (see `apply_unit_art/0`).
     apply_unit_art()
     ensure_distinct_glyphs()
     ensure_fade_near()
@@ -167,12 +165,12 @@ defmodule Nebulith.Catalog.TileSource do
     ensure_collisions()
     # …and every PER-LABEL fact agrees across styles. A label owns its name, bucket, height and collision;
     # only the picture is the style's. Without this the same `grass` was "Grass" in one style and nameless
-    # in the other — two engines' worth of drift in the data.
+    # in the other, two engines' worth of drift in the data.
     normalize_label_facts()
     # …including a label's COLOURS, which was the column nobody had got to. See normalize_label_colors/0.
     normalize_label_colors()
     point_tiles_at_own_image()
-    # What each `units` tile IS — person / enemy / animal / fx. The editor reads this instead of
+    # What each `units` tile IS, person / enemy / animal / fx. The editor reads this instead of
     # classifying 36 backend-owned slugs itself (§3.14b #11), and the Characters library sub-groups by it.
     seed_unit_roles()
 
@@ -193,7 +191,7 @@ defmodule Nebulith.Catalog.TileSource do
 
   # How the style picker SHOWS each style. A tileset row is an art style, so its icon and order are catalog data, not
   # something the frontend declares.
-  # ASCII is position 1 — it is the editor's default and the engine's baseline.
+  # ASCII is position 1, it is the editor's default and the engine's baseline.
   @style_presentation %{
     "ascii" => %{icon: "⌨", position: 1},
     "emoji" => %{icon: "😀", position: 2}
@@ -229,7 +227,7 @@ defmodule Nebulith.Catalog.TileSource do
   # HEIGHT is the tile's OWN authored DATA (MAP-MODEL §4), read the same way in every style: a STANDING glyph
   # (wall, tree, crate…) carries no `height` and defaults to a whole block; a FLOOR glyph authors `0` so it
   # lands flat like the terrain rows, and the flat-minimal data migration gives it its real slab height. The
-  # old hardcoded `height: 1` made every ascii.json `tiles` entry a block — which is how `path` (the entrance's
+  # old hardcoded `height: 1` made every ascii.json `tiles` entry a block, which is how `path` (the entrance's
   # doorstep) ended up a 1-block kerb in ascii while the same label was a flat slab in emoji.
 
   defp seed_glyph_tiles(tiles, tileset_id, palettes) do
@@ -272,8 +270,7 @@ defmodule Nebulith.Catalog.TileSource do
           # Height 1 (raised block) so content marked act_as_tile stacks ON TOP of the ground, not sunk inside it.
           height: 1,
           # Ground defaults to `terrain`; a paved way (`roads`) or a constructed interior floor (`floors`)
-          # carries its finer sidebar bucket in ascii.json (data-driven). All three stay WALKABLE ground —
-          # the frontend still resolves them as ground tiles (buildAsciiTerrain reads terrain/roads/floors).
+          # carries its finer sidebar bucket in ascii.json (data-driven). All three stay WALKABLE ground, # the frontend still resolves them as ground tiles (buildAsciiTerrain reads terrain/roads/floors).
           category: t["category"] || "terrain",
           image_url: "/tiles/ascii/#{label}.png",
           settings:
@@ -287,15 +284,15 @@ defmodule Nebulith.Catalog.TileSource do
   # Non-blocking floor detail (grass blades, blossoms, pebbles, embers…) scattered
   # across walkable cells so a stage reads dense, not blank. Each is JUST A TILE:
   # its glyph is the decor char and its colour is a per-tile `settings.colors`
-  # setting keyed by zone — the presence of a zone key means the decor belongs to
+  # setting keyed by zone, the presence of a zone key means the decor belongs to
   # that zone. Its baked ascii PNG (`/tiles/ascii/<label>.png`) is a tintable white
-  # mask the ascii renderer recolours per zone — no tile falls back to a raw glyph
+  # mask the ascii renderer recolours per zone, no tile falls back to a raw glyph
   # (MAP-MODEL §8 / TILE-BACKEND-MIGRATION §5).
 
   @doc """
   Seeds ONLY the ascii ground-decor tiles into the ascii tileset.
 
-  Safe + idempotent (upsert by label) — touches nothing else (roads/terrain/glyph
+  Safe + idempotent (upsert by label), touches nothing else (roads/terrain/glyph
   rows are left untouched), so it can run on the shared dev DB without a full reseed.
   """
   def seed_decor do
@@ -322,7 +319,7 @@ defmodule Nebulith.Catalog.TileSource do
     end
   end
 
-  # The canonical decor set — one tile per unique glyph, its colour keyed by the
+  # The canonical decor set, one tile per unique glyph, its colour keyed by the
   # zones that use it (ported faithfully from the frontend GROUND_DECOR data).
   defp decor_tiles do
     [
@@ -350,10 +347,10 @@ defmodule Nebulith.Catalog.TileSource do
   # ── Type-specific building tiles ──────────────────────────────────────────
   # Restore the per-building-TYPE identity colours lost when buildings became generic compositions:
   # a store's blue roof, a hospital's green roof + white walls, and per-house roof/wall variety are
-  # now DISTINCT tiles — each carries its colour in `settings.colors`, referenced by the building
+  # now DISTINCT tiles, each carries its colour in `settings.colors`, referenced by the building
   # compositions (@type_tiles). NOT a shared tile recoloured by a variant index ("the tile itself is
   # a variant, we need tiles for everything"). Colours are ZONE-INDEPENDENT (the same across every
-  # zone), matching the old fixed BUILDING_PALETTES — a store roof reads blue in every season. Each
+  # zone), matching the old fixed BUILDING_PALETTES, a store roof reads blue in every season. Each
   # reuses the base building PNG (a white tint-target the ascii renderer recolours) + glyph, so only
   # the colour differs, and inherits the base label's fade/cutaway behavior.
 
@@ -365,7 +362,7 @@ defmodule Nebulith.Catalog.TileSource do
   @doc """
   Seeds ONLY the type-specific building tiles into the ascii tileset.
 
-  Safe + idempotent (upsert by label) — touches nothing else, so it can run on the shared dev DB
+  Safe + idempotent (upsert by label), touches nothing else, so it can run on the shared dev DB
   without a full reseed.
   """
   def seed_building_tiles do
@@ -394,8 +391,8 @@ defmodule Nebulith.Catalog.TileSource do
             |> merge_behavior(base)
         })
 
-      # The emoji twin renders its BAKED PNG (baked from `emoji` by priv/tilegen) — hospital green 🟩, store
-      # blue 🟦 — never the raw glyph, so it's OS-independent. Pairs with the frontend classifier routing
+      # The emoji twin renders its BAKED PNG (baked from `emoji` by priv/tilegen), hospital green 🟩, store
+      # blue 🟦, never the raw glyph, so it's OS-independent. Pairs with the frontend classifier routing
       # these labels per-label (artStyle.ts PIECE_LABEL).
       {:ok, _} =
         Catalog.upsert_tile(%{
@@ -413,7 +410,7 @@ defmodule Nebulith.Catalog.TileSource do
   end
 
   # The type tiles: {label, base part it reskins, its recovered zone-independent colour}. Only the roof
-  # IDENTITIES that survive the material rollout remain — a store's blue apex-sign badge and a hospital's
+  # IDENTITIES that survive the material rollout remain, a store's blue apex-sign badge and a hospital's
   # green roof. Walls are now MATERIAL tiles (wall_brick/wood/stone/plaster), and houses take a plain red
   # gable (or slate for the stone house), so the old per-house wall/roof reskins + wall_store/wall_hospital
   # are retired (see @type_tiles).
@@ -431,14 +428,14 @@ defmodule Nebulith.Catalog.TileSource do
 
   # ── Extra map tiles (storefront / flat-roof parts) ────────────────────────
   # New per-part tiles the realistic sample compositions need: a store's display-window + striped
-  # awning, and the flat-roof deck + parapet lip + rooftop AC unit. Each is JUST A TILE — its own glyph
+  # awning, and the flat-roof deck + parapet lip + rooftop AC unit. Each is JUST A TILE, its own glyph
   # + a ZONE-INDEPENDENT colour in settings.colors (the same across every season, like the type-specific
   # building tiles) + its blocking/behavior. These aren't remapped per building TYPE; the compositions
   # reference them by label directly. (The fountain's rim/water/jet moved to the autotile PIECE set.)
   @doc """
   Seeds ONLY the extra storefront/flat-roof part tiles into the ascii tileset.
 
-  Safe + idempotent (upsert by label) — touches nothing else, so it can run on the shared dev DB
+  Safe + idempotent (upsert by label), touches nothing else, so it can run on the shared dev DB
   without a full reseed.
   """
   def seed_extra do
@@ -468,7 +465,7 @@ defmodule Nebulith.Catalog.TileSource do
         })
 
       # Storefront glass / awning / rooftop unit carry their OWN part-emoji so emoji mode shows them
-      # (a rooftop unit would otherwise fall to the coarse red 🟥 roof — it starts with "roof"). flat_roof
+      # (a rooftop unit would otherwise fall to the coarse red 🟥 roof, it starts with "roof"). flat_roof
       # + parapet have no emoji: no clean grey square exists, and their 'ground' route already draws the
       # tile's grey. Only seed an emoji twin when the part defines one.
       if emoji = tile[:emoji] do
@@ -505,7 +502,7 @@ defmodule Nebulith.Catalog.TileSource do
         glyph: "▨",
         color: "#b64a34",
         blocking: true,
-        # storefront canopy — grouped with roofs (flagged for review).
+        # storefront canopy, grouped with roofs (flagged for review).
         category: "roofs",
         emoji: "🟧"
       },
@@ -523,8 +520,8 @@ defmodule Nebulith.Catalog.TileSource do
   end
 
   # ── Light-post + cross-style parity tiles ─────────────────────────────────
-  # A light post is a COMPOSITION — a `post` base at level 0 + the `lamp` on top at level 1 (see the
-  # `lamp_post` composition below) — authored ONCE and used by BOTH styles, so ascii and emoji stamp the
+  # A light post is a COMPOSITION, a `post` base at level 0 + the `lamp` on top at level 1 (see the
+  # `lamp_post` composition below), authored ONCE and used by BOTH styles, so ascii and emoji stamp the
   # IDENTICAL structure and only the ART differs (MAP-MODEL §5, the model's core rule). The `lamp` tile
   # already exists in both styles; this seeds the missing `post` base in BOTH (a dark metal pole glyph in
   # ascii, a dark post block in emoji), BAKED in both (priv/tilegen), so no piece falls back to a raw glyph or
@@ -533,11 +530,11 @@ defmodule Nebulith.Catalog.TileSource do
   # It ALSO closes a cross-style parity gap the audit found: the generic `roof_top` apex cap had an ascii tile
   # but NO emoji twin, so a plain house's ridge cap fell back to the coarse red roof kind in emoji. Seeding an
   # emoji `roof_top` = 🟥 (matching the emoji roof body) makes that cap paint its OWN per-cell tile in emoji,
-  # exactly like ascii — same structure, only the art differs.
+  # exactly like ascii, same structure, only the art differs.
   @doc """
   Seeds the light-post `post` base (ascii + emoji) and the emoji `roof_top` parity twin.
 
-  Safe + idempotent (upsert by [tileset_id, label]) — touches nothing else, so it runs on the shared dev DB
+  Safe + idempotent (upsert by [tileset_id, label]), touches nothing else, so it runs on the shared dev DB
   without a full reseed.
   """
   def seed_prop_tiles do
@@ -548,12 +545,12 @@ defmodule Nebulith.Catalog.TileSource do
     :ok
   end
 
-  # The light-post BASE colour (dark iron) — zone-independent, like the other structural piece tiles.
+  # The light-post BASE colour (dark iron), zone-independent, like the other structural piece tiles.
   @post_color "#43474d"
 
   defp seed_prop_tiles(ascii_id, emoji_id) do
-    # `post` — the light-post base pole. Blocks (you can't walk through the pole). Baked in BOTH styles.
-    # Render-only piece (no sidebar category — the browseable unit is the `lamp_post` composition); the ascii
+    # `post`, the light-post base pole. Blocks (you can't walk through the pole). Baked in BOTH styles.
+    # Render-only piece (no sidebar category, the browseable unit is the `lamp_post` composition); the ascii
     # glyph is a heavy vertical bar, the emoji a dark post block. Its colour is a per-tile setting.
     {:ok, _} =
       Catalog.upsert_tile(%{
@@ -599,19 +596,19 @@ defmodule Nebulith.Catalog.TileSource do
   end
 
   # ── Autotile PIECE tiles (fountain rim + wall materials + slate roof) ──────
-  # The autotile-pieces PATTERN sample (TILESET-AUTHORING §2-3): a composition is NOT one fill tile — for
+  # The autotile-pieces PATTERN sample (TILESET-AUTHORING §2-3): a composition is NOT one fill tile, for
   # each cell it places the RIGHT piece by neighbour (center `_c`, edges `_t/_b/_l/_r`, corners
   # `_tl/_tr/_bl/_br`), per the `<base>_<edge>` naming in TILE-VOCABULARY-CONTRACT §2.1. Each piece is a
-  # real DB tile carrying BOTH an ascii `glyph` AND an `emoji` (part-emojis that COMBINE — 🪨 stone / 🧱 brick
-  # / 🟫 wood / ⬜ plaster wall, ⬜ fountain rim, 🟦 water, 💧 jet, ⬛ slate roof — never a whole-object ⛲) + its
+  # real DB tile carrying BOTH an ascii `glyph` AND an `emoji` (part-emojis that COMBINE, 🪨 stone / 🧱 brick
+  # / 🟫 wood / ⬜ plaster wall, ⬜ fountain rim, 🟦 water, 💧 jet, ⬛ slate roof, never a whole-object ⛲) + its
   # colour in `settings.colors`. Authored ONCE and seeded into BOTH tilesets, and BAKED in both: the ascii row
-  # points at its tintable white-mask PNG (`/tiles/ascii/<label>.png`), the emoji row at its emoji PNG — no piece
+  # points at its tintable white-mask PNG (`/tiles/ascii/<label>.png`), the emoji row at its emoji PNG, no piece
   # falls back to a raw glyph on a font-less machine (MAP-MODEL §8 / TILE-BACKEND-MIGRATION §5). "Variety
   # of material = a different tile" (`wall_stone` vs `wall_brick` vs `wall_wood` vs `wall_plaster`); "variety
   # of colour = the tile's `settings.colors`".
   @doc """
   Seeds ONLY the autotile piece tiles (fountain rim/water/jets + wall materials + slate roof) into BOTH the
-  ascii and emoji tilesets. Safe + idempotent (upsert by [tileset_id, label]) — touches nothing else.
+  ascii and emoji tilesets. Safe + idempotent (upsert by [tileset_id, label]), touches nothing else.
   """
   def seed_pieces do
     ascii_id = ensure_tileset("ascii", "ASCII").id
@@ -624,7 +621,7 @@ defmodule Nebulith.Catalog.TileSource do
   defp seed_autotile_pieces(ascii_id, emoji_id) do
     for piece <- autotile_piece_tiles() do
       # A piece inherits its BASE part's behavior: wall_* materials fade near the hero (fadeNear), a slate
-      # roof body cuts away (roof), its apex cap fades (roof_top); the fountain pieces carry none — the
+      # roof body cuts away (roof), its apex cap fades (roof_top); the fountain pieces carry none, the
       # same generic settings-driven render path as every other tile.
       behavior_base = piece_behavior_base(piece.label)
       colors = Map.new(@all_zones, &{&1, piece.color})
@@ -658,7 +655,7 @@ defmodule Nebulith.Catalog.TileSource do
           emoji: piece.emoji,
           title: piece[:title],
           # The emoji tile draws its BAKED PNG (baked from `emoji` by priv/tilegen/bake.mjs), never the raw
-          # glyph — so it renders identically on every OS (no ?? on machines whose font lacks 🪨/⬛/…).
+          # glyph, so it renders identically on every OS (no ?? on machines whose font lacks 🪨/⬛/…).
           image_url: "/tiles/emoji/#{piece.label}.png",
           settings: %{"color" => piece.color} |> merge_behavior(behavior_base)
         })
@@ -669,10 +666,10 @@ defmodule Nebulith.Catalog.TileSource do
   # Each piece: {label, ascii glyph, emoji, colour, blocking, sidebar category?, title?}. The rim/wall
   # EDGE + CORNER glyphs are the block-drawing border set (▛▜▙▟ corners, ▀▄▌▐ edges) so ascii reads as a
   # framed border; the emoji parts are the material's own part-emoji (🪨 stone, 🧱 brick, 🟫 wood, ⬜ plaster
-  # + fountain rim, 🟦 water, 💧 jet, ⬛ slate). A wall material's WHOLE autotile set — center `_c` AND its
-  # edge/corner pieces — carries the `walls` category (the slate roof carries `roofs`), so the pieces the
+  # + fountain rim, 🟦 water, 💧 jet, ⬛ slate). A wall material's WHOLE autotile set, center `_c` AND its
+  # edge/corner pieces, carries the `walls` category (the slate roof carries `roofs`), so the pieces the
   # building compositions place (`wall_stone_bl`, `roof_top`, …) show in their sidebar bucket; only the fountain rim stays
-  # category-less (its browseable unit is the `fountain`/`well` composition — MAP-MODEL §8). "Variety of
+  # category-less (its browseable unit is the `fountain`/`well` composition, MAP-MODEL §8). "Variety of
   # material = a DIFFERENT tile" (`wall_stone` vs `wall_brick` vs `wall_wood` vs `wall_plaster`); colour is
   # ZONE-INDEPENDENT and lives in `settings.colors`.
   defp autotile_piece_tiles do
@@ -705,7 +702,7 @@ defmodule Nebulith.Catalog.TileSource do
         }
       ] ++ rim_or_wall_pieces("fountain", "", rim, nil)
 
-    # The wall MATERIALS — one autotile set per material (center anchor + 8 edge/corner pieces). Stone forces
+    # The wall MATERIALS, one autotile set per material (center anchor + 8 edge/corner pieces). Stone forces
     # a DISTINCT emoji block (🪨) so a stone wall reads apart from the ⬜ fountain rim (spec style call #3).
     walls =
       material_pieces("wall_stone", "▓", "🪨", stone, "Stone Wall") ++
@@ -713,7 +710,7 @@ defmodule Nebulith.Catalog.TileSource do
         material_pieces("wall_wood", "▤", "🟫", wood, "Wood Wall") ++
         material_pieces("wall_plaster", "░", "⬜", plaster, "Plaster Wall")
 
-    # A grey SLATE gable roof for stone/masonry buildings — a dark ⬛ block distinct from the red 🟥 gable.
+    # A grey SLATE gable roof for stone/masonry buildings, a dark ⬛ block distinct from the red 🟥 gable.
     # `roof_slate` is the browseable roof body (cutawayRoof); `roof_top_slate` its ridge apex cap (also cutawayRoof).
     roofs = [
       %{
@@ -739,7 +736,7 @@ defmodule Nebulith.Catalog.TileSource do
   end
 
   # One wall MATERIAL's autotile set: the browseable center `_c` anchor (its own glyph + part-emoji + title)
-  # plus its 8 render-only edge/corner pieces. Every material mirrors `wall_stone` — a DIFFERENT tile per
+  # plus its 8 render-only edge/corner pieces. Every material mirrors `wall_stone`, a DIFFERENT tile per
   # material, its colour in `settings.colors`.
   defp material_pieces(base, center_glyph, part_emoji, color, title) do
     [
@@ -758,8 +755,8 @@ defmodule Nebulith.Catalog.TileSource do
   # The 8 EDGE + CORNER pieces for a `<base>` (fountain rim / a wall material), sharing the block-border glyph
   # set. `emoji` is the single part-emoji for every edge/corner; when "" (fountain rim) it defaults to ⬜. The
   # center `_c` piece is authored separately (its glyph/emoji differ per base). `category` is the base's sidebar
-  # bucket — a wall material passes "walls" so its edge/corner pieces browse with `<mat>_c`; the fountain
-  # rim passes nil (render-only, its browseable unit is the `fountain`/`well` composition — MAP-MODEL §8).
+  # bucket, a wall material passes "walls" so its edge/corner pieces browse with `<mat>_c`; the fountain
+  # rim passes nil (render-only, its browseable unit is the `fountain`/`well` composition, MAP-MODEL §8).
   defp rim_or_wall_pieces(base, emoji, color, category) do
     part = if emoji == "", do: "⬜", else: emoji
 
@@ -777,7 +774,7 @@ defmodule Nebulith.Catalog.TileSource do
     end
   end
 
-  # A piece's BEHAVIOR base — the label whose fade/cutaway flags it inherits (@behavior_settings). Wall
+  # A piece's BEHAVIOR base, the label whose fade/cutaway flags it inherits (@behavior_settings). Wall
   # materials fade near the hero (wall); a slate roof body cuts away (roof), its apex cap fades (roof_top);
   # fountain/water pieces map to themselves (no behavior).
   defp piece_behavior_base(label) do
@@ -791,16 +788,16 @@ defmodule Nebulith.Catalog.TileSource do
 
   # ── Living-tree pieces (3-segment trunk + 9-slice leaf canopy) ────────────
   # The upgraded living `tree` (#23): a 3-segment TRUNK (bottom/mid/top) + a 9-SLICE leaf CANOPY autotiled
-  # like the fountain rim (center `_c`, edges `_t/_b/_l/_r`, corners `_tl/_tr/_bl/_br` — TILESET-AUTHORING §3).
+  # like the fountain rim (center `_c`, edges `_t/_b/_l/_r`, corners `_tl/_tr/_bl/_br`, TILESET-AUTHORING §3).
   # Every piece is a REAL BAKED tile in BOTH styles (never a raw glyph → no ?? on a machine missing the font):
   # ascii draws a woody ║ trunk + a rounded ♣/♧/╭╮╰╯ leaf crown, emoji a 🟫 trunk block + 🍃 leaf (never a whole
-  # 🌲 — §4). Trunk colour = the per-zone `trunk` tone; canopy colour = the per-zone `canopy` SHADE ARRAY, so a
+  # 🌲, §4). Trunk colour = the per-zone `trunk` tone; canopy colour = the per-zone `canopy` SHADE ARRAY, so a
   # per-tree `variant` picks a tone (tonal variety by SETTING, not a tile per shade). Render-only pieces (no
-  # sidebar category — MAP-MODEL §8); the browseable unit is the `tree` composition itself.
+  # sidebar category, MAP-MODEL §8); the browseable unit is the `tree` composition itself.
   @doc """
   Seeds ONLY the living-tree pieces (3-segment trunk + 9-slice leaf canopy) into BOTH tilesets.
 
-  Safe + idempotent (upsert by [tileset_id, label]) — touches nothing else, so it runs on the shared dev DB
+  Safe + idempotent (upsert by [tileset_id, label]), touches nothing else, so it runs on the shared dev DB
   without a full reseed. Resolves each piece's per-zone trunk tone / canopy shade array from ascii.json's
   palettes.
   """
@@ -824,7 +821,7 @@ defmodule Nebulith.Catalog.TileSource do
       }
 
       # ASCII keeps the per-zone `colors` map (canopy = the shade ARRAY) so the composition stamp picks a
-      # per-tree tonal `variant` at draw time (resolveTileColor). EMOJI carries a single `color` — the one
+      # per-tree tonal `variant` at draw time (resolveTileColor). EMOJI carries a single `color`, the one
       # tint emojiStyleMap surfaces as each tile's backing fill (tilesetLoader reads settings.color), matching
       # every other Elixir-authored emoji tile (no per-zone tonal variety in the emoji set, like today's leaf).
       {:ok, _} =
@@ -923,7 +920,7 @@ defmodule Nebulith.Catalog.TileSource do
   end
 
   # Each tree piece: {label, ascii glyph, emoji, colour ROLE (per-zone palette path), blocking, emoji_color}. The
-  # trunk is a woody ║ / 🟫 column (blocks); the canopy is a rounded leaf crown — dense ♣ centre, ♧ leafy edges,
+  # trunk is a woody ║ / 🟫 column (blocks); the canopy is a rounded leaf crown, dense ♣ centre, ♧ leafy edges,
   # ╭╮╰╯ rounded corners in ascii / 🍃 in emoji (walkable overhead). ASCII colour is a per-zone SETTING (trunk →
   # one woody tone, canopy → the 4-shade array so a per-tree variant picks a tone); `emoji_color` is the single
   # emoji backing tint (the canonical trunk brown / leaf green from emoji.json). Baked by priv/tilegen (both).
@@ -967,32 +964,31 @@ defmodule Nebulith.Catalog.TileSource do
 
   # ── Cross-style vocabulary parity (1:1 label set) ─────────────────────────
   # THE full-parity pass: every tile LABEL exists in BOTH
-  # styles so a map painted or generated in one style never renders `?` in the other. Only the ART differs —
-  # the SAME label carries the SAME height/category/blocking (MAP-MODEL §4). We author each gap label's twin
+  # styles so a map painted or generated in one style never renders `?` in the other. Only the ART differs, # the SAME label carries the SAME height/category/blocking (MAP-MODEL §4). We author each gap label's twin
   # by FOLLOWING the existing patterns, never inventing art:
   #   * an emoji-only GROUND/road (`desert`, `cobblestone`, …) → an ascii ground tile matching the existing
   #     ascii terrain style (char/fg/bg authored in ascii.json's `terrain`, @parity_ground_labels);
   #   * an emoji-only flat-decor / standing-nature / structural piece (`rose`, `oak-tree`, `brick`, …) →
   #     an ascii tile REUSING an existing ascii glyph + its baked mask PNG (`decor_flower`/`tree`/
-  #     `wall_brick_c` …), tinted by the emoji tile's own colour — the same "reuse the base PNG, colour is a
+  #     `wall_brick_c` …), tinted by the emoji tile's own colour, the same "reuse the base PNG, colour is a
   #     setting" path the type-specific building tiles use (@ascii_reuse_twins);
   #   * an ascii-only tile (a ground, a tree autotile piece, a roof deck, the peak) → an emoji twin: a
   #     coloured SQUARE picked by the ascii tile's own hue for grounds/decor, the tree part-emoji (🟫 trunk /
-  #     🍃 leaf) for tree pieces, 🗻 for the peak — the existing emoji-ground / tree-piece conventions, never
+  #     🍃 leaf) for tree pieces, 🗻 for the peak, the existing emoji-ground / tree-piece conventions, never
   #     a whole-object emoji (@emoji_twins).
   # BEHAVIOR (height/category/blocking) is COPIED FROM the twin's existing row at seed time, so the two
   # styles can never disagree; only the art columns are authored here. The genuinely-atomic emoji-only labels
   # with NO ascii pattern (per-creature units, single-tile buildings, a few props/effects) are LEFT
-  # emoji-only and tracked as pending art direction in Nebulith.TilesetParityTest — never guessed here.
+  # emoji-only and tracked as pending art direction in Nebulith.TilesetParityTest, never guessed here.
 
-  # The emoji-only GROUND labels given an ascii twin — authored as char/fg/bg in ascii.json's `terrain`
+  # The emoji-only GROUND labels given an ascii twin, authored as char/fg/bg in ascii.json's `terrain`
   # (their natural home; seed_terrain_tiles reads them on a full seed). Named here so the surgical parity
   # pass (and the data migration) upsert exactly these onto a LIVE DB.
   @parity_ground_labels ~w(
     grass-field dark-grass shallow-water deep-water beach-sand desert mountain-slope snowy-peak snowflake volcano ember autumn cobblestone dirt-path gravel
   )
 
-  # {label, ascii glyph, reused baked mask PNG} — an emoji-only label whose ascii twin REUSES an existing
+  # {label, ascii glyph, reused baked mask PNG}, an emoji-only label whose ascii twin REUSES an existing
   # glyph + PNG, tinted by the emoji tile's colour. Behaviour + colour come from the label's emoji row.
   @ascii_reuse_twins [
     %{label: "blossom", glyph: "❀", reuse: "decor_flower"},
@@ -1022,10 +1018,10 @@ defmodule Nebulith.Catalog.TileSource do
     %{label: "wooden-door", glyph: "╫", reuse: "door"},
   ]
 
-  # {label, part-emoji, baked PNG, backing colour} — an ascii-only label whose emoji twin is a coloured
+  # {label, part-emoji, baked PNG, backing colour}, an ascii-only label whose emoji twin is a coloured
   # square by the tile's own hue (grounds/decor), 🟫/🍃 (tree pieces), 🗻 (peak) or grey ⬜ (flat roof).
   # Behaviour comes from the label's ascii row at seed time.
-  # {label, ascii glyph} — an emoji-only label given its OWN ascii art. Unlike @ascii_reuse_twins (which
+  # {label, ascii glyph}, an emoji-only label given its OWN ascii art. Unlike @ascii_reuse_twins (which
   # re-skins another tile's baked mask), each of these is BAKED FROM ITS OWN GLYPH into
   # `/tiles/ascii/<label>.png` (authored in priv/tilegen/tiles.json, rendered by priv/tilegen/bake.mjs).
   #
@@ -1033,10 +1029,10 @@ defmodule Nebulith.Catalog.TileSource do
   # have no tile-shape to copy: creatures are letters (lowercase = small, uppercase = large/dangerous), people
   # are `@` and role marks, buildings are the classic `⌂` or a shop letter, and the combat/locomotion
   # effects are directional marks rather than objects. Every glyph is covered by the bake font (DejaVu Sans
-  # Mono) and the bake is verified to produce real ink — no blanks, no tofu boxes.
+  # Mono) and the bake is verified to produce real ink, no blanks, no tofu boxes.
   #
   # BEHAVIOUR + COLOUR still come from the label's own emoji row, so the two styles can never disagree on
-  # height/category/blocking — only the ART differs. This is what closes the vocabulary gap completely: after
+  # height/category/blocking, only the ART differs. This is what closes the vocabulary gap completely: after
   # this there is NO emoji label without an ascii tile.
   @ascii_own_art_twins [
     %{label: "person", glyph: "@"},
@@ -1250,7 +1246,7 @@ defmodule Nebulith.Catalog.TileSource do
 
   @doc """
   Surgically upserts the cross-style parity twins onto a LIVE DB (ascii + emoji). Idempotent (upsert by
-  [tileset_id, label]) and pose-safe — it only INSERTS the gap labels (brand-new rows) and copies each
+  [tileset_id, label]) and pose-safe, it only INSERTS the gap labels (brand-new rows) and copies each
   twin's behaviour from its existing row; it never touches the hand-tuned rows a full reseed would
   clobber. Called by seed/0 (fresh DB) and by the AsciiEmojiVocabularyParity data migration (live DB).
   """
@@ -1270,14 +1266,14 @@ defmodule Nebulith.Catalog.TileSource do
     seed_emoji_square_twins(emoji_id, ascii_src)
   end
 
-  # A snapshot of one style's rows keyed by label — the source we COPY behaviour (+ emoji colour) from,
+  # A snapshot of one style's rows keyed by label, the source we COPY behaviour (+ emoji colour) from,
   # so a twin can never disagree with the tile it mirrors.
   defp source_tiles(key), do: Map.new(Catalog.list_tiles_for(key), &{&1.label, &1})
 
   # The 15 emoji-only grounds get their ascii twin from ascii.json's `terrain` (char/fg/bg), upserted
   # through the SAME path every other ascii ground uses. seed_terrain_tiles seeds them at height 0 (the raw
   # ground default); we then SNAP each to its emoji twin's CURRENT height so the two styles agree in every
-  # context — 0 vs 0 on a fresh seed, and 0.1 vs 0.1 on a live DB where the emoji ground is already
+  # context, 0 vs 0 on a fresh seed, and 0.1 vs 0.1 on a live DB where the emoji ground is already
   # flat-migrated (FlatTilesMinimalHeight runs before this pass, so a brand-new ascii ground would otherwise
   # linger at 0 while its emoji twin sits at 0.1). Copying, not hardcoding, keeps parity either way.
   defp seed_parity_grounds(ascii_id, emoji_src) do
@@ -1361,30 +1357,30 @@ defmodule Nebulith.Catalog.TileSource do
 
   # ── Emoji tiles ───────────────────────────────────────────────────────────
 
-  # The meadow floor's yellowish-green — a smooth flat colour (matches the meadow reference #14), NOT the busy
+  # The meadow floor's yellowish-green, a smooth flat colour (matches the meadow reference #14), NOT the busy
   # tiled clover of `grass`. One constant so the emoji tile's colour and the ascii terrain bg (which actually
   # TINTS the flat baked square, see below) never drift.
   @meadow_color "#a4ac48"
 
   @doc """
-  Upserts the FLAT-COLOUR `meadow` ground tile in BOTH styles — a smooth yellowish-green floor, the clean
+  Upserts the FLAT-COLOUR `meadow` ground tile in BOTH styles, a smooth yellowish-green floor, the clean
   base for a meadow layout instead of `grass`'s busy tiled clover.
 
   The frontend sources a floor's IMAGE and its COLOUR from different places, so both rows matter:
     * EMOJI image resolves by ground KIND (`groundKind` → `EMOJI_TILESET[kind].image`, tinted by the
       floor colour). `meadow` is its OWN kind (see artStyle.ts groundKind), pointing at a FLAT solid baked
-      square — so a meadow floor draws as one clean tinted colour, NOT the clover texture of `grass`.
+      square, so a meadow floor draws as one clean tinted colour, NOT the clover texture of `grass`.
     * The floor COLOUR is style-independent: `groundTileColor` reads the ASCII terrain tile's
       `settings.variants.bg` BY SLUG (buildAsciiTerrain). Without the ascii `meadow` twin the floor falls
       back to the grass colour. Its `bg` carries @meadow_color, which then tints the flat emoji square.
 
-  BOTH styles are IMAGE-BACKED (MAP-MODEL §8 — never `image_url: nil` + a raw glyph): the ascii twin points
+  BOTH styles are IMAGE-BACKED (MAP-MODEL §8, never `image_url: nil` + a raw glyph): the ascii twin points
   at `/tiles/ascii/meadow.png` (baked from its `.` glyph via priv/tilegen). It was the LAST ascii tile with
   no baked image, and `meadow` is the default floor of spring/summer plus the flood floor of every forest
-  layout — so under ASCII a whole town drew ~1200 glyph plates instead of one cached image block, which is
+  layout, so under ASCII a whole town drew ~1200 glyph plates instead of one cached image block, which is
   why ASCII rendered far slower than emoji on the same map.
 
-  Idempotent upsert by [tileset_id, label] — safe on the shared dev DB. Called by seed/0, runnable standalone.
+  Idempotent upsert by [tileset_id, label], safe on the shared dev DB. Called by seed/0, runnable standalone.
   """
   def seed_meadow do
     ascii_id = ensure_tileset("ascii", "ASCII").id
@@ -1548,7 +1544,7 @@ defmodule Nebulith.Catalog.TileSource do
   end
 
   defp seed_meadow_tiles(ascii_id, emoji_id) do
-    # HEIGHT 1.0: the meadow floor is a RAISED colour block with visible side faces — ornaments STACK on top of it. It
+    # HEIGHT 1.0: the meadow floor is a RAISED colour block with visible side faces, ornaments STACK on top of it. It
     # stays a
     # flat solid baked square TINTED by the per-cell floor colour (the season gradient / earth / cobble the
     # generator writes as STATE).
@@ -1588,7 +1584,7 @@ defmodule Nebulith.Catalog.TileSource do
   end
 
   @doc """
-  Upserts the color-only WATER ground tile in BOTH styles — a flat blue floor built the SAME way as `meadow`
+  Upserts the color-only WATER ground tile in BOTH styles, a flat blue floor built the SAME way as `meadow`
   (a flat baked square TINTED by the per-cell floor colour), so the meadow_river layout paints its river +
   lake with COLOUR instead of a tiled 🌊 texture. Height 1.0 so the water reads as a raised block like the land it
   sits beside.
@@ -1596,7 +1592,7 @@ defmodule Nebulith.Catalog.TileSource do
   The emoji image is the same flat white square `/tiles/emoji/baked/water.png` (overwritten to a flat square
   in the tile pipeline) that the floor colour tints; the ascii twin carries @water_color as its terrain `bg`
   so `groundTileColor("water")` resolves the river blue for any non-generator paint / a reloaded save. The
-  ascii twin is IMAGE-BACKED too (`/tiles/ascii/water.png`, baked from its `~` glyph) — MAP-MODEL §8 forbids
+  ascii twin is IMAGE-BACKED too (`/tiles/ascii/water.png`, baked from its `~` glyph), MAP-MODEL §8 forbids
   `image_url: nil` + a raw glyph, and an image-less tile misses the renderer's cube-sprite cache entirely.
   Idempotent upsert by [tileset_id, label]. Runnable standalone.
 
@@ -1768,6 +1764,113 @@ defmodule Nebulith.Catalog.TileSource do
   # THE SPLASH a unit leaves standing in floor-level water. It rides the same frame rails as the bands: the
   # renderer derives it from where a unit IS, so nothing about it is stamped into a saved map.
   @water_effects ~w(decor_ripple)
+
+  @doc """
+  THE TWO WATER SETS, authored from scratch against `docs/WATER.md` and `docs/TILE-DESIGN.md`.
+
+  A set is a nine piece autotile family, `_c` plus the eight edges and corners, each animated over four
+  frames. Two sets so a map can CHOOSE its water instead of every river in the game wearing one picture:
+
+    * `water_smooth`  the layered look. Rolling crests at alternating highlight and shadow tones, a bright
+      foam lip where it meets land, a soft rim.
+    * `water_lined`   the outlined look, fewer marks and a HARD dark rim. That rim is the border, painted
+      into the edge pieces rather than drawn as an overlay, which is how a hand drawn tileset does it.
+
+  Five things about the art, each one a rule the framework states and a defect it came from:
+
+    1. FULL BLEED. Every piece paints its whole 128 box, so extruding one can never show the block's dark
+       interior through a transparent margin (the open crate).
+    2. WHITE AND GREYS ONLY. The renderer collapses a sprite to its luminance and multiplies by the tile's
+       colour, so white lands on the served colour exactly and every grey below it is a darker shade of the
+       same hue. The first pass drew everything between 230 and 255 and tinted to one flat colour with the
+       waves invisible; the bodies sit at 210 and 236 now with highlights at 255 and shadows at 168.
+    3. THE RIM IS ONLY ON THE OPEN SIDES. A piece knows which of its sides face land from its own name, so
+       the outline traces the water's boundary and never appears inside it.
+    4. FOUR FRAMES THAT CLOSE. The crests bob on a sine sampled at four points, which returns to where it
+       started. Adjacent rows bob in OPPOSITE directions, so the surface has no net direction. That matters
+       here and not in a flat game: the camera turns to four facings, and a surface that visibly flows one
+       way flows the wrong way at three of them.
+    5. ONE BUCKET. Both sets are `terrain`, so the whole family is found in one place in the tile panel
+       rather than scattered across terrain, nature and props the way the old water is.
+
+  Idempotent: every write is an upsert keyed on tileset and label.
+  """
+  @water_sets %{
+    # The colours are the ones the generators already serve for water, so a set dropped onto an existing
+    # template looks like that template's river rather than importing a new palette.
+    "water_smooth" => %{color: "#4f93b3", glyph: "≋", emoji: "🌊", title: "Smooth water"},
+    "water_lined" => %{color: "#2aa8c0", glyph: "≈", emoji: "💧", title: "Lined water"}
+  }
+  @water_pieces ~w(c t b l r tl tr bl br)
+  # WHAT THE EDGE OF A BODY LOOKS LIKE, one family per kind. A river's rim is bright (the current throwing up
+  # white water), a lake's is dark (still water going deep at the edge), a beach carries both (a wave reaching
+  # sand). The rim tone lives in the ART because one colour setting cannot make a rim both lighter and darker
+  # than its own body.
+  @water_kinds ~w(river lake beach)
+  @water_set_frames 4
+
+  def seed_water_sets do
+    static = Path.join(:code.priv_dir(:nebulith), "static")
+    styles = [{"ascii", ensure_tileset("ascii", "ASCII").id}, {"emoji", ensure_tileset("emoji", "Emoji").id}]
+
+    seeded =
+      for {base, spec} <- @water_sets, kind <- @water_kinds, piece <- @water_pieces, {style, tileset_id} <- styles do
+        label = "#{base}_#{kind}_#{piece}"
+
+        {:ok, _} =
+          Catalog.upsert_tile(%{
+            tileset_id: tileset_id,
+            label: label,
+            glyph: spec.glyph,
+            emoji: spec.emoji,
+            color_role: nil,
+            # A water surface is flat and what stops a unit is its collision, never a picture.
+            blocking: false,
+            height: 0.0,
+            category: "terrain",
+            title: "#{spec.title}, #{kind} #{piece_name(piece)}",
+            image_url: "/tiles/#{style}/#{label}.png",
+            settings: %{"color" => spec.color}
+          })
+
+        frames = frame_images(style, label, List.duplicate(nil, @water_set_frames), static)
+
+        if length(frames) > 1 do
+          seed_frame_rows(tileset_id, style, label, length(frames))
+          labels = Enum.map(0..(length(frames) - 1), fn 0 -> label; i -> "#{label}_f#{i}" end)
+          Catalog.put_tile_setting(tileset_id, label, "frames", frames)
+          Catalog.put_tile_setting(tileset_id, label, "frameMs", @water_frame_ms)
+          # Two envelopes for the same reason the old bands needed two: the sprite loop swaps the pictures,
+          # and the translucence is a settings track because `resolveAssetAnimation` returns null when only a
+          # sprite is in scope. A plain `settings.opacity` is read by nothing.
+          Catalog.put_tile_setting(tileset_id, label, "animations", [
+            water_ripple(style, labels),
+            water_translucence()
+          ])
+        end
+
+        label
+      end
+
+    IO.puts(
+      "water sets: #{length(Enum.uniq(seeded))} pieces across #{map_size(@water_sets)} sets x " <>
+        "#{length(@water_kinds)} kinds, #{@water_set_frames} frames each"
+    )
+    :ok
+  end
+
+  # The piece suffix as something a person can read in the tile panel. An autotile family lists nine rows and
+  # `water_smooth_tl` tells a user nothing about where it goes.
+  defp piece_name("c"), do: "(middle)"
+  defp piece_name("t"), do: "(top edge)"
+  defp piece_name("b"), do: "(bottom edge)"
+  defp piece_name("l"), do: "(left edge)"
+  defp piece_name("r"), do: "(right edge)"
+  defp piece_name("tl"), do: "(top-left corner)"
+  defp piece_name("tr"), do: "(top-right corner)"
+  defp piece_name("bl"), do: "(bottom-left corner)"
+  defp piece_name("br"), do: "(bottom-right corner)"
+
 
   def seed_water_look do
     static = Path.join(:code.priv_dir(:nebulith), "static")
@@ -2090,8 +2193,8 @@ defmodule Nebulith.Catalog.TileSource do
   # in BOTH styles by seed_tree_pieces; the bush reuses the existing leaf_* tiles.
 
   @doc """
-  Reseeds ONLY the code-authored compositions — the tree/bush/fountain (seed_new_compositions) and
-  the house/store/office/… buildings (seed_building_compositions) — plus the extra part tiles they
+  Reseeds ONLY the code-authored compositions, the tree/bush/fountain (seed_new_compositions) and
+  the house/store/office/… buildings (seed_building_compositions), plus the extra part tiles they
   reference. Safe on the shared dev DB: it upserts by natural key and NEVER touches the emoji tiles
   (so editor-tuned poses survive) or the ascii glyph/terrain rows.
   """
@@ -2119,7 +2222,7 @@ defmodule Nebulith.Catalog.TileSource do
   Makes a tile's HEIGHT agree across EVERY art style.
 
   There is ONE engine and N art styles; a style is a set of baked images and nothing else. Height is not
-  art — the same `door` is the same shape whichever images you are looking at — so it belongs to the LABEL,
+  art, the same `door` is the same shape whichever images you are looking at, so it belongs to the LABEL,
   not to a style's row. The render already assumes exactly that (`iso.ts assetBlockRise` reads whichever
   tileset happens to be loaded, "heights are style-identical", MAP-MODEL §4).
 
@@ -2132,11 +2235,11 @@ defmodule Nebulith.Catalog.TileSource do
   It never showed in the render (`resolveTileHeight` ignores the art tile's height) but it changed what the
   BRUSH seeds: the same map differed by which palette built it.
 
-  Style-agnostic by construction — it walks EVERY tileset in the DB, so a third art style is normalised the
+  Style-agnostic by construction, it walks EVERY tileset in the DB, so a third art style is normalised the
   day it is seeded with no edit here. `@height_authority` names the ONE catalog that authors heights
   today; that is a single documented constant, not a rule spread through the code.
 
-  Walks the height column only (`set_tile_height`), so editor-tuned poses in `settings` survive — a full
+  Walks the height column only (`set_tile_height`), so editor-tuned poses in `settings` survive, a full
   upsert would `replace_all` them. Idempotent.
   """
   # The catalog whose rows carry the authored per-label height. A style is only ever an image set, so this
@@ -2167,7 +2270,7 @@ defmodule Nebulith.Catalog.TileSource do
   # One figure, distinguished by colour rather than by shape.
   @glyph_shared_labels ~w(adult person player)
 
-  # Replacement glyphs, in order — box-drawing, geometric and technical blocks, so a distinct tile reads as
+  # Replacement glyphs, in order, box-drawing, geometric and technical blocks, so a distinct tile reads as
   # a distinct mark at 128px. Only ever consulted for a tile that lost a contest, so the pool is small.
   @glyph_pool ~w(
     ⌬ ⌭ ⌮ ⌯ ⌰ ⌱ ⌲ ⌳ ⌴ ⌵ ⌶ ⌷ ⌸ ⌹ ⌺ ⌻ ⌼ ⌽ ⌾ ⌿
@@ -2181,11 +2284,11 @@ defmodule Nebulith.Catalog.TileSource do
 
 
   @doc """
-  Applies the CURATED ascii glyphs (`priv/repo/tilesets/ascii_glyphs.json`) — the file that decides what each
+  Applies the CURATED ascii glyphs (`priv/repo/tilesets/ascii_glyphs.json`), the file that decides what each
   ascii tile looks like.
 
   An ascii tile's picture is rasterised from its glyph, so this is the ascii art. It lives as DATA rather
-  than inside the seven seeders that write glyphs, because none of those can see the others' choices — which
+  than inside the seven seeders that write glyphs, because none of those can see the others' choices, which
   is exactly how `rose`, `tulip`, `sunflower` and `hibiscus` ended up sharing one `❀` plate. Curating them
   in one file makes the whole set reviewable at a glance and keeps the art out of the code.
 
@@ -2221,10 +2324,10 @@ defmodule Nebulith.Catalog.TileSource do
   end
 
   @doc """
-  Makes every PER-LABEL fact agree across styles — the "one engine, N art styles" rule, enforced.
+  Makes every PER-LABEL fact agree across styles, the "one engine, N art styles" rule, enforced.
 
   So a LABEL owns everything except the picture. `grass` is called "Grass", is `terrain`, is walkable and is
-  a flat slab — in every style, because those are facts about grass, not about which pictures you are
+  a flat slab, in every style, because those are facts about grass, not about which pictures you are
   looking at. Only `image_url` (and the glyph/emoji the picture is baked FROM) may differ.
 
   It had drifted, because nothing enforced it: **154 labels had a different title per style** (`grass` was
@@ -2233,7 +2336,7 @@ defmodule Nebulith.Catalog.TileSource do
   remaining two columns and, with them, §3.5's "120 raw-slug labels in the picker".
 
   Where NO style authored a title, one is derived from the label (`wall_brick_c` → "Wall Brick C") so the
-  picker never shows a raw slug. That is a display name computed from data the row already carries — an
+  picker never shows a raw slug. That is a display name computed from data the row already carries, an
   authored title always wins.
   """
   def normalize_label_facts do
@@ -2354,7 +2457,7 @@ defmodule Nebulith.Catalog.TileSource do
   # Write the label's canonical title + category onto every style's row for it.
   #
   # Deliberately NOT a comprehension: `category = canonical_category(tiles)` as a comprehension generator is
-  # a FILTER, so a label whose category is nil is silently dropped — which is exactly what happened, and 53
+  # a FILTER, so a label whose category is nil is silently dropped, which is exactly what happened, and 53
   # tiles (`trunk_top`, `canopy_r`, the fountain pieces…) never got their title as a result.
   defp agree_on_label(label, tiles, tilesets) do
     title = canonical_title(label, tiles)
@@ -2379,7 +2482,7 @@ defmodule Nebulith.Catalog.TileSource do
   end
 
   # The bucket a label sits in. The most common answer wins, so a single drifted row cannot flip the label.
-  # `nil` when no style authored one — a category is not invented here.
+  # `nil` when no style authored one, a category is not invented here.
   defp canonical_category(tiles) do
     tiles
     |> Enum.map(& &1.category)
@@ -2390,7 +2493,7 @@ defmodule Nebulith.Catalog.TileSource do
   end
 
   @doc """
-  Gives every `units` tile its ROLE — what the thing IS: a person, a monster, an animal, or a combat effect.
+  Gives every `units` tile its ROLE, what the thing IS: a person, a monster, an animal, or a combat effect.
 
   §3.14b #11: the frontend was classifying 36 backend-owned slugs itself, in two hardcoded Sets
   (`NON_ENTITY_UNIT`, `PERSON_SLUGS`), to decide what a `units` tile places as. That is data about the
@@ -2401,7 +2504,7 @@ defmodule Nebulith.Catalog.TileSource do
 
   `enemy` is DERIVED, not listed: `EntitySource.enemy_type_slug` is already the authoritative enemy-type
   list, so a monster is a monster because the entity resolution says so. That settles the genuinely
-  ambiguous ones from data rather than taste — `bat`, `spider` and `wolf` are hostiles in this game, and
+  ambiguous ones from data rather than taste, `bat`, `spider` and `wolf` are hostiles in this game, and
   nothing here had to decide that.
 
   `fx` is the projectiles and the ability animations: they live in `units` because they are baked figures,
@@ -2410,7 +2513,7 @@ defmodule Nebulith.Catalog.TileSource do
   `person` is listed, because "is this a walking character" is not derivable from anything the catalog
   already holds. Everything left over is an `animal`.
   """
-  # Combat effects that sit in `units` — projectiles + the ability animations. Not placeable creatures.
+  # Combat effects that sit in `units`, projectiles + the ability animations. Not placeable creatures.
   @fx_units ~w(
     arrow bullet dart
     fire-slash ice-slash cleave bolt piercing-shot nova lightning heal-glow guard-flash
@@ -2446,7 +2549,7 @@ defmodule Nebulith.Catalog.TileSource do
   end
 
   @doc """
-  Gives a creature tile its COMBAT settings — the stat block it fights with.
+  Gives a creature tile its COMBAT settings, the stat block it fights with.
 
   He is right, and the evidence was in the mapping: nine
   archetypes existed for eight creatures, one each, with a frontend `Record` translating between the two
@@ -2544,8 +2647,8 @@ defmodule Nebulith.Catalog.TileSource do
   Points every tile at its OWN picture, when one has been baked for it.
 
   the model: A tile's picture is its
-  label's file in its style's directory. **29 ascii tiles pointed at ANOTHER tile's png** — `rose`,
-  `sunflower` and `blossom` all at `decor_flower.png`, `pine-tree` and `palm-tree` at `tree.png` — so they
+  label's file in its style's directory. **29 ascii tiles pointed at ANOTHER tile's png**, `rose`,
+  `sunflower` and `blossom` all at `decor_flower.png`, `pine-tree` and `palm-tree` at `tree.png`, so they
   drew a duplicate even after being given their own glyph and their own baked file. That is the same "fake
   tile" defect the `?` was, one layer down: a picture that is not this tile's.
 
@@ -2571,7 +2674,7 @@ defmodule Nebulith.Catalog.TileSource do
 
 
   @doc """
-  Applies the ASCII UNIT ART (`priv/repo/tilesets/ascii_unit_art.json`) — the FIGURES units draw as.
+  Applies the ASCII UNIT ART (`priv/repo/tilesets/ascii_unit_art.json`), the FIGURES units draw as.
 
     > human like units should look like the user player, animals, and other units are also composition of
     > ascii characters grouped to create a given element … a dog is not a single character, is a set of
@@ -2583,8 +2686,7 @@ defmodule Nebulith.Catalog.TileSource do
     > same way.
 
   That is the distinction this seeder carries. The ENGINE is one: every style draws baked image tiles, every
-  style animates them, every tile has the same settings. What differs is how a style's picture is AUTHORED —
-  emoji places one pictograph, ascii composes a grid of characters:
+  style animates them, every tile has the same settings. What differs is how a style's picture is AUTHORED, emoji places one pictograph, ascii composes a grid of characters:
 
       "  O"        "/\_/\"
       " /|\"       "( o.o )"
@@ -2592,20 +2694,20 @@ defmodule Nebulith.Catalog.TileSource do
       villager      dog
 
   So the art is `rows`, not a glyph, and the baker composes them (`priv/tilegen/atlas.html`, the `art` path).
-  Treating a unit like a terrain slab — one distinct character each — is what lost the figures: `man` became
+  Treating a unit like a terrain slab, one distinct character each, is what lost the figures: `man` became
   `♂`, `dog` became `d`.
 
   Three things land on the tile, all of them DATA the frontend only reads:
 
-    * `settings.artFrames` — the CHARACTER ROWS of every frame, `[[rows], [rows]]`. Named for what it is, so
+    * `settings.artFrames`, the CHARACTER ROWS of every frame, `[[rows], [rows]]`. Named for what it is, so
       it is never confused with the baker's per-cell `art` (one frame's rows). This is what the catalog and
       the pre-load state draw before a single picture has decoded.
-    * `settings.frames` — the ORDERED frame pictures, `[<label>.png, <label>_f1.png]`. A frame is a picture,
+    * `settings.frames`, the ORDERED frame pictures, `[<label>.png, <label>_f1.png]`. A frame is a picture,
       not a second tile row: giving each frame its own label would put `Dog F1` in the units library and
       break the one-label-per-thing invariant every style shares. Emoji lists the one picture it has; ascii
-      lists its two. Same field, same engine, different number of frames — which IS "all art styles do
+      lists its two. Same field, same engine, different number of frames, which IS "all art styles do
       tileset animation".
-    * `settings.frameMs` — the loop length. Frame 1 is authored at the SAME row count and width as frame 0,
+    * `settings.frameMs`, the loop length. Frame 1 is authored at the SAME row count and width as frame 0,
       so the footprint never jitters as it cycles.
 
   Idempotent, and settings-key-surgical (`put_tile_setting/4`), so editor-tuned poses survive.
@@ -2644,9 +2746,9 @@ defmodule Nebulith.Catalog.TileSource do
     :ok
   end
 
-  # The baked picture per frame, in order — frame 0 is the label's own file, frame N is `<label>_fN`.
+  # The baked picture per frame, in order, frame 0 is the label's own file, frame N is `<label>_fN`.
   # Only files that EXIST are listed: an unbaked frame must shorten the cycle, never point the renderer at a
-  # missing image (the no-fallback law — a missing picture is what drew the `?` in the first place).
+  # missing image (the no-fallback law, a missing picture is what drew the `?` in the first place).
   defp frame_images(style, label, frames, static) do
     frames
     |> Enum.with_index()
@@ -2775,7 +2877,7 @@ defmodule Nebulith.Catalog.TileSource do
   Gives every tile that names a DISTINCT thing its own glyph, in every style that uses glyphs.
 
   An ascii tile's picture is rasterised FROM its glyph, so two tiles on one glyph are two tiles with one
-  picture. — measured at 170 of 358 ascii tiles
+  picture., measured at 170 of 358 ascii tiles
   drawing a byte-identical copy of another tile's art, because `rose`/`tulip`/`sunflower`/`hibiscus` were all
   `❀` and `oak-tree`/`palm-tree`/`pine-tree` were all `♣`.
 
@@ -2787,13 +2889,13 @@ defmodule Nebulith.Catalog.TileSource do
 
   ## The two legitimate ways to share a glyph
 
-    * an AUTOTILING family — `wall_brick_tl`, `wall_stone_tl` and `fountain_tl` all draw `▛` because that
+    * an AUTOTILING family, `wall_brick_tl`, `wall_stone_tl` and `fountain_tl` all draw `▛` because that
       glyph IS the top-left corner SHAPE; the material is the tile's COLOUR (TILESET-AUTHORING). Same for
       the `trunk_` column, the `canopy_` ring, the `tree_` parts and the `roof_top` caps;
-    * `adult` / `person` / `player` — one human figure, three colours.
+    * `adult` / `person` / `player`, one human figure, three colours.
 
   The INCUMBENT of a contested glyph is the alphabetically-first label, so the assignment is stable across
-  runs (idempotent) and the baseline tiles the generator leans on — `grass`, `water`, `path`, `sand` — keep
+  runs (idempotent) and the baseline tiles the generator leans on, `grass`, `water`, `path`, `sand`, keep
   the plain glyphs a reader expects. Walks the glyph column only, so editor-tuned poses survive.
   """
   def ensure_distinct_glyphs do
@@ -2836,20 +2938,19 @@ defmodule Nebulith.Catalog.TileSource do
 
   defp glyph_family?(label), do: Enum.any?(@glyph_family_prefixes, &String.starts_with?(label, &1))
 
-  defp take_free_glyph([], _taken), do: raise("glyph pool exhausted — widen @glyph_pool")
+  defp take_free_glyph([], _taken), do: raise("glyph pool exhausted, widen @glyph_pool")
 
   defp take_free_glyph([g | rest], taken) do
     if MapSet.member?(taken, g), do: take_free_glyph(rest, taken), else: {g, rest}
   end
 
   @doc """
-  Reconciles the `height` COLUMN of every paintable emoji ASSET tile (the standing categories —
-  walls/windows/doors/roofs/props + nature; `buildings` kept for pre-split DBs) to the tile's OWN height
-  from emoji.json — the per-tile DATA, read uniformly.
+  Reconciles the `height` COLUMN of every paintable emoji ASSET tile (the standing categories, walls/windows/doors/roofs/props + nature; `buildings` kept for pre-split DBs) to the tile's OWN height
+  from emoji.json, the per-tile DATA, read uniformly.
 
   The user's model (MAP-MODEL / EDITOR-INTERACTION-SPEC): height is per-tile DATA read through ONE uniform path,
   with NO type/category/art-style code branch. A tile carries its own height and every consumer reads it the
-  same way — the mechanism is identical for every tile, only the DATA differs:
+  same way, the mechanism is identical for every tile, only the DATA differs:
 
     * a GROUND/FLAT tile (terrain, flower, fallen leaf, floor decor, facade piece) has height 0/min → it shows
       on the floor face only in iso and is WALKABLE;
@@ -2857,10 +2958,10 @@ defmodule Nebulith.Catalog.TileSource do
       block that BLOCKS movement.
 
   `t["height"] || 0` writes exactly the tile's authored height: a tile with no explicit height in emoji.json is
-  a ground/flat tile (0). This is NOT a category rule — the same line runs for every asset tile; it just reads a
+  a ground/flat tile (0). This is NOT a category rule, the same line runs for every asset tile; it just reads a
   different value per tile (collision then DERIVES from that height on the client, no per-type list). Touches
   ONLY the height column (set_tile_height), so editor-tuned poses in `settings` survive (a full
-  `seed_emoji_tiles` would `replace_all` them — which is why `seed_sample` never calls it). Terrain is the floor
+  `seed_emoji_tiles` would `replace_all` them, which is why `seed_sample` never calls it). Terrain is the floor
   primitive (painted onto the ground, height 0 by definition) and is intentionally left untouched. Idempotent.
   """
   # THE GROUND IS FLAT, and until now nothing enforced it.
@@ -2924,7 +3025,7 @@ defmodule Nebulith.Catalog.TileSource do
   bucket).
 
   emoji.json owns which sidebar bucket a tile lives in (terrain/buildings/units/nature). When a tile is
-  recategorized there — e.g. the animals (bear/wolf/fox/…) that are enemies/units, NOT nature — the DB must
+  recategorized there, e.g. the animals (bear/wolf/fox/…) that are enemies/units, NOT nature, the DB must
   follow, or the sidebar + the top-nav Unit flow keep reading the stale bucket. A full `seed_emoji_tiles`
   would land the category but `replace_all` the editor-tuned poses in `settings`, so this walks the category
   column alone (the SAME pose-safe path `reconcile_tile_heights` uses). Idempotent.
@@ -2946,12 +3047,12 @@ defmodule Nebulith.Catalog.TileSource do
 
   # Seed the two emoji leaf tiles (🍃) the tree/bush use, each pointing at its BAKED PNG so the render draws a
   # tintable image (not a raw char that can't take the per-tree canopy tint, and shows ?? on a font-less
-  # machine). SURGICAL: upserts just these two emoji rows from emoji.json — never a full emoji reseed (which
+  # machine). SURGICAL: upserts just these two emoji rows from emoji.json, never a full emoji reseed (which
   # would clobber editor-tuned poses). `leaf_center` is the tree's whole (2×) canopy; both are baked by
   # priv/tilegen (tiles.json → bake.mjs). image_url MUST be non-nil (MAP-MODEL §8 / TILE-BACKEND-MIGRATION §5).
   defp seed_tree_leaves(emoji_id, palettes) do
     emoji = read_tileset("emoji.json")
-    # The canopy SHADE array per zone (green…pink for spring) — the SAME data ascii's leaf carries, so an emoji
+    # The canopy SHADE array per zone (green…pink for spring), the SAME data ascii's leaf carries, so an emoji
     # tree's per-tree `variant` picks a tone (green vs pink) exactly like ascii. `color` stays for the emoji
     # sidebar/backing fill; `colors` drives the composition's variant tint.
     canopy_colors = per_zone_colors("canopy", palettes)
@@ -3094,7 +3195,7 @@ defmodule Nebulith.Catalog.TileSource do
 
   # ── Building compositions ─────────────────────────────────────────────────
   # A pre-built building (house/store/hospital/…) is a composition TEMPLATE stamped
-  # as per-cell tiles, the SAME path trees use — not a procedural unit (MAP-MODEL §5,
+  # as per-cell tiles, the SAME path trees use, not a procedural unit (MAP-MODEL §5,
   # TILE-BACKEND-MIGRATION §4). The baked set (footprint + stacked wall/window/door/
   # roof/roof_top cells) lives in Nebulith.Catalog.BuildingCompositions; here we upsert
   # each idempotently, exactly like seed_new_compositions.
@@ -3116,14 +3217,14 @@ defmodule Nebulith.Catalog.TileSource do
     end
   end
 
-  # Build a 2-tile TREE composition from the user's editor settings — one thin tall TRUNK cell + one bigger
+  # Build a 2-tile TREE composition from the user's editor settings, one thin tall TRUNK cell + one bigger
   # LEAF cell on top. `trunk_h`/`leaf_h` are Height (scaleY), `trunk_zoom`/`leaf_zoom` are Zoom (the per-cell
   # `scale` column), `trunk_w` is Width (scaleX, only emitted when ≠ 1 so a default trunk stays byte-clean),
   # `shape` (nil | "circle") gives the canopy a round form. The leaf's LEVEL is derived from the trunk's
-  # rendered height (scaleY × zoom, in block units — one level = one block) so the canopy sits ON the trunk
+  # rendered height (scaleY × zoom, in block units, one level = one block) so the canopy sits ON the trunk
   # top for any height, never floating or buried. DIMENSION-SANITY GUARD: the trunk's effective width AND its zoom
   # must be strictly SMALLER than the
-  # leaves' — a violating variant RAISES at build time, so no unbelievable tree can ship.
+  # leaves', a violating variant RAISES at build time, so no unbelievable tree can ship.
   defp tree_comp(opts) do
     trunk_w = Map.get(opts, :trunk_w, 1.0)
     leaf_w = Map.get(opts, :leaf_w, 1.0)
@@ -3142,9 +3243,9 @@ defmodule Nebulith.Catalog.TileSource do
     }
   end
 
-  # A BUSH is the trunkless tree variant — a SINGLE
+  # A BUSH is the trunkless tree variant, a SINGLE
   # leaf cell sitting on the ground (level 0), blocking (a ground-level shrub obstructs, unlike a tree's
-  # walkable overhead canopy). One tile — the leanest asset in the set.
+  # walkable overhead canopy). One tile, the leanest asset in the set.
   defp bush_comp(opts) do
     # A bush is natural cover too → the `nature` bucket, exactly like the trees it is a trunkless variant of.
     %{footprint_w: 1, footprint_h: 1, category: "nature", cells: [leaf_cell(0, opts.leaf_h, opts.leaf_zoom, Map.get(opts, :shape), false)]}
@@ -3178,18 +3279,18 @@ defmodule Nebulith.Catalog.TileSource do
 
   defp compositions do
     %{
-      # A tree is EXACTLY TWO tiles — ONE thin tall TRUNK + ONE bigger LEAF cube on top (the tuned
+      # A tree is EXACTLY TWO tiles, ONE thin tall TRUNK + ONE bigger LEAF cube on top (the tuned
       # reference: "the ones in my example use just two tiles, one for trunk another for leafs"). Same technique
       # as the lamp post: the trunk is a single `trunk_mid` cell drawn as a thin tall pole (Height `scaleY` +
       # Zoom `scale`, Width `scaleX` when a variant wants it skinnier/thicker); the leaf is a single `leaf_center`
       # cell zoomed UP into a fat cube and lifted onto the trunk top. Colour is a per-tree SETTING (variant picks
-      # a canopy shade — green…pink — from leaf_center's per-zone array, in BOTH styles). Every variant is built
+      # a canopy shade, green…pink, from leaf_center's per-zone array, in BOTH styles). Every variant is built
       # by `tree_comp/1`, which DERIVES the leaf's level from the trunk height (canopy sits on the trunk, never
-      # floats) and ENFORCES the dimension-sanity rule — the trunk must be thinner + less zoomed than the leaves or
+      # floats) and ENFORCES the dimension-sanity rule, the trunk must be thinner + less zoomed than the leaves or
       # the build raises. The user's
       # hand-tuned green tree (trunk H3.15/zoom0.6, leaf H2/zoom1.35) is the CENTER; the variants spread a
       # believable range: tall/small trunks, skinny/thick trunks, ROUND canopies (shape: circle), and trunkless
-      # BUSHES (leaf only). Down from 3 cells to 2 (bush: 1) — the optimization the ticket asked for.
+      # BUSHES (leaf only). Down from 3 cells to 2 (bush: 1), the optimization the ticket asked for.
       "tree" => tree_comp(%{trunk_h: 3.15, trunk_zoom: 0.6, trunk_w: 1.0, leaf_h: 2.0, leaf_zoom: 1.35, shape: "circle"}),
       "tree_tall" => tree_comp(%{trunk_h: 4.4, trunk_zoom: 0.6, trunk_w: 0.85, leaf_h: 2.0, leaf_zoom: 1.35, shape: "circle"}),
       "tree_stub" => tree_comp(%{trunk_h: 1.7, trunk_zoom: 0.6, trunk_w: 1.2, leaf_h: 1.0, leaf_zoom: 1.35, shape: "circle"}),
@@ -3217,13 +3318,13 @@ defmodule Nebulith.Catalog.TileSource do
       # broadleaf: short trunk under a wide, low, round crown
       "tree_broadleaf" =>
         tree_comp(%{trunk_h: 2.4, trunk_zoom: 0.55, trunk_w: 1.1, leaf_h: 1.7, leaf_zoom: 1.75, shape: "circle"}),
-      # gnarled: a squat trunk under a flat spreading crown — the lone pasture tree of image #10
+      # gnarled: a squat trunk under a flat spreading crown, the lone pasture tree of image #10
       "tree_gnarled" =>
         tree_comp(%{trunk_h: 2.0, trunk_zoom: 0.6, trunk_w: 1.15, leaf_h: 1.3, leaf_zoom: 1.85, shape: "circle"}),
       # giant: the jungle emergent, taller and broader than anything around it
       "tree_giant" =>
         tree_comp(%{trunk_h: 5.8, trunk_zoom: 0.75, trunk_w: 1.1, leaf_h: 2.8, leaf_zoom: 2.1, shape: "circle"}),
-      # cypress: a thick buttressed trunk and a modest crown — the trees standing in the water of image #13
+      # cypress: a thick buttressed trunk and a modest crown, the trees standing in the water of image #13
       "tree_cypress" => tree_comp(%{trunk_h: 3.4, trunk_zoom: 0.8, trunk_w: 1.3, leaf_h: 1.8, leaf_zoom: 1.3}),
       # palm: a tall skinny trunk with a small round top, for coastal and island ground
       "tree_palm" =>
@@ -3243,14 +3344,32 @@ defmodule Nebulith.Catalog.TileSource do
       "tree_banana" => tree_comp(%{trunk_h: 1.6, trunk_zoom: 0.5, trunk_w: 0.9, leaf_h: 1.6, leaf_zoom: 1.95, shape: "circle"}),
       # mangrove: the for a coast, a thick braced base under a broad low crown
       "tree_mangrove" => tree_comp(%{trunk_h: 2.2, trunk_zoom: 0.7, trunk_w: 1.25, leaf_h: 1.5, leaf_zoom: 1.8, shape: "circle"}),
+      # THE FOUR HE NAMED THAT THE CATALOG DID NOT HAVE: *"I like to see pines, palm tree, cypress, oak,
+      # weeping willow, cherry tree, encina"*. Pine is `tree_conifer`, and cypress and palm are already here,
+      # so these are the remainder. Same `tree_comp/1` as every other species, which is the point: the builder
+      # asserts the crown is wider than the trunk and seats it at `round(trunk_h * trunk_zoom)`, so a new
+      # species cannot come out detached or narrower than its own trunk (OBJECT-CONSTRUCTION §5.2).
+      #
+      # oak: the broad dome. A short heavy bole under the widest crown in the temperate set, which is what
+      # separates it from `tree_big` (taller, narrower) at a glance.
+      "tree_oak" => tree_comp(%{trunk_h: 2.8, trunk_zoom: 0.62, trunk_w: 1.2, leaf_h: 2.4, leaf_zoom: 2.0, shape: "circle"}),
+      # weeping willow: the crown HANGS. A slim trunk carrying a tall, wide fall of leaf, so its mass sits low
+      # and spreads, the opposite silhouette to the column.
+      "tree_willow" => tree_comp(%{trunk_h: 2.6, trunk_zoom: 0.5, trunk_w: 0.9, leaf_h: 2.6, leaf_zoom: 1.95, shape: "circle"}),
+      # cherry: small and delicate, a light crown on a thin trunk. Its BLOSSOM needs no special art: the
+      # spring shade array already carries a pink, and a tree's variant picks it.
+      "tree_cherry" => tree_comp(%{trunk_h: 2.2, trunk_zoom: 0.45, trunk_w: 0.9, leaf_h: 1.4, leaf_zoom: 1.6, shape: "circle"}),
+      # encina: the holm oak of a dry dehesa. Evergreen, dense and rounded, on a short sturdy trunk, and it
+      # stands in the open rather than in a closed wood.
+      "tree_encina" => tree_comp(%{trunk_h: 2.4, trunk_zoom: 0.58, trunk_w: 1.15, leaf_h: 2.0, leaf_zoom: 1.9, shape: "circle"}),
       # TWO water variants of the town-square basin, both COMPOSITIONS assembled from AUTOTILE PIECES
       # (TILESET-AUTHORING §3), not one fill: a rim of the RIGHT edge/corner piece per cell (`fountain_tl/tr/
       # bl/br` corners + `fountain_t/b/l/r` sides) around a `water_c` (blue water) interior. Every cell blocks
       # (you stroll the paved ring around it); the generator stamps one centred on the plaza (stampComposition).
       #
-      # `well` — the SMALL variant:
+      # `well`, the SMALL variant:
       #   a 5×3 basin whose interior is a 1×3 LINE of 3 `water_c` cells, ALL 3 animated (desynced height-grow).
-      # `fountain` — the LARGE variant: a 5×5 basin whose interior
+      # `fountain`, the LARGE variant: a 5×5 basin whose interior
       # is a 3×3 GRID of 9 `water_c` cells; only the CENTER ROW of 3 animates, the other 6 are STATIC blue water.
       # A basin is a standalone ornament → the `props` bucket (same category vocabulary as tiles, MAP-MODEL §8).
       # BRIDGES ARE COMPOSITIONS, like a tree or a building. in capitals after asking
@@ -3281,21 +3400,21 @@ defmodule Nebulith.Catalog.TileSource do
       "bridge_stone_7" => %{footprint_w: 7, footprint_h: 4, category: "props", cells: bridge_cells("stone", 7)},
       "well" => %{footprint_w: 5, footprint_h: 3, category: "props", cells: well_cells()},
       "fountain" => %{footprint_w: 5, footprint_h: 5, category: "props", cells: fountain_cells()},
-      # LIGHT POSTS — a composition, NOT a single lamp tile. ONE 1×1 column of TWO cells, each shaped by its OWN tuned
+      # LIGHT POSTS, a composition, NOT a single lamp tile. ONE 1×1 column of TWO cells, each shaped by its OWN tuned
       # settings so it reads like a
       # REAL post:
-      #   • POST (level 0, blocks) — ONE cell drawn as a tall, THIN pole: Height `scaleY` 7 at Zoom `scale` 0.3.
-      #   • BULB (level 1, walkable overhead) — a SINGLE-display billboard (one centered bulb), Zoom `scale` 0.6,
+      #   • POST (level 0, blocks), ONE cell drawn as a tall, THIN pole: Height `scaleY` 7 at Zoom `scale` 0.3.
+      #   • BULB (level 1, walkable overhead), a SINGLE-display billboard (one centered bulb), Zoom `scale` 0.6,
       #     lifted by `pose.dy` -1.8 so it sits ON TOP of the tall post, carrying the night `light` glow POOL.
-      # TWO variants share this whole structure (lamp_post_composition/1) — the bulb ALWAYS carries the
+      # TWO variants share this whole structure (lamp_post_composition/1), the bulb ALWAYS carries the
       # night-LIT appearance change;
       # only the FAILING variant adds a flicker on top:
-      #   • `lamp_post`         → the DEFAULT (MAJORITY of lamps): the bulb LIGHTS UP at night — a STEADY warm
+      #   • `lamp_post`         → the DEFAULT (MAJORITY of lamps): the bulb LIGHTS UP at night, a STEADY warm
       #     glow via ONE `night`-triggered `color` animation (day = the plain unlit bulb, night = lit), NO flicker.
       #   • `lamp_post_failing` → a FAILING bulb (MINORITY, ~18%): the SAME night-lit glow PLUS the irregular
-      #     `lamp_flicker_anim` (a stepped, erratic opacity dip — a dying bulb, NOT a smooth pulse). Its ground
+      #     `lamp_flicker_anim` (a stepped, erratic opacity dip, a dying bulb, NOT a smooth pulse). Its ground
       #     pool dims in SYNC with the flicker (the frontend folds the bulb's live opacity into the pool
-      # intensity — see LIGHTING.md, ).
+      # intensity, see LIGHTING.md, ).
       # The browseable palette shows ONE "Lamp post" (category "props"); the FAILING variant is a generator-only
       # flavour (~18% of stamped lamps), so it carries NO category → it renders on the map but is NOT a duplicate
       # palette entry.
@@ -3306,9 +3425,9 @@ defmodule Nebulith.Catalog.TileSource do
 
   # A light-post composition (post base + bulb on top), shared by the steady + failing variants. `bulb_animations`
   # is the bulb cell's `night`-triggered animation list: BOTH variants pass `[bulb_night_lit_anim()]` (the steady
-  # night glow — the default lamp), and the failing variant appends `lamp_flicker_anim()` (the irregular dip) on
-  # top. `nil` → no animation (kept for callers that want a plain bulb). Everything else — structure, the tuned
-  # post/bulb settings, the `light` glow pool — is IDENTICAL, so a failing lamp is a lit lamp whose bulb flickers.
+  # night glow, the default lamp), and the failing variant appends `lamp_flicker_anim()` (the irregular dip) on
+  # top. `nil` → no animation (kept for callers that want a plain bulb). Everything else, structure, the tuned
+  # post/bulb settings, the `light` glow pool, is IDENTICAL, so a failing lamp is a lit lamp whose bulb flickers.
   # The STRUCTURE is style-agnostic (only the baked `post`/`lamp` ART differs per style).
   defp lamp_post_composition(bulb_animations, category) do
     # `light` is a real, controllable SETTING: the bulb
@@ -3322,7 +3441,7 @@ defmodule Nebulith.Catalog.TileSource do
         level: 1,
         label: "lamp",
         walkable: true,
-        # The bulb reads as a real lamp head — ONE centered billboard at Zoom `scale` 0.6,
+        # The bulb reads as a real lamp head, ONE centered billboard at Zoom `scale` 0.6,
         # lifted onto the post top by `pose.dy` -1.8. NO dark base tint: it shows the `lamp` tile's own art (the
         # pale bulb of #43); the night-lit `color` animation last-wins-tints it warm gold at night.
         scale: 0.6,
@@ -3352,12 +3471,12 @@ defmodule Nebulith.Catalog.TileSource do
   # (served as `zIndex`) lets a cell draw LATER (on top / in front), overriding the positional depth sort in
   # every view (iso `isoDepthCompare`, 2D, top), and is authored as DATA on the cell via the editor's Z-Index
   # control. It's kept for the upcoming COMPOSITION-OPTIMIZATION work (e.g. a basin rim occluding the water it
-  # contains — see ANIMATION-SYSTEM.md → "z-index draw priority (a capability for composition optimization)").
+  # contains, see ANIMATION-SYSTEM.md → "z-index draw priority (a capability for composition optimization)").
   # But NOTHING carries a non-zero z_index by DEFAULT right now: every cell keeps the column default 0 and
   # sorts positionally.
 
-  # The fountain/well WATER's DEFAULT ANIMATION — the height-GROW yoyo, now DESYNCED per column so the
-  # water does NOT pulse in unison. EXACTLY 3 water columns animate in every variant — all 3 in
+  # The fountain/well WATER's DEFAULT ANIMATION, the height-GROW yoyo, now DESYNCED per column so the
+  # water does NOT pulse in unison. EXACTLY 3 water columns animate in every variant, all 3 in
   # the small `well`, the CENTER ROW of 3 in the large `fountain`. Each of the 3 carries the
   # SAME 1→4 sine-yoyo grow but with a DISTINCT durationMs + startDelayMs, so their yoyo PERIODS differ (no two
   # ever share a phase) and they surge out of sync:
@@ -3376,7 +3495,7 @@ defmodule Nebulith.Catalog.TileSource do
   @water_grow_durations {1000, 1400, 1800}
   @water_grow_delays {0, 800, 400}
 
-  # The height-grow animation for animated water COLUMN `i` (0..2) — the shared 1→4 sine yoyo with column `i`'s
+  # The height-grow animation for animated water COLUMN `i` (0..2), the shared 1→4 sine yoyo with column `i`'s
   # DISTINCT duration + start delay (the desync spread above). Returned as a one-element list (the cell's
   # `animations`).
   defp water_grow_anim(i) do
@@ -3400,15 +3519,15 @@ defmodule Nebulith.Catalog.TileSource do
     ]
   end
 
-  # The lamp bulb's DEFAULT night-LIT appearance change. BOTH lamp variants carry this — it's the normal lamp
+  # The lamp bulb's DEFAULT night-LIT appearance change. BOTH lamp variants carry this, it's the normal lamp
   # behaviour: at night the
   # bulb visibly LIGHTS UP, STEADY (not flickering); in day it's the plain unlit bulb. Settings-driven, NOT a
-  # render special-case — ONE `night`-triggered `color` animation that HOLDS a warm glow (`from` == `to`, so it's
+  # render special-case, ONE `night`-triggered `color` animation that HOLDS a warm glow (`from` == `to`, so it's
   # a constant value, not a tween). The render bridge (resolveAssetAnimation) gates `night` triggers to night
   # mode, so in DAY the animation is dropped → the bulb shows its base (unlit) art, and at NIGHT the `color`
   # last-wins-tints the bulb art warm (luminance-mapped) → a lit, glowing bulb. `#ffd257` = a SATURATED warm
   # gold so the lit bulb POPS as clearly "on",
-  # not the pale wash the earlier `#ffe9a0` gave. Pure DATA — tune the colour/trigger on the cell, no render
+  # not the pale wash the earlier `#ffe9a0` gave. Pure DATA, tune the colour/trigger on the cell, no render
   # special-casing.
   defp bulb_night_lit_anim do
     %{
@@ -3427,20 +3546,20 @@ defmodule Nebulith.Catalog.TileSource do
     }
   end
 
-  # The FAILING lamp bulb's ADDITIONAL animation — a single irregular OPACITY flicker. ONLY the `lamp_post_failing`
+  # The FAILING lamp bulb's ADDITIONAL animation, a single irregular OPACITY flicker. ONLY the `lamp_post_failing`
   # variant carries this
   # (on TOP of the shared night-lit glow); the default `lamp_post` bulb is STEADY-lit at night, no flicker. It
   # runs through the EXISTING animation engine (the SAME cell-default path the fountain water uses):
-  #   • ONE opacity track 1 → 0.12 with `ease: "flicker"` — the frontend's irregular, STEPPED failing-bulb
+  #   • ONE opacity track 1 → 0.12 with `ease: "flicker"`, the frontend's irregular, STEPPED failing-bulb
   #     envelope (`tileAnimation.flickerEase`), NOT a smooth sine yoyo: mostly ON with brief, erratic dips of
   #     varying depth + occasional full-off blinks at irregular times. `loop: true`, `yoyo: false` (the flicker
   #     ease supplies the erratic shape; a yoyo would just smooth it back out). `opacity` and the night-lit
-  #     `color` are DIFFERENT settings, so the two animations compose — the failing bulb is lit AND flickering.
+  #     `color` are DIFFERENT settings, so the two animations compose, the failing bulb is lit AND flickering.
   # `night`-triggered: the
   # render bridge (resolveAssetAnimation) gates it to night mode, so the bulb rests static in day and flickers at
-  # night. The ground light POOL follows it — the frontend folds this bulb's live opacity into the pool intensity
+  # night. The ground light POOL follows it, the frontend folds this bulb's live opacity into the pool intensity
   # so the pool dims on the SAME beat.
-  # Pure DATA — tune the timing/depth/trigger on the cell, no render special-casing.
+  # Pure DATA, tune the timing/depth/trigger on the cell, no render special-casing.
   defp lamp_flicker_anim do
     %{
       "id" => "lamp_flicker",
@@ -3461,7 +3580,7 @@ defmodule Nebulith.Catalog.TileSource do
 
   # ── Fountain / well basins (autotile rim + water_c interior) ──────────────
   # Both variants: the perimeter is the correct rim EDGE/CORNER piece (`basin_rim`), the interior is `water_c`
-  # (blue water) drawn a bit bigger (scale 1.15) — no `water_jet` drops. EXACTLY 3 water columns animate (the
+  # (blue water) drawn a bit bigger (scale 1.15), no `water_jet` drops. EXACTLY 3 water columns animate (the
   # desynced height-grow, `water_grow_anim`); the rim never animates. Pure data.
 
   # The SMALL well: a 5×3 basin with a 1×3 LINE of 3 water cells (dy 1, dx 1..3), ALL animated (desynced by
@@ -3472,7 +3591,7 @@ defmodule Nebulith.Catalog.TileSource do
   #
   # THE DECK IS FLAT, AND IT HAS TO SAY SO PER CELL. The deck tile (`wooden_planks`) is height 0 in
   # the catalog and it made no difference, because `compositionCellRender` assigns `height: 1` to EVERY
-  # composition cell on purpose ("a tile is pure ART — it does NOT carry height"). So each plank extruded into
+  # composition cell on purpose ("a tile is pure ART, it does NOT carry height"). So each plank extruded into
   # a cube and the bridge came out a row of open crates. `scaleY` is the per-cell mechanism that already
   # exists for exactly this (the lamp post is one cell drawn seven tall), so the deck states its own thinness.
   #
@@ -3664,7 +3783,7 @@ defmodule Nebulith.Catalog.TileSource do
     (Enum.take_every(0..(span - 1), 2) ++ [span - 1]) |> Enum.uniq() |> Enum.sort()
   end
 
-  # A block CENTRED in its cell and `width` of it across, on BOTH ground axes — the four reaches that say so.
+  # A block CENTRED in its cell and `width` of it across, on BOTH ground axes, the four reaches that say so.
   # A reach is measured from the cell's far boundary, so the pair on one axis has to sum past 1 to leave the
   # block any body at all: centring `width` means each side reaches (1 + width) / 2.
   defp post_reach(width) do
@@ -3692,7 +3811,7 @@ defmodule Nebulith.Catalog.TileSource do
     basin_rim(w, h) ++ water
   end
 
-  # The rim EDGE/CORNER pieces around a w×h basin — the `fountain_*` autotile border, reused by both variants.
+  # The rim EDGE/CORNER pieces around a w×h basin, the `fountain_*` autotile border, reused by both variants.
   # The rim keeps the default draw priority (z_index 0), sorting positionally like every other cell.
   defp basin_rim(w, h) do
     for dy <- 0..(h - 1),
@@ -3721,7 +3840,7 @@ defmodule Nebulith.Catalog.TileSource do
     }
   end
 
-  # A STATIC interior water cell — same blue `water_c` look (scale 1.15) but NO animation (the 6 non-centre
+  # A STATIC interior water cell, same blue `water_c` look (scale 1.15) but NO animation (the 6 non-centre
   # cells of the large fountain). Its height stays 1 block. Draw priority stays at the default 0.
   defp static_water_cell(dx, dy) do
     %{
@@ -3784,8 +3903,7 @@ defmodule Nebulith.Catalog.TileSource do
 
   # A label that REUSES another's behaviour (wooden-door → door) must do so in EVERY style. Resolving the
   # reuse HERE rather than at each call site is what fixes the emoji `wooden-door`, which was seeded through a
-  # path that passed the raw label and so rendered as a full cube while the ascii twin was a thin panel —
-  # the same tile, two behaviours.
+  # path that passed the raw label and so rendered as a full cube while the ascii twin was a thin panel, # the same tile, two behaviours.
   defp merge_behavior(settings, label) do
     Map.merge(settings, Map.get(@behavior_settings, reuse_behavior_base(label), %{}))
   end

@@ -3,25 +3,25 @@ defmodule Nebulith.SeedDriftTest do
   SEED ↔ SERVED DRIFT CHECK (ticket 9).
 
   Catches the class of bug where a FRESH SEED's output diverges from what is stored / served to the
-  frontend — a real gap once hid the `squirrel` tile from a live-DB diff (defined in the source, never
+  frontend, a real gap once hid the `squirrel` tile from a live-DB diff (defined in the source, never
   reached the served catalog, so the editor rendered nothing for it). The frontend renders ONLY the
   served `/api/tilesets` (MAP-MODEL §8), so anything the seed defines but the served catalog drops is
-  invisible — silent drift.
+  invisible, silent drift.
 
-  ## What it compares — and what it deliberately does NOT
+  ## What it compares, and what it deliberately does NOT
 
   It compares **geometry / anchors / structural settings**, NEVER the salted appearance. Per
   GENERATION-SPEC §5.4 a building's APPEARANCE (materials / roof / wall colour) is legitimately
   re-rolled AT LOAD via a salt, so a colour comparison would false-positive on every fountain and
   house. Composition cells carry no colour at all (colour is a per-TILE setting); the `@anchor_keys`
-  list below is the contract — dx/dy/level/label/walkable + the structural settings that shape the
+  list below is the contract, dx/dy/level/label/walkable + the structural settings that shape the
   block (scaleY / depth / scale / z_index / animations), and nothing that a load-time salt can move.
 
   ## CI / fixture note
 
   This seeds a FRESH catalog into the sandboxed test DB (the CI fixture) and diffs the source against
-  that served snapshot — no external service, so it runs in plain CI. Pointed at a LIVE production Repo
-  the SAME diff would additionally surface editor/live drift; the invariant is directional — seed ⊆
+  that served snapshot, no external service, so it runs in plain CI. Pointed at a LIVE production Repo
+  the SAME diff would additionally surface editor/live drift; the invariant is directional, seed ⊆
   live (a live DB may legitimately carry MORE: editor-tuned poses per the "DB drifts from seed" memory).
   When no DB is reachable at all, `priv/repo/tilesets/*.json` is the committed offline snapshot.
   """
@@ -30,7 +30,7 @@ defmodule Nebulith.SeedDriftTest do
   alias Nebulith.Catalog
   alias Nebulith.Catalog.BuildingCompositions
 
-  # The stable identity of a composition cell — geometry + anchor. NOT colour/material (salted at load).
+  # The stable identity of a composition cell, geometry + anchor. NOT colour/material (salted at load).
   @anchor_keys [:dx, :dy, :level, :label, :walkable]
 
   setup do

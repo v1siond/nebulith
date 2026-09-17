@@ -44,7 +44,7 @@ defmodule NebulithWeb.LevelController do
     end
   end
 
-  @doc "Reorder a game's levels — the whole ordered list of ids, first to last."
+  @doc "Reorder a game's levels, the whole ordered list of ids, first to last."
   def reorder(conn, %{"game_id" => game_id, "levelIds" => ids}) when is_list(ids),
     do: render(conn, :index, levels: Levels.reorder(game_id, ids))
 end

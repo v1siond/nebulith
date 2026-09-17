@@ -4,7 +4,7 @@ defmodule NebulithWeb.ItemJSON do
   @doc "Every item, in catalog order."
   def index(%{items: items}), do: %{data: Enum.map(items, &data/1)}
 
-  # camelCase on the way out, matching the tileset payload — the frontend's `Item` shape reads
+  # camelCase on the way out, matching the tileset payload, the frontend's `Item` shape reads
   # `baseDamage` / `defenseBonus`, and `stats` is passed through verbatim because it IS that block.
   defp data(%Item{} = item) do
     %{

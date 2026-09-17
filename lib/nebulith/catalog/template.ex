@@ -1,7 +1,7 @@
 defmodule Nebulith.Catalog.Template do
   @moduledoc """
   A saved game stage/template. Maps the EXISTING shared-DB `"Template"` table (originally created by the
-  frontend's Prisma migrations) — so this is a schema-only mapping, NOT a create-table. The table name and
+  frontend's Prisma migrations), so this is a schema-only mapping, NOT a create-table. The table name and
   columns are Prisma's exact camelCase identifiers (Postgres-quoted), the primary key is a text id, and the
   timestamps are the camelCase `createdAt`/`updatedAt` naive-datetime columns.
   """

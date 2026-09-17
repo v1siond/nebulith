@@ -17,11 +17,11 @@ defmodule NebulithWeb.Endpoint do
 
   # CORS runs FIRST, before Plug.Static.
   #
-  # It used to sit just above the Router, at the bottom of this pipeline — which meant the API got its
+  # It used to sit just above the Router, at the bottom of this pipeline, which meant the API got its
   # `access-control-allow-origin` header (the API goes through the Router) and the baked tile PNGs did NOT
   # (Plug.Static answers and HALTS long before the bottom of the pipeline is reached).
   #
-  # The consequence was not a failed request — the images loaded fine — but a TAINTED canvas: a cross-origin
+  # The consequence was not a failed request, the images loaded fine, but a TAINTED canvas: a cross-origin
   # image drawn into a canvas without CORS makes that canvas unreadable, so `getImageData` and `toDataURL`
   # throw a SecurityError on anything the map is drawn into. That blocks reading pixels back for a level
   # minimap, for cached preset thumbnails, and for any in-browser pixel test.

@@ -1,6 +1,6 @@
 defmodule Nebulith.Editor.Setting do
   @moduledoc """
-  One editor UI setting — a stable `key` (a modal id like "settings"/"animation"/"triggers")
+  One editor UI setting, a stable `key` (a modal id like "settings"/"animation"/"triggers")
   mapped to an opaque JSON `value` (a floating panel's `{x,y,w,h}` geometry today). The `value`
   uses `Nebulith.EctoJSON` so any already-decoded JSON term round-trips unchanged.
   """

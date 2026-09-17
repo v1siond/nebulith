@@ -1,6 +1,6 @@
 defmodule Nebulith.Catalog.Item do
   @moduledoc """
-  One item in the catalog — a weapon, a piece of armour, or a consumable.
+  One item in the catalog, a weapon, a piece of armour, or a consumable.
 
   The stat block lives in `stats` because a weapon's and an armour piece's are genuinely different shapes;
   the columns carry only what the catalog is queried by.

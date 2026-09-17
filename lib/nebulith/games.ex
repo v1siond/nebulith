@@ -59,7 +59,7 @@ defmodule Nebulith.Games do
     get_game!(game.id)
   end
 
-  @doc "Append a template to a game (idempotent — no-op if already a member)."
+  @doc "Append a template to a game (idempotent, no-op if already a member)."
   def add_template(%Game{} = game, template_id) do
     next = Repo.one(from(gt in GameTemplate, where: gt.game_id == ^game.id, select: count())) || 0
 

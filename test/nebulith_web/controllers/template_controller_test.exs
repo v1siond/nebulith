@@ -1,11 +1,10 @@
 defmodule NebulithWeb.TemplateControllerTest do
   @moduledoc """
-  `/api/templates` — a saved map's ROUND TRIP.
+  `/api/templates`, a saved map's ROUND TRIP.
 
   Written for a defect that had no test to catch it. It was not: the editor had sent `slabBlocks` with every save
   since
-  `75f9685`, `Template` declared no such field, and `cast/3` drops what the schema does not declare —
-  silently, with a 200 back, so a saved map always reloaded one block deep.
+  `75f9685`, `Template` declared no such field, and `cast/3` drops what the schema does not declare, silently, with a 200 back, so a saved map always reloaded one block deep.
 
   Every field the editor SENDS has to come back, so this asserts the shape rather than one column.
   """
@@ -50,7 +49,7 @@ defmodule NebulithWeb.TemplateControllerTest do
       assert json_response(get(conn, ~p"/api/templates/#{body["id"]}"), 200)["slabBlocks"] == 1
     end
 
-    test "a FLAT map keeps its zero — it is a real value, not a missing one", %{conn: conn} do
+    test "a FLAT map keeps its zero, it is a real value, not a missing one", %{conn: conn} do
       body = payload(%{"slabBlocks" => 0})
       json_response(post(conn, ~p"/api/templates", body), 201)
 

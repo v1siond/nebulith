@@ -2,7 +2,7 @@ defmodule Nebulith.Games.SeedFromFlows do
   @moduledoc """
   One-time data migration: read the current templates + their connectors, find the connected FLOWS
   (connected components of ≥2 templates, undirected edges = `connector.targetTemplateId`), and create one
-  persisted GAME per flow. Mirrors the frontend `deriveFlows`. Guarded — only seeds when there are no
+  persisted GAME per flow. Mirrors the frontend `deriveFlows`. Guarded, only seeds when there are no
   games yet, so re-running is a no-op.
   """
   import Ecto.Query

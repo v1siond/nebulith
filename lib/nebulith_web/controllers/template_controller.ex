@@ -1,8 +1,8 @@
 defmodule NebulithWeb.TemplateController do
   @moduledoc """
   CRUD for saved game stages/templates. Reads FLAT JSON bodies and returns the exact shapes the game
-  editor's client (`lib/api.ts`) already expects — a `{templates, total, limit, offset}` list, a bare
-  object for show/create/update, and `{success, id}` for delete — so the frontend only changes its base URL.
+  editor's client (`lib/api.ts`) already expects, a `{templates, total, limit, offset}` list, a bare
+  object for show/create/update, and `{success, id}` for delete, so the frontend only changes its base URL.
   """
   use NebulithWeb, :controller
 

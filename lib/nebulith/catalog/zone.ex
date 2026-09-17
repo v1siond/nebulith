@@ -4,7 +4,7 @@ defmodule Nebulith.Catalog.Zone do
   flowers, the blooms it scatters, and its temple and cave palettes.
 
   Each group is jsonb because the generator reads each one whole and they differ in shape. Seasons that do
-  not flower carry `flowers: nil` rather than an empty list — "this season has no blooms" and "this season
+  not flower carry `flowers: nil` rather than an empty list, "this season has no blooms" and "this season
   blooms with nothing" are different statements, and the generator treats them differently.
   """
   use Ecto.Schema

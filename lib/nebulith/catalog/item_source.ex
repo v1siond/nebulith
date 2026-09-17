@@ -1,6 +1,6 @@
 defmodule Nebulith.Catalog.ItemSource do
   @moduledoc """
-  Seeds the ITEM CATALOG — the 21 weapons / armour pieces / consumables and the two starter kits that used
+  Seeds the ITEM CATALOG, the 21 weapons / armour pieces / consumables and the two starter kits that used
   to live in the frontend's `game/gear.ts` (§3.14b #1).
 
   Every number here is a VERBATIM move of what that file declared on 2026-09-08: this migration changes
@@ -15,7 +15,7 @@ defmodule Nebulith.Catalog.ItemSource do
   alias Nebulith.Repo
 
   # ── weapons ───────────────────────────────────────────────────────────────
-  # `reachCells` is the weapon's reach in CELLS; melee 1–2, ranged 6–12.
+  # `reachCells` is the weapon's reach in CELLS; melee 1-2, ranged 6-12.
   @weapons [
     {"wpn_sword", "Iron Sword", "sword", ["warrior"],
      %{"baseDamage" => 12, "baseMagic" => 0, "baseDefense" => 2, "strengthBonus" => 3, "intBonus" => 0,
@@ -73,7 +73,7 @@ defmodule Nebulith.Catalog.ItemSource do
   ]
 
   @doc """
-  Upserts the whole catalog. Idempotent — keyed by slug, so re-running only rewrites changed numbers.
+  Upserts the whole catalog. Idempotent, keyed by slug, so re-running only rewrites changed numbers.
   Returns the number of rows.
   """
   def seed do

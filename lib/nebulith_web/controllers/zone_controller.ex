@@ -1,5 +1,5 @@
 defmodule NebulithWeb.ZoneController do
-  @moduledoc "`GET /api/zones` — every season and what it looks like."
+  @moduledoc "`GET /api/zones`, every season and what it looks like."
   use NebulithWeb, :controller
 
   alias Nebulith.Catalog.ZoneSource

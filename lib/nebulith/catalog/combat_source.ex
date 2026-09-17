@@ -1,18 +1,18 @@
 defmodule Nebulith.Catalog.CombatSource do
   @moduledoc """
-  The SEED for the fight's own RULES — the coefficients the damage maths multiplies by, and the stat lines
+  The SEED for the fight's own RULES, the coefficients the damage maths multiplies by, and the stat lines
   a fresh player / enemy / npc starts from.
 
   A CREATURE's numbers are not here: an enemy is a unit tile marked hostile, so its stat block lives on its
   own tile row (`TileSource.seed_unit_combat/0`).
 
-  Every number here is the value the game uses TODAY, so seeding changes no behaviour — it only moves
+  Every number here is the value the game uses TODAY, so seeding changes no behaviour, it only moves
   where the number lives. Provenance, so the port can be re-checked:
 
-    * combat coefficients — `src/game/combat.ts` (`REGULAR_MULTIPLIER`, `SPECIAL_MULTIPLIER`,
+    * combat coefficients, `src/game/combat.ts` (`REGULAR_MULTIPLIER`, `SPECIAL_MULTIPLIER`,
       `RAGE_PER_STRENGTH`, `MANA_PER_INTELLIGENCE`, `SPECIAL_RESOURCE_COST`, `MIN_DAMAGE`) and its
       `SPECIAL_RESOURCE` map of school → resource
-    * default stat lines — `src/game/entities.ts` (`DEFAULT_PLAYER_STATS` / `_ENEMY_` / `_NPC_`) plus
+    * default stat lines, `src/game/entities.ts` (`DEFAULT_PLAYER_STATS` / `_ENEMY_` / `_NPC_`) plus
       `DEFAULT_RESPAWN_MS`
 
   Idempotent: `seed/0` upserts by `key`, the same contract `TileSource.seed/0` and
@@ -67,7 +67,7 @@ defmodule Nebulith.Catalog.CombatSource do
   Upsert arbitrary rule bundles.
 
   `game_rules` is the home for anything tunable that belongs to nobody in particular, so more than one
-  seeder writes to it — the fight's coefficients here, the season-independent prop tables from
+  seeder writes to it, the fight's coefficients here, the season-independent prop tables from
   `ZoneSource`. One way in, so two seeders cannot invent two ways to store a rule.
   """
   def put_rules(bundles) do

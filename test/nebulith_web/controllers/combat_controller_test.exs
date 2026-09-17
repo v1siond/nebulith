@@ -1,6 +1,6 @@
 defmodule NebulithWeb.CombatControllerTest do
   @moduledoc """
-  `GET /api/combat` — the creature roster and the fight's coefficients.
+  `GET /api/combat`, the creature roster and the fight's coefficients.
 
   These were nine stat blocks and a handful of "tunable coefficients" in the frontend
   (`game/archetypes.ts`, `game/combat.ts`, `game/entities.ts`).
@@ -21,7 +21,7 @@ defmodule NebulithWeb.CombatControllerTest do
       :ok
     end
 
-    test "serves no creature roster — a creature's numbers ride on its own tile", %{conn: conn} do
+    test "serves no creature roster, a creature's numbers ride on its own tile", %{conn: conn} do
       # `enemy_archetypes` is gone; `TileSource.seed_unit_combat/0` puts the stat block on the tile.
       data = json_response(get(conn, ~p"/api/combat"), 200)["data"]
       refute Map.has_key?(data, "archetypes")
@@ -46,7 +46,7 @@ defmodule NebulithWeb.CombatControllerTest do
       assert stats["respawnMs"] == 5000
     end
 
-    test "re-seeding is idempotent — the rules come back the same", %{conn: conn} do
+    test "re-seeding is idempotent, the rules come back the same", %{conn: conn} do
       before = json_response(get(conn, ~p"/api/combat"), 200)["data"]["rules"]
       CombatSource.seed()
       assert json_response(get(conn, ~p"/api/combat"), 200)["data"]["rules"] == before

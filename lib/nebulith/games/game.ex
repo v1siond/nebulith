@@ -1,5 +1,5 @@
 defmodule Nebulith.Games.Game do
-  @moduledoc "A GAME — a named flow of templates (many-to-many via `game_templates`). Own properties + a `last_template_id` (the template the game reopens to)."
+  @moduledoc "A GAME, a named flow of templates (many-to-many via `game_templates`). Own properties + a `last_template_id` (the template the game reopens to)."
   use Ecto.Schema
   import Ecto.Changeset
 
@@ -11,7 +11,7 @@ defmodule Nebulith.Games.Game do
     field :last_template_id, :string
 
     has_many :game_templates, Nebulith.Games.GameTemplate, on_replace: :delete
-    # A game is a list of LEVELS, and a level is a list of maps. — Mario, then 1-1 / 1-2 / 1-3, then the maps each of
+    # A game is a list of LEVELS, and a level is a list of maps., Mario, then 1-1 / 1-2 / 1-3, then the maps each of
     # those is built from.
     has_many :levels, Nebulith.Games.Level, on_replace: :delete, preload_order: [asc: :position]
 

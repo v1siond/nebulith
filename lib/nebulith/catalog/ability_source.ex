@@ -1,12 +1,12 @@
 defmodule Nebulith.Catalog.AbilitySource do
   @moduledoc """
-  Seeds the ABILITY REGISTRY — the 13 abilities that used to live in `game/abilities.ts` (§3.14b #2).
+  Seeds the ABILITY REGISTRY, the 13 abilities that used to live in `game/abilities.ts` (§3.14b #2).
 
   Every value is a VERBATIM move of what that file declared on 2026-09-08: this changes where the registry
   lives, not what it says.
 
   No colour here on purpose. Each ability names the FX TILE it plays (`animation`), and that tile row
-  already carries the tint in its own settings — the old frontend `ABILITY_TINT` map duplicated nine hexes
+  already carries the tint in its own settings, the old frontend `ABILITY_TINT` map duplicated nine hexes
   the API was serving. One fact, one owner.
   """
   alias Nebulith.Catalog
@@ -68,7 +68,7 @@ defmodule Nebulith.Catalog.AbilitySource do
       effect: %{"healing" => 14}},
   ]
 
-  @doc "Upserts the registry. Idempotent — keyed by slug."
+  @doc "Upserts the registry. Idempotent, keyed by slug."
   def seed do
     for attrs <- @abilities, do: upsert(attrs)
     length(@abilities)

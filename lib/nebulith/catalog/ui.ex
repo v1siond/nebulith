@@ -1,6 +1,6 @@
 defmodule Nebulith.Catalog.Ui do
   @moduledoc """
-  The PLAYER-UI schemas — the action catalog, and the profile aggregate that hangs off it.
+  The PLAYER-UI schemas, the action catalog, and the profile aggregate that hangs off it.
 
   One module because they are one model: a profile owns its bindings, its elements and its bars, and
   reading any of them alone is never useful. Spec: `2026-09-06-ui-system-spec-and-plan.md` §2.3.
@@ -33,7 +33,7 @@ defmodule Nebulith.Catalog.Ui do
     @moduledoc """
     One complete UI configuration. `game_id` nil is the seeded DEFAULT every new game starts from.
 
-    `player_may` is the author's limit on the player — which of keys / layout / settings a player may change.
+    `player_may` is the author's limit on the player, which of keys / layout / settings a player may change.
     """
     use Ecto.Schema
     import Ecto.Changeset
@@ -83,7 +83,7 @@ defmodule Nebulith.Catalog.Ui do
   end
 
   defmodule Element do
-    @moduledoc "One HUD element's placement, per FORM — a profile carries Desktop and Mobile for each."
+    @moduledoc "One HUD element's placement, per FORM, a profile carries Desktop and Mobile for each."
     use Ecto.Schema
     import Ecto.Changeset
 
@@ -108,7 +108,7 @@ defmodule Nebulith.Catalog.Ui do
   defmodule Bar do
     @moduledoc """
     One action bar. Unlimited per profile and never paged (his Q6), and `condition` is what lets a bar
-    swap in when something happens — Nil means always up.
+    swap in when something happens, Nil means always up.
     """
     use Ecto.Schema
     import Ecto.Changeset

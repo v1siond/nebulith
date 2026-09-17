@@ -1,7 +1,7 @@
 defmodule Nebulith.BuildingCompositionsTest do
   @moduledoc """
   The building-composition RULES (#30 minimal cells + #31 symmetric facades), asserted on the authored DATA
-  (Nebulith.Catalog.BuildingCompositions) — not pixels. These are the source-of-truth guards for every seeded
+  (Nebulith.Catalog.BuildingCompositions), not pixels. These are the source-of-truth guards for every seeded
   building.
   """
   use ExUnit.Case, async: true
@@ -11,7 +11,7 @@ defmodule Nebulith.BuildingCompositionsTest do
   @all ~w(house_3 house_4 house_5 store_5 office_5 stone_building hospital_6 temple_8 cathedral_7 castle_12)
   # GABLE buildings pair a roof BODY + APEX in ONE material (one colour); flat-roof shops (store/office) are excluded.
   @gable ~w(house_3 house_4 house_5 stone_building hospital_6 temple_8 cathedral_7 castle_12)
-  # The OLD per-level stacked cell counts (before the height-collapse rebuild) — the #30 win is measured against them.
+  # The OLD per-level stacked cell counts (before the height-collapse rebuild), the #30 win is measured against them.
   @old_cell_counts %{
     "house_3" => 56,
     "house_4" => 72,
@@ -24,28 +24,28 @@ defmodule Nebulith.BuildingCompositionsTest do
     "cathedral_7" => 155,
     "castle_12" => 396
   }
-  # The single {body, apex} roof material each gable building may use — a mixed roof would carry labels from two.
+  # The single {body, apex} roof material each gable building may use, a mixed roof would carry labels from two.
   @roof_pairs [
     MapSet.new(["roof", "roof_top"]),
     MapSet.new(["roof_slate", "roof_top_slate"]),
     MapSet.new(["roof_hospital", "roof_top_hospital"])
   ]
 
-  # The flat-roof shops (excluded from the gable set) — a deck of depth-spanned columns + one crown.
+  # The flat-roof shops (excluded from the gable set), a deck of depth-spanned columns + one crown.
   @flat ~w(store_5 office_5)
 
   defp comp(name), do: BuildingCompositions.all() |> Map.fetch!(name)
 
-  # A cell's settings map (nil when it carries none) — never raises on a settings-less cell.
+  # A cell's settings map (nil when it carries none), never raises on a settings-less cell.
   defp st(c), do: Map.get(c, :settings) || %{}
 
-  # Every ROOF cell (gable body/apex, flat deck/parapet/crown) — the same set the frontend's isRoofLabel spans.
+  # Every ROOF cell (gable body/apex, flat deck/parapet/crown), the same set the frontend's isRoofLabel spans.
   defp roof_cell?(%{label: l}),
     do: String.starts_with?(l, "roof") or l in ["flat_roof", "parapet"]
 
   defp roof_cells(c), do: Enum.filter(c.cells, &roof_cell?/1)
 
-  # The block HEIGHT (scaleY span) a cell renders — its authored scaleY or 1.
+  # The block HEIGHT (scaleY span) a cell renders, its authored scaleY or 1.
   defp cell_span(c) do
     case st(c) do
       %{"scaleY" => s} -> trunc(s)
@@ -53,7 +53,7 @@ defmodule Nebulith.BuildingCompositionsTest do
     end
   end
 
-  # The gable peak-height (in blocks) expected at column dx — the UNCHANGED silhouette formula (peak ≤ 3,
+  # The gable peak-height (in blocks) expected at column dx, the UNCHANGED silhouette formula (peak ≤ 3,
   # falling off from the centre). The roof-z-width collapse must preserve this per-column height exactly.
   defp gable_levels(dx, w) do
     center = (w - 1) / 2
@@ -97,12 +97,12 @@ defmodule Nebulith.BuildingCompositionsTest do
   defp window?(label), do: is_binary(label) and String.starts_with?(label, "window")
   defp wall?(label), do: is_binary(label) and String.starts_with?(label, "wall")
 
-  # The ENTRANCE apron of a composition — the ground cells authored on the row directly IN FRONT of the
+  # The ENTRANCE apron of a composition, the ground cells authored on the row directly IN FRONT of the
   # facade (dy == footprint_h, one past the front wall row), where the frontend's driveway lands.
   defp entrance_cells(c), do: Enum.filter(c.cells, &(&1.dy == c.footprint_h))
 
 
-  # Every DOOR column the composition actually places — `door_cols/1` as realised in the authored data.
+  # Every DOOR column the composition actually places, `door_cols/1` as realised in the authored data.
   defp door_columns(c) do
     for {dx, _dy, _l, "door"} <- expanded(c.cells), uniq: true, do: dx
   end
@@ -124,7 +124,7 @@ defmodule Nebulith.BuildingCompositionsTest do
         do: level
   end
 
-  describe "#31 symmetric facades — windows mirror across the centreline, edges are walls" do
+  describe "#31 symmetric facades, windows mirror across the centreline, edges are walls" do
     for name <- @all do
       test "#{name}: window grid is bilaterally symmetric, edge-walled, min wall·window·wall, aligned across floors" do
         c = comp(unquote(name))
@@ -141,13 +141,13 @@ defmodule Nebulith.BuildingCompositionsTest do
         for level <- levels do
           cols = window_cols(tiles, w, level)
 
-          # BILATERAL SYMMETRY — a window at dx is mirrored by one at w-1-dx.
+          # BILATERAL SYMMETRY, a window at dx is mirrored by one at w-1-dx.
           for dx <- cols do
             assert (w - 1 - dx) in cols,
                    "#{unquote(name)} L#{level}: window at #{dx} has no mirror at #{w - 1 - dx} (cols=#{inspect(cols)})"
           end
 
-          # EDGES ARE WALLS — never a window at column 0 or w-1 (min unit is wall·window·wall).
+          # EDGES ARE WALLS, never a window at column 0 or w-1 (min unit is wall·window·wall).
           refute 0 in cols, "#{unquote(name)} L#{level}: a window sits on the bare left edge"
 
           refute (w - 1) in cols,
@@ -157,7 +157,7 @@ defmodule Nebulith.BuildingCompositionsTest do
           assert wall?(face_label(tiles, :back, 0, level))
           assert wall?(face_label(tiles, :back, w - 1, level))
 
-          # ALIGNED — every window column also appears on the top floor (windows stack, never wander).
+          # ALIGNED, every window column also appears on the top floor (windows stack, never wander).
           assert Enum.all?(cols, &(&1 in top_cols)),
                  "#{unquote(name)} L#{level}: window cols #{inspect(cols)} not aligned with top #{inspect(top_cols)}"
         end
@@ -180,11 +180,11 @@ defmodule Nebulith.BuildingCompositionsTest do
     end
   end
 
-  describe "the doorway opens onto the ground — there is NO entrance apron (#49)" do
+  describe "the doorway opens onto the ground, there is NO entrance apron (#49)" do
     # THIS GROUP WAS INVERTED, not deleted.
     #
     # It used to assert an apron: a `path` cell on the row in front of the facade, spanning every door
-    # column. Report #49 removed it, and `assemble/6` says why — once every tile became a height-1 block
+    # column. Report #49 removed it, and `assemble/6` says why, once every tile became a height-1 block
     # the apron stood UP as a raised block directly in front of the doors and BLOCKED the doorway it was
     # meant to serve. It is also redundant: the road or ground is already there, and walkability comes from
     # the layout rather than from a doorstep tile.
@@ -196,7 +196,7 @@ defmodule Nebulith.BuildingCompositionsTest do
         c = comp(unquote(name))
 
         assert entrance_cells(c) == [],
-               "#{unquote(name)}: something sits in front of the doors — a raised block there blocks the doorway (#49)"
+               "#{unquote(name)}: something sits in front of the doors, a raised block there blocks the doorway (#49)"
       end
 
       test "#{name}: no cell anywhere is the `path` doorstep tile" do
@@ -204,7 +204,7 @@ defmodule Nebulith.BuildingCompositionsTest do
         paths = Enum.filter(c.cells, &(&1.label == "path"))
 
         assert paths == [],
-               "#{unquote(name)}: #{length(paths)} `path` cell(s) — the doorstep tile is gone, the ground carries the walkway"
+               "#{unquote(name)}: #{length(paths)} `path` cell(s), the doorstep tile is gone, the ground carries the walkway"
       end
     end
 
@@ -218,7 +218,7 @@ defmodule Nebulith.BuildingCompositionsTest do
       end
     end
 
-    test "the doorway is still walkable — removing the apron must not seal the building" do
+    test "the doorway is still walkable, removing the apron must not seal the building" do
       for name <- @all do
         c = comp(name)
         doors = door_columns(c) |> Enum.sort()
@@ -238,7 +238,7 @@ defmodule Nebulith.BuildingCompositionsTest do
 
   # THE ENTRANCE RULE group is gone with `entrance_cells/2` itself.
   #
-  # It tested the apron builder in detail — one door to one block, contiguous doors collapsing into one
+  # It tested the apron builder in detail, one door to one block, contiguous doors collapsing into one
   # z-width span, non-adjacent doors staying separate. Careful work, and all of it about a function no
   # building has called since #49 removed the apron: it stood UP in front of the doors and blocked the
   # doorway it served. The function had no caller but these tests, so it and they go together.
@@ -263,13 +263,13 @@ defmodule Nebulith.BuildingCompositionsTest do
     end
   end
 
-  describe "#30 minimal cells — authored pre-collapsed (fewer stored cells than the old stack)" do
+  describe "#30 minimal cells, authored pre-collapsed (fewer stored cells than the old stack)" do
     for name <- @all do
       test "#{name}: stored cell count is below the old per-level stack and below the expanded level count" do
         c = comp(unquote(name))
         stored = length(c.cells)
 
-        # Expanding every scaleY cell back to per-level tiles recovers the full stack — stored must be smaller,
+        # Expanding every scaleY cell back to per-level tiles recovers the full stack, stored must be smaller,
         # i.e. at least one run actually collapsed.
         expanded_count = length(expanded(c.cells))
         assert stored < expanded_count, "#{unquote(name)}: nothing collapsed (stored=#{stored})"
@@ -288,12 +288,12 @@ defmodule Nebulith.BuildingCompositionsTest do
             Map.has_key?(s, "scaleY"),
             do: s["scaleY"]
 
-      assert scaleys != [], "no cell collapsed — the height optimisation did not run"
+      assert scaleys != [], "no cell collapsed, the height optimisation did not run"
       assert Enum.all?(scaleys, &(is_integer(&1) and &1 >= 2))
     end
   end
 
-  describe "roof-z-width — each roof COLUMN is ONE depth-spanned block (smart height + smart z-width)" do
+  describe "roof-z-width, each roof COLUMN is ONE depth-spanned block (smart height + smart z-width)" do
     for name <- @gable do
       test "#{name}: gable roof collapses to ONE depth-spanned bar per column, silhouette preserved" do
         c = comp(unquote(name))
@@ -303,12 +303,12 @@ defmodule Nebulith.BuildingCompositionsTest do
 
         # ONE depth-spanned bar PER COLUMN = w blocks, instead of one cell per (col,row). There is no separate
         # ridge apex cap: it shortened one centre column and stuck a chunky block on top, which broke the
-        # left/right symmetry — the PEAK-height columns wear the roof_top ridge tile instead.
+        # left/right symmetry, the PEAK-height columns wear the roof_top ridge tile instead.
         assert length(roofs) == w,
                "#{unquote(name)}: expected #{w} roof blocks, got #{length(roofs)}"
 
         # Every roof block spans the footprint DEPTH along +row (grid-aligned, anchored at the back row) and
-        # BLOCKS — (It used to be authored walkable on the
+        # BLOCKS, (It used to be authored walkable on the
         # reasoning that the wall beneath carried the collision; that made "walkable" claim you may stand on a
         # roof, which is how the hero ended up standing on one.)
         for r <- roofs do
@@ -320,7 +320,7 @@ defmodule Nebulith.BuildingCompositionsTest do
                  "#{unquote(name)}: a depth-span roof must anchor at the back row (dy=0)"
         end
 
-        # SILHOUETTE preserved — each column's roof sits ON the eave and peaks at the UNCHANGED gable height.
+        # SILHOUETTE preserved, each column's roof sits ON the eave and peaks at the UNCHANGED gable height.
         eave = roofs |> Enum.map(& &1.level) |> Enum.min()
 
         for dx <- 0..(w - 1) do
@@ -336,7 +336,7 @@ defmodule Nebulith.BuildingCompositionsTest do
       end
     end
 
-    test "house_5 gable roof is exactly 5 blocks — one bar per column, no apex cap" do
+    test "house_5 gable roof is exactly 5 blocks, one bar per column, no apex cap" do
       assert length(roof_cells(comp("house_5"))) == 5
     end
 
@@ -361,7 +361,7 @@ defmodule Nebulith.BuildingCompositionsTest do
         refute Map.has_key?(st(crown), "depth")
 
         # Every deck/parapet column spans the footprint depth along +row and BLOCKS, like the crown and every
-        # gable bar — a roof is not a floor.
+        # gable bar, a roof is not a floor.
         for d <- deck do
           assert st(d)["depth"] == h, "#{unquote(name)}: deck column missing depth=#{h}"
           assert st(d)["depthDir"] == "left-down"
@@ -375,12 +375,12 @@ defmodule Nebulith.BuildingCompositionsTest do
   #  applying the properties wrong, plus roof should have collissions, so this shouldn't be a posssible bug"
   #
   # Two authoring defects this guards:
-  #  1. `assemble` marked a column walkable by its COLUMN ALONE (`dx in doors`), ignoring the row — so the BACK
+  #  1. `assemble` marked a column walkable by its COLUMN ALONE (`dx in doors`), ignoring the row, so the BACK
   #     wall directly opposite each door was walkable too, and you could stroll through the back of every
   #     building. Only the DOOR ROW (the front, dy = h-1) is an opening.
   #  2. Roof blocks were authored walkable, on the reasoning that the wall beneath carries the collision. A roof
   #     is not a floor: it BLOCKS.
-  describe "walkability — only the doorway is an opening; walls and roofs block" do
+  describe "walkability, only the doorway is an opening; walls and roofs block" do
     for name <- @all do
       test "#{name}: the door row's door columns are walkable, and nothing else on the ground floor is" do
         c = comp(unquote(name))
@@ -403,10 +403,10 @@ defmodule Nebulith.BuildingCompositionsTest do
         back_row = Enum.filter(c.cells, &(&1.dy == 0))
 
         refute Enum.any?(back_row, & &1.walkable),
-               "#{unquote(name)}: back-row cells #{inspect(back_row |> Enum.filter(& &1.walkable) |> Enum.map(&{&1.dx, &1.label}))} are walkable — you can walk through the back wall"
+               "#{unquote(name)}: back-row cells #{inspect(back_row |> Enum.filter(& &1.walkable) |> Enum.map(&{&1.dx, &1.label}))} are walkable, you can walk through the back wall"
       end
 
-      test "#{name}: every roof block blocks — a roof is not a floor" do
+      test "#{name}: every roof block blocks, a roof is not a floor" do
         c = comp(unquote(name))
         roofs = Enum.filter(c.cells, &roof_label?(&1.label))
 

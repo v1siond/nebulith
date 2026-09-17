@@ -1,10 +1,10 @@
 defmodule Nebulith.Levels do
   @moduledoc """
-  The Levels context — the layer between a game and its maps.
+  The Levels context, the layer between a game and its maps.
 
   and on why it is a real layer: Five maps, one level.
 
-  Ordering is by `position` everywhere, and a level's maps come back ordered — the editor renders the list it
+  Ordering is by `position` everywhere, and a level's maps come back ordered, the editor renders the list it
   is given without sorting, so the order is the API's job.
   """
   import Ecto.Query, warn: false
@@ -18,7 +18,7 @@ defmodule Nebulith.Levels do
     |> Enum.map(&preload_ordered/1)
   end
 
-  @doc "One level with its ordered maps, or `{:error, :not_found}` — never a raise, so the controller's
+  @doc "One level with its ordered maps, or `{:error, :not_found}`, never a raise, so the controller's
   fallback can turn a miss into a real 404 instead of a 500."
   def get_level(id) do
     case Repo.get(Level, id) do

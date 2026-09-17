@@ -2,7 +2,7 @@ defmodule Nebulith.Catalog.UiSource do
   @moduledoc """
   The SEED for the player-UI model: the action catalog, and the DEFAULT profile.
 
-  That default is this profile — the UI the product ships with
+  That default is this profile, the UI the product ships with
   today, moved rather than redesigned. Every chord and every placement was dumped out of the frontend
   (`shortcuts.ts`, `playerUi.data.ts`) and generated into this file, so the seed cannot have drifted from
   what shipped.
@@ -382,7 +382,7 @@ defmodule Nebulith.Catalog.UiSource do
   @doc """
   The profile a game uses: its own if it has one, else the seeded default.
 
-  No game asked for (`nil`) goes straight to the default rather than querying for `game_id == nil` — in SQL
+  No game asked for (`nil`) goes straight to the default rather than querying for `game_id == nil`, in SQL
   that comparison is never true, and Ecto refuses it outright for exactly that reason.
   """
   def profile_for(nil), do: default_profile()
@@ -399,7 +399,7 @@ defmodule Nebulith.Catalog.UiSource do
   COPY-ON-WRITE, and it matters: the seeded default is shared by every game that has not customised its UI,
   so the first time one game moves a bar it must get its OWN profile rather than editing everyone's. The
   copy carries the default's bindings, elements and bars, so a game starts from exactly what it was already
-  showing (his Q1: — you start from it, you do not lose it).
+  showing (his Q1:, you start from it, you do not lose it).
   """
   def editable_profile(nil), do: default_profile()
 

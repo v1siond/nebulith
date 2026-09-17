@@ -13,8 +13,8 @@ defmodule Nebulith.WaterIsOneToneTest do
 
   A 2.1x spread, which is three different waters in one river no matter what colour the tile row carries.
 
-  The bands keep their own wave GEOMETRY — shallow draws tight ripples, deep draws long slow swells, and that
-  is what should say the depth — and share ONE palette of three colours in three roles: the base they are
+  The bands keep their own wave GEOMETRY, shallow draws tight ripples, deep draws long slow swells, and that
+  is what should say the depth, and share ONE palette of three colours in three roles: the base they are
   painted on, the crest of a wave, and the trough behind it.
 
   This asserts the SOURCE (`priv/tilegen/tiles.json`), not the bake, so a repaint is caught before anyone has
@@ -60,7 +60,7 @@ defmodule Nebulith.WaterIsOneToneTest do
     end
   end
 
-  test "the bands are still told apart — same palette, different wave geometry" do
+  test "the bands are still told apart, same palette, different wave geometry" do
     by_label = Map.new(water_tiles(), &{&1["label"] <> "/" <> &1["style"], &1["svg"]})
     # The curves, stripped of colour. If two bands drew the same paths they would be the same tile with two
     # names, which is the opposite mistake to the one above.

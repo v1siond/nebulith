@@ -2,9 +2,9 @@ defmodule Nebulith.Catalog.GenerationLayer do
   @moduledoc """
   ONE LAYER of map generation: what it is called, where it sits in the order, and whether it rolls.
 
-  Generation is a stack of layers applied in order — *"we generate the grid, then we add water if any, then we
+  Generation is a stack of layers applied in order, *"we generate the grid, then we add water if any, then we
   generate pathways with number of exits around the existing area, then we add the rest of vegeation and other
-  things, then we add the characters if any"* — and more are coming: *"we can apply shadow and lightning as
+  things, then we add the characters if any"*, and more are coming: *"we can apply shadow and lightning as
   extra layers, we'll also add fog layer, then we probably will add some reprocess layer too, we'll add water
   reflection layer"*.
 

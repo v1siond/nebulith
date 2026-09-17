@@ -3,7 +3,7 @@ defmodule Nebulith.EctoJSON do
   Ecto type for opaque JSON(B) blobs that may be a MAP or a LIST.
 
   The Template table (owned originally by the frontend, shared DB) stores several `jsonb` columns whose
-  top-level value is an ARRAY — `groundData` (`string[][]`), `heightData` (`number[][]`), `assetsData`
+  top-level value is an ARRAY, `groundData` (`string[][]`), `heightData` (`number[][]`), `assetsData`
   (`object[]`), `connectors`/`entities`/`quests` (`object[]`). Ecto's built-in `:map` type rejects lists,
   so we use this pass-through type: it declares the column as `jsonb` (`type/0 == :map`) but casts / loads /
   dumps ANY already-decoded JSON term unchanged. Postgrex's jsonb codec handles both maps and lists.

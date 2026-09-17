@@ -3,12 +3,12 @@ defmodule Nebulith.AsciiGlyphUniquenessTest do
   PERMANENT guard against "fake" ascii tiles.
 
   Measured at the time: **29 of 358 ascii tiles had no baked PNG at all** (those drew the literal `?`), and
-  **170 more drew a byte-identical copy of another tile's picture** because they shared a glyph — `rose`,
+  **170 more drew a byte-identical copy of another tile's picture** because they shared a glyph, `rose`,
   `tulip`, `sunflower` and `hibiscus` were one `❀` plate, `oak-tree`, `palm-tree` and `pine-tree` one `♣`.
 
   The ascii PNG is rasterised FROM the glyph, so "two tiles, one glyph" and "two tiles, one picture" are the
-  same statement. Asserting glyph uniqueness here catches the whole class at the source — in the DB, where
-  the fix belongs — instead of after a bake.
+  same statement. Asserting glyph uniqueness here catches the whole class at the source, in the DB, where
+  the fix belongs, instead of after a bake.
 
   ## The two legitimate ways to share a glyph
 
@@ -48,11 +48,11 @@ defmodule Nebulith.AsciiGlyphUniquenessTest do
       |> Enum.sort()
 
     assert collisions == [],
-           "ascii tiles sharing one glyph draw the SAME picture — pick a distinct glyph in a migration:\n" <>
+           "ascii tiles sharing one glyph draw the SAME picture, pick a distinct glyph in a migration:\n" <>
              Enum.map_join(collisions, "\n", fn {g, ls} -> "  #{g} → #{Enum.join(ls, ", ")}" end)
   end
 
-  test "every ascii tile has a baked PNG on disk — a missing one renders as `?`" do
+  test "every ascii tile has a baked PNG on disk, a missing one renders as `?`" do
     missing =
       Catalog.list_tiles_for("ascii")
       |> Enum.reject(&File.exists?(Path.join(@static_root, &1.image_url || "")))
@@ -64,7 +64,7 @@ defmodule Nebulith.AsciiGlyphUniquenessTest do
              Enum.join(missing, ", ")
   end
 
-  test "so does every emoji tile — the rule is per-style-agnostic" do
+  test "so does every emoji tile, the rule is per-style-agnostic" do
     missing =
       Catalog.list_tiles_for("emoji")
       |> Enum.reject(&File.exists?(Path.join(@static_root, &1.image_url || "")))
@@ -90,7 +90,7 @@ defmodule Nebulith.OneEngineManyStylesTest do
   @moduledoc """
   A LABEL owns everything but the picture.
 
-  `grass` is called "Grass", is `terrain`, is walkable and is a flat slab — in EVERY style, because those
+  `grass` is called "Grass", is `terrain`, is walkable and is a flat slab, in EVERY style, because those
   are facts about grass, not about which pictures you are looking at. Only the image differs.
   """
   use Nebulith.DataCase
@@ -106,7 +106,7 @@ defmodule Nebulith.OneEngineManyStylesTest do
     {:ok, styles: styles, by_style: Map.new(styles, &{&1.key, Map.new(Catalog.list_tiles_for(&1.key), fn t -> {t.label, t} end)})}
   end
 
-  test "every style carries the SAME set of labels — a style is a set of pictures, not a set of things", ctx do
+  test "every style carries the SAME set of labels, a style is a set of pictures, not a set of things", ctx do
     [first | rest] = Enum.map(ctx.by_style, fn {key, tiles} -> {key, MapSet.new(Map.keys(tiles))} end)
     {first_key, first_labels} = first
 
@@ -133,7 +133,7 @@ defmodule Nebulith.OneEngineManyStylesTest do
       end
 
     assert drift == [],
-           "these are facts about the LABEL, not the style — they must not differ:\n" <> Enum.join(drift, "\n")
+           "these are facts about the LABEL, not the style, they must not differ:\n" <> Enum.join(drift, "\n")
   end
 
   defp label_diff(a, b) do
@@ -176,7 +176,7 @@ defmodule Nebulith.UnitRolesTest do
   `PERSON_SLUGS`) to decide whether a `units` tile places a person, a monster or a combat effect. Those are
   deleted: `seed_unit_roles/0` writes `settings.unitRole` on every row, so the catalog answers it.
 
-  That makes catalog COMPLETENESS load-bearing — a row with no role now places nothing at all, on purpose
+  That makes catalog COMPLETENESS load-bearing, a row with no role now places nothing at all, on purpose
   (an unclassified tile is a seeding gap to fix here, not something the editor should guess at). So it is
   asserted here, where a forgotten seeder fails immediately.
 
@@ -222,14 +222,14 @@ defmodule Nebulith.UnitRolesTest do
       |> Enum.filter(fn {key, _} -> key == "emoji" end)
       |> Map.new(fn {_, tile} -> {tile.label, (tile.settings || %{})["unitRole"]} end)
 
-    # Every served enemy type that IS a tile label must be roled `enemy` — bat, spider and wolf included,
+    # Every served enemy type that IS a tile label must be roled `enemy`, bat, spider and wolf included,
     # which is what settles them from data rather than opinion.
     for slug <- enemies, Map.has_key?(by_label, slug) do
       assert by_label[slug] == "enemy", "#{slug} is a served enemy type but is roled #{by_label[slug]}"
     end
   end
 
-  test "a role is the same in every style — it is a fact about the LABEL" do
+  test "a role is the same in every style, it is a fact about the LABEL" do
     drift =
       unit_tiles()
       |> Enum.group_by(fn {_key, tile} -> tile.label end, fn {key, tile} -> {key, (tile.settings || %{})["unitRole"]} end)
@@ -252,7 +252,7 @@ defmodule Nebulith.UnitArtTest do
 
   `ensure_distinct_glyphs/0` makes every tile's picture distinct by giving it its own CHARACTER. That is
   right for a wall piece and wrong for a living thing: it turned `man` into `♂`, `woman` into `♀`, `dog`
-  into `d`. The engine is one — every style draws baked image tiles and animates them — but a style's
+  into `d`. The engine is one, every style draws baked image tiles and animates them, but a style's
   pictures are AUTHORED differently, and ascii composes a grid where emoji places a pictograph.
 
   These assert that distinction in the DB, where the fix belongs. A single-character unit fails here.
@@ -284,7 +284,7 @@ defmodule Nebulith.UnitArtTest do
     assert length(living_units()) > 50
   end
 
-  test "every living unit has a composed FIGURE — more than one row AND more than one column" do
+  test "every living unit has a composed FIGURE, more than one row AND more than one column" do
     flat =
       for tile <- living_units(),
           frames = (tile.settings || %{})["artFrames"],
@@ -294,7 +294,7 @@ defmodule Nebulith.UnitArtTest do
       end
 
     assert flat == [],
-           "a unit drawn as a single character is the Image #13 defect — author it in " <>
+           "a unit drawn as a single character is the Image #13 defect, author it in " <>
              "priv/repo/tilesets/ascii_unit_art.json:\n" <> Enum.join(flat, "\n")
   end
 
@@ -339,7 +339,7 @@ defmodule Nebulith.UnitArtTest do
     assert mismatched == [], Enum.join(mismatched, "\n")
   end
 
-  test "the movement frame is a DIFFERENT drawing — an identical frame animates nothing" do
+  test "the movement frame is a DIFFERENT drawing, an identical frame animates nothing" do
     static =
       for tile <- living_units(),
           [base | rest] = (tile.settings || %{})["artFrames"] || [[]],

@@ -3,7 +3,7 @@ defmodule NebulithWeb.TemplateJSON do
 
   @doc """
   Renders the template gallery list: `{templates, total, limit, offset}` with a LIGHT projection per row
-  (no heavy grid blobs — `groundData`/`heightData`/`assetsData` are omitted, exactly like the old list API).
+  (no heavy grid blobs, `groundData`/`heightData`/`assetsData` are omitted, exactly like the old list API).
   """
   def index(%{templates: templates, total: total, limit: limit, offset: offset}) do
     %{
@@ -14,7 +14,7 @@ defmodule NebulithWeb.TemplateJSON do
     }
   end
 
-  @doc "Renders a single template as the FULL record (all fields incl. the grid blobs) — a bare object."
+  @doc "Renders a single template as the FULL record (all fields incl. the grid blobs), a bare object."
   def show(%{template: template}), do: full(template)
 
   defp list_item(%Template{} = t) do

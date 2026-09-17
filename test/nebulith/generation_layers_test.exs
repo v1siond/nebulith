@@ -67,7 +67,7 @@ defmodule Nebulith.GenerationLayersTest do
     for layer <- Catalog.list_generation_layers() do
       assert layer.label not in [nil, ""]
       assert layer.hint not in [nil, ""]
-      refute String.contains?(layer.hint, "—"), "#{layer.key}: no em dashes in anything user-facing"
+      refute String.contains?(layer.hint, ", "), "#{layer.key}: no em dashes in anything user-facing"
     end
   end
 

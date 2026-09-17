@@ -1,6 +1,6 @@
 defmodule Nebulith.Games.Level do
   @moduledoc """
-  A LEVEL — the layer between a game and its maps.
+  A LEVEL, the layer between a game and its maps.
 
   And on why it has to be a real layer rather than a naming convention:
 

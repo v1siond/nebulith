@@ -2,7 +2,7 @@ defmodule Nebulith.Games.LevelTemplate do
   @moduledoc """
   Join row: an ordered membership of a map in a LEVEL.
 
-  `template_id` points at the Prisma-owned Template table, so there is no FK across owners — the same rule
+  `template_id` points at the Prisma-owned Template table, so there is no FK across owners, the same rule
   `game_templates` follows, and the reason both filter missing templates in the app rather than in the schema.
   """
   use Ecto.Schema

@@ -70,7 +70,7 @@ defmodule NebulithWeb.LevelControllerTest do
     assert json_response(get(conn, ~p"/api/levels/#{Ecto.UUID.generate()}"), 404)
   end
 
-  test "the response carries no database bookkeeping — just what the editor needs", %{conn: conn, game: game} do
+  test "the response carries no database bookkeeping, just what the editor needs", %{conn: conn, game: game} do
     {:ok, level} = Levels.create_level(game.id, %{"name" => "1-1"})
     body = json_response(get(conn, ~p"/api/levels/#{level.id}"), 200)
 

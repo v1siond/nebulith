@@ -2,7 +2,7 @@ defmodule Nebulith.Catalog.ZoneSource do
   @moduledoc """
   The SEED for the season catalog, dumped VERBATIM from the frontend tables it replaces.
 
-  `src/engine/zones.ts` carried all of this — ground palettes, the hazard and trail tile, the curated tree /
+  `src/engine/zones.ts` carried all of this, ground palettes, the hazard and trail tile, the curated tree /
   decor / flower tile per season, the bloom variants, and the temple and cave palettes. Its own comment said
   where it belonged:
 

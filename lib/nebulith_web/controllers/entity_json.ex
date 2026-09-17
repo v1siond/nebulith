@@ -3,8 +3,8 @@ defmodule NebulithWeb.EntityJSON do
   Renders the entity resolution map.
 
   The keys are emitted in the camelCase the frontend reads directly
-  (`enemyTypeSlug`/`variantSlug`) — the same pass-through convention
-  `TilesetJSON` uses for `zIndex` — so the loader installs the payload verbatim.
+  (`enemyTypeSlug`/`variantSlug`), the same pass-through convention
+  `TilesetJSON` uses for `zIndex`, so the loader installs the payload verbatim.
   """
   def index(%{resolution: resolution}) do
     %{

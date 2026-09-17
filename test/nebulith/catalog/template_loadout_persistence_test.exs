@@ -1,14 +1,14 @@
 defmodule Nebulith.Catalog.TemplateLoadoutPersistenceTest do
   @moduledoc """
-  Proves the ELIXIR persistence layer preserves a UNIT's loadout/inventory EXACTLY — the backend side of
+  Proves the ELIXIR persistence layer preserves a UNIT's loadout/inventory EXACTLY, the backend side of
   "if I equip something I want to see it equipped next time … if I move things in my inventory to a specific
   order I should see the same when reloading".
 
   The `Template` table is a Prisma-owned shared table with no Ecto migration, so it is absent from the
-  test DB — the controller round-trip can't run here. Instead we test the two layers that DO the preserving:
+  test DB, the controller round-trip can't run here. Instead we test the two layers that DO the preserving:
   `Nebulith.EctoJSON` (the jsonb pass-through the `entities` column uses) and `Template.changeset` (which
   casts `entities`). Together they are exactly what a create/update stores and a show returns, so a nested
-  loadout — an ordered bag WITH an empty gap, equipped slots, an inventory — must survive unchanged.
+  loadout, an ordered bag WITH an empty gap, equipped slots, an inventory, must survive unchanged.
   """
   use ExUnit.Case, async: true
 
@@ -35,7 +35,7 @@ defmodule Nebulith.Catalog.TemplateLoadoutPersistenceTest do
     }
   }
 
-  # A NON-PLAYER unit's loadout must round-trip identically — units are the same.
+  # A NON-PLAYER unit's loadout must round-trip identically, units are the same.
   @enemy %{
     "id" => "enemy_1",
     "kind" => "enemy",
