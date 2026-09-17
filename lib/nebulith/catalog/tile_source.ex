@@ -3251,6 +3251,41 @@ defmodule Nebulith.Catalog.TileSource do
     %{footprint_w: 1, footprint_h: 1, category: "nature", cells: [leaf_cell(0, opts.leaf_h, opts.leaf_zoom, Map.get(opts, :shape), false)]}
   end
 
+  # A CACTUS, AS AN OBJECT MADE OF CELLS.
+  #
+  # *"I REQUESTED TREES, WHICH MEAN OBJECTS, COMPOSITIONS, AND YOU JUST USED A FUCKING TILE IN A FUCKING
+  # CELL."* The first attempt was one billboard tile per cactus, which is the thing that sentence rejects.
+  #
+  # Built on `tree_dead`'s pattern instead, which is this catalog's established shape for a plant with no
+  # canopy: a 1x1 footprint, one cell per LEVEL, a different tile per segment. A saguaro is a stem, a stem
+  # and a crown. Segment art is full-bleed greyscale in the `canopy_*` style, because that is how a plant
+  # MASS is drawn on a cube face here, and the served colour tints it.
+  #
+  # `width` is what makes it a cactus rather than a wall: a narrow column reads as a succulent, a squat
+  # wide one as a barrel.
+  defp cactus_comp(segments) do
+    %{
+      footprint_w: 1,
+      footprint_h: 1,
+      category: "nature",
+      cells:
+        for {seg, level} <- Enum.with_index(segments) do
+          %{
+            dx: 0,
+            dy: 0,
+            level: level,
+            label: seg.label,
+            walkable: false,
+            # WIDTH IS scaleX, NOT scale. `scale` shrinks the drawn cube on every axis while the per-level
+            # lift stays a full block, so a 0.44-scaled segment at level 1 FLOATS above the one at level 0.
+            # `tree_comp` already narrows a trunk with `scaleX` for exactly this reason.
+            scale: 1.0,
+            settings: %{"scaleX" => seg.width, "scaleY" => seg.height}
+          }
+        end
+    }
+  end
+
   defp leaf_cell(level, leaf_h, leaf_zoom, shape, walkable) do
     # The canopy defaults to a SQUARE crown (a leaf cube); a ROUND crown is OPT-IN via `shape: "circle"`
     # ("tree_round"/"bush_round"), so "tree" and "tree round" render DIFFERENTLY. An explicit shape always wins (a future conifer can pass a cone).
@@ -3362,6 +3397,29 @@ defmodule Nebulith.Catalog.TileSource do
       # encina: the holm oak of a dry dehesa. Evergreen, dense and rounded, on a short sturdy trunk, and it
       # stands in the open rather than in a closed wood.
       "tree_encina" => tree_comp(%{trunk_h: 2.4, trunk_zoom: 0.58, trunk_w: 1.15, leaf_h: 2.0, leaf_zoom: 1.9, shape: "circle"}),
+      # THE DRY COUNTRY. A desert grew bananas and mangroves and had no cactus at all.
+      #
+      # saguaro: a tall narrow column, two stem segments under a domed crown
+      "cactus_saguaro" =>
+        cactus_comp([
+          # SLIGHTLY OVERSIZE, the fountain's 1.15 trick (OBJECT-CONSTRUCTION §1.0): each segment overruns
+          # its block so the joins between them close instead of showing a seam.
+          %{label: "cactus_stem", width: 0.42, height: 1.2},
+          %{label: "cactus_stem", width: 0.42, height: 1.2},
+          %{label: "cactus_crown", width: 0.46, height: 1.2}
+        ]),
+      # barrel: squat and wide, a ribbed body under a low dome
+      "cactus_barrel" =>
+        cactus_comp([
+          %{label: "cactus_stem", width: 0.78, height: 0.55},
+          %{label: "cactus_crown", width: 0.72, height: 0.45}
+        ]),
+      # prickly pear: a clump of pads, the wider one at the bottom
+      "cactus_prickly" =>
+        cactus_comp([
+          %{label: "cactus_pad", width: 0.86, height: 0.85},
+          %{label: "cactus_pad", width: 0.6, height: 0.75}
+        ]),
       # TWO water variants of the town-square basin, both COMPOSITIONS assembled from AUTOTILE PIECES
       # (TILESET-AUTHORING §3), not one fill: a rim of the RIGHT edge/corner piece per cell (`fountain_tl/tr/
       # bl/br` corners + `fountain_t/b/l/r` sides) around a `water_c` (blue water) interior. Every cell blocks

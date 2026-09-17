@@ -115,7 +115,8 @@ defmodule Nebulith.DataMigrations do
     Nebulith.DataMigration.FourSpeciesHeAskedFor,
     Nebulith.DataMigration.UndoTheDesertTiles,
     Nebulith.DataMigration.ADesertGrowsDesertTrees,
-    Nebulith.DataMigration.HowMuchGrowsThere
+    Nebulith.DataMigration.HowMuchGrowsThere,
+    Nebulith.DataMigration.ACactusIsAnObject
   ]
 
   @doc "Every registered data migration module, in run order."
