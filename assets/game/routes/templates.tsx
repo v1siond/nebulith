@@ -3741,6 +3741,7 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
       palette: generator.config.palette,
       // The REGIONS this template partitions itself into, open canopy, dense growth, swamp, ruins.
       subZones: generator.config.subZones,
+      regionLayout: generator.config.regionLayout,
       // HOW the trees group, a wood pasture, an even-aged stand and a closed canopy differ in this, not in
       // how many trees they hold.
       formation: generator.config.formation,
@@ -3979,6 +3980,7 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
       palette: generator.config.palette,
       // The REGIONS this template partitions itself into, open canopy, dense growth, swamp, ruins.
       subZones: generator.config.subZones,
+      regionLayout: generator.config.regionLayout,
       // HOW the trees group, a wood pasture, an even-aged stand and a closed canopy differ in this, not in
       // how many trees they hold.
       formation: generator.config.formation,

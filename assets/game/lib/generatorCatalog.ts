@@ -292,6 +292,8 @@ export interface GeneratorConfig {
   palette?: GeneratorPalette
   /** The regions this template partitions itself into. Absent → one uniform map. */
   subZones?: readonly GeneratorSubZone[]
+  /** How the regions above are laid on the map: `scatter`, `rings` or `bands` (`REGIONS.md` §2). */
+  regionLayout?: string
   /** How this template distributes its trees. Absent → the generator's own default grouping. */
   formation?: GeneratorFormation
   /** What this template's pathways are made of. Absent → the engine's own plain track. */
@@ -636,6 +638,10 @@ function parseConfig(v: unknown): GeneratorConfig {
   const trees = parseTreeMix(v.trees)
   const crossings = parseCrossings(v.crossings)
   const entrance = typeof v.entrance === 'string' && v.entrance !== '' ? v.entrance : undefined
+  // SERVED, so it has to be READ. This parser is a whitelist, and a key it does not name is dropped on the
+  // floor: that is the served-and-ignored defect this file has produced more than once (the palette's `leaf`,
+  // a woodland's regions). `regionLayout` says whether a set is a scatter, rings or bands (`REGIONS.md` §2).
+  const regionLayout = typeof v.regionLayout === 'string' && v.regionLayout !== '' ? v.regionLayout : undefined
   const optionGroups = isObject(v.optionGroups)
     ? Object.fromEntries(Object.entries(v.optionGroups).flatMap(([k, label]) => (typeof label === 'string' ? [[k, label]] : [])))
     : undefined
@@ -647,6 +653,7 @@ function parseConfig(v: unknown): GeneratorConfig {
   if (settlement) out.settlement = settlement
   if (palette) out.palette = palette
   if (subZones) out.subZones = subZones
+  if (regionLayout) out.regionLayout = regionLayout
   if (formation) out.formation = formation
   if (pathway) out.pathway = pathway
   if (trees) out.trees = trees

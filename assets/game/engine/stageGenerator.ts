@@ -347,6 +347,8 @@ export interface GenerateOptions {
   palette?: GeneratorPalette
   /** The REGIONS this template partitions itself into (`config.subZones`). Absent → one uniform map. */
   subZones?: readonly GeneratorSubZone[]
+  /** HOW those regions are laid out: `scatter` (the default), `rings` or `bands`. See `REGIONS.md` §2. */
+  regionLayout?: string
   /** How this template DISTRIBUTES its trees (`config.formation`), grouping, spacing, understory. */
   formation?: GeneratorFormation
   /**
@@ -986,6 +988,8 @@ interface ArchetypeContext {
   /** The REGIONS this template partitions itself into, open canopy, dense growth, swamp, ruins. A jungle is
    *  not one uniform density, it is several kinds of ground you walk between. */
   subZones?: readonly GeneratorSubZone[]
+  /** How the regions are laid out, served. */
+  regionLayout?: string
   /** How the trees are DISTRIBUTED, a wood pasture, an even-aged stand and a closed canopy differ in this,
    *  not in how many trees they hold. */
   formation?: GeneratorFormation
@@ -1369,7 +1373,7 @@ export function generateStage(opts: GenerateOptions): StageData {
   for (const key of generationLayerKeys()) rngs[key] = layerRng(opts.seeds, key)
   for (const key of ENGINE_PASS_RNGS) rngs[key] ??= layerRng(opts.seeds, key)
   // Single-pass archetypes (forest/cave/temple/boss) read `ctx.rand`; the layout rng is their source.
-  const ctx: ArchetypeContext = { variant, zone, ground, collision, floorColors, elevation, buildings, props, trees, compositions, cols, rows, layout, options: opts.options, nature: opts.nature, settlement: opts.settlement, palette: opts.palette, subZones: opts.subZones, formation: opts.formation, pathway: opts.pathway, treeMix: opts.treeMix, crossings: opts.crossings, entrance: opts.entrance, pathwayCells: new Set<string>(), water: new Set<string>(), pools: new Set<string>(), banks: new Set<string>(), claimed: new Set<string>(), decks: new Set<string>(), fords: new Set<string>(), wet: new Set<string>(), flow: new Map<string, number>(), waterDepth: new Map<string, number>(), molten: isMolten(liquidFor(opts)), buildingSizes: opts.buildingSizes, rand: rngs.layout }
+  const ctx: ArchetypeContext = { variant, zone, ground, collision, floorColors, elevation, buildings, props, trees, compositions, cols, rows, layout, options: opts.options, nature: opts.nature, settlement: opts.settlement, palette: opts.palette, subZones: opts.subZones, regionLayout: opts.regionLayout, formation: opts.formation, pathway: opts.pathway, treeMix: opts.treeMix, crossings: opts.crossings, entrance: opts.entrance, pathwayCells: new Set<string>(), water: new Set<string>(), pools: new Set<string>(), banks: new Set<string>(), claimed: new Set<string>(), decks: new Set<string>(), fords: new Set<string>(), wet: new Set<string>(), flow: new Map<string, number>(), waterDepth: new Map<string, number>(), molten: isMolten(liquidFor(opts)), buildingSizes: opts.buildingSizes, rand: rngs.layout }
   runLayers(STAGE_LAYERS, ctx, rngs, opts.upTo)
 
   return {
@@ -4122,10 +4126,82 @@ function leadRegion(ctx: ArchetypeContext, zones: readonly GeneratorSubZone[] | 
   return served.map(z => (z.key === picked ? { ...z, weight: z.weight * REGION_LEAD } : z))
 }
 
-function partitionSubZones(ctx: ArchetypeContext, zones: readonly GeneratorSubZone[]): (GeneratorSubZone | undefined)[][] {
+/** How a region set is laid on the map. Served per generator; absent means the scatter it has always had. */
+export type RegionLayout = 'scatter' | 'rings' | 'bands'
+
+const REGION_LAYOUTS: readonly RegionLayout[] = ['scatter', 'rings', 'bands']
+
+/** The served arrangement, falling back to the scatter rather than to a guess. */
+function regionLayoutOf(ctx: ArchetypeContext): RegionLayout {
+  const served = ctx.regionLayout
+  return REGION_LAYOUTS.includes(served as RegionLayout) ? (served as RegionLayout) : 'scatter'
+}
+
+/**
+ * THE ORDERED LAYOUTS: a region set you walk THROUGH rather than stumble across.
+ *
+ * Both read the served ORDER of the list, so the list stops being a bag and becomes a sequence, and both use
+ * `weight` as the THICKNESS of the ring or band rather than as a seed count, so the served numbers keep
+ * meaning how much of the map a region claims.
+ *
+ *   rings   region 0 at the middle, the last at the rim. For anything you APPROACH: a volcano, a ruin.
+ *   bands   region 0 at the SOUTH edge, the last at the north. For a gradient you cross: a mountain foot to
+ *           summit, a beach shore to inland, a swamp margin to open water.
+ *
+ * South first is not arbitrary: a map's entrance is always south (`DESIGN-ENTRANCES.md`), so band 0 is the one
+ * you walk into. That puts the foot of the mountain and the shore of the beach where you arrive, which is
+ * what his descriptions say: *"is not same the bottom of the mountain, the middle and the top"*.
+ *
+ * The same noise the scatter uses wobbles the boundary, or the rings read as drawn with a compass.
+ */
+function orderedRegions(
+  ctx: ArchetypeContext,
+  zones: readonly GeneratorSubZone[],
+  layout: Exclude<RegionLayout, 'scatter'>,
+  map: (GeneratorSubZone | undefined)[][],
+): (GeneratorSubZone | undefined)[][] {
+  const { cols, rows } = ctx
+  // Cumulative share of the map each region occupies, in the served order.
+  const total = zones.reduce((n, z) => n + Math.max(0, z.weight), 0) || zones.length
+  const edges: number[] = []
+  let run = 0
+  for (const zone of zones) {
+    run += Math.max(0, zone.weight) || 1
+    edges.push(run / total)
+  }
+  // The RIM is the furthest any cell sits from the centre, so a ring set spans the whole map rather than
+  // leaving the corners to the last region by accident.
+  const midCol = (cols - 1) / 2
+  const midRow = (rows - 1) / 2
+  const maxR = Math.hypot(midCol, midRow) || 1
+
+  forEachCell(cols, rows, (col, row) => {
+    const wobble = shadeNoise(col * 0.23 + row * 0.41) * 0.06
+    const t = layout === 'rings'
+      ? Math.hypot(col - midCol, row - midRow) / maxR
+      : (rows - 1 - row) / Math.max(1, rows - 1) // south edge is row rows-1, and it is band 0
+    const at = clamp01(t + wobble)
+    map[row][col] = zones[edges.findIndex(e => at <= e)] ?? zones[zones.length - 1]
+  })
+  return map
+}
+
+/** Exported so WHERE a region lands can be tested directly. `zoneAt` never leaves the generator, so the only
+ *  other way to ask was to re-derive the answer in the test, which tests the test. */
+export function partitionSubZones(ctx: ArchetypeContext, zones: readonly GeneratorSubZone[]): (GeneratorSubZone | undefined)[][] {
   const { cols, rows } = ctx
   const map: (GeneratorSubZone | undefined)[][] = Array.from({ length: rows }, () => new Array(cols).fill(undefined))
   if (zones.length === 0) return map
+
+  // HOW THE SET IS LAID OUT, which is a property of the SET and is served (`REGIONS.md` §2).
+  //
+  // *"there's no sense of getting close to the volcano for example, because all of them are the same as the
+  // other forests"*. The scatter below is a nearest-seed Voronoi, so every kind lands in blobs all over the
+  // map, and NO amount of region content produces a sense of approach on top of that: the volcanic bands were
+  // built with the right species and the right floors and still read as a wood, because you met them in a
+  // random order. A set that describes a journey has to be laid out as one.
+  const arrangement = regionLayoutOf(ctx)
+  if (arrangement !== 'scatter') return orderedRegions(ctx, zones, arrangement, map)
 
   // One seed per ~200 cells, never fewer than TWICE the number of kinds. The density matters: the first pass
   // hands one seed to each kind so none is ever missing, and only the seeds after that are drawn by weight,
