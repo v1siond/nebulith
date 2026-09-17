@@ -638,7 +638,9 @@ export function GenerateControls({
    * Building was the only way anything here reached the
    * map, and building rolls a new world, so changing one setting cost you the map you had.
    */
-  onApply?: (zone: string, options: Record<string, GeneratorOptionValue>) => void
+  /** Returns a promise so the button can show it is working. Returning nothing is why it never did:
+   *  the caller discarded the promise with `void`, so there was nothing to wait on. */
+  onApply?: (zone: string, options: Record<string, GeneratorOptionValue>) => void | Promise<unknown>
   /** When provided, shows the universal "re-roll one layer" row that re-rolls a single layer of the current
    *  map (leaving the others intact). Omitted where there is no current map to scope. */
   onRandomizeLayer?: (layer: string) => void
@@ -866,6 +868,9 @@ export function GenerateControls({
    * changing when it finally landed. A second click during that window queued a whole second build.
    */
   const [buildingWorld, setBuildingWorld] = useState(false)
+  // APPLYING, for the same reason, and it had none at all. Measured 2026-09-17: across 3.4 seconds of work the
+  // button read "Apply to this map" the whole way, so a click looked like nothing happened.
+  const [applyingMap, setApplyingMap] = useState(false)
   // WHAT WENT WRONG, on the screen. A build that throws used to reach the console and nowhere else: the
   // button went back to "Build this world" and the map did not change, which reads as the click being lost.
   const [buildError, setBuildError] = useState<string | null>(null)
@@ -1111,12 +1116,20 @@ export function GenerateControls({
       {onApply && (
         <button
           type="button"
-          onClick={() => onApply(zone, chosenOptions())}
+          onClick={() => {
+            if (applyingMap) return
+            const done = onApply(zone, chosenOptions())
+            if (!done) return // a caller that does its work synchronously has nothing to wait for
+            setApplyingMap(true)
+            void Promise.resolve(done).finally(() => setApplyingMap(false))
+          }}
+          disabled={applyingMap}
+          aria-busy={applyingMap}
           title={`Put the ${zone} season and these options on the map that is open, keeping its streets, plots and trees`}
           className="b"
           style={{ width: '100%', margin: '4px 0 0', padding: 10, justifyContent: 'center' }}
         >
-          ✓ Apply to this map
+          {applyingMap ? 'Applying to this map…' : '✓ Apply to this map'}
         </button>
       )}
       {buildError && (

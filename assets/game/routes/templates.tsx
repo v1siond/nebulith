@@ -896,6 +896,9 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
   const hudLayout = useHudLayout()
   // The level map. Shown by default because it answers "where am I?", the question you have most often, // and hideable, which is how the HUD version will work too.
   const [levelMapOpen, setLevelMapOpen] = useState(true)
+  /** How many jobs are rebuilding the map right now. A count rather than a flag, so two that overlap do not
+   *  have the first one to finish clear the indicator while the second is still going. */
+  const [mapWorking, setMapWorking] = useState(0)
   /**
    * What the open library is pointing at, and whether the placement panel is up.
    *
@@ -3780,6 +3783,19 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
    * With nothing generated yet there is no map to preserve, so it builds one, the same fallback the layer
    * re-roll has always taken.
    */
+  /**
+   * THE MAP SAYS IT IS WORKING, not just the button that was pressed.
+   *
+   * *"build this world and àpply to this map don't work correctly, I don't see any loader when I click them"*.
+   * Measured: Build DID change its own label, for three seconds, and Apply changed nothing at all. But both
+   * buttons live in a side panel, and the thing being watched is the MAP, which sat there unchanged. A label
+   * on a control in another column is not feedback for a three second job.
+   */
+  const workingOn = <T,>(job: Promise<T>): Promise<T> => {
+    setMapWorking(n => n + 1) // a COUNT, not a flag: two overlapping jobs must not have the first one clear it
+    return job.finally(() => setMapWorking(n => Math.max(0, n - 1)))
+  }
+
   const applyToCurrentMap = async (zone: ZoneId, options?: Record<string, GeneratorOptionValue>) => {
     const recipe = lastGenRef.current
     if (!recipe) { await generateStageInEditor(zone, 'town', undefined, undefined, undefined, options); return }
@@ -5371,6 +5387,32 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
             onContextMenu={handleContextMenu}
             style={{ cursor: isPanning ? 'grabbing' : topViewMode ? 'default' : 'grab' }}
           />
+          {/* WORKING, over the map. Building a 40x40 with regions, relief and a settlement takes about three
+              seconds, and until now the only sign was a label on a button in another column. */}
+          {mapWorking > 0 && (
+            <div
+              role="status"
+              aria-live="polite"
+              style={{
+                position: 'absolute', inset: 0, display: 'grid', placeItems: 'center',
+                background: 'rgba(12,14,20,0.42)', zIndex: 40, pointerEvents: 'none',
+              }}
+            >
+              <div style={{
+                display: 'flex', alignItems: 'center', gap: 10, padding: '12px 18px',
+                borderRadius: 10, background: 'rgba(18,22,30,0.92)', color: '#e8ecf4',
+                font: '600 14px/1.2 system-ui, sans-serif', boxShadow: '0 6px 24px rgba(0,0,0,0.45)',
+              }}>
+                <span aria-hidden style={{
+                  width: 15, height: 15, borderRadius: '50%',
+                  border: '2px solid rgba(255,255,255,0.28)', borderTopColor: '#7fb2ff',
+                  animation: 'nebspin 0.7s linear infinite',
+                }} />
+                Building this world…
+              </div>
+              <style>{'@keyframes nebspin{to{transform:rotate(360deg)}}'}</style>
+            </div>
+          )}
           {/* The hybrid mode: the game keeps running underneath and the real HUD is draggable over it. */}
           {hudMode && <HudOverlay state={hudLayout} />}
           {/* THE LEVEL MAP. Inside the canvas pane, so it insets against the level and not the page. */}
@@ -5939,9 +5981,11 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
                   onZone={z => setGenZone(z as ZoneId)}
                   onGenerate={(z, v, layout, options, generatorKey) =>
                     // RETURN the promise: the button shows "Building this world…" until it settles (ticket 65).
-                    generateStageInEditor(z as ZoneId, v as VariantId, layout, undefined, undefined, options, generatorKey)
+                    workingOn(generateStageInEditor(z as ZoneId, v as VariantId, layout, undefined, undefined, options, generatorKey))
                   }
-                  onApply={(z, options) => { void applyToCurrentMap(z as ZoneId, options) }}
+                  // RETURN IT, do not `void` it. Discarding the promise is exactly why this button never showed
+                  // that it was working: there was nothing for it to wait on.
+                  onApply={(z, options) => workingOn(applyToCurrentMap(z as ZoneId, options))}
                   onRandomizeLayer={layer => randomizeLayerInEditor(layer as LayerId)}
                   // A PICK is what brings the window back: clicking a preset shows it, closing it and
                   // clicking the preset again shows it again. The rule lives in `previewOpening`, with the
