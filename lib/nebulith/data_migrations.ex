@@ -113,7 +113,9 @@ defmodule Nebulith.DataMigrations do
     Nebulith.DataMigration.AForestWearsItsOwnRegion,
     Nebulith.DataMigration.UndergrowthBelongsToItsBiome,
     Nebulith.DataMigration.FourSpeciesHeAskedFor,
-    Nebulith.DataMigration.UndoTheDesertTiles
+    Nebulith.DataMigration.UndoTheDesertTiles,
+    Nebulith.DataMigration.ADesertGrowsDesertTrees,
+    Nebulith.DataMigration.HowMuchGrowsThere
   ]
 
   @doc "Every registered data migration module, in run order."
