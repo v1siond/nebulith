@@ -43,3 +43,104 @@ row before the file is used. Do not commit licensed stock into this repository.
 
 His list, not yet gathered: entrances to **Pokemon** towns and cities, **Zelda**, **Death's Door**, **Ori**,
 **Hollow Knight**.
+
+## Recovered from the whole prompt history, 2026-09-15
+
+*"IF I PASS A FUCKING REFERENCE, IS BECAUSE I WANT TO SAVE IT, STORE IT AND WORK IN THE FUCKING OBJECT OR
+DESIGN UNTIL IT MATCHES THE REFERENCE AS CLOSE TO 100% AS POSIBLE, ANYTHING LESS THAN THAT IS UNACEPTABLE"*.
+
+The sheets above were gathered for the bridge and entrance work. They are not everything he has sent: sweeping
+every prompt turned up **41 more** that had only ever existed in the chat, against 10 already held. They are
+in `.claude-workspace/game-website/references/by-subject/`, filed by what they are, with the sentence he typed
+around each recorded in `_recovered.json`. Same rule as above: the FILES stay out of this repository.
+
+Nine were filtered back OUT. They were screenshots of our own renders, which he sends to report a defect: the
+opposite of a reference, the thing to change rather than the thing to match.
+
+| subject | count | what is in it |
+|---|---|---|
+| `by-subject/bridges/` | 2 | more crossings in context, on actual water |
+| `by-subject/buildings/` | 6 | church and cathedral photographs, and an isometric modern block |
+| `by-subject/entrances/` | 5 | a cave mouth in lush vegetation, the isometric forest whose canopy closes over the path, and the dense forest entrance he called good |
+| `by-subject/objects/` | 3 | objects he pointed at while asking for the compositions list to be kept up to date |
+| `by-subject/pathways/` | 9 | the nine he sent for pathway variance (beach city street, clifftop path, rocky track, woodland crossroads, park path, trail beside a river, swamp boardwalk to a cave, swamp trail to a temple, swamp island), plus a park with a plank bridge and a forest path winding between trees |
+| `by-subject/trees/` | 5 | the five behind 'we need to have more variance of trees, like we are using the same for all forest variations' |
+| `by-subject/units/` | 1 | how a human unit should read |
+| `by-subject/unsorted/` | 2 | shared without a sentence naming them; open them before using them |
+| `by-subject/water/` | 7 | rivers and banks in context, and the shots behind 'we should use optimized tiles with z-width' and the swamp water complaints |
+| `by-subject/whole-map/` | 1 | whole isometric scenes to model the overall read against: an RPG town with market stalls and wooden paths, and a conifer forest |
+
+### Still missing
+
+Vecteezy refuses every automated request, so three he linked are recorded by URL and label only, and need
+saving by hand from a browser:
+
+- *"pathway from rocky terrain, rocky rustic pathway"*, `static.vecteezy.com/.../051/331/589/non_2x/isometric-forest-path-illustration...`
+- isometric hill with river, `static.vecteezy.com/.../073/164/866/small/isometric-hill-with-r...`
+- isometric park or forest, `static.vecteezy.com/.../025/339/328/small/isometric-park-or-for...`
+
+## Method sources, not art
+
+Written and filmed explanations of HOW an effect is built, as opposed to art to model against. These get read
+and turned into a framework doc, never applied from memory. See [`../FRAMEWORKS.md`](../FRAMEWORKS.md).
+
+| Source | For | What was taken |
+|---|---|---|
+| [How I Created 2D Pixel Art Water For My Indie Game](https://www.youtube.com/watch?v=DkfKwfjaVx0), Fishy Games, 8:41 | **THE water layer model** | Five layers plus a shoreline pass: water on its own layer with objects on the bed, depth from a blurred height map read by a colour ramp, caustics tiled ON THE BOTTOM and fading with depth, surface movement (particle sim and vertex displacement both weighed and rejected, texture displacement via a DUDV map chosen, then quantised so it stays pixelated), reflections as a vertical flip put through the same distortion, and a hand animated non-linear shoreline with foam and wet sand. Transcript with timestamps in the workspace at `references/method/water-video-transcript.txt`, facts cited by timestamp in [`../WATER.md`](../WATER.md) |
+| [Isometric water tile tutorial](https://westenfry.com/tutorial/), westenfry | **The tile-native form of a moving surface** | A 64x32 isometric water tile animated over 16 frames. Waves are duplicated and staggered in time so the motion reads as non-directional, which is what lets it survive the camera turning to all four facings. The palette is reduced afterwards because the interpolation leaves a blur that reads as mush |
+
+## Vegetation, by biome
+
+His, 2026-09-16, with the instruction that a forest must read as the real place it represents: *"jungle trees are different from beach trees, different color, different form, because they have different environmental conditions, we need to think of all elements as the real life element they represent."* Files in the workspace at `references/by-subject/vegetation/`.
+
+| File | Biome | What to take |
+|---|---|---|
+| `beach-coastal-plain-brazil.jpg` | Beach | *"beaches usually have brighter greens than the ones we're seeing, even trees with other colors, like yellowish"* |
+| `meadow-lady-farm-steppe.jpg` | Meadow | *"more mix of colors, due to flowers, they even have trees that are orange, pink, more varied"* |
+| `jungle-rainforest-treetops.jpg` | Jungle | *"more enredaderas, darker trees, denser"* |
+| `mountain-california-treeline.jpg` | Mountain | *"multiple zones of dirt and rock, and lots of pines and green areas"*, and the rule that matters most: *"the higher you get to the mountain the less vegetation there is"* |
+| `desert-simpson-australia.jpg`, `desert-plants.jpg` | Desert | *"Desert vegetation is diferent too"* |
+| `beach-dunes-de-hoop-south-africa.jpg` | Beach | the dune half of the same note, scrub rather than canopy |
+
+**The first `beach-coastal-plain-brazil.jpg` was never an image.** It was an HTML error page saved with a
+`.jpg` name, so the beach biome had no reference at all while its palette was being judged. He re-sent it
+(CNN/Getty) plus the De Hoop dunes, and a ResearchGate link that refuses non-browser requests and was
+dropped. Check `file` on a downloaded reference before trusting it.
+
+### MEASURED, 2026-09-16, not eyeballed
+
+Vegetation pixels only (saturation > 0.18, value > 0.12, hue inside the yellow-through-green band), sampled
+off each file at 260px. `a-reference-is-a-contract` demands the comparison be measured, so here it is, with
+what the engine served at the time beside it.
+
+| Reference | veg share | **hue** | sat | val | four shades, dark to light |
+|---|---|---|---|---|---|
+| beach-coastal-plain-brazil | 39% | **51d** | 0.53 | 0.54 | `#53510f` `#726c20` `#938342` `#dec7a8` |
+| beach-dunes-de-hoop | 42% | **63d** | 0.46 | 0.39 | `#2e3d09` `#595937` `#636d47` `#85894f` |
+| desert-plants | 61% | **40d** | 0.53 | 0.63 | `#6b5531` `#948e53` `#b69544` `#e0bb87` |
+| desert-simpson-australia | 44% | **30d** | 0.44 | 0.53 | `#584838` `#825d3c` `#9c7b60` `#b58f70` |
+| jungle-rainforest-treetops | 54% | **74d** | 0.58 | 0.39 | `#2c3c1b` `#495a1a` `#66721c` `#7e8c2c` |
+| meadow-lady-farm-steppe | 85% | **40d** | 0.67 | 0.58 | `#666520` `#8c8029` `#a6a22e` `#c4925d` |
+| mountain-california-treeline | 26% | **52d** | 0.39 | 0.27 | `#26271e` `#32352a` `#484435` `#69553e` |
+
+**The deltas that condemned the old palette**, measured against what `/api/generators` served:
+
+| biome | engine served | hue | reference hue | error |
+|---|---|---|---|---|
+| Jungle | `#2e6b32` | 124d | 74d | **50d too far toward pure green** |
+| Mountain | `#5d7340` | 86d | 52d | 34d off, and far too bright and saturated |
+| Desert | `#4f9147` | 114d | 30-40d | **a GREEN where the reference is olive and ochre** |
+| Beach | `#4f9147` | 114d | 51-63d | same green as Desert, byte-identical, ~55d off |
+
+Three observations that only show up once it is measured:
+
+1. **Every reference sits between 30d and 74d.** Not one real vegetation photo is a pure green. The engine
+   served 86d to 124d everywhere, which is why the maps read as plastic.
+2. **Value separates the biomes more than hue does.** Mountain 0.27 and jungle 0.39 against desert 0.63 and
+   meadow 0.58. "Darker, denser" is a VALUE statement, and dropping value is what makes a jungle read.
+3. **Saturation is the meadow's signature**, 0.67, the highest of the set, which is the measured form of
+   *"more mix of colors, due to flowers ... more varied"*.
+
+Use the HUE relationships and the RELATIVE ordering, never the absolute value: a photo's 0.27 carries the
+scene's lighting, and transplanting it onto a tile tint would paint a near-black tree. The tile art already
+carries the tone (`colour-tints-luminance-stays`), so the tint moves the hue.

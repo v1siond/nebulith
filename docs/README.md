@@ -4,7 +4,13 @@ The canonical spec set for the Nebulith game engine. The `game-website` frontend
 model docs; **these are the source of truth**. Working rule: **check docs → understand → do the work**,
 and update the relevant doc in the same change that alters the model or a feature.
 
+Working rule: **open [`FRAMEWORKS.md`](FRAMEWORKS.md) first**, follow the framework it names for
+whatever is being worked on, and if there is no framework for it, research and write one before starting.
+Then: check docs, understand, do the work, and update the relevant doc in the same change.
+
 ## Read first — the model
+
+- [`FRAMEWORKS.md`](FRAMEWORKS.md) — **the index of every framework and every missing one, and the rule that binds them.** Open this before anything else.
 
 - [`MAP-MODEL.md`](MAP-MODEL.md) — the cell/block/tile model, the three views (ISO/2D/TOP), how
   height derives collision, the `shape` setting, and the tile pipeline. **Start here.**
@@ -32,6 +38,7 @@ and update the relevant doc in the same change that alters the model or a featur
 - [`EDITOR-INTERACTION-SPEC.md`](EDITOR-INTERACTION-SPEC.md) — the editor interaction model.
 - [`ANIMATION-SYSTEM.md`](ANIMATION-SYSTEM.md) — the tile animation envelope + z-index draw priority.
 - [`LIGHTING.md`](LIGHTING.md) — the day/night lighting model.
+- [`WATER.md`](WATER.md) — the water layer stack: bed, depth tint, caustics, animated surface, reflections, shoreline.
 - [`GENERATION-SPEC.md`](GENERATION-SPEC.md) — the layer-pass stage/town generator + scoped randomize.
 - [`ALGORITHMS.md`](ALGORITHMS.md) — the algorithm decision database for generator problems.
 - [`COMBAT-AND-SYSTEMS-SPEC.md`](COMBAT-AND-SYSTEMS-SPEC.md) — the game layer (entities, combat, stats, quests).

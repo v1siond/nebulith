@@ -44,6 +44,10 @@ already the broad phase, so there is no quadtree and no spatial hash, and every 
 **The live backend, curled, not inferred:** `GET http://localhost:6328/api/tilesets`, `GET /api/entities`.
 Numbers in §3 are measured off that payload today.
 
+**Video sources, transcribed with `yt-dlp` and cited by timestamp:** *"I Added ELEVATION to my 2D Game"*,
+Isocore devlog, `https://www.youtube.com/watch?v=ez68sFkO6Qo`, read into §4.11 (perlin, the height profile,
+the sorting problem). His instruction with it: *"we must use perlin(x,z) on our terrain for elevation"*.
+
 **Web research:** 4 parallel passes, ~40 sources. §4 carries them with links, and says where the industry
 disagrees and which side this spec takes.
 
@@ -438,6 +442,109 @@ gives: a derived view updates every facing from one edit, and hand-kept sets do 
   → Bake per `(tile, frame, view)` at catalog install. §5.8.
 
 ---
+
+---
+
+### 4.11 Choosing the heights: `perlin(x, z)`, and why one noise is not enough
+
+**This is settled, not open.** His instruction, 2026-09-16: *"we must use perlin(x,z) on our terrain for
+elevation, ticket 2 context"*.
+
+**Source:** *"I Added ELEVATION to my 2D Game"*, Isocore devlog, 12:06,
+`https://www.youtube.com/watch?v=ez68sFkO6Qo`. A Unity 2D isometric sandbox that went from a flat world to a
+stacked one, so the problems it hits are ours almost line for line: an orthographic camera, a block-stacked
+world, and a sorting order that has to survive objects taller and wider than one cell.
+
+#### What it teaches us to BUILD
+
+1. **Pure random per column is unusable** `[04:29]` to `[04:41]`. *"The change in height are just way too
+   drastic and unpredictable."* A `rand()` per cell is terrain-shaped noise, not terrain.
+2. **A periodic function is the opposite failure** `[04:44]` to `[04:50]`. A sine curve changes gradually and
+   *"just repeats itself every time"*, so the organic randomness is gone. Both halves are needed at once.
+3. **Perlin is exactly the pairing of the two** `[04:53]` to `[05:08]`: a value between a set minimum and
+   maximum, 0 and 1 in his case, that *"instead of jumping harshly ... smoothly transitions between them"*.
+   This is the whole reason it is the named choice.
+4. **Octaves add detail without changing the range** `[05:17]` to `[05:37]`: summing the noise at rising
+   frequency and falling amplitude keeps the result inside 0 to 1 but *"has much more detail and looks more
+   organic"*. One octave reads artificial; several read like ground.
+5. **ONE noise field still comes out flat and samey**, and this is the step that matters most `[05:42]` to
+   `[06:43]`. A single field is applied to a constant base height (sea level), so the whole map is gentle
+   undulation with no structure in it. The fix is a SECOND, lower-frequency noise field read through a
+   **height profile**: a table of bands that maps the second field's value to the BASE height for that
+   region. Where the band changes, the base height jumps, and *"that results in some very nice looking
+   cliffs"*. The first field is then added on top of whatever base the profile gave, so you get *"small
+   details, large cliffs and mountains"* from the same two functions.
+
+   So the shape is, and this is the part to implement:
+
+   ```
+   base   = profile(noise2(x, z))        // a band table: a step function, deliberately discontinuous
+   detail = octaves(noise1(x, z))        // smooth, small amplitude
+   height = base + detail
+   ```
+
+   The cliffs come from the profile being a STEP function. Smoothing it would remove exactly the feature it
+   exists to produce.
+
+   His worked example is a band table like `[0, 0.25) → -10`, `[0.25, 0.85) → 5`, with a narrow band near
+   `0.58` jumping to `25`. **The auto-transcript garbles those bounds** (the last band sits inside the
+   previous one), so take the SHAPE as the fact and treat the numbers as illustrative: a small number of
+   bands, most of the map on one or two of them, and a narrow high band that produces the rare peak.
+6. **Water falls out of elevation rather than being placed** `[06:45]` to `[06:51]`: *"each air block that is
+   below the level of zero becomes water"*, which gives lakes and oceans for free. Cross-reference
+   `WATER.md`: that framework paints water as terrain, and this is the generator rule that would decide
+   WHERE, once elevation exists. It does not replace painting a river by hand, it adds the bodies nobody
+   placed.
+7. **Depth perception is the unsolved cost of an orthographic camera** `[07:01]` to `[07:48]`, and he says so
+   plainly: a sprite far away is the same size as one close, so *"it's very hard to tell where a certain
+   layer ends and where a new one begins"*. He added outlines on the edges where terrain drops; it helps,
+   but *"it's not possible to tell how far down it goes"*, and he asks the audience for ideas. **Take this
+   as a warning, not a solution.** Our §4.5 camera facts and `RENDER-AND-CAMERA.md` say the same thing from
+   the other direction, and it means elevation needs a readability pass of its own (shading by level,
+   cast shadow, a rim that darkens with depth) budgeted as part of the work rather than discovered after.
+8. **Sorting is where the time actually goes**, `[08:01]` to `[10:49]`, and he calls it *"the most difficult
+   problem that I faced"*. Four facts worth having before we start:
+   - Flat sort order is `-(x + y)`: adding the axes gives horizontal rows, negating puts near rows in front
+     `[08:27]` to `[08:52]`.
+   - Adding the height value to that works **for blocks only** `[08:55]` to `[09:03]`.
+   - Averaging a multi-cell object's cell orders *"breaks as soon as an object has a diameter larger than
+     two"* `[09:11]` to `[09:22]`, and he could not find a closed-form fix.
+   - What worked `[09:29]` to `[09:58]`: **weight the y-axis so it dominates**, sort within a layer by the
+     MEDIAN of that layer's cells, and **slice any object taller than one block into horizontal slices at
+     runtime**, giving each slice its own base order plus the weighted layer order. That is how a single
+     scalar can sort objects bigger than 2 cells.
+   - The trap that cost him a rewrite `[10:06]` to `[10:49]`: a whole tilemap layer shares ONE sorting order
+     because it is one mesh, so a unit can render in front of or behind the layer but never BETWEEN two
+     blocks of it. He had to write per-block sorting. **We are not exposed to this one**, because this
+     engine already draws per cell from a stack rather than as a batched mesh, and that is worth knowing
+     before someone proposes batching terrain for performance: it would buy frame time and cost the ability
+     to stand between two blocks.
+
+#### What it teaches us to OFFER
+
+Per the two-halves rule at the top of `FRAMEWORKS.md`, the second reading:
+
+- **The height profile is a served preset, not a constant.** It is a band table, which is data, and it is
+  precisely the knob that decides whether a map is rolling farmland, a plateau with cliffs, or a mountain
+  range. A user should pick "rolling", "plateau", "mountains", "canyon" and get a different band table,
+  exactly the way a generator already picks a liquid or a crossing. Author the tables in the backend beside
+  the other generator config.
+- **Octave count and amplitude are the "how rugged" slider**, and they are two numbers, so they can be one
+  served option with named steps rather than raw fields.
+- **This is the same shape as the `physics` presets** in `TILE-EFFECTS.md` §3: a named piece of maths defined
+  in the backend, chosen by the user by its RESULT rather than written by them. Elevation should not invent a
+  second mechanism for that. Whichever way a preset gets expressed there, this uses it.
+- **Noise-against-a-threshold is already in the bank.** `TILE-EFFECTS.md` §0 lists it as primitive 1, lifted
+  out of the grass source, and the height profile is that primitive with several thresholds instead of one.
+  Two sources arriving a day apart described the same tool, which is the argument for one implementation of
+  it rather than one per feature.
+
+#### What this changes in the plan
+
+**Step 14** below is the row this lands in. It currently says the pass *"raises regions and cuts a ramp
+wherever a way crosses a level change"* without saying how the regions are chosen. They are chosen by
+`base + detail` above, the profile is served, and the ramp cutting stays exactly as written: a cliff from a
+band edge is what makes a ramp necessary in the first place.
 
 ## 5. The data model
 
