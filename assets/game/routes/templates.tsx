@@ -3774,7 +3774,8 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
     // handful of requests rather than eighteen.
     await installComposedBuildings(stage, activeStyleId)
     lastRegionsRef.current = stage.regions
-    applyStageToGrid(stage, grid, buildingSaltRef.current, generator.config.buildings)
+    applyStageToGrid(stage, grid, buildingSaltRef.current, generator.config.buildings,
+      Object.fromEntries((generator.config.subZones ?? []).map(z => [z.key, z])))
     // Keep the player on walkable ground (new trees/plots may sit where they stood); entities stay put.
     const here = livePlayerCell()
     movePlayerToValidSpawn(here.col, here.row)
@@ -4017,7 +4018,8 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
     // handful of requests rather than eighteen.
     await installComposedBuildings(stage, activeStyleId)
     lastRegionsRef.current = stage.regions
-    applyStageToGrid(stage, grid, buildingSaltRef.current, generator.config.buildings)
+    applyStageToGrid(stage, grid, buildingSaltRef.current, generator.config.buildings,
+      Object.fromEntries((generator.config.subZones ?? []).map(z => [z.key, z])))
     movePlayerToValidSpawn(stage.spawn.col, stage.spawn.row)
     const live = livePlayerCell()
     syncPlayerEntity(live.col, live.row, true) // fresh stage → player entity follows the spawn

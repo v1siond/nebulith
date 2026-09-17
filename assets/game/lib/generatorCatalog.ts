@@ -280,7 +280,7 @@ export interface GeneratorSubZone {
    * side of town, timber under a flat roof on the other. Same shape as a row's own `buildings`, so a region
    * states only what makes it different from the city it sits in.
    */
-  buildings?: GeneratorBuildings
+  buildings?: Partial<GeneratorBuildings>
 }
 
 export interface GeneratorConfig {
@@ -576,6 +576,38 @@ function parseBuildings(v: unknown): GeneratorBuildings | undefined {
   return { materials, roofColors, wallColors, storeRoof, hospitalRoof, fixedWall, ...(roof ? { roof } : {}) }
 }
 
+/**
+ * A REGION'S buildings, which is an OVERLAY and not a whole palette.
+ *
+ * `parseBuildings` demands `storeRoof`, `hospitalRoof` and `fixedWall` as well as the three lists, and those
+ * are MAP-level identity: the colours that keep a store looking like a store anywhere in town. A
+ * neighbourhood has no business restating them, and does not: all eleven city templates serve their regions
+ * exactly `materials`, `roof`, `roofColors` and `wallColors`.
+ *
+ * So every one of them was parsed and dropped, and every city came out architecturally uniform while the data
+ * describing three classes of neighbourhood sat there being served. The type says what the shape should have
+ * been all along: *"a region states only what makes it different from the city it sits in"*.
+ */
+function parseBuildingOverlay(v: unknown): Partial<GeneratorBuildings> | undefined {
+  if (!isObject(v)) return undefined
+  const out: Partial<GeneratorBuildings> = {}
+  const materials = strList(v.materials)
+  const roofColors = strList(v.roofColors)
+  const wallColors = strList(v.wallColors)
+  const roof = str(v.roof)
+  const storeRoof = str(v.storeRoof)
+  const hospitalRoof = str(v.hospitalRoof)
+  const fixedWall = str(v.fixedWall)
+  if (materials) out.materials = materials
+  if (roofColors) out.roofColors = roofColors
+  if (wallColors) out.wallColors = wallColors
+  if (roof) out.roof = roof
+  if (storeRoof !== undefined) out.storeRoof = storeRoof
+  if (hospitalRoof !== undefined) out.hospitalRoof = hospitalRoof
+  if (fixedWall !== undefined) out.fixedWall = fixedWall
+  return Object.keys(out).length > 0 ? out : undefined
+}
+
 function parseSettlement(v: unknown): GeneratorSettlement | undefined {
   if (!isObject(v)) return undefined
   const plazaSize = num(v.plazaSize)
@@ -789,7 +821,7 @@ function parseSubZones(v: unknown): readonly GeneratorSubZone[] | undefined {
     const row: GeneratorSubZone = { key, weight }
     const name = str(raw.name)
     if (name) row.name = name
-    const buildings = parseBuildings(raw.buildings)
+    const buildings = parseBuildingOverlay(raw.buildings)
     if (buildings) row.buildings = buildings
     // EVERY NUMBER THE BACKEND SERVES FOR THIS REGION, not the five this file happens to list.
     //

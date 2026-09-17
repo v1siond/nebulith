@@ -1455,7 +1455,17 @@ function settlementPhases(settlement: Settlement): VariantPhases {
   return {
     // The ground a settlement stands on is the season's, laid before any layer runs. Its own terrain work is
     // the plaza and the street surfacing, which belong to the structure below.
-    terrain: () => {},
+    //
+    // ITS NEIGHBOURHOODS, THOUGH, ARE REGIONS, and no settlement ever partitioned them. `partitionSubZones`
+    // had three callers and all three were forests, so a city's `upper` / `middle` / `lower` were served on
+    // all eleven city templates, typed, documented ("a city's neighbourhoods differ by money, and money shows
+    // in the architecture"), parsed, and read by nothing at all. Every city came out architecturally uniform.
+    //
+    // A village and a town serve none, so they take the same single call and are unmoved.
+    terrain: ctx => {
+      ctx.zones = leadRegion(ctx, ctx.subZones)
+      ctx.zoneAt = partitionSubZones(ctx, ctx.zones)
+    },
 
     water: carveMapWater,
 

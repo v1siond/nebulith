@@ -19,7 +19,15 @@ import { type GeneratorBuildings } from '@/lib/generatorCatalog'
  *  see it is a cut and not a puddle, small enough that the bank does not become the view. */
 /** However shallow the cut, the surface still has a body under it rather than collapsing to a film. */
 
-export function applyStageToGrid(stage: StageData, grid: IsometricGrid, buildingSalt = 0, palette?: GeneratorBuildings): void {
+export function applyStageToGrid(
+  stage: StageData,
+  grid: IsometricGrid,
+  buildingSalt = 0,
+  palette?: GeneratorBuildings,
+  /** The map's ZONES by key. A settlement's zones differ in what they are BUILT of, so a building is built of
+   *  what its own zone states, merged over the map's palette. Absent on every map with no zones. */
+  regions?: Readonly<Record<string, { buildings?: Partial<GeneratorBuildings> }>>,
+): void {
   for (let r = 0; r < grid.rows; r++) {
     for (let c = 0; c < grid.cols; c++) {
       // The generator OWNS the ground colour: it writes each floor tile's colour as STATE (picked from the
@@ -103,9 +111,21 @@ export function applyStageToGrid(stage: StageData, grid: IsometricGrid, building
   // neighbours differ, and roof/wall use DIFFERENT hashes so a house's roof and walls vary independently.
   const pick = (arr: readonly string[], seed: number): string | undefined =>
     arr.length === 0 ? undefined : arr[(((seed % arr.length) + arr.length) % arr.length)]
+  // WHICH ZONE a building stands in, and what that zone is BUILT OF, merged over what the settlement is.
+  //
+  // A zone states only what makes it DIFFERENT, so this is a merge and not a swap: the store and the hospital
+  // keep the identity colours the whole map shares while the houses around them change material, roof and
+  // colour by zone. A map with no zones, or a zone that states nothing, takes the map's palette unchanged.
+  const paletteAt = (col: number, row: number): GeneratorBuildings | undefined => {
+    const over = regions?.[stage.regions?.[row]?.[col] ?? '']?.buildings
+    if (!over) return palette
+    return palette ? { ...palette, ...over } : (over as GeneratorBuildings)
+  }
+
   for (const b of stage.buildings) {
     const anchorRow = b.row - (b.height - 1)
     const residential = b.type === 'house'
+    const palette = paletteAt(b.col, anchorRow)
     const material = residential && palette ? pick(palette.materials, b.col * 31 + b.row * 17 + buildingSalt) : undefined
     let roofColor: string | undefined
     let wallColor: string | undefined
