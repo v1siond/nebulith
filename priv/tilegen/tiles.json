@@ -7756,5 +7756,47 @@
     "glyph": "ǂ",
     "emoji": "🌵",
     "svg": "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 128 128\"><ellipse cx=\"64\" cy=\"80\" rx=\"62\" ry=\"48\" fill=\"#f2f2f2\"/><g stroke=\"#c6c6c6\" stroke-width=\"3.4\" fill=\"none\" opacity=\"0.8\"><path d=\"M64 32 V128\"/><path d=\"M34 38 Q24 82 34 126\"/><path d=\"M94 38 Q104 82 94 126\"/><path d=\"M10 56 Q4 86 10 112\"/><path d=\"M118 56 Q124 86 118 112\"/></g><g fill=\"#b0b0b0\"><circle cx=\"64\" cy=\"34\" r=\"3\"/><circle cx=\"40\" cy=\"42\" r=\"2.6\"/><circle cx=\"88\" cy=\"42\" r=\"2.6\"/></g></svg>"
+  },
+  {
+    "label": "dune_grass",
+    "mode": "ascii",
+    "style": "ascii",
+    "svg": "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 128 128\"><path d=\"M54.6 126 Q51.3 93.6 23.0 54.0 Q43.6 81.4 61.4 126 Z\" fill=\"#d6d6d6\" opacity=\"0.92\"/><path d=\"M57.0 126 Q55.2 81.9 35.0 28.0 Q49.7 65.2 63.0 126 Z\" fill=\"#e2e2e2\" opacity=\"0.94\"/><path d=\"M58.8 126 Q59.3 76.0 48.0 15.0 Q56.2 57.2 65.2 126 Z\" fill=\"#f6f6f6\" opacity=\"0.95\"/><path d=\"M59.4 126 Q62.2 73.3 59.0 9.0 Q61.4 53.5 66.6 126 Z\" fill=\"#ffffff\" opacity=\"0.95\"/><path d=\"M61.6 126 Q66.0 75.2 70.0 13.0 Q67.1 55.9 68.4 126 Z\" fill=\"#f6f6f6\" opacity=\"0.95\"/><path d=\"M63.0 126 Q69.1 80.1 82.0 24.0 Q72.6 62.8 69.0 126 Z\" fill=\"#efefef\" opacity=\"0.94\"/><path d=\"M64.8 126 Q73.0 88.2 94.0 42.0 Q78.7 73.9 71.2 126 Z\" fill=\"#e2e2e2\" opacity=\"0.93\"/><path d=\"M66.2 126 Q75.9 96.3 105.0 60.0 Q83.8 85.1 71.8 126 Z\" fill=\"#d6d6d6\" opacity=\"0.92\"/><path d=\"M58.4 126 Q57.3 87.8 42.0 41.0 Q53.2 73.3 63.6 126 Z\" fill=\"#efefef\" opacity=\"0.9\"/><path d=\"M64.4 126 Q71.2 95.0 89.0 57.0 Q76.1 83.2 69.6 126 Z\" fill=\"#e2e2e2\" opacity=\"0.9\"/><path d=\"M61.6 126 Q64.0 83.2 64.0 31.0 Q64.0 67.1 66.4 126 Z\" fill=\"#ffffff\" opacity=\"0.92\"/><ellipse cx=\"64\" cy=\"124\" rx=\"26\" ry=\"5\" fill=\"#9a9a9a\" opacity=\"0.35\"/></svg>",
+    "glyph": "ѱ"
+  },
+  {
+    "label": "dune_grass",
+    "mode": "emoji",
+    "style": "emoji",
+    "svg": "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 128 128\"><path d=\"M54.6 126 Q51.3 93.6 23.0 54.0 Q43.6 81.4 61.4 126 Z\" fill=\"#d6d6d6\" opacity=\"0.92\"/><path d=\"M57.0 126 Q55.2 81.9 35.0 28.0 Q49.7 65.2 63.0 126 Z\" fill=\"#e2e2e2\" opacity=\"0.94\"/><path d=\"M58.8 126 Q59.3 76.0 48.0 15.0 Q56.2 57.2 65.2 126 Z\" fill=\"#f6f6f6\" opacity=\"0.95\"/><path d=\"M59.4 126 Q62.2 73.3 59.0 9.0 Q61.4 53.5 66.6 126 Z\" fill=\"#ffffff\" opacity=\"0.95\"/><path d=\"M61.6 126 Q66.0 75.2 70.0 13.0 Q67.1 55.9 68.4 126 Z\" fill=\"#f6f6f6\" opacity=\"0.95\"/><path d=\"M63.0 126 Q69.1 80.1 82.0 24.0 Q72.6 62.8 69.0 126 Z\" fill=\"#efefef\" opacity=\"0.94\"/><path d=\"M64.8 126 Q73.0 88.2 94.0 42.0 Q78.7 73.9 71.2 126 Z\" fill=\"#e2e2e2\" opacity=\"0.93\"/><path d=\"M66.2 126 Q75.9 96.3 105.0 60.0 Q83.8 85.1 71.8 126 Z\" fill=\"#d6d6d6\" opacity=\"0.92\"/><path d=\"M58.4 126 Q57.3 87.8 42.0 41.0 Q53.2 73.3 63.6 126 Z\" fill=\"#efefef\" opacity=\"0.9\"/><path d=\"M64.4 126 Q71.2 95.0 89.0 57.0 Q76.1 83.2 69.6 126 Z\" fill=\"#e2e2e2\" opacity=\"0.9\"/><path d=\"M61.6 126 Q64.0 83.2 64.0 31.0 Q64.0 67.1 66.4 126 Z\" fill=\"#ffffff\" opacity=\"0.92\"/><ellipse cx=\"64\" cy=\"124\" rx=\"26\" ry=\"5\" fill=\"#9a9a9a\" opacity=\"0.35\"/></svg>",
+    "emoji": "🌾"
+  },
+  {
+    "label": "dune_grass_young",
+    "mode": "ascii",
+    "style": "ascii",
+    "svg": "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 128 128\"><path d=\"M59.2 126 Q59.1 95.0 47.0 57.0 Q55.8 83.2 64.8 126 Z\" fill=\"#e2e2e2\" opacity=\"0.92\"/><path d=\"M60.0 126 Q61.7 89.5 56.0 45.0 Q60.1 75.8 66.0 126 Z\" fill=\"#f6f6f6\" opacity=\"0.94\"/><path d=\"M60.8 126 Q64.2 87.8 65.0 41.0 Q64.4 73.3 67.2 126 Z\" fill=\"#ffffff\" opacity=\"0.95\"/><path d=\"M62.2 126 Q66.9 92.2 75.0 51.0 Q69.1 79.5 67.8 126 Z\" fill=\"#efefef\" opacity=\"0.93\"/><path d=\"M63.6 126 Q69.5 99.5 84.0 67.0 Q73.4 89.4 68.4 126 Z\" fill=\"#d6d6d6\" opacity=\"0.9\"/><ellipse cx=\"64\" cy=\"124\" rx=\"26\" ry=\"5\" fill=\"#9a9a9a\" opacity=\"0.35\"/></svg>",
+    "glyph": "ʬ"
+  },
+  {
+    "label": "dune_grass_young",
+    "mode": "emoji",
+    "style": "emoji",
+    "svg": "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 128 128\"><path d=\"M59.2 126 Q59.1 95.0 47.0 57.0 Q55.8 83.2 64.8 126 Z\" fill=\"#e2e2e2\" opacity=\"0.92\"/><path d=\"M60.0 126 Q61.7 89.5 56.0 45.0 Q60.1 75.8 66.0 126 Z\" fill=\"#f6f6f6\" opacity=\"0.94\"/><path d=\"M60.8 126 Q64.2 87.8 65.0 41.0 Q64.4 73.3 67.2 126 Z\" fill=\"#ffffff\" opacity=\"0.95\"/><path d=\"M62.2 126 Q66.9 92.2 75.0 51.0 Q69.1 79.5 67.8 126 Z\" fill=\"#efefef\" opacity=\"0.93\"/><path d=\"M63.6 126 Q69.5 99.5 84.0 67.0 Q73.4 89.4 68.4 126 Z\" fill=\"#d6d6d6\" opacity=\"0.9\"/><ellipse cx=\"64\" cy=\"124\" rx=\"26\" ry=\"5\" fill=\"#9a9a9a\" opacity=\"0.35\"/></svg>",
+    "emoji": "🌾"
+  },
+  {
+    "label": "dune_grass_seed",
+    "mode": "ascii",
+    "style": "ascii",
+    "svg": "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 128 128\"><path d=\"M55.8 126 Q53.2 90.9 29.0 48.0 Q46.6 77.6 62.2 126 Z\" fill=\"#d6d6d6\" opacity=\"0.92\"/><path d=\"M58.0 126 Q57.1 80.1 41.0 24.0 Q52.8 62.8 64.0 126 Z\" fill=\"#e2e2e2\" opacity=\"0.94\"/><path d=\"M59.6 126 Q61.3 74.7 54.0 12.0 Q59.3 55.3 66.4 126 Z\" fill=\"#f6f6f6\" opacity=\"0.95\"/><path d=\"M61.6 126 Q65.8 76.5 69.0 16.0 Q66.7 57.8 68.4 126 Z\" fill=\"#ffffff\" opacity=\"0.95\"/><path d=\"M64.0 126 Q70.3 82.8 84.0 30.0 Q74.0 66.5 70.0 126 Z\" fill=\"#efefef\" opacity=\"0.94\"/><path d=\"M65.2 126 Q73.6 92.7 97.0 52.0 Q80.0 80.1 70.8 126 Z\" fill=\"#e2e2e2\" opacity=\"0.92\"/><path d=\"M61.6 126 Q64.0 85.5 64.0 36.0 Q64.0 70.2 66.4 126 Z\" fill=\"#f6f6f6\" opacity=\"0.9\"/><ellipse cx=\"54.0\" cy=\"6.0\" rx=\"2.9\" ry=\"8.5\" fill=\"#e2e2e2\" opacity=\"0.95\"/><ellipse cx=\"69.0\" cy=\"10.0\" rx=\"2.9\" ry=\"8.5\" fill=\"#e2e2e2\" opacity=\"0.95\"/><ellipse cx=\"84.0\" cy=\"24.0\" rx=\"2.9\" ry=\"8.5\" fill=\"#e2e2e2\" opacity=\"0.95\"/><ellipse cx=\"64\" cy=\"124\" rx=\"26\" ry=\"5\" fill=\"#9a9a9a\" opacity=\"0.35\"/></svg>",
+    "glyph": "ψ"
+  },
+  {
+    "label": "dune_grass_seed",
+    "mode": "emoji",
+    "style": "emoji",
+    "svg": "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 128 128\"><path d=\"M55.8 126 Q53.2 90.9 29.0 48.0 Q46.6 77.6 62.2 126 Z\" fill=\"#d6d6d6\" opacity=\"0.92\"/><path d=\"M58.0 126 Q57.1 80.1 41.0 24.0 Q52.8 62.8 64.0 126 Z\" fill=\"#e2e2e2\" opacity=\"0.94\"/><path d=\"M59.6 126 Q61.3 74.7 54.0 12.0 Q59.3 55.3 66.4 126 Z\" fill=\"#f6f6f6\" opacity=\"0.95\"/><path d=\"M61.6 126 Q65.8 76.5 69.0 16.0 Q66.7 57.8 68.4 126 Z\" fill=\"#ffffff\" opacity=\"0.95\"/><path d=\"M64.0 126 Q70.3 82.8 84.0 30.0 Q74.0 66.5 70.0 126 Z\" fill=\"#efefef\" opacity=\"0.94\"/><path d=\"M65.2 126 Q73.6 92.7 97.0 52.0 Q80.0 80.1 70.8 126 Z\" fill=\"#e2e2e2\" opacity=\"0.92\"/><path d=\"M61.6 126 Q64.0 85.5 64.0 36.0 Q64.0 70.2 66.4 126 Z\" fill=\"#f6f6f6\" opacity=\"0.9\"/><ellipse cx=\"54.0\" cy=\"6.0\" rx=\"2.9\" ry=\"8.5\" fill=\"#e2e2e2\" opacity=\"0.95\"/><ellipse cx=\"69.0\" cy=\"10.0\" rx=\"2.9\" ry=\"8.5\" fill=\"#e2e2e2\" opacity=\"0.95\"/><ellipse cx=\"84.0\" cy=\"24.0\" rx=\"2.9\" ry=\"8.5\" fill=\"#e2e2e2\" opacity=\"0.95\"/><ellipse cx=\"64\" cy=\"124\" rx=\"26\" ry=\"5\" fill=\"#9a9a9a\" opacity=\"0.35\"/></svg>",
+    "emoji": "🌾"
   }
 ]

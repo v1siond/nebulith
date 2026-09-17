@@ -101,6 +101,9 @@ His, 2026-09-16, with the instruction that a forest must read as the real place 
 | `mountain-california-treeline.jpg` | Mountain | *"multiple zones of dirt and rock, and lots of pines and green areas"*, and the rule that matters most: *"the higher you get to the mountain the less vegetation there is"* |
 | `desert-simpson-australia.jpg`, `desert-plants.jpg` | Desert | *"Desert vegetation is diferent too"* |
 | `beach-dunes-de-hoop-south-africa.jpg` | Beach | the dune half of the same note, scrub rather than canopy |
+| [`by-subject/volcano/volcano-01.jpg`](https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTGlCTqBYm_e9BNNAgX6MHihw3ECZLoRh06Mf3GsLnJu1EtagIaBI6vUpk&s=10) | Volcano | **The closest to our read**, a low-poly ISOMETRIC diorama. A faceted grey-blue cone, a dark crater notch, three or four lava tongues down the flanks, an ash skirt at the base, conifers growing up to the ash line and not onto it |
+| [`by-subject/volcano/volcano-02.webp`](https://media.craiyon.com/2025-09-15/YYmQcWVtS2i1zWleNTWRig.webp) | Volcano | Two cones behind a tropical coast. Vegetation THINS WITH HEIGHT: dense palm at the base, bare rock at the top. One bright lava streak per cone |
+| [`by-subject/volcano/volcano-03.webp`](https://media.craiyon.com/2025-09-15/ztGHimJSTmiNaWBJ9i861A.webp) | Volcano | A map-style cone. Lava runs BRANCH down the flanks like rivers all the way to the sea; bare dark rock on the upper cone, green scrub lower, palms at the shore |
 
 **The first `beach-coastal-plain-brazil.jpg` was never an image.** It was an HTML error page saved with a
 `.jpg` name, so the beach biome had no reference at all while its palette was being judged. He re-sent it
@@ -131,6 +134,18 @@ what the engine served at the time beside it.
 | Mountain | `#5d7340` | 86d | 52d | 34d off, and far too bright and saturated |
 | Desert | `#4f9147` | 114d | 30-40d | **a GREEN where the reference is olive and ochre** |
 | Beach | `#4f9147` | 114d | 51-63d | same green as Desert, byte-identical, ~55d off |
+
+**The volcano, read as structure (2026-09-17).** All three share one silhouette, and it is the contract for
+any volcano built here:
+
+1. a grey cone, bare at the top, the biggest mass and the first thing the eye lands on
+2. a dark crater notch at the summit
+3. lava tongues running DOWN the flanks, branching
+4. a plume above it
+5. **vegetation thinning with height**, bare at the summit and green at the foot
+
+Mass 5 is the one that cost nothing to build, because it is not a distance calculation: *"we don't need to
+measure, just use regions for that, that's why they exist"*. It is `AVolcanoBurnsInBands`.
 
 Three observations that only show up once it is measured:
 
