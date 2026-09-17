@@ -170,6 +170,32 @@ Dune sea to the water, since the only gradient a desert has is how far you are f
 
 ## 5. What is NOT built
 
+- **The border treeline floods whichever regions sit at the map edge, and on `bands` that is always the first
+  and last.** `sealMapEdge` plants a tree on EVERY cell of the two-deep border ring, using that cell's own
+  region species, because the border has to be shut everywhere except a gate. On a scatter that is harmless,
+  since the ring crosses every region. On `bands` the ring's north and south sides lie entirely inside the
+  two END regions, which are exactly the ones a gradient makes sparsest.
+
+  Measured on an 80x80 mountain, region by region, with `.probe/regionsheet.mjs`:
+
+  | region | share of map | trees per 100 cells |
+  |---|---|---|
+  | foot | 31% | 14.5 |
+  | slope | 23% | 8.9 |
+  | treeline | 23% | 7.2 |
+  | crag | 15% | 8.0 |
+  | **summit** | **8%** | **72.0** |
+
+  The summit is served `canopy: 0.02` and that IS honoured: of its 179 trees only about 10 come from the
+  canopy field and the rest are the sealed border. So the densest place on a mountain is its summit, against
+  his own rule for that biome, *"the higher you get to the mountain the less vegetation there is"*. The beach
+  `shore` has the same shape: 219 trees, every one a `bush_round`, on a region served `canopy: 0.05`.
+
+  **This needs a decision rather than a patch.** The seal exists to block the border, in his words *"a edge in
+  a town help us to put a bunch of trees around it"*, and a summit still needs a shut border. What it does not
+  need is a wood: a bare summit's border is ROCK. Serving what a region seals its edge WITH is the obvious
+  answer and is not built, and guessing it here would be inventing a system. Recorded, not fixed.
+
 - A region cannot state its own crossings, so *"dirt paths and bridges constantly or jump on platforms"* has
   nowhere to live.
 - A region cannot state a STRUCTURE, so the ruins `heart`, the swamp's temple and the dungeon are scatter and
