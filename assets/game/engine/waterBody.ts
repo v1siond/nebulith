@@ -152,9 +152,22 @@ const key = (col: number, row: number): string => `${col},${row}`
  * the border land on the boundary whatever shape was painted. Two bodies that touch are ONE body to this
  * function, which is correct: water meeting water has no shore between it.
  */
-export function waterPieces(cells: Cells, set: WaterSet = DEFAULT_WATER_SET, kind: WaterKind = 'river'): Map<string, string> {
+export function waterPieces(
+  cells: Cells,
+  set: WaterSet = DEFAULT_WATER_SET,
+  kind: WaterKind = 'river',
+  /**
+   * ALL the water on the map, when the caller has it.
+   *
+   * The edge test has to ask "is the neighbour WATER", not "is the neighbour in THIS body". A map is edged
+   * one body at a time so a pool does not get a river's foam, and with a body-local test two bodies that
+   * touch each decide the other side is land and both draw a border there, which puts a bank in the middle
+   * of open water. Defaults to this body, so a caller with only one body behaves exactly as before.
+   */
+  allWater: Cells = cells,
+): Map<string, string> {
   const fam = FAMILIES[`${set}/${kind}`]
-  const filled = (col: number, row: number): boolean => cells.has(key(col, row))
+  const filled = (col: number, row: number): boolean => allWater.has(key(col, row))
   const pieces = new Map<string, string>()
   for (const cell of cells) {
     const [col, row] = cell.split(',').map(Number)
@@ -184,9 +197,15 @@ type Ground = string[][]
  *
  * This is the whole of "draw a lake": hand it the cells of the shape and the set to wear.
  */
-export function paintWaterBody(ground: Ground, cells: Cells, set: WaterSet = DEFAULT_WATER_SET, kind: WaterKind = 'river'): number {
+export function paintWaterBody(
+  ground: Ground,
+  cells: Cells,
+  set: WaterSet = DEFAULT_WATER_SET,
+  kind: WaterKind = 'river',
+  allWater: Cells = cells,
+): number {
   let painted = 0
-  for (const [cell, label] of waterPieces(cells, set, kind)) {
+  for (const [cell, label] of waterPieces(cells, set, kind, allWater)) {
     const [col, row] = cell.split(',').map(Number)
     if (!ground[row] || ground[row][col] === undefined) continue
     ground[row][col] = label

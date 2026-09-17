@@ -24,6 +24,7 @@ import { type Orientation } from './isoOrientation'
 import { cellOrienterFor, orientCellTurn, deorientCellTurn, orientedDimsForTurn, facingForTurn, wrapTurn } from './isoTurn'
 import { resolveTileHeight, blockLayers, layerBlockScale } from '@/engine/tileset/tileHeight'
 import { applyPose } from '@/engine/tileset/pose'
+import { isWaterSetLabel } from '../waterBody'
 import { cubeGeom, depthBoxGeom, rectBoxGeom, billboardGeom, diamondGeom, pointInTileGeom, outlineSegments, poseMapper, tileGeomCentroid, tilesInScreenRect, type TileGeom } from './tileHit'
 import { revealedRoofs, revealedShell, revealAlpha } from './roofReveal'
 import { resolveTileSize, resolveTilePose } from '@/engine/tileset/tileViewSettings'
@@ -185,6 +186,16 @@ export function setIsoCameraTurn(turn: number): number {
   currentCameraTurn = wrapTurn(turn)
   return currentCameraTurn
 }
+
+/**
+ * QUARTER-TURNS FROM A PICTURE'S OWN FRAME TO THE GRID'S.
+ *
+ * A tile is authored as a flat top-down square: +x east, +y south. The iso top face is handed to the texture
+ * as `eA` (the a→b edge, pointing NORTH) and `eB` (the a→d edge, pointing EAST), so the two frames differ by
+ * one quarter-turn and any art that names a grid direction has to carry it. `textureTurnForHeading` already
+ * does, as the `+ 1` in it.
+ */
+const PICTURE_TO_GRID = 1
 
 /** The camera CORNER a param-less render() is at/nearest, a whole turn is exactly its facing. */
 export function isoCameraFacing(): Orientation {
@@ -2580,7 +2591,32 @@ export function drawIsoAssetAscii(
   // right. That is the "not consistent, not aligned" it kept seeing, and no amount of fixing the FIELD could
   // have cured it: the data was already correct. Measured through Playwright on a ring river, 10 cells at
   // flow 0 and not one `turns=1` draw in the whole frame.
-  if (asset.flow !== undefined) adv = { ...adv, turns: textureTurnForHeading(asset.flow) }
+  //
+  // AND THE CAMERA TURNS IT TOO. A heading is a WORLD direction and a border piece names a WORLD side (`_t` is
+  // the grid's north edge, and its rim is painted along the top of its own image). The face this texture lands
+  // on is built from `orientCell`, which turns the coordinate into the VIEW frame before the fixed projection,
+  // so at any facing but 0 the two frames disagree by exactly the camera's quarter-turns: the picture keeps
+  // pointing at the screen edge it pointed at before the map moved under it. Adding the facing turns the
+  // picture with the map, which is the tile-art half of what `orientCell` does for position.
+  //
+  // Sound rather than a nudge, because the nine-piece family is CLOSED under a quarter-turn: tl→tr→br→bl,
+  // t→r→b→l, and the interior maps to itself. Turning a piece's texture is the same answer as relabelling the
+  // cell for the rotated grid, so no piece can rotate into art that does not exist.
+  const bordersWater = isWaterSetLabel(assetKind(asset))
+  if (asset.flow !== undefined || bordersWater) {
+    // A PICTURE'S OWN FRAME IS NOT THE GRID'S. The top face hands the texture `eA = top.b - top.a`, which
+    // points NORTH, and `eB = top.d - top.a`, which points EAST. A tile is drawn as an ordinary top-down
+    // square, x toward east and y toward south, so its frame sits one quarter-turn off the face it lands on.
+    // `PICTURE_TO_GRID` is that turn, and it is not a new claim: `textureTurnForHeading` is `heading + 1` and
+    // the 1 in it is this same correction, which is why a river's current has always run the right way while
+    // the border pieces, which never turned at all, did not.
+    //
+    // Measured on the face geometry (`waterRimFacesItsBank`): at 0 turns `_t` lays its rim on the cell's WEST
+    // edge while its label says its land is NORTH, and on a river running north to south that puts the white
+    // water straight across the channel.
+    const heading = asset.flow !== undefined ? textureTurnForHeading(asset.flow) : PICTURE_TO_GRID
+    adv = { ...adv, turns: heading + isoCameraFacing() }
+  }
   const blocks = resolveTileHeight(dbTile, asset)
   // Z-WIDTH (directional depth) is a 3D BLOCK operation: setting it declares the tile a block extruded N cells
   // along a diagonal, so the iso render MUST extrude it even at base height 0. Z-Width only changes how FAR a

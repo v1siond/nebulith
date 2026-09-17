@@ -2548,6 +2548,8 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
       __setDebug?: (v: boolean) => void
       __cellLabels?: (col0: number, row0: number, col1: number, row1: number) => unknown
       __stackAt?: (col: number, row: number) => Array<{ label: string; type: string; heightLevel: number; h: number; source: string }>
+      /** The ground slug per cell, so an autotile piece can be seen by name. */
+      __groundSlugs?: (col0: number, row0: number, col1: number, row1: number) => { col: number; row: number; slug: string }[] | null
       /** Which tree species the map grew, counted by trunk. */
       __treeKinds?: () => { kind: string; count: number }[] | null
       /** Every distinct colour the map's LEAF cells carry, with a count each. */
@@ -2910,6 +2912,20 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
       }
       return [...tally].sort((x, y) => y[1] - x[1]).map(([kind, count]) => ({ kind, count }))
     }
+    // THE GROUND SLUG per cell, which is the only way to SEE which autotile piece a floor is wearing.
+    // `__cellLabels` returns display captions and collapses every floor to "FLOOR", so a water border problem
+    // cannot be diagnosed through it.
+    win.__groundSlugs = (col0: number, row0: number, col1: number, row1: number) => {
+      const grid = gridRef.current
+      if (!grid) return null
+      const slugs = grid.groundSlugs()
+      const out: { col: number; row: number; slug: string }[] = []
+      for (let r = row0; r <= row1; r++) for (let c = col0; c <= col1; c++) {
+        const s = slugs?.[r]?.[c]
+        if (s) out.push({ col: c, row: r, slug: s })
+      }
+      return out
+    }
     win.__leafTones = () => {
       const grid = gridRef.current
       if (!grid) return null
@@ -3068,7 +3084,7 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
       setSelectedCells(new Set([`${best.col},${best.row}`]))
       return best
     }
-    return () => { delete win.__setArtStyle; delete win.__selectFirstTreeCell; delete win.__setView; delete win.__gridKinds; delete win.__entityInfo; delete win.__entityScreens; delete win.__selectEntity; delete win.__setEntitySize; delete win.__scatter; delete win.__selectedEntityInfo; delete win.__placeBuilding; delete win.__placeComposition; delete win.__armComposition; delete win.__cellSel; delete win.__selKeys; delete win.__marqueeKeys; delete win.__hoverCell; delete win.__selectCells; delete win.__applyCellTile; delete win.__clearRegion; delete win.__setDebug; delete win.__cellLabels; delete win.__stackAt; delete win.__camOffset; delete win.__stackAsset; delete win.__paletteTiles; delete win.__paintTile; delete win.__isoBlockScreen; delete win.__generatorsReady; delete win.__playerCell; delete win.__genVillage; delete win.__genStage; delete win.__randomizeLayer; delete win.__randomizeSelected; delete win.__centerOn; delete win.__setHero; delete win.__pickTileAt; delete win.__cellScreen; delete win.__tileCentroid; delete win.__tileHandles; delete win.__setShape; delete win.__setDisplay; delete win.__setLight; delete win.__recordedGeom; delete win.__collisionAudit; delete win.__leafTones; delete win.__tileTones; delete win.__treeKinds }
+    return () => { delete win.__setArtStyle; delete win.__selectFirstTreeCell; delete win.__setView; delete win.__gridKinds; delete win.__entityInfo; delete win.__entityScreens; delete win.__selectEntity; delete win.__setEntitySize; delete win.__scatter; delete win.__selectedEntityInfo; delete win.__placeBuilding; delete win.__placeComposition; delete win.__armComposition; delete win.__cellSel; delete win.__selKeys; delete win.__marqueeKeys; delete win.__hoverCell; delete win.__selectCells; delete win.__applyCellTile; delete win.__clearRegion; delete win.__setDebug; delete win.__cellLabels; delete win.__stackAt; delete win.__camOffset; delete win.__stackAsset; delete win.__paletteTiles; delete win.__paintTile; delete win.__isoBlockScreen; delete win.__generatorsReady; delete win.__playerCell; delete win.__genVillage; delete win.__genStage; delete win.__randomizeLayer; delete win.__randomizeSelected; delete win.__centerOn; delete win.__setHero; delete win.__pickTileAt; delete win.__cellScreen; delete win.__tileCentroid; delete win.__tileHandles; delete win.__setShape; delete win.__setDisplay; delete win.__setLight; delete win.__recordedGeom; delete win.__collisionAudit; delete win.__leafTones; delete win.__tileTones; delete win.__treeKinds; delete win.__groundSlugs }
   }, [])
 
   // ── Selected-entity inspector actions ─────────────────────────────

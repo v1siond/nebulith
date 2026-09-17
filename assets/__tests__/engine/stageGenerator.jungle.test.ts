@@ -269,11 +269,22 @@ describe('the jungle is PARTITIONED into sub-zones, regions inside one map', () 
     expect(s.props.filter(p => p.type === 'rock').length).toBeGreaterThan(0) // and what fell off them
   })
 
+  /**
+   * A ROCK IN THE RIVER IS NOT MASONRY. This counted every `rock` prop on the map, which was a sound proxy
+   * for rubble only while nothing else on a jungle made one. `strewRiverRocks` does: a few boulders standing
+   * midstream, and it needs water on all four sides, so it only ever fires where the channel has an interior.
+   * The creek had almost none while its width was measured along the scanline rather than across the current,
+   * so the pass was dead and the proxy held by accident.
+   *
+   * Rubble is masonry because it lies on the PLATFORM. So the question is asked about dry ground, which is
+   * where a ruin would be and where the river's rocks by definition are not.
+   */
   it('puts no masonry anywhere without a ruins region', () => {
     const plain = build('jungle', JUNGLE, JUNG_PAL, 5)
     expect(plain.ground.flat().filter(t => t === 'ancient_stone').length).toBe(0)
     expect(plain.props.filter(p => p.type === 'pillar').length).toBe(0)
-    expect(plain.props.filter(p => p.type === 'rock').length).toBe(0)
+    const onLand = plain.props.filter(p => p.type === 'rock' && !isWaterGround(plain.ground[p.row][p.col]))
+    expect(onLand.map(p => `${p.col},${p.row}`)).toEqual([])
   })
 
   it('is STILL one place, regions and all', () => {

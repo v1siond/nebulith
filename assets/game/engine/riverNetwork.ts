@@ -429,10 +429,26 @@ export function carveChannel(ctx: RiverCarve, pal: GeneratorPalette | undefined,
     const swing = across * shape.swing
     return mid + swing * Math.sin(along * 0.14 + phase) + swing * 0.4 * Math.sin(along * 0.31 + phase2)
   }
+  // WIDTH IS MEASURED ACROSS THE RIVER, not across the map.
+  //
+  // This carves one scanline per step down `along`, so `half` is a HORIZONTAL half-width. On a centreline of
+  // slope m the perpendicular half-width of that run is only half/sqrt(1 + m^2), and this centreline swings
+  // `across * swing` with two sine terms, so its slope reaches about 4 columns per row on a 60-wide map. A
+  // "3.2 wide" river came out under one cell thick wherever it ran at an angle, which is two defects at once:
+  // it has no interior, so every cell touches land and the edge pass banks the whole channel (the border
+  // running down the middle of the water), and consecutive runs stop overlapping once m exceeds 2*half, so
+  // the river breaks into disconnected dashes. Measured on forest_woodland seed 4: eleven separate bodies.
+  //
+  // Dividing by cos(theta) is the fix, and it is exact for a locally straight line: the perpendicular distance
+  // from a point to a line is its horizontal offset times cos(theta), so asking for |offset| <= half*sec(theta)
+  // asks for a true perpendicular distance of `half`. Connectivity comes free, since 2*half*sqrt(1 + m^2) is
+  // always greater than m for any half >= 0.5.
+  const slopeAt = (along: number): number => (centre(Math.min(along + 1, span - 1)) - centre(Math.max(along - 1, 0))) / 2
   for (let along = 0; along < span; along++) {
     const c = centre(along)
-    for (let off = Math.floor(c - half); off <= Math.ceil(c + half); off++) {
-      if (Math.abs(off - c) > half) continue
+    const reach = half * Math.hypot(1, slopeAt(along))
+    for (let off = Math.floor(c - reach); off <= Math.ceil(c + reach); off++) {
+      if (Math.abs(off - c) > reach) continue
       const col = vertical ? off : along
       const row = vertical ? along : off
       if (!inBounds(col, row, cols, rows)) continue
@@ -975,6 +991,8 @@ export interface RiverSurface extends RiverCarve {
   fords: ReadonlySet<string>
   /** Cells wearing a film of water over dry ground (a puddle). Not banks either. */
   wet: ReadonlySet<string>
+  /** THE PUBLISHED WAYS. Read so nothing this pass puts down stands in one. */
+  pathwayCells?: ReadonlySet<string>
   /** True when this map's liquid is molten: lava is never wadeable at any depth. */
   molten?: boolean
   /**
@@ -1018,6 +1036,12 @@ export function strewRiverRocks(ctx: RiverSurface, channel: ReadonlySet<string>)
     // over, and pinched a wadeable ford shut. Standing one in water you could not cross anyway adds the look
     // was asked for and cannot change what connects to what.
     if (!ctx.collision[row][col]) continue
+    // AND NEVER IN A WAY. Every other prop pass gets this from `placeProp`, which this one skips because
+    // `placeProp` refuses water outright and a river rock is the one thing that belongs there. Skipping the
+    // whole of it skipped the way guard too: measured on a town, two rocks standing in the ford its road
+    // crosses on. A cell can be published as a way and still read as blocked here, so the collision test above
+    // does not cover it.
+    if (ctx.pathwayCells?.has(key)) continue
     ctx.props.push({ col, row, type: 'rock', char: rock.char, label: 'rock', blocking: true, color: rock.color })
   }
 }
@@ -1131,7 +1155,6 @@ export function settleWaterDepth(ctx: RiverSurface, pal: GeneratorPalette | unde
     if (!channel.has(key)) continue
     ctx.flow.set(key, dir)
   }
-  strewRiverRocks(ctx, channel)
   // NOTHING WADES LAVA. A shallow edge of molten rock is still molten rock, so the depth pass's whole
   // wadeable set is dropped rather than a shallow band being carved out of it.
   const wadeable = ctx.molten ? new Set<string>() : wadeableShallows(ctx, depth)
@@ -1191,6 +1214,15 @@ export function settleWaterDepth(ctx: RiverSurface, pal: GeneratorPalette | unde
       if (isWaterGround(ground[row]?.[col])) collision[row][col] = true
     }
   }
+  // THE ROCKS GO IN LAST, once the channel knows what it blocks.
+  //
+  // `strewRiverRocks` refuses any cell you can walk, on purpose: a rock is solid, and one dropped into water
+  // somebody crosses changes what connects to what. It was called before the loop above, so the only collision
+  // it could read was the blanket `true` the carve writes over every channel cell, and the reopening of the
+  // fords, the wadeable shallows and the cells under a deck had not happened yet. Its guard was answering about
+  // a moment that no longer existed. Measured on a town: two rocks standing in the middle of the ford the road
+  // crosses on.
+  strewRiverRocks(ctx, channel)
   if (!pal?.swamp) return
   for (const key of pools) {
     const { col, row } = toCell(key)

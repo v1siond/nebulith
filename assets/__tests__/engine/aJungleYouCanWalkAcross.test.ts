@@ -24,6 +24,7 @@
  * why the whole-map tree count went UP (397 -> 419) during a cut that was working.
  */
 import '@/__tests__/helpers/installTilesetSeed'
+import { isWaterGround } from '@/engine/riverNetwork'
 import { generateStage, type StageData } from '@/engine/stageGenerator'
 import { parseGeneratorCatalog } from '@/lib/generatorCatalog'
 import { makeRng } from '@/lib/math'
@@ -68,23 +69,30 @@ function build(key: string, seed: number): StageData {
 /** The map minus the sealed border ring: the part a player is meant to use. */
 const SEALED_RING = 2
 
-function room(s: StageData): { walkable: number; placeable: number } {
+function room(s: StageData): { walkable: number; placeable: number; ofLand: number } {
   const inRing = (col: number, row: number) => Math.min(col, row, s.cols - 1 - col, s.rows - 1 - row) < SEALED_RING
   const open = (col: number, row: number) =>
     col >= 0 && row >= 0 && col < s.cols && row < s.rows && !s.collision[row][col]
   let cells = 0
   let free = 0
   let elbow = 0
+  // THE SAME COUNT OVER THE LAND ONLY. A creek is not something a canopy setting can open, so a measure that
+  // divides by the whole map moves when the river's width changes and says nothing about the canopy.
+  let land = 0
+  let landFree = 0
   for (let row = 0; row < s.rows; row++) {
     for (let col = 0; col < s.cols; col++) {
       if (inRing(col, row)) continue
       cells++
+      const wet = isWaterGround(s.ground[row][col])
+      if (!wet) land++
       if (!open(col, row)) continue
       free++
+      if (!wet) landFree++
       if (open(col - 1, row) && open(col + 1, row) && open(col, row - 1) && open(col, row + 1)) elbow++
     }
   }
-  return { walkable: free / cells, placeable: elbow / cells }
+  return { walkable: free / cells, placeable: elbow / cells, ofLand: landFree / land }
 }
 
 /** Averaged over seeds, because one seed's creek can wander and swing either number by several points. */
@@ -148,11 +156,18 @@ describe('the undergrowth does not grow back what the canopy gives up', () => {
           Math.random = orig
         }
       })
-      return rows.reduce((a, r) => a + r.walkable, 0) / rows.length
+      return rows.reduce((a, r) => a + r.ofLand, 0) / rows.length
     }
     const thick = withCanopy(0.45)
     const thin = withCanopy(0.20)
     // More than a rounding step: half the canopy has to buy real floor.
-    expect(thin - thick).toBeGreaterThan(0.04)
+    //
+    // MEASURED OVER THE LAND, not over the map. This asked `walkable`, a share of every cell inside the ring,
+    // and a jungle's creek is a good part of those. The width of that creek then moved the number without any
+    // canopy having changed: correcting the channel to the width it is configured for (it was carved as a
+    // horizontal scanline, so it came out thin wherever it ran at an angle) took the whole-map figure from
+    // 0.0416 to 0.0341 with the canopy untouched at either end. Over the land the canopy actually plants on,
+    // the same pair reads 0.0453 and 0.0389, and the bar sits below both.
+    expect(thin - thick).toBeGreaterThan(0.035)
   })
 })

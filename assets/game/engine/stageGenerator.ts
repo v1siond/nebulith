@@ -2396,7 +2396,10 @@ function borderTheWater(ctx: ArchetypeContext): void {
   // would give a pool the river's foam.
   const set = waterSetFor(ctx)
   for (const cells of waterBodies(body)) {
-    paintWaterBody(ctx.ground, cells, set, classifyBody(cells, ctx.flow, ctx.cols, ctx.rows))
+    // `body` is EVERY water cell on the map. Each connected body is still classified on its own (a pool must
+    // not wear a river's foam), but the edge test asks the whole map, or two touching bodies each draw a
+    // bank against the other and the border lands in open water.
+    paintWaterBody(ctx.ground, cells, set, classifyBody(cells, ctx.flow, ctx.cols, ctx.rows), body)
   }
 }
 
