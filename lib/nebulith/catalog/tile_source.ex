@@ -3253,31 +3253,24 @@ defmodule Nebulith.Catalog.TileSource do
 
   # A CACTUS, AS AN OBJECT MADE OF CELLS.
   #
-  # *"I REQUESTED TREES, WHICH MEAN OBJECTS, COMPOSITIONS, AND YOU JUST USED A FUCKING TILE IN A FUCKING
-  # CELL."* Each form below is several cells, and the FORM is what separates the species, measured off his
-  # botanical plate (`references/SOURCES.md`, Cactus):
+  # *"we can built it with our blocks system, you didn't understood it good enough"*, with a sketch: a
+  # saguaro is a TALL NARROW BAR, a WIDE SHORT BAR crossing it, and two SHORT BARS rising from that bar's
+  # ends. Plain rectangles. The curve is not needed and never was.
   #
-  #   saguaro       a tall ribbed column with ARMS that leave it low and turn UP to run parallel
-  #   barrel        squat and round, much wider than tall
-  #   prickly pear  flat oval PADS branching off each other, not a column at all
+  # The piece that was missing from my reading: a cell is not stuck filling its tile. `scaleX` and `scaleY`
+  # set a block's WIDTH and HEIGHT independently, and `settings.pose` MOVES it inside the tile (`lamp_post`
+  # has sat its bulb on a 7-high post with `pose: {dy: -1.8}` all along). So several bars can share one tile
+  # at different sizes and offsets, which is what builds a shape out of blocks.
   #
-  # The arms are the whole reason the saguaro is recognisable, and a 1x1 footprint cannot carry them, which
-  # is why this one is three cells wide. `dx` stays non-negative because nothing else in the catalog uses a
-  # negative offset and `rotateFootprintOffset` assumes the 0..w-1 range.
-  defp cactus_cell(dx, level, label, width, height, shape \\ nil) do
-    # WIDTH IS scaleX, NOT scale. `scale` shrinks the drawn cube on every axis while the per-level lift stays
-    # a full block, so a narrowed segment at level 1 floats above the one at level 0.
-    %{
-      dx: dx,
-      dy: 0,
-      level: level,
-      label: label,
-      walkable: false,
-      scale: 1.0,
-      settings:
-        %{"scaleX" => width, "scaleY" => height}
-        |> then(fn s -> if shape, do: Map.put(s, "shape", shape), else: s end)
-    }
+  # Everything below is one 1x1 footprint. No wide footprint, no billboard, no transparent silhouette.
+  # `depth` is the third axis and it is NOT optional here. `scaleX` widens a block along ONE ground axis
+  # while its depth stays full, so a "wide bar" comes out as a square slab that reads as a PLUS in iso. A bar
+  # is wide on one axis and THIN on the other.
+  defp bar(level, label, width, height, depth, pose \\ %{}) do
+    settings = %{"scaleX" => width, "scaleY" => height, "scaleZ" => depth}
+    settings = if map_size(pose) == 0, do: settings, else: Map.put(settings, "pose", pose)
+
+    %{dx: 0, dy: 0, level: level, label: label, walkable: false, scale: 1.0, settings: settings}
   end
 
   defp leaf_cell(level, leaf_h, leaf_zoom, shape, walkable) do
@@ -3393,37 +3386,42 @@ defmodule Nebulith.Catalog.TileSource do
       "tree_encina" => tree_comp(%{trunk_h: 2.4, trunk_zoom: 0.58, trunk_w: 1.15, leaf_h: 2.0, leaf_zoom: 1.9, shape: "circle"}),
       # THE DRY COUNTRY. A desert grew bananas and mangroves and had no cactus at all.
       #
-      # saguaro: a three-block trunk with an arm either side, each arm turning up to run beside it. The
-      # segments run slightly oversize (the fountain's 1.15 trick) so the joins close instead of showing a seam.
+      # saguaro, straight off his sketch: the trunk runs the full height, a wide low bar crosses it, and a
+      # short upright rises from each end of that bar. The right one stands taller than the left, because a
+      # real one is never symmetric and the asymmetry is most of what sells it.
       "cactus_saguaro" => %{
-        footprint_w: 3,
+        footprint_w: 1,
         footprint_h: 1,
         category: "nature",
         cells: [
-          cactus_cell(1, 0, "cactus_stem", 0.52, 1.2),
-          cactus_cell(1, 1, "cactus_stem", 0.52, 1.2),
-          cactus_cell(1, 2, "cactus_crown", 0.52, 1.2),
-          # the arms are ONE block each, so the trunk stays clearly the tallest thing and the silhouette
-          # reads as a saguaro rather than as a cluster of equal columns
-          cactus_cell(0, 1, "cactus_arm_l", 0.44, 1.2),
-          cactus_cell(2, 1, "cactus_arm_r", 0.44, 1.2)
+          # trunk: narrow on both ground axes, tall
+          bar(0, "cactus_stem", 0.3, 3.4, 0.3),
+          # the crossbar: WIDE on x, THIN on z, low
+          bar(1, "cactus_stem", 1.4, 0.3, 0.3, %{"dy" => 0.2}),
+          # the two uprights rising from its ends, the right one taller because a real one is never symmetric
+          bar(1, "cactus_stem", 0.26, 1.0, 0.26, %{"dx" => -0.56, "dy" => -0.45}),
+          bar(1, "cactus_stem", 0.26, 1.3, 0.26, %{"dx" => 0.56, "dy" => -0.6})
         ]
       },
-      # barrel: squat and round, wider than tall, with a low domed cap
+      # barrel: squat and round, wider than tall. ROUND is `shape: circle`, which is how this renderer rounds
+      # a block off: an ellipse drawn on a cube FACE is still a cube.
       "cactus_barrel" => %{
         footprint_w: 1,
         footprint_h: 1,
         category: "nature",
-        cells: [cactus_cell(0, 0, "cactus_barrel", 0.92, 0.8, "circle")]
+        cells: [%{dx: 0, dy: 0, level: 0, label: "cactus_barrel", walkable: false, scale: 1.0,
+                  settings: %{"scaleX" => 0.92, "scaleY" => 0.8, "shape" => "circle"}}]
       },
-      # prickly pear: a clump of pads, the wider one at the bottom
+      # prickly pear: pads, the wider one at the bottom, each one rounded off
       "cactus_prickly" => %{
         footprint_w: 1,
         footprint_h: 1,
         category: "nature",
         cells: [
-          cactus_cell(0, 0, "cactus_pad", 0.9, 0.9, "circle"),
-          cactus_cell(0, 1, "cactus_pad", 0.62, 0.8, "circle")
+          %{dx: 0, dy: 0, level: 0, label: "cactus_pad", walkable: false, scale: 1.0,
+            settings: %{"scaleX" => 0.9, "scaleY" => 0.9, "shape" => "circle"}},
+          %{dx: 0, dy: 0, level: 1, label: "cactus_pad", walkable: false, scale: 1.0,
+            settings: %{"scaleX" => 0.62, "scaleY" => 0.8, "shape" => "circle", "pose" => %{"dx" => 0.28}}}
         ]
       },
       # TWO water variants of the town-square basin, both COMPOSITIONS assembled from AUTOTILE PIECES
