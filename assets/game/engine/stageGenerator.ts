@@ -2420,12 +2420,39 @@ function borderTheWater(ctx: ArchetypeContext): void {
   // so each connected body is classified and edged on its own. Running the pass over all the water together
   // would give a pool the river's foam.
   const set = waterSetFor(ctx)
+  const open = openWater(ctx, body)
   for (const cells of waterBodies(body)) {
-    // `body` is EVERY water cell on the map. Each connected body is still classified on its own (a pool must
-    // not wear a river's foam), but the edge test asks the whole map, or two touching bodies each draw a
-    // bank against the other and the border lands in open water.
-    paintWaterBody(ctx.ground, cells, set, classifyBody(cells, ctx.flow, ctx.cols, ctx.rows), body)
+    // `open` is every water cell with NOTHING STANDING IN IT, which is what the edge test asks about. The
+    // painted set is still the whole body: the ground under a boulder is water and stays water.
+    paintWaterBody(ctx.ground, cells, set, classifyBody(cells, ctx.flow, ctx.cols, ctx.rows), open)
   }
+}
+
+/**
+ * THE WATER YOU CAN SEE ACROSS: the body, minus every cell with something solid standing in it.
+ *
+ * *"water border should show in anything that 'collapses' with it, so a big rock in middle, definitely needs
+ * borders"*.
+ *
+ * `WATER.md` §1 states the rule as *"every cell whose orthogonal neighbour is not water is a boundary cell"*,
+ * and read literally that means a boulder standing midstream is invisible to the edge pass: its cell is still
+ * painted water, so the water around it is all interior and the rock sits in a flat sheet with no shore. The
+ * rule is about what the water MEETS, and it meets the rock exactly as it meets the bank.
+ *
+ * BLOCKING is the test, not merely "a prop is here". A lily or a floating leaf is on the water, not in its
+ * way, and the water does not break around it. `strewRiverRocks` marks its boulders blocking, which is the
+ * same fact that stops you walking through them.
+ *
+ * KNOWN LIMIT: a composition is counted at its ANCHOR cell only, so a multi-cell structure standing in water
+ * borders one cell of its footprint rather than all of them. Nothing in the catalog stands in water across
+ * more than one cell today, so this is recorded rather than solved.
+ */
+function openWater(ctx: ArchetypeContext, body: ReadonlySet<string>): Set<string> {
+  const open = new Set(body)
+  for (const prop of ctx.props) if (prop.blocking) open.delete(`${prop.col},${prop.row}`)
+  for (const comp of ctx.compositions) open.delete(`${comp.col},${comp.row}`)
+  for (const tree of ctx.trees) open.delete(`${tree.col},${tree.row}`)
+  return open
 }
 
 /** Which LIQUID this map is filled with, served like every other look. Unserved falls back to the default

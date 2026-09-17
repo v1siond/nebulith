@@ -176,19 +176,83 @@ describe('a generated river is one river, and it has a middle', () => {
     expect(noMiddle).toEqual([])
   })
 
-  it('never banks a cell that has water on all four sides', () => {
+  /**
+   * UPDATED, not weakened, 2026-09-17. This asked that a cell with water on all four sides never wears a bank,
+   * and that was the right question against the old rule. It is the wrong question now: *"water border should
+   * show in anything that 'collapses' with it, so a big rock in middle, definitely needs borders"*, and a
+   * boulder's own cell is still PAINTED water, so its neighbours do have water on all four sides and must be
+   * banked all the same.
+   *
+   * What it was defending is still wanted, so it asks it against OPEN water: nothing standing in it.
+   */
+  it('never banks a cell surrounded by OPEN water, with nothing standing in any of it', () => {
     const inland: string[] = []
     for (const layout of LAYOUTS) {
       for (const seed of SEEDS) {
         const s = grow(layout, seed)
         const cells = waterOf(s)
-        for (const key of cells) {
+        // the same set the generator's `openWater` builds: the body minus whatever stands in it
+        const open = new Set(cells)
+        for (const p of s.props) if (p.blocking) open.delete(`${p.col},${p.row}`)
+        for (const c of s.compositions) open.delete(`${c.col},${c.row}`)
+        for (const tr of s.trees) open.delete(`${tr.col},${tr.row}`)
+        for (const key of open) {
           const [col, row] = key.split(',').map(Number)
-          const ringed = [[0, -1], [1, 0], [0, 1], [-1, 0]].every(([dc, dr]) => cells.has(`${col + dc},${row + dr}`))
+          const ringed = [[0, -1], [1, 0], [0, 1], [-1, 0]].every(([dc, dr]) => open.has(`${col + dc},${row + dr}`))
           if (ringed && isEdgePiece(s.ground[row][col])) inland.push(`${layout} seed ${seed} at ${key}: ${s.ground[row][col]}`)
         }
       }
     }
     expect(inland.slice(0, 10)).toEqual([])
+  })
+})
+
+/**
+ * AND IT BORDERS WHATEVER IT MEETS, not only the bank.
+ *
+ * *"water border should show in anything that 'collapses' with it, so a big rock in middle, definitely needs
+ * borders"*.
+ *
+ * `WATER.md` §1 says a boundary cell is one whose orthogonal neighbour is not water, and read literally that
+ * makes a boulder standing midstream invisible: its own cell is still painted water, so the water around it
+ * is all interior and the rock sits in a flat sheet with no shore. The generator's `openWater` is what
+ * separates "water" from "water you can see across", and these pin the arithmetic that consumes it.
+ */
+describe('water borders whatever stands in it', () => {
+  it('a boulder midstream gets a shore on every side', () => {
+    const cells = block(9, 9)
+    const open = new Set(cells)
+    open.delete('4,4') // one boulder, dead centre, the cell still painted water
+    const pieces = waterPieces(cells, 'smooth', 'river', open)
+    for (const [key, side] of [['4,3', 'above'], ['5,4', 'right'], ['4,5', 'below'], ['3,4', 'left']] as const) {
+      expect({ side, edge: isEdgePiece(pieces.get(key)!) }).toEqual({ side, edge: true })
+    }
+  })
+
+  it('and the water further off is still open', () => {
+    const cells = block(9, 9)
+    const open = new Set(cells)
+    open.delete('4,4')
+    const pieces = waterPieces(cells, 'smooth', 'river', open)
+    // two cells away from the boulder and two from the bank: nothing to meet, so no shore
+    expect(isEdgePiece(pieces.get('2,2')!)).toBe(false)
+    expect(isEdgePiece(pieces.get('6,6')!)).toBe(false)
+  })
+
+  it('the boulder does not change which cells are PAINTED, only what they wear', () => {
+    // the ground under a boulder is water and stays water: `WATER.md` §6, "the ground under every water cell
+    // is a real terrain tile, and the map is complete without the water layer"
+    const cells = block(9, 9)
+    const open = new Set(cells)
+    open.delete('4,4')
+    expect(waterPieces(cells, 'smooth', 'river', open).size).toBe(waterPieces(cells).size)
+    expect(waterPieces(cells, 'smooth', 'river', open).has('4,4')).toBe(true)
+  })
+
+  it('open water with nothing in it is unchanged, so a clear river keeps its middle', () => {
+    const cells = block(9, 9)
+    const withOpen = waterPieces(cells, 'smooth', 'river', new Set(cells))
+    const plain = waterPieces(cells)
+    for (const [key, label] of plain) expect(withOpen.get(key)).toBe(label)
   })
 })
