@@ -3374,7 +3374,10 @@ defmodule Nebulith.Catalog.TileSource do
       #
       # oak: the broad dome. A short heavy bole under the widest crown in the temperate set, which is what
       # separates it from `tree_big` (taller, narrower) at a glance.
-      "tree_oak" => tree_comp(%{trunk_h: 2.8, trunk_zoom: 0.62, trunk_w: 1.2, leaf_h: 2.4, leaf_zoom: 2.0, shape: "circle"}),
+      # AN OAK IS TALL. It and the encina were the same tree at two sizes, and read as one thing on the map.
+      # A Quercus robur carries a big round crown well clear of the ground on a long bole, which is the half of
+      # the pair that goes UP.
+      "tree_oak" => tree_comp(%{trunk_h: 3.6, trunk_zoom: 0.64, trunk_w: 1.15, leaf_h: 2.5, leaf_zoom: 2.05, shape: "circle"}),
       # weeping willow: the crown HANGS. A slim trunk carrying a tall, wide fall of leaf, so its mass sits low
       # and spreads, the opposite silhouette to the column.
       "tree_willow" => tree_comp(%{trunk_h: 2.6, trunk_zoom: 0.5, trunk_w: 0.9, leaf_h: 2.6, leaf_zoom: 1.95, shape: "circle"}),
@@ -3383,7 +3386,11 @@ defmodule Nebulith.Catalog.TileSource do
       "tree_cherry" => tree_comp(%{trunk_h: 2.2, trunk_zoom: 0.45, trunk_w: 0.9, leaf_h: 1.4, leaf_zoom: 1.6, shape: "circle"}),
       # encina: the holm oak of a dry dehesa. Evergreen, dense and rounded, on a short sturdy trunk, and it
       # stands in the open rather than in a closed wood.
-      "tree_encina" => tree_comp(%{trunk_h: 2.4, trunk_zoom: 0.58, trunk_w: 1.15, leaf_h: 2.0, leaf_zoom: 1.9, shape: "circle"}),
+      # AN ENCINA IS LOW AND WIDE, which is the other half. A holm oak branches low off a short thick bole and
+      # spreads into a broad flat dome, the dehesa shape, so it goes OUT where the oak goes up. Same two pieces,
+      # opposite proportions, and that is the whole separation: no new art, because the difference between
+      # these two species in life IS their proportion.
+      "tree_encina" => tree_comp(%{trunk_h: 1.5, trunk_zoom: 0.52, trunk_w: 1.45, leaf_h: 1.35, leaf_zoom: 2.7, shape: "circle"}),
       # THE DRY COUNTRY. A desert grew bananas and mangroves and had no cactus at all.
       #
       # saguaro, straight off his sketch: the trunk runs the full height, a wide low bar crosses it, and a
