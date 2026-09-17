@@ -140,3 +140,77 @@ curl -s localhost:6328/api/tilesets | grep <label>
 ```
 
 Editing the seeder is not changing the database. Run the migration and read the field back from the live API before saying it is done.
+
+---
+
+## Source: foliage, and the independent confirmation of our colour model
+
+**"How I made better foliage than 99% of games"**, kodiakwhale, 4:16,
+`https://www.youtube.com/watch?v=GOfttJQ-FGw`, shared as *"good context on follage, useful to do lots of
+different grass types"* and *"great context on how to build more complicated trees"*.
+
+**"Stylized Grass & Trees for Pixel Art 3D in Godot 4"**, Eduardo Schildt, 18:09,
+`https://www.youtube.com/watch?v=iPbYzFWECz4`, shared as *"godot style grass"*.
+
+Both are 3D shader pieces. Most of what they teach is about the ART and the VARIATION, which is engine
+agnostic, so it transfers here with no shader at all.
+
+### The one that matters most, because it is our model arriving from outside
+
+`[00:53]` to `[01:02]`: sample the texture for colour, then **map a COLOUR PALETTE onto the GREYSCALE of the
+texture**. That is precisely what this document already requires (§1: white and greys only, the served colour
+tints them) and what `foliageColor` does per biome. An independent source reaching the same design is the
+strongest evidence we have that the tile model is right, and it is worth knowing we are not improvising.
+
+### Fix the ART before you reach for a setting
+
+`[00:29]` to `[00:38]`: *"If you want a game to have good graphics, of course, shaders are important. But a
+Minecraft tree is always going to look like a Minecraft tree. If we want fluffy foliage, we first need to
+improve our models."*
+
+The local translation: no render setting rescues a bad tile. This was proved here the expensive way. A cactus
+composition drew as a green box, and the cause was that `cactus.png` was a BLANK WHITE SQUARE. No amount of
+scale, shape or display tuning would ever have fixed it; authoring the silhouette did, in one pass.
+
+### What a leaf texture should actually be
+
+`[02:53]` to `[03:00]`: The Witness's leaf textures are *"just a bunch of random individual leaves"*, not a
+green mass. Our `leaf_center` should be judged against that: individual leaves at one luminance, not a blob.
+
+`[03:55]` to `[04:03]`: interior shadow inside each clump, and a BLUISH tint on the parts in shadow. A warm
+light and a cool shadow is the oldest trick in painting and it costs one extra tone in the art.
+
+### Variation is three things, not one
+
+`[00:41]` to `[00:50]`, for grass: randomly ROTATE, randomly adjust POSITION, and raise DENSITY. We serve
+density already and place on a lattice. Rotation and sub-cell position jitter are the two we do NOT do, and
+they are the cheapest remaining wins for making a field stop looking like a grid.
+
+Cross-reference `TILE-EFFECTS.md` §0: this is the per-instance seed primitive again, applied to three
+properties instead of one.
+
+### Wind, for when setting-animation arrives
+
+`[01:12]` to `[01:29]`: wind is a SCROLLING texture sampled over time, used for two things at once, a colour
+shift and an actual bend. Two constraints stated plainly: the texture must be very SMOOTH (*"anything with
+edges will look horribly unnatural"*) and it must TILE, or the repeat is visible.
+
+Pair with `MATH-FOUNDATIONS.md` §3.1 (the sway is a sine) and §0.5 of `TILE-EFFECTS.md` (phase offset per
+instance), and with the UV-gradient note: a crown sways, a trunk does not.
+
+### Two performance facts worth keeping for PERFORMANCE.md
+
+Not actionable yet, and `PERFORMANCE.md` does not exist, so they are parked here rather than lost:
+
+1. `[02:12]` to `[02:22]`: batch per CHUNK, not per world. One batch is fastest to draw and worst to edit
+   (changing one blade re-uploads everything). Chunking keeps *"99% of the performance gains"* while making
+   an edit local. Our editor edits constantly, so if batching ever happens it has to be chunked.
+2. `[02:28]` to `[02:42]`: level of detail by distance, *"if we were painting a landscape, we wouldn't paint
+   individual leaves in the background like we would in the foreground"*.
+
+### What it teaches us to OFFER
+
+His stated reason for sending it: *"useful to do lots of different grass types"*. A grass TYPE is a tile plus
+a density plus a placement rule, which is data we already serve. The gap is that every biome currently
+reaches for `thicket` or `tall_grass` and nothing else, so a beach has a woodland's shrub in it. More grass
+types is a catalog job, not an engine job.

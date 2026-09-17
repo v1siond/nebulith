@@ -3251,6 +3251,34 @@ defmodule Nebulith.Catalog.TileSource do
     %{footprint_w: 1, footprint_h: 1, category: "nature", cells: [leaf_cell(0, opts.leaf_h, opts.leaf_zoom, Map.get(opts, :shape), false)]}
   end
 
+  # A CACTUS IS NOT A TREE, so it is not `tree_comp/1` with odd numbers. It has no trunk and no canopy: it is
+  # one succulent body, and its species is its PROPORTION (a saguaro is a tall narrow column, a barrel is a
+  # squat dome, a prickly pear is a low wide clump). The `cactus` tile already exists with baked art in both
+  # styles and was used by exactly nothing.
+  #
+  # Each species names its OWN tile (`cactus` the saguaro, `cactus_barrel`, `cactus_pad`) rather than one
+  # drawing scaled three ways: squashing a ribbed column into a squat dome reads as a squashed column.
+  #
+  # Blocking, like every other standing plant: you do not walk through a saguaro.
+  defp cactus_comp(opts) do
+    %{
+      footprint_w: 1,
+      footprint_h: 1,
+      category: "nature",
+      cells: [
+        %{
+          dx: 0,
+          dy: 0,
+          level: 0,
+          label: opts.label,
+          walkable: false,
+          scale: opts.zoom,
+          settings: %{"scaleY" => opts.height}
+        }
+      ]
+    }
+  end
+
   defp leaf_cell(level, leaf_h, leaf_zoom, shape, walkable) do
     # The canopy defaults to a SQUARE crown (a leaf cube); a ROUND crown is OPT-IN via `shape: "circle"`
     # ("tree_round"/"bush_round"), so "tree" and "tree round" render DIFFERENTLY. An explicit shape always wins (a future conifer can pass a cone).
@@ -3362,6 +3390,19 @@ defmodule Nebulith.Catalog.TileSource do
       # encina: the holm oak of a dry dehesa. Evergreen, dense and rounded, on a short sturdy trunk, and it
       # stands in the open rather than in a closed wood.
       "tree_encina" => tree_comp(%{trunk_h: 2.4, trunk_zoom: 0.58, trunk_w: 1.15, leaf_h: 2.0, leaf_zoom: 1.9, shape: "circle"}),
+      # THE DRY COUNTRY, 2026-09-16: *"desert trees makes no sense in the context, we have no cactus for
+      # example"*. Measured before this, a desert grew banana, coconut and mangrove, and its deep region was a
+      # rainforest. These are what actually stands in dry open ground.
+      #
+      # acacia: the umbrella. A tall bare bole under a WIDE FLAT crown, which is the one silhouette that reads
+      # as dry savanna instantly and costs nothing but proportion.
+      "tree_acacia" => tree_comp(%{trunk_h: 3.6, trunk_zoom: 0.45, trunk_w: 0.8, leaf_h: 0.7, leaf_zoom: 2.1, shape: "circle"}),
+      # the three cacti, by proportion alone, from the one `cactus` tile
+      # `zoom` is the billboard's WIDTH against SINGLE_TILE_FRAC (0.6 of a cell), so a saguaro that should
+      # stand taller than a person needs a zoom above 1, not below it.
+      "cactus_column" => cactus_comp(%{label: "cactus", zoom: 1.15, height: 2.4}),
+      "cactus_barrel" => cactus_comp(%{label: "cactus_barrel", zoom: 1.2, height: 0.85}),
+      "cactus_prickly" => cactus_comp(%{label: "cactus_pad", zoom: 1.35, height: 0.9}),
       # TWO water variants of the town-square basin, both COMPOSITIONS assembled from AUTOTILE PIECES
       # (TILESET-AUTHORING §3), not one fill: a rim of the RIGHT edge/corner piece per cell (`fountain_tl/tr/
       # bl/br` corners + `fountain_t/b/l/r` sides) around a `water_c` (blue water) interior. Every cell blocks

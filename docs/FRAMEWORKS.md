@@ -49,6 +49,7 @@ When reading a source, write down both. The second half is usually the more valu
 
 | Working on | Framework | State |
 |---|---|---|
+| What the engine is FOR, and who for | [`VISION.md`](VISION.md) | Written 2026-09-16 from his positioning. Read before arguing about a feature. |
 | Cells, blocks, tiles, the three views | [`MAP-MODEL.md`](MAP-MODEL.md) | Written. **Read first, always.** §6 stacking law binds everything. |
 | Tile naming, `<base>_<edge>` | [`TILE-VOCABULARY-CONTRACT.md`](TILE-VOCABULARY-CONTRACT.md) | Written |
 | Where a tile lives, how it is baked and served | [`TILESET-AUTHORING.md`](TILESET-AUTHORING.md), [`TILE-BACKEND-MIGRATION.md`](TILE-BACKEND-MIGRATION.md) | Written, thin. Covers ownership and the pipeline, not how to draw one. |

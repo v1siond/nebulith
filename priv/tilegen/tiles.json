@@ -2882,7 +2882,8 @@
     "label": "cactus",
     "mode": "ascii",
     "style": "ascii",
-    "glyph": "ǂ"
+    "glyph": "ǂ",
+    "svg": "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 128 128\"><rect x=\"52\" y=\"14\" width=\"24\" height=\"112\" rx=\"12\" fill=\"#ffffff\"/><path d=\"M56 62 H34 a10 10 0 0 0 -10 10 V96\" stroke=\"#ffffff\" stroke-width=\"15\" fill=\"none\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/><path d=\"M72 78 H96 a10 10 0 0 1 10 10 V104\" stroke=\"#ffffff\" stroke-width=\"13\" fill=\"none\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/><g stroke=\"#c4c4c4\" stroke-width=\"2.4\" opacity=\"0.85\" stroke-linecap=\"round\"><path d=\"M58 22 V120\"/><path d=\"M64 18 V122\"/><path d=\"M70 22 V120\"/></g></svg>"
   },
   {
     "label": "potted-plant",
@@ -7651,5 +7652,45 @@
     "style": "emoji",
     "emoji": "💧",
     "svg": "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 128 128\"><rect width=\"128\" height=\"128\" fill=\"#ececec\"/><path d=\"M16.0 30.0 h26\" fill=\"none\" stroke=\"#ffffff\" stroke-width=\"7\" stroke-linecap=\"round\" opacity=\"1\"/><path d=\"M20.0 39.0 h18\" fill=\"none\" stroke=\"#9c9c9c\" stroke-width=\"4\" stroke-linecap=\"round\" opacity=\"0.8\"/><path d=\"M48.0 30.0 h26\" fill=\"none\" stroke=\"#ffffff\" stroke-width=\"7\" stroke-linecap=\"round\" opacity=\"1\"/><path d=\"M52.0 39.0 h18\" fill=\"none\" stroke=\"#9c9c9c\" stroke-width=\"4\" stroke-linecap=\"round\" opacity=\"0.8\"/><path d=\"M80.0 30.0 h26\" fill=\"none\" stroke=\"#ffffff\" stroke-width=\"7\" stroke-linecap=\"round\" opacity=\"1\"/><path d=\"M84.0 39.0 h18\" fill=\"none\" stroke=\"#9c9c9c\" stroke-width=\"4\" stroke-linecap=\"round\" opacity=\"0.8\"/><path d=\"M26.0 76.0 h26\" fill=\"none\" stroke=\"#ffffff\" stroke-width=\"7\" stroke-linecap=\"round\" opacity=\"1\"/><path d=\"M30.0 85.0 h18\" fill=\"none\" stroke=\"#9c9c9c\" stroke-width=\"4\" stroke-linecap=\"round\" opacity=\"0.8\"/><path d=\"M58.0 76.0 h26\" fill=\"none\" stroke=\"#ffffff\" stroke-width=\"7\" stroke-linecap=\"round\" opacity=\"1\"/><path d=\"M62.0 85.0 h18\" fill=\"none\" stroke=\"#9c9c9c\" stroke-width=\"4\" stroke-linecap=\"round\" opacity=\"0.8\"/><path d=\"M90.0 76.0 h26\" fill=\"none\" stroke=\"#ffffff\" stroke-width=\"7\" stroke-linecap=\"round\" opacity=\"1\"/><path d=\"M94.0 85.0 h18\" fill=\"none\" stroke=\"#9c9c9c\" stroke-width=\"4\" stroke-linecap=\"round\" opacity=\"0.8\"/><path d=\"M26.7 102.0 h26\" fill=\"none\" stroke=\"#ffffff\" stroke-width=\"7\" stroke-linecap=\"round\" opacity=\"1\"/><path d=\"M30.7 111.0 h18\" fill=\"none\" stroke=\"#9c9c9c\" stroke-width=\"4\" stroke-linecap=\"round\" opacity=\"0.8\"/><path d=\"M69.3 102.0 h26\" fill=\"none\" stroke=\"#ffffff\" stroke-width=\"7\" stroke-linecap=\"round\" opacity=\"1\"/><path d=\"M73.3 111.0 h18\" fill=\"none\" stroke=\"#9c9c9c\" stroke-width=\"4\" stroke-linecap=\"round\" opacity=\"0.8\"/><path d=\"M0 115 H128\" fill=\"none\" stroke=\"#6a6a6a\" stroke-width=\"16\" opacity=\"0.95\"/><path d=\"M115 0 V128\" fill=\"none\" stroke=\"#6a6a6a\" stroke-width=\"16\" opacity=\"0.95\"/><path d=\"M0 98 H128\" fill=\"none\" stroke=\"#ffffff\" stroke-width=\"8\" opacity=\"1.0\"/><path d=\"M98 0 V128\" fill=\"none\" stroke=\"#ffffff\" stroke-width=\"8\" opacity=\"1.0\"/></svg>"
+  },
+  {
+    "label": "cactus",
+    "mode": "emoji",
+    "style": "emoji",
+    "glyph": "ǂ",
+    "emoji": "🌵",
+    "svg": "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 128 128\"><rect x=\"52\" y=\"14\" width=\"24\" height=\"112\" rx=\"12\" fill=\"#ffffff\"/><path d=\"M56 62 H34 a10 10 0 0 0 -10 10 V96\" stroke=\"#ffffff\" stroke-width=\"15\" fill=\"none\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/><path d=\"M72 78 H96 a10 10 0 0 1 10 10 V104\" stroke=\"#ffffff\" stroke-width=\"13\" fill=\"none\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/><g stroke=\"#c4c4c4\" stroke-width=\"2.4\" opacity=\"0.85\" stroke-linecap=\"round\"><path d=\"M58 22 V120\"/><path d=\"M64 18 V122\"/><path d=\"M70 22 V120\"/></g></svg>"
+  },
+  {
+    "label": "cactus_barrel",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "◍",
+    "emoji": "🌵",
+    "svg": "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 128 128\"><ellipse cx=\"64\" cy=\"82\" rx=\"42\" ry=\"44\" fill=\"#ffffff\"/><g stroke=\"#c0c0c0\" stroke-width=\"3\" opacity=\"0.9\" stroke-linecap=\"round\" fill=\"none\"><path d=\"M64 38 V126\"/><path d=\"M44 42 Q36 84 46 122\"/><path d=\"M84 42 Q92 84 82 122\"/><path d=\"M28 60 Q26 92 32 112\"/><path d=\"M100 60 Q102 92 96 112\"/></g><g stroke=\"#e8e8e8\" stroke-width=\"2.6\" stroke-linecap=\"round\"><path d=\"M64 38 V26\"/><path d=\"M46 44 L38 33\"/><path d=\"M82 44 L90 33\"/><path d=\"M32 58 L21 50\"/><path d=\"M96 58 L107 50\"/></g></svg>"
+  },
+  {
+    "label": "cactus_barrel",
+    "mode": "emoji",
+    "style": "emoji",
+    "glyph": "◍",
+    "emoji": "🌵",
+    "svg": "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 128 128\"><ellipse cx=\"64\" cy=\"82\" rx=\"42\" ry=\"44\" fill=\"#ffffff\"/><g stroke=\"#c0c0c0\" stroke-width=\"3\" opacity=\"0.9\" stroke-linecap=\"round\" fill=\"none\"><path d=\"M64 38 V126\"/><path d=\"M44 42 Q36 84 46 122\"/><path d=\"M84 42 Q92 84 82 122\"/><path d=\"M28 60 Q26 92 32 112\"/><path d=\"M100 60 Q102 92 96 112\"/></g><g stroke=\"#e8e8e8\" stroke-width=\"2.6\" stroke-linecap=\"round\"><path d=\"M64 38 V26\"/><path d=\"M46 44 L38 33\"/><path d=\"M82 44 L90 33\"/><path d=\"M32 58 L21 50\"/><path d=\"M96 58 L107 50\"/></g></svg>"
+  },
+  {
+    "label": "cactus_pad",
+    "mode": "ascii",
+    "style": "ascii",
+    "glyph": "❋",
+    "emoji": "🌵",
+    "svg": "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 128 128\"><ellipse cx=\"58\" cy=\"88\" rx=\"30\" ry=\"36\" fill=\"#ffffff\"/><ellipse cx=\"92\" cy=\"72\" rx=\"22\" ry=\"27\" fill=\"#ededed\" transform=\"rotate(22 92 72)\"/><ellipse cx=\"38\" cy=\"58\" rx=\"19\" ry=\"24\" fill=\"#f6f6f6\" transform=\"rotate(-24 38 58)\"/><g stroke=\"#bdbdbd\" stroke-width=\"2.2\" opacity=\"0.9\" stroke-linecap=\"round\"><path d=\"M58 60 V116\"/><path d=\"M92 50 V94\"/><path d=\"M38 38 V78\"/></g><g fill=\"#d8d8d8\"><circle cx=\"48\" cy=\"74\" r=\"2.6\"/><circle cx=\"68\" cy=\"82\" r=\"2.6\"/><circle cx=\"54\" cy=\"100\" r=\"2.6\"/><circle cx=\"88\" cy=\"64\" r=\"2.4\"/><circle cx=\"98\" cy=\"80\" r=\"2.4\"/><circle cx=\"34\" cy=\"52\" r=\"2.2\"/><circle cx=\"44\" cy=\"66\" r=\"2.2\"/></g></svg>"
+  },
+  {
+    "label": "cactus_pad",
+    "mode": "emoji",
+    "style": "emoji",
+    "glyph": "❋",
+    "emoji": "🌵",
+    "svg": "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 128 128\"><ellipse cx=\"58\" cy=\"88\" rx=\"30\" ry=\"36\" fill=\"#ffffff\"/><ellipse cx=\"92\" cy=\"72\" rx=\"22\" ry=\"27\" fill=\"#ededed\" transform=\"rotate(22 92 72)\"/><ellipse cx=\"38\" cy=\"58\" rx=\"19\" ry=\"24\" fill=\"#f6f6f6\" transform=\"rotate(-24 38 58)\"/><g stroke=\"#bdbdbd\" stroke-width=\"2.2\" opacity=\"0.9\" stroke-linecap=\"round\"><path d=\"M58 60 V116\"/><path d=\"M92 50 V94\"/><path d=\"M38 38 V78\"/></g><g fill=\"#d8d8d8\"><circle cx=\"48\" cy=\"74\" r=\"2.6\"/><circle cx=\"68\" cy=\"82\" r=\"2.6\"/><circle cx=\"54\" cy=\"100\" r=\"2.6\"/><circle cx=\"88\" cy=\"64\" r=\"2.4\"/><circle cx=\"98\" cy=\"80\" r=\"2.4\"/><circle cx=\"34\" cy=\"52\" r=\"2.2\"/><circle cx=\"44\" cy=\"66\" r=\"2.2\"/></g></svg>"
   }
 ]
