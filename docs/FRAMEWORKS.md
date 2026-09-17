@@ -59,6 +59,7 @@ When reading a source, write down both. The second half is usually the more valu
 | Trees: species, form, what a forest is made of | [`TREES.md`](TREES.md) | Written 2026-09-16. A species-crown attempt was built and REVERTED the same day: §2 records why, and its constraints bind any retry. |
 | Map entrances | [`DESIGN-ENTRANCES.md`](DESIGN-ENTRANCES.md) | Written |
 | Water, rivers, pools, the sea | [`WATER.md`](WATER.md) | Written 2026-09-16 from his two sources. Build order is stated, most of it is not built. |
+| How the ground is painted, per biome, region and season | [`TERRAIN.md`](TERRAIN.md) | Written 2026-09-17. Floor colours measured off the references. Biome+season blending is NOT built. |
 | Map generation, the layer order | [`GENERATION-SPEC.md`](GENERATION-SPEC.md) | Written. §5 is the layer model. |
 | Picking a generator algorithm | [`ALGORITHMS.md`](ALGORITHMS.md) | Written |
 | Hitboxes and elevation | [`HITBOXES-AND-ELEVATION.md`](HITBOXES-AND-ELEVATION.md) | Spec written, nothing built. §4.11 settles terrain height: `perlin(x, z)` plus a served height profile. |
@@ -80,7 +81,6 @@ These have no framework. Each one is currently decided by whoever touches it las
 |---|---|---|
 | **`PATHWAYS.md`** | A pathway is a stretch with 1 or 2 exits. The five served things (surface, width, edge, scatter, lining), the ten kinds, how a settlement's streets derive from it, how a way meets water. | Implemented six times under six names before it was collapsed. The model lives in code comments and a ticket row, nowhere readable. |
 | **`COLOUR-AND-PALETTE.md`** | A colour setting moves the hue and never the tone. Which palette a template serves, what reads as lit and what reads as material, the path-lighter-than-field law measured off references. | The path was darker than the field by 24.5 luminance across every template, against references where it is lighter by 35 to 128. |
-| **`TERRAIN.md`** | How ground gets painted per zone, region and season, and what a biome owes its floor. | `paintJungleFloor` was jungle only, so 1107 of 1600 cells in a woodland carried no floor colour at all and drew the season's grass instead of the template's floor. |
 | **`SHADOWS.md`** | What casts, what receives, how a stack of blocks shadows itself, how shadow interacts with water and with night light. | Named as a layer in the stack, nothing behind the name. |
 | **`PERFORMANCE.md`** | The frame budget, what is allowed per frame, how a new layer proves it can afford itself. | FPS fell from about 20 to 17 with boundary overlays and there is no stated budget to judge that against. |
 | **`UNITS-AND-CHARACTERS.md`** | How a unit is authored as a grid of art frames, its facings, its animation set. | A unit is a grid of chars baked to a PNG, written down only in memory. |

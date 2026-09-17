@@ -1,0 +1,109 @@
+# TERRAIN: what the ground is, and what colour it is
+
+The floor of a map: which tile is laid, what tint it takes, and how that changes by biome, region and season.
+
+Read [`MAP-MODEL.md`](MAP-MODEL.md) first (a floor is a TILE like any other, §4), then
+[`TILE-DESIGN.md`](TILE-DESIGN.md) for how the art is drawn and [`TREES.md`](TREES.md) §2b for the three
+colour axes, which this follows deliberately rather than inventing a second scheme.
+
+---
+
+## 0. Why this exists
+
+It was a listed GAP in [`FRAMEWORKS.md`](FRAMEWORKS.md) while every biome's floor was being decided by
+whoever touched it last. The result, measured off `/api/generators`:
+
+| generators | floor | hue |
+|---|---|---|
+| **Beach == Desert** | `#7c8a4e` | 74d, an olive GREEN |
+| Jungle == Swamp == Ruins | `#2f4a2a` | 111d |
+| Woodland == Mountain | `#6f7f4a` | 78d |
+| Meadow | none | paints a season gradient instead |
+| Volcanic | `#4a3f3a` | 19d, its own ash |
+
+**A desert's ground was a green olive, identical to a beach's.** Same defect the canopy had, and the
+undergrowth after it: a handful of values shared across biomes that should not share anything.
+
+---
+
+## 1. The model
+
+A floor is a TILE in the cell, at level 0, like everything else. Two things decide how it looks:
+
+| | what it is | where it comes from |
+|---|---|---|
+| **The tile** | which ground is laid: `sand`, `grass`, `basalt`, `adobe`, `ash` | the layout, per region |
+| **The tint** | the colour that tile is drawn in | `palette.floor` / `floorAlt`, per generator |
+
+294 terrain tiles exist, including `sand`, `beach-sand`, `desert`, `adobe`, `ash`, `basalt`, `dead_grass`,
+`frost` and `cliff`. The catalog is not the limitation; what a generator SERVES is.
+
+### The two-tone rule
+
+Every biome serves `floor` and `floorAlt`, and the generator mottles between them so a field never reads as
+one flat fill. This already works and is not changed here. `litter` is the third tone, bare earth showing
+through, and `bank` is the strip where ground meets water.
+
+---
+
+## 2. The colour, measured
+
+Sampled off his own references (`references/SOURCES.md`), taking GROUND pixels only: warm hues (sand, rock,
+earth) plus anything desaturated and bright, excluding the vegetation band and the blue of sky and water.
+
+| Reference | ground share | hue | sat | val | reading |
+|---|---|---|---|---|---|
+| desert-simpson-australia | 74% | **23d** | 0.48 | 0.58 | red-orange sand |
+| desert-plants | 43% | **4d** | 0.39 | 0.69 | pale red sand |
+| beach-coastal-plain-brazil | 42% | n/a | **0.14** | 0.79 | pale, near neutral |
+| beach-dunes-de-hoop | 26% | n/a | **0.13** | 0.69 | pale, near neutral |
+| mountain-california-treeline | 28% | n/a | 0.16 | 0.52 | grey rock |
+| meadow-lady-farm-steppe | 52% | 21d | 0.62 | 0.64 | golden dry earth |
+
+**Two of those rows are not usable and saying so matters.** At saturation 0.13 a hue is meaningless, so the
+beach readings say "pale and neutral" and nothing about hue. The jungle sample came back at sat 0.04 / val
+0.84, which is sky haze between the leaves rather than ground, so the jungle floor is reasoned from leaf
+litter instead of measured.
+
+### What that gives each biome
+
+Hue and saturation from the references where they are trustworthy, value kept inside a band the tile art can
+carry (`colour-tints-luminance-stays`: the tint moves the hue, the art carries the tone).
+
+| biome | ground is | hue | note |
+|---|---|---|---|
+| Desert | red-orange sand | ~22d | the strongest signal in the whole set, 74% of a frame |
+| Beach | pale sand | ~40d, low sat | neutral and BRIGHT is the whole character |
+| Mountain | grey rock | low sat | thins to bare stone with altitude |
+| Woodland | leaf litter over soil | ~78d | untouched, it is the approved one |
+| Jungle | dark wet litter | ~90d, dark | reasoned, not measured, and marked as such |
+| Swamp | darker, wetter | ~80d, darkest | murk, not green |
+| Ruins | overgrown stone | grey-green | stone showing through growth |
+| Meadow | serves none | | it paints a season gradient, which is deliberate |
+| Volcanic | ash and basalt | ~19d | already its own |
+
+---
+
+## 3. Region and season
+
+The same three axes as foliage, so there is ONE idea in the engine and not two.
+
+- **Biome** sets the hue, as above.
+- **Region** already works: a sub-zone serves its own `floor`, and `paintSubZoneFloors` uses it. A glade, a
+  deep wood and a lakeside are already different tones where a generator says so.
+- **Season** is the tile's own per-zone colour, the same `settings.colors[zone]` array every tile carries.
+
+**Not built:** the floor does not blend biome and season the way `foliageColor` does for a leaf. A winter
+desert is a desert-coloured floor, not a frosted one. That is the obvious next step and it should reuse
+`foliageColor`'s arithmetic rather than grow its own.
+
+---
+
+## 4. Checklist
+
+- [ ] No two biomes share a floor pair
+- [ ] Every biome's floor hue traces to a measured reference, or is marked as reasoned
+- [ ] `floor` and `floorAlt` differ enough to mottle, and not so much that they read as two materials
+- [ ] The floor is a TILE at level 0, never a special case
+- [ ] A region that states its own floor still wins over the biome
+- [ ] Judged at :3000, in play mode, against the reference
