@@ -55,7 +55,16 @@ defmodule Nebulith.DataMigration.ARegionFloorComesFromItsBiome do
     "burnt" => {-0.10, -4},
     "ashfall" => {-0.04, -2},
     "sheltered" => {0.06, 3},
-    "lavaside" => {0.02, -6}
+    "lavaside" => {0.02, -6},
+    # THE PER-BIOME SETS, added with `EveryBiomeItsOwnRegions`. Same rule as the woodland's: more light means a
+    # lighter, slightly warmer floor. Read here as exposure rather than as canopy cover, which is what these
+    # sets are actually a gradient of.
+    "foot" => {-0.06, -3}, "slope" => {-0.02, -1}, "treeline" => {0.04, 1}, "crag" => {0.10, 3}, "summit" => {0.16, 5},
+    "shore" => {0.18, 6}, "dunes" => {0.12, 4}, "palms" => {0.04, 1}, "backshore" => {-0.04, -2}, "inland" => {-0.09, -4},
+    "margin" => {0.04, 2}, "mire" => {-0.01, -1}, "bog" => {-0.07, -4}, "sink" => {-0.11, -6}, "open_water" => {-0.14, -8},
+    "heart" => {0.12, 3}, "courts" => {0.07, 2}, "terraces" => {0.01, 0}, "overgrown" => {-0.06, -3}, "forest" => {-0.09, -4},
+    "erg" => {0.16, 4}, "hardpan" => {0.09, 2}, "wadi" => {0.0, -1}, "oasis" => {-0.06, -5},
+    "pasture" => {0.06, 2}, "hedgerow" => {-0.05, -3}, "orchard" => {0.02, 1}, "bank" => {-0.02, -5}, "common" => {0.09, 3}
   }
 
   def run do
