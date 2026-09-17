@@ -279,6 +279,51 @@ coconut/palm/mangrove, Swamp city cypress/willow. Zero settlements without a mix
 because a settlement is chosen from a select and not a top-level button, and matching only buttons reported
 every town as NOT FOUND while the data was fine.
 
+
+### 2c-bis. Two things the colour pass left behind, found by measuring 2026-09-17
+
+**The meadow rendered FOUR leaf tones where every other biome rendered sixteen to twenty.**
+
+Measured in summer with `.probe/biomeleaf.mjs`: woodland 20, jungle 20, beach 20, mountain 20, desert 16,
+meadow **4**. The biome whose own reference says *"more mix of colors, due to flowers, they even have trees
+that are orange, pink, more varied"* was the least varied thing on the engine.
+
+The cause is the region axis never arriving. A tree reads its region in `leafToneAt`, off `ctx.zoneAt`, and
+`partitionSubZones` was called by the jungle, then by the woodland when the same gap was found there, and
+never by the meadow. Its five sub-zones were served, parsed, carried on the context and never asked for, so
+its trees could only ever wear one of the four season shades. Partitioning it takes the meadow to 20.
+
+The meadow's FLOOR is deliberately left out of that: `paintSubZoneFloors` would paint over the row gradient
+`MEADOW_PALETTES` draws, and that gradient is the approved look. The regions reach its planting and nothing
+else.
+
+**Two biomes sat in the wrong place in the hue ORDER.**
+
+`references/SOURCES.md` says to use the relationships and the relative ordering, never the absolute value.
+Read that way the served set was worse than the individual errors suggested:
+
+| biome | served hue | reference | |
+|---|---|---|---|
+| desert | 44 | 30-40 | fine |
+| beach | 58 | 51-63 | fine |
+| jungle | 78 | 74 | fine |
+| mountain | 68 | 52 | 16 off, and ABOVE beach when it should sit below |
+| meadow | 81 | 40 | 41 off, and the HIGHEST of all five when its reference is the second lowest |
+
+Meadow being the greenest biome on the map is the exact inversion of its photograph, which is the most yellow
+of the set and carries the highest saturation of any of them, 0.67. `TwoBiomesOutOfOrder` places both by RANK
+rather than by copying a photograph's number, and the served order comes out `desert 44, meadow 46,
+mountain 54, beach 58, jungle 78` against the reference order exactly. Hue and saturation only: value stays at
+0.55 on both, because a tint moves the hue and the art carries the tone.
+
+**And a warning for the next person who changes `palette.leaf`.** On a biome with a high `leafSeasonality` it
+is very nearly a dead knob. `foliageColor` lerps `biome hue -> season hue` by seasonality, so at meadow's 0.95
+a 35 degree move in `palette.leaf` reaches the rendered leaf as under 2 degrees. The migration above is
+correct and its visible effect is small for that reason. If a biome needs to actually LOOK like its reference
+in every season, `leafSeasonality` is the knob, and changing it trades away the season, so measure before
+touching it.
+
+
 ---
 
 ## 3. The model
