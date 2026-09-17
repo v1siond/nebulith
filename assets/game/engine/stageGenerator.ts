@@ -248,6 +248,16 @@ export interface StageData {
    */
   elevation?: number[][]
   /**
+   * WHICH REGION each cell belongs to, by key, absent where the map has no regions.
+   *
+   * The same kind of state as `floorColors` and `elevation`: the generator PICKS it, everything else READS
+   * it. It lived only on the generation context, so the one question a region set has to answer, "is this
+   * laid out as the journey it describes", could not be asked from outside the generator at all. That is not
+   * a detail: `REGIONS.md` §6 requires region work to be measured region by region on a real build, and
+   * without this the only honest answer was that it had not been.
+   */
+  regions?: (string | undefined)[][]
+  /**
    * PER-CELL CURRENT, in quarter turns (0 = +col, 1 = +row, 2 = -col, 3 = -row); absent means still.
    *
    * Carried beside `floorColors` and `elevation` because it is the same
@@ -1399,6 +1409,7 @@ export function generateStage(opts: GenerateOptions): StageData {
     props,
     trees,
     compositions,
+    regions: ctx.zoneAt?.map(row => row.map(zone => zone?.key)),
     connectors: [],
     // WHERE YOU COME IN. A map that planned its pathways puts you just inside its entrance, which is the whole point
     // of an entrance; a map that planned none keeps the old choice, so every existing template is unmoved.
@@ -4161,33 +4172,46 @@ function orderedRegions(
   map: (GeneratorSubZone | undefined)[][],
 ): (GeneratorSubZone | undefined)[][] {
   const { cols, rows } = ctx
-  // Cumulative share of the map each region occupies, in the served order.
-  const total = zones.reduce((n, z) => n + Math.max(0, z.weight), 0) || zones.length
-  const edges: number[] = []
-  let run = 0
-  for (const zone of zones) {
-    run += Math.max(0, zone.weight) || 1
-    edges.push(run / total)
-  }
-  // The RIM is the furthest any cell sits from the centre, so a ring set spans the whole map rather than
-  // leaving the corners to the last region by accident.
+  // WEIGHT IS A SHARE OF THE MAP, so the cut is by RANK rather than by a threshold on the coordinate.
+  //
+  // Cutting on the coordinate is what the first version did and it is wrong for rings: a ring is an ANNULUS,
+  // so a region holding the innermost tenth of the RADIUS holds a hundredth of the AREA. Measured by the
+  // region sheet: the volcanic crater, served weight 1 of 12, came out at 0 per cent of the map. The same
+  // error is invisible on bands, because a band's area really is linear in its coordinate, which is exactly
+  // the kind of thing that survives until something renders every member and looks.
+  //
+  // Sorting the cells by their position along the journey and cutting the sorted list at the served shares
+  // gives each region its share of the MAP exactly, on rings and bands alike, whatever shape the map is.
   const midCol = (cols - 1) / 2
   const midRow = (rows - 1) / 2
-  const maxR = Math.hypot(midCol, midRow) || 1
+  // The same noise the scatter uses, or the rings read as drawn with a compass.
+  const along = (col: number, row: number): number =>
+    (layout === 'rings' ? Math.hypot(col - midCol, row - midRow) : rows - 1 - row) + shadeNoise(col * 0.23 + row * 0.41) * 2.2
 
-  forEachCell(cols, rows, (col, row) => {
-    const wobble = shadeNoise(col * 0.23 + row * 0.41) * 0.06
-    const t = layout === 'rings'
-      ? Math.hypot(col - midCol, row - midRow) / maxR
-      : (rows - 1 - row) / Math.max(1, rows - 1) // south edge is row rows-1, and it is band 0
-    const at = clamp01(t + wobble)
-    map[row][col] = zones[edges.findIndex(e => at <= e)] ?? zones[zones.length - 1]
+  const cells: Array<{ col: number; row: number; at: number }> = []
+  forEachCell(cols, rows, (col, row) => { cells.push({ col, row, at: along(col, row) }) })
+  cells.sort((a, b) => a.at - b.at)
+
+  const total = zones.reduce((n, z) => n + Math.max(0, z.weight), 0) || zones.length
+  let i = 0
+  zones.forEach((zone, index) => {
+    // The last region takes whatever is left, so rounding can never leave a cell unassigned.
+    const share = Math.max(0, zone.weight) || 1
+    const upto = index === zones.length - 1 ? cells.length : Math.min(cells.length, i + Math.round((share / total) * cells.length))
+    for (; i < upto; i++) map[cells[i].row][cells[i].col] = zone
   })
   return map
 }
 
-/** Exported so WHERE a region lands can be tested directly. `zoneAt` never leaves the generator, so the only
- *  other way to ask was to re-derive the answer in the test, which tests the test. */
+/**
+ * WHICH REGION each cell belongs to.
+ *
+ * Seeds are drawn by WEIGHT, so the served numbers decide how much of the map each kind tends to claim, and
+ * the distance is warped by a little noise so the borders wobble instead of reading as Voronoi edges.
+ *
+ * Exported so WHERE a region lands can be tested directly. `zoneAt` never leaves the generator, so the only
+ * other way to ask was to re-derive the answer in the test, which tests the test.
+ */
 export function partitionSubZones(ctx: ArchetypeContext, zones: readonly GeneratorSubZone[]): (GeneratorSubZone | undefined)[][] {
   const { cols, rows } = ctx
   const map: (GeneratorSubZone | undefined)[][] = Array.from({ length: rows }, () => new Array(cols).fill(undefined))

@@ -899,6 +899,9 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
   /** How many jobs are rebuilding the map right now. A count rather than a flag, so two that overlap do not
    *  have the first one to finish clear the indicator while the second is still going. */
   const [mapWorking, setMapWorking] = useState(0)
+  /** The REGIONS of the last generated stage, kept for the validation seam. `REGIONS.md` §6 asks for region
+   *  work to be measured region by region on a real build, which needs somewhere outside the generator to ask. */
+  const lastRegionsRef = useRef<(string | undefined)[][] | undefined>(undefined)
   /**
    * What the open library is pointing at, and whether the placement panel is up.
    *
@@ -2553,6 +2556,8 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
       __stackAt?: (col: number, row: number) => Array<{ label: string; type: string; heightLevel: number; h: number; source: string }>
       /** The ground slug per cell, so an autotile piece can be seen by name. */
       __groundSlugs?: (col0: number, row0: number, col1: number, row1: number) => { col: number; row: number; slug: string }[] | null
+      /** The last generated stage's region key per cell, or null when the map has no regions. */
+      __regionMap?: () => (string | undefined)[][] | null
       /** Which tree species the map grew, counted by trunk. */
       __treeKinds?: () => { kind: string; count: number }[] | null
       /** Every distinct colour the map's LEAF cells carry, with a count each. */
@@ -2929,6 +2934,9 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
       }
       return out
     }
+    // WHICH REGION each cell is in, for the region sheet. Without it the one question a region set has to
+    // answer, "is this laid out as the journey it describes", cannot be asked from outside the generator.
+    win.__regionMap = () => lastRegionsRef.current ?? null
     win.__leafTones = () => {
       const grid = gridRef.current
       if (!grid) return null
@@ -3087,7 +3095,7 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
       setSelectedCells(new Set([`${best.col},${best.row}`]))
       return best
     }
-    return () => { delete win.__setArtStyle; delete win.__selectFirstTreeCell; delete win.__setView; delete win.__gridKinds; delete win.__entityInfo; delete win.__entityScreens; delete win.__selectEntity; delete win.__setEntitySize; delete win.__scatter; delete win.__selectedEntityInfo; delete win.__placeBuilding; delete win.__placeComposition; delete win.__armComposition; delete win.__cellSel; delete win.__selKeys; delete win.__marqueeKeys; delete win.__hoverCell; delete win.__selectCells; delete win.__applyCellTile; delete win.__clearRegion; delete win.__setDebug; delete win.__cellLabels; delete win.__stackAt; delete win.__camOffset; delete win.__stackAsset; delete win.__paletteTiles; delete win.__paintTile; delete win.__isoBlockScreen; delete win.__generatorsReady; delete win.__playerCell; delete win.__genVillage; delete win.__genStage; delete win.__randomizeLayer; delete win.__randomizeSelected; delete win.__centerOn; delete win.__setHero; delete win.__pickTileAt; delete win.__cellScreen; delete win.__tileCentroid; delete win.__tileHandles; delete win.__setShape; delete win.__setDisplay; delete win.__setLight; delete win.__recordedGeom; delete win.__collisionAudit; delete win.__leafTones; delete win.__tileTones; delete win.__treeKinds; delete win.__groundSlugs }
+    return () => { delete win.__setArtStyle; delete win.__selectFirstTreeCell; delete win.__setView; delete win.__gridKinds; delete win.__entityInfo; delete win.__entityScreens; delete win.__selectEntity; delete win.__setEntitySize; delete win.__scatter; delete win.__selectedEntityInfo; delete win.__placeBuilding; delete win.__placeComposition; delete win.__armComposition; delete win.__cellSel; delete win.__selKeys; delete win.__marqueeKeys; delete win.__hoverCell; delete win.__selectCells; delete win.__applyCellTile; delete win.__clearRegion; delete win.__setDebug; delete win.__cellLabels; delete win.__stackAt; delete win.__camOffset; delete win.__stackAsset; delete win.__paletteTiles; delete win.__paintTile; delete win.__isoBlockScreen; delete win.__generatorsReady; delete win.__playerCell; delete win.__genVillage; delete win.__genStage; delete win.__randomizeLayer; delete win.__randomizeSelected; delete win.__centerOn; delete win.__setHero; delete win.__pickTileAt; delete win.__cellScreen; delete win.__tileCentroid; delete win.__tileHandles; delete win.__setShape; delete win.__setDisplay; delete win.__setLight; delete win.__recordedGeom; delete win.__collisionAudit; delete win.__leafTones; delete win.__tileTones; delete win.__treeKinds; delete win.__groundSlugs; delete win.__regionMap }
   }, [])
 
   // ── Selected-entity inspector actions ─────────────────────────────
@@ -3765,6 +3773,7 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
     // Distinct kinds only, and the client skips anything already installed, so a town of 18 buildings is a
     // handful of requests rather than eighteen.
     await installComposedBuildings(stage, activeStyleId)
+    lastRegionsRef.current = stage.regions
     applyStageToGrid(stage, grid, buildingSaltRef.current, generator.config.buildings)
     // Keep the player on walkable ground (new trees/plots may sit where they stood); entities stay put.
     const here = livePlayerCell()
@@ -4007,6 +4016,7 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
     // Distinct kinds only, and the client skips anything already installed, so a town of 18 buildings is a
     // handful of requests rather than eighteen.
     await installComposedBuildings(stage, activeStyleId)
+    lastRegionsRef.current = stage.regions
     applyStageToGrid(stage, grid, buildingSaltRef.current, generator.config.buildings)
     movePlayerToValidSpawn(stage.spawn.col, stage.spawn.row)
     const live = livePlayerCell()

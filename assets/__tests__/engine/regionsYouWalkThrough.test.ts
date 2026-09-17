@@ -57,6 +57,31 @@ describe('an ordered region set lands in its order', () => {
     expect(acrossOneRow.size).toBeGreaterThan(1)
   })
 
+  /**
+   * THE ONE THE REGION SHEET FOUND, and it was invisible to every test above.
+   *
+   * `weight` is a share of the MAP. The first version cut on the coordinate, which is right for bands and
+   * wrong for rings, because a ring is an annulus: holding the innermost tenth of the RADIUS is holding a
+   * hundredth of the AREA. Measured on a real volcanic build, the crater at served weight 1 of 12 came out at
+   * 0 per cent of the map, so the thing you are supposed to be approaching was not there.
+   */
+  it.each(['rings', 'bands'] as const)('%s: weight is a share of the MAP, not of the coordinate', layout => {
+    const zones: GeneratorSubZone[] = [
+      { key: 'a', name: 'a', weight: 1 }, { key: 'b', name: 'b', weight: 2 },
+      { key: 'c', name: 'c', weight: 3 }, { key: 'd', name: 'd', weight: 6 },
+    ]
+    const map = lay(layout, zones, 60, 60)
+    const seen = new Map<string, number>()
+    for (const row of map) for (const z of row) if (z) seen.set(z.key, (seen.get(z.key) ?? 0) + 1)
+    const total = 60 * 60
+    const share = (k: string) => (seen.get(k) ?? 0) / total
+    // served 1:2:3:6 of 12, so 8%, 17%, 25% and 50% of the cells, within a couple of points for the wobble
+    expect(share('a')).toBeGreaterThan(0.05)
+    expect(share('a')).toBeLessThan(0.12)
+    expect(share('d')).toBeGreaterThan(0.44)
+    expect(share('d')).toBeLessThan(0.56)
+  })
+
   it('weight decides THICKNESS, so a heavy first region reaches further from the middle', () => {
     const heavy: GeneratorSubZone[] = [{ key: 'a', name: 'a', weight: 12 }, ...FIVE.slice(1)]
     const thin = lay('rings', FIVE)
