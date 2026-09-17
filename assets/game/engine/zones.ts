@@ -82,9 +82,6 @@ export type LivingTreeKind =
   // The four he named that the catalog lacked, 2026-09-16: *"I like to see pines, palm tree, cypress, oak,
   // weeping willow, cherry tree, encina"*. Pine is tree_conifer, cypress and palm already existed.
   | 'tree_oak' | 'tree_willow' | 'tree_cherry' | 'tree_encina'
-  // The dry country, 2026-09-16. A cactus is not a tree: no trunk, no canopy, one succulent body whose
-  // species is its proportion. The acacia's umbrella is the silhouette that reads as dry savanna.
-  | 'tree_acacia' | 'cactus_column' | 'cactus_barrel' | 'cactus_prickly'
   // AFTER THE ERUPTION, 2026-09-16: the woodland and mountain species burned, for a volcanic map. Not new
   // species, the same four that grow in those two places with the fire gone through them.
 

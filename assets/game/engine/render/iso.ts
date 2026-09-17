@@ -2184,9 +2184,6 @@ export function drawIsoSingleTileBlock(
   depth = 1,
   depthDir?: DepthDir,
   transparent = false,
-  /** The cell's own Zoom (width) and Height multiplier. Both default to 1, which draws exactly as before. */
-  sizeScale = 1,
-  heightScale = 1,
 ): void {
   // 1) The plain block SHELL, same cube, but no image/char on the faces (fillFace only fills the shaded quad).
   //    SKIPPED when the tile is transparent: only the billboard (step 2) shows, so a flower stands with NO
@@ -2197,25 +2194,12 @@ export function drawIsoSingleTileBlock(
   //    width so the shell stays visible around it.
   const total = blockLayers(height) * blockH
   const cx = center.x
-  const base = tileW * 2 * SINGLE_TILE_FRAC
-  // A BILLBOARD OBEYS ITS OWN SCALE, like every other tile.
-  //
-  // This drew every single-tile billboard at one fixed fraction whatever the cell said, so a saguaro authored
-  // three blocks tall came out the same sprig as a flower. A setting that is ignored for one display mode is
-  // the bug his rule names: every setting applies to every tile through the same path.
-  //
-  // Absent on both axes this is 1 x 1 and the size and position are byte-identical to before, so nothing that
-  // already looked right moves.
-  const w = base * sizeScale
-  const h = base * sizeScale * heightScale
-  // IT STANDS ON THE GROUND, it does not grow out of its own middle. Keep the BOTTOM edge where the old
-  // centred billboard put it and let the extra height go upward, which is how a plant gets taller.
-  const cy = center.y - total / 2 + (base - h) / 2
+  const cy = center.y - total / 2
+  const size = tileW * 2 * SINGLE_TILE_FRAC
   if (dv.image) {
-    drawStyledImage(ctx, dv.image, cx, cy, w, false, tint, h) // colour FILTERS the image, same as the faces
+    drawStyledImage(ctx, dv.image, cx, cy, size, false, tint, size) // colour FILTERS the image, same as the faces
     return
   }
-  const size = w
   // No baked image (a raw ascii glyph) → draw the glyph ONCE at the centre, tinted, so 'single' still shows one tile.
   if (dv.char) {
     ctx.save()
@@ -2345,7 +2329,7 @@ const ISO_SHAPE_DRAWERS: Record<TileShape, IsoShapeDrawer> = {
     // `assetRectExtents` is all-zeros for a non-z-width tile → isRect false → the byte-identical cube below.
     const ext = assetRectExtents(asset)
     const isRect = ext.colMinus + ext.colPlus + ext.rowMinus + ext.rowPlus > 0
-    if (assetDrawsSingle(asset)) drawIsoSingleTileBlock(ctx, center, bw, bd, bh, blocks, dv, tint, asset.depth, asset.depthDir, transparent, asset.scale ?? 1, asset.scaleY ?? 1)
+    if (assetDrawsSingle(asset)) drawIsoSingleTileBlock(ctx, center, bw, bd, bh, blocks, dv, tint, asset.depth, asset.depthDir, transparent)
     else if (transparent) return // see-through: no coloured block (whether a rect deck or a plain cube)
     else if (isRect) drawIsoRectBlock(ctx, center, bw, bd, bh, blocks, dv, tint, ext, undefined, assetThickness(asset))
     else drawIsoTileBlock(ctx, center, bw, bd, bh, blocks, dv, tint, undefined, asset.depth, asset.depthDir, assetThickness(asset))
