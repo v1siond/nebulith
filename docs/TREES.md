@@ -249,6 +249,36 @@ to name a species.
 5. **Oak and encina read similarly**, both broad domes. Fair (both are oaks) but if more separation is
    wanted it has to come from art, not proportion.
 
+## 2d. SETTLEMENTS GROW WHAT SURROUNDS THEM, 2026-09-17
+
+*"make sure ALL FOREST VARIANTS AND ALL TOWN VARIANTS AND ALL VILLAGE VARIANTS AND ALL CITY VARIANTS ALSO
+USE VEGETATION THAT MAKES SENSE IN THE CONTEXT OF THEIR BIOM, REGION AND SEASON."*
+
+Measured before: **all 27 settlements served `trees: null`.** Not one had a species mix, so every town fell
+back to one global default whatever biome it stood in. Woodland, Meadow, Ruins, Swamp and Volcanic
+settlements served no `nature.canopy` either, so they had no density to plant from at all.
+
+This was already written down as §2 finding 3 ("A settlement has no trees of its own") and nothing had acted
+on it. The foliage work made it worse before better: settlements got their environment's leaf COLOUR while
+still having no trees to put it on.
+
+Each settlement now derives from its environment by name prefix, at run time, so nothing is retyped and a
+change to a biome reaches its settlements for free:
+
+  - `trees` verbatim from the environment
+  - `nature.canopy` scaled, because a settlement is cleared ground: village 0.60, town 0.40, city 0.25
+  - the city neighbourhood sub-zones get the mix too (upper 1.0, middle 0.75, lower 0.5), because a region's
+    list SHADOWS the environment's and without it the environment entry is dead data on exactly the
+    generators that have regions
+
+Measured after, on real builds: Woodland town grows column/oak/cherry/conifer (10 species), Desert town
+saguaro/gnarled/dead/encina/prickly, Jungle town giant/palm/big, Mountain village 211 conifers, Beach city
+coconut/palm/mangrove, Swamp city cypress/willow. Zero settlements without a mix.
+
+`.probe/species.mjs` and `.probe/playshot.mjs` take a `CATEGORY` now (Wilderness / Village / Town / City),
+because a settlement is chosen from a select and not a top-level button, and matching only buttons reported
+every town as NOT FOUND while the data was fine.
+
 ---
 
 ## 3. The model
