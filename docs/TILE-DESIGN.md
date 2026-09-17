@@ -53,6 +53,21 @@ Families already built and worth copying: `canopy` (9), `wall_stone` / `wall_bri
 
 **Rule:** if a material has a visible boundary with anything else, it is authored as a family. The centre piece is the fill, the eight others carry the boundary.
 
+
+**A family is also a COST, and the cost is in the multiplier.** Source, 2026-09-17:
+[Dual-grid tilesets](https://www.youtube.com/watch?v=jEWFSv3ivTg&t=77s), jess::codes. Eight neighbours means
+256 unique tiles if nothing is folded, so every real tileset is a compromise: 15 pieces with the edges drawn
+through the middle of a tile and therefore off the world grid, 47 aligned pieces, or a 16 piece subset that is
+aligned but breaks on inner corners. The dual grid alternative keeps a second display grid offset by half a
+tile and reads four overlapping neighbours, which caps it at 16 configurations, aligned, with rounded inner
+AND outer corners.
+
+Measured here: 719 labels, 288 inside autotile families, and **216 of those are water**, which is 30 per cent
+of the catalog. That is not the nine pieces, which is already fewer than dual-grid's sixteen. It is 6 families
+times 4 frames. When a new family is proposed, the question to ask is what MULTIPLIES, because the pieces are
+the cheap part. Full writeup in [`GAPS-AND-ROADMAP.md`](GAPS-AND-ROADMAP.md) T-PERF-3.
+
+
 ### 2.4 The border is painted into the edge pieces
 
 An outline around a material is not a shader pass, not an overlay and not a separate object. It is the edge pixels of the edge tiles, coloured differently from the body.

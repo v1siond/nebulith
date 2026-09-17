@@ -179,6 +179,53 @@ And it is **both modes**, stated separately for play and for the editor, because
 The red square in both is the view area, and it is the same rule in both.
 
 
+### T-PERF-3. The tile COUNT, and the dual-grid system
+
+His source, 2026-09-17: [Dual-grid tilesets](https://www.youtube.com/watch?v=jEWFSv3ivTg&t=77s), jess::codes,
+6:15. Timestamped transcript in the workspace at `references/method/dual-grid-video-transcript.txt`.
+
+> *"optimization for tiles usage -> add to the optimization ticket"*
+
+**What it says.** Eight neighbours means 256 possible tiles if every combination is unique, and nobody draws
+256. So there are three usual compromises and one alternative:
+
+| tileset | tiles | the compromise |
+|---|---|---|
+| 15-piece | 15 | edges are drawn through the MIDDLE of a tile, so they do not line up with the world grid. Ambiguous tiles, and placing one tile changes a bigger area than you pointed at `[00:46]` |
+| 47-piece | 47 | edges sit at the grid edge so it aligns, but it is 47 tiles `[01:14]` |
+| 16-piece subset | 16 | quick and aligned, but broken inner corners, and not every art style survives it `[01:33]` |
+| **dual-grid** | **16** | two grids, the DISPLAY one offset by half a tile, each tile reading its 4 overlapping neighbours. 16 configurations instead of 256, aligned, and rounded inner AND outer corners `[02:26]` |
+
+For dual-grid the art WANTS its edges drawn halfway through the tile, which is the thing that is wrong for a
+single grid; the half-tile offset is what squares it up `[02:55]`. He measured 155 tiles instead of 507 for an
+11-frame animated shoreline `[05:06]`.
+
+**What that is worth HERE, measured rather than assumed.** Our catalog is 719 labels, 301 of them hand drawn.
+Inside autotile families there are 288 tiles, and **216 of those are water**: 6 families (`smooth`/`lined` x
+`river`/`lake`/`beach`) x 9 pieces x 4 frames. Water alone is 30 per cent of the entire catalog.
+
+Two honest conclusions, and the first one is not the flattering one:
+
+1. **Dual-grid would not cut our piece count.** We already use a NINE piece family, and `cellLabels` folds all
+   sixteen orthogonal signatures onto those nine. Nine is fewer than dual-grid's sixteen, so on count alone we
+   are already past it.
+2. **Our multiplier is not the pieces, it is the FAMILIES.** 9 pieces is fine; 6 families x 4 frames is what
+   makes 216. A `lined` river and a `smooth` river differ by their art, and a river, a lake and a beach differ
+   only by their RIM. That is the 30 per cent to attack, and it is a data question, not an autotiling one.
+
+**What dual-grid does offer us, and it is not size.** Quality: perfect grid alignment with rounded inner and
+outer corners, which the nine-piece subset cannot do. The folding in `SLOT_BY_SIGNATURE` is exactly the
+compromise `[01:33]` names, and it is already visible in our code as a comment: two opposite open sides have no
+dedicated slot and collapse onto a cap piece. Worth weighing if the water edges are ever redrawn.
+
+**And one thing that is already true**: *"at least using a tool like this one to help generate the full set of
+tiles"* `[05:18]`. We have that, `priv/tilegen/tiles.json` plus `bake.mjs`, which is why adding a family costs
+an entry rather than nine drawings.
+
+Further reading he points at: the Oskar Stalberg talk and the ThinMatrix devlog, plus demo projects for Godot
+and Unity.
+
+
 ## 5. Suggested sequence
 
 ```

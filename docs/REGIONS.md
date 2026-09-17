@@ -53,6 +53,57 @@ forests" even though their species and floors were right.
 
 **Rule:** a region set declares its ARRANGEMENT, and the partition honours it.
 
+
+### 1.3 A SETTLEMENT is not an exception to any of this
+
+I got this wrong on 2026-09-17 and he corrected it. I had written that a city's `upper` / `middle` / `lower`
+were about wealth rather than biome, so sharing them across all eleven city templates was not the defect §1.1
+names. His answer:
+
+> *"is not just wealth, cities have many different environments and different architecture, and saiod
+> architecture varies per BIOMA, and the same happens with villages and towns. For example, cities might have
+> parks, market sections, wealth based neighborhoods, graveyard, etc. towns have sections similar to city but
+> less scale and they have different architecture, and vilages are practically indian settlements, even more
+> different architecture, simpler settlements... In short, we must thread every single tipe of settlements the
+> same way we treat forests, each one with their own flavor, distinct vibe, dictinct ornaments, distinct
+> architecture, distinct objects, colors, zones, etc"*
+
+So both laws in §1 apply to settlements without modification, on TWO axes rather than one:
+
+- **the KIND**: a village is not a small town. *"vilages are practically indian settlements, even more
+  different architecture, simpler settlements"*, and a town is *"similar to city but less scale"* with an
+  architecture of its own.
+- **the BIOME**: a jungle city and a mountain city are not one city in two tints, any more than a jungle and a
+  mountain are one forest in two tints.
+
+And a settlement's zones are not only classes. He names parks, market sections, wealth neighbourhoods and a
+graveyard, so the set is a set of PLACES, of which "where the money lives" is one.
+
+**What is built of this today: almost nothing.** Cities serve three zones, `upper` / `middle` / `lower`, the
+same three on all eleven, and villages and towns serve none at all. A settlement now partitions its zones and
+a building is built of what its own zone states, which had to be fixed first (see below), but the SETS
+themselves are still one shared triple.
+
+
+### The two bugs that had to be fixed before any of it could show
+
+Both are the served-and-ignored shape this file keeps finding, and neither was visible from the data: the
+backend served it, the type declared it, and nothing read it.
+
+1. **No settlement ever partitioned its zones.** `partitionSubZones` had three callers and all three were
+   forests, so `ctx.zoneAt` was undefined on every village, town and city. Eleven city templates served three
+   fully specified neighbourhoods each, and not one cell of a map ever belonged to one.
+2. **A zone's `buildings` was dropped at parse.** `parseBuildings` requires `storeRoof`, `hospitalRoof` and
+   `fixedWall` as well as the three lists, and those are MAP-level identity: the colours that keep a store
+   looking like a store anywhere in town. A neighbourhood has no business restating them and none of them
+   does, so `parseBuildings` returned undefined for every zone on every city. A zone states only what makes it
+   DIFFERENT, so it parses as an overlay now and is merged over the map's palette rather than replacing it.
+
+Measured on a medieval city after both: `upper` went from 155 stone against 175 brick to **190 stone against
+39 brick**, which is its served stone-only list, and `lower` carries 41 `wall_wood` where it had none.
+`wall_wood` is served by no map-level palette and by `lower` only, so where it lands is proof on its own.
+
+
 ---
 
 ## 2. The three arrangements
