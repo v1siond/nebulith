@@ -53,6 +53,13 @@ That is an autotile pass, and it is the whole of the geometry problem. A body of
 - **Water does not need its own elevation.** It reads as water at the same level as the terrain around it, because the border tile is what says "this is the edge of a body of water".
 - **The effects are layers ON the tile**, not different tiles: depth tint, caustics, the animated surface, reflections, foam.
 - **The river channel machinery goes.** Carving, depth banding, collision by band and the rest of it are solving a problem that does not exist once water is terrain.
+- **The border is drawn against whatever the water MEETS, not only against the bank.** His refinement,
+  2026-09-17: *"water border should show in anything that 'collapses' with it, so a big rock in middle,
+  definitely needs borders"*. Read literally, "every cell whose orthogonal neighbour is not water" makes a
+  boulder standing midstream invisible to the edge pass, because its cell is still PAINTED water: the water
+  around it is all interior and the rock sits in a flat sheet with no shore. So the edge test asks about OPEN
+  water, the body minus whatever stands in it, while the painted set stays the whole body, since the ground
+  under a boulder is water and stays water. BLOCKING is the test: a lily is on the water, not in its way.
 - **Stacking is still how you see through water.** A ford is a transparent water tile over a dirt floor tile, which is the puddle model, and that is stacking working normally rather than a special case.
 
 ### Superseded
@@ -235,6 +242,29 @@ reads `_b` as pointing north, which no quarter-turn of that basis can produce. A
 from screenshots: every build is a different random map, half the water sits under canopy, and a photograph
 cannot say which of two shorelines a pale band belongs to. The geometry is pure, so ask it.
 
+
+### Layer 5c, a shore around whatever stands in the water
+
+*"water border should show in anything that 'collapses' with it, so a big rock in middle, definitely needs
+borders"* (2026-09-17).
+
+`borderTheWater` builds two sets now rather than one:
+
+    body    every water cell. This is what gets PAINTED, because the ground under a boulder is still water
+    open    the body minus every cell with something solid in it. This is what the EDGE TEST asks about
+
+`openWater` subtracts blocking props, composition anchors and tree anchors. Blocking rather than merely
+present, because a lily or a fallen leaf is on the water and not in its way, and blocking is the same fact
+that stops you walking through the thing.
+
+Measured on real builds across woodland, jungle, meadow, swamp and beach: 79 boulders standing in water, all
+79 with water bearing an edge piece on every side of them, none missed.
+
+**Known limit:** a composition counts at its ANCHOR cell only, so a multi-cell structure standing in water
+would border one cell of its footprint rather than all of them. Nothing in the catalog stands in open water
+across more than one cell today, so it is recorded rather than solved.
+
+
 ### Layer 6, light and shadow
 
 Out of scope for this doc beyond one rule: the water layers are RECEIVERS. A shadow falling across a river is the shadow layer's business and must land on the surface, not be baked into a water tile. See [`LIGHTING.md`](LIGHTING.md), and `SHADOWS.md` when it exists.
@@ -302,5 +332,6 @@ Before calling any water work done:
 - [ ] Shoreline animates non-linearly and carries foam and a wet edge
 - [ ] Every body is ONE connected body, and a channel has interior cells to be the middle of
 - [ ] Each border piece's rim faces the bank its label names, at ALL FOUR camera facings
+- [ ] Anything standing IN the water has the water bordered around it, not just the outer bank
 - [ ] Nothing branches on a tile label containing the word "water"
 - [ ] Judged at :3000
