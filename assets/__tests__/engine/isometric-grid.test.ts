@@ -6,7 +6,7 @@ const SOLID = { collision: [{ x: 0, y: 0, w: 1, h: 1 }] }
 
 const mkGrid = () => new IsometricGrid({ cols: 10, rows: 10, cellSize: 16, isoScale: 1.4 })
 
-describe('IsometricGrid — blocks are collision, not elevation', () => {
+describe('IsometricGrid, blocks are collision, not elevation', () => {
   it('placeComposite marks blocking cells without raising terrain height', () => {
     const grid = mkGrid()
     grid.placeComposite(
@@ -21,7 +21,7 @@ describe('IsometricGrid — blocks are collision, not elevation', () => {
     // collision IS set (logical block map)
     expect(grid.isBlocked(3, 4)).toBe(true)
     expect(grid.isBlocked(4, 4)).toBe(true)
-    // terrain height is NOT raised — blocks are collision, not elevation
+    // terrain height is NOT raised, blocks are collision, not elevation
     expect(grid.getHeight(3, 4)).toBe(0)
     expect(grid.getHeight(4, 4)).toBe(0)
   })
@@ -39,7 +39,7 @@ describe('IsometricGrid — blocks are collision, not elevation', () => {
   })
 })
 
-describe('IsometricGrid — placeAsset carries opacity/brightness (contrast controls)', () => {
+describe('IsometricGrid, placeAsset carries opacity/brightness (contrast controls)', () => {
   it('round-trips opacity + brightness onto the stored asset', () => {
     const grid = mkGrid()
     grid.placeAsset(['@'], 2, 3, { type: 'tree', color: '#3fa63f', opacity: 0.4, brightness: 1.3 })

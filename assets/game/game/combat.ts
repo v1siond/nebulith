@@ -1,11 +1,10 @@
 /**
- * Nebulith combat engine — PURE, deterministic, side-effect-free.
+ * Nebulith combat engine, PURE, deterministic, side-effect-free.
  *
- * Contract: nebulith/docs/COMBAT-AND-SYSTEMS-SPEC.md (§2–6).
+ * Contract: nebulith/docs/COMBAT-AND-SYSTEMS-SPEC.md (§2-6).
  * Everything here is a pure function: feed it stats + equipment + (optional)
  * runtime state, get a value/result back. No globals, no mutation of inputs,
- * no I/O. Any randomness must be injected by the caller (none is needed yet —
- * the starting formulas in §5 are deterministic and flat).
+ * no I/O. Any randomness must be injected by the caller (none is needed yet, * the starting formulas in §5 are deterministic and flat).
  *
  * Build philosophy (per spec): start trivial, keep it composable so the
  * coefficients can be tuned later without reshaping the call sites.
@@ -21,7 +20,7 @@ import type {
   CombatState,
 } from '@/game/types'
 
-// ── tunable coefficients (single source — refine here, not at call sites) ──
+// ── tunable coefficients (single source, refine here, not at call sites) ──
 export const REGULAR_MULTIPLIER = 1 as const
 export const SPECIAL_MULTIPLIER = 1.75 as const
 
@@ -29,7 +28,7 @@ export const SPECIAL_MULTIPLIER = 1.75 as const
 const RAGE_PER_STRENGTH = 5 as const
 const MANA_PER_INTELLIGENCE = 5 as const
 
-/** Resource a single special attack burns (flat for now — §5 "start trivial"). */
+/** Resource a single special attack burns (flat for now, §5 "start trivial"). */
 const SPECIAL_RESOURCE_COST = 20 as const
 
 /** Floor for mitigated melee physical damage (§5: `max(1, dmg - defense)`). */
@@ -146,9 +145,9 @@ export interface ResolveAttackInput {
   defenderArmor?: Armor
   /** defender's current HP; defaults to defender.maxHp. */
   defenderHp?: number
-  /** attacker runtime resources — required for special (rage/mana) attacks. */
+  /** attacker runtime resources, required for special (rage/mana) attacks. */
   attackerState?: CombatState
-  /** RNG for the dodge/block rolls (returns 0–1). Defaults to Math.random. */
+  /** RNG for the dodge/block rolls (returns 0-1). Defaults to Math.random. */
   roll?: () => number
 }
 
@@ -175,7 +174,7 @@ export interface ResolveAttackResult {
   attackerStateAfter?: CombatState
 }
 
-/** Resolve one attack into damage + resource cost. Pure — inputs untouched. */
+/** Resolve one attack into damage + resource cost. Pure, inputs untouched. */
 export function resolveAttack(input: ResolveAttackInput): ResolveAttackResult {
   const { attack, defender, defenderHp, attackerState } = input
   const startingHp = defenderHp ?? defender.maxHp
@@ -185,7 +184,7 @@ export function resolveAttack(input: ResolveAttackInput): ResolveAttackResult {
   if (gate) return blocked(gate, startingHp, attackerState)
 
   // Avoidance rolls happen BEFORE damage: dodge (defender) first, then shield block.
-  // A dodged/blocked hit still "fires" (a special still spends its resource — you
+  // A dodged/blocked hit still "fires" (a special still spends its resource, you
   // swung and it was avoided), but it deals no damage.
   const roll = input.roll ?? Math.random
   const dodgePct = defender.dodge ?? 0

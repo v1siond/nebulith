@@ -1,13 +1,13 @@
 /**
- * ISO STACK RENDERING — the "then implement isometric to deal with BLOCKS" half of the brush's
+ * ISO STACK RENDERING, the "then implement isometric to deal with BLOCKS" half of the brush's
  * Minecraft-style placement. A cell can hold a STACK of brush-placed assets, each carrying a
  * `heightLevel` (0,1,2,…). The iso render must lift each stack entry `heightLevel` cubes up so the pile
  * CLIMBS (mirroring the 2D raised stack in topdown.ts), with a per-kind split:
  * EVERY placed tile extrudes through the block path (MAP-MODEL §4, EDITOR-INTERACTION §11: "the old flat
- * billboard path ... is gone") — only the block HEIGHT differs, and only as DATA:
- *   · SOLID/block-like kinds (wall/rock/crate — the tileset gives them height ≥ 1) extrude into a real
+ * billboard path ... is gone"), only the block HEIGHT differs, and only as DATA:
+ *   · SOLID/block-like kinds (wall/rock/crate, the tileset gives them height ≥ 1) extrude into a real
  *     iso CUBE via drawIsoTileBlock, so a stack reads as stacked cubes;
- *   · height-0 decorative kinds (tree/flower/bush/… — no tileset height) extrude into a THIN slab (the same
+ *   · height-0 decorative kinds (tree/flower/bush/…, no tileset height) extrude into a THIN slab (the same
  *     drawIsoTileBlock face fills, minimal height), NEVER a flat billboard. They still LIFT/climb per level.
  * heightLevel 0 (every generated/existing asset) → 0 lift → byte-identical to before.
  *
@@ -35,7 +35,7 @@ afterAll(() => {
 })
 
 // Records solid face fills (cube detection), the effective y of every path vertex (cube geometry) and of
-// every glyph (billboard geometry) — tracking translate()/save()/restore() so a translated glyph draw
+// every glyph (billboard geometry), tracking translate()/save()/restore() so a translated glyph draw
 // (the billboard branch translates then draws at local 0,0) reports its true on-screen y.
 function recordingCtx() {
   const fills: string[] = []
@@ -48,7 +48,7 @@ function recordingCtx() {
     save() { stack.push(oy) },
     restore() { const s = stack.pop(); if (s !== undefined) oy = s },
     translate(_x: number, dy: number) { oy += dy },
-    scale() {}, rotate() {}, transform() {}, // fillIsoFaceWithTile's shear CTM — irrelevant to our screen-space checks
+    scale() {}, rotate() {}, transform() {}, // fillIsoFaceWithTile's shear CTM, irrelevant to our screen-space checks
     beginPath() {}, moveTo(_x: number, y: number) { quadYs.push(oy + y) }, lineTo(_x: number, y: number) { quadYs.push(oy + y) },
     closePath() {}, rect() {}, clip() {},
     fill() { fills.push(String((ctx as { fillStyle: string }).fillStyle)) },
@@ -65,7 +65,7 @@ const baseY = 500 // ground-level draw y; a lift SUBTRACTS from this (up the scr
 const rockAt = (heightLevel: number): GridAsset => ({ art: ['🪨'], col: 3, row: 3, type: 'rock', blocking: true, color: '#8a8a8a', tileOverride: 'emoji:rock', heightLevel })
 const treeAt = (heightLevel: number): GridAsset => ({ art: ['🌲'], col: 3, row: 3, type: 'tree', color: '#2f8f3f', heightLevel })
 
-describe('isoStackLift — screen-space rise per stack level', () => {
+describe('isoStackLift, screen-space rise per stack level', () => {
   test('heightLevel absent or 0 → NO lift (byte-identical for generated/existing maps)', () => {
     expect(isoStackLift(tileW, undefined)).toBe(0)
     expect(isoStackLift(tileW, 0)).toBe(0)
@@ -82,7 +82,7 @@ describe('isoStackLift — screen-space rise per stack level', () => {
   })
 })
 
-describe('isoDepthCompare — stacked cells draw bottom-up, everything else unchanged', () => {
+describe('isoDepthCompare, stacked cells draw bottom-up, everything else unchanged', () => {
   test('same cell → the higher heightLevel sorts AFTER (drawn over) the lower', () => {
     const lo = { col: 2, row: 2, asset: { heightLevel: 0 } }
     const hi = { col: 2, row: 2, asset: { heightLevel: 2 } }
@@ -113,12 +113,12 @@ describe('isoDepthCompare — stacked cells draw bottom-up, everything else unch
   })
 })
 
-describe('drawIsoAssetAscii — a brush stack CLIMBS in iso (Task A)', () => {
+describe('drawIsoAssetAscii, a brush stack CLIMBS in iso (Task A)', () => {
   test('a 3-tall SOLID stack (rock) draws 3 CUBES at strictly rising y (block-kind → drawIsoTileBlock)', () => {
     const tops: number[] = []
     for (const level of [0, 1, 2]) {
       const { ctx, fills, quadYs } = recordingCtx()
-      // The render loop lifts a stacked asset by isoStackLift before drawing — simulate that here.
+      // The render loop lifts a stacked asset by isoStackLift before drawing, simulate that here.
       const y = baseY - isoStackLift(tileW, level)
       drawIsoAssetAscii(ctx, 300, y, rockAt(level), tileW, tileH, 0, false, 'day', EMOJI_STYLE)
       // A single cube = 2 side faces + 1 top cap = 3 solid quad fills → it went through drawIsoTileBlock,
@@ -137,14 +137,14 @@ describe('drawIsoAssetAscii — a brush stack CLIMBS in iso (Task A)', () => {
   test('a 3-tall height-0 DECORATIVE stack (tree) draws 3 LIFTED thin-slab BLOCKS at rising y (never a billboard)', () => {
     // The retired model billboarded a height-0 decorative tile; the current uniform model (MAP-MODEL §4,
     // EDITOR-INTERACTION §11: "the old flat billboard path ... is gone") routes EVERY placed tile through the
-    // block path — a height-0 tile as a THIN slab (drawIsoTileBlock face fills), NEVER a lifted billboard. The
+    // block path, a height-0 tile as a THIN slab (drawIsoTileBlock face fills), NEVER a lifted billboard. The
     // load-bearing behaviour is unchanged: the stack still CLIMBS one cube-height per level.
     const tops: number[] = []
     for (const level of [0, 1, 2]) {
       const { ctx, fills, quadYs } = recordingCtx()
       const y = baseY - isoStackLift(tileW, level)
       drawIsoAssetAscii(ctx, 300, y, treeAt(level), tileW, tileH, 0, false, 'day', EMOJI_STYLE)
-      expect(fills.length).toBeGreaterThan(0) // a thin slab is a REAL block (face fills) — not a 0-fill billboard
+      expect(fills.length).toBeGreaterThan(0) // a thin slab is a REAL block (face fills), not a 0-fill billboard
       tops.push(Math.min(...quadYs)) // top-most vertex of the slab
     }
     expect(tops[1]).toBeLessThan(tops[0]) // each tile in the pile is lifted higher than the last
@@ -156,7 +156,7 @@ describe('drawIsoAssetAscii — a brush stack CLIMBS in iso (Task A)', () => {
     const draw = (asset: GridAsset) => { const r = recordingCtx(); drawIsoAssetAscii(r.ctx, 300, baseY, asset, tileW, tileH, 0, false, 'day', EMOJI_STYLE); return r }
     const level0 = draw(rockAt(0))
     const noStack = draw({ art: ['🪨'], col: 3, row: 3, type: 'rock', blocking: true, color: '#8a8a8a', tileOverride: 'emoji:rock' }) // heightLevel undefined
-    expect(level0.quadYs).toEqual(noStack.quadYs) // same geometry, same screen y — a lone tile is unchanged
+    expect(level0.quadYs).toEqual(noStack.quadYs) // same geometry, same screen y, a lone tile is unchanged
     expect(level0.fills).toEqual(noStack.fills)
   })
 })

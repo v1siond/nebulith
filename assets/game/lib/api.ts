@@ -11,7 +11,7 @@ import { apiFailure } from './apiError'
 import { unitStandLevel } from '@/engine/cellStack'
 
 export interface Connector {
-  // A connector owns a SET of cells — one connector can span many selected cells.
+  // A connector owns a SET of cells, one connector can span many selected cells.
   // Legacy saves stored a single { col, row }; normalizeConnector() migrates those.
   cells: { col: number; row: number }[]
   targetTemplateId: string
@@ -49,7 +49,7 @@ export interface TemplateData {
   rows: number
   cellSize: number
   isoScale: number
-  /** The map's BODY thickness in blocks — the grid's own height, saved with the level. */
+  /** The map's BODY thickness in blocks, the grid's own height, saved with the level. */
   slabBlocks?: number
   spawnCol: number
   spawnRow: number
@@ -64,19 +64,19 @@ export interface TemplateData {
     color?: string
     scale?: number   // uniform Zoom (#77/#78)
     zIndex?: number  // draw-priority (CSS z-index): a higher value draws on top / in front, overriding the depth sort
-    scaleX?: number  // Width — horizontal sprite scale (#77/#78)
-    scaleY?: number  // Height — vertical sprite scale, grows up (#77/#78)
-    scaleZ?: number  // Depth — overhead-view vertical scale (#77/#78)
+    scaleX?: number  // Width, horizontal sprite scale (#77/#78)
+    scaleY?: number  // Height, vertical sprite scale, grows up (#77/#78)
+    scaleZ?: number  // Depth, overhead-view vertical scale (#77/#78)
     bgColor?: string
     height?: number
     heightLevel?: number
     tileKey?: string
     label?: string
-    shape?: string            // per-instance render SHAPE ('square' cube default | 'circle' ball) — round-trips
+    shape?: string            // per-instance render SHAPE ('square' cube default | 'circle' ball), round-trips
                               // via the shallow clone in deserializeToGrid, like scaleX/pose/display
-    light?: AssetLight        // per-instance LIGHT setting (night ground glow pool) — round-trips via the shallow
+    light?: AssetLight        // per-instance LIGHT setting (night ground glow pool), round-trips via the shallow
                               // clone, like shape; the lamp_post bulb ships one as a composition default
-    animations?: Animation[]  // authored TILE ANIMATIONS (settings tweens) — round-trips like cellAnim; the
+    animations?: Animation[]  // authored TILE ANIMATIONS (settings tweens), round-trips like cellAnim; the
                               // fountain's water cells ship the rise/fade loop as a composition default
     placedAt?: number         // clock anchor (ms) a tile animation's start/loop delays are measured from
   }>
@@ -99,7 +99,7 @@ export interface CreateTemplateInput {
   rows: number
   cellSize: number
   isoScale: number
-  /** The map's BODY thickness in blocks — the grid's own height, saved with the level. */
+  /** The map's BODY thickness in blocks, the grid's own height, saved with the level. */
   slabBlocks?: number
   spawnCol: number
   spawnRow: number
@@ -145,14 +145,14 @@ export async function getTemplate(id: string): Promise<TemplateData> {
   const response = await fetch(`${API_BASE}/${id}`)
   // The 404 is no longer singled out here: `ApiError` carries the status, so the CALLER decides what
   // a missing map means. In the editor that is "this map is gone, here is the library", which is a
-  // different screen from "the backend is down" — a distinction a thrown sentence could not make.
+  // different screen from "the backend is down", a distinction a thrown sentence could not make.
   if (!response.ok) {
     throw await apiFailure(response, 'This map could not be loaded')
   }
   return response.json()
 }
 
-/** Default the JSON collections so a save always sends concrete arrays — mirrors the
+/** Default the JSON collections so a save always sends concrete arrays, mirrors the
  *  API route's destructure defaults, so what the editor sends matches what's stored. */
 export function withTemplateDefaults(
   input: CreateTemplateInput,
@@ -202,7 +202,7 @@ export async function deleteTemplate(id: string): Promise<void> {
 }
 
 // ═══════════════════════════════════════════════════════════════════
-// Games — a GAME is a named, ordered flow of templates (many-to-many).
+// Games, a GAME is a named, ordered flow of templates (many-to-many).
 // Persisted in the Elixir backend (/api/games); templates are a reusable resource.
 // ═══════════════════════════════════════════════════════════════════
 
@@ -212,7 +212,7 @@ export interface Game {
   description: string | null
   /** The template the game reopens to (the last one watched). */
   lastTemplateId: string | null
-  /** Ordered member templates — index 0 = level 1. */
+  /** Ordered member templates, index 0 = level 1. */
   templateIds: string[]
 }
 
@@ -277,7 +277,7 @@ export function serializeGrid(grid: IsometricGrid): {
 } {
   return {
     // The authoritative floor data lives in `assetsData` (floors are level-0 assets). `groundData` is kept in
-    // the wire format only for backward compatibility — derived from the floor assets on the way out, and read
+    // the wire format only for backward compatibility, derived from the floor assets on the way out, and read
     // back only by the legacy fallback in deserializeToGrid (saves that predate floors-as-assets).
     groundData: grid.groundSlugs(),
     heightData: grid.height,
@@ -304,12 +304,12 @@ export function deserializeToGrid(
     }
   }
 
-  // Load assets — preserve EVERY saved field (clone). Cherry-picking columns used to DROP generator
+  // Load assets, preserve EVERY saved field (clone). Cherry-picking columns used to DROP generator
   // metadata that the renderers key on: `footprint` (the town-square fountain reverted to a single
-  // cell on load — #72), `cellAnim`/`cycles` (authored animations), `edge`/`cellPart` (debug labels),
+  // cell on load, #72), `cellAnim`/`cycles` (authored animations), `edge`/`cellPart` (debug labels),
   // `baseShadow`, `buildingType`. serializeGrid saves the full GridAsset, so a shallow clone round-
   // trips them all; new GridAsset fields are carried automatically. THE FLOOR is a normal asset now, so
-  // it rides here too — including CLEARED cells, which simply have no floor asset (grass-for-empty in
+  // it rides here too, including CLEARED cells, which simply have no floor asset (grass-for-empty in
   // the legacy groundData channel could never represent that).
   grid.setAssets(data.assetsData.map(a => ({ ...a }) as unknown as GridAsset))
 
@@ -324,11 +324,11 @@ export function deserializeToGrid(
     }
   }
 
-  // Rebuild the collision grid from the assets — GROUND-level blocks only, the same rule the composition stamp
+  // Rebuild the collision grid from the assets, GROUND-level blocks only, the same rule the composition stamp
   // follows. The map is 2D (one flag per cell) while a building is 3D, so blocking a cell for a tile at ANY
   // level made an upper storey seal the floor beneath it: a saved village held 89 blocking assets above ground
   // (windows at L2/L4/L6, wall courses at L3/L5, awnings at L2) and the collision map traced those storeys
-  // instead of the walls — "the collissions don't match the generated building".
+  // instead of the walls, "the collissions don't match the generated building".
   // A unit walks on the ground, so the ground is what this flat map means. Tiles keep their own truthful
   // `blocking` data: a roof still blocks as a block, it just does not seal the room under it.
   for (const asset of grid.assets) {

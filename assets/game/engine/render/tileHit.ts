@@ -1,11 +1,11 @@
 /**
- * TILE HIT GEOMETRY — the transform-aware shape a placed tile actually occupies ON SCREEN.
+ * TILE HIT GEOMETRY, the transform-aware shape a placed tile actually occupies ON SCREEN.
  *
  * The editor selector is INVERTED: instead of "cursor → cell → topmost tile in the cell", we
  * "cursor → topmost rendered TILE → its cell". To do that the picker needs the tile's REAL rendered
  * silhouette, honouring every render transform (scaleX/Y/Z, scale/zoom, pose x/y/rot/flip, heightLevel lift,
  * zOffset slide, directional depth, single-display, billboard sprites). This module is the ONE place that
- * turns a draw's local geometry + pose into screen-space polygons — reused by BOTH the hit-test and the
+ * turns a draw's local geometry + pose into screen-space polygons, reused by BOTH the hit-test and the
  * selection/hover HIGHLIGHT so the outline hugs exactly what was drawn (never the flat ground cell).
  *
  * It is deliberately pure and co-located with the primitives the renderer already uses (isoBlockFaces /
@@ -110,7 +110,7 @@ export function diamondGeom(halfW: number, halfD: number, xf: (p: Pt) => Pt): Po
 
 /**
  * A directional-depth box's screen hull: gather every corner of isoDepthBox at the bottom (level 0) and top
- * (level n-1) levels — top parallelogram + long wall + end cap — map to screen, and take the convex hull. Uses
+ * (level n-1) levels, top parallelogram + long wall + end cap, map to screen, and take the convex hull. Uses
  * the SAME isoDepthBox the renderer draws with, so the silhouette matches the extruded long box exactly.
  */
 export function depthBoxGeom(
@@ -138,7 +138,7 @@ export function depthBoxGeom(
 
 /** A 2-AXIS z-width RECTANGLE's screen hull: the convex hull of the solid block's 8 corners
  *  (top parallelogram + its base), matching drawIsoRectBlock, so a click ANYWHERE on the deck selects it and the
- *  outline hugs the whole element — not just the first column. `ext` = grid cells spanned in each of ±col/±row
+ *  outline hugs the whole element, not just the first column. `ext` = grid cells spanned in each of ±col/±row
  *  (assetRectExtents). A single cell / 1-wide line is the degenerate case → the same hull as the cube / long box. */
 export function rectBoxGeom(
   halfW: number,
@@ -193,7 +193,7 @@ export function pointInPolygon(x: number, y: number, poly: readonly Pt[]): boole
   return inside
 }
 
-/** The tile's screen SILHOUETTE polygon (convex hull of all its corners) — what the hit-test tests against. */
+/** The tile's screen SILHOUETTE polygon (convex hull of all its corners), what the hit-test tests against. */
 export function tileGeomPolygon(g: TileGeom): Pt[] {
   if (g.kind === 'poly') return g.pts
   return convexHull([...g.base, ...g.top])
@@ -204,7 +204,7 @@ export function pointInTileGeom(x: number, y: number, g: TileGeom): boolean {
   return pointInPolygon(x, y, tileGeomPolygon(g))
 }
 
-/** The screen CENTRE of a drawn tile — the mean of its silhouette corners (cube = base+top ring, poly = its
+/** The screen CENTRE of a drawn tile, the mean of its silhouette corners (cube = base+top ring, poly = its
  *  points). The one place this average lives, so the render (lamp glow anchor) and the validation seam
  *  (__tileCentroid) agree on where a tile's centre is. */
 export function tileGeomCentroid(g: TileGeom): Pt {
@@ -215,7 +215,7 @@ export function tileGeomCentroid(g: TileGeom): Pt {
 }
 
 /** The recorded tiles whose silhouette CENTROID falls inside the screen rect [x0,y0]-[x1,y1] (corner order-
- *  independent), DE-DUPED by (col,row,level), TOPMOST (last-drawn) first — the block-aware MARQUEE query. The
+ *  independent), DE-DUPED by (col,row,level), TOPMOST (last-drawn) first, the block-aware MARQUEE query. The
  *  drag box selects the tiles it VISUALLY covers: a raised roof/wall block whose flat ground cell sits behind
  *  the building is kept by its ON-SCREEN silhouette, not the flat cell it would project from (which is what a
  *  screenToCell-corner rectangle wrongly grabbed → the floating iso cage). Pure: give it a frame's recorded
@@ -236,7 +236,7 @@ export function tilesInScreenRect<T extends { col: number; row: number; stackInd
     const c = tileGeomCentroid(t.geom)
     if (c.x < minX || c.x > maxX || c.y < minY || c.y > maxY) continue
     const key = `${t.col},${t.row},${t.stackIndex}` // per-TILE identity (its stack slot), so same-level tiles stay distinct
-    if (seen.has(key)) continue // the same tile redrawn (a stack redraw) counts ONCE — no double-select
+    if (seen.has(key)) continue // the same tile redrawn (a stack redraw) counts ONCE, no double-select
     seen.add(key)
     out.push(t)
   }

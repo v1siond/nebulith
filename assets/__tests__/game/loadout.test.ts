@@ -31,8 +31,8 @@ const armorItem = (id: string, slot: GearSlot | undefined, dodgeBonus = 0, defen
 })
 const potion = (id = 'p1'): Item => ({ id, name: 'Potion', slot: 'consumable', effect: { hp: 20 } })
 
-describe('loadout — creation + config', () => {
-  it('defaults to 24 bag + 4 special slots, empty, with 5–8 shortcuts (clear of abilities 1–4)', () => {
+describe('loadout, creation + config', () => {
+  it('defaults to 24 bag + 4 special slots, empty, with 5-8 shortcuts (clear of abilities 1-4)', () => {
     const l = createLoadout()
     expect(l.bag).toHaveLength(DEFAULT_BAG_SLOTS)
     expect(l.special).toHaveLength(DEFAULT_SPECIAL_SLOTS)
@@ -48,7 +48,7 @@ describe('loadout — creation + config', () => {
   })
 })
 
-describe('loadout — allowedSlots', () => {
+describe('loadout, allowedSlots', () => {
   it('weapons fit weapon1/weapon2', () => {
     expect(allowedSlots(weaponItem())).toEqual(['weapon1', 'weapon2'])
   })
@@ -62,7 +62,7 @@ describe('loadout — allowedSlots', () => {
   })
 })
 
-describe('loadout — equip / unequip (immutable)', () => {
+describe('loadout, equip / unequip (immutable)', () => {
   it('equips into an allowed slot, leaving the input untouched', () => {
     const l0 = createLoadout()
     const l1 = equip(l0, weaponItem('w1'), 'weapon1')
@@ -79,7 +79,7 @@ describe('loadout — equip / unequip (immutable)', () => {
   })
 })
 
-describe('loadout — bag + special slots', () => {
+describe('loadout, bag + special slots', () => {
   it('addToBag fills the first free slot; a full bag is a no-op', () => {
     let l = createLoadout({ bagSlots: 1 })
     l = addToBag(l, potion('p1'))
@@ -97,7 +97,7 @@ describe('loadout — bag + special slots', () => {
   })
 })
 
-describe('loadout — aggregate bonuses (dodge from armor, block from shield)', () => {
+describe('loadout, aggregate bonuses (dodge from armor, block from shield)', () => {
   it('sums defense/str/int and pulls dodge from armor, block from a shield', () => {
     let l = createLoadout()
     l = equip(l, armorItem('boots', 'boots', 8, 2), 'boots')

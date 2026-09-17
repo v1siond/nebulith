@@ -1,6 +1,6 @@
 // Pure player runtime: state shape, 8-way aim + facing, jump landing, and the
 // name/life-bar display helpers. Moved out of the game-engine page (stage 2) so
-// tests + every view share one source. Pure — no React, no DOM.
+// tests + every view share one source. Pure, no React, no DOM.
 import type { Entity, CombatState, EntityVariant } from '@/game/types'
 import type { EntityAnimation } from './entityAnimation'
 import type { TilePose } from '@/engine/tileset/pose'
@@ -11,11 +11,11 @@ export interface PlayerState {
   z: number
   facing: 'up' | 'down' | 'left' | 'right'
   /** 8-way GRID aim delta (col/row each ∈ -1..1) the player's targeting, projectiles, and
-   *  swing follow — set from the movement keys, mapped to grid space per view. Separate from the
+   *  swing follow, set from the movement keys, mapped to grid space per view. Separate from the
    *  4-way `facing` (which drives the weapon hand). Undefined → fall back to the facing delta. */
   aim?: { col: number; row: number }
   moving: boolean
-  /** true while moving with Shift held — drives the RUN animation frame (🏃 vs the walk 🚶). */
+  /** true while moving with Shift held, drives the RUN animation frame (🏃 vs the walk 🚶). */
   running?: boolean
   /** authored animations mirrored from the player entity, so the live hero plays whatever you author
    *  in the Inspector (falls back to the default character set when absent). */
@@ -32,14 +32,14 @@ export interface PlayerState {
    *  renderer applies it so the weapon's look is data-driven. Undefined → identity (no transform). */
   weaponPose?: TilePose
   shieldPose?: TilePose
-  /** bare-handed PUNCH glyph + pose (from the loaded tileset) — drawn at the swing hand when the hero is
+  /** bare-handed PUNCH glyph + pose (from the loaded tileset), drawn at the swing hand when the hero is
    *  unarmed AND mid-swing under a reskin style, so an unarmed attack shows a 👊 instead of ASCII. '' when
    *  armed or ASCII (the equipped weapon / ASCII swing takes over). */
   punchGlyph?: string
   punchPose?: TilePose
   /** wearing any armor → the figure is tinted to show the upgrade. */
   armored?: boolean
-  /** per-entity character tone (deterministic by the player entity's id) — the figure's body
+  /** per-entity character tone (deterministic by the player entity's id), the figure's body
    *  glyph / block-bg colors when unarmored. Undefined → the classic gold. */
   bodyColor?: string
   bodyBg?: string
@@ -57,13 +57,13 @@ export interface SpawnCell { col: number; row: number }
 
 /**
  * Where the player lands on a template LOAD. Priority:
- *   1. `override`  — an explicit teleport target (connector / trigger `go to`);
- *   2. `keptCell`  — reloading the map you're already in: keep the CURRENT position (#87), so a
+ *   1. `override` , an explicit teleport target (connector / trigger `go to`);
+ *   2. `keptCell` , reloading the map you're already in: keep the CURRENT position (#87), so a
  *                    load never yanks you back to the last-saved spawn;
- *   3. `playerMarker` — the saved player entity's cell (the placed spawn);
- *   4. `templateSpawn` — the template's authored default spawn.
+ *   3. `playerMarker`, the saved player entity's cell (the placed spawn);
+ *   4. `templateSpawn`, the template's authored default spawn.
  * The chosen cell is CLAMPED to the grid, so a stale / out-of-bounds spawn (e.g. a legacy fixed
- * 25,25 on a smaller target) can never land off-map (#88) — the caller then snaps it to the nearest
+ * 25,25 on a smaller target) can never land off-map (#88), the caller then snaps it to the nearest
  * WALKABLE cell. Pure: no grid/DOM access, so the priority + clamp are unit-tested directly.
  */
 export function resolveSpawnCell(
@@ -94,7 +94,7 @@ export function facingDelta(facing: PlayerState['facing'], use2D: boolean): [num
 
 /** The direction currently held on WASD/arrows, or null if none. Lets a standing
  *  jump commit to the way you're pressing (facing itself is only updated while
- *  walking, which a jump skips). View-agnostic — facingDelta handles iso vs 2D. */
+ *  walking, which a jump skips). View-agnostic, facingDelta handles iso vs 2D. */
 export function facingFromKeys(keys: Record<string, boolean>): PlayerState['facing'] | null {
   if (keys['ArrowUp'] || keys['w']) return 'up'
   if (keys['ArrowDown'] || keys['s']) return 'down'
@@ -114,7 +114,7 @@ export function aimDelta(player: PlayerState, use2D: boolean): [number, number] 
 }
 
 /** The 8-way GRID aim from the movement keys held this frame: sum each pressed direction's
- *  per-view grid delta — the SAME mapping movement uses, so you aim where you'd walk — then snap
+ *  per-view grid delta, the SAME mapping movement uses, so you aim where you'd walk, then snap
  *  each axis to its sign. Two keys → a diagonal (e.g. W+D); one key → a grid orthogonal in 2D /
  *  a grid diagonal in iso. Opposite keys cancel. null when nothing aimable is held (keep the
  *  last aim so a standing shot still fires the way you last moved). */
@@ -136,7 +136,7 @@ export function aimFromKeys(keys: Record<string, boolean>, use2D: boolean): { co
   return { col: sc, row: sr }
 }
 
-/** Clamp value/max into 0..1 (0 when max ≤ 0). Pure — shared by the enemy + player life bars. */
+/** Clamp value/max into 0..1 (0 when max ≤ 0). Pure, shared by the enemy + player life bars. */
 export function barFraction(value: number, max: number): number {
   if (max <= 0) return 0
   return Math.max(0, Math.min(1, value / max))

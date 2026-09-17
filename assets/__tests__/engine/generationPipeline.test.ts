@@ -9,10 +9,10 @@
  *
  * Three goals, three things asserted here:
  *
- *   · CLEAR SUBSYSTEM — the order is a list, and it runs in that order.
- *   · ADDING ONE CHANGES NOTHING ELSE — a layer appended runs, in place, without `runLayers` knowing anything
+ *   · CLEAR SUBSYSTEM, the order is a list, and it runs in that order.
+ *   · ADDING ONE CHANGES NOTHING ELSE, a layer appended runs, in place, without `runLayers` knowing anything
  *     about it. That is the property every future layer depends on, so it is pinned rather than assumed.
- *   · TOP PERFORMANCE — a guard that says no costs ONE call, not a pass over the map discovering it; and every
+ *   · TOP PERFORMANCE, a guard that says no costs ONE call, not a pass over the map discovering it; and every
  *     layer's cost is visible instead of being absorbed into "generation is slow".
  */
 import { runLayers, stageLayerTimings, type StageLayer } from '@/engine/generate/pipeline'
@@ -37,7 +37,7 @@ describe('the runner', () => {
 
   it('takes a NEW layer without changing: appended, it runs in place', () => {
     const ctx = fresh()
-    // shadow, lighting, fog, reprocess, water reflection — this is the shape each of them arrives in.
+    // shadow, lighting, fog, reprocess, water reflection, this is the shape each of them arrives in.
     const stack = [step('pathways'), step('terrain'), step('shadow'), step('fog'), step('reflection')]
     runLayers(stack, ctx, { seed: 1 })
     expect(ctx.log).toEqual(['pathways', 'terrain', 'shadow', 'fog', 'reflection'])
@@ -58,7 +58,7 @@ describe('the runner', () => {
 })
 
 describe('a layer that has nothing to do', () => {
-  it('is skipped entirely — its guard is one call, not a pass over the map', () => {
+  it('is skipped entirely, its guard is one call, not a pass over the map', () => {
     const ctx = fresh()
     const expensive: StageLayer<Ctx, Rngs> = {
       name: 'water',

@@ -1,6 +1,6 @@
 import { parseColor, darkenColor, lightenColor, withAlpha, varyIntensity } from '@/engine/colors'
 
-describe('colors — parseColor', () => {
+describe('colors, parseColor', () => {
   it('parses 6-digit hex', () => {
     expect(parseColor('#2e8b2e')).toEqual({ r: 46, g: 139, b: 46 })
   })
@@ -19,7 +19,7 @@ describe('colors — parseColor', () => {
   })
 })
 
-describe('colors — darken / lighten / alpha', () => {
+describe('colors, darken / lighten / alpha', () => {
   it('darkens each channel by the factor', () => {
     expect(darkenColor('#646464', 0.5)).toBe('rgb(50, 50, 50)') // 100 * 0.5
   })
@@ -42,13 +42,13 @@ describe('colors — darken / lighten / alpha', () => {
     expect(withAlpha('#2e8b2e', 0.4)).toBe('rgba(46, 139, 46, 0.4)')
   })
 
-  it('clamps darken/lighten to the 0–255 byte range', () => {
+  it('clamps darken/lighten to the 0-255 byte range', () => {
     expect(darkenColor('#ffffff', 0)).toBe('rgb(0, 0, 0)')
     expect(lightenColor('#808080', 2)).toBe('rgb(255, 255, 255)')
   })
 })
 
-describe('colors — varyIntensity (leaf/flower tone variety)', () => {
+describe('colors, varyIntensity (leaf/flower tone variety)', () => {
   const base = '#646464' // rgb(100, 100, 100)
 
   it('leaves the color unchanged at the midpoint t=0.5', () => {

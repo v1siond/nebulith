@@ -48,12 +48,12 @@ export type { Cell } from './grid'
  *
  * A cell's heading is two independent facts, and they need two different answers:
  *
- *   1. THE AXIS — does this stretch run along col or along row? That is a fact about the channel's SHAPE, so
+ *   1. THE AXIS, does this stretch run along col or along row? That is a fact about the channel's SHAPE, so
  *      measure the shape: how far the water reaches through this cell each way. A three-wide horizontal band
  *      reaches ~40 along col and 3 along row at every one of its cells, so the whole band answers "col",
  *      cross-section included. This is what makes the `-------` come out level.
  *
- *   2. THE SIGN — of the two pathways along that axis, which is downstream? That is a fact about the channel as a
+ *   2. THE SIGN, of the two pathways along that axis, which is downstream? That is a fact about the channel as a
  *      WHOLE, so it comes from a distance field, not from a neighbour. BFS from an EXTREMITY of the reach
  *      makes the distance climb monotonically from one end to the other, so "downstream = the neighbour that
  *      is farther" agrees everywhere. The extremity is found with the standard double sweep (BFS from any
@@ -395,7 +395,7 @@ export function waterBand(depth: number): WaterBand {
 }
 
 
-/** A watercourse running edge to edge through the map — the jungle's creek, and the `through` and `divides`
+/** A watercourse running edge to edge through the map, the jungle's creek, and the `through` and `divides`
  *  rivers. The draw order is unchanged when nothing is forced, so the jungle's creek is byte-identical. */
 // TRIED, MEASURED, AND NOT KEPT: turning the channel to CROSS the planned pathways.
 //
@@ -422,7 +422,7 @@ export function carveChannel(ctx: RiverCarve, pal: GeneratorPalette | undefined,
   const across = vertical ? cols : rows
   const phase = ctx.rand() * Math.PI * 2
   const phase2 = ctx.rand() * Math.PI * 2
-  // The centreline wanders across the map as it runs down it — two sine terms so the meander is irregular
+  // The centreline wanders across the map as it runs down it, two sine terms so the meander is irregular
   // rather than a wave, kept off the edges so the creek never degenerates into a border.
   const centre = (along: number): number => {
     const mid = across / 2
@@ -494,11 +494,13 @@ export interface RiverCrossings {
   crossings?: Readonly<Record<string, GeneratorCrossing>>
   options: Readonly<Record<string, GeneratorOptionValue>> | undefined
   rand: Rng
+  /** True when the map's liquid is molten, which rules the ford out: you do not wade lava. */
+  molten?: boolean
 }
 
 
 
-/** How many consecutive water cells lie beyond `at` in direction (dc, dr) — how far the river reaches that way. */
+/** How many consecutive water cells lie beyond `at` in direction (dc, dr), how far the river reaches that way. */
 export function waterReach(water: Set<string>, at: Cell, dc: number, dr: number): number {
   let n = 0
   let { col, row } = at
@@ -564,12 +566,24 @@ export function resolveCrossing(
   value: GeneratorOptionValue | undefined,
   crossings: Readonly<Record<string, GeneratorCrossing>> | undefined,
   rand: Rng,
+  molten = false,
 ): GeneratorCrossing | undefined {
   if (!crossings || typeof value !== 'string') return undefined
-  if (value !== 'random') return crossings[value]
-  const kinds = Object.keys(crossings)
-  return kinds.length > 0 ? crossings[kinds[randIntWith(rand, 0, kinds.length - 1)]] : undefined
+  // NOBODY WADES LAVA. A `dirt` crossing is the channel run shallow enough to walk through, which is a fine
+  // thing to offer over water and an absurd one over molten rock: measured on a lava map, six cells of it
+  // came out walkable because the ford sets their collision itself, under the depth pass that blocks
+  // everything else. A molten map gets a BRIDGE or it gets no crossing.
+  const usable = molten ? omitFord(crossings) : crossings
+  if (value !== 'random') return molten && value === FORD_KIND ? undefined : usable[value]
+  const kinds = Object.keys(usable)
+  return kinds.length > 0 ? usable[kinds[randIntWith(rand, 0, kinds.length - 1)]] : undefined
 }
+
+/** The crossing kind that is a ford rather than a structure: the river itself, walked through. */
+const FORD_KIND = 'dirt'
+
+const omitFord = (crossings: Readonly<Record<string, GeneratorCrossing>>): Readonly<Record<string, GeneratorCrossing>> =>
+  Object.fromEntries(Object.entries(crossings).filter(([kind]) => kind !== FORD_KIND))
 
 /**
  * THE KIND OF CROSSING. bridges" that we use on rivers, we must have multiple variations too / it can be a simple
@@ -589,7 +603,7 @@ export function crossingRefused(ctx: RiverCrossings): boolean {
 }
 
 export function crossingStyle(ctx: RiverCrossings): GeneratorCrossing | undefined {
-  if (ctx.crossing === undefined) ctx.crossing = resolveCrossing(ctx.options?.bridge, ctx.crossings, ctx.rand) ?? null
+  if (ctx.crossing === undefined) ctx.crossing = resolveCrossing(ctx.options?.bridge, ctx.crossings, ctx.rand, ctx.molten) ?? null
   return ctx.crossing ?? undefined
 }
 
@@ -961,6 +975,15 @@ export interface RiverSurface extends RiverCarve {
   fords: ReadonlySet<string>
   /** Cells wearing a film of water over dry ground (a puddle). Not banks either. */
   wet: ReadonlySet<string>
+  /** True when this map's liquid is molten: lava is never wadeable at any depth. */
+  molten?: boolean
+  /**
+   * HOW DEEP EACH CHANNEL CELL IS, written here for anything downstream that needs it.
+   *
+   * Optional because the pure river tests build a surface without one. It is not optional in the engine: the
+   * ground label stopped carrying the depth when the bands went, so this map is the only record.
+   */
+  waterDepth?: Map<string, number>
   /** Which way each channel cell runs, written here and read by the renderer to turn the tile's picture. */
   flow: Map<string, number>
   props: RiverProp[]
@@ -1081,6 +1104,9 @@ export function bendCells(flow: ReadonlyMap<string, number>, water: ReadonlySet<
 export function settleWaterDepth(ctx: RiverSurface, pal: GeneratorPalette | undefined, pools: ReadonlySet<string> = new Set()): void {
   const { ground, collision, floorColors } = ctx
   const depth = waterDepth(ctx, pools)
+  // PUBLISH IT. The label no longer says how deep a cell is, so this map is the only record of it. Written
+  // before the loop below so a caller reading `waterDepth` sees the same numbers this pass acted on.
+  for (const [key, d] of depth) ctx.waterDepth?.set(key, d)
 
   // WHICH WAY IT RUNS, decided once for the whole reach. Only the CHANNEL gets one: a pool is standing water
   // and standing water has no current, which is the own distinction.
@@ -1106,7 +1132,9 @@ export function settleWaterDepth(ctx: RiverSurface, pal: GeneratorPalette | unde
     ctx.flow.set(key, dir)
   }
   strewRiverRocks(ctx, channel)
-  const wadeable = wadeableShallows(ctx, depth)
+  // NOTHING WADES LAVA. A shallow edge of molten rock is still molten rock, so the depth pass's whole
+  // wadeable set is dropped rather than a shallow band being carved out of it.
+  const wadeable = ctx.molten ? new Set<string>() : wadeableShallows(ctx, depth)
   // FROZEN OVER. `frozen_water` already exists as
   // a label in both styles, named for exactly this, so the season lays a different TILE rather than the same
   // water with an exception bolted on.
@@ -1127,14 +1155,22 @@ export function settleWaterDepth(ctx: RiverSurface, pal: GeneratorPalette | unde
   // THIS REVERSES the per-depth shading was asked for on 2026-09-11 (). The newest instruction wins. The band still
   // decides the LABEL and what you can wade through, so the shallows stay walkable. They just stop being a
   // different colour, which means the wadeable edge now needs the shoreline to mark it, not a hue.
-  // WHERE IT TURNS. Read before the bands are laid, off the flow that was just written, so a bend keeps the
-  // depth it had and only swaps the picture it draws with.
-  const bends = frozen ? new Set<string>() : bendCells(ctx.flow, channel)
   for (const [key, d] of depth) {
     const { col, row } = toCell(key)
-    const band = waterBand(d)
-    ground[row][col] = frozen ? 'frozen_water' : bends.has(key) ? 'water_bend' : band.label
-    // The BAND is the label; whether you can stand here is `wadeableShallows`, which refuses a cut channel.
+    // DEPTH NO LONGER DECIDES THE TILE. It used to write `water_shallow` / `water` / `water_deep` over every
+    // channel cell here, in the OBJECTS phase, which silently undid the border pass that had run back in the
+    // water layer: measured on a woodland river, 128 cells wearing their edge pieces after `water`, 119 after
+    // `pathways`, and zero after `objects`.
+    //
+    // Water is terrain and a body of water is a shape with a border (`docs/WATER.md` §1). Which piece a cell
+    // wears is decided by WHERE IT SITS in that shape, by `waterBody`, not by how far it is from a bank. The
+    // comment thirty lines up had already found the same thing from the other side: the three bands were never
+    // three kinds of water, they were one tile wearing three tints.
+    //
+    // Ice stays, because that is a real change of material rather than a band of the same one.
+    if (frozen) ground[row][col] = 'frozen_water'
+    // Whether you can stand here is `wadeableShallows`, which refuses a cut channel. Depth still decides that,
+    // and that is the job it is actually for.
     //
     // EXCEPT UNDER A CROSSING. A deck cell is river now, with a bridge standing over it, so this pass sees it
     // as ordinary deep water and blocks it: measured the moment the deck stopped overwriting the ground, a
@@ -1142,6 +1178,18 @@ export function settleWaterDepth(ctx: RiverSurface, pal: GeneratorPalette | unde
     // them. What you walk on there is the composition, not the water.
     collision[row][col] = frozen || ctx.decks.has(key) ? false : !wadeable.has(key)
     if (pal?.water) floorColors[row][col] = pal.water
+  }
+  // A POOL OF LAVA STOPS YOU TOO.
+  //
+  // The loop above walks the CHANNEL only, and a pool is deliberately left out of it because standing water
+  // at ground level is something you walk through. Molten rock is not: measured on a lava map, 23 cells were
+  // walkable with no bridge anywhere near them, and every one was a pool. The channel was already blocked, so
+  // this was the half the molten rule had not reached.
+  if (ctx.molten) {
+    for (const key of pools) {
+      const { col, row } = toCell(key)
+      if (isWaterGround(ground[row]?.[col])) collision[row][col] = true
+    }
   }
   if (!pal?.swamp) return
   for (const key of pools) {

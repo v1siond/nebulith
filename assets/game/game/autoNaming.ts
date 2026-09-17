@@ -1,12 +1,12 @@
 /**
  * Naming a new game or level.
  *
- * Creating either asks the user nothing — the name is generated and the
+ * Creating either asks the user nothing, the name is generated and the
  * editor opens. A plain counter rather than a random word, so a gallery of untouched records sorts
  * and scans the way a person expects; renaming one is a normal edit afterwards (both surfaces
  * already have a rename field).
  *
- * Pure — no React, no API.
+ * Pure, no React, no API.
  */
 
 /** The number in a name generated from `prefix`, or 0 for a name the user chose. Anchored, so
@@ -28,10 +28,10 @@ export function nextGeneratedName(prefix: string, existing: readonly { name: str
   return `${prefix} ${highest + 1}`
 }
 
-/** "Game 3" — the gallery's word for a game. */
+/** "Game 3", the gallery's word for a game. */
 export const nextGameName = (existing: readonly { name: string }[]): string => nextGeneratedName('Game', existing)
 
-/** "Level 3" — the editor's word for a template (design §4.1.6: one vocabulary, Level not Template). */
+/** "Level 3", the editor's word for a template (design §4.1.6: one vocabulary, Level not Template). */
 export const nextLevelName = (existing: readonly { name: string }[]): string => nextGeneratedName('Level', existing)
 
 /**

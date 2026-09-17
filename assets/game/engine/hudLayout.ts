@@ -1,12 +1,12 @@
 /**
- * HUD LAYOUT GEOMETRY — where a piece of the player's UI actually lands, and what collides.
+ * HUD LAYOUT GEOMETRY, where a piece of the player's UI actually lands, and what collides.
  *
  * Pure functions over the placement data, so the React layer only draws and all of this is testable.
  *
  * The model is anchor + offset, never absolute pixels. "16 up from the bottom-left" still means the
  * bottom-left corner on a phone, on a laptop and on a 4K monitor; "y = 812" means the bottom on exactly one
- * screen and the middle of the map on every other. The product's own HUD is already written this way — as
- * frozen Tailwind literals like `fixed bottom-4 left-4` — so this is that model made editable.
+ * screen and the middle of the map on every other. The product's own HUD is already written this way, as
+ * frozen Tailwind literals like `fixed bottom-4 left-4`, so this is that model made editable.
  */
 import { HUD_ANCHORS, type HudAnchor, type HudLayout, type HudPlacement } from '@/components/game/shell/playerUi.data'
 
@@ -31,7 +31,7 @@ export function hudRect(placement: HudPlacement, stageW: number, stageH: number)
   }
 }
 
-/** Smallest a piece may be left, in placement pixels — below this there is nothing left to grab. */
+/** Smallest a piece may be left, in placement pixels, below this there is nothing left to grab. */
 export const HUD_MIN_W = 40
 export const HUD_MIN_H = 20
 
@@ -45,7 +45,7 @@ export interface HudGrip {
  * The corner the resize grip belongs on: the one OPPOSITE the pin.
  *
  * A piece pinned to the bottom keeps its bottom edge where it is, so the only edge that can move is the
- * top. Drawing the grip at the bottom-right regardless is what made resizing read as inverted — you drag
+ * top. Drawing the grip at the bottom-right regardless is what made resizing read as inverted, you drag
  * down, the piece grows, and it grows away from your cursor because the edge under your hand is nailed
  * down. A centre pin moves both edges, so either corner works and the far one is used.
  */
@@ -59,7 +59,7 @@ export function hudGripCorner(anchor: HudAnchor): HudGrip {
  *
  * The derivation, from `hudRect`: the left edge moves by `-originX` per unit of width and the right edge by
  * `1 - originX`. So a drag on the right edge is `dw = dx / (1 - originX)` and one on the left is
- * `dw = -dx / originX` — which is why a centre-pinned piece widens by 2 for every 1 the cursor moves, and a
+ * `dw = -dx / originX`, which is why a centre-pinned piece widens by 2 for every 1 the cursor moves, and a
  * bottom-pinned one cannot change height from its bottom edge at all.
  *
  * `dxStage` / `dyStage` are in STAGE pixels: the caller has already divided out the preview's zoom. The
@@ -97,7 +97,7 @@ const COLLISION_FLOOR = 120
 /**
  * Which pieces of the HUD cover each other, worst first.
  *
- * Measured on the STAGE the layout targets, never on the editor's preview pane — otherwise a narrow preview
+ * Measured on the STAGE the layout targets, never on the editor's preview pane, otherwise a narrow preview
  * would report collisions that no player will ever see, and the warning would be noise.
  *
  * A first version compared anchors and offsets for proximity, which is a guess: two pieces can share an

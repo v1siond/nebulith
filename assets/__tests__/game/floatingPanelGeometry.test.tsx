@@ -1,11 +1,11 @@
 /**
- * FloatingPanel GEOMETRY persistence — the user's ask: "move and resize [the modals] at will and I want
+ * FloatingPanel GEOMETRY persistence, the user's ask: "move and resize [the modals] at will and I want
  * to save the position, size, as settings for the editor in the elixir backend."
  *
  * We drive the REAL FloatingPanel and assert:
  *   • it restores saved geometry on open (initialPos/initialSize come from the backend map),
  *   • it emits the FINAL geometry once at the END of a drag / resize (so the page can persist it),
- *   • the geometry ROUND-TRIPS to the editor-settings API — a drag PUTs {value:{x,y,w,h}} to
+ *   • the geometry ROUND-TRIPS to the editor-settings API, a drag PUTs {value:{x,y,w,h}} to
  *     /editor_settings/:key (fetch mocked), exactly what nebulith stores + restores.
  */
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
@@ -15,7 +15,7 @@ import { saveEditorSetting } from '@/lib/editorSettings'
 const dragHandle = () => screen.getByRole('dialog').querySelector('[data-drag-handle]') as HTMLElement
 const resizeGrip = () => screen.getByRole('dialog').querySelector('[data-resize-handle]') as HTMLElement
 
-describe('FloatingPanel — geometry restore + persist', () => {
+describe('FloatingPanel, geometry restore + persist', () => {
   it('restores the saved geometry on open (position + size from the backend)', () => {
     render(
       <FloatingPanel title="Settings" onClose={() => {}} initialPos={{ x: 300, y: 150 }} initialSize={{ w: 420, h: 500 }}>

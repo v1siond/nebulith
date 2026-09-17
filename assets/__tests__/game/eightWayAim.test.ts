@@ -3,7 +3,7 @@ import { aimFromKeys, aimDelta, type PlayerState } from '@/game/runtime/player'
 import { makeEnemy } from '@/game/entities'
 
 // ───────────────────────────────────────────────────────────────────────────
-// 8-DIRECTION AIM (#55) — the player can target + fire along all 8 grid directions
+// 8-DIRECTION AIM (#55), the player can target + fire along all 8 grid directions
 // (N/S/E/W + the 4 diagonals), in BOTH 2D and iso. The aim lives in GRID space, so a
 // direction resolves to the same cells in either view; only the keys→grid mapping (which
 // movement already uses) differs by view. These tests drive the REAL aim helpers + findTarget.
@@ -33,7 +33,7 @@ const playerAt = (col: number, row: number, aim: { col: number; row: number }): 
   aim,
 })
 
-describe('aimFromKeys — WASD reaches all 8 GRID directions in each view', () => {
+describe('aimFromKeys, WASD reaches all 8 GRID directions in each view', () => {
   // 2D: a single key is a grid orthogonal; two keys make a grid diagonal.
   it.each([
     [{ w: true }, DIRS.N],
@@ -70,16 +70,16 @@ describe('aimFromKeys — WASD reaches all 8 GRID directions in each view', () =
   })
 })
 
-describe('findTarget + aimDelta — an enemy on each of the 8 directions is selectable along the aim', () => {
+describe('findTarget + aimDelta, an enemy on each of the 8 directions is selectable along the aim', () => {
   const px = 20
   const py = 20
   const REACH = 6 // a bow: the aim line must reach a few cells out
 
   for (const [name, d] of Object.entries(DIRS)) {
     // Run both views: with an explicit grid aim the result is identical (grid space).
-    it.each([true, false])(`${name} — selects the enemy + produces the aim (use2D=%p)`, (use2D) => {
+    it.each([true, false])(`${name}, selects the enemy + produces the aim (use2D=%p)`, (use2D) => {
       // Place the enemy 3 cells out along the aim (beyond melee adjacency, so ONLY the aim line
-      // finds it — proving the aim drives targeting, not a blanket 8-neighbour fallback).
+      // finds it, proving the aim drives targeting, not a blanket 8-neighbour fallback).
       const enemy = makeEnemy('e', px + d.col * 3, py + d.row * 3, 'goblin')
       const player = playerAt(px, py, d)
 

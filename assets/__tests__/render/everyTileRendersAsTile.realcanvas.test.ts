@@ -1,7 +1,7 @@
 /**
- * PERMANENT REGRESSION GUARD — EVERY tile, in EVERY category, in BOTH styles, renders through the ONE
- * uniform tile path as a BLOCK/SLAB — NEVER a flat 2D billboard. A UNIT is the single documented exception
- * (a depth-0 tile drawn by drawIsoEntity, MAP-MODEL §4: "a character/unit is a depth-0 tile — the one map
+ * PERMANENT REGRESSION GUARD, EVERY tile, in EVERY category, in BOTH styles, renders through the ONE
+ * uniform tile path as a BLOCK/SLAB, NEVER a flat 2D billboard. A UNIT is the single documented exception
+ * (a depth-0 tile drawn by drawIsoEntity, MAP-MODEL §4: "a character/unit is a depth-0 tile, the one map
  * exception").
  *
  * WHY THIS EXISTS: "EVERY tile in EVERY category must render through the ONE uniform tile path, never a flat 2D
@@ -17,7 +17,7 @@
  *   • unit tile      → routed to the ENTITY path (placementFor === 'entity'), NEVER forced into a block.
  *
  * DETERMINISTIC + OFFLINE: the tile list is the baked `fixtures/tilesets.json` (a captured /api/tilesets
- * response — every category present), installed via the SAME loader production uses. Each tile's baked PNG
+ * response, every category present), installed via the SAME loader production uses. Each tile's baked PNG
  * is stubbed by a solid raster + warmed BEFORE any render (the images-decoded condition the real app gates
  * on). No network at test time.
  */
@@ -31,7 +31,7 @@ import type { GridAsset } from '@/engine/IsometricGrid'
 import type { TileGeom } from '@/engine/render/tileHit'
 import type { Entity } from '@/game/types'
 
-// Install the DB-equivalent tileset at MODULE LOAD (before describe.each enumerates the rows) — the tile
+// Install the DB-equivalent tileset at MODULE LOAD (before describe.each enumerates the rows), the tile
 // holders must be populated when the per-tile cases are generated, not only inside beforeAll.
 installSeedTileset()
 
@@ -42,7 +42,7 @@ type Style = typeof EMOJI_STYLE
 
 interface Row { key: string; category: string; height: number; src?: string }
 
-// Read the LIVE loaded tilesets (installed from the baked fixture) — the exact set /api/tilesets serves.
+// Read the LIVE loaded tilesets (installed from the baked fixture), the exact set /api/tilesets serves.
 function emojiRows(): Row[] {
   return Object.entries(styleTiles('emoji')).map(([key, t]) => ({ key, category: t.category ?? '(none)', height: t.height ?? 0, src: t.image }))
 }
@@ -52,7 +52,7 @@ function asciiRows(): Row[] {
 const nonUnit = (rows: Row[]) => rows.filter(r => r.category !== 'units')
 
 /** A PAINTED tile exactly as the brush produces it (stackAssetTile → pushTile): a stacked asset pinned to
- *  the exact catalog tile via `tileOverride`, carrying the tile's OWN DB height. No `label` — the palette
+ *  the exact catalog tile via `tileOverride`, carrying the tile's OWN DB height. No `label`, the palette
  *  paint path resolves the tile through its override, not a composition label. */
 function paintedAsset(styleId: string, r: Row, extra: Partial<GridAsset> = {}): GridAsset {
   return { art: [''], col: 4, row: 4, type: r.key, tileOverride: `${styleId}:${r.key}`, height: r.height, heightLevel: 0, color: '#c9c9c9', ...extra } as unknown as GridAsset
@@ -80,18 +80,18 @@ beforeAll(async () => {
   await H.warm([...srcs])
 })
 
-// ── the core guard: EVERY non-unit tile, per style, is a block/slab (cube) — never a billboard poly ──
+// ── the core guard: EVERY non-unit tile, per style, is a block/slab (cube), never a billboard poly ──
 describe.each([
   ['EMOJI', EMOJI_STYLE, () => nonUnit(emojiRows())],
   ['ASCII', ASCII_STYLE, () => nonUnit(asciiRows())],
-] as const)('%s — every non-unit tile renders as a block/slab, never a billboard', (name, style, getRows) => {
+] as const)('%s, every non-unit tile renders as a block/slab, never a billboard', (name, style, getRows) => {
   const rows = getRows()
 
   it(`covers every non-unit ${name} tile (sanity: the fixture is non-empty)`, () => {
     expect(rows.length).toBeGreaterThan(100)
   })
 
-  // ONE named case PER TILE — a regression names the exact offending tile ("test EACH one").
+  // ONE named case PER TILE, a regression names the exact offending tile ("test EACH one").
   it.each(rows.map(r => [`${r.category}/${r.key}`, r] as const))('%s is a cube/slab (not a billboard)', (_label, r) => {
     const g = renderIso(style, r)
     // kind 'cube' == the block/slab path (cubeGeom). A billboard/diamond would be kind 'poly'.
@@ -109,15 +109,15 @@ describe.each([
 // "all tiles/blocks are height 1, GLOBAL, no exceptions". There is no flat-tile shape
 // any more: the catalog row is ART, and whatever height it carries is never read (resolveTileHeight ignores
 // the tile and takes the PLACEMENT's height, defaulting to one block). So a row still marked `height: 0` in
-// the catalog must extrude exactly like any other — if it drew as a flat diamond, an inert art number would
+// the catalog must extrude exactly like any other, if it drew as a flat diamond, an inert art number would
 // be steering geometry again, which is what sank the road below the grass beside it (the trench).
-describe('the height model — every tile extrudes; the placed block decides how far', () => {
-  it("a row's OWN served height decides how far it extrudes — flat stays flat, a block stands", () => {
+describe('the height model, every tile extrudes; the placed block decides how far', () => {
+  it("a row's OWN served height decides how far it extrudes, flat stays flat, a block stands", () => {
     const flatRow = nonUnit(emojiRows()).find(r => r.height === 0)
     const tall = nonUnit(emojiRows()).find(r => r.height >= 1)
     expect(flatRow).toBeDefined()
     expect(tall).toBeDefined()
-    // With NO placed height, each row falls back to its own served one — which is the setting the backend
+    // With NO placed height, each row falls back to its own served one, which is the setting the backend
     // saves. Both still go through the ONE tile path (a cube geom); they differ only in how far they rise.
     const bare = { height: undefined }
     expect(renderIso(EMOJI_STYLE, flatRow!, bare)?.kind).toBe('cube') // a tile, not a billboard
@@ -125,7 +125,7 @@ describe('the height model — every tile extrudes; the placed block decides how
     expect(cubeExtrudePx(renderIso(EMOJI_STYLE, tall!, bare))).toBeGreaterThan(0)
   })
 
-  it('the PLACEMENT scales the extrusion — 3 blocks draws three times a 1-block tile', () => {
+  it('the PLACEMENT scales the extrusion, 3 blocks draws three times a 1-block tile', () => {
     const row = nonUnit(emojiRows()).find(r => r.height === 0)! // the art number stays 0 throughout
     const one = cubeExtrudePx(renderIso(EMOJI_STYLE, row, { height: 1 }))
     expect(one).toBeGreaterThan(0)
@@ -140,7 +140,7 @@ describe('the height model — every tile extrudes; the placed block decides how
   })
 })
 
-// ── Z-Width (directional depth) EXTRUDES the block further — settings honoured, per category ──
+// ── Z-Width (directional depth) EXTRUDES the block further, settings honoured, per category ──
 describe('Z-Width extrudes the block (settings honoured), per category', () => {
   const oneEmojiPerCategory = (): Array<[string, Row]> => {
     const seen = new Set<string>()
@@ -156,11 +156,11 @@ describe('Z-Width extrudes the block (settings honoured), per category', () => {
 })
 
 // ── UNIT tiles are the exception: routed to the ENTITY path, never forced into a block ──
-describe('UNIT tiles render as billboards via the entity path — never forced into the block path', () => {
+describe('UNIT tiles render as billboards via the entity path, never forced into the block path', () => {
   const FX_PROJECTILES = new Set(['arrow', 'bullet', 'dart', 'fire-slash', 'ice-slash', 'cleave', 'bolt', 'piercing-shot', 'nova', 'lightning', 'heal-glow', 'guard-flash'])
   const unitRows = () => [...emojiRows(), ...asciiRows()].filter(r => r.category === 'units')
 
-  it('every figure-unit tile routes to the ENTITY path (not asset/terrain — never a block)', () => {
+  it('every figure-unit tile routes to the ENTITY path (not asset/terrain, never a block)', () => {
     const misrouted = unitRows()
       .filter(r => !FX_PROJECTILES.has(r.key))
       .filter(r => placementFor({ category: 'units', id: `x:${r.key}`, settings: { unitRole: 'person' } }) !== 'entity')

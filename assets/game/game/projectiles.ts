@@ -1,9 +1,9 @@
 /**
- * PROJECTILES — pure, time-driven model for a ranged shot that TRAVELS over time and
+ * PROJECTILES, pure, time-driven model for a ranged shot that TRAVELS over time and
  * resolves damage ON IMPACT (not at fire). A projectile lerps from its origin cell to
  * the cell the target occupied when it was fired; on arrival we check the target's
  * CURRENT cell: it MISSES if the target stepped off the impact cell, and can still be
- * dodged or blocked by chance. No I/O, no globals — the caller injects the RNG.
+ * dodged or blocked by chance. No I/O, no globals, the caller injects the RNG.
  */
 
 export interface Projectile {
@@ -35,7 +35,7 @@ export type ImpactResult = 'hit' | 'missed_moved' | 'blocked' | 'dodged'
 /**
  * Resolve a projectile on arrival against the target's CURRENT cell.
  * - target no longer on the impact cell → 'missed_moved' (they dodged by moving)
- * - else roll dodge, then block (chances are 0–1 fractions; rng() in [0,1))
+ * - else roll dodge, then block (chances are 0-1 fractions; rng() in [0,1))
  * - otherwise it lands → 'hit'
  */
 export function resolveImpact(

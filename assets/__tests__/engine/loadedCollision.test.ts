@@ -1,17 +1,17 @@
 /**
  * LOADING A SAVED MAP MUST NOT BLOCK THE FLOOR WITH THE STOREY ABOVE IT.
  *
- * Measured cause — a saved `village` template holds 204 blocking assets, 89 of them ABOVE ground level
+ * Measured cause, a saved `village` template holds 204 blocking assets, 89 of them ABOVE ground level
  * (`window` @L2/L4/L6, upper wall courses @L3/L5, `awning` @L2). `deserializeToGrid` blocked a cell for EVERY
  * blocking asset regardless of level:
- *     // Blocks are collision regardless of any visual height level — a blocking asset always blocks its cell.
+ *     // Blocks are collision regardless of any visual height level, a blocking asset always blocks its cell.
  * So a second-floor window stamped collision onto the floor of the room beneath it, and the collision map traced
- * the UPPER STOREYS instead of the walls. Freshly generated maps were fine (0 mismatches measured) — only saved
+ * the UPPER STOREYS instead of the walls. Freshly generated maps were fine (0 mismatches measured), only saved
  * ones were wrong, which is why it looked like the collisions "don't match the building".
  *
  * The rule, the same one the composition stamp follows: the 2D collision map is written by GROUND-level blocks
  * only. A unit walks on the ground, so the ground is what that flat map means. Tiles keep their own truthful
- * `blocking` data — a roof still blocks as a block; it just does not seal the room under it.
+ * `blocking` data, a roof still blocks as a block; it just does not seal the room under it.
  */
 import { deserializeToGrid } from '@/lib/api'
 import type { TemplateData } from '@/lib/api'
@@ -35,7 +35,7 @@ const template = (assets: Record<string, unknown>[]): TemplateData => {
   } as unknown as TemplateData
 }
 
-describe('deserializeToGrid — only ground-level blocks reach the collision map', () => {
+describe('deserializeToGrid, only ground-level blocks reach the collision map', () => {
   test('a GROUND-level wall blocks its cell', () => {
     const grid = deserializeToGrid(template([
       { art: ['#'], col: 2, row: 2, type: 'house_4', label: 'wall_stone_c', heightLevel: 1, blocking: true, height: 1 },

@@ -1,5 +1,5 @@
 /**
- * drawIsoTileBlock — the impure canvas glue that renders a height≥1 tile/asset as an iso CUBE:
+ * drawIsoTileBlock, the impure canvas glue that renders a height≥1 tile/asset as an iso CUBE:
  * for each stacked block it fills the two visible side faces (shaded via the global LIGHT) plus one
  * top face, and shears the tile onto each via fillIsoFaceWithTile. Verified through a recording ctx
  * (the same technique as isoFaceTile.test.ts): count the solid face fills + the tile overlays and
@@ -40,7 +40,7 @@ const tileH = 20
 const blockH = 36
 const imgTile = { char: '🧱', color: '#b0603a', image: { kind: 'image' as const, src: '/x.png' } }
 
-describe('drawIsoTileBlock — a height≥1 tile renders as a shaded, stacked iso cube', () => {
+describe('drawIsoTileBlock, a height≥1 tile renders as a shaded, stacked iso cube', () => {
   test('height 1 → 3 faces (2 sides + 1 top), each with a tile overlay', () => {
     const { ctx, fills, getOverlays } = recordingCtx()
     drawIsoTileBlock(ctx, center, tileW, tileH, blockH, 1, imgTile)

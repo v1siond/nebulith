@@ -1,11 +1,12 @@
-import '@/__tests__/helpers/installTilesetSeed' // the generator reads canopy/decor/feature colours from the loaded backend tileset now — install the captured fixture
+import '@/__tests__/helpers/installTilesetSeed' // the generator reads canopy/decor/feature colours from the loaded backend tileset now, install the captured fixture
+import { isWaterGround } from '@/engine/riverNetwork'
 import { FLAT_FLOOR, generateStage } from '@/engine/stageGenerator'
 import { groundTileColor } from '@/engine/tileset/groundColor'
 import { makeRng } from '@/lib/math'
 import { scatterEntities, CAVE_ENEMY_TYPES } from '@/game/spawner'
 import type { ZoneId } from '@/engine/zones'
 
-// 4-neighbour flood fill over walkable cells — proves the open floor is ONE region.
+// 4-neighbour flood fill over walkable cells, proves the open floor is ONE region.
 function reachableCount(collision: boolean[][], start: { col: number; row: number }): number {
   const cols = collision[0].length
   const rows = collision.length
@@ -31,7 +32,7 @@ function reachableCount(collision: boolean[][], start: { col: number; row: numbe
 const CAVE_SIZE = { cols: 44, rows: 32 } as const
 const cave = (zone: ZoneId) => generateStage({ zone, variant: 'cave', ...CAVE_SIZE })
 
-describe('generateStage — cave: floor is fully connected (flood-fill guarantee)', () => {
+describe('generateStage, cave: floor is fully connected (flood-fill guarantee)', () => {
   it.each(['summer', 'winter', 'desert'] as const)('%s: every walkable cell is reachable from spawn', zone => {
     // Run several seeds: the flood-fill repair must make the floor ONE region every time.
     for (let i = 0; i < 6; i++) {
@@ -44,7 +45,7 @@ describe('generateStage — cave: floor is fully connected (flood-fill guarantee
   })
 })
 
-describe('generateStage — cave: rock walls are collision', () => {
+describe('generateStage, cave: rock walls are collision', () => {
   it('emits blocking rock-wall props whose cells are all blocked in the collision grid', () => {
     const stage = cave('autumn')
     const rocks = stage.props.filter(p => p.type === 'rock')
@@ -67,7 +68,7 @@ describe('generateStage — cave: rock walls are collision', () => {
   })
 })
 
-describe('generateStage — cave: seasons yield DISTINCT palettes', () => {
+describe('generateStage, cave: seasons yield DISTINCT palettes', () => {
   const rockColors = (zone: ZoneId): Set<string> =>
     new Set(cave(zone).props.filter(p => p.type === 'rock').map(p => p.color))
 
@@ -98,18 +99,21 @@ describe('generateStage — cave: seasons yield DISTINCT palettes', () => {
   })
 })
 
-describe('generateStage — cave: seasonal water / ice / lava pools', () => {
+describe('generateStage, cave: seasonal water / ice / lava pools', () => {
   const hasGround = (zone: ZoneId, type: string): boolean => {
     for (let i = 0; i < 6; i++) if (cave(zone).ground.flat().includes(type)) return true
     return false
   }
 
   it('carves blocking WATER pools in a summer cave', () => {
-    // sample several maps — pools are 1–3 per cave
+    // sample several maps, pools are 1-3 per cave
     let checked = false
     for (let i = 0; i < 8 && !checked; i++) {
       const stage = cave('summer')
-      const pool = stage.ground.flatMap((r, row) => r.map((t, col) => ({ t, col, row }))).filter(c => c.t === 'water')
+      // A pool wears its autotile piece now, so this asks whether the cell is water rather than whether it
+      // is spelled 'water'. Ice below keeps an exact match on purpose: `frozen_water` is a different
+      // MATERIAL and is still written by name.
+      const pool = stage.ground.flatMap((r, row) => r.map((t, col) => ({ t, col, row }))).filter(c => isWaterGround(c.t) && c.t !== 'frozen_water')
       if (pool.length === 0) continue
       expect(pool.every(c => stage.collision[c.row][c.col] === true)).toBe(true) // water blocks
       checked = true
@@ -134,7 +138,7 @@ describe('generateStage — cave: seasonal water / ice / lava pools', () => {
   })
 })
 
-describe('generateStage — cave: scattered features', () => {
+describe('generateStage, cave: scattered features', () => {
   it('grows crystal clusters (non-blocking, season-tinted)', () => {
     // aggregate a few caves so at least one cluster lands
     const crystals = [0, 1, 2, 3].flatMap(() => cave('spring').props.filter(p => p.type === 'crystal'))
@@ -158,9 +162,9 @@ describe('generateStage — cave: scattered features', () => {
   })
 })
 
-describe('generateStage — cave: a clear walkable entrance region', () => {
+describe('generateStage, cave: a clear walkable entrance region', () => {
   // SWEPT OVER SEEDS, not repeated over unseeded rolls. This ran 6 unseeded caves and flaked roughly one run
-  // in three — and the flake was TRUE: a pool stamped across the entrance corridor left the chamber severed,
+  // in three, and the flake was TRUE: a pool stamped across the entrance corridor left the chamber severed,
   // the floor repair kept the largest region and filled the severed pocket, and ~3% of caves came out with no
   // entrance at all. An unseeded loop can only tell you that sometimes-something-is-wrong; seeding names the
   // caves, so the bound below is a real one and a regression reproduces instead of haunting the suite.
@@ -183,7 +187,7 @@ describe('generateStage — cave: a clear walkable entrance region', () => {
   })
 })
 
-describe('generateStage — cave: seeded enemies land on floor cells', () => {
+describe('generateStage, cave: seeded enemies land on floor cells', () => {
   it('scatters cave enemies (bats/spiders/skeletons) only onto walkable floor', () => {
     const stage = cave('summer')
     const enemies = scatterEntities({

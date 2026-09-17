@@ -1,9 +1,9 @@
 /**
- * REAL-CANVAS tests for the composition placement GHOST — the translucent shadow drawn at the hovered cell
+ * REAL-CANVAS tests for the composition placement GHOST, the translucent shadow drawn at the hovered cell
  * BEFORE the click so you see the footprint (how many cells/blocks) and roughly how it looks. Rendered to a
  * real rasteriser and read back in PIXELS:
  *   • ISO: each footprint cell paints a translucent tinted diamond; a raised outline gives a volume hint;
- *   • the tint reads the "can I drop it here?" state — GREEN when valid, RED when blocked;
+ *   • the tint reads the "can I drop it here?" state, GREEN when valid, RED when blocked;
  *   • FLAT (top-down): each footprint cell paints a translucent tinted square at its screen position;
  *   • an empty footprint draws nothing (nothing armed → no ghost).
  */
@@ -30,7 +30,7 @@ function tintCounts(canvas: Canvas, x: number, y: number, w: number, h: number):
   return { opaque, green, red }
 }
 
-// A simple, invertible iso projection for the test — col/row → screen. Half-diamond 40×20, 24px per level.
+// A simple, invertible iso projection for the test, col/row → screen. Half-diamond 40×20, 24px per level.
 const TW = 40, TH = 20, HS = 24
 const toScreen = (col: number, row: number) => ({ x: 200 + (col - row) * TW, y: 160 + (col + row) * TH })
 
@@ -47,7 +47,7 @@ describe('ISO ghost: translucent footprint diamonds, green when valid / red when
     expect(t.red).toBe(0)                 // not red
   })
 
-  test('a BLOCKED (invalid) ghost paints RED instead — the same footprint, a different read', () => {
+  test('a BLOCKED (invalid) ghost paints RED instead, the same footprint, a different read', () => {
     const cv = H.makeCanvas(400, 320)
     const ctx = cv.getContext('2d') as unknown as CanvasRenderingContext2D
     const ghost: CompositionGhost = { cells: [{ col: 3, row: 3 }], valid: false, height: 2 }
@@ -104,7 +104,7 @@ describe('FLAT ghost (top-down): a translucent tinted square per footprint cell'
   })
 })
 
-describe('compositionGhostColors — the validity tint contract', () => {
+describe('compositionGhostColors, the validity tint contract', () => {
   test('valid is a green fill/edge; invalid is a red fill/edge', () => {
     const ok = compositionGhostColors(true)
     const bad = compositionGhostColors(false)

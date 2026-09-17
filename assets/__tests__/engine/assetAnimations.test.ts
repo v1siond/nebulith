@@ -1,6 +1,6 @@
 import { ASSET_ANIMATIONS, assetAnimFrame, assetCycleFrame } from '@/engine/assetAnimations'
 
-describe('assetAnimations — ambient per-type asset animation', () => {
+describe('assetAnimations, ambient per-type asset animation', () => {
   it('cycles the flower through its frames over time (and loops)', () => {
     const f = ASSET_ANIMATIONS.flower
     const per = f.durationMs / f.frames.length // 400ms per frame
@@ -10,7 +10,7 @@ describe('assetAnimations — ambient per-type asset animation', () => {
     expect(assetAnimFrame('flower', f.durationMs)).toEqual(f.frames[0]) // wraps
   })
 
-  it('is deterministic — same (type, now) → same frame', () => {
+  it('is deterministic, same (type, now) → same frame', () => {
     expect(assetAnimFrame('flower', 1234)).toEqual(assetAnimFrame('flower', 1234))
   })
 

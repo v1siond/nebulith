@@ -1,12 +1,12 @@
 /**
- * ABILITIES — the data-driven model behind the combat ability system (see docs/ability-system.md).
+ * ABILITIES, the data-driven model behind the combat ability system (see docs/ability-system.md).
  *
  * The engine seeds a library of ability ANIMATIONS; an ability is composed by attaching one of them
  * to data (category, cooldown, requirements, effect magnitudes). Entities equip up to 4, bound to
- * keys 1–4. Pure module: no rendering, no React — the play loop reads these + the cooldown helper.
+ * keys 1-4. Pure module: no rendering, no React, the play loop reads these + the cooldown helper.
  *
- * The BACKEND serves the registry — abilities spanning every category (offensive melee/ranged, defensive,
- * protection, debuff, healing) — and the inventory's "browse abilities" modal lists them and assigns one
+ * The BACKEND serves the registry, abilities spanning every category (offensive melee/ranged, defensive,
+ * protection, debuff, healing), and the inventory's "browse abilities" modal lists them and assigns one
  * into a slot. Adding or editing an ability is a row in nebulith's `abilities` table (§3.14b #2); the
  * lookup and loadout helpers here stay untouched, so the editor + progress system can plug in later
  * without reshaping this.
@@ -15,7 +15,7 @@ import { NEBULITH_API } from '@/lib/nebulithApi'
 
 export type AbilityCategory = 'offensive' | 'defensive' | 'debuff' | 'protection' | 'healing'
 
-/** The fixed library of animations the engine ships — an author attaches one to an ability. */
+/** The fixed library of animations the engine ships, an author attaches one to an ability. */
 export type AbilityAnimation =
   | 'fire-slash' | 'ice-slash' | 'cleave' // melee
   | 'bolt' | 'piercing-shot' // ranged
@@ -47,10 +47,10 @@ export interface AbilityDef {
   effect: AbilityEffect
 }
 
-/** Every animation the engine ships — TYPE data (which animations exist), not a by-product of a colour
+/** Every animation the engine ships, TYPE data (which animations exist), not a by-product of a colour
  *  table. The per-animation COLOUR is backend tile data: each of these labels is an FX tile row carrying the
  *  tint in its own `settings`, so `abilityTint()` reads it instead of the frontend re-declaring it
- *  (§3.14b #2 — the old `ABILITY_TINT` map duplicated nine hexes the API already served, identically in both
+ *  (§3.14b #2, the old `ABILITY_TINT` map duplicated nine hexes the API already served, identically in both
  *  styles and across every zone). */
 export const ABILITY_ANIMATIONS: readonly AbilityAnimation[] = [
   'fire-slash', 'ice-slash', 'cleave',
@@ -59,9 +59,9 @@ export const ABILITY_ANIMATIONS: readonly AbilityAnimation[] = [
   'heal-glow', 'guard-flash',
 ]
 
-// ── the ability REGISTRY — BACKEND DATA (§3.14b #2) ──────────────────────────────────
+// ── the ability REGISTRY, BACKEND DATA (§3.14b #2) ──────────────────────────────────
 /**
- * The registry used to be 13 `AbilityDef` constants right here — name, description, category, cooldown and
+ * The registry used to be 13 `AbilityDef` constants right here, name, description, category, cooldown and
  * effect, all frontend literals. The rows live in nebulith's
  * `abilities` table now and arrive via `GET /api/abilities`.
  *
@@ -69,7 +69,7 @@ export const ABILITY_ANIMATIONS: readonly AbilityAnimation[] = [
  * Fire Slash, so the browse modal shows what the backend has and says so when it has nothing.
  *
  * There is deliberately no colour: an ability names the FX TILE it plays (`animation`), and that tile row
- * carries the tint — which is what `abilityTint()` reads. The old `ABILITY_TINT` map duplicated nine hexes
+ * carries the tint, which is what `abilityTint()` reads. The old `ABILITY_TINT` map duplicated nine hexes
  * the API already served.
  */
 let REGISTRY: readonly AbilityDef[] = []
@@ -123,12 +123,12 @@ export function abilityRegistry(): readonly AbilityDef[] {
   return REGISTRY
 }
 
-/** Look an ability up by id. Undefined when the registry has no such row — never a stand-in. */
+/** Look an ability up by id. Undefined when the registry has no such row, never a stand-in. */
 export function getAbility(id: string): AbilityDef | undefined {
   return REGISTRY.find(a => a.id === id)
 }
 
-// ── loadout: up to 4 abilities on keys 1–4 (rebindable) ──────────────────────────────
+// ── loadout: up to 4 abilities on keys 1-4 (rebindable) ──────────────────────────────
 
 export type AbilitySlot = 1 | 2 | 3 | 4
 export interface AbilityBinding {
@@ -138,11 +138,11 @@ export interface AbilityBinding {
 }
 
 /**
- * The default player loadout — slot/key 1 holds the registry's FIRST ability.
+ * The default player loadout, slot/key 1 holds the registry's FIRST ability.
  *
  * A FUNCTION over the loaded registry, not a const naming `FIRE_SLASH`: the registry is backend data now
  * (§3.14b #2), so a hardcoded default would name an ability the catalog might not serve. An EMPTY registry
- * yields an EMPTY loadout — the player simply has no ability bound yet, which is the truth.
+ * yields an EMPTY loadout, the player simply has no ability bound yet, which is the truth.
  */
 export function defaultAbilityLoadout(): readonly AbilityBinding[] {
   const first = REGISTRY[0]
@@ -161,7 +161,7 @@ export function meetsRequirements(ability: AbilityDef, ctx: { level?: number; we
   const req = ability.requirements
   if (!req) return true
   if (req.weaponKind && ctx.weaponKind !== req.weaponKind) return false
-  // level gate intentionally NOT enforced yet — see docs/ability-system.md (progress system).
+  // level gate intentionally NOT enforced yet, see docs/ability-system.md (progress system).
   return true
 }
 
@@ -172,7 +172,7 @@ export function bindingForKey(loadout: readonly AbilityBinding[], key: string): 
 
 // ── editing a loadout: assign / remove abilities by slot (the configurable bit) ────────
 
-/** Every slot, in HUD + key order — what the inventory UI and the action bar iterate. */
+/** Every slot, in HUD + key order, what the inventory UI and the action bar iterate. */
 export const ABILITY_SLOTS: readonly AbilitySlot[] = [1, 2, 3, 4]
 
 /** The binding occupying a slot, or undefined. Pure. */
@@ -197,8 +197,8 @@ export function removeAbility(loadout: readonly AbilityBinding[], slot: AbilityS
 }
 
 /** Rebind the trigger KEY of the binding in `slot` (abilities are user-keyed; they default to
- *  1–4 but the player can map any key). If another binding already holds `key`, the two SWAP keys
- *  so every binding keeps a unique trigger — that's what keeps the ability and special-action sets
+ *  1-4 but the player can map any key). If another binding already holds `key`, the two SWAP keys
+ *  so every binding keeps a unique trigger, that's what keeps the ability and special-action sets
  *  from silently colliding. No-op if the slot is empty. Returns a NEW slot-ordered loadout; input
  *  untouched. Pure. */
 export function rebindAbility(

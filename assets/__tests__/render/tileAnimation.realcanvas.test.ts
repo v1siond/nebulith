@@ -1,10 +1,10 @@
 /**
- * REAL-CANVAS tile-animation tests — Phase 2 render wiring (@napi-rs/canvas, the project standard).
+ * REAL-CANVAS tile-animation tests, Phase 2 render wiring (@napi-rs/canvas, the project standard).
  *
  * MODEL: every tile is a baked backend IMAGE resolved by label; colour FILTERS it. A placed asset can carry
  * `animations` (settings tweens) + a `placedAt` anchor; the RAF render path resolves their LIVE per-frame
  * overrides (`resolveAssetAnimation`) and drives THIS frame's opacity / screen position / colour-size from
- * them — scoped by each animation's `scope{styles,views}` so it only plays in the active (style, view).
+ * them, scoped by each animation's `scope{styles,views}` so it only plays in the active (style, view).
  *
  * These drive the ACTUAL view render functions (iso `render`, 2D `render2D`, top `renderTopView`) onto a real
  * rasteriser and read the PIXELS of a MAGENTA animated tile over each view's dark background:
@@ -82,7 +82,7 @@ function topCanvas(grid: IsometricGrid, clock: number, style: Style): Canvas {
 // Magenta "weight" of a pixel: how strongly BOTH red and blue exceed green (0 for grass/gold/white/navy).
 const magentaWeight = (r: number, g: number, b: number): number => Math.max(0, Math.min(r - g, b - g))
 
-/** Total magenta mass on the canvas — scales with the tile's opacity (its size × per-pixel strength). */
+/** Total magenta mass on the canvas, scales with the tile's opacity (its size × per-pixel strength). */
 function magentaMass(cv: Canvas): number {
   const { data } = cv.getContext('2d').getImageData(0, 0, cv.width, cv.height)
   let mass = 0
@@ -93,7 +93,7 @@ function magentaMass(cv: Canvas): number {
   return mass
 }
 
-/** The magenta pixels' weighted-mean ROW — a smaller row means the tile drew HIGHER on the screen. */
+/** The magenta pixels' weighted-mean ROW, a smaller row means the tile drew HIGHER on the screen. */
 function magentaCentroidRow(cv: Canvas): number {
   const { data, width } = cv.getContext('2d').getImageData(0, 0, cv.width, cv.height)
   let sum = 0, weighted = 0
@@ -138,7 +138,7 @@ afterAll(() => {
   }
 })
 
-describe('opacity 1→0 makes the drawn tile progressively more transparent — all three views', () => {
+describe('opacity 1→0 makes the drawn tile progressively more transparent, all three views', () => {
   test('ISO: magenta mass shrinks monotonically as the fade progresses, ~gone at the end', () => {
     const full = magentaMass(isoCanvas(makeGrid({ animations: [anim()] }), T0, EMOJI_STYLE))         // op 1.0
     const half = magentaMass(isoCanvas(makeGrid({ animations: [anim()] }), T0 + DUR * 0.5, EMOJI_STYLE)) // op 0.5
@@ -165,7 +165,7 @@ describe('opacity 1→0 makes the drawn tile progressively more transparent — 
   })
 })
 
-describe('a y-rise lifts the drawn tile UP the screen — all three views', () => {
+describe('a y-rise lifts the drawn tile UP the screen, all three views', () => {
   const rise = (): SettingsAnimation => anim({ tracks: [{ setting: 'y', from: 0, to: 3 }] }) // rise 3 tiles
 
   test('ISO: the magenta centroid moves UP (smaller row) over the rise', () => {
@@ -188,19 +188,19 @@ describe('a y-rise lifts the drawn tile UP the screen — all three views', () =
   })
 })
 
-describe('scope gates playback to the active (style, view) — out of scope, the tile is NOT animated', () => {
+describe('scope gates playback to the active (style, view), out of scope, the tile is NOT animated', () => {
   test('a VIEW-scoped (iso-only) fade does NOT fade in the 2D view (tile mass ≈ the un-animated baseline)', () => {
     const baseline = magentaMass(twoDCanvas(makeGrid({}), T0 + DUR, EMOJI_STYLE))
     const scopedOut = magentaMass(twoDCanvas(makeGrid({ animations: [anim({ scope: { views: ['iso'] } })] }), T0 + DUR, EMOJI_STYLE))
     expect(baseline).toBeGreaterThan(1000)
-    expect(relClose(scopedOut, baseline, 0.03)).toBe(true) // untouched — the iso-only fade never ran in 2D
+    expect(relClose(scopedOut, baseline, 0.03)).toBe(true) // untouched, the iso-only fade never ran in 2D
   })
 
   test('a STYLE-scoped (emoji-only) fade does NOT fade under the ASCII style (tile mass ≈ baseline)', () => {
     const baseline = magentaMass(isoCanvas(makeGrid({}), T0 + DUR, ASCII_STYLE))
     const scopedOut = magentaMass(isoCanvas(makeGrid({ animations: [anim({ scope: { styles: ['emoji'] } })] }), T0 + DUR, ASCII_STYLE))
     expect(baseline).toBeGreaterThan(1000)
-    expect(relClose(scopedOut, baseline, 0.03)).toBe(true) // untouched — the emoji-only fade never ran under ASCII
+    expect(relClose(scopedOut, baseline, 0.03)).toBe(true) // untouched, the emoji-only fade never ran under ASCII
   })
 
   test('POSITIVE: the SAME fade scoped to the 2D view DOES fade it there (the exclusion above isn’t vacuous)', () => {
@@ -210,9 +210,9 @@ describe('scope gates playback to the active (style, view) — out of scope, the
   })
 })
 
-describe('default (no animations) is unchanged — the un-animated tile is clock-invariant', () => {
+describe('default (no animations) is unchanged, the un-animated tile is clock-invariant', () => {
   // The scope tests above already prove a NON-applied animation is byte-identical to no animation (same frame).
-  // Here: an asset with NO animations must render the SAME tile at any clock time — the Phase-2 wiring adds no
+  // Here: an asset with NO animations must render the SAME tile at any clock time, the Phase-2 wiring adds no
   // time dependence. (Full-scene bytes DO drift because the player's idle bob breathes with time, so we isolate
   // the tile via its magenta mass + centroid, which the wiring must leave perfectly stable.)
   const stable = (make: (g: IsometricGrid, t: number, s: Style) => Canvas) => {

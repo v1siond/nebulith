@@ -2,13 +2,13 @@
  * DEAD cell-anim PRESET CARD removed from the CELL inspector.
  *
  * The right-sidebar "ANIMATION" card (preset buttons Wind sway / Flower sway / Lamp flicker /
- * Bush rustle + Preview / Apply) was a dead authoring path — it wrote asset.cellAnim via the old
+ * Bush rustle + Preview / Apply) was a dead authoring path, it wrote asset.cellAnim via the old
  * frame-preset flow and was superseded by the real per-asset TileAnimationEditor modal. It's gone.
  *
  * These tests lock the removal two pathways:
- *   1. STRUCTURE — the real animation entry (the Animation row, which opens TileAnimationEditor on the
+ *   1. STRUCTURE, the real animation entry (the Animation row, which opens TileAnimationEditor on the
  *      first click) still renders on an asset tile, and the dead preset controls never render.
- *   2. SOURCE GUARD — the page source no longer carries the preset card markup or its exclusive wiring,
+ *   2. SOURCE GUARD, the page source no longer carries the preset card markup or its exclusive wiring,
  *      while the TileAnimationEditor modal wiring is untouched. (The card lived inline in the page, so a
  *      source assertion is the honest regression guard against it being re-added as a sibling.)
  */
@@ -41,7 +41,7 @@ function assetTile(overrides: Partial<TileControlModel> = {}): TileControlModel 
   }
 }
 
-describe('Cell inspector — the real TileAnimationEditor entry survives', () => {
+describe('Cell inspector, the real TileAnimationEditor entry survives', () => {
   it('an asset tile still shows the "Animate…" entry and it fires onOpenAnimator', () => {
     const onOpenAnimator = jest.fn()
     render(
@@ -54,7 +54,7 @@ describe('Cell inspector — the real TileAnimationEditor entry survives', () =>
         onLevel={jest.fn()}
       />,
     )
-    // The row IS the entry now, no "✦ Animate…" button underneath it — a section whose only content was a
+    // The row IS the entry now, no "✦ Animate…" button underneath it, a section whose only content was a
     // launch button became the launch button (the ).
     const animate = screen.getByRole('button', { name: 'Animation' })
     expect(animate).toBeInTheDocument()
@@ -77,7 +77,7 @@ describe('Cell inspector — the real TileAnimationEditor entry survives', () =>
   })
 })
 
-describe('Cell inspector — the dead cell-anim PRESET card is gone', () => {
+describe('Cell inspector, the dead cell-anim PRESET card is gone', () => {
   it('the inspector never renders the preset buttons or Preview/Apply', () => {
     render(
       <PropertiesPanel sectionOpen={() => true} onToggleSection={jest.fn()}
@@ -92,13 +92,13 @@ describe('Cell inspector — the dead cell-anim PRESET card is gone', () => {
     for (const name of PRESET_NAMES) {
       expect(screen.queryByRole('button', { name })).toBeNull()
     }
-    // the dead card's action buttons — "Preview"/"Apply" belonged only to that preset card.
+    // the dead card's action buttons, "Preview"/"Apply" belonged only to that preset card.
     expect(screen.queryByRole('button', { name: 'Preview' })).toBeNull()
     expect(screen.queryByRole('button', { name: 'Apply' })).toBeNull()
   })
 })
 
-describe('templates page source — preset card + exclusive wiring removed', () => {
+describe('templates page source, preset card + exclusive wiring removed', () => {
   const src = readFileSync(TEMPLATES_SRC, 'utf8')
 
   it('drops the preset card markup and its exclusive handlers/state', () => {

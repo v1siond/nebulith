@@ -1,6 +1,6 @@
 import { commonValue, commonBool, cellsFromKeys } from '@/game/editor/selectionEdit'
 
-describe('commonValue — shared value across a multi-selection (else "mixed")', () => {
+describe('commonValue, shared value across a multi-selection (else "mixed")', () => {
   it('returns the shared value when every item matches', () => {
     expect(commonValue(['#ff0000', '#ff0000', '#ff0000'])).toBe('#ff0000')
     expect(commonValue([3, 3])).toBe(3)
@@ -14,7 +14,7 @@ describe('commonValue — shared value across a multi-selection (else "mixed")',
   })
 })
 
-describe('commonBool — collision summary across the selection', () => {
+describe('commonBool, collision summary across the selection', () => {
   it('all blocked → true, all clear → false, mixed → null', () => {
     expect(commonBool([true, true, true])).toBe(true)
     expect(commonBool([false, false])).toBe(false)
@@ -22,7 +22,7 @@ describe('commonBool — collision summary across the selection', () => {
   })
 })
 
-describe('cellsFromKeys — parse "col,row" selection keys', () => {
+describe('cellsFromKeys, parse "col,row" selection keys', () => {
   it('parses valid keys and skips malformed ones', () => {
     expect(cellsFromKeys(['3,4', '10,2'])).toEqual([{ col: 3, row: 4 }, { col: 10, row: 2 }])
     expect(cellsFromKeys(['bad', '5,6'])).toEqual([{ col: 5, row: 6 }])

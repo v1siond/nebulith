@@ -1,19 +1,19 @@
 /**
  * DATA-DRIVEN entity animation. An animation is AUTHORED DATA that rides on an entity and saves/
  * loads with it (the "seed"); the game is a DUMB PLAYER that reads the data and executes it. There
- * is NO hardcoded "when to swap to 🚶" / "when to flip" logic — every such decision is a property of
+ * is NO hardcoded "when to swap to 🚶" / "when to flip" logic, every such decision is a property of
  * a frame or a trigger in the data. "Emoji" is just one kind of frame asset; an uploaded image tile
  * is the same shape. See docs/animation-system.md.
  *
  *   entity.animations: EntityAnimation[]   // authored via the Inspector; frame 0 is the entity's own tile
  *
  * Playback each render frame:
- *   1. selectAnimation(anims, input)  — pick the animation whose trigger matches the current input
+ *   1. selectAnimation(anims, input) , pick the animation whose trigger matches the current input
  *      (action → key-hold → move+facing → idle);
- *   2. loopFrameIndex(anim, now)      — which frame is showing now (stateless: derived from `now`,
+ *   2. loopFrameIndex(anim, now)     , which frame is showing now (stateless: derived from `now`,
  *      honoring loopDelay by resting on frame 0 between loops);
- *   3. resolveFrame(frame, base)      — the glyph/image (+ mirror flag) to actually draw.
- * `activeFrame(...)` chains all three. Pure — unit-tested; no DOM/grid access.
+ *   3. resolveFrame(frame, base)     , the glyph/image (+ mirror flag) to actually draw.
+ * `activeFrame(...)` chains all three. Pure, unit-tested; no DOM/grid access.
  */
 import { visualForTileId, type ImageVisual } from '@/game/artStyle'
 // The shared animation modal authors every animation as a tileAnimation `Animation`; a unit's frame-swap set
@@ -22,11 +22,11 @@ import { visualForTileId, type ImageVisual } from '@/game/artStyle'
 import type { Animation, SpriteAnimation } from '@/engine/animation/tileAnimation'
 
 export type AnimDirection = 'up' | 'down' | 'left' | 'right' | 'any'
-/** Concrete facing (never 'any') — what the live input reports. */
+/** Concrete facing (never 'any'), what the live input reports. */
 export type Facing = 'up' | 'down' | 'left' | 'right'
 
 /** What makes an animation play. `on` is the event; a `move` trigger can require running via
- *  `whileRunning`; a `key` trigger names the bound key + tap/hold. All data — the player just checks. */
+ *  `whileRunning`; a `key` trigger names the bound key + tap/hold. All data, the player just checks. */
 export interface AnimTrigger {
   on: 'idle' | 'move' | 'attack' | 'interact' | 'key'
   /** move only: this variant plays while running (Shift) instead of the plain walk. */
@@ -38,7 +38,7 @@ export interface AnimTrigger {
 
 /** One frame. `tileId` selects a catalog tile (emoji OR image); `char` is a raw glyph for quick seed
  *  frames; BOTH empty → the entity's own base tile (so frame 0 = "the entity as-is"). `flipX` mirrors
- *  the frame horizontally — a DATA property (e.g. a right-facing walk reuses the left-facing emoji
+ *  the frame horizontally, a DATA property (e.g. a right-facing walk reuses the left-facing emoji
  *  flipped), never a JS decision. */
 export interface AnimFrame {
   tileId?: string
@@ -101,7 +101,7 @@ export function selectAnimation(anims: readonly EntityAnimation[], input: AnimIn
 }
 
 /**
- * Which frame index shows at `now` — stateless, derived from `now` so a continuously-playing loop
+ * Which frame index shows at `now`, stateless, derived from `now` so a continuously-playing loop
  * needs no start timestamp. Frames spread evenly across `durationMs`; during `loopDelayMs` the
  * animation rests on frame 0.
  */
@@ -138,7 +138,7 @@ export function activeFrame(anims: readonly EntityAnimation[] | undefined, base:
 
 // ── the SEED: a person's default walk/run/idle, authored AS DATA ────────────────
 // Frame 0 is empty → the entity's own DB tile (🧍 → player.png under emoji). The moving frame is the baked
-// walk (🚶 → emoji:walk) or run (🏃 → emoji:run) DB tile — the SAME consistent Noto font as every other
+// walk (🚶 → emoji:walk) or run (🏃 → emoji:run) DB tile, the SAME consistent Noto font as every other
 // tile, never a raw OS glyph. A right-facing move reuses the tile with flipX in the DATA (the renderer only
 // honors the flag). Replaced/extended per-entity once the Inspector authoring lands (Stage 2).
 const WALK_TILE = 'emoji:walk'
@@ -152,7 +152,7 @@ function move(dir: Facing, running: boolean): EntityAnimation {
     name: `${running ? 'run' : 'walk'} ${dir}`,
     trigger: { on: 'move', ...(running ? { whileRunning: true } : {}) },
     direction: dir,
-    // The walk cycle is the moving tile then the SAME tile MIRRORED — never back to the idle figure (that
+    // The walk cycle is the moving tile then the SAME tile MIRRORED, never back to the idle figure (that
     // flickered idle↔walk). Same tile both frames → one consistent figure; the mirror gives the step motion.
     frames: [{ tileId: motionTile }, { tileId: motionTile, flipX: true }],
     durationMs: running ? 300 : 440,
@@ -168,7 +168,7 @@ export const DEFAULT_CHARACTER_ANIMATIONS: readonly EntityAnimation[] = [
   ...DIRS.map(d => move(d, true)),
 ]
 
-/** A fresh, EDITABLE deep copy of the default person animations — SEEDED onto a person entity at
+/** A fresh, EDITABLE deep copy of the default person animations, SEEDED onto a person entity at
  *  creation so the authored set shows in the Inspector + saves with the entity. (The renderer's
  *  `DEFAULT_CHARACTER_ANIMATIONS` fallback only covers entities minted before seeding.) */
 export function seedCharacterAnimations(): EntityAnimation[] {
@@ -179,13 +179,13 @@ export function seedCharacterAnimations(): EntityAnimation[] {
   }))
 }
 
-/** A RANDOMIZED movement animation, authored AS DATA — the one-off the editor drops on a unit for the
+/** A RANDOMIZED movement animation, authored AS DATA, the one-off the editor drops on a unit for the
  *  top-nav "Animated" placement, and the same thing the Animate modal's 🎲 button appends. It swaps the
  *  unit's OWN tile (frame 0) with its MIRROR (a visible step), fires on `move` in ANY direction so it shows
- *  however the unit wanders, and randomizes only the step cadence — a different feel every roll, no tile
+ *  however the unit wanders, and randomizes only the step cadence, a different feel every roll, no tile
  *  picker needed. Editable like any other animation once it lands (name/frames/direction all patchable). */
 export function randomMovementAnimation(rng: () => number = Math.random): EntityAnimation {
-  const durationMs = 260 + Math.floor(rng() * 260) // 260–520ms: a brisk-to-lazy step
+  const durationMs = 260 + Math.floor(rng() * 260) // 260-520ms: a brisk-to-lazy step
   const suffix = Math.floor(rng() * 1e9).toString(36)
   return {
     id: `rand-move-${suffix}`,
@@ -205,7 +205,7 @@ const OUTDATED_SEED_CHARS: ReadonlySet<string> = new Set(['🚶', '🏃'])
 
 /** True when a person's animation set should be RESEEDED from the current default: it's empty (never
  *  seeded), OR it's the outdated hardcoded-emoji default (a frame still carries a raw 🚶/🏃 instead of the
- *  DB pose tile). A CUSTOM set — anything without those raw glyphs — is preserved untouched. This is how
+ *  DB pose tile). A CUSTOM set, anything without those raw glyphs, is preserved untouched. This is how
  *  persons saved with the old seed pick up the baked DB tiles on load ("remove old anims + reseed"). */
 export function needsAnimationReseed(anims: readonly EntityAnimation[] | undefined): boolean {
   if (!anims || anims.length === 0) return true
@@ -215,7 +215,7 @@ export function needsAnimationReseed(anims: readonly EntityAnimation[] | undefin
 // ── the bridge: a unit's frame-swap animation ⇄ the shared modal's `sprite` kind ─────────────────────
 // The tile settings modal authors every animation as a tileAnimation `Animation`; the user asked for the
 // character animation to BE the sprite kind inside that one modal. A unit still STORES EntityAnimation[]
-// (the renderer plays it via activeFrame — unchanged), so the modal edits the SPRITE VIEW of each animation
+// (the renderer plays it via activeFrame, unchanged), so the modal edits the SPRITE VIEW of each animation
 // and writes the plain entity shape back. The mapping is lossless: every EntityAnimation field has a home on
 // the sprite envelope (id/name/durationMs/loopDelayMs/loop on the base; trigger→spriteTrigger; direction; frames).
 
@@ -251,10 +251,10 @@ export function entityFromSprite(anim: SpriteAnimation): EntityAnimation {
 }
 
 // ── the unified UNIT storage bridge: `Entity.unitAnimations: Animation[]` ⇄ render `EntityAnimation[]` ──────
-// The user: units and tiles must use the IDENTICAL modal — BOTH the settings AND the sprite add-buttons. That
+// The user: units and tiles must use the IDENTICAL modal, BOTH the settings AND the sprite add-buttons. That
 // means a unit STORES the same unified `Animation[]` a tile does (settings-kind + sprite-kind), authored in
 // `Entity.unitAnimations`. But the RENDERER (iso/topdown) + `PlayerState` still read the frame-swap list as
-// `EntityAnimation[]` via `activeFrame`, unchanged — so `Entity.animations` stays that render projection, kept
+// `EntityAnimation[]` via `activeFrame`, unchanged, so `Entity.animations` stays that render projection, kept
 // in sync from the sprite subset of `unitAnimations`. These two pure helpers ARE that lossless bridge.
 
 /** Project a unit's unified authored list to the `EntityAnimation[]` the renderer/runtime plays. Only the
@@ -267,7 +267,7 @@ export function entityAnimationsFromUnit(anims: readonly Animation[] | undefined
 }
 
 /** Lift a legacy sprite-only `EntityAnimation[]` (a unit minted before `unitAnimations` existed) to the unified
- *  `Animation[]` the shared modal authors — every EntityAnimation is a sprite Animation (`spriteFromEntity`).
+ *  `Animation[]` the shared modal authors, every EntityAnimation is a sprite Animation (`spriteFromEntity`).
  *  The fallback read when a unit has no `unitAnimations` yet, so its seeded walk/idle still shows in the modal. PURE. */
 export function unitAnimationsFromEntity(anims: readonly EntityAnimation[] | undefined): Animation[] {
   if (!anims) return []

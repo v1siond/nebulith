@@ -1,7 +1,7 @@
 /**
  * RANDOM animation authoring (+ the top-nav "Animated" placement drops one on automatically).
  *
- *   1. randomMovementAnimation() — the DATA a "random" drop produces: a `move`-triggered, any-direction walk
+ *   1. randomMovementAnimation(), the DATA a "random" drop produces: a `move`-triggered, any-direction walk
  *      cycle (own tile → mirrored) with a randomized cadence. Deterministic under an injected rng.
  *   2. The Animate modal's 🎲 button appends that as a sprite-kind animation (editable like any other row).
  */
@@ -11,7 +11,7 @@ import { TileAnimationEditor } from '@/components/game/editorChrome'
 import { randomMovementAnimation } from '@/game/runtime/entityAnimation'
 import type { Animation } from '@/engine/animation/tileAnimation'
 
-describe('randomMovementAnimation() — the DATA a random drop produces', () => {
+describe('randomMovementAnimation(), the DATA a random drop produces', () => {
   it('is a move-triggered, any-direction, looping walk cycle (own tile → mirrored)', () => {
     const anim = randomMovementAnimation(() => 0)
     expect(anim.trigger).toEqual({ on: 'move' })
@@ -21,7 +21,7 @@ describe('randomMovementAnimation() — the DATA a random drop produces', () => 
     expect(anim.frames).toHaveLength(2)
     expect(anim.frames[0]).toEqual({})
     expect(anim.frames[1]).toEqual({ flipX: true })
-    // cadence is randomized within a sane 260–520ms band.
+    // cadence is randomized within a sane 260-520ms band.
     expect(anim.durationMs).toBeGreaterThanOrEqual(260)
     expect(anim.durationMs).toBeLessThanOrEqual(520)
   })
@@ -57,7 +57,7 @@ function Harness({ kinds }: { kinds?: readonly ('settings' | 'sprite')[] }) {
 }
 const readState = (): Animation[] => JSON.parse(screen.getByTestId('state').textContent || '[]')
 
-describe('Animate modal — the 🎲 Random button appends a random movement animation', () => {
+describe('Animate modal, the 🎲 Random button appends a random movement animation', () => {
   it('a unit modal (kinds=[sprite]) offers the random add, and it writes a sprite move cycle', () => {
     render(<Harness kinds={['sprite']} />)
     const random = screen.getByRole('button', { name: /Add random animation/i })
@@ -72,7 +72,7 @@ describe('Animate modal — the 🎲 Random button appends a random movement ani
     expect(s.frames[1]).toEqual({ flipX: true })
   })
 
-  it('appends alongside a manually-built one (random OR manual — both coexist and are editable)', () => {
+  it('appends alongside a manually-built one (random OR manual, both coexist and are editable)', () => {
     render(<Harness kinds={['sprite']} />)
     fireEvent.click(screen.getByRole('button', { name: /Add sprite animation/i })) // manual
     fireEvent.click(screen.getByRole('button', { name: /Add random animation/i })) // random

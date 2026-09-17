@@ -1,14 +1,14 @@
 /**
- * THE PLAYER'S UI — the element inventory and the layouts, ported from the approved design at :8899.
+ * THE PLAYER'S UI, the element inventory and the layouts, ported from the approved design at :8899.
  *
  * IMPORTANT, and the reason this file holds DEFAULTS rather than reading the backend: configuring the HUD
  * has never existed. `ui_profiles` / `ui_elements` / `ui_bindings` / `ui_bar_slots` return zero hits across
- * the Elixir lib, every migration and the whole frontend — T-115 is a spec and nothing more. What DOES
+ * the Elixir lib, every migration and the whole frontend, T-115 is a spec and nothing more. What DOES
  * exist is the HUD as FIXED UI (`components/game/hud.tsx`), positioned with hardcoded Tailwind classes.
  *
  * So each element's default anchor and offset below is READ OFF the class it is hardcoded with today (the
  * `now` field records the literal), which makes this a transcription of the product's real layout rather
- * than an invention. Dragging changes it live and it does NOT persist — there is nowhere to save it yet.
+ * than an invention. Dragging changes it live and it does NOT persist, there is nowhere to save it yet.
  * That is stated in the panel, not hidden.
  */
 
@@ -20,7 +20,7 @@ export interface HudElement {
   k: string
   /** What it is, in the user's words. */
   n: string
-  /** The literal positioning it carries TODAY — the evidence behind its default. */
+  /** The literal positioning it carries TODAY, the evidence behind its default. */
   now: string
   /** When it currently shows. */
   vis: string
@@ -29,7 +29,7 @@ export interface HudElement {
 /** Where a piece sits and how it looks. */
 export interface HudPlacement {
   a: HudAnchor
-  /** Offset from the anchor, in game pixels — always positive when moving inward. */
+  /** Offset from the anchor, in game pixels, always positive when moving inward. */
   x: number
   y: number
   w: number
@@ -51,7 +51,7 @@ export type HudLayout = Record<string, HudPlacement>
  *
  * The sign says which way "away from the edge" points, so the numbers a person types are positive when
  * moving inward: a right-anchored piece moves LEFT as x grows. A CENTRED axis has no edge to move away
- * from and keeps the ordinary +1 — the first version put 0 there, which silently discarded every
+ * from and keeps the ordinary +1, the first version put 0 there, which silently discarded every
  * horizontal offset and stacked the whole bottom-centre HUD on one spot.
  */
 export const HUD_ANCHORS: Record<HudAnchor, readonly [number, number, number, number]> = {
@@ -83,7 +83,7 @@ export const HUD_ANCHOR_NAMES: Record<HudAnchor, string> = {
 export const HUD_STAGE = { Desktop: [1280, 720], Mobile: [390, 844] } as const
 export type HudForm = keyof typeof HUD_STAGE
 
-/** §1.7’s real element inventory — every one is a hardcoded literal in the product today. */
+/** §1.7’s real element inventory, every one is a hardcoded literal in the product today. */
 export const HUD_ELEMENTS: readonly HudElement[] = [
   { k: "vitals", n: "Vitals (health / rage / mana)", now: "fixed bottom-4 left-4 z-20 w-64", vis: "while playing" },
   { k: "action_bar", n: "Action bar", now: "inline, fixed", vis: "while playing" },

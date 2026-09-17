@@ -32,7 +32,7 @@ const gotoOnInteract: Trigger = {
 /** A defeat trigger that wins (boss kill = win). */
 const winOnDefeat: Trigger = { id: 't-boss', event: 'defeat', action: 'win', params: {} }
 
-describe('fireTriggers — event matching', () => {
+describe('fireTriggers, event matching', () => {
   it('fires an enter trigger only on the enter event', () => {
     expect(fireTriggers('enter', [winOnEnter])).toEqual([{ kind: 'win' }])
     expect(fireTriggers('interact', [winOnEnter])).toEqual([])
@@ -62,7 +62,7 @@ describe('fireTriggers — event matching', () => {
   })
 })
 
-describe('fireTriggers — effect resolution', () => {
+describe('fireTriggers, effect resolution', () => {
   it('resolves goto carrying templateId + spawn', () => {
     expect(fireTriggers('interact', [gotoOnInteract])).toEqual([
       { kind: 'goto', templateId: 'lvl-2', spawnCol: 4, spawnRow: 9 },

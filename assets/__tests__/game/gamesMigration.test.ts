@@ -40,7 +40,7 @@ describe('importLocalGames', () => {
     expect(clear).toHaveBeenCalled()
   })
 
-  it('KEEPS the key when a create fails — a half-import must not destroy the source', async () => {
+  it('KEEPS the key when a create fails, a half-import must not destroy the source', async () => {
     const createGame = jest.fn()
       .mockResolvedValueOnce({ id: 'uuid-1' })
       .mockRejectedValueOnce(new Error('backend down'))
@@ -51,7 +51,7 @@ describe('importLocalGames', () => {
     expect(clear).not.toHaveBeenCalled()
   })
 
-  it('skips malformed entries rather than throwing — a broken key must not block the editor', async () => {
+  it('skips malformed entries rather than throwing, a broken key must not block the editor', async () => {
     const mixed = [...ONE_GAME, { id: 42 }, null, { name: 'no id' }]
     const { deps, createGame, clear } = harness(stored(mixed))
     await expect(importLocalGames(deps)).resolves.toEqual({ imported: 1, skipped: 3 })

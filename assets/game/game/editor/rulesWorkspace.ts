@@ -1,14 +1,14 @@
 /**
- * THE RULES WORKSPACE (§4.8) — one place for everything that makes the map DO something.
+ * THE RULES WORKSPACE (§4.8), one place for everything that makes the map DO something.
  *
  * §3.8 and §3.9 are the two problems this answers. Quest authoring was reachable only by switching to
- * Select, clicking an NPC, and scrolling its card to a `❒ Quests…` button — so a level with no NPC offered
+ * Select, clicking an NPC, and scrolling its card to a `❒ Quests…` button, so a level with no NPC offered
  * no way to write a quest and said nothing about why (§3.8's "silent dead end"). Connectors were a hidden
  * canvas mode whose on-screen instruction still told you to switch to Top view, which stopped being true
  * (§3.9). Triggers, meanwhile, existed only per-selection: there was no way to see the rules a level
  * already had.
  *
- * §4.8's answer is a three-tab panel — Triggers / Connections / Quests — listing what EXISTS, with the
+ * §4.8's answer is a three-tab panel, Triggers / Connections / Quests, listing what EXISTS, with the
  * add-action and its prerequisite stated rather than implied.
  *
  * This module is the pure part: turning the stored records into the lines the panel shows. It renders
@@ -29,9 +29,9 @@ export interface RulesTabDef {
 
 /** In §4.8's order. The panel renders this table; adding a tab is a row, never a branch. */
 export const RULES_TABS: readonly RulesTabDef[] = [
-  { id: 'triggers', label: 'Triggers', heading: 'Triggers — things that happen' },
-  { id: 'connections', label: 'Connections', heading: 'Connections — doors between levels' },
-  { id: 'quests', label: 'Quests', heading: 'Quests — things to do' },
+  { id: 'triggers', label: 'Triggers', heading: 'Triggers, things that happen' },
+  { id: 'connections', label: 'Connections', heading: 'Connections, doors between levels' },
+  { id: 'quests', label: 'Quests', heading: 'Quests, things to do' },
 ]
 
 // ── plain language ────────────────────────────────────────────────────────────
@@ -52,7 +52,7 @@ export function describeTriggerEvent(event: TriggerEvent): string {
 }
 
 /**
- * WHAT a trigger does, in one phrase — the right-hand side of §4.8's "when defeated → spawn units ×3".
+ * WHAT a trigger does, in one phrase, the right-hand side of §4.8's "when defeated → spawn units ×3".
  *
  * A dispatch map keyed by the Trigger union's discriminant, typed so each row only sees ITS payload. Add a
  * verb to `TriggerActionType` and this stops compiling until the row exists, which is the point: an
@@ -77,7 +77,7 @@ export function describeTriggerAction(trigger: Pick<Trigger, 'action' | 'params'
 
 // ── the rows the panel lists ──────────────────────────────────────────────────
 /**
- * One line in the TRIGGERS tab. `subject` is what carries the rule — a cell or a character — because
+ * One line in the TRIGGERS tab. `subject` is what carries the rule, a cell or a character, because
  * §4.8 lists both together ("Cell (12, 8)", "Guard (24, 9)"): a person thinks in rules, not in which
  * store the rule happens to live in.
  */
@@ -146,7 +146,7 @@ export function connectionRows(connectors: readonly Connector[]): ConnectionRow[
     return {
       id: `${c.targetTemplateId}-${first?.col ?? '?'}-${first?.row ?? '?'}-${i}`,
       where: first ? `(${first.col},${first.row})${extra > 0 ? ` +${extra} cells` : ''}` : 'nowhere yet',
-      // An unnamed target is SAID, not blanked — a connection pointing at a deleted level is a real
+      // An unnamed target is SAID, not blanked, a connection pointing at a deleted level is a real
       // authoring mistake and the panel is where you would notice it.
       target: c.targetTemplateName || c.targetTemplateId || 'no level chosen',
       how: HOW[c.interaction] ?? c.interaction,
@@ -158,7 +158,7 @@ export function connectionRows(connectors: readonly Connector[]): ConnectionRow[
 export interface QuestRow {
   id: string
   title: string
-  /** The NPC who gives it, or null when nothing valid is assigned — §4.8 draws that as a warning. */
+  /** The NPC who gives it, or null when nothing valid is assigned, §4.8 draws that as a warning. */
   giver: string | null
   state: string
   /** "2/5" across all objectives, or null for a quest with no objectives yet. */
@@ -169,8 +169,7 @@ export function questRows(
   quests: readonly Quest[],
   npcs: readonly { id: string; name?: string }[],
 ): QuestRow[] {
-  // An unnamed NPC still IS the giver, so it gets a stand-in label rather than reading as "no giver" —
-  // those are different problems and the panel warns about only one of them.
+  // An unnamed NPC still IS the giver, so it gets a stand-in label rather than reading as "no giver", // those are different problems and the panel warns about only one of them.
   const nameById = new Map(npcs.map(n => [n.id, n.name || 'Unnamed NPC']))
   return quests.map(q => {
     const required = q.objectives.reduce((sum, o) => sum + o.required, 0)

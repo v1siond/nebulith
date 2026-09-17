@@ -2,7 +2,7 @@
  * THE CANVAS MODE CHIP (games-page UX design §4.9; principle §4.1.7 "Modes are visible on the
  * canvas, not implied by which panel is open").
  *
- * The chip answers one question — "what will my next click do?" — so the description must be a pure
+ * The chip answers one question, "what will my next click do?", so the description must be a pure
  * function of the armed tool state, and its precedence must be the SAME precedence the canvas
  * handlers use (`templates.tsx`'s `editorMode`: connector > composition > character > paint >
  * select). If the two disagreed the chip would confidently describe a click the canvas doesn't make.
@@ -29,7 +29,7 @@ describe('the chip names what the next click does', () => {
     expect(chipFor({ armedTileLabel: 'grass' }).what).toBe('Painting "grass"')
   })
 
-  it('tells the painter how to erase — the one non-obvious gesture', () => {
+  it('tells the painter how to erase, the one non-obvious gesture', () => {
     expect(chipFor({ armedTileLabel: 'grass' }).how).toContain('Alt-click erases')
   })
 
@@ -62,7 +62,7 @@ describe('the chip names what the next click does', () => {
     for (const state of armed) expect(chipFor(state).how).toContain('Esc')
   })
 
-  it('does not offer Esc in Select — there is nothing armed to disarm', () => {
+  it('does not offer Esc in Select, there is nothing armed to disarm', () => {
     expect(chipFor({}).how).not.toContain('Esc')
   })
 })

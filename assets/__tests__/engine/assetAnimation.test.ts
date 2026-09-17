@@ -1,5 +1,5 @@
 /**
- * Unit tests for `resolveAssetAnimation` — the render-side bridge that gates a placed asset's animations by
+ * Unit tests for `resolveAssetAnimation`, the render-side bridge that gates a placed asset's animations by
  * (style, view) scope and composes their live per-frame overrides for the renderer. PURE: no canvas, just the
  * value contract every view relies on (opacity multiplier, screen shift with `y` = a RISE, effective-asset
  * field overlay, and the null fast-path that keeps un-animated tiles byte-identical).
@@ -20,7 +20,7 @@ const anim = (over: Partial<SettingsAnimation> = {}): SettingsAnimation => ({
   ...over,
 })
 
-describe('resolveAssetAnimation — the null fast-path (byte-identical when nothing applies)', () => {
+describe('resolveAssetAnimation, the null fast-path (byte-identical when nothing applies)', () => {
   test('no animations → null', () => {
     expect(resolveAssetAnimation(baseAsset(), 500, EMOJI_STYLE, 'iso')).toBeNull()
     expect(resolveAssetAnimation(baseAsset({ animations: [] }), 500, EMOJI_STYLE, 'iso')).toBeNull()
@@ -45,7 +45,7 @@ describe('resolveAssetAnimation — the null fast-path (byte-identical when noth
   })
 })
 
-describe('resolveAssetAnimation — opacity is a MULTIPLIER over the animation window', () => {
+describe('resolveAssetAnimation, opacity is a MULTIPLIER over the animation window', () => {
   test('opacity 1→0 fades to 0 across the duration (anchored at placedAt)', () => {
     const a = baseAsset({ placedAt: 1000, animations: [anim()] })
     expect(resolveAssetAnimation(a, 1000, EMOJI_STYLE, 'iso')!.opacity).toBeCloseTo(1)
@@ -59,7 +59,7 @@ describe('resolveAssetAnimation — opacity is a MULTIPLIER over the animation w
   })
 })
 
-describe('resolveAssetAnimation — screen shift: `y` is a RISE (positive = up)', () => {
+describe('resolveAssetAnimation, screen shift: `y` is a RISE (positive = up)', () => {
   test('a y-track 0→2 grows the (positive) lift over time; x stays 0', () => {
     const a = baseAsset({ animations: [anim({ tracks: [{ setting: 'y', from: 0, to: 2 }] })] })
     const half = resolveAssetAnimation(a, 500, EMOJI_STYLE, 'iso')!
@@ -76,7 +76,7 @@ describe('resolveAssetAnimation — screen shift: `y` is a RISE (positive = up)'
   })
 })
 
-describe('resolveAssetAnimation — field overlay (colour/zoom/width/height) onto the effective asset', () => {
+describe('resolveAssetAnimation, field overlay (colour/zoom/width/height) onto the effective asset', () => {
   test('colour/zoom/width/height are overlaid; the base asset is NOT mutated', () => {
     const base = baseAsset({
       color: '#111111',
@@ -103,7 +103,7 @@ describe('resolveAssetAnimation — field overlay (colour/zoom/width/height) ont
   })
 })
 
-describe('resolveAssetAnimation — animation COMPOSES with the base setting, it does not mask it (Image #40)', () => {
+describe('resolveAssetAnimation, animation COMPOSES with the base setting, it does not mask it (Image #40)', () => {
   test('ADDITIVE height: base scaleY 3 + a height track 1→4 renders 3→6 (base + delta), base stays editable', () => {
     const mk = (base: number) => baseAsset({
       scaleY: base,
@@ -136,19 +136,19 @@ describe('resolveAssetAnimation — animation COMPOSES with the base setting, it
     expect(resolveAssetAnimation(z0, 1000, EMOJI_STYLE, 'iso')!.asset.scale).toBeCloseTo(4)
   })
 
-  test('base ZOOM still applies while HEIGHT animates (the "only zoom applied" report) — both compose', () => {
+  test('base ZOOM still applies while HEIGHT animates (the "only zoom applied" report), both compose', () => {
     const a = baseAsset({
       scale: 0.5, scaleY: 3, // reduced zoom + raised height, together
       animations: [anim({ ease: 'linear', tracks: [{ setting: 'height', from: 1, to: 4 }] })],
     })
     const end = resolveAssetAnimation(a, 1000, EMOJI_STYLE, 'iso')!.asset
-    expect(end.scaleY).toBeCloseTo(6) // height composed (3 + 3) — NOT masked by the animation
+    expect(end.scaleY).toBeCloseTo(6) // height composed (3 + 3), NOT masked by the animation
     expect(end.scale).toBeCloseTo(0.5) // base zoom preserved alongside the active height animation
   })
 })
 
-describe('resolveAssetAnimation — the `night` trigger gates playback to night mode', () => {
-  // A night-triggered flicker (opacity 1→0) — the lamp default: OFF in day, ON at night.
+describe('resolveAssetAnimation, the `night` trigger gates playback to night mode', () => {
+  // A night-triggered flicker (opacity 1→0), the lamp default: OFF in day, ON at night.
   const nightAnim = () => anim({ trigger: { on: 'night' }, tracks: [{ setting: 'opacity', from: 1, to: 0 }] })
 
   test('a night-trigger animation is INERT in day mode (null → byte-identical, no flicker)', () => {
@@ -172,7 +172,7 @@ describe('resolveAssetAnimation — the `night` trigger gates playback to night 
   })
 
   test('with a night + a load animation, day drops ONLY the night one', () => {
-    // load: opacity 1→0 (halves at t=500); night: height 1→4 — at day only the load contributes.
+    // load: opacity 1→0 (halves at t=500); night: height 1→4, at day only the load contributes.
     const a = baseAsset({ placedAt: 0, animations: [
       anim({ id: 'load', trigger: { on: 'load' } }),
       anim({ id: 'night', trigger: { on: 'night' }, ease: 'linear', tracks: [{ setting: 'height', from: 1, to: 4 }] }),
@@ -197,24 +197,24 @@ describe('resolveAssetAnimation — the `night` trigger gates playback to night 
     // NIGHT: the colour last-wins-tints the bulb warm, and STEADILY (same value early + mid-loop → no flicker).
     const early = resolveAssetAnimation(bulb, 0, EMOJI_STYLE, 'iso', 'night')!
     const mid = resolveAssetAnimation(bulb, 500, EMOJI_STYLE, 'iso', 'night')!
-    expect(early.asset.color).toBe(mid.asset.color) // steady — the colour never changes across the loop
+    expect(early.asset.color).toBe(mid.asset.color) // steady, the colour never changes across the loop
     expect(mid.asset.color).not.toBe('#cccccc')      // and it is CHANGED from the base/day colour (lit up)
     const rgb = /rgb\((\d+), (\d+), (\d+)\)/.exec(String(mid.asset.color))!
-    expect(Number(rgb[1])).toBeGreaterThan(Number(rgb[3])) // warm glow — red channel above blue
+    expect(Number(rgb[1])).toBeGreaterThan(Number(rgb[3])) // warm glow, red channel above blue
   })
 
   test('a lit + flickering failing bulb: the night colour AND the opacity flicker both apply (different settings)', () => {
-    // The failing variant carries BOTH — they compose because they write DIFFERENT settings (colour vs opacity).
+    // The failing variant carries BOTH, they compose because they write DIFFERENT settings (colour vs opacity).
     const lit = anim({ id: 'lamp_night_lit', trigger: { on: 'night' }, ease: 'linear', tracks: [{ setting: 'color', from: '#ffe9a0', to: '#ffe9a0' }] })
     const flick = anim({ id: 'lamp_flicker', trigger: { on: 'night' }, tracks: [{ setting: 'opacity', from: 1, to: 0 }] })
     const bulb = baseAsset({ placedAt: 0, color: '#cccccc', animations: [lit, flick] })
     const fx = resolveAssetAnimation(bulb, 500, EMOJI_STYLE, 'iso', 'night')!
     expect(fx.asset.color).not.toBe('#cccccc') // lit (colour applied)
-    expect(fx.opacity).toBeCloseTo(0.5)         // AND flickering (opacity dipping) — both at once
+    expect(fx.opacity).toBeCloseTo(0.5)         // AND flickering (opacity dipping), both at once
   })
 })
 
-describe('resolveAssetAnimation — chaining via start delays over one shared placedAt anchor', () => {
+describe('resolveAssetAnimation, chaining via start delays over one shared placedAt anchor', () => {
   test('a delayed second animation holds its `from` until its start delay elapses', () => {
     // A: y-rise 0→2 over 1000ms; B: opacity 1→0 starting after a 1000ms delay. Sampled at t=500 (only A moving).
     const a = baseAsset({ placedAt: 0, animations: [

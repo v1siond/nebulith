@@ -39,7 +39,7 @@ function build(c: (typeof ENCLOSED)[number], exits: number, pathways: number, se
   // builders between them, so looking a row up by its layout hands back whichever row says that builder
   // first. The key names exactly one row; the layout is only what `generateStage` is then asked to run.
   const config = findGenerator(CATALOG, c.cat, c.gen)?.config
-  expect(config).toBeDefined() // the fixture really does serve this one — an undefined config proves nothing
+  expect(config).toBeDefined() // the fixture really does serve this one, an undefined config proves nothing
   const orig = Math.random
   Math.random = makeRng(seed)
   try {
@@ -100,7 +100,7 @@ describe.each(ENCLOSED)('$gen, a map with a real border', c => {
   it('opens the border only where a way runs through, never the whole ring', () => {
     const one = openBorderCells(build(c, 1, 2, 7))
     const four = openBorderCells(build(c, 4, 2, 7))
-    expect(one).toBeGreaterThan(0)          // there IS a way out — a forest used to be 156, a cave 0
+    expect(one).toBeGreaterThan(0)          // there IS a way out, a forest used to be 156, a cave 0
     expect(four).toBeGreaterThan(one)       // …and asking for more opens more
     expect(four).toBeLessThan(COLS)         // …while the rest of the border holds
   })

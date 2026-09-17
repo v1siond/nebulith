@@ -3,10 +3,10 @@
  *
  * MODEL (nebulith MAP-MODEL §4/§8, TILE-BACKEND-MIGRATION §5/§7): a tile is a baked backend IMAGE resolved
  * by label; `display` is a per-tile SETTING that only changes WHERE / HOW MANY TIMES that SAME image is drawn
- * on the block — it never introduces a glyph.
+ * on the block, it never introduces a glyph.
  *   • "all-faces" (DEFAULT) paints the tile on the block's top + two visible side faces (drawIsoTileBlock).
  *   • "single" draws ONE centered instance INSIDE the block volume (a billboard at the block centre) over a
- *     plain, shaded block SHELL — the "single water droplet floating in the block" case (Image #33).
+ *     plain, shaded block SHELL, the "single water droplet floating in the block" case (Image #33).
  *
  * These render to a real rasteriser (@napi-rs/canvas) and read the PIXELS: with a GREEN baked-tile stand-in on
  * a WHITE (native, untinted) block, "all-faces" must show GREEN on the left + right + top face regions, while
@@ -76,7 +76,7 @@ describe('display = "single": ONE centered tile INSIDE the block, NOT on the sid
     const cv = H.makeCanvas(280, 260)
     const ctx = cv.getContext('2d') as unknown as CanvasRenderingContext2D
     drawIsoSingleTileBlock(ctx, { x: CX, y: CY }, TW, TH, BH, 1, { char: '🌊', color: WHITE, image: { kind: 'image', src } }, undefined)
-    // The side faces are the plain shell fill — NO tile image painted on them.
+    // The side faces are the plain shell fill, NO tile image painted on them.
     expect(regionGreen(cv, LEFT.x, LEFT.y, LEFT.w, LEFT.h)).toBe(0)
     expect(regionGreen(cv, RIGHT.x, RIGHT.y, RIGHT.w, RIGHT.h)).toBe(0)
     // Exactly ONE tile, at the block-volume centre.

@@ -16,7 +16,7 @@ const anim = (over: Partial<AttackAnim> = {}): AttackAnim => ({
   ...over,
 })
 
-describe('attackAnimations — weapon → animation kind', () => {
+describe('attackAnimations, weapon → animation kind', () => {
   it('maps melee weapons to a slash, ranged to a shot, staff to lightning', () => {
     expect(weaponAnimKind('sword', 'melee')).toBe('slash')
     expect(weaponAnimKind('axe', 'melee')).toBe('slash')
@@ -29,7 +29,7 @@ describe('attackAnimations — weapon → animation kind', () => {
   })
 })
 
-describe('attackAnimations — progress + lifetime', () => {
+describe('attackAnimations, progress + lifetime', () => {
   it('clamps progress to 0..1 across the duration', () => {
     const a = anim({ start: 1000, durationMs: 300 })
     expect(animProgress(a, 1000)).toBeCloseTo(0)
@@ -43,7 +43,7 @@ describe('attackAnimations — progress + lifetime', () => {
   })
 })
 
-describe('attackAnimations — frames', () => {
+describe('attackAnimations, frames', () => {
   it('returns a glyph + color while live, null once done', () => {
     const a = anim({ kind: 'slash', start: 1000, durationMs: 300 })
     const f = animFrame(a, 1100)
@@ -57,7 +57,7 @@ describe('attackAnimations — frames', () => {
     const shot = anim({ kind: 'shot', fromX: 0, toX: 100, fromZ: 0, toZ: 0, start: 0, durationMs: 100 })
     expect(animFrame(shot, 0)!.x).toBeCloseTo(0)
     expect(animFrame(shot, 50)!.x).toBeCloseTo(50)
-    // A slash stays near the attacker (fromX) — only a small reach toward the target, NOT pinned
+    // A slash stays near the attacker (fromX), only a small reach toward the target, NOT pinned
     // on the enemy cell (that was the "stick floating 1 cell away" bug).
     const slash = anim({ kind: 'slash', fromX: 0, toX: 100, start: 0, durationMs: 100 })
     const sx = animFrame(slash, 50)!.x
@@ -75,7 +75,7 @@ describe('attackAnimations — frames', () => {
   })
 })
 
-describe('attackAnimations — durations table', () => {
+describe('attackAnimations, durations table', () => {
   it('defines a positive duration for every kind', () => {
     for (const k of ['slash', 'shot', 'lightning', 'block'] as const) {
       expect(ATTACK_ANIM_MS[k]).toBeGreaterThan(0)

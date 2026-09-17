@@ -1,5 +1,5 @@
 /**
- * planComposition + compositionFootprintCells — the geometry the placement GHOST previews and the click stamps
+ * planComposition + compositionFootprintCells, the geometry the placement GHOST previews and the click stamps
  * share ONE source of truth, so the translucent shadow is exactly what lands. These tests pin the pure math:
  * where a composition anchors (clicked cell = footprint CENTRE), which cells it fills (deduped, rotation-aware),
  * how tall it stands, and when it's valid (in-bounds, unblocked, off-road for buildings vs. anywhere for props).
@@ -21,7 +21,7 @@ import {
 const mkGrid = () => new IsometricGrid({ cols: 40, rows: 40, cellSize: 16, isoScale: 1.4 })
 const comp = (kind: string) => resolveComposition(styleCatalog('ascii'), kind)!
 
-describe('compositionFacesRoad — the door signal that decides "rotate to a road" vs "drop as-is"', () => {
+describe('compositionFacesRoad, the door signal that decides "rotate to a road" vs "drop as-is"', () => {
   test('a building (house) has a door → faces a road; a fountain / lamp post / tree does not', () => {
     expect(compositionFacesRoad(comp('house_4'))).toBe(true)
     expect(compositionFacesRoad(comp('store_5'))).toBe(true)
@@ -31,13 +31,13 @@ describe('compositionFacesRoad — the door signal that decides "rotate to a roa
   })
 })
 
-describe('compositionFootprintCells — deduped, rotation-aware occupied cells (pure geometry)', () => {
+describe('compositionFootprintCells, deduped, rotation-aware occupied cells (pure geometry)', () => {
   // A synthetic 2×3 composition with a stacked column (two cells share dx,dy → must dedupe to one).
   const synthetic: Composition = {
     footprint: { w: 2, h: 3 },
     cells: [
       { dx: 0, dy: 0, level: 0, label: 'a' },
-      { dx: 0, dy: 0, level: 1, label: 'a' }, // stacked above (0,0) — same cell
+      { dx: 0, dy: 0, level: 1, label: 'a' }, // stacked above (0,0), same cell
       { dx: 1, dy: 2, level: 0, label: 'b' },
     ],
   }
@@ -67,7 +67,7 @@ describe('compositionFootprintCells — deduped, rotation-aware occupied cells (
   })
 })
 
-describe('compositionHeight — blocks tall (max level + 1) for the ghost extrusion', () => {
+describe('compositionHeight, blocks tall (max level + 1) for the ghost extrusion', () => {
   test('a flat fountain is 1 tall; a synthetic 3-level stack is 4 tall', () => {
     expect(compositionHeight(comp('fountain'))).toBe(1)
     const tall: Composition = { footprint: { w: 1, h: 1 }, cells: [{ dx: 0, dy: 0, level: 0, label: 'a' }, { dx: 0, dy: 0, level: 3, label: 'a' }] }
@@ -75,7 +75,7 @@ describe('compositionHeight — blocks tall (max level + 1) for the ghost extrus
   })
 })
 
-describe('planComposition — the clicked cell is the footprint CENTRE; props drop unrotated', () => {
+describe('planComposition, the clicked cell is the footprint CENTRE; props drop unrotated', () => {
   test('a fountain at (10,10): anchored so (10,10) is the centre, rotation 0, valid on empty ground', () => {
     const plan = planComposition(mkGrid(), 'fountain', 10, 10)!
     expect(plan).not.toBeNull()
@@ -100,19 +100,19 @@ describe('planComposition — the clicked cell is the footprint CENTRE; props dr
   })
 })
 
-describe('planComposition — validity is REPLACE-anything: red ONLY when it runs off the map', () => {
-  test('off the grid edge → invalid (a footprint cell falls out of bounds — not enough room)', () => {
+describe('planComposition, validity is REPLACE-anything: red ONLY when it runs off the map', () => {
+  test('off the grid edge → invalid (a footprint cell falls out of bounds, not enough room)', () => {
     const plan = planComposition(mkGrid(), 'fountain', 1, 1)! // anchor (-1,-1) → cells out of bounds
     expect(plan.valid).toBe(false)
   })
 
   test('an OCCUPIED (collision) footprint cell → VALID (a composition replaces whatever it lands on)', () => {
     const grid = mkGrid()
-    grid.setCollision(10, 10, true) // right at the fountain centre — a building/tree is already here
+    grid.setCollision(10, 10, true) // right at the fountain centre, a building/tree is already here
     expect(planComposition(grid, 'fountain', 10, 10)!.valid).toBe(true)
   })
 
-  test('a BUILDING or a PROP may sit on a road now — roads no longer block placement', () => {
+  test('a BUILDING or a PROP may sit on a road now, roads no longer block placement', () => {
     const grid = mkGrid()
     // paint a patch of road under where the footprint centre lands
     for (let r = 6; r <= 14; r++) for (let c = 6; c <= 14; c++) grid.setGround(c, r, 'path_stone')
@@ -130,7 +130,7 @@ describe('planComposition — validity is REPLACE-anything: red ONLY when it run
   })
 })
 
-describe('compositionFits — the raw BOUNDS check the plan builds on (occupied/road are fine)', () => {
+describe('compositionFits, the raw BOUNDS check the plan builds on (occupied/road are fine)', () => {
   test('true when every cell is in bounds; false ONLY on an out-of-bounds cell', () => {
     const grid = mkGrid()
     const cells = [{ col: 2, row: 2 }, { col: 3, row: 2 }]
@@ -140,7 +140,7 @@ describe('compositionFits — the raw BOUNDS check the plan builds on (occupied/
     expect(compositionFits(grid, [{ col: 2, row: grid.rows }])).toBe(false)  // off the bottom edge
   })
 
-  test('an OCCUPIED or ROAD cell does NOT make it unfit — a stamp replaces whatever is there', () => {
+  test('an OCCUPIED or ROAD cell does NOT make it unfit, a stamp replaces whatever is there', () => {
     const grid = mkGrid()
     const cells = [{ col: 2, row: 2 }, { col: 3, row: 2 }]
     grid.setCollision(3, 2, true)    // an existing building/tree occupies a footprint cell
@@ -149,7 +149,7 @@ describe('compositionFits — the raw BOUNDS check the plan builds on (occupied/
   })
 })
 
-describe('placement REPLACES — clearing the footprint then stamping leaves no mixed remnant', () => {
+describe('placement REPLACES, clearing the footprint then stamping leaves no mixed remnant', () => {
   // The two-step the editor's placeComposition runs: clear every footprint cell, then stamp on the clean cells.
   const stampPlan = (grid: IsometricGrid, kind: string, col: number, row: number) => {
     const plan = planComposition(grid, kind, col, row)!
@@ -162,7 +162,7 @@ describe('placement REPLACES — clearing the footprint then stamping leaves no 
     stampPlan(grid, 'house_4', 10, 10) // building A
     expect(grid.assets.some(a => a.type === 'house_4')).toBe(true)
 
-    // building B dropped on the same spot — REPLACE: clear B's footprint first, then stamp B.
+    // building B dropped on the same spot, REPLACE: clear B's footprint first, then stamp B.
     const bPlan = planComposition(grid, 'store_5', 10, 10)!
     for (const { col, row } of bPlan.cells) grid.clearAssetsAtCell(col, row)
     stampComposition(grid, 'store_5', bPlan.anchorCol, bPlan.anchorRow, 'spring', 0, bPlan.rotation)

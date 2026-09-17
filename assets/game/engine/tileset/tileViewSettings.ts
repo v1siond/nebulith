@@ -4,7 +4,7 @@ import type { TilePose } from './pose'
  *  ('billboard'|'overhead'), which is the projection axis the per-element instance dims use. */
 export type TileView = 'iso' | '2d' | 'top'
 
-/** Per-view tile settings — deviations only. An absent field falls back to the tile's shared value,
+/** Per-view tile settings, deviations only. An absent field falls back to the tile's shared value,
  *  then the renderer's hardcoded default, so a tile with no `views` renders byte-identically. */
 export interface TileViewSettings {
   /** Base draw-size multiplier for this view (× the renderer's per-view unit). */

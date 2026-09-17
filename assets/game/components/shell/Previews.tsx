@@ -1,5 +1,5 @@
 /**
- * THE PREVIEWS — every picture the library shows.
+ * THE PREVIEWS, every picture the library shows.
  *
  * Thin renderers over `@/engine/tilePreview`, which holds all the geometry and is unit-tested. The DOM and
  * class names are carried over from the approved design at :8899 unchanged, so the CSS in
@@ -32,7 +32,7 @@ export interface TilePictureProps {
 /**
  * One tile's baked picture, in the given art style.
  *
- * Renders the "no picture" marker when this style has no such label — that hole is information, and the
+ * Renders the "no picture" marker when this style has no such label, that hole is information, and the
  * only honest thing to draw.
  */
 export function TilePicture({ styleId, label, size, animate = false, className }: TilePictureProps) {
@@ -54,8 +54,8 @@ export function TilePicture({ styleId, label, size, animate = false, className }
         className={`ti miss ${className ?? ''}`.trim()}
         style={{ width: size, height: size }}
         role="img"
-        aria-label={`${facts?.name ?? label} — no picture`}
-        title={`${facts?.name ?? label} — no picture on the backend yet`}
+        aria-label={`${facts?.name ?? label}, no picture`}
+        title={`${facts?.name ?? label}, no picture on the backend yet`}
       />
     )
   }
@@ -75,11 +75,11 @@ export function TilePicture({ styleId, label, size, animate = false, className }
 /**
  * `CompositionFront`, `CompositionPlan` and `PreviewStrip` were deleted here.
  *
- * All three DREW THEIR OWN PICTURE of a thing — a front elevation composed from a composition's parts, and
+ * All three DREW THEIR OWN PICTURE of a thing, a front elevation composed from a composition's parts, and
  * a flat plan grid. and A hand-assembled elevation cannot answer that, because it re-implements a renderer and knows
  * nothing about footprints, collapsed height runs, per-cell settings or animation.
  *
- * Their replacement is `@/engine/preview` — a real grid, stamped through the brush and the generator's own
+ * Their replacement is `@/engine/preview`, a real grid, stamped through the brush and the generator's own
  * stamp, drawn by whichever of the three map renderers the view bar has selected. Deleted rather than left
  * unused: two pathways to picture a tile is exactly how these drifted from the map in the first place.
  *

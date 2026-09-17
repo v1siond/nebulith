@@ -1,9 +1,9 @@
 /**
- * `⚑ RULES` — the three-tab Logic workspace (§4.8), opened from the rail's Rules entry.
+ * `⚑ RULES`, the three-tab Logic workspace (§4.8), opened from the rail's Rules entry.
  *
  * Everything that makes a map DO something lived in three unrelated places: triggers only per-selection,
  * connectors behind a hidden canvas mode whose instruction was stale (§3.9), and quests behind clicking an
- * NPC — so a level with no NPC offered no way in and no explanation (§3.8's "silent dead end"). This lists
+ * NPC, so a level with no NPC offered no way in and no explanation (§3.8's "silent dead end"). This lists
  * what a level ALREADY has, and states each add-action's prerequisite instead of hiding the button.
  *
  * Presentational: every row comes from `game/editor/rulesWorkspace` and every action is a prop, so the
@@ -40,7 +40,7 @@ function Empty({ children }: { children: React.ReactNode }) {
   return <div className="hint">{children}</div>
 }
 
-/** An action plus, when it is unavailable, the REASON — §4.8 draws the prerequisite, not a dead button. */
+/** An action plus, when it is unavailable, the REASON, §4.8 draws the prerequisite, not a dead button. */
 function AddAction({ label, blockedReason, onAdd }: { label: string; blockedReason: string | null; onAdd: () => void }) {
   return (
     <div className="mt-2 space-y-1">
@@ -91,7 +91,7 @@ export function RulesWorkspace(p: RulesWorkspaceProps) {
 
   return (
     <div className="pfix" style={{ overflowY: 'auto' }}>
-      {/* The tabs, from the model — adding one is a row there, never a branch here. */}
+      {/* The tabs, from the model, adding one is a row there, never a branch here. */}
       <div role="tablist" aria-label="Rules" className="tabs">
         {RULES_TABS.map(t => (
           <button
@@ -137,11 +137,11 @@ export function RulesWorkspace(p: RulesWorkspaceProps) {
       {p.tab === 'connections' && (
         <div>
           {/* §3.9: the placing mode used to be invisible, and its on-screen instruction told you to switch
-              to Top view — which had stopped being true. State the mode, and give it a way out. */}
+              to Top view, which had stopped being true. State the mode, and give it a way out. */}
           {p.placingConnection && (
             <div className="mb-2 flex items-start gap-2 rounded border border-purple-400/40 bg-purple-500/10 px-2 py-1.5">
               <p className="flex-1 text-[10px] leading-snug text-purple-200">
-                <span aria-hidden>●</span> Placing mode ON — click a cell on the map to place a door.
+                <span aria-hidden>●</span> Placing mode ON, click a cell on the map to place a door.
               </p>
               <button
                 onClick={p.onStopPlacing}

@@ -1,19 +1,19 @@
 /**
- * REAL-CANVAS fountain/well DESYNC evidence — drives the ACTUAL view render functions with the EXACT desynced
+ * REAL-CANVAS fountain/well DESYNC evidence, drives the ACTUAL view render functions with the EXACT desynced
  * water animations the backend serves (`/api/tilesets`, captured in the fixture), and measures the drawn water
  * column's rendered HEIGHT (vertical magenta extent) + BASE (bottom row) at controlled clock times, in EMOJI
  * and ASCII. Baked tiles are OS-independent, so this real render IS authoritative for the visible behaviour
  * (the live browser runs this same render code every frame; only the WSL2 headless *surface capture* is frozen,
  * which this bypasses by rendering to a controlled canvas at a controlled clock).
  *
- * The design under test: TWO water variants — a small `well` (a 1×3 water line, ALL 3 columns
+ * The design under test: TWO water variants, a small `well` (a 1×3 water line, ALL 3 columns
  * animated) and a large `fountain` (a 3×3 water grid, only the CENTRE ROW of 3 animated, 6 static). In BOTH,
  * EXACTLY 3 columns animate, each the SAME 1→4 sine-yoyo height-grow but with a DISTINCT durationMs +
  * startDelayMs so they pulse OUT of sync ("different duration and delays … realistic fountain water"). The
  * three timings are READ FROM THE REAL FIXTURE, so this test would FAIL if the backend made them identical.
  *
- * What we assert: (1) DESYNC — at a SHARED clock the 3 columns render 3 DIFFERENT heights (a synced baseline,
- * built by giving all three ONE timing, renders EQUAL — the counterfactual). (2) Each column still GROWS its
+ * What we assert: (1) DESYNC, at a SHARED clock the 3 columns render 3 DIFFERENT heights (a synced baseline,
+ * built by giving all three ONE timing, renders EQUAL, the counterfactual). (2) Each column still GROWS its
  * height 1→~4→1 over its OWN period, base PLANTED (grows up, never levitates), never invisible (no opacity).
  */
 import { makeStyleTile, setStyleTile, styleCatalog, styleTile } from '@/engine/tileset/styleTiles'
@@ -33,7 +33,7 @@ const MAGENTA = '#ff00ff'
 const LABEL = '__fountain_probe_tile__'
 const SRC = '/tiles/emoji/__fountain_probe.png'
 const PLAYER: PlayerState = { x: 40, z: 40, facing: 'down', moving: false, frame: 0 } as PlayerState
-const GAP = 400 // the shared loopDelay — only durationMs + startDelayMs desync between columns
+const GAP = 400 // the shared loopDelay, only durationMs + startDelayMs desync between columns
 
 // The desynced per-column timings, READ FROM THE REAL BACKEND FIXTURE (the captured /api/tilesets), so this
 // test breaks the moment the backend makes the three columns share a timing.
@@ -99,7 +99,7 @@ beforeAll(async () => {
 afterAll(() => { delete styleTile('emoji', LABEL); if ((styleCatalog('ascii').terrain as Record<string, unknown>)[hadGrass] === false) { delete (styleCatalog('ascii').terrain as Record<string, unknown>).grass; delete (styleCatalog('ascii').terrain as Record<string, unknown>)[hadGrass] } })
 
 // ── data-level guard: the counts + desync the real render depends on (from the real fixture) ──
-describe('the backend serves TWO water variants — exactly 3 desynced animated columns each', () => {
+describe('the backend serves TWO water variants, exactly 3 desynced animated columns each', () => {
   test('well (small): 3 water cells, ALL 3 animated, with 3 distinct durations + 3 distinct delays', () => {
     const { water, animated } = fixtureWater('well')
     expect(water).toBe(3)
@@ -118,7 +118,7 @@ describe('the backend serves TWO water variants — exactly 3 desynced animated 
 })
 
 // ── REAL RENDER desync: at a shared clock the 3 columns draw 3 DIFFERENT heights ──
-describe('DESYNC — at a SHARED clock the 3 animated columns render DIFFERENT heights (real render, both styles)', () => {
+describe('DESYNC, at a SHARED clock the 3 animated columns render DIFFERENT heights (real render, both styles)', () => {
   const T = 1200 // a shared clock where the 3 desynced timings sit at three clearly different points of their arcs
   for (const [styleName, style] of [['EMOJI', EMOJI_STYLE], ['ASCII', ASCII_STYLE]] as const) {
     for (const compName of ['well', 'fountain'] as const) {
@@ -149,7 +149,7 @@ describe('each desynced column still GROWS its height 1→~4→1 over its own pe
         const mid = metricsAt(d, dl, dl + Math.round(d / 2), style)    // growing up
         const peak = metricsAt(d, dl, dl + d, style)                   // scaleY≈4
         const back = metricsAt(d, dl, dl + 2 * d, style)               // end of down leg → back at base
-        // ALWAYS VISIBLE — no opacity fade (every phase renders a solid magenta column).
+        // ALWAYS VISIBLE, no opacity fade (every phase renders a solid magenta column).
         for (const m of [base, mid, peak, back]) expect(m.mass).toBeGreaterThan(0)
         // GROWS: much taller at the peak than the base, monotone up on the grow leg.
         expect(peak.extent).toBeGreaterThan(base.extent * 1.7)
@@ -158,7 +158,7 @@ describe('each desynced column still GROWS its height 1→~4→1 over its own pe
         expect(peak.extent).toBeGreaterThan(mid.extent)
         // RETURNS to base at the end of the down leg (its own period), so it loops.
         expect(Math.abs(back.extent - base.extent)).toBeLessThan(peak.extent * 0.3)
-        // GROWS UP FROM THE BASE — not levitating: the bottom row barely moves while the height quadruples,
+        // GROWS UP FROM THE BASE, not levitating: the bottom row barely moves while the height quadruples,
         // and the TOP rises well above the base's top at the peak.
         expect(Math.abs(peak.bottom - base.bottom)).toBeLessThan(12)
         expect(peak.top).toBeLessThan(base.top - 40)
@@ -168,7 +168,7 @@ describe('each desynced column still GROWS its height 1→~4→1 over its own pe
 })
 
 // ── 2D coverage: the height grow drives scaleY in 2D too (one representative timing) ──
-describe('the grow drives scaleY in 2D too — taller at the peak, base planted', () => {
+describe('the grow drives scaleY in 2D too, taller at the peak, base planted', () => {
   const a = fixtureWater('well').animated[0]
   for (const [styleName, style] of [['EMOJI', EMOJI_STYLE], ['ASCII', ASCII_STYLE]] as const) {
     test(`${styleName}: 2D column dur=${a.durationMs} taller at the peak than at the base`, () => {

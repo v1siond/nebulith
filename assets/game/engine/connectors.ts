@@ -12,8 +12,8 @@ import type { Connector } from '@/lib/api'
 
 /**
  * What just happened on this frame:
- * - 'enter'    — the player moved onto a new cell (edge-triggered by the loop)
- * - 'interact' — the player pressed the interact key
+ * - 'enter'   , the player moved onto a new cell (edge-triggered by the loop)
+ * - 'interact', the player pressed the interact key
  */
 export type ConnectorEvent = 'enter' | 'interact'
 

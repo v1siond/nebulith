@@ -1,7 +1,7 @@
 /**
  * REAL-CANVAS test for the roof-z-width TOP-view expansion (birdseye.ts, roof-z-width #32 part C).
  *
- * A depth-spanned roof column is stored as ONE asset at its BACK-row anchor carrying `depth`/`depthDir` — the
+ * A depth-spanned roof column is stored as ONE asset at its BACK-row anchor carrying `depth`/`depthDir`, the
  * ISO long-box + the depth-sort read that span, but the overhead (TOP) view builds a per-(col,row) assetMap.
  * Without the expansion the roof would paint ONLY its anchor cell and the rest of the footprint would read as
  * bare grass (a gap). renderTopView now expands each depth-spanned asset across `depthCells`, so the roof tile
@@ -9,7 +9,7 @@
  *
  * WHAT THIS PROVES on real pixels: a single RED roof asset with depth D=5 along +row (`left-down`) paints RED
  * across ~D cells (a tall vertical band), while the SAME asset with NO depthDir paints RED in ~one cell. The
- * band's vertical spread and red-pixel count scale with D — the gap is gone.
+ * band's vertical spread and red-pixel count scale with D, the gap is gone.
  */
 import { styleCatalog, styleTiles } from '@/engine/tileset/styleTiles'
 import { installRealCanvas, type RealCanvasHarness } from '@/__tests__/helpers/realCanvas'
@@ -89,7 +89,7 @@ function redStats(cv: Canvas): { count: number; spread: number } {
   return { count, spread: count ? maxRow - minRow : 0 }
 }
 
-describe('roof-z-width TOP view — a depth-spanned roof paints across its whole footprint (no bare-ground gap)', () => {
+describe('roof-z-width TOP view, a depth-spanned roof paints across its whole footprint (no bare-ground gap)', () => {
   test('a depth-5 +row roof fills ~5 cells (tall band); the same roof without depth fills ~1 cell', () => {
     const spanned = redStats(top(roofGrid(true)))
     const plain = redStats(top(roofGrid(false)))

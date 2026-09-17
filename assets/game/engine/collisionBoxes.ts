@@ -12,7 +12,7 @@
  *     a tile is solid where its boxes are, and a tile with no boxes is not solid at all.
  *
  * A tile with authored boxes uses them (as many as it likes, each positioned and sized). A tile whose box is
- * the WHOLE CELL — what the seeding writes, and what "solid" has always meant — shrinks to the size it is
+ * the WHOLE CELL, what the seeding writes, and what "solid" has always meant, shrinks to the size it is
  * DRAWN at, which is already data: a standard trunk draws at 0.6 of its cell, so it occupies 0.6 of it. That
  * keeps walls, rocks and buildings unchanged while a tree stops blocking the gap beside it.
  */

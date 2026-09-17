@@ -2,7 +2,7 @@
  * Shared game-domain type contract for Nebulith's RPG layer
  * (see nebulith/docs/COMBAT-AND-SYSTEMS-SPEC.md).
  *
- * This is the cross-module CONTRACT — combat, inventory, quests, and entities all
+ * This is the cross-module CONTRACT, combat, inventory, quests, and entities all
  * build against these types. Treat it as stable/read-only from those modules;
  * module-internal types live in their own files.
  */
@@ -19,7 +19,7 @@ export interface Stats {
   intelligence: number // ↑ magical damage, ↑ mana cap
   defense: number // ↓ melee (physical) damage taken
   maxHp: number
-  /** % chance (0–100) to fully dodge an incoming attack. Optional → 0 when absent. */
+  /** % chance (0-100) to fully dodge an incoming attack. Optional → 0 when absent. */
   dodge?: number
 }
 
@@ -59,7 +59,7 @@ export interface Weapon {
   /** authored cell reach. Ranged weapons clamp this to [6,12]; melee derive reach
    *  from `hands` instead (see game/weapons.ts weaponReach). */
   reachCells: number
-  /** shields: % chance (0–100) to fully block one incoming attack. */
+  /** shields: % chance (0-100) to fully block one incoming attack. */
   blockChance?: number
 }
 
@@ -117,12 +117,12 @@ export interface LoadoutConfig {
 }
 
 /** One entity's gear: worn items by slot, a fixed-size bag, and quick-use special-action
- *  slots (bombs / scrolls / potions) each bound to a trigger key (default 5–8, rebindable). */
+ *  slots (bombs / scrolls / potions) each bound to a trigger key (default 5-8, rebindable). */
 export interface Loadout {
   equipped: Partial<Record<EquipSlot, Item>>
   bag: (Item | null)[]
   special: (Item | null)[]
-  /** the trigger key bound to each special-action slot, by index (default 5–8, rebindable). */
+  /** the trigger key bound to each special-action slot, by index (default 5-8, rebindable). */
   shortcuts: string[]
 }
 
@@ -169,11 +169,11 @@ export interface MovementPattern {
 /** Per-attack range: melee = strike when adjacent; ranged = fling a bolt within reach. */
 export type AttackMode = 'melee' | 'ranged'
 
-/** Traversal across an enemy's attack list — mirrors MovementMode. 'sequential' cycles the
+/** Traversal across an enemy's attack list, mirrors MovementMode. 'sequential' cycles the
  *  attacks in order (then repeats); 'random' picks one each time it fires. */
 export type AttackPatternMode = 'sequential' | 'random'
 
-/** One attack in an enemy's pattern — the enemy-side mirror of a player ability/attack:
+/** One attack in an enemy's pattern, the enemy-side mirror of a player ability/attack:
  *  melee vs ranged, its damage, cooldown, and a visual (animation → blade/bolt tint). Authored
  *  per-enemy in the editor, or derived from a registry AbilityDef (patterns.enemyAttackFromAbility),
  *  so an enemy attack IS an attack like the player's. */
@@ -184,20 +184,20 @@ export interface EnemyAttack {
   damage: number
   /** cooldown (ms) before this enemy can fire its NEXT attack. */
   cooldownMs: number
-  /** which seeded animation plays — drives the swing/bolt tint. Omitted → the kind's default. */
+  /** which seeded animation plays, drives the swing/bolt tint. Omitted → the kind's default. */
   animation?: AbilityAnimation
   /** ranged reach in cells (chebyshev). Ignored for melee (uses adjacency). */
   reachCells?: number
-  /** set when built from a registry ability — provenance + a display label. */
+  /** set when built from a registry ability, provenance + a display label. */
   abilityId?: string
   /** display label (registry name / preset name). */
   name?: string
 }
 
 /** How an enemy retaliates: an ORDERED list of attacks + a traversal `mode` (sequential cycles,
- *  random picks) — mirroring MovementPattern. Authored per-enemy in the editor's inspector.
+ *  random picks), mirroring MovementPattern. Authored per-enemy in the editor's inspector.
  *  Legacy single-attack saves ({ mode:'melee'|'ranged', cooldownMs }) are still accepted and
- *  normalized to a one-attack list — see patterns.normalizeAttackPattern. */
+ *  normalized to a one-attack list, see patterns.normalizeAttackPattern. */
 export interface AttackPattern {
   /** traversal of `attacks`: 'sequential' | 'random'. */
   mode: AttackPatternMode
@@ -226,7 +226,7 @@ export function respawnMsForRarity(rarity?: Rarity): number {
 // ── entities ────────────────────────────────────────────────────────
 export type EntityKind = 'player' | 'enemy' | 'npc'
 
-/** A person/entity VARIANT — which baked figure renders. Beyond male/female to age (old, child) and
+/** A person/entity VARIANT, which baked figure renders. Beyond male/female to age (old, child) and
  *  the exotic (alien, robot). Resolves to a baked image in artStyle (variantSlug); male/female also
  *  gender the glyph fallback. */
 export type EntityVariant = 'male' | 'female' | 'old' | 'child' | 'alien' | 'robot'
@@ -249,16 +249,16 @@ export interface Entity {
   movement?: MovementPattern
   /** retaliation pattern (enemies): melee/ranged + cooldown. Omitted = engine default. */
   attack?: AttackPattern
-  /** CAPABILITY SETTING — can this unit be attacked (targeted + take damage)? "all units are the same …
+  /** CAPABILITY SETTING, can this unit be attacked (targeted + take damage)? "all units are the same …
    * can be attacked is a setting". Read via runtime/capabilities.isAttackable, which defaults it BY KIND (enemy =
     * true, others = false) so existing saves are unchanged; ANY unit flagged true
    *  becomes attackable regardless of kind. NOT gated on `kind === 'enemy'` in the combat/targeting code. */
   hittable?: boolean
-  /** CAPABILITY SETTING — is this unit hostile (does it attack the player / retaliate)? "hostile … is a
+  /** CAPABILITY SETTING, is this unit hostile (does it attack the player / retaliate)? "hostile … is a
    * setting". Read via runtime/capabilities.isHostile, defaulting BY KIND (enemy = true). A
-   *  unit can thus be `hittable: true, hostile: false` — attackable but peaceful — without a per-kind branch. */
+   *  unit can thus be `hittable: true, hostile: false`, attackable but peaceful, without a per-kind branch. */
   hostile?: boolean
-  /** does this character obstruct movement? Defaults to false — characters are walk-through
+  /** does this character obstruct movement? Defaults to false, characters are walk-through
    *  (the player + patrols pass right through them) unless the author flips on the per-unit
    *  "Blocks movement" toggle. Separate from terrain collision (grid.isBlocked / the cell
    *  collision-paint tool) and from `hittable` (whether it can be attacked). */
@@ -274,7 +274,7 @@ export interface Entity {
    *  walk/idle). This is the sprite subset of `unitAnimations`, kept in sync by the shared modal so the
    *  renderer/PlayerState keep reading `EntityAnimation[]` unchanged (entityAnimation.entityAnimationsFromUnit). */
   animations?: EntityAnimation[]
-  /** the UNIFIED authored animation list a unit carries — the SAME `Animation[]` model a tile's
+  /** the UNIFIED authored animation list a unit carries, the SAME `Animation[]` model a tile's
    *  `GridAsset.animations` uses (settings-kind envelopes AND sprite-kind frame swaps). The shared
    *  `TileAnimationEditor` reads/writes THIS (source of truth) so a unit offers the IDENTICAL settings + sprite
    *  buttons a tile does; `animations` above is derived from its sprite subset. Absent → bridged live from
@@ -289,7 +289,7 @@ export interface Entity {
   /** editor colour override for the figure glyph. Absent → the kind/role default palette. */
   color?: string
   /**
-   * PER-UNIT LIGHT — this character casts the same warm night ground pool a tile does, from the same
+   * PER-UNIT LIGHT, this character casts the same warm night ground pool a tile does, from the same
    * `AssetLight` shape and through the same resolver. A torch-bearer, a lantern NPC, a glowing boss.
    *
    * This is the one of those that a BILLBOARD can honour: a light is a pool at a position,
@@ -297,20 +297,20 @@ export interface Entity {
    * not drawn as one (`drawIsoEntity` is the billboard exception), so those stay with the block work.
    */
   light?: AssetLight
-  /** shared settings-panel pose — x/y offset, rotation, flip (same shape a tile carries). Authored in the
+  /** shared settings-panel pose, x/y offset, rotation, flip (same shape a tile carries). Authored in the
    *  unit's settings panel like a tile's; round-trips via the entity codec. NOTE: the unit RENDERER does not
-   *  read this yet — pose-honoring on units is the broader unit/tile render-parity work (#35). */
+   *  read this yet, pose-honoring on units is the broader unit/tile render-parity work (#35). */
   pose?: TilePose
   /** everything this unit can say (see UnitDialog). Rides the entity codec like every other field. */
   dialogs?: UnitDialog[]
-  /** the unit's worn gear + bag + special slots + shortcuts — the SAME `Loadout` the equipment panel edits
+  /** the unit's worn gear + bag + special slots + shortcuts, the SAME `Loadout` the equipment panel edits
    *  (game/loadout.ts). EVERY unit carries one ("units are tiles with extra stuff; what a unit HAS is data")
    *  and it PERSISTS on the entity, so equip / unequip / drop / reorder survive a reload EXACTLY, including
    *  bag order. Folded onto the entity at save and split back into the editor's per-entity loadout map on
    *  load (lib/unitDataPersistence.ts); rides the same `entities` channel every entity round-trips through.
    *  Absent → the editor mints a fresh/empty loadout. */
   loadout?: Loadout
-  /** the HERO's carried item bag + equipped weapon/armour (game/inventory.ts). PLAYER-ONLY — "the carried
+  /** the HERO's carried item bag + equipped weapon/armour (game/inventory.ts). PLAYER-ONLY, "the carried
    *  item bag + vitals stay the hero's alone" (EDITOR-INTERACTION-SPEC §8). Persists on the player entity
    *  alongside `loadout`, so an equipped weapon / dropped item / reordered bag survives a reload. */
   inventory?: Inventory

@@ -17,7 +17,7 @@ const flickerAnim = (): Animation => ({
   ease: 'flicker', priority: 1, trigger: { on: 'night' }, tracks: [{ setting: 'opacity', from: 1, to: 0.12 }],
 })
 
-describe('assetLight — the ONE resolver for a tile\'s night glow pool', () => {
+describe('assetLight, the ONE resolver for a tile\'s night glow pool', () => {
   test('an explicit `light` SETTING drives radius (distance) + strength (intensity) + hue (color)', () => {
     const a = { type: 'lamp_post', label: 'lamp', light: { intensity: 0.4, distance: 6, color: '#00ff00' } } as unknown as GridAsset
     expect(assetLight(a)).toEqual({ rgb: '0, 255, 0', radiusTiles: 6, intensity: 0.4 })
@@ -44,10 +44,10 @@ describe('assetLight — the ONE resolver for a tile\'s night glow pool', () => 
   })
 })
 
-describe('entityLight — a CHARACTER casts a pool through the SAME resolver', () => {
+describe('entityLight, a CHARACTER casts a pool through the SAME resolver', () => {
   // A light is a pool at a position and a unit has a position, so this one carries over
   // whole. (Display / transparent / shape describe a BLOCK's faces, and a unit is drawn as a billboard, so
-  // they are not here — see the note on Entity.light.)
+  // they are not here, see the note on Entity.light.)
   const unit = (light?: unknown) => ({ id: 'u1', kind: 'npc', col: 1, row: 1, light }) as never
 
   test('reads distance, intensity and colour exactly like a tile\'s', () => {
@@ -55,7 +55,7 @@ describe('entityLight — a CHARACTER casts a pool through the SAME resolver', (
       .toEqual({ rgb: '0, 255, 0', radiusTiles: 6, intensity: 0.4 })
   })
 
-  test('`on: false` casts nothing — the torch is out', () => {
+  test('`on: false` casts nothing, the torch is out', () => {
     expect(entityLight(unit({ intensity: 1, distance: 3, on: false }))).toBeNull()
   })
 
@@ -67,7 +67,7 @@ describe('entityLight — a CHARACTER casts a pool through the SAME resolver', (
   })
 })
 
-describe('collectLampGlows — night pool anchors, sized by each asset\'s light', () => {
+describe('collectLampGlows, night pool anchors, sized by each asset\'s light', () => {
   test('the lamp CELL of the lamp_post composition (label === "lamp") casts the default pool', () => {
     // the regression: lamps became compositions of type "lamp_post"; the pool must key on the cell label
     const g = gridWith([{ col: 2, row: 3, type: 'lamp_post', label: 'lamp' }])
@@ -85,12 +85,12 @@ describe('collectLampGlows — night pool anchors, sized by each asset\'s light'
     expect(out[0]).toMatchObject({ x: 40, y: 50, r: 3 * TILE_PX, intensity: 0.8 })
   })
 
-  test('a character carrying no light adds no pool — units do not light the map by existing', () => {
+  test('a character carrying no light adds no pool, units do not light the map by existing', () => {
     const plain = { id: 'u1', kind: 'npc', col: 4, row: 5 }
     expect(collectLampGlows(gridWith([]), center, TILE_PX, 0, 800, 600, undefined, undefined, [plain] as never)).toEqual([])
   })
 
-  test('units and tiles light the SAME night — both pools come back together', () => {
+  test('units and tiles light the SAME night, both pools come back together', () => {
     const g = gridWith([{ col: 2, row: 3, type: 'lamp_post', label: 'lamp' }])
     const torchBearer = { id: 'u1', kind: 'npc', col: 6, row: 6, light: { intensity: 1, distance: 2 } }
     const out = collectLampGlows(g, center, TILE_PX, 0, 800, 600, undefined, undefined, [torchBearer] as never)
@@ -115,7 +115,7 @@ describe('collectLampGlows — night pool anchors, sized by each asset\'s light'
     expect(collectLampGlows(g, center, TILE_PX, 0, 800, 600)).toHaveLength(0)
   })
 
-  test('ANY asset carrying a light casts a pool — not just lamps', () => {
+  test('ANY asset carrying a light casts a pool, not just lamps', () => {
     const g = gridWith([{ col: 2, row: 2, type: 'window', light: { intensity: 0.6, distance: 4, color: '#88bbff' } }])
     const out = collectLampGlows(g, center, TILE_PX, 0, 800, 600)
     expect(out).toHaveLength(1)
@@ -142,7 +142,7 @@ describe('collectLampGlows — night pool anchors, sized by each asset\'s light'
   })
 })
 
-describe('collectLampGlows — a FAILING lamp\'s pool dims in SYNC with its bulb flicker ("same rhythm")', () => {
+describe('collectLampGlows, a FAILING lamp\'s pool dims in SYNC with its bulb flicker ("same rhythm")', () => {
   const anim = { time: 0, style: EMOJI_STYLE, view: 'iso' as const }
   const failingLamp = (light: { intensity: number; distance: number }) =>
     ({ col: 2, row: 2, type: 'lamp_post', label: 'lamp', placedAt: 0, light, animations: [flickerAnim()] }) as unknown as GridAsset
@@ -153,7 +153,7 @@ describe('collectLampGlows — a FAILING lamp\'s pool dims in SYNC with its bulb
     for (const time of [0, 300, 650, 1000, 1400, 1900, 2300, 2599]) {
       const bulbOpacity = resolveAssetAnimation(g.assets[0] as GridAsset, time, EMOJI_STYLE, 'iso', 'night')?.opacity ?? 1
       const out = collectLampGlows(g, center, TILE_PX, 0, 800, 600, { ...anim, time })
-      // the pool follows the bulb EXACTLY — bulb-dark ⇒ pool-dark, on the same beat
+      // the pool follows the bulb EXACTLY, bulb-dark ⇒ pool-dark, on the same beat
       expect(out[0].intensity).toBeCloseTo(base * bulbOpacity, 5)
     }
   })
@@ -170,28 +170,28 @@ describe('collectLampGlows — a FAILING lamp\'s pool dims in SYNC with its bulb
       if (dip > 0.5) { sawDim = true; expect(intensity).toBeLessThan(base * 0.9) }   // a fault → the pool cuts
     }
     expect(sawFull).toBe(true) // the bulb IS lit for most of the loop
-    expect(sawDim).toBe(true)  // and it DOES fault — the pool dims with it
+    expect(sawDim).toBe(true)  // and it DOES fault, the pool dims with it
   })
 
-  test('a STEADY lamp (no animation) keeps a constant pool — only the failing ones flicker', () => {
+  test('a STEADY lamp (no animation) keeps a constant pool, only the failing ones flicker', () => {
     const steady = gridWith([{ col: 2, row: 2, type: 'lamp_post', label: 'lamp', light: { intensity: 0.7, distance: 3 } }])
     for (const time of [0, 500, 1300, 2100]) {
       expect(collectLampGlows(steady, center, TILE_PX, 0, 800, 600, { ...anim, time })[0].intensity).toBeCloseTo(0.7, 5)
     }
   })
 
-  test('with NO anim context the pool is steady (byte-identical) even for a failing lamp — backward compatible', () => {
+  test('with NO anim context the pool is steady (byte-identical) even for a failing lamp, backward compatible', () => {
     const g = gridWith([failingLamp({ intensity: 0.8, distance: 3 })])
     expect(collectLampGlows(g, center, TILE_PX, 0, 800, 600)[0].intensity).toBeCloseTo(0.8, 5)
   })
 })
 
-describe('collectLampGlows — the pool CENTRES ON THE BULB (anchorFor), not the ground cell', () => {
-  // A lamp is a composition; the light-casting cell is the BULB, drawn high on the post — so the anchor must be
+describe('collectLampGlows, the pool CENTRES ON THE BULB (anchorFor), not the ground cell', () => {
+  // A lamp is a composition; the light-casting cell is the BULB, drawn high on the post, so the anchor must be
   // the bulb's own screen position, not `cellCenter(col,row) - lift` (which sat well BELOW the bulb).
   const lamp = gridWith([{ col: 2, row: 3, type: 'lamp_post', label: 'lamp', heightLevel: 1 }])
 
-  test('with anchorFor the pool sits ON the bulb anchor — the lift is bypassed', () => {
+  test('with anchorFor the pool sits ON the bulb anchor, the lift is bypassed', () => {
     const bulb = { x: 640, y: 329 }
     // lift 999 would put the old anchor way off-screen; the bulb anchor wins, so the pool is on the bulb.
     const out = collectLampGlows(lamp, center, TILE_PX, 999, 1280, 800, undefined, () => bulb)
@@ -201,7 +201,7 @@ describe('collectLampGlows — the pool CENTRES ON THE BULB (anchorFor), not the
 
   test('anchorFor returns null (bulb off-screen / not drawn this frame) → falls back to cellCenter - lift', () => {
     const out = collectLampGlows(lamp, center, TILE_PX, 5, 1280, 800, undefined, () => null)
-    expect(out[0]).toMatchObject({ x: 20, y: 30 - 5 }) // center(2,3)=(20,30), lifted by 5 — the old anchor
+    expect(out[0]).toMatchObject({ x: 20, y: 30 - 5 }) // center(2,3)=(20,30), lifted by 5, the old anchor
   })
 
   test('no anchorFor at all (top view) → the old cellCenter - lift anchor, byte-identical', () => {
@@ -210,7 +210,7 @@ describe('collectLampGlows — the pool CENTRES ON THE BULB (anchorFor), not the
   })
 })
 
-describe('drawNightLighting — a brighter, more saturated warm pool, so a lit lamp reads as ON', () => {
+describe('drawNightLighting, a brighter, more saturated warm pool, so a lit lamp reads as ON', () => {
   // A recording ctx that captures the radial-gradient colour stops the night pass builds.
   function recordingNightCtx() {
     const stops: { off: number; col: string }[] = []
@@ -223,13 +223,13 @@ describe('drawNightLighting — a brighter, more saturated warm pool, so a lit l
   }
   const lamp = (intensity: number) => ({ x: 50, y: 50, r: 40, rgb: LAMP_GLOW.rgb, intensity })
 
-  test('the CORE stop is a strong warm alpha (0.9 at full intensity) — brighter than the old 0.55 wash', () => {
+  test('the CORE stop is a strong warm alpha (0.9 at full intensity), brighter than the old 0.55 wash', () => {
     const r = recordingNightCtx()
     drawNightLighting(r.ctx, 100, 100, [lamp(1)])
     const core = r.stops.find(s => s.off === 0)!
     expect(core.col).toBe(`rgba(${LAMP_GLOW.rgb}, 0.9)`)
     const alpha = parseFloat(core.col.match(/,\s*([\d.]+)\)$/)![1])
-    expect(alpha).toBeGreaterThan(0.55) // the pre-fix core was 0.55 — the lit pool is now clearly punchier
+    expect(alpha).toBeGreaterThan(0.55) // the pre-fix core was 0.55, the lit pool is now clearly punchier
   })
 
   test('the pool alpha still SCALES with intensity (a dimmed/failing lamp reads dimmer)', () => {

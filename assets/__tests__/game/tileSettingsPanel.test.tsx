@@ -3,11 +3,11 @@ import { FloatingPanel } from '@/components/game/modals'
 import { TileControls, type TileControlModel } from '@/components/game/editorChrome'
 
 // ───────────────────────────────────────────────────────────────────────────
-// TILE-SETTINGS panel (FloatingPanel + TileControls) — the draggable, resizable,
+// TILE-SETTINGS panel (FloatingPanel + TileControls), the draggable, resizable,
 // NON-BLOCKING settings panel the user asked for: "we need to be able to move to
 // see the tile change in realtime". We drive the REAL FloatingPanel wrapping the
 // REAL TileControls body, and assert:
-//   • it renders WITHOUT a blocking backdrop (non-modal — the canvas stays live),
+//   • it renders WITHOUT a blocking backdrop (non-modal, the canvas stays live),
 //   • dragging the header MOVES it (so it can be tucked aside),
 //   • dragging the corner grip RESIZES it,
 //   • edits still fan out to the setting writers (live-updating).
@@ -26,14 +26,14 @@ const makeTile = (over: Partial<TileControlModel> = {}): TileControlModel => ({
   ...over,
 })
 
-describe('FloatingPanel — tile settings', () => {
+describe('FloatingPanel, tile settings', () => {
   it('renders the title + body without a blocking backdrop (non-modal)', () => {
     render(
-      <FloatingPanel title="wall — Settings" accent="cyan" onClose={() => {}}>
+      <FloatingPanel title="wall, Settings" accent="cyan" onClose={() => {}}>
         <TileControls tile={makeTile()} />
       </FloatingPanel>,
     )
-    const dialog = screen.getByRole('dialog', { name: 'wall — Settings' })
+    const dialog = screen.getByRole('dialog', { name: 'wall, Settings' })
     // NON-BLOCKING: a normal modal is aria-modal + a fixed inset-0 backdrop that eats clicks; this must be
     // neither, so the canvas behind stays pannable and the tile stays visible/clickable.
     expect(dialog).not.toHaveAttribute('aria-modal')
@@ -46,7 +46,7 @@ describe('FloatingPanel — tile settings', () => {
 
   it('is positioned as a floating fixed panel with an explicit size', () => {
     render(
-      <FloatingPanel title="wall — Settings" onClose={() => {}} initialPos={{ x: 200, y: 120 }} initialSize={{ w: 360, h: 420 }}>
+      <FloatingPanel title="wall, Settings" onClose={() => {}} initialPos={{ x: 200, y: 120 }} initialSize={{ w: 360, h: 420 }}>
         <TileControls tile={makeTile()} />
       </FloatingPanel>,
     )
@@ -59,7 +59,7 @@ describe('FloatingPanel — tile settings', () => {
 
   it('DRAGS: grabbing the header and moving the pointer repositions the panel', () => {
     render(
-      <FloatingPanel title="wall — Settings" onClose={() => {}} initialPos={{ x: 200, y: 120 }} initialSize={{ w: 340, h: 440 }}>
+      <FloatingPanel title="wall, Settings" onClose={() => {}} initialPos={{ x: 200, y: 120 }} initialSize={{ w: 340, h: 440 }}>
         <TileControls tile={makeTile()} />
       </FloatingPanel>,
     )
@@ -80,7 +80,7 @@ describe('FloatingPanel — tile settings', () => {
 
   it('RESIZES: dragging the corner grip changes width + height', () => {
     render(
-      <FloatingPanel title="wall — Settings" onClose={() => {}} initialPos={{ x: 100, y: 100 }} initialSize={{ w: 340, h: 440 }}>
+      <FloatingPanel title="wall, Settings" onClose={() => {}} initialPos={{ x: 100, y: 100 }} initialSize={{ w: 340, h: 440 }}>
         <TileControls tile={makeTile()} />
       </FloatingPanel>,
     )
@@ -97,7 +97,7 @@ describe('FloatingPanel — tile settings', () => {
 
   it('clamps resize to a minimum so the panel never collapses', () => {
     render(
-      <FloatingPanel title="wall — Settings" onClose={() => {}} initialPos={{ x: 100, y: 100 }} initialSize={{ w: 340, h: 440 }}>
+      <FloatingPanel title="wall, Settings" onClose={() => {}} initialPos={{ x: 100, y: 100 }} initialSize={{ w: 340, h: 440 }}>
         <TileControls tile={makeTile()} />
       </FloatingPanel>,
     )
@@ -113,7 +113,7 @@ describe('FloatingPanel — tile settings', () => {
   it('LIVE edits: changing a slider still calls the setting writer while floating', () => {
     const onDim = jest.fn()
     render(
-      <FloatingPanel title="wall — Settings" onClose={() => {}}>
+      <FloatingPanel title="wall, Settings" onClose={() => {}}>
         <TileControls tile={makeTile({ onDim })} />
       </FloatingPanel>,
     )
@@ -124,7 +124,7 @@ describe('FloatingPanel — tile settings', () => {
   it('closes from the ✕ button and on Escape', () => {
     const onClose = jest.fn()
     render(
-      <FloatingPanel title="wall — Settings" onClose={onClose}>
+      <FloatingPanel title="wall, Settings" onClose={onClose}>
         <TileControls tile={makeTile()} />
       </FloatingPanel>,
     )

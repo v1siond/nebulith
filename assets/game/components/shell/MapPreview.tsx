@@ -1,5 +1,5 @@
 /**
- * THE PREVIEW — the thing, drawn by the map's own renderer, in the view you are looking at.
+ * THE PREVIEW, the thing, drawn by the map's own renderer, in the view you are looking at.
  *
  * Both sentences have the same answer, and it is the answer the level minimap already uses: do not draw a
  * second picture. `buildPreviewScene` puts the subject into a real grid through the brush and the stamp, and
@@ -10,7 +10,7 @@
  *  · and a fountain animates, a lamp post glows and a well is 5×3, because none of that is re-implemented.
  *
  * This draws LIVE, on a timer, because an animated tile is part of how it looks. The list swatches use the
- * same draw path through `previewThumbnail`, which renders once and keeps the result — a list of 23 full
+ * same draw path through `previewThumbnail`, which renders once and keeps the result, a list of 23 full
  * isometric renders per frame would cost more than the map.
  */
 import { useCallback, useEffect, useMemo, useRef } from 'react'
@@ -31,7 +31,7 @@ export interface MapPreviewProps {
   subject: PreviewSubject | null
   /** The view bar's current projection, so the preview shows what placing it will look like from here. */
   view: PreviewView
-  /** The zone whose ground the subject stands on — the same ground the map would give it. */
+  /** The zone whose ground the subject stands on, the same ground the map would give it. */
   zone: ZoneId
   style: Style
   styleId: string
@@ -52,7 +52,7 @@ export function MapPreview({ subject, view, zone, style, styleId, height = 190 }
   const paint = useCallback(() => {
     const node = canvas.current
     if (!node || !scene || scene.entity) return
-    // Measure the element every paint — the same reason the level minimap does: a mount-time read is 0
+    // Measure the element every paint, the same reason the level minimap does: a mount-time read is 0
     // because layout has not happened, and a ResizeObserver fights the backing-store writes below.
     const w = node.clientWidth
     const h = node.clientHeight
@@ -80,7 +80,7 @@ export function MapPreview({ subject, view, zone, style, styleId, height = 190 }
   }
 
   // A CHARACTER is a BILLBOARD, not a grid tile. Every view draws it as its own upright picture, so its
-  // baked image already IS how it looks on the map — putting it in a scene would only add ground around it.
+  // baked image already IS how it looks on the map, putting it in a scene would only add ground around it.
   // This is the one subject where the honest preview is not a rendered grid.
   if (scene.entity && subject.kind === 'tile') {
     return (
@@ -90,5 +90,5 @@ export function MapPreview({ subject, view, zone, style, styleId, height = 190 }
     )
   }
 
-  return <canvas ref={canvas} className="mpcanvas" style={{ height }} aria-label="Preview — how it looks on the map" />
+  return <canvas ref={canvas} className="mpcanvas" style={{ height }} aria-label="Preview, how it looks on the map" />
 }

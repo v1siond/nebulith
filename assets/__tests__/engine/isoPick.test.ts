@@ -1,8 +1,8 @@
 /**
- * ISO BLOCK PICKING — the height-aware hit-test behind iso click-selection. A cell can hold a STACK of
+ * ISO BLOCK PICKING, the height-aware hit-test behind iso click-selection. A cell can hold a STACK of
  * brush-placed assets (heightLevel 0,1,2,…) and the iso render LIFTS each one up the screen by
  * isoStackLift. The old selection inverted only the FLAT diamond projection, so a click on a raised block
- * landed on the ground cell under that pixel — "it only selects the 1 bottom cell, never lets you select
+ * landed on the ground cell under that pixel, "it only selects the 1 bottom cell, never lets you select
  * the blocks". pickIsoBlock mirrors the render's projection + lift so a click resolves to the BLOCK the
  * pointer is on: {col,row,level}, nearest-camera-first, or null when no raised block is hit (the caller
  * then falls back to the unchanged flat pick).
@@ -25,7 +25,7 @@ const centre = (b: IsoPickBlock) => {
   return { x: px, y: py - b.terrainHeight * (cam.cellSize * cam.isoScale * 0.4) - isoStackLift(tileW, b.heightLevel) }
 }
 
-describe('pickIsoBlock — a click on a raised block selects THAT block', () => {
+describe('pickIsoBlock, a click on a raised block selects THAT block', () => {
   test('click on the TOP block of a stack → its {col,row,level}, not the bottom cell', () => {
     // A 3-tall stack on cell (3,3): levels 0 (flat), 1, 2. Click the top block (level 2) where it is DRAWN.
     const stack = [block(3, 3, 0), block(3, 3, 1), block(3, 3, 2)]
@@ -41,13 +41,13 @@ describe('pickIsoBlock — a click on a raised block selects THAT block', () => 
 
   test('click on bare ground (no raised block under the pointer) → null → caller falls back to the flat pick', () => {
     const stack = [block(3, 3, 1), block(3, 3, 2)]
-    const ground = centre(block(3, 3, 0)) // the level-0 / flat position — no raised diamond covers it
+    const ground = centre(block(3, 3, 0)) // the level-0 / flat position, no raised diamond covers it
     expect(pickIsoBlock(ground.x, ground.y, stack, cam)).toBeNull()
     // and a click nowhere near any block is null too
     expect(pickIsoBlock(10, 10, stack, cam)).toBeNull()
   })
 
-  test('a level-0 BLOCK is hit-tested too — a ground-floor wall (0-based, seated on the floor) is a CUBE and must be selectable; the CALLER excludes the flat floor, not this pure test', () => {
+  test('a level-0 BLOCK is hit-tested too, a ground-floor wall (0-based, seated on the floor) is a CUBE and must be selectable; the CALLER excludes the flat floor, not this pure test', () => {
     const at = centre(block(5, 5, 0))
     expect(pickIsoBlock(at.x, at.y, [block(5, 5, 0)], cam)).toEqual({ col: 5, row: 5, level: 0 })
     // no candidates at all → null
@@ -58,11 +58,11 @@ describe('pickIsoBlock — a click on a raised block selects THAT block', () => 
     // near (3,3,3) and far (2,2,2) both project to x=400 and their diamonds both cover this point.
     const near = block(3, 3, 3) // col+row = 6 → drawn last / on top
     const far = block(2, 2, 2)  // col+row = 4 → behind
-    const farC = centre(far)    // the far block's exact centre — inside both diamonds
+    const farC = centre(far)    // the far block's exact centre, inside both diamonds
     // sanity: the click is inside the near block's diamond too
     const nearC = centre(near)
     expect(Math.abs(farC.x - nearC.x) / tileW + Math.abs(farC.y - nearC.y) / (cam.cellSize * cam.isoScale * 0.36)).toBeLessThanOrEqual(1)
-    // order of the candidate array must NOT matter — nearest still wins
+    // order of the candidate array must NOT matter, nearest still wins
     expect(pickIsoBlock(farC.x, farC.y, [far, near], cam)).toEqual({ col: 3, row: 3, level: 3 })
     expect(pickIsoBlock(farC.x, farC.y, [near, far], cam)).toEqual({ col: 3, row: 3, level: 3 })
   })
@@ -83,7 +83,7 @@ describe('pickIsoBlock — a click on a raised block selects THAT block', () => 
     expect(flat.y - lifted.y).toBeCloseTo(tileW * ISO_BLOCK_H_FRAC)
   })
 
-  // The picker takes ONE code path over a uniform block list — it never branches on what a block IS. A
+  // The picker takes ONE code path over a uniform block list, it never branches on what a block IS. A
   // building WALL block and a CHARACTER block are hit-tested exactly like a stacked prop, and their `source`
   // rides straight through to the result so the caller routes the selection without re-testing geometry.
   test('a building WALL block is hit like any stacked block and returns source "building"', () => {
@@ -105,7 +105,7 @@ describe('pickIsoBlock — a click on a raised block selects THAT block', () => 
   })
 
   test('click the SIDE of an upper block (not its cap) picks THAT block, not the one below it', () => {
-    // A 3-tall wall column on (3,3). Click LOW on level 3's visible front face — the old top-face-only test
+    // A 3-tall wall column on (3,3). Click LOW on level 3's visible front face, the old top-face-only test
     // fell through to level 2 here ("selected the wall, but it's the window above"); now it must stay on 3.
     const stack = [block(3, 3, 1), block(3, 3, 2), block(3, 3, 3)]
     const base3 = centre(block(3, 3, 3)) // isoStackLift → the BASE of level 3's cube
@@ -118,18 +118,18 @@ describe('pickIsoBlock — a click on a raised block selects THAT block', () => 
 // aimed at, so the pick correctly returns the visible one. To reach the hidden block WITHOUT a math patch,
 // pickIsoBlocksAll surfaces EVERY block under the pixel (front→back) and repeated clicks cycle through them.
 const tileH = cam.cellSize * cam.isoScale * 0.36
-describe('pickIsoBlocksAll — every block under the pixel, front→back (for click-to-cycle)', () => {
+describe('pickIsoBlocksAll, every block under the pixel, front→back (for click-to-cycle)', () => {
   test('an overlapping front + occluded block both come back, nearest-camera FIRST', () => {
     const near = block(3, 3, 3) // col+row=6 → drawn on top / nearest
     const far = block(2, 2, 2)  // col+row=4 → occluded behind
-    const at = centre(far)      // the far block's centre — inside BOTH diamonds (the occlusion pixel)
+    const at = centre(far)      // the far block's centre, inside BOTH diamonds (the occlusion pixel)
     // sanity: the pixel really is inside the near block's footprint too
     const nearC = centre(near)
     expect(Math.abs(at.x - nearC.x) / tileW + Math.abs(at.y - nearC.y) / tileH).toBeLessThanOrEqual(1)
     const all = pickIsoBlocksAll(at.x, at.y, [far, near], cam).map(b => ({ col: b.col, row: b.row, level: b.level }))
     expect(all).toEqual([
       { col: 3, row: 3, level: 3 }, // front (nearest-camera) first
-      { col: 2, row: 2, level: 2 }, // the occluded block behind it — now reachable
+      { col: 2, row: 2, level: 2 }, // the occluded block behind it, now reachable
     ])
   })
 
@@ -147,7 +147,7 @@ describe('pickIsoBlocksAll — every block under the pixel, front→back (for cl
   })
 })
 
-describe('nextPickIndex — repeated clicks on the SAME pixel walk front→back through the overlap', () => {
+describe('nextPickIndex, repeated clicks on the SAME pixel walk front→back through the overlap', () => {
   test('same pixel (within tolerance) advances the index and wraps around', () => {
     expect(nextPickIndex(null, 100, 100, 3, 4)).toBe(0) // first click → frontmost
     expect(nextPickIndex({ x: 100, y: 100, index: 0 }, 101, 99, 3, 4)).toBe(1) // within tol → next (deeper)

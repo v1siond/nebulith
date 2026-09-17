@@ -1,5 +1,5 @@
 /**
- * ASCII ATTACK ANIMATIONS — pure, time-driven. The play loop spawns an `AttackAnim`
+ * ASCII ATTACK ANIMATIONS, pure, time-driven. The play loop spawns an `AttackAnim`
  * when an attack lands and asks `animFrame(anim, now)` each frame for the glyph +
  * world position to draw; `null` means the animation has finished and can be dropped.
  *
@@ -24,13 +24,13 @@ export interface AttackAnim {
    *  tile kind: the renderer resolves resolveVisual(animation, style) to draw the ability's FX tile under a
    *  reskin (keeping the tint). Absent for a basic weapon attack → the renderer draws the kind's glyph. */
   animation?: AbilityAnimation
-  /** The attacker's weapon glyph — a slash swings THIS (the actual sword) in-hand, instead of a
+  /** The attacker's weapon glyph, a slash swings THIS (the actual sword) in-hand, instead of a
    *  generic floating stroke. Optional: falls back to the kind's default frame glyph. */
   glyph?: string
-  /** The PLAYER's own melee: drawn as the single swinging in-hand weapon by the player render — the
+  /** The PLAYER's own melee: drawn as the single swinging in-hand weapon by the player render, the
    *  anim loop skips it so there's no second, separate stroke. */
   inHand?: boolean
-  /** Overrides the kind's default color (e.g. an ability recolors the blade — Fire Slash burns
+  /** Overrides the kind's default color (e.g. an ability recolors the blade, Fire Slash burns
    *  red-orange). Undefined → the kind's steel/default tint. */
   tint?: string
 }
@@ -46,7 +46,7 @@ export const ATTACK_ANIM_MS: Record<AttackAnimKind, number> = {
 const FRAMES: Record<AttackAnimKind, string[]> = {
   // Melee swing ARC: raised-back (\) → vertical (|) → forward (/) → low follow-through (─).
   slash: ['\\', '|', '/', '─'],
-  shot: ['·', '–', '→', '➤'],
+  shot: ['·', ', ', '→', '➤'],
   lightning: ['ϟ', '⌁', '⚡', '✸'],
   block: ['▢', '◇', '◈', '✦'],
 }
@@ -84,7 +84,7 @@ export interface AnimFrame {
   x: number
   z: number
   color: string
-  /** Radians to rotate the glyph by (slash only) — the renderer spins the blade through the swing
+  /** Radians to rotate the glyph by (slash only), the renderer spins the blade through the swing
    *  arc at the hand. Undefined → draw upright (shot/lightning/block). */
   angle?: number
 }

@@ -7,7 +7,7 @@ import { makeRng } from '@/lib/math'
 // ── a compact, deterministic DIGEST of a whole StageData ──────────────────────
 // Canonicalise every field the generator produces into one string and FNV-1a hash it. Two stages
 // with the SAME digest are structurally identical (ground, collision, buildings, trees, props,
-// compositions, spawn) — the strong equality the equivalence + independence tests assert.
+// compositions, spawn), the strong equality the equivalence + independence tests assert.
 function fnv1a(s: string): string {
   let h = 0x811c9dc5
   for (let i = 0; i < s.length; i++) {
@@ -33,7 +33,7 @@ function digest(stage: StageData): string {
 }
 
 // Run the generator with a deterministic GLOBAL Math.random so a plain generate (no per-layer seeds)
-// is fully reproducible — this is how the refactor's behaviour is locked to the pre-refactor output.
+// is fully reproducible, this is how the refactor's behaviour is locked to the pre-refactor output.
 function genSeeded(opts: Parameters<typeof generateStage>[0], seed: number): StageData {
   const orig = Math.random
   Math.random = makeRng(seed)
@@ -48,15 +48,15 @@ function genSeeded(opts: Parameters<typeof generateStage>[0], seed: number): Sta
 // Baseline digests captured from the generator's output under a seeded Math.random. The layer-pass
 // refactor MUST keep a plain `generateStage` (no per-layer seeds) drawing from Math.random in the
 // SAME order, so these digests are unchanged. If a refactor legitimately changes generation, these
-// are regenerated deliberately — never loosened to "any value".
+// are regenerated deliberately, never loosened to "any value".
 // Settlement digests were regenerated 2026-07-20 when the failing-lamp selection changed from a per-cell ratio
-// hash to a small ABSOLUTE random pick (markFailingLamps, drawn from the decor rng) — a deliberate generation
+// hash to a small ABSOLUTE random pick (markFailingLamps, drawn from the decor rng), a deliberate generation
 // change (see stageGenerator.lamps.test.ts). Only town/city move (they run the decor pass); the non-settlement
 // archetypes below are untouched.
-// Regenerated again 2026-07-22 when naturePass gained scatterFlowers — a light scatter of STANDING blooms over
+// Regenerated again 2026-07-22 when naturePass gained scatterFlowers, a light scatter of STANDING blooms over
 // the town's open grass (single billboards, height 1). Only the FLOWERING zones bloom, so only the two SUMMER
 // settlements move; autumn town + the non-flowering archetypes are byte-identical.
-// Regenerated again 2026-07-23 for G7 — the walkable ENTRANCE now spans the composition's REAL door span
+// Regenerated again 2026-07-23 for G7, the walkable ENTRANCE now spans the composition's REAL door span
 // (buildingDoorOffset) instead of a hardcoded 1 cell, so an EVEN-facade building (house_4 / hospital_6 /
 // hospital_6 / temple_8 / castle_12, all baked with a centred 2-wide doorway) opens BOTH door cells. That
 // moves `doorCells` + the collision grid, hence the digest. Only the three SETTLEMENTS have buildings; the
@@ -66,30 +66,30 @@ function genSeeded(opts: Parameters<typeof generateStage>[0], seed: number): Sta
 // generatedPropLabels.test.ts). Only stages that scatter those props move: the two summer settlements + city
 // (flowers), cave (rock walls + crystal + mushroom), boss-stage (rock). town|autumn (non-flowering, no rocks)
 // and temple|winter (interior) are byte-identical.
-// Regenerated again 2026-07-25 for the FOREST rework to match #24/#14: the meadow now DOMINATES the map — an
+// Regenerated again 2026-07-25 for the FOREST rework to match #24/#14: the meadow now DOMINATES the map, an
 // open olive field with faint garden-plot grid lines, subtle earth/rock/flower ornament zones, a SINGLE
 // bottom-left cobble entrance (lamps + flower beds), and SPARSE tree clumps framing the edges; the river
 // variant adds a WINDING colour-only river hugging three sides (near edge open) + a top-right stone bridge.
 // The dense tree border + perimeter ring + two entrances were removed, so forest|summer legitimately moves.
 // The two SUMMER settlements also move because SUMMER_FLOWERS gained four more bloom tones (a fuller flower
-// bed, per #14/#17) — town|summer + city|summer scatter from the wider set. Every other archetype (town|autumn,
+// bed, per #14/#17), town|summer + city|summer scatter from the wider set. Every other archetype (town|autumn,
 // cave, temple, boss) is byte-identical.
 // Regenerated again 2026-09-09 for the two de-hardcoding changes. (1) villageLayout takes
 // its nine settlement numbers (plaza size, setback, road width, lot gap, per-frontage cap, building cap, house
 // + house ranges and widths) from the backend `settlement` block instead of nine frontend constants,
 // they were parsed and then never read. (2) A building is COMPOSED to the footprint its plot rolled rather
-// than snapping to the nearest baked size — Both move
+// than snapping to the nearest baked size, Both move
 // where plots land and what they are called, hence the digest. Only the three SETTLEMENTS move; forest, cave,
 // temple and boss are byte-identical. Sanity-checked before relocking: each still carves roads (816/936/1184
 // tinted cells), plants 15-19 buildings across several kinds, every building keeps a door, and none lands
 // off-grid.
 // Regenerated again 2026-09-09 for the CAVE ENTRANCE fix. A pool stamped across the corridor joining the
-// entrance chamber to the cavern severed it, and the floor repair — which keeps the largest region — filled
+// entrance chamber to the cavern severed it, and the floor repair, which keeps the largest region, filled
 // the severed entrance as a stranded pocket: measured on a 400-seed sweep, ~3% of caves came out with no way
 // in at all. The cave now restores its entrance chamber and re-joins it before the repair runs, so the cells
 // that used to be filled stay floor. Only the CAVE moves; every other archetype is byte-identical.
 // Regenerated 2026-09-11 for ticket 47, a river is an OPTION now and `meadow_river` is gone as a layout. This
-// case serves no layout, so it rolls one, and the random pool went from three meadows to two — a different
+// case serves no layout, so it rolls one, and the random pool went from three meadows to two, a different
 // draw off the same seed, hence a different digest. Only the FOREST moves. Sanity-checked before relocking:
 // 30x24 all meadow floor, 63 trees framing an open middle, 91% of cells walkable, and no water, which is
 // right because nothing switched the river on.
@@ -190,7 +190,9 @@ const BASELINE: Record<string, string> = {
   'town|summer|50x40|7': 'c74a0a7d',
   'city|summer|56x44|3': 'd7402cde',
   'forest|summer|30x24|42': '4b8b2192',
-  'cave|autumn|40x30|99': '94c7579b',
+  // Moved 2026-09-16, twice, from '94c7579b' then 'a2e09914'. A cave's water stopped wearing the depth bands and started wearing
+  // its autotile pieces, so the ground digest changed on purpose. The lock is doing its job by noticing.
+  'cave|autumn|40x30|99': 'ebcc388a',
   'temple|winter|36x30|5': 'c6258d72',
   'boss-stage|winter|36x30|11': 'e081dcd4',
 }
@@ -205,7 +207,7 @@ const CASES: Array<{ key: string; opts: Parameters<typeof generateStage>[0]; see
   { key: 'boss-stage|winter|36x30|11', opts: { zone: 'winter', variant: 'boss-stage', cols: 36, rows: 30 }, seed: 11 },
 ]
 
-describe('generateStage — behaviour-preserving under a seeded Math.random (equivalence lock)', () => {
+describe('generateStage, behaviour-preserving under a seeded Math.random (equivalence lock)', () => {
   it.each(CASES)('$key is reproducible AND matches the locked baseline digest', ({ key, opts, seed }) => {
     const a = digest(genSeeded(opts, seed))
     const b = digest(genSeeded(opts, seed)) // same seed → identical output (determinism)
@@ -217,7 +219,7 @@ describe('generateStage — behaviour-preserving under a seeded Math.random (equ
 })
 
 // ── per-layer independence + seedability (settlement) ─────────────────────────
-describe('generateStage — settlement layer passes are independent + seedable', () => {
+describe('generateStage, settlement layer passes are independent + seedable', () => {
   const base = { zone: 'summer' as const, variant: 'town' as const, cols: 48, rows: 40 }
 
   // THE LAYERS COME FROM THE BACKEND, so these install a served body and assert against THAT: *"on the tests
@@ -295,7 +297,7 @@ describe('generateStage — settlement layer passes are independent + seedable',
     const seeds = { layout: 11, buildings: 22, nature: 33, decor: 44 }
     const a = generateStage({ ...base, seeds })
     const b = generateStage({ ...base, seeds: { ...seeds, nature: 999 } })
-    // layout is the ground roads/plaza — identical
+    // layout is the ground roads/plaza, identical
     expect(a.ground.map(r => r.join('')).join('|')).toBe(b.ground.map(r => r.join('')).join('|'))
     // buildings (kind + placement) identical
     const buildKey = (s: StageData) => s.buildings.map(x => `${x.kind}@${x.col},${x.row}`).join(';')

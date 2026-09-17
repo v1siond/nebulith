@@ -1,5 +1,5 @@
 /**
- * ONE ENTRY PER BUILDING TYPE — the collapse behind the note
+ * ONE ENTRY PER BUILDING TYPE, the collapse behind the note
  */
 import { bakedWidthOfKind, collapseSizedBuildings, isSizable, labelForType, typeOfKind } from '@/engine/sizedBuildings'
 import type { BuildingType } from '@/lib/buildingSizes'

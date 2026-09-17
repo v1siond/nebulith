@@ -1,14 +1,14 @@
 /**
- * Entity SPAWNER — scatter enemies / NPCs into a stage's free cells.
+ * Entity SPAWNER, scatter enemies / NPCs into a stage's free cells.
  *
  * PURE: no module-level mutable state, no clock. All randomness flows through an
- * injected `rng` (0–1) so a seeded rng reproduces a run exactly. Builds entities
+ * injected `rng` (0-1) so a seeded rng reproduces a run exactly. Builds entities
  * via the shared factories in entities.ts, then attaches a movement pattern + the
  * runtime flags (hittable) the play loop expects.
  *
  * Enemies are placed GROUPED BY TYPE: the map is partitioned into a grid of zones
  * and each requested enemy type gets its own home zone, so wolves cluster in one
- * area, goblins in another, etc. — instead of every type clumping in one corner.
+ * area, goblins in another, etc., instead of every type clumping in one corner.
  */
 import type { Entity, EntityKind, MovementPattern, Cell, Rarity } from '@/game/types'
 import { combatForEnemyType } from '@/game/combatCatalog'
@@ -19,11 +19,11 @@ import { chebyshev } from '@/lib/math'
 export const ENEMY_TYPES = ['goblin', 'wolf', 'bandit', 'skeleton'] as const
 export type EnemyType = (typeof ENEMY_TYPES)[number]
 
-/** Cave-appropriate enemies — bats dart (flyer), spiders lurk (crawler), skeletons hit
+/** Cave-appropriate enemies, bats dart (flyer), spiders lurk (crawler), skeletons hit
  *  hard (brute). The cave generator seeds these so a cavern comes populated. */
 export const CAVE_ENEMY_TYPES = ['bat', 'spider', 'skeleton'] as const
 
-/** Temple-appropriate enemies — skeletons rise (brute), stone guardians ward the halls
+/** Temple-appropriate enemies, skeletons rise (brute), stone guardians ward the halls
  *  (sentinel), wraiths haunt them (mage caster). The temple interior seeds these. */
 export const TEMPLE_ENEMY_TYPES = ['skeleton', 'guardian', 'wraith'] as const
 
@@ -43,7 +43,7 @@ export interface ScatterOptions {
   count: number
   /** kinds to draw from; default ['enemy']. */
   kinds?: EntityKind[]
-  /** RNG (0–1); default Math.random. */
+  /** RNG (0-1); default Math.random. */
   rng?: () => number
   /** id prefix for the generated entities; default 'spawn'. */
   idPrefix?: string
@@ -152,7 +152,7 @@ function placeEnemiesByType(p: PlaceEnemiesParams): Entity[] {
     for (const cell of takeSpaced(shuffle(inZone, rng), anchors, quotas[t], minGap)) build(type, cell)
   })
 
-  // 2. spillover — quotas that didn't fit fall back to any free cell, types round-robin
+  // 2. spillover, quotas that didn't fit fall back to any free cell, types round-robin
   const remaining = count - out.length
   if (remaining > 0) {
     const pool = shuffle(free.filter(c => !used.has(key(c.col, c.row))), rng)
@@ -221,7 +221,7 @@ function collectFreeCells(collision: boolean[][], taken: Set<string>): Cell[] {
   return free
 }
 
-/** Fisher–Yates with the injected rng (does not mutate the input). */
+/** Fisher, Yates with the injected rng (does not mutate the input). */
 function shuffle<T>(items: readonly T[], rng: () => number): T[] {
   const out = [...items]
   for (let i = out.length - 1; i > 0; i--) {
@@ -248,7 +248,7 @@ function buildEnemy(
   return { ...enemy, hittable: true, movement: makePatrol(cell, rng, collision, moveDelayMs) }
 }
 
-/** Build a non-enemy (npc/player) — not type-grouped; just named + placed. */
+/** Build a non-enemy (npc/player), not type-grouped; just named + placed. */
 function buildOther(kind: EntityKind, id: string, cell: Cell, index: number): Entity {
   if (kind === 'player') return makePlayer(id, cell.col, cell.row, `Hero ${index + 1}`)
   // Alternate the gender so a crowd of npcs is a MIX, not all 'dudes' (~half female).
@@ -259,7 +259,7 @@ function buildOther(kind: EntityKind, id: string, cell: Cell, index: number): En
 const isFree = (collision: boolean[][], col: number, row: number): boolean =>
   row >= 0 && row < collision.length && col >= 0 && col < (collision[row]?.length ?? 0) && !collision[row][col]
 
-/** A random patrol of 3–4 waypoints jittered ±2 cells around the spawn, keeping
+/** A random patrol of 3-4 waypoints jittered ±2 cells around the spawn, keeping
  *  only walkable, in-bounds cells. The spawn itself is always waypoint 0, so the
  *  pattern always has ≥1 waypoint. `delayMs` (the archetype's move cadence) paces the
  *  patrol when given; omitted → the engine's default step delay. */

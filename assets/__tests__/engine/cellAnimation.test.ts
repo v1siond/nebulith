@@ -27,8 +27,8 @@ const sway = (over: Partial<CellAnimation> = {}): CellAnimation => ({
   ...over,
 })
 
-describe('cellAnimation — pure frame clock + interpolation', () => {
-  describe('transformAt — frame selection across the loop', () => {
+describe('cellAnimation, pure frame clock + interpolation', () => {
+  describe('transformAt, frame selection across the loop', () => {
     it('hits every frame endpoint exactly (frame 0 at t=0, interior frames on the grid)', () => {
       const a = sway()
       expect(transformAt(a, 0)).toEqual({ dx: 0, dy: 0, rot: 0, scale: 1 }) // frame 0
@@ -63,7 +63,7 @@ describe('cellAnimation — pure frame clock + interpolation', () => {
     })
   })
 
-  describe('transformAt — degenerate inputs resolve to rest', () => {
+  describe('transformAt, degenerate inputs resolve to rest', () => {
     it('empty frames → rest', () => {
       expect(transformAt(sway({ frames: [] }), 123)).toEqual(REST)
     })
@@ -107,7 +107,7 @@ describe('cellAnimation — pure frame clock + interpolation', () => {
     })
   })
 
-  describe('assetCellTransform — render-side guard', () => {
+  describe('assetCellTransform, render-side guard', () => {
     it('returns the live transform for an always-on multi-frame animation', () => {
       const a = sway()
       expect(assetCellTransform(a, 400)?.dx).toBeCloseTo(0.2)

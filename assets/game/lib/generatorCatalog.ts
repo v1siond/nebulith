@@ -1,10 +1,9 @@
 /**
- * The MAP-GENERATOR CATALOG — the backend's answer to "which worlds can I generate, and with what
+ * The MAP-GENERATOR CATALOG, the backend's answer to "which worlds can I generate, and with what
  * knobs?" (`GET /api/generators`, T-113 / games-page UX §3.14b Tier-1 #1).
  *
- * Every number the generator used to hard-code in the frontend —
- * grid ranges, cell geometry, settlement tuning, nature densities, unit counts, building materials and
- * roof/wall colours — is a row in `generators` now (`Nebulith.Catalog.GeneratorSource`), served whole.
+ * Every number the generator used to hard-code in the frontend, * grid ranges, cell geometry, settlement tuning, nature densities, unit counts, building materials and
+ * roof/wall colours, is a row in `generators` now (`Nebulith.Catalog.GeneratorSource`), served whole.
  *
  * This module is the CLIENT + the pure SELECTORS over it. It is deliberately dumb about the game:
  *
@@ -12,7 +11,7 @@
  *     the backend leaves out reads as `undefined`, and the caller plants nothing rather than falling
  *     back to a number this file made up (the no-fallback law, MAP-MODEL §8).
  *   - it NEVER lets a malformed row through as a half-object. A row missing a `key`/`name` is DROPPED
- *     with a warning, so a bad seed shows up as a missing menu entry — loud — instead of a silent
+ *     with a warning, so a bad seed shows up as a missing menu entry, loud, instead of a silent
  *     default that looks generated.
  *
  * The catalog is the DATA behind the Generate panel (§4.6): season chips, map-type cards and the
@@ -53,7 +52,7 @@ export interface GeneratorUnits {
  *
  * `canopy` is OPTIONAL because most generators are not forests: a town, a cave and a meadow have no tree
  * density to state, and a required field would have forced every one of them to carry a meaningless zero.
- * A layout that needs it and does not get it plants nothing and says so — it must not invent a number.
+ * A layout that needs it and does not get it plants nothing and says so, it must not invent a number.
  */
 export interface GeneratorNature {
   groundCover: number
@@ -81,7 +80,7 @@ export interface GeneratorBuildings {
   fixedWall: string
 }
 
-/** Settlement density tuning — the street/lot rules that make a town a town and a city a city. */
+/** Settlement density tuning, the street/lot rules that make a town a town and a city a city. */
 export interface GeneratorSettlement {
   plazaSize: number
   roadWidth: number
@@ -105,7 +104,7 @@ export interface GeneratorSettlement {
 /** Everything one generator is tuned by. Every section is OPTIONAL: a forest carries no settlement
  *  tuning and a cave carries no building palette, and the reader must see that as "none", not as zero. */
 /**
- * The COLOURS a template paints its ground and canopy with — what makes an Amazonas not a pine wood.
+ * The COLOURS a template paints its ground and canopy with, what makes an Amazonas not a pine wood.
  *
  * Every colour in a forest used to come from the SEASON, so a spring jungle and a
  * spring woodland were painted from the same numbers and looked identical. This is per GENERATOR.
@@ -114,15 +113,27 @@ export interface GeneratorSettlement {
  * serves no palette gets no painting, never a colour invented here.
  */
 export interface GeneratorPalette {
+  /** The colour molten rock takes when a map's liquid is lava. Absent leaves lava looking like water, which
+   *  is why it is served rather than assumed: the engine invents no colours. */
+  lava?: string
   /** the shaded forest floor */
   floor?: string
   /** the second floor tone, for the mottling that stops a floor reading as one flat fill */
   floorAlt?: string
   /** leaf litter / bare earth showing through */
   litter?: string
-  /** the canopy overhead */
+  /** the canopy overhead. NOT a leaf colour: this is read as the floor tint of a jungle light gap. */
   canopy?: string
   canopyAlt?: string
+  /**
+   * THE BIOME'S FOLIAGE, the hue and saturation a leaf wears here. Its own brightness is not read; `leafValue`
+   * sets that. Measured off his vegetation references, where every real one sits between 30 and 74 degrees.
+   */
+  leaf?: string
+  /** How much the SEASON moves that hue. 1 fully deciduous (a woodland turns), 0 evergreen (a jungle does not). */
+  leafSeasonality?: number
+  /** Brightness multiplier on the season's shade. Below 1 darker (jungle), above 1 brighter (beach). */
+  leafValue?: number
   /** the choked layer between the trunks */
   undergrowth?: string
   /** a watercourse, and the ground either side of it */
@@ -138,7 +149,7 @@ export interface GeneratorPalette {
 }
 
 /**
- * ONE SUB-ZONE a map is partitioned into — a region with its own character, not a template of its own.
+ * ONE SUB-ZONE a map is partitioned into, a region with its own character, not a template of its own.
  *
  * On the shape: regions inside ONE map. You walk from one into the next.
  *
@@ -146,25 +157,25 @@ export interface GeneratorPalette {
  * the base stays the one knob that moves the whole map.
  */
 /**
- * HOW THE TREES ARE DISTRIBUTED — the difference between a wood pasture, an even-aged stand and a closed
+ * HOW THE TREES ARE DISTRIBUTED, the difference between a wood pasture, an even-aged stand and a closed
  * canopy, none of which is a matter of how MANY trees there are.
  *
  * with six photographs. Two numbers carry most of it: `lattice` is the scale of the noise the
  * canopy is scored against (small = fine scatter, large = big continuous masses) and `spacing` is the
  * minimum gap between trunks (0 lets them form a wall, 3+ makes every tree individually readable).
  */
-/** One entry of a template's tree mix — which shape, and how often it is rolled. */
+/** One entry of a template's tree mix, which shape, and how often it is rolled. */
 export interface GeneratorTreeWeight {
   kind: string
   weight: number
 }
 
 export interface GeneratorFormation {
-  /** noise scale in cells — the "grouping" knob */
+  /** noise scale in cells, the "grouping" knob */
   lattice?: number
   /** minimum cells between two trunks */
   spacing?: number
-  /** multiplies the served ground cover — how choked the floor is between the trunks */
+  /** multiplies the served ground cover, how choked the floor is between the trunks */
   understory?: number
   /**
    * WHICH PLANT grows as that understory. Ticket 2: the pass could only ever plant `thicket`, the one tile
@@ -234,6 +245,10 @@ export interface GeneratorSubZone {
   undergrowth?: number
   /** this region's own floor tone */
   floor?: string
+  /** this region's hue shift, in degrees: how much light reaches it (a glade takes the most). */
+  leafHue?: number
+  /** this region's brightness offset on the leaf, added after the biome's scale. */
+  leafValue?: number
   /** the share of the region standing under water (a swamp's pools) */
   pools?: number
   /** the share of the region carrying fallen masonry (ruins) */
@@ -243,9 +258,9 @@ export interface GeneratorSubZone {
    * two regions is a cliff.
    */
   level?: number
-  /** this region's own tree distribution — a swamp is spaced like a pasture, dense growth is a wall */
+  /** this region's own tree distribution, a swamp is spaced like a pasture, dense growth is a wall */
   formation?: GeneratorFormation
-  /** which species grow in this region — the swamp is cypress, whatever the rest of the jungle is */
+  /** which species grow in this region, the swamp is cypress, whatever the rest of the jungle is */
   trees?: readonly GeneratorTreeWeight[]
   /**
    * Which BLOOMS grow in this region, overriding the season's set. A region could state its species and not its
@@ -288,9 +303,12 @@ export interface GeneratorConfig {
   /** The composition a gate wears: `forest_entrance`, `cave_entrance`, … A template chooses its entrance the
    *  same way it chooses its bridge. Absent → a bare opening, which is the honest default. */
   entrance?: string
+  /** The heading each option GROUP shows, keyed by the group name its options carry. Served so the panel
+   *  spells no heading of its own; absent → the options render ungrouped, exactly as they did. */
+  optionGroups?: Readonly<Record<string, string>>
 }
 
-/** One generator — a concrete map the user can ask for ("Meadow + River", "Town"). */
+/** One generator, a concrete map the user can ask for ("Meadow + River", "Town"). */
 export interface GeneratorDef {
   key: string
   name: string
@@ -306,7 +324,7 @@ export interface GeneratorDef {
    * then falls back to the category key exactly as it used to.
    */
   variant: string | null
-  /** The seasons this generator runs in — the season chips are the union of these. */
+  /** The seasons this generator runs in, the season chips are the union of these. */
   zones: readonly string[]
   position: number
   config: GeneratorConfig
@@ -319,7 +337,7 @@ export interface GeneratorDef {
    */
   options: readonly GeneratorOption[]
   /**
-   * Its SUBTYPES, any depth — Each arrives with
+   * Its SUBTYPES, any depth, Each arrives with
    * its parent's config already merged under its own, so a subtype runs exactly like any generator.
    */
   children?: readonly GeneratorDef[]
@@ -364,8 +382,53 @@ export interface GeneratorOption {
   type: 'toggle' | 'choice'
   default: GeneratorOptionValue
   choices?: readonly GeneratorChoice[]
-  /** Meaningless without that option — a crossing needs a river. Stated here, not known by the frontend. */
+  /** Meaningless without that option, a crossing needs a river. Stated here, not known by the frontend. */
   requires?: string
+  /**
+   * WHICH GROUP this option is browsed under (`layout`, `water`, `crossings`). Its heading comes from the
+   * generator's own `optionGroups`, so the panel spells nothing itself.
+   *
+   * The seven options are not siblings: depth, bridge and the water look are all settings OF the river and
+   * read as peers of it in a flat list, which is what he called unclear. See `docs/EDITOR-UX.md` §2.1.
+   */
+  group?: string
+  /**
+   * CELLS ONE OF THESE WANTS before another is offered, for the options that are a COUNT. A choice of N is
+   * offered while `cols * rows >= N * maxPer`.
+   *
+   * *"I want to have dynamic pathways limits based of size of the grid"*. Four ways across a 30x24 is a
+   * different map from four across a 120x90, and the list was the same for both. The rate is served rather
+   * than computed here: the frontend narrows the list, it does not own the arithmetic's constants.
+   */
+  maxPer?: number
+  /**
+   * SHOW A PICTURE OF EACH CHOICE rather than a dropdown of words.
+   *
+   * *"we see the preview of the element like we do on objects"*. True for the options whose choices are
+   * visibly different things (a river's course, a kind of crossing, a look of water) and absent for the ones
+   * that are counts, where two thumbnails would be near identical and cost a map generation each.
+   *
+   * Served, not decided in the panel, so turning it on for another option is a data change.
+   */
+  preview?: boolean
+}
+
+/**
+ * The choices of a COUNT option that a map this size can actually carry, and why the rest are gone.
+ *
+ * Non-numeric choices (`random`, `none`) always survive: they are not counts and the size says nothing about
+ * them. An option with no `maxPer` is not a count at all and is returned untouched. The first choice is never
+ * dropped, so a map can always be built.
+ */
+export function choicesForSize(opt: GeneratorOption, cols: number, rows: number): readonly GeneratorChoice[] {
+  const picks = opt.choices ?? []
+  if (!opt.maxPer || picks.length === 0) return picks
+  const cells = Math.max(0, cols) * Math.max(0, rows)
+  const fits = picks.filter(c => {
+    const n = Number(c.key)
+    return !Number.isFinite(n) || n <= 0 || cells >= n * (opt.maxPer as number)
+  })
+  return fits.length > 0 ? fits : [picks[0]]
 }
 
 /**
@@ -391,12 +454,17 @@ function parseOptions(raw: unknown): readonly GeneratorOption[] {
   const out: GeneratorOption[] = []
   for (const row of raw) {
     if (typeof row !== 'object' || row === null) continue
-    const { key, label, type, default: fallback, requires, choices } = row as Record<string, unknown>
+    const { key, label, type, default: fallback, requires, choices, group, maxPer, preview } = row as Record<string, unknown>
     if (typeof key !== 'string' || typeof label !== 'string') {
       console.warn('[generators] an option with no key or label was dropped', row)
       continue
     }
-    const need = typeof requires === 'string' ? { requires } : {}
+    const need = {
+      ...(typeof requires === 'string' ? { requires } : {}),
+      ...(typeof group === 'string' ? { group } : {}),
+      ...(typeof maxPer === 'number' && maxPer > 0 ? { maxPer } : {}),
+      ...(preview === true ? { preview: true } : {}),
+    }
     if (type === 'choice') {
       // A choice with nothing to choose from cannot be used on purpose, so it is dropped rather than drawn
       // as an empty select. Its default must be one of its own choices, or the first one stands in.
@@ -416,7 +484,7 @@ function parseOptions(raw: unknown): readonly GeneratorOption[] {
   return out
 }
 
-/** A category — the user-facing MAP TYPE (Forest, Town, City, Cave, Temple) and its generators. */
+/** A category, the user-facing MAP TYPE (Forest, Town, City, Cave, Temple) and its generators. */
 export interface GeneratorCategoryDef {
   key: string
   name: string
@@ -428,7 +496,7 @@ export interface GeneratorCategoryDef {
 /** The whole catalog, in menu order. */
 export type GeneratorCatalog = readonly GeneratorCategoryDef[]
 
-/** No catalog. What the editor holds before the load resolves and after it fails — an honestly EMPTY
+/** No catalog. What the editor holds before the load resolves and after it fails, an honestly EMPTY
  *  menu, never a stand-in list of map types the backend may not actually have. */
 export const EMPTY_GENERATOR_CATALOG: GeneratorCatalog = []
 
@@ -440,7 +508,7 @@ const isObject = (v: unknown): v is Json => typeof v === 'object' && v !== null 
 const num = (v: unknown): number | undefined => (typeof v === 'number' && Number.isFinite(v) ? v : undefined)
 const str = (v: unknown): string | undefined => (typeof v === 'string' ? v : undefined)
 
-/** A list of strings, or undefined when the value is not a string array — never a partial list. */
+/** A list of strings, or undefined when the value is not a string array, never a partial list. */
 function strList(v: unknown): readonly string[] | undefined {
   if (!Array.isArray(v)) return undefined
   return v.every(x => typeof x === 'string') ? (v as string[]) : undefined
@@ -484,7 +552,7 @@ function parseNature(v: unknown): GeneratorNature | undefined {
   const groundCover = num(v.groundCover)
   const flowers = num(v.flowers)
   if (groundCover === undefined || flowers === undefined) return undefined
-  // `canopy` is carried through when served and left off when not — never defaulted here.
+  // `canopy` is carried through when served and left off when not, never defaulted here.
   const canopy = num(v.canopy)
   return canopy === undefined ? { groundCover, flowers } : { groundCover, flowers, canopy }
 }
@@ -566,6 +634,10 @@ function parseConfig(v: unknown): GeneratorConfig {
   const trees = parseTreeMix(v.trees)
   const crossings = parseCrossings(v.crossings)
   const entrance = typeof v.entrance === 'string' && v.entrance !== '' ? v.entrance : undefined
+  const optionGroups = isObject(v.optionGroups)
+    ? Object.fromEntries(Object.entries(v.optionGroups).flatMap(([k, label]) => (typeof label === 'string' ? [[k, label]] : [])))
+    : undefined
+  if (optionGroups && Object.keys(optionGroups).length > 0) out.optionGroups = optionGroups
   if (grid) out.grid = grid
   if (units) out.units = units
   if (nature) out.nature = nature
@@ -602,7 +674,7 @@ function parseCrossings(v: unknown): Readonly<Record<string, GeneratorCrossing>>
   return Object.keys(out).length > 0 ? out : undefined
 }
 
-/** A served tree mix. An entry with no kind or no positive weight is DROPPED, not defaulted — a species the
+/** A served tree mix. An entry with no kind or no positive weight is DROPPED, not defaulted, a species the
  *  backend could not describe is one the generator must not plant. An empty mix is no mix at all. */
 function parseTreeMix(v: unknown): readonly GeneratorTreeWeight[] | undefined {
   if (!Array.isArray(v)) return undefined
@@ -632,7 +704,7 @@ function parseFlowerSet(v: unknown): readonly FlowerKind[] | undefined {
 }
 
 /** The served distribution, keeping only the numbers that arrived. A missing field means the backend has no
- *  opinion on it and the generator keeps its own default — never a number invented here. */
+ *  opinion on it and the generator keeps its own default, never a number invented here. */
 function parseFormation(v: unknown): GeneratorFormation | undefined {
   if (!isObject(v)) return undefined
   const out: GeneratorFormation = {}
@@ -695,7 +767,7 @@ function parsePathway(v: unknown): GeneratorPathway | undefined {
 /** The region fields this parser reads by NAME, so the sweep below knows which ones it has already taken. */
 const SUBZONE_NAMED = new Set(['key', 'name', 'weight', 'floor', 'formation', 'trees', 'flowers', 'buildings'])
 
-/** The served sub-zones. A row without a key or a usable weight is DROPPED rather than defaulted — a region
+/** The served sub-zones. A row without a key or a usable weight is DROPPED rather than defaulted, a region
  *  the backend could not describe is one the generator must not invent a character for. */
 function parseSubZones(v: unknown): readonly GeneratorSubZone[] | undefined {
   if (!Array.isArray(v)) return undefined
@@ -737,18 +809,31 @@ function parseSubZones(v: unknown): readonly GeneratorSubZone[] | undefined {
   return rows.length > 0 ? rows : undefined
 }
 
-/** The served palette, keeping only the fields that ARRIVED as colours. A malformed or missing entry is
- *  dropped rather than defaulted, so a layout can tell "the backend states no floor colour" from "the floor
- *  is this colour" and paint nothing rather than inventing one. */
+/** The served palette, keeping only the fields that ARRIVED. A malformed or missing entry is dropped rather
+ *  than defaulted, so a layout can tell "the backend states no floor colour" from "the floor is this colour"
+ *  and paint nothing rather than inventing one.
+ *
+ *  EVERY FIELD THE BACKEND SERVES, not the thirteen this file happened to list. It named them by hand, which
+ *  made the frontend the place that decides which of the backend's own palette fields exist, and the failure
+ *  is silent: `leaf`, `leafSeasonality` and `leafValue` were served on 36 generators, curled correctly off
+ *  `/api/generators`, and arrived at the generator as a palette with twelve keys and none of those three.
+ *  Every tree on every map then wore its season shade with no biome in it, which looks exactly like a colour
+ *  bug and is a parser dropping data.
+ *
+ *  `parseSubZones` already solved this the same way and says so in its own comment, naming `parseSettlement`
+ *  and `parseBuildings` as having each lost a newly served field like this before. This is the fourth. */
 function parsePalette(v: unknown): GeneratorPalette | undefined {
   if (!isObject(v)) return undefined
-  const keys = ['floor', 'floorAlt', 'litter', 'canopy', 'canopyAlt', 'undergrowth', 'water', 'waterShallow', 'waterDeep', 'swamp', 'bank', 'trail'] as const
-  const out: GeneratorPalette = {}
-  for (const k of keys) {
-    const hex = str(v[k])
-    if (hex) out[k] = hex
+  const out: Record<string, string | number> = {}
+  for (const [field, value] of Object.entries(v)) {
+    // A palette entry is a COLOUR or a NUMBER (how seasonal the foliage is, how bright). Anything else is
+    // not something a palette says, so it is dropped rather than carried as an unknown shape.
+    const hex = str(value)
+    if (hex) { out[field] = hex; continue }
+    const n = num(value)
+    if (n !== undefined) out[field] = n
   }
-  return Object.keys(out).length > 0 ? out : undefined
+  return Object.keys(out).length > 0 ? (out as GeneratorPalette) : undefined
 }
 
 /** A generator row, or null when it lacks the identity the menu needs (key + name). */
@@ -791,7 +876,7 @@ function parseCategory(v: unknown): GeneratorCategoryDef | null {
 
 /**
  * Turn a raw `/api/generators` body into the catalog. Rows the frontend cannot identify are dropped and
- * NAMED in a warning — a bad seed must be visible in the console, not silently smoothed over.
+ * NAMED in a warning, a bad seed must be visible in the console, not silently smoothed over.
  */
 export function parseGeneratorCatalog(body: unknown): GeneratorCatalog {
   const rows = isObject(body) && Array.isArray(body.data) ? body.data : []
@@ -807,7 +892,7 @@ export function parseGeneratorCatalog(body: unknown): GeneratorCatalog {
 
 const BASE = `${NEBULITH_API}/generators`
 
-/** Load the whole catalog (called once on editor mount). Throws on a non-ok response — the caller shows
+/** Load the whole catalog (called once on editor mount). Throws on a non-ok response, the caller shows
  *  the failure; it must never render a made-up menu in its place. */
 export async function fetchGeneratorCatalog(): Promise<GeneratorCatalog> {
   const res = await fetch(BASE)
@@ -817,7 +902,7 @@ export async function fetchGeneratorCatalog(): Promise<GeneratorCatalog> {
 
 // ── selectors ────────────────────────────────────────────────────────────────
 
-/** Every season the catalog offers, first-seen order — the union of the generators' own `zones`, so a
+/** Every season the catalog offers, first-seen order, the union of the generators' own `zones`, so a
  *  season exists exactly when some generator runs in it. Empty catalog → no seasons. */
 export function catalogZones(catalog: GeneratorCatalog): string[] {
   const seen = new Set<string>()
@@ -839,7 +924,7 @@ export function findCategory(catalog: GeneratorCatalog, key: string): GeneratorC
   return catalog.find(c => c.key === key)
 }
 
-/** A LAYOUT choice the user picks within a map type — a generator that names a shape. `id` is the
+/** A LAYOUT choice the user picks within a map type, a generator that names a shape. `id` is the
  *  generator's `layout` (what the engine is asked for), `label` its display name. */
 export interface CatalogLayout {
   id: string
@@ -847,7 +932,7 @@ export interface CatalogLayout {
 }
 
 /** The layouts a map type offers, in menu order. A category whose generators name no layout offers NO
- *  choice (one generator, no shape) — the menu then shows no layout group, as DATA, never a
+ *  choice (one generator, no shape), the menu then shows no layout group, as DATA, never a
  *  `key === 'forest'` branch. */
 export function categoryLayouts(catalog: GeneratorCatalog, categoryKey: string): CatalogLayout[] {
   const category = findCategory(catalog, categoryKey)
@@ -868,7 +953,7 @@ export function categoryLayouts(catalog: GeneratorCatalog, categoryKey: string):
  * The generator to RUN for a (map type, layout) pair.
  *
  * A named layout selects its generator exactly; no layout takes the category's first (lowest-position)
- * generator. A layout the category does not carry resolves to nothing — the caller must not silently
+ * generator. A layout the category does not carry resolves to nothing, the caller must not silently
  * run a different world than the user asked for.
  */
 export function findGenerator(
@@ -908,7 +993,7 @@ export function findGeneratorForVariant(
   return rows.find(g => g.key === layout) ?? rows.find(g => g.layout === layout) ?? rows[0]
 }
 
-/** Any generator in the catalog by its key, at any depth — how the editor finds the SUBTYPE that was picked. */
+/** Any generator in the catalog by its key, at any depth, how the editor finds the SUBTYPE that was picked. */
 export function findGeneratorByKey(catalog: GeneratorCatalog, key: string): GeneratorDef | undefined {
   const search = (list: readonly GeneratorDef[]): GeneratorDef | undefined => {
     for (const g of list) {
@@ -929,7 +1014,7 @@ export function findGeneratorByKey(catalog: GeneratorCatalog, key: string): Gene
  * Roll a grid SIZE from a generator's range: an integer in `[min, max]` inclusive per axis.
  *
  * `rand` is injected (0..1) so a seeded harness reproduces a size exactly, the way the editor's own
- * seeded generate path does. Undefined when the generator carries no grid — the caller keeps the grid
+ * seeded generate path does. Undefined when the generator carries no grid, the caller keeps the grid
  * it has rather than resizing to a size this file invented.
  */
 export function rollGridSize(
@@ -947,11 +1032,54 @@ export function rollGridSize(
  *
  * It used to be exposed here as guidance the panel printed, and before that as a CAP.
  * So neither the cap nor the note survives, and with no caller left the
- * accessors are deleted rather than kept "just in case" — the range is read where it is rolled.
+ * accessors are deleted rather than kept "just in case", the range is read where it is rolled.
  */
 
 /** One integer in an inclusive range. A reversed/degenerate range yields its `min` rather than NaN. */
 function rollRange(range: GridRange, r: number): number {
   const span = Math.max(0, Math.floor(range.max) - Math.floor(range.min))
   return Math.floor(range.min) + Math.floor(r * (span + 1))
+}
+
+/** One headed section of the options panel: a group's label and the options that belong to it. */
+export interface GeneratorOptionSection {
+  key: string
+  label: string
+  options: readonly GeneratorOption[]
+}
+
+/**
+ * THE OPTIONS, GROUPED THE WAY THE GENERATOR SAYS.
+ *
+ * Order comes from the options themselves, so a group appears where its first option does and the panel never
+ * carries a list of group names to sort by. A generator that serves no groups gets one section called
+ * "Options", which is exactly what the panel drew before groups existed.
+ *
+ * A group with no served label falls back to the group's own key rather than being hidden: a missing label is
+ * a data gap worth seeing, not a reason to drop the controls.
+ */
+export function optionSections(gen: GeneratorDef | null | undefined): readonly GeneratorOptionSection[] {
+  const options = gen?.options ?? []
+  if (options.length === 0) return []
+  const labels = gen?.config.optionGroups ?? {}
+  const sections: GeneratorOptionSection[] = []
+  for (const opt of options) {
+    const key = opt.group ?? ''
+    const found = sections.find(s => s.key === key)
+    if (found) {
+      ;(found.options as GeneratorOption[]).push(opt)
+      continue
+    }
+    sections.push({ key, label: key === '' ? 'Options' : labels[key] ?? key, options: [opt] })
+  }
+  return sections
+}
+
+/** How many choices this map's size takes off the lists, across every option. 0 when nothing was narrowed,
+ *  which is what lets the panel say so only when it is true. */
+export function trimmedBySize(gen: GeneratorDef | null | undefined, size: { cols: number; rows: number }): number {
+  return (gen?.options ?? []).reduce(
+    (n, opt) => n + ((opt.choices?.length ?? 0) - choicesForSize(opt, size.cols, size.rows).length),
+    0,
+  )
 }

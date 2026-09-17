@@ -8,7 +8,7 @@ import { QuestLogPanel } from '@/components/game/panels'
 import { questAnchorScreenPos } from '@/game/runtime/quest'
 
 // ───────────────────────────────────────────────────────────────────────────
-// Quest UI (React DOM) — the offer modal body + the quest log panel.
+// Quest UI (React DOM), the offer modal body + the quest log panel.
 //
 // Mirrors the build-and-play style: we drive the REAL components and the REAL
 // quest engine (acceptQuest), not mocks. The offer modal must show the quest

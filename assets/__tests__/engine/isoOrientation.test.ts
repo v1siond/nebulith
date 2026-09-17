@@ -1,10 +1,10 @@
 /**
- * isoOrientation — the pure math for a 4-way (90°) iso camera-rotation + tile-facing.
+ * isoOrientation, the pure math for a 4-way (90°) iso camera-rotation + tile-facing.
  *
  * These tests pin the ROTATION CONVENTION the whole feature is built on, against a HAND-COMPUTED table for a
  * non-square 5×3 grid (which is what catches the classic row/col-swap bug). The convention is deliberately the
- * SAME clockwise (CW) quarter-turn used by buildingCatalog.rotateFootprintOffset — a coord (col,row) in a w×h
- * grid turns CW to (h-1-row, col) in the swapped h×w grid — so the camera rotation composes cleanly with the
+ * SAME clockwise (CW) quarter-turn used by buildingCatalog.rotateFootprintOffset, a coord (col,row) in a w×h
+ * grid turns CW to (h-1-row, col) in the swapped h×w grid, so the camera rotation composes cleanly with the
  * building-facing rotation that already exists in the codebase.
  *
  * Screen intuition for the CW claim (iso.ts projection: +col = down-right, +row = down-left, so world origin
@@ -25,14 +25,14 @@ const COLS = 5
 const ROWS = 3
 const ORIENTATIONS: Orientation[] = [0, 1, 2, 3]
 
-/** Every (col,row) of the world grid — the loop that catches the row/col-swap bug. */
+/** Every (col,row) of the world grid, the loop that catches the row/col-swap bug. */
 function allWorldCells(cols = COLS, rows = ROWS): { col: number; row: number }[] {
   const out: { col: number; row: number }[] = []
   for (let row = 0; row < rows; row++) for (let col = 0; col < cols; col++) out.push({ col, row })
   return out
 }
 
-describe('orientedDims — the grid dims as seen in the view frame', () => {
+describe('orientedDims, the grid dims as seen in the view frame', () => {
   test('even turns keep dims, odd turns swap them', () => {
     expect(orientedDims(COLS, ROWS, 0)).toEqual({ cols: 5, rows: 3 })
     expect(orientedDims(COLS, ROWS, 1)).toEqual({ cols: 3, rows: 5 })
@@ -41,7 +41,7 @@ describe('orientedDims — the grid dims as seen in the view frame', () => {
   })
 })
 
-describe('orientCell — rotate a WORLD coord into the VIEW frame (CW quarter-turns)', () => {
+describe('orientCell, rotate a WORLD coord into the VIEW frame (CW quarter-turns)', () => {
   // Hand-computed corner table for the 5×3 world grid. Corners: TL(0,0) TR(4,0) BL(0,2) BR(4,2).
   // Verified by the CW image-rotation rule TL→TR→BR→BL→TL (see file header).
   const CORNER_TABLE: Record<Orientation, { in: [number, number]; out: [number, number] }[]> = {
@@ -101,7 +101,7 @@ describe('orientCell — rotate a WORLD coord into the VIEW frame (CW quarter-tu
   })
 })
 
-describe('deorientCell — the EXACT inverse (VIEW → WORLD)', () => {
+describe('deorientCell, the EXACT inverse (VIEW → WORLD)', () => {
   test.each(ORIENTATIONS)('o=%i: deorient ∘ orient = identity for EVERY world cell (catches the row/col swap)', o => {
     for (const { col, row } of allWorldCells()) {
       const v = orientCell(col, row, COLS, ROWS, o)
@@ -123,7 +123,7 @@ describe('deorientCell — the EXACT inverse (VIEW → WORLD)', () => {
   })
 })
 
-describe('orientedDrawKey — back-to-front sort key in the VIEW frame (higher = drawn later / in front)', () => {
+describe('orientedDrawKey, back-to-front sort key in the VIEW frame (higher = drawn later / in front)', () => {
   test.each(ORIENTATIONS)('o=%i: the key equals the ORIENTED coord col+row', o => {
     for (const { col, row } of allWorldCells()) {
       const v = orientCell(col, row, COLS, ROWS, o)
@@ -138,8 +138,7 @@ describe('orientedDrawKey — back-to-front sort key in the VIEW frame (higher =
   })
 
   test('occlusion rotates with the camera: under o=1 the FRONT corner is a DIFFERENT world cell', () => {
-    // Under o=1 the view-frame back corner is world (0,2) (key 0) and the front is world (4,0) (key 6) —
-    // the opposite of o=0, proving a cell that occludes flips as the camera turns.
+    // Under o=1 the view-frame back corner is world (0,2) (key 0) and the front is world (4,0) (key 6), // the opposite of o=0, proving a cell that occludes flips as the camera turns.
     expect(orientedDrawKey(0, 2, COLS, ROWS, 1)).toBe(0)
     expect(orientedDrawKey(4, 0, COLS, ROWS, 1)).toBe(6)
     expect(orientedDrawKey(4, 0, COLS, ROWS, 1)).toBeGreaterThan(orientedDrawKey(0, 2, COLS, ROWS, 1))
@@ -152,17 +151,17 @@ describe('orientedDrawKey — back-to-front sort key in the VIEW frame (higher =
     const b = orientCell(2, 1, COLS, ROWS, o)
     const ka = orientedDrawKey(1, 1, COLS, ROWS, o)
     const kb = orientedDrawKey(2, 1, COLS, ROWS, o)
-    // The one with the larger (col+row) in the view frame is in front — and its key must be larger.
+    // The one with the larger (col+row) in the view frame is in front, and its key must be larger.
     if (a.col + a.row > b.col + b.row) expect(ka).toBeGreaterThan(kb)
     else if (a.col + a.row < b.col + b.row) expect(ka).toBeLessThan(kb)
     else expect(ka).toBe(kb)
   })
 })
 
-describe('combineFacing — on-screen facing = (worldFacing + camera) mod 4 (world facing stays FIXED)', () => {
+describe('combineFacing, on-screen facing = (worldFacing + camera) mod 4 (world facing stays FIXED)', () => {
   // WHY add, not subtract: orientCell rotates the world CW by `camera` quarter-turns into the view frame, so a
   // FIXED world direction is also carried CW by the same amount. In the facing convention (south=0, then CW:
-  // west=1, north=2, east=3 — buildingCatalog.FACING_ROTATION) a +1 CW turn is +1 in the index, hence +camera.
+  // west=1, north=2, east=3, buildingCatalog.FACING_ROTATION) a +1 CW turn is +1 in the index, hence +camera.
   const FACINGS: Orientation[] = [0, 1, 2, 3]
 
   test('camera 0 renders the world facing unchanged', () => {
@@ -205,7 +204,7 @@ describe('combineFacing — on-screen facing = (worldFacing + camera) mod 4 (wor
   })
 })
 
-describe('nextOrientation — cycle helper, wraps 0..3', () => {
+describe('nextOrientation, cycle helper, wraps 0..3', () => {
   test('forward wraps 3 → 0', () => {
     expect(nextOrientation(0, 1)).toBe(1)
     expect(nextOrientation(1, 1)).toBe(2)

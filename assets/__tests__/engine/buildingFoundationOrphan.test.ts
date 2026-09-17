@@ -1,18 +1,18 @@
 /**
- * BUG #3 (Image #42) — a building FOUNDATION (the brown `path_stone` lot + collision) must NEVER be laid
+ * BUG #3 (Image #42), a building FOUNDATION (the brown `path_stone` lot + collision) must NEVER be laid
  * without its building. `placeBuilding` lays the foundation UNCONDITIONALLY at generation; the actual building
  * tiles are stamped later at load. So an orphan lot appears whenever the load-time stamp places 0 cells.
  *
  * ROOT CAUSE (found + fixed): the live load path re-derived the composition kind from `b.length`, but for an
  * EAST/WEST-facing plot `b.length` is the footprint's grid COL-SPAN = the DEPTH, not the facade length. So a
- * hospital (facade 6, depth 4) facing west recorded `length: 4` and the stamp asked for `hospital_4` — a
+ * hospital (facade 6, depth 4) facing west recorded `length: 4` and the stamp asked for `hospital_4`, a
  * composition that doesn't exist (only `hospital_6` is seeded) → 0 cells → foundation with no building.
  * `hospital_4` and `temple_4` orphan the same way; houses escaped only because `house_4` happens to exist.
  *
  * The fix: stamp by the building's AUTHORITATIVE `PlacedBuilding.kind` (derived from the facade length at plan
- * time — the value the SAVE path `stageToTemplate` already used), via `stampBuildingKind`.
+ * time, the value the SAVE path `stageToTemplate` already used), via `stampBuildingKind`.
  *
- * These tests generate MANY towns and assert every building's kind stamps > 0 cells (0 orphans) — and prove the
+ * These tests generate MANY towns and assert every building's kind stamps > 0 cells (0 orphans), and prove the
  * check isn't vacuous by showing the OLD `(type, length)` derivation still orphans on the same stages.
  */
 import { styleCatalog } from '@/engine/tileset/styleTiles'
@@ -37,7 +37,7 @@ function* manyTowns(): Generator<Gen> {
       }
 }
 
-/** The footprint cells of a placed building (col..col+length, top..row) — where the foundation was laid. */
+/** The footprint cells of a placed building (col..col+length, top..row), where the foundation was laid. */
 function footprintCells(b: { col: number; row: number; length: number; height: number }) {
   const cells: { col: number; row: number }[] = []
   const top = b.row - (b.height - 1)
@@ -96,11 +96,11 @@ describe('BUG #3: every generated building foundation gets its building stamped 
     }
     // eslint-disable-next-line no-console
     console.log(`OLD path orphans: ${oldOrphans}  kinds=${JSON.stringify([...kinds])}`)
-    expect(oldOrphans).toBeGreaterThan(0) // the bug was real — the fix isn't a no-op
+    expect(oldOrphans).toBeGreaterThan(0) // the bug was real, the fix isn't a no-op
   })
 
   test('mechanism: an east/west building records b.length = its DEPTH but b.kind uses the FACADE length', () => {
-    // Find a real generated east/west hospital (facade 6, depth 4) and assert the two disagree — the exact trap.
+    // Find a real generated east/west hospital (facade 6, depth 4) and assert the two disagree, the exact trap.
     let checked = 0
     for (const { stage } of manyTowns()) {
       for (const b of stage.buildings) {

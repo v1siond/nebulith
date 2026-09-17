@@ -1,14 +1,14 @@
 /**
- * ASK BEFORE DESTROYING — the app's own confirmation, replacing `window.confirm` (design §5.1).
+ * ASK BEFORE DESTROYING, the app's own confirmation, replacing `window.confirm` (design §5.1).
  *
  * A native `confirm()` is a browser chrome box: unstyled, unreadable next to the dark editor, and
  * impossible to phrase properly ("Delete this template?" with an OK button that says OK). This hook
- * keeps the call site's shape — `if (!(await confirm({…}))) return` — while rendering the app's
+ * keeps the call site's shape, `if (!(await confirm({…}))) return`, while rendering the app's
  * Modal, so the dialogue reads like the rest of the editor and the destructive button says what it
  * destroys.
  *
  * Only for DESTRUCTIVE actions. Creating things must not ask at all: on the new-game
- * prompt — "that's the worst UX ever … just assign a random name … and redirect user to the editor
+ * prompt, "that's the worst UX ever … just assign a random name … and redirect user to the editor
  * right away." See `game/autoNaming.ts`.
  */
 import { useCallback, useEffect, useRef, useState } from 'react'
@@ -18,7 +18,7 @@ export interface ConfirmRequest {
   title: string
   /** What is about to happen, in one plain sentence. */
   body: string
-  /** The destructive button's label — name the thing, never "OK". */
+  /** The destructive button's label, name the thing, never "OK". */
   confirmLabel: string
 }
 
@@ -81,7 +81,7 @@ export interface PromptRequest {
   title: string
   /** What is being named, in one plain sentence. */
   body: string
-  /** The field's label — say what the value IS, not "value". */
+  /** The field's label, say what the value IS, not "value". */
   label: string
   /** What the field starts with (the current name, for a rename). */
   initial?: string
@@ -95,13 +95,13 @@ export interface UsePrompt {
 }
 
 /**
- * ASK FOR A VALUE — the app's own text prompt, replacing `window.prompt` (§5.1).
+ * ASK FOR A VALUE, the app's own text prompt, replacing `window.prompt` (§5.1).
  *
  * The sibling of `useConfirm`, and the same contract: the call site keeps its shape
  * (`const name = await prompt({…}); if (!name) return`) while the dialogue is the app's Modal, and the
  * promise ALWAYS settles so a cancelled prompt can never leave its caller hanging.
  *
- * Only for a value the user must genuinely supply — RENAMING something that already exists. Creating things
+ * Only for a value the user must genuinely supply, RENAMING something that already exists. Creating things
  * must not ask at all: (see `game/autoNaming.ts`).
  */
 export function usePrompt(): UsePrompt {

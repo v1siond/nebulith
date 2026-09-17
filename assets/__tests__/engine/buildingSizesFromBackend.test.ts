@@ -1,12 +1,12 @@
 /**
- * BUILDING SIZES COME FROM THE BACKEND — they are not copied into the frontend.
+ * BUILDING SIZES COME FROM THE BACKEND, they are not copied into the frontend.
  *
- * — and, on the
+ *, and, on the
  * lockstep this replaces:
  *
  * The same truth used to live in THREE places: `buildingCatalog.BUILDING_DEPTH`,
  * `buildingCatalog.BUILDING_PLACE_LENGTH`, and a second pair inside `villageLayout`. All three were
- * hand-maintained against `Nebulith.Catalog.BuildingCompositions` with nothing enforcing the match — so raising
+ * hand-maintained against `Nebulith.Catalog.BuildingCompositions` with nothing enforcing the match, so raising
  * a building's depth in Elixir silently desynced the plot planner from what the stamp actually fills.
  *
  * Now they RESOLVE from the loaded compositions. These tests prove derivation, not agreement: they change the
@@ -36,7 +36,7 @@ describe('building sizes resolve from the loaded backend compositions', () => {
     }
   })
 
-  test('depth is per baked SIZE, not per type — deepening house_5 leaves house_3 alone', () => {
+  test('depth is per baked SIZE, not per type, deepening house_5 leaves house_3 alone', () => {
     const wide = styleCatalog('ascii').compositions!.house_5
     const original = wide.footprint.h
     try {
@@ -49,7 +49,7 @@ describe('building sizes resolve from the loaded backend compositions', () => {
     }
   })
 
-  test('a size that is not baked yields null — the planner skips it instead of reserving a guess', () => {
+  test('a size that is not baked yields null, the planner skips it instead of reserving a guess', () => {
     expect(buildingDepth('house', 99)).toBeNull()
   })
 
@@ -65,7 +65,7 @@ describe('building sizes resolve from the loaded backend compositions', () => {
     expect(buildingPlaceLength('house')).toBe(first) // stable across calls
   })
 
-  test('an unloaded composition yields null — no invented default', () => {
+  test('an unloaded composition yields null, no invented default', () => {
     const saved = styleCatalog('ascii').compositions
     try {
       styleCatalog('ascii').compositions = {}
@@ -76,7 +76,7 @@ describe('building sizes resolve from the loaded backend compositions', () => {
     }
   })
 
-  test('the planner adapter is exactly those resolvers — one source, no second copy', () => {
+  test('the planner adapter is exactly those resolvers, one source, no second copy', () => {
     const length = buildingPlaceLength('store')!
     expect(BACKEND_BUILDING_SIZES.lengthOf('store')).toBe(length)
     expect(BACKEND_BUILDING_SIZES.depthOf('store', length)).toBe(buildingDepth('store', length))

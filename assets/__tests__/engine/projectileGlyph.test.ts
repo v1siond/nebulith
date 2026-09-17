@@ -15,7 +15,7 @@ function recordingCtx() {
   return { ctx, calls }
 }
 
-describe('drawProjectileGlyph — the arrow rotates to follow its travel vector', () => {
+describe('drawProjectileGlyph, the arrow rotates to follow its travel vector', () => {
   test('rightward shot → angle 0 (native aim, unchanged)', () => {
     const { ctx, calls } = recordingCtx()
     drawProjectileGlyph(ctx, '➤', 50, 50, /*from*/ 0, 0, /*to*/ 10, 0)

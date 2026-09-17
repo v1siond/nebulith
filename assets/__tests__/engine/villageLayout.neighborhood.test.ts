@@ -1,4 +1,4 @@
-import '@/__tests__/helpers/installTilesetSeed' // the planner sizes its plots from the LOADED compositions — install the captured backend payload
+import '@/__tests__/helpers/installTilesetSeed' // the planner sizes its plots from the LOADED compositions, install the captured backend payload
 import { planVillage, planRoads, type Plot } from '@/engine/villageLayout'
 import { BACKEND_BUILDING_SIZES } from '@/engine/buildingCatalog'
 
@@ -67,7 +67,7 @@ describe('neighborhood layout LOGIC (asserted on the grid)', () => {
 
   test('houses form ROWS: a frontage has a contiguous run of ≥3 tightly-spaced houses', () => {
     // Assert the property across a handful of seeds (a single small town's rng may not line one frontage
-    // with a full run once the store/hospital/temple + a couple of offices claim plots) — a well-formed
+    // with a full run once the store/hospital/temple + a couple of offices claim plots), a well-formed
     // town lines at least one frontage with ≥3 TIGHTLY-spaced plots (a real row, not scattered dots).
     const MAX_TIDY_GAP = 9 // max plot width(5) + max side-yard gap(2) + slack
     let maxRun = 0
@@ -121,7 +121,7 @@ describe('neighborhood layout LOGIC (asserted on the grid)', () => {
   test('town is MODEST (capped) and NO two buildings touch (≥1 cell of trees between)', () => {
     for (const seed of [1, 2, 3, 4]) {
       const { plots } = planVillage(COLS, ROWS, seeded(seed), SIZES, 'town')
-      expect(plots.length).toBeLessThanOrEqual(18) // capped at the town BUILDING_CAP — a modest settlement
+      expect(plots.length).toBeLessThanOrEqual(18) // capped at the town BUILDING_CAP, a modest settlement
       expect(plots.length).toBeGreaterThanOrEqual(4) // ...but still a real settlement
       for (let i = 0; i < plots.length; i++) {
         for (let j = i + 1; j < plots.length; j++) {
@@ -139,7 +139,7 @@ describe('neighborhood layout LOGIC (asserted on the grid)', () => {
     expect(planVillage(COLS, ROWS, seeded(21), SIZES, 'city').plots.length).toBeGreaterThanOrEqual(4)
     // …but a CITY is a denser street GRID, not a bigger building cap, and streets cost land. On 48×36 the
     // city's extra streets eat more ground than they win back, so it fits FEWER buildings than the town
-    // (14 vs 9) — which is the design, not a fault. Demanding ≥12 of a city here contradicted the very next
+    // (14 vs 9), which is the design, not a fault. Demanding ≥12 of a city here contradicted the very next
     // line of this test, which has always said "on a big map".
     const streets = (s: 'town' | 'city') => {
       const { roads } = planRoads(COLS, ROWS, seeded(21), s)
@@ -148,7 +148,7 @@ describe('neighborhood layout LOGIC (asserted on the grid)', () => {
     expect(streets('city')).toBeGreaterThanOrEqual(streets('town'))
   })
 
-  test('GIVEN ROOM, a city runs away from a town — the payoff the denser grid is for', () => {
+  test('GIVEN ROOM, a city runs away from a town, the payoff the denser grid is for', () => {
     // The claim "a city has far more buildings on a big map" was written down and never tested. It is the
     // whole point of the settlement distinction, and it is where the small-map comparison misleads: at 80×60
     // the city more than doubles the town, and at 120×90 the town has stopped growing entirely while the

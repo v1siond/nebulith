@@ -1,7 +1,7 @@
 import { useState, type ReactNode } from 'react'
 
 /**
- * THE CHARACTER PANEL — one panel, tabs down the side, WoW / Resident Evil style.
+ * THE CHARACTER PANEL, one panel, tabs down the side, WoW / Resident Evil style.
  *
  *   > readlly, inventory button is not good at all, we should have something like world of wacraft or
  *   > redisent evil, a tab panel where we can go from inventory, to map, to our character stats, status,
@@ -14,7 +14,7 @@ import { useState, type ReactNode } from 'react'
  *
  * Both are the same fix. The bag had grown a stats block, a key-rebinding block and an ability block
  * because there was nowhere else to put them; giving each its own tab is what makes the bag a bag again.
- * The keys in particular are genuinely redundant now — a key belongs to an action bar, and bars are
+ * The keys in particular are genuinely redundant now, a key belongs to an action bar, and bars are
  * editable in Player UI.
  *
  * A TAB IS A ROUTE, not a scroll position: exactly one is open, its name says what you are looking at, and
@@ -25,7 +25,7 @@ export interface CharacterTab {
   id: string
   label: string
   glyph: string
-  /** Rendered only when the tab is open — a tab nobody opened costs nothing. */
+  /** Rendered only when the tab is open, a tab nobody opened costs nothing. */
   render: () => ReactNode
   /** Shown on the tab, e.g. how many quests are active. Absent for tabs that do not count. */
   badge?: number
@@ -38,7 +38,7 @@ export function CharacterPanel({
   onClose,
 }: {
   tabs: readonly CharacterTab[]
-  /** Which tab opens first — the one the caller's button is "about". */
+  /** Which tab opens first, the one the caller's button is "about". */
   initial?: string
   title?: string
   onClose: () => void

@@ -7,7 +7,7 @@
  * stats came out four-across in 35px slivers rather than the two columns the markup asked for, and 16 grids
  * across the editor were affected with nothing reporting it.
  *
- * A collision like this is invisible — the class is present, the rule that wins is somewhere else — so the
+ * A collision like this is invisible, the class is present, the rule that wins is somewhere else, so the
  * guard is on the NAME. A theme rule may not be keyed on a bare Tailwind layout utility.
  */
 import { readFileSync } from 'fs'
@@ -25,7 +25,7 @@ describe('the editor theme never keys a rule on a bare Tailwind utility class', 
   const css = raw.replace(/\/\*[\s\S]*?\*\//g, '')
 
   it.each(UTILITY_NAMES)('has no `.neb .%s` rule to outrank the utility of the same name', name => {
-    // A selector ENDING at that class — `.neb .grid{` or `.neb .grid.objgrid{`. A longer name that merely
+    // A selector ENDING at that class, `.neb .grid{` or `.neb .grid.objgrid{`. A longer name that merely
     // starts the same (`.neb .gridwrap`) is a different class and is fine.
     const claimed = new RegExp(`\\.neb\\s+\\.${name}(?![\\w-])`).test(css)
     expect({ name, claimed }).toEqual({ name, claimed: false })

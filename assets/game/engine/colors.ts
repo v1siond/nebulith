@@ -1,5 +1,5 @@
 /**
- * Pure color helpers for the ASCII renderers — parse hex/rgb(a), then darken,
+ * Pure color helpers for the ASCII renderers, parse hex/rgb(a), then darken,
  * lighten, or set alpha. Kept pure + standalone so the renderer's zone/theme
  * tinting (deriving trunk/canopy shades from one asset color) is unit-testable.
  *
@@ -37,7 +37,7 @@ export function parseColor(color: string): RGB | null {
 /** Recolour one sprite pixel to `tint` while KEEPING the sprite's shading: the pixel's luminance
  *  modulates the tint's brightness (a gamma lifts mid/low tones so it isn't muddy), so a WHITE pixel
  *  becomes the FULL tint colour and darks stay dark. Unlike a 'color' composite blend (which preserves
- *  the sprite's luminance and so leaves white sprites white), this recolours ANY sprite — the core of
+ *  the sprite's luminance and so leaves white sprites white), this recolours ANY sprite, the core of
  *  tintedImage's luminance-mapped colorize. Pure + unit-testable. */
 export function luminanceTint(r: number, g: number, b: number, tint: RGB, gamma = 0.7): RGB {
   const l = (0.299 * r + 0.587 * g + 0.114 * b) / 255 // sprite luminance 0..1
@@ -69,7 +69,7 @@ export function withAlpha(color: string, alpha: number): string {
 
 /**
  * Shift a color's INTENSITY for organic variety: `t`∈[0,1) darkens (t<0.5) or lightens
- * (t≥0.5) by up to `range`; t=0.5 leaves it unchanged. Pure + FAIL-SAFE — the stage
+ * (t≥0.5) by up to `range`; t=0.5 leaves it unchanged. Pure + FAIL-SAFE, the stage
  * generator feeds deterministic per-cell noise so a forest's leaves read in many tones of
  * one base color (a few darker, a few lighter) instead of one flat tone.
  */

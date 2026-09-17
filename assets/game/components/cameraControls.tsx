@@ -1,18 +1,17 @@
 /**
- * cameraControls — the top-nav camera controls for the ISO view.
+ * cameraControls, the top-nav camera controls for the ISO view.
  *
  * … "we can rotate the corners, 4 corners, 4 rotation options, all faces of the map are visible."
  */
 import { nextOrientation, type Orientation } from '@/engine/render/isoOrientation'
 
-/** The label for each corner. An Orientation is quarter-turns CW, so the honest name for it is its angle —
- *  no invented compass direction, which the camera model doesn't define. */
+/** The label for each corner. An Orientation is quarter-turns CW, so the honest name for it is its angle, *  no invented compass direction, which the camera model doesn't define. */
 const FACING_DEGREES: Record<Orientation, string> = { 0: '0°', 1: '90°', 2: '180°', 3: '270°' }
 
 /**
  * ONE quarter-turn per click, wrapping 0→1→2→3→0, showing which corner you are currently on. Controlled: the
  * editor page owns the facing (its React state feeds `render({ cameraFacing })`), this only advances it.
- * ISO-only — 2D and Top have no rotation, so the page doesn't render this there.
+ * ISO-only, 2D and Top have no rotation, so the page doesn't render this there.
  */
 export function CameraRotateButton({
   facing,
@@ -25,7 +24,7 @@ export function CameraRotateButton({
     <button
       onClick={() => onFacing(nextOrientation(facing, 1))}
       aria-label="Rotate the map 90 degrees"
-      title="Rotate the map horizontally — one quarter-turn per click, all 4 sides"
+      title="Rotate the map horizontally, one quarter-turn per click, all 4 sides"
       className="shrink-0 rounded bg-gray-700 px-2 py-1 text-xs font-bold text-white transition-colors hover:bg-gray-600"
     >
       ↻ Rotate <span className="text-yellow-400">{FACING_DEGREES[facing]}</span>
@@ -40,7 +39,7 @@ export const PLAYER_RANGE_MAX = 24
 export const PLAYER_RANGE_DEFAULT = 6
 
 /** Normalise a would-be range to a valid ON value, or `undefined` for OFF. A null / non-finite / non-positive
- *  value is OFF (the full render — no regression); a positive value is rounded and clamped into range. This is
+ *  value is OFF (the full render, no regression); a positive value is rounded and clamped into range. This is
  *  the ONE place the control + the `window.__setPlayerViewRange` seam agree on what "off" and a valid range mean. */
 export function normalizePlayerViewRange(n: number | undefined | null): number | undefined {
   if (n == null || !Number.isFinite(n) || n <= 0) return undefined
@@ -49,9 +48,9 @@ export function normalizePlayerViewRange(n: number | undefined | null): number |
 
 /**
  * PLAYER-CAMERA RANGE control.
- * CONTROLLED — the editor page owns the range and feeds it to `render({ playerViewRange })`; this only sets it.
+ * CONTROLLED, the editor page owns the range and feeds it to `render({ playerViewRange })`; this only sets it.
  * DEFAULT OFF: a checkbox toggles the range on/off (undefined = the full-window render), and while ON a slider
- * increases / reduces the radius live. ISO-only — the page renders it only in the iso view.
+ * increases / reduces the radius live. ISO-only, the page renders it only in the iso view.
  */
 export function PlayerRangeControl({
   range,
@@ -90,7 +89,7 @@ export function PlayerRangeControl({
   )
 }
 
-/** Rotate a pan (camOffset) delta by `quarters` CW quarter-turns — the SAME quarter-turn the grid takes:
+/** Rotate a pan (camOffset) delta by `quarters` CW quarter-turns, the SAME quarter-turn the grid takes:
  *  (x,y) → (-y,x) each turn. Pure. */
 export function rotatePan(pan: { x: number; y: number }, quarters: number): { x: number; y: number } {
   let { x, y } = pan
@@ -101,7 +100,7 @@ export function rotatePan(pan: { x: number; y: number }, quarters: number): { x:
 
 /** The pan (camOffset) that keeps the CURRENTLY-CENTERED world point centered when the camera facing changes
  *  `from → to`. The screen-centre world point is `player − R₋facing(pan)`, so rotating the pan by (to−from)
- *  quarter-turns holds that point fixed — the map rotates AROUND what you were looking at, no jump. Pure. */
+ *  quarter-turns holds that point fixed, the map rotates AROUND what you were looking at, no jump. Pure. */
 export function panKeepingCenter(pan: { x: number; y: number }, from: Orientation, to: Orientation): { x: number; y: number } {
   return rotatePan(pan, to - from)
 }

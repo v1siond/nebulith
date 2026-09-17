@@ -3,10 +3,10 @@ import type { Entity, Quest } from '@/game/types'
 import type { TilePose } from '@/engine/tileset/pose'
 
 /**
- * ENTITY ART — a READER over the backend unit tiles. It declares no figures of its own.
+ * ENTITY ART, a READER over the backend unit tiles. It declares no figures of its own.
  *
  * This file used to BE the art: 11 multi-row enemy figures, their 11 animation frames, the villager, the
- * fallbacks — ~90 lines of hand-drawn sprites in the frontend.
+ * fallbacks, ~90 lines of hand-drawn sprites in the frontend.
  *
  *   > human like units should look like the user player, animals, and other units are also composition of
  *   > ascii characters grouped to create a given element … a dog is not a single character, is a set of
@@ -15,12 +15,12 @@ import type { TilePose } from '@/engine/tileset/pose'
  *   > backend … i don't want ANY data layer on frontend, just actual game engine.
  *
  * Those figures now live in nebulith (`priv/repo/tilesets/ascii_unit_art.json` → `TileSource.apply_unit_art`)
- * and arrive on each unit tile as `settings.artFrames` — the character ROWS of every frame — alongside
+ * and arrive on each unit tile as `settings.artFrames`, the character ROWS of every frame, alongside
  * `settings.frames`, the baked picture per frame, and `settings.frameMs`, the loop length. The 11 enemy
  * figures were recovered from this file verbatim, so nothing was redrawn in the move.
  *
- * What stays here is the NAMED ACCESS the render already used — `entityArt(entity)`, `entityArtFrame(e, n)`,
- * `entityFootprint(e)` — so every call site keeps its shape while the rows come from the catalog.
+ * What stays here is the NAMED ACCESS the render already used, `entityArt(entity)`, `entityArtFrame(e, n)`,
+ * `entityFootprint(e)`, so every call site keeps its shape while the rows come from the catalog.
  *
  * An unserved label resolves to NO rows rather than a stand-in figure: a unit the backend has no art for
  * must read as missing, not as a goblin. The footprint still floors at 1×2 cells, because collision needs a
@@ -28,7 +28,7 @@ import type { TilePose } from '@/engine/tileset/pose'
  */
 
 /** The unit TILE LABEL an entity draws. An enemy is its type (`goblin`); everything else is its kind
- *  (`player` / `npc`) — the same label→tile resolution the renderer uses for the baked image, so the rows
+ *  (`player` / `npc`), the same label→tile resolution the renderer uses for the baked image, so the rows
  *  and the picture can never disagree about which unit this is. */
 function unitLabel(entity: Entity): string {
   if (entity.kind === 'enemy') return entity.enemyType?.trim().toLowerCase() ?? 'enemy'
@@ -36,7 +36,7 @@ function unitLabel(entity: Entity): string {
 }
 
 /** The served frames of character rows for a unit, or `[]` when the backend has no art for it.
- *  ASCII is asked because it is the style whose tiles are composed FROM characters — the emoji rows carry
+ *  ASCII is asked because it is the style whose tiles are composed FROM characters, the emoji rows carry
  *  no `artFrames`, and a pictograph has no character grid to read. */
 function servedFrames(entity: Entity): readonly string[][] {
   const settings = styleTile('ascii', unitLabel(entity))?.settings as { artFrames?: string[][] } | undefined
@@ -45,8 +45,7 @@ function servedFrames(entity: Entity): readonly string[][] {
 }
 
 /**
- * A high-contrast color pair per entity — a bright glyph `fg` on a solid dark `bg` block —
- * so creatures render as ROBUST sprites in the trees' block language, not thin transparent
+ * A high-contrast color pair per entity, a bright glyph `fg` on a solid dark `bg` block, * so creatures render as ROBUST sprites in the trees' block language, not thin transparent
  * line-art. Each enemy type gets its own hue so the cast reads as colorful + distinct.
  */
 export interface EntityPalette { fg: string; bg: string }
@@ -69,7 +68,7 @@ export const ENEMY_PALETTE_FALLBACK: EntityPalette = { fg: '#ff8f6a', bg: '#5624
 /**
  * Character (player + npc) clothing/skin tones. A villager or hero draws ONE of these,
  * picked deterministically by its entity id, so the cast reads as distinct people the way
- * enemies vary by type — instead of every NPC being the same flat blue. Same recipe as the
+ * enemies vary by type, instead of every NPC being the same flat blue. Same recipe as the
  * enemy palette: a bright glyph `fg` on a solid dark block `bg`. Tasteful, not neon.
  * [0] gold = the classic hero tone, [1] sky-blue = the old plain-NPC tone (kept for continuity).
  */
@@ -110,12 +109,11 @@ export function entityPalette(entity: Entity): EntityPalette {
   return entity.color ? { ...base, fg: entity.color } : base
 }
 
-/** Top-view role colors for the `>` glyph: yellow player, red enemy, and NPCs by quest —
- *  blue (plain character), green (has an available quest to give), purple (quest in progress). */
+/** Top-view role colors for the `>` glyph: yellow player, red enemy, and NPCs by quest, *  blue (plain character), green (has an available quest to give), purple (quest in progress). */
 export const TOP_ROLE_COLOR = {
   player: '#ffdd00', // yellow
   enemy: '#ff4d4d', // red
-  npc: '#38bdf8', // blue — plain character
+  npc: '#38bdf8', // blue, plain character
   questAvailable: '#4ade80', // green
   questActive: '#c084fc', // purple
 } as const
@@ -132,7 +130,7 @@ export function topRoleColor(entity: Entity, quests: readonly Quest[]): string {
 }
 
 /**
- * The character ROWS a unit draws, frame 0 — its figure at rest.
+ * The character ROWS a unit draws, frame 0, its figure at rest.
  *
  * Empty when the backend serves no art for this unit. Nothing here substitutes another unit's figure: an
  * unserved label has to read as missing, which is a seeding gap to fix in nebulith, not something the
@@ -146,7 +144,7 @@ export function entityArt(entity: Entity): readonly string[] {
  * The rows for one animation FRAME, wrapping at the end of the cycle.
  *
  * Every frame is authored at the same row count and width as frame 0, so cycling never jitters the
- * footprint — the rule the old hardcoded `ENEMY_ART_ALT` followed and the seeder now asserts.
+ * footprint, the rule the old hardcoded `ENEMY_ART_ALT` followed and the seeder now asserts.
  */
 export function entityArtFrame(entity: Entity, frame: number): readonly string[] {
   const frames = servedFrames(entity)
@@ -156,7 +154,7 @@ export function entityArtFrame(entity: Entity, frame: number): readonly string[]
 
 /** The grid footprint (in CELLS) an entity occupies, derived from its art so the
  *  renderer + collision agree. Every entity is at least 2 cells tall (like the player
- *  — a 3-row figure ≈ 2 cells), 1 wide; wider art (e.g. a spider) spans 2–3 cells.
+ * , a 3-row figure ≈ 2 cells), 1 wide; wider art (e.g. a spider) spans 2-3 cells.
  *  ~3 art chars ≈ one cell wide; ~1.5 art rows ≈ one cell tall. */
 export function entityFootprint(entity: Entity): { w: number; h: number } {
   const art = entityArt(entity)
@@ -187,7 +185,7 @@ export const SWORD_GLYPH = 'Ɨ'
 export const BOW_GLYPH = '}'
 export const GUN_GLYPH = '¬'
 
-/** Emoji held-weapon glyph for the reskin styles — a real ⚔️/🏹/🪄 in hand instead of the ASCII `Ɨ`/`}`.
+/** Emoji held-weapon glyph for the reskin styles, a real ⚔️/🏹/🪄 in hand instead of the ASCII `Ɨ`/`}`.
  *  Bare hands draw nothing. Used when the active style isn't ASCII (see the player loadout sync). */
 export function weaponEmoji(weapon?: { kind?: string; range?: string } | null): string {
   if (!weapon || weapon.kind === 'unarmed') return ''
@@ -206,16 +204,16 @@ export function weaponEmoji(weapon?: { kind?: string; range?: string } | null): 
   }
 }
 
-/** The equipped weapon's POSE (orientation/size/flip/offset/muzzle) from the loaded tileset — the
+/** The equipped weapon's POSE (orientation/size/flip/offset/muzzle) from the loaded tileset, the
  *  data that used to be the hardcoded WEAPON_ORIENT/emojiWeaponSize. Emoji reads its tileset entry;
  *  ascii returns undefined for now (the ascii weapon path keeps its own drawing). Absent → the render
  *  falls back to identity (no rotation/scale), so keep the backend tileset seeded with the weapon poses. */
-/** The uniform ASCII held-weapon pose — the orientation the ascii weapon branch used to HARDCODE: rotate
+/** The uniform ASCII held-weapon pose, the orientation the ascii weapon branch used to HARDCODE: rotate
  *  π (a vertical blade points down out of the fist and reads as a blade both pathways), MIRROR on the facing
  *  (`flip` XOR left-facing → the glyph points OUTWARD in both facings, #54), and grow to the old weaponSize
  *  (fontSize×1.7) offset half a weapon-length down the hand (dy = 1.7×0.45). Every ascii weapon shared this
  *  one look. Used as the fallback when the loaded ascii tileset carries no per-weapon pose (bundled default
- *  / backend down), mirroring how `weaponEmoji` falls back to a switch — so the ascii look never regresses. */
+ *  / backend down), mirroring how `weaponEmoji` falls back to a switch, so the ascii look never regresses. */
 export const ASCII_WEAPON_POSE: TilePose = { rot: Math.PI, flip: true, scale: 1.7, dy: 0.765 }
 
 export function weaponPose(kind: string | undefined, style: 'emoji' | 'ascii'): TilePose | undefined {
@@ -226,7 +224,7 @@ export function weaponPose(kind: string | undefined, style: 'emoji' | 'ascii'): 
   return styleTile('emoji', kind)?.pose
 }
 
-/** The bare-handed PUNCH tile (glyph + pose) for the reskin styles — a real 👊 swung at the hand when the
+/** The bare-handed PUNCH tile (glyph + pose) for the reskin styles, a real 👊 swung at the hand when the
  *  hero fights unarmed, instead of the ASCII swing. Data-driven: reads the loaded tileset's `fist` entry
  *  like the weapons read theirs. ASCII bare hands stay as they were (no glyph → the fist is emoji art). */
 export function punchTile(style: 'emoji' | 'ascii'): { glyph: string; pose?: TilePose } {
@@ -237,7 +235,7 @@ export function punchTile(style: 'emoji' | 'ascii'): { glyph: string; pose?: Til
 
 export function weaponGlyph(weapon?: { kind?: string; range?: string } | null): string {
   if (!weapon) return ''
-  if (weapon.kind === 'unarmed') return '' // bare hands — the fist swings, no blade is drawn
+  if (weapon.kind === 'unarmed') return '' // bare hands, the fist swings, no blade is drawn
   // Ranged reads by silhouette: a gun is a pistol, everything else ranged is a drawn bow.
   if (weapon.range === 'ranged') return weapon.kind === 'gun' ? GUN_GLYPH : BOW_GLYPH
   switch (weapon.kind) {

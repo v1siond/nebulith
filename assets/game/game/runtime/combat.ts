@@ -1,6 +1,6 @@
 // Pure combat tick: the player attack, enemy retaliation from each enemy attack
 // pattern, projectile resolution, and the per-frame runtime sync. Moved out of the
-// game-engine page (stage 2). Pure — mutates only its passed-in args; no React/DOM.
+// game-engine page (stage 2). Pure, mutates only its passed-in args; no React/DOM.
 import type { Entity, CombatState, Weapon, Armor, Stats, Attack, EnemyAttack } from '@/game/types'
 import { deriveStats, startingCombatState, resolveAttack, applyDamage, isDead } from '@/game/combat'
 import { isRespawned, DEFAULT_PLAYER_STATS } from '@/game/entities'
@@ -15,7 +15,7 @@ import { aimDelta, type PlayerState } from './player'
 import { findTarget, isLivingEnemy, isAdjacentToPlayer, RANGED_RANGE, type EnemyRuntime } from './targeting'
 import { isAttackable, isHostile } from './capabilities'
 
-/** The player's DEFAULT melee — bare fists. The player starts unarmed (no weapon auto-equipped):
+/** The player's DEFAULT melee, bare fists. The player starts unarmed (no weapon auto-equipped):
  *  weaponGlyph('unarmed') returns '' so NO blade is drawn, but the swing, the 1.5s cadence, and
  *  the reach (1 cell) all still resolve. Equip a weapon to show its blade. */
 export const BARE_HANDS: Weapon = {
@@ -39,7 +39,7 @@ const SPECIAL_MELEE: Attack = { school: 'physical', range: 'melee', tier: 'speci
 
 /** The two combat-engine attack shapes an enemy swing resolves through (resolveAttack reads
  *  school/range). Which one (and its damage/cooldown/tint) is chosen each tick comes from the
- *  enemy's attack PATTERN — see nextEnemyAttack + applyEnemyRetaliation. */
+ *  enemy's attack PATTERN, see nextEnemyAttack + applyEnemyRetaliation. */
 const ENEMY_ATTACK: Attack = REGULAR_MELEE
 const ENEMY_RANGED_ATTACK: Attack = { school: 'physical', range: 'ranged', tier: 'regular' }
 
@@ -52,7 +52,7 @@ export interface HitMarker {
   row: number
   amount: number
   bornAt: number
-  /** who took the hit — colors the marker (enemy red vs player white). */
+  /** who took the hit, colors the marker (enemy red vs player white). */
   target: 'enemy' | 'player'
 }
 
@@ -68,7 +68,7 @@ export interface PlayerHud {
 
 /**
  * Ensure every current enemy has a runtime CombatState, and prune state for
- * enemies that no longer exist. Returns nothing — mutates the runtime maps in
+ * enemies that no longer exist. Returns nothing, mutates the runtime maps in
  * place (the loop owns them; this is the one sync point each frame).
  */
 function syncEnemyRuntime(entities: readonly Entity[], runtime: EnemyRuntime): void {
@@ -133,14 +133,14 @@ export interface CombatStepInput {
   /** the player's effective stats from their equipped loadout (gear str/int/defense
    *  + dodge). Drives both the player's attacks and their dodge on retaliation. */
   playerStats: Stats
-  /** the player's equipped shield (if any) — gives a block% on retaliation. */
+  /** the player's equipped shield (if any), gives a block% on retaliation. */
   playerShield?: Weapon
   hitMarkers: HitMarker[]
   cellSize: number
   use2D: boolean
   attack: boolean // edge-triggered: regular attack this frame
   special: boolean // edge-triggered: special attack this frame
-  /** an ability fired this frame (key 1–4): a melee swing with the ability's damage + blade tint. */
+  /** an ability fired this frame (key 1-4): a melee swing with the ability's damage + blade tint. */
   abilitySwing?: AbilitySwing
   now: number
   /** the loop's live attack-animation list; a landed hit pushes one. */
@@ -163,7 +163,7 @@ export interface ProjectileContext {
 /** What the combat step produces back to the loop (player state may be replaced on death/spend). */
 interface CombatStepResult {
   playerCombat: CombatState
-  /** enemyType of every enemy the player killed THIS frame — feeds 'kill' quest objectives. */
+  /** enemyType of every enemy the player killed THIS frame, feeds 'kill' quest objectives. */
   kills: string[]
 }
 
@@ -198,7 +198,7 @@ function prunePlayerStartedMarkers(markers: HitMarker[], now: number): void {
   markers.length = write
 }
 
-/** Spawn an attack animation — the SAME call for EVERY attacker (player, enemy, turret).
+/** Spawn an attack animation, the SAME call for EVERY attacker (player, enemy, turret).
  *  This is the single bridge from the attack system to the animation system; firing any
  *  attack plays its animation through here. */
 function spawnAttackAnim(
@@ -215,7 +215,7 @@ function spawnAttackAnim(
 interface AbilitySwing {
   damage: number
   /** The blade tint, from the ability's own FX TILE. Optional because a tileset that does not serve that
-   *  tile has no colour to give — the caller draws its default rather than the frontend inventing a hex. */
+   *  tile has no colour to give, the caller draws its default rather than the frontend inventing a hex. */
   tint?: string
 }
 
@@ -243,7 +243,7 @@ export function triggerAbility(
   return swing
 }
 
-/** ms a projectile spends travelling per cell — slow enough that an enemy can step off
+/** ms a projectile spends travelling per cell, slow enough that an enemy can step off
  *  the impact cell to dodge it (the core of "resolve on impact, not on fire"). */
 const PROJECTILE_MS_PER_CELL = 55
 
@@ -274,7 +274,7 @@ function applyPlayerAttack(input: CombatStepInput, kills: string[]): CombatState
   const target = findTarget(player, entities, runtime, cellSize, use2D, reach)
   // Aim at an acquired target's cell; otherwise straight down the 8-way aim line. A RANGED shot
   // with no target flies its FULL reach, so a bow/gun covers the SAME distance in EVERY
-  // direction (#53) — it used to die at the 1-cell faced cell, so an open-field shot barely
+  // direction (#53), it used to die at the 1-cell faced cell, so an open-field shot barely
   // left the player. Melee keeps its whiff at the adjacent aimed cell. The aim is 8-way + in
   // grid space (#55), so projectiles + the swing fire along all 8 directions in both views.
   const [dCol, dRow] = aimDelta(player, use2D)
@@ -285,7 +285,7 @@ function applyPlayerAttack(input: CombatStepInput, kills: string[]): CombatState
   const aimRow = target ? target.row : pRow + dRow * lineDist
 
   // RANGED: loose a projectile aimed at the target's CURRENT cell and stop. Damage is
-  // deferred to impact (tickProjectiles) — it misses if the target steps off that cell.
+  // deferred to impact (tickProjectiles), it misses if the target steps off that cell.
   if (ranged) {
     spawnProjectile(input, aimCol, aimRow, target, now)
     return playerCombat
@@ -306,8 +306,7 @@ function applyPlayerAttack(input: CombatStepInput, kills: string[]): CombatState
       attackerState: playerCombat,
     })
     if (result.fired) {
-      // An ability swing deals its OWN authored damage (data-driven model), not the weapon roll —
-      // but still respects the avoidance rolls (a dodged/blocked slash deals 0 either way).
+      // An ability swing deals its OWN authored damage (data-driven model), not the weapon roll, // but still respects the avoidance rolls (a dodged/blocked slash deals 0 either way).
       const landed = !result.dodged && !result.blocked
       const damage = input.abilitySwing && landed ? input.abilitySwing.damage : result.damage
       const hpAfter = applyDamage(targetState.hp, damage)
@@ -319,7 +318,7 @@ function applyPlayerAttack(input: CombatStepInput, kills: string[]): CombatState
     }
   }
 
-  // ALWAYS show the swing — even a whiff. Shared spawn → same for every attacker.
+  // ALWAYS show the swing, even a whiff. Shared spawn → same for every attacker.
   // melee → the single in-hand weapon swings (drawn by the player); ranged/magic keep their own anim.
   // An ability recolors that one swing (Fire Slash → red-orange blade); a basic 'f' stays steel.
   spawnAttackAnim(input.anims, player.x, player.z, aimCol * cellSize + cellSize / 2, aimRow * cellSize + cellSize / 2, animKind, now, player.weaponGlyph, animKind === 'slash', input.abilitySwing?.tint)
@@ -342,7 +341,7 @@ export function muzzleOrigin(fromCol: number, fromRow: number, aimCol: number, a
 
 /** Loose a travelling projectile from the player toward (aimCol,aimRow). Stores the
  *  attacker context so the deferred impact (tickProjectiles) can run resolveAttack.
- *  A target-less shot (no enemy acquired) still flies — it just resolves to a miss. */
+ *  A target-less shot (no enemy acquired) still flies, it just resolves to a miss. */
 function spawnProjectile(input: CombatStepInput, aimCol: number, aimRow: number, target: Entity | null, now: number): void {
   const list = input.projectiles
   if (!list) return
@@ -350,7 +349,7 @@ function spawnProjectile(input: CombatStepInput, aimCol: number, aimRow: number,
   const fromCol = Math.floor(player.x / cellSize)
   const fromRow = Math.floor(player.z / cellSize)
   const dist = Math.max(1, Math.max(Math.abs(aimCol - fromCol), Math.abs(aimRow - fromRow)))
-  // The shot leaves the weapon's muzzle (pose.muzzle) — absent in the seeds → the shooter cell, unchanged.
+  // The shot leaves the weapon's muzzle (pose.muzzle), absent in the seeds → the shooter cell, unchanged.
   const o = muzzleOrigin(fromCol, fromRow, aimCol, aimRow, weaponPose(playerWeapon.kind, 'emoji')?.muzzle)
   const id = `proj-${now}-${projectileSeq++}`
   list.push({
@@ -465,9 +464,9 @@ function spawnImpactFlourish(anims: AttackAnim[] | undefined, col: number, row: 
 
 /**
  * Each living enemy fires the NEXT attack from its authored pattern (sequential cycle / random
- * pick — see nextEnemyAttack), if that attack is in range AND off cooldown. The chosen attack
+ * pick, see nextEnemyAttack), if that attack is in range AND off cooldown. The chosen attack
  * drives EVERYTHING: melee vs ranged reach, its damage (the swing's weapon base), its cooldown,
- * and its animation tint — so an enemy with a [melee, ranged] list visibly alternates a slash and
+ * and its animation tint, so an enemy with a [melee, ranged] list visibly alternates a slash and
  * a bolt. An enemy with no authored pattern falls back to a single strength-only melee (no regress).
  */
 export function applyEnemyRetaliation(input: CombatStepInput & { playerCombat: CombatState }): CombatState {
@@ -480,7 +479,7 @@ export function applyEnemyRetaliation(input: CombatStepInput & { playerCombat: C
 
   for (const entity of entities) {
     if (!isLivingEnemy(entity, runtime)) continue
-    if (!isHostile(entity)) continue // only HOSTILE units retaliate — an attackable-but-peaceful unit won't hit back
+    if (!isHostile(entity)) continue // only HOSTILE units retaliate, an attackable-but-peaceful unit won't hit back
     // The pattern decides the next attack (the cooldown gate uses THAT attack's cooldown).
     const fireCount = runtime.attackFireCount.get(entity.id) ?? 0
     const chosen = nextEnemyAttack(entity.attack, { fireCount })
@@ -498,17 +497,17 @@ export function applyEnemyRetaliation(input: CombatStepInput & { playerCombat: C
     })
     runtime.lastAttackAt.set(entity.id, now)
     runtime.attackFireCount.set(entity.id, fireCount + 1) // advance the sequential cycle
-    // The enemy's swing/bolt animates too — attacks trigger animations for EVERY attacker. The
+    // The enemy's swing/bolt animates too, attacks trigger animations for EVERY attacker. The
     // attack's animation recolors it (a fire bite burns orange, a frost bolt glows blue).
     const tint = chosen.animation ? abilityTint(chosen.animation) : undefined
     // Pass the ability ANIMATION too (not just its tint) so the renderer can draw the ability's FX tile
-    // (fire-slash 🔥 / bolt 🔮 / …) under a reskin — the tint recolours it, exactly as it recoloured the glyph.
+    // (fire-slash 🔥 / bolt 🔮 / …) under a reskin, the tint recolours it, exactly as it recoloured the glyph.
     spawnAttackAnim(input.anims, entity.col * cellSize + cellSize / 2, entity.row * cellSize + cellSize / 2, player.x, player.z, ranged ? 'shot' : 'slash', now, undefined, false, tint, chosen.animation)
     playerCombat = { ...playerCombat, hp: result.defenderHpAfter }
     const pCol = Math.floor(player.x / cellSize)
     const pRow = Math.floor(player.z / cellSize)
     pushHitMarker(hitMarkers, pCol, pRow, result.damage, 'player', now)
-    if (isDead(playerCombat.hp)) break // dead — stop piling on this frame
+    if (isDead(playerCombat.hp)) break // dead, stop piling on this frame
   }
   return playerCombat
 }
@@ -568,7 +567,7 @@ export function pushHitMarker(
 /** Player death → reset to full HP at spawn (placeholder until respawn/death UX). */
 function resetPlayerIfDead(playerCombat: CombatState): CombatState {
   if (!isDead(playerCombat.hp)) return playerCombat
-  // NOTE: trivial reset for now — full restore in place. No spawn teleport yet
+  // NOTE: trivial reset for now, full restore in place. No spawn teleport yet
   // (spec §"keep it simple first"); proper death/respawn UX comes later.
   return startingCombatState(deriveStats(DEFAULT_PLAYER_STATS, BARE_HANDS))
 }

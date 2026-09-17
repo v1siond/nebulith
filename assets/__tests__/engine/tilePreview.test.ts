@@ -1,5 +1,5 @@
 /**
- * TILE PREVIEW — behaviour tests.
+ * TILE PREVIEW, behaviour tests.
  *
  * These exist because the previews state FACTS to the user ("12 levels high", "you can walk on 2 cells"),
  * and a fact that is quietly wrong is worse than no fact. Two of them were wrong in the design mockup
@@ -54,7 +54,7 @@ describe('tileFrames', () => {
     expect(tileFrames(STYLE, 'grass')).toEqual([`/tiles/${STYLE}/grass.png`])
   })
 
-  it('returns nothing for a label this style does not have — never another label’s art', () => {
+  it('returns nothing for a label this style does not have, never another label’s art', () => {
     install([tile('grass')])
     expect(tileFrames(STYLE, 'dragon')).toEqual([])
   })
@@ -133,7 +133,7 @@ describe('tileFacts', () => {
 describe('compositionPreview', () => {
   /**
    * A 2-wide house whose BACK wall is taller than its front. The front row is the visible one, so the
-   * elevation draws 2 levels — but the thing is 5 levels tall, and that is what the user is told.
+   * elevation draws 2 levels, but the thing is 5 levels tall, and that is what the user is told.
    */
   const unevenHouse: Composition = {
     footprint: { w: 2, h: 2 },
@@ -196,7 +196,7 @@ describe('compositionPreview', () => {
     expect(plan?.find((c) => c.dx === 1)?.walkable).toBe(false)
   })
 
-  it('counts the walkable squares — the door a player enters through', () => {
+  it('counts the walkable squares, the door a player enters through', () => {
     install([tile('wall')], {
       hut: {
         footprint: { w: 3, h: 1 },

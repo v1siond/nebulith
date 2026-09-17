@@ -1,16 +1,16 @@
 /**
- * `🎮 Boss ▾` — the game's identity and the actions that belong to the whole product (§4.4).
+ * `🎮 Boss ▾`, the game's identity and the actions that belong to the whole product (§4.4).
  *
  * §3.2 measured that inside `/games/[id]` "the only identity shown anywhere is the template name": you could
  * not tell WHICH game you were editing. The level stepper answered "which level"; this answers "which game",
- * and collects the actions whose subject is the game rather than the map — rename, manage levels, the level
+ * and collects the actions whose subject is the game rather than the map, rename, manage levels, the level
  * graph, export, and the way out.
  *
  * §4.1's first principle is one question per region: the PROJECT bar answers *what am I working on*. These
  * items all answer that; none of them changes the map in front of you.
  *
  * The one guarantee with teeth: **← All games confirms before leaving with unsaved changes** (§4.4), because
- * §3.15 lists "navigates out of the game without warning — an unsaved map is lost with no prompt" as a live
+ * §3.15 lists "navigates out of the game without warning, an unsaved map is lost with no prompt" as a live
  * defect. The guard is a required prop so a call site cannot quietly omit it.
  *
  * Presentational: every action is a prop.
@@ -46,12 +46,12 @@ export function GameMenu({
     return () => window.removeEventListener('mousedown', onDown)
   }, [open])
 
-  // Outside a game there is no game to name — and no game actions to offer.
+  // Outside a game there is no game to name, and no game actions to offer.
   if (gameName === null) return null
 
   const pick = (action: () => void) => () => { setOpen(false); action() }
 
-  // Leaving is the one item that can destroy work, so it asks first — and only when there IS work at stake.
+  // Leaving is the one item that can destroy work, so it asks first, and only when there IS work at stake.
   const leave = async () => {
     setOpen(false)
     if (wouldLoseWork && !(await confirmLeave())) return
@@ -66,7 +66,7 @@ export function GameMenu({
         onClick={() => setOpen(o => !o)}
         aria-expanded={open}
         aria-haspopup="menu"
-        aria-label={`Game menu — ${gameName}`}
+        aria-label={`Game menu, ${gameName}`}
         title={gameName}
         className="flex shrink-0 items-center gap-1 rounded px-2 py-1 text-xs font-bold text-gray-100 transition-colors hover:bg-white/10"
       >

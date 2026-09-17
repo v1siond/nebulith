@@ -1,7 +1,7 @@
 /**
  * A CREATURE'S NUMBERS LIVE ON ITS TILE.
  *
- * The reasoning did not hold. There were nine archetypes for eight creatures — one each — plus a frontend
+ * The reasoning did not hold. There were nine archetypes for eight creatures, one each, plus a frontend
  * map translating creature → archetype. Reuse was the only argument for a second table and there was none.
  * A creature's stat block rides on its own tile now and arrives with the tileset.
  */
@@ -36,7 +36,7 @@ describe('a creature reads its own tile', () => {
 })
 
 describe('the fightrules, which belong to nobody in particular', () => {
-  it('are empty until the backend answers — nothing is invented', () => {
+  it('are empty until the backend answers, nothing is invented', () => {
     installCombatCatalog({ data: { rules: {} } })
     expect(combatRules()).toBeNull()
     expect(statRules()).toBeNull()

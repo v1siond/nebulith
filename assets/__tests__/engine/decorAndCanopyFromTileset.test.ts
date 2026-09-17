@@ -14,7 +14,7 @@ const ZONES: ZoneId[] = ['spring', 'summer', 'autumn', 'winter', 'desert', 'beac
 const EMPTY: Tileset = { id: 'x', name: 'x', tiles: {}, palettes: {}, terrain: {} }
 const isHex = (c: string): boolean => /^#[0-9a-fA-F]{3,8}$/.test(c)
 
-describe('canopyCount — reads the leaf_center canopy-shade count from the loaded tileset', () => {
+describe('canopyCount, reads the leaf_center canopy-shade count from the loaded tileset', () => {
   useSeedTileset()
 
   it('matches the leaf_center tile settings.colors[zone] array length for every zone', () => {
@@ -25,7 +25,7 @@ describe('canopyCount — reads the leaf_center canopy-shade count from the load
     }
   })
 
-  it('falls back to >= 1 when the tileset is empty (unloaded) — tree gen never divides by zero', () => {
+  it('falls back to >= 1 when the tileset is empty (unloaded), tree gen never divides by zero', () => {
     expect(canopyCount(EMPTY, 'summer')).toBe(1)
   })
 
@@ -34,7 +34,7 @@ describe('canopyCount — reads the leaf_center canopy-shade count from the load
   })
 })
 
-describe('decorTilesForZone — the decor tiles that opt into a zone via settings.colors', () => {
+describe('decorTilesForZone, the decor tiles that opt into a zone via settings.colors', () => {
   useSeedTileset()
 
   it('returns only category==="decor" tiles whose colours carry the zone', () => {
@@ -74,14 +74,14 @@ describe('decorTilesForZone — the decor tiles that opt into a zone via setting
   })
 })
 
-describe('pickGroundDecor — deterministic per-cell selection resolved to glyph + zone colour', () => {
+describe('pickGroundDecor, deterministic per-cell selection resolved to glyph + zone colour', () => {
   useSeedTileset()
 
   it('returns null when the zone has no decor (empty tileset)', () => {
     expect(pickGroundDecor(EMPTY, 'summer', 3, 4)).toBeNull()
   })
 
-  it('is deterministic — the same cell always resolves to the same decor', () => {
+  it('is deterministic, the same cell always resolves to the same decor', () => {
     const a = pickGroundDecor(styleCatalog('ascii'), 'autumn', 5, 9)
     const b = pickGroundDecor(styleCatalog('ascii'), 'autumn', 5, 9)
     expect(a).toEqual(b)

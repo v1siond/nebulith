@@ -1,4 +1,4 @@
-import '@/__tests__/helpers/installTilesetSeed' // an entity's FOOTPRINT is derived from the art the backend serves (settings.artFrames) — with no catalog every creature collapses to one cell
+import '@/__tests__/helpers/installTilesetSeed' // an entity's FOOTPRINT is derived from the art the backend serves (settings.artFrames), with no catalog every creature collapses to one cell
 import {
   makePlayer,
   makeEnemy,
@@ -69,7 +69,7 @@ describe('entity factories', () => {
   it('makeEnemy takes its respawn from rarity when no explicit respawnMs is given', () => {
     const elite = makeEnemy('e1', 0, 0, 'dragon', { rarity: 'elite' })
     expect(elite.rarity).toBe('elite')
-    expect(elite.respawnMs).toBe(RESPAWN_MS_BY_RARITY.elite) // 120s — rares take longer to return
+    expect(elite.respawnMs).toBe(RESPAWN_MS_BY_RARITY.elite) // 120s, rares take longer to return
 
     const rare = makeEnemy('e2', 0, 0, 'troll', { rarity: 'rare' })
     expect(rare.respawnMs).toBe(RESPAWN_MS_BY_RARITY.rare)
@@ -112,7 +112,7 @@ describe('entity factories', () => {
   })
 })
 
-describe('canPlaceEntity — placement guards', () => {
+describe('canPlaceEntity, placement guards', () => {
   const grid = { cols: 10, rows: 8 }
 
   it('allows an in-bounds, unblocked, unoccupied cell', () => {
@@ -151,7 +151,7 @@ describe('canPlaceEntity — placement guards', () => {
   })
 })
 
-describe('placeEntity — immutable insert', () => {
+describe('placeEntity, immutable insert', () => {
   it('returns a NEW list with the entity appended (does not mutate the input)', () => {
     const before: Entity[] = [makePlayer('p1', 1, 1)]
     const enemy = makeEnemy('e1', 4, 4, 'goblin')
@@ -164,7 +164,7 @@ describe('placeEntity — immutable insert', () => {
   })
 })
 
-describe('removeEntity — immutable delete', () => {
+describe('removeEntity, immutable delete', () => {
   it('returns a NEW list without the matching id (does not mutate the input)', () => {
     const before: Entity[] = [makePlayer('p1', 1, 1), makeEnemy('e1', 4, 4, 'goblin')]
     const after = removeEntity(before, 'e1')
@@ -185,7 +185,7 @@ describe('removeEntity — immutable delete', () => {
   })
 })
 
-describe('entityAt — cell lookup', () => {
+describe('entityAt, cell lookup', () => {
   const list: Entity[] = [
     makePlayer('p1', 1, 1),
     makeEnemy('e1', 4, 4, 'goblin'),
@@ -200,7 +200,7 @@ describe('entityAt — cell lookup', () => {
   })
 })
 
-describe('respawn timing — pure, time passed in', () => {
+describe('respawn timing, pure, time passed in', () => {
   const diedAt = 1_000
   const respawnMs = 5_000
 
@@ -232,7 +232,7 @@ describe('rarity → respawn timing', () => {
     expect(common).toBeLessThan(uncommon)
     expect(uncommon).toBeLessThan(rare)
     expect(rare).toBeLessThan(elite)
-    // regulars in the ~15–30s range
+    // regulars in the ~15-30s range
     expect(common).toBeGreaterThanOrEqual(15_000)
     expect(common).toBeLessThanOrEqual(30_000)
   })
@@ -284,8 +284,8 @@ describe('query helpers', () => {
 })
 
 describe('regenerate resets the roster to the player', () => {
-  // A (re)generate should re-randomize from a clean slate — keep the player, drop the previous
-  // run's enemies + wanderers — so the entity list never grows on each generate (the accumulation bug).
+  // A (re)generate should re-randomize from a clean slate, keep the player, drop the previous
+  // run's enemies + wanderers, so the entity list never grows on each generate (the accumulation bug).
   const player = makePlayer('p1', 0, 0)
 
   it('keeps only the player, dropping enemies and npcs', () => {
@@ -293,7 +293,7 @@ describe('regenerate resets the roster to the player', () => {
     expect(byKind(before, 'player')).toEqual([player])
   })
 
-  it('does not accumulate — repeated resets stay at a single player', () => {
+  it('does not accumulate, repeated resets stay at a single player', () => {
     const gen1: Entity[] = [...byKind([player], 'player'), makeEnemy('e1', 1, 1, 'goblin'), makeEnemy('e2', 2, 2, 'goblin')]
     const gen2: Entity[] = [...byKind(gen1, 'player'), makeEnemy('e3', 4, 4, 'wolf')]
     expect(byKind(gen2, 'player')).toHaveLength(1)
@@ -301,12 +301,12 @@ describe('regenerate resets the roster to the player', () => {
   })
 })
 
-describe('entityAtFootprint — clicking any cell of a multi-cell figure selects it', () => {
+describe('entityAtFootprint, clicking any cell of a multi-cell figure selects it', () => {
   it('an NPC (2 cells tall) is hit at its anchor AND the cell above (its head)', () => {
     const npc = makeNpc('n1', 5, 6, { name: 'Elder' }) // footprint 1×2, bottom-anchored
     const list = [npc]
     expect(entityAtFootprint(list, 5, 6)).toBe(npc) // anchor (feet)
-    expect(entityAtFootprint(list, 5, 5)).toBe(npc) // head — the cell ABOVE the anchor
+    expect(entityAtFootprint(list, 5, 5)).toBe(npc) // head, the cell ABOVE the anchor
     expect(entityAtFootprint(list, 5, 4)).toBeNull() // above the footprint → miss
     expect(entityAtFootprint(list, 6, 6)).toBeNull() // beside it (1 wide) → miss
   })
@@ -324,7 +324,7 @@ describe('entityAtFootprint — clicking any cell of a multi-cell figure selects
   })
 })
 
-describe('entityOccupiedCells — full-footprint collision blocks', () => {
+describe('entityOccupiedCells, full-footprint collision blocks', () => {
   it('an NPC (1 wide, 2 tall, bottom-anchored) blocks its anchor AND the cell above', () => {
     const cells = entityOccupiedCells([makeNpc('n1', 5, 5, {})])
     expect(cells.has('5,5')).toBe(true) // feet / anchor
@@ -357,7 +357,7 @@ describe('entityOccupiedCells — full-footprint collision blocks', () => {
   })
 })
 
-describe('entityCollisionCells — base-row only (walk around a tall enemy)', () => {
+describe('entityCollisionCells, base-row only (walk around a tall enemy)', () => {
   it("blocks only the enemy's FEET row, not the billboard cells above it", () => {
     const cells = entityCollisionCells([makeEnemy('g1', 5, 5, 'goblin')])
     expect(cells.has('5,5')).toBe(true) // feet

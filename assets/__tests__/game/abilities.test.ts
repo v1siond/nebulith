@@ -19,7 +19,7 @@ import liveAbilities from '@/__tests__/fixtures/abilities.json'
 
 beforeEach(() => installAbilityRegistry(liveAbilities.data as never))
 
-describe('abilities — seeded Fire Slash', () => {
+describe('abilities, seeded Fire Slash', () => {
   it('is offensive, uses the fire-slash animation, has a cooldown + damage', () => {
     expect(getAbility('fire-slash')!.category).toBe('offensive')
     expect(getAbility('fire-slash')!.animation).toBe('fire-slash')
@@ -27,7 +27,7 @@ describe('abilities — seeded Fire Slash', () => {
     expect(getAbility('fire-slash')!.effect.damage).toBeGreaterThan(0)
   })
 
-  it('the fire-slash animation tints the blade red-orange — from the SERVED tile, not a frontend table', () => {
+  it('the fire-slash animation tints the blade red-orange, from the SERVED tile, not a frontend table', () => {
     // §3.14b #2: the old `ABILITY_TINT` map re-declared nine hexes the API already sends on each animation's
     // own tile. Re-seed that tile a different colour and the blade follows; nothing here to keep in sync.
     expect(abilityTint('fire-slash')).toBe('#ff7a2a')
@@ -40,7 +40,7 @@ describe('abilities — seeded Fire Slash', () => {
   })
 })
 
-describe('abilities — cooldown', () => {
+describe('abilities, cooldown', () => {
   it('first use is always ready', () => {
     expect(abilityReady(getAbility('fire-slash')!, undefined, 1000)).toBe(true)
   })
@@ -52,7 +52,7 @@ describe('abilities — cooldown', () => {
   })
 })
 
-describe('abilities — requirements', () => {
+describe('abilities, requirements', () => {
   it('no requirements → always allowed', () => {
     expect(meetsRequirements(getAbility('fire-slash')!, {})).toBe(true)
   })
@@ -64,15 +64,15 @@ describe('abilities — requirements', () => {
   })
 })
 
-describe('abilities — key binding lookup', () => {
+describe('abilities, key binding lookup', () => {
   it('finds the binding for a pressed key', () => {
     expect(bindingForKey(defaultAbilityLoadout(), '1')?.ability.id).toBe('fire-slash')
     expect(bindingForKey(defaultAbilityLoadout(), '2')).toBeUndefined()
   })
 })
 
-describe('abilities — registry (the database)', () => {
-  it('seeds a rich library — at least 10 abilities to browse', () => {
+describe('abilities, registry (the database)', () => {
+  it('seeds a rich library, at least 10 abilities to browse', () => {
     expect(abilityRegistry().length).toBeGreaterThanOrEqual(10)
   })
 
@@ -139,7 +139,7 @@ describe('abilities — registry (the database)', () => {
   })
 })
 
-describe('abilities — editable loadout (assign / remove)', () => {
+describe('abilities, editable loadout (assign / remove)', () => {
   it('assigns an ability into a slot, keying it to the slot number', () => {
     const next = assignAbility([], 2, getAbility('frost')!)
     const b = bindingForSlot(next, 2)
@@ -170,7 +170,7 @@ describe('abilities — editable loadout (assign / remove)', () => {
   })
 })
 
-describe('abilities — rebinding a slot to any key', () => {
+describe('abilities, rebinding a slot to any key', () => {
   it('changes only the targeted slot\'s key, keeping its ability', () => {
     const lo = assignAbility([], 1, getAbility('fire-slash')!)
     const next = rebindAbility(lo, 1, 'q')

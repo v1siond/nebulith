@@ -1,6 +1,6 @@
 import { assetCovers, assetAtFootprint, assetAtClick } from '@/engine/assetPicking'
 
-describe('assetCovers — top-left-anchored square footprint', () => {
+describe('assetCovers, top-left-anchored square footprint', () => {
   test('single-cell asset covers only its own cell', () => {
     const a = { col: 5, row: 5 }
     expect(assetCovers(a, 5, 5)).toBe(true)
@@ -14,7 +14,7 @@ describe('assetCovers — top-left-anchored square footprint', () => {
   })
 })
 
-describe('assetAtFootprint — topmost (last drawn) wins', () => {
+describe('assetAtFootprint, topmost (last drawn) wins', () => {
   test('returns the last-drawn asset when two overlap', () => {
     const under = { col: 5, row: 5, id: 'under' }
     const over = { col: 5, row: 5, id: 'over' }
@@ -23,7 +23,7 @@ describe('assetAtFootprint — topmost (last drawn) wins', () => {
   })
 })
 
-describe('assetAtClick — billboard sprite drawn ABOVE its base cell', () => {
+describe('assetAtClick, billboard sprite drawn ABOVE its base cell', () => {
   const tree = { col: 5, row: 5, id: 'tree' }
 
   test('top view = exact cell only (sprite drawn on-cell, no walk)', () => {

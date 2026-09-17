@@ -7,12 +7,12 @@ import { entitiesToAssets, entitiesFromAssets } from '@/lib/gridCodec'
 import { makePlayer, makeEnemy } from '@/game/entities'
 
 // ───────────────────────────────────────────────────────────────────────────
-// PLAYER NAME — an editable, savable name on the player entity, shown the way an
+// PLAYER NAME, an editable, savable name on the player entity, shown the way an
 // enemy shows its type/name (over the life bar) + in the inventory header. These
 // drive the REAL pure helpers + the persistence codec the editor saves through.
 // ───────────────────────────────────────────────────────────────────────────
 
-describe('playerDisplayName — the shown name with a default fallback', () => {
+describe('playerDisplayName, the shown name with a default fallback', () => {
   it('falls back to the default when no name is set', () => {
     expect(playerDisplayName(undefined)).toBe(DEFAULT_PLAYER_NAME)
     expect(playerDisplayName(null)).toBe(DEFAULT_PLAYER_NAME)
@@ -33,7 +33,7 @@ describe('playerDisplayName — the shown name with a default fallback', () => {
   })
 })
 
-describe('barFraction — the life-bar denominator (shared by enemy + player)', () => {
+describe('barFraction, the life-bar denominator (shared by enemy + player)', () => {
   it('is 0 when max is non-positive', () => {
     expect(barFraction(10, 0)).toBe(0)
     expect(barFraction(10, -5)).toBe(0)
@@ -50,7 +50,7 @@ describe('barFraction — the life-bar denominator (shared by enemy + player)', 
   })
 })
 
-describe('player name persistence — round-trips through the entities codec', () => {
+describe('player name persistence, round-trips through the entities codec', () => {
   it('serialize → deserialize preserves the player name', () => {
     const player = makePlayer('p1', 3, 4, 'Aragorn')
     const assets = entitiesToAssets([player])

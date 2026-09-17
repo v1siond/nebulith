@@ -1,20 +1,20 @@
 /**
- * THE SHORTCUT TABLE — one source for the editor's key dispatch AND the `? Help` sheet.
+ * THE SHORTCUT TABLE, one source for the editor's key dispatch AND the `? Help` sheet.
  *
  * The games-page UX design (§4.9) asks for a help sheet "built from ONE exported table so it can
  * never drift from the handlers". A table that only *describes* the handlers is a second copy that
  * rots, so this table IS the dispatcher: the page's keydown chain asks `matchEditorAction(e)` which
  * action fired and runs its effect, and the sheet renders the same rows. Add a shortcut here and
- * both the behaviour and the documentation follow — there is no second list to remember.
+ * both the behaviour and the documentation follow, there is no second list to remember.
  *
  * Three kinds of row live here, because the editor has three kinds of input:
- *   - EDITOR_ACTIONS — dispatched keydown chords the page handles (`matchEditorAction`).
- *   - MOUSE_ROWS     — gestures bound on the canvas element, documented only.
- *   - MOVE_KEYS      — the play loop's key→direction table, imported by the loop itself.
+ *   - EDITOR_ACTIONS, dispatched keydown chords the page handles (`matchEditorAction`).
+ *   - MOUSE_ROWS    , gestures bound on the canvas element, documented only.
+ *   - MOVE_KEYS     , the play loop's key→direction table, imported by the loop itself.
  * Abilities and quick-slot items are not literals at all: they are per-entity loadout DATA, so the
  * sheet reads them live (`helpSheetGroups`) and a rebind shows up in the sheet with no code change.
  *
- * Pure module — no React, no DOM beyond the KeyboardEvent fields it reads.
+ * Pure module, no React, no DOM beyond the KeyboardEvent fields it reads.
  */
 import { defaultAbilityLoadout, type AbilityBinding } from './abilities'
 import { DEFAULT_SPECIAL_KEYS } from './loadout'
@@ -62,7 +62,7 @@ export interface EditorAction {
   ctrl?: true
   /** What the sheet shows in the key column. */
   chord: string
-  /** What the sheet shows in the action column — also the row's identity in the anti-drift test. */
+  /** What the sheet shows in the action column, also the row's identity in the anti-drift test. */
   does: string
   group: ShortcutGroupId
 }
@@ -78,7 +78,7 @@ export const EDITOR_ACTIONS: readonly EditorAction[] = [
   { id: 'quests', keys: ['q', 'Q'], chord: 'Q', does: 'quest log', group: 'edit' },
 ]
 
-/** The minimal shape `matchEditorAction` reads — a real `KeyboardEvent` satisfies it. */
+/** The minimal shape `matchEditorAction` reads, a real `KeyboardEvent` satisfies it. */
 interface KeyChord {
   key: string
   ctrlKey: boolean
@@ -95,7 +95,7 @@ export function isTypingTarget(target: EventTarget | null): boolean {
 }
 
 /**
- * Which editor action this keydown fires, or `null` for "not ours — let it through".
+ * Which editor action this keydown fires, or `null` for "not ours, let it through".
  *
  * Guards, in order: never while typing; never with Alt held (Alt is the canvas's erase/cell modifier,
  * so Alt+Ctrl+C must not copy); then Ctrl-ness must match the row exactly.
@@ -161,17 +161,17 @@ const PLAY_ROWS: readonly (ShortcutRow & { group: ShortcutGroupId })[] = [
 
 /** What the sheet needs to know about THIS session's rebindable data. */
 export interface HelpSheetContext {
-  /** The player's ability bindings — each carries its own (rebindable) trigger key. */
+  /** The player's ability bindings, each carries its own (rebindable) trigger key. */
   abilities?: readonly AbilityBinding[]
   /** The player's quick-slot trigger keys, in slot order. */
   specialKeys?: readonly string[]
 }
 
-/** "5 – 8" for a contiguous run, "5" for one, and the plain list when it is neither. */
+/** "5, 8" for a contiguous run, "5" for one, and the plain list when it is neither. */
 function keyRangeChord(keys: readonly string[]): string {
-  if (keys.length === 0) return '—'
+  if (keys.length === 0) return ', '
   if (keys.length === 1) return keys[0]
-  return `${keys[0]} – ${keys[keys.length - 1]}`
+  return `${keys[0]}, ${keys[keys.length - 1]}`
 }
 
 /** One row per bound ability, naming the ability so the sheet says what the key actually casts. */

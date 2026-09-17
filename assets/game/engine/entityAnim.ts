@@ -14,6 +14,6 @@ const STATE_MS: Record<EntityAnimState, number> = { idle: 0, walk: 360, combat: 
 export function entityFrameIndex(state: EntityAnimState, now: number, frameCount: number): number {
   if (frameCount <= 1) return 0
   const ms = STATE_MS[state]
-  if (ms <= 0) return 0 // idle holds frame 0 — no leg/arm swap
+  if (ms <= 0) return 0 // idle holds frame 0, no leg/arm swap
   return Math.floor(now / ms) % frameCount
 }

@@ -1,17 +1,16 @@
 /**
- * The nebulith backend now serves `/api/tilesets` in the NEW shape — per tile: image_url/blocking/
+ * The nebulith backend now serves `/api/tilesets` in the NEW shape, per tile: image_url/blocking/
  * height/category/title/glyph/emoji/color_role/settings (not the old bundled Tileset/EmojiTile blob).
  * This proves loadTilesetsFromBackend() INSTALLS that shape correctly: every tile carries its backend
  * `image` (absolutized against the API origin), walkability/colour/glyph map across, and compositions
- * come through — so the renderer (unchanged this task) keeps working off styleCatalog('ascii')/styleTiles('emoji').
+ * come through, so the renderer (unchanged this task) keeps working off styleCatalog('ascii')/styleTiles('emoji').
  */
 import { styleCatalog, styleTiles } from '@/engine/tileset/styleTiles'
 import { loadTilesetsFromBackend } from '@/engine/tileset/tilesetLoader'
 import { resolveComposition } from '@/engine/tileset/tileset'
 
-// The loader now DECODES every baked image before it resolves (the render gate waits on decoded images —
-// tilesetLoader → preloadTileImages). jsdom never loads/decodes a real Image, so stand in a synchronously
-// "decoded" one (complete + naturalWidth) — preloadTileImages then skips the wait and the load resolves,
+// The loader now DECODES every baked image before it resolves (the render gate waits on decoded images, // tilesetLoader → preloadTileImages). jsdom never loads/decodes a real Image, so stand in a synchronously
+// "decoded" one (complete + naturalWidth), preloadTileImages then skips the wait and the load resolves,
 // exactly as it does in the browser once the PNGs are ready.
 const RealImage = (global as { Image: unknown }).Image
 class DecodedImage { complete = true; naturalWidth = 64; naturalHeight = 64; src = ''; decode() { return Promise.resolve() } }
@@ -45,7 +44,7 @@ const EMOJI_STUB = {
   compositions: {},
 }
 
-describe('loadTilesetsFromBackend — installs the new /api/tilesets shape', () => {
+describe('loadTilesetsFromBackend, installs the new /api/tilesets shape', () => {
   beforeEach(() => {
     global.fetch = jest.fn().mockResolvedValue({
       ok: true,
@@ -56,7 +55,7 @@ describe('loadTilesetsFromBackend — installs the new /api/tilesets shape', () 
   test('ascii bush tile gets an absolute image src derived from its image_url', async () => {
     await loadTilesetsFromBackend()
     const bush = styleTiles('ascii').bush
-    // `image` is the baked PNG's URL — a STRING, not an element with a `.src`. (The emoji case below already
+    // `image` is the baked PNG's URL, a STRING, not an element with a `.src`. (The emoji case below already
     // reads it that way; this one still went through the old loaded-Image shape.)
     expect(bush.image?.startsWith('http')).toBe(true)
     expect(bush.image?.endsWith('/tiles/ascii/bush.png')).toBe(true)
@@ -65,7 +64,7 @@ describe('loadTilesetsFromBackend — installs the new /api/tilesets shape', () 
   test('ascii bush tile is walkable (blocking: false); there is no palette blob at all', async () => {
     await loadTilesetsFromBackend()
     expect(styleTiles('ascii').bush.walkable).toBe(true)
-    // The blob was REMOVED, not emptied — a catalog is {id, name, tiles, compositions, terrain} and a tile's
+    // The blob was REMOVED, not emptied, a catalog is {id, name, tiles, compositions, terrain} and a tile's
     // colour lives in its own settings.colors. Asserting `{}` quietly accepted a blob that came back empty.
     expect(styleCatalog('ascii')).not.toHaveProperty('palettes')
   })

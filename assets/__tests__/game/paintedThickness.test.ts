@@ -1,10 +1,10 @@
 /**
  * A HAND-PAINTED TILE KEEPS ITS BACKEND THICKNESS.
  *
- * `composition.ts` claims thickness applies "WHEREVER it is placed — generator-stamped or hand-painted".
+ * `composition.ts` claims thickness applies "WHEREVER it is placed, generator-stamped or hand-painted".
  * Only the first half was true: the stamp path reads `tile.settings.scaleZ`, but the paint brush ran
  * everything through `tileRenderBehavior`, which passes only fadeNear / cutawayRoof / minAlpha / display.
- * So the backend served `door` at `scaleZ: 0.3` and the brush placed a full cube — the door stopped
+ * So the backend served `door` at `scaleZ: 0.3` and the brush placed a full cube, the door stopped
  * reading as a door the moment you painted one by hand.
  *
  * Thickness is backend TILE data (`tile_source.ex:45`: "scaleZ is THICKNESS … a door is a thin panel in
@@ -17,7 +17,7 @@ import type { TileDef } from '@/game/artStyle'
 
 const grid = () => new IsometricGrid({ cols: 4, rows: 4, cellSize: 16, isoScale: 2.5 })
 
-/** A tile as the backend serves it — `settings` is the authored blob, verbatim. */
+/** A tile as the backend serves it, `settings` is the authored blob, verbatim. */
 const tile = (id: string, settings?: Record<string, unknown>, height = 1): TileDef => ({
   id,
   label: id,
@@ -44,7 +44,7 @@ describe('painting a tile carries its authored thickness', () => {
     expect(topAsset(g).scaleZ).toBe(0.3)
   })
 
-  it('a tile with no authored thickness is left alone — a full block, unchanged', () => {
+  it('a tile with no authored thickness is left alone, a full block, unchanged', () => {
     const g = grid()
     stackAssetTile(g, 1, 1, WALL)
     expect(topAsset(g).scaleZ).toBeUndefined()
@@ -62,7 +62,7 @@ describe('painting a tile carries its authored thickness', () => {
     expect(topAsset(g).scaleZ).toBeUndefined()
   })
 
-  it('ignores a zero or negative thickness — a block cannot have none', () => {
+  it('ignores a zero or negative thickness, a block cannot have none', () => {
     const g = grid()
     stackAssetTile(g, 1, 1, tile('zero', { scaleZ: 0 }))
     stackAssetTile(g, 2, 1, tile('neg', { scaleZ: -1 }))
@@ -80,7 +80,7 @@ describe('replacing a tile in place swaps its thickness too', () => {
     expect(topAsset(g).scaleZ).toBe(0.3)
   })
 
-  it('swapping a door back for a wall CLEARS the thickness — no leftover thinness', () => {
+  it('swapping a door back for a wall CLEARS the thickness, no leftover thinness', () => {
     const g = grid()
     stackAssetTile(g, 1, 1, DOOR)
     const index = g.getAssetsAtCell(1, 1).length - 1

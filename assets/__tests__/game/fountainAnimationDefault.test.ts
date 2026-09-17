@@ -1,10 +1,10 @@
 /**
- * The FOUNTAIN + WELL COMPOSITIONS ship their water animated BY DEFAULT — and DESYNCED.
+ * The FOUNTAIN + WELL COMPOSITIONS ship their water animated BY DEFAULT, and DESYNCED.
  *
  * The animation is BACKEND DATA: nebulith authors the interior `water_c` (blue water) cells with a default
- * `animations` array — ONE looping YOYO settings animation that grows the water column's HEIGHT 1→4 blocks and
+ * `animations` array, ONE looping YOYO settings animation that grows the water column's HEIGHT 1→4 blocks and
  * back (no `water_jet` drops, no opacity fade). EXACTLY 3 water columns animate in each variant (
- * "in all cases only 3 blocks are animated") — all 3 in the small `well`, the CENTRE ROW of 3 in the large 3×3
+ * "in all cases only 3 blocks are animated"), all 3 in the small `well`, the CENTRE ROW of 3 in the large 3×3
  * `fountain` (the other 6 are STATIC water). The 3 carry the SAME grow but with DISTINCT durationMs +
  * startDelayMs so they pulse OUT of sync. It's served per cell (camelCase), carried verbatim onto
   * `CompositionCell.animations` by the loader,
@@ -19,7 +19,7 @@ import { IsometricGrid } from '@/engine/IsometricGrid'
 import { useSeedTileset } from '@/__tests__/helpers/tilesetSeed'
 import type { SettingsAnimation } from '@/engine/animation/tileAnimation'
 
-describe('fountain composition — water cells ship the height-grow animation as a backend default', () => {
+describe('fountain composition, water cells ship the height-grow animation as a backend default', () => {
   useSeedTileset() // install the captured backend tileset (fountain water cells carry the grow animation)
 
   function stampFountain() {
@@ -31,7 +31,7 @@ describe('fountain composition — water cells ship the height-grow animation as
   test('the fountain interior is all water_c (no drops); exactly 3 of the 9 animate, 6 are STATIC, the rim never', () => {
     const comp = styleCatalog('ascii').compositions?.['fountain']
     expect(comp).toBeTruthy()
-    // the drops are gone — the interior is blue water only
+    // the drops are gone, the interior is blue water only
     expect(comp!.cells.some(c => c.label === 'water_jet')).toBe(false)
     const water = comp!.cells.filter(c => c.label === 'water_c')
     expect(water.length).toBe(9) // a 3×3 grid of water
@@ -60,7 +60,7 @@ describe('fountain composition — water cells ship the height-grow animation as
       expect(a.animations?.length).toBe(1)
       expect(a.placedAt).toBe(0) // render-clock origin → the LOAD loop plays immediately / stays in sync
     }
-    // the static water + the rim are untouched — no animation, byte-identical to before
+    // the static water + the rim are untouched, no animation, byte-identical to before
     for (const a of [...staticWater, ...rim]) {
       expect(a.animations).toBeUndefined()
       expect(a.placedAt).toBeUndefined()
@@ -85,19 +85,19 @@ describe('fountain composition — water cells ship the height-grow animation as
       expect(grow.durationMs).toBeLessThanOrEqual(1800)
       expect(grow.startDelayMs).toBeGreaterThanOrEqual(0)
       expect(grow.startDelayMs).toBeLessThanOrEqual(800)
-      // ONE track: the block HEIGHT (scaleY) grows from 1 block to 4 — up from the base, no y-lift, no opacity
+      // ONE track: the block HEIGHT (scaleY) grows from 1 block to 4, up from the base, no y-lift, no opacity
       expect(grow.tracks).toEqual([{ setting: 'height', from: 1, to: 4 }])
       expect(grow.tracks.some(t => t.setting === 'opacity')).toBe(false)
       expect(grow.tracks.some(t => t.setting === 'y')).toBe(false)
     }
-    // DESYNCED — all-distinct durations AND all-distinct start delays ⇒ no two columns share a phase.
+    // DESYNCED, all-distinct durations AND all-distinct start delays ⇒ no two columns share a phase.
     const durations = animated.map(a => (a.animations as SettingsAnimation[])[0].durationMs)
     const delays = animated.map(a => (a.animations as SettingsAnimation[])[0].startDelayMs)
     expect(new Set(durations).size).toBe(3)
     expect(new Set(delays).size).toBe(3)
   })
 
-  test('the small WELL variant animates by default too — all 3 of its water columns, desynced', () => {
+  test('the small WELL variant animates by default too, all 3 of its water columns, desynced', () => {
     const grid = new IsometricGrid({ cols: 10, rows: 10, cellSize: 32, isoScale: 1.4 })
     const placed = stampComposition(grid, 'well', 1, 1, 'spring')
     expect(placed).toBeGreaterThan(0)

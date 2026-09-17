@@ -1,10 +1,10 @@
 /**
- * WHEN THE EDITOR CHROME IS VISIBLE — one derivation, not six copies.
+ * WHEN THE EDITOR CHROME IS VISIBLE, one derivation, not six copies.
  *
  * §5.2 names this as the de-risking step that must come BEFORE the bar split: "every gate
  * `showSidebars && !showGamesView && !playMode` is duplicated across four JSX regions; consolidate into
  * one `chromeVisible` derivation first." There are actually SIX sites, and they had drifted into three
- * different shapes — the mode chip also excludes the flow view, the restore button is the inverse. Splitting
+ * different shapes, the mode chip also excludes the flow view, the restore button is the inverse. Splitting
  * the top bar into a PROJECT bar and a VIEW bar doubles the number of regions asking this question, so the
  * question gets exactly one answer first.
  *
@@ -20,7 +20,7 @@ const state = (over: Partial<ChromeState> = {}): ChromeState => ({
   ...over,
 })
 
-describe('chromeVisible — the editing chrome (bars, sidebars, inspector)', () => {
+describe('chromeVisible, the editing chrome (bars, sidebars, inspector)', () => {
   it('shows while editing', () => {
     expect(chromeVisible(state())).toBe(true)
   })
@@ -33,7 +33,7 @@ describe('chromeVisible — the editing chrome (bars, sidebars, inspector)', () 
     expect(chromeVisible(state(over))).toBe(false)
   })
 
-  it('STAYS visible in the flow view — the flow overlay covers the canvas, not the chrome', () => {
+  it('STAYS visible in the flow view, the flow overlay covers the canvas, not the chrome', () => {
     expect(chromeVisible(state({ showFlowView: true }))).toBe(true)
   })
 
@@ -42,13 +42,13 @@ describe('chromeVisible — the editing chrome (bars, sidebars, inspector)', () 
   })
 })
 
-describe('canvasOverlayVisible — things drawn ON the map (the mode chip)', () => {
+describe('canvasOverlayVisible, things drawn ON the map (the mode chip)', () => {
   it('follows the chrome', () => {
     expect(canvasOverlayVisible(state())).toBe(true)
     expect(canvasOverlayVisible(state({ playMode: true }))).toBe(false)
   })
 
-  it('ALSO hides under the flow view — that overlay owns the canvas', () => {
+  it('ALSO hides under the flow view, that overlay owns the canvas', () => {
     expect(canvasOverlayVisible(state({ showFlowView: true }))).toBe(false)
   })
 
@@ -59,12 +59,12 @@ describe('canvasOverlayVisible — things drawn ON the map (the mode chip)', () 
   })
 })
 
-describe('chromeRestoreVisible — the "show UI again" button', () => {
+describe('chromeRestoreVisible, the "show UI again" button', () => {
   it('appears exactly when the user hid the UI while editing', () => {
     expect(chromeRestoreVisible(state({ showSidebars: false }))).toBe(true)
   })
 
-  it('does NOT appear in play mode or the games overlay — those hide the chrome for their own reasons', () => {
+  it('does NOT appear in play mode or the games overlay, those hide the chrome for their own reasons', () => {
     expect(chromeRestoreVisible(state({ showSidebars: false, playMode: true }))).toBe(false)
     expect(chromeRestoreVisible(state({ showSidebars: false, showGamesView: true }))).toBe(false)
   })
@@ -88,7 +88,7 @@ describe('chromeRestoreVisible — the "show UI again" button', () => {
   })
 })
 
-describe('canvasFullBleed — the map takes the whole screen', () => {
+describe('canvasFullBleed, the map takes the whole screen', () => {
   const state = (over: Partial<ChromeState> = {}): ChromeState => ({
     showSidebars: true, playMode: false, showGamesView: false, showFlowView: false, ...over,
   })
@@ -105,7 +105,7 @@ describe('canvasFullBleed — the map takes the whole screen', () => {
     expect(canvasFullBleed(state({ showSidebars: false }))).toBe(true)
   })
 
-  it('is false while the games overlay owns the screen — it is not the canvas that needs the room', () => {
+  it('is false while the games overlay owns the screen, it is not the canvas that needs the room', () => {
     expect(canvasFullBleed(state({ playMode: true, showGamesView: true }))).toBe(false)
     expect(canvasFullBleed(state({ showSidebars: false, showGamesView: true }))).toBe(false)
   })

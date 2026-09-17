@@ -1,5 +1,5 @@
 /**
- * Unified TRIGGER model — the thing that turns a map into a playable game.
+ * Unified TRIGGER model, the thing that turns a map into a playable game.
  *
  * A Trigger reads as one sentence: ** It is
  * attached to a CELL (on enter / on interact) or to an ENTITY (on defeat). The
@@ -7,22 +7,22 @@
  * deaths) and applies the side effects; THIS module is PURE so the rules stay
  * unit-testable:
  *
- *   - `fireTriggers(event, triggers, ctx)` — given the triggers on the thing the
+ *   - `fireTriggers(event, triggers, ctx)`, given the triggers on the thing the
  *     event happened to, return the ordered list of EFFECTS the loop should apply.
  *     No side effects: it decides *what* should happen, never *does* it.
  *
  * Generalizes the old connector (`engine/connectors.ts`) and the connector-only
  * `engine/triggers.ts`: a connector is just an `on enter`/`on interact` trigger
  * whose action is `goto` (go to level). See docs/editor-ui-design.md
- * "Triggers — unified — absorbs connectors".
+ * "Triggers, unified, absorbs connectors".
  */
 
 // ── the vocabulary ───────────────────────────────────────────────────
 /**
  * How a trigger fires:
- * - 'enter'    — the player stepped onto the cell (edge-triggered by the loop)
- * - 'interact' — the player pressed E while on the cell
- * - 'defeat'   — the entity this trigger is attached to was killed
+ * - 'enter'   , the player stepped onto the cell (edge-triggered by the loop)
+ * - 'interact', the player pressed E while on the cell
+ * - 'defeat'  , the entity this trigger is attached to was killed
  */
 export type TriggerEvent = 'enter' | 'interact' | 'defeat'
 
@@ -30,7 +30,7 @@ export type TriggerEvent = 'enter' | 'interact' | 'defeat'
  *  dispatch map below (Open/Closed), never an edit to the existing members. */
 export type TriggerActionType = 'goto' | 'spawn' | 'give' | 'message' | 'win' | 'lose'
 
-/** The payload each action carries — one shape per action type. */
+/** The payload each action carries, one shape per action type. */
 export interface TriggerParams {
   /** go to level = today's connector: teleport to another template, land on spawn. */
   goto: { templateId: string; spawnCol?: number; spawnRow?: number }
@@ -48,7 +48,7 @@ export interface TriggerParams {
 
 /**
  * A single trigger: `{ id, event, action, params }`. A discriminated union on
- * `action` so `params` is exactly the payload that action needs — no untyped bag.
+ * `action` so `params` is exactly the payload that action needs, no untyped bag.
  */
 export type Trigger = {
   [K in TriggerActionType]: {
@@ -71,7 +71,7 @@ export type TriggerEffect =
   | { kind: 'lose' }
 
 /** Context the loop passes in: WHERE the event happened (the entered/interacted
- *  cell, or the defeated entity's cell) — the default anchor for a spawn. */
+ *  cell, or the defeated entity's cell), the default anchor for a spawn. */
 export interface FireContext {
   at?: { col: number; row: number }
 }
@@ -79,7 +79,7 @@ export interface FireContext {
 /**
  * Per-action resolver: map one trigger's params → the effect to apply. Keyed by
  * `action` so adding an action is one row (Open/Closed). Each handler is fully
- * typed to its own action variant — no casts inside the bodies.
+ * typed to its own action variant, no casts inside the bodies.
  */
 const EFFECT_RESOLVERS: {
   [K in TriggerActionType]: (params: TriggerParams[K], ctx: FireContext) => TriggerEffect

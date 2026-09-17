@@ -1,8 +1,8 @@
 /**
- * REALISTIC SAMPLE COMPOSITIONS — the window-grid / storefront / flat-roof / fountain / tree-trunk rules
+ * REALISTIC SAMPLE COMPOSITIONS, the window-grid / storefront / flat-roof / fountain / tree-trunk rules
  * asserted END-TO-END on the loaded backend tileset (the captured `/api/tilesets` fixture = the nebulith
  * source of truth). These prove the DATA the app renders from, not pixels: THE realism rule is that windows
- * form a SPACED GRID (window, wall, window …), vertically aligned across floors — never a solid band.
+ * form a SPACED GRID (window, wall, window …), vertically aligned across floors, never a solid band.
  */
 import { styleCatalog, styleTile } from '@/engine/tileset/styleTiles'
 import '@/__tests__/helpers/installTilesetSeed'
@@ -18,7 +18,7 @@ function levelsOf(c: Cell): number[] {
   const span = Math.max(1, Math.trunc(c.settings?.scaleY ?? 1))
   return Array.from({ length: span }, (_, i) => c.level + i)
 }
-// The building's OWN cells — its footprint rows only. The backend also authors the entrance APRON (the `path`
+// The building's OWN cells, its footprint rows only. The backend also authors the entrance APRON (the `path`
 // doorstep, `entrance_cells/2`) on the row IN FRONT of the facade (dy = h) so the doorstep joins the road it
 // meets. That apron is GROUND, not facade: leaving it in makes a "front face" read at the door column return
 // the doorstep instead of the door.
@@ -31,16 +31,16 @@ function faceLabel(cells: Cell[], face: 'front' | 'back', dx: number, level: num
   if (at.length === 0) return null
   return at.reduce((a, b) => ((face === 'front' ? b.dy > a.dy : b.dy < a.dy) ? b : a)).label
 }
-// The FRONT face label — what the 2D front elevation reads (kept for the storefront/roof assertions below).
+// The FRONT face label, what the 2D front elevation reads (kept for the storefront/roof assertions below).
 const frontLabel = (cells: Cell[], dx: number, level: number) => faceLabel(cells, 'front', dx, level)
 const isWindow = (l: string | null) => l != null && l.startsWith('window')
 const isWall = (l: string | null) => l != null && l.startsWith('wall')
-// A window shows at (dx, level) if EITHER face carries one — some buildings window the front only, others
+// A window shows at (dx, level) if EITHER face carries one, some buildings window the front only, others
 // front+back; the centred door only ever suppresses the middle columns, so the union stays symmetric.
 const windowAt = (cells: Cell[], dx: number, level: number) =>
   isWindow(faceLabel(cells, 'front', dx, level)) || isWindow(faceLabel(cells, 'back', dx, level))
 
-describe('sample compositions — realistic building/fountain/tree DATA from the backend', () => {
+describe('sample compositions, realistic building/fountain/tree DATA from the backend', () => {
   describe('THE window-grid rule (#31): windows are BILATERALLY SYMMETRIC, edge-walled, aligned across floors', () => {
     for (const name of ['house_3', 'house_4', 'house_5', 'office_5', 'hospital_6', 'temple_8', 'cathedral_7', 'castle_12', 'stone_building']) {
       test(`${name}: windows mirror across the centreline, never at the bare edge, aligned across floors`, () => {
@@ -57,18 +57,18 @@ describe('sample compositions — realistic building/fountain/tree DATA from the
 
         for (const lv of windowLevels) {
           const cols = windowColsAt(lv)
-          // BILATERAL SYMMETRY — every window column is mirrored by w-1-dx across the centreline.
+          // BILATERAL SYMMETRY, every window column is mirrored by w-1-dx across the centreline.
           for (const dx of cols) expect(cols).toContain(w - 1 - dx)
-          // EDGES ARE WALLS — a window is never at the bare edge (min unit is wall·window·wall).
+          // EDGES ARE WALLS, a window is never at the bare edge (min unit is wall·window·wall).
           expect(cols).not.toContain(0)
           expect(cols).not.toContain(w - 1)
           expect(isWall(faceLabel(cells, 'back', 0, lv))).toBe(true)
           expect(isWall(faceLabel(cells, 'back', w - 1, lv))).toBe(true)
-          // ALIGNED — every window column stacks (subset of the top floor's set), never a wandering column.
+          // ALIGNED, every window column stacks (subset of the top floor's set), never a wandering column.
           expect(cols.every(dx => topCols.includes(dx))).toBe(true)
         }
 
-        // WALL COURSE BETWEEN FLOORS — between two window floors there is a level with walls in those columns.
+        // WALL COURSE BETWEEN FLOORS, between two window floors there is a level with walls in those columns.
         for (let i = 1; i < windowLevels.length; i++) {
           const between = windowLevels[i - 1] + 1
           if (between < windowLevels[i]) expect(topCols.every(dx => isWall(faceLabel(cells, 'back', dx, between)))).toBe(true)
@@ -77,7 +77,7 @@ describe('sample compositions — realistic building/fountain/tree DATA from the
     }
   })
 
-  test('store: a storefront — wide display window + centred door + a striped awning above, flat roof', () => {
+  test('store: a storefront, wide display window + centred door + a striped awning above, flat roof', () => {
     const c = comp('store_5')
     const cells = facadeCells(c)
     const w = c.footprint.w
@@ -107,7 +107,7 @@ describe('sample compositions — realistic building/fountain/tree DATA from the
     expect(labels.has('roof')).toBe(false) // flat, not gable
   })
 
-  // A water cell as the backend serves it — the interior `water_c`, with the optional default grow animation.
+  // A water cell as the backend serves it, the interior `water_c`, with the optional default grow animation.
   type WaterCell = Cell & {
     scale?: number
     zIndex?: number
@@ -117,7 +117,7 @@ describe('sample compositions — realistic building/fountain/tree DATA from the
   // EXACTLY 3 water columns animate in BOTH variants,
   // each the SAME 1→4 sine-yoyo grow but with a DISTINCT durationMs + startDelayMs so they pulse OUT of sync
   // . This is the desync evidence at the
-  // DATA level — it would fail if the three shared one timing.
+  // DATA level, it would fail if the three shared one timing.
   function assertDesyncedGrow(animated: WaterCell[]): void {
     expect(animated).toHaveLength(3)
     for (const cell of animated) {
@@ -133,7 +133,7 @@ describe('sample compositions — realistic building/fountain/tree DATA from the
       expect(grow.startDelayMs).toBeGreaterThanOrEqual(0)
       expect(grow.startDelayMs).toBeLessThanOrEqual(800)
     }
-    // DESYNCED — the three durations are all distinct AND the three start delays are all distinct, so no two
+    // DESYNCED, the three durations are all distinct AND the three start delays are all distinct, so no two
     // columns share a yoyo period/phase (distinct durations ⇒ distinct periods ⇒ they drift permanently apart).
     const durations = animated.map(c => c.animations![0].durationMs)
     const delays = animated.map(c => c.animations![0].startDelayMs)
@@ -152,13 +152,13 @@ describe('sample compositions — realistic building/fountain/tree DATA from the
     const labels = new Set(cells.map(x => x.label))
     const groundAt = (dx: number, dy: number) => cells.find(x => x.level === 0 && x.dx === dx && x.dy === dy)!.label
 
-    // CENTER — every interior floor cell is the water CENTER piece (blue water), a bit bigger (scale 1.15).
+    // CENTER, every interior floor cell is the water CENTER piece (blue water), a bit bigger (scale 1.15).
     const interior = cells.filter(x => x.level === 0 && !edge(x.dx, x.dy))
     for (const cell of interior) {
       expect(cell.label).toBe('water_c')
       expect(cell.scale).toBeCloseTo(1.15)
     }
-    // CORNERS + EDGES — the rim is autotile pieces, NOT a single stone_rim fill; no `water_jet` drops.
+    // CORNERS + EDGES, the rim is autotile pieces, NOT a single stone_rim fill; no `water_jet` drops.
     expect(groundAt(0, 0)).toBe('fountain_tl')
     expect(groundAt(w - 1, 0)).toBe('fountain_tr')
     expect(groundAt(0, h - 1)).toBe('fountain_bl')
@@ -182,14 +182,14 @@ describe('sample compositions — realistic building/fountain/tree DATA from the
     // Only the 3 CENTRE cells animate; the other 6 are STATIC blue water (no animations at all).
     const staticCells = interior.filter(cell => !cell.animations || cell.animations.length === 0)
     expect(staticCells).toHaveLength(6)
-    // The animated cells are the central LINE of 3 (all share one dy — the middle row through the centre).
+    // The animated cells are the central LINE of 3 (all share one dy, the middle row through the centre).
     expect(new Set(animated.map(c => c.dy)).size).toBe(1)
     assertDesyncedGrow(animated)
   })
 
   test('the fountain/well basin rim and water default to zIndex 0 (draw priority is a capability, not a default)', () => {
     // Reverted: nothing carries a non-zero draw priority by DEFAULT. The
-    // zIndex CAPABILITY stays wired — isoDepthCompare still honours it (isoDepthZIndex.test.ts) — but the served
+    // zIndex CAPABILITY stays wired, isoDepthCompare still honours it (isoDepthZIndex.test.ts), but the served
     // fountain/well data is 0 for both the water and its rim. Pure DATA, from the API.
     for (const name of ['fountain', 'well']) {
       const cells = comp(name).cells as Array<Cell & { zIndex?: number }>
@@ -202,7 +202,7 @@ describe('sample compositions — realistic building/fountain/tree DATA from the
     }
   })
 
-  test('every composition cell keeps the default zIndex 0 — nothing carries a non-zero draw priority', () => {
+  test('every composition cell keeps the default zIndex 0, nothing carries a non-zero draw priority', () => {
     // Guards the "default 0 → no regression" contract at the DATA level: across every seeded composition
     // (trees, bushes, all buildings, AND the fountain/well basin) NO cell carries a non-zero zIndex.
     const names = ['tree', 'bush', 'fountain', 'well', 'house_3', 'house_4', 'house_5', 'store_5', 'office_5', 'stone_building', 'hospital_6', 'temple_8', 'cathedral_7', 'castle_12']
@@ -219,13 +219,13 @@ describe('sample compositions — realistic building/fountain/tree DATA from the
     const cells = facadeCells(c)
     expect(c.footprint.w).toBe(5)
     const labels = new Set(cells.map(x => x.label))
-    // MATERIAL variety — the wall field is `wall_stone` (a DISTINCT tile from brick), never plain `wall`/brick reskins.
+    // MATERIAL variety, the wall field is `wall_stone` (a DISTINCT tile from brick), never plain `wall`/brick reskins.
     expect(labels.has('wall_stone_c')).toBe(true)
     expect([...labels].some(l => l === 'wall' || l.startsWith('wall_house') || l === 'wall_store' || l === 'wall_hospital')).toBe(false)
-    // PIECES — all four edges + all four corners present (autotiled front face, not one fill).
+    // PIECES, all four edges + all four corners present (autotiled front face, not one fill).
     for (const p of ['wall_stone_t', 'wall_stone_b', 'wall_stone_l', 'wall_stone_r', 'wall_stone_tl', 'wall_stone_tr', 'wall_stone_bl', 'wall_stone_br'])
       expect(labels.has(p)).toBe(true)
-    // A SYMMETRIC window GRID (#31 — mirror across the centreline, edges walls), a door, and a GABLE roof.
+    // A SYMMETRIC window GRID (#31, mirror across the centreline, edges walls), a door, and a GABLE roof.
     const maxLevel = Math.max(...cells.flatMap(levelsOf))
     const winLevels = Array.from({ length: maxLevel + 1 }, (_, lv) => lv).filter(lv => Array.from({ length: 5 }, (_, dx) => dx).some(dx => windowAt(cells, dx, lv)))
     expect(winLevels.length).toBeGreaterThanOrEqual(1)
@@ -240,11 +240,11 @@ describe('sample compositions — realistic building/fountain/tree DATA from the
     expect(labels.has('roof_top')).toBe(true) // gable ridge/apex
   })
 
-  test('every AUTOTILE PIECE label (fountain rim/water/jet + stone-wall material) resolves in BOTH styles — no gaps', () => {
-    // The NEW piece labels the sample authors — each must resolve to a BAKED PICTURE in both styles, which
+  test('every AUTOTILE PIECE label (fountain rim/water/jet + stone-wall material) resolves in BOTH styles, no gaps', () => {
+    // The NEW piece labels the sample authors, each must resolve to a BAKED PICTURE in both styles, which
     // is what the renderer actually draws ("every tile is a baked backend IMAGE resolved by LABEL"). Asserting
     // an ascii *glyph* here was the old model: ascii art is composed and baked like everything else now, so a
-    // glyph is a last resort, and a missing bake — the thing that really breaks the screen — went unnoticed.
+    // glyph is a last resort, and a missing bake, the thing that really breaks the screen, went unnoticed.
     // (roof/roof_top/window/door are pre-existing labels out of scope here.)
     const isPiece = (l: string) => /^(wall_stone|fountain_|water_c$|water_jet$)/.test(l)
     const pieces = new Set<string>()
@@ -254,7 +254,7 @@ describe('sample compositions — realistic building/fountain/tree DATA from the
     expect([...pieces].filter(l => !styleTile('emoji', l)?.image)).toEqual([]) // emoji bake gaps
   })
 
-  test('the LIGHT POST is a post+lamp composition — identical structure in both styles, each piece a real tile in both', () => {
+  test('the LIGHT POST is a post+lamp composition, identical structure in both styles, each piece a real tile in both', () => {
     // BUG #4 (Images #43/#44): a light post is a COMPOSITION (a `post` base at level 0 + the `lamp` on top at
     // level 1), NOT a single lamp tile. The composition is style-agnostic (stamped for both styles); only the
     // ART differs per style. Both pieces must resolve to a real per-cell tile in BOTH tilesets, so emoji renders
@@ -280,12 +280,12 @@ describe('sample compositions — realistic building/fountain/tree DATA from the
     expect(assetKind({ type: 'fountain', label: 'fountain' })).toBe('fountain')
   })
 
-  test('tree: EXACTLY 2 tiles — one thin tall trunk (L0) + one bigger leaf cube lifted onto its top', () => {
+  test('tree: EXACTLY 2 tiles, one thin tall trunk (L0) + one bigger leaf cube lifted onto its top', () => {
     const c = comp('tree')
     const cells = c.cells as Array<Cell & { scale?: number; settings?: { scaleX?: number; scaleY?: number } }>
-    expect(cells.length).toBe(2) // the optimized model — one trunk, one leaf
+    expect(cells.length).toBe(2) // the optimized model, one trunk, one leaf
     expect(c.footprint).toEqual({ w: 1, h: 1 }) // a single column, not a canopy footprint
-    // ONE trunk cell on the ground (L0): a thin tall post — Zoom(scale) 0.6, Height(settings.scaleY) 3.15.
+    // ONE trunk cell on the ground (L0): a thin tall post, Zoom(scale) 0.6, Height(settings.scaleY) 3.15.
     const trunk = cells.filter(x => x.label.startsWith('trunk'))
     expect(trunk.length).toBe(1)
     expect([trunk[0].dx, trunk[0].dy, trunk[0].level]).toEqual([0, 0, 0]) // base is a TRUNK on the ground
@@ -304,14 +304,14 @@ describe('sample compositions — realistic building/fountain/tree DATA from the
     expect((trunk[0].scale ?? 1)).toBeLessThan(leaf.scale ?? 1)
     // the retired 9-slice canopy is gone
     expect(cells.some(x => x.label.startsWith('canopy'))).toBe(false)
-    // The bush, by contrast, is trunkless — a SINGLE leaf tile, no trunk.
+    // The bush, by contrast, is trunkless, a SINGLE leaf tile, no trunk.
     const bush = comp('bush').cells as Cell[]
     expect(bush.length).toBe(1)
     expect(bush.some(x => x.label.startsWith('trunk'))).toBe(false)
   })
 })
 
-// ── MATERIAL + ROOF ROLLOUT — the blessed autotile-piece sample rolled out to every building ──────────
+// ── MATERIAL + ROOF ROLLOUT, the blessed autotile-piece sample rolled out to every building ──────────
 const SUFFIXES = ['c', 't', 'b', 'l', 'r', 'tl', 'tr', 'bl', 'br']
 const WALL_MATERIALS = ['wall_stone', 'wall_brick', 'wall_wood', 'wall_plaster']
 // Each building type → the wall MATERIAL its facade must emit (spec mapping table).
@@ -321,8 +321,8 @@ const TYPE_MATERIAL: Record<string, string> = {
 }
 const labelsOf = (name: string) => new Set((comp(name).cells as Cell[]).map(c => c.label))
 
-describe('material + roof rollout — every material/piece resolves and every building emits its mapped material', () => {
-  test('each wall MATERIAL set (center + 8 edge/corner) + the slate roof resolve in BOTH styles — no gaps', () => {
+describe('material + roof rollout, every material/piece resolves and every building emits its mapped material', () => {
+  test('each wall MATERIAL set (center + 8 edge/corner) + the slate roof resolve in BOTH styles, no gaps', () => {
     const need: string[] = []
     for (const base of WALL_MATERIALS) for (const s of SUFFIXES) need.push(`${base}_${s}`)
     need.push('roof_slate', 'roof_top_slate')
@@ -340,7 +340,7 @@ describe('material + roof rollout — every material/piece resolves and every bu
     expect(styleTile('emoji', 'roof_top_slate').char).toBe('⬛')
   })
 
-  describe('each BOX building facade emits its mapped material — center + autotiled edge/corner pieces', () => {
+  describe('each BOX building facade emits its mapped material, center + autotiled edge/corner pieces', () => {
     for (const [name, mat] of Object.entries(TYPE_MATERIAL)) {
       test(`${name} → ${mat} (autotiled front + center field, no other material leaks in)`, () => {
         const labels = labelsOf(name)
@@ -386,7 +386,7 @@ describe('material + roof rollout — every material/piece resolves and every bu
     expect(labelsOf('store_5').has('parapet')).toBe(true) // still a flat storefront roof
   })
 
-  test('tree: brown trunk (🟫) + ONE leaf canopy (🍃) resolve — with a BAKED image in BOTH styles — never a whole 🌲', () => {
+  test('tree: brown trunk (🟫) + ONE leaf canopy (🍃) resolve, with a BAKED image in BOTH styles, never a whole 🌲', () => {
     const labels = [...labelsOf('tree')]
     const trunk = labels.filter(l => l.startsWith('trunk'))
     const leaf = labels.filter(l => l.startsWith('leaf'))
@@ -398,7 +398,7 @@ describe('material + roof rollout — every material/piece resolves and every bu
       expect(styleTile('emoji', l)?.image).toBeTruthy()
     }
     for (const l of trunk) expect(styleTile('emoji', l).char).toBe('🟫') // brown trunk block
-    for (const l of leaf) expect(styleTile('emoji', l).char).toBe('🍃') // leaf — not a whole tree, not an herb
+    for (const l of leaf) expect(styleTile('emoji', l).char).toBe('🍃') // leaf, not a whole tree, not an herb
     expect(labels.some(l => styleTile('emoji', l)?.char === '🌲')).toBe(false) // never the whole-object tree
     // the leaf tile carries a NON-null baked image in BOTH styles (no more image_url:null → the tint composites
     // onto a real PNG, so emoji leaves take the per-tree pink/brown canopy shade instead of staying green)

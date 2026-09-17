@@ -1,16 +1,16 @@
 /**
- * THE FLOOR IS JUST A TILE — the RENDER half. There is no "floor stack lift" term in the iso renderer.
+ * THE FLOOR IS JUST A TILE, the RENDER half. There is no "floor stack lift" term in the iso renderer.
  *
  * The renderer lifts a tile by its stack level and NOTHING else (`isoStackLift`). Everything beneath it is
  * already accounted for, because `stackTop` (cellStack) hands the tile a level of `level + own height` over
- * the cell's tiles — the floor counted exactly like a wall. So:
+ * the cell's tiles, the floor counted exactly like a wall. So:
  *   • the ground is ONE block ("all tiles/blocks are height 1, GLOBAL, no exceptions"), so a wall painted on
- *     grass rises by exactly that one block — no more, and never by a floor-shaped bonus term;
+ *     grass rises by exactly that one block, no more, and never by a floor-shaped bonus term;
  *   • RAISING that floor tile lifts the wall by exactly the floor's own height, with no floor-specific code;
  *   • a bare cell and a floored cell differ by exactly the floor's height, and by nothing else.
  * The old floor-only lift got the middle case WRONG (it clamped through `partialBlockScale`, so a 2-block
  * floor lifted by only 1). Proved through the production `render()` path on a REAL @napi-rs/canvas in the
- * EMOJI style — the one QA runs — placing tiles through the BRUSH path (pushTile), not hand-set levels.
+ * EMOJI style, the one QA runs, placing tiles through the BRUSH path (pushTile), not hand-set levels.
  */
 import { styleTiles } from '@/engine/tileset/styleTiles'
 import { installRealCanvas, type RealCanvasHarness } from '@/__tests__/helpers/realCanvas'
@@ -33,7 +33,7 @@ const UNIT = TILE_W * ISO_BLOCK_H_FRAC // one full block's on-screen height (px)
 const PCOL = 10, PROW = 10, ACOL = 12, AROW = 10
 const player = (): PlayerState => ({ x: PCOL * CELL, z: PROW * CELL, moving: false } as PlayerState)
 
-/** Any emoji tile that carries a baked image — a concrete standing block to paint over a floor. */
+/** Any emoji tile that carries a baked image, a concrete standing block to paint over a floor. */
 /**
  * An image-backed tile that is a STANDING BLOCK, which is what every test below actually needs.
  *
@@ -51,7 +51,7 @@ function anImageTileKey(): string {
 
 const newGrid = (): IsometricGrid => new IsometricGrid({ cols: 30, rows: 30, cellSize: CELL, isoScale: ISO })
 
-/** Paint a standing 1-block tile through the BRUSH path — its level comes from the stacking rule, not from us. */
+/** Paint a standing 1-block tile through the BRUSH path, its level comes from the stacking rule, not from us. */
 const paintBlock = (grid: IsometricGrid): GridAsset => {
   const key = anImageTileKey()
   return pushTile(grid, ACOL, AROW, { source: 'asset', slug: key, type: key, tileId: `emoji:${key}`, art: [''], h: 1, color: '#c9c9c9' })
@@ -77,7 +77,7 @@ beforeAll(async () => {
   await H.warm([...srcs])
 })
 
-describe('iso: a tile is lifted by its stack level ONLY — no floor-shaped extra term', () => {
+describe('iso: a tile is lifted by its stack level ONLY, no floor-shaped extra term', () => {
   test('the ground lifts by its OWN height and nothing more, so a tile on FLAT ground is not lifted at all', () => {
     const grid = newGrid()
     grid.floorAt(ACOL, AROW)!.height = 1 // a one-block ground: the tile on it rides up exactly one
@@ -108,7 +108,7 @@ describe('iso: a tile is lifted by its stack level ONLY — no floor-shaped extr
     const floor = isoRecordedTileGeom(ACOL, AROW, 0)
     const wall = isoRecordedTileGeom(ACOL, AROW, 1)
     // Screen Y grows downward, so "2 blocks up" is −2 UNIT. The removed floor-only lift clamped a sub-block
-    // slab through partialBlockScale and would have lifted by 1 block here — this pins the honest 2.
+    // slab through partialBlockScale and would have lifted by 1 block here, this pins the honest 2.
     expect(baseY(floor) - baseY(wall)).toBeCloseTo(2 * UNIT, 1)
   })
 
@@ -146,7 +146,7 @@ describe('iso: a tile is lifted by its stack level ONLY — no floor-shaped extr
     expect(withoutFloor - withFloor).toBeCloseTo(UNIT, 1)
   })
 
-  test('stacked tiles keep a ONE-BLOCK gap — the stack is not stretched or squashed by anything', () => {
+  test('stacked tiles keep a ONE-BLOCK gap, the stack is not stretched or squashed by anything', () => {
     const grid = newGrid()
     paintBlock(grid) // lands at level 0 (on the flat floor)
     paintBlock(grid) // lands at level 1 (on the 1-block tile below)

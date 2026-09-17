@@ -1,5 +1,5 @@
 /**
- * THE PLAYER-UI PROFILE — the HUD, keys and bars as backend data.
+ * THE PLAYER-UI PROFILE, the HUD, keys and bars as backend data.
  *
  * Every property here is one of the answers to the UI spec, so the tests read as
  * the decisions rather than as implementation detail.
@@ -35,7 +35,7 @@ const PAYLOAD = {
 }
 
 describe('the profile in force', () => {
-  it('is EMPTY until the backend answers — nothing is invented', () => {
+  it('is EMPTY until the backend answers, nothing is invented', () => {
     installUiProfile({})
     expect(uiProfile()).toBeNull()
     expect(uiActions()).toEqual([])
@@ -49,7 +49,7 @@ describe('the profile in force', () => {
   })
 })
 
-describe('bindings — more than one per action is an ALTERNATE, not a conflict', () => {
+describe('bindings, more than one per action is an ALTERNATE, not a conflict', () => {
   beforeEach(() => installUiProfile(PAYLOAD))
 
   it('returns every input bound to an action', () => {
@@ -61,7 +61,7 @@ describe('bindings — more than one per action is an ALTERNATE, not a conflict'
   })
 })
 
-describe('layouts — desktop and mobile are two layouts, not one scaled down', () => {
+describe('layouts, desktop and mobile are two layouts, not one scaled down', () => {
   beforeEach(() => installUiProfile(PAYLOAD))
 
   it('keys each form separately', () => {
@@ -70,7 +70,7 @@ describe('layouts — desktop and mobile are two layouts, not one scaled down', 
   })
 })
 
-describe('bars — unlimited, never paged, and swapped in by condition', () => {
+describe('bars, unlimited, never paged, and swapped in by condition', () => {
   beforeEach(() => installUiProfile(PAYLOAD))
 
   it('a bar with NO condition is always up', () => {
@@ -90,7 +90,7 @@ describe('what a PLAYER may change is the author\'s call', () => {
     expect(playerMay('layout')).toBe(false)
   })
 
-  it('treats an unstated permission as NO — a player may not do what the author never allowed', () => {
+  it('treats an unstated permission as NO, a player may not do what the author never allowed', () => {
     installUiProfile({ data: { actions: [], profile: { ...PAYLOAD.data.profile, playerMay: {} } } })
     expect(playerMay('keys')).toBe(false)
     expect(playerMay('layout')).toBe(false)

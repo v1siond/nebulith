@@ -25,8 +25,7 @@ export const ASCII_FONT = '"JetBrains Mono", "Fira Code", "Consolas", monospace'
 // Every glyph draw funnels its element KIND + the active Style + this element's
 // optional override through resolveVisual, then draws the result. The load-bearing
 // property: on the ASCII style with NO override, resolveVisual returns the passthrough
-// sentinel, so `resolveDraw` returns the caller's OWN default char+color unchanged —
-// the fillText that follows is byte-identical to the pre-style code.
+// sentinel, so `resolveDraw` returns the caller's OWN default char+color unchanged, // the fillText that follows is byte-identical to the pre-style code.
 import { assetKind, resolveVisual, styleTileArt, visualForTileId, type ElementKind, type ImageVisual, type Style, type Visual } from '@/game/artStyle'
 import { tileSlug } from '@/game/editor/tilePlacement'
 import { type AttackAnim, type AnimFrame } from '@/engine/attackAnimations'
@@ -38,16 +37,16 @@ export interface DrawVisual {
   char: string
   /** the fill color (the caller's default when passing through). */
   color: string
-  /** The geometry FILL/TINT — present ONLY when a non-ASCII style (or override) is active and
+  /** The geometry FILL/TINT, present ONLY when a non-ASCII style (or override) is active and
    *  carries a colour. Its presence is the load-bearing signal to the geometry-preserving draw
    *  sites: a styled unit fills its own iso DIAMOND / cube FACE with `tint` (keeping the angle +
    *  z) and draws `char` as a small hint, instead of stamping a flat upright emoji square. When
    *  it is undefined the caller draws EXACTLY as before (ASCII passthrough → byte-identical). */
   tint?: string
-  /** present only when the active tile is an IMAGE — draw it instead of the glyph. */
+  /** present only when the active tile is an IMAGE, draw it instead of the glyph. */
   image?: ImageVisual
   /** Quarter turns to rotate this tile's TEXTURE inside its face, without moving the face. Set from the
-   *  cell's own data (a river cell's `flow`), so one baked frame set serves every heading — see
+   *  cell's own data (a river cell's `flow`), so one baked frame set serves every heading, see
    *  `turnFaceTexture`. Absent/0 → the draw is byte-identical to before. */
   turns?: number
 }
@@ -71,10 +70,10 @@ export function resolveDraw(
  *  A styled glyph/image also reports its `tint` so the geometry-preserving sites fill the diamond/cube. */
 export function drawFromVisual(v: Visual, defChar: string, defColor: string): DrawVisual {
   if (v.kind === 'glyph') return { char: v.char, color: v.color ?? defColor, tint: v.color }
-  // An image tile keeps its source glyph as the char — NOT a pre-decode placeholder (the loader gate
+  // An image tile keeps its source glyph as the char, NOT a pre-decode placeholder (the loader gate
   // preloads every baked image before the first frame), only the after-load fallback for a missing raster.
   if (v.kind === 'image') return { char: v.char ?? defChar, color: v.color ?? defColor, image: v, tint: v.color }
-  return { char: defChar, color: defColor } // ascii passthrough — identical to the old path
+  return { char: defChar, color: defColor } // ascii passthrough, identical to the old path
 }
 
 /**
@@ -83,17 +82,17 @@ export function drawFromVisual(v: Visual, defChar: string, defColor: string): Dr
  * staying pinned to the style it was picked in. The stored id embeds that style (`emoji:pine-tree`),
  * which froze it; the SLUG (`pine-tree`) is style-agnostic, so we look the slug up under the ACTIVE
  * style:
- *   · the active style HAS per-slug art → its Visual (identity preserved AND reskinned — the emoji
+ *   · the active style HAS per-slug art → its Visual (identity preserved AND reskinned, the emoji
  *     pine-tree under emoji, the same slug's tile in any other style that carries it);
  *   · it does NOT (e.g. ASCII's kind-only catalog has no `pine-tree`) → null, so the caller falls back
  *     to the coarse `assetKind` in the active style (the ascii TREE, not the frozen emoji).
- * Pure catalog lookup — `activeStyle` is used only for its id; nothing STORED on the asset changes.
+ * Pure catalog lookup, `activeStyle` is used only for its id; nothing STORED on the asset changes.
  */
 export function activeStyleVisualForOverride(overrideId: string, activeStyle: Style): Visual | null {
   return visualForTileId(`${activeStyle.id}:${tileSlug(overrideId)}`)
 }
 
-/** DrawVisual for a PLACED ASSET — the placed-asset twin of resolveDraw that every asset draw site
+/** DrawVisual for a PLACED ASSET, the placed-asset twin of resolveDraw that every asset draw site
  *  (iso / 2D / top) funnels through. It re-homes the asset's effective override onto the ACTIVE style
  *  (activeStyleVisualForOverride) so the tile RESKINS: a style with per-slug art → that reskinned tile
  *  (identity kept); a style without it → the coarse `kind` in the active style (the assetKind fallback,
@@ -111,14 +110,14 @@ export function resolveAssetDraw(
   return resolveDraw(kind, style, undefined, defChar, defColor)
 }
 
-/** DrawVisual for a placed UNIT — the entity twin of resolveAssetDraw that every unit draw site
+/** DrawVisual for a placed UNIT, the entity twin of resolveAssetDraw that every unit draw site
  *  (iso / 2D / top) funnels through. A brush-placed unit carries a FROZEN `tileOverride` (e.g.
  *  `emoji:goblin`), which used to pin the unit to the style it was placed in even under ASCII; we
  *  re-home its SLUG onto the ACTIVE style (activeStyleVisualForOverride) so the unit RESKINS exactly
  *  like a placed asset: a style with per-slug art → that reskinned figure (identity kept), a style
  *  without it → the coarse KIND in the active style. `styleOverride` is the style-derived default
  *  (entityStyleOverride: an enemy's per-type tile / a person's per-variant figure) used when there is
- *  NO manual pin — so a non-pinned unit resolves byte-identically to the old
+ *  NO manual pin, so a non-pinned unit resolves byte-identically to the old
  *  resolveDraw(kind, style, styleOverride). */
 export function resolveEntityDraw(
   kind: ElementKind,
@@ -133,7 +132,7 @@ export function resolveEntityDraw(
   const drawn = resolveDraw(kind, style, styleOverride, defChar, defColor)
   if (drawn.image || drawn.char) return drawn
   // A UNIT IS A TILE. `npc` / `enemy` / `player` are real backend rows, so an entity the style map leaves
-  // unresolved falls back to its BAKED TILE — the same `styleTileImage` rescue every asset gets — instead of
+  // unresolved falls back to its BAKED TILE, the same `styleTileImage` rescue every asset gets, instead of
   // the frontend's hand-drawn glyph figures. So the glyph
   // figure is a PRE-LOAD state: with nothing served this still resolves nothing and the caller draws it.
   const tile = styleTileImage(kind, style)
@@ -141,7 +140,7 @@ export function resolveEntityDraw(
 }
 
 /** The effective per-cell tile override for an asset under a style. Ground decor now draws its OWN baked
- *  decor tile image by LABEL (groundDecorImage), resolved before this override — so under ASCII (where the
+ *  decor tile image by LABEL (groundDecorImage), resolved before this override, so under ASCII (where the
  *  decor label is always baked) decor never reaches here. The curated emoji litter override (🌼 blossom) is
  *  kept only as the EMOJI fall-through for a label the emoji tileset has no baked decor tile for yet, and it
  *  must never leak into ASCII, so under ASCII we still drop it. Manual pins on OTHER assets are untouched
@@ -152,17 +151,17 @@ export function assetOverride(asset: GridAsset, style: Style): string | null | u
   return asset.tileOverride
 }
 
-/** The ACTIVE style's baked tile IMAGE for a tile KEY — a composition cell's LABEL (a tree/building/feature
+/** The ACTIVE style's baked tile IMAGE for a tile KEY, a composition cell's LABEL (a tree/building/feature
  *  part) or an element KIND (a floor, whose identity is its ground `tileKey` → `assetKind`, never a label).
  *
  *  ONE resolver for every view (iso/2D/top) AND every style: the key selects the tile, the style selects only
- *  WHICH TILESET to read it from (`styleTileArt` — a dispatch map, no style `if`). This replaced a pair of
+ *  WHICH TILESET to read it from (`styleTileArt`, a dispatch map, no style `if`). This replaced a pair of
  *  near-identical helpers, one of which was hard-gated to ASCII and one to a FLOOR, so a label-less ASCII prop
  *  could never reach its baked tile and dropped into the legacy per-type glyph drawers instead.
  *
  *  The returned visual deliberately carries NO `color`: a tile's colour is the PER-CELL setting the caller
  *  passes as the tint (MAP-MODEL §4), not a property of the art. Undefined when the active style's tileset has
- *  no tile for that key, or the tile carries no baked image — the caller then falls back to its glyph (the
+ *  no tile for that key, or the tile carries no baked image, the caller then falls back to its glyph (the
  *  documented last resort), never a blank cell and never an invented image. */
 export function styleTileImage(key: string, style: Style): ImageVisual | undefined {
   const art = styleTileArt(key, style.id)
@@ -172,7 +171,7 @@ export function styleTileImage(key: string, style: Style): ImageVisual | undefin
 /** The baked tile for a LABEL-LESS asset (a floor, a kind-identified prop): its KIND's tile, and failing that
  *  its OWN key.
  *
- *  A floor's kind comes from `groundKind`, which FOLDS many ground names onto one kind on purpose — every
+ *  A floor's kind comes from `groundKind`, which FOLDS many ground names onto one kind on purpose, every
  *  water_* label shares the one `water` tile so a river is one picture. Names it does not recognise fold onto
  *  `ground`, and `ground` IS NOT A TILE. So `cobblestone` (a real tile, baked in both styles) resolved no
  *  picture, and with no picture and no glyph the floor drew NOTHING: that is the dark navy showing through the
@@ -181,21 +180,31 @@ export function styleTileImage(key: string, style: Style): ImageVisual | undefin
  *  The kind is tried FIRST so every fold that works today is untouched, then the tile's own name, which is how
  *  the catalog is keyed anyway. A name with neither still answers undefined, and nothing is invented. */
 export function assetTileImage(asset: { type: string; label?: string; tileKey?: string }, style: Style): ImageVisual | undefined {
-  const byKind = styleTileImage(assetKind(asset), style)
-  if (byKind) return byKind
-  return asset.tileKey ? styleTileImage(asset.tileKey, style) : undefined
+  // THE TILE'S OWN NAME WINS, then its kind. This used to be the other way round, and the fold is why a
+  // second set of water art was invisible: `groundKind` collapses every label matching water onto the one
+  // kind `water`, so `water_lined_tl` resolved the plain `water` picture and the border pieces never drew.
+  // The fold still decides what a cell IS (collision, walkability, what counts as water to the generator),
+  // it just stops deciding what it LOOKS like.
+  //
+  // Measured before flipping: across every preset a generated map writes SIX distinct ground labels
+  // (meadow, floor, water, water_shallow, water_deep, water_bend). `meadow` and `floor` name their own kind
+  // so they resolve identically either way, which leaves the water labels as the whole blast radius, and
+  // those are exactly the ones meant to change.
+  const byName = asset.tileKey ? styleTileImage(asset.tileKey, style) : undefined
+  if (byName) return byName
+  return styleTileImage(assetKind(asset), style)
 }
 
 /** The active-style backend IMAGE for a COMPOSITION cell's LABEL (a tree/building/feature part), shared by
  *  every view (iso/2D/top) so a label resolves its picture identically everywhere. One lookup for every
- *  style — the label names the thing, the style supplies the picture. Undefined when this style carries no
+ *  style, the label names the thing, the style supplies the picture. Undefined when this style carries no
  *  image for the label; the caller then falls back to its glyph, never a blank cell. */
 export function labelTileImage(label: string, style: Style): ImageVisual | undefined {
   const tile = styleTile(style.id, label)
   return tile?.image ? { kind: 'image', src: tile.image, char: tile.char } : undefined
 }
 
-/** The active-style baked IMAGE for a KIND-identified (label-less) tile — chiefly a FLOOR, whose identity is
+/** The active-style baked IMAGE for a KIND-identified (label-less) tile, chiefly a FLOOR, whose identity is
  *  its ground `tileKey` → `assetKind` (grass/road/water/…), never a label. Resolves the same way for every
  *  style: a kind IS a label in the catalog. A kind with no baked tile → undefined (the caller keeps its
  *  glyph, never an invented image). */
@@ -205,9 +214,9 @@ export function kindTileImage(kind: ElementKind, style: Style): ImageVisual | un
 }
 
 /** The tint to pass alongside a labelTileImage. COLOUR IS A PER-TILE SETTING that FILTERS the baked tile
- * — so the resolved colour recolours the tile image in
+ *, so the resolved colour recolours the tile image in
  *  EVERY style via tintedImage (luminance-mapped, so shading is kept). ascii images are white tint-targets;
- *  emoji part-tiles bake near-monochrome (🟦 water, 🧱 brick, 🍃 leaf — TILESET-AUTHORING §4), so filtering
+ *  emoji part-tiles bake near-monochrome (🟦 water, 🧱 brick, 🍃 leaf, TILESET-AUTHORING §4), so filtering
  *  them to their own colour is ≈ identity, and to an OVERRIDE (a house roof → slate, a store wall → white)
  *  recolours cleanly. Previously emoji returned undefined ("pre-coloured, never recolour"), which BROKE the
  *  colour-as-a-setting rule for emoji buildings; now colour filters uniformly. */
@@ -215,11 +224,11 @@ export function labelTileRecolor(_style: Style, tint: string): string {
   return tint
 }
 
-/** The BAKED tile image for a GROUND-DECOR asset (flowers/clover/pebbles/…) — resolved by its LABEL for the
+/** The BAKED tile image for a GROUND-DECOR asset (flowers/clover/pebbles/…), resolved by its LABEL for the
  *  ACTIVE style (styleTileImage, the SAME per-key path every other tile uses), so decor draws its own tile
  *  IMAGE, colour-composited, NEVER a glyph. The decor flat-overlay draw in every view (iso/2D/top) funnels
  *  through this. Undefined when the asset isn't ground decor, carries no label, or the active style has no
- *  baked decor tile for that label — a backend data gap the caller surfaces by falling through (it never
+ *  baked decor tile for that label, a backend data gap the caller surfaces by falling through (it never
  *  substitutes a glyph). */
 export function groundDecorImage(asset: GridAsset, style: Style): ImageVisual | undefined {
   if (asset.type !== 'ground_decor' || !asset.label) return undefined
@@ -240,12 +249,12 @@ export function tileImage(src: string): HTMLImageElement | null {
  * A tile image that does NOT taint the canvas it is drawn into.
  *
  * The baked PNGs come from the backend's origin, and a cross-origin image drawn into a canvas makes that
- * canvas unreadable — `getImageData` and `toDataURL` then throw a SecurityError. That silently blocks
+ * canvas unreadable, `getImageData` and `toDataURL` then throw a SecurityError. That silently blocks
  * anything that needs to read the map back: a level minimap cached as a bitmap, a generated preset
  * thumbnail, an in-browser pixel test.
  *
  * `crossOrigin` must be set BEFORE `src`, or the browser has already begun the no-cors fetch. The backend's
- * half of this is CORS headers on `/tiles/*` — both halves are required, and neither works alone.
+ * half of this is CORS headers on `/tiles/*`, both halves are required, and neither works alone.
  */
 function newTileImage(src: string): HTMLImageElement {
   const img = new Image()
@@ -257,12 +266,12 @@ function newTileImage(src: string): HTMLImageElement {
 /**
  * Preload + DECODE a set of baked tile image srcs into the SAME cache `tileImage` reads, resolving only
  * once every one is decoded (or has failed). This is the seam the render gate waits on: installing the
- * tileset JSON is NOT enough — until each PNG's raster is decoded, `tileImage(src)` returns null and every
+ * tileset JSON is NOT enough, until each PNG's raster is decoded, `tileImage(src)` returns null and every
  * draw site falls back to the tile's glyph. THAT is the wrong-style flash the loader must prevent: a fresh
  * load whose gate opened on JSON alone painted building faces with the tiled brick glyph (a repeated
  * S-like mark → "a stack of brown crates"), an un-drawn hero, and off-looking trees for the ~1s the PNGs
  * were still decoding. Decoding here, BEFORE the gate opens, guarantees the first painted frame takes the
- * image path everywhere — no glyph placeholder ever shows.
+ * image path everywhere, no glyph placeholder ever shows.
  *
  * Robust by construction: a missing/broken PNG (404, decode error) is swallowed per-image, so one bad tile
  * can never wedge the gate shut; SSR / jsdom (no `Image`) resolves immediately (tests never block on it).
@@ -274,10 +283,10 @@ export async function preloadTileImages(srcs: Iterable<string>): Promise<void> {
     if (!src) continue
     let img = _imgCache.get(src)
     if (!img) { img = newTileImage(src); _imgCache.set(src, img) }
-    if (img.complete && img.naturalWidth > 0) continue // already decoded — nothing to wait on
+    if (img.complete && img.naturalWidth > 0) continue // already decoded, nothing to wait on
     const el = img
     const done = typeof el.decode === 'function'
-      ? el.decode().catch(() => {}) // decode() rejects on a failed/missing raster — swallow, never wedge the gate
+      ? el.decode().catch(() => {}) // decode() rejects on a failed/missing raster, swallow, never wedge the gate
       : new Promise<void>((res) => { el.onload = () => res(); el.onerror = () => res() }) // environments without decode()
     jobs.push(done)
   }
@@ -285,9 +294,8 @@ export async function preloadTileImages(srcs: Iterable<string>): Promise<void> {
 }
 
 /** Index a tileset by emoji CHAR → baked image src. A weapon/shield/fist is drawn through drawPoseGlyph,
- *  which only receives the glyph char (not the tile key), so it can't take the resolveDraw image path —
- *  this lets it find the SAME pre-rendered PNG by char. Char is unique per weapon, so a duplicate-char
- *  collision (npc/player both 🧍) is irrelevant to the weapon lookup. Pure — tested directly. */
+ *  which only receives the glyph char (not the tile key), so it can't take the resolveDraw image path, *  this lets it find the SAME pre-rendered PNG by char. Char is unique per weapon, so a duplicate-char
+ *  collision (npc/player both 🧍) is irrelevant to the weapon lookup. Pure, tested directly. */
 export function buildGlyphImageIndex(tiles: Record<string, { char?: string; image?: string }>): Map<string, string> {
   const map = new Map<string, string>()
   for (const key of Object.keys(tiles)) {
@@ -297,7 +305,7 @@ export function buildGlyphImageIndex(tiles: Record<string, { char?: string; imag
   return map
 }
 
-/** The ACTIVE style's tileset projected onto `{char, image}` — the input the char index is built from.
+/** The ACTIVE style's tileset projected onto `{char, image}`, the input the char index is built from.
  *  A dispatch map, so the index is per STYLE and never a merged bag where an ascii glyph could shadow an
  *  emoji char (or vice versa). Read LIVE: a DB tileset install reassigns the bindings. */
 const GLYPH_SOURCE_BY_STYLE: Readonly<Record<string, () => { ref: unknown; tiles: Record<string, { char?: string; image?: string }> }>> = {
@@ -309,7 +317,7 @@ const GLYPH_SOURCE_BY_STYLE: Readonly<Record<string, () => { ref: unknown; tiles
 }
 
 // Rebuilt only when that style's tileset is SWAPPED (a DB tileset load reassigns the live binding), never
-// per frame — each entry is keyed by the tileset object reference it was built from.
+// per frame, each entry is keyed by the tileset object reference it was built from.
 const _glyphIndex = new Map<string, { ref: unknown; map: Map<string, string> }>()
 function glyphImageIndex(styleId: string): Map<string, string> {
   const source = GLYPH_SOURCE_BY_STYLE[styleId]
@@ -323,16 +331,16 @@ function glyphImageIndex(styleId: string): Map<string, string> {
 }
 
 /** The baked tile IMAGE for a glyph drawn by char (a held weapon / shield / fist), or null when the
- *  active tileset has no image for it — then the caller draws the glyph, byte-identically to before.
+ *  active tileset has no image for it, then the caller draws the glyph, byte-identically to before.
  *  NOTE: still emoji-indexed, because the held-weapon path (drawPoseGlyph) carries an ASCII-specific
  *  contract of its own (the monochrome depth-shadow double-draw + the `>`/`<` swing bracket) that is
- *  FIGURE art, not tile art. Migrating it is its own change — see the report. */
+ *  FIGURE art, not tile art. Migrating it is its own change, see the report. */
 export function glyphTileImage(glyph: string): HTMLImageElement | null {
   const src = glyphImageIndex('emoji').get(glyph)
   return src ? tileImage(src) : null
 }
 
-/** The baked IMAGE VISUAL for a glyph char in the ACTIVE style — the ImageVisual twin of glyphTileImage
+/** The baked IMAGE VISUAL for a glyph char in the ACTIVE style, the ImageVisual twin of glyphTileImage
  *  (so an animation frame, or a projectile, resolves to a drawable tile). Undefined when that style's
  *  tileset has no image for the char; the caller then draws the glyph (the documented last resort). */
 export function glyphImageVisual(glyph: string, style: Style): ImageVisual | undefined {
@@ -352,8 +360,7 @@ export function frameImage(frame: ResolvedFrame, baseChar: string, baseImage: Im
 }
 
 /** Draw a glyph centered at (x, y), optionally MIRRORED horizontally about x. The mirror is a DATA
- *  property of the animation frame (e.g. a right-facing walk reuses the left-facing emoji flipped) —
- *  the renderer only honors the flag, it never decides to flip. Uses the current font / fillStyle. */
+ *  property of the animation frame (e.g. a right-facing walk reuses the left-facing emoji flipped), *  the renderer only honors the flag, it never decides to flip. Uses the current font / fillStyle. */
 export function drawFacingGlyph(ctx: CanvasRenderingContext2D, char: string, x: number, y: number, flipX: boolean): void {
   if (!flipX) { ctx.fillText(char, x, y); return }
   ctx.save()
@@ -363,14 +370,13 @@ export function drawFacingGlyph(ctx: CanvasRenderingContext2D, char: string, x: 
   ctx.restore()
 }
 
-// A baked tile ships with its own colours, so an editor colour SETTING can't just change the cell fill —
-// it has to RECOLOUR the tile IMAGE (the model: colour FILTERS the baked tile, luminance-mapped, one path
+// A baked tile ships with its own colours, so an editor colour SETTING can't just change the cell fill, // it has to RECOLOUR the tile IMAGE (the model: colour FILTERS the baked tile, luminance-mapped, one path
 // for every style). We do it once per (src, colour) into a cached offscreen canvas.
 //
 // This is done with CANVAS BLEND MODES and NO getImageData, on purpose: the baked tile PNGs are served by
 // the backend on a DIFFERENT origin (CORS-less static), so drawing one onto a canvas TAINTS it and any
 // getImageData throws SecurityError. The previous per-pixel implementation swallowed that error and left
-// the tile UNtinted — so a colour recoloured only the cell fill and NOT the tile image (a green leaf on a
+// the tile UNtinted, so a colour recoloured only the cell fill and NOT the tile image (a green leaf on a
 // pink cube). Compositing needs no pixel read-back, so it recolours the image on a tainted canvas too.
 //
 // Pipeline (equivalent to `tint × luminance(sprite)`): draw the sprite → 'saturation' with a neutral grey
@@ -406,14 +412,14 @@ export function tintedImage(img: HTMLImageElement, src: string, tint: string): C
 
 /** DISPLAY = "single": the fraction of a block's footprint the ONE centered tile occupies when a tile's
  *  display mode is 'single' (a billboard drawn INSIDE the block volume). < 1 so the plain, shaded block shell
- *  stays visible AROUND the tile — the "single tile inside the block" look (the fountain-droplet case). Shared
+ *  stays visible AROUND the tile, the "single tile inside the block" look (the fountain-droplet case). Shared
  *  by all three views so 'single' reads consistently in iso / 2D / top. */
 export const SINGLE_TILE_FRAC = 0.6
 
 /** SHAPE = 'circle' ROUNDS a tile's silhouette; it never repaints the tile. clipToBall sets an ELLIPTICAL clip of
  * radii (rx, ry) centred at (cx, cy) = the
  *  block's OWN projected extent, so the caller draws the tile's normal cube/face inside it and the clip bends the
- *  corners away into a smooth oval — PROPORTIONAL to the block (a tall block → a tall oval), never a fixed circle.
+ *  corners away into a smooth oval, PROPORTIONAL to the block (a tall block → a tall oval), never a fixed circle.
  *  The painted art + per-face shading are kept; only the corners are rounded. The caller owns the surrounding
  *  save/restore. */
 export function clipToBall(ctx: CanvasRenderingContext2D, cx: number, cy: number, rx: number, ry: number): void {
@@ -422,11 +428,11 @@ export function clipToBall(ctx: CanvasRenderingContext2D, cx: number, cy: number
   ctx.clip()
 }
 
-/** How a FLAT (2D / overhead) tile's front face renders for a given `shape` — the flat analogue of iso's
+/** How a FLAT (2D / overhead) tile's front face renders for a given `shape`, the flat analogue of iso's
  *  `ISO_SHAPE_DRAWERS`. Each drawer gets the already-built face painter (`drawFace`) plus the tile's centre +
  *  radii, so a new shape adds ONE entry here, never an `if` at the 2D/Top call sites (SOLID/OCP). 'square' just
  *  paints the plain face; 'circle' clips it to an ellipse of the tile's own extent so the painting/shading stays
- *  and only the silhouette rounds (its corners bent away) — the SAME rounding iso uses, so all three views route
+ *  and only the silhouette rounds (its corners bent away), the SAME rounding iso uses, so all three views route
  *  through one map, with no spherical relight. */
 type FlatShapeDrawer = (
   ctx: CanvasRenderingContext2D, drawFace: () => void, cx: number, cy: number, rx: number, ry: number,
@@ -442,7 +448,7 @@ const FLAT_SHAPE_DRAWERS: Record<TileShape, FlatShapeDrawer> = {
   },
 }
 
-/** Draw a flat tile's front face as the SOLID its `shape` selects — the single call the 2D/overhead draw sites
+/** Draw a flat tile's front face as the SOLID its `shape` selects, the single call the 2D/overhead draw sites
  *  use in place of branching on shape themselves. Unknown/absent shape → the square (plain face) drawer. */
 export function drawFlatTileForShape(
   ctx: CanvasRenderingContext2D, shape: TileShape | undefined, drawFace: () => void,
@@ -452,7 +458,7 @@ export function drawFlatTileForShape(
 }
 
 /** Draw an image tile centered at (cx, cy) filling a `size`×`size` box (optional atlas sub-rect).
- *  `flipX` mirrors it horizontally about cx — a DATA property of an animation frame (a right-facing
+ *  `flipX` mirrors it horizontally about cx, a DATA property of an animation frame (a right-facing
  *  walk reuses the left-facing tile flipped), so the baked-image figure animates like the glyph one.
  *  `tint` (an editor colour override) recolours the sprite to that hue while keeping its shading. */
 export function drawStyledImage(ctx: CanvasRenderingContext2D, v: ImageVisual, cx: number, cy: number, size: number, flipX = false, tint?: string, sizeH?: number): void {
@@ -462,7 +468,7 @@ export function drawStyledImage(ctx: CanvasRenderingContext2D, v: ImageVisual, c
   const sx = v.sx ?? 0, sy = v.sy ?? 0
   const sw = v.sw ?? img.naturalWidth, sh = v.sh ?? img.naturalHeight
   // `size` is the draw WIDTH; `sizeH` the draw HEIGHT (defaults to a square). Non-uniform sizes come
-  // from per-element dimensions (#77/#78) — the caller lifts cy so Height grows up from the base.
+  // from per-element dimensions (#77/#78), the caller lifts cy so Height grows up from the base.
   const w = size, h = sizeH ?? size
   if (!flipX) { ctx.drawImage(drawSrc, sx, sy, sw, sh, cx - w / 2, cy - h / 2, w, h); return }
   ctx.save()
@@ -475,7 +481,7 @@ export function drawStyledImage(ctx: CanvasRenderingContext2D, v: ImageVisual, c
 // Enemies advance one patrol cell roughly every ENEMY_MOVE_MS (throttled, so
 // patrols read as steps, not a blur). Shared by the AI loop (page) and the
 // render-side motion interpolation (entityRenderCell).
-export const ENEMY_MOVE_MS = 360 // one patrol cell per this interval — slower, deliberate monster pace
+export const ENEMY_MOVE_MS = 360 // one patrol cell per this interval, slower, deliberate monster pace
 
 // Debug overlay flag. The page toggles it; the renderers read it. Kept as module
 // state with accessors so the renderers and the page share one source of truth.
@@ -483,7 +489,7 @@ let _debugMode = false
 export const isDebugMode = (): boolean => _debugMode
 export const setDebugMode = (v: boolean): void => { _debugMode = v }
 
-// Collision overlay flag — a lighter sibling of the debug overlay: it tints only the BLOCKED cells
+// Collision overlay flag, a lighter sibling of the debug overlay: it tints only the BLOCKED cells
 // (no coords, no tileset labels), so the raw collision layer is visible over the live game in any
 // view. Its own toggle so you can watch collisions without the busy debug labels.
 let _showCollisions = false
@@ -519,7 +525,7 @@ export const LIGHT = {
   night: { overlay: 'rgba(10, 14, 38, 0.5)' }, // deep-navy veil laid over the whole scene
 }
 
-// The DEFAULT warm glow pool — the light a lamp casts when it carries NO explicit `light` setting (a bare
+// The DEFAULT warm glow pool, the light a lamp casts when it carries NO explicit `light` setting (a bare
 // lamp/lantern prop, or a lamp_post seeded before the light default). `rgb` is a SATURATED warm gold (#ffc24d)
 // so the pool reads as a real LIT lamp, not a pale wash; it matches the bulb's seeded `light.color`. `intensity` 1 is
 // full strength; `radiusTiles` is the
@@ -539,7 +545,7 @@ function lightRgb(color: string | undefined): string {
 }
 
 /** The effective LIGHT an asset casts as a night ground pool, or `null` when it casts none. An explicit
- *  `light` SETTING wins — its `distance` sizes the pool (cells), `intensity`/`color` its strength/hue — unless
+ *  `light` SETTING wins, its `distance` sizes the pool (cells), `intensity`/`color` its strength/hue, unless
  *  `on === false` (a switched-off lamp → no pool). A lamp/lantern with NO explicit light falls back to the
  *  default warm LAMP_GLOW so seeded/legacy lamps still light. Anything else → null. This is the ONE place the
  *  "any asset carrying a light casts a pool, lamp is just the default" rule lives; the renderers read it. */
@@ -551,7 +557,7 @@ export function assetLight(asset: GridAsset): { rgb: string; radiusTiles: number
 }
 
 /** An explicit `light` setting resolved to a pool, `null` for a switched-off one, `undefined` when there is
- *  no setting at all — the three cases the callers need to tell apart, since "no setting" falls back to the
+ *  no setting at all, the three cases the callers need to tell apart, since "no setting" falls back to the
  *  lamp default for a TILE and to nothing for a unit. */
 function resolveLight(light: AssetLight | undefined): { rgb: string; radiusTiles: number; intensity: number } | null | undefined {
   if (!light) return undefined
@@ -600,10 +606,10 @@ export function drawNightLighting(
 }
 
 
-/** Screen-space light pools for every asset on the grid that casts a `light` and lands on-screen — the anchors
+/** Screen-space light pools for every asset on the grid that casts a `light` and lands on-screen, the anchors
  *  the night pass paints. `cellCenter` maps a cell to its screen centre (each view projects differently);
  *  `tilePx` is the per-cell pixel unit for THIS view, so a light's `distance` (cells) becomes `distance·tilePx`
- *  pixels — the SETTING drives the pool size. `lift` raises the pool to the lamp head. Driven by `assetLight`,
+ *  pixels, the SETTING drives the pool size. `lift` raises the pool to the lamp head. Driven by `assetLight`,
  *  so ANY tile carrying a light casts a pool (a lamp with none uses the default); shared by all three views.
  *
  *  `anim` (optional {time, style, view}) makes the POOL FOLLOW THE BULB: for each light-casting asset we
@@ -612,13 +618,13 @@ export function drawNightLighting(
   * pool is
  *  unchanged. Absent `anim` (jsdom / a caller that doesn't animate) → every pool is steady, byte-identical.
  *
- *  `anchorFor` (optional) CENTRES THE POOL ON THE BULB. A lamp is a COMPOSITION — the light-casting cell is the
+ *  `anchorFor` (optional) CENTRES THE POOL ON THE BULB. A lamp is a COMPOSITION, the light-casting cell is the
  *  BULB, drawn high up on the post (its own heightLevel + pose), NOT at the ground cell centre. `cellCenter + lift`
  * only ever reached a fixed height off the ground, so the pool sat well BELOW the bulb. When the caller passes
   * `anchorFor` (iso/2D use the bulb's own recorded silhouette
- *  centroid) we anchor the pool THERE — on the actual bulb — instead of `cellCenter(col,row) - lift`. Returns
+ *  centroid) we anchor the pool THERE, on the actual bulb, instead of `cellCenter(col,row) - lift`. Returns
  *  null when the bulb wasn't drawn this frame (off-screen) → we fall back to `cellCenter - lift`, byte-identical.
- *  Absent `anchorFor` (top view — no vertical perspective) → the old cellCenter+lift anchor, unchanged. */
+ *  Absent `anchorFor` (top view, no vertical perspective) → the old cellCenter+lift anchor, unchanged. */
 export function collectLampGlows(
   grid: IsometricGrid,
   cellCenter: (col: number, row: number) => { x: number; y: number },
@@ -628,7 +634,7 @@ export function collectLampGlows(
   h: number,
   anim?: { time: number; style: Style; view: TileView },
   anchorFor?: (asset: GridAsset) => { x: number; y: number } | null,
-  /** The characters on the map. One carrying a light casts the same pool a tile does — a torch-bearer lights
+  /** The characters on the map. One carrying a light casts the same pool a tile does, a torch-bearer lights
    *  the road. Omitted → tiles only, exactly as before. */
   entities: readonly Entity[] = [],
 ): LampGlow[] {
@@ -664,13 +670,13 @@ export function collectLampGlows(
 }
 
 
-// The tree-cell key Set (`col,row` of every `tree` asset) — the anchor for the ground-contact shadow
+// The tree-cell key Set (`col,row` of every `tree` asset), the anchor for the ground-contact shadow
 // lookup (isGroundContact) both views run per placed asset every frame. Rebuilding it with a full
 // grid.assets scan + Set alloc each frame was pure waste; memoize it. Trees are only ADDED via
 // assets.push (array reference stable, length grows) or removed/moved by REASSIGNING grid.assets (new
 // reference); an in-place field edit (e.g. a recolour) changes neither the reference, the length, nor
 // any tree cell. So keying on (assets reference, length) rebuilds exactly when the tree cells can
-// change and reuses the Set otherwise — same content the inline `new Set(...filter...map...)` built.
+// change and reuses the Set otherwise, same content the inline `new Set(...filter...map...)` built.
 // Module state only; no game state is touched. Shared by iso + 2D so both stay in lockstep.
 let _treeCellCache: { assets: readonly GridAsset[]; len: number; set: Set<string> } | null = null
 export function treeCellSet(grid: IsometricGrid): Set<string> {
@@ -688,7 +694,7 @@ export function treeCellSet(grid: IsometricGrid): Set<string> {
 export { grassShade, groundTileColor }
 
 /** Fill colour for a ground cell. A reskin (`tint` set) normally fills with the tile's flat catalog
- *  hue — but for GRASS that made a whole field ONE flat green ("grass is just color"), because the
+ *  hue, but for GRASS that made a whole field ONE flat green ("grass is just color"), because the
  *  flat tint overrode the per-cell shade. So grassy cells keep the same deterministic grassShade
  *  variation the ASCII grass has, applied to the emoji hue. No tint (ASCII) → the precomputed bg. */
 export function cellFill(tint: string | undefined, bg: string, grassy: boolean, col: number, row: number): string {
@@ -697,13 +703,13 @@ export function cellFill(tint: string | undefined, bg: string, grassy: boolean, 
 }
 
 
-/** Draw an emoji glyph RECOLOURED toward `tint`, keeping its shape + internal shading — so one 🌲 reads
+/** Draw an emoji glyph RECOLOURED toward `tint`, keeping its shape + internal shading, so one 🌲 reads
  *  spring-green, autumn-amber, or winter-frost by the zone's canopy colour (emoji CAN be recoloured: we
  *  overlay the tint with `source-atop`, which only paints the glyph's own opaque pixels, never the ground
- *  behind it). `glyphPx` is the drawn font size (sizes the overlay); `strength` 0–1 is how hard to push
+ *  behind it). `glyphPx` is the drawn font size (sizes the overlay); `strength` 0-1 is how hard to push
  *  the hue (0 = the emoji's native colours). Caller sets font + textAlign:'center' before calling. */
 // A reusable OFFSCREEN canvas for per-glyph recolouring. The tint MUST be applied on a layer that holds
-// ONLY the glyph — `source-atop` over the MAIN canvas tints every opaque pixel under the rect (the ground
+// ONLY the glyph, `source-atop` over the MAIN canvas tints every opaque pixel under the rect (the ground
 // behind the tree → a coloured BOX, the bug). On its own offscreen it clips to the glyph alone.
 let _tintCanvas: HTMLCanvasElement | null = null
 function tintScratch(size: number): HTMLCanvasElement | null {
@@ -726,26 +732,26 @@ export function fillTintedGlyph(ctx: CanvasRenderingContext2D, char: string, x: 
   octx.textBaseline = 'middle'
   octx.fillStyle = '#ffffff'
   octx.fillText(char, size / 2, size / 2) // the emoji renders in its own colours (fillStyle ignored)
-  // Recolour ONLY the emoji's pixels — the offscreen holds nothing else, so no background box.
+  // Recolour ONLY the emoji's pixels, the offscreen holds nothing else, so no background box.
   octx.globalCompositeOperation = 'source-atop'
   octx.globalAlpha = Math.min(1, Math.max(0, strength))
   octx.fillStyle = tint
   octx.fillRect(0, 0, size, size)
   octx.globalCompositeOperation = 'source-over'
   octx.globalAlpha = 1
-  // Blit centred at (x,y) — the tree callers draw center/middle, so this lands exactly where fillText would.
+  // Blit centred at (x,y), the tree callers draw center/middle, so this lands exactly where fillText would.
   ctx.drawImage(off, 0, 0, size, size, x - size / 2, y - size / 2, size, size)
 }
 
 
 // A cached offscreen canvas per (glyph, size, tint, strength). The recolour pass (source-atop fill) runs
-// once per key, not per frame — buildings are sparse, so a handful of roof sprites cover a whole scene.
+// once per key, not per frame, buildings are sparse, so a handful of roof sprites cover a whole scene.
 const _tintGlyphCache = new Map<string, HTMLCanvasElement | null>()
 
 /** A standalone RECOLOURED-glyph sprite: `char` drawn to its own `px` canvas, then repainted to `tint`
- *  (source-atop, keeping the emoji silhouette + shading) — the reusable twin of fillTintedGlyph's inline
+ *  (source-atop, keeping the emoji silhouette + shading), the reusable twin of fillTintedGlyph's inline
  *  recolour. Returned as a canvas so a caller under an iso SHEAR CTM (fillIsoFaceWithTile / a clipped roof
- *  face) can drawImage it onto the angled face — you can't shear a colour-emoji with fillText+fillStyle
+ *  face) can drawImage it onto the angled face, you can't shear a colour-emoji with fillText+fillStyle
  *  (the glyph ignores fillStyle), so this is how the roof 🟥 becomes the building's own roof colour on the
  *  iso roof. Null in SSR / headless (no 2D offscreen) → callers fall back to an untinted glyph stamp. */
 export function tintedGlyphSprite(char: string, px: number, tint: string, strength = 1): HTMLCanvasElement | null {
@@ -763,7 +769,7 @@ export function tintedGlyphSprite(char: string, px: number, tint: string, streng
   octx.textBaseline = 'middle'
   octx.font = `${size * 1.16}px ${ASCII_FONT}` // slight overfill so the glyph covers the box (matches fillIsoFaceWithTile)
   octx.fillText(char, size / 2, size / 2) // the emoji renders in its own colours (fillStyle ignored)
-  octx.globalCompositeOperation = 'source-atop' // recolour ONLY the emoji's pixels — no background box
+  octx.globalCompositeOperation = 'source-atop' // recolour ONLY the emoji's pixels, no background box
   octx.globalAlpha = Math.min(1, Math.max(0, strength))
   octx.fillStyle = tint
   octx.fillRect(0, 0, size, size)
@@ -786,9 +792,9 @@ export function clampCameraAxis(focus: number, halfSpan: number, total: number):
  *  this with lo = 0, hi = total). */
 function clampCameraSpan(focus: number, pad: number, lo: number, hi: number): number {
   // Map SMALLER than the viewport (span ≤ 2·pad) → re-centre it. Otherwise clamp the focus to the
-  // MAP EXTENT [lo, hi] so ANY cell (incl. the corners) can be dragged to centre — free pan. The old
+  // MAP EXTENT [lo, hi] so ANY cell (incl. the corners) can be dragged to centre, free pan. The old
   // `[lo+pad, hi-pad]` kept the whole viewport inside the map, which for a viewport ~as big as the map
-  // pinned the camera so dragging did nothing (you may now see a little void past an edge — expected).
+  // pinned the camera so dragging did nothing (you may now see a little void past an edge, expected).
   if (hi - lo <= pad * 2) return (lo + hi) / 2
   return Math.min(Math.max(focus, lo), hi)
 }
@@ -800,8 +806,8 @@ function clampCameraSpan(focus: number, pad: number, lo: number, hi: number): nu
  *  ±`qPad` in q.
  *
  *  We clamp in (p, q) space: q to the diamond's full vertical extent [0, cols + rows] so the
- *  camera reaches the top/bottom corners — the old combined col/row clamp stopped it `pPad`
- *  short of them (#38) — then p to the diamond's WIDTH AT THAT HEIGHT so the sides stay inside
+ *  camera reaches the top/bottom corners, the old combined col/row clamp stopped it `pPad`
+ *  short of them (#38), then p to the diamond's WIDTH AT THAT HEIGHT so the sides stay inside
  *  the diamond. Returns the clamped {fc, fr}. */
 export function isoCameraFocus(
   fc: number,
@@ -911,9 +917,9 @@ export interface PlayerArmParams {
   /** arm-bracket fill colour (the figure's body colour) */
   bodyColor: string
   weaponGlyph?: string
-  /** the equipped weapon's POSE (orientation/size/flip) from the tileset — drives the emoji weapon draw. */
+  /** the equipped weapon's POSE (orientation/size/flip) from the tileset, drives the emoji weapon draw. */
   weaponPose?: TilePose
-  /** bare-handed PUNCH glyph + pose (emoji 👊) — swung at the hand when UNARMED (no weaponGlyph) AND
+  /** bare-handed PUNCH glyph + pose (emoji 👊), swung at the hand when UNARMED (no weaponGlyph) AND
    *  swinging, via the SAME pose path as a weapon. Absent/'' → an unarmed swing draws no glyph (ASCII). */
   punchGlyph?: string
   punchPose?: TilePose
@@ -928,7 +934,7 @@ export interface PlayerArmParams {
   restHandX: number
   restHandY: number
   shieldGlyph?: string
-  /** the equipped shield's POSE from the tileset — drives the emoji shield draw (absent = today's look). */
+  /** the equipped shield's POSE from the tileset, drives the emoji shield draw (absent = today's look). */
   shieldPose?: TilePose
   shieldX: number
   shieldY: number
@@ -938,15 +944,15 @@ export interface PlayerArmParams {
 
 /**
  * The player's held weapon (swung in-hand mid-attack, rested otherwise) + the off-hand shield disc.
- * Shared by the iso (drawIsoPlayer) and 2D player renderers — they differ ONLY in the coordinate
+ * Shared by the iso (drawIsoPlayer) and 2D player renderers, they differ ONLY in the coordinate
  * source (and the per-view weapon-tint + shield-radius), all passed in. charW/armR/weaponSize derive
  * from fontSize with the same ratios both views already used, so the output is pixel-identical.
  */
 /** An emoji weapon renders in its OWN colour, so it must NOT be drawn twice (a black-shadow pass doubles
- *  it) like a monochrome ASCII glyph — this check routes an emoji glyph to the single-draw pose path. */
+ *  it) like a monochrome ASCII glyph, this check routes an emoji glyph to the single-draw pose path. */
 const isWeaponEmoji = (g: string): boolean => /\p{Extended_Pictographic}/u.test(g)
 
-/** Draw a glyph at the current origin (the hand / cell centre — the caller has already translated + saved),
+/** Draw a glyph at the current origin (the hand / cell centre, the caller has already translated + saved),
  *  applying a tile POSE: mirror (flip XOR left-facing) → rotate → offset → scale, then ONE fillText. `unit`
  *  is the base draw size in px; the pose's `scale` multiplies it. This replaces the hardcoded WEAPON_ORIENT
  *  + emojiWeaponSize table: a seeded weapon pose reproduces the old look exactly (uniform scale commutes
@@ -956,12 +962,12 @@ export function drawPoseGlyph(ctx: CanvasRenderingContext2D, glyph: string, pose
   ctx.textAlign = 'center'
   ctx.textBaseline = 'middle'
   applyPose(ctx, pose, facingDir, unit)
-  // Prefer the baked PNG (identical on every OS) — the pose transform already applied above carries the
+  // Prefer the baked PNG (identical on every OS), the pose transform already applied above carries the
   // image (rotate/flip/scale) exactly as it did the glyph. No image (ascii / backend down) → fillText.
   const img = glyphTileImage(glyph)
   if (img) { ctx.drawImage(img, -unit / 2, -unit / 2, unit, unit); return }
   // A colour EMOJI glyph carries its own shading → draw once. A MONOCHROME (ascii) glyph gets a black
-  // under-draw for crisp depth — the double-draw the ascii weapon used to do in its own branch, now a
+  // under-draw for crisp depth, the double-draw the ascii weapon used to do in its own branch, now a
   // property of drawing ANY glyph here (one path). The caller's fillStyle is the top (tint) colour.
   if (isWeaponEmoji(glyph)) { ctx.fillText(glyph, 0, 0); return }
   const top = ctx.fillStyle
@@ -974,7 +980,7 @@ export function drawPoseGlyph(ctx: CanvasRenderingContext2D, glyph: string, pose
 export function drawPlayerArm(ctx: CanvasRenderingContext2D, params: PlayerArmParams): void {
   const { swinging, swingP, facingDir, fontSize, bodyColor, weaponGlyph, weaponTint, swingTint } = params
   const charW = fontSize * 0.6
-  const armR = charW * 1.15 // SHORT — about one char (≈ the walk arm / legs), not the full reach
+  const armR = charW * 1.15 // SHORT, about one char (≈ the walk arm / legs), not the full reach
   ctx.textAlign = 'center'
   if (swinging) {
     // The swing arm IS the figure’s facing bracket, pivoting at the SHOULDER and rotating from
@@ -988,13 +994,13 @@ export function drawPlayerArm(ctx: CanvasRenderingContext2D, params: PlayerArmPa
     ctx.textAlign = 'center'
     ctx.textBaseline = 'middle'
     ctx.fillStyle = bodyColor
-    // Under emoji/reskin the figure is a single glyph with its own arms — an ASCII `>`/`<` bracket next to
+    // Under emoji/reskin the figure is a single glyph with its own arms, an ASCII `>`/`<` bracket next to
     // it is exactly the "ascii art on the emoji tileset" the player never wants. Only ASCII draws it.
     if (!params.isEmoji) ctx.fillText(armChar, facingDir * armR, 0)
-    // The swing carries the held weapon, or — bare-handed under a reskin — the 👊 fist. BOTH take the ONE
+    // The swing carries the held weapon, or, bare-handed under a reskin, the 👊 fist. BOTH take the ONE
     // pose path: the weapon's tileset POSE drives orientation/size (emoji from emoji.json, ASCII from the
     // ascii tileset / ASCII_WEAPON_POSE), and drawPoseGlyph draws the baked image or, for a glyph weapon,
-    // the glyph with its depth shadow — so there's no separate ASCII rotate/shadow branch here anymore.
+    // the glyph with its depth shadow, so there's no separate ASCII rotate/shadow branch here anymore.
     const swingGlyph = weaponGlyph || params.punchGlyph
     const swingPose = weaponGlyph ? params.weaponPose : params.punchPose
     if (swingGlyph) {
@@ -1005,7 +1011,7 @@ export function drawPlayerArm(ctx: CanvasRenderingContext2D, params: PlayerArmPa
     ctx.restore()
     ctx.font = `bold ${fontSize}px ${ASCII_FONT}`
   } else if (weaponGlyph) {
-    // Holding (not swinging): the weapon rests in the figure’s natural hand — the SAME one pose path.
+    // Holding (not swinging): the weapon rests in the figure’s natural hand, the SAME one pose path.
     ctx.save()
     ctx.translate(params.restHandX, params.restHandY)
     ctx.fillStyle = weaponTint
@@ -1017,7 +1023,7 @@ export function drawPlayerArm(ctx: CanvasRenderingContext2D, params: PlayerArmPa
   if (params.shieldGlyph) {
     const { shieldX: shX, shieldY: shY, shieldR: shR } = params
     if (isWeaponEmoji(params.shieldGlyph)) {
-      // Emoji shield (🛡️) is already a shield image — draw it ONCE at the shield size through the pose path
+      // Emoji shield (🛡️) is already a shield image, draw it ONCE at the shield size through the pose path
       // (no steel disc, no black-shadow double). facingDir=1: the shield never mirrors with the facing, so
       // an absent pose reproduces today's plain fillText(shX,shY) exactly.
       ctx.save()
@@ -1067,8 +1073,7 @@ export function drawProjectileGlyph(
   ctx.rotate(angle)
   // The projectile GLYPH (➤/•/→) resolves to its baked arrow/bullet/dart tile IMAGE in the ACTIVE style's
   // tileset (char→image index), drawn rotated + warm-tinted just like the glyph. This used to be gated to
-  // `style.id !== 'ascii'`, so an ASCII arrow drew a fillText glyph while the emoji one drew its picture —
-  // a per-style behaviour branch. No image for that char in the active style → the plain rotated glyph.
+  // `style.id !== 'ascii'`, so an ASCII arrow drew a fillText glyph while the emoji one drew its picture, // a per-style behaviour branch. No image for that char in the active style → the plain rotated glyph.
   const image = style ? glyphImageVisual(glyph, style) : undefined
   if (image && tileImage(image.src)) drawStyledImage(ctx, image, 0, 0, size ?? 16, false, tint)
   else ctx.fillText(glyph, 0, 0)
@@ -1077,7 +1082,7 @@ export function drawProjectileGlyph(
 
 
 /** The portal/connector MARKER for the active style, centered at (cx, cy) sized `size`: the connector tile
- *  IMAGE (🌀) under a reskin — or its glyph fallback before the PNG decodes — else the ASCII ◊. Shared by
+ *  IMAGE (🌀) under a reskin, or its glyph fallback before the PNG decodes, else the ASCII ◊. Shared by
  *  all three views so a portal reads identically. The caller draws the purple cell backing + sets the font. */
 export function drawConnectorMarker(ctx: CanvasRenderingContext2D, style: Style, cx: number, cy: number, size: number): void {
   const dv = resolveDraw('connector', style, undefined, '◊', '#ffffff')
@@ -1088,9 +1093,9 @@ export function drawConnectorMarker(ctx: CanvasRenderingContext2D, style: Style,
 
 
 /** Draw one attack-animation FRAME. Under a reskin whose style maps the ability `animation` (fire-slash,
- *  bolt, nova, …) to a tile, draws that tile IMAGE — or its emoji glyph before the PNG decodes — recoloured
+ *  bolt, nova, …) to a tile, draws that tile IMAGE, or its emoji glyph before the PNG decodes, recoloured
  *  to the frame's ability tint, keeping the slash-arc rotation (frame.angle). ASCII, or a basic attack that
- *  carries no ability animation, draws the frame's own glyph via fillText — byte-identical to before. The
+ *  carries no ability animation, draws the frame's own glyph via fillText, byte-identical to before. The
  *  caller has already set the font/align and computed the on-screen anchor (x, y); `size` is the tile px. */
 export function drawAttackAnimFrame(
   ctx: CanvasRenderingContext2D,
@@ -1117,7 +1122,7 @@ export function drawAttackAnimFrame(
 
 // Draw asset as ASCII art in isometric view (matching 2D style)
 /** Draw a generated, labeled cell as a single glyph (its label char + zone color)
- *  on a subtle backing — one cell = one tile, matching the keystone model. */
+ *  on a subtle backing, one cell = one tile, matching the keystone model. */
 
 
 /** An enemy that's been killed and is waiting to respawn (no live combat state). */
@@ -1136,7 +1141,7 @@ function hpBarColor(fraction: number): string {
 }
 
 
-/** Draw a small HP bar centred at (x,y) — shared by iso + top enemy rendering. */
+/** Draw a small HP bar centred at (x,y), shared by iso + top enemy rendering. */
 export function drawHpBar(
   ctx: CanvasRenderingContext2D,
   x: number,
@@ -1184,7 +1189,7 @@ export const QUEST_GIVER_COLOR = '#ffe14d'
 export const QUEST_TARGET_COLOR = '#ff9f1c'
 
 
-/** Draw centred text with a 1px black drop-shadow then a bright fill — legible over any map tile. */
+/** Draw centred text with a 1px black drop-shadow then a bright fill, legible over any map tile. */
 function drawShadowText(
   ctx: CanvasRenderingContext2D,
   text: string,
@@ -1224,18 +1229,18 @@ export function drawQuestMarker(
 export const VITALS_NAME_COLOR = '#ffe8c2'
 
 
-/** The HP bar's BOTTOM edge floats this many px above the figure's head — a small, fixed screen-space
+/** The HP bar's BOTTOM edge floats this many px above the figure's head, a small, fixed screen-space
  *  gap so the vitals HUG the unit (the ASCII-art look) in every view + style, instead of floating cells
  *  above it. Fixed px (not a cell fraction) on purpose: the bar + name are a screen-space UI overlay, so a
  *  constant gap keeps them equally tight at any zoom, and the head anchor already scales with the figure. */
 export const VITALS_HEAD_GAP_PX = 3
 
 
-/** HP bar + name label floating just above a figure's HEAD — shared by enemies AND the player so the two
+/** HP bar + name label floating just above a figure's HEAD, shared by enemies AND the player so the two
  *  read identically. `x` is the figure centre, `headY` the y of the drawn figure's TOP edge (its head).
  *  The bar's bottom sits VITALS_HEAD_GAP_PX above `headY`; the name sits above the bar. This is why the
  *  caller must pass the ACTUAL drawn-sprite top (which differs between the ascii block figure and the emoji
- *  billboard), NOT a fixed lift off the feet — a fixed lift is what floated the bar cells above the emoji.
+ *  billboard), NOT a fixed lift off the feet, a fixed lift is what floated the bar cells above the emoji.
  *  Returns the anchor just above the name (where an above-figure quest marker sits). */
 export function drawFigureVitals(
   ctx: CanvasRenderingContext2D,
@@ -1261,7 +1266,7 @@ export const idleNow = (): number => (typeof performance !== 'undefined' ? perfo
 export const COMBAT_RANGE = 1.6
 
 
-/** Is the enemy within the player's weapon REACH right now — i.e. some cell of its footprint is
+/** Is the enemy within the player's weapon REACH right now, i.e. some cell of its footprint is
  *  ≤ reach cells (chebyshev) from the player's cell? Footprint-aware so it matches the targeting:
  *  when this is true, a strike will land. Drives the on-monster range indicator (#35). */
 export function enemyInAttackReach(entity: Entity, pCol: number, pRow: number, reach: number): boolean {
@@ -1276,7 +1281,7 @@ export function enemyInAttackReach(entity: Entity, pCol: number, pRow: number, r
 }
 
 
-/** A subtle pulsing ring at an enemy's feet, shown only while it's in strike range — quiet, but
+/** A subtle pulsing ring at an enemy's feet, shown only while it's in strike range, quiet, but
  *  unmistakable: warm red-orange = "an attack will hit this one". */
 export function drawRangeRing(ctx: CanvasRenderingContext2D, cx: number, footY: number, radiusX: number, now: number): void {
   const pulse = 0.5 + 0.5 * Math.sin(now * 0.006)
@@ -1289,7 +1294,7 @@ export function drawRangeRing(ctx: CanvasRenderingContext2D, cx: number, footY: 
   ctx.restore()
 }
 
-/** WoW-style TARGET reticle: a bright RED ring at the current target's feet — the "this unit is selected"
+/** WoW-style TARGET reticle: a bright RED ring at the current target's feet, the "this unit is selected"
  *  indicator (distinct from the pulsing strike-range ring above). Solid so it reads at a glance. */
 export function drawSelectionRing(ctx: CanvasRenderingContext2D, cx: number, footY: number, radiusX: number): void {
   ctx.save()
@@ -1301,7 +1306,7 @@ export function drawSelectionRing(ctx: CanvasRenderingContext2D, cx: number, foo
   ctx.restore()
 }
 
-/** HOVER reticle: a dim WHITE ring at the unit under the cursor — the "you'd target this" hint. Distinct
+/** HOVER reticle: a dim WHITE ring at the unit under the cursor, the "you'd target this" hint. Distinct
  *  from the solid red selection ring (dimmer + thinner) so hover ≠ selected. Skipped for the already-
  *  selected unit (the red ring wins), so a hovered target doesn't get two overlapping rings. */
 export function drawHoverRing(ctx: CanvasRenderingContext2D, cx: number, footY: number, radiusX: number): void {
@@ -1317,7 +1322,7 @@ export function drawHoverRing(ctx: CanvasRenderingContext2D, cx: number, footY: 
 // ── Composition placement GHOST ─────────────────────────────────────────────
 // A translucent shadow of the armed Tile-composition, drawn at the hovered cell BEFORE the click, so you see
 // its footprint (how many cells/blocks) and roughly how it looks. The RAF loop computes it (planComposition)
-// and hands the renderer the exact cells + validity + height — the SAME cells the click stamps.
+// and hands the renderer the exact cells + validity + height, the SAME cells the click stamps.
 
 /** The armed composition's footprint at the hover cell: the cells it fills, whether it fits there, and how
  *  many blocks tall it stands (the iso extrusion height). Shared by every view's ghost pass. */
@@ -1327,7 +1332,7 @@ export interface CompositionGhost {
   height: number
 }
 
-/** Ghost tint by validity: a soft GREEN when it fits, RED when it's blocked/out-of-bounds/on a road — the
+/** Ghost tint by validity: a soft GREEN when it fits, RED when it's blocked/out-of-bounds/on a road, the
  *  at-a-glance "can I drop it here?" read. `edge` is the crisp outline, `edgeDim` the faded raised-volume lines. */
 export function compositionGhostColors(valid: boolean): { fill: string; edge: string; edgeDim: string } {
   return valid
@@ -1370,8 +1375,7 @@ export function entityAnimFrame(entity: Entity, now: number, moving: boolean, in
 
 /** The 3 canopy layer styles (fg + bg) derived from ONE base tree color, so a
  *  legacy (hand-placed, label-less) tree's canopy tints to the asset's
- *  zone/theme color instead of a hardcoded spring green. The trunk stays bark —
- *  only the canopy (the "always green" part) follows the color. Shared by the iso
+ *  zone/theme color instead of a hardcoded spring green. The trunk stays bark, *  only the canopy (the "always green" part) follows the color. Shared by the iso
  *  and 2D legacy tree paths. */
 export function treeCanopyLayers(base: string, flicker: number): { fg: string; bg: string }[] {
   return [
@@ -1427,11 +1431,10 @@ function assetCaptionPos(asset: GridAsset): string {
 }
 
 
-/** One debug caption PER CELL, flattened so the top / 2D / iso overlays draw IDENTICAL strings —
- *  the core of the consistent labeling standard. Buildings & trees caption per stamped cell; the
+/** One debug caption PER CELL, flattened so the top / 2D / iso overlays draw IDENTICAL strings, *  the core of the consistent labeling standard. Buildings & trees caption per stamped cell; the
  *  town fountain (one prop carrying its basin `footprint`) expands over the whole basin: rim sides
  *  (mirroring a building footprint), an inner WATER ring, and the CENTER cell. Every other asset
- *  gets a bare type. Pure — the string always comes from the shared labelForCell helper. */
+ *  gets a bare type. Pure, the string always comes from the shared labelForCell helper. */
 export function debugCellCaptions(assets: readonly GridAsset[]): { col: number; row: number; type: string; text: string }[] {
   const out: { col: number; row: number; type: string; text: string }[] = []
   for (const asset of assets) {
@@ -1458,7 +1461,7 @@ export function debugCellCaptions(assets: readonly GridAsset[]): { col: number; 
 /** The debug label for EVERY cell, keyed "col,row": the TERRAIN autotile label (GRASS TOP-LEFT …)
  *  for the ground, OVERRIDDEN by the asset caption (BUILDING TOP-LEFT, TREE CANOPY …) where a cell
  *  carries a placed element. So no cell is ever unlabeled and every label follows one <TYPE>
- *  <POSITION> vocabulary — the tileset-replacement key the whole grid is built around. */
+ *  <POSITION> vocabulary, the tileset-replacement key the whole grid is built around. */
 export function cellCaptionMap(
   ground: readonly (readonly string[])[],
   assets: readonly GridAsset[],
@@ -1469,7 +1472,7 @@ export function cellCaptionMap(
   return m
 }
 
-/** Just the ASSET captions keyed "col,row" (cheap — the placed assets only). The debug overlay pairs
+/** Just the ASSET captions keyed "col,row" (cheap, the placed assets only). The debug overlay pairs
  *  this with per-visible-cell `terrainLabelAt`, so it NEVER iterates the whole grid per frame (the
  *  old cellCaptionMap did, which was the debug-mode perf sink). */
 export function assetCaptionByCell(assets: readonly GridAsset[]): Map<string, { type: string; text: string }> {
@@ -1480,7 +1483,7 @@ export function assetCaptionByCell(assets: readonly GridAsset[]): Map<string, { 
 
 export { terrainLabelAt } from '@/engine/terrainLabels'
 
-/** Draw a debug cell label CENTERED in its cell, shrinking the font until it fits `maxW` — so a
+/** Draw a debug cell label CENTERED in its cell, shrinking the font until it fits `maxW`, so a
  *  label always sits on its own cell (aligned to the position it names) and can NEVER overflow into
  *  the neighbour (the old floating pills overlapped into "BUILDING WING INTERIOR" soup). */
 export function drawCellLabel(
@@ -1492,7 +1495,7 @@ export function drawCellLabel(
   fg: string,
   bg: string,
 ): void {
-  // Width is ESTIMATED from the char count (≈0.62em on this mono-ish font) — never measureText, which
+  // Width is ESTIMATED from the char count (≈0.62em on this mono-ish font), never measureText, which
   // per visible cell per frame was the debug-overlay perf sink. Font is shrunk to fit maxW.
   const CH = 0.62
   let px = Math.min(11, maxW * 0.24)
@@ -1508,7 +1511,7 @@ export function drawCellLabel(
   ctx.fillText(text, cx, cy)
 }
 
-/** Caption fg/bg for an asset's debug label, keyed by type — shared by the iso + 2D overlays
+/** Caption fg/bg for an asset's debug label, keyed by type, shared by the iso + 2D overlays
  *  so both views colour BUILDING/TREE/WATER/… identically. */
 export function debugLabelColors(type: string): { fg: string; bg: string } {
   switch (type) {

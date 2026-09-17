@@ -1,5 +1,5 @@
 /**
- * THE INSPECTOR'S SECTION MODEL (§4.7, Week 5) — now a set of MOVABLE PANELS.
+ * THE INSPECTOR'S SECTION MODEL (§4.7, Week 5), now a set of MOVABLE PANELS.
  *
  * §3.10's complaint was that the inspector is one flat wall of controls. §4.7 answered with six sections
  * named after the questions people ask, three of them open by default, remembered per section in the
@@ -33,17 +33,17 @@ describe('the sections §4.7 draws', () => {
     ])
   })
 
-  it('opens NONE of them by default — each one is a panel over the map now', () => {
+  it('opens NONE of them by default, each one is a panel over the map now', () => {
     const open = INSPECTOR_SECTIONS.filter(s => s.defaultOpen).map(s => s.id)
     expect(open).toEqual([])
   })
 
-  it('titles every section SHORT, naming the feature — not as a question', () => {
+  it('titles every section SHORT, naming the feature, not as a question', () => {
     // A label is scanned, not read. Three rules, each one a way these went wrong:
     for (const { title } of INSPECTOR_SECTIONS) {
       // no jargon that names the STORE rather than the feature
       expect(title).not.toMatch(/^(pose|transform|scale|settings|misc)$/i)
-      // no question form — "How it will be placed" became "What it does when you drop it", longer and no clearer
+      // no question form, "How it will be placed" became "What it does when you drop it", longer and no clearer
       expect(title).not.toMatch(/^(what|how|who|where|why|when)\b/i)
       // scannable: three words at most
       expect(title.split(/\s+/).length).toBeLessThanOrEqual(3)
@@ -62,7 +62,7 @@ describe('a unit is a CHARACTER, a cell holds a TILE', () => {
     expect(sectionTitle('identity', false)).toBe('Tile')
   })
 
-  it('relabels ONLY identity — the rest read the same for both', () => {
+  it('relabels ONLY identity, the rest read the same for both', () => {
     for (const { id, title } of INSPECTOR_SECTIONS) {
       if (id === 'identity') continue
       expect(sectionTitle(id, true)).toBe(title)
@@ -71,7 +71,7 @@ describe('a unit is a CHARACTER, a cell holds a TILE', () => {
   })
 })
 
-describe('remembering open/closed (§4.7 — persisted via /api/editor_settings)', () => {
+describe('remembering open/closed (§4.7, persisted via /api/editor_settings)', () => {
   it('starts every section closed when the user has never touched it', () => {
     for (const { id } of INSPECTOR_SECTIONS) expect(sectionIsOpen(id, undefined)).toBe(false)
   })
@@ -91,7 +91,7 @@ describe('remembering open/closed (§4.7 — persisted via /api/editor_settings)
     // The OLD namespace must not be reused: those values mean "this accordion was expanded", and reading
     // them as "open this panel" pops panels over the map for anyone with saved settings.
     for (const key of keys) expect(key).not.toMatch(/^inspector\.section\./)
-    // The store is ONE flat map shared with the modals — "settings" is already a panel geometry key.
+    // The store is ONE flat map shared with the modals, "settings" is already a panel geometry key.
     expect(keys).not.toContain('settings')
     expect(new Set(keys).size).toBe(keys.length)
   })

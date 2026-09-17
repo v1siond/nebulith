@@ -1,5 +1,5 @@
 /**
- * WEAPON CLASS HELPERS — pure, deterministic. The unified combat model gives every
+ * WEAPON CLASS HELPERS, pure, deterministic. The unified combat model gives every
  * weapon a numeric cell reach:
  *   - melee: 1 (one-handed) / 2 (two-handed)
  *   - ranged: the authored `reachCells`, clamped to [6, 12]

@@ -1,15 +1,15 @@
 /**
- * Per-tile SHAPE ('square' cube default | 'circle' rounded form) — the DATA PATH (round-trip + composition
+ * Per-tile SHAPE ('square' cube default | 'circle' rounded form), the DATA PATH (round-trip + composition
  * passthrough) and the render ROUTING, proven in jsdom (no real raster needed).
  *
  * `shape` is a per-INSTANCE render SETTING on GridAsset, the sibling of `display`. It:
  *   1. round-trips in Template.assetsData like scaleX/pose (the deserialize shallow-clone carries it).
  *   2. can ship as a composition-CELL default (composition_cells.settings.shape → stampComposition → asset.shape).
- *   3. ROUTES the render: 'circle' draws the SAME cuboid — the tile painted on all THREE faces (its art + per-face
- *      shading kept) — and just CLIPS the silhouette round, bending the cuboid's corners away. It is NOT a
+ *   3. ROUTES the render: 'circle' draws the SAME cuboid, the tile painted on all THREE faces (its art + per-face
+ *      shading kept), and just CLIPS the silhouette round, bending the cuboid's corners away. It is NOT a
  *      repainted sphere (no single flat surface, no relight). Counted here via a recording context: circle → 3
  *      image draws (the same cube faces) PLUS a rounding clip/ellipse; square → 3 image draws with NO clip. So the
- *      clip discriminates a rounded cuboid from a plain one — both keep the 3 painted faces.
+ *      clip discriminates a rounded cuboid from a plain one, both keep the 3 painted faces.
  */
 import { makeStyleTile, setStyleTile, styleCatalog, styleTile } from '@/engine/tileset/styleTiles'
 import { stampComposition } from '@/game/runtime/composition'
@@ -43,7 +43,7 @@ describe('shape round-trips in Template.assetsData like scaleX/pose', () => {
   })
 })
 
-describe('stampComposition — a composition CELL can ship a default shape (settings.shape → asset.shape)', () => {
+describe('stampComposition, a composition CELL can ship a default shape (settings.shape → asset.shape)', () => {
   const BALL_LABEL = '__shape_ball__'
   const PLAIN_LABEL = '__shape_plain__'
   const KIND = '__shape_lamp__'
@@ -55,7 +55,7 @@ describe('stampComposition — a composition CELL can ship a default shape (sett
       footprint: { w: 1, h: 2 },
       cells: [
         { dx: 0, dy: 0, level: 0, label: BALL_LABEL, settings: { shape: 'circle' } }, // a globe on top
-        { dx: 0, dy: 1, level: 0, label: PLAIN_LABEL }, // a plain cube post — no shape
+        { dx: 0, dy: 1, level: 0, label: PLAIN_LABEL }, // a plain cube post, no shape
       ],
     }
   })
@@ -84,7 +84,7 @@ function recordingCtx(): Rec {
     fillStyle: '#000', strokeStyle: '#000', font: '', lineWidth: 1, lineCap: '', globalAlpha: 1,
     textAlign: '' as CanvasTextAlign, textBaseline: '' as CanvasTextBaseline,
     save() {}, restore() {}, beginPath() {}, closePath() {}, moveTo() {}, lineTo() {},
-    quadraticCurveTo() { counts.curves++ }, // the top-front bevel arc — round the last (interior) corner
+    quadraticCurveTo() { counts.curves++ }, // the top-front bevel arc, round the last (interior) corner
     rect() {}, clip() { counts.clips++ }, ellipse() { counts.ellipses++ }, arc() {}, translate() {}, rotate() {}, scale() {}, transform() {},
     createLinearGradient() { return { addColorStop() {} } }, createRadialGradient() { return { addColorStop() {} } },
     stroke() {}, fill() {}, fillRect() {}, strokeRect() {}, strokeText() {}, fillText() {},
@@ -119,20 +119,20 @@ describe('drawIsoAssetAscii ROUTES on asset.shape (end-to-end)', () => {
     const r = recordingCtx()
     drawIsoAssetAscii(r.ctx, 100, 120, asset({}), 22, 11, 0, false, 'day', EMOJI_STYLE)
     expect(r.images.length).toBe(3)
-    expect(r.clips).toBe(0) // a plain cube — nothing is clipped
+    expect(r.clips).toBe(0) // a plain cube, nothing is clipped
   })
 
-  test('shape "square" is identical to the default (3 image draws, no clip — the cube path)', () => {
+  test('shape "square" is identical to the default (3 image draws, no clip, the cube path)', () => {
     const r = recordingCtx()
     drawIsoAssetAscii(r.ctx, 100, 120, asset({ shape: 'square' }), 22, 11, 0, false, 'day', EMOJI_STYLE)
     expect(r.images.length).toBe(3)
     expect(r.clips).toBe(0)
   })
 
-  test('shape "circle" KEEPS the 3 painted cube faces (3 image draws — same as square), only adds a rounding clip', () => {
+  test('shape "circle" KEEPS the 3 painted cube faces (3 image draws, same as square), only adds a rounding clip', () => {
     const r = recordingCtx()
     drawIsoAssetAscii(r.ctx, 100, 120, asset({ shape: 'circle' }), 22, 11, 0, false, 'day', EMOJI_STYLE)
-    // circle draws the SAME cuboid — the tile painted on all THREE faces (3 image draws, like the cube) — and just
+    // circle draws the SAME cuboid, the tile painted on all THREE faces (3 image draws, like the cube), and just
     // rounds the silhouette. NOT 1 (the rejected single flat "sphere" surface that threw the faces away) and NOT 0.
     expect(r.images.length).toBe(3)
   })
@@ -140,7 +140,7 @@ describe('drawIsoAssetAscii ROUTES on asset.shape (end-to-end)', () => {
   test('shape "circle" ROUNDS the form: it clips to an ellipse the square (cube) path never uses', () => {
     const r = recordingCtx()
     drawIsoAssetAscii(r.ctx, 100, 120, asset({ shape: 'circle' }), 22, 11, 0, false, 'day', EMOJI_STYLE)
-    expect(r.clips).toBeGreaterThanOrEqual(1)     // the rounding mask (clipToBall) — bends the cuboid's corners away
+    expect(r.clips).toBeGreaterThanOrEqual(1)     // the rounding mask (clipToBall), bends the cuboid's corners away
     expect(r.ellipses).toBeGreaterThanOrEqual(1)  // that silhouette is an ellipse of the block's own extent
   })
 
@@ -150,7 +150,7 @@ describe('drawIsoAssetAscii ROUTES on asset.shape (end-to-end)', () => {
     // rounded arc (a quadraticCurveTo), so the last angular corner is bent too. The cube path draws no such arc.
     const sq = recordingCtx()
     drawIsoAssetAscii(sq.ctx, 100, 120, asset({ shape: 'square' }), 22, 11, 0, false, 'day', EMOJI_STYLE)
-    expect(sq.curves).toBe(0) // a plain cube keeps its sharp top-front vertex — no bevel arc
+    expect(sq.curves).toBe(0) // a plain cube keeps its sharp top-front vertex, no bevel arc
 
     const ci = recordingCtx()
     drawIsoAssetAscii(ci.ctx, 100, 120, asset({ shape: 'circle' }), 22, 11, 0, false, 'day', EMOJI_STYLE)
@@ -160,9 +160,9 @@ describe('drawIsoAssetAscii ROUTES on asset.shape (end-to-end)', () => {
 
 // ── The rounding clip must round EVERY corner (the top point, a mid-right side corner, and the bottom
 //    were "still sharp"). roundedBlockEllipse must INSCRIBE the block's projected hexagon: every one of the 6
-//    silhouette vertices sits OUTSIDE the ellipse (so the clip bends it away — no vertex pokes through), AND the
-//    ellipse never crosses an edge (so the whole outline is one smooth oval — no straight-edge/arc kink). ──
-describe('roundedBlockEllipse — the clip inscribes the block hexagon so NO corner stays sharp', () => {
+//    silhouette vertices sits OUTSIDE the ellipse (so the clip bends it away, no vertex pokes through), AND the
+//    ellipse never crosses an edge (so the whole outline is one smooth oval, no straight-edge/arc kink). ──
+describe('roundedBlockEllipse, the clip inscribes the block hexagon so NO corner stays sharp', () => {
   const TW = 40, TH = 20, BH = 44
   const center = { x: 0, y: 0 }
 
@@ -195,7 +195,7 @@ describe('roundedBlockEllipse — the clip inscribes the block hexagon so NO cor
     const e = roundedBlockEllipse(center, TW, TH, BH, n)
     const poly = hexagon(n)
     // Walk the ellipse boundary; every point must fall inside the hexagon. If the ellipse poked past a slanted
-    // face (the old kink), some boundary point would land OUTSIDE — the sharp mid-right corner.
+    // face (the old kink), some boundary point would land OUTSIDE, the sharp mid-right corner.
     for (let i = 0; i < 720; i++) {
       const t = (i / 720) * Math.PI * 2
       const p = { x: e.cx + e.rx * Math.cos(t) * 0.999, y: e.cy + e.ry * Math.sin(t) * 0.999 }
@@ -203,7 +203,7 @@ describe('roundedBlockEllipse — the clip inscribes the block hexagon so NO cor
     }
   })
 
-  test('the OLD ellipse (ry = stack/2 + tileH) POKED past the slanted face — proving the inscribe fix is load-bearing', () => {
+  test('the OLD ellipse (ry = stack/2 + tileH) POKED past the slanted face, proving the inscribe fix is load-bearing', () => {
     const n = 4, stack = n * BH
     const oldEllipse = { cx: center.x, cy: center.y - stack / 2, rx: TW, ry: stack / 2 + TH }
     const poly = hexagon(n)
@@ -213,7 +213,7 @@ describe('roundedBlockEllipse — the clip inscribes the block hexagon so NO cor
       const p = { x: oldEllipse.cx + oldEllipse.rx * Math.cos(t), y: oldEllipse.cy + oldEllipse.ry * Math.sin(t) }
       if (!pointInPolygon(p.x, p.y, poly)) poked++
     }
-    expect(poked).toBeGreaterThan(0) // the old clip cut across the faces (the kink) — the new inscribed one does not
+    expect(poked).toBeGreaterThan(0) // the old clip cut across the faces (the kink), the new inscribed one does not
   })
 
   test('proportional: taller block → taller oval; the width stays the footprint (rx = tileW), never a fixed circle', () => {
@@ -221,6 +221,6 @@ describe('roundedBlockEllipse — the clip inscribes the block hexagon so NO cor
     const tall = roundedBlockEllipse(center, TW, TH, BH, 4)
     expect(unit.rx).toBe(TW)
     expect(tall.rx).toBe(TW)                  // same footprint → same width
-    expect(tall.ry).toBeGreaterThan(unit.ry * 1.5) // clearly taller — the oval follows the block height
+    expect(tall.ry).toBeGreaterThan(unit.ry * 1.5) // clearly taller, the oval follows the block height
   })
 })

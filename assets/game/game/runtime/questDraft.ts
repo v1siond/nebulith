@@ -1,7 +1,6 @@
 // Pure quest-draft authoring: the editor form's draft shape + the builders that
 // mint a Quest from it. Moved out of the game-engine page (stage 4) so the quest
-// authoring card (components/game) and the editor page share one home. Pure —
-// every input is passed in, nothing read from the DOM.
+// authoring card (components/game) and the editor page share one home. Pure, // every input is passed in, nothing read from the DOM.
 import type { Objective, ObjectiveKind, Quest, Reward } from '@/game/types'
 
 /** Reward types the simple authoring UI can grant (subset of Reward kinds). */
@@ -17,9 +16,9 @@ export interface QuestDraft {
   target: string
   count: number
   rewardKind: SimpleRewardKind
-  /** xp amount (rewardKind 'xp') — ignored for items. */
+  /** xp amount (rewardKind 'xp'), ignored for items. */
   rewardXp: number
-  /** itemId to grant (rewardKind 'item') — ignored for xp. */
+  /** itemId to grant (rewardKind 'item'), ignored for xp. */
   rewardItemId: string
 }
 

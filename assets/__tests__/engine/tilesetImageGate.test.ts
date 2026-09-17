@@ -1,13 +1,13 @@
 /**
  * THE FIX under test: the render gate must stay closed until the baked tile IMAGES are DECODED, not merely
  * until the tileset JSON installs. When the old gate opened on JSON alone, the first painted frame found
- * every `tileImage(src)` still undecoded and fell back to the tile's GLYPH — building faces tiled with the
+ * every `tileImage(src)` still undecoded and fell back to the tile's GLYPH, building faces tiled with the
  * brick emoji (a repeated S-like mark that reads as "a stack of brown crates"), an un-drawn hero, off trees
- * — for the ~1s the PNGs were decoding. loadTilesetsFromBackend now awaits `preloadTileImages` before it
+ *, for the ~1s the PNGs were decoding. loadTilesetsFromBackend now awaits `preloadTileImages` before it
  * resolves, so the gate the editor keys off it only opens once the rasters are ready.
  *
  * These are behavioural unit tests (real modules, mocked Image/fetch): the gate WAITS for decode, and once
- * an image is decoded the render takes the image path — the tiled-glyph flash can no longer fire. The full
+ * an image is decoded the render takes the image path, the tiled-glyph flash can no longer fire. The full
  * fresh-load-with-saved-map proof is the recorded video (per-frame, on the running editor).
  */
 import { installStyleTiles, styleTiles } from '@/engine/tileset/styleTiles'
@@ -21,7 +21,7 @@ const RealImage = (global as { Image: unknown }).Image
 const realFetch = global.fetch
 const tick = () => new Promise((r) => setTimeout(r))
 
-// An Image whose decode() only completes when the test FLUSHES it — lets us assert the gate is still
+// An Image whose decode() only completes when the test FLUSHES it, lets us assert the gate is still
 // closed while a raster decodes and opens the moment it lands.
 class DeferredImage {
   static pending: Array<() => void> = []
@@ -57,7 +57,7 @@ afterEach(() => {
   DeferredImage.pending = []
 })
 
-describe('preloadTileImages — the decode seam the gate waits on', () => {
+describe('preloadTileImages, the decode seam the gate waits on', () => {
   test('holds until EVERY image decodes, then the shared cache tileImage reads is ready', async () => {
     ;(global as { Image: unknown }).Image = DeferredImage
     const a = '/probe/preload-a.png', b = '/probe/preload-b.png'
@@ -83,7 +83,7 @@ describe('preloadTileImages — the decode seam the gate waits on', () => {
   })
 })
 
-describe('loadTilesetsFromBackend — the gate opens on DECODED images, not just the JSON', () => {
+describe('loadTilesetsFromBackend, the gate opens on DECODED images, not just the JSON', () => {
   test('the load promise stays pending after the JSON installs, until the baked PNG decodes', async () => {
     ;(global as { Image: unknown }).Image = DeferredImage
     const IMG = '/tiles/emoji/gate_probe.png'
@@ -101,7 +101,7 @@ describe('loadTilesetsFromBackend — the gate opens on DECODED images, not just
     await tick(); await tick()
 
     expect(styleTiles('emoji').gate_probe).toBeDefined() // the JSON has installed...
-    expect(done).toBe(false)                       // ...but the gate has NOT opened — it's awaiting the image decode
+    expect(done).toBe(false)                       // ...but the gate has NOT opened, it's awaiting the image decode
     const src = ORIGIN + IMG
     expect(tileImage(src)).toBeNull()              // raster not ready yet
 
@@ -113,7 +113,7 @@ describe('loadTilesetsFromBackend — the gate opens on DECODED images, not just
   })
 })
 
-describe('the render takes the image path once decoded — the tiled-glyph flash cannot fire', () => {
+describe('the render takes the image path once decoded, the tiled-glyph flash cannot fire', () => {
   test('a decoded wall image draws the IMAGE on every face, never the tiled brick glyph', () => {
     class ReadyImage { complete = true; naturalWidth = 64; naturalHeight = 64; src = ''; decode() { return Promise.resolve() } }
     ;(global as { Image: unknown }).Image = ReadyImage
@@ -121,11 +121,11 @@ describe('the render takes the image path once decoded — the tiled-glyph flash
     expect(tileImage(src)).not.toBeNull() // synchronously decoded
     const rec = recordingCtx()
     fillIsoFaceWithTile(rec.ctx, { x: 0, y: 0 }, { x: 64, y: 0 }, { x: 0, y: 64 }, { char: '🧱', color: '#ffffff', image: { kind: 'image', src } }, 2, 3)
-    expect(rec.images.length).toBe(6)     // 2×3 image tiling — the wall face is the baked IMAGE
+    expect(rec.images.length).toBe(6)     // 2×3 image tiling, the wall face is the baked IMAGE
     expect(rec.glyphs).not.toContain('🧱') // the brick glyph (the wrong render) is NOT drawn
   })
 
-  test('an UNdecoded image tiles the glyph across the face — the exact flash the preload gate prevents', () => {
+  test('an UNdecoded image tiles the glyph across the face, the exact flash the preload gate prevents', () => {
     class PendingImage { complete = false; naturalWidth = 0; naturalHeight = 0; src = ''; decode() { return new Promise<void>(() => {}) } }
     ;(global as { Image: unknown }).Image = PendingImage
     const src = '/tiles/emoji/wall_pending.png'
@@ -136,7 +136,7 @@ describe('the render takes the image path once decoded — the tiled-glyph flash
     expect(rec.glyphs.filter((g) => g === 'S').length).toBe(6) // the repeated glyph on the face = the wrong render
   })
 
-  test('a tile with NO image still draws its glyph — the kept after-load neutral render for an unknown label', () => {
+  test('a tile with NO image still draws its glyph, the kept after-load neutral render for an unknown label', () => {
     const rec = recordingCtx()
     fillIsoFaceWithTile(rec.ctx, { x: 0, y: 0 }, { x: 64, y: 0 }, { x: 0, y: 64 }, { char: '?', color: '#ffffff' }, 1, 1)
     expect(rec.images.length).toBe(0)

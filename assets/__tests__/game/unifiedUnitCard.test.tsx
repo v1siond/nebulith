@@ -1,14 +1,14 @@
 /**
- * ONE unified right-sidebar card — the user's ask: "one single right sidebar, I want the same we use for
+ * ONE unified right-sidebar card, the user's ask: "one single right sidebar, I want the same we use for
  * tiles, with the extra unit options added … the unit data can be merged in to the general tile card …
  * the animation section from unit would be removed, and it'll work with the button … movement pattern is
  * dead code … triggers should be a button inside the tile/unit card that shows a modal."
  *
- * A selected UNIT renders the SAME PropertiesPanel card a tile uses — with the unit's data folded IN via
+ * A selected UNIT renders the SAME PropertiesPanel card a tile uses, with the unit's data folded IN via
  * `unitSection`, NOT a second parallel unit sidebar. We drive the REAL components and assert:
  *   • the unit extras (identity/attacks) live on the SAME card as the tile summary,
  *   • the cell-collision row is HIDDEN for a unit (a unit isn't a cell),
- *   • the animation SECTION is gone — it's a BUTTON now (opens the animation modal),
+ *   • the animation SECTION is gone, it's a BUTTON now (opens the animation modal),
  *   • Triggers is a BUTTON that opens the triggers modal (with a count badge),
  *   • the movement-pattern section + waypoint plumbing are removed (dead code).
  */
@@ -22,7 +22,7 @@ import { type Entity } from '@/game/types'
 
 const TEMPLATES_SRC = resolve(__dirname, '../../pages/personal-projects/game-engine/templates.tsx')
 
-/** A unit's shared tile model — the SAME shape a tile feeds PropertiesPanel, with onOpenAnimator wired
+/** A unit's shared tile model, the SAME shape a tile feeds PropertiesPanel, with onOpenAnimator wired
  *  (the "✦ Animate…" button) and NO asset-only writers (so those rows stay out for a unit). */
 const unitTile = (over: Partial<TileControlModel> = {}): TileControlModel => ({
   key: 'unit-u1',
@@ -87,7 +87,7 @@ describe('a unit uses the SAME card as a tile (no separate unit sidebar)', () =>
     // character window (figure + name + size + stats) rather than one button that opens the library.
     expect(screen.getByRole('button', { name: 'Character' })).toBeInTheDocument()
     // The settings are ON the card now, as named sections. The old "Edit settings…" button opened one flat
-    // wall of controls, which is exactly what §3.10 broke up — so the sections ARE the assertion.
+    // wall of controls, which is exactly what §3.10 broke up, so the sections ARE the assertion.
     expect(screen.queryByRole('button', { name: /Edit settings/i })).toBeNull()
     for (const name of ['Appearance', 'Size & position', 'Behaviour']) {
       expect(screen.getByRole('button', { name })).toBeInTheDocument()
@@ -98,15 +98,15 @@ describe('a unit uses the SAME card as a tile (no separate unit sidebar)', () =>
     expect(screen.getByRole('button', { name: /Attacks/i })).toBeInTheDocument()
   })
 
-  // Updated with the unified-card work: there is now ONE collision control for everything — for a unit the
+  // Updated with the unified-card work: there is now ONE collision control for everything, for a unit the
   // card's Blocked/Walkable toggle IS its "blocks movement" (the standalone checkbox is gone). Only the
-  // "— cell —" section LABEL stays cell-specific, because a unit isn't a cell.
+  // ", cell, " section LABEL stays cell-specific, because a unit isn't a cell.
   it('SHOWS the ONE collision row for a unit (it serves the unit\'s blocks-movement)', () => {
     renderUnitCard()
     expect(screen.getByRole('button', { name: 'Blocked' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Walkable' })).toBeInTheDocument()
     expect(screen.queryByLabelText('Blocks movement')).toBeNull() // no second, unit-only control
-    expect(screen.queryByText('— cell —')).toBeNull()
+    expect(screen.queryByText(', cell, ')).toBeNull()
   })
 
   it('a plain TILE card (no unitSection) still shows the collision row + no unit extras', () => {
@@ -118,20 +118,20 @@ describe('a unit uses the SAME card as a tile (no separate unit sidebar)', () =>
   })
 })
 
-describe('the unit ANIMATION section is gone — it is a button now', () => {
+describe('the unit ANIMATION section is gone, it is a button now', () => {
   it('the Animation ROW opens the editor on the first click, with no inline frame authoring', () => {
     const onOpenAnimator = jest.fn()
     renderUnitCard({ tile: unitTile({ onOpenAnimator }) })
     // the removed section's inline authoring must NOT be on the card
     expect(screen.queryByText(/See more/i)).toBeNull()
     expect(screen.queryByRole('button', { name: /Add animation/i })).toBeNull()
-    // the ROW fires the opener — there is no "✦ Animate…" button inside a panel any more
+    // the ROW fires the opener, there is no "✦ Animate…" button inside a panel any more
     fireEvent.click(screen.getByRole('button', { name: 'Animation' }))
     expect(onOpenAnimator).toHaveBeenCalledTimes(1)
   })
 })
 
-// "Triggers" is called RULES in the UI now — the last of the stale trigger language. The DATA keeps its
+// "Triggers" is called RULES in the UI now, the last of the stale trigger language. The DATA keeps its
 // name (the `Trigger` type, the handler `onOpenTriggers`), which is why the seams below still read that way.
 describe('Rules is a BUTTON that opens the rules modal', () => {
   it('renders a Rules ROW with a count badge and fires onOpenTriggers on the first click', () => {
@@ -153,11 +153,11 @@ describe('Rules is a BUTTON that opens the rules modal', () => {
   })
 })
 
-describe('UnitSettingsSection — identity rows + role-specific entry buttons', () => {
+describe('UnitSettingsSection, identity rows + role-specific entry buttons', () => {
   // The FIGURE variant row was removed with the unified-card work: a unit is a tile, so its art is swapped
   // with the card's regular "Replace tile" button. Size stays as a row (see unitTileCardParity.test.tsx).
   it('drops the figure-variant row and wires the enemy attacks button', () => {
-    // Size moved to the Character window with the name and the stats — see unitSettingsPanel.test.tsx.
+    // Size moved to the Character window with the name and the stats, see unitSettingsPanel.test.tsx.
     const onOpenAttacks = jest.fn()
     render(<UnitSettingsSection unit={unitModel({ onOpenAttacks })} />)
     expect(screen.queryByRole('button', { name: 'female' })).toBeNull()

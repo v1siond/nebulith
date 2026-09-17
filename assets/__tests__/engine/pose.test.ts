@@ -2,7 +2,7 @@ import { styleTiles } from '@/engine/tileset/styleTiles'
 import { resolvePose, applyPose, type TilePose } from '@/engine/tileset/pose'
 import { drawPoseGlyph, buildGlyphImageIndex } from '@/engine/render/shared'
 
-describe('resolvePose — deviations-only', () => {
+describe('resolvePose, deviations-only', () => {
   test('absent pose → identity', () => {
     expect(resolvePose(null)).toEqual({ dx: 0, dy: 0, rot: 0, flip: false, scale: 1 })
   })
@@ -22,7 +22,7 @@ function recCtx() {
   return { ctx, calls }
 }
 
-describe('applyPose — mirror → rotate → offset → scale, no-op when identity', () => {
+describe('applyPose, mirror → rotate → offset → scale, no-op when identity', () => {
   test('identity pose emits nothing (unposed tile renders unchanged)', () => {
     const { ctx, calls } = recCtx()
     applyPose(ctx, null, 1, 24)
@@ -43,7 +43,7 @@ describe('applyPose — mirror → rotate → offset → scale, no-op when ident
     applyPose(ctx, { flip: true } as TilePose, 1, 24)
     expect(calls).toEqual(['scale(-1,1)'])
   })
-  test('full pose: mirror, then rot, then offset×unit, then scale — in order', () => {
+  test('full pose: mirror, then rot, then offset×unit, then scale, in order', () => {
     const { ctx, calls } = recCtx()
     applyPose(ctx, { flip: true, rot: 3.14, dx: 0.5, dy: -0.25, scale: 1.1 }, 1, 24)
     expect(calls).toEqual(['scale(-1,1)', 'rotate(3.14)', 'translate(12,-6)', 'scale(1.1,1.1)'])
@@ -64,9 +64,9 @@ function drawCtx() {
   return { ctx, calls }
 }
 
-describe('drawPoseGlyph — applies the pose then draws the glyph once at the origin', () => {
+describe('drawPoseGlyph, applies the pose then draws the glyph once at the origin', () => {
   // The bundled styleTiles('emoji') carries no weapons/images (they live only in the DB tileset), so with no
-  // baked image resolvable the draw stays a single fillText — byte-identical to before this system.
+  // baked image resolvable the draw stays a single fillText, byte-identical to before this system.
   test('rot-only pose: rotate then a single fillText (no stray transforms)', () => {
     const { ctx, calls } = drawCtx()
     drawPoseGlyph(ctx, '🗡️', { rot: 3.14 }, 1, 24)
@@ -77,7 +77,7 @@ describe('drawPoseGlyph — applies the pose then draws the glyph once at the or
     drawPoseGlyph(ctx, '🛡️', undefined, 1, 24)
     expect(calls).toEqual(['text(🛡️)'])
   })
-  test('a MONOCHROME (ascii) glyph gets a black under-draw for depth — shadow then top (two fillTexts)', () => {
+  test('a MONOCHROME (ascii) glyph gets a black under-draw for depth, shadow then top (two fillTexts)', () => {
     const { ctx, calls } = drawCtx()
     // The ascii sword pose: mirror (flip, right-facing) → rotate → scale, then the depth double-draw.
     drawPoseGlyph(ctx, 'Ɨ', { flip: true, rot: 3.14, scale: 1.7 }, 1, 24)
@@ -85,7 +85,7 @@ describe('drawPoseGlyph — applies the pose then draws the glyph once at the or
   })
 })
 
-describe('buildGlyphImageIndex — char → baked image src, so a glyph-only weapon draw finds its PNG', () => {
+describe('buildGlyphImageIndex, char → baked image src, so a glyph-only weapon draw finds its PNG', () => {
   test('indexes only tiles that carry BOTH a char and an image', () => {
     const index = buildGlyphImageIndex({
       sword: { char: '🗡️', image: '/tiles/emoji/baked/sword.png' },

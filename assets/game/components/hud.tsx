@@ -15,7 +15,7 @@ export function objectiveLabel(objective: Objective): string {
 
 // ── Combat HUD (DOM overlay; the canvas can't easily do crisp text bars) ──
 
-/** Clamp a value/cap pair to a 0–100 percentage string for a CSS width var. */
+/** Clamp a value/cap pair to a 0-100 percentage string for a CSS width var. */
 export function barPercent(value: number, cap: number): string {
   if (cap <= 0) return '0%'
   const pct = Math.max(0, Math.min(100, (value / cap) * 100))
@@ -31,7 +31,7 @@ export interface CombatBarProps {
 }
 
 /** One labelled resource bar. The only dynamic value is the fill width, which
- *  rides a CSS custom property (`--fill`) — not a literal style magic number. */
+ *  rides a CSS custom property (`--fill`), not a literal style magic number. */
 export function CombatBar({ label, value, cap, fillClass }: CombatBarProps) {
   const fillVar = { '--fill': barPercent(value, cap) } as React.CSSProperties
   return (
@@ -67,9 +67,9 @@ export function CombatHud({ hud }: { hud: PlayerHud }) {
 }
 
 /**
- * Play-view ABILITY BAR: the 4 assigned slots (keys 1–4) with a cooldown sweep. The slots reflect
+ * Play-view ABILITY BAR: the 4 assigned slots (keys 1-4) with a cooldown sweep. The slots reflect
  * the live loadout (re-renders on assign/remove); the sweep reads the SAME last-used clock the play
- * loop stamps on fire (`lastUsedRef`) against `performance.now()` — that clock shares the rAF time
+ * loop stamps on fire (`lastUsedRef`) against `performance.now()`, that clock shares the rAF time
  * origin the loop uses, so the math lines up. A dark overlay fills the slot from the bottom and
  * shrinks as it cools; the icon dims while cooling and brightens (full color) when ready.
  */
@@ -77,7 +77,7 @@ export function AbilityBar({ loadout, lastUsedRef }: {
   loadout: readonly AbilityBinding[]
   lastUsedRef: React.MutableRefObject<Map<string, number>>
 }) {
-  // Repaint a few times a second so the sweep animates — cooldowns are seconds long, so ~16 fps is
+  // Repaint a few times a second so the sweep animates, cooldowns are seconds long, so ~16 fps is
   // plenty smooth and far cheaper than a per-frame rAF. The clock itself comes from performance.now.
   const [, repaint] = useState(0)
   useEffect(() => {
@@ -98,11 +98,11 @@ export function AbilityBar({ loadout, lastUsedRef }: {
         const ready = !ability || abilityReady(ability, lastUsed, now)
         const remaining = ability && lastUsed != null ? Math.max(0, ability.cooldownMs - (now - lastUsed)) : 0
         const fillPct = ability && ability.cooldownMs > 0 ? (remaining / ability.cooldownMs) * 100 : 0
-        const abbrev = ability ? ability.name.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase() : '—'
+        const abbrev = ability ? ability.name.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase() : ', '
         return (
           <div
             key={slot}
-            title={ability ? `${ability.name} · ${(ability.cooldownMs / 1000).toFixed(0)}s` : `Slot ${slot} — empty`}
+            title={ability ? `${ability.name} · ${(ability.cooldownMs / 1000).toFixed(0)}s` : `Slot ${slot}, empty`}
             className="relative h-11 w-11 overflow-hidden rounded border bg-black/70"
             style={{ borderColor: ability ? tint : 'rgba(255,255,255,0.15)' }}
           >

@@ -9,7 +9,7 @@ import type { GridAsset } from '@/engine/IsometricGrid'
 
 // One marked record per type rides inside assetsData and must round-trip byte-for-byte
 // through create/updateTemplate. These guard the shared makeAssetCodec factory. (Buildings are no longer
-// a codec — a pre-built building is stamped as plain GridAssets, so it serializes with the rest.)
+// a codec, a pre-built building is stamped as plain GridAssets, so it serializes with the rest.)
 
 const enemy: Entity = {
   id: 'e1', kind: 'enemy', col: 5, row: 5, enemyType: 'goblin',

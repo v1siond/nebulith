@@ -1,5 +1,5 @@
 /**
- * PLAYER-CAMERA RANGE CONTROL — the iso-only top-nav control that sets `playerViewRange`. The engine half already
+ * PLAYER-CAMERA RANGE CONTROL, the iso-only top-nav control that sets `playerViewRange`. The engine half already
   * culls to a radius around
  * the player and draws a ring; this is the UI that drives it.
  *
@@ -10,7 +10,7 @@ import { useState } from 'react'
 import { render, screen, fireEvent } from '@testing-library/react'
 import { PlayerRangeControl, normalizePlayerViewRange, PLAYER_RANGE_MAX } from '@/components/game/cameraControls'
 
-/** CONTROLLED, like the rotate control — the page owns the range and feeds it to render({ playerViewRange }). */
+/** CONTROLLED, like the rotate control, the page owns the range and feeds it to render({ playerViewRange }). */
 function Harness({ start }: { start?: number }) {
   const [range, setRange] = useState<number | undefined>(start)
   return (
@@ -23,8 +23,8 @@ function Harness({ start }: { start?: number }) {
 
 const rangeNow = () => screen.getByTestId('range').textContent
 
-describe('PlayerRangeControl — a live, default-OFF range control', () => {
-  test('DEFAULT OFF — range is undefined and no slider is shown (the full-window render, no regression)', () => {
+describe('PlayerRangeControl, a live, default-OFF range control', () => {
+  test('DEFAULT OFF, range is undefined and no slider is shown (the full-window render, no regression)', () => {
     render(<Harness />)
     expect(rangeNow()).toBe('off')
     expect(screen.queryByRole('slider')).toBeNull()
@@ -52,7 +52,7 @@ describe('PlayerRangeControl — a live, default-OFF range control', () => {
   })
 })
 
-describe('normalizePlayerViewRange — OFF unless a positive range', () => {
+describe('normalizePlayerViewRange, OFF unless a positive range', () => {
   test('undefined / 0 / negative → undefined (OFF)', () => {
     expect(normalizePlayerViewRange(undefined)).toBeUndefined()
     expect(normalizePlayerViewRange(0)).toBeUndefined()

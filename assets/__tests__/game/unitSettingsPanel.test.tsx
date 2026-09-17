@@ -6,7 +6,7 @@ import { type Entity } from '@/game/types'
 import '@/__tests__/helpers/installTilesetSeed'
 
 // ───────────────────────────────────────────────────────────────────────────
-// UNIT SETTINGS PANEL — the user's ask: "have the same UX/UI for both, regular
+// UNIT SETTINGS PANEL, the user's ask: "have the same UX/UI for both, regular
 // tiles and units … but on units we'd might have a few extra things here and
 // there, like the inventory."
 //
@@ -20,7 +20,7 @@ import '@/__tests__/helpers/installTilesetSeed'
 //   • edits fan out to the unit's writers (live-updating, one source of truth).
 // ───────────────────────────────────────────────────────────────────────────
 
-/** A unit's shared settings model — mirrors what the page builds from a selected entity:
+/** A unit's shared settings model, mirrors what the page builds from a selected entity:
  *  colour + uniform scale + pose, with the asset-only writers deliberately ABSENT so those rows hide. */
 const makeUnitTile = (over: Partial<TileControlModel> = {}): TileControlModel => ({
   key: 'unit-u1',
@@ -40,7 +40,7 @@ const makeUnitTile = (over: Partial<TileControlModel> = {}): TileControlModel =>
   ...over,
 })
 
-/** A tile's model — carries the asset-only writers so those rows DO render (proves the split is real). */
+/** A tile's model, carries the asset-only writers so those rows DO render (proves the split is real). */
 const makeAssetTile = (over: Partial<TileControlModel> = {}): TileControlModel => ({
   ...makeUnitTile({ label: 'wall' }),
   onZWidth: jest.fn(),
@@ -68,15 +68,15 @@ const makeUnit = (over: Partial<UnitControlModel> = {}): UnitControlModel => ({
   ...over,
 })
 
-describe('the shared control body — a unit uses the SAME settings UX as a tile', () => {
+describe('the shared control body, a unit uses the SAME settings UX as a tile', () => {
   it('shows the SAME shared controls a tile does (colour, scale, pose)', () => {
     render(<><TileControls tile={makeUnitTile()} /><UnitSettingsSection unit={makeUnit()} /></>)
-    // The exact controls a floor-tile settings panel shows — proving parity.
+    // The exact controls a floor-tile settings panel shows, proving parity.
     expect(screen.getByLabelText('Hero colour')).toBeInTheDocument()
     expect(screen.getByLabelText('Width')).toBeInTheDocument()
     expect(screen.getByLabelText('Height')).toBeInTheDocument()
     expect(screen.getByLabelText('Zoom')).toBeInTheDocument()
-    // The nudge controls say what they DO now — bare x / y / rotate / "flip horizontally" became
+    // The nudge controls say what they DO now, bare x / y / rotate / "flip horizontally" became
     // Left ↔ Right, Up ↕ Down, Rotate and Mirror. The labels changed; the writers did not.
     expect(screen.getByLabelText('Left ↔ Right')).toBeInTheDocument()
     expect(screen.getByLabelText('Up ↕ Down')).toBeInTheDocument()
@@ -138,7 +138,7 @@ describe('the shared control body — a unit uses the SAME settings UX as a tile
   })
 })
 
-describe('the shared control body — edits fan out to the selected unit (one source of truth)', () => {
+describe('the shared control body, edits fan out to the selected unit (one source of truth)', () => {
   it('editing colour writes through the shared colour writer', () => {
     const onColor = jest.fn()
     render(<><TileControls tile={makeUnitTile({ onColor })} /><UnitSettingsSection unit={makeUnit()} /></>)
@@ -175,7 +175,7 @@ describe('the shared control body — edits fan out to the selected unit (one so
   })
 })
 
-describe('UnitSettingsSection — the unit-only extras', () => {
+describe('UnitSettingsSection, the unit-only extras', () => {
   it('opens the inventory for a unit that carries one', () => {
     const onOpenInventory = jest.fn()
     render(<UnitSettingsSection unit={makeUnit({ onOpenInventory })} />)

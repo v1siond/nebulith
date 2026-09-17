@@ -1,5 +1,5 @@
 /**
- * compressGround merges contiguous same-floor cells into ONE z-width run tile — but ALONG the road: it measures
+ * compressGround merges contiguous same-floor cells into ONE z-width run tile, but ALONG the road: it measures
  * each seed run in both axes and keeps the LONGER, so a grid-ROW road becomes a `\` run (depthDir 'right-down',
  * +col) and a grid-COLUMN road becomes a `/` run (depthDir 'left-down', +row). Every run anchors at its BACKMOST
  * cell (min col / min row) so the flat-run depth sort keeps it behind standing tiles, and every covered cell
@@ -9,7 +9,7 @@ import { IsometricGrid } from '@/engine/IsometricGrid'
 
 const grid = () => new IsometricGrid({ cols: 12, rows: 12, cellSize: 16, isoScale: 1 })
 
-describe('compressGround — runs follow the road direction', () => {
+describe('compressGround, runs follow the road direction', () => {
   test('a horizontal road (grid row) merges into ONE `\\` run (right-down, +col)', () => {
     const g = grid()
     for (let c = 2; c <= 7; c++) g.setGround(c, 5, 'road') // 6-cell horizontal road on row 5
@@ -31,7 +31,7 @@ describe('compressGround — runs follow the road direction', () => {
     for (let r = 3; r <= 9; r++) expect(g.floorAt(4, r)).toBe(run)
   })
 
-  test('a 1×1 road island is left alone (no run — nothing to merge)', () => {
+  test('a 1×1 road island is left alone (no run, nothing to merge)', () => {
     const g = grid()
     g.setGround(6, 6, 'road') // lone road cell surrounded by grass
     g.compressGround()
@@ -50,7 +50,7 @@ describe('compressGround — runs follow the road direction', () => {
  * The second test is the one that matters as much: it would be easy to satisfy the first by breaking merging
  * altogether, and then every optimisation ticket regresses silently.
  */
-describe('compressGround — a run stops at a change in elevation', () => {
+describe('compressGround, a run stops at a change in elevation', () => {
   test('two floors either side of a step do NOT merge', () => {
     const g = grid()
     for (let c = 2; c <= 7; c++) g.setGround(c, 5, 'road')

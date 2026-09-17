@@ -1,5 +1,5 @@
 /**
- * THE CANOPY FOREST LAYOUTS — `woodland`, `jungle`, and the river OPTION either can carry.
+ * THE CANOPY FOREST LAYOUTS, `woodland`, `jungle`, and the river OPTION either can carry.
  *
  * All three share ONE builder. That is the point of them: a jungle is not a different kind of map, it is a
  * woodland at jungle DENSITY, and a woodland+river is a woodland with water carved through it before anything
@@ -7,7 +7,7 @@
  * the SHARED structure once and then only what genuinely differs per layout.
  *
  * The densities themselves are BACKEND data (`/api/generators` → `config.nature`), so they are passed in here
- * rather than read from a constant — the generator must build whatever it is served, and the numbers are
+ * rather than read from a constant, the generator must build whatever it is served, and the numbers are
  * tuned in `generator_source.ex`, not in this file.
  */
 import '@/__tests__/helpers/installTilesetSeed' // the generator reads all tile/composition data from the loaded fixture
@@ -22,11 +22,11 @@ const COLS = 60, ROWS = 40
 
 /** The served woodland densities, as `generator_source.ex` carries them. */
 const WOODLAND: NatureDensity = { canopy: 0.434, groundCover: 0.2, flowers: 0.04 }
-/** The served JUNGLE densities — the canopy the woodland used to run at, over far heavier undergrowth. */
+/** The served JUNGLE densities, the canopy the woodland used to run at, over far heavier undergrowth. */
 const JUNGLE: NatureDensity = { canopy: 0.62, groundCover: 0.5, flowers: 0.1 }
 
 /** Build under a SEEDED Math.random, so a density assertion measures the density and not the roll of the
- *  day. Comparing two stochastic quantities across unseeded runs is how a test becomes a coin flip — this
+ *  day. Comparing two stochastic quantities across unseeded runs is how a test becomes a coin flip, this
  *  suite asserts ratios, so it has to hold the randomness still. */
 const build = (layout: ForestLayout, nature: NatureDensity, seed = 1, options?: Record<string, boolean>) => {
   // THE DENSITY IS THE ARGUMENT, THE WAY IS THE TEMPLATE'S. `nature` stays explicit because these cases are
@@ -62,7 +62,7 @@ const cellsOf = (stage: ReturnType<typeof build>, tile: string): Array<[number, 
  */
 const wayCells = (stage: ReturnType<typeof build>): ReadonlySet<string> => stage.pathways ?? new Set<string>()
 
-/** Trees averaged over several SEEDED maps — one map says nothing about a density, and the seeds make the
+/** Trees averaged over several SEEDED maps, one map says nothing about a density, and the seeds make the
  *  average reproducible so the band below is a real bound rather than a lucky one. */
 const meanTrees = (layout: ForestLayout, nature: NatureDensity, runs = 5) => {
   let total = 0
@@ -71,7 +71,7 @@ const meanTrees = (layout: ForestLayout, nature: NatureDensity, runs = 5) => {
 }
 
 describe('every canopy layout builds a navigable forest', () => {
-  // A river is an OPTION on a canopy layout, not a layout of its own (ticket 47) — so the wet woodland is
+  // A river is an OPTION on a canopy layout, not a layout of its own (ticket 47), so the wet woodland is
   // the SAME row with `river` switched on, which is exactly how the editor asks for it.
   it.each<[string, ForestLayout, NatureDensity, Record<string, boolean> | undefined]>([
     ['woodland', 'woodland', WOODLAND, undefined],
@@ -85,7 +85,7 @@ describe('every canopy layout builds a navigable forest', () => {
     const trunks = new Set(stage.trees.map(t => `${t.col},${t.row}`))
     const open = COLS * ROWS - trunks.size
     expect(open / (COLS * ROWS)).toBeGreaterThan(0.5)
-    // …and the open ground is PAVED somewhere — a trail has to be visible to be a trail.
+    // …and the open ground is PAVED somewhere, a trail has to be visible to be a trail.
     //
     // VISIBLE MEANS A DIFFERENT COLOUR, not a different tile. This counted cells whose ground tile was not
     // the forest floor, which passed only while a way swapped the tile underneath it, and that swap is the
@@ -122,7 +122,7 @@ describe('the woodland was thinned by ~30%', () => {
     expect(drop).toBeLessThan(0.35)
   })
 
-  it('the density is DATA — the generator plants whatever it is served, inventing no number', () => {
+  it('the density is DATA, the generator plants whatever it is served, inventing no number', () => {
     // Halving the served canopy must halve the planting. If the generator carried its own constant this
     // would not move, which is the regression worth catching.
     const dense = meanTrees('woodland', { ...WOODLAND, canopy: 0.6 })
@@ -135,7 +135,7 @@ describe('a path is wide enough to walk down', () => {
   // They were 2, the bottom of that range, and a 2-wide corridor with a trunk leaning into it
   // walks like a 1-wide one.
 
-  /** For every trail cell, the narrower of its horizontal and vertical trail run — the local corridor width.
+  /** For every trail cell, the narrower of its horizontal and vertical trail run, the local corridor width.
    *  Reported as the tightest PINCH on the map, because the narrowest point is what decides if you get through. */
   const trailPinch = (stage: ReturnType<typeof build>): number => {
     const ways = wayCells(stage)
@@ -166,11 +166,11 @@ describe('woodland + river', () => {
   it('cuts a river through the trees and bridges it, so the wood is still one place', () => {
     const stage = build('woodland', WOODLAND, 1, { river: true })
     expect(countGround(stage, 'water')).toBeGreaterThan(0)
-    // A river you cannot cross splits the forest in two — the deck is laid last so nothing plants over it.
+    // A river you cannot cross splits the forest in two, the deck is laid last so nothing plants over it.
     expect(countGround(stage, 'bridge')).toBeGreaterThan(0)
   })
 
-  it('never plants a tree in the water — the river is carved BEFORE anything is planted', () => {
+  it('never plants a tree in the water, the river is carved BEFORE anything is planted', () => {
     const stage = build('woodland', WOODLAND, 1, { river: true })
     // ANY water-ground, never the single spelling. A pool lays `water_shallow` now, so an exact `=== 'water'`
     // test would have stopped catching a tree planted in a PUDDLE, which is exactly the defect this case was
@@ -179,7 +179,7 @@ describe('woodland + river', () => {
     expect(inWater.map(t => `${t.col},${t.row}`)).toEqual([])
   })
 
-  it('never leaves the crossing stranded — the deck is walkable whichever way it was placed', () => {
+  it('never leaves the crossing stranded, the deck is walkable whichever way it was placed', () => {
     for (const crossing of [false, true]) {
       const stage = build('woodland', WOODLAND, 4, { river: true, crossing })
       const deck = cellsOf(stage, 'bridge')
@@ -188,7 +188,7 @@ describe('woodland + river', () => {
     }
   })
 
-  it('JOINS the crossing to a trail when asked — the deck touches the path network, not the trees', () => {
+  it('JOINS the crossing to a trail when asked, the deck touches the path network, not the trees', () => {
     // Ticket 36, the requirement: The plain bridge spans at a
     // fixed column and lands wherever that is, which in a wood is usually nowhere. With the option on, the
     // span is chosen AGAINST the trails and paved back to them, so a deck cell is always next to paving.
@@ -216,14 +216,14 @@ describe('jungle', () => {
     expect(meanTrees('jungle', JUNGLE)).toBeGreaterThan(meanTrees('woodland', WOODLAND))
   })
 
-  it('is choked UNDERFOOT — the undergrowth is what makes it a jungle, not just more trunks', () => {
+  it('is choked UNDERFOOT, the undergrowth is what makes it a jungle, not just more trunks', () => {
     // Ground cover is the distinguishing number: a wood is walkable between its trunks, a jungle is not.
     const jungle = build('jungle', JUNGLE)
     const woodland = build('woodland', WOODLAND)
     expect(jungle.props.length).toBeGreaterThan(woodland.props.length * 1.4)
   })
 
-  it('still carves clearings and trails — it is a forest you can move through, not a wall', () => {
+  it('still carves clearings and trails, it is a forest you can move through, not a wall', () => {
     const stage = build('jungle', JUNGLE)
     const trunks = new Set(stage.trees.map(t => `${t.col},${t.row}`))
     expect((COLS * ROWS - trunks.size) / (COLS * ROWS)).toBeGreaterThan(0.5)

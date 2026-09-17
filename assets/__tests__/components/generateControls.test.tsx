@@ -8,12 +8,12 @@
  * WHAT CHANGED, 2026-09-09, and why this suite was rewritten rather than patched. The ask was for four
  * things and each one moved a contract the old tests pinned:
  *
- * · — season chips and map-type cards are now
+ * ·, season chips and map-type cards are now
  *    native `<select>`s, so `getByRole('button', {name: 'winter'})` has no subject.
- * · — and it is named that, not "Generate world".
- * · — the numbered
+ * ·, and it is named that, not "Generate world".
+ * ·, the numbered
  *    `1 · SEASON` / `4 · MAP SIZE` headings are gone; a control is labelled by what it is.
- * · — the size
+ * ·, the size
  * caps were deleted. ONE came back on 2026-09-10 at request (), and it is held to the same standard the
   * removal was: a number is never quietly rewritten under
  *    you. Over the cap the panel SAYS so; it does not silently build something else.
@@ -49,7 +49,7 @@ const kinds = () => screen.getByLabelText(/kind of place/i)
  * A preset card, by the name printed on it.
  *
  * The name is ESCAPED before it becomes a regex. "Meadow + River" is a real preset, and `+` is a
- * quantifier — `new RegExp('Meadow + River')` matches "Meadow River" and finds nothing.
+ * quantifier, `new RegExp('Meadow + River')` matches "Meadow River" and finds nothing.
  */
 const rx = (text: string) => new RegExp(text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i')
 
@@ -74,7 +74,7 @@ describe('the menu IS the catalog', () => {
     render(<GenerateControls catalog={CATALOG} zone="summer" onZone={noop} onGenerate={noop} />)
     const offered = [...seasons().querySelectorAll('option')].map(o => o.getAttribute('value'))
     expect(offered).toEqual(catalogZones(CATALOG))
-    // Two zones the ENGINE knows but this catalog does not serve — the menu must not invent them.
+    // Two zones the ENGINE knows but this catalog does not serve, the menu must not invent them.
     expect(offered).not.toContain('beach')
     expect(offered).not.toContain('lava')
   })
@@ -105,7 +105,7 @@ describe('the menu IS the catalog', () => {
   })
 })
 
-describe('picking is not building — §4.6\'s "why did my map just vanish" trap', () => {
+describe('picking is not building, §4.6\'s "why did my map just vanish" trap', () => {
   const setup = () => {
     const onGenerate = jest.fn()
     render(<GenerateControls catalog={CATALOG} zone="spring" onZone={noop} onGenerate={onGenerate} />)
@@ -131,7 +131,7 @@ describe('picking is not building — §4.6\'s "why did my map just vanish" trap
     expect(preset(second.label)).toHaveAttribute('aria-pressed', 'true')
   })
 
-  it('forwards the picked preset id verbatim — the seam templates.tsx turns into generateStage({layout})', () => {
+  it('forwards the picked preset id verbatim, the seam templates.tsx turns into generateStage({layout})', () => {
     const onGenerate = setup()
     fireEvent.change(kinds(), { target: { value: 'wilderness' } })
     const [, second] = categoryLayouts(CATALOG, 'wilderness')
@@ -192,7 +192,7 @@ describe('variations are options on a preset, not more presets', () => {
     return onGenerate
   }
 
-  it('offers the river as a choice of COURSE — each one he named, random among them', () => {
+  it('offers the river as a choice of COURSE, each one he named, random among them', () => {
     setup()
     fireEvent.change(kinds(), { target: { value: 'wilderness' } })
     expect([...control(/^river$/i).options].map(o => o.value)).toEqual(['none', 'random', 'through', 'divides', 'around'])
@@ -316,7 +316,7 @@ describe('an empty or failed catalog says so instead of offering nothing', () =>
 describe('rebuild ONE part, keep the rest', () => {
   // THE LAYERS ARE SERVED, so the panel is driven by a mocked backend body rather than by a list this file
   // keeps: *"on the tests side we must mock the backend response and return and assert as many layers we
-  // want"*. `fog` is in here on purpose — a layer the backend invents after this file was written must show
+  // want"*. `fog` is in here on purpose, a layer the backend invents after this file was written must show
   // up without anyone editing this file.
   const SERVED = {
     generationLayers: [

@@ -17,8 +17,8 @@ import type { TileDef } from '@/game/artStyle'
 
 /** Right-sidebar inspector for a clicked entity: edit its name / enemy-type, toggle
  *  whether it's hittable (a non-hittable enemy becomes passive scenery), see its
- *  stats + patrol, and delete it. Presentational — actions bubble to the editor. */
-/** The accent name every panel (Modal + FloatingPanel) shares — one place so a new colour is added once. */
+ *  stats + patrol, and delete it. Presentational, actions bubble to the editor. */
+/** The accent name every panel (Modal + FloatingPanel) shares, one place so a new colour is added once. */
 export type PanelAccent = 'orange' | 'cyan' | 'purple' | 'blue' | 'yellow' | 'red'
 
 /** Accent → border ring class. Shared by the centered Modal and the floating panel so they read as one family. */
@@ -32,7 +32,7 @@ const ACCENT_HEAD: Record<PanelAccent, string> = {
   blue: 'text-blue-300', yellow: 'text-yellow-300', red: 'text-red-300',
 }
 
-/** Reusable modal — dark gaming panel; click the backdrop or press Esc to close. */
+/** Reusable modal, dark gaming panel; click the backdrop or press Esc to close. */
 export function Modal({ title, accent = 'orange', onClose, children, wide, anchor }: {
   title: string
   accent?: PanelAccent
@@ -83,7 +83,7 @@ export function Modal({ title, accent = 'orange', onClose, children, wide, ancho
  * How many panels are currently placed by `openBeside`, so the next one cascades instead of landing on
  * the last one's exact spot.
  *
- * Three inspector sections opened at (951, 96) each — perfectly stacked, so only the top one could be used
+ * Three inspector sections opened at (951, 96) each, perfectly stacked, so only the top one could be used
  * at all. Panels are for working in two at once; that is the whole reason they are movable.
  */
 let besidePlaced = 0
@@ -132,14 +132,14 @@ function chromeCap(): number {
 }
 
 /**
- * FLOATING PANEL — a NON-BLOCKING sibling of {@link Modal} for settings you edit while watching the thing
+ * FLOATING PANEL, a NON-BLOCKING sibling of {@link Modal} for settings you edit while watching the thing
  * change: it has NO full-screen backdrop (so the canvas behind stays pannable and the edited tile stays
  * visible + clickable), you DRAG it aside by its header, and RESIZE it from the bottom-right grip. Same dark
  * accent chrome + Esc-to-close as Modal, but positioned `fixed` at an (x,y) the user can move. Live-updating
  * is inherent: the body is just children (e.g. TileControls) whose writers already fan out to the selection,
  * and because the panel never covers the whole screen the edit's effect is visible immediately.
  *
- * `role="dialog"` WITHOUT `aria-modal` — it is deliberately non-modal (the rest of the page stays live).
+ * `role="dialog"` WITHOUT `aria-modal`, it is deliberately non-modal (the rest of the page stays live).
  */
 export function FloatingPanel({ title, accent = 'cyan', onClose, children, initialPos, initialSize, openBeside, onGeometryChange }: {
   title: string
@@ -150,15 +150,15 @@ export function FloatingPanel({ title, accent = 'cyan', onClose, children, initi
   initialPos?: XY
   initialSize?: WH
   /**
-   * A CSS selector to open NEXT TO, when there is no remembered position — the panel lands just right of
+   * A CSS selector to open NEXT TO, when there is no remembered position, the panel lands just right of
    * that element instead of in the top-right corner.
    *
    * Measured from the
    * element rather than computed from the column widths, which are CSS custom properties that change
-   * whenever a zone is collapsed. It only decides where the panel STARTS — it stays movable.
+   * whenever a zone is collapsed. It only decides where the panel STARTS, it stays movable.
    */
   openBeside?: string
-  /** Fired once at the END of a drag or resize with the final `{x,y,w,h}` — the page persists it as a
+  /** Fired once at the END of a drag or resize with the final `{x,y,w,h}`, the page persists it as a
    *  backend editor setting (debounced), so the panel reopens where the user left it. */
   onGeometryChange?: (geometry: { x: number; y: number; w: number; h: number }) => void
 }) {
@@ -184,12 +184,12 @@ export function FloatingPanel({ title, accent = 'cyan', onClose, children, initi
   }, [])
 
   /**
-   * OPEN BESIDE an element — measured after mount, not while rendering.
+   * OPEN BESIDE an element, measured after mount, not while rendering.
    *
    * Two things this has to get right, each of which it got wrong first:
    *
    *  · **Measure after commit.** The `useState` initialiser runs during render, so a panel rendered INSIDE
-   *    the element it wants to sit beside cannot see that element yet — `querySelector` returned null and
+   *    the element it wants to sit beside cannot see that element yet, `querySelector` returned null and
    *    every inspector section panel fell back to the top-right, landing on top of the inspector and
    *    swallowing clicks on the rows you open the next section with. A layout effect runs after the DOM is
    *    committed and before paint, so the panel never appears in the wrong place.
@@ -197,7 +197,7 @@ export function FloatingPanel({ title, accent = 'cyan', onClose, children, initi
    *    inspector is the last column, so "just right of it" is off-screen and the clamp drags the panel back
    *    over it.
    *
-   * A remembered position always wins — this only decides where a panel appears the FIRST time.
+   * A remembered position always wins, this only decides where a panel appears the FIRST time.
    */
   const placed = useRef(false)
   useLayoutEffect(() => {
@@ -246,7 +246,7 @@ export function FloatingPanel({ title, accent = 'cyan', onClose, children, initi
     window.addEventListener('mouseup', onUp)
   }
 
-  // Resize from the bottom-right grip — same window-listener pattern; clamp to a sane minimum so it can't
+  // Resize from the bottom-right grip, same window-listener pattern; clamp to a sane minimum so it can't
   // collapse to nothing. Reports the FINAL geometry on release, mirroring the drag path.
   const startResize = (e: React.MouseEvent) => {
     e.preventDefault()
@@ -273,7 +273,7 @@ export function FloatingPanel({ title, accent = 'cyan', onClose, children, initi
   }
 
   // The design's movable panel (`.mw`). Every deep editor in the app already opened through this
-  // component, so dressing THIS in the design clothes every one of them at once — and the per-panel accent
+  // component, so dressing THIS in the design clothes every one of them at once, and the per-panel accent
   // colour is gone, because eight different header colours said the eight panels were different kinds of
   // thing when they are all "a panel about the selection".
   //
@@ -308,7 +308,7 @@ export function FloatingPanel({ title, accent = 'cyan', onClose, children, initi
   )
 }
 
-/** The five combat stats every unit carries, in display order — a table, so a new stat is one row here. */
+/** The five combat stats every unit carries, in display order, a table, so a new stat is one row here. */
 const UNIT_STATS: ReadonlyArray<readonly ['maxHp' | 'defense' | 'strength' | 'intelligence' | 'dodge', string]> = [
   ['maxHp', 'HP'],
   ['defense', 'DEF'],
@@ -318,11 +318,11 @@ const UNIT_STATS: ReadonlyArray<readonly ['maxHp' | 'defense' | 'strength' | 'in
 ]
 
 /**
- * The unit's STATS body — the contents of the card's "⛊ Stats…" button, hosted in a draggable/resizable
+ * The unit's STATS body, the contents of the card's "⛊ Stats…" button, hosted in a draggable/resizable
  * FloatingPanel.
  *
  * What is deliberately NOT here: **Name** and **Size** stay as rows on the tile card (identity you retune
- * inline), and **"Blocks movement" is gone** — a unit's collision is the card's ONE `Blocked / Walkable`
+ * inline), and **"Blocks movement" is gone**, a unit's collision is the card's ONE `Blocked / Walkable`
  * toggle, the same control every tile uses. Everything else a unit uniquely owns lives here: the enemy's
  * kill-quest tag, the five combat stats, hittable, and the respawn timer.
  */
@@ -330,7 +330,7 @@ export function UnitStatsBody({ entity, onPatch }: {
   entity: Entity
   onPatch: (patch: Partial<Entity>) => void
 }) {
-  const hittable = isAttackable(entity) // the `hittable` capability (setting, kind-defaulted) — one source of truth
+  const hittable = isAttackable(entity) // the `hittable` capability (setting, kind-defaulted), one source of truth
   const isEnemy = entity.kind === 'enemy'
   return (
     <div className="space-y-2 text-xs">
@@ -381,26 +381,26 @@ export function UnitStatsBody({ entity, onPatch }: {
 }
 
 /** The unit-only EXTRAS folded into the ONE shared tile card: the two identity ROWS a unit keeps inline
- *  (name + size) plus the entry-point buttons a tile never has — STATS (the draggable modal), the INVENTORY
+ *  (name + size) plus the entry-point buttons a tile never has, STATS (the draggable modal), the INVENTORY
  *  (player), quests (NPC) and attacks (enemy). Driven by the selected entity + the SAME patch writer the rest
  *  of the card uses, so every edit lands on one source of truth. */
 export interface UnitControlModel {
   entity: Entity
   onPatch: (patch: Partial<Entity>) => void
-  /** the discrete SIZE preset (1×/2×/3× — a boss scales its stats too, not just the figure). Absent → the
+  /** the discrete SIZE preset (1×/2×/3×, a boss scales its stats too, not just the figure). Absent → the
    *  size row hides (the raw scale is still editable via the settings sliders). */
   onSize?: (size: number) => void
-  /** open the unit's STATS modal (HP/DEF/STR/INT/DODGE% + hittable + respawn) — absent → no button. */
-  /** open the unit's inventory & abilities (the player carries one) — absent → no button. */
+  /** open the unit's STATS modal (HP/DEF/STR/INT/DODGE% + hittable + respawn), absent → no button. */
+  /** open the unit's inventory & abilities (the player carries one), absent → no button. */
   onOpenInventory?: () => void
-  /** open the NPC's quest authoring — absent → no button. */
+  /** open the NPC's quest authoring, absent → no button. */
   onOpenQuests?: () => void
-  /** open the enemy's attacks / abilities editor — absent → no button. */
+  /** open the enemy's attacks / abilities editor, absent → no button. */
   onOpenAttacks?: () => void
 }
 
 /** The page's openers, one per entry point. The page owns what each button DOES; {@link buildUnitModel}
- *  owns which of them a unit KIND gets — so a handler is never quietly dropped at the call site again. */
+ *  owns which of them a unit KIND gets, so a handler is never quietly dropped at the call site again. */
 export interface UnitCardOpeners {
   onPatch: (patch: Partial<Entity>) => void
   onSize: (size: number) => void
@@ -409,7 +409,7 @@ export interface UnitCardOpeners {
   openAttacks: () => void
 }
 
-/** The KIND-specific entry points, as a dispatch table — a new unit kind adds a row, never a branch.
+/** The KIND-specific entry points, as a dispatch table, a new unit kind adds a row, never a branch.
  *  Stats and inventory are deliberately absent here because they are UNIVERSAL: every unit carries a stat
  *  block, and every unit carries a loadout (the equipment panel already keys `loadouts` by entity id).
  *  Gating the inventory on `kind === 'player'` is what hid it on the NPC card. */
@@ -419,7 +419,7 @@ const KIND_ENTRY_POINTS: Record<EntityKind, { quests: boolean; attacks: boolean 
   enemy: { quests: false, attacks: true },
 }
 
-/** Build the unit card's model — the ONE place that decides which entry points a unit offers. PURE. */
+/** Build the unit card's model, the ONE place that decides which entry points a unit offers. PURE. */
 export function buildUnitModel(entity: Entity, open: UnitCardOpeners): UnitControlModel {
   const kindEntries = KIND_ENTRY_POINTS[entity.kind]
   return {
@@ -433,7 +433,7 @@ export function buildUnitModel(entity: Entity, open: UnitCardOpeners): UnitContr
 }
 
 /**
- * THE CHARACTER WINDOW — everything about who this is, in one place.
+ * THE CHARACTER WINDOW, everything about who this is, in one place.
  *
  * Before this the Character row opened a panel holding one button, that button opened a SECOND panel to pick
  * a figure, and the stat block lived in a THIRD window off a separate button. Three windows for one
@@ -480,7 +480,7 @@ export function CharacterWindow({ entity, styleId, fromLabel, onPatch, onSize, o
   )
 }
 
-/** The two identity ROWS that stay INLINE on the card — the unit's NAME and its discrete SIZE preset (a boss
+/** The two identity ROWS that stay INLINE on the card, the unit's NAME and its discrete SIZE preset (a boss
  *  is bigger AND tougher; `resizeEntityById` rescales the stat block by the same ratio). The old FIGURE
  *  (neutral/male/female/old/child/alien/robot) row is GONE: a unit is a tile, so its art is swapped with the
  *  card's regular "Replace tile" button, which lists the character tiles like any other tile. */
@@ -554,7 +554,7 @@ function UnitIdentityRows({ entity, onPatch, onSize }: { entity: Entity; onPatch
               key={sz}
               type="button"
               onClick={() => onSize(sz)}
-              title={sz > 1 ? `${sz}× — a boss: bigger figure + ~${sz}× stats` : 'normal size'}
+              title={sz > 1 ? `${sz}×, a boss: bigger figure + ~${sz}× stats` : 'normal size'}
               aria-pressed={(entity.size ?? 1) === sz}
               className={`rounded px-2 py-0.5 font-bold transition-colors ${(entity.size ?? 1) === sz ? 'bg-cyan-600 text-white' : 'bg-gray-700 text-gray-300 hover:bg-gray-600'}`}
             >
@@ -567,7 +567,7 @@ function UnitIdentityRows({ entity, onPatch, onSize }: { entity: Entity; onPatch
   )
 }
 
-/** The unit-only section of the shared card — the name/size rows + the entry-point buttons a tile never has:
+/** The unit-only section of the shared card, the name/size rows + the entry-point buttons a tile never has:
  *  stats (every unit), inventory (player), quests (NPC), attacks (enemy). Each button opens its own draggable
  *  modal. Rendered ONLY for a unit; a tile passes no unit model so this never shows. */
 export function UnitSettingsSection({ unit }: { unit: UnitControlModel }) {
@@ -576,7 +576,7 @@ export function UnitSettingsSection({ unit }: { unit: UnitControlModel }) {
   const hasEntries = onOpenInventory || onOpenQuests || onOpenAttacks
   return (
     <div className="space-y-2">
-      <p className="text-[9px] font-bold uppercase tracking-wider text-gray-500">— unit · {entity.kind} —</p>
+      <p className="text-[9px] font-bold uppercase tracking-wider text-gray-500">, unit · {entity.kind}, </p>
       {hasEntries && (
         <div className="space-y-1 border-t border-white/10 pt-2">
           {onOpenInventory && <button type="button" className={btn} onClick={onOpenInventory}>🎒 Inventory &amp; abilities…</button>}
@@ -589,8 +589,8 @@ export function UnitSettingsSection({ unit }: { unit: UnitControlModel }) {
 }
 
 
-/** The seeded animation ids (drive the swing/bolt tint) — for the per-attack tint picker. */
-// The animations an attack may use — TYPE data, straight from the engine's own list. It used to read
+/** The seeded animation ids (drive the swing/bolt tint), for the per-attack tint picker. */
+// The animations an attack may use, TYPE data, straight from the engine's own list. It used to read
 // the KEYS of the colour table, which made the list a side effect of where colours happened to live.
 export const ATTACK_ANIMATION_OPTIONS: AbilityAnimation[] = [...ABILITY_ANIMATIONS]
 
@@ -666,10 +666,10 @@ export function EnemyAttackRow({ attack, index, onChange, onRemove }: {
 }
 
 /**
- * Attack-pattern editor for enemies (Attacks modal body) — the enemy mirror of the movement
+ * Attack-pattern editor for enemies (Attacks modal body), the enemy mirror of the movement
  * editor. The author builds an ordered LIST of attacks (add presets / registry abilities / blank
  * melee + ranged), tunes each one's damage / cooldown / tint, and picks the traversal mode
- * (sequential cycles the list, random picks one) — exactly how movement steps are authored. The
+ * (sequential cycles the list, random picks one), exactly how movement steps are authored. The
  * pattern rides the entity record, so it saves with the template.
  */
 export function EntityAttackBody({ entity, onPatch }: {
@@ -775,9 +775,9 @@ export function EntityAttackBody({ entity, onPatch }: {
 }
 
 /**
- * Quest OFFER body — the modal contents shown when a player talks to a giver whose
+ * Quest OFFER body, the modal contents shown when a player talks to a giver whose
  * quest is still `available`. Renders the title, story, objectives and rewards, with
- * Accept (runs the engine's acceptQuest → active) and Reject (close only — the quest
+ * Accept (runs the engine's acceptQuest → active) and Reject (close only, the quest
  * stays `available`, so the giver can be re-asked later). Rendered inside the reusable
  * Modal, anchored above the giver entity.
  */
@@ -797,7 +797,7 @@ export function QuestGiveBody({ quest, onAccept, onReject }: {
       <div>
         <p className="mb-1 text-[10px] font-bold uppercase tracking-wider text-gray-400">Rewards</p>
         <ul className="flex flex-col gap-0.5">
-          {quest.rewards.length === 0 && <li className="text-gray-500">—</li>}
+          {quest.rewards.length === 0 && <li className="text-gray-500">, </li>}
           {quest.rewards.map((reward, i) => (
             <li key={i} className="text-emerald-300">{rewardSummary(reward)}</li>
           ))}
@@ -816,10 +816,10 @@ export function QuestGiveBody({ quest, onAccept, onReject }: {
 }
 
 /**
- * CONNECTORS authoring flow — hosted in a draggable {@link FloatingPanel} opened from a right-sidebar button
+ * CONNECTORS authoring flow, hosted in a draggable {@link FloatingPanel} opened from a right-sidebar button
  * (its entry moved OFF the left tool-rail; user: "move the connectors to a button in the right sidebar, which
  * would open a connectors draggable/movable modal like the settings one"). The controls are IDENTICAL to the
- * old left-card + right-inspector form — an Edit/Exit toggle for click-to-add mode, the list of saved
+ * old left-card + right-inspector form, an Edit/Exit toggle for click-to-add mode, the list of saved
  * connectors, and (when one is being edited) its target / when / spawn-cell form + Save/Delete. Presentational:
  * every edit flows up through the page's handlers, so the connector data + behaviour are unchanged.
  */
@@ -857,7 +857,7 @@ export function ConnectorsPanelBody(p: ConnectorsPanelProps) {
         aria-pressed={p.connectorMode}
         className={`w-full rounded px-2 py-1.5 text-xs font-bold transition-colors ${p.connectorMode ? 'bg-purple-600 text-white' : 'bg-gray-700 hover:bg-gray-600'}`}
       >
-        {p.connectorMode ? '● Authoring on — Exit' : 'Edit connectors'}
+        {p.connectorMode ? '● Authoring on, Exit' : 'Edit connectors'}
       </button>
 
       {p.editing ? (

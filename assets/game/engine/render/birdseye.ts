@@ -1,4 +1,5 @@
 import { GridAsset, IsometricGrid, FLOOR_TYPE } from '@/engine/IsometricGrid'
+import { assetDrawsSingle } from '@/engine/cellStack'
 import { assetCellTransform } from '@/engine/cellAnimation'
 import { darkenColor, lightenColor, withAlpha } from '@/engine/colors'
 import { topRoleColor } from '@/engine/entityArt'
@@ -19,7 +20,7 @@ import { resolveTileSize, resolveTilePose } from '@/engine/tileset/tileViewSetti
 import { ASCII_STYLE, assetKind, entityKind, entityStyleOverride, genderize, groundKind, personVariantTileId, styleTileArt, type Style } from '@/game/artStyle'
 
 
-/** TOP (blueprint) view: an entity is a single `>` glyph colored by role — yellow player,
+/** TOP (blueprint) view: an entity is a single `>` glyph colored by role, yellow player,
  *  red enemy, and NPCs blue / green (offers a quest) / purple (quest in progress). The
  *  glyph is style-resolved (emoji reskin swaps `>` for 👾/🧑/…); ASCII keeps `>`. */
 function drawTopArrow(ctx: CanvasRenderingContext2D, x: number, y: number, tileSize: number, color: string, glyph: string = '>'): void {
@@ -38,7 +39,7 @@ function drawTopArrow(ctx: CanvasRenderingContext2D, x: number, y: number, tileS
 
 
 // Top-down 2D blueprint view - flat, no height, just positions. An asset cell's backing is now the tile's
-// OWN colour (darkened for glyph legibility) — no per-type backdrop map; colour comes purely from tile data.
+// OWN colour (darkened for glyph legibility), no per-type backdrop map; colour comes purely from tile data.
 
 
 /** Everything renderTopView() needs to draw one bird's-eye (footprint) frame. Required: the ctx, the
@@ -65,11 +66,11 @@ export interface RenderTopViewParams {
   weather?: WeatherId
   style?: Style
   hoveredCell?: { col: number; row: number } | null
-  /** Armed Tile-composition placement ghost — a translucent footprint at the hover cell before the click. */
+  /** Armed Tile-composition placement ghost, a translucent footprint at the hover cell before the click. */
   ghost?: CompositionGhost | null
   /** Draw the view's heading and keyboard hint. True for the full-screen mode, false for a small map. */
   chrome?: boolean
-  /** Draw the hero, or only USE them as the camera. Default true — see the note on `IsoRenderParams`. */
+  /** Draw the hero, or only USE them as the camera. Default true, see the note on `IsoRenderParams`. */
   showPlayer?: boolean
 }
 
@@ -126,15 +127,15 @@ export function renderTopView(params: RenderTopViewParams) {
   const startRow = Math.max(0, Math.floor(-offsetY / tileSize) - 1)
   const endRow = Math.min(grid.rows, Math.ceil((h - offsetY) / tileSize) + 1)
 
-  // Build a map of ONE asset per cell for quick lookup — the tile shown from above. DRAW-PRIORITY (CSS z-index)
+  // Build a map of ONE asset per cell for quick lookup, the tile shown from above. DRAW-PRIORITY (CSS z-index)
   // decides the winner: a HIGHER zIndex takes the cell (draws on top). `>=` keeps the LAST-placed asset winning
-  // when priorities tie — so with every zIndex at the default 0 this is byte-identical to the old unconditional
+  // when priorities tie, so with every zIndex at the default 0 this is byte-identical to the old unconditional
   // "last write wins" (the roof, placed last, still wins its footprint cell).
   const assetMap: Record<string, GridAsset> = {}
   // The hero's cell, for the near-hero fade. No hero drawn (a preview) → nothing fades.
   const heroCell = showPlayer ? { col: player.x / cellSize, row: player.z / cellSize } : null
   for (const asset of grid.assets) {
-    // A depth-spanned asset (a roof column — `depthDir` + `depth` > 1) covers EVERY cell along its diagonal, so
+    // A depth-spanned asset (a roof column, `depthDir` + `depth` > 1) covers EVERY cell along its diagonal, so
     // the overhead view paints its tile across the whole footprint span, not just the anchor cell (which would
     // leave the rest of the roof reading as bare ground). A plain asset covers only its own (col,row). The
     // zIndex tie-break is unchanged (a higher/last-placed asset still wins each cell).
@@ -160,10 +161,10 @@ export function renderTopView(params: RenderTopViewParams) {
       // floor is just a floor ASSET whose art KIND resolves to its ground kind (assetKind→groundKind).
       if (!asset) continue
 
-      // Show the cell's OWN tile for its LABEL — the emoji in emoji mode (a composition cell resolves its
+      // Show the cell's OWN tile for its LABEL, the emoji in emoji mode (a composition cell resolves its
       // per-part emoji), else the ascii glyph. A floor tile has no label → its ground image/colour resolves
       // via assetKind→groundKind below; cellFill picks up that tint so a bare grass/road floor paints correctly.
-      // The label's glyph in the ACTIVE style — one lookup, no style branch (only ever painted when the
+      // The label's glyph in the ACTIVE style, one lookup, no style branch (only ever painted when the
       // baked PNG is genuinely missing; a floor has no label and resolves by KIND below).
       const char = (asset.label ? styleTileArt(asset.label, style.id)?.char : undefined) ?? asset.art[0] ?? '?'
       const fg = asset.color ?? '#cccccc'
@@ -176,7 +177,7 @@ export function renderTopView(params: RenderTopViewParams) {
       // tile's override re-homes onto the active style so it RESKINS (resolveAssetDraw); a bare ground
       // cell (no asset) passes undefined → the coarse kind, unchanged.
       let dv = resolveAssetDraw(kind, style, asset ? assetOverride(asset, style) : undefined, char, fg)
-      // ANY tile identified by its KIND rather than a label resolves its baked image here — the SAME rescue
+      // ANY tile identified by its KIND rather than a label resolves its baked image here, the SAME rescue
       // iso.ts and topdown.ts do. `ASCII_STYLE.map` is empty by design, so under ASCII `dv` never arrives
       // with an image and an ascii floor/prop painted a glyph where its emoji twin painted a picture. Emoji
       // already carries the kind image, so `!dv.image` is false there and nothing changes.
@@ -184,10 +185,10 @@ export function renderTopView(params: RenderTopViewParams) {
         const kimg = asset ? assetTileImage(asset, style) : styleTileImage(kind, style)
         if (kimg) dv = { ...dv, image: kimg, char: '', tint: dv.tint ?? asset.color }
       }
-      // The tile's ACTIVE-STYLE entry — per-view size/pose, read the SAME way in every style (styleTileArt).
+      // The tile's ACTIVE-STYLE entry, per-view size/pose, read the SAME way in every style (styleTileArt).
       const styleTile = styleTileArt(kind, style.id)
 
-      // Draw cell — a reskin tints the blueprint cell at the tile hue (agrees with iso/2D), but grass
+      // Draw cell, a reskin tints the blueprint cell at the tile hue (agrees with iso/2D), but grass
       // keeps its per-cell shade so a field isn't one flat green ("grass is just color"); ASCII → bg.
       // A per-cell FLOOR COLOUR override (Property panel) wins on a bare GROUND cell (asset cells keep the
       // asset tint, matching the separate ground layer under props in 2D/iso). The override now rides the
@@ -199,7 +200,7 @@ export function renderTopView(params: RenderTopViewParams) {
       ctx.fillStyle = floorOverride ?? cellFill(dv.tint, bg, grassy, col, row)
       ctx.fillRect(x, y, tileSize - 1, tileSize - 1)
       // Darken a PROP/WALL cell's tile-colour backing so its glyph reads; a FLOOR keeps its resolved ground
-      // fill (no dark overlay — it IS the ground).
+      // fill (no dark overlay, it IS the ground).
       if (asset.type !== FLOOR_TYPE) {
         ctx.fillStyle = 'rgba(0, 0, 0, 0.45)'
         ctx.fillRect(x, y, tileSize - 1, tileSize - 1)
@@ -232,13 +233,13 @@ export function renderTopView(params: RenderTopViewParams) {
       const ctTop = asset ? assetCellTransform(asset.cellAnim, now) : null
       if (ctTop) applyCellTransform(ctx, gx, gy, ctTop, tileSize, tileSize)
       // A composition cell's LABEL resolves its OWN backend image directly (mirrors the char lookup
-      // above) — ascii: a tint-target, ALWAYS recoloured to the resolved tint; emoji: an already-coloured
+      // above), ascii: a tint-target, ALWAYS recoloured to the resolved tint; emoji: an already-coloured
       // PNG, NEVER recoloured. Takes priority over the kind-driven `dv.image` (which already happens to
       // agree for building parts, since their label IS their kind) so a label with backend art renders it
       // even where kind-resolution can't (e.g. per-part tree labels collapse to the generic 'tree' kind).
       const labelImage = asset?.label ? styleTileImage(asset.label, style) : undefined
       const img = labelImage ?? dv.image
-      // The tile's NORMAL overhead draw — the label/kind image, or the glyph. Shared by the plain square path
+      // The tile's NORMAL overhead draw, the label/kind image, or the glyph. Shared by the plain square path
       // and the circle path so a rounded footprint shows the SAME painting; only its form changes.
       const drawTopTile = (): void => {
         if (img) {
@@ -248,7 +249,7 @@ export function renderTopView(params: RenderTopViewParams) {
           const recolor = labelImage ? labelTileRecolor(style, dAsset?.color ?? '#cccccc') : dAsset?.color
           // DISPLAY = "single": draw ONE smaller centered tile inside the plain cell (the cell backing already
           // painted above shows around it), matching the iso/2D "single tile inside the block" look. Absent → 1×.
-          const frac = asset?.settings?.display === 'single' ? SINGLE_TILE_FRAC : 1
+          const frac = asset && assetDrawsSingle(asset) ? SINGLE_TILE_FRAC : 1
           if (pose) {
             ctx.save(); ctx.translate(gx, gy); applyPose(ctx, pose, 1, tileSize)
             drawStyledImage(ctx, img, 0, 0, d.w * frac, false, recolor, d.h * frac)
@@ -261,7 +262,7 @@ export function renderTopView(params: RenderTopViewParams) {
         // GLYPH tile (no image): honour the per-view tile size + per-element dims + the colour override,
         // mirroring topdown's 2D glyph path (here the overhead view → Width × Depth). A bare ground glyph
         // (no asset, dims 1, no tint) falls through fillTintedGlyph to a plain centred fillText at the old
-        // font size — byte-identical to before.
+        // font size, byte-identical to before.
         const d = resolveAssetDrawSize(fontSize * (resolveTileSize(styleTile, 'top') ?? 1), dAsset ?? {}, 'overhead')
         const pose = asset?.pose ?? resolveTilePose(styleTile, 'top') // per-asset pose (inspector x/y/rotate) wins; else the tileset-kind pose
         const strength = dAsset?.color ? 0.85 : 0 // colour-emoji ignore fillStyle → wash the tint on
@@ -277,8 +278,8 @@ export function renderTopView(params: RenderTopViewParams) {
 
       // SHAPE = "circle" is a FORM modifier, not a repaint (the overhead analogue of the iso rounded block): CLIP
       // the SAME tile to a circle so its painting/shading stays and only the footprint silhouette rounds (its
-      // corners bent away) — no relight (the square cell backing painted above frames it). Routed through the
-      // shared shape dispatch (drawFlatTileForShape) — the SAME map iso uses — so 2D/Top never branch on shape.
+      // corners bent away), no relight (the square cell backing painted above frames it). Routed through the
+      // shared shape dispatch (drawFlatTileForShape), the SAME map iso uses, so 2D/Top never branch on shape.
       drawFlatTileForShape(ctx, asset?.shape, drawTopTile, gx, gy, tileSize * 0.5, tileSize * 0.5)
       if (ctTop) ctx.restore()
       if (animWrap) ctx.restore() // pop the tile-animation shift/opacity wrap
@@ -320,12 +321,12 @@ export function renderTopView(params: RenderTopViewParams) {
   }
 
   // A BUILDING is just TILES: a pre-built building is stamped as its composition's per-cell assets, so the
-  // overhead view already draws them through the per-cell pass above — each footprint cell shows the TOP of
+  // overhead view already draws them through the per-cell pass above, each footprint cell shows the TOP of
   // its column, the ROOF tile (placed last, so it wins the cell in the assetMap), giving a per-cell roof
   // read from above with no building-specific drawer and no grouped-building array.
 
 
-  // Collision overlay — drawn LAST (over the per-cell building tiles + fountains) so it shows on BUILDING
+  // Collision overlay, drawn LAST (over the per-cell building tiles + fountains) so it shows on BUILDING
   // cells too. Debug overlay OR the lighter "show collisions" toggle.
   if (isDebugMode() || isShowCollisions()) {
     for (let row = startRow; row < endRow; row++) {
@@ -337,7 +338,7 @@ export function renderTopView(params: RenderTopViewParams) {
     }
   }
 
-  // Debug: per-cell TYPE + POSITION captions — the SAME flattened captions the 2D + iso overlays
+  // Debug: per-cell TYPE + POSITION captions, the SAME flattened captions the 2D + iso overlays
   // draw, so a cell reads identically in every view (the consistent labeling standard).
   if (isDebugMode()) {
     ctx.font = `bold ${Math.max(8, tileSize * 0.5)}px ${ASCII_FONT}`
@@ -411,13 +412,13 @@ export function renderTopView(params: RenderTopViewParams) {
     if (pdv.image) drawStyledImage(ctx, pdv.image, px + tileSize / 2, py + tileSize / 2, tileSize)
     else ctx.fillText(genderize(pdv.char, player.variant), px + tileSize / 2, py + tileSize / 2)
 
-    // Life bar above the player cell — the SAME drawHpBar enemies get in this view (below).
+    // Life bar above the player cell, the SAME drawHpBar enemies get in this view (below).
     if (player.maxHp != null) {
       drawHpBar(ctx, px + tileSize / 2, py - 3, tileSize, 3, barFraction(player.hp ?? player.maxHp, player.maxHp))
     }
   }
 
-  // Draw connectors — one marker per cell the connector owns; the label rides on
+  // Draw connectors, one marker per cell the connector owns; the label rides on
   // the connector's first cell only.
   for (const connector of connectors) {
     connector.cells.forEach((pcell, idx) => {
@@ -428,7 +429,7 @@ export function renderTopView(params: RenderTopViewParams) {
       ctx.fillStyle = 'rgba(180, 80, 255, 0.6)'
       ctx.fillRect(cx, cy, tileSize - 1, tileSize - 1)
 
-      // Draw portal marker — a TILE now: 🌀 under a reskin, ◊ under ASCII.
+      // Draw portal marker, a TILE now: 🌀 under a reskin, ◊ under ASCII.
       ctx.font = `bold ${tileSize * 0.6}px ${ASCII_FONT}`
       ctx.textAlign = 'center'
       ctx.textBaseline = 'middle'
@@ -441,7 +442,7 @@ export function renderTopView(params: RenderTopViewParams) {
         ctx.strokeRect(cx, cy, tileSize - 1, tileSize - 1)
       }
 
-      // Label (if room) — only on the first cell so multi-cell connectors aren't noisy
+      // Label (if room), only on the first cell so multi-cell connectors aren't noisy
       if (idx === 0 && tileSize > 20 && connector.targetTemplateName) {
         ctx.fillStyle = 'rgba(0, 0, 0, 0.7)'
         ctx.fillRect(cx - 5, cy - 12, tileSize + 10, 12)
@@ -453,7 +454,7 @@ export function renderTopView(params: RenderTopViewParams) {
     })
   }
 
-  // Draw placed entities last — each a single `>` glyph colored by role (blueprint legend).
+  // Draw placed entities last, each a single `>` glyph colored by role (blueprint legend).
   for (const entity of entities) {
     const combat = entity.kind === 'enemy' ? enemyCombat.get(entity.id) : undefined
     if (isDeadEnemy(entity, combat)) continue // hidden until it respawns
@@ -467,13 +468,13 @@ export function renderTopView(params: RenderTopViewParams) {
     // pass through unchanged); matches iso/2d.
     if (edv.image) drawStyledImage(ctx, edv.image, ex + tileSize / 2, ey + tileSize / 2, tileSize)
     else drawTopArrow(ctx, ex, ey, tileSize, edv.color, genderize(edv.char, entity.variant))
-    // Only DAMAGED enemies show a bar in the overview — a full-HP mob adds nothing but clutter (its
+    // Only DAMAGED enemies show a bar in the overview, a full-HP mob adds nothing but clutter (its
     // glyph already marks its position); matches the engaged/damaged gate iso + 2D use for vitals.
     if (entity.kind === 'enemy') { const f = hpFraction(entity, combat); if (f < 0.999) drawHpBar(ctx, ex + tileSize / 2, ey - 3, tileSize, 3, f) }
     drawQuestMarker(ctx, entityQuestMarker(entity, quests), ex + tileSize / 2, ey - tileSize * 0.9, Math.max(12, tileSize * 1.1))
   }
 
-  // ─── Cell-hover outline — a DIM/translucent square on the cell under the cursor, drawn OVER the
+  // ─── Cell-hover outline, a DIM/translucent square on the cell under the cursor, drawn OVER the
   //     entities/roofs so it shows even when a unit occupies the cell (in addition to the unit reticle),
   //     keeping the floor tile targetable. Mirrors the yellow per-cell selection but subtle. ──────────
   if (hoveredCell) {
@@ -484,7 +485,7 @@ export function renderTopView(params: RenderTopViewParams) {
     ctx.strokeRect(hx + 1, hy + 1, tileSize - 3, tileSize - 3)
   }
 
-  // Armed-composition GHOST — the translucent footprint the click will stamp, in flat top-down cells.
+  // Armed-composition GHOST, the translucent footprint the click will stamp, in flat top-down cells.
   if (ghost) drawCompositionGhostFlat(ctx, ghost, (col, row) => ({ x: offsetX + col * tileSize, y: offsetY + row * tileSize }), tileSize)
 
   // Floating "+dmg" hit markers (cell-centred in top space).
@@ -504,7 +505,7 @@ export function renderTopView(params: RenderTopViewParams) {
       w,
       h,
       { time: now, style, view: 'top' },
-      undefined, // no per-bulb anchor in the top view — no vertical perspective to anchor to
+      undefined, // no per-bulb anchor in the top view, no vertical perspective to anchor to
       entities,
     )
     drawNightLighting(ctx, w, h, lamps)
@@ -522,7 +523,7 @@ export function renderTopView(params: RenderTopViewParams) {
     ],
   })
 
-  // The view's own CHROME — a heading and the keyboard hint. Fine across a full-screen view mode; a 16px
+  // The view's own CHROME, a heading and the keyboard hint. Fine across a full-screen view mode; a 16px
   // banner stamped over a 176px level map, which is why the caller can turn it off.
   if (chrome) {
     ctx.fillStyle = isDebugMode() ? '#ff6666' : '#55aaff'

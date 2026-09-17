@@ -1,15 +1,15 @@
 /**
- * Terrain autotile labels — the missing half of the "label EVERYTHING" tileset standard.
+ * Terrain autotile labels, the missing half of the "label EVERYTHING" tileset standard.
  *
  * Trees and building footprints already carry 9-piece autotile labels (cellLabels.ts). Terrain did
- * NOT: a grass/water/path cell had no positional label, so the ground was un-swappable — you could
+ * NOT: a grass/water/path cell had no positional label, so the ground was un-swappable, you could
  * not tell a GRASS TOP-LEFT corner tile from a GRASS INTERIOR fill tile. This module closes that gap
  * by running the SAME autotile scheme over the ground grid: each cell is part of its terrain-KIND
  * mass, and its POSITION (TOP-LEFT / TOP / … / INTERIOR) comes from which orthogonal neighbours are
- * a DIFFERENT kind (an open edge). Pure logic — no rendering, no grid mutation.
+ * a DIFFERENT kind (an open edge). Pure logic, no rendering, no grid mutation.
  *
  * The label is `<TERRAIN> <POSITION>` (e.g. `GRASS TOP-LEFT`, `WATER INTERIOR`, `PATH BOTTOM`), the
- * SAME `<TYPE> <POSITION>` shape buildings/trees use — one consistent vocabulary across every cell,
+ * SAME `<TYPE> <POSITION>` shape buildings/trees use, one consistent vocabulary across every cell,
  * which is what the tile-replacement pass keys on.
  */
 import { autotilePosition } from './cellLabels'
@@ -36,7 +36,7 @@ export function terrainLabelAt(ground: Ground, col: number, row: number): string
   return `${kind.toUpperCase()} ${autotilePosition(sameKind, col, row)}`
 }
 
-/** One `<TERRAIN> <POSITION>` caption per ground cell — the terrain half of the debug overlay, so
+/** One `<TERRAIN> <POSITION>` caption per ground cell, the terrain half of the debug overlay, so
  *  EVERY cell (not just asset cells) shows its tileset label. */
 export function terrainCaptions(ground: Ground): { col: number; row: number; label: string }[] {
   const out: { col: number; row: number; label: string }[] = []

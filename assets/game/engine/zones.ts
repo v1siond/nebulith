@@ -1,5 +1,5 @@
 /**
- * SEASONS — the TYPES, and the readers over the backend's season catalog.
+ * SEASONS, the TYPES, and the readers over the backend's season catalog.
  *
  * This file used to AUTHOR every season: ground palettes, hazard and trail tiles, the curated tree / decor /
  * flower tile per season, bloom variants, tree shape weights, rock shades, prop art, and the temple and cave
@@ -70,7 +70,7 @@ export function livingTreeWeight(): number {
   return livingTreeVariants().reduce((sum, v) => sum + v.weight, 0)
 }
 
-/** Every tree SHAPE the backend composes. Typing only — `stampComposition` resolves any composition key by
+/** Every tree SHAPE the backend composes. Typing only, `stampComposition` resolves any composition key by
  *  name, so a new shape is backend data; this union just lets the generator name it. */
 export type LivingTreeKind =
   | 'tree' | 'tree_tall' | 'tree_stub' | 'tree_round' | 'tree_small' | 'tree_big'
@@ -79,6 +79,11 @@ export type LivingTreeKind =
   | 'bush' | 'bush_round'
   // The tropics, 2026-09-13:
   | 'tree_coconut' | 'tree_banana' | 'tree_mangrove'
+  // The four he named that the catalog lacked, 2026-09-16: *"I like to see pines, palm tree, cypress, oak,
+  // weeping willow, cherry tree, encina"*. Pine is tree_conifer, cypress and palm already existed.
+  | 'tree_oak' | 'tree_willow' | 'tree_cherry' | 'tree_encina'
+  // AFTER THE ERUPTION, 2026-09-16: the woodland and mountain species burned, for a volcanic map. Not new
+  // species, the same four that grow in those two places with the fire gone through them.
 
 /** Tonal rock shades so cave and arena walls are not one flat grey. */
 export function rockShades(): readonly string[] {
@@ -112,7 +117,7 @@ export interface TemplePalette {
   floor: string
   /** checker-inlay accent tile (the ornate tiled look). */
   accent: string
-  /** tonal wall colours — the stone boundary + inner walls, varied per cell (disjoint per season). */
+  /** tonal wall colours, the stone boundary + inner walls, varied per cell (disjoint per season). */
   wall: readonly string[]
   /** colonnade pillar colour. */
   pillar: string
@@ -142,9 +147,9 @@ export interface CavePalette {
   floor: string
   /** patchy floor accent (moss / fallen leaves / dune / ash). */
   accent: string
-  /** fraction of floor cells that take the accent — how mossy/leafy the cave reads. */
+  /** fraction of floor cells that take the accent, how mossy/leafy the cave reads. */
   accentChance: number
-  /** tonal wall colours — the rock boundary + internal formations, varied per cell. */
+  /** tonal wall colours, the rock boundary + internal formations, varied per cell. */
   wall: readonly string[]
   /** the season's pool terrain (water / walkable ice / molten lava). */
   pool: string

@@ -1,8 +1,8 @@
 /**
- * STEP-BY-STEP GUIDES — "how do I actually do this?"
+ * STEP-BY-STEP GUIDES, "how do I actually do this?"
  *
  * This is not the same thing as `editorHelp.data.ts`, and the two must not drift into each other.
- * `EDITOR_HELP` explains a CONCEPT where you meet it — what thickness means, how stacking works — reached
+ * `EDITOR_HELP` explains a CONCEPT where you meet it, what thickness means, how stacking works, reached
  * from an ⓘ next to the control. A GUIDE is a PROCEDURE: an ordered list of clicks that gets one whole job
  * done, read before you start rather than when you are already stuck.
  *
@@ -32,12 +32,12 @@ export const EDITOR_GUIDES: readonly Guide[] = [
   {
     id: 'first-level',
     title: 'Make my first level',
-    outcome: 'A whole level — ground, trees, buildings and people — built from a preset.',
+    outcome: 'A whole level, ground, trees, buildings and people, built from a preset.',
     steps: [
       { do: 'In the left rail, under MAKE THE WORLD, click **New world**.' },
       { do: 'Pick a **Season**. It sets the palette every tile is drawn from.' },
       {
-        do: 'Pick a **Kind of place** — Forest, Town, City, Cave or Temple.',
+        do: 'Pick a **Kind of place**, Forest, Town, City, Cave or Temple.',
         why: 'The number in brackets is how many presets that kind offers.',
       },
       {
@@ -65,10 +65,10 @@ export const EDITOR_GUIDES: readonly Guide[] = [
         do: 'Point at any object in the list.',
         why: 'The preview panel shows it drawn exactly as it will look on the map, in the view you are in.',
       },
-      { do: 'Click the one you want. It is now armed — the list highlights it.' },
+      { do: 'Click the one you want. It is now armed, the list highlights it.' },
       {
         do: 'Move over the map. A ghost footprint follows the cursor.',
-        why: 'The footprint is how many cells it covers — a 5×5 fountain needs 5×5 clear cells.',
+        why: 'The footprint is how many cells it covers, a 5×5 fountain needs 5×5 clear cells.',
       },
       { do: 'Click to place it. Every cell it holds lands in that one action.' },
       { do: 'Wrong spot? **Ctrl+Z**.' },
@@ -82,16 +82,16 @@ export const EDITOR_GUIDES: readonly Guide[] = [
       { do: 'In the rail, click **Characters**.' },
       {
         do: 'Click the character you want.',
-        why: 'Until you pick one, clicking the map selects rather than places — the library on its own arms nothing.',
+        why: 'Until you pick one, clicking the map selects rather than places, the library on its own arms nothing.',
       },
       { do: 'Click **Behaviour** at the bottom of the list.' },
       {
         do: 'Choose **Patrols nearby** instead of **Stands still**.',
-        why: 'It walks a patrol of 3–5 points within about two cells, with a walking animation.',
+        why: 'It walks a patrol of 3-5 points within about two cells, with a walking animation.',
       },
       {
         do: 'Choose whose side it is on, or leave it on Auto.',
-        why: 'Auto reads it from the character itself — a villager becomes friendly, a monster hostile.',
+        why: 'Auto reads it from the character itself, a villager becomes friendly, a monster hostile.',
       },
       { do: 'Click the map to drop it. Or use **Sprinkle** to scatter several onto walkable cells at once.' },
     ],
@@ -105,7 +105,7 @@ export const EDITOR_GUIDES: readonly Guide[] = [
       { do: 'Click the **RULES** row.' },
       { do: 'In the panel that opens, add a rule.' },
       {
-        do: 'Pick when it fires — walked onto, or **E** pressed on it.',
+        do: 'Pick when it fires, walked onto, or **E** pressed on it.',
         why: 'A rule watches one thing and does one action. Joining two places together is a doorway instead.',
       },
       { do: 'Pick what happens: go to another level, win, show a message, spawn monsters, give an item, or lose.' },
@@ -117,7 +117,7 @@ export const EDITOR_GUIDES: readonly Guide[] = [
     title: 'Change how the whole game looks',
     outcome: 'Every tile redrawn in a different art style, with nothing else about the level changed.',
     steps: [
-      { do: 'In the top bar, click **Art** — it is the first control, before the game name.' },
+      { do: 'In the top bar, click **Art**, it is the first control, before the game name.' },
       {
         do: 'Pick a style by looking at the sample tiles rather than the name.',
         why: 'Every tile keeps its name, size, height and collision. Only the picture is swapped.',

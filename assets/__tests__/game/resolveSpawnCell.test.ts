@@ -1,5 +1,5 @@
 /**
- * #87/#88 — where the player lands on a template LOAD.
+ * #87/#88, where the player lands on a template LOAD.
  *   #87: reloading the map you're already in keeps your CURRENT position (keptCell), not the spawn.
  *   #88: a stale/out-of-bounds spawn (e.g. a legacy fixed 25,25 on a smaller map) is CLAMPED in.
  */
@@ -7,7 +7,7 @@ import { resolveSpawnCell } from '@/game/runtime/player'
 
 const SPAWN = { col: 3, row: 4 }
 
-describe('resolveSpawnCell — priority + clamp', () => {
+describe('resolveSpawnCell, priority + clamp', () => {
   test('a teleport override wins over everything', () => {
     const r = resolveSpawnCell(
       { override: { col: 9, row: 2 }, keptCell: { col: 1, row: 1 }, playerMarker: { col: 5, row: 5 }, templateSpawn: SPAWN },

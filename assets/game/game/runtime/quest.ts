@@ -1,6 +1,6 @@
 // Pure quest-anchor projection: where the offer modal floats over a giver cell,
 // mirroring each view's cell->screen math. Moved out of the game-engine page
-// (stage 2). Pure — every input is passed in, nothing read from the DOM.
+// (stage 2). Pure, every input is passed in, nothing read from the DOM.
 // Stage 5a also moved the quest ORCHESTRATION helpers here (find a giver's quest,
 // upsert/active, feed kill events): module-level + pure so the rules stay testable.
 import { entityAt } from '@/game/entities'
@@ -29,7 +29,7 @@ const QUEST_ANCHOR_BOTTOM = 20
 /**
  * Screen-space point (px) of a giver cell for the offer modal, mirroring each view's
  * own `toScreen` so the modal floats above the right entity. Returns null when the
- * point is off-screen or too close to an edge to fit the panel — the caller then
+ * point is off-screen or too close to an edge to fit the panel, the caller then
  * centers the modal. Pure: every input is passed in, nothing is read from the DOM.
  */
 export function questAnchorScreenPos(cam: QuestAnchorCamera, col: number, row: number): { x: number; y: number } | null {
@@ -54,7 +54,7 @@ function projectCell(cam: QuestAnchorCamera, col: number, row: number): { x: num
     const camRow = cam.player.z / cam.cellSize - cam.camOffset.y / tile
     return { x: cam.w / 2 + (col + 0.5 - camCol) * tile, y: cam.h / 2 + (row + 0.5 - camRow) * tile }
   }
-  // isometric — iso entities are drawn at toScreen(col,row) (integer cell)
+  // isometric, iso entities are drawn at toScreen(col,row) (integer cell)
   const isoScale = cam.isoScale * cam.isoZoom
   const wx = col * cam.cellSize - (cam.player.x - cam.camOffset.x)
   const wz = row * cam.cellSize - (cam.player.z - cam.camOffset.y)

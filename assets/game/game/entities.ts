@@ -4,7 +4,7 @@
  *
  * PURE module: no module-level mutable state, no globals, no clock, no RNG.
  * Ids and the current time are passed IN so every function is deterministic and
- * unit-testable. Lists are treated as immutable — mutating helpers return a NEW
+ * unit-testable. Lists are treated as immutable, mutating helpers return a NEW
  * list. The game loop / editor own the stateful orchestration around these rules.
  */
 import type { Entity, EntityKind, Stats, Rarity } from '@/game/types'
@@ -43,8 +43,8 @@ export const DEFAULT_NPC_STATS: Stats = {
 
 // ── size → stats ────────────────────────────────────────────────────
 /** How an entity's render SIZE scales its stats. A size-N enemy multiplies its HP + offensive/defensive
- *  stats by N^SIZE_STAT_EXPONENT — at the default exponent 1 that's plain linear (a size-2 boss has ~2×
- *  the HP and hits ~2× as hard). FLAG FOR TUNING: this is the one knob — raise the exponent (>1) for
+ *  stats by N^SIZE_STAT_EXPONENT, at the default exponent 1 that's plain linear (a size-2 boss has ~2×
+ *  the HP and hits ~2× as hard). FLAG FOR TUNING: this is the one knob, raise the exponent (>1) for
  *  super-linear boss scaling, or lower it (<1) to soften it. */
 export const SIZE_STAT_EXPONENT = 1
 
@@ -85,10 +85,10 @@ export interface MakeEnemyOptions {
   /** Rarity tier; sets the default respawnMs (rarer = slower to come back). Default 'common'. */
   rarity?: Rarity
   /** Stat ARCHETYPE (grunt/brute/archer/…): seeds the full stat block + a real attack pattern.
-  /** Partial stat overrides merged over the creature's own block (or enemy defaults) — e.g. bosses. */
+  /** Partial stat overrides merged over the creature's own block (or enemy defaults), e.g. bosses. */
   stats?: Partial<Stats>
   /** render + stat SCALE (default 1). A boss at size 2 draws twice as big and derives beefier stats
-   *  (see scaleStatsBySize) — applied AFTER the archetype/stat overrides, so size multiplies the final block. */
+   *  (see scaleStatsBySize), applied AFTER the archetype/stat overrides, so size multiplies the final block. */
   size?: number
 }
 
@@ -215,7 +215,7 @@ export function entityCovers(entity: Entity, col: number, row: number): boolean 
   return col >= left && col <= right && row >= top && row <= entity.row
 }
 
-/** The entity whose multi-cell FOOTPRINT covers (col,row) — for click-selection, so
+/** The entity whose multi-cell FOOTPRINT covers (col,row), for click-selection, so
  *  clicking any part of a 2-tall figure (not just its anchor cell) selects it.
  *  Iterates last→first so the topmost drawn entity wins. */
 export function entityAtFootprint(entities: readonly Entity[], col: number, row: number): Entity | null {
@@ -226,11 +226,11 @@ export function entityAtFootprint(entities: readonly Entity[], col: number, row:
 }
 
 /** Hit-test a CLICK to a unit, accounting for the standing BILLBOARD. In iso/2d a unit's figure is
- *  drawn ABOVE its foot cell (it stands up), so a click on the figure lands on a cell 1–2 above it in
- *  SCREEN space. Screen-up maps to `row−` in 2d and `col−,row−` in iso — so to find the unit we also
+ *  drawn ABOVE its foot cell (it stands up), so a click on the figure lands on a cell 1-2 above it in
+ *  SCREEN space. Screen-up maps to `row−` in 2d and `col−,row−` in iso, so to find the unit we also
  *  check cells TOWARD THE FEET (screen-down: +row in 2d, +col,+row in iso). Top view draws the unit ON
  *  its cell, so only that cell is checked. The exact cell wins first. This is WHY selection must be
- *  view-aware — the old cell-only test only ever worked in top view. */
+ *  view-aware, the old cell-only test only ever worked in top view. */
 export function entityAtClick(
   entities: readonly Entity[],
   col: number,
@@ -243,7 +243,7 @@ export function entityAtClick(
   const dc = view === 'iso' ? 1 : 0 // screen-down (toward the feet): iso = +col,+row; 2d = +row
   for (let k = 1; k <= figCells; k++) {
     // The figure stands `k` cells toward the feet (screen-down). A held weapon/shield sits ~1 cell to
-    // either side at the arm row, so also probe the flanking columns — clicking the SWORD (or the figure's
+    // either side at the arm row, so also probe the flanking columns, clicking the SWORD (or the figure's
     // edge) selects the unit, not the empty cell under it. Centre column first so the foot wins ties.
     for (const dCol of [0, -1, 1]) {
       const hit = entityAtFootprint(entities, col + dc * k + dCol, row + k)
@@ -255,14 +255,14 @@ export function entityAtClick(
 
 /** Return the entities list with the PLAYER entity's cell overridden to `playerCell`. The player
  *  SPRITE is drawn at its live play-loop position (playerRef), but the player ENTITY's col/row is
- *  only written by spawn/load/place — the game loop never re-syncs it — so after the hero walks the
+ *  only written by spawn/load/place, the game loop never re-syncs it, so after the hero walks the
  *  two diverge and click hit-testing misses the player. Feed this to entityAtClick so the player is
  *  hit-tested where it is actually DRAWN. Others pass through unchanged. Pure. */
 export function withPlayerCell(entities: readonly Entity[], playerCell: { col: number; row: number }): Entity[] {
   return entities.map(e => (e.kind === 'player' ? { ...e, col: playerCell.col, row: playerCell.row } : e))
 }
 
-/** The set of cells (`"col,row"`) occupied by entities' FULL footprints — for movement
+/** The set of cells (`"col,row"`) occupied by entities' FULL footprints, for movement
  *  collision, so the player can't walk through a monster and patrols collide with each
  *  other. Anchoring matches `entityAtFootprint` (bottom-anchored, centered). `exclude`
  *  skips entities (the player's own marker, dead enemies, or the entity currently
@@ -285,10 +285,9 @@ export function entityOccupiedCells(
   return cells
 }
 
-/** The cells that BLOCK MOVEMENT — only each entity's BASE ROW (where its feet stand), NOT the tall
+/** The cells that BLOCK MOVEMENT, only each entity's BASE ROW (where its feet stand), NOT the tall
  *  billboard that `entityOccupiedCells`/`entityCovers` cover for click-selection + targeting. A 3-tall
- *  goblin's collision is just its 1–2 feet cells, so you can walk right up beside it and pass around —
- *  the cells ABOVE its feet (all billboard, no body) are walkable. Fixes "stuck near an enemy". */
+ *  goblin's collision is just its 1-2 feet cells, so you can walk right up beside it and pass around, *  the cells ABOVE its feet (all billboard, no body) are walkable. Fixes "stuck near an enemy". */
 export function entityCollisionCells(
   entities: readonly Entity[],
   exclude?: (e: Entity) => boolean,

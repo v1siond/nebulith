@@ -1,5 +1,5 @@
 /**
- * ASCII AND EMOJI MUST RUN THE SAME ENGINE — measured at the canvas API.
+ * ASCII AND EMOJI MUST RUN THE SAME ENGINE, measured at the canvas API.
  *
  * That was right. Under ASCII, `visualForTileId`/`tilesForStyle` threw the tile's baked image away and the
  * kind→image rescue was gated to `FLOOR_TYPE`, so a placed tile arrived with `dv.image === undefined`. That
@@ -7,7 +7,7 @@
  *   · the single-block cube SPRITE CACHE (`cubeBlockSprite`) is gated on `dv.image` → never hit under ASCII,
  *     so every cell re-drew 3 faces LIVE, every frame;
  *   · `fillIsoFaceWithTile`'s glyph branch does `beginPath + rect + clip + fillText` PER FACE (the image
- *     branch deliberately skips the clip — its own comment calls it "a real hotspot");
+ *     branch deliberately skips the clip, its own comment calls it "a real hotspot");
  *   · a label-less prop fell through to the deleted per-type glyph drawers, which called `ctx.measureText`
  *     per asset per frame.
  *
@@ -57,7 +57,7 @@ function profile(style: Style, a: GridAsset, n = 40): Calls {
 /** Every baked src any loaded style references, so the harness can pre-decode them.
  *
  *  ONE loop over the styles, reading ONE field. An earlier version read `t.image` for emoji and
- *  `t.image.src` for ascii — a per-style branch inside the very suite that exists to prove there is no
+ *  `t.image.src` for ascii, a per-style branch inside the very suite that exists to prove there is no
  *  per-style branch. It silently registered no ascii rasters, so every ascii assertion below measured an
  *  un-decoded image rather than the engine. */
 function allSrcs(): string[] {
@@ -71,7 +71,7 @@ function allSrcs(): string[] {
 beforeAll(async () => {
   H = installRealCanvas().harness
   installSeedTileset()
-  // Register a real raster for every tile src (the harness fakes the network), then decode them — the
+  // Register a real raster for every tile src (the harness fakes the network), then decode them, the
   // production loader does exactly this before the render gate opens (tilesetLoader → preloadTileImages).
   for (const src of allSrcs()) H.registerSolid(src, '#ffffff')
   await H.warm(allSrcs())
@@ -96,7 +96,7 @@ describe('a placed tile draws through the IMAGE path in BOTH styles', () => {
 })
 
 describe('the cube-sprite cache catches ASCII exactly as it catches emoji', () => {
-  it('drawing 40 identical height-1 blocks costs ~1 blit each — no per-face clip', () => {
+  it('drawing 40 identical height-1 blocks costs ~1 blit each, no per-face clip', () => {
     for (const style of [ASCII_STYLE, EMOJI_STYLE]) {
       const calls = profile(style, asset({ type: 'tree' }), 40)
       // A cached cube is ONE drawImage per cell. A cache MISS would re-draw 3 faces per cell
@@ -121,7 +121,7 @@ describe('a labeled composition cell resolves its own tile image in both styles'
 })
 
 // ── negative path ──────────────────────────────────────────────────────────────
-describe('the last-resort glyph plate — the ONE no-tile path, identical in both styles', () => {
+describe('the last-resort glyph plate, the ONE no-tile path, identical in both styles', () => {
   // `unmapped_thing` has no entry in TYPE_KIND, so assetKind → 'ground', which no tileset carries a tile
   // for. This is the only way to reach the glyph plate, and it must be reached the SAME way in both styles.
   const orphan = asset({ type: 'unmapped_thing', art: ['#'], label: undefined })
@@ -132,7 +132,7 @@ describe('the last-resort glyph plate — the ONE no-tile path, identical in bot
     expect(calls.drawImage ?? 0).toBe(0)
   })
 
-  it('is NOT an ASCII-only path — emoji reaches it identically', () => {
+  it('is NOT an ASCII-only path, emoji reaches it identically', () => {
     expect(profile(ASCII_STYLE, orphan, 1)).toEqual(profile(EMOJI_STYLE, orphan, 1))
   })
 })

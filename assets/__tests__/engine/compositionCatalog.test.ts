@@ -1,6 +1,6 @@
 /**
  * The Tile-composition PALETTE catalog + the tool RENAME. The editor's old "Building" tool listed a hardcoded
- * handful of buildings; it is now "Tile composition" and must list EVERY composition the backend serves — the
+ * handful of buildings; it is now "Tile composition" and must list EVERY composition the backend serves, the
  * same set the world randomizer stamps (buildings AND trees/bushes/fountains/wells/lamp posts).
  *
  * Grouping is DATA-DRIVEN: a composition's group is the backend `category` it is SERVED with (like a tile),
@@ -40,7 +40,7 @@ describe('buildCompositionPalette lists EVERY backend composition, not just buil
     expect(listed).toEqual(served)                        // none dropped, none invented, no duplicates
   })
 
-  test('the NON-building compositions (props + nature) are listed — the whole point of the rename', () => {
+  test('the NON-building compositions (props + nature) are listed, the whole point of the rename', () => {
     const listed = new Set(flatKinds())
     // props the randomizer stamps but the old building-only card omitted:
     expect(listed.has('fountain')).toBe(true)
@@ -64,7 +64,7 @@ describe('buildCompositionPalette lists EVERY backend composition, not just buil
     expect(groupOf(styleCatalog('ascii'), 'fountain')).toBe('props')
     expect(groupOf(styleCatalog('ascii'), 'well')).toBe('props')
     expect(groupOf(styleCatalog('ascii'), 'lamp_post')).toBe('props')
-    // the served category is exactly what the item carries — no derivation in between
+    // the served category is exactly what the item carries, no derivation in between
     const items = buildCompositionPalette(styleCatalog('ascii')).flatMap(s => s.items)
     for (const it of items) expect(it.category).toBe(comp(it.kind).category)
   })
@@ -98,7 +98,7 @@ describe('buildCompositionPalette lists EVERY backend composition, not just buil
   })
 })
 
-describe('the group is the SERVED backend category — never a name-regex / door-detection heuristic', () => {
+describe('the group is the SERVED backend category, never a name-regex / door-detection heuristic', () => {
   test('a tree-NAMED composition served category:buildings lands under buildings (the name is NOT consulted)', () => {
     const t = synth({ tree_decoy: { footprint: { w: 1, h: 1 }, cells: [leafCell], category: 'buildings' } })
     expect(groupOf(t, 'tree_decoy')).toBe('buildings') // the OLD /^(tree|bush)/ regex would have said 'nature'

@@ -1,10 +1,10 @@
 /**
- * INVERTED 2D PICK (end-to-end) — the front-elevation selector picks the TILE the user SEES (a tall / lifted
+ * INVERTED 2D PICK (end-to-end), the front-elevation selector picks the TILE the user SEES (a tall / lifted
  * tile grown by scaleY/heightLevel, a lamp's raised bulb) and cascades to its cell, NOT the flat ground cell.
  *
  * render2D records each drawn tile's screen rect (twoDTileHits); pickTwoDTileAt hit-tests THAT. Points are read
  * from the recorded geometry so the test never re-derives the 2D camera. The old flat-cell pick (screenToCell)
- * would resolve a click high on a tall tile to an empty cell ROWS above — which the recorded-rect pick fixes.
+ * would resolve a click high on a tall tile to an empty cell ROWS above, which the recorded-rect pick fixes.
  */
 import '@/__tests__/helpers/installTilesetSeed'
 import { render2D, pickTwoDTileAt, twoDRecordedGeom } from '@/engine/render/topdown'
@@ -38,7 +38,7 @@ const render2DGrid = (asset: GridAsset): void => {
   render2D({ ctx: mockCtx(), w: W, h: H, grid, player: player(), time: 0, zoom: 1, camOffset: { x: 0, y: 0 }, entities: [], enemyCombat: new Map(), connectors: [], quests: [], dayNight: 'day', attackAnims: [], hitMarkers: [], projectiles: [], attackReach: 1, style: ASCII_STYLE })
 }
 
-// The recorded rect's bounds (min/max screen coords + centre) — the geometry the pick tests against.
+// The recorded rect's bounds (min/max screen coords + centre), the geometry the pick tests against.
 const bounds = (g: TileGeom | null) => {
   if (!g || g.kind !== 'poly') throw new Error('expected a recorded 2D rect')
   const xs = g.pts.map(p => p.x), ys = g.pts.map(p => p.y)
@@ -46,7 +46,7 @@ const bounds = (g: TileGeom | null) => {
   return { minX, maxX, minY, maxY, cx: (minX + maxX) / 2, cy: (minY + maxY) / 2, h: maxY - minY }
 }
 
-describe('a TALL (scaleY) 2D tile — picked at its lifted top, not the ground cell rows below', () => {
+describe('a TALL (scaleY) 2D tile, picked at its lifted top, not the ground cell rows below', () => {
   const tall: GridAsset = { art: ['#'], col: ACOL, row: AROW, type: 'wall', label: 'wall', height: 1, scaleY: 5, color: '#8a8a8a' }
 
   test('the recorded rect grows UP ~scaleY cells; the pick at its top returns the tile, the ground below nothing', () => {
@@ -59,7 +59,7 @@ describe('a TALL (scaleY) 2D tile — picked at its lifted top, not the ground c
   })
 })
 
-describe('an ASCII lamp — picked at its raised bulb, not the post base', () => {
+describe('an ASCII lamp, picked at its raised bulb, not the post base', () => {
   const lamp: GridAsset = { art: ['|'], col: ACOL, row: AROW, type: 'lamp', color: '#ffcc33' }
 
   test('the pick near the bulb selects the lamp; the ground below returns nothing', () => {
@@ -72,7 +72,7 @@ describe('an ASCII lamp — picked at its raised bulb, not the post base', () =>
   })
 })
 
-describe('a zOffset-slid 2D tile — picked where it slid to on the ground plane', () => {
+describe('a zOffset-slid 2D tile, picked where it slid to on the ground plane', () => {
   const slid: GridAsset = { art: ['#'], col: ACOL, row: AROW, type: 'crate', label: 'crate', height: 1, zOffset: 3, zDir: 'right-down', color: '#abcdef' }
 
   test('the pick at the slid rect returns the tile; a point opposite the slide returns nothing', () => {
@@ -80,6 +80,6 @@ describe('a zOffset-slid 2D tile — picked where it slid to on the ground plane
     const b = bounds(twoDRecordedGeom(ACOL, AROW, 0))
     const hit = pickTwoDTileAt(b.cx, b.cy)
     expect(hit && { col: hit.col, row: hit.row }).toEqual({ col: ACOL, row: AROW })
-    expect(pickTwoDTileAt(b.minX - 200, b.cy)).toBeNull() // far opposite the slide — nothing there
+    expect(pickTwoDTileAt(b.minX - 200, b.cy)).toBeNull() // far opposite the slide, nothing there
   })
 })

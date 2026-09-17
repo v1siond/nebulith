@@ -79,7 +79,7 @@ describe('movement patterns', () => {
   })
 })
 
-describe('enemy attack patterns — building one attack', () => {
+describe('enemy attack patterns, building one attack', () => {
   it('makeEnemyAttack clamps damage (≥0) + cooldown (≥ floor) to whole numbers', () => {
     const a = makeEnemyAttack('melee', -5, 50)
     expect(a.damage).toBe(0)
@@ -102,7 +102,7 @@ describe('enemy attack patterns — building one attack', () => {
 
   it('enemyAttackFromAbility reuses the ability damage/cooldown/animation + infers range', () => {
     // Abilities are BACKEND rows now (installAbilityRegistry / getAbility), so there is no POWER_SHOT
-    // constant to reach for — importing one silently handed this pure mapper `undefined`. The mapper takes an
+    // constant to reach for, importing one silently handed this pure mapper `undefined`. The mapper takes an
     // AbilityDef and returns an EnemyAttack, so the honest test hands it one: a piercing ranged ability.
     const powerShot: AbilityDef = {
       id: 'power-shot',
@@ -128,7 +128,7 @@ describe('enemy attack patterns — building one attack', () => {
   })
 })
 
-describe('enemy attack patterns — editing the list (immutable)', () => {
+describe('enemy attack patterns, editing the list (immutable)', () => {
   it('buildAttackPattern seeds a sequential single-melee pattern by default', () => {
     const p = buildAttackPattern()
     expect(p.mode).toBe('sequential')
@@ -160,7 +160,7 @@ describe('enemy attack patterns — editing the list (immutable)', () => {
   })
 })
 
-describe('normalizeAttackPattern — back-compat + empty handling', () => {
+describe('normalizeAttackPattern, back-compat + empty handling', () => {
   it('missing pattern → the engine default (one strength-only melee)', () => {
     expect(normalizeAttackPattern(undefined)).toEqual(DEFAULT_ENEMY_ATTACK_PATTERN)
     expect(DEFAULT_ENEMY_ATTACK_PATTERN.attacks[0]).toEqual(DEFAULT_ENEMY_ATTACK)
@@ -188,7 +188,7 @@ describe('normalizeAttackPattern — back-compat + empty handling', () => {
   })
 })
 
-describe('nextEnemyAttack — the selector (sequential cycles, random in-set, empty → default)', () => {
+describe('nextEnemyAttack, the selector (sequential cycles, random in-set, empty → default)', () => {
   const melee = makeEnemyAttack('melee', 4, 900, 'cleave')
   const ranged = makeEnemyAttack('ranged', 8, 1500, 'bolt')
   const third = makeEnemyAttack('melee', 12, 1200, 'fire-slash')
@@ -213,7 +213,7 @@ describe('nextEnemyAttack — the selector (sequential cycles, random in-set, em
   it('RANDOM always returns an attack from the set (drives a controllable RNG across the range)', () => {
     const list: EnemyAttack[] = [melee, ranged, third]
     const p = buildAttackPattern('random', list)
-    // sweep the rng across [0,1) — every pick must be one of the authored attacks
+    // sweep the rng across [0,1), every pick must be one of the authored attacks
     const picks = [0, 0.34, 0.5, 0.99].map(r => nextEnemyAttack(p, { fireCount: 0, rng: () => r }))
     picks.forEach(pick => expect(list).toContainEqual(pick))
     expect(nextEnemyAttack(p, { fireCount: 0, rng: () => 0 })).toEqual(melee) // low → first

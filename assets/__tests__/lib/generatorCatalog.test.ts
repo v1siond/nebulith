@@ -4,8 +4,8 @@
  * The catalog is what replaces the frontend's hand-kept generator constants, so these tests are about
  * ONE promise: **what the editor offers is exactly what the backend serves, and nothing else.**
  *
- *   - the happy path runs against `fixtures/generators.json` — a VERBATIM capture of the live
- *     `/api/generators` body — so a seed change that breaks the client fails here rather than in the UI;
+ *   - the happy path runs against `fixtures/generators.json`, a VERBATIM capture of the live
+ *     `/api/generators` body, so a seed change that breaks the client fails here rather than in the UI;
  *   - the negative paths prove the client never fills a gap in: a category the backend does not serve
  *     does not exist, a config section it omits reads `undefined`, and a malformed row is dropped, not
  *     defaulted (the no-fallback law, MAP-MODEL §8).
@@ -21,7 +21,7 @@ import liveBody from '@/__tests__/fixtures/generators.json'
 
 const LIVE = parseGeneratorCatalog(liveBody)
 
-describe('parseGeneratorCatalog — the live /api/generators body', () => {
+describe('parseGeneratorCatalog, the live /api/generators body', () => {
   it('reads every category the backend serves, in menu order', () => {
     expect(LIVE.map(c => c.key)).toEqual(['wilderness', 'village', 'town', 'city', 'cave', 'temple'])
     expect(LIVE.map(c => c.name)).toEqual(['Wilderness', 'Village', 'Town', 'City', 'Cave', 'Temple'])
@@ -38,13 +38,13 @@ describe('parseGeneratorCatalog — the live /api/generators body', () => {
     ])
   })
 
-  it('reads the grid range the town rolls — the numbers templates.tsx used to hardcode', () => {
+  it('reads the grid range the town rolls, the numbers templates.tsx used to hardcode', () => {
     expect(findGenerator(LIVE, 'town', 'town')!.config.grid).toEqual({
       cols: { min: 30, max: 45 }, rows: { min: 24, max: 35 }, cellSize: 16, isoScale: 2.5,
     })
   })
 
-  it('reads the CITY\'s bigger grid — the `variant === city` branch is data now', () => {
+  it('reads the CITY\'s bigger grid, the `variant === city` branch is data now', () => {
     expect(findGenerator(LIVE, 'city', 'city')!.config.grid).toEqual({
       cols: { min: 52, max: 71 }, rows: { min: 42, max: 57 }, cellSize: 16, isoScale: 2.5,
     })
@@ -58,7 +58,7 @@ describe('parseGeneratorCatalog — the live /api/generators body', () => {
     expect(findGenerator(LIVE, 'wilderness', 'forest_meadow')!.config.units!.townsfolk).toBe(5)
   })
 
-  it('reads the dungeon enemy rosters — CAVE_ENEMY_TYPES / TEMPLE_ENEMY_TYPES as data', () => {
+  it('reads the dungeon enemy rosters, CAVE_ENEMY_TYPES / TEMPLE_ENEMY_TYPES as data', () => {
     expect(findGenerator(LIVE, 'cave')!.config.units).toEqual({ townsfolk: 0, enemies: 10, enemyTypes: ['bat', 'spider', 'skeleton'] })
     expect(findGenerator(LIVE, 'temple')!.config.units).toEqual({ townsfolk: 0, enemies: 10, enemyTypes: ['skeleton', 'guardian', 'wraith'] })
   })
@@ -116,7 +116,7 @@ describe('parseGeneratorCatalog — the live /api/generators body', () => {
     expect(town).not.toEqual(city)
   })
 
-  it('leaves a config section the backend omits UNDEFINED — a cave has no settlement or buildings', () => {
+  it('leaves a config section the backend omits UNDEFINED, a cave has no settlement or buildings', () => {
     const cave = findGenerator(LIVE, 'cave')!.config
     expect(cave.settlement).toBeUndefined()
     expect(cave.buildings).toBeUndefined()
@@ -124,12 +124,12 @@ describe('parseGeneratorCatalog — the live /api/generators body', () => {
   })
 })
 
-describe('catalogZones — the season chips are the union of what generators run in', () => {
+describe('catalogZones, the season chips are the union of what generators run in', () => {
   it('lists every season the live catalog offers, once, in first-seen order', () => {
     expect(catalogZones(LIVE)).toEqual(['spring', 'summer', 'autumn', 'winter', 'desert'])
   })
 
-  it('offers NO seasons for an empty catalog — never a stand-in list', () => {
+  it('offers NO seasons for an empty catalog, never a stand-in list', () => {
     expect(catalogZones(EMPTY_GENERATOR_CATALOG)).toEqual([])
   })
 
@@ -180,7 +180,7 @@ describe('categoryLayouts: a card is a ROW, identified by that row\'s KEY', () =
   })
 })
 
-describe('findGenerator — the editor runs exactly the world the user asked for', () => {
+describe('findGenerator, the editor runs exactly the world the user asked for', () => {
   it('picks the row whose KEY was chosen, which names exactly one world', () => {
     expect(findGenerator(LIVE, 'wilderness', 'forest_jungle')!.key).toBe('forest_jungle')
     expect(findGenerator(LIVE, 'wilderness', 'forest_swamp')!.key).toBe('forest_swamp')
@@ -208,7 +208,7 @@ describe('findGenerator — the editor runs exactly the world the user asked for
   })
 })
 
-describe('rollGridSize — the size comes from the served range', () => {
+describe('rollGridSize, the size comes from the served range', () => {
   const town = findGenerator(LIVE, 'town', 'town')
   const city = findGenerator(LIVE, 'city', 'city')
 
@@ -235,13 +235,13 @@ describe('rollGridSize — the size comes from the served range', () => {
     expect(rollGridSize(town, () => draws[i++])).toEqual({ cols: 30, rows: 35 })
   })
 
-  it('is reproducible under a seeded rng — the same seed rolls the same size', () => {
+  it('is reproducible under a seeded rng, the same seed rolls the same size', () => {
     const seeded = () => makeRng(4242)
     expect(rollGridSize(town, seeded())).toEqual(rollGridSize(town, seeded()))
     expect(rollGridSize(city, seeded())).toEqual(rollGridSize(city, seeded()))
   })
 
-  it('yields NO size when the generator carries no grid — the caller keeps the grid it has', () => {
+  it('yields NO size when the generator carries no grid, the caller keeps the grid it has', () => {
     const [noGrid] = parseGeneratorCatalog({
       data: [{ key: 'a', name: 'A', position: 0, generators: [{ key: 'a1', name: 'A1', position: 0, config: {} }] }],
     })
@@ -250,7 +250,7 @@ describe('rollGridSize — the size comes from the served range', () => {
   })
 })
 
-describe('parseGeneratorCatalog — malformed rows are DROPPED, never defaulted', () => {
+describe('parseGeneratorCatalog, malformed rows are DROPPED, never defaulted', () => {
   let warn: jest.SpyInstance
 
   beforeEach(() => { warn = jest.spyOn(console, 'warn').mockImplementation(() => {}) })
@@ -271,7 +271,7 @@ describe('parseGeneratorCatalog — malformed rows are DROPPED, never defaulted'
     expect(catalog[0].generators.map(g => g.key)).toEqual(['good'])
   })
 
-  it('drops an INCOMPLETE grid rather than half-reading it — a partial size is worse than none', () => {
+  it('drops an INCOMPLETE grid rather than half-reading it, a partial size is worse than none', () => {
     const catalog = parseGeneratorCatalog({
       data: [{ key: 'c', name: 'C', position: 0, generators: [{ key: 'g', name: 'G', position: 0, config: { grid: { cols: { min: 10, max: 20 } } } }] }],
     })
@@ -314,7 +314,7 @@ describe('parseGeneratorCatalog — malformed rows are DROPPED, never defaulted'
   })
 })
 
-describe('fetchGeneratorCatalog — the wire', () => {
+describe('fetchGeneratorCatalog, the wire', () => {
   const origFetch = global.fetch
   afterEach(() => { global.fetch = origFetch; jest.restoreAllMocks() })
 
@@ -327,7 +327,7 @@ describe('fetchGeneratorCatalog — the wire', () => {
     expect(fetchMock.mock.calls[0][0]).toContain('/generators')
   })
 
-  it('throws a NAMED error on a non-ok response — the editor must show the failure, not a fake menu', async () => {
+  it('throws a NAMED error on a non-ok response, the editor must show the failure, not a fake menu', async () => {
     global.fetch = jest.fn().mockResolvedValue({ ok: false, statusText: 'Service Unavailable' }) as unknown as typeof fetch
     await expect(fetchGeneratorCatalog()).rejects.toThrow(/Failed to load the generator catalog/)
   })

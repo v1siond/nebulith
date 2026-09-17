@@ -1,19 +1,18 @@
 /**
- * 4-WAY HORIZONTAL CAMERA ROTATION IN ISO (ticket #75) — end-to-end through render().
+ * 4-WAY HORIZONTAL CAMERA ROTATION IN ISO (ticket #75), end-to-end through render().
  *
- * / "we can rotate the corners, 4 corners, 4 rotation options, all faces of the map are visible" — the reason being
+ * / "we can rotate the corners, 4 corners, 4 rotation options, all faces of the map are visible", the reason being
   * that "tiles that aren't in the front side from the camera perspective are hard to select, specially with
   * collisions on".
  *
- * So this file asserts what makes the feature real, against the RENDERED frame (not the pure math —
- * `isoOrientation.test.ts` already covers that):
- *   1. `cameraFacing: 0` is inert — the frame is identical to today's un-rotated render (op stream + the
+ * So this file asserts what makes the feature real, against the RENDERED frame (not the pure math, * `isoOrientation.test.ts` already covers that):
+ *   1. `cameraFacing: 0` is inert, the frame is identical to today's un-rotated render (op stream + the
  *      hard-coded screen coords today's projection produces).
  *   2. Each facing lands a KNOWN corner tile at a DIFFERENT, PREDICTED screen position, and a DIFFERENT world
- *      corner becomes the FRONT (nearest-camera) one — i.e. all four map faces become reachable.
+ *      corner becomes the FRONT (nearest-camera) one, i.e. all four map faces become reachable.
  *   3. The PICK round-trips at every facing: a click at a tile's rendered position selects THAT world tile,
  *      through the recorded silhouettes AND through the flat bare-cell screen↔cell pair.
- *   4. A depth/`depthDir` span (a roof) stays GRID-ALIGNED under rotation — its covered cells rotate with it.
+ *   4. A depth/`depthDir` span (a roof) stays GRID-ALIGNED under rotation, its covered cells rotate with it.
  *   5. OCCLUSION sorts in the view frame, the camera CLAMP uses the ORIENTED dims, and the `__setCameraFacing`
  *      seam drives a param-less render.
  *
@@ -34,7 +33,7 @@ const CELL = 100, W = 800, H = 600, ISO = 1
 const TILE_W = CELL * ISO * 0.71, TILE_H = CELL * ISO * 0.36
 // A deliberately NON-SQUARE map: an odd facing swaps the view dims, so a dims bug can't hide behind a square.
 const COLS = 5, ROWS = 3
-// The player sits on the map CENTRE, which is its own centre in every oriented frame — so the four facings are
+// The player sits on the map CENTRE, which is its own centre in every oriented frame, so the four facings are
 // a clean turn about the middle and the expected pixels below are exact.
 const PCOL = 2, PROW = 1
 const FACINGS: Orientation[] = [0, 1, 2, 3]
@@ -42,7 +41,7 @@ const CORNERS: readonly [number, number][] = [[0, 0], [COLS - 1, 0], [COLS - 1, 
 
 const player = (): PlayerState => ({ x: PCOL * CELL, z: PROW * CELL, moving: false } as PlayerState)
 
-/** A no-op ctx — the tile GEOMETRY the pick reads is independent of the pixels drawn. */
+/** A no-op ctx, the tile GEOMETRY the pick reads is independent of the pixels drawn. */
 function mockCtx(): CanvasRenderingContext2D {
   const ctx = {
     fillStyle: '#000', strokeStyle: '#000', font: '', textAlign: '' as CanvasTextAlign,
@@ -79,7 +78,7 @@ const gridWith = (assets: GridAsset[]): IsometricGrid => {
   return grid
 }
 
-/** One block per map corner — the four things whose on-screen positions the rotation must move. */
+/** One block per map corner, the four things whose on-screen positions the rotation must move. */
 const cornerBlocks = (): GridAsset[] =>
   CORNERS.map(([col, row]) => ({ art: ['#'], col, row, type: 'wall', label: 'wall', height: 1, color: '#8a8a8a' }))
 
@@ -93,7 +92,7 @@ const renderIso = (grid: IsometricGrid, facing?: Orientation, ctx: CanvasRenderi
   })
 }
 
-/** The screen ANCHOR (base-diamond centre) of the block drawn at world (col,row) this frame — read back from
+/** The screen ANCHOR (base-diamond centre) of the block drawn at world (col,row) this frame, read back from
  *  the frame's OWN recorded silhouette, so it is literally where the renderer put it. */
 const drawnAnchor = (col: number, row: number): { x: number; y: number } => {
   const g = isoRecordedGeom(col, row, 0)
@@ -124,7 +123,7 @@ const near = (a: { x: number; y: number }, b: { x: number; y: number }): void =>
 }
 
 // ────────────────────────────────────────────────────────────────────────────────────────────────────────
-describe('1 — cameraFacing 0 is INERT (regression guard: today\'s frame, unchanged)', () => {
+describe('1, cameraFacing 0 is INERT (regression guard: today\'s frame, unchanged)', () => {
   test('the op stream with cameraFacing:0 is identical to the frame drawn WITHOUT the param', () => {
     const withoutParam: string[] = []
     const withZero: string[] = []
@@ -145,7 +144,7 @@ describe('1 — cameraFacing 0 is INERT (regression guard: today\'s frame, uncha
 })
 
 // ────────────────────────────────────────────────────────────────────────────────────────────────────────
-describe('2 — each facing shows a DIFFERENT side of the map', () => {
+describe('2, each facing shows a DIFFERENT side of the map', () => {
   test('the corner block (0,0) lands at four DISTINCT, predicted screen positions', () => {
     // Literals, so this can never degenerate into "the renderer agrees with itself".
     const expected = [{ x: 329, y: 192 }, { x: 613, y: 264 }, { x: 471, y: 408 }, { x: 187, y: 336 }]
@@ -166,7 +165,7 @@ describe('2 — each facing shows a DIFFERENT side of the map', () => {
     }
   })
 
-  test('a DIFFERENT world corner becomes the FRONT (nearest-camera) one at each facing — all 4 faces reachable', () => {
+  test('a DIFFERENT world corner becomes the FRONT (nearest-camera) one at each facing, all 4 faces reachable', () => {
     const fronts: string[] = []
     for (const facing of FACINGS) {
       renderIso(gridWith(cornerBlocks()), facing)
@@ -180,7 +179,7 @@ describe('2 — each facing shows a DIFFERENT side of the map', () => {
 })
 
 // ────────────────────────────────────────────────────────────────────────────────────────────────────────
-describe('3 — the PICK round-trips at every facing (the whole point: reach the hidden side)', () => {
+describe('3, the PICK round-trips at every facing (the whole point: reach the hidden side)', () => {
   test('a click at a corner tile\'s RENDERED position selects THAT world tile, for all 4 facings', () => {
     for (const facing of FACINGS) {
       renderIso(gridWith(cornerBlocks()), facing)
@@ -194,20 +193,20 @@ describe('3 — the PICK round-trips at every facing (the whole point: reach the
   })
 
   test('the back-side tile that is UNREACHABLE-looking at facing 0 is picked at its own spot after rotating', () => {
-    // (0,0) is the BACKMOST corner at facing 0 and the FRONTMOST at facing 2 — the tile the user could not get to.
+    // (0,0) is the BACKMOST corner at facing 0 and the FRONTMOST at facing 2, the tile the user could not get to.
     renderIso(gridWith(cornerBlocks()), 2)
     const a = drawnAnchor(0, 0)
     const hit = pickIsoTileAt(a.x, a.y)
     expect(hit && { col: hit.col, row: hit.row }).toEqual({ col: 0, row: 0 })
     // (0,0) also LEFT its old spot: the pixel it occupied at facing 0 now belongs to the OPPOSITE corner,
-    // (4,2) — a half turn really did swap the two ends of the map, it isn't just the same frame re-labelled.
+    // (4,2), a half turn really did swap the two ends of the map, it isn't just the same frame re-labelled.
     const swapped = pickIsoTileAt(329, 192)
     expect(swapped && { col: swapped.col, row: swapped.row }).toEqual({ col: COLS - 1, row: ROWS - 1 })
   })
 })
 
 // ────────────────────────────────────────────────────────────────────────────────────────────────────────
-describe('4 — a depth/depthDir span (a roof) stays GRID-ALIGNED under rotation', () => {
+describe('4, a depth/depthDir span (a roof) stays GRID-ALIGNED under rotation', () => {
   const SPAN = 3
   const ANCHOR: [number, number] = [1, 0]
   // A roof column authored along +row ('left-down'), the axis TILESET-AUTHORING §3 collapses a gable into.
@@ -217,7 +216,7 @@ describe('4 — a depth/depthDir span (a roof) stays GRID-ALIGNED under rotation
   }]
   const BLOCK_H = TILE_W * ISO_BLOCK_H_FRAC
 
-  test('the span covers the SAME WORLD cells at every facing — picked at each cell\'s rotated position', () => {
+  test('the span covers the SAME WORLD cells at every facing, picked at each cell\'s rotated position', () => {
     for (const facing of FACINGS) {
       renderIso(gridWith(roof()), facing)
       for (let k = 0; k < SPAN; k++) {
@@ -241,7 +240,7 @@ describe('4 — a depth/depthDir span (a roof) stays GRID-ALIGNED under rotation
 // ────────────────────────────────────────────────────────────────────────────────────────────────────────
 describe('OCCLUSION follows the rotated camera (the painter sorts in the VIEW frame)', () => {
   // Two tall blocks on the same iso screen column: (1,1) sits BEHIND (2,2) at facing 0. A half turn reverses
-  // depth, so (1,1) must then draw IN FRONT — if the painter kept sorting by the world (col+row) the rotated
+  // depth, so (1,1) must then draw IN FRONT, if the painter kept sorting by the world (col+row) the rotated
   // map would render inside-out and a click would keep hitting the tile that is now behind.
   const SCALE_Y = 3
   const BACK: [number, number] = [1, 1]
@@ -278,7 +277,7 @@ describe('the __setCameraFacing window seam (what the rotate button drives until
 
     seam().__setCameraFacing!(2)
     expect(seam().__cameraFacing!()).toBe(2)
-    renderIso(gridWith(cornerBlocks())) // NO cameraFacing param — the seam drives it
+    renderIso(gridWith(cornerBlocks())) // NO cameraFacing param, the seam drives it
     near(drawnAnchor(0, 0), expectedScreen(0, 0, 2))
   })
 
@@ -291,10 +290,10 @@ describe('the __setCameraFacing window seam (what the rotate button drives until
 })
 
 // ────────────────────────────────────────────────────────────────────────────────────────────────────────
-describe('the FLAT (bare-cell) screen↔cell pair — the editor\'s fallback when no tile is under the pointer', () => {
+describe('the FLAT (bare-cell) screen↔cell pair, the editor\'s fallback when no tile is under the pointer', () => {
   // The inverted picker handles any cell that DREW a tile; a bare cell falls back to inverting the diamond,
   // which must go back through deorientCell or a rotated camera would select a mirrored/transposed cell.
-  // The camera these take is the VIEW-frame focus — the SAME `isoViewFocus` the render resolves, which is the
+  // The camera these take is the VIEW-frame focus, the SAME `isoViewFocus` the render resolves, which is the
   // whole point of exporting it: the click and the pixels read one camera, so they cannot drift apart.
   const camFor = (facing: Orientation) => ({
     w: W, h: H, cellSize: CELL, isoScale: ISO,
@@ -322,7 +321,7 @@ describe('the FLAT (bare-cell) screen↔cell pair — the editor\'s fallback whe
   })
 
   test('a rotated camera resolves the SAME pixel to a DIFFERENT world cell (the deorient really runs)', () => {
-    // The viewport centre is always the camera's own cell — world (2,1) — at every facing; a NEIGHBOURING
+    // The viewport centre is always the camera's own cell, world (2,1), at every facing; a NEIGHBOURING
     // pixel, though, belongs to a different world cell each time the map turns.
     const offCentre = { x: W / 2 + TILE_W, y: H / 2 }
     const resolved = FACINGS.map(f => JSON.stringify(isoScreenToWorldCell(offCentre.x, offCentre.y, camFor(f), COLS, ROWS, f)))
@@ -332,7 +331,7 @@ describe('the FLAT (bare-cell) screen↔cell pair — the editor\'s fallback whe
 })
 
 // ────────────────────────────────────────────────────────────────────────────────────────────────────────
-describe('5 — the camera CLAMP is computed in the ORIENTED frame', () => {
+describe('5, the camera CLAMP is computed in the ORIENTED frame', () => {
   // A long, thin map: the view dims SWAP on an odd facing, so clamping with the un-swapped dims throws the
   // camera thousands of pixels off the map.
   const BIG_COLS = 60, BIG_ROWS = 20

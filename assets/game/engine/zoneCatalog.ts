@@ -3,7 +3,7 @@
  *
  * `engine/zones.ts` authored all of this: ground palettes, the hazard and trail tile, the curated tree /
  * decor / flower tile each season wears, its bloom variants, and its temple and cave palettes. That file
- * named its own destination in a comment — — and
+ * named its own destination in a comment,, and
  *
  * Season-INDEPENDENT tables (tree shape weights, rock shades, cave decor, prop art) are not per-zone, so
  * they arrive in the `game_rules` bundles rather than repeated in every season.
@@ -36,7 +36,7 @@ export interface ZoneRow {
   position: number
   palette: ZonePalette
   tiles: { tree?: string; decor?: string; flower?: string }
-  /** Null for a season that does not flower — different from one that blooms with nothing. */
+  /** Null for a season that does not flower, different from one that blooms with nothing. */
   flowers: { variants: FlowerKind[] } | null
   temple: Record<string, unknown>
   cave: Record<string, unknown>
@@ -68,7 +68,7 @@ export async function loadZones(): Promise<void> {
     if (!res.ok) throw new Error(`HTTP ${res.status}`)
     installZones(await res.json())
   } catch (error) {
-    console.warn('[zones] the season catalog could not be loaded — nothing has a palette', error)
+    console.warn('[zones] the season catalog could not be loaded, nothing has a palette', error)
   }
 }
 

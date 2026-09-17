@@ -1,17 +1,17 @@
 /**
- * Per-tile DISPLAY MODE — the DATA PATH (settings → tileRenderBehavior → asset) and the render ROUTING.
+ * Per-tile DISPLAY MODE, the DATA PATH (settings → tileRenderBehavior → asset) and the render ROUTING.
  *
  * `display` is a per-tile render SETTING ("all-faces" | "single") that rides the SAME generic path as
  * fadeNear/cutawayRoof: the API serves the tile's `settings` verbatim; `tileRenderBehavior` extracts the
  * behavior keys onto the placed asset; the render reads `asset.settings.display`. Only the NON-default
- * "single" carries through — "all-faces" / absent leaves `asset.settings` unset, so a default tile is
+ * "single" carries through, "all-faces" / absent leaves `asset.settings` unset, so a default tile is
  * byte-identical to before.
  *
  * This file proves (jsdom, no real raster needed):
  *   1. `tileRenderBehavior` extracts `display` correctly (and never leaks it for the default).
  *   2. `stampComposition` copies a tile's `settings.display` onto the placed asset (settings → asset).
  *   3. `drawIsoAssetAscii` ROUTES on `asset.settings.display`: "single" draws the tile ONCE (a centered
- *      billboard) while "all-faces"/default draws it on all THREE faces — counted via a recording context.
+ *      billboard) while "all-faces"/default draws it on all THREE faces, counted via a recording context.
  */
 import { makeStyleTile, setStyleTile, styleCatalog } from '@/engine/tileset/styleTiles'
 import { tileRenderBehavior } from '@/engine/tileset/tileset'
@@ -21,13 +21,13 @@ import { IsometricGrid, type GridAsset } from '@/engine/IsometricGrid'
 import { EMOJI_STYLE } from '@/game/artStyle'
 import type { Composition } from '@/engine/tileset/tileset'
 
-describe('tileRenderBehavior — extracts settings.display (the data extraction)', () => {
+describe('tileRenderBehavior, extracts settings.display (the data extraction)', () => {
   test('absent settings → undefined (a default tile carries nothing)', () => {
     expect(tileRenderBehavior(undefined)).toBeUndefined()
     expect(tileRenderBehavior({})).toBeUndefined()
   })
 
-  test('display "all-faces" carries NOTHING — only the non-default rides through', () => {
+  test('display "all-faces" carries NOTHING, only the non-default rides through', () => {
     expect(tileRenderBehavior({ display: 'all-faces' })).toBeUndefined()
   })
 
@@ -41,14 +41,14 @@ describe('tileRenderBehavior — extracts settings.display (the data extraction)
   })
 })
 
-describe('stampComposition — a composition cell copies its tile\'s settings.display onto the placed asset', () => {
+describe('stampComposition, a composition cell copies its tile\'s settings.display onto the placed asset', () => {
   const SINGLE_LABEL = '__disp_water_single__'
   const PLAIN_LABEL = '__disp_water_plain__'
   const KIND = '__disp_fountain__'
 
   beforeAll(() => {
     setStyleTile('ascii', SINGLE_LABEL, makeStyleTile(SINGLE_LABEL, { char: '~', position: 'single', walkable: false, colorRole: 'water', settings: { display: 'single' } }))
-    // The SAME tile shape with no `settings` at all — the control. Both go through `setStyleTile`, the one
+    // The SAME tile shape with no `settings` at all, the control. Both go through `setStyleTile`, the one
     // way into the store, so this pair differs by exactly one key.
     setStyleTile('ascii', PLAIN_LABEL, makeStyleTile(PLAIN_LABEL, { char: '~', position: 'single', walkable: false, colorRole: 'water' }))
     ;(styleCatalog('ascii').compositions as Record<string, Composition>)[KIND] = {
@@ -128,7 +128,7 @@ describe('drawIsoAssetAscii ROUTES on asset.settings.display (end-to-end)', () =
     expect(r.images.length).toBe(3)
   })
 
-  test('display "single" → the tile is drawn ONCE (1 image draw — the centered billboard)', () => {
+  test('display "single" → the tile is drawn ONCE (1 image draw, the centered billboard)', () => {
     const r = recordingCtx()
     drawIsoAssetAscii(r.ctx, 100, 120, asset({ settings: { display: 'single' } }), 22, 11, 0, false, 'day', EMOJI_STYLE)
     expect(r.images.length).toBe(1)

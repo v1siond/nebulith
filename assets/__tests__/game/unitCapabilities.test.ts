@@ -7,7 +7,7 @@
  * These tests prove the two capability gates that USED to be hard-coded to `kind === 'enemy'` now read a
  * per-unit SETTING (`hittable` / `hostile`) with a kind-derived DEFAULT, so:
  *   • existing saves are unchanged (an enemy defaults attackable + hostile; others default neither), AND
- *   • ANY unit becomes attackable / hostile via its setting — no per-kind capability code.
+ *   • ANY unit becomes attackable / hostile via its setting, no per-kind capability code.
  *
  * Behaviour, not implementation: alongside the pure predicates we drive the REAL targeting (`findTarget`)
  * and the REAL combat tick (`stepCombat`) so the capability is proven genuinely honored, not hollow.
@@ -25,7 +25,7 @@ const playerAt = (col: number, row: number, facing: PlayerState['facing']): Play
   x: col * CS + CS / 2, z: row * CS + CS / 2, facing, moving: false, frame: 0,
 })
 
-describe('capabilities — isAttackable is the `hittable` SETTING, defaulted by kind', () => {
+describe('capabilities, isAttackable is the `hittable` SETTING, defaulted by kind', () => {
   it('defaults: enemy attackable, npc + player NOT (existing saves unchanged)', () => {
     expect(isAttackable(makeEnemy('e', 0, 0, 'goblin'))).toBe(true)
     expect(isAttackable(makeNpc('n', 0, 0))).toBe(false)
@@ -39,21 +39,21 @@ describe('capabilities — isAttackable is the `hittable` SETTING, defaulted by 
   })
 })
 
-describe('capabilities — isHostile is the `hostile` SETTING, defaulted by kind', () => {
+describe('capabilities, isHostile is the `hostile` SETTING, defaulted by kind', () => {
   it('defaults: enemy hostile, npc + player NOT', () => {
     expect(isHostile(makeEnemy('e', 0, 0, 'goblin'))).toBe(true)
     expect(isHostile(makeNpc('n', 0, 0))).toBe(false)
     expect(isHostile(makePlayer('p', 0, 0))).toBe(false)
   })
 
-  it('the setting decouples HOSTILE from ATTACKABLE — a unit can be hittable but peaceful', () => {
+  it('the setting decouples HOSTILE from ATTACKABLE, a unit can be hittable but peaceful', () => {
     const peacefulTarget: Entity = { ...makeNpc('n', 0, 0), hittable: true, hostile: false }
     expect(isAttackable(peacefulTarget)).toBe(true)
     expect(isHostile(peacefulTarget)).toBe(false)
   })
 })
 
-describe('capabilities — targeting honors `hittable` (a non-enemy unit becomes attackable via its setting)', () => {
+describe('capabilities, targeting honors `hittable` (a non-enemy unit becomes attackable via its setting)', () => {
   it('findTarget selects a hittable NPC standing adjacent, and ignores a plain (non-hittable) NPC', () => {
     const hostileNpc: Entity = { ...makeNpc('friend', 10, 10), hittable: true }
     const plainNpc = makeNpc('plain', 10, 10)
@@ -70,7 +70,7 @@ describe('capabilities — targeting honors `hittable` (a non-enemy unit becomes
   })
 })
 
-describe('capabilities — the combat runtime gives any ATTACKABLE unit a real combat state (not hollow)', () => {
+describe('capabilities, the combat runtime gives any ATTACKABLE unit a real combat state (not hollow)', () => {
   const baseInput = (entities: Entity[]): CombatStepInput => ({
     player: playerAt(0, 0, 'down'),
     entities,

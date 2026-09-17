@@ -1,24 +1,24 @@
 /**
- * Tile Animation — the shared, pure animation ENGINE (Phase 1).
+ * Tile Animation, the shared, pure animation ENGINE (Phase 1).
  *
  * ONE envelope for every animated tile OR unit. An `Animation` has a `kind`:
- *   - `'settings'` — tweens a tile's live render SETTINGS (position, zoom, size, colour, opacity, …)
+ *   - `'settings'`, tweens a tile's live render SETTINGS (position, zoom, size, colour, opacity, …)
  *     from a `from` value to a `to` value over one `durationMs`. Many settings move together (`tracks[]`).
- *   - `'sprite'` — swaps baked frame IMAGES (a walk/idle/attack cycle). It carries the SAME frame model a
- *     unit uses (`AnimFrame` — a tile label + optional flip, resolved label→baked image), an entity-style
+ *   - `'sprite'`, swaps baked frame IMAGES (a walk/idle/attack cycle). It carries the SAME frame model a
+ *     unit uses (`AnimFrame`, a tile label + optional flip, resolved label→baked image), an entity-style
  *     `spriteTrigger` (idle/move/attack/interact/key) and a `direction`, so a UNIT's frame-swap animation IS
  *     a sprite Animation and TILES can carry one too. `spriteFrameIndex` derives the live frame from the
- *     clock; it writes no render settings (so `animationValue` returns `{}` for it — the renderer draws the
+ *     clock; it writes no render settings (so `animationValue` returns `{}` for it, the renderer draws the
  *     resolved frame's image instead). See `entityAnimation.spriteFromEntity` / `entityFromSprite` (the bridge
  *     the shared authoring modal uses so a unit edits its animations as sprite kinds without changing storage).
  *
  * PURE + clock-derived (no per-instance state, no canvas): the value at time `nowMs` for a tile placed
- * at `placedAtMs` is a deterministic function of the envelope + the two timestamps — the renderer reads
+ * at `placedAtMs` is a deterministic function of the envelope + the two timestamps, the renderer reads
  * the RAF clock each frame and applies the result (exactly how every current engine subsystem works).
  * `startDelayMs`, `loopDelayMs`, `loop`, and `ease` shape the phase; the per-tile `placedAtMs` anchors
  * the start delay so a LIST of animations sharing one anchor produces A→B→C chains from their delays.
  *
- * Compliance (MAP-MODEL / TILE-BACKEND-MIGRATION): the ANIMATION is data — an envelope authored in the
+ * Compliance (MAP-MODEL / TILE-BACKEND-MIGRATION): the ANIMATION is data, an envelope authored in the
  * backend (composition/tile default) or per-instance in `Template.assetsData`. This module holds NO tile
  * art and NO hardcoded tiles; it only computes live values the renderer drives. `trigger` + `scope` are
  * metadata consumed by later render/play phases; the pure interpolator ignores them (the caller passes
@@ -28,7 +28,7 @@
 import { lerp } from '@/lib/math'
 import { parseColor } from '@/engine/colors'
 // The sprite kind REUSES the unit frame model (don't fork it): a frame is a tile label + flip, its trigger is
-// the entity event model (idle/move/attack/…), its direction the entity facing. Type-only import — erased at
+// the entity event model (idle/move/attack/…), its direction the entity facing. Type-only import, erased at
 // compile, so there is no runtime cycle even though entityAnimation.ts imports SpriteAnimation back for its bridge.
 import type { AnimFrame, AnimTrigger, AnimDirection } from '@/game/runtime/entityAnimation'
 
@@ -56,11 +56,11 @@ export type SettingKey =
 export type AnimationKind = 'settings' | 'sprite'
 
 /** Interpolation curve. `sine`/`ease` = ease-in-out (matches `cellAnimation.easeT`); `linear` = default;
- *  `flicker` = an irregular, STEPPED envelope for a FAILING bulb (not a smooth curve — see `flickerEase`). */
+ *  `flicker` = an irregular, STEPPED envelope for a FAILING bulb (not a smooth curve, see `flickerEase`). */
 export type Ease = 'linear' | 'sine' | 'ease' | 'flicker'
 
 /** How an animation fires. `load` = plays immediately; `proximity` uses `radiusCells` from the hero;
- *  `night` is a CONDITION (not a one-shot) — the animation plays ONLY while the scene is in night mode, so
+ *  `night` is a CONDITION (not a one-shot), the animation plays ONLY while the scene is in night mode, so
  *  a lamp flicker rests in day and comes alive at night. The pure interpolator ignores it; the render bridge
  *  (`resolveAssetAnimation`, gated by the view's `dayNight`) drops a `night` animation while it's day. */
 export type TriggerEvent = 'load' | 'attack' | 'interact' | 'proximity' | 'night'
@@ -70,7 +70,7 @@ export type TileView = 'iso' | '2d' | 'top'
 
 export interface AnimationTrigger {
   on: TriggerEvent
-  /** proximity only — radius in cells/blocks, measured from the hero. */
+  /** proximity only, radius in cells/blocks, measured from the hero. */
   radiusCells?: number
 }
 
@@ -122,24 +122,24 @@ interface AnimationBase {
   scope?: AnimationScope
 }
 
-/** The settings kind — drives live render settings. Fully implemented in Phase 1. */
+/** The settings kind, drives live render settings. Fully implemented in Phase 1. */
 export interface SettingsAnimation extends AnimationBase {
   kind: 'settings'
   tracks: AnimationTrack[]
 }
 
 /**
- * The sprite kind — a frame-swap animation (walk/idle/attack), the SAME model a unit carries. Shared by tiles
+ * The sprite kind, a frame-swap animation (walk/idle/attack), the SAME model a unit carries. Shared by tiles
  * and units: a unit's authored animations ARE sprite Animations (via the entityAnimation bridge); a tile can
  * carry one too. `spriteFrameIndex` derives the live frame from the clock; it writes no render settings.
  */
 export interface SpriteAnimation extends AnimationBase {
   kind: 'sprite'
-  /** the frames to swap through — the unit frame model (a tile label + optional flip), each resolved
+  /** the frames to swap through, the unit frame model (a tile label + optional flip), each resolved
    *  label→baked IMAGE by the renderer/authoring preview (never a raw glyph). Drawn in order, spread evenly
    *  across `durationMs`; an empty frame is the element's own base tile. */
   frames: AnimFrame[]
-  /** what makes this variant play — the ENTITY event model (idle/move/attack/interact/key). Absent = ambient
+  /** what makes this variant play, the ENTITY event model (idle/move/attack/interact/key). Absent = ambient
    *  (plays like a `load` loop). Distinct from the settings-kind `trigger` (load/proximity/night). */
   spriteTrigger?: AnimTrigger
   /** the facing this variant plays for (a walk-left vs walk-right pair); 'any'/absent = every facing. */
@@ -152,30 +152,29 @@ export type Animation = SettingsAnimation | SpriteAnimation
 export type AnimatedValues = Partial<Record<SettingKey, number | string>>
 
 /**
- * A resolved setting AND the `from` baseline of the winning track — so the render bridge can COMPOSE the
+ * A resolved setting AND the `from` baseline of the winning track, so the render bridge can COMPOSE the
  * animation ON TOP of the tile's base value instead of MASKING it (the Image #40 fix). Carried by
  * `resolveAnimatedSettingsDetailed`; `resolveAnimatedSettings` strips it back to plain values.
  */
 export interface AnimatedSetting {
   value: number | string
-  /** the winning track's `from` — the start the animation's delta / ratio is measured against. */
+  /** the winning track's `from`, the start the animation's delta / ratio is measured against. */
   from: number | string
 }
 export type AnimatedSettingsDetailed = Partial<Record<SettingKey, AnimatedSetting>>
 
-/** Settings whose value STEPS (no tween) — `display` flips at the temporal midpoint. */
+/** Settings whose value STEPS (no tween), `display` flips at the temporal midpoint. */
 const STEP_SETTINGS: ReadonlySet<SettingKey> = new Set<SettingKey>(['display'])
 /** Settings interpolated as RGB colours rather than plain numbers. */
 const COLOR_SETTINGS: ReadonlySet<SettingKey> = new Set<SettingKey>(['color'])
 
 /**
- * COMPOSITION CLASSES — how an animated setting COMBINES with the tile's BASE value in the render bridge.
+ * COMPOSITION CLASSES, how an animated setting COMBINES with the tile's BASE value in the render bridge.
  * The animation is a change layered ON TOP of the base slider (it never masks it): a base height 3 with a
  * `1→4` grow renders 3→6, and editing the base height shifts the whole animated range.
  *   - ADDITIVE       → rendered = base + (value − from)   (the animation's DELTA-from-start rides the base)
  *   - MULTIPLICATIVE → rendered = base × (value / from)   (the animation's RATIO-from-start scales the base)
- * `color`/`zIndex`/`display` are last-wins (no base to compose) and `opacity` is a base-alpha MULTIPLIER —
- * none route through the delta/ratio composition below.
+ * `color`/`zIndex`/`display` are last-wins (no base to compose) and `opacity` is a base-alpha MULTIPLIER, * none route through the delta/ratio composition below.
  */
 export const ADDITIVE_SETTINGS: ReadonlySet<SettingKey> = new Set<SettingKey>([
   'height',
@@ -187,11 +186,11 @@ export const ADDITIVE_SETTINGS: ReadonlySet<SettingKey> = new Set<SettingKey>([
 export const MULTIPLICATIVE_SETTINGS: ReadonlySet<SettingKey> = new Set<SettingKey>(['zoom', 'width'])
 
 /**
- * FLICKER envelope — a FAILING bulb, NOT a smooth curve. Deterministic pseudo-noise over the phase `t`
- * (∈[0,1]): the bulb is fully ON (envelope 0) for the VAST MAJORITY of the loop (~85% of slots) — a normal-
- * looking lamp that only OCCASIONALLY faults, not a constant strobe — punctuated by brief, ERRATIC dips of
+ * FLICKER envelope, a FAILING bulb, NOT a smooth curve. Deterministic pseudo-noise over the phase `t`
+ * (∈[0,1]): the bulb is fully ON (envelope 0) for the VAST MAJORITY of the loop (~85% of slots), a normal-
+ * looking lamp that only OCCASIONALLY faults, not a constant strobe, punctuated by brief, ERRATIC dips of
  * varying depth at IRREGULAR times. The phase is quantized into fine slots; a per-slot hash GATES whether that
- * slot faults, and a second hash picks the fault DEPTH — a full-off blink or a partial dip — giving a
+ * slot faults, and a second hash picks the fault DEPTH, a full-off blink or a partial dip, giving a
  * non-uniform, STEPPED on/off pattern, never a sine yoyo. PURE + repeatable.
  *   0        → bulb fully lit (most of the loop)
  *   1        → a full-off blink (the darkest fault)
@@ -204,9 +203,9 @@ export function flickerEase(t: number): number {
     return s - Math.floor(s) // 0..1, deterministic
   }
   const slot = Math.floor(x * 37) // 37 fine slots across the loop → a stepped, low-variance mostly-ON baseline
-  if (hash(slot + 1) < 0.85) return 0 // ~85% of slots stay fully ON — the dips are a rare minority (a faulting lamp)
+  if (hash(slot + 1) < 0.85) return 0 // ~85% of slots stay fully ON, the dips are a rare minority (a faulting lamp)
   const depth = hash(slot * 1.7 + 5) // an erratic per-slot fault depth (varying severity)
-  return depth > 0.6 ? 1 : 0.4 + 0.55 * depth // a full-off blink, or a partial dip (0.4..~0.73) — irregular
+  return depth > 0.6 ? 1 : 0.4 + 0.55 * depth // a full-off blink, or a partial dip (0.4..~0.73), irregular
 }
 
 /** Eased 0→1 parameter. `sine`/`ease` = ease-in-out; `flicker` = the irregular failing-bulb envelope;
@@ -275,7 +274,7 @@ function trackValue(track: AnimationTrack, raw: number, eased: number): number |
 /**
  * The live setting overrides produced by ONE animation at `nowMs` for a tile placed at `placedAtMs`. PURE.
  * `settings` kind → one entry per track (its current tweened/stepped value). `sprite` kind → `{}` (playback
- * stubbed for Phase 1; use `spriteFrameIndex`). Trigger/scope are NOT consulted here — the caller decides
+ * stubbed for Phase 1; use `spriteFrameIndex`). Trigger/scope are NOT consulted here, the caller decides
  * which animations are playing.
  */
 export function animationValue(anim: Animation, nowMs: number, placedAtMs: number): AnimatedValues {
@@ -286,7 +285,7 @@ export function animationValue(anim: Animation, nowMs: number, placedAtMs: numbe
 }
 
 /**
- * Like {@link animationValue}, but each entry also carries the track's `from` baseline — the extra datum the
+ * Like {@link animationValue}, but each entry also carries the track's `from` baseline, the extra datum the
  * render bridge needs to COMPOSE the animation onto the tile's base value (base + delta / base × ratio)
  * rather than override it. `settings` kind → one entry per track; `sprite` kind → `{}` (playback stubbed). PURE.
  */
@@ -295,7 +294,7 @@ export function animationValueDetailed(
   nowMs: number,
   placedAtMs: number,
 ): AnimatedSettingsDetailed {
-  if (anim.kind !== 'settings') return {} // sprite writes no render settings — its live frame comes from spriteFrameIndex
+  if (anim.kind !== 'settings') return {} // sprite writes no render settings, its live frame comes from spriteFrameIndex
   const raw = rawProgress(anim, nowMs, placedAtMs)
   const eased = easeAnim(anim.ease, raw)
   const out: AnimatedSettingsDetailed = {}
@@ -347,7 +346,7 @@ export function resolveAnimatedSettingsDetailed(
 }
 
 /**
- * The composed live setting VALUES (the `from` baseline stripped) — the simple view used by the authoring
+ * The composed live setting VALUES (the `from` baseline stripped), the simple view used by the authoring
  * preview and the pure unit tests. Winner selection is identical to `resolveAnimatedSettingsDetailed`. PURE.
  */
 export function resolveAnimatedSettings(
@@ -369,11 +368,11 @@ export function resolveAnimatedSettings(
  */
 export function composeAnimatedSetting(setting: SettingKey, base: number, value: number, from: number): number {
   if (MULTIPLICATIVE_SETTINGS.has(setting)) return from === 0 ? value : base * (value / from)
-  return base + (value - from) // additive — the default for the delta-composed numeric settings
+  return base + (value - from) // additive, the default for the delta-composed numeric settings
 }
 
 /**
- * Does `anim` play in the given (style, view)? An absent/empty scope list means "all". PURE — later
+ * Does `anim` play in the given (style, view)? An absent/empty scope list means "all". PURE, later
  * render phases call this to gate playback per active style/view.
  */
 export function animationMatchesScope(anim: Animation, style: TileStyle, view: TileView): boolean {
@@ -386,7 +385,7 @@ export function animationMatchesScope(anim: Animation, style: TileStyle, view: T
 
 /**
  * The live frame index of a sprite animation at `nowMs` for an element placed at `placedAtMs`. PURE +
- * clock-derived, exactly like the settings interpolator — no per-frame state. Semantics mirror the unit
+ * clock-derived, exactly like the settings interpolator, no per-frame state. Semantics mirror the unit
  * player (`entityAnimation.loopFrameIndex`) so a unit's animation plays identically whether the renderer
  * reads it here or there, extended with the envelope's `startDelayMs`/`placedAtMs` anchor:
  *   - before it is placed or still inside the start delay → frame 0 (deferred, holds the base frame).

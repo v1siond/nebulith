@@ -1,8 +1,8 @@
 /**
- * THE TILE STORE — one shape, one store, every art style.
+ * THE TILE STORE, one shape, one store, every art style.
  *
  *   > 1 game engine, multiple styles. That's it. We don't need an engine for ascii, another for emoji,
- *   > another for X art style. Changing a style just changes the database of tiles — it just changes the
+ *   > another for X art style. Changing a style just changes the database of tiles, it just changes the
  *   > png associated with the name. `grass -> ascii`, `grass -> emoji`: same name, same label, same
  *   > identifier, different png.
  *
@@ -13,7 +13,7 @@
  * They don't. `asciiTileset.ts` and `emojiTileset.ts` are deleted. This module is the whole store: the
  * backend serves one payload per style, the loader installs it here, and everything reads it from here.
  *
- * The ONLY field a style changes is `image`. Everything else — name, bucket, height, collision — is a fact
+ * The ONLY field a style changes is `image`. Everything else, name, bucket, height, collision, is a fact
  * about the LABEL, and the backend enforces that (`normalize_label_facts/0`).
  *
  * `char` is the mark the picture was baked FROM (`;` for ascii grass, `🌿` for emoji grass). It is not a
@@ -24,11 +24,11 @@ import type { TilePose } from './pose'
 import type { Composition, GroundTile, TilePosition } from './tileset'
 import type { TileView, TileViewSettings } from './tileViewSettings'
 
-/** One tile, in one style. What the backend serves for a (STYLE, LABEL) pair — no per-style shape. */
+/** One tile, in one style. What the backend serves for a (STYLE, LABEL) pair, no per-style shape. */
 export interface StyleTile {
   /** The swap key. THE identifier: the same label names the same thing in every style. */
   label: string
-  /** Human display name. A LABEL fact — identical across styles (backend-enforced). */
+  /** Human display name. A LABEL fact, identical across styles (backend-enforced). */
   title?: string
   /** Sidebar bucket (terrain / walls / nature / units / …). A LABEL fact. */
   category?: string
@@ -37,7 +37,7 @@ export interface StyleTile {
   /** Does it block movement? A LABEL fact. */
   walkable: boolean
   /**
-   * THE PER-STYLE FIELD — the baked PNG this style draws for this label. This is the whole difference
+   * THE PER-STYLE FIELD, the baked PNG this style draws for this label. This is the whole difference
    * between `grass` in ascii and `grass` in emoji.
    */
   image?: string
@@ -65,7 +65,7 @@ export type StyleTileMap = Record<string, StyleTile>
  * index derived from the ground tiles' own `settings.variants`.
  *
  * `compositions` and `terrain` sit here rather than in a separate store because they are per-style views of
- * the same payload — splitting them is how there came to be two of everything in the first place.
+ * the same payload, splitting them is how there came to be two of everything in the first place.
  */
 export interface StyleCatalog {
   id: string
@@ -121,7 +121,7 @@ export function setStyleTile(styleId: string, label: string, tile: StyleTile): v
  *
  * The seam that lets a building COMPOSED TO ORDER be stamped by the path a seeded one uses. The editor
  * asks `/api/buildings/:type?width=&depth=` for a footprint nobody authored, installs the answer here under
- * a synthetic kind, and arms it — from that point nothing downstream knows or cares that it was generated.
+ * a synthetic kind, and arms it, from that point nothing downstream knows or cares that it was generated.
  *
  * One way in, mirroring `setStyleTile`, because there is one store.
  */
@@ -136,12 +136,12 @@ export function setStyleComposition(styleId: string, kind: string, comp: StyleCa
  *
  * A composition is STRUCTURE, not art: which cells exist, at which levels, carrying which LABELS. The art
  * is the label's baked picture, and that is the only thing a style changes (MAP-MODEL: one engine, N art
- * styles). So a composition belongs to all of them, and the seeded ones already do — the backend serves the
+ * styles). So a composition belongs to all of them, and the seeded ones already do, the backend serves the
  * same 24 with every tileset.
  *
  * A building COMPOSED TO ORDER (`house@4x4`) did not. It was installed into the ACTIVE style alone, while
  * every structure reader in the engine looks in one fixed catalog, so the two only met when the active
- * style happened to be that one. — measured:
+ * style happened to be that one., measured:
  * composed into `emoji`, a town stamped 0 wall/roof tiles; the same stage composed into `ascii` stamped 436.
  * The stamp returns a cell COUNT and nobody read it, so it failed in total silence.
  */
@@ -150,7 +150,7 @@ export function setSharedComposition(kind: string, comp: StyleCatalog['compositi
 }
 
 /**
- * A tile with the required fields filled in — for callers that only care about a couple of them.
+ * A tile with the required fields filled in, for callers that only care about a couple of them.
  *
  * `walkable` defaults true and `char` to empty, so a caller states only what it is testing or authoring.
  */
@@ -158,7 +158,7 @@ export function makeStyleTile(label: string, over: Partial<StyleTile> = {}): Sty
   return { label, char: '', walkable: true, ...over }
 }
 
-/** Install a whole style from sparse rows — the label is filled in from the key. */
+/** Install a whole style from sparse rows, the label is filled in from the key. */
 export function installStyleTiles(styleId: string, rows: Record<string, Partial<StyleTile>>, name = styleId): void {
   setStyleCatalog({
     id: styleId,

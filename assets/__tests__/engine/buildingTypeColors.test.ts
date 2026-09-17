@@ -1,9 +1,9 @@
 /**
- * PER-TYPE BUILDING MATERIALS/COLOURS + APEX NAME BADGE — DATA. Each building type gets
+ * PER-TYPE BUILDING MATERIALS/COLOURS + APEX NAME BADGE, DATA. Each building type gets
  * its own wall MATERIAL tile (house_3 brick, house_4 wood, house_5/office/civic stone, hospital plaster) +
- * roof (red gable, grey slate for stone, blue store sign, green hospital) — each carrying its colour in
- * settings.colors — and the building NAME is composition DATA (`title`) the stamp badges the roof apex with.
- * These assert the resolved COLOUR + LABEL + TITLE end-to-end through the DB tileset + stamp — never a
+ * roof (red gable, grey slate for stone, blue store sign, green hospital), each carrying its colour in
+ * settings.colors, and the building NAME is composition DATA (`title`) the stamp badges the roof apex with.
+ * These assert the resolved COLOUR + LABEL + TITLE end-to-end through the DB tileset + stamp, never a
  * hardcoded glyph.
  */
 import { styleCatalog } from '@/engine/tileset/styleTiles'
@@ -17,7 +17,7 @@ const roofOf = (grid: IsometricGrid, type: string) =>
   grid.assets.find(a => (a.label ?? '').startsWith('roof') && !(a.label ?? '').startsWith('roof_top') && a.type === type)!
 
 describe('per-type building colours come from the type-specific DB tile (not one shared roof)', () => {
-  test('the DB tileset resolves a store roof to BLUE and a hospital roof to GREEN — its own tile', () => {
+  test('the DB tileset resolves a store roof to BLUE and a hospital roof to GREEN, its own tile', () => {
     const store = resolveTile(styleCatalog('ascii'), 'summer', 'roof_store')
     const hospital = resolveTile(styleCatalog('ascii'), 'summer', 'roof_hospital')
     expect(store.color).toBe('#235a96') // recovered store blue (old BUILDING_PALETTES.store.roof)
@@ -27,7 +27,7 @@ describe('per-type building colours come from the type-specific DB tile (not one
     expect(store.color).not.toBe(hospital.color)
   })
 
-  test('type colours are ZONE-INDEPENDENT — a store roof reads blue in every season (old fixed palette)', () => {
+  test('type colours are ZONE-INDEPENDENT, a store roof reads blue in every season (old fixed palette)', () => {
     for (const zone of ['spring', 'summer', 'autumn', 'winter', 'desert', 'beach', 'lava']) {
       expect(resolveTile(styleCatalog('ascii'), zone, 'roof_store').color).toBe('#235a96')
     }
@@ -35,11 +35,11 @@ describe('per-type building colours come from the type-specific DB tile (not one
     expect(resolveTile(styleCatalog('ascii'), 'summer', 'roof').color).not.toBe(resolveTile(styleCatalog('ascii'), 'winter', 'roof').color)
   })
 
-  test('a stamped STORE reads its own tiles — cream walls + a blue Store sign over a flat roof', () => {
+  test('a stamped STORE reads its own tiles, cream walls + a blue Store sign over a flat roof', () => {
     const grid = mkGrid()
     stampBuildingComposition(grid, 'store', 5, 12, 12, 'summer', 'south')
     const labels = new Set(grid.assets.map(a => a.label))
-    // The store now has a FLAT roof (grey parapet + deck), so its blue moved to the roof-top SIGN — the
+    // The store now has a FLAT roof (grey parapet + deck), so its blue moved to the roof-top SIGN, the
     // realistic-store redesign (storefront + awning + flat roof), not a blue gable.
     expect(labels.has('parapet')).toBe(true)
     const sign = grid.assets.find(a => (a.label ?? '').startsWith('roof_top'))!
@@ -52,7 +52,7 @@ describe('per-type building colours come from the type-specific DB tile (not one
     expect(wall.color).toBe('#9e4b3b')
   })
 
-  test('a stamped HOSPITAL paints its roof green and its walls plaster-white — its own tiles', () => {
+  test('a stamped HOSPITAL paints its roof green and its walls plaster-white, its own tiles', () => {
     const grid = mkGrid()
     stampBuildingComposition(grid, 'hospital', 6, 12, 12, 'summer', 'south')
     expect(roofOf(grid, 'hospital_6').color).toBe('#2f7e50')
@@ -61,7 +61,7 @@ describe('per-type building colours come from the type-specific DB tile (not one
     expect(wall.color).toBe('#f0f0ea') // white clinic walls
   })
 
-  test('houses VARY BY MATERIAL — house_3/4/5 stamp visibly different WALL tiles (brick/wood/stone)', () => {
+  test('houses VARY BY MATERIAL, house_3/4/5 stamp visibly different WALL tiles (brick/wood/stone)', () => {
     const wallOf = (grid: IsometricGrid, type: string) =>
       grid.assets.find(a => (a.label ?? '').startsWith('wall') && a.type === type)!
     const walls = [3, 4, 5].map(len => {
@@ -69,11 +69,11 @@ describe('per-type building colours come from the type-specific DB tile (not one
       stampBuildingComposition(grid, 'house', len, 12, 12, 'summer', 'south')
       return wallOf(grid, `house_${len}`).color
     })
-    expect(new Set(walls).size).toBe(3) // three distinct wall MATERIALS — a street reads with variety
+    expect(new Set(walls).size).toBe(3) // three distinct wall MATERIALS, a street reads with variety
     expect(walls).toEqual(['#9e4b3b', '#8a5a2b', '#8f8b82']) // brick / wood / stone material tones
   })
 
-  test('a temple uses STONE walls + a SLATE gable — its masonry materials', () => {
+  test('a temple uses STONE walls + a SLATE gable, its masonry materials', () => {
     const grid = mkGrid()
     stampBuildingComposition(grid, 'temple', 8, 12, 12, 'summer', 'south')
     const roof = roofOf(grid, 'temple_8')
@@ -110,7 +110,7 @@ describe('the apex NAME badge comes from composition DATA (title), not a hardcod
   })
 })
 
-describe('a COLOUR override FILTERS just a building\'s roof + wall cells — colour is a per-tile setting', () => {
+describe('a COLOUR override FILTERS just a building\'s roof + wall cells, colour is a per-tile setting', () => {
   // Mirrors composition.ts isRoofLabel/isWallLabel: a roof cell is the whole roof volume (gable `roof*` +
   // office `rooftop_unit`, plus the flat-roof `flat_roof` deck and its `parapet` lip); a wall cell is any
   // `wall_*` material piece. Windows / doors / awnings keep their own colour.
@@ -134,14 +134,14 @@ describe('a COLOUR override FILTERS just a building\'s roof + wall cells — col
     expect(door.color).not.toBe('#c9a66b')
   })
 
-  test('the wall override is INDEPENDENT of the material — a re-materialed wall still filters to wallColor', () => {
+  test('the wall override is INDEPENDENT of the material, a re-materialed wall still filters to wallColor', () => {
     const grid = mkGrid()
     // material rewrites house_4's wood walls to STONE tiles; the colour setting still recolours them.
     stampBuildingComposition(grid, 'house', 4, 12, 12, 'summer', 'south', 'wall_stone', '#5a636b', '#e8dcc0')
     const walls = grid.assets.filter(a => isWall(a.label))
     expect(walls.length).toBeGreaterThan(0)
     expect(walls.every(a => a.label!.startsWith('wall_stone'))).toBe(true) // the MATERIAL (tile) is stone
-    expect(walls.every(a => a.color === '#e8dcc0')).toBe(true) // the COLOUR (setting) is cream — independent
+    expect(walls.every(a => a.color === '#e8dcc0')).toBe(true) // the COLOUR (setting) is cream, independent
   })
 
   test('an ABSENT override leaves every cell on its authored tile colour (backward compatible)', () => {
@@ -151,7 +151,7 @@ describe('a COLOUR override FILTERS just a building\'s roof + wall cells — col
     expect(wall.color).toBe(resolveTile(styleCatalog('ascii'), 'summer', wall.label!).color) // unchanged from the tile
   })
 
-  test('STORE fixed identity — a BLUE roof over the WHOLE flat-roof deck + WHITE walls', () => {
+  test('STORE fixed identity, a BLUE roof over the WHOLE flat-roof deck + WHITE walls', () => {
     const grid = mkGrid()
     stampBuildingComposition(grid, 'store', 5, 12, 12, 'summer', 'south', undefined, '#235a96', '#f0f0ea')
     const roofs = grid.assets.filter(a => isRoof(a.label))
@@ -163,7 +163,7 @@ describe('a COLOUR override FILTERS just a building\'s roof + wall cells — col
     expect(walls.every(a => a.color === '#f0f0ea')).toBe(true) // white walls, filtered from the brick tile
   })
 
-  test('HOSPITAL fixed identity — a GREEN gable roof + WHITE walls', () => {
+  test('HOSPITAL fixed identity, a GREEN gable roof + WHITE walls', () => {
     const grid = mkGrid()
     stampBuildingComposition(grid, 'hospital', 6, 12, 12, 'summer', 'south', undefined, '#2f7e50', '#f0f0ea')
     const roofs = grid.assets.filter(a => isRoof(a.label))

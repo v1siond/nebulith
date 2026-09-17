@@ -1,7 +1,7 @@
 /**
  * ONE DRAW PATH for every preview, and a cache for the small ones.
  *
- * — so the LIST swatches have to be the same picture as the big preview, which
+ *, so the LIST swatches have to be the same picture as the big preview, which
  * means they have to come from the same code. Two draw paths is how they drifted apart in the first place.
  *
  * The big preview draws live (it animates). A list of 23 object swatches cannot: each one is a full
@@ -21,19 +21,19 @@ import type { ZoneId } from '@/engine/zones'
 import type { Style } from '@/game/artStyle'
 import type { Entity } from '@/game/types'
 
-/** Which projection to draw — the same three the view bar offers. */
+/** Which projection to draw, the same three the view bar offers. */
 export type PreviewView = 'iso' | '2d' | 'top'
 
 /**
  * Draw a scene into a context with the renderer the view selects.
  *
- * `chrome: false` on every path. Each renderer draws its own on-screen text — iso and 2D print a `Pos:` /
- * `Grid:` readout, top-down prints a "TOP VIEW" heading — and a preview is a picture OF the world, not the
+ * `chrome: false` on every path. Each renderer draws its own on-screen text, iso and 2D print a `Pos:` /
+ * `Grid:` readout, top-down prints a "TOP VIEW" heading, and a preview is a picture OF the world, not the
  * world, so that text belongs to the editor's canvas alone. Without it every thumbnail came out with
  * "Pos: 84, 84" burned across the object.
  *
  * The `without…Recording` wrappers are not optional. `renderIso` and `render2D` keep a module-level record
- * of every tile they drew, and the map's picker reads that record to turn a click into a tile — so drawing a
+ * of every tile they drew, and the map's picker reads that record to turn a click into a tile, so drawing a
  * DIFFERENT grid through them leaves the picker pointing at a grid the user cannot see, and the next click
  * on the map resolves against it.
  */
@@ -50,7 +50,7 @@ export function drawPreviewScene(
   const { grid, span, anchor } = scene
   const cs = grid.cellSize
   // Every renderer frames the "player", so this is a CAMERA POSITION, not a character: it puts the subject
-  // in the middle of the box with no camera offset. `showPlayer: false` is what keeps it a camera — without
+  // in the middle of the box with no camera offset. `showPlayer: false` is what keeps it a camera, without
   // it the renderer also DREW this invented hero, which is why every preview had a figure standing on it
   // .
   const player = {
@@ -78,7 +78,7 @@ export function drawPreviewScene(
  * The cache. Keyed by everything that changes the picture, so a key collision cannot show the wrong tile.
  *
  * Capped and evicted oldest-first. A data URL for a 76px tile is a few KB, and the realistic working set is
- * one library's worth in one view — but a user who switches art style, zone and view repeatedly should not
+ * one library's worth in one view, but a user who switches art style, zone and view repeatedly should not
  * accumulate every combination for the life of the page.
  */
 const cache = new Map<string, string>()
@@ -86,7 +86,7 @@ const CACHE_MAX = 400
 
 function keyOf(subject: PreviewSubject): string {
   if (subject.kind === 'composition') return `c:${subject.comp}`
-  // A stage's picture is decided by every one of these, so all of them are in the key — two presets of the
+  // A stage's picture is decided by every one of these, so all of them are in the key, two presets of the
   // same variant differ only by `layout`, and the whole point of the card is to show that difference.
   if (subject.kind === 'stage') {
     return `s:${subject.variant}:${subject.layout ?? '-'}:${subject.zone}:${subject.seed}:${subject.cols}x${subject.rows}:${subject.nature?.canopy ?? '-'}`
@@ -99,7 +99,7 @@ function keyOf(subject: PreviewSubject): string {
  *
  * Null is the honest answer and the caller must render nothing rather than a stand-in: either the loaded
  * catalog does not describe the subject, or the canvas could not be read back. The second case is worth
- * naming — `toDataURL` throws on a canvas that has had a cross-origin image drawn into it, which is exactly
+ * naming, `toDataURL` throws on a canvas that has had a cross-origin image drawn into it, which is exactly
  * what the baked tile PNGs are. It works because the backend serves CORS headers on `/tiles/*` AND
  * `newTileImage` sets `crossOrigin` before `src`; if either half regresses, every thumbnail goes blank at
  * once rather than quietly drawing something wrong.
@@ -131,9 +131,9 @@ export function previewThumbnail(
   try {
     url = canvas.toDataURL()
   } catch {
-    // A tainted canvas. Report nothing rather than a broken picture — and do not cache the failure, so it
+    // A tainted canvas. Report nothing rather than a broken picture, and do not cache the failure, so it
     // recovers on its own once the CORS headers are back.
-    console.warn('[preview] the canvas could not be read back — thumbnails need CORS headers on /tiles/*')
+    console.warn('[preview] the canvas could not be read back, thumbnails need CORS headers on /tiles/*')
     return null
   }
   if (cache.size >= CACHE_MAX) {

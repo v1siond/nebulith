@@ -40,7 +40,7 @@ describe('removeSelectedBlock: removes the SELECTED tile(s) by stack slot, the f
     g.setGround(1, 1, 'grass'); g.setGround(2, 2, 'grass'); g.setGround(3, 3, 'grass')
     const tree = g.placeAsset(['🌲'], 1, 1, { type: 'tree', heightLevel: 1 }) // slot 1
     const rock = g.placeAsset(['🪨'], 2, 2, { type: 'rock', heightLevel: 1 }) // slot 1
-    // a tall wall: ONE asset (scaleY 3) — a collapsed vertical run — so it is a SINGLE stack slot, not three.
+    // a tall wall: ONE asset (scaleY 3), a collapsed vertical run, so it is a SINGLE stack slot, not three.
     const wall = g.placeAsset(['🧱'], 3, 3, { type: 'wall', heightLevel: 1 }); wall.scaleY = 3 // slot 1
 
     removeSelectedBlock(g, ['1,1,1', '2,2,1', '3,3,1'])
@@ -52,7 +52,7 @@ describe('removeSelectedBlock: removes the SELECTED tile(s) by stack slot, the f
     expect(g.groundAt(1, 1)).toBe('grass') // every floor survives
   })
 
-  test('a tall collapsed wall is ONE stack slot — its single key removes the whole wall (no run math)', () => {
+  test('a tall collapsed wall is ONE stack slot, its single key removes the whole wall (no run math)', () => {
     const g = makeGrid()
     g.setGround(4, 4, 'grass')
     const wall = g.placeAsset(['🧱'], 4, 4, { type: 'wall', heightLevel: 1 }); wall.scaleY = 3 // slot 1, spans 3 levels

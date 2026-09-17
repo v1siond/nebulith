@@ -1,11 +1,11 @@
 /**
- * AMBIENT asset animations — per-asset-type tile-variation frames that play continuously
+ * AMBIENT asset animations, per-asset-type tile-variation frames that play continuously
  * (a flower swaying). Built on the general
  * animationCycles engine: each entry is an Animation, and the resolver returns the current
  * frame via `frameAt`. Pure data + a lookup, so it's deterministic + unit-testable; the
  * renderer just draws whatever art comes back.
  *
- * Frame glyphs are intentionally subtle + tunable — the goal is a gentle "alive" shimmer,
+ * Frame glyphs are intentionally subtle + tunable, the goal is a gentle "alive" shimmer,
  * not a jarring swap. An asset with no entry here renders its static art unchanged.
  */
 import { type Animation, type AnimationCycle, frameAt, activeFrames } from './animationCycles'
@@ -15,7 +15,7 @@ export const ASSET_ANIMATIONS: Readonly<Record<string, Animation>> = {
   flower: { id: 'flower-sway', frames: [['*'], ['o'], ['*'], ['+']], durationMs: 1600, loop: true },
 }
 
-/** Every ambient animation keyed by Animation.id — the table `assetCycleFrame` resolves an
+/** Every ambient animation keyed by Animation.id, the table `assetCycleFrame` resolves an
  *  asset's authored cycle animation-ids against. */
 const ANIMATION_LIBRARY: Readonly<Record<string, Animation>> = Object.fromEntries(
   Object.values(ASSET_ANIMATIONS).map(a => [a.id, a]),
@@ -27,7 +27,7 @@ const ASSET_STATES: ReadonlySet<string> = new Set()
 /**
  * The live frame from an asset's AUTHORED cycles at `now`, or null when it has none (the
  * renderer then keeps the asset's normal art). Resolves the cycle's animation-ids against
- * ANIMATION_LIBRARY. Pure — same (cycles, now) → same frame.
+ * ANIMATION_LIBRARY. Pure, same (cycles, now) → same frame.
  */
 export function assetCycleFrame(
   cycles: readonly AnimationCycle[] | undefined,

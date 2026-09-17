@@ -1,7 +1,7 @@
 import { projectileCellAt, projectileArrived, resolveImpact } from '../../game/projectiles'
 import { muzzleOrigin } from '@/game/runtime/combat'
 
-describe('muzzleOrigin — the projectile leaves the weapon muzzle, not the shooter cell', () => {
+describe('muzzleOrigin, the projectile leaves the weapon muzzle, not the shooter cell', () => {
   test('muzzle 0.5 puts the origin halfway toward a 4-cell-away aim', () => {
     expect(muzzleOrigin(0, 0, 4, 0, 0.5)).toEqual({ col: 2, row: 0 })
   })

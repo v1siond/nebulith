@@ -1,5 +1,5 @@
 /**
- * isoDepthBox — DIRECTIONAL DEPTH: a block with depth D + a direction extrudes into ONE long iso box
+ * isoDepthBox, DIRECTIONAL DEPTH: a block with depth D + a direction extrudes into ONE long iso box
  * spanning D cells along one of the four iso diagonals, anchored at its base cell (NOT D cubes, NOT a
  * symmetric widening). The unit-cube geometry (isoBlockFaces) is asserted separately and UNCHANGED in
  * isoBlockFaces.test.ts; here we assert the extruded hull per direction, D=1 == the unit cube, and the
@@ -34,7 +34,7 @@ const sub = (p: Pt, q: Pt): Pt => ({ x: p.x - q.x, y: p.y - q.y })
 const len = (p: Pt) => Math.hypot(p.x, p.y)
 const setEq = (a: Set<string>, b: Set<string>) => a.size === b.size && [...a].every(x => b.has(x))
 
-describe('isoDepthBox — extrude a unit block into a long directional iso box', () => {
+describe('isoDepthBox, extrude a unit block into a long directional iso box', () => {
   test.each(DIRS)('%s: TOP-face FAR corners are offset by (D−1)*step; NEAR corners stay put', dir => {
     const { off, near, far } = SPEC[dir]
     const expected = new Set<string>([
@@ -83,7 +83,7 @@ describe('isoDepthBox — extrude a unit block into a long directional iso box',
   })
 })
 
-describe('depthCells — the D grid cells a directional box covers (collision + depth sort)', () => {
+describe('depthCells, the D grid cells a directional box covers (collision + depth sort)', () => {
   test.each([
     ['right-up', [{ col: 5, row: 5 }, { col: 5, row: 4 }, { col: 5, row: 3 }, { col: 5, row: 2 }]],
     ['left-up', [{ col: 5, row: 5 }, { col: 4, row: 5 }, { col: 3, row: 5 }, { col: 2, row: 5 }]],
@@ -99,7 +99,7 @@ describe('depthCells — the D grid cells a directional box covers (collision + 
   })
 })
 
-describe('depthFrontExtent — how far a box reaches toward the camera past its anchor (depth-sort key)', () => {
+describe('depthFrontExtent, how far a box reaches toward the camera past its anchor (depth-sort key)', () => {
   test('approaching dirs (+col/+row) reach D−1 closer; receding dirs (−col/−row) reach 0', () => {
     expect(depthFrontExtent(4, 'right-down')).toBe(3) // +col
     expect(depthFrontExtent(4, 'left-down')).toBe(3) // +row

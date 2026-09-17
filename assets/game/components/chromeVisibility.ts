@@ -1,22 +1,22 @@
 /**
- * WHEN IS THE EDITOR CHROME ON SCREEN — the single answer.
+ * WHEN IS THE EDITOR CHROME ON SCREEN, the single answer.
  *
  * The page asked this in six places, in three slightly different shapes, and §5.2 makes consolidating them
  * the prerequisite for the Week-2 bar split: splitting one top bar into a PROJECT bar and a VIEW bar doubles
  * the regions that must agree about it, and a condition copied seven times is a condition that will drift.
  *
  * Three questions, because there are genuinely three:
- *   - `chromeVisible`        — the editing furniture (bars, sidebars, inspector).
- *   - `canvasOverlayVisible` — things drawn ON the map, which the flow view also covers.
- *   - `chromeRestoreVisible` — the "show the UI again" button, the exact complement while editing.
- *   - `canvasFullBleed`       — the map has the whole screen, because no furniture is drawn around it.
+ *   - `chromeVisible`       , the editing furniture (bars, sidebars, inspector).
+ *   - `canvasOverlayVisible`, things drawn ON the map, which the flow view also covers.
+ *   - `chromeRestoreVisible`, the "show the UI again" button, the exact complement while editing.
+ *   - `canvasFullBleed`      , the map has the whole screen, because no furniture is drawn around it.
  *
  * Pure predicates: no React, no DOM.
  */
 
 /** Everything the question depends on. */
 export interface ChromeState {
-  /** The user's Preview toggle — false means "hide all the furniture". */
+  /** The user's Preview toggle, false means "hide all the furniture". */
   showSidebars: boolean
   /** Play mode owns the screen: canvas + HUD only. */
   playMode: boolean
@@ -55,7 +55,7 @@ export function canvasOverlayVisible(state: ChromeState): boolean {
 }
 
 /**
- * The "show UI again" affordance — visible exactly when the user hid the chrome themselves, never when play
+ * The "show UI again" affordance, visible exactly when the user hid the chrome themselves, never when play
  * mode or the games overlay hid it for their own reasons (each of those has its own way out).
  */
 export function chromeRestoreVisible(state: ChromeState): boolean {

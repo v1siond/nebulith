@@ -1,14 +1,14 @@
 /**
- * A UNIT STANDS ON THE GROUND — not on the roof over its head.
+ * A UNIT STANDS ON THE GROUND, not on the roof over its head.
  *
  * + "roof should have collissions, so this shouldn't be a posssible bug".
  *
- * The reproduced defect (live town, door cell 27,4 — `blocked=false`, cellStackTop=8):
+ * The reproduced defect (live town, door cell 27,4, `blocked=false`, cellStackTop=8):
  *   L0 path_stone | L1 door | L3 wall_stone_c | L4 window | L5 wall_stone_c | L6 window | L7 roof_top_slate
- * The renderer lifted the hero by `cellStackTop` — the top of EVERYTHING in the cell — so a hero standing in
+ * The renderer lifted the hero by `cellStackTop`, the top of EVERYTHING in the cell, so a hero standing in
  * the doorway was drawn 8 blocks up, on the roof.
  *
- * The rule: a unit stands on the cell's GROUND surface. Walls / doors / windows / roofs are structure — you
+ * The rule: a unit stands on the cell's GROUND surface. Walls / doors / windows / roofs are structure, you
  * pass through them (the cell is walkable) or they block the cell; they are never something a unit is lifted
  * onto. Raising the GROUND still lifts the unit, exactly like it lifts a stacked tile.
  */
@@ -30,7 +30,7 @@ const block = (g: IsometricGrid, col: number, row: number, label: string, level:
   a.height = 1
 }
 
-describe('unitStandLevel — a unit stands on the ground, never on the structure above it', () => {
+describe('unitStandLevel, a unit stands on the ground, never on the structure above it', () => {
   test('a BARE cell (its ground cleared) has nothing to stand on → level 0', () => {
     const g = grid()
     g.removeFloor(1, 1)

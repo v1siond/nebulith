@@ -1,14 +1,14 @@
 /**
- * The active ENTITY RESOLUTION holder — MINIMAL and EMPTY by design (the twin of the tileset holders).
+ * The active ENTITY RESOLUTION holder, MINIMAL and EMPTY by design (the twin of the tileset holders).
  *
  * The frontend holds NO entity data: how an enemy `enemyType` or a person `variant` resolves to a baked
  * tile slug comes from the nebulith backend. On mount, `loadEntitiesFromBackend` (entityLoader) fetches
  * `GET /api/entities` and calls `setEntityResolution` to fill this holder; the editor renders NOTHING
  * until then (the render gate waits on it alongside the tilesets). There is deliberately NO bundled
- * default — an empty holder can never resolve entities to a stale, frontend-authored mapping before the
+ * default, an empty holder can never resolve entities to a stale, frontend-authored mapping before the
  * backend one installs (per TILE-BACKEND-MIGRATION §9 / NEBULITH-SOURCE-OF-TRUTH).
  *
- * This file keeps only the shape + the setter/getter — the DATA lives in the backend (`EntitySource`).
+ * This file keeps only the shape + the setter/getter, the DATA lives in the backend (`EntitySource`).
  */
 
 /** The entity → baked-tile resolution served by `/api/entities`. */
@@ -24,7 +24,7 @@ export interface EntityResolution {
 }
 
 // Starts EMPTY (no bundled data): pre-load, `bakedEntityImage`/`enemyTileId`/`personVariantTileId` find
-// nothing and return undefined — the entity falls back to its base figure. The render is gated on the
+// nothing and return undefined, the entity falls back to its base figure. The render is gated on the
 // install, so this empty state never paints (no flash of a mis-resolved entity).
 const EMPTY: EntityResolution = { dir: '', tiles: {}, enemyTypeSlug: {}, variantSlug: {} }
 
@@ -40,7 +40,7 @@ export function setEntityResolution(resolution: EntityResolution): void {
   ENTITY_RESOLUTION = resolution
 }
 
-/** Reset the holder to EMPTY — the tests' teardown twin of `setEmojiTileset({})`. */
+/** Reset the holder to EMPTY, the tests' teardown twin of `setEmojiTileset({})`. */
 export function clearEntityResolution(): void {
   ENTITY_RESOLUTION = EMPTY
 }

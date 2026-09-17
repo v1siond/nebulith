@@ -1,8 +1,8 @@
 /**
- * FIGURE VITALS GEOMETRY — the HP bar + name label must sit TIGHT to the unit's head, "like ascii art
+ * FIGURE VITALS GEOMETRY, the HP bar + name label must sit TIGHT to the unit's head, "like ascii art
  * style", in every view + both styles. The bug: `drawFigureVitals` was fed a `figureTop` derived from the ASCII
-  * multi-row figure height (`art.length * lineHeight`) even when an EMOJI/image sprite was drawn — a short billboard
-  * grounded near the feet — so the bar floated ~3-5 cells ABOVE the emoji head. The fix passes the ACTUAL
+  * multi-row figure height (`art.length * lineHeight`) even when an EMOJI/image sprite was drawn, a short billboard
+  * grounded near the feet, so the bar floated ~3-5 cells ABOVE the emoji head. The fix passes the ACTUAL
   * drawn-sprite top, so the bar hugs the head in every branch.
  *
  * These drive the REAL view drawers (drawIsoEntity, drawTopEntity) onto a recording 2D context and read
@@ -19,12 +19,12 @@ import type { Entity } from '@/game/types'
 
 // This geometry test reads the drawn SPRITE's y via its fillText glyph, so it needs the base enemy to draw
 // as a 👾 GLYPH billboard (an image tile would draw via drawImage, which emits no measurable text). The
-// frontend ships no bundled default, so seed a glyph-only enemy tile here — exactly the "base 👾 GLYPH (no
+// frontend ships no bundled default, so seed a glyph-only enemy tile here, exactly the "base 👾 GLYPH (no
 // image)" the cases assume.
 beforeAll(() => { styleTiles('emoji').enemy = { char: '👾', color: '#b45ac0' }; rebuildEmojiStyle() })
 afterAll(() => { delete styleTiles('emoji').enemy; rebuildEmojiStyle() })
 
-// The HP-bar BODY rect (drawHpBar's second fillRect) — its fill colour is unique, so we find the bar's
+// The HP-bar BODY rect (drawHpBar's second fillRect), its fill colour is unique, so we find the bar's
 // bottom edge unambiguously. The glyph the enemy draws.
 const HP_BODY_FILL = '#3a1414'
 const ENEMY_EMOJI = '👾'
@@ -64,7 +64,7 @@ function recCtx(): Rec {
   return { ctx, rects, texts }
 }
 
-/** The HP bar's BODY rect (unique fill), or throws when it wasn't drawn — its bottom edge is the bar's
+/** The HP bar's BODY rect (unique fill), or throws when it wasn't drawn, its bottom edge is the bar's
  *  lowest point, the thing that must hug the head. */
 function hpBarBottom(rects: RectRec[]): number {
   const body = rects.find(r => r.fill === HP_BODY_FILL)
@@ -81,13 +81,13 @@ function enemy(): Entity {
   } as Entity
 }
 
-describe('drawFigureVitals — the shared tight-to-head contract', () => {
+describe('drawFigureVitals, the shared tight-to-head contract', () => {
   it('places the HP bar body exactly VITALS_HEAD_GAP_PX above the passed head y', () => {
     const { ctx, rects } = recCtx()
     const headY = 200
     const barHeight = 6
     drawFigureVitals(ctx, 100, headY, 30, barHeight, 12, 1, 'Hero')
-    // The bar body's BOTTOM sits the small fixed gap above the head — the whole point of the fix.
+    // The bar body's BOTTOM sits the small fixed gap above the head, the whole point of the fix.
     expect(headY - hpBarBottom(rects)).toBe(VITALS_HEAD_GAP_PX)
   })
 
@@ -103,7 +103,7 @@ describe('drawFigureVitals — the shared tight-to-head contract', () => {
   })
 })
 
-describe('EMOJI enemy — the bar hugs the short billboard, not a phantom ascii stack', () => {
+describe('EMOJI enemy, the bar hugs the short billboard, not a phantom ascii stack', () => {
   it('iso: HP bar sits within ~one cell of the emoji sprite (not multi-cell above)', () => {
     const { ctx, rects, texts } = recCtx()
     const tileH = 32
@@ -112,7 +112,7 @@ describe('EMOJI enemy — the bar hugs the short billboard, not a phantom ascii 
     expect(sprite).toBeDefined() // the emoji billboard actually drew (glyph branch)
     const gap = sprite!.y - hpBarBottom(rects) // emoji CENTRE y minus the bar bottom (bar is above → +ve)
     expect(gap).toBeGreaterThan(0)
-    expect(gap).toBeLessThan(tileH * 1.2) // TIGHT — the old ascii-height lift put this at ~5·tileH
+    expect(gap).toBeLessThan(tileH * 1.2) // TIGHT, the old ascii-height lift put this at ~5·tileH
   })
 
   it('2D: HP bar sits within ~one cell of the emoji sprite (not multi-cell above)', () => {
@@ -127,15 +127,14 @@ describe('EMOJI enemy — the bar hugs the short billboard, not a phantom ascii 
   })
 })
 
-// The third group here asserted that ASCII was different IN KIND — a tall stack of character rows whose
-// topmost glyph was the head, against emoji's short billboard — and it is deleted rather than re-pointed.
+// The third group here asserted that ASCII was different IN KIND, a tall stack of character rows whose
+// topmost glyph was the head, against emoji's short billboard, and it is deleted rather than re-pointed.
 //
 // That is no longer what ASCII is. An ascii unit is a GRID of characters BAKED TO A PICTURE in the backend
 // (a dog is not the letter 'd'), so it draws through the SAME sprite path emoji does; there is no ascii glyph
 // stack left to measure. Keeping the group meant asserting a second engine, which is the one thing the
-// tileset model forbids — and it could only be made to "pass" by hand-feeding this harness a live ascii
+// tileset model forbids, and it could only be made to "pass" by hand-feeding this harness a live ascii
 // glyph, i.e. by re-staging the removed model in the fixture.
 //
-// Nothing is lost. The two cases above already pin the bar against a real drawn sprite, and STYLE PARITY —
-// that ascii and emoji run one engine — is proved on a real canvas with real baked images in
+// Nothing is lost. The two cases above already pin the bar against a real drawn sprite, and STYLE PARITY, // that ascii and emoji run one engine, is proved on a real canvas with real baked images in
 // asciiSameEngineAsEmoji.realcanvas.test.ts, which is where it belongs.

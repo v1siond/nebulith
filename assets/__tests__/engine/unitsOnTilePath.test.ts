@@ -18,7 +18,7 @@ const emoji = styleById('emoji')
 
 const UNIT_KINDS = ['npc', 'enemy', 'player'] as const
 
-/** The three unit rows for one style. IDENTICAL in shape for every style — only the URL differs, which is
+/** The three unit rows for one style. IDENTICAL in shape for every style, only the URL differs, which is
  *  the whole definition of a style. This helper used to be two: an ascii one nesting `{glyph, image:{src}}`
  *  under a `tiles` map, and an emoji one with a flat `{char, image}` row. There was never a reason for two. */
 const unitsFor = (style: string): Record<string, { char: string; category: string; image: string }> =>
@@ -45,7 +45,7 @@ describe('a loaded unit tile is drawn as an IMAGE, in both styles', () => {
     expect(draw(kind, emoji).image?.src).toBe(`/tiles/emoji/${kind}.png`)
   })
 
-  it('differs between the styles ONLY by the URL — that is what a style is', () => {
+  it('differs between the styles ONLY by the URL, that is what a style is', () => {
     const a = draw('enemy', ascii)
     const e = draw('enemy', emoji)
     expect(a.image?.src).not.toBe(e.image?.src)
@@ -55,7 +55,7 @@ describe('a loaded unit tile is drawn as an IMAGE, in both styles', () => {
 
 describe('before the backend answers, nothing is invented', () => {
   it('resolves no image and no char, so the caller draws its pre-load figure', () => {
-    const d = draw('enemy', ascii) // nothing installed — the pre-load state
+    const d = draw('enemy', ascii) // nothing installed, the pre-load state
     expect(d.image).toBeUndefined()
     expect(d.char).toBe('')
   })

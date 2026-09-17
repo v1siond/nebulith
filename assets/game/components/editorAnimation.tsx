@@ -1,6 +1,6 @@
 // Tile & sprite ANIMATION authoring for the game-engine editor: the frame picker, per-animation rows,
 // the settings/sprite track editors, the live preview, and the TileAnimationEditor that hosts them.
-// Pure presentational + props-driven — extracted verbatim from editorChrome.tsx (SRP: one file per concern).
+// Pure presentational + props-driven, extracted verbatim from editorChrome.tsx (SRP: one file per concern).
 import { useEffect, useState } from 'react'
 import { type TileCategory, type Visual, genderize, tilesForStyle, visualForTileId } from '@/game/artStyle'
 import type { EntityVariant } from '@/game/types'
@@ -32,10 +32,10 @@ const ANIM_TRIGGERS: ReadonlyArray<{ id: AnimTrigger['on']; label: string }> = [
 
 const ANIM_DIRECTIONS: readonly AnimDirection[] = ['up', 'down', 'left', 'right', 'any']
 
-/** The VISUAL a frame slot renders — resolved the SAME way the canvas resolves a tile (label→baked image via
+/** The VISUAL a frame slot renders, resolved the SAME way the canvas resolves a tile (label→baked image via
  *  `visualForTileId`), so the preview matches play: a `char` frame is a glyph gendered to the entity's variant;
  *  a `tileId` frame is that tile's baked IMAGE (or its glyph in ASCII); an empty frame is the element's OWN
- *  base visual (frame 0 = the element as-is). This is the #55 fix — a frame that references a baked tile shows
+ *  base visual (frame 0 = the element as-is). This is the #55 fix, a frame that references a baked tile shows
  *  that tile's IMAGE, never a raw glyph / a generic 🖼 placeholder. */
 function frameVisual(frame: AnimFrame, base: Visual, variant?: EntityVariant): Visual {
   if (frame.char) return { kind: 'glyph', char: genderize(frame.char, variant) }
@@ -75,7 +75,7 @@ function FrameSlot({
       <button
         onClick={onOpen}
         aria-pressed={active}
-        title={`Frame ${index} — click to pick a tile`}
+        title={`Frame ${index}, click to pick a tile`}
         className={`flex h-9 w-9 items-center justify-center rounded border text-lg leading-none transition-colors ${
           active ? 'border-cyan-400 bg-cyan-900/40' : 'border-white/15 bg-black/40 hover:bg-white/10'
         }`}
@@ -97,7 +97,7 @@ function FrameSlot({
   )
 }
 
-/** The category-constrained tile grid for a frame — only the entity's own category (units for a
+/** The category-constrained tile grid for a frame, only the entity's own category (units for a
  *  character), so a person's frames pick from people/monsters, never buildings. "Base" clears the
  *  frame back to the entity's own tile (an empty frame). */
 function FramePicker({
@@ -118,7 +118,7 @@ function FramePicker({
       <div className="grid max-h-44 grid-cols-6 gap-1 overflow-y-auto">
         <button
           onClick={() => onPick({ tileId: undefined, char: undefined })}
-          title="Base tile — the entity's own"
+          title="Base tile, the entity's own"
           className="flex flex-col items-center gap-0.5 rounded border border-white/10 bg-black/40 px-1 py-1 hover:bg-white/10"
         >
           <span className="text-base leading-none">·</span>
@@ -218,7 +218,7 @@ function AnimationRow({
       </div>
 
       <div>
-        <p className="mb-1 text-[9px] uppercase tracking-wide text-gray-500">Frames — frame 0 is the entity's own tile</p>
+        <p className="mb-1 text-[9px] uppercase tracking-wide text-gray-500">Frames, frame 0 is the entity's own tile</p>
         <div className="flex flex-wrap items-start gap-1.5">
           {anim.frames.map((f, fi) => (
             <FrameSlot
@@ -251,20 +251,20 @@ function AnimationRow({
 }
 
 // `AnimationRow` (above) is the reusable frame-swap editor; the standalone character `AnimationEditor` that
-// wrapped it is GONE — units now author their frame-swap animations as the `sprite` KIND inside the shared
+// wrapped it is GONE, units now author their frame-swap animations as the `sprite` KIND inside the shared
 // `TileAnimationEditor` below (the character animation merged into the tile settings modal, per the user).
 
-// ── ✦ TILE + UNIT animation editor — the ONE shared modal (settings AND sprite kinds) ────
+// ── ✦ TILE + UNIT animation editor, the ONE shared modal (settings AND sprite kinds) ────
 // The dedicated modal body that authors an animation LIST (→ chaining) for the ONE selected tile OR unit.
 // Two kinds share it:
-//   - `settings` — tweens render settings (opacity, y-rise, colour, zoom…) `from → to` over one duration, with
-//     start/loop delays, looping, ease, a trigger, and per-(style,view) scope — the pure `tileAnimation` engine.
-//   - `sprite`   — a frame-swap cycle (walk/idle/attack) authored with the SAME `AnimationRow` a unit uses; it
+//   - `settings`, tweens render settings (opacity, y-rise, colour, zoom…) `from → to` over one duration, with
+//     start/loop delays, looping, ease, a trigger, and per-(style,view) scope, the pure `tileAnimation` engine.
+//   - `sprite`  , a frame-swap cycle (walk/idle/attack) authored with the SAME `AnimationRow` a unit uses; it
 //     reuses the entity frame model, so a unit edits its animations here and a tile can carry one too.
 // Pure & props-driven: every edit flows up through `onChange` immutably; the only stateful bit is the live
-// PREVIEW's RAF clock (which reflects the settings kind — sprite writes no render settings).
+// PREVIEW's RAF clock (which reflects the settings kind, sprite writes no render settings).
 
-/** Every render setting a tile animation can drive, in picker order (opacity/y first — the fountain case). */
+/** Every render setting a tile animation can drive, in picker order (opacity/y first, the fountain case). */
 const ANIM_SETTING_KEYS: ReadonlyArray<{ key: SettingKey; label: string }> = [
   { key: 'opacity', label: 'opacity' },
   { key: 'y', label: 'y' },
@@ -300,7 +300,7 @@ function defaultTrack(setting: SettingKey): AnimationTrack {
   return { setting, from: 0, to: 1 }
 }
 
-/** A blank settings animation for "Add" — ambient load loop, no tracks yet (the multi-picker adds them). */
+/** A blank settings animation for "Add", ambient load loop, no tracks yet (the multi-picker adds them). */
 function makeDefaultSettingsAnim(index: number): SettingsAnimation {
   return {
     id: `tileanim-${index}-${Date.now().toString(36)}`,
@@ -317,7 +317,7 @@ function makeDefaultSettingsAnim(index: number): SettingsAnimation {
   }
 }
 
-/** A blank sprite (frame-swap) animation for "Add" — a 2-frame looping move cycle, the SAME default the old
+/** A blank sprite (frame-swap) animation for "Add", a 2-frame looping move cycle, the SAME default the old
  *  character editor seeded. Frame 0 is the element's own tile (empty); the author swaps in tiles per frame. */
 function makeDefaultSpriteAnim(index: number): SpriteAnimation {
   return {
@@ -343,7 +343,7 @@ export interface SpriteAnimationContext {
   variant?: EntityVariant
 }
 
-/** ONE track's from/to editor — colour pickers for `color`, an all-faces/single toggle for `display`,
+/** ONE track's from/to editor, colour pickers for `color`, an all-faces/single toggle for `display`,
  *  numeric fields otherwise. Labels are `<setting> from` / `<setting> to` so each is uniquely addressable. */
 function TrackRow({ track, onChange }: { track: AnimationTrack; onChange: (patch: Partial<AnimationTrack>) => void }) {
   const s = track.setting
@@ -408,7 +408,7 @@ function TileAnimationRow({ anim, onAnim, onRemove }: { anim: SettingsAnimation;
         <button onClick={onRemove} aria-label="Delete animation" title="Delete animation" className="shrink-0 rounded bg-red-900/70 px-1.5 py-1 text-[10px] font-bold text-red-200 hover:bg-red-800">✕</button>
       </div>
 
-      {/* Settings MULTI-PICKER — check a setting to add its from/to track. */}
+      {/* Settings MULTI-PICKER, check a setting to add its from/to track. */}
       <div>
         <p className="mb-1 text-[9px] uppercase tracking-wide text-gray-500">Animate settings</p>
         <div className="flex flex-wrap gap-x-2 gap-y-0.5">
@@ -452,7 +452,7 @@ function TileAnimationRow({ anim, onAnim, onRemove }: { anim: SettingsAnimation;
         )}
       </div>
 
-      {/* Scope — which styles/views this plays in (none lit = all). */}
+      {/* Scope, which styles/views this plays in (none lit = all). */}
       <div className="flex flex-wrap items-center gap-2 text-[10px] text-gray-400">
         <span className="font-bold text-gray-500">Style</span>
         {ANIM_STYLES.map(s => <Chip key={s} label={s} on={!!anim.scope?.styles?.includes(s)} onToggle={() => toggleScope('styles', s)} />)}
@@ -463,7 +463,7 @@ function TileAnimationRow({ anim, onAnim, onRemove }: { anim: SettingsAnimation;
   )
 }
 
-/** A `sprite` (frame-swap) animation row — the REAL editor. It reuses the SAME `AnimationRow` a unit's
+/** A `sprite` (frame-swap) animation row, the REAL editor. It reuses the SAME `AnimationRow` a unit's
  *  frame-swap uses by viewing the sprite envelope through the entity model (`entityFromSprite`) and mapping
  *  edits back (`spriteFromEntity`); the spread preserves any settings-only envelope extras (startDelay /
  *  priority / scope) the frame UI doesn't touch. This is how the character animation lives INSIDE the shared
@@ -487,7 +487,7 @@ function SpriteAnimationRow({ anim, ctx, onAnim, onRemove }: {
   )
 }
 
-/** The live PREVIEW — one swatch driven by the WHOLE chain (`resolveAnimatedSettings`) on a RAF clock, so
+/** The live PREVIEW, one swatch driven by the WHOLE chain (`resolveAnimatedSettings`) on a RAF clock, so
  *  the author sees the composed result (opacity fade + y-rise + colour + zoom…) exactly as the engine plays
  *  it. Scope is ignored here (it composes every animation) so any authored track is visible while tuning. */
 function TileAnimationPreview({ animations }: { animations: readonly TileAnim[] }) {
@@ -525,12 +525,12 @@ function TileAnimationPreview({ animations }: { animations: readonly TileAnim[] 
 export interface TileAnimationEditorProps {
   /** the element's authored animations (a LIST → chain order), mixing `settings` + `sprite` kinds. */
   animations: TileAnim[]
-  /** what the animated element IS — surfaced in the header so it's unmistakable ('Tile' vs 'Character'). */
+  /** what the animated element IS, surfaced in the header so it's unmistakable ('Tile' vs 'Character'). */
   elementType: 'Tile' | 'Character'
-  /** the element's name, e.g. 'water_c' — shown beside the type. */
+  /** the element's name, e.g. 'water_c', shown beside the type. */
   elementLabel: string
   /** the context a `sprite` row + the "Add sprite animation" button need (frame picker category, style,
-   *  base visual, variant). Required — every selected tile/unit can author a frame-swap animation. */
+   *  base visual, variant). Required, every selected tile/unit can author a frame-swap animation. */
   spriteContext: SpriteAnimationContext
   /** which kinds this element may ADD. A tile authors both; a unit stores `EntityAnimation[]`, which only maps
    *  to the sprite kind, so its modal offers `['sprite']` (no settings add → nothing lost on the bridge back).
@@ -539,7 +539,7 @@ export interface TileAnimationEditorProps {
   onChange: (next: TileAnim[]) => void
 }
 
-/** Author the DATA-DRIVEN animations that ride on ONE selected tile/asset OR unit — the ONE shared modal.
+/** Author the DATA-DRIVEN animations that ride on ONE selected tile/asset OR unit, the ONE shared modal.
  *  `settings` rows tween render settings (the fountain opacity+height chain); `sprite` rows author frame-swap
  *  cycles (a unit's walk/idle, or a tile's flicker) with the reused character frame editor. Add/edit/remove;
  *  the live preview reflects the settings chain (sprite writes no render settings). */
@@ -562,7 +562,7 @@ export function TileAnimationEditor({ animations, elementType, elementLabel, spr
 
       <TileAnimationPreview animations={animations} />
 
-      {/* Add buttons pinned ABOVE the list so they stay reachable however many animations exist — a long list no
+      {/* Add buttons pinned ABOVE the list so they stay reachable however many animations exist, a long list no
           longer pushes them off the bottom. */}
       <div className="flex flex-wrap gap-1">
         {kinds.includes('settings') && (
@@ -584,12 +584,12 @@ export function TileAnimationEditor({ animations, elementType, elementLabel, spr
 
       {animations.length === 0 && (
         <p className="text-[10px] leading-tight text-gray-500">
-          No animations yet — add one to make this {elementType.toLowerCase()} move. A settings animation tweens values (opacity, y-rise, colour…); a sprite animation swaps baked tile frames (walk / idle / attack). Chain several for a sequence.
+          No animations yet, add one to make this {elementType.toLowerCase()} move. A settings animation tweens values (opacity, y-rise, colour…); a sprite animation swaps baked tile frames (walk / idle / attack). Chain several for a sequence.
         </p>
       )}
 
       {/* Rows render NEWEST-FIRST (most recently added on top) so a new animation is immediately visible under the
-          buttons. Only the RENDER order is reversed — the underlying `animations` data order is untouched, so
+          buttons. Only the RENDER order is reversed, the underlying `animations` data order is untouched, so
           chaining/priority still read it in author order; each row keeps its ORIGINAL index so replace/remove hit
           the right entry. */}
       {animations.map((a, i) => ({ a, i })).reverse().map(({ a, i }) =>

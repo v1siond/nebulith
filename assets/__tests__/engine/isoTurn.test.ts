@@ -1,8 +1,8 @@
 /**
- * CONTINUOUS CAMERA TURN — the pure maths behind the ANIMATED, draggable iso rotation.
+ * CONTINUOUS CAMERA TURN, the pure maths behind the ANIMATED, draggable iso rotation.
  *
  * The chosen shape: a drag SPINS the world continuously and, on release, EASES into the NEAREST of the 4
- * corners; the existing 4 buttons stay as quick jumps (now animated). At REST nothing changes — the grid model,
+ * corners; the existing 4 buttons stay as quick jumps (now animated). At REST nothing changes, the grid model,
  * the depth sort and the baked tile art are exactly today's.
  *
  * This file pins the pure half (no canvas, no render): the turn value, the continuous rotation it drives, and
@@ -26,7 +26,7 @@ const everyCell = (fn: (col: number, row: number) => void): void => {
 }
 
 // ────────────────────────────────────────────────────────────────────────────────────────────────────────
-describe('wrapTurn — quarter-turns live on a 0..4 circle', () => {
+describe('wrapTurn, quarter-turns live on a 0..4 circle', () => {
   test('a turn already in range comes back EXACTLY (no float drift through the modulo)', () => {
     for (const t of [0, 0.25, 1, 2.5, 3.999]) expect(wrapTurn(t)).toBe(t)
   })
@@ -49,7 +49,7 @@ describe('wrapTurn — quarter-turns live on a 0..4 circle', () => {
 })
 
 // ────────────────────────────────────────────────────────────────────────────────────────────────────────
-describe('facingForTurn / isWholeTurn — which of the 4 corners a turn is nearest', () => {
+describe('facingForTurn / isWholeTurn, which of the 4 corners a turn is nearest', () => {
   test('a whole turn IS its facing', () => {
     for (const o of WHOLE) expect(facingForTurn(o)).toBe(o)
     expect(facingForTurn(4)).toBe(0)
@@ -79,7 +79,7 @@ describe('facingForTurn / isWholeTurn — which of the 4 corners a turn is neare
 })
 
 // ────────────────────────────────────────────────────────────────────────────────────────────────────────
-describe('orientCellTurn — a WHOLE turn is TODAY\'S quarter-turn maths, untouched (regression guard)', () => {
+describe('orientCellTurn, a WHOLE turn is TODAY\'S quarter-turn maths, untouched (regression guard)', () => {
   test('every cell at every whole turn equals orientCell exactly', () => {
     for (const o of WHOLE) everyCell((col, row) => {
       expect({ o, col, row, ...orientCellTurn(col, row, COLS, ROWS, o) })
@@ -104,7 +104,7 @@ describe('orientCellTurn — a WHOLE turn is TODAY\'S quarter-turn maths, untouc
 })
 
 // ────────────────────────────────────────────────────────────────────────────────────────────────────────
-describe('orientCellTurn — a FRACTIONAL turn spins the grid about its own centre', () => {
+describe('orientCellTurn, a FRACTIONAL turn spins the grid about its own centre', () => {
   // Independent expectation: centre the coord on the grid middle, rotate it by turn×90° CW, re-centre on the
   // VIEW middle. Written out here from first principles so it can't just echo the implementation.
   const expectedContinuous = (col: number, row: number, turn: number): { col: number; row: number } => {
@@ -140,9 +140,9 @@ describe('orientCellTurn — a FRACTIONAL turn spins the grid about its own cent
     expect(nearly.row).toBeCloseTo(at.row, 6)
   })
 
-  test('the spin is CONTINUOUS across the 45° corner-crossover — the OFFSET FROM THE FOCUS never jumps', () => {
+  test('the spin is CONTINUOUS across the 45° corner-crossover, the OFFSET FROM THE FOCUS never jumps', () => {
     // At 0.5 the nearest corner flips 0→1 and the view dims swap, which moves the absolute view coords. What
-    // the renderer projects is the offset from the camera focus, and BOTH go through this same function — so
+    // the renderer projects is the offset from the camera focus, and BOTH go through this same function, so
     // the dims term cancels and the pixels stay smooth. That cancellation is the whole design, so pin it.
     const focus = { col: (COLS - 1) / 2, row: (ROWS - 1) / 2 }
     const offset = (turn: number) => {
@@ -162,7 +162,7 @@ describe('orientCellTurn — a FRACTIONAL turn spins the grid about its own cent
 })
 
 // ────────────────────────────────────────────────────────────────────────────────────────────────────────
-describe('cellOrienterFor — the per-frame orienter (cos/sin resolved once, not per tile)', () => {
+describe('cellOrienterFor, the per-frame orienter (cos/sin resolved once, not per tile)', () => {
   test('it agrees with the single-shot call at whole AND fractional turns', () => {
     for (const turn of [0, 1, 2, 3, 0.33, 2.75]) {
       const orient = cellOrienterFor(COLS, ROWS, turn)
@@ -172,7 +172,7 @@ describe('cellOrienterFor — the per-frame orienter (cos/sin resolved once, not
 })
 
 // ────────────────────────────────────────────────────────────────────────────────────────────────────────
-describe('deorientCellTurn — VIEW → WORLD, the inverse the pick needs', () => {
+describe('deorientCellTurn, VIEW → WORLD, the inverse the pick needs', () => {
   test('a whole turn is TODAY\'S deorientCell, exactly', () => {
     for (const o of WHOLE) {
       const dims = orientedDims(COLS, ROWS, o)
@@ -193,7 +193,7 @@ describe('deorientCellTurn — VIEW → WORLD, the inverse the pick needs', () =
 })
 
 // ────────────────────────────────────────────────────────────────────────────────────────────────────────
-describe('easeOutCubic + turnAt — the release settles, it does not snap', () => {
+describe('easeOutCubic + turnAt, the release settles, it does not snap', () => {
   test('the easing runs 0→1, clamps outside, and decelerates (ease OUT)', () => {
     expect(easeOutCubic(0)).toBe(0)
     expect(easeOutCubic(1)).toBe(1)
@@ -223,7 +223,7 @@ describe('easeOutCubic + turnAt — the release settles, it does not snap', () =
 })
 
 // ────────────────────────────────────────────────────────────────────────────────────────────────────────
-describe('settleTarget — a released drag eases to the NEAREST whole turn', () => {
+describe('settleTarget, a released drag eases to the NEAREST whole turn', () => {
   test('from EITHER side of every corner', () => {
     expect(settleTarget(0.4)).toBe(0)
     expect(settleTarget(0.6)).toBe(1)
@@ -235,7 +235,7 @@ describe('settleTarget — a released drag eases to the NEAREST whole turn', () 
   })
 
   test('3.7 settles FORWARD onto the wrap (4 ≡ 0), never backwards to 3', () => {
-    expect(settleTarget(3.7)).toBe(4)           // the animation target — keeps spinning the short way
+    expect(settleTarget(3.7)).toBe(4)           // the animation target, keeps spinning the short way
     expect(wrapTurn(settleTarget(3.7))).toBe(0) // the value it rests at
     expect(turnAt(3.7, settleTarget(3.7), 1)).toBe(0)
   })
@@ -246,7 +246,7 @@ describe('settleTarget — a released drag eases to the NEAREST whole turn', () 
 })
 
 // ────────────────────────────────────────────────────────────────────────────────────────────────────────
-describe('spinTarget — the 4 buttons animate N quarter-turns instead of snapping', () => {
+describe('spinTarget, the 4 buttons animate N quarter-turns instead of snapping', () => {
   test('from a whole turn it adds N', () => {
     expect(spinTarget(1, 1)).toBe(2)
     expect(spinTarget(3, 1)).toBe(4)

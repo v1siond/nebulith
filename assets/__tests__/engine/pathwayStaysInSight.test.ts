@@ -9,7 +9,7 @@
  * later, and a whole tree tall, so anything there hides the cell behind it.
  *
  * Measured before the `sightlines` layer, three seeds each: a woodland hid 42 of 489 path cells, a jungle 43 of
- * 525, a meadow 12 of 489. Breaking those down found the bigger half was not occlusion at all — 19 of a
+ * 525, a meadow 12 of 489. Breaking those down found the bigger half was not occlusion at all, 19 of a
  * woodland's and 20 of a jungle's were trees standing IN the road. Nothing planted them there on purpose; the
  * canopy fills a density and the road was never excluded from it.
  *

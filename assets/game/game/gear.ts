@@ -1,12 +1,12 @@
 /**
- * GEAR — a READER over the backend item catalog (§3.14b #1, closed 2026-09-08).
+ * GEAR, a READER over the backend item catalog (§3.14b #1, closed 2026-09-08).
  *
  * This file used to BE the catalog: 6 weapons, 10 armour pieces and 5 consumables with complete stat blocks
  * (`baseDamage: 12, baseDefense: 2, strengthBonus: 3, reachCells: 1`) plus the two starter kits, ~105 lines
  * of game data in the frontend with nothing validating it.
  *
  * The rows now live in nebulith's `items` table and arrive via `GET /api/items` (`game/itemCatalog.ts`).
- * What stays here is the NAMED ACCESS the game already used — `sword()`, `starterWarriorGear()` — so every
+ * What stays here is the NAMED ACCESS the game already used, `sword()`, `starterWarriorGear()`, so every
  * call site keeps its shape while the numbers come from the catalog.
  *
  * Each accessor returns a FRESH object (the catalog clones), so callers never share a mutable reference and
@@ -54,7 +54,7 @@ export const gearCatalog = (): Item[] => itemCatalog()
 /**
  * A starter kit's items.
  *
- * Which items a kit contains is DATA — each row names the kits it belongs to (`starter_kits`) — so the
+ * Which items a kit contains is DATA, each row names the kits it belongs to (`starter_kits`), so the
  * warrior's sword-and-shield is a catalog fact rather than a second hardcoded list here.
  */
 export const starterWarriorGear = (): Item[] => starterKit('warrior')

@@ -4,7 +4,7 @@
 import { useEffect, useRef, useState } from 'react'
 
 /**
- * Editor sidebar card — a labelled, accent-bordered panel grouping one tool.
+ * Editor sidebar card, a labelled, accent-bordered panel grouping one tool.
  * Pure presentational wrapper so every panel in the two sidebars looks the same
  * and stays readable for non-devs. Accent maps to a Tailwind border/title colour.
  */
@@ -29,7 +29,7 @@ export function Card({
   accent?: CardAccent
   action?: React.ReactNode
   children: React.ReactNode
-  /** start collapsed by passing false — collapsible to cut sidebar scrolling. */
+  /** start collapsed by passing false, collapsible to cut sidebar scrolling. */
   defaultOpen?: boolean
 }) {
   const [open, setOpen] = useState(defaultOpen)
@@ -65,7 +65,7 @@ export function ViewButton({
   onClick: () => void
 }) {
   return (
-    // The design gives every toggle ONE look, so the per-button accent colour is no longer read — a yellow
+    // The design gives every toggle ONE look, so the per-button accent colour is no longer read, a yellow
     // ISO beside a blue 2D beside a purple Flow said the three were different kinds of thing.
     <button type="button" onClick={onClick} aria-pressed={active} className={active ? 'on' : ''}>
       {label}

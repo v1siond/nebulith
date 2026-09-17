@@ -1,10 +1,10 @@
 /**
- * SEARCHING A TILE LIBRARY — the matcher the three pickers share (§4.5).
+ * SEARCHING A TILE LIBRARY, the matcher the three pickers share (§4.5).
  *
  * 305 tiles and 79 creatures are browsed today by scrolling a 4-wide grid, which §3.5/§3.6 measured as the
  * top P1 friction. The interesting constraint is §3.5's other measurement: **120 of the 305 labels are raw
  * slugs** (`cliff_face`, `water_deep`) sitting beside prettified ones (`Shallow Water`). A user types what
- * they see, and half of them see a slug — so the query matches the label AND the id, with `_` and space
+ * they see, and half of them see a slug, so the query matches the label AND the id, with `_` and space
  * treated as the same separator, and every word required in any order ("water deep" finds "Deep Water").
  *
  * Pure: no React, no tileset lookups. The three pickers filter with it and render exactly as before.

@@ -11,7 +11,7 @@ import type { Entity, Quest, MovementPattern, Stats, Weapon, Attack } from '@/ga
 // ───────────────────────────────────────────────────────────────────────────
 // FULL END-TO-END: actually BUILD a game with the system and PLAY it.
 //
-// Not "click the generator" — this drives the real pipeline a designer + player go
+// Not "click the generator", this drives the real pipeline a designer + player go
 // through: create/generate each room → serialize it to a template (stageToTemplate)
 // → "save" it into a world by id → wire connectors between templates → deserialize
 // each template back into a live IsometricGrid → place entities with movement
@@ -21,7 +21,7 @@ import type { Entity, Quest, MovementPattern, Stats, Weapon, Attack } from '@/ga
 // ───────────────────────────────────────────────────────────────────────────
 
 // deserializeToGrid wants a full TemplateData; the generator payload has everything
-// it reads — wrap it with the persisted-record fields a real "save" would add.
+// it reads, wrap it with the persisted-record fields a real "save" would add.
 const asTemplate = (p: StageTemplatePayload, id: string): TemplateData => ({
   id,
   name: p.name,
@@ -87,7 +87,7 @@ const SWORD: Weapon = { id: 'w', kind: 'sword', name: 'Sword', baseDamage: 18, b
 const REGULAR: Attack = { school: 'physical', range: 'melee', tier: 'regular' }
 const GOBLIN_STATS: Partial<Stats> = { maxHp: 24, defense: 0, dodge: 0, strength: 4, intelligence: 4 }
 
-describe('Nebulith — build a multi-room game with the system, then play it end-to-end', () => {
+describe('Nebulith, build a multi-room game with the system, then play it end-to-end', () => {
   const ORDER = ['room-forest', 'room-temple', 'room-cave', 'room-boss'] as const
   const SPECS = [
     { id: 'room-forest', zone: 'spring', variant: 'forest' },
@@ -180,7 +180,7 @@ describe('Nebulith — build a multi-room game with the system, then play it end
     }
   })
 
-  it('the whole level graph is connected — all rooms reachable from the start via connectors', () => {
+  it('the whole level graph is connected, all rooms reachable from the start via connectors', () => {
     const adj = new Map<string, string[]>()
     for (const id of ORDER) adj.set(id, world.get(id)!.connectors.map(c => c.targetTemplateId))
     const seen = new Set<string>(['room-forest'])
@@ -193,7 +193,7 @@ describe('Nebulith — build a multi-room game with the system, then play it end
     expect([...seen].sort()).toEqual([...ORDER].sort())
   })
 
-  it('enemies patrol — stepMover walks them along their waypoints (and never into a wall)', () => {
+  it('enemies patrol, stepMover walks them along their waypoints (and never into a wall)', () => {
     const grid = deserializeToGrid(world.get('room-forest')!)
     const isBlocked = (c: number, r: number) => grid.isBlocked(c, r)
     const enemy = entitiesByRoom.get('room-forest')!.find(e => e.kind === 'enemy')!
@@ -228,7 +228,7 @@ describe('Nebulith — build a multi-room game with the system, then play it end
           attack: REGULAR,
           attackerWeapon: SWORD,
           defenderHp: hp,
-          roll: () => 0.99, // no dodge — deterministic
+          roll: () => 0.99, // no dodge, deterministic
         })
         expect(r.damage).toBeGreaterThan(0)
         hp = r.defenderHpAfter

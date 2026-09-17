@@ -11,7 +11,7 @@ import type { Entity, Stats, Weapon, CombatState, AttackPattern } from '@/game/t
 // NEXT attack (sequential cycle / random pick), applies that attack's damage, and
 // spawns its animation (melee 'slash' vs ranged 'shot'). These tests drive the REAL
 // applyEnemyRetaliation and assert an enemy with a [melee, ranged] list visibly
-// alternates a swing and a bolt — proving enemies use melee AND ranged from a pattern.
+// alternates a swing and a bolt, proving enemies use melee AND ranged from a pattern.
 // ───────────────────────────────────────────────────────────────────────────
 
 const CS = 16
@@ -21,7 +21,7 @@ const playerStats = (over: Partial<Stats> = {}): Stats => ({
   intelligence: 10,
   defense: 0, // no mitigation, so a melee hit lands its full strength + weapon base
   maxHp: 100,
-  dodge: 0, // never dodge — deterministic
+  dodge: 0, // never dodge, deterministic
   ...over,
 })
 
@@ -84,7 +84,7 @@ const stepInput = (
   anims,
 })
 
-describe('applyEnemyRetaliation — fires the NEXT attack from the enemy pattern', () => {
+describe('applyEnemyRetaliation, fires the NEXT attack from the enemy pattern', () => {
   it('a [melee, ranged] SEQUENTIAL pattern alternates a slash then a bolt', () => {
     const pattern = buildAttackPattern('sequential', [
       makeEnemyAttack('melee', 5, 900, 'cleave'),
@@ -123,7 +123,7 @@ describe('applyEnemyRetaliation — fires the NEXT attack from the enemy pattern
     expect(anims[0].tint).toBeDefined() // recolored to the 'bolt' tint
   })
 
-  it('respects per-attack cooldown — it will NOT fire the next attack before its cooldown elapses', () => {
+  it('respects per-attack cooldown, it will NOT fire the next attack before its cooldown elapses', () => {
     const pattern = buildAttackPattern('sequential', [
       makeEnemyAttack('melee', 5, 900, 'cleave'),
       makeEnemyAttack('ranged', 8, 1500, 'bolt'),
@@ -137,7 +137,7 @@ describe('applyEnemyRetaliation — fires the NEXT attack from the enemy pattern
     combat = applyEnemyRetaliation(stepInput(player, enemy, runtime, 0, anims, combat))
     expect(anims).toHaveLength(1) // first swing fires (no prior cooldown)
 
-    // only 100ms later — the next attack (ranged, cd 1500) is still on cooldown → no new swing
+    // only 100ms later, the next attack (ranged, cd 1500) is still on cooldown → no new swing
     combat = applyEnemyRetaliation(stepInput(player, enemy, runtime, 100, anims, combat))
     expect(anims).toHaveLength(1)
     expect(runtime.attackFireCount.get('e1')).toBe(1) // cycle did not advance
@@ -159,7 +159,7 @@ describe('applyEnemyRetaliation — fires the NEXT attack from the enemy pattern
   it('a melee attack does NOT fire when the player is out of melee reach', () => {
     const pattern = buildAttackPattern('sequential', [makeEnemyAttack('melee', 5, 900, 'cleave')])
     const enemy = enemyAt(10, 10, pattern)
-    const player = playerAt(15, 10) // 5 cells away — well beyond melee adjacency
+    const player = playerAt(15, 10) // 5 cells away, well beyond melee adjacency
     const runtime = makeEnemyRuntime()
     const anims: AttackAnim[] = []
     applyEnemyRetaliation(stepInput(player, enemy, runtime, 0, anims, { hp: 100, rage: 0, mana: 0 }))
@@ -170,7 +170,7 @@ describe('applyEnemyRetaliation — fires the NEXT attack from the enemy pattern
   it('a ranged attack reaches a distant player that a melee attack could not', () => {
     const pattern = buildAttackPattern('sequential', [makeEnemyAttack('ranged', 8, 1500, 'bolt')])
     const enemy = enemyAt(10, 10, pattern)
-    const player = playerAt(14, 10) // 4 cells away — within the default ranged reach
+    const player = playerAt(14, 10) // 4 cells away, within the default ranged reach
     const runtime = makeEnemyRuntime()
     const anims: AttackAnim[] = []
     const combat = applyEnemyRetaliation(stepInput(player, enemy, runtime, 0, anims, { hp: 100, rage: 0, mana: 0 }))

@@ -5,12 +5,12 @@ import {
   type CellLabel,
 } from '@/engine/cellLabels'
 
-describe('isGroundContact — only the BOTTOM cell of a tree/column (where the shadow goes)', () => {
+describe('isGroundContact, only the BOTTOM cell of a tree/column (where the shadow goes)', () => {
   // A vertical tree occupying rows 3,4,5 at col 2 (5 is the bottom / ground contact).
   const tree = (col: number, row: number): boolean => col === 2 && row >= 3 && row <= 5
 
   it('is true ONLY for the bottom cell (cell below is not a tree)', () => {
-    expect(isGroundContact(tree, 2, 5)).toBe(true) // bottom — floor below
+    expect(isGroundContact(tree, 2, 5)).toBe(true) // bottom, floor below
     expect(isGroundContact(tree, 2, 4)).toBe(false) // tree below it
     expect(isGroundContact(tree, 2, 3)).toBe(false) // tree below it (the top/canopy)
   })
@@ -29,7 +29,7 @@ describe('isGroundContact — only the BOTTOM cell of a tree/column (where the s
 //
 // `isWalkable(label)` was removed from `cellLabels.ts` on 2026-09-06, and its own note says why: it
 // hardcoded a walkability table in the frontend, it claimed a ROOF was walkable (which the combat spec
-// forbids — ), and it duplicated data the backend already owns
+// forbids, ), and it duplicated data the backend already owns
 // and serves as `tiles.blocking` and `composition_cells.walkable`. It had no runtime callers.
 //
 // So there is nothing here to re-point at: the question "is this label walkable?" is not one the frontend
@@ -37,7 +37,7 @@ describe('isGroundContact — only the BOTTOM cell of a tree/column (where the s
 // and composition suites. `isGroundContact`, `autotileLabel` and `TREE_MASS_FAMILY` are still real and
 // still tested above.
 
-describe('cellLabels — autotile labeler (9-piece, 8-neighbour)', () => {
+describe('cellLabels, autotile labeler (9-piece, 8-neighbour)', () => {
   // 3×3 solid block: the center is interior, corners/edges are the 9 pieces.
   const cols = 3
   const rows = 3

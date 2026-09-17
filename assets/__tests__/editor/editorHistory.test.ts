@@ -1,12 +1,12 @@
 /**
- * editorHistory — the PURE undo/redo stack behind Ctrl+Z / Ctrl+Y. These tests pin the behaviour the user
+ * editorHistory, the PURE undo/redo stack behind Ctrl+Z / Ctrl+Y. These tests pin the behaviour the user
  * asked for: undo steps back to the exact prior state, redo re-applies, a new edit after an undo clears the
  * redo branch, and the whole thing is bounded to ~5 steps. Opaque string/number "snapshots" stand in for the
- * real MapSnapshot — the stack never inspects them, so this needs no grid.
+ * real MapSnapshot, the stack never inspects them, so this needs no grid.
  */
 import { HISTORY_LIMIT, canRedo, canUndo, checkpoint, createHistory, redo, undo } from '@/game/editor/editorHistory'
 
-describe('editorHistory — the pure undo/redo stack', () => {
+describe('editorHistory, the pure undo/redo stack', () => {
   test('checkpoint records the pre-edit state and drops any redo branch', () => {
     let h = createHistory<string>()
     h = checkpoint(h, 'A', 5) // about to edit A → B
@@ -89,8 +89,46 @@ describe('editorHistory — the pure undo/redo stack', () => {
     expect(r.history).toEqual(h)
   })
 
-  test('the shipped HISTORY_LIMIT gives the 4-5 steps the user asked for', () => {
-    expect(HISTORY_LIMIT).toBeGreaterThanOrEqual(4)
-    expect(HISTORY_LIMIT).toBeLessThanOrEqual(6)
+  /**
+   * REPLACES 'the shipped HISTORY_LIMIT gives the 4-5 steps the user asked for', which asserted
+   * `4 <= HISTORY_LIMIT <= 6`.
+   *
+   * It is not weakened, it is superseded: the 4-5 cap was his first ask ("ctrl + y and ctrl + z
+   * functionalities … 4-5 steps forward and backwards") and he replaced it with the opposite one after living
+   * with it, *"I hit ctlr z many times and only went back a couple of steps, I want indifintely goping back
+   * and going forward."* A test pinning the old number would now defend the defect.
+   */
+  test('the shipped HISTORY_LIMIT is unbounded, so undo never runs out', () => {
+    expect(HISTORY_LIMIT).toBe(Number.POSITIVE_INFINITY)
+  })
+
+  test('a long editing session steps all the way back, and all the way forward again', () => {
+    const edits = Array.from({ length: 200 }, (_, i) => `edit-${i}`)
+    let h = createHistory<string>()
+    for (const e of edits) h = checkpoint(h, e, HISTORY_LIMIT)
+    expect(h.past).toHaveLength(200)
+
+    // all the way back
+    let present = 'final'
+    const seen: string[] = []
+    while (canUndo(h)) {
+      const step = undo(h, present, HISTORY_LIMIT)
+      h = step.history
+      present = step.restored as string
+      seen.push(present)
+    }
+    expect(seen).toHaveLength(200)
+    expect(present).toBe('edit-0')
+
+    // and all the way forward
+    let forward = 0
+    while (canRedo(h)) {
+      const step = redo(h, present, HISTORY_LIMIT)
+      h = step.history
+      present = step.restored as string
+      forward++
+    }
+    expect(forward).toBe(200)
+    expect(present).toBe('final')
   })
 })

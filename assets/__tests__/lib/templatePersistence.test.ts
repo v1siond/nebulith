@@ -21,7 +21,7 @@ const baseInput = (over: Partial<CreateTemplateInput> = {}): CreateTemplateInput
   groundData: [['grass']], heightData: [[0]], assetsData: [], ...over,
 })
 
-describe('template persistence — entities + quests round-trip', () => {
+describe('template persistence, entities + quests round-trip', () => {
   it('preserves entities + quests through withTemplateDefaults', () => {
     const body = withTemplateDefaults(baseInput({ entities: [enemy, npc], quests: [quest] }))
     expect(body.entities).toEqual([enemy, npc])

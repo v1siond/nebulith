@@ -1,6 +1,6 @@
 import '@/__tests__/helpers/installTilesetSeed' // install the DB-equivalent tileset the runtime loads
 /**
- * TILE-PLACEMENT ROUTING — the pure decision layer behind the editor's pick-first brush. These lock in
+ * TILE-PLACEMENT ROUTING, the pure decision layer behind the editor's pick-first brush. These lock in
  * that an armed catalog tile is routed to the RIGHT placement primitive by its category, that a unit tile
  * becomes the right entity kind, and that a nature/building tile picks a sensible asset type + collision.
  * Exercised against the REAL catalog (tilesForStyle) so a data drift that mis-buckets a tile fails here.
@@ -23,7 +23,7 @@ const byId = (id: string): TileDef => {
  * A units tile as the CATALOG serves one.
  *
  * `entityKindForUnitSlug(slug)` is gone. The kind a figure places as is read from its served `unitRole`
- * now, not guessed from its name — the same move that took per-label collision out of the frontend. So the
+ * now, not guessed from its name, the same move that took per-label collision out of the frontend. So the
  * test states the role, which is what the backend states, and the slug only matters for `player`.
  */
 const unitTile = (slug: string, role?: string) => ({
@@ -42,7 +42,7 @@ describe('tileSlug', () => {
   })
 })
 
-describe('placementFor — category → placement primitive', () => {
+describe('placementFor, category → placement primitive', () => {
   test('ground tiles (terrain / roads / floors) route to ground', () => {
     for (const t of [...EMOJI.terrain, ...EMOJI.roads, ...EMOJI.floors]) expect(placementFor(t)).toBe('terrain')
   })
@@ -53,7 +53,7 @@ describe('placementFor — category → placement primitive', () => {
   })
   // These pass the ROLE explicitly rather than reading it off the seed fixture, because the role is the
   // input under test and the fixture cannot carry it: `unitRole` is assigned by the BACKEND at seed time
-  // (tile_source.ex — `put_tile_setting(…, "unitRole", role_for(…))`), while the test helper installs
+  // (tile_source.ex, `put_tile_setting(…, "unitRole", role_for(…))`), while the test helper installs
   // `emoji.json` directly. Mirroring `role_for` in a frontend helper would duplicate backend logic; stating
   // the role is what the function's contract actually is.
   test('a person / creature unit routes to an entity', () => {
@@ -79,8 +79,8 @@ describe('placementFor — category → placement primitive', () => {
   })
 })
 
-// DELIVERABLE 2 — animals are enemies/units, NOT nature (user: "we have a bunch of enemy or unit tiles on the
-// nature category, like bears, wolf — animals aren't nature"). The recategorization lives in the tile DATA
+// DELIVERABLE 2, animals are enemies/units, NOT nature (user: "we have a bunch of enemy or unit tiles on the
+// nature category, like bears, wolf, animals aren't nature"). The recategorization lives in the tile DATA
 // (emoji.json / the seed), so it shows up here against the REAL catalog: animals are in `units` and become
 // enemies, while genuine nature (trees/rocks/plants/flowers/mushrooms) stays in `nature`.
 describe('animals are units/enemies, not nature (recategorized)', () => {
@@ -105,7 +105,7 @@ describe('animals are units/enemies, not nature (recategorized)', () => {
   })
 })
 
-describe('entityKindForUnitTile — the kind comes from the served ROLE, not the name', () => {
+describe('entityKindForUnitTile, the kind comes from the served ROLE, not the name', () => {
   test('the explicit player slug → player, whatever its role says', () => {
     // The hero is the one figure identified by slug: its catalog row's role is `person` like any other.
     expect(entityKindForUnitTile(unitTile('player', 'person'))).toBe('player')
@@ -115,7 +115,7 @@ describe('entityKindForUnitTile — the kind comes from the served ROLE, not the
       expect(entityKindForUnitTile(unitTile(slug, 'person'))).toBe('npc')
     }
   })
-  test('a tile with NO served role is not an entity — it is decoration', () => {
+  test('a tile with NO served role is not an entity, it is decoration', () => {
     // An `fx` tile (arrow, nova, fire-slash) is what a POWER draws, not a character.
     expect(entityKindForUnitTile(unitTile('nova'))).toBeNull()
     expect(entityKindForUnitTile(unitTile('arrow', 'fx'))).toBeNull()

@@ -1,5 +1,5 @@
 /**
- * FRAME-BASED cell animation — the author defines an asset's motion directly as FRAMES.
+ * FRAME-BASED cell animation, the author defines an asset's motion directly as FRAMES.
  * Frame 0 is the rest pose; each later frame is a small transform offset (dx/dy/rot/scale). Set a
  * duration to traverse frame 0 → last, a delay, and it loops. A leaf in the wind is
  * static → right → left → right.
@@ -59,7 +59,7 @@ export interface AnimTransform {
   scale: number
 }
 
-/** The rest transform — no movement. */
+/** The rest transform, no movement. */
 export const REST: AnimTransform = { dx: 0, dy: 0, rot: 0, scale: 1 }
 
 /** Eased 0→1 interpolation parameter. sine = ease-in-out (reads as a natural sway). */
@@ -85,7 +85,7 @@ const blend = (a: AnimFrame, b: AnimFrame, e: number): AnimTransform => ({
 })
 
 /**
- * The interpolated transform at absolute time `now`. PURE — same (anim, now) → same transform.
+ * The interpolated transform at absolute time `now`. PURE, same (anim, now) → same transform.
  *   - frames 0 → N-1 are spread evenly across `durationMs` (N-1 segments), eased per `ease`.
  *   - the `delayMs` tail (and any time past the end of a non-looping run) HOLDS the last frame.
  *   - looping wraps on `durationMs + delayMs`.

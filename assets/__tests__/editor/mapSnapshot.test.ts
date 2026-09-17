@@ -1,7 +1,7 @@
 /**
- * mapSnapshot — capture + restore the EXACT map (grid layers + placed assets + entities) an undo rolls back to.
+ * mapSnapshot, capture + restore the EXACT map (grid layers + placed assets + entities) an undo rolls back to.
  * These tests prove the round-trip is exact, that the stored snapshot is a DEEP copy (a later edit can't corrupt
- * it — an undo/redo cycle restores the same snapshot twice), and that a snapshot from a differently-sized grid
+ * it, an undo/redo cycle restores the same snapshot twice), and that a snapshot from a differently-sized grid
  * is refused so it can never corrupt the live map.
  */
 import { DEFAULT_FLOOR_SLUG, IsometricGrid } from '@/engine/IsometricGrid'
@@ -15,7 +15,7 @@ const SOLID = { collision: [{ x: 0, y: 0, w: 1, h: 1 }] }
 const mkGrid = () => new IsometricGrid({ cols: 6, rows: 6, cellSize: 16, isoScale: 1.4 })
 const ent = (id: string, col: number, row: number): Entity => ({ id, kind: 'enemy', col, row }) as unknown as Entity
 
-describe('mapSnapshot — capture/restore the exact map (grid + entities)', () => {
+describe('mapSnapshot, capture/restore the exact map (grid + entities)', () => {
   test('restore brings the grid back to the captured ground / height / collision / assets', () => {
     const grid = mkGrid()
     grid.setGround(1, 1, 'water')
@@ -25,7 +25,7 @@ describe('mapSnapshot — capture/restore the exact map (grid + entities)', () =
 
     const snap = captureMapSnapshot(grid, entities)
 
-    // edit further — this is the state an undo must roll back
+    // edit further, this is the state an undo must roll back
     grid.setGround(1, 1, 'lava')
     grid.setHeight(2, 2, 0)
     grid.placeAsset(['B'], 5, 5, { type: 'tree' })
@@ -39,7 +39,7 @@ describe('mapSnapshot — capture/restore the exact map (grid + entities)', () =
     expect(restored!.map(e => e.id)).toEqual(['e1'])
   })
 
-  test('the stored snapshot is DEEP — mutating the grid after a restore does not corrupt it', () => {
+  test('the stored snapshot is DEEP, mutating the grid after a restore does not corrupt it', () => {
     const grid = mkGrid()
     grid.placeAsset(['A'], 0, 0, { type: 'house' })
     const snap = captureMapSnapshot(grid, [])
@@ -55,16 +55,16 @@ describe('mapSnapshot — capture/restore the exact map (grid + entities)', () =
     expect(grid.groundAt(0, 0)).toBe(DEFAULT_FLOOR_SLUG)
   })
 
-  test('entities in a snapshot are cloned — editing a restored entity does not change the snapshot', () => {
+  test('entities in a snapshot are cloned, editing a restored entity does not change the snapshot', () => {
     const grid = mkGrid()
     const snap = captureMapSnapshot(grid, [ent('e1', 1, 1)])
     const restored = restoreMapSnapshot(grid, snap)!
     restored[0].col = 99 // move the restored copy
-    // restoring again gives the ORIGINAL position — the stored entity was not mutated
+    // restoring again gives the ORIGINAL position, the stored entity was not mutated
     expect(restoreMapSnapshot(grid, snap)![0].col).toBe(1)
   })
 
-  test('GROUND THICKNESS rides the snapshot — Ctrl+Z puts the map back to the depth it had', () => {
+  test('GROUND THICKNESS rides the snapshot, Ctrl+Z puts the map back to the depth it had', () => {
     // The panel's thickness control is a map edit like any other, so undo has to carry it. It is a
     // whole-map number rather than a per-cell layer, which is exactly how it got missed: assets restored
     // perfectly and the one thing you had just changed stayed changed, so undo LOOKED like it ran.

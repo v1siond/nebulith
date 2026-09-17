@@ -1,5 +1,5 @@
 /**
- * TILE PREVIEWS — the facts and the geometry behind every picture the library shows.
+ * TILE PREVIEWS, the facts and the geometry behind every picture the library shows.
  *
  *   > there's no preview in objects, in general we need preview for everything.
  *   > the ascii art unit tiles aren't distinguishable at all right now, they're supper small and not clear,
@@ -14,7 +14,7 @@
  *    `const TILES = styleTiles('ascii')` would capture the empty catalog forever. Every accessor below
  *    takes the style id and asks the store at call time.
  *  · **No fallbacks.** A label with no picture returns `undefined`/`null`, and the UI shows the hole. It
- *    does NOT substitute a glyph, an emoji or another style's art — that is how 15 pictureless items came
+ *    does NOT substitute a glyph, an emoji or another style's art, that is how 15 pictureless items came
  *    to look finished in the old inventory panel.
  */
 import { styleCatalog, styleTile } from './tileset/styleTiles'
@@ -23,7 +23,7 @@ import type { Composition, CompositionCell } from './tileset/tileset'
 /** What the preview strip states about one tile. Every field is read, none is derived. */
 export interface TileFacts {
   label: string
-  /** Display name. Falls back to the label itself only for the NAME — never for art. */
+  /** Display name. Falls back to the label itself only for the NAME, never for art. */
   name: string
   /** The tile's baked picture in this style, or undefined when this style has no such label. */
   image?: string
@@ -85,7 +85,7 @@ export function tileFacts(styleId: string, label: string): TileFacts | undefined
 export interface PlanCell {
   dx: number
   dy: number
-  /** True only when EVERY tile stacked on this square is walkable — that is what a doorway looks like. */
+  /** True only when EVERY tile stacked on this square is walkable, that is what a doorway looks like. */
   walkable: boolean
 }
 
@@ -127,7 +127,7 @@ function levelSpan(cell: CompositionCell): number {
   return isNumber(scaleY) && scaleY >= 1 ? Math.floor(scaleY) : 1
 }
 
-/** The frontmost row of each column — the only cells a front elevation can see. */
+/** The frontmost row of each column, the only cells a front elevation can see. */
 function frontRowByColumn(cells: readonly CompositionCell[]): Map<number, number> {
   const front = new Map<number, number>()
   for (const cell of cells) {

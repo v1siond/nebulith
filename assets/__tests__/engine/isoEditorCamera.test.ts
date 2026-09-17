@@ -4,13 +4,13 @@
  * / "we can rotate the corners, 4 corners, 4 rotation options, all faces of the map are visible."
  *
  * `iso.ts` already rotates the RENDER (isoCameraRotation.test.ts covers that). The editor page carried its OWN
- * copy of the iso math in `screenToCell` and `cellToCanvas` — facing-blind, so on a rotated map a click landed
+ * copy of the iso math in `screenToCell` and `cellToCanvas`, facing-blind, so on a rotated map a click landed
  * on a mirrored/transposed cell and the on-canvas toolbar drifted off the selection. `isoEditorCamera` is that
  * math extracted into one pure seam both call sites now read, so this file can prove:
  *
- *   1. Facing 0 is INERT — the seam reproduces, to the bit, the formulas the page used before (clamped AND
+ *   1. Facing 0 is INERT, the seam reproduces, to the bit, the formulas the page used before (clamped AND
  *      unclamped, since the render clamps only in play mode).
- *   2. The anchor the editor draws overlays at is the RENDER's own diamond centre, one tile-height down — at
+ *   2. The anchor the editor draws overlays at is the RENDER's own diamond centre, one tile-height down, at
  *      every facing, checked against a real render()'s recorded silhouettes, not against itself.
  *   3. screen→cell is the EXACT inverse of cell→screen at all 4 facings, for every cell of a NON-SQUARE map
  *      (an odd facing swaps the view dims, so a dims bug cannot hide behind a square).
@@ -30,7 +30,7 @@ import type { PlayerState } from '@/game/runtime/player'
 
 const CELL = 100, W = 800, H = 600, ISO = 1
 const TILE_H = CELL * ISO * 0.36
-// Non-square on purpose — an odd facing swaps the view dims.
+// Non-square on purpose, an odd facing swaps the view dims.
 const COLS = 5, ROWS = 3
 const PCOL = 2, PROW = 1 // the camera sits on the map centre, its own centre in every oriented frame
 const FACINGS: Orientation[] = [0, 1, 2, 3]
@@ -72,7 +72,7 @@ function legacyCellToCanvas(col: number, row: number, v: IsoEditorView): { x: nu
   return { x: a * S + v.canvasW / 2, y: b * T + v.canvasH / 2 }
 }
 
-/** A no-op ctx — the tile GEOMETRY the assertions read is independent of the pixels drawn. */
+/** A no-op ctx, the tile GEOMETRY the assertions read is independent of the pixels drawn. */
 function mockCtx(): CanvasRenderingContext2D {
   const ctx = {
     fillStyle: '#000', strokeStyle: '#000', font: '', textAlign: '' as CanvasTextAlign,
@@ -118,7 +118,7 @@ const near = (a: { x: number; y: number }, b: { x: number; y: number }): void =>
 }
 
 // ────────────────────────────────────────────────────────────────────────────────────────────────────────
-describe('1 — facing 0 is INERT (regression guard: the editor projections the page shipped with)', () => {
+describe('1, facing 0 is INERT (regression guard: the editor projections the page shipped with)', () => {
   test('isoEditorCellAnchor reproduces the old inline cellToCanvas, clamped and unclamped', () => {
     for (const clamp of [false, true]) {
       const v = view(0, clamp)
@@ -141,7 +141,7 @@ describe('1 — facing 0 is INERT (regression guard: the editor projections the 
 })
 
 // ────────────────────────────────────────────────────────────────────────────────────────────────────────
-describe('2 — the editor camera IS the render camera, at every facing', () => {
+describe('2, the editor camera IS the render camera, at every facing', () => {
   test('the anchor is the RENDERED diamond centre, one tile-height down (the +0.5/+0.5 convention)', () => {
     for (const facing of FACINGS) {
       renderIso(facing)
@@ -179,7 +179,7 @@ describe('2 — the editor camera IS the render camera, at every facing', () => 
 })
 
 // ────────────────────────────────────────────────────────────────────────────────────────────────────────
-describe('3 — screen→cell is the EXACT inverse of cell→screen at all 4 facings', () => {
+describe('3, screen→cell is the EXACT inverse of cell→screen at all 4 facings', () => {
   test('every cell of the non-square map round-trips, unclamped (dev) and clamped (play)', () => {
     for (const clamp of [false, true]) {
       for (const facing of FACINGS) {
@@ -187,7 +187,7 @@ describe('3 — screen→cell is the EXACT inverse of cell→screen at all 4 fac
         for (let col = 0; col < COLS; col++) {
           for (let row = 0; row < ROWS; row++) {
             const p = isoEditorCellAnchor(col, row, v)
-            // The anchor sits a tile-height BELOW the diamond centre — lift back to the centre before picking,
+            // The anchor sits a tile-height BELOW the diamond centre, lift back to the centre before picking,
             // exactly as a click on the middle of the cell would.
             expect({ clamp, facing, ...isoEditorCellAt(p.x, p.y - TILE_H, v) }).toEqual({ clamp, facing, col, row })
           }
@@ -198,7 +198,7 @@ describe('3 — screen→cell is the EXACT inverse of cell→screen at all 4 fac
 })
 
 // ────────────────────────────────────────────────────────────────────────────────────────────────────────
-describe('4 — rotating really re-maps the screen (the deorient runs)', () => {
+describe('4, rotating really re-maps the screen (the deorient runs)', () => {
   test('the viewport centre is always the camera cell, but a neighbouring pixel differs per facing', () => {
     expect(isoEditorCellAt(W / 2, H / 2, view(0))).toEqual({ col: PCOL, row: PROW })
     const offCentre = { x: W / 2 + CELL * ISO * 0.71, y: H / 2 }
@@ -206,7 +206,7 @@ describe('4 — rotating really re-maps the screen (the deorient runs)', () => {
     expect(new Set(resolved).size).toBe(4)
   })
 
-  test('the back corner (0,0) — unreachable-looking at facing 0 — is picked at its own spot after a half turn', () => {
+  test('the back corner (0,0), unreachable-looking at facing 0, is picked at its own spot after a half turn', () => {
     renderIso(2)
     const drawn = drawnAnchor(0, 0)
     expect(isoEditorCellAt(drawn.x, drawn.y, view(2))).toEqual({ col: 0, row: 0 })

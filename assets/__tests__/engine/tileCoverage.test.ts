@@ -1,22 +1,22 @@
 import '@/__tests__/helpers/installZoneSeed'
 import { zones } from '@/engine/zoneCatalog' // the generator reads every season from the backend catalog
 /**
- * TILE COVERAGE GUARDRAIL — every game-world identifier must resolve to a real IMAGE tile
+ * TILE COVERAGE GUARDRAIL, every game-world identifier must resolve to a real IMAGE tile
  * under the EMOJI style (never the ASCII passthrough / a hardcoded glyph).
  *
  * The root bug this locks out: `assetKind`/`groundKind`/`entityKind` fall back to `'ground'`
  * for anything unmapped, and `'ground'` has no emoji tile → resolveVisual returns the ASCII
  * passthrough → the renderer stamps a raw glyph. So a boss (Ω), a lava-ember crust (▒), a
- * waterfall spill (‖), a projectile (➤), an ability animation, the connector marker (◊) — all
+ * waterfall spill (‖), a projectile (➤), an ability animation, the connector marker (◊), all
  * silently draw as ASCII soup under the emoji reskin.
  *
- * This test loads the SEED tileset (nebulith/priv/repo/tilesets/emoji.json — the exact data the
+ * This test loads the SEED tileset (nebulith/priv/repo/tilesets/emoji.json, the exact data the
  * live game loads from the DB), builds the emoji Style from it, then asserts that EVERY identifier
  * the stage generator / catalog / combat can emit resolves to `kind: 'image'`. Each `it` collects
  * the gaps into a list and asserts it is empty, so a RED run prints the full authoritative gap set.
  *
  * Enumerations are pulled from the real sources (CELL_LABELS, zonePalette, ABILITY_ANIMATIONS, the backend
- * entity resolution, enemyTileId) — not a guessed subset. The handful that
+ * entity resolution, enemyTileId), not a guessed subset. The handful that
  * cannot be imported (inline `type:` string literals in stageGenerator, the projectile glyphs that
  * are private to combat.ts) are listed verbatim with a source citation.
  */
@@ -42,7 +42,7 @@ import { glyphImageVisual } from '@/engine/render/shared'
 import { CELL_LABELS } from '@/engine/cellLabels'
 import { ZONE_PALETTES } from '@/engine/zones'
 import { ABILITY_ANIMATIONS } from '@/game/abilities'
-// The entity resolution the runtime installs from `/api/entities` — a captured fixture of that endpoint's
+// The entity resolution the runtime installs from `/api/entities`, a captured fixture of that endpoint's
 // payload (the shape EntitySource serves), installed the SAME way the loader installs it.
 import ENTITIES_FIXTURE from '@/__tests__/fixtures/entities.json'
 import type { EntityVariant } from '@/game/types'
@@ -66,7 +66,7 @@ beforeAll(() => {
 })
 
 // ── helpers ───────────────────────────────────────────────────────────────────────────────────
-/** resolveVisual returns an IMAGE for `kind`? (the pass condition — never ascii/glyph). */
+/** resolveVisual returns an IMAGE for `kind`? (the pass condition, never ascii/glyph). */
 const resolvesToImage = (kind: ElementKind): boolean => resolveVisual(kind, EMOJI_STYLE).kind === 'image'
 /** A raw glyph char resolves to a baked image through the char→image index (weapons/projectiles). */
 const glyphResolvesToImage = (glyph: string): boolean => glyphImageVisual(glyph, EMOJI_STYLE)?.kind === 'image'
@@ -86,8 +86,7 @@ const ASSET_TYPES: string[] = [
 ]
 
 // The MULTI-CELL enumeration is gone with the table it read. `MULTI_CELL_ASSETS` was a hardcoded frontend
-// asset list, retired when compositions moved to the backend, and the `structure` asset type went with it —
-// nothing in production emits one. A composition places per-cell TILES now, and every one of those labels is
+// asset list, retired when compositions moved to the backend, and the `structure` asset type went with it, // nothing in production emits one. A composition places per-cell TILES now, and every one of those labels is
 // already covered by the CELL_LABELS check below.
 
 // Every ground TYPE string that lands in ground[][]: the zone palettes' groundTypes + hazards,
@@ -105,7 +104,7 @@ const PERSON_VARIANTS: string[] = Object.keys(ENTITIES_FIXTURE.data.variantSlug)
 // The weapon tiles the seed carries (drawn in-hand via drawPoseGlyph → glyphTileImage by CHAR).
 const WEAPON_KINDS: string[] = ['sword', 'axe', 'bow', 'gun', 'staff', 'shield', 'fist']
 
-// Projectile glyphs — src/game/runtime/combat.ts PROJECTILE_GLYPHS = { bow: '➤', gun: '•' }, default '→'.
+// Projectile glyphs, src/game/runtime/combat.ts PROJECTILE_GLYPHS = { bow: '➤', gun: '•' }, default '→'.
 const PROJECTILE_GLYPHS: string[] = ['➤', '•', '→']
 
 // Ability animations come straight from the engine's own list. They used to be read off the keys of an
@@ -113,7 +112,7 @@ const PROJECTILE_GLYPHS: string[] = ['➤', '•', '→']
 // so the frontend stopped re-declaring nine hexes the API already served. Reading a deleted map's keys threw
 // before a single test in this file could run.
 
-describe('tile coverage guardrail — every world identifier resolves to an IMAGE under the emoji style', () => {
+describe('tile coverage guardrail, every world identifier resolves to an IMAGE under the emoji style', () => {
   it('the seed loaded and built an emoji style with image tiles', () => {
     expect(Object.keys(styleTiles('emoji')).length).toBeGreaterThan(30)
     expect(resolveVisual('grass', EMOJI_STYLE).kind).toBe('image') // sanity: baked terrain is an image
@@ -132,9 +131,9 @@ describe('tile coverage guardrail — every world identifier resolves to an IMAG
     expect(gaps).toEqual([])
   })
 
-  // COLOUR-ONLY grounds render as a per-cell tinted colour SLAB with NO image resource — the deliberate
+  // COLOUR-ONLY grounds render as a per-cell tinted colour SLAB with NO image resource, the deliberate
   // "grass + water are colour, tiles are spent only on ornaments" model (GENERATION-SPEC §5.5, MAP-MODEL §4:
-  // an art style is made OF tiles, but a ground need not be BUILT from a tile-image — a coloured block is one).
+  // an art style is made OF tiles, but a ground need not be BUILT from a tile-image, a coloured block is one).
   // They have no glyph to fall back to (iso.ts colour-slab path: `!adv.image && type === FLOOR_TYPE`), so the
   // `??`-glyph guardrail EXEMPTS them; every OTHER ground must still resolve to a baked image.
   const COLOUR_ONLY_GROUNDS = new Set(['meadow'])

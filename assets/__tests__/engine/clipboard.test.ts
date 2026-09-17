@@ -1,6 +1,6 @@
 /**
- * COPY / PASTE — capture a marquee selection's tiles (each keyed "col,row,stackIndex" — its slot in the cell
- * stack — or a bare "col,row" cell) as a position-independent TileClip, then re-stamp them at a new hovered
+ * COPY / PASTE, capture a marquee selection's tiles (each keyed "col,row,stackIndex", its slot in the cell
+ * stack, or a bare "col,row" cell) as a position-independent TileClip, then re-stamp them at a new hovered
  * anchor: every tile lands at (anchorCol+relCol, anchorRow+relRow) at its PRESERVED level, replacing whatever
  * occupied the target, with collision re-derived. A tall wall is ONE collapsed scaleY-run asset (ONE stack
  * slot), so it round-trips as a single tile. The grid ctor fills grass, so slot 0 of every cell is its floor
@@ -15,7 +15,7 @@ const SOLID = { collision: [{ x: 0, y: 0, w: 1, h: 1 }] }
 
 const makeGrid = () => new IsometricGrid({ cols: 32, rows: 32, cellSize: 32, isoScale: 1.4 })
 
-describe('copyTiles / pasteTiles — reproduce a multi-block selection at a new anchor', () => {
+describe('copyTiles / pasteTiles, reproduce a multi-block selection at a new anchor', () => {
   test('copies a multi-block selection (incl a collapsed scaleY wall run + a floor) and pastes it verbatim', () => {
     const g = makeGrid()
     // A little scene at cols 1..2, rows 1..2:
@@ -43,7 +43,7 @@ describe('copyTiles / pasteTiles — reproduce a multi-block selection at a new 
     expect(pastedTree!.label).toBe('tree_top')
     expect(pastedTree!.color).toBe('#3a5')
 
-    // wall reproduced at (11,10) — relCol 1 preserved — with its scaleY run, settings + tileOverride
+    // wall reproduced at (11,10), relCol 1 preserved, with its scaleY run, settings + tileOverride
     const pastedWall = g.getAssetsAtCell(11, 10).find((a) => a.type === 'wall')
     expect(pastedWall).toBeTruthy()
     expect(pastedWall!.heightLevel).toBe(1)
@@ -52,7 +52,7 @@ describe('copyTiles / pasteTiles — reproduce a multi-block selection at a new 
     expect(pastedWall!.settings).toEqual({ fadeNear: true })
     expect(pastedWall!.tileOverride).toBe('emoji:brick')
 
-    // floor patch reproduced at (10,11) — relRow 1 preserved
+    // floor patch reproduced at (10,11), relRow 1 preserved
     expect(g.groundAt(10, 11)).toBe('water')
 
     // and the ORIGINALS are untouched (copy, not move)
@@ -63,7 +63,7 @@ describe('copyTiles / pasteTiles — reproduce a multi-block selection at a new 
   test('preserves RELATIVE levels across a stack (roof higher than wall) at the new anchor', () => {
     const g = makeGrid()
     g.placeAsset(['🧱'], 3, 3, { type: 'wall', heightLevel: 1 }) // stack slot 1 (floor is slot 0)
-    g.placeAsset(['🟫'], 3, 3, { type: 'roof', heightLevel: 4 }) // 3 heightLevels above the wall — stack slot 2
+    g.placeAsset(['🟫'], 3, 3, { type: 'roof', heightLevel: 4 }) // 3 heightLevels above the wall, stack slot 2
 
     const clip = copyTiles(g, ['3,3,1', '3,3,2']) // the wall's slot + the roof's slot
     pasteTiles(g, clip, 20, 20)

@@ -1,5 +1,5 @@
 /**
- * THE CONTROL PRIMITIVES — the small pieces every panel is built from.
+ * THE CONTROL PRIMITIVES, the small pieces every panel is built from.
  *
  * Carried over from the approved design at :8899 with the same class names, so the ported CSS applies with
  * no new rules. Two decisions here are the design's, not incidental:
@@ -37,7 +37,7 @@ export function ControlRow({
   )
 }
 
-/** A segmented choice — two to five mutually exclusive options, all visible at once. */
+/** A segmented choice, two to five mutually exclusive options, all visible at once. */
 export function Segmented<T extends string>({
   label,
   helpId,
@@ -169,7 +169,7 @@ export interface FilterRow {
 }
 
 /**
- * A selectable LIST of filters — explicitly not pills.
+ * A selectable LIST of filters, explicitly not pills.
  *
  * The count on each row is why this beats a dropdown too: you can see there are 4 doors and 94 ground
  * tiles without opening anything.

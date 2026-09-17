@@ -2,8 +2,8 @@
  * Sprite-aware click hit-testing for placed grid ASSETS (props: trees, flowers, rocks, lamps…).
  *
  * The renderers draw a prop's sprite as a BILLBOARD that stands UP from its base cell (a tree is drawn
- * ~2–3 cells tall in iso/2d), so a click ON the sprite lands on a cell ABOVE the asset's base in screen
- * space. Selecting by the raw ground cell (`screenToCell`) therefore misses tall props — you could only
+ * ~2-3 cells tall in iso/2d), so a click ON the sprite lands on a cell ABOVE the asset's base in screen
+ * space. Selecting by the raw ground cell (`screenToCell`) therefore misses tall props, you could only
  * click compact, on-cell sprites (a lamp). This mirrors `entityAtClick` (which already does this for
  * units): check the exact cell, then walk screen-DOWN toward the base to find the prop whose sprite
  * covers where you clicked. Pure + view-aware.
@@ -37,8 +37,8 @@ const SPRITE_SPAN: Record<'top' | '2d' | 'iso', number> = { top: 0, '2d': 2, iso
 
 /**
  * Hit-test a click (given as the ground cell under the cursor) to a placed asset, accounting for the
- * billboard. Exact cell first; then walk screen-DOWN toward the base — `+row` in 2d, `+col,+row` in iso
- * (screen-up is `-row` / `-col,-row`) — up to the view's sprite span, probing the centre + flanking
+ * billboard. Exact cell first; then walk screen-DOWN toward the base, `+row` in 2d, `+col,+row` in iso
+ * (screen-up is `-row` / `-col,-row`), up to the view's sprite span, probing the centre + flanking
  * columns so clicking the sprite's edge still hits. Top view checks only the exact cell.
  */
 export function assetAtClick<T extends PickableAsset>(

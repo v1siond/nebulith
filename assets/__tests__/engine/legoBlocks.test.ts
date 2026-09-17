@@ -1,9 +1,9 @@
 /**
- * LEGO MODEL — end-to-end against the GRID (the source of truth). The requirement, as tests:
+ * LEGO MODEL, end-to-end against the GRID (the source of truth). The requirement, as tests:
  * "anything on the grid is just a BLOCK or a collection of BLOCKS", and you can EDIT any block's content.
- * These assert grid state directly — no rendering, no selection UI (selection's screen hit-test lives in
+ * These assert grid state directly, no rendering, no selection UI (selection's screen hit-test lives in
  * isoPick.test.ts). If a building is a collection of editable blocks HERE, then the only things left are
- * rendering from those blocks and wiring the click — not "convert a building".
+ * rendering from those blocks and wiring the click, not "convert a building".
  */
 import '@/__tests__/helpers/installTilesetSeed' // the building composition (house_4) comes from the loaded backend tileset fixture
 import { IsometricGrid } from '@/engine/IsometricGrid'
@@ -12,8 +12,8 @@ import { stampBuildingComposition } from '@/game/runtime/composition'
 
 const mkGrid = () => new IsometricGrid({ cols: 12, rows: 12, cellSize: 16, isoScale: 1.4 })
 
-describe('lego model — everything on the grid is an editable block', () => {
-  test('STACK: the floor STAYS as the base — pushed blocks stack ON TOP of it (stacked like legos)', () => {
+describe('lego model, everything on the grid is an editable block', () => {
+  test('STACK: the floor STAYS as the base, pushed blocks stack ON TOP of it (stacked like legos)', () => {
     const grid = mkGrid()
     grid.setGround(4, 4, 'grass')
     pushTile(grid, 4, 4, { source: 'asset', slug: 'stone', h: 1, art: ['█'], type: 'block' })
@@ -43,11 +43,11 @@ describe('lego model — everything on the grid is an editable block', () => {
     expect(block.w).toBe(0.5)
   })
 
-  test('a BUILDING on the grid is a collection of editable blocks — no special "building" needed', () => {
+  test('a BUILDING on the grid is a collection of editable blocks, no special "building" needed', () => {
     const grid = mkGrid()
     stampBuildingComposition(grid, 'house', 4, 4, 4, 'spring', 'south') // footprint top-left (4,4), 4×4
 
-    // A building is BLOCKS on the grid — plain per-cell tiles typed by the composition KIND, no "building" type.
+    // A building is BLOCKS on the grid, plain per-cell tiles typed by the composition KIND, no "building" type.
     const buildingBlocks = grid.assets.filter(a => a.type === 'house_4')
     expect(buildingBlocks.length).toBeGreaterThan(0)
     expect(grid.assets.some(a => a.type === 'building')).toBe(false)
@@ -57,7 +57,7 @@ describe('lego model — everything on the grid is an editable block', () => {
     const stack = getStack(grid, a0.col, a0.row)
     expect(stack.some(t => t.source === 'asset')).toBe(true)
 
-    // It's EDITABLE like any block — recolor it, the grid reflects. A building cell can stack several
+    // It's EDITABLE like any block, recolor it, the grid reflects. A building cell can stack several
     // blocks (wall + window + roof), so read back the block at a0's OWN level, not just the first asset.
     a0.color = '#123456'
     // Match the BUILDING block (its composition-kind type), not the grass floor that now also shares heightLevel 0.

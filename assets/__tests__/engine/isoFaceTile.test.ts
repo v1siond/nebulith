@@ -1,12 +1,12 @@
 /**
- * #84 — tiles are TRANSFORMED onto the iso geometry, not stamped upright.
+ * #84, tiles are TRANSFORMED onto the iso geometry, not stamped upright.
  *
  * `fillIsoFaceWithTile` is the one primitive that turns a tile (emoji glyph now, image
  * sprite later) into an iso-angled texture: it pushes a CTM built from the face's two edge
  * vectors so a unit tile maps onto the parallelogram, then stamps na×nb tiles across it.
  *
- * These tests prove the SHEAR is correct — the transform maps the tile's unit box onto the
- * exact face corners (the ground DIAMOND corners; a wall FACE's corners) — and that a tile is
+ * These tests prove the SHEAR is correct, the transform maps the tile's unit box onto the
+ * exact face corners (the ground DIAMOND corners; a wall FACE's corners), and that a tile is
  * actually drawn (a glyph stamped, not skipped). If the CTM were wrong the emoji would sit
  * upright/off-diamond, which is the bug the user reported.
  */
@@ -50,7 +50,7 @@ const near = (p: { x: number; y: number }, x: number, y: number) => {
   expect(p.y).toBeCloseTo(y, 6)
 }
 
-describe('fillIsoFaceWithTile — the tile is sheared onto the face (not upright)', () => {
+describe('fillIsoFaceWithTile, the tile is sheared onto the face (not upright)', () => {
   test('ground diamond: the unit tile maps exactly onto the four diamond corners', () => {
     // A ground cell centred at (px, drawY) with half-extents (tileW, tileH). drawIsoGroundContent
     // passes the diamond as: origin = LEFT corner, eA → TOP corner, eB → BOTTOM corner.
@@ -67,7 +67,7 @@ describe('fillIsoFaceWithTile — the tile is sheared onto the face (not upright
 
     const m = getMat()!
     expect(m).not.toBeNull()
-    // The tile's unit box corners land on the DIAMOND corners — i.e. the emoji lies flat on the
+    // The tile's unit box corners land on the DIAMOND corners, i.e. the emoji lies flat on the
     // iso ground plane, filling the diamond at its angle, instead of a flat upright square.
     near(apply(m, 0, 0), px - tileW, drawY) // left
     near(apply(m, S, 0), px, drawY - tileH) // top
@@ -92,7 +92,7 @@ describe('fillIsoFaceWithTile — the tile is sheared onto the face (not upright
     const m = getMat()!
     near(apply(m, 0, 0), 100, 260) // bottom-left (ground)
     near(apply(m, S, 0), 180, 300) // bottom-right (ground, sheared along the iso axis)
-    near(apply(m, 0, S), 100, 140) // top-left (up the wall — has z)
+    near(apply(m, 0, S), 100, 140) // top-left (up the wall, has z)
     near(apply(m, S, S), 180, 180) // top-right
   })
 

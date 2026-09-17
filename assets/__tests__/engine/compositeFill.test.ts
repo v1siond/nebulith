@@ -5,7 +5,7 @@ import { fillSelectionWithComposite, scaleCompositeToRegion, type CompositeTile 
  * the only statement about walking through a tile. */
 const SOLID = { collision: [{ x: 0, y: 0, w: 1, h: 1 }] }
 
-// A 2×2 "well": four blocking edge tiles — the composite that was hardcoded to 4
+// A 2×2 "well": four blocking edge tiles, the composite that was hardcoded to 4
 // cells regardless of how many the user selected.
 const WELL: CompositeTile[] = [
   { tile: 'well_edge', char: 'O', dx: 0, dy: 0, settings: SOLID, type: 'decoration' },
@@ -22,7 +22,7 @@ const region = (c0: number, r0: number, w: number, h: number): Set<string> => {
 
 const newGrid = () => new IsometricGrid({ cols: 12, rows: 12, cellSize: 16, isoScale: 1 })
 
-describe('compositeFill — tile a composite across a multi-cell selection', () => {
+describe('compositeFill, tile a composite across a multi-cell selection', () => {
   it('fills EVERY selected cell (a 2×2 well over a 4×3 region → 12 placed, blocking cells)', () => {
     const grid = newGrid()
     const sel = region(2, 2, 4, 3) // 12 cells
@@ -62,7 +62,7 @@ const QUAD: CompositeTile[] = [
   { tile: 'q', char: 'D', dx: 1, dy: 1, settings: SOLID, type: 'decoration' },
 ]
 
-describe('compositeFill — scale ONE composite to span the selection', () => {
+describe('compositeFill, scale ONE composite to span the selection', () => {
   it('a 2×2 over a 4×4 region → 16 cells, ONE scaled instance (each quadrant a 2×2 block)', () => {
     const grid = newGrid()
     scaleCompositeToRegion(grid, QUAD, region(0, 0, 4, 4))

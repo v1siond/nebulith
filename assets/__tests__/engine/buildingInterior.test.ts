@@ -1,20 +1,19 @@
 /**
- * A BUILDING IS ENTERABLE — its interior is floor you walk on, not solid rock.
+ * A BUILDING IS ENTERABLE, its interior is floor you walk on, not solid rock.
  *
- * The target is Image #6 (Diablo II) — a real room you
+ * The target is Image #6 (Diablo II), a real room you
  * move around in.
  *
- * The defect is older than the doorway work: `placeBuildingOnPlot` blanket-blocked the WHOLE footprint rect —
- *   collision[row][col] = !isDoor.has(`${col},${row}`)   // every cell but the door
- * — the old "a building is a solid obstacle with a door you bump into" model. So the hero could stand in the
+ * The defect is older than the doorway work: `placeBuildingOnPlot` blanket-blocked the WHOLE footprint rect, *   collision[row][col] = !isDoor.has(`${col},${row}`)   // every cell but the door
+ *, the old "a building is a solid obstacle with a door you bump into" model. So the hero could stand in the
  * doorway (that cell is walkable) and go nowhere.
  *
- * The rule now: the PERIMETER blocks (walls, windows — you don't walk through a window), the DOORWAY is the way
+ * The rule now: the PERIMETER blocks (walls, windows, you don't walk through a window), the DOORWAY is the way
  * in, and the INTERIOR is walkable floor. Per-cell truth still comes from the composition's own `walkable`
  * flags when it stamps; the generator must not pre-seal what the composition leaves open.
  */
 // Building SIZES are BACKEND data now (the composition footprints), so a generator run with nothing loaded
-// plants no buildings at all — correctly, since there would be no composition to stamp. Install what
+// plants no buildings at all, correctly, since there would be no composition to stamp. Install what
 // production loads, exactly as every other generator suite does.
 import '@/__tests__/helpers/installTilesetSeed'
 import { generateStage } from '@/engine/stageGenerator'
@@ -58,7 +57,7 @@ describe('a generated building can actually be walked into', () => {
     expect(sealed.map(x => `${x.b.kind}@${x.b.col},${x.b.row}`)).toEqual([])
   })
 
-  test('the interior is REACHABLE from a door cell — the doorway leads somewhere', () => {
+  test('the interior is REACHABLE from a door cell, the doorway leads somewhere', () => {
     const s = stage(11)
     const withInterior = s.buildings.map(b => ({ b, cells: rectCells(b) })).filter(x => x.cells.interior.length > 0)
     expect(withInterior.length).toBeGreaterThan(0)
@@ -89,7 +88,7 @@ describe('a generated building can actually be walked into', () => {
     expect(unreachable.map(x => `${x.b.kind}@${x.b.col},${x.b.row}`)).toEqual([])
   })
 
-  test('the building still has WALLS — its perimeter blocks apart from the doorway', () => {
+  test('the building still has WALLS, its perimeter blocks apart from the doorway', () => {
     const s = stage(11)
     const b = s.buildings.find(x => rectCells(x).interior.length > 0)!
     const cells = rectCells(b)

@@ -3,16 +3,16 @@
  *
  * The HUD layout, the keybindings and the action bars were frontend literals: `playerUi.data.ts` held the
  * placements and `shortcuts.ts` the keys. They are a profile now, and the one this serves by default IS the
- * UI shipping today — the seed was generated from those files rather than redesigned.
+ * UI shipping today, the seed was generated from those files rather than redesigned.
  *
  * Shaped by the answers to the UI spec, 2026-09-06:
  *
- * - **one profile per game, plus a default** — Ask for a game's
+ * - **one profile per game, plus a default**, Ask for a game's
  *   profile; a game with none gets the default, and that is not a fallback, it is the design.
- * - **the author limits the player** — `playerMay` says which of keys / layout / settings a player may
+ * - **the author limits the player**, `playerMay` says which of keys / layout / settings a player may
  *   change, so a locked game and a fully editable one are the same model with different limits.
- * - **unlimited bars, with conditions** — a bar whose `condition` is null is always up; a rule swaps it in.
- * - **desktop AND mobile** — both layouts live in one profile as separate element rows.
+ * - **unlimited bars, with conditions**, a bar whose `condition` is null is always up; a rule swaps it in.
+ * - **desktop AND mobile**, both layouts live in one profile as separate element rows.
  *
  * Read through functions, never a module const: the profile is empty until the backend answers.
  */
@@ -91,7 +91,7 @@ export async function loadUiProfile(gameId?: string): Promise<void> {
     if (!res.ok) throw new Error(`HTTP ${res.status}`)
     installUiProfile(await res.json())
   } catch (error) {
-    console.warn('[ui] the player-UI profile could not be loaded — the HUD has no layout', error)
+    console.warn('[ui] the player-UI profile could not be loaded, the HUD has no layout', error)
   }
 }
 
@@ -105,7 +105,7 @@ export async function saveBars(gameId: string | undefined, bars: readonly UiBar[
   return save(gameId, { bars })
 }
 
-/** Save element placements — only the ones given, so moving one piece leaves the rest alone. */
+/** Save element placements, only the ones given, so moving one piece leaves the rest alone. */
 export async function saveElements(gameId: string | undefined, elements: readonly UiElement[]): Promise<boolean> {
   return save(gameId, { elements })
 }
@@ -139,7 +139,7 @@ export function uiProfile(): UiProfile | null {
   return PROFILE
 }
 
-/** Every binding for one action — more than one is an alternate. */
+/** Every binding for one action, more than one is an alternate. */
 export function bindingsFor(actionKey: string): readonly UiBinding[] {
   return (PROFILE?.bindings ?? []).filter(b => b.actionKey === actionKey)
 }

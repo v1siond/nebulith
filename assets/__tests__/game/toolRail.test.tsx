@@ -1,17 +1,16 @@
 /**
- * THE LEFT RAIL — one idiom for everything you place, banded by the journey.
+ * THE LEFT RAIL, one idiom for everything you place, banded by the journey.
  *
- * Re-pointed at the approved design (:8899, "PROPOSED — interactive, try it"), which changed the rail's
+ * Re-pointed at the approved design (:8899, "PROPOSED, interactive, try it"), which changed the rail's
  * MODEL, not just its paint. Three deliberate differences from the old `EDITOR_RAIL`, each asserted below
  * because each was a decision:
  *
- *  · **`select` is gone.** Grouping actions by the OBJECT they act on showed it acts on nothing — it is the
+ *  · **`select` is gone.** Grouping actions by the OBJECT they act on showed it acts on nothing, it is the
  *    resting state of the cursor. When no brush is armed, clicking selects; that needs no button.
  * · **`artstyle` is gone from the rail.** It is the skin the whole product wears, not a step in building a level.
- *  · **`hud` is new** — the player's UI, which had no home in the editor at all.
+ *  · **`hud` is new**, the player's UI, which had no home in the editor at all.
  *
- * Plus: the rail is the ONLY place the three libraries are named (the panel's duplicate tab strip is gone —
- * ), and
+ * Plus: the rail is the ONLY place the three libraries are named (the panel's duplicate tab strip is gone, * ), and
  * each library row carries its COUNT so the label has information scent.
  */
 import { render, screen, fireEvent } from '@testing-library/react'
@@ -40,7 +39,7 @@ describe('the rail renders the MODEL, not a hand-written subset', () => {
     expect(headings).toEqual(['MAKE THE WORLD', 'PUT THINGS IN IT', 'MAKE IT A GAME'])
   })
 
-  it('leads with New world — it is the first thing anyone does with an empty map', () => {
+  it('leads with New world, it is the first thing anyone does with an empty map', () => {
     expect(EDITOR_BANDS[0].items[0].id).toBe('generate')
     expect(EDITOR_BANDS[0].items[0].label).toBe('New world')
   })
@@ -58,13 +57,13 @@ describe('the rail renders the MODEL, not a hand-written subset', () => {
     expect(EDITOR_RAIL.some(e => e.id === 'hud')).toBe(false)
   })
 
-  it('drops Select — it acts on no object, so it is not a tool', () => {
+  it('drops Select, it acts on no object, so it is not a tool', () => {
     setup()
     expect(ENTRIES.some(e => e.id === 'select')).toBe(false)
     expect(screen.queryByRole('tab', { name: /^select$/i })).not.toBeInTheDocument()
   })
 
-  it('drops Art style — it moved to the top nav, before the game selector', () => {
+  it('drops Art style, it moved to the top nav, before the game selector', () => {
     setup()
     expect(ENTRIES.some(e => e.id === 'artstyle')).toBe(false)
     expect(screen.queryByRole('tab', { name: /art style/i })).not.toBeInTheDocument()
@@ -111,7 +110,7 @@ describe('selection', () => {
     expect(screen.getByRole('tab', { name: /tiles/i })).toHaveAttribute('aria-selected', 'false')
   })
 
-  it('reports the ENTRY that was picked — New world and Rules arm no tool', () => {
+  it('reports the ENTRY that was picked, New world and Rules arm no tool', () => {
     const onPick = setup()
     fireEvent.click(screen.getByRole('tab', { name: /new world/i }))
     expect(onPick).toHaveBeenCalledWith(expect.objectContaining({ id: 'generate', mode: null }))

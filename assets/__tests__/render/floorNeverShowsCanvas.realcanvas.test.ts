@@ -12,7 +12,7 @@
  * no glyph the draw guard `blockCount >= 1 && (adv.image || adv.char)` skipped the slab entirely.
  *
  * Two guarantees, both measured in real pixels through the production `render()`:
- *   1. the fold is LOSSLESS — a ground name the kinds do not recognise still resolves its OWN baked tile;
+ *   1. the fold is LOSSLESS, a ground name the kinds do not recognise still resolves its OWN baked tile;
  *   2. a floor draws its slab even with no picture at all, because it is the map's SURFACE. Every other tile
  *      keeps "no art, no block": a missing prop leaves the ground under it, a missing floor leaves the canvas.
  */
@@ -44,7 +44,7 @@ function mapOf(ground: string): IsometricGrid {
   return grid
 }
 
-/** Clear-colour pixels in a box at the middle of the frame — a region the map body covers on every side. */
+/** Clear-colour pixels in a box at the middle of the frame, a region the map body covers on every side. */
 function clearPixelsAtCentre(grid: IsometricGrid, style: Style): number {
   const canvas = H.makeCanvas(W, HGT)
   const ctx = canvas.getContext('2d') as unknown as CanvasRenderingContext2D
@@ -85,13 +85,30 @@ describe('the ground-name → kind fold is lossless', () => {
     expect(assetTileImage({ type: 'floor', tileKey: 'cobblestone' }, style)).toBeDefined()
   })
 
-  test.each([EMOJI_STYLE, ASCII_STYLE])('the KIND still wins where it resolves, so a river stays one picture ($id)', style => {
+  /**
+   * THE LABEL WINS NOW, AND THAT IS THE POINT. This asserted the opposite until 2026-09-16: that the kind
+   * fold beat a tile's own name, so every water label drew the one `water` picture.
+   *
+   * That rule was what made a second set of water art impossible. He asked for water the user can choose the
+   * look of, and a choice that cannot draw is not a choice, so the resolution order was flipped: a tile's own
+   * name first, its kind as the fallback. The fold still decides what a cell IS (its collision, whether the
+   * generator counts it as water); it stopped deciding what the cell LOOKS like.
+   *
+   * The half of the old rule that still matters is kept below: a name the catalog does not carry must still
+   * fold onto something drawable, or the canvas shows through, which is the hole this whole file defends.
+   */
+  test.each([EMOJI_STYLE, ASCII_STYLE])('a tile with its OWN art draws it, rather than its kind ($id)', style => {
     const water = styleTileImage('water', style)
     expect(water).toBeDefined()
-    // water_deep / water_shallow are their own catalog entries; the fold onto `water` is deliberate and the
-    // own-name lookup must not undo it.
-    expect(assetTileImage({ type: 'floor', tileKey: 'water_deep' }, style)?.src).toBe(water?.src)
-    expect(assetTileImage({ type: 'floor', tileKey: 'water_shallow' }, style)?.src).toBe(water?.src)
+    const own = styleTileImage('water_deep', style)
+    expect(own).toBeDefined() // precondition: the catalog carries it in its own right
+    expect(assetTileImage({ type: 'floor', tileKey: 'water_deep' }, style)?.src).toBe(own?.src)
+  })
+
+  test.each([EMOJI_STYLE, ASCII_STYLE])('a water name the catalog does NOT carry still folds onto the water picture ($id)', style => {
+    const water = styleTileImage('water', style)
+    expect(styleTileImage('water_no_such_band', style)).toBeUndefined() // precondition: no art of its own
+    expect(assetTileImage({ type: 'floor', tileKey: 'water_no_such_band' }, style)?.src).toBe(water?.src)
   })
 })
 

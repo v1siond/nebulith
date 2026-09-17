@@ -18,7 +18,7 @@ describe('nextGameName', () => {
     expect(nextGameName(named('Game 1', 'Game 2'))).toBe('Game 3')
   })
 
-  it('does not refill a gap — a deleted Game 2 stays deleted', () => {
+  it('does not refill a gap, a deleted Game 2 stays deleted', () => {
     expect(nextGameName(named('Game 1', 'Game 3'))).toBe('Game 4')
   })
 

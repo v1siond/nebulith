@@ -19,7 +19,7 @@ import {
 import { resolveDraw } from '@/engine/render/shared'
 import { parseColor } from '@/engine/colors'
 
-describe('resolveVisual — the one style decision point', () => {
+describe('resolveVisual, the one style decision point', () => {
   useSeedTileset() // override/reskin cases resolve against the loaded (DB) tileset (catalog + entities)
 
   it('ASCII style + no override → the passthrough sentinel for every kind (byte-identical gate)', () => {
@@ -30,14 +30,14 @@ describe('resolveVisual — the one style decision point', () => {
   })
 
   it('a mapped kind on the Emoji style → its emoji tile (glyph OR baked image, same source char)', () => {
-    // The loaded tileset bakes many kinds to Noto PNGs (image visuals) — either way the tile carries the
+    // The loaded tileset bakes many kinds to Noto PNGs (image visuals), either way the tile carries the
     // source emoji as its `char` (label + first-paint fallback), so we assert on that, not on glyph-vs-image.
     expect(resolveVisual('tree', EMOJI_STYLE)).toMatchObject({ char: '🌲' })
     expect(resolveVisual('water', EMOJI_STYLE)).toMatchObject({ char: '🌊' })
     expect(resolveVisual('grass', EMOJI_STYLE)).toMatchObject({ char: '🍀' })
     expect(resolveVisual('enemy', EMOJI_STYLE)).toMatchObject({ char: '👾' })
     expect(resolveVisual('player', EMOJI_STYLE)).toMatchObject({ char: '🧍' })
-    // a fountain is its OWN kind now (⛲), not folded onto plain water 🌊 — "fountain translated wrong"
+    // a fountain is its OWN kind now (⛲), not folded onto plain water 🌊, "fountain translated wrong"
     expect(resolveVisual('fountain', EMOJI_STYLE)).toMatchObject({ char: '⛲' })
     expect(assetKind({ type: 'fountain' })).toBe('fountain')
   })
@@ -47,13 +47,13 @@ describe('resolveVisual — the one style decision point', () => {
     expect(resolveVisual('enemy', EMOJI_STYLE, enemyTileId('goblin', EMOJI_STYLE))).toMatchObject({ char: '👺' })
     expect(resolveVisual('enemy', EMOJI_STYLE, enemyTileId('wolf', EMOJI_STYLE))).toMatchObject({ char: '🐺' })
     expect(resolveVisual('enemy', EMOJI_STYLE, enemyTileId('skeleton', EMOJI_STYLE))).toMatchObject({ char: '💀' })
-    // ASCII resolves the SAME label to ITS OWN picture — one engine, N styles.
+    // ASCII resolves the SAME label to ITS OWN picture, one engine, N styles.
     expect(enemyTileId('goblin', ASCII_STYLE)).toBe('ascii:goblin')
     expect(enemyTileId('nonesuch', EMOJI_STYLE)).toBeUndefined()
     expect(enemyTileId(undefined, EMOJI_STYLE)).toBeUndefined()
   })
 
-  it('every Emoji tile carries a fill COLOUR — the tint the geometry-preserving renderers fill each unit with', () => {
+  it('every Emoji tile carries a fill COLOUR, the tint the geometry-preserving renderers fill each unit with', () => {
     // Without a colour there is nothing to fill the iso diamond / building cube with, and the
     // renderer falls back to stamping a flat upright emoji square (the StageD bug). Assert the
     // whole map carries one, terrain + buildings especially (those fill geometry).
@@ -70,7 +70,7 @@ describe('resolveVisual — the one style decision point', () => {
     expect(resolveVisual('ground', EMOJI_STYLE)).toEqual(ASCII_PASSTHROUGH)
   })
 
-  it('a per-element override WINS over the active style — even ASCII', () => {
+  it('a per-element override WINS over the active style, even ASCII', () => {
     // override an ASCII tree with the emoji water tile → the override tile (glyph + tint) draws
     const v = resolveVisual('tree', ASCII_STYLE, 'emoji:water') as GlyphVisual | ImageVisual
     expect(v.char).toBe('🌊')
@@ -78,8 +78,8 @@ describe('resolveVisual — the one style decision point', () => {
   })
 
   it('a per-element override WINS over a non-ASCII style too', () => {
-    // Pin the ASCII tree while the world is Emoji. The RULE is unchanged — the override beats the active
-    // style — only the medium is: an ascii tile is a BAKED PICTURE now (a grid of characters baked to a PNG),
+    // Pin the ASCII tree while the world is Emoji. The RULE is unchanged, the override beats the active
+    // style, only the medium is: an ascii tile is a BAKED PICTURE now (a grid of characters baked to a PNG),
     // not a live glyph, so this asserts the ascii PICTURE won rather than an ascii glyph kind. The mark the
     // picture was baked from still rides along as `char`.
     const v = resolveVisual('tree', EMOJI_STYLE, 'ascii:tree') as ImageVisual & { char?: string }
@@ -93,8 +93,8 @@ describe('resolveVisual — the one style decision point', () => {
   })
 })
 
-describe('resolveDraw — surfaces the tint the geometry sites fill with', () => {
-  useSeedTileset() // the emoji tint/char cases resolve against the loaded (DB) tileset — no bundled default
+describe('resolveDraw, surfaces the tint the geometry sites fill with', () => {
+  useSeedTileset() // the emoji tint/char cases resolve against the loaded (DB) tileset, no bundled default
   it('ASCII passthrough returns the caller default char+color and NO tint (byte-identical gate)', () => {
     const d = resolveDraw('grass', ASCII_STYLE, undefined, ';', '#9ac454')
     expect(d).toEqual({ char: ';', color: '#9ac454' })
@@ -116,7 +116,7 @@ describe('resolveDraw — surfaces the tint the geometry sites fill with', () =>
 })
 
 describe('kind classifiers', () => {
-  useSeedTileset() // the road/path emoji-tile colour checks read the loaded (DB) tileset — no bundled default
+  useSeedTileset() // the road/path emoji-tile colour checks read the loaded (DB) tileset, no bundled default
   it('groundKind maps the ground vocabulary to terrain kinds', () => {
     expect(groundKind('grass')).toBe('grass')
     expect(groundKind('grass_tall')).toBe('grass')
@@ -133,7 +133,7 @@ describe('kind classifiers', () => {
     expect(groundKind('plaza')).toBe('plaza')
     expect(groundKind('sand')).toBe('sand')
     expect(groundKind('sand_dune')).toBe('sand')
-    // a lava lake floor now has its OWN molten kind (was the 'ground' passthrough — the coverage bug)
+    // a lava lake floor now has its OWN molten kind (was the 'ground' passthrough, the coverage bug)
     expect(groundKind('lava')).toBe('lava')
     // exotic terrain still not in the reskin set → 'ground' (passes through)
     expect(groundKind('crystal')).toBe('ground')
@@ -157,7 +157,7 @@ describe('kind classifiers', () => {
     expect(assetKind({ type: 'x', label: 'roof' })).toBe('roof') // plain red gable stays coarse
     expect(assetKind({ type: 'x', label: 'roof_top' })).toBe('roof')
     // Coloured roofs + wall MATERIAL pieces render their OWN per-cell tile (route to 'ground'), so emoji
-    // shows hospital-green 🟩 / store-blue 🟦 / slate ⬛ / stone-material 🪨 — not the coarse red/brick.
+    // shows hospital-green 🟩 / store-blue 🟦 / slate ⬛ / stone-material 🪨, not the coarse red/brick.
     expect(assetKind({ type: 'store_5', label: 'roof_store' })).toBe('ground')
     expect(assetKind({ type: 'store_5', label: 'roof_top_store' })).toBe('ground')
     expect(assetKind({ type: 'hospital_6', label: 'roof_hospital' })).toBe('ground')
@@ -193,7 +193,7 @@ describe('style registry + tile library', () => {
     expect(styleById(null)).toBe(ASCII_STYLE)
   })
 
-  // §3.14a: the style LIST is backend data — a tileset row IS a style.
+  // §3.14a: the style LIST is backend data, a tileset row IS a style.
   it('offers NO styles until the backend catalog is installed', () => {
     setStyleList([])
     expect(availableStyles()).toEqual([])

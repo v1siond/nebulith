@@ -1,5 +1,5 @@
 /**
- * ACT AS TILE — "does the cell behave as if a tile were already inside it", so the next tile stacks ON TOP.
+ * ACT AS TILE, "does the cell behave as if a tile were already inside it", so the next tile stacks ON TOP.
  *
  * The switch is OPT-IN, and it is observable again. Both facts come out of decisions already made:
  *
@@ -55,7 +55,7 @@ describe('a tile is as tall as its height says, 0 means FLAT', () => {
     expect(push(g, TOP).heightLevel).toBe(flat.heightLevel)
   })
 
-  it('gives a tile pushed with NO height a full block — the default is 1, not 0', () => {
+  it('gives a tile pushed with NO height a full block, the default is 1, not 0', () => {
     const g = grid()
     push(g, PLAIN)
     expect(push(g, TOP).heightLevel).toBe(2)
@@ -64,7 +64,7 @@ describe('a tile is as tall as its height says, 0 means FLAT', () => {
 
 describe('a fresh cell already holds a floor, and the floor is just a tile', () => {
   it('stacks the FIRST pushed tile on top of the floor rather than inside it', () => {
-    // — measured.
+    //, measured.
     expect(push(grid(), PLAIN).heightLevel).toBe(1)
   })
 
@@ -73,7 +73,7 @@ describe('a fresh cell already holds a floor, and the floor is just a tile', () 
   })
 })
 
-describe('heights ACCUMULATE — the rule that makes it a lego model', () => {
+describe('heights ACCUMULATE, the rule that makes it a lego model', () => {
   it('lands each tile on top of everything below it', () => {
     const g = grid()
     expect([push(g, PLAIN), push(g, PLAIN), push(g, TOP)].map(a => a.heightLevel)).toEqual([1, 2, 3])

@@ -1,12 +1,12 @@
 /**
  * De-segmented buildings: the 2D collision overlay is now GENERIC. A building's blocked cells tint on their
- * OWN grounded squares exactly like any collision cell (a rock/tree) — there is no raised-facade overlay and
+ * OWN grounded squares exactly like any collision cell (a rock/tree), there is no raised-facade overlay and
  * render2D never reads a grouped-building array. A stamped building composition blocks only the WALL cells (a
  * hollow shell), so the tint reads as the building's shell with the walkable door + interior left clear.
  *
  * Proven here:
  *   A. every blocked footprint cell paints exactly ONE grounded red square (no facade raising, no doubling);
- *   B. a NON-building collision cell adds exactly one more red — buildings are not a special case.
+ *   B. a NON-building collision cell adds exactly one more red, buildings are not a special case.
  */
 import '@/__tests__/helpers/installTilesetSeed' // render2D paints ground + building compositions from the loaded backend tileset fixture
 import { render2D } from '@/engine/render/topdown'
@@ -34,14 +34,14 @@ function recordingCtx() {
   return { ctx: ctx as unknown as CanvasRenderingContext2D, rects }
 }
 
-// Count the blocked cells the overlay iterates — the ground truth the red squares mirror.
+// Count the blocked cells the overlay iterates, the ground truth the red squares mirror.
 function blockedCount(grid: IsometricGrid): number {
   let n = 0
   for (let r = 0; r < grid.rows; r++) for (let c = 0; c < grid.cols; c++) if (grid.collision[r]?.[c]) n++
   return n
 }
 
-describe('2D collision overlay — a building tints like any grounded cell (no facade special case)', () => {
+describe('2D collision overlay, a building tints like any grounded cell (no facade special case)', () => {
   afterEach(() => {
     setShowCollisions(false)
     setDebugMode(false)
@@ -55,7 +55,7 @@ describe('2D collision overlay — a building tints like any grounded cell (no f
     return { grid, player }
   }
 
-  test('#A — every blocked footprint cell paints exactly ONE grounded red square', () => {
+  test('#A, every blocked footprint cell paints exactly ONE grounded red square', () => {
     setShowCollisions(true)
     const { grid, player } = scene()
     const blocked = blockedCount(grid)
@@ -65,11 +65,11 @@ describe('2D collision overlay — a building tints like any grounded cell (no f
     render2D({ ctx, w: 800, h: 800, grid, player, time: 0 })
 
     const red = rects.filter(r => r.style === RED)
-    // One grounded red per blocked cell — NOT raised H rows onto a facade, NOT doubled. Buildings are just tiles.
+    // One grounded red per blocked cell, NOT raised H rows onto a facade, NOT doubled. Buildings are just tiles.
     expect(red).toHaveLength(blocked)
   })
 
-  test('#B — a NON-building collision cell adds exactly one more red', () => {
+  test('#B, a NON-building collision cell adds exactly one more red', () => {
     setShowCollisions(true)
     const { grid, player } = scene()
 

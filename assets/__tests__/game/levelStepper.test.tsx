@@ -1,13 +1,13 @@
 /**
- * THE LEVEL STEPPER — §3.2, the last of the four P0s (§4.4, Week 3).
+ * THE LEVEL STEPPER, §3.2, the last of the four P0s (§4.4, Week 3).
  *
  * Measured in the inventory: inside `/games/[id]` there is **no game name anywhere**, no list of the game's
  * levels, no "level 2 of 5", and **Load (n) lists every saved template rather than this game's**. The
- * `templateIds` are loaded and held in state — and then used only to append to on save. They are never
+ * `templateIds` are loaded and held in state, and then used only to append to on save. They are never
  * rendered. A player-facing product whose levels are invisible from inside the level editor.
  *
- * §4.4 draws the fix: `◀ Level 3 of 5 · village ▾ ▶`. §5.3 rates it medium risk for one reason — stepping
- * away from unsaved edits would lose them — so the stepper is wired to the dirty-tracker and ASKS first.
+ * §4.4 draws the fix: `◀ Level 3 of 5 · village ▾ ▶`. §5.3 rates it medium risk for one reason, stepping
+ * away from unsaved edits would lose them, so the stepper is wired to the dirty-tracker and ASKS first.
  */
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import { LevelStepper } from '@/components/game/levelStepper'
@@ -32,14 +32,14 @@ const setup = (over: Partial<Parameters<typeof LevelStepper>[0]> = {}) => {
   return { onGo, ...props }
 }
 
-describe('it says where you are — the thing the editor never told you', () => {
+describe('it says where you are, the thing the editor never told you', () => {
   it('names the level and its position in the game', () => {
     setup()
     expect(screen.getByText(/Level 2 of 3/)).toBeInTheDocument()
     expect(screen.getByText(/cave/)).toBeInTheDocument()
   })
 
-  it('renders nothing at all when the game has no levels — an empty stepper is noise', () => {
+  it('renders nothing at all when the game has no levels, an empty stepper is noise', () => {
     const { container } = render(
       <LevelStepper levels={[]} currentId={null} wouldLoseWork={false} onGo={jest.fn()} confirmLeave={jest.fn()} />,
     )
@@ -65,7 +65,7 @@ describe('stepping', () => {
     await waitFor(() => expect(onGo).toHaveBeenCalledWith('t3'))
   })
 
-  it('does not wrap around at the ends — the arrows disable instead', () => {
+  it('does not wrap around at the ends, the arrows disable instead', () => {
     setup({ currentId: 't1' })
     expect(screen.getByRole('button', { name: /previous level/i })).toBeDisabled()
     expect(screen.getByRole('button', { name: /next level/i })).toBeEnabled()
@@ -77,7 +77,7 @@ describe('stepping', () => {
   })
 })
 
-describe('it never throws away unsaved work (§5.3 — the reason this needed a dirty-tracker)', () => {
+describe('it never throws away unsaved work (§5.3, the reason this needed a dirty-tracker)', () => {
   it('asks before leaving a dirty map, and goes when the user accepts', async () => {
     const confirmLeave = jest.fn().mockResolvedValue(true)
     const { onGo } = setup({ wouldLoseWork: true, confirmLeave })
@@ -94,7 +94,7 @@ describe('it never throws away unsaved work (§5.3 — the reason this needed a 
     expect(onGo).not.toHaveBeenCalled()
   })
 
-  it('does NOT ask when the map is clean — a prompt with nothing at stake trains people to click through', async () => {
+  it('does NOT ask when the map is clean, a prompt with nothing at stake trains people to click through', async () => {
     const confirmLeave = jest.fn()
     const { onGo } = setup({ wouldLoseWork: false, confirmLeave })
     fireEvent.click(screen.getByRole('button', { name: /next level/i }))

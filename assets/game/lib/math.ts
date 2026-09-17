@@ -4,7 +4,7 @@
  * reads the global `Math.random`; `randIntWith` stays pure given a seeded `rng`.
  */
 
-/** A pseudo-random source in `[0, 1)` — the injectable stand-in for the global `Math.random`.
+/** A pseudo-random source in `[0, 1)`, the injectable stand-in for the global `Math.random`.
  *  Passing a SEEDED one (see `makeRng`) makes any consumer reproducible. */
 export type Rng = () => number
 

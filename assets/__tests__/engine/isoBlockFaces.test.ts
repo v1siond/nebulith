@@ -1,12 +1,12 @@
 /**
- * isoBlockFaces — the 3D half of a tile: extrude a cell's flat diamond into an iso CUBE and hand back
+ * isoBlockFaces, the 3D half of a tile: extrude a cell's flat diamond into an iso CUBE and hand back
  * the top + the two CAMERA-VISIBLE side faces as corner quads, ready for fillIsoFaceWithTile.
  *
  * The conventions MIRROR the ground cube (drawIsoGroundLayer) and drawIsoBuilding: a cell centred at
  * (px, py) is a diamond with half-extents (tileW, tileH); the two visible front faces are the
  * LEFT (L→B edge) and RIGHT (B→R edge) walls; the top face is the diamond lifted by one block. Each
  * face is a quad [a, b, c, d] where a = the fillIsoFaceWithTile ORIGIN (bottom-left), eA = b−a (the
- * bottom edge) and eB = d−a (the up/side edge) — so the tile shears onto the face exactly like a wall.
+ * bottom edge) and eB = d−a (the up/side edge), so the tile shears onto the face exactly like a wall.
  */
 import { isoBlockFaces } from '@/engine/render/isoBlock'
 
@@ -21,7 +21,7 @@ const near = (p: { x: number; y: number }, x: number, y: number) => {
 }
 const sub = (p: { x: number; y: number }, q: { x: number; y: number }) => ({ x: p.x - q.x, y: p.y - q.y })
 
-describe('isoBlockFaces — extrude a cell diamond into an iso cube (top + 2 visible side faces)', () => {
+describe('isoBlockFaces, extrude a cell diamond into an iso cube (top + 2 visible side faces)', () => {
   test('level 0 top face = the diamond lifted one block, as a fillIsoFaceWithTile diamond', () => {
     const { top } = isoBlockFaces(center, tileW, tileH, blockH, 0)
     // top diamond centre y = py - 1*blockH = 164; corners L, T, R, B

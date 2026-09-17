@@ -7,7 +7,7 @@
  * render the sheet. These tests pin both halves of that contract:
  *
  *   1. the matcher fires on the REAL chords the editor handles (and on nothing else),
- *   2. every dispatched action is documented in the sheet — the anti-drift guard,
+ *   2. every dispatched action is documented in the sheet, the anti-drift guard,
  *   3. the play rows read LIVE loadout data, so rebinding an ability rebinds the sheet.
  */
 import {
@@ -20,7 +20,7 @@ import {
 } from '@/game/shortcuts'
 import { defaultAbilityLoadout, getAbility } from '@/game/abilities'
 
-/** A KeyboardEvent-shaped stub — the matcher only reads these five fields. */
+/** A KeyboardEvent-shaped stub, the matcher only reads these five fields. */
 const ev = (key: string, mods: { ctrl?: boolean; meta?: boolean; alt?: boolean; shift?: boolean } = {}, target: unknown = null) =>
   ({ key, ctrlKey: !!mods.ctrl, metaKey: !!mods.meta, altKey: !!mods.alt, shiftKey: !!mods.shift, target }) as unknown as KeyboardEvent
 
@@ -40,7 +40,7 @@ describe('matchEditorAction dispatches the editor keys the page actually handles
     expect(matchEditorAction(ev('Escape'))).toBe('escape')
   })
 
-  it('matches the SHIFTED letter too — keydown delivers "I" when shift is held', () => {
+  it('matches the SHIFTED letter too, keydown delivers "I" when shift is held', () => {
     expect(matchEditorAction(ev('I', { shift: true }))).toBe('inventory')
     expect(matchEditorAction(ev('Q', { shift: true }))).toBe('quests')
     expect(matchEditorAction(ev('R', { shift: true }))).toBe('randomize')
@@ -125,7 +125,7 @@ describe('the play rows read live data, not key literals', () => {
 
   it('lists the quick-slot keys it is given', () => {
     const rows = helpSheetGroups({ specialKeys: ['5', '6'] }).flatMap(g => g.rows)
-    expect(rows.some(r => r.chord === '5 – 6')).toBe(true)
+    expect(rows.some(r => r.chord === '5, 6')).toBe(true)
   })
 })
 

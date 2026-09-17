@@ -1,7 +1,7 @@
 /**
  * GRID-validate the door on a stamped building COMPOSITION: the door TILE must land on the road-FACING edge
  * of the footprint (so a rotated building fronts its street), seat on the ground (level 0), and stay WALKABLE
- * (the way in). Pure grid assertions, no rendering. Buildings are stamped compositions now — no facade unit.
+ * (the way in). Pure grid assertions, no rendering. Buildings are stamped compositions now, no facade unit.
  */
 import { makeStyleTile, setStyleCatalog, styleCatalog } from '@/engine/tileset/styleTiles'
 import '@/__tests__/helpers/installTilesetSeed' // the house_4 composition + wall tile come from the loaded backend tileset fixture
@@ -57,9 +57,9 @@ describe('building tiles come from the LOADED ascii tileset, not a hardcoded gly
   afterEach(() => setStyleCatalog(original))
 
   test('a wall glyph swapped in the loaded DB tileset drives the stamped wall block', () => {
-    // Swap the wall glyph in the loaded tileset — a stamp that read a frontend constant ('█') would ignore
+    // Swap the wall glyph in the loaded tileset, a stamp that read a frontend constant ('█') would ignore
     // this; a stamp that reads the DB tileset picks it up. Proves the live stamp is DB-driven (MAP-MODEL §8).
-    // house_4's walls resolve to its wood MATERIAL center piece (wall_wood_c) — swap THAT glyph.
+    // house_4's walls resolve to its wood MATERIAL center piece (wall_wood_c), swap THAT glyph.
     setStyleCatalog({ ...original, tiles: { ...original.tiles, wall_wood_c: { ...original.tiles.wall_wood_c, char: '✚' } } })
     const grid = mkGrid()
     stampBuildingComposition(grid, 'house', SIZE, ANCHOR, ANCHOR, 'spring', 'south')

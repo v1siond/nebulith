@@ -1,6 +1,6 @@
 import { nearestUnit, cycleSelection, unitsInRange } from '@/game/unitSelection'
 
-describe('unitsInRange — Tab-target candidates are only units near the player, nearest first', () => {
+describe('unitsInRange, Tab-target candidates are only units near the player, nearest first', () => {
   const player = { col: 10, row: 10 }
   const units = [
     { id: 'far', col: 30, row: 10 },   // 20 cells away
@@ -22,7 +22,7 @@ describe('unitsInRange — Tab-target candidates are only units near the player,
   })
 })
 
-describe('nearestUnit — click near a unit picks the nearest within range', () => {
+describe('nearestUnit, click near a unit picks the nearest within range', () => {
   const cands = [
     { id: 'a', x: 10, y: 10 },
     { id: 'b', x: 100, y: 100 },
@@ -39,7 +39,7 @@ describe('nearestUnit — click near a unit picks the nearest within range', () 
   })
 })
 
-describe('cycleSelection — Tab cycles through the unit list, wrapping', () => {
+describe('cycleSelection, Tab cycles through the unit list, wrapping', () => {
   const ids = ['a', 'b', 'c']
   test('forward from current', () => {
     expect(cycleSelection(ids, 'a', 1)).toBe('b')

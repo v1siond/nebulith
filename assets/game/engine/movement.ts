@@ -1,9 +1,9 @@
 /**
- * Entity movement patterns — a pure, deterministic stepper for patrolling enemies.
+ * Entity movement patterns, a pure, deterministic stepper for patrolling enemies.
  *
  * An entity follows a MovementPattern (an ordered list of waypoint cells) one cell
  * per tick. `sequential` walks the waypoints in order and loops; `random` picks the
- * next waypoint via an injected chooser on arrival (so it stays unit-testable — no
+ * next waypoint via an injected chooser on arrival (so it stays unit-testable, no
  * internal RNG). Movement never walks through a blocked cell: if the next step is
  * blocked the entity waits that tick.
  *
@@ -113,7 +113,7 @@ function chooseNextDir(pattern: MovementPattern, s: RunState, rng: Rng): Pick<Ru
     const dc = -(s.lastDc || 1)
     return { dc, dr: 0, lastDc: dc, lastDr: s.lastDr }
   }
-  // mixed: pick an axis — vertical → randomize up/down; horizontal → go back (reverse)
+  // mixed: pick an axis, vertical → randomize up/down; horizontal → go back (reverse)
   if (rng() < 0.5) {
     const dr = rng() < 0.5 ? -1 : 1
     return { dc: 0, dr, lastDc: s.lastDc, lastDr: dr }
@@ -240,7 +240,7 @@ export function stepStepList(
   const delayTicks = Math.max(0, opts?.delayTicks ?? 6)
   let s = state
 
-  // 1) pausing between steps — each delayTick is one full no-move tick
+  // 1) pausing between steps, each delayTick is one full no-move tick
   if (s.waitLeft > 0) {
     return { pos, state: { ...s, waitLeft: s.waitLeft - 1 } }
   }
@@ -264,7 +264,7 @@ export function stepStepList(
 /** The fractional grid position of an entity moving from `from` to `to`, starting at
  *  `startMs`, over `durationMs`. PURE + clamped: t=0 → from, t=1 → to, past the end holds
  *  at `to`, before the start holds at `from`. The renderer reads this every frame so motion
- *  is a CONTINUOUS function of time — nothing eyeballed. When the logical cell advances every
+ *  is a CONTINUOUS function of time, nothing eyeballed. When the logical cell advances every
  *  tick (delayMs 0), consecutive windows chain into one smooth slide with no pause. */
 export function motionPos(
   from: Cell,

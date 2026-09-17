@@ -17,7 +17,7 @@ const seqRng = (...vals: number[]) => {
   return () => vals[Math.min(i++, vals.length - 1)]
 }
 
-describe('movement — run-patrol (move, delay, move)', () => {
+describe('movement, run-patrol (move, delay, move)', () => {
   const opts = { delayTicks: 2 }
 
   it('horizontal: runs out N cells, pauses, then reverses back (1234-wait-4321)', () => {
@@ -45,7 +45,7 @@ describe('movement — run-patrol (move, delay, move)', () => {
     expect(state.dc).toBe(0)
   })
 
-  it('mixed: after a run it picks an axis — vertical randomizes up/down', () => {
+  it('mixed: after a run it picks an axis, vertical randomizes up/down', () => {
     const pattern: MovementPattern = { mode: 'sequential', waypoints: [], axis: 'mixed', runLength: 1 }
     let pos = { col: 5, row: 5 }
     let state = initRunState(pattern) // starts moving right
@@ -69,7 +69,7 @@ describe('movement — run-patrol (move, delay, move)', () => {
   })
 })
 
-describe('movement — sequential patrol along waypoints', () => {
+describe('movement, sequential patrol along waypoints', () => {
   const pattern: MovementPattern = { mode: 'sequential', waypoints: [{ col: 1, row: 1 }, { col: 4, row: 1 }] }
 
   it('steps ONE cell per tick toward the current waypoint', () => {
@@ -98,7 +98,7 @@ describe('movement — sequential patrol along waypoints', () => {
   })
 })
 
-describe('movement — random mode', () => {
+describe('movement, random mode', () => {
   it('picks the next waypoint via the injected chooser on arrival', () => {
     const pattern: MovementPattern = {
       mode: 'random',
@@ -111,7 +111,7 @@ describe('movement — random mode', () => {
   })
 })
 
-describe('movement — degenerate patterns', () => {
+describe('movement, degenerate patterns', () => {
   it('never moves with zero or one waypoint', () => {
     const none: MovementPattern = { mode: 'sequential', waypoints: [] }
     expect(stepMover({ col: 5, row: 5 }, none, initMover(), open).pos).toEqual({ col: 5, row: 5 })
@@ -120,7 +120,7 @@ describe('movement — degenerate patterns', () => {
   })
 })
 
-describe('stepStepList — "advance N cells in a direction" model', () => {
+describe('stepStepList, "advance N cells in a direction" model', () => {
   /** Run the stepper for `ticks`, returning the visited positions (excluding start). */
   const run = (
     start: { col: number; row: number },
@@ -229,7 +229,7 @@ function step(
   return [out.pos, out.state]
 }
 
-describe('motionPos — deterministic render interpolation (proves NO pauses)', () => {
+describe('motionPos, deterministic render interpolation (proves NO pauses)', () => {
   const A = { col: 2, row: 5 }
   const B = { col: 3, row: 5 }
 
@@ -244,7 +244,7 @@ describe('motionPos — deterministic render interpolation (proves NO pauses)', 
     expect(motionPos(A, B, 1000, 5000, 200)).toEqual({ col: 3, row: 5 }) // after → to
   })
 
-  it('advances strictly across frames — never the SAME position twice within a step (no stall)', () => {
+  it('advances strictly across frames, never the SAME position twice within a step (no stall)', () => {
     let last = -Infinity
     let stalls = 0
     for (let now = 1000; now < 1200; now += 16) {
@@ -261,7 +261,7 @@ describe('motionPos — deterministic render interpolation (proves NO pauses)', 
   })
 })
 
-describe('stepStepList — continuous patrol: delayTicks 0 ⇒ a cell EVERY tick (no pause)', () => {
+describe('stepStepList, continuous patrol: delayTicks 0 ⇒ a cell EVERY tick (no pause)', () => {
   it('advances on every single tick across a run boundary (proves the smooth-movement logic)', () => {
     const pattern: MovementPattern = {
       mode: 'sequential',
@@ -275,7 +275,7 @@ describe('stepStepList — continuous patrol: delayTicks 0 ⇒ a cell EVERY tick
     for (let i = 0; i < 6; i++) {
       const prev = `${pos.col},${pos.row}`
       const r = stepStepList(pos, pattern, state, open, { delayTicks: 0 })
-      expect(`${r.pos.col},${r.pos.row}`).not.toBe(prev) // EVERY tick moves — never a wait tick
+      expect(`${r.pos.col},${r.pos.row}`).not.toBe(prev) // EVERY tick moves, never a wait tick
       pos = r.pos
       state = r.state
       visited.push(`${pos.col},${pos.row}`)

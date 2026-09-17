@@ -1,5 +1,5 @@
 /**
- * TILE HIT GEOMETRY — the transform-aware screen shape a placed tile occupies, used by the INVERTED picker
+ * TILE HIT GEOMETRY, the transform-aware screen shape a placed tile occupies, used by the INVERTED picker
  * (cursor → the rendered TILE → its cell) and the highlight that hugs it. These pin the pure math:
  *  • a cube column's silhouette matches isoBlockFaces EXACTLY (same primitive the renderer draws with),
  *  • pose (offset/rotate/scale/flip) moves the silhouette the SAME way applyPose moves the draw,
@@ -14,7 +14,7 @@ import type { TilePose } from '@/engine/tileset/pose'
 
 const TW = 40, TH = 20, BH = 44
 
-describe('poseMapper — mirrors applyPose', () => {
+describe('poseMapper, mirrors applyPose', () => {
   test('no pose → pure translation by the anchor', () => {
     const xf = poseMapper({ x: 100, y: 200 }, null, TH)
     expect(xf({ x: 5, y: -7 })).toEqual({ x: 105, y: 193 })
@@ -37,13 +37,13 @@ describe('poseMapper — mirrors applyPose', () => {
   })
 })
 
-describe('cubeGeom — silhouette matches isoBlockFaces (the primitive the renderer draws with)', () => {
+describe('cubeGeom, silhouette matches isoBlockFaces (the primitive the renderer draws with)', () => {
   test('a 1-block cube: base + top diamonds equal isoBlockFaces base/top at the same anchor', () => {
     const anchor = { x: 300, y: 250 }
     const xf = poseMapper(anchor, null, TH)
     const g = cubeGeom(TW, TH, BH, 1, xf)
     const faces = isoBlockFaces(anchor, TW, TH, BH, 0)
-    // base diamond: left/back/right/front — isoBlockFaces left.a = L@base, its top face = the cap diamond
+    // base diamond: left/back/right/front, isoBlockFaces left.a = L@base, its top face = the cap diamond
     expect(g.base[0]).toEqual({ x: anchor.x - TW, y: anchor.y })          // left @ base
     expect(g.base[3]).toEqual({ x: anchor.x, y: anchor.y + TH })          // front @ base
     // top cap diamond centre is one blockH up (isoBlockFaces top at level 0 → ty = by - blockH)
@@ -61,7 +61,7 @@ describe('cubeGeom — silhouette matches isoBlockFaces (the primitive the rende
   })
 })
 
-describe('hit-test — the pick lands on the TILE, not the ground cell under it', () => {
+describe('hit-test, the pick lands on the TILE, not the ground cell under it', () => {
   test('a TALL (scaleY) block is hit at its lifted top and MISSED at the flat ground below', () => {
     const anchor = { x: 300, y: 300 }
     // scaleY 4 → a 4·blockH tall column

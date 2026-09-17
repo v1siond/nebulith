@@ -1,5 +1,5 @@
 /**
- * THE GUIDES MUST STAY TRUE — a guide that names a button wrongly is worse than no guide.
+ * THE GUIDES MUST STAY TRUE, a guide that names a button wrongly is worse than no guide.
  *
  * Writing them is
  * the easy half. The half that fails silently is keeping them true: someone renames "Change just one
@@ -20,7 +20,7 @@ const SOURCES = [
   'components/game/editorChrome.tsx',
   // The grid's own controls live here since 2026-09-10: the matrix section the New world panel renders,
   // and the ground control in the view bar. The guides point at "Columns" / "Cell pixels", which moved
-  // with them — the controls still exist, they are just drawn from another file now.
+  // with them, the controls still exist, they are just drawn from another file now.
   'components/game/gridPanel.tsx',
   'components/game/editorInspector.tsx',
   'components/game/shell/ArtStyleControl.tsx',
@@ -36,7 +36,7 @@ const claims = EDITOR_GUIDES.flatMap(guide =>
     [...step.do.matchAll(/\*\*([^*]+)\*\*/g)].map(m => ({
       guide: guide.id,
       step: i + 1,
-      // Strip the decoration the button draws around the words — a guide says "Build this world" where
+      // Strip the decoration the button draws around the words, a guide says "Build this world" where
       // the JSX reads "⚡ Build this world".
       name: m[1].replace(/^[⚡▶←→↗⚑▦⌂☻🖥•\s]+/, '').replace(/[…\s]+$/, ''),
     })),
@@ -44,7 +44,7 @@ const claims = EDITOR_GUIDES.flatMap(guide =>
 )
 
 describe('every control a guide names actually exists', () => {
-  it('found claims to check at all — an empty regex would pass silently', () => {
+  it('found claims to check at all, an empty regex would pass silently', () => {
     expect(claims.length).toBeGreaterThan(15)
   })
 
@@ -79,7 +79,7 @@ describe('the guides are usable as guides', () => {
     }
   })
 
-  it('leads with making a level — it is the first thing anyone needs', () => {
+  it('leads with making a level, it is the first thing anyone needs', () => {
     expect(EDITOR_GUIDES[0].id).toBe('first-level')
   })
 

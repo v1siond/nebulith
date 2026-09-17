@@ -1,5 +1,5 @@
 /**
- * #91 Stage 3 — male/female entity variants. `genderize(char, variant)` maps a PERSON glyph to its
+ * #91 Stage 3, male/female entity variants. `genderize(char, variant)` maps a PERSON glyph to its
  * gendered figure (data-only); a monster / terrain / variant-less glyph passes through unchanged.
  */
 import { genderize } from '@/game/artStyle'

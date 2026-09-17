@@ -1,4 +1,5 @@
 import '@/__tests__/helpers/installZoneSeed' // the generator reads every season from the backend catalog
+import { isWaterGround } from '@/engine/riverNetwork'
 import { generateStage } from '@/engine/stageGenerator'
 import { acceptQuest, recordEvent, isComplete, turnIn } from '@/game/quests'
 import { makeEnemy, makeNpc } from '@/game/entities'
@@ -6,11 +7,11 @@ import type { Connector } from '@/lib/api'
 import type { Quest } from '@/game/types'
 
 // End-to-end "build + play a game with Nebulith" flow, at the logic layer (no
-// browser): the same sequence the demo video shows — generate the sections, link
+// browser): the same sequence the demo video shows, generate the sections, link
 // them, accept a kill quest, slay the enemies, complete + turn in. Proves the
 // composed systems (generator + connectors + entities + quests) actually work
 // together from zero to a finished quest.
-describe('Nebulith — full game flow: 0 → game-ready → quest complete', () => {
+describe('Nebulith, full game flow: 0 → game-ready → quest complete', () => {
   it('generates a 5-section level, links it, and plays a kill quest to turn-in', () => {
     // 1) GENERATE the sections: 2 forests (a dry meadow + one with the river option on), a temple, a cave, a boss room.
     const forestA = generateStage({ zone: 'summer', variant: 'forest', layout: 'meadow', cols: 40, rows: 30 })
@@ -29,7 +30,9 @@ describe('Nebulith — full game flow: 0 → game-ready → quest complete', () 
     expect(temple.props.some(p => p.type === 'temple_wall')).toBe(true) // walled interior
     expect(cave.props.some(p => p.type === 'rock')).toBe(true)
     expect(boss.props.some(p => p.type === 'boss')).toBe(true)
-    expect(forestB.ground.flat().includes('water')).toBe(true) // the river option's winding river
+    // WATER, not the label 'water'. A river's cells wear their autotile piece now (`water_smooth_c`,
+    // `water_smooth_tl`, ...), so an exact-match on one spelling asks a question the map stopped answering.
+    expect(forestB.ground.flat().some(isWaterGround)).toBe(true) // the river option's winding river
 
     // 2) CONNECT them into a path: forestA → forestB → temple → cave → boss.
     const order = ['forestA', 'forestB', 'temple', 'cave', 'boss'] as const

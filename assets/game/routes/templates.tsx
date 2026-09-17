@@ -133,9 +133,9 @@ let flowViewMode = false
 // Template limits
 const MAX_TEMPLATES_PROD = 1
 
-/** Hold-to-loop cadence for the regular attack — one swing per this interval while `f` is held.
- *  The basic strike is always-available on a 1.5s beat (per the ability spec — see
- *  docs/ability-system.md); abilities (keys 1–4) are the faster/heavier hits, gated by their own
+/** Hold-to-loop cadence for the regular attack, one swing per this interval while `f` is held.
+ *  The basic strike is always-available on a 1.5s beat (per the ability spec, see
+ *  docs/ability-system.md); abilities (keys 1-4) are the faster/heavier hits, gated by their own
  *  cooldowns. */
 const ATTACK_LOOP_MS = 500
 
@@ -143,7 +143,7 @@ const ATTACK_LOOP_MS = 500
 const EMPTY_ENTITIES: Entity[] = []
 
 /** Forward-seed the default character animation set onto any person (player/npc) that has none, so the
- *  animation list follows the UNIT across templates and persists on save (#88 — persons saved before
+ *  animation list follows the UNIT across templates and persists on save (#88, persons saved before
  *  animation-seeding existed load with an empty list even though they play the default set). */
 function withSeededPersonAnimations(list: Entity[]): Entity[] {
   return list.map(e =>
@@ -160,7 +160,7 @@ function withSeededPersonAnimations(list: Entity[]): Entity[] {
  */
 export interface EditorGameContext {
   gameId: string
-  /** The game's name — §4.4's `🎮 Boss ▾`. §3.2 measured that the editor showed no game identity at all. */
+  /** The game's name, §4.4's `🎮 Boss ▾`. §3.2 measured that the editor showed no game identity at all. */
   gameName: string
   templateIds: string[]
   startTemplateId: string | null
@@ -176,7 +176,7 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
   const [showCollisions, setShowCollisions] = useState(false) // lighter overlay: tint blocked cells only
   const [showTopView, setShowTopView] = useState(false)
   const [showFlowView, setShowFlowView] = useState(false)
-  // GAMES view — a full overlay (like Flow) listing playable flows + a game editor.
+  // GAMES view, a full overlay (like Flow) listing playable flows + a game editor.
   const [showGamesView, setShowGamesView] = useState(false)
   /** Which game the levels overlay opens ON. Null = the plain list (reached from "All games…"). */
   const [manageGameId, setManageGameId] = useState<string | null>(null)
@@ -189,14 +189,14 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
   // The grid's MATRIX VARIABLES, mirrored for the panel: `cols × rows` cells of `cellSize` pixels each.
   const [gridSize, setGridSize] = useState({ cols: 40, rows: 40, cellSize: VILLAGE_CONFIG.cellSize })
   /**
-   * THE GRID PANEL'S NUMBERS — the matrix you have TYPED, plus the thickness the map is at.
+   * THE GRID PANEL'S NUMBERS, the matrix you have TYPED, plus the thickness the map is at.
    *
    * It lives here, above both panels, because two different actions read it: `Resize this map` applies it
    * to the open map, and `Build this world` generates into it. When it was private to the Generate panel those two
    * could disagree, and a generate silently rebuilt at the old dimensions.
    *
    * It re-seeds whenever the map's size changes from OUTSIDE the panel (loading a level, generating one,
-   * an undo) — tracked through `gridSizeSeen` rather than by comparing against the draft, so a half-typed
+   * an undo), tracked through `gridSizeSeen` rather than by comparing against the draft, so a half-typed
    * number is never overwritten by its own echo.
    */
   const [gridDraft, setGridDraft] = useState<MapSize>({ cols: 40, rows: 40, cellSize: VILLAGE_CONFIG.cellSize })
@@ -209,7 +209,7 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
   }
   // GROUND THICKNESS is deliberately NOT mirrored: it is read straight off the grid where it lives, so
   // loading a level or generating one shows that map's own saved value with nothing to keep in sync. This
-  // only repaints the panel after a change — the canvas repaints itself every frame.
+  // only repaints the panel after a change, the canvas repaints itself every frame.
   const [, bumpGround] = useReducer((n: number) => n + 1, 0)
   const [selectedCells, setSelectedCells] = useState<Set<string>>(new Set())
   // Which tile in the selected cell's stack the inspector edits: a 0-based index into getStack (0 = floor,
@@ -230,8 +230,8 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
   const [selectionStart, setSelectionStart] = useState<{ col: number; row: number } | null>(null)
   const selectionBaseRef = useRef<Set<string>>(new Set()) // selection at drag-start; a shift+drag MERGES the rectangle into THIS (additive, no restart)
   const additiveSelectRef = useRef<boolean>(false)         // was shift held when the drag-select started
-  const selectionStartPtRef = useRef<{ x: number; y: number } | null>(null) // drag-start CLIENT point — the screen-rect marquee's fixed corner (iso/2d block-aware select)
-  const clipboardRef = useRef<TileClip | null>(null)       // Ctrl+C payload — the captured tiles re-stamped by Ctrl+V at the hovered cell
+  const selectionStartPtRef = useRef<{ x: number; y: number } | null>(null) // drag-start CLIENT point, the screen-rect marquee's fixed corner (iso/2d block-aware select)
+  const clipboardRef = useRef<TileClip | null>(null)       // Ctrl+C payload, the captured tiles re-stamped by Ctrl+V at the hovered cell
   const selectedCellsRef = useRef<Set<string>>(new Set())
   // Camera panning with mouse drag
   const [isPanning, setIsPanning] = useState(false)
@@ -239,10 +239,10 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
   // Click-vs-drag in the play views: a clean click selects the entity under it, a drag pans.
   const dragMovedRef = useRef(false)
   const downCellRef = useRef<{ col: number; row: number; stackIndex?: number; source?: TileSource; entityId?: string } | null>(null)
-  const downAltRef = useRef(false) // Alt held on mouse-DOWN — mouse-up reads it to select the CELL under a unit (instead of the unit)
+  const downAltRef = useRef(false) // Alt held on mouse-DOWN, mouse-up reads it to select the CELL under a unit (instead of the unit)
   const [camOffset, setCamOffset] = useState({ x: 0, y: 0 })
   const camOffsetRef = useRef({ x: 0, y: 0 })
-  // The ARMED placement brush — a full catalog TileDef (from the Paint palette). Minecraft-style: pick a
+  // The ARMED placement brush, a full catalog TileDef (from the Paint palette). Minecraft-style: pick a
   // tile, then each LEFT-click on the map places it (⌥Alt-click removes the top asset); one brush at a
   // time; clicking it again / Esc / Disarm clears it. Replaces the old cell-first {char,type} paint tile.
   const [armedTile, setArmedTile] = useState<TileDef | null>(null)
@@ -250,20 +250,13 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
   useEffect(() => { armedTileRef.current = armedTile }, [armedTile])
   // ◈ Unit placement (top-nav): the picked creature tile, whether we ADD (click) or SCATTER (randomize), and
   // whether a placed unit is STATIC or wandering with a randomized movement animation. Height/opacity used to
-  // live in the Paint sidebar — they're Inspector-only now (per-tile), so the paint brush places at full size.
+  // live in the Paint sidebar, they're Inspector-only now (per-tile), so the paint brush places at full size.
   const [unitTile, setUnitTile] = useState<TileDef | null>(null)
   const [unitPlaceMode, setUnitPlaceMode] = useState<'add' | 'scatter'>('add')
   // §4.5's `Place as` row. So hostility is a
   // choice about the thing you are PLACING, not a property of the tile: 'auto' takes the catalog's role,
   // 'enemy'/'npc' override it. A bear can be a pet.
   const [placeAs, setPlaceAs] = useState<'auto' | 'enemy' | 'npc'>('auto')
-  // §4.5's `★ RECENT` — the last eight tiles placed, newest first. Held by the PAGE so it survives
-  // switching rails (the palette unmounts when you leave Terrain), and de-duplicated so re-placing the
-  // same tile does not fill the row with one label.
-  const [recentTiles, setRecentTiles] = useState<TileDef[]>([])
-  const rememberRecent = useCallback((tile: TileDef) => {
-    setRecentTiles(prev => [tile, ...prev.filter(t => t.id !== tile.id)].slice(0, 8))
-  }, [])
   const [unitAnimated, setUnitAnimated] = useState(false)
   const [hideEntities, setHideEntities] = useState(false)
   const hideEntitiesRef = useRef(false)
@@ -293,10 +286,10 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
   // Template view type (isometric or 2d)
   const [viewType, setViewType] = useState<'isometric' | '2d'>('isometric')
 
-  // ISO CAMERA FACING (#75) — which of the map's 4 corners the camera looks from, quarter-turns CW.
+  // ISO CAMERA FACING (#75), which of the map's 4 corners the camera looks from, quarter-turns CW.
   // / "4 corners, 4 rotation options, all faces of the map are visible". React owns it (the nav button reads it, the
   // render + every click projection take it); a ref
-  // carries it into the once-mounted RAF loop. Only ISO rotates — 2D/Top have no rotation.
+  // carries it into the once-mounted RAF loop. Only ISO rotates, 2D/Top have no rotation.
   const [cameraFacing, setCameraFacing] = useState<Orientation>(0)
   const cameraFacingRef = useRef<Orientation>(0)
 
@@ -307,12 +300,12 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
 
   // Stage generator: selected zone (the variant is chosen per click)
   const [genZone, setGenZone] = useState<ZoneId>('spring')
-  // The backend's generator catalog — every map type, its layouts and every knob a generate takes
+  // The backend's generator catalog, every map type, its layouts and every knob a generate takes
   // (`GET /api/generators`, T-113 / §3.14b Tier-1 #1). The menu renders from it and every generate READS
   // its config; a ref carries it into the once-mounted debug seams, like genZoneRef.
   const { catalog: generatorCatalog, error: generatorCatalogError } = useGeneratorCatalog()
   // The layers generation runs, also backend data (`/api/generation_layers`). Loading them is what fills the
-  // re-roll panel and what gives every served layer its own seed — with nothing served there are no layers,
+  // re-roll panel and what gives every served layer its own seed, with nothing served there are no layers,
   // which is the honest state rather than a list the frontend kept for the occasion.
   useGenerationLayers()
   const generatorCatalogRef = useRef<GeneratorCatalog>(generatorCatalog)
@@ -363,7 +356,7 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
   // mode the rail highlights / which left panel shows; canvas placement is gated by `armedTile` (the
   // brush picked from the palette). The other rail modes derive straight from the tool state below.
   const [paintMode, setPaintMode] = useState(false)
-  // ── ART STYLE (stage D) — the global reskin switch. State drives the UI; a ref feeds
+  // ── ART STYLE (stage D), the global reskin switch. State drives the UI; a ref feeds
   //    the once-mounted render loop. A style change reskins every view instantly (the iso
   //    ground cache keys on style.id, so it rebuilds on switch). Persists with the template.
   const [activeStyleId, setActiveStyleId] = useState<string>('ascii')
@@ -398,22 +391,22 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
   // The placed entity currently selected for inspection (click an entity to select).
   const [selectedEntityId, setSelectedEntityId] = useState<string | null>(null)
   const selectedEntityIdRef = useRef<string | null>(null) // live mirror for the game loop / debug seams
-  const hoveredEntityIdRef = useRef<string | null>(null) // unit under the cursor — the RAF loop draws its hover reticle (no React state on mousemove)
-  const hoveredCellRef = useRef<{ col: number; row: number; stackIndex?: number } | null>(null) // TILE under the cursor (stackIndex = its slot in the cell's stack) — RAF draws a dim hover ring on the SAME tile the click selects
+  const hoveredEntityIdRef = useRef<string | null>(null) // unit under the cursor, the RAF loop draws its hover reticle (no React state on mousemove)
+  const hoveredCellRef = useRef<{ col: number; row: number; stackIndex?: number } | null>(null) // TILE under the cursor (stackIndex = its slot in the cell's stack), RAF draws a dim hover ring on the SAME tile the click selects
   // Which entity-action modal is open (Inventory / Quests).
   const [entityModal, setEntityModal] = useState<'inventory' | 'quests' | null>(null)
-  // The unit's ✦ Animate… opens the SAME TileAnimationEditor modal a tile opens — BOTH the settings AND sprite
+  // The unit's ✦ Animate… opens the SAME TileAnimationEditor modal a tile opens, BOTH the settings AND sprite
   // kinds. A unit stores the unified `Animation[]` in `unitAnimations`; the render projection `animations`
   // (EntityAnimation[]) is kept in sync from its sprite subset. Kept off the card so the sidebar stays short.
   const [animEditorOpen, setAnimEditorOpen] = useState(false)
-  // The TILE animation modal (Phase 4) — authors GridAsset.animations for the selected asset tile.
+  // The TILE animation modal (Phase 4), authors GridAsset.animations for the selected asset tile.
   const [tileAnimatorOpen, setTileAnimatorOpen] = useState(false)
-  // The TILE settings modal — hosts the full TileControls body (colour/size/pose/z…) so the inspector stays
+  // The TILE settings modal, hosts the full TileControls body (colour/size/pose/z…) so the inspector stays
   // a compact summary. Same open/close pattern as the animation modal above.
-  // The stats have no panel of their own any more — they are a block inside the Character window.
-  // The TRIGGERS modal — a floating panel (like settings) to manage the selected cell's or unit's triggers.
+  // The stats have no panel of their own any more, they are a block inside the Character window.
+  // The TRIGGERS modal, a floating panel (like settings) to manage the selected cell's or unit's triggers.
   const [triggersOpen, setTriggersOpen] = useState(false)
-  // The enemy ATTACKS modal — the attack/ability pattern editor, folded off the card into a floating panel.
+  // The enemy ATTACKS modal, the attack/ability pattern editor, folded off the card into a floating panel.
   const [unitAttacksOpen, setUnitAttacksOpen] = useState(false)
   // Close any entity modal whenever the selection changes, so clicks on a new entity select it
   // (not show a stale modal for the previous one).
@@ -430,10 +423,10 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
   // key (debounced). The backend owns this, so panel geometry is never hardcoded in the frontend.
   // FloatingPanel props for a modal id: restore its saved geometry (else `def`) + persist on move/resize end.
   const floatingProps = useFloatingPanels()
-  // ⚑ RULES (§4.8) — which tab of the Logic workspace is open. Local: it is a view preference within one
+  // ⚑ RULES (§4.8), which tab of the Logic workspace is open. Local: it is a view preference within one
   // panel, not something a reload needs to restore.
   const [rulesTab, setRulesTab] = useState<RulesTabId>('triggers')
-  // The rules the LEVEL holds, from both stores at once — §4.8 lists cell rules and character rules
+  // The rules the LEVEL holds, from both stores at once, §4.8 lists cell rules and character rules
   // together, because a person thinks in rules, not in which store one happens to live in.
   const npcsOnLevel = useMemo(() => entities.filter(e => e.kind === 'npc'), [entities])
   const ruleTriggerRows = useMemo(
@@ -451,7 +444,7 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
   // with no NPC offered no entry and no explanation.
   const [questPanelOpen, setQuestPanelOpen] = useState(false)
 
-  // Which inspector sections are open (§4.7) — remembered per section in the backend's editor-settings store.
+  // Which inspector sections are open (§4.7), remembered per section in the backend's editor-settings store.
   const { isOpen: inspectorSectionOpen, toggle: toggleInspectorSection } = useInspectorSections()
 
   const [npcName, setNpcName] = useState('')
@@ -459,7 +452,7 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
 
   // ── Tile-composition PLACE tool state ───────────────────────────────
   // The tool STAMPS a backend COMPOSITION (building / tree / fountain / lamp post / …) as per-cell tiles, the
-  // SAME path trees use — there is no whole-composition select / move / rotate / resize / delete. Individual
+  // SAME path trees use, there is no whole-composition select / move / rotate / resize / delete. Individual
   // cells/blocks are edited with the normal cell/tile selection + paint. `buildingTool` holds the armed
   // composition KIND (a string like `house_4`, `fountain`, `lamp_post`), or null. `buildingVersion` is bumped
   // after a stamp to nudge a React re-render (the canvas is live via the loop).
@@ -471,7 +464,7 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
   // Undo / redo (Ctrl+Z / Ctrl+Y): a BOUNDED snapshot ring of the MAP (grid + entities). checkpointHistory()
   // is called at the START of each map-mutating edit (before it mutates); the hook binds the keys and restores
   // exactly. resetHistory() clears it when the whole map is replaced (stage gen / template load).
-  // `undo`/`redo` were already returned and simply never taken — the hook binds Ctrl+Z/Ctrl+Y itself, so
+  // `undo`/`redo` were already returned and simply never taken, the hook binds Ctrl+Z/Ctrl+Y itself, so
   // the top bar's ↶/↷ needed no new code, only these two names.
   const { checkpoint: rawCheckpoint, reset: resetHistory, undo: undoEdit, redo: redoEdit } = useEditorHistory({
     gridRef,
@@ -479,17 +472,17 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
     setEntities,
     onRestore: bumpBuildingVersion,
   })
-  // Does the open map have unsaved edits? (§4.4, and Week 3's prerequisite per §5.3 — the level switcher may
+  // Does the open map have unsaved edits? (§4.4, and Week 3's prerequisite per §5.3, the level switcher may
   // not step away from work without asking.) Every map mutation ALREADY announces itself by taking an undo
   // checkpoint first, so the dirty flag rides that one seam instead of inventing a second notion of
   // "changed" that a future call site could forget to update.
   const { saveState, markEdited, markSaving, markSaved, markLoaded, saveStateRef } = useSaveState()
   const checkpointHistory = useCallback(() => { rawCheckpoint(); markEdited() }, [rawCheckpoint, markEdited])
-  // The grouped list of EVERY backend composition (buildings + trees + props) the palette lists — filled once
+  // The grouped list of EVERY backend composition (buildings + trees + props) the palette lists, filled once
   // the tileset loads from the server (compositions arrive with it). Empty until then → the palette shows a
   // "loading" note. Data-driven, so the palette is never a hardcoded building-only subset.
   const [compositionPalette, setCompositionPalette] = useState<CompositionPaletteGroup[]>([])
-  // The armed composition's placement GHOST — a translucent footprint drawn at the hovered cell BEFORE the
+  // The armed composition's placement GHOST, a translucent footprint drawn at the hovered cell BEFORE the
   // click. Recomputed on mouse-move (not every frame → cheap) from the SAME planComposition the click stamps,
   // stashed in a ref so the RAF render loop reads it without a React re-render. Null when nothing is armed.
   const ghostRef = useRef<CompositionGhost | null>(null)
@@ -497,7 +490,7 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
   // Clear a pending quick-action section focus whenever the SELECTION itself changes, so
   // a section opened on one element doesn't auto-open on the next. Done during render
   // (not a post-commit effect) so the freshly-mounted Inspector cards never see the stale
-  // focus. Keyed by a value string — selectedCells is a fresh Set each update.
+  // focus. Keyed by a value string, selectedCells is a fresh Set each update.
   const selectionKey = `${selectedEntityId ?? ''}|${editingConnector ? `${editingConnector.col},${editingConnector.row}` : ''}|${Array.from(selectedCells).sort().join(';')}`
   const prevSelectionKeyRef = useRef(selectionKey)
   if (prevSelectionKeyRef.current !== selectionKey) {
@@ -574,11 +567,11 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
   const attackDownRef = useRef(false)
   const specialDownRef = useRef(false)
   const lastAttackFireRef = useRef(0) // for hold-to-loop: when the last regular swing fired
-  // Ability keys (1–4, data-driven loadout): edge-trigger per key + per-ability last-used clock
+  // Ability keys (1-4, data-driven loadout): edge-trigger per key + per-ability last-used clock
   // (keyed by ability id) so each ability respects its own cooldown.
   const abilityKeysRef = useRef<Record<string, boolean>>({})
   const abilityLastUsedRef = useRef<Map<string, number>>(new Map())
-  // Editable per-entity ability loadout (slot 1–4 → ability), keyed by entity id like the gear
+  // Editable per-entity ability loadout (slot 1-4 → ability), keyed by entity id like the gear
   // loadouts. v1 only the player ('__player__') is editable; the play loop + the inventory UI +
   // the HUD bar all read the SAME state, so assigning in the inventory changes what the keys fire.
   // The ref mirrors the player's loadout so the once-mounted game loop reads it without re-binding.
@@ -589,7 +582,7 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
   // Throttle how often we mirror combat state to React (HUD only needs ~UI cadence).
   const hudSyncAtRef = useRef(0)
 
-  // HUD mirror (the ONLY combat state in React — drives the DOM overlay).
+  // HUD mirror (the ONLY combat state in React, drives the DOM overlay).
   const [playerHud, setPlayerHud] = useState<PlayerHud>(() => playerHudFrom(
     DEFAULT_PLAYER_STATS,
     BARE_HANDS,
@@ -627,7 +620,7 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
   useEffect(() => () => { if (turnAnimRef.current !== null) cancelAnimationFrame(turnAnimRef.current) }, [])
 
   const rotateCameraTo = (to: Orientation) => {
-    const from = isoCameraTurn() // the LIVE continuous turn — re-clicking mid-spin continues from where it is
+    const from = isoCameraTurn() // the LIVE continuous turn, re-clicking mid-spin continues from where it is
     const delta = (((to - from) % 4) + 4) % 4 // always the CW way round, matching the button's +1 step
     if (delta === 0) return
     const pan0 = camOffsetRef.current
@@ -638,7 +631,7 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
     const DURATION_MS = 260
     const step = () => {
       const k = Math.min(1, (now() - t0) / DURATION_MS)
-      const e = k < 0.5 ? 2 * k * k : 1 - ((-2 * k + 2) ** 2) / 2 // easeInOutQuad — spins out, settles in
+      const e = k < 0.5 ? 2 * k * k : 1 - ((-2 * k + 2) ** 2) / 2 // easeInOutQuad, spins out, settles in
       setIsoCameraTurn(from + delta * e)
       // The pan eases WITH the turn so the point you were looking at stays centred through the whole spin.
       camOffsetRef.current = { x: pan0.x + (pan1.x - pan0.x) * e, y: pan0.y + (pan1.y - pan0.y) * e }
@@ -664,9 +657,9 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
     win.__playerViewRange = () => playerViewRangeRef.current
   }, [playerViewRange])
 
-  // UI panels — sidebars are collapsible on mobile to free up canvas space
+  // UI panels, sidebars are collapsible on mobile to free up canvas space
   const [showSidebars, setShowSidebars] = useState(true)
-  // PLAY MODE — the clean play view: hides ALL editor chrome (nav + both sidebars +
+  // PLAY MODE, the clean play view: hides ALL editor chrome (nav + both sidebars +
   // the Preview toggle), leaving only the canvas, the combat HUD and the Inventory /
   // Quests buttons (+ an Exit). Movement, combat and the connector flow all keep
   // running (the game loop never gated on chrome), so you can just play the level.
@@ -676,45 +669,45 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
   // The frame rate and the per-frame cost are SAMPLED BY THE READOUT (`LiveFpsReadout`), not here: those two
   // hooks set state three times a second, and from this component that meant re-rendering the whole editor
   // three times a second for a number only the pill reads.
-  // TILESET LOADING GATE — the frontend ships NO bundled tile data, so the map cannot be drawn until the
+  // TILESET LOADING GATE, the frontend ships NO bundled tile data, so the map cannot be drawn until the
   // backend tileset is installed. `tilesetReady` gates the RAF render (via tilesetReadyRef) AND the canvas
   // overlay below: until it flips true we show a loader (never a frontend-tile flash); on an empty/failed
   // load `tilesetError` shows a retry state. This is the "loader → correct DB style, nothing in between"
-  // the user asked for — there is deliberately no fallback to frontend tiles.
+  // the user asked for, there is deliberately no fallback to frontend tiles.
   const [tilesetReady, setTilesetReady] = useState(false)
   const [tilesetError, setTilesetError] = useState(false)
   const tilesetReadyRef = useRef(false) // live flag the gameLoop reads each frame (mirrors tilesetReady)
   useEffect(() => { tilesetReadyRef.current = tilesetReady }, [tilesetReady])
 
-  // Fetch + install the backend DATA the render needs — the tilesets (the ONLY source of runtime tiles)
+  // Fetch + install the backend DATA the render needs, the tilesets (the ONLY source of runtime tiles)
   // AND the entity resolution (enemyType/variant → baked slug). BOTH must be ready before the gate opens:
   // the render resolves entities in the same pass, so opening on tiles alone would flash enemies with no
   // per-type figure. "Ready" for the tilesets means the baked PNG IMAGES are DECODED too, not just the JSON
-  // installed — loadTilesetsFromBackend awaits preloadTileImages before it resolves, so the first painted
+  // installed, loadTilesetsFromBackend awaits preloadTileImages before it resolves, so the first painted
   // frame draws every tile as its image (no brick-glyph / crate-hero flash while rasters decode). On an
   // empty/failed load of EITHER we surface the error state (a retry) and keep the render gated. We NEVER
   // fall back to frontend data.
   const loadTiles = useCallback(() => {
     setTilesetError(false)
     // The ITEM catalog rides along (§3.14b #1): the bag, the equip panel and the starter kits all read it,
-    // and it is backend data like the tiles. It does NOT gate the render — a map draws fine with an empty
+    // and it is backend data like the tiles. It does NOT gate the render, a map draws fine with an empty
     // bag, so a failed item load must not black out the editor.
     void loadItemCatalog()
     void loadAbilityRegistry()
     // The COMBAT rules ride along like the items: a map draws fine with nobody able to fight, so a failed
     // load must not black out the editor. It also installs the season-independent prop tables.
     void loadCombatCatalog()
-    // The player-UI PROFILE: the HUD layout, the keybindings and the bars. Non-gating like the items — a
-    // map draws fine before the HUD has its layout — and it takes the GAME's profile when there is one,
+    // The player-UI PROFILE: the HUD layout, the keybindings and the bars. Non-gating like the items, a
+    // map draws fine before the HUD has its layout, and it takes the GAME's profile when there is one,
     // falling back to the seeded default, which is the design rather than a fallback.
     void loadUiProfile(gameContext?.gameId)
     // THE SEASONS GATE THE RENDER, unlike those. Ground palettes are backend data since 2026-09-11, so a
-    // map with no season catalog has no ground at all — that is a broken editor, not a degraded one, and it
+    // map with no season catalog has no ground at all, that is a broken editor, not a degraded one, and it
     // belongs with the tileset in the gate rather than failing quietly into an empty world.
     Promise.all([loadTilesetsFromBackend(), loadEntitiesFromBackend(), loadZones()])
       .then(([loaded, entitiesLoaded]) => {
         if (loaded.length === 0 || !entitiesLoaded || zones().length === 0) { setTilesetError(true); return }
-        // Build the Tile-composition palette from the just-loaded tileset — EVERY composition the backend
+        // Build the Tile-composition palette from the just-loaded tileset, EVERY composition the backend
         // serves (buildings + trees + fountains + lamp posts…), grouped for the panel. Data-driven, so a new
         // backend composition appears in the palette with no frontend change.
         setCompositionPalette(buildCompositionPalette(styleCatalog('ascii')))
@@ -760,7 +753,7 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
     flowViewMode = false
     setShowTopView(false)
     setShowFlowView(false)
-    // Entering a play view (iso/2d) exits connector authoring — authoring must never
+    // Entering a play view (iso/2d) exits connector authoring, authoring must never
     // bleed into play and silently freeze triggers/combat (the dead walk-in bug).
     connectorModeRef.current = false
     setConnectorMode(false)
@@ -798,7 +791,7 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
     setPlayMode(true)
   }
   const exitPlayMode = () => setPlayMode(false)
-  // GAMES view — open the overlay (closing flow first; they're mutually exclusive).
+  // GAMES view, open the overlay (closing flow first; they're mutually exclusive).
   const openGamesView = () => {
     flowViewMode = false
     setShowFlowView(false)
@@ -826,7 +819,7 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
 
   /**
    * Navigate AWAY from the editor, asking first if that would lose work (§3.15: "`+ New template` /
-   * `<- Templates` navigate out of the game without warning — an unsaved map is lost with no prompt").
+   * `<- Templates` navigate out of the game without warning, an unsaved map is lost with no prompt").
    * One helper, so every exit gets the same guard instead of each `<Link>` deciding for itself.
    */
   const leaveTo = async (href: string) => {
@@ -841,7 +834,7 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
     void router.push(href)
   }
 
-  // Renaming the GAME (§4.4). A rename genuinely needs input, so it asks — through the app's own prompt,
+  // Renaming the GAME (§4.4). A rename genuinely needs input, so it asks, through the app's own prompt,
   // never `window.prompt` (§5.1). Optimistic: the bar shows the new name immediately and the PUT follows.
   const [gameNameOverride, setGameNameOverride] = useState<string | null>(null)
   const renameGame = async () => {
@@ -857,13 +850,13 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
     if (!next || next === current) return
     setGameNameOverride(next)
     await updateGame(gameContext.gameId, { name: next }).catch(err => {
-      setGameNameOverride(current) // the write failed — put the name the server still holds back on screen
+      setGameNameOverride(current) // the write failed, put the name the server still holds back on screen
       console.warn('Failed to rename the game', err)
       toast('Could not rename the game', 'error')
     })
   }
 
-  // This game's levels, IN ORDER — the ids the game owns, resolved to the names the user knows them by.
+  // This game's levels, IN ORDER, the ids the game owns, resolved to the names the user knows them by.
   // A member template that no longer exists is dropped rather than rendered as a mystery row.
   const gameLevels = gameTemplateIds
     .map(id => { const t = savedTemplates.find(x => x.id === id); return t ? { id, name: t.name } : null })
@@ -879,7 +872,7 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
   const isCanvasOverlayVisible = canvasOverlayVisible(chrome)
 
   // Derived: which tool-rail MODE is active. Connector/building/unit win over the
-  // UI-only paint flag so the rail always mirrors the real armed tool — toggling a
+  // UI-only paint flag so the rail always mirrors the real armed tool, toggling a
   // tool off (it goes null) drops back to paint or select. The canvas handlers read
   // the fine-grained state, not this; the rail is just a switcher + highlighter.
   const editorMode: EditorMode =
@@ -889,26 +882,25 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
     : paintMode ? 'paint'
     : 'select'
 
-  // The placeable CHARACTER tiles of the active style — the library §4.5 gives the rail. One derivation, so
+  // The placeable CHARACTER tiles of the active style, the library §4.5 gives the rail. One derivation, so
   // the rail panel and the (transitional) top-bar dropdown can never show different creatures.
   const unitTiles = tilesForStyle(activeStyleId).units.filter(t => placementFor(t) === 'entity')
 
   // §4.5 (Week 4): the rail is the ONE switcher for everything you place, plus the workspaces that are not
   // tools. `generate` and `rules` open a PANEL rather than arming anything, so the rail's selection is a
-  // RailId — not the tool state — and the two are mapped in one place instead of inferred at each call.
+  // RailId, not the tool state, and the two are mapped in one place instead of inferred at each call.
   const [railPanel, setRailPanel] = useState<RailId | null>(null)
   // The ⋯ More menu, and the player's-UI mode. Both belong to the shell and nothing else reads them.
   const [moreOpen, setMoreOpen] = useState(false)
   const [hudMode, setHudMode] = useState(false)
   const hudLayout = useHudLayout()
-  // The level map. Shown by default because it answers "where am I?" — the question you have most often —
-  // and hideable, which is how the HUD version will work too.
+  // The level map. Shown by default because it answers "where am I?", the question you have most often, // and hideable, which is how the HUD version will work too.
   const [levelMapOpen, setLevelMapOpen] = useState(true)
   /**
    * What the open library is pointing at, and whether the placement panel is up.
    *
    * The hovered/armed label lives HERE rather than in the library because the PREVIEW is a different zone
-   * now. — stacking it above the grid left the grid as a clipped sliver.
+   * now., stacking it above the grid left the grid as a clipped sliver.
    */
   const [libraryHover, setLibraryHover] = useState<string | null>(null)
   const [placementOpen, setPlacementOpen] = useState(false)
@@ -919,7 +911,7 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
   const toggleZone = (zone: EditorZoneId) => setZoneShut(z => ({ ...z, [zone]: !z[zone] }))
   /**
    * THE one answer to "is anything selected". The inspector's own precedence is unit → connector → cell, so
-   * this is that same list, asked once. — with nothing selected the zone has nothing to say, so it is not rendered at
+   * this is that same list, asked once., with nothing selected the zone has nothing to say, so it is not rendered at
     * all and the
    * map takes its 300px. That is different from COLLAPSING it, which leaves a strip to reopen: there is
    * nothing to reopen here, and it comes back the moment you click something.
@@ -928,16 +920,16 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
   // THE one answer to "which rail panel is showing". Every panel below gates on THIS, and nothing else.
   //
   // The cause was two gating variables: the three LIBRARY panels tested `editorMode` (a canvas
-  // mode — what a click does) while the three WORKSPACE panels tested `railPanel` (which panel is open).
+  // mode, what a click does) while the three WORKSPACE panels tested `railPanel` (which panel is open).
   // Opening Characters set the mode to `unit`; opening Generate then set `railPanel` and left the mode
-  // alone, so BOTH cards rendered — Characters first, Generate below it and off-screen past 67 creatures.
+  // alone, so BOTH cards rendered, Characters first, Generate below it and off-screen past 67 creatures.
   // Every rail option after the first one looked broken, and it hid controls that exist (the tile search).
   const activeRailId: RailId = railPanel ?? RAIL_BY_MODE[editorMode]
 
   /**
    * The counts the rail shows. Read from the loaded catalog, so they are the real numbers and cannot drift
    * from what the panel then lists. `units` splits: a figure with a `unitRole` is a CHARACTER, and the
-   * twelve without one (arrow, nova, fire-slash…) are what a POWER draws — they are not characters and are
+   * twelve without one (arrow, nova, fire-slash…) are what a POWER draws, they are not characters and are
    * counted with the tiles, where they are at least findable.
    */
   /** Which library is open, in the preview's vocabulary. Null when the panel is not a library. */
@@ -953,12 +945,12 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
   /**
    * THE PREVIEW is a movable panel beside the LEFT panel, not a sidebar zone.
    *
-   * The right-zone version is deleted — it
+   * The right-zone version is deleted, it
    * reproduced exactly the cramming it predicted when it first asked for movable modals.
    */
   /**
    * The world a hovered/selected GENERATOR preset would build. The Generate panel is not a library, so
-   * `libraryKind` is null while it is open and `subjectFor` had nothing to answer with — which is why the
+   * `libraryKind` is null while it is open and `subjectFor` had nothing to answer with, which is why the
    * preview panel stayed empty there. The panel hands its own subject up instead.
    */
   const [genPeek, setGenPeek] = useState<ReturnType<typeof subjectFor>>(null)
@@ -984,11 +976,11 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
       : previewLabel
   /**
    * How every swatch and the preview panel should draw a thing: the view you are looking through, the zone
-   * whose ground it stands on, and the art style. One object so a library takes one prop, not four — and so
+   * whose ground it stands on, and the art style. One object so a library takes one prop, not four, and so
    * the swatches and the big preview cannot be handed different answers.
    */
   const previewContext: PreviewContext = {
-    // Flow is a graph of levels, not a projection of a tile, so it has no picture of its own — the
+    // Flow is a graph of levels, not a projection of a tile, so it has no picture of its own, the
     // thumbnails hold the top-down view while you are in it rather than going blank.
     view: activeView === 'flow' ? 'top' : activeView,
     zone: genZone,
@@ -1048,7 +1040,7 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
    * The building types the backend can compose at any size (`/api/buildings`).
    *
    * Empty until it answers, and the palette is simply unchanged
-   * until then — a type list the frontend guessed at would be the hardcoding this replaced.
+   * until then, a type list the frontend guessed at would be the hardcoding this replaced.
    */
   const [buildingTypes, setBuildingTypes] = useState<BuildingTypeCatalog>(EMPTY_BUILDING_TYPES)
   /**
@@ -1056,7 +1048,7 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
    *
    * `win.__genStage` is installed in a mount-time effect, so it closed over the EMPTY list forever: a
    * generate through the dev seam planned its plots from no backend sizes at all and silently fell back to
-   * the baked ones. The file already keeps `generatorCatalogRef` for exactly this reason — anything the
+   * the baked ones. The file already keeps `generatorCatalogRef` for exactly this reason, anything the
    * generate reads has to be reachable without a re-render.
    */
   const buildingTypesRef = useRef<BuildingTypeCatalog>(EMPTY_BUILDING_TYPES)
@@ -1091,7 +1083,7 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
   /**
    * Compose a building at a size and arm it.
    *
-   * The layout is the BACKEND's — this asks for it, installs the answer into the loaded catalog, and arms
+   * The layout is the BACKEND's, this asks for it, installs the answer into the loaded catalog, and arms
    * the kind it came back under. From that point the stamp, the ghost and the preview all treat it as any
    * other composition, which is why no downstream code knows a generated building from a seeded one.
    */
@@ -1102,7 +1094,7 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
   }
 
   /**
-   * Centre the view on a cell — the same maths `__centerOn` uses, so there is ONE notion of "go there".
+   * Centre the view on a cell, the same maths `__centerOn` uses, so there is ONE notion of "go there".
    * Shared by the corner map and the big one; two copies would drift the moment the camera model changed.
    */
   const jumpToCell = (col: number, row: number) => {
@@ -1115,18 +1107,17 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
   }
 
   /**
-   * WHERE AN INSPECTOR SECTION'S CONTROLS GO — a movable panel beside the inspector.
+   * WHERE AN INSPECTOR SECTION'S CONTROLS GO, a movable panel beside the inspector.
    *
    * The sidebar keeps the six rows and their summaries; opening one lifts
    * its controls into a panel you can drag, resize and leave open while you work on the map.
    *
-   * The page supplies this rather than the inspector importing a panel — see `SectionPresenter`. Geometry
+   * The page supplies this rather than the inspector importing a panel, see `SectionPresenter`. Geometry
    * persists per section under its own key, so each one reopens where it was left.
    */
   // A section's DEFAULT size, before the person drags it to their own. The Character window holds four
   // blocks (name, size, the stat grid, the figure picker with its search), so at everyone else's 330x380 the
-  // figure fell off the bottom and the stat fields were squeezed to slivers. Only the default differs —
-  // every panel is still freely resizable and remembers where it was left.
+  // figure fell off the bottom and the stat fields were squeezed to slivers. Only the default differs, // every panel is still freely resizable and remembers where it was left.
   const SECTION_SIZE: Partial<Record<InspectorSectionId, { w: number }>> = {
     identity: { w: 420 },
   }
@@ -1158,7 +1149,7 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
     // A workspace entry toggles its panel; a library entry OPENS its panel and switches what a click does.
     if (entry.mode === null) { setRailPanel(id => (id === entry.id ? null : entry.id)); return }
     // The rail records WHICH PANEL is open, including for the libraries. It used to set this to null and let
-    // `RAIL_BY_MODE[editorMode]` infer the panel from the armed tool — which only worked while opening a
+    // `RAIL_BY_MODE[editorMode]` infer the panel from the armed tool, which only worked while opening a
     // library also armed something. Now that browsing arms nothing (see `selectMode`), an inferred panel
     // would resolve to the resting state and throw you back to New world the moment you opened a library.
     setRailPanel(entry.id)
@@ -1182,7 +1173,7 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
   useEffect(() => { genZoneRef.current = genZone }, [genZone])
   useEffect(() => { generatorCatalogRef.current = generatorCatalog }, [generatorCatalog])
 
-  // Flow view is a full-screen graph — flag it on <body> so the global FPS overlay (rendered
+  // Flow view is a full-screen graph, flag it on <body> so the global FPS overlay (rendered
   // outside this tree in _app) can hide itself instead of sitting on top of the flow.
   useEffect(() => {
     document.body.classList.toggle('flow-view-active', showFlowView)
@@ -1190,8 +1181,7 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
   }, [showFlowView])
 
   // The game-engine page fills all four screen corners with its own HUD/nav, so flag it on <body>
-  // and pull the global FPS overlay (mounted in _app, top-right) out of the top nav zone via CSS —
-  // it was overlapping the "More" button. Removed on unmount so other pages keep the default corner.
+  // and pull the global FPS overlay (mounted in _app, top-right) out of the top nav zone via CSS, // it was overlapping the "More" button. Removed on unmount so other pages keep the default corner.
   useEffect(() => {
     document.body.classList.add('game-engine-active')
     return () => document.body.classList.remove('game-engine-active')
@@ -1226,7 +1216,7 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
 
   // Auto-save unit gear: "all interactions with the objects that can be picked and added to inventory
   // trigger a database save". Every equip/unequip/drop/reorder mutates `loadouts`/`inventory`, so a debounced effect
-  // folds the live gear onto the entities and PATCHes JUST the `entities` field — a targeted write, not a full grid
+  // folds the live gear onto the entities and PATCHes JUST the `entities` field, a targeted write, not a full grid
   // re-save. Only fires once a stage is saved (needs an id to patch), and skips the fire the load-restore itself
   // provokes (suppressUnitAutoSaveRef).
   const suppressUnitAutoSaveRef = useRef(false)
@@ -1274,7 +1264,7 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
     playerRef.current.weaponGlyph = emojiHands ? weaponEmoji(heldWeapon) : weaponGlyph(heldWeapon)
     playerRef.current.shieldGlyph = shield ? (emojiHands ? weaponEmoji(shield) : weaponGlyph(shield)) : ''
     // The weapon/shield POSE is re-read from the tileset each frame in the render loop (so the live Pose
-    // editor retunes the equipped weapon in-scene) — not cached here.
+    // editor retunes the equipped weapon in-scene), not cached here.
     playerRef.current.armored = armored
     // Per-entity character tone (deterministic by id) so the player varies like NPCs do;
     // the armored steel-blue still overrides this in the render. No player entity → gold default.
@@ -1300,7 +1290,7 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
   }, [loadouts, inventory.equippedWeapon, entities, activeStyleId])
 
   // Using a special slot (from a number key): apply a consumable's effect to the
-  // player and clear the slot. Bombs/scrolls have no stat effect yet — they just
+  // player and clear the slot. Bombs/scrolls have no stat effect yet, they just
   // get consumed with a toast (throw/teleport behaviour is a later pass).
   useEffect(() => {
     useSpecialSlotRef.current = (i: number) => {
@@ -1331,7 +1321,7 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
     questsRef.current = quests
   }, [quests])
 
-  // The live ISO camera the click/overlay projections read — built from the SAME refs the RAF loop hands
+  // The live ISO camera the click/overlay projections read, built from the SAME refs the RAF loop hands
   // render(), INCLUDING the facing, so a rotated map picks and highlights the cell you actually see. One seam
   // (isoEditorCamera) owns the diamond math for both directions; nothing here re-derives it.
   const isoEditorView = (canvas: HTMLCanvasElement, grid: IsometricGrid): IsoEditorView => ({
@@ -1351,18 +1341,18 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
 
   // Convert screen position to grid cell (for top view)
   // Screen → grid cell for the ACTIVE view. Top view is the easy default, but iso and
-  // 2D work too (each just inverts its own projection) — placement isn't top-only.
+  // 2D work too (each just inverts its own projection), placement isn't top-only.
   const screenToCell = (clientX: number, clientY: number): { col: number; row: number } | null => {
     const canvas = canvasRef.current
     const grid = gridRef.current
     if (!canvas || !grid) return null
 
     const rect = canvas.getBoundingClientRect()
-    // Map the click from CSS/display pixels to INTERNAL canvas pixels — the projection below is in
+    // Map the click from CSS/display pixels to INTERNAL canvas pixels, the projection below is in
     // canvas.width/height space. This is the exact inverse of cellToScreen's `* rect.width/canvas.width`
     // scaling; without it, clicks desync from the drawing whenever the canvas is displayed at a different
     // size than its backing store (layout change / window resize / browser zoom), and the error grows as
-    // the tiles shrink — which is why it read as "inaccurate, especially when zooming".
+    // the tiles shrink, which is why it read as "inaccurate, especially when zooming".
     const scaleX = rect.width ? canvas.width / rect.width : 1
     const scaleY = rect.height ? canvas.height / rect.height : 1
     const x = (clientX - rect.left) * scaleX
@@ -1376,8 +1366,7 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
     let row: number
 
     if (topViewMode) {
-      // Match renderTopView EXACTLY, INCLUDING the #38 camera CLAMP (clampCameraAxis on the focus) —
-      // otherwise clicks land on the wrong cell near the grid edges. Mirrors lines ~11047/11057.
+      // Match renderTopView EXACTLY, INCLUDING the #38 camera CLAMP (clampCameraAxis on the focus), // otherwise clicks land on the wrong cell near the grid edges. Mirrors lines ~11047/11057.
       const tileSize = 16 * zoomRef.current
       const fCol = clampCameraAxis(px / cs - cam.x / tileSize, canvas.width / tileSize / 2, grid.cols)
       const fRow = clampCameraAxis(pz / cs - cam.y / tileSize, canvas.height / tileSize / 2, grid.rows)
@@ -1391,9 +1380,9 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
       col = Math.floor(camCol + (x - canvas.width / 2) / tileW)
       row = Math.floor(camRow + (y - canvas.height / 2) / tileW)
     } else {
-      // Isometric: ONE seam inverts the diamond with the SAME facing-aware camera the render draws with — the
+      // Isometric: ONE seam inverts the diamond with the SAME facing-aware camera the render draws with, the
       // #38/#70 edge clamp (play mode only) AND the #75 rotation. Re-deriving it here is what used to let
-      // clicks land 3–4 cells off; under rotation it would have picked the un-rotated mirror cell.
+      // clicks land 3-4 cells off; under rotation it would have picked the un-rotated mirror cell.
       const c = isoEditorCellAt(x, y, isoEditorView(canvas, grid))
       col = c.col
       row = c.row
@@ -1406,10 +1395,10 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
   }
 
   // INVERTED TILE PICK: hit-test the ACTUAL rendered TILE the user points at (its transform-aware silhouette,
-  // recorded by the renderer as it drew — honouring scaleY/zoom/pose/zOffset/depth/single-display/heightLevel)
+  // recorded by the renderer as it drew, honouring scaleY/zoom/pose/zOffset/depth/single-display/heightLevel)
   // and cascade to its cell. This replaces the old "cursor → cell → topmost tile" resolution: we pick the tile
   // you SEE and derive its cell, so the pick + highlight match the visual even for a tall / slid / lifted tile.
-  // ISO and 2D both use their own frame record (top = footprint, the flat cell already matches — untouched).
+  // ISO and 2D both use their own frame record (top = footprint, the flat cell already matches, untouched).
   // Returns null (→ the caller falls back to the flat screenToCell) when no tile is under the pointer. Reads the
   // LAST frame's record (the RAF loop re-renders every frame). Converts client → canvas-internal pixels.
   const renderedTilesUnder = (clientX: number, clientY: number) => {
@@ -1433,20 +1422,20 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
   }
 
   // The cell a click SELECTS/edits: the rendered tile under the pointer first (so a click on a tall/lifted tile
-  // picks THAT tile, not the ground under it), else the flat screenToCell — unchanged for empty cells, 2D, top.
+  // picks THAT tile, not the ground under it), else the flat screenToCell, unchanged for empty cells, 2D, top.
   const pickCellForSelect = (clientX: number, clientY: number): { col: number; row: number; stackIndex?: number; source?: TileSource; entityId?: string } | null => {
     const tile = pickIsoBlockAt(clientX, clientY)
     if (tile) return tile
     const flat = screenToCell(clientX, clientY)
-    return flat ? { col: flat.col, row: flat.row } : null // a bare-cell pick — no tile slot, no tile source
+    return flat ? { col: flat.col, row: flat.row } : null // a bare-cell pick, no tile slot, no tile source
   }
 
   // Click-to-cycle: repeated clicks on the SAME spot walk front→back through the OVERLAPPING tiles there, so an
-  // OCCLUDED tile is reachable without moving the camera (the pick correctly returns the visible top tile — not
+  // OCCLUDED tile is reachable without moving the camera (the pick correctly returns the visible top tile, not
   // a geometry bug). ONLY call this from a discrete mousedown; hover must keep using pickCellForSelect (the
   // frontmost), or it would advance the cycle.
   const lastPickRef = useRef<{ x: number; y: number; index: number } | null>(null)
-  const PICK_CYCLE_TOL = 8 // canvas px — a click within this of the last one keeps cycling; farther resets to front
+  const PICK_CYCLE_TOL = 8 // canvas px, a click within this of the last one keeps cycling; farther resets to front
   const pickCellForSelectCycling = (clientX: number, clientY: number): { col: number; row: number; stackIndex?: number; source?: TileSource; entityId?: string } | null => {
     const under = renderedTilesUnder(clientX, clientY)
     if (under && under.tiles.length > 0) {
@@ -1457,21 +1446,21 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
     }
     lastPickRef.current = null // clicked off any tile → reset the cycle
     const flat = screenToCell(clientX, clientY)
-    return flat ? { col: flat.col, row: flat.row } : null // a bare-cell pick — no tile slot, no tile source
+    return flat ? { col: flat.col, row: flat.row } : null // a bare-cell pick, no tile slot, no tile source
   }
 
   // The stack index (0 = floor, 1.. = stacked) the TILE inspector should show for a click. A picked RAISED
   // block maps to its stack position (its heightLevel → its slot in the sorted stack); a flat pick with no
-  // specific block defaults to the TOP tile — or the floor (0) when the cell is bare. Drives selectedTileLevel.
+  // specific block defaults to the TOP tile, or the floor (0) when the cell is bare. Drives selectedTileLevel.
   const levelForPickedCell = (c: { col: number; row: number; stackIndex?: number; source?: TileSource }): number => {
-    // A picked TILE carries its own STACK INDEX (its slot in the cell's ordered stack) — the exact slot the
+    // A picked TILE carries its own STACK INDEX (its slot in the cell's ordered stack), the exact slot the
     // inspector edits. Grass/road/wall/roof/decor all resolve the SAME way: their stack slot IS the answer, so
     // two tiles at the same level no longer collapse to one (the "clicking the column selected the grass" fix).
     if (c.stackIndex !== undefined && c.stackIndex >= 0) return c.stackIndex // -1 = a unit pick → fall to the base logic
     const grid = gridRef.current
     if (!grid) return 0
     // A flat/bare pick (no tile under the pointer) → default the inspector to the TOP loose ASSET, or the base
-    // (index 0) on a bare/floor-only cell — a plain ground click never auto-selects a raised block.
+    // (index 0) on a bare/floor-only cell, a plain ground click never auto-selects a raised block.
     const stack = getStack(grid, c.col, c.row)
     let top = 0
     stack.forEach((t, i) => { if (t.source === 'asset') top = i })
@@ -1484,9 +1473,9 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
   // there's no canvas/grid yet. Kept in lockstep with screenToCell's clamped camera so
   // the toolbar sits exactly where the selection highlight draws.
   // Grid cell CENTRE → CANVAS-INTERNAL pixels (the backing-store space the render registry records tile
-  // silhouettes in). This is the CORE projection cellToScreen wraps — cellToScreen just adds the canvas
+  // silhouettes in). This is the CORE projection cellToScreen wraps, cellToScreen just adds the canvas
   // rect offset/scale to reach CLIENT pixels. The block-aware marquee compares cell centres against recorded
-  // silhouettes (both canvas-internal), so it reads THIS directly — ONE projection, no drift between the
+  // silhouettes (both canvas-internal), so it reads THIS directly, ONE projection, no drift between the
   // quick-action toolbar (cellToScreen) and the marquee's ground-cell coverage test.
   const cellToCanvas = (col: number, row: number): { x: number; y: number } | null => {
     const canvas = canvasRef.current
@@ -1512,7 +1501,7 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
       const camRow = clampCameraAxis(pz / cs - cam.y / tileW, canvas.height / tileW / 2, grid.rows)
       return { x: canvas.width / 2 + (cc - camCol) * tileW, y: canvas.height / 2 + (rr - camRow) * tileW }
     }
-    // Same seam, same camera as screenToCell — so the quick-action toolbar and the marquee's coverage test sit
+    // Same seam, same camera as screenToCell, so the quick-action toolbar and the marquee's coverage test sit
     // exactly over the selected element, at any facing. The anchor keeps the historical (col+0.5, row+0.5)
     // convention (the halves cancel in x and add one tile-height in y); isoEditorCellAnchor owns that.
     return isoEditorCellAnchor(col, row, isoEditorView(canvas, grid))
@@ -1532,13 +1521,13 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
 
   // BLOCK-AWARE MARQUEE (shift+drag in iso / 2D): the selection keys for every tile the screen rectangle
   // between the drag-start point and the current point VISUALLY covers. Two parts, unioned:
-  //  1) RAISED blocks — from the render registry (renderedTilesInRect): each tile whose recorded silhouette
+  //  1) RAISED blocks, from the render registry (renderedTilesInRect): each tile whose recorded silhouette
   //     centroid falls in the box → its OWN "col,row,level" key. THE FIX: a roof/wall block whose flat ground
   //     cell sits behind the building is grabbed by what's DRAWN, so the yellow cage hugs the roof instead of
   //     floating on the offset ground cell a screenToCell-corner rectangle wrongly picked.
-  //  2) flat FLOOR cells — a cell whose CENTRE is in the box AND that is NOT occluded by another cell's tile
+  //  2) flat FLOOR cells, a cell whose CENTRE is in the box AND that is NOT occluded by another cell's tile
   //     drawn in front of it (so a ground cell hidden behind a building never re-adds a floating cage). A cell
-  //     already carrying a raised block (part 1) is skipped — its block key owns it (no double-count).
+  //     already carrying a raised block (part 1) is skipped, its block key owns it (no double-count).
   // Top view has no registry / no iso offset, so the caller keeps the flat-rectangle path there. Coords are
   // CANVAS-INTERNAL (the space the registry + cellToCanvas share).
   const marqueeSelectionKeys = (startX: number, startY: number, curX: number, curY: number): Set<string> => {
@@ -1557,10 +1546,10 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
     const blockedCells = new Set<string>() // "col,row" of cells that already contributed a TILE key → skip their bare-cell fallback
     for (const t of iso ? renderedTilesInRect(x0, y0, x1, y1) : renderedTwoDTilesInRect(x0, y0, x1, y1)) {
       keys.add(blockKeyForPick({ col: t.col, row: t.row, stackIndex: t.stackIndex, source: t.source }))
-      blockedCells.add(`${t.col},${t.row}`) // its own tile(s) own this cell — don't ALSO add a bare "col,row" key
+      blockedCells.add(`${t.col},${t.row}`) // its own tile(s) own this cell, don't ALSO add a bare "col,row" key
     }
     // Occlusion-aware flat ground: add ONLY the VISIBLE bare-ground cells under the box (their own tile on top,
-    // or nothing there) — a cell hidden behind another cell's rendered tile is never selected.
+    // or nothing there), a cell hidden behind another cell's rendered tile is never selected.
     for (let r = 0; r < grid.rows; r++) {
       for (let c = 0; c < grid.cols; c++) {
         if (blockedCells.has(`${c},${r}`)) continue
@@ -1585,7 +1574,7 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
     }
 
     // RESIZE HANDLE grab (left button, no placement tool): if the pointer is on a grip of the selected tile,
-    // start resizing it — takes priority over pan/select so the drag never pans the camera.
+    // start resizing it, takes priority over pan/select so the drag never pans the camera.
     if (e.button === 0 && !entityTool && !buildingTool && !connectorMode && tryStartHandleDrag(e.clientX, e.clientY)) {
       e.preventDefault()
       return
@@ -1602,9 +1591,9 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
       return
     }
 
-    // ALL views (iso/2d/top): LEFT-click + drag pans the camera — UNLESS a placement tool is armed
+    // ALL views (iso/2d/top): LEFT-click + drag pans the camera, UNLESS a placement tool is armed
     // (entity / building / connector), OR SHIFT is held (shift+drag bulk-SELECTS cells in every view).
-    // Plain left-drag pans, shift+drag selects — the SAME gesture everywhere (top view no longer
+    // Plain left-drag pans, shift+drag selects, the SAME gesture everywhere (top view no longer
     // hijacks plain drag for select, which is why the screen wouldn't move). Middle/right-drag also pans.
     if (e.button === 0 && !entityTool && !buildingTool && !connectorMode && !e.shiftKey) {
       // Defer the decision: clean click → select the entity here; drag → pan (mouse-up decides). Iso uses the
@@ -1654,17 +1643,17 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
       return
     }
 
-    // No tool armed: select the EXACT cell under the pointer — a unit is picked only when its OWN
+    // No tool armed: select the EXACT cell under the pointer, a unit is picked only when its OWN
     // footprint covers this cell (no walk), so a click never grabs a neighbouring unit. The player is
     // hit-tested at its LIVE cell (withPlayerCell) since its entity col/row is frozen at spawn.
-    // Alt+click always prefers the CELL — skip the entity hit-test so a unit's floor tile stays editable.
+    // Alt+click always prefers the CELL, skip the entity hit-test so a unit's floor tile stays editable.
     const clickedEntity = e.altKey ? null : entityAtFootprint(withPlayerCell(entitiesRef.current, livePlayerCell()), cell.col, cell.row)
     if (clickedEntity) {
       setSelectedEntityId(clickedEntity.id)
       return
     }
 
-    // Selecting cells makes the CELL the Inspector's subject — drop any unit selection
+    // Selecting cells makes the CELL the Inspector's subject, drop any unit selection
     // so the panel morphs to the cell instead of lingering on the last-clicked entity.
     setSelectedEntityId(null)
     setIsSelecting(true)
@@ -1676,7 +1665,7 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
     selectionBaseRef.current = e.shiftKey ? new Set(selectedCellsRef.current) : new Set()
     // Block-aware single ADD: resolve the BLOCK under the cursor with the SAME pick the single-click uses
     // (pickCellForSelectCycling), and add ITS key ("col,row,level" for a raised block, "col,row" for bare
-    // ground) via the SAME blockKeyForPick derivation — so a shift+click on a stacked block hits THAT block's
+    // ground) via the SAME blockKeyForPick derivation, so a shift+click on a stacked block hits THAT block's
     // key (matching the highlight), not the flat ground cell offset up-and-left of it in iso. A shift+DRAG
     // replaces this with its ground-cell rectangle on the first move (applyRectSelection in mousemove).
     const pick = pickCellForSelectCycling(e.clientX, e.clientY)
@@ -1690,16 +1679,15 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
       applyHandleDrag(e.clientX, e.clientY)
       return
     }
-    // Hover targeting (#24): hit-test the unit under the cursor — view-aware, the SAME test the click-select
-    // uses (withPlayerCell so the walked hero is hittable) — and stash its id in a REF. The RAF loop reads
+    // Hover targeting (#24): hit-test the unit under the cursor, view-aware, the SAME test the click-select
+    // uses (withPlayerCell so the walked hero is hittable), and stash its id in a REF. The RAF loop reads
     // it to draw a dim white hover reticle. A ref (not state) so a mousemove never triggers a React render.
     const hoverCell = screenToCell(e.clientX, e.clientY)
     const hoverView = topViewMode ? 'top' : viewTypeRef.current === '2d' ? '2d' : 'iso'
     hoveredEntityIdRef.current = hoverCell
       ? (entityAtClick(withPlayerCell(entitiesRef.current, livePlayerCell()), hoverCell.col, hoverCell.row, hoverView)?.id ?? null)
       : null
-    // Cell/BLOCK-hover indicator: resolve the SAME cell/block the CLICK will select (pickCellForSelect —
-    // block-aware in iso, the flat cell in 2D/top), UNCONDITIONALLY on every move, so the dim hover cube
+    // Cell/BLOCK-hover indicator: resolve the SAME cell/block the CLICK will select (pickCellForSelect, // block-aware in iso, the flat cell in 2D/top), UNCONDITIONALLY on every move, so the dim hover cube
     // previews the EXACT thing you'll select and rides onto a stacked block instead of the flat ground cell
     // behind it (fixes the hover-vs-selection offset). RAF draws it on all cells, in addition to the unit reticle.
     hoveredCellRef.current = pickCellForSelect(e.clientX, e.clientY)
@@ -1734,16 +1722,16 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
 
     if (!isSelecting || !selectionStart) return // drag-select (shift+drag in every view)
     // TOP view has no per-tile registry and no iso projection offset, so keep the flat cell-rectangle path
-    // there (screenToCell corners → rectangle) — unchanged, and correct since top view has no offset.
+    // there (screenToCell corners → rectangle), unchanged, and correct since top view has no offset.
     if (topViewMode) {
       const cell = screenToCell(e.clientX, e.clientY)
       if (!cell) return
       setSelectedCells(applyRectSelection(selectionBaseRef.current, selectionStart, cell, additiveSelectRef.current))
       return
     }
-    // ISO / 2D: BLOCK-AWARE screen-rect marquee — select the TILES the box visually covers (from the render
+    // ISO / 2D: BLOCK-AWARE screen-rect marquee, select the TILES the box visually covers (from the render
     // registry), not the offset flat ground cells a screenToCell-corner rectangle grabbed (the floating-cage
-    // bug). MERGED into the base captured at drag-start when additive (shift) — extending keeps 4 + 4 = 8.
+    // bug). MERGED into the base captured at drag-start when additive (shift), extending keeps 4 + 4 = 8.
     const start = selectionStartPtRef.current
     if (!start) return
     const marquee = marqueeSelectionKeys(start.x, start.y, e.clientX, e.clientY)
@@ -1751,36 +1739,36 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
   }
 
   const handleCanvasMouseUp = () => {
-    // End any resize-handle drag first (it owned the gesture — no pan/select to finalise).
+    // End any resize-handle drag first (it owned the gesture, no pan/select to finalise).
     if (handleDragRef.current) {
       handleDragRef.current = null
       setIsPanning(false)
       setPanStart(null)
       return
     }
-    // A no-drag click in a play view (iso/2d) selects the unit under it — view-aware so clicking the
+    // A no-drag click in a play view (iso/2d) selects the unit under it, view-aware so clicking the
     // standing FIGURE (drawn above its foot cell) selects it, not only a click on the exact cell.
     if (isPanning && !dragMovedRef.current && downCellRef.current) {
       const c = downCellRef.current
-      // Select the picked TILE as a cell + stack level — the unified Cell inspector then shows THAT tile
+      // Select the picked TILE as a cell + stack level, the unified Cell inspector then shows THAT tile
       // (floor / prop / building wall) with the SAME controls, no matter what it is.
       const selectCellTile = () => {
         setSelectedEntityId(null)
-        // Carry the picked TILE's level into the key ("col,row,level") — INCLUDING level 0 for a flat tile — so
+        // Carry the picked TILE's level into the key ("col,row,level"), INCLUDING level 0 for a flat tile, so
         // the highlight looks up that tile's ACTUAL recorded silhouette and hugs it (scaleY/pose/zOffset/depth
         // aware), instead of the flat ground cell. A floor pick (no tile) stays the 2-part "col,row" ground key.
         setSelectedCells(new Set([blockKeyForPick(c)]))
         setSelectedTileLevel(levelForPickedCell(c))
       }
-      // ONE resolution, then a tiny route by the tile's STORE (never a geometry re-test — pickIsoBlock already
+      // ONE resolution, then a tiny route by the tile's STORE (never a geometry re-test, pickIsoBlock already
       // did that uniformly over the stack):
       //  • a picked BUILDING / PROP block → that tile in the Cell inspector (wins over an entity sharing the
-      //    cell — you clicked the raised block, not the figure at ground level);
+      //    cell, you clicked the raised block, not the figure at ground level);
       //  • Alt → always the CELL under the pointer (edit the floor even under a unit);
       //  • a plain flat click stays ENTITY-FIRST (a unit is a billboard drawn above its foot cell), else the cell.
       // A UNIT is a tile the picker returns: its billboard silhouette is recorded like any tile, so a click on
-      // the figure resolves to source 'entity' and selects the unit — no longer swallowed by the floor under it.
-      // Alt still bypasses to edit the CELL/floor beneath the unit (via selectCellTile — the -1 stackIndex keys
+      // the figure resolves to source 'entity' and selects the unit, no longer swallowed by the floor under it.
+      // Alt still bypasses to edit the CELL/floor beneath the unit (via selectCellTile, the -1 stackIndex keys
       // as the bare cell).
       if (c.source === 'entity' && !downAltRef.current) {
         if (c.entityId) setSelectedEntityId(c.entityId)
@@ -1812,7 +1800,7 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
 
   // Find a valid walkable spawn point near a target position
   // Find where the player lands: the LARGEST walkable area, as near the target as it allows. Checking the one
-  // target cell was not enough — a cell between trees passes that and leads nowhere (spawn.ts has the why).
+  // target cell was not enough, a cell between trees passes that and leads nowhere (spawn.ts has the why).
   const findValidSpawn = (grid: IsometricGrid, targetCol: number, targetRow: number): { col: number; row: number } =>
     spawnInMainArea((c, r) => isValidSpawn(grid, c, r), grid.cols, grid.rows, { col: targetCol, row: targetRow })
       ?? { col: Math.floor(grid.cols / 2), row: Math.floor(grid.rows / 2) }
@@ -1855,8 +1843,8 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
 
   /** The player IS a selectable entity (click it → its vitals/stats/inventory show in
    *  the right sidebar). Guarantee exactly one 'player' entity exists. `reposition`
-   *  moves an existing player to (col,row) — used when generating a fresh stage;
-   *  otherwise an existing (saved/placed) player is left untouched — used on load. */
+   *  moves an existing player to (col,row), used when generating a fresh stage;
+   *  otherwise an existing (saved/placed) player is left untouched, used on load. */
   const syncPlayerEntity = (col: number, row: number, reposition: boolean) => {
     setEntities(prev => {
       const existing = prev.find(e => e.kind === 'player')
@@ -1910,7 +1898,7 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
   }
 
   /** Enter the connector editing view for the ACTIVE selection so opening the panel lands straight in the
-   *  authoring FORM — no second click. Reuses the SAME routing as a canvas connector click
+   *  authoring FORM, no second click. Reuses the SAME routing as a canvas connector click
    *  (`connectorEditFromSelection`): a saved connector overlapping the selection loads, otherwise the
    *  selection itself becomes a fresh connector. No-op with no selection (the panel just stays armed). */
   const beginConnectorForSelection = () => {
@@ -1923,7 +1911,7 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
 
   /** Open the right-sidebar Connectors panel: arm click-to-add authoring and drop the other exclusive tools so
    *  a canvas click routes to exactly one editor (mirrors the old rail Connector mode, minus the rail entry).
-   *  With a selection active it opens straight into the editing view (`beginConnectorForSelection`) — the user
+   *  With a selection active it opens straight into the editing view (`beginConnectorForSelection`), the user
    *  expects one click, especially with a multi-select, not a second click to reach the form. */
   const openConnectorPanel = () => {
     setSelectedEntityId(null)
@@ -1945,7 +1933,7 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
   }
 
   // ── Entity placement ───────────────────────────────────────────────
-  // A random patrol around a spawn (mirrors spawner.makePatrol, which isn't exported): 3–4 jittered ±2-cell
+  // A random patrol around a spawn (mirrors spawner.makePatrol, which isn't exported): 3-4 jittered ±2-cell
   // waypoints, keeping only walkable in-bounds cells. Used by the ◈ Unit "Animated" placement so the unit
   // actually wanders (the visible half of "animated"; the walk cycle is the other half).
   const randomPatrol = (col: number, row: number): MovementPattern => {
@@ -1965,7 +1953,7 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
   const withStaticMotion = <T extends Entity>(ent: T): T => ({ ...ent, movement: { mode: 'sequential', waypoints: [{ col: ent.col, row: ent.row }] } })
 
   /** Place a unit ANIMATED: a random wandering patrol PLUS a randomized movement animation (authored as
-   *  DATA in `unitAnimations`, projected to the render list `animations`) — the ANIMATED half of the toggle. */
+   *  DATA in `unitAnimations`, projected to the render list `animations`), the ANIMATED half of the toggle. */
   const withRandomMotion = <T extends Entity>(ent: T): T => {
     const anim = randomMovementAnimation()
     return { ...ent, movement: randomPatrol(ent.col, ent.row), animations: [anim], unitAnimations: unitAnimationsFromEntity([anim]) }
@@ -1975,9 +1963,9 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
   // fresh Entity from the pure factory; the orchestrator below guards placement.
   const ENTITY_BUILDERS: Record<EntityKind, (col: number, row: number) => Entity> = {
     player: (col, row) => makePlayer(mintEntityId('player'), col, row),
-    // A MANUALLY-placed enemy is STATIC by default — NO auto movement/animation ("added with animation by
+    // A MANUALLY-placed enemy is STATIC by default, NO auto movement/animation ("added with animation by
     // default" should ONLY happen when SCATTERING). An enemy with NO movement inherits the runtime's
-    // DEFAULT_ENEMY_PATROL (advanceEnemyMovement) and wanders — so to keep a hand-placed enemy STILL we pin
+    // DEFAULT_ENEMY_PATROL (advanceEnemyMovement) and wanders, so to keep a hand-placed enemy STILL we pin
     // an explicit STATIONARY pattern (a single waypoint = its own cell → the stepper no-ops). The concrete
     // creature (goblin/wolf/…) + its combat archetype now come from the picked ◈ Unit tile (placeUnitTile);
     // this bare builder is the fallback (rail-armed Unit with no pick) → a plain, still 'enemy'.
@@ -2006,7 +1994,7 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
   const kindForPlacement = (tile: TileDef | null): 'player' | 'npc' | 'enemy' | null => {
     if (!tile) return null
     const auto = entityKindForUnitTile(tile)
-    // The hero is the one distinguished unit — an override never turns the player into an enemy.
+    // The hero is the one distinguished unit, an override never turns the player into an enemy.
     if (auto === 'player') return 'player'
     if (placeAs === 'enemy') return 'enemy'
     if (placeAs === 'npc') return 'npc'
@@ -2026,7 +2014,7 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
   }
 
   // ── Tile-composition PLACE actions ──────────────────────────────────
-  /** Arm a composition PLACE tool by KIND (`house_4`, `fountain`, `lamp_post`… — re-clicking the active one
+  /** Arm a composition PLACE tool by KIND (`house_4`, `fountain`, `lamp_post`…, re-clicking the active one
    *  disarms it). Mutually exclusive with the entity / connector tools so a click routes to exactly one
    *  editor. Clears the placement ghost immediately on disarm so no stale shadow lingers. */
   const toggleBuildingTool = (kind: string) => {
@@ -2075,7 +2063,7 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
       clearPaintTile()
       // ARMS NOTHING.
       // This used to be `prev ?? 'enemy'`, so merely OPENING the Characters library armed an enemy and the
-      // next click on the map spawned one — a character the user never chose. Opening a library is browsing;
+      // next click on the map spawned one, a character the user never chose. Opening a library is browsing;
       // placing needs a pick. Whatever was already armed is kept.
       return
     }
@@ -2084,7 +2072,7 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
       setEntityTool(null)
       setConnectorMode(false)
       clearPaintTile()
-      // ARMS NOTHING, for the same reason as `unit` above — this defaulted to `'house_4'`, so opening the
+      // ARMS NOTHING, for the same reason as `unit` above, this defaulted to `'house_4'`, so opening the
       // Objects library and clicking the map stamped a house nobody picked.
       return
     }
@@ -2096,21 +2084,21 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
     setConnectorMode(true)
   }
 
-  /** Stamp a pre-built building of `type` at the clicked cell — its backend composition's per-cell tiles,
+  /** Stamp a pre-built building of `type` at the clicked cell, its backend composition's per-cell tiles,
    *  rotated to face the nearest road. A building is NOT a unit: this just paints its wall/window/door/roof
    *  tiles (the SAME stamp trees/props use), and each cell is then editable with the normal cell/tile tools.
    *  The click is treated as the footprint CENTRE. */
   const placeNewBuilding = (type: BuildingType, col: number, row: number): number => {
-    // The size is BACKEND data — the baked composition widths decide it, so there is no size to fall back to
+    // The size is BACKEND data, the baked composition widths decide it, so there is no size to fall back to
     // while the tileset is still loading.
     const length = buildingPlaceLength(type)
-    if (length === null) { toast('Composition tiles are still loading — try again in a moment', 'info'); return 0 }
-    // A building IS a composition — route it through the SAME replace-anything path (rotate to the road, clear
+    if (length === null) { toast('Composition tiles are still loading, try again in a moment', 'info'); return 0 }
+    // A building IS a composition, route it through the SAME replace-anything path (rotate to the road, clear
     // the footprint, stamp), so hand-placing a building overwrites whatever's there just like any composition.
     return placeComposition(buildingCompositionKind(type, length), col, row)
   }
 
-  /** Stamp composition `kind` with the clicked cell as its footprint CENTRE — the generic path for ANY
+  /** Stamp composition `kind` with the clicked cell as its footprint CENTRE, the generic path for ANY
    *  composition (building / tree / fountain / lamp post…). Uses the SAME planComposition the ghost preview
    *  draws, so what you saw is exactly what lands: buildings rotate to face the nearest road, props/trees drop
    *  as-is, and each stamped cell is then editable with the normal cell/tile tools. */
@@ -2118,18 +2106,17 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
     const grid = gridRef.current
     if (!grid) return 0
     const plan = planComposition(grid, kind, col, row)
-    if (!plan) { toast('Composition tiles are still loading — try again in a moment', 'info'); return 0 }
+    if (!plan) { toast('Composition tiles are still loading, try again in a moment', 'info'); return 0 }
     if (!plan.valid) {
-      // Red ONLY when it doesn't fit — the footprint runs off the map (not enough cells/blocks).
-      toast('Not enough room here — the composition runs off the map', 'warning')
+      // Red ONLY when it doesn't fit, the footprint runs off the map (not enough cells/blocks).
+      toast('Not enough room here, the composition runs off the map', 'warning')
       return 0
     }
     checkpointHistory() // snapshot the pre-edit map so Ctrl+Z restores it exactly
     // STACK, never replace (MAP-MODEL §4 "stacked like legos" + EDITOR-INTERACTION-SPEC §12 "the SAME path the
-    // generator uses"): a composition stamps its tiles ON TOP of whatever is already in the cell — the floor slab
+    // generator uses"): a composition stamps its tiles ON TOP of whatever is already in the cell, the floor slab
     // and any existing tiles stay. The old blanket `clearAssetsAtCell` deleted the floor asset too, which is why
-    // a placed tree / lamp / building wiped the grass beneath it. (Footprint FIT for a multi-cell composition —
-    // it must land on an even/free footprint — is enforced in planComposition, not by wiping the cells here.)
+    // a placed tree / lamp / building wiped the grass beneath it. (Footprint FIT for a multi-cell composition, // it must land on an even/free footprint, is enforced in planComposition, not by wiping the cells here.)
     const placed = stampComposition(grid, kind, plan.anchorCol, plan.anchorRow, genZoneRef.current, 0, plan.rotation)
     bumpBuildingVersion()
     return placed
@@ -2160,7 +2147,7 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
       return
     }
 
-    // A picked ◈ Unit tile places THAT exact figure — kind derived from the slug (person→npc, monster→enemy,
+    // A picked ◈ Unit tile places THAT exact figure, kind derived from the slug (person→npc, monster→enemy,
     // player→player). placeUnitTile guards + pins the art (tileOverride); the motion toggle picks static vs
     // a randomized wandering animation. This supersedes the generic player/builder path when a tile is armed.
     if (unitTile) {
@@ -2194,14 +2181,14 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
     })
   }
 
-  // ── Art-style overrides (stage D) — pin/clear a per-element tile ───
+  // ── Art-style overrides (stage D), pin/clear a per-element tile ───
   /** The current selection's override id (entity's, or the first selected cell's asset's). */
   const selectedOverride = (() => {
     if (selectedEntityId) return entities.find(e => e.id === selectedEntityId)?.tileOverride ?? null
     const grid = gridRef.current
     if (grid && selectedCells.size > 0) {
       const [c, r] = Array.from(selectedCells)[0].split(',').map(Number)
-      // The pinned tile of the SELECTED stack level. Every tile — the floor included — is a plain asset carrying
+      // The pinned tile of the SELECTED stack level. Every tile, the floor included, is a plain asset carrying
       // its own tileOverride, so this reads stackedAssetsAt[selectedTileLevel] uniformly (no floor special case).
       const stacked = [...grid.getAssetsAtCell(c, r)].sort((a, b) => (a.heightLevel ?? 0) - (b.heightLevel ?? 0))
       return stacked[selectedTileLevel]?.tileOverride ?? null
@@ -2209,7 +2196,7 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
     return null
   })()
 
-  /** Pin (or clear, with null) a Library tile id on the selected element — an entity, or the
+  /** Pin (or clear, with null) a Library tile id on the selected element, an entity, or the
    *  asset(s) under the selected cell(s). Rides the asset/entity through the codec (clone),
    *  so it saves + reloads with the template. Buildings reskin via the global style only. */
   const setSelectionOverride = (tileId: string | null) => {
@@ -2225,7 +2212,7 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
     checkpointHistory() // replacing the selected level's tile is a structural edit → Ctrl+Z restores the old one
     for (const key of selectedCells) {
       const [c, r] = key.split(',').map(Number)
-      // Swap the SELECTED stack level's tile — the exact tile the user picked (floor/base, middle, or top),
+      // Swap the SELECTED stack level's tile, the exact tile the user picked (floor/base, middle, or top),
       // pinned via tileOverride. Every tile is a plain asset, so this is ONE uniform write with no floor branch.
       const stacked = [...grid.getAssetsAtCell(c, r)].sort((a, b) => (a.heightLevel ?? 0) - (b.heightLevel ?? 0))
       const a = stacked[selectedTileLevel]
@@ -2233,10 +2220,10 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
       // A cleared/empty cell (no tile at this level) → drop a decoration asset locked to the chosen tile, so
       // you can replace ANY cell with any tile, not just cells that already hold a tree/prop.
       if (tileId) {
-        // The art fallback goes through the SHARED `tileChar` the paint brush uses — an image tile pins its
+        // The art fallback goes through the SHARED `tileChar` the paint brush uses, an image tile pins its
         // source glyph, or '' when it has none, and NEVER a literal '?'. This site had its own inline
         // ternary that stamped '?' for every image tile (which is every tile now), so a tile whose picture
-        // could not be resolved rendered a question mark on the map — the "fake ascii tiles" report.
+        // could not be resolved rendered a question mark on the map, the "fake ascii tiles" report.
         grid.placeAsset([visualChar(visualForTileId(tileId))], c, r, { type: 'decoration', tileOverride: tileId })
       }
     }
@@ -2253,14 +2240,14 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
     bumpBuildingVersion()
   }
   const setCellCollision = (blocked: boolean) => applyToSelectedCells((col, row, grid) => grid.setCollision(col, row, blocked))
-  // A cell's stacked tiles in the SAME order the cell-stack adapter (getStack) projects them — sorted by
-  // heightLevel — so the inspector's per-tile index maps to the right asset on both read and write.
+  // A cell's stacked tiles in the SAME order the cell-stack adapter (getStack) projects them, sorted by
+  // heightLevel, so the inspector's per-tile index maps to the right asset on both read and write.
   const stackedAssetsAt = (grid: IsometricGrid, col: number, row: number): GridAsset[] =>
     [...grid.getAssetsAtCell(col, row)].sort((a, b) => (a.heightLevel ?? 0) - (b.heightLevel ?? 0))
-  // Fan a per-TILE edit over the selection, resolving EACH selection key to its OWN stack slot — the fix for
+  // Fan a per-TILE edit over the selection, resolving EACH selection key to its OWN stack slot, the fix for
   // "edits changed the tile at the bottom instead of the one selected" (#2). A "col,row,stackIndex" key edits
   // that exact tile; a bare "col,row" key (a flat rectangle drag) falls back to `fallbackI` (the inspector's
-  // selectedTileLevel). So a multi-select edits each cell's SELECTED tile — never one global level forced onto
+  // selectedTileLevel). So a multi-select edits each cell's SELECTED tile, never one global level forced onto
   // every cell. Mirrors removeSelectedBlock's per-key resolution; supersedes the old "i-th tile of every cell".
   const applyToSelectedTiles = (fallbackI: number, apply: (asset: GridAsset) => void) => {
     const grid = gridRef.current
@@ -2274,7 +2261,7 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
     bumpBuildingVersion()
   }
   // The same per-key fan-out, for an edit that needs the tile's PLACE (grid + cell + stack slot) rather than
-  // just the asset — a height change is a whole-cell stack operation, since it moves the tiles above it too.
+  // just the asset, a height change is a whole-cell stack operation, since it moves the tiles above it too.
   const applyToSelectedTileSlots = (
     fallbackI: number,
     apply: (grid: IsometricGrid, col: number, row: number, index: number) => void,
@@ -2292,7 +2279,7 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
   type DimAxis = 'height' | keyof typeof DIM_FIELD
   // Write the i-th stacked TILE of every selected cell (per-tile, not "all assets in the cell at once").
   // The tile's BLOCK-HEIGHT (data): its DB height × any per-instance scaleY. This is the ONE "Height" number the
-  // inspector shows/edits — a flat tile reads 0.1, a wall 1, a scaleY-collapsed composition column its full span.
+  // inspector shows/edits, a flat tile reads 0.1, a wall 1, a scaleY-collapsed composition column its full span.
   // Read from the active style's DB tile, so height is DATA, never invented.
   const blockHeightOf = (a: GridAsset): number => {
     const kind = assetKind(a)
@@ -2300,7 +2287,7 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
     return resolveTileHeight(dbTile, a) * (a.scaleY ?? 1)
   }
   const setAssetDim = (i: number, axis: DimAxis, v: number) => {
-    // "Height" edits the tile's BLOCK-HEIGHT (asset.height) as ONE number — the data — AND lifts everything
+    // "Height" edits the tile's BLOCK-HEIGHT (asset.height) as ONE number, the data, AND lifts everything
     // stacked on that tile by the same change, because all tiles stack like legos and the floor is no
     // different: raise the ground under a house and the house goes up with it (setTileHeight owns that rule,
     // so the editor, tests and any other caller can't drift apart).
@@ -2317,7 +2304,7 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
   const clearAssetColor = (i: number) =>
     applyToSelectedTiles(i, (a) => { a.color = undefined })
   // "Z Width" (directional depth): the i-th stacked TILE spans `cells` blocks along asset.depthDir, extruded as
-  // a long iso box (isoDepthBox). A box needs a direction to grow — default to 'right-up' ("right top", the
+  // a long iso box (isoDepthBox). A box needs a direction to grow, default to 'right-up' ("right top", the
   // user's Image #28 arrow) when raising it past 1 with none set, so the extrusion shows immediately.
   const setAssetDepth = (i: number, cells: number) =>
     applyToSelectedTiles(i, (a) => {
@@ -2333,7 +2320,7 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
       a.depthBack = Math.max(0, Math.round(cells))
       if ((a.depthBack ?? 0) > 0 && !a.depthDir) a.depthDir = 'right-down'
     })
-  // 2-AXIS z-width: the PERPENDICULAR extents — forward (depthPerp) +
+  // 2-AXIS z-width: the PERPENDICULAR extents, forward (depthPerp) +
   // back (depthPerpBack) along rotateDepthDir(depthDir,1). With the primary axis this makes the tile a RECTANGLE.
   const setAssetDepthPerp = (i: number, cells: number) =>
     applyToSelectedTiles(i, (a) => {
@@ -2345,14 +2332,14 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
       a.depthPerpBack = Math.max(0, Math.round(cells))
       if (!a.depthDir) a.depthDir = 'right-down'
     })
-  // PER-ASSET pose (x/y/rotate/flip) and "z position" (ISO-DIAGONAL slide) — written to THIS placed tile
+  // PER-ASSET pose (x/y/rotate/flip) and "z position" (ISO-DIAGONAL slide), written to THIS placed tile
   // (persists with the map), not the shared tileset kind. The render reads asset.pose / asset.zOffset / asset.zDir
   // in every view.
   const setAssetPose = (i: number, pose: TilePose | undefined) =>
     applyToSelectedTiles(i, (a) => { a.pose = pose })
   // "z position": SLIDE the tile along an iso diagonal (NOT a vertical lift). Default the direction to 'right-up'
   // ("right top", the user's +z = up-right) the first time z is set with none, so the slide has a direction to
-  // move along immediately — mirrors setAssetDepth defaulting depthDir when depth grows past 1.
+  // move along immediately, mirrors setAssetDepth defaulting depthDir when depth grows past 1.
   const setAssetZOffset = (i: number, v: number) =>
     applyToSelectedTiles(i, (a) => {
       a.zOffset = v
@@ -2360,11 +2347,11 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
     })
   const setAssetZDir = (i: number, dir: DepthDir) =>
     applyToSelectedTiles(i, (a) => { a.zDir = dir })
-  // PER-ASSET "z-index" (draw-priority, CSS z-index style) — a higher value draws on top / in front, overriding
+  // PER-ASSET "z-index" (draw-priority, CSS z-index style), a higher value draws on top / in front, overriding
   // the positional depth sort. Written to THIS placed tile (persists with the map); the render reads asset.zIndex.
   const setAssetZIndex = (i: number, v: number) =>
     applyToSelectedTiles(i, (a) => { a.zIndex = Math.round(v) })
-  // PER-ASSET "display" mode (all-faces / single) — how the tile is painted on its block. Written into THIS
+  // PER-ASSET "display" mode (all-faces / single), how the tile is painted on its block. Written into THIS
   // placed tile's `settings` (persists with the map via the full-asset serialize) alongside the generic
   // fade/cutaway keys; the render reads asset.settings.display. 'all-faces' clears the key so a reset stays
   // byte-identical to a tile that never opted in.
@@ -2374,7 +2361,7 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
       if (mode === 'single') a.settings = { ...rest, display: 'single' }
       else { delete rest.display; a.settings = rest }
     })
-  // PER-ASSET "transparent" block — drop the block SHELL so only the tile's content shows (with display:single,
+  // PER-ASSET "transparent" block, drop the block SHELL so only the tile's content shows (with display:single,
   // just the centered billboard, in its own colour): "style the flower without colouring the whole block".
   // Written to THIS placed tile's `settings` (persists via the full-asset serialize); off clears the key so a
   // reset stays byte-identical to a tile that never opted in.
@@ -2384,16 +2371,16 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
       if (on) a.settings = { ...rest, transparent: true }
       else { delete rest.transparent; a.settings = rest }
     })
-  // PER-CELL "act as tile" — the cell behaves as if a tile were already inside it, so content stacks ON TOP of
+  // PER-CELL "act as tile", the cell behaves as if a tile were already inside it, so content stacks ON TOP of
   // this block instead of inside at level 0 (a walk-over floor/road). A STACK operation (setCellActAsTile) like
   // height: toggling it re-lifts whatever rests on the tile by the change in its stacking occupancy, so the
   // change shows immediately, and the setting persists via the full-asset serialize.
   const setAssetActAsTile = (i: number, on: boolean) =>
     applyToSelectedTileSlots(i, (grid, col, row, index) => setCellActAsTile(grid, col, row, index, on))
-  // PER-ASSET render SHAPE ('square' cube / 'circle' ball) — written to THIS placed tile (persists with the map
+  // PER-ASSET render SHAPE ('square' cube / 'circle' ball), written to THIS placed tile (persists with the map
   // via the full-asset serialize, like scaleX/pose). The render dispatches on asset.shape in every view.
   // 'square' clears the field so a reset stays byte-identical to a tile that never opted in (like Display).
-  // THICKNESS REACH: how far the i-th tile extends toward ONE world direction inside its own cell — the same
+  // THICKNESS REACH: how far the i-th tile extends toward ONE world direction inside its own cell, the same
   // question the Footprint asks, in the smaller unit. `dir` arrives already converted from the arrow the user
   // clicked (screen) to the world axis it means, so the stored value survives camera rotation. A full reach
   // (1) is the default and is dropped, so an untouched tile carries no thickness at all.
@@ -2410,7 +2397,7 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
       if (shape === 'square') delete a.shape
       else a.shape = shape
     })
-  // PER-ASSET LIGHT setting (intensity/distance/colour/on) — the warm night ground GLOW POOL this tile casts,
+  // PER-ASSET LIGHT setting (intensity/distance/colour/on), the warm night ground GLOW POOL this tile casts,
   // written to THIS placed tile (persists with the map via the full-asset serialize, like shape). Fans out to
   // the i-th stacked tile of every selected cell. Passing `undefined` clears the setting (back to no pool).
   const setAssetLight = (i: number, light: AssetLight | undefined) =>
@@ -2418,7 +2405,7 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
       if (light) a.light = light
       else delete a.light
     })
-  // PER-ASSET tile ANIMATIONS (Phase 4) — the LIST authored in the animation modal, written to THIS placed
+  // PER-ASSET tile ANIMATIONS (Phase 4), the LIST authored in the animation modal, written to THIS placed
   // tile (persists with the map via the full-asset serialize, like cellAnim). Anchor start/loop delays at
   // placedAt=0 so a load-triggered loop plays from the clock origin (performance.now() = ms-since-load), the
   // same anchor the composition-default fountain uses. An empty list clears the key so a reset stays
@@ -2428,7 +2415,7 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
       if (animations.length) { a.animations = animations; if (a.placedAt == null) a.placedAt = 0 }
       else { delete a.animations }
     })
-  // Inspector "Remove tile" → delete the EXACT selected tile(s) — one per selection KEY, each key carrying its
+  // Inspector "Remove tile" → delete the EXACT selected tile(s), one per selection KEY, each key carrying its
   // own stack slot (never the floor: the floor slot is floor-safe). A multi-tile selection removes ALL of them.
   // Then step the level down so the panel doesn't point past the (now shorter) stack.
   const removeSelectedTile = () => {
@@ -2443,7 +2430,7 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
   // ── CANVAS RESIZE HANDLES (Task: "control its size with mouse") ──────────────────────────────────────
   // Drag small grips on the SELECTED tile to resize it directly on the canvas: width→scaleX, height→scaleY,
   // and (iso only) z-width→depth. The grips ride the tile's real recorded silhouette, and every writer here
-  // is the SAME one the modal sliders call (setAssetDim / setAssetDepth) — one source of truth, so a drag and
+  // is the SAME one the modal sliders call (setAssetDim / setAssetDepth), one source of truth, so a drag and
   // the sliders stay in sync live.
   const DIM_DRAG_RANGE = { min: 0.25, max: 5 } as const // matches DimRow's slider (Width/Height)
   const ZWIDTH_DRAG_RANGE = { min: 1, max: 8 } as const // matches ZWidthRow's slider
@@ -2459,9 +2446,9 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
     if (!firstKey) return null
     const [col, row] = firstKey.split(',').map(Number)
     const stack = getStack(grid, col, row)
-    // `i` is the SELECTED tile's STACK INDEX — the SAME index the inspector's setAsset* writers use
+    // `i` is the SELECTED tile's STACK INDEX, the SAME index the inspector's setAsset* writers use
     // (stackedAssetsAt[i]), so a canvas drag and the modal sliders resize the exact same tile. The FLOOR slab is
-    // skipped (it sizes elsewhere); any other placed tile — including a base tile on a floorless cell — resizes.
+    // skipped (it sizes elsewhere); any other placed tile, including a base tile on a floorless cell, resizes.
     const i = Math.min(Math.max(selectedTileLevelRef.current, 0), stack.length - 1)
     const asset = stackedAssetsAt(grid, col, row)[i]
     if (!asset || asset.type === FLOOR_TYPE) return null
@@ -2482,7 +2469,7 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
 
   // Try to GRAB a resize handle at the pointer. On a hit, capture the drag origin + the tile's current scales
   // and its silhouette half-extents (px per 1.0 of scale, so the dragged edge tracks the cursor) and return
-  // true — the caller then suppresses pan/select for this gesture.
+  // true, the caller then suppresses pan/select for this gesture.
   const tryStartHandleDrag = (clientX: number, clientY: number): boolean => {
     const canvas = canvasRef.current
     if (!canvas) return false
@@ -2561,6 +2548,12 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
       __setDebug?: (v: boolean) => void
       __cellLabels?: (col0: number, row0: number, col1: number, row1: number) => unknown
       __stackAt?: (col: number, row: number) => Array<{ label: string; type: string; heightLevel: number; h: number; source: string }>
+      /** Which tree species the map grew, counted by trunk. */
+      __treeKinds?: () => { kind: string; count: number }[] | null
+      /** Every distinct colour the map's LEAF cells carry, with a count each. */
+      __leafTones?: () => { color: string; count: number }[] | null
+      /** Every tile label on the map with the colours it carries, so a green sprig is identified by measuring. */
+      __tileTones?: (min?: number) => { label: string; total: number; colors: [string, number][] }[] | null
       __collisionAudit?: (col0?: number, row0?: number, col1?: number, row1?: number) => { col: number; row: number; ground: string; blocked: boolean; standLevel: number; tiles: { label: string; level: number; blocking: boolean }[] }[]
       __floorInfoAt?: (col: number, row: number) => { color: string | null; kind: string | null; depth: number | null; depthDir: string | null; heightLevel: number } | null
       __camOffset?: () => { x: number; y: number }
@@ -2653,7 +2646,7 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
       return { x: rect.left + px * sx, y: rect.top + cy * sy }
     }
     // INVERTED-PICK validation seams: `__pickTileAt` resolves a client pixel to the TILE the pick returns (the
-    // SAME pickCellForSelect a click uses — the transform-aware recorded silhouette), so a validation click can
+    // SAME pickCellForSelect a click uses, the transform-aware recorded silhouette), so a validation click can
     // prove pixel→tile in ANY view. `__cellScreen` returns the on-screen pixel of a tile's body at (col,row,level)
     // in the ACTIVE view (iso reuses __isoBlockScreen; 2D lifts the cell centre by the level stack) so a click
     // can be aimed at a raised tile in either view.
@@ -2668,7 +2661,7 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
       if (viewTypeRef.current === '2d') return { x: base.x, y: base.y - level * (24 * zoomRef.current * 0.9) } // lift onto the stacked tile body
       return base
     }
-    // The EXACT screen centre (client coords) of the tile RENDERED at (col,row,level) this frame — the centroid
+    // The EXACT screen centre (client coords) of the tile RENDERED at (col,row,level) this frame, the centroid
     // of its recorded silhouette. Guarantees a validation click lands dead-on the tile (iso or 2D), regardless of
     // its transform. null when the tile wasn't drawn (off-screen / wrong view).
     win.__tileCentroid = (col: number, row: number, level = 0) => {
@@ -2696,8 +2689,7 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
       const bboxH = ys.length ? Math.max(...ys) - Math.min(...ys) : 0
       return { kind: geom.kind, extrudePx, bboxW, bboxH }
     }
-    // RESIZE-HANDLE validation seam: the CLIENT-coord grip points on the tile at (col,row,level) this frame —
-    // the SAME points the RAF draws + the mouse grab hit-tests (from the recorded silhouette). Lets a
+    // RESIZE-HANDLE validation seam: the CLIENT-coord grip points on the tile at (col,row,level) this frame, // the SAME points the RAF draws + the mouse grab hit-tests (from the recorded silhouette). Lets a
     // validation drag grab a handle dead-on and prove the drag→size mapping. null when the tile isn't drawn.
     win.__tileHandles = (col: number, row: number, level = 0) => {
       const canvas = canvasRef.current
@@ -2711,20 +2703,20 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
       return tileHandlePoints(tileGeomPolygon(geom), { zWidth: iso }).map(h => ({ id: h.id, x: rect.left + h.x * sx, y: rect.top + h.y * sy }))
     }
     // UNIFIED-TILE picking validation seams: generate a REAL town (has buildings) and dump each building's
-    // footprint so a validation click can land on an actual WALL block / the door — proving the building's
+    // footprint so a validation click can land on an actual WALL block / the door, proving the building's
     // blocks pick as tiles through the SAME path as a prop, not a synthetic rock stack.
-    // `buildings` counts the stamped building-composition TILES (a town stamps many) — buildings are plain
+    // `buildings` counts the stamped building-composition TILES (a town stamps many), buildings are plain
     // tiles now, so this proves a town has them without a grouped-building metadata array.
     // BOTH SPELLINGS. A building's asset `type` is its composition KIND, and there are two: the authored
     // `house_4`, and the composed-to-order `house@4x4` that every generated building has carried since
     // buildings started being composed to the footprint the plan rolls. This matched only the first, so it
-    // answered 0 for a town visibly full of houses — and a validation seam that under-reports is worse than
+    // answered 0 for a town visibly full of houses, and a validation seam that under-reports is worse than
     // none: it sent a whole debugging session hunting for buildings that were on the screen the entire time.
     const BUILDING_TYPES = 'house|store|hospital|temple|cathedral|castle|office'
     const BUILDING_KIND = new RegExp(`^(${BUILDING_TYPES})(_\\d+|@\\d+x\\d+)$`)
     const countBuildingTiles = (g: IsometricGrid | null): number =>
       g ? g.assets.filter(a => BUILDING_KIND.test(a.type)).length : 0
-    // The generator catalog is FETCHED, so a validation harness must wait for it before generating — a
+    // The generator catalog is FETCHED, so a validation harness must wait for it before generating, a
     // generate with no catalog plants nothing (by design) and would look like a broken generator.
     win.__generatorsReady = () => generatorCatalogRef.current.length > 0
     // The cell the player actually stands in. The only other readout is painted onto the canvas, and the
@@ -2732,7 +2724,7 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
     win.__playerCell = () => livePlayerCell()
     // AWAITED, because a generate IS async: it composes the footprints it needs from the backend before it
     // stamps. These seams used to call it and count in the same breath, so they reported the count from
-    // BEFORE the stamp — always 0 buildings on a fresh map. A validation seam that answers stale is worse
+    // BEFORE the stamp, always 0 buildings on a fresh map. A validation seam that answers stale is worse
     // than no seam: it says a town has no buildings while the screen shows a town full of them.
     win.__genVillage = async () => { await generateStageInEditor('spring', 'town'); return { buildings: countBuildingTiles(gridRef.current) } }
     win.__genStage = async (zone: string, variant: string, layout?: string, seed?: number) => {
@@ -2741,10 +2733,10 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
     }
     /** Count the stamped building tiles on the CURRENT map, without generating anything. */
     win.__countBuildings = () => countBuildingTiles(gridRef.current)
-    // Re-roll ONE generation layer over the current map (the Generate menu's scoped randomize) — a
+    // Re-roll ONE generation layer over the current map (the Generate menu's scoped randomize), a
     // validation seam mirroring the menu buttons: layout / buildings / nature / decor / units.
     win.__randomizeLayer = (layer: string) => { randomizeLayerInEditor(layer as LayerId); return { buildings: countBuildingTiles(gridRef.current) } }
-    // Re-roll the current SELECTION's random attributes (Stage 3 micro-randomize) — validation seam.
+    // Re-roll the current SELECTION's random attributes (Stage 3 micro-randomize), validation seam.
     win.__randomizeSelected = () => { randomizeSelected(); return true }
     // Centre the iso camera on a cell so a validation click lands on-screen (the same camOffset the render +
     // pick read); mirrors the raw dev-mode focus fc=(playerX-camOffsetX)/cs.
@@ -2756,7 +2748,7 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
       camOffsetRef.current = off
       setCamOffset(off)
     }
-    // Move the hero to a cell — validates proximity-driven render (building fade + roof cutaway) deterministically.
+    // Move the hero to a cell, validates proximity-driven render (building fade + roof cutaway) deterministically.
     win.__setHero = (col: number, row: number) => {
       const grid = gridRef.current
       if (!grid) return
@@ -2823,7 +2815,7 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
       return { col, row, zOffset: z, zDir: dir }
     }
     // SHAPE validation seam: set `shape` on the TOPMOST block at (col,row) so it renders as a ball ('circle')
-    // instead of a cube, then bump a redraw — the deterministic hook the shape-render validation drives. Same
+    // instead of a cube, then bump a redraw, the deterministic hook the shape-render validation drives. Same
     // family as __setDepth/__setZPos (mutates the grid in place, then bumpBuildingVersion re-renders from it).
     win.__setShape = (col: number, row: number, shape: TileShape) => {
       const g = gridRef.current
@@ -2862,7 +2854,7 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
     }
     // Debug-overlay + tileset-label validation seams: toggle the label overlay, and DUMP the
     // `<TYPE> <POSITION>` label of every cell in a region (terrain autotile label overridden by an
-    // asset caption) — so "every cell carries a consistent tileset label" is validated as DATA.
+    // asset caption), so "every cell carries a consistent tileset label" is validated as DATA.
     win.__setDebug = (v: boolean) => setDebugMode(!!v)
     win.__cellLabels = (col0: number, row0: number, col1: number, row1: number) => {
       const grid = gridRef.current
@@ -2875,10 +2867,57 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
       }
       return out
     }
-    // Cell-editing validation seams: read the current cell selection, set it, and pin a tile to it — so
+    // Cell-editing validation seams: read the current cell selection, set it, and pin a tile to it, so
     // "select any cell + replace it" is validated deterministically (independent of click/drag timing).
-    // Dump a cell's tile STACK (getStack — the SAME projection select/edit read): label + heightLevel + block
+    // Dump a cell's tile STACK (getStack, the SAME projection select/edit read): label + heightLevel + block
     // height per entry, so "is this tile a selectable BLOCK (heightLevel≥1 / h≥1) or a flat prop" is DATA, not a guess.
+    // FOLIAGE seam: every distinct colour the map's LEAF cells actually carry, with a count each. The three
+    // axes (season, biome, region) are only verifiable by looking at the whole map at once, and a stand that
+    // has collapsed to one flat tone is exactly the defect that shipped before, so it is measured not eyeballed.
+    // EVERY tile label on the map with the colours it carries, so "which thing is that green sprig" is
+    // measured rather than guessed from a screenshot.
+    win.__tileTones = (min = 8) => {
+      const grid = gridRef.current
+      if (!grid) return null
+      const byLabel = new Map<string, Map<string, number>>()
+      for (const a of grid.assets) {
+        const label = a.label ?? a.type ?? '?'
+        if (!byLabel.has(label)) byLabel.set(label, new Map())
+        const m = byLabel.get(label)!
+        const c = a.color ?? 'none'
+        m.set(c, (m.get(c) ?? 0) + 1)
+      }
+      return [...byLabel]
+        .map(([label, m]) => ({ label, total: [...m.values()].reduce((x, y) => x + y, 0), colors: [...m].sort((x, y) => y[1] - x[1]).slice(0, 3) }))
+        .filter(r => r.total >= min)
+        .sort((a, b) => b.total - a.total)
+    }
+    // WHICH SPECIES the map actually grew. Every tree draws the same `trunk_mid` + `leaf_center` LABELS, so
+    // the species is only visible in the asset's `type`, which carries the composition kind it was stamped
+    // from. Counting trunks, because a tree has exactly one and a canopy may be several cells.
+    win.__treeKinds = () => {
+      const grid = gridRef.current
+      if (!grid) return null
+      const tally = new Map<string, number>()
+      for (const a of grid.assets) {
+        if ((a.label ?? '') !== 'trunk_mid') continue
+        const kind = a.type ?? '?'
+        tally.set(kind, (tally.get(kind) ?? 0) + 1)
+      }
+      return [...tally].sort((x, y) => y[1] - x[1]).map(([kind, count]) => ({ kind, count }))
+    }
+    win.__leafTones = () => {
+      const grid = gridRef.current
+      if (!grid) return null
+      const tally = new Map<string, number>()
+      for (const a of grid.assets) {
+        const label = a.label ?? a.type ?? ''
+        if (!label.startsWith('leaf_') && !label.startsWith('canopy_')) continue
+        const key = a.color ?? 'none'
+        tally.set(key, (tally.get(key) ?? 0) + 1)
+      }
+      return [...tally].sort((x, y) => y[1] - x[1]).map(([color, count]) => ({ color, count }))
+    }
     win.__stackAt = (col: number, row: number) => {
       const grid = gridRef.current
       if (!grid) return []
@@ -2892,7 +2931,7 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
     }
     // COLLISION AUDIT (QA seam): per cell, what the flat collision map says vs what actually stands there.
     // The map is 2D and means "a unit walking the ground is stopped here", so the only truthful source is a
-    // blocking tile at (or below) the level a unit stands at. Anything else is a visible lie — red paint on
+    // blocking tile at (or below) the level a unit stands at. Anything else is a visible lie, red paint on
     // bare grass, or a wall you can walk through.
     win.__collisionAudit = (col0 = 0, row0 = 0, col1 = Infinity, row1 = Infinity) => {
       const grid = gridRef.current
@@ -2915,10 +2954,10 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
     win.__cellSel = () => ({ count: selectedCellsRef.current.size, first: Array.from(selectedCellsRef.current)[0] ?? null })
     win.__selKeys = () => Array.from(selectedCellsRef.current) // full selection-key list (block "col,row,level" / flat "col,row") for validation
     // Block-aware MARQUEE validation seam: the keys a shift+drag box (CLIENT coords) selects, computed through
-    // the SAME marqueeSelectionKeys the mousemove uses — a deterministic check of the block-aware coverage,
+    // the SAME marqueeSelectionKeys the mousemove uses, a deterministic check of the block-aware coverage,
     // independent of React's isSelecting state-commit timing that a simulated drag races.
     win.__marqueeKeys = (x0, y0, x1, y1) => Array.from(marqueeSelectionKeys(x0, y0, x1, y1))
-    // The live hovered cell/block (what a Ctrl+V paste anchors at) — so validation can confirm the anchor the
+    // The live hovered cell/block (what a Ctrl+V paste anchors at), so validation can confirm the anchor the
     // real mouse actually set, independent of a direct pick call.
     win.__hoverCell = () => (hoveredCellRef.current ? { ...hoveredCellRef.current } : null)
     win.__selectCells = (keys: string[]) => { setSelectedCells(new Set(keys)); setSelectedEntityId(null); return keys.length }
@@ -2932,15 +2971,15 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
       bumpBuildingVersion()
     }
     // Building validation seams: stamp a pre-built building COMPOSITION (place tool) or any composition
-    // directly — so "add a pre-built building = stamp its cells like a tree" is validated in the real editor.
+    // directly, so "add a pre-built building = stamp its cells like a tree" is validated in the real editor.
     win.__placeBuilding = (type: string, col: number, row: number) => placeNewBuilding(type as BuildingType, col, row)
     // Route the validation hook through the REAL place path (clicked cell = footprint CENTRE, replace-anything,
-    // history checkpoint) so the demo exercises exactly what a user click does — not a raw anchor-stamp.
+    // history checkpoint) so the demo exercises exactly what a user click does, not a raw anchor-stamp.
     win.__placeComposition = (kind: string, col: number, row: number) => placeComposition(kind, col, row)
-    // Arm (or disarm) the Tile-composition tool by KIND — switches into the composition mode (editorMode derives
+    // Arm (or disarm) the Tile-composition tool by KIND, switches into the composition mode (editorMode derives
     // from a truthy buildingTool) so the palette shows + the ghost previews on hover. For the demo/validation.
     win.__armComposition = (kind: string | null) => { setPaintMode(false); setEntityTool(null); setConnectorMode(false); setBuildingTool(kind); if (!kind) ghostRef.current = null }
-    // Read the live entity roster's kind + variant — so we can VALIDATE that randomized npcs actually
+    // Read the live entity roster's kind + variant, so we can VALIDATE that randomized npcs actually
     // carry male/female variants in the DATA (the female-units question), not just eyeball the render.
     win.__entityInfo = () => {
       const ents = entitiesRef.current
@@ -2950,13 +2989,12 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
       // the stat block its TILE carries, rather than the flat default.
       return { count: ents.length, byVariant, entities: ents.map(e => ({ id: e.id, kind: e.kind, variant: e.variant ?? null, name: e.name, col: e.col, row: e.row, anims: e.animations?.length ?? 0, enemyType: e.enemyType ?? null, maxHp: e.baseStats?.maxHp ?? null, attack: e.attack?.attacks?.[0]?.name ?? null })) }
     }
-    // Each entity's SCREEN position in the current view (via the same cellToScreen the click path uses) —
-    // so a validation click lands exactly on a figure, and we can tell click-mapping from inspector bugs.
+    // Each entity's SCREEN position in the current view (via the same cellToScreen the click path uses), // so a validation click lands exactly on a figure, and we can tell click-mapping from inspector bugs.
     win.__entityScreens = () => entitiesRef.current.map(e => ({ id: e.id, kind: e.kind, variant: e.variant ?? null, ...(cellToScreen(e.col, e.row) ?? { x: null, y: null }) }))
     // Select an entity DIRECTLY (bypassing the click hit-test) to isolate whether selection-display works
     // from whether click-MAPPING works.
     win.__selectEntity = (id: string) => { setSelectedEntityId(id); return id }
-    // Set an entity's render SIZE by id (a boss) — automation/validation hook, mirrors the Inspector's
+    // Set an entity's render SIZE by id (a boss), automation/validation hook, mirrors the Inspector's
     // Size control (rescales stats by the same ratio). Same family as __resizeBuilding.
     win.__setEntitySize = (id: string, size: number) => { resizeEntityById(id, size); return size }
     win.__scatter = () => randomizeEntities() // scatter enemies + an npc (mirrors the ⤳ Scatter button)
@@ -2966,7 +3004,7 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
       const e = entitiesRef.current.find(x => x.id === id)
       if (!e) return { selectedId: id, found: false }
       // `animations` is the render projection (sprite subset); `unitAnimations` is the unified authored list a
-      // unit now stores (settings + sprite kinds) — reported so validation can confirm a settings anim persisted.
+      // unit now stores (settings + sprite kinds), reported so validation can confirm a settings anim persisted.
       return {
         selectedId: id, found: true, kind: e.kind, variant: e.variant ?? null, name: e.name,
         animations: (e.animations ?? []).map(a => ({ name: a.name, frames: a.frames.map(f => f.char ?? f.tileId ?? '(base)') })),
@@ -2974,14 +3012,14 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
       }
     }
     win.__setArtStyle = (id: string) => setActiveStyleId(id)
-    // Flip the active VIEW without the toolbar — for validation screenshots across iso/2d/top.
+    // Flip the active VIEW without the toolbar, for validation screenshots across iso/2d/top.
     win.__setView = (v: 'iso' | '2d' | 'top') => {
       if (v === 'top') return selectTopView()
       if (v === '2d') return select2DView()
       return selectIsoView()
     }
     // GRID-based mixing audit: classify every ground cell + asset under the ACTIVE style and report
-    // which tile types fall through to ASCII (kind==='ascii'). In emoji mode this must be EMPTY — any
+    // which tile types fall through to ASCII (kind==='ascii'). In emoji mode this must be EMPTY, any
     // entry is a real cell rendering an ascii glyph next to emoji. Validates the grid, not a screenshot.
     win.__gridKinds = () => {
       const grid = gridRef.current
@@ -3026,7 +3064,7 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
       setSelectedCells(new Set([`${best.col},${best.row}`]))
       return best
     }
-    return () => { delete win.__setArtStyle; delete win.__selectFirstTreeCell; delete win.__setView; delete win.__gridKinds; delete win.__entityInfo; delete win.__entityScreens; delete win.__selectEntity; delete win.__setEntitySize; delete win.__scatter; delete win.__selectedEntityInfo; delete win.__placeBuilding; delete win.__placeComposition; delete win.__armComposition; delete win.__cellSel; delete win.__selKeys; delete win.__marqueeKeys; delete win.__hoverCell; delete win.__selectCells; delete win.__applyCellTile; delete win.__clearRegion; delete win.__setDebug; delete win.__cellLabels; delete win.__stackAt; delete win.__camOffset; delete win.__stackAsset; delete win.__paletteTiles; delete win.__paintTile; delete win.__isoBlockScreen; delete win.__generatorsReady; delete win.__playerCell; delete win.__genVillage; delete win.__genStage; delete win.__randomizeLayer; delete win.__randomizeSelected; delete win.__centerOn; delete win.__setHero; delete win.__pickTileAt; delete win.__cellScreen; delete win.__tileCentroid; delete win.__tileHandles; delete win.__setShape; delete win.__setDisplay; delete win.__setLight; delete win.__recordedGeom; delete win.__collisionAudit }
+    return () => { delete win.__setArtStyle; delete win.__selectFirstTreeCell; delete win.__setView; delete win.__gridKinds; delete win.__entityInfo; delete win.__entityScreens; delete win.__selectEntity; delete win.__setEntitySize; delete win.__scatter; delete win.__selectedEntityInfo; delete win.__placeBuilding; delete win.__placeComposition; delete win.__armComposition; delete win.__cellSel; delete win.__selKeys; delete win.__marqueeKeys; delete win.__hoverCell; delete win.__selectCells; delete win.__applyCellTile; delete win.__clearRegion; delete win.__setDebug; delete win.__cellLabels; delete win.__stackAt; delete win.__camOffset; delete win.__stackAsset; delete win.__paletteTiles; delete win.__paintTile; delete win.__isoBlockScreen; delete win.__generatorsReady; delete win.__playerCell; delete win.__genVillage; delete win.__genStage; delete win.__randomizeLayer; delete win.__randomizeSelected; delete win.__centerOn; delete win.__setHero; delete win.__pickTileAt; delete win.__cellScreen; delete win.__tileCentroid; delete win.__tileHandles; delete win.__setShape; delete win.__setDisplay; delete win.__setLight; delete win.__recordedGeom; delete win.__collisionAudit; delete win.__leafTones; delete win.__tileTones; delete win.__treeKinds }
   }, [])
 
   // ── Selected-entity inspector actions ─────────────────────────────
@@ -3060,11 +3098,11 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
   }
   const deleteSelectedEntity = () => {
     if (!selectedEntityId) return
-    // A unit IS a tile — deleting one is removing a tile, so it snapshots like every other structural edit.
+    // A unit IS a tile, deleting one is removing a tile, so it snapshots like every other structural edit.
     editMap(checkpointHistory, () => setEntities(prev => removeEntity(prev, selectedEntityId)))
     setSelectedEntityId(null)
   }
-  /** Rename the player — patches the player entity's name, which persists via the entities codec
+  /** Rename the player, patches the player entity's name, which persists via the entities codec
    *  (entitiesToAssets/entitiesFromAssets) and shows on the life bar + inventory header. */
   const setPlayerName = (name: string) => {
     setEntities(prev => prev.map(e => (e.kind === 'player' ? { ...e, name } : e)))
@@ -3083,7 +3121,7 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
       const spawned = scatterEntities({
         collision,
         occupied,
-        count: 16, // ~12 enemies + ~4 npc — enough per type to feed kill quests (respawn refills)
+        count: 16, // ~12 enemies + ~4 npc, enough per type to feed kill quests (respawn refills)
         kinds: ['enemy', 'enemy', 'enemy', 'npc'], // ~3:1 enemies to NPCs
         enemyTypes: ENEMY_TYPES, // group each type into its own map zone (goblins, wolves, …)
         idPrefix: `scatter-${prev.length}`,
@@ -3094,7 +3132,7 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
 
   // ◈ Unit → Scatter: randomize several of the PICKED creature into the free space (each with the picked art
   // pinned + a real patrol from the spawner, so they wander). No pick → the mixed enemies+NPCs scatter above.
-  /** Wipe every character on the level. §5.1 — a destructive action asks first, and names what it destroys;
+  /** Wipe every character on the level. §5.1, a destructive action asks first, and names what it destroys;
    *  §4.5 draws the button as `[Clear…]`, and the ellipsis is that promise. Undoable either way. */
   const clearAllEntities = async () => {
     const ok = await confirm({
@@ -3113,8 +3151,8 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
     if (!unitTile) { checkpointHistory(); randomizeEntities(); return }
     const slug = tileSlug(unitTile.id)
     const kind = entityKindForUnitTile(unitTile)
-    if (kind === 'player') { toast('Only one player — use Add to place the hero', 'warning'); return }
-    if (!kind) { toast('That tile is a combat effect, not a character — it cannot be scattered', 'warning'); return }
+    if (kind === 'player') { toast('Only one player, use Add to place the hero', 'warning'); return }
+    if (!kind) { toast('That tile is a combat effect, not a character, it cannot be scattered', 'warning'); return }
     const collision = Array.from({ length: grid.rows }, (_, r) =>
       Array.from({ length: grid.cols }, (_, c) => grid.isBlocked(c, r)),
     )
@@ -3250,7 +3288,7 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
     // quest-giver's own dialog about the quest in progress says more than the generic reminder, so it goes first.
     const talk = reachableSpeaker(entitiesRef.current, pCol, pRow, { quests: questsRef.current, dayNight: dayNightRef.current, weather: weatherRef.current })
     if (talk) return setDialogShown({ speaker: talk.unit.name?.trim() || talk.unit.kind, lines: talk.dialog.lines.filter(l => l.trim() !== '') })
-    // active (not yet complete) or already turned_in — nothing to do but remind.
+    // active (not yet complete) or already turned_in, nothing to do but remind.
     if (quest?.state === 'active') toast(`In progress: ${quest.title}`, 'info')
   }, [])
 
@@ -3301,11 +3339,11 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
   /**
    * Rebuild the grid from its MATRIX VARIABLES.
    *
-   * — so a map is
+   *, so a map is
    * `cols × rows` cells, each a square of `cellSize` pixels (`columns = the number of cells per row`). All
    * three already lived on `IsometricGrid`; only cols and rows were reachable from the UI.
    *
-   * `cellSize` is what a cell MEASURES, not how big it looks on screen — that is the camera's zoom. It
+   * `cellSize` is what a cell MEASURES, not how big it looks on screen, that is the camera's zoom. It
    * changes the world coordinates the player and every collision run in, which is why it rebuilds the grid
    * like a resize rather than being a view setting.
    */
@@ -3333,7 +3371,7 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
     movePlayerToValidSpawn(Math.floor(cols / 2), Math.floor(rows / 2))
   }
 
-  /** Resize from the Generate panel (§4.6). `resizeGrid` is the raw mechanism — it throws the map away and
+  /** Resize from the Generate panel (§4.6). `resizeGrid` is the raw mechanism, it throws the map away and
    *  is also used by the generator and by loading a level, both of which manage history themselves. The
    *  POLICY belongs here, at the one call site a person can trigger: §3.11 measured that `resizeGrid` never
    *  calls `checkpointHistory`, so a mis-typed width was unrecoverable. Now Ctrl+Z brings the map back. */
@@ -3390,11 +3428,11 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
   }
 
   /**
-   * How thick the map's BODY is, in blocks — the grid's own height.
+   * How thick the map's BODY is, in blocks, the grid's own height.
    *
    * So the map's
    * depth is the GRID's, and a floor is a flat skin laid on it. Unlike cols/rows/cellSize this touches no
-   * cell, so it applies on the spot instead of throwing the map away — but it is still a map edit, so it
+   * cell, so it applies on the spot instead of throwing the map away, but it is still a map edit, so it
    * takes an undo checkpoint and marks the map unsaved like every other one.
    */
   const setGroundThickness = (blocks: number) => {
@@ -3425,9 +3463,9 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
     if (!grid) return false
     const slug = tileSlug(tile.id)
     const kind = entityKindForUnitTile(tile)
-    if (!kind) return false // an `fx` tile is not a character — placementFor routes it to a decoration asset
+    if (!kind) return false // an `fx` tile is not a character, placementFor routes it to a decoration asset
     const collisionFn = (c: number, r: number) => !!grid.collision[r]?.[c]
-    // The hero is the controlled character — motion is authored, not randomized — so the toggle is ignored here.
+    // The hero is the controlled character, motion is authored, not randomized, so the toggle is ignored here.
     if (kind === 'player') {
       const base = entitiesRef.current.filter(e => e.kind !== 'player')
       if (!canPlaceEntity(base, col, row, grid.cols, grid.rows, collisionFn)) return false
@@ -3451,7 +3489,7 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
   /** Place a tile on ONE cell, routed by its category via placementFor. Terrain + asset stacking delegate to
    *  the pure tileBrush module (reuses the grid primitives); units place an entity here. Defaults to the armed
    *  brush tile (the left Paint tool), but takes an explicit `tile` so the right-sidebar "paint the selection"
-   *  flow lands through the EXACT SAME path — no fork. */
+   *  flow lands through the EXACT SAME path, no fork. */
   const placeArmedTileAt = (col: number, row: number, tile: TileDef | null = armedTile) => {
     const grid = gridRef.current
     if (!grid || !tile) return
@@ -3461,7 +3499,7 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
     stackAssetTile(grid, col, row, tile)
   }
 
-  /** Deliverable #4 — PAINT a chosen tile onto the whole selected area from the right sidebar. Reuses the
+  /** Deliverable #4, PAINT a chosen tile onto the whole selected area from the right sidebar. Reuses the
    *  SAME per-cell placement the left Paint tool runs (`placeArmedTileAt`), so the two coexist and behave
    *  identically; only the ENTRY differs (a Tile Library pick vs. an armed-brush click). Snapshots history so
    *  Ctrl+Z reverts the whole fill, and keeps the selection so the button relabels Add→Replace and you can
@@ -3475,11 +3513,11 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
     bumpBuildingVersion()
   }
 
-  /** Deliverable #1 (Image #15) — the Inspector's "Replace tile" must SWAP the selected tile IN PLACE, not stack
+  /** Deliverable #1 (Image #15), the Inspector's "Replace tile" must SWAP the selected tile IN PLACE, not stack
    *  a new one on top like the paint brush. For each selected tile (resolved PER KEY to its OWN stack slot, the
    *  same per-key resolution the settings edits use), replaceTileInPlace swaps that exact tile for the picked one
-   *  — tiles above/below untouched, stack height unchanged. The one case it can't swap in place — a NON-terrain
-   *  tile picked while the FLOOR slab is the selected slot — it refuses, and we fall back to the paint path so the
+   * , tiles above/below untouched, stack height unchanged. The one case it can't swap in place, a NON-terrain
+   *  tile picked while the FLOOR slab is the selected slot, it refuses, and we fall back to the paint path so the
    *  tile still lands (an "add"). Snapshots history so Ctrl+Z reverts, and keeps the selection so you can keep
    *  editing. */
   const replaceTileOnSelection = (tile: TileDef) => {
@@ -3492,9 +3530,9 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
     bumpBuildingVersion()
   }
 
-  /** Deliverable #1 — CLEAR every tile off the selected cell(s) so they go BARE: pop each stacked asset via
+  /** Deliverable #1, CLEAR every tile off the selected cell(s) so they go BARE: pop each stacked asset via
    *  the SAME erase primitive ⌥Alt-click uses (`removeTopAsset`, which re-derives collision) AND clear the
-   *  cell's GROUND/floor tile (a road/terrain/plaza is a floor tile too — `clearGroundTile` resets it to the
+   *  cell's GROUND/floor tile (a road/terrain/plaza is a floor tile too, `clearGroundTile` resets it to the
    *  bare default, uniformly, with NO branch on tile type). Then reset collision to walkable, so the cell is
    *  the same bare state a freshly-initialised one has (mirrors __clearRegion). Snapshots history first, so
    *  Ctrl+Z restores BOTH the stacked tiles and the cleared road. */
@@ -3511,7 +3549,7 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
     setSelectedTileLevel(0)
   }
   /** The cell-selection entry point for {@link clearTilesAt}. A selected UNIT clears the ONE cell it stands
-   *  on through the SAME primitive — same card, same action, no fork. */
+   *  on through the SAME primitive, same card, same action, no fork. */
   const clearTilesOnSelection = () => clearTilesAt(cellsFromKeys(selectedCells))
 
   /** ⌥Alt-click removal for the armed brush. With a `level` (a single click that landed on a raised block)
@@ -3525,7 +3563,7 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
   }
 
   /** The armed-brush action for a canvas click: apply to the whole multi-cell SELECTION when there is one
-   *  (bulk — "select a tile, multi-select 4 cells → 4 trees"), else to the single clicked cell. Alt removes
+   *  (bulk, "select a tile, multi-select 4 cells → 4 trees"), else to the single clicked cell. Alt removes
    *  the top asset; otherwise it places. The brush STAYS armed (keep clicking); a bulk fill then clears the
    *  selection so the next single click paints just one cell. */
   const applyArmedBrush = (cell: { col: number; row: number; level?: number }, alt: boolean) => {
@@ -3547,12 +3585,12 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
 
   // Random map generator using TEMPLATE_PRESETS system
   // Pipeline: grid → roads → buildings around roads → nature → collisions → NPCs
-  // ── Stage generation (zone × variant) — randomized on click ──
+  // ── Stage generation (zone × variant), randomized on click ──
   // `buildingSalt` shifts the per-footprint material/roof/wall-colour hash so a "randomize buildings
   // only" re-roll repaints the town's buildings (new materials + roof/wall tones) while the geometry
-  // — a plot decision — stays put. 0 (the default) reproduces the un-salted look.
+  //, a plot decision, stays put. 0 (the default) reproduces the un-salted look.
   // `palette` is the running generator's own material + colour lists (`/api/generators` → config.buildings,
-  // §3.14a). Absent — a generator that ships no palette, or an unreachable catalog — means the stamp passes
+  // §3.14a). Absent, a generator that ships no palette, or an unreachable catalog, means the stamp passes
   // NO material and NO colour, so each building shows its composition's own served art; the frontend never
   // substitutes a palette of its own.
 
@@ -3572,7 +3610,7 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
   }
 
   // ── macro RANDOMIZE: whole map + per-layer scopes (GENERATION-SPEC §5) ──────
-  // The recipe of the last full generate — zone/variant/size + the per-layer SEEDS. Re-rolling one
+  // The recipe of the last full generate, zone/variant/size + the per-layer SEEDS. Re-rolling one
   // layer changes only that layer's seed and regenerates: the rest, fed the same seeds, reproduce.
   /**
    * EVERYTHING A GENERATED MAP WAS BUILT FROM, so it can be rebuilt exactly.
@@ -3595,7 +3633,7 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
   const buildingSaltRef = useRef(0)
   const randSeed = (): number => (Math.random() * 0x7fffffff) | 0
 
-  /** Strip a full stage down to just its LAYOUT — roads + reserved plots — dropping every structure
+  /** Strip a full stage down to just its LAYOUT, roads + reserved plots, dropping every structure
    *  and all nature, and rebuilding collision to block ONLY the plot footprints. This is the user's
    *  "randomize just the MAP which contains the distribution of things without actual structures nor
    *  nature": you see the streets + the plots the buildings would sit on, nothing stamped on them. */
@@ -3614,10 +3652,10 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
   }
 
   /** Re-scatter ONLY the units layer over the current map: drop the previous enemies/townsfolk (keep
-   *  the player), then re-seed the archetype-appropriate roster — the "randomize units only" scope. */
+   *  the player), then re-seed the archetype-appropriate roster, the "randomize units only" scope. */
   const reseedUnits = (grid: IsometricGrid, generator: GeneratorDef) => {
     const units = generator.config.units
-    if (!units) { console.warn(`[generate] the "${generator.key}" generator serves no unit counts — no townsfolk or enemies placed`); return }
+    if (!units) { console.warn(`[generate] the "${generator.key}" generator serves no unit counts, no townsfolk or enemies placed`); return }
     const collision = Array.from({ length: grid.rows }, (_, r) =>
       Array.from({ length: grid.cols }, (_, c) => grid.isBlocked(c, r)),
     )
@@ -3669,7 +3707,7 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
       rows: recipe.rows,
       seeds: recipe.seeds,
       // The re-roll must be fed the SAME served config AND the same options as the original generate, or
-      // a re-rolled town would plan its plots from different numbers than the one it is replacing — and a
+      // a re-rolled town would plan its plots from different numbers than the one it is replacing, and a
       // woodland with a river would lose the river.
       options: recipe.options,
       nature: generator.config.nature,
@@ -3678,16 +3716,16 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
       // painted from the same numbers. BOTH call sites get it, the build and the re-roll, or a re-rolled
       // layer would repaint a jungle in the woodland's tones.
       palette: generator.config.palette,
-      // The REGIONS this template partitions itself into — open canopy, dense growth, swamp, ruins.
+      // The REGIONS this template partitions itself into, open canopy, dense growth, swamp, ruins.
       subZones: generator.config.subZones,
-      // HOW the trees group — a wood pasture, an even-aged stand and a closed canopy differ in this, not in
+      // HOW the trees group, a wood pasture, an even-aged stand and a closed canopy differ in this, not in
       // how many trees they hold.
       formation: generator.config.formation,
       pathway: generator.config.pathway,
       // HOW FAR TO RUN, the served `upTo` filter. It is a parameter like any other on the panel, so it comes
       // through the options the person set rather than being a mode the page knows about.
       upTo: typeof recipe.options?.upTo === 'string' ? recipe.options?.upTo : undefined,
-      // WHICH species grow here — every forest used to roll one shared table.
+      // WHICH species grow here, every forest used to roll one shared table.
       treeMix: generator.config.trees,
       crossings: generator.config.crossings,
       entrance: generator.config.entrance,
@@ -3696,7 +3734,7 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
     })
     const stage = stripLayout ? stripToLayout(full) : full
     // COMPOSE WHAT THE PLAN ROLLED, then stamp. The plan names a composition per building
-    // (`house@5x4`), and `stampComposition` resolves synchronously from the loaded catalog — so the
+    // (`house@5x4`), and `stampComposition` resolves synchronously from the loaded catalog, so the
     // footprints the generator invented have to exist before the stamp runs. This is the whole of what I
     // wrongly called a blocker: the plan is produced BEFORE stamping, so there is a place to do it.
     //
@@ -3816,10 +3854,10 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
     zone: ZoneId,
     variant: VariantId,
     layout?: string,
-    /** The size the panel asked for — cell pixels included. Absent = let the generator roll one. */
+    /** The size the panel asked for, cell pixels included. Absent = let the generator roll one. */
     requested?: MapSize,
     seed?: number,
-    /** The generator's options as the person set them — a river, a crossing. Not a separate template. */
+    /** The generator's options as the person set them, a river, a crossing. Not a separate template. */
     options?: Record<string, GeneratorOptionValue>,
     /** The SUBTYPE picked below the preset (`forest_woodland_mountain`), when one was. */
     generatorKey?: string,
@@ -3829,27 +3867,27 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
     // console says why; the editor must never invent a world the backend cannot describe.
     const generator = (generatorKey ? findGeneratorByKey(generatorCatalogRef.current, generatorKey) : undefined) ?? findGeneratorForVariant(generatorCatalogRef.current, variant, layout)
     if (!generator) {
-      console.warn(`[generate] the backend serves no "${variant}" generator${layout ? ` with layout "${layout}"` : ''} — nothing generated`)
+      console.warn(`[generate] the backend serves no "${variant}" generator${layout ? ` with layout "${layout}"` : ''}, nothing generated`)
       return
     }
-    // A fixed SEED (the dev/validation harness only — no UI path passes one) makes the WHOLE generate
+    // A fixed SEED (the dev/validation harness only, no UI path passes one) makes the WHOLE generate
     // reproducible: the grid size is rolled from the SAME served range through a seeded rng, and the
     // per-layer seeds derive from it, so a generator can be iterated frame-to-frame against a reference.
     const seeded = seed !== undefined
-    // THE SIZE YOU CHOSE WINS. — and it was right: this rolled a random size from the
+    // THE SIZE YOU CHOSE WINS., and it was right: this rolled a random size from the
     // generator's served range and then resized over the top of it, so the panel offered a decision it then
     // discarded. That conflict arrived when map size moved INTO this panel.
     //
-    // It also asked for so randomising is not removed — it is
+    // It also asked for so randomising is not removed, it is
     // made explicit. `requested` absent = roll one (the dev harness and the "surprise me" path); present =
     // that is the size, clamped to what the generator can actually build.
     const rolled = rollGridSize(generator, seeded ? makeRng(seed) : Math.random)
     if (!rolled) {
-      console.warn(`[generate] the "${generator.key}" generator serves no grid range — nothing generated`)
+      console.warn(`[generate] the "${generator.key}" generator serves no grid range, nothing generated`)
       return
     }
     // THE NUMBERS YOU TYPED WIN, held only inside what the ENGINE can build.
-    // This used to clamp to the GENERATOR's served range, which for Meadow is rows 24–35 — so a requested
+    // This used to clamp to the GENERATOR's served range, which for Meadow is rows 24-35, so a requested
     // 40 became 35 with nothing said. The generator's range steers the random roll and is shown in the
     // panel as guidance; it is not a veto. `cellSize` is honoured too: it was simply dropped before.
     const current: MapSize = {
@@ -3872,7 +3910,7 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
     const grid = gridRef.current
     if (!grid) return
     // Capture a per-layer SEED set so the Generate menu can later re-roll a SINGLE layer (buildings /
-    // trees / decor / layout) while the rest — fed these same seeds — reproduce identically.
+    // trees / decor / layout) while the rest, fed these same seeds, reproduce identically.
     const seeds = seeded
       ? { layout: seed, buildings: seed + 1, nature: seed + 2, decor: seed + 3 }
       : { layout: randSeed(), buildings: randSeed(), nature: randSeed(), decor: randSeed() }
@@ -3880,10 +3918,10 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
     buildingSaltRef.current = seeded ? seed + 4 : randSeed()
     // THE GENERATOR'S OWN NATURE DENSITIES travel with the call. They were served by the backend and
     // parsed into the catalog since T-113, but `generateStage` never took them, so `groundCover` was dead
-    // data — the knob existed at both ends with nothing between. `nature.canopy` is what makes the
+    // data, the knob existed at both ends with nothing between. `nature.canopy` is what makes the
     // woodland layout a forest, so this is the wire that carries it.
     // EVERY FOOTPRINT A PLAN COULD WANT, INSTALLED FIRST. The generator reads a building's composition
-    // while planning — that is how it knows the real door span — so composing afterwards left it guessing
+    // while planning, that is how it knows the real door span, so composing afterwards left it guessing
     // a 1-cell entrance and saying so. The possible footprints are enumerable up front; see
     // `installPlannableBuildings`.
     await installPlannableBuildings(activeStyleId, buildingTypesRef.current, generator.config.settlement?.houseWidths)
@@ -3903,20 +3941,20 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
       // painted from the same numbers. BOTH call sites get it, the build and the re-roll, or a re-rolled
       // layer would repaint a jungle in the woodland's tones.
       palette: generator.config.palette,
-      // The REGIONS this template partitions itself into — open canopy, dense growth, swamp, ruins.
+      // The REGIONS this template partitions itself into, open canopy, dense growth, swamp, ruins.
       subZones: generator.config.subZones,
-      // HOW the trees group — a wood pasture, an even-aged stand and a closed canopy differ in this, not in
+      // HOW the trees group, a wood pasture, an even-aged stand and a closed canopy differ in this, not in
       // how many trees they hold.
       formation: generator.config.formation,
       pathway: generator.config.pathway,
       // HOW FAR TO RUN, the served `upTo` filter. It is a parameter like any other on the panel, so it comes
       // through the options the person set rather than being a mode the page knows about.
       upTo: typeof options?.upTo === 'string' ? options?.upTo : undefined,
-      // WHICH species grow here — every forest used to roll one shared table.
+      // WHICH species grow here, every forest used to roll one shared table.
       treeMix: generator.config.trees,
       crossings: generator.config.crossings,
       entrance: generator.config.entrance,
-      // The served settlement tuning — `houseWidths` is the plot-size weighting the town rolls from. Parsed
+      // The served settlement tuning, `houseWidths` is the plot-size weighting the town rolls from. Parsed
       // since T-113 and never read until now, exactly like `nature.groundCover`.
       settlement: generator.config.settlement,
       // Footprints come from the BACKEND. Only supplied once /api/buildings has answered; before that the
@@ -3924,7 +3962,7 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
       buildingSizes: buildingSizeSource(buildingTypesRef.current),
     })
     // COMPOSE WHAT THE PLAN ROLLED, then stamp. The plan names a composition per building
-    // (`house@5x4`), and `stampComposition` resolves synchronously from the loaded catalog — so the
+    // (`house@5x4`), and `stampComposition` resolves synchronously from the loaded catalog, so the
     // footprints the generator invented have to exist before the stamp runs. This is the whole of what I
     // wrongly called a blocker: the plan is produced BEFORE stamping, so there is a place to do it.
     //
@@ -3937,15 +3975,15 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
     syncPlayerEntity(live.col, live.row, true) // fresh stage → player entity follows the spawn
     // Populate with real, SELECTABLE, gendered npc entities. Any ☺ props get promoted; on top of that,
     // SETTLED stages (forest/town/city) carry NO npcs from the generator, so scatter gendered townsfolk
-    // onto walkable cells — else a "town" has no townspeople (and no females). Dungeons (cave/temple)
-    // get enemies instead (below). A (re)generate RESETS the roster to just the player — drop any
+    // onto walkable cells, else a "town" has no townspeople (and no females). Dungeons (cave/temple)
+    // get enemies instead (below). A (re)generate RESETS the roster to just the player, drop any
     // enemies + wanderers left from a previous generate so they don't stack up, then re-randomize.
     const promotedNpcs = promoteNpcAssetsToEntities(grid)
     // WHO lives here is generator data too: `units.townsfolk` (the old 14/8/5 ternary) and, for a dungeon,
     // `units.enemies` of `units.enemyTypes` (the old CAVE_/TEMPLE_ENEMY_TYPES constants). A generator that
     // serves no unit counts populates nothing rather than borrowing another map type's roster.
     const units = generator.config.units
-    if (!units) console.warn(`[generate] the "${generator.key}" generator serves no unit counts — no townsfolk or enemies placed`)
+    if (!units) console.warn(`[generate] the "${generator.key}" generator serves no unit counts, no townsfolk or enemies placed`)
     const collision = Array.from({ length: grid.rows }, (_, r) =>
       Array.from({ length: grid.cols }, (_, c) => grid.isBlocked(c, r)),
     )
@@ -3963,7 +4001,7 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
   // Scatter the generator's OWN enemy roster onto a freshly-generated floor (grouped by type via the
   // shared spawner), spaced from the player + any existing entities. The play loop lazily gives each a
   // combat runtime the first frame it's seen. Count and roster are both `config.units` DATA now, so an
-  // outdoor map (0 enemies, empty roster) simply places none — there is no cave/temple branch left.
+  // outdoor map (0 enemies, empty roster) simply places none, there is no cave/temple branch left.
   const seedStageEnemies = (grid: IsometricGrid, enemyTypes: readonly string[], count: number, prefix: string) => {
     if (count <= 0 || enemyTypes.length === 0) return
     const collision = Array.from({ length: grid.rows }, (_, r) =>
@@ -4135,7 +4173,7 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
    * Keep the canvas's BACKING STORE matched to the box the grid layout gives it.
    *
    * `screenToCell`/`cellToScreen` already scale between `rect` and `canvas.width`, so the coordinate math
-   * needs nothing from this — but the raster does: an undersized backing store is drawn blurry and an
+   * needs nothing from this, but the raster does: an undersized backing store is drawn blurry and an
    * oversized one wastes fill. One observer, one write, and the render loop reads the new size on its next
    * frame because it always reads `canvas.width` rather than caching it.
    */
@@ -4157,7 +4195,7 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
     if (!ctx) return
 
     // The canvas is a PANE in the editor grid now, not a full-bleed backdrop, so its backing store is
-    // sized from its own box — see the ResizeObserver effect below, which also fixes the fact that this
+    // sized from its own box, see the ResizeObserver effect below, which also fixes the fact that this
     // was previously measured once on mount and never again (resize the window today and the backing store
     // keeps its old size; only screenToCell's rect scaling hides it).
     sizeCanvasToBox(canvas)
@@ -4203,11 +4241,11 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
     playerRef.current.z = validRow * grid.cellSize + grid.cellSize / 2
     lastCellRef.current = { col: validCol, row: validRow }
 
-    // Input handling — the editor's key chords are DISPATCHED from the shortcut table
+    // Input handling, the editor's key chords are DISPATCHED from the shortcut table
     // (`matchEditorAction`), not re-tested as a flat if-chain here. That table is also what the
     // `? Help` sheet prints, so the documentation cannot drift from the behaviour (design §4.9),
     // and adding a shortcut is one row there plus one effect below (CODING-STANDARDS §0: dispatch
-    // maps over if/else-if). The table owns the guards every chord shares — never while typing in a
+    // maps over if/else-if). The table owns the guards every chord shares, never while typing in a
     // field, never with Alt held (Alt is the canvas's erase/cell modifier).
     // Each effect returns whether it CONSUMED the key; an unconsumed key falls through to the
     // movement accumulator, so Esc with nothing armed still reaches menus, and Tab still tabs.
@@ -4222,8 +4260,7 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
         toast(`Copied ${clip.tiles.length} tile${clip.tiles.length === 1 ? '' : 's'}`, 'success')
         return true
       },
-      // Re-stamp the clipboard at the HOVERED cell (the selection's min corner lands there —
-      // follow-cursor, corner-anchored), behind one undo checkpoint so a paste reverts whole.
+      // Re-stamp the clipboard at the HOVERED cell (the selection's min corner lands there, // follow-cursor, corner-anchored), behind one undo checkpoint so a paste reverts whole.
       paste: e => {
         const grid = gridRef.current
         const clip = clipboardRef.current
@@ -4238,7 +4275,7 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
       },
       inventory: () => { setInventoryOpen(o => !o); return true },
       quests: () => { setQuestLogOpen(o => !o); return true },
-      // Re-roll the SELECTION's random attributes — the selected unit, or every selected tile.
+      // Re-roll the SELECTION's random attributes, the selected unit, or every selected tile.
       randomize: e => {
         if (!selectedEntityIdRef.current && selectedCellsRef.current.size === 0) return false
         e.preventDefault()
@@ -4246,7 +4283,7 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
         return true
       },
       // Cycle the target through the ENEMIES CLOSE to the player (living enemies within
-      // RANGED_RANGE), nearest first — never NPCs or the player. Shift+Tab goes back.
+      // RANGED_RANGE), nearest first, never NPCs or the player. Shift+Tab goes back.
       // preventDefault so Tab doesn't shift DOM focus / scroll.
       cycleTarget: e => {
         e.preventDefault()
@@ -4272,7 +4309,7 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
     }
 
     const handleKeyDown = (e: KeyboardEvent) => {
-      // `?` / F1 open the shortcut sheet — the answer to "nothing tells the user how to use the
+      // `?` / F1 open the shortcut sheet, the answer to "nothing tells the user how to use the
       // editor" (§3.4). Same typing guard as every other chord.
       if ((e.key === '?' || e.key === 'F1') && !isTypingTarget(e.target)) {
         e.preventDefault()
@@ -4325,7 +4362,7 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
 
       if (!grid) return
 
-      // TILESET GATE — until the backend tileset is installed, paint a clean loading background and skip ALL
+      // TILESET GATE, until the backend tileset is installed, paint a clean loading background and skip ALL
       // simulation + render, so no frontend/default tile can ever flash before the DB style loads. The React
       // loader overlay sits on top of this; together they guarantee loader → correct DB style, nothing between.
       if (!tilesetReadyRef.current) {
@@ -4340,12 +4377,12 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
 
       // Face the direction currently held BEFORE the jump trigger, so a standing
       // jump goes the way you're pressing (facing is otherwise only set while
-      // walking — which the jump branch below skips, leaving it stale).
+      // walking, which the jump branch below skips, leaving it stale).
       const pressedFacing = facingFromKeys(keys)
       if (pressedFacing) player.facing = pressedFacing
 
       // 8-way GRID aim (separate from the 4-way facing that drives the weapon hand): set from the
-      // movement keys so the player aims where they move — hold two keys for a diagonal. Kept when
+      // movement keys so the player aims where they move, hold two keys for a diagonal. Kept when
       // nothing is held, so a standing shot fires the last-aimed direction. Attacks read player.aim.
       const pressedAim = aimFromKeys(keys, use2DMovement)
       if (pressedAim) player.aim = pressedAim
@@ -4356,7 +4393,7 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
       if (jumpDown && !jumpDownRef.current) beginJump(jump, time)
       jumpDownRef.current = jumpDown
 
-      // Entities are WALK-THROUGH by default — only a character with `blocksMovement` on
+      // Entities are WALK-THROUGH by default, only a character with `blocksMovement` on
       // (the per-unit toggle) obstructs, across its feet row. The player's own marker and
       // dead enemies never block. Recomputed each frame so it follows patrols and clears
       // the moment an enemy dies. Used by both the player collision below and the patrol stepper.
@@ -4368,8 +4405,7 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
         entityBlocked.has(`${Math.floor(x / grid.cellSize)},${Math.floor(z / grid.cellSize)}`)
 
       // Jump = a visual HOP that PRESERVES momentum: the player keeps moving (WASD at their current
-      // speed + direction) while arcing up, so a running-right jump goes up-and-right AT run speed —
-      // instead of a fixed leap that froze the horizontal movement and read as "straight up" (#34).
+      // speed + direction) while arcing up, so a running-right jump goes up-and-right AT run speed, // instead of a fixed leap that froze the horizontal movement and read as "straight up" (#34).
       if (jump.active) {
         const t = Math.min(1, (time - jump.start) / JUMP_MS)
         player.jumpHeight = Math.sin(Math.PI * t) * JUMP_PEAK_PX
@@ -4390,13 +4426,13 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
       const mkeys: Record<string, boolean> = keys
 
       // Controls are SCREEN-fixed: up always moves toward the top of the screen, at any camera rotation.
-      // The camera only rotates the VIEW — `moveWorldDelta` turns the key's screen direction into the world
+      // The camera only rotates the VIEW, `moveWorldDelta` turns the key's screen direction into the world
       // delta that lands there for the current `cameraFacing` (iso only; 2D/top don't rotate). So rotating the
       // camera never changes how the player moves.
       const iso = !use2DMovement
       const step = iso ? speed * 0.707 : speed // iso keys are diagonal unit vectors (√2) → 0.707 nets `speed`
       const facing = cameraFacingRef.current
-      // MOVE_KEYS is the shared binding table — the help sheet documents THIS array, so the keys
+      // MOVE_KEYS is the shared binding table, the help sheet documents THIS array, so the keys
       // the sheet shows are the keys the player moves with, by construction.
       for (const [keys, dir] of MOVE_KEYS) {
         if (!keys.some(k => mkeys[k])) continue
@@ -4409,7 +4445,7 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
       // Running = actually moving with Shift down (drives the 🏃 run frame; idle/still → not running).
       player.running = running && player.moving
 
-      // Collision — the player is a BODY, not a point: reject a move if ANY corner of its footprint
+      // Collision, the player is a BODY, not a point: reject a move if ANY corner of its footprint
       // would land on a blocked cell, so it can't slip through a wall while its centre sits on the open
       // cell next to it (blocked until it's completely OUT of the wall cell). Resolved per-axis so it
       // slides along a wall instead of sticking.
@@ -4433,7 +4469,7 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
 
       // ── Connector triggers (teleport between templates) ──
       // Movement/interact triggers fire during play regardless of the connector
-      // authoring toggle — only the click-to-author behavior (handleCanvasMouseDown)
+      // authoring toggle, only the click-to-author behavior (handleCanvasMouseDown)
       // is gated on connectorMode. Suppressed only mid-teleport so a load can't
       // re-fire the connector on the landing cell.
       if (!teleportingRef.current) {
@@ -4447,7 +4483,7 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
           const entered = findTriggeredConnector(curCol, curRow, connectorsRef.current, 'enter')
           if (entered) triggerConnectorRef.current(entered)
           // Unified triggers: fire this cell's `on enter` triggers (win / spawn / message
-          // / goto / …). Additive to connectors — both can live on the same map.
+          // / goto / …). Additive to connectors, both can live on the same map.
           const enterTrigs = triggersAtCell(cellTriggersRef.current, curCol, curRow)
           if (enterTrigs.length > 0) {
             for (const eff of fireTriggers('enter', enterTrigs, { at: { col: curCol, row: curRow } })) {
@@ -4455,18 +4491,17 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
             }
           }
         }
-        // Interact key (edge-triggered): E / Enter — drives BOTH connectors and
+        // Interact key (edge-triggered): E / Enter, drives BOTH connectors and
         // quest accept/turn-in. A connector on the cell wins; otherwise we offer
         // the quest of a reachable giver NPC (accept when available, turn in when
-        // complete). Quests never block connectors — they're checked only when no
+        // complete). Quests never block connectors, they're checked only when no
         // interact connector fires here.
         const interactDown = !!(keys['e'] || keys['E'] || keys['Enter'])
         if (interactDown && !interactDownRef.current) {
           const pressed = findTriggeredConnector(curCol, curRow, connectorsRef.current, 'interact')
           if (pressed) triggerConnectorRef.current(pressed)
           else questInteractRef.current(curCol, curRow)
-          // Unified triggers: fire this cell's `on interact` triggers too (additive —
-          // never blocks the connector/quest path above).
+          // Unified triggers: fire this cell's `on interact` triggers too (additive, // never blocks the connector/quest path above).
           const interactTrigs = triggersAtCell(cellTriggersRef.current, curCol, curRow)
           for (const eff of fireTriggers('interact', interactTrigs, { at: { col: curCol, row: curRow } })) {
             applyTriggerEffectRef.current(eff)
@@ -4474,7 +4509,7 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
         }
         interactDownRef.current = interactDown
 
-        // Special-item slots: number keys (1–0) use the bound consumable/special item.
+        // Special-item slots: number keys (1-0) use the bound consumable/special item.
         const sLoadout = playerLoadoutRef.current
         for (let i = 0; i < sLoadout.special.length; i++) {
           const sKey = sLoadout.shortcuts[i]
@@ -4494,7 +4529,7 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
         // while held so swings chain; each fire plays a swoosh.
         const fireAttack = attackDown && (!attackDownRef.current || time - lastAttackFireRef.current >= ATTACK_LOOP_MS)
         if (fireAttack) { lastAttackFireRef.current = time; playSwoosh() }
-        // Abilities (keys 1–4, data-driven loadout): on the key's rising edge, fire the bound ability
+        // Abilities (keys 1-4, data-driven loadout): on the key's rising edge, fire the bound ability
         // if it's off cooldown → a melee swing with its authored damage + a tinted blade. First
         // binding to fire this frame wins (one swing per tick).
         const abilitySwing = triggerAbility(playerAbilityLoadoutRef.current, keys, abilityKeysRef.current, abilityLastUsedRef.current, time)
@@ -4608,7 +4643,7 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
         }
       }
       // Re-read the held weapon/shield pose from the tileset EVERY frame, so the Pose editor's sliders
-      // retune the equipped weapon live in-scene — the pose is DATA in the tileset, not a cached snapshot.
+      // retune the equipped weapon live in-scene, the pose is DATA in the tileset, not a cached snapshot.
       const poseStyleNow = activeStyleRef.current.id === 'ascii' ? 'ascii' : 'emoji'
       player.weaponPose = weaponPose(playerWeaponRef.current?.kind, poseStyleNow)
       player.shieldPose = weaponPose(playerShieldRef.current?.kind, poseStyleNow)
@@ -4685,16 +4720,16 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
           selectedCells: selectedCellsRef.current,
           hoveredCell: hoveredCellRef.current,
           ghost: ghostRef.current, // armed-composition placement shadow (iso footprint + massing)
-          // #75 — the corner the nav's ↻ Rotate button turned to. WHILE TURNING we pass undefined so the
+          // #75, the corner the nav's ↻ Rotate button turned to. WHILE TURNING we pass undefined so the
           // render falls through to the LIVE continuous turn (isoCameraTurn) that rotateCameraTo is easing.
           // Passing the discrete corner here was why the spin never showed: the grid stayed on the old corner
           // for the whole animation and snapped at the end, so all you saw was the map sliding sideways.
           cameraFacing: turnAnimRef.current !== null ? undefined : cameraFacingRef.current,
-          playerViewRange: playerViewRangeRef.current, // nav Range control — undefined = full render, no cull
+          playerViewRange: playerViewRangeRef.current, // nav Range control, undefined = full render, no cull
         })
         drawSelectedTileHandles(ctx) // resize grips on the selected tile (reads the frame's recorded silhouette)
       }
-      // Drop finished attack animations (kept tiny — a few in flight at once).
+      // Drop finished attack animations (kept tiny, a few in flight at once).
       if (attackAnimsRef.current.length > 0) {
         attackAnimsRef.current = attackAnimsRef.current.filter(a => !isAnimDone(a, time))
       }
@@ -4733,7 +4768,7 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
   }
 
   // ── Game membership (many-to-many) ─────────────────────────────────────────
-  // Link templates into the current game, persisting the join. Idempotent — a template already in the
+  // Link templates into the current game, persisting the join. Idempotent, a template already in the
   // game is a no-op. Only meaningful inside a game (route /games/[id]); a plain editor session skips it.
   const linkTemplatesToGame = async (ids: string[]) => {
     if (!gameContext) return
@@ -4775,7 +4810,7 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
   // Connector picker "＋ New": make a new template, select it as this connector's target, and (in a game)
   // link it. Lets the user branch the flow to a fresh room without leaving the connection form.
   const handleNewConnectorTarget = async () => {
-    // No naming dialog — same reason a new GAME doesn't ask. The level is named from the ones already saved and
+    // No naming dialog, same reason a new GAME doesn't ask. The level is named from the ones already saved and
     // the top-bar name field renames it in place.
     const id = await createBlankTemplate(nextLevelName(savedTemplates))
     if (!id) return
@@ -4783,7 +4818,7 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
     await linkTemplatesToGame([id])
   }
 
-  /** The Inspector's discoverable "💾 Save map" action — the SAME handler behind the cell card's and the unit
+  /** The Inspector's discoverable "💾 Save map" action, the SAME handler behind the cell card's and the unit
    *  card's button, so both save identically. An unnamed map warns instead of silently no-opping (spec §4). */
   const saveMapFromInspector = () => {
     void saveCurrentTemplate()
@@ -4873,7 +4908,7 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
       }
 
       await loadTemplateList()
-      // Inside a game: keep the join in sync — this template and everything it connects to belong to the game.
+      // Inside a game: keep the join in sync, this template and everything it connects to belong to the game.
       if (savedTemplateId) {
         await linkTemplatesToGame([savedTemplateId, ...connectors.map(c => c.targetTemplateId)])
       }
@@ -4909,7 +4944,7 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
       // Split placed entities AND quests back out of the assets they rode in on,
       // then strip both marker kinds so they don't double-render as decoration.
       // A person entity (player/npc) authored BEFORE animation-seeding existed loads with no animations,
-      // so its Inspector list reads empty even though it PLAYS the default character set (#88 — the Forest
+      // so its Inspector list reads empty even though it PLAYS the default character set (#88, the Forest
       // hero vs Village hero mismatch). Forward-seed the default set onto any person that has none, so the
       // animation list follows the UNIT consistently and persists on the next save.
       const loadedEntities = withSeededPersonAnimations(entitiesFromAssets(gridRef.current!.assets))
@@ -4917,14 +4952,14 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
       const loadedStyle = styleFromAssets(gridRef.current!.assets) // active art style marker (null → ASCII)
       const loadedCellTriggers = cellTriggersFromAssets(gridRef.current!.assets) // cell triggers (enter/interact)
       // Floor colour + dims ride the FLOOR ASSET now (restored by deserializeToGrid → setAssets), so there is
-      // nothing to reapply here — the floor is a plain level-0 asset that round-trips like every tile.
+      // nothing to reapply here, the floor is a plain level-0 asset that round-trips like every tile.
       gridRef.current!.removeAssetsWhere(
         a => isEntityAsset(a) || isQuestAsset(a) || isStyleAsset(a) || isTriggerAsset(a),
       )
       setActiveStyleId(styleById(loadedStyle).id) // restore the saved global skin (defaults to ASCII)
       setCellTriggers(loadedCellTriggers) // restore the authored cell triggers
       // Buildings are just their stamped per-cell tiles now (regular assets, like trees), so they
-      // deserialize with the rest of grid.assets — no grouped-building marker to restore.
+      // deserialize with the rest of grid.assets, no grouped-building marker to restore.
       setEntities(loadedEntities)
       setQuests(loadedQuests)
       resetHistory() // fresh map loaded → drop undo history so Ctrl+Z can't drag back the previous map
@@ -4935,7 +4970,7 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
       // else the template's default spawn.
       const playerEntity = (template.entities ?? []).find(e => e.kind === 'player')
       const tgt = gridRef.current!
-      // #87: reloading the map you're ALREADY in keeps your CURRENT position — a load must not yank
+      // #87: reloading the map you're ALREADY in keeps your CURRENT position, a load must not yank
       // you back to the last-saved spawn. A connector/trigger teleport or a deliberate reset
       // (restart / play-a-level, opts.resetToSpawn) still uses the target spawn.
       const keptCell = !spawnOverride && !opts?.resetToSpawn && id === currentTemplateId ? preloadCell : null
@@ -4989,7 +5024,7 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
       setShowTemplateList(false)
     } catch (error) {
       console.error('Failed to load template:', error)
-      // A 404 here is a map that is GONE, not an app that is broken — a stale link, a deleted map, or a
+      // A 404 here is a map that is GONE, not an app that is broken, a stale link, a deleted map, or a
       // game still pointing at a template someone removed. It used to read `Failed to load template`,
       // the same words a dead backend produced, so the user could not tell which one they had. Now the
       // status says which, and a missing map opens the library so the next click is the way out.
@@ -5035,7 +5070,7 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
    * ADD a saved template to this game as a level, then open it (§4.4).
    *
    * Outside a game this is still plain "Load". Inside one it is a membership change: the template joins
-   * `game.templateIds` — which is what the level stepper reads — and only then opens. Guarded by the dirty
+   * `game.templateIds`, which is what the level stepper reads, and only then opens. Guarded by the dirty
    * tracker, like every other way of leaving the open map.
    */
   const addLevelToGame = async (id: string) => {
@@ -5054,10 +5089,10 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
 
   const openTemplate = (id: string) => {
     // Reopening the template you're already in: the URL key is unchanged, so the deep-link effect
-    // would no-op (handledQueryRef dedupe) — reload it directly, KEEPING the current position (#87).
+    // would no-op (handledQueryRef dedupe), reload it directly, KEEPING the current position (#87).
     // A different template routes through the URL and loads at its own spawn.
     if (id === currentTemplateId) { loadTemplate(id); return }
-    // Inside a game the route is /games/[gameId], where `id` is the PATH segment (the game id) — routing
+    // Inside a game the route is /games/[gameId], where `id` is the PATH segment (the game id), routing
     // through `query:{ id }` would overwrite it with the template id and land on /games/<templateId>
     // ("game not found"). Switch the template in memory instead; lastTemplateId persists via its effect.
     if (gameContext) { loadTemplate(id); return }
@@ -5084,7 +5119,7 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
   }
 
   /** Perform a connector's typed action via the pure resolver (dispatch on the
-   *  resolved effect kind — no branching on the raw action). */
+   *  resolved effect kind, no branching on the raw action). */
   const resolveConnectorAction = (action: TriggerAction) => {
     const effect = resolveAction(action)
     if (effect.kind === 'move') {
@@ -5101,7 +5136,7 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
   }
 
   /** Spawn `count` enemies of `enemyType` on free cells spiralling out from (col,row).
-   *  Only appends to the entities list — the combat module lazily seeds each new enemy's
+   *  Only appends to the entities list, the combat module lazily seeds each new enemy's
    *  runtime the first frame it sees it (syncEnemyRuntime). Skips blocked / occupied /
    *  out-of-bounds cells so enemies never stack or land in a wall. */
   const spawnEnemiesNear = (col: number, row: number, enemyType: string, count: number) => {
@@ -5151,7 +5186,7 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
   }
 
   // ── Inspector trigger authoring (cell + entity) ─────────────────────
-  /** Replace the triggers on one cell — drops the group entirely when it goes empty. */
+  /** Replace the triggers on one cell, drops the group entirely when it goes empty. */
   const setTriggersForCell = (col: number, row: number, next: Trigger[]) => {
     setCellTriggers(prev => {
       const rest = prev.filter(g => !(g.col === col && g.row === row))
@@ -5210,7 +5245,7 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
     loadTemplateList()
   }, [])
 
-  // Handle URL params — RE-RUNS whenever the query KEY changes (a different ?id, or ?new=1), so an
+  // Handle URL params, RE-RUNS whenever the query KEY changes (a different ?id, or ?new=1), so an
   // in-editor "＋ New" / loading another template actually takes effect instead of being blocked by a
   // one-shot `initialized` guard.
   const handledQueryRef = useRef<string | null>(null)
@@ -5218,7 +5253,7 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
   const [loadMenuPos, setLoadMenuPos] = useState<{ top: number; left: number } | null>(null)
   useEffect(() => {
     if (!gridRef.current) return
-    // Opened INSIDE a game (route /games/[id]) — drive the first load from the game context, not the URL
+    // Opened INSIDE a game (route /games/[id]), drive the first load from the game context, not the URL
     // (the [id] path segment is the GAME id, not a template). Open the game's last-watched template.
     if (gameContext) {
       const startId = gameContext.startTemplateId
@@ -5238,7 +5273,7 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
     const wantPlay = play === '1' // deep-link straight into the play view (from the Games route ▶ Play)
     const key = typeof id === 'string' ? `id:${id}${wantPlay ? ':play' : ''}` : isNew === '1' ? 'new' : 'recent'
     if (handledQueryRef.current === key) return
-    // A blank NEW template lays down a generated map, and the generator catalog is a fetch — so wait for it
+    // A blank NEW template lays down a generated map, and the generator catalog is a fetch, so wait for it
     // rather than marking the route handled and generating nothing (the catalog is the ONLY source of the
     // grid size + unit counts now). Every other route is unaffected.
     if (key === 'new' && generatorCatalog.length === 0) return
@@ -5286,7 +5321,7 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
   }, [router.isReady, router.query, gameContext, generatorCatalog])
 
   // Inside a game, remember the last template watched so reopening the game resumes here. Skip the very
-  // first render (the load we just kicked off) — only persist once the user actually SWITCHES templates.
+  // first render (the load we just kicked off), only persist once the user actually SWITCHES templates.
   const lastSavedTemplateRef = useRef<string | null>(gameContext?.startTemplateId ?? null)
   useEffect(() => {
     if (!gameContext || !currentTemplateId) return
@@ -5300,11 +5335,10 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
       <Head>
         <title>{templateName || 'New Template'} - Nebulith</title>
       </Head>
-      {/* THE EDITOR SHELL — the approved design at :8899 ("PROPOSED — interactive, try it").
+      {/* THE EDITOR SHELL, the approved design at :8899 ("PROPOSED, interactive, try it").
           `neb` is the design's token root and `ed` its four-zone grid: top = THE GAME, rail + panel = the
           world and what goes in it, canvas = the map, insp = what is SELECTED, bar = THE VIEW.
-          Every dialog and play-mode overlay below stays `position:fixed`, which takes it OUT of grid flow —
-          so this is a restyle of the chrome that is already wired, not a second tree. */}
+          Every dialog and play-mode overlay below stays `position:fixed`, which takes it OUT of grid flow, so this is a restyle of the chrome that is already wired, not a second tree. */}
       <main className={`neb ed fixed inset-0${canvasFullBleed(chrome) ? ' play' : ''}${hudMode ? ' edhud' : ''} ${zoneClasses(zoneShut, !hasSelection)}`.trimEnd()}>
         <div className="z-canvas">
           <canvas
@@ -5334,7 +5368,7 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
               onMaximize={() => setLevelMapBig(true)}
             />
           )}
-          {/* THE MAP, BIG. The same component at panel size — one map, drawn by `renderTopView` either way, so the
+          {/* THE MAP, BIG. The same component at panel size, one map, drawn by `renderTopView` either way, so the
               big one cannot disagree with the corner one. Movable and resizable like every other panel, and
               clicking it still jumps the view. */}
           {isChromeVisible && !hudMode && levelMapBig && (
@@ -5364,7 +5398,7 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
           )}
         </div>
 
-        {/* TILESET LOADER GATE — the map is NEVER painted until the backend tileset installs (the RAF loop
+        {/* TILESET LOADER GATE, the map is NEVER painted until the backend tileset installs (the RAF loop
             paints only a dark background until then), so on a fresh load this overlay is the ONLY thing
             visible: a spinner while fetching, a retry on failure. No frontend-tile / wrong-style flash can
             slip through, because there is no bundled frontend tile data to draw. */}
@@ -5379,8 +5413,8 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
               <>
                 <p className="text-lg font-bold text-red-400">Couldn&apos;t load the tileset</p>
                 <p className="max-w-xs text-center text-xs text-gray-400">
-                  The tile server didn&apos;t respond. The editor renders only backend tiles — nothing is drawn
-                  from the frontend — so it waits here until the tileset loads.
+                  The tile server didn&apos;t respond. The editor renders only backend tiles, nothing is drawn
+                  from the frontend, so it waits here until the tileset loads.
                 </p>
                 <button
                   onClick={loadTiles}
@@ -5393,10 +5427,10 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
           </div>
         )}
 
-        {/* (Removed the on-canvas floating quick-actions toolbar — Style/Animate/Trigger live in the
+        {/* (Removed the on-canvas floating quick-actions toolbar, Style/Animate/Trigger live in the
             right-sidebar Inspector cards now, so the game view stays uncluttered.) */}
 
-        {/* VIEW BAR (§4.3 / §5.2 — Week 2). Everything about HOW you look at the map, moved OFF the top bar:
+        {/* VIEW BAR (§4.3 / §5.2, Week 2). Everything about HOW you look at the map, moved OFF the top bar:
             at 1280×800 the nav measured 1763px of content in a 1246px strip, so Save / Play / Load / ⋯ More
             scrolled off the edge with no affordance (§3.3, a P0). Nothing in this bar changes the map. */}
         {isChromeVisible && (
@@ -5428,7 +5462,7 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
           />
         )}
 
-        {/* CANVAS MODE CHIP (§4.9) — sits just under the top bar and states what the next click does.
+        {/* CANVAS MODE CHIP (§4.9), sits just under the top bar and states what the next click does.
             It replaces the old select-only "Shift + drag" pill: that pill documented ONE mode and
             vanished the moment you armed a tool, which is exactly when a user needs telling. The chip
             is always on while the editor chrome is, so a mode is visible on the canvas rather than
@@ -5444,28 +5478,28 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
           </div>
         )}
 
-        {/* Vitals are NOT an always-on HUD — they live in the selected-entity panel on
+        {/* Vitals are NOT an always-on HUD, they live in the selected-entity panel on
             the right sidebar (shown only when the player or an entity is selected). */}
 
-        {/* Quest tracker — active quest title + kill progress. Same play-view gate
+        {/* Quest tracker, active quest title + kill progress. Same play-view gate
             as the combat HUD. Renders nothing when no quest is active. */}
         {!showFlowView && !showTopView && (
           <QuestHud quest={activeQuest(quests)} />
         )}
 
-        {/* Combat HUD (HP / rage / mana + F attack · G special) — always shown in the
+        {/* Combat HUD (HP / rage / mana + F attack · G special), always shown in the
             clean PLAY VIEW so vitals stay visible while playing. */}
         {playMode && !showFlowView && (
           <CombatHud hud={playerHud} />
         )}
 
-        {/* Ability action bar (keys 1–4 + cooldown sweep) — shows the live player loadout, same
+        {/* Ability action bar (keys 1-4 + cooldown sweep), shows the live player loadout, same
             play-view gate as the vitals HUD. */}
         {playMode && !showFlowView && (
           <AbilityBar loadout={abilityLoadouts['__player__'] ?? defaultAbilityLoadout()} lastUsedRef={abilityLastUsedRef} />
         )}
 
-        {/* Trigger message popup — a small dismissible text box (show message action). */}
+        {/* Trigger message popup, a small dismissible text box (show message action). */}
         {/* WHAT A UNIT SAYS (runtime/dialog.ts), beside the trigger message and closed the same way. */}
         {dialogShown !== null && (
           <div className="absolute bottom-24 left-1/2 z-40 -translate-x-1/2 rounded-lg border border-white/15 bg-gray-900/95 p-3 shadow-xl" role="dialog" aria-label={`${dialogShown.speaker} says`}>
@@ -5489,7 +5523,7 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
           </div>
         )}
 
-        {/* Win / Lose end-state overlay — fired by a win/lose trigger. */}
+        {/* Win / Lose end-state overlay, fired by a win/lose trigger. */}
         {endState !== null && (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 font-mono">
             <div className="flex flex-col items-center gap-4 rounded-xl border border-white/10 bg-black/80 px-10 py-8 shadow-2xl shadow-black/60">
@@ -5505,7 +5539,7 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
           </div>
         )}
 
-        {/* THE LEVEL MAP — every level placed where its doorways say it is (see `levelMapLayout`).
+        {/* THE LEVEL MAP, every level placed where its doorways say it is (see `levelMapLayout`).
             Rendered whenever Flow is on, INCLUDING with nothing saved: the gate used to require
             `currentTemplateId`, so on a game with no saved levels clicking Flow drew a black rectangle
             with no explanation of whether it was broken, loading or simply empty. The overlay now owns
@@ -5523,7 +5557,7 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
           />
         )}
 
-        {/* GAMES view — list playable flows + the game editor; ▶ plays from a level. */}
+        {/* GAMES view, list playable flows + the game editor; ▶ plays from a level. */}
         {showGamesView && (
           <GamesViewOverlay
             savedTemplates={savedTemplates}
@@ -5533,20 +5567,20 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
           />
         )}
 
-        {/* PROJECT BAR — §4.4, and ONLY the six things it draws:
+        {/* PROJECT BAR, §4.4, and ONLY the six things it draws:
               NEBULITH │ 🎮 Boss ▾ │ ◀ Level 3 of 5 · village ▾ ▶ │   ● Saved 12s ago  [💾 Save] [▶ Play]
             §4.3: "The top bar then holds only 6 things (brand, game, level stepper, save state, Save, Play)
             and fits at 1024 px." So `Load (n)` is gone from it (§4.4: "Load (n) disappears from the top bar
             … opening an arbitrary template that isn't in this game is an 'Add a level…' action"), ⚡ Generate
-            and ◈ Unit are rail panels, ⚙ Stage is retired, and 🎨 Style moved to the VIEW bar — §4.1's first
+            and ◈ Unit are rail panels, ⚙ Stage is retired, and 🎨 Style moved to the VIEW bar, §4.1's first
             principle puts "how am I looking at it" in the bottom bar, and a reskin changes no map data. */}
-        {/* NEVER scrolls — §4.11: "the project bar never scrolls. If it cannot fit, the game name truncates and the
-            level label shortens" — and `overflow-hidden` makes the flexible children TRUNCATE instead of pushing
+        {/* NEVER scrolls, §4.11: "the project bar never scrolls. If it cannot fit, the game name truncates and the
+            level label shortens", and `overflow-hidden` makes the flexible children TRUNCATE instead of pushing
             Save/Play off the edge. */}
         {isChromeVisible && (
         <nav className="z z-top">
           <span style={{ fontSize: 18 }} aria-hidden="true">🎮</span>
-          {/* ART STYLE leads. It is not a step in building a level — it is the skin the whole product wears, and
+          {/* ART STYLE leads. It is not a step in building a level, it is the skin the whole product wears, and
               one of the first two things anyone touches. It previews both styles on the same four labels, because
               "ascii" and "emoji" mean nothing to someone who has just arrived. */}
           <ArtStyleControl activeStyleId={activeStyleId} onPick={setActiveStyleId} />
@@ -5568,8 +5602,8 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
             onExport={exportLayers}
             onAllGames={() => router.push('/personal-projects/game-engine/games')}
           />
-          {/* §4.4 / §3.2 (P0): the game's OWN levels. They were loaded into state and never rendered — no
-              name, no list, no "level 2 of 5" — so from inside the editor a game's levels were invisible.
+          {/* §4.4 / §3.2 (P0): the game's OWN levels. They were loaded into state and never rendered, no
+              name, no list, no "level 2 of 5", so from inside the editor a game's levels were invisible.
               Guarded by the dirty-tracker: stepping away from unsaved edits ASKS first (§5.3). */}
           <LevelStepper
             levels={gameLevels}
@@ -5591,23 +5625,23 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
           <button type="button" className="b sm" title="Undo (Ctrl+Z)" aria-label="Undo" onClick={undoEdit}>↶</button>
           <button type="button" className="b sm" title="Redo (Ctrl+Y)" aria-label="Redo" onClick={redoEdit}>↷</button>
           {gameLevels.length > 0 && <span className="vr" aria-hidden="true" />}
-          {/* (view toggle, rotation and the render cull moved to the VIEW BAR — §4.3 / Week 2) */}
-          {/* ↻ Rotate — swing the iso camera one quarter-turn so a different side of the map faces you. ISO
+          {/* (view toggle, rotation and the render cull moved to the VIEW BAR, §4.3 / Week 2) */}
+          {/* ↻ Rotate, swing the iso camera one quarter-turn so a different side of the map faces you. ISO
               only: 2D (front elevation) and Top (footprint) have no camera to rotate. */}
           <span className="mx-1 h-5 w-px shrink-0 bg-white/15" />
-          {/* ⚡ Generate — the stage-preset zone/variant controls as a dropdown */}
-          {/* ⚡ Generate retired — it is a rail PANEL now (§4.6 / Week 4), with room to breathe. */}
+          {/* ⚡ Generate, the stage-preset zone/variant controls as a dropdown */}
+          {/* ⚡ Generate retired, it is a rail PANEL now (§4.6 / Week 4), with room to breathe. */}
           {/* 🎨 Style moved to the VIEW bar (§4.1 principle 1: the bottom bar answers "how am I looking at it"). */}
-          {/* ◈ Unit — place units. The enemy/creature PICKER lives here now (the paint palette no longer lists
+          {/* ◈ Unit, place units. The enemy/creature PICKER lives here now (the paint palette no longer lists
               units): pick WHICH creature from the DB `units` tiles, choose Add (click to place) or Scatter, and
               place it static or with a randomized movement animation. Player/NPC/Erase/Collision stay as utility
               tools. Arming derives editorMode → 'unit', so canvas clicks place exactly as before. */}
-          {/* ◈ Unit retired — the Characters LIBRARY is a rail panel now (§4.5 / Week 4). */}
+          {/* ◈ Unit retired, the Characters LIBRARY is a rail panel now (§4.5 / Week 4). */}
           {/* ⚙ Stage retired (§3.11 / Week 4). It mixed a DESTRUCTIVE grid resize with four view toggles:
               the toggles moved to the view bar's 👁 Overlays (§4.3), map size moved into the Generate panel
               (§4.6) where it warns and takes an undo checkpoint, and the movement hint it carried is in the
-              `? Help` sheet — which lists run/attack/special too, and cannot drift from the real bindings. */}
-          {/* (FPS + `? Help` moved to the VIEW BAR — §4.3 gave them that home) */}
+              `? Help` sheet, which lists run/attack/special too, and cannot drift from the real bindings. */}
+          {/* (FPS + `? Help` moved to the VIEW BAR, §4.3 gave them that home) */}
           {/* Outside a game there is no 🎮 menu and no level stepper, so the level's NAME and the way to
               open one live here. Inside a game the stepper names the level and `＋ Add a level` is in its
               dropdown, exactly as §4.4 draws it. */}
@@ -5636,7 +5670,7 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
               aria-expanded={showTemplateList}
               className="rounded bg-blue-800 px-3 py-1 text-xs hover:bg-blue-700"
             >
-              {/* §4.4: inside a game this is not navigation — opening a template that is not one of this
+              {/* §4.4: inside a game this is not navigation, opening a template that is not one of this
                   game's levels ADDS it. The stepper above is how you move BETWEEN levels. */}
               {`Load (${savedTemplates.length})`}
             </button>
@@ -5673,7 +5707,7 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
             )}
           </div>
           <div className="flex-1" />
-          {/* §4.4: `● Saved 12s ago` — the bar answers "is my work safe?" without being clicked. */}
+          {/* §4.4: `● Saved 12s ago`, the bar answers "is my work safe?" without being clicked. */}
           <span className="hint" style={{ display: 'flex', alignItems: 'center', gap: 6, margin: 0 }} aria-live="polite">
             <span aria-hidden className={SAVE_TONE_DOT[saveStatus.tone]}>●</span>
             <span>{saveStatus.label}</span>
@@ -5694,10 +5728,10 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
           <button type="button" onClick={enterPlayMode} aria-label="Execute game" title="Play the game" className="b go">
             ▶ Play
           </button>
-          {/* §4.4: Load (n) DISAPPEARS from the project bar — inside a game, opening a template that is
+          {/* §4.4: Load (n) DISAPPEARS from the project bar, inside a game, opening a template that is
               not one of its levels is `＋ Add a level…` in the level dropdown, not a navigation action. It
               stays only OUTSIDE a game, where there is no game and no stepper to reach a level through. */}
-          {/* ⋯ More — the remaining entry points kept reachable in an overflow menu */}
+          {/* ⋯ More, the remaining entry points kept reachable in an overflow menu */}
           <Dropdown label={<>⋯ More</>} align="right" panelClass="w-52">
             {close => (
               <div className="space-y-1 text-xs">
@@ -5717,7 +5751,7 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
         )}
 
         {/* Bottom-right floating control: the way BACK from preview. Entering preview lives in the top-nav
-            "⋯ More" menu, but hiding the UI hides that nav too — so this restore button is the only route
+            "⋯ More" menu, but hiding the UI hides that nav too, so this restore button is the only route
             back and renders ONLY while the UI is hidden. */}
         {chromeRestoreVisible(chrome) && (
           <button
@@ -5739,7 +5773,7 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
         )}
         {playMode && <LiveFpsReadout variant="floating" probe={viewType === '2d' ? '__2dRenderMs' : '__isoRenderMs'} />}
 
-        {/* LEFT — tool-rail: the editor modes (Select / Paint / Unit / Building / Connector) */}
+        {/* LEFT, tool-rail: the editor modes (Select / Paint / Unit / Building / Connector) */}
         {isChromeVisible && (
           <div className={`z z-rail${zoneShut.rail ? ' shut' : ''}`}>
             <ZoneCollapse name="Tools" shut={zoneShut.rail} side="left" onToggle={() => toggleZone('rail')} />
@@ -5747,7 +5781,7 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
           </div>
         )}
 
-        {/* LEFT MODE PANEL — the active mode's tools, docked next to the rail */}
+        {/* LEFT MODE PANEL, the active mode's tools, docked next to the rail */}
         {isChromeVisible && (
           <aside className={`z z-panel${zoneShut.panel ? ' shut' : ''}`} aria-label="Tool panel">
             <ZoneCollapse name={activeRailId === 'generate' ? 'New world' : activeRailId === 'rules' ? 'Rules' : 'Library'} shut={zoneShut.panel} side="left" onToggle={() => toggleZone('panel')} />
@@ -5757,27 +5791,26 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
 
             {!hudMode && activeRailId === 'terrain' && (
               <>
-                {/* DB tile catalog — the FULL tileset (terrain / buildings / units / nature) for the active
+                {/* DB tile catalog, the FULL tileset (terrain / buildings / units / nature) for the active
                     art style, straight from tilesForStyle. Pick one to ARM it as the brush, then click the
                     map to place; the exact tile is pinned per-cell so it survives a style switch too. */}
                 <TilePalette
                   styleId={activeStyleId}
                   styleName={activeStyle.name}
                   armedId={armedTile?.id ?? null}
-                  onArm={t => { if (t) rememberRecent(t); armTile(t) }}
+                  onArm={armTile}
                   onHover={setLibraryHover}
                   preview={previewContext}
-                  recent={recentTiles}
                 />
               </>
             )}
 
             {!hudMode && activeRailId === 'objects' && (
               <>
-                {/* EVERY composition the backend serves — the same set the world randomizer stamps (buildings,
+                {/* EVERY composition the backend serves, the same set the world randomizer stamps (buildings,
                     trees/bushes, fountains, wells, lamp posts…), grouped + labelled with their footprint size.
                     Pick one to ARM it, then move over the map to see a ghost footprint, and click to stamp its
-                    cells. Data-driven from the loaded tileset — never a hardcoded building-only list. */}
+                    cells. Data-driven from the loaded tileset, never a hardcoded building-only list. */}
                 <p className="mb-2 text-[10px] leading-tight text-gray-400">
                   Pick a composition, then hover the map to preview its footprint and click to place it.
                 </p>
@@ -5794,13 +5827,13 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
               </>
             )}
 
-            {/* CHARACTERS (§4.5, Week 4) — the creature library, moved out of the ◈ Unit TOP-BAR DROPDOWN.
+            {/* CHARACTERS (§4.5, Week 4), the creature library, moved out of the ◈ Unit TOP-BAR DROPDOWN.
                 §3.6 measured it there: 79 creatures, 4-per-row, in a 256px popover, ordered by nothing. In
                 the rail it wears the same header/search/armed-state as the other two libraries, so learning
                 one teaches all three (§2 C: "three libraries, one idiom"). */}
             {!hudMode && activeRailId === 'characters' && (
               <>
-                {/* WHAT DO YOU WANT TO DO — the four verbs, each named after its EFFECT rather than its
+                {/* WHAT DO YOU WANT TO DO, the four verbs, each named after its EFFECT rather than its
                     mechanism. "Collision" was a tool nobody could read: it paints cells that block movement
                     and draw nothing, so that is what it now says. They sit above the library because they
                     decide what a click DOES; the library below decides what it does it WITH. */}
@@ -5809,7 +5842,7 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
                   <div className="seg" style={{ flexWrap: 'wrap' }} role="group" aria-label="What do you want to do">
                     <button type="button" aria-pressed={entityTool === 'player' && !unitTile}
                       className={entityTool === 'player' && !unitTile ? 'on' : ''}
-                      title="Where the player begins — only one" onClick={() => toggleEntityTool('player')}>
+                      title="Where the player begins, only one" onClick={() => toggleEntityTool('player')}>
                       Set the hero start
                     </button>
                     <button type="button" aria-pressed={entityTool === 'npc' && !unitTile}
@@ -5824,7 +5857,7 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
                     </button>
                     <button type="button" aria-pressed={entityTool === 'collision'}
                       className={entityTool === 'collision' ? 'on' : ''}
-                      title="Blocks movement, draws nothing — the old “Collision” tool"
+                      title="Blocks movement, draws nothing, the old “Collision” tool"
                       onClick={() => toggleEntityTool('collision')}>
                       Paint invisible walls
                     </button>
@@ -5854,7 +5887,7 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
                   onOpenPlacement={() => setPlacementOpen(true)}
                 />
 
-                {/* §4.5's footer: "9 characters on this level [Clear…]". The ellipsis is the promise — it opens a
+                {/* §4.5's footer: "9 characters on this level [Clear…]". The ellipsis is the promise, it opens a
                     dialogue rather than wiping the roster on one click, which is what §5.1 asks of every
                     destructive action. */}
                 <div className="pfoot" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
@@ -5871,13 +5904,13 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
               </>
             )}
 
-            {/* GENERATE (§4.6, Week 4) — the world generator as a PANEL, not a dropdown. Its data already
+            {/* GENERATE (§4.6, Week 4), the world generator as a PANEL, not a dropdown. Its data already
                 comes from `/api/generators` (T-113); this gives it the room the dropdown never had. */}
             {!hudMode && activeRailId === 'generate' && (
               <>
                 <div className="lhead">
                   <div className="lt"><span>New world</span></div>
-                  <div className="ls">a whole level from a preset — replaces what is on this level now</div>
+                  <div className="ls">a whole level from a preset, replaces what is on this level now</div>
                 </div>
                 <GenerateControls
                   catalog={generatorCatalog}
@@ -5909,11 +5942,11 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
             )}
 
 
-            {/* ART STYLE — its own group. Lists every art style the BACKEND serves
+            {/* ART STYLE, its own group. Lists every art style the BACKEND serves
                 (a tileset row IS a style), and switching one swaps only the pictures: same labels, same
                 names, same heights, different png. */}
 
-            {/* RULES (§4.8, Week 6) — the Logic workspace. Triggers, connections and quests lived in three
+            {/* RULES (§4.8, Week 6), the Logic workspace. Triggers, connections and quests lived in three
                 unrelated places (per-selection, a hidden canvas mode, and behind clicking an NPC); this
                 lists what the level ALREADY has and states each add-action's prerequisite. */}
             {!hudMode && activeRailId === 'rules' && (
@@ -5942,24 +5975,24 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
               </>
             )}
 
-            {/* The Connectors tool moved OFF the left rail — its entry is a button in the RIGHT sidebar that
+            {/* The Connectors tool moved OFF the left rail, its entry is a button in the RIGHT sidebar that
                 opens a draggable Connectors modal (see the Inspector). */}
           </aside>
         )}
 
-        {/* RIGHT — Inspector: stage settings when nothing is selected, else the selection */}
+        {/* RIGHT, Inspector: stage settings when nothing is selected, else the selection */}
         {/* Nothing selected → no inspector. It returns the moment you click something. */}
         {isChromeVisible && !hudMode && hasSelection && (
           <aside className={`z z-insp${zoneShut.insp ? ' shut' : ''}`} aria-label="Inspector">
             <ZoneCollapse name="Selected" shut={zoneShut.insp} side="right" onToggle={() => toggleZone('insp')} />
-            {/* The header names WHAT IS SELECTED — that is the object this zone acts on. The level's name
+            {/* The header names WHAT IS SELECTED, that is the object this zone acts on. The level's name
                 belongs to the game, and the game lives in the top bar. */}
             <div className="ihd">
               <div className="t">Selected</div>
               <div className="s"><span>{templateName || 'New Template'}</span></div>
             </div>
 
-            {/* ↗ DOORWAYS — the tool's entry, moved off the left rail. Opens a draggable/resizable modal. The
+            {/* ↗ DOORWAYS, the tool's entry, moved off the left rail. Opens a draggable/resizable modal. The
                 user-facing word is DOORWAY, from the approved help text: "Connector" names the data structure, not
                 the thing a person is making; the `Connector` type keeps its name. */}
             {/* Opens a draggable/resizable modal
@@ -5967,16 +6000,16 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
             <button
               onClick={() => (connectorPanelOpen ? closeConnectorPanel() : openConnectorPanel())}
               aria-pressed={connectorPanelOpen}
-              title="Doorways — cells that take the player somewhere else"
+              title="Doorways, cells that take the player somewhere else"
               className={`b wide sm${connectorPanelOpen ? ' on' : ''}`}
             >
               ↗ Doorways{connectors.length ? ` (${connectors.length})` : ''}
             </button>
 
             {(() => {
-              // Stage B — the Inspector MORPHS to the current selection. Precedence:
+              // Stage B, the Inspector MORPHS to the current selection. Precedence:
               // unit → connector → cell → nothing. Each branch renders the SAME edit bodies/handlers the old
-              // modals/left-cards used, now inline + collapsible. A building is NOT a selectable unit — its
+              // modals/left-cards used, now inline + collapsible. A building is NOT a selectable unit, its
               // individual cells are edited through the CELL inspector below. Nothing selected falls through
               // to the stage settings.
               const selEntity = entities.find(e => e.id === selectedEntityId)
@@ -5985,14 +6018,14 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
               if (selEntity) {
                 const isPlayer = selEntity.kind === 'player'
                 const isEnemy = selEntity.kind === 'enemy'
-                // The player's held EMOJI weapon is pose-driven — tunable right here so the sword/bow etc.
+                // The player's held EMOJI weapon is pose-driven, tunable right here so the sword/bow etc.
                 // orientation is fixed live in-hand (poses are emoji-only, so gate on a non-ASCII style).
-                // Read the ACTUALLY-held weapon (playerWeaponRef — the same source the render draws in-hand;
+                // Read the ACTUALLY-held weapon (playerWeaponRef, the same source the render draws in-hand;
                 // it prefers the loadout's weapon over inventory.equippedWeapon), so selecting the hero always
                 // surfaces the pose card for whatever weapon is really equipped. Bare hands → no card.
                 const heldWeapon = playerWeaponRef.current
                 const heldWeaponKind = isPlayer && activeStyleId !== 'ascii' && heldWeapon && heldWeapon.kind !== 'unarmed' ? heldWeapon.kind : undefined
-                // The entity's OWN resolved figure (gendered) — the animation editor previews an empty
+                // The entity's OWN resolved figure (gendered), the animation editor previews an empty
                 // "base" frame AS this, and gendered char frames, so the preview matches what renders.
                 const selFigVisual = resolveVisual(entityKind(selEntity.kind), activeStyle, selEntity.tileOverride)
                 const selFigure = genderize(selFigVisual.kind === 'glyph' ? selFigVisual.char : (isEnemy ? '👾' : '🧍'), selEntity.variant)
@@ -6002,12 +6035,12 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
                 const selBaseTileId = selEntity.tileOverride ?? entityStyleOverride(selEntity, activeStyle)
                 const selBaseVisual: Visual = (selBaseTileId && visualForTileId(selBaseTileId))
                   || (selFigVisual.kind !== 'ascii' ? selFigVisual : { kind: 'glyph', char: selFigure })
-                // SHARED settings model for the unit — the SAME TileControlModel a tile feeds TileControls /
+                // SHARED settings model for the unit, the SAME TileControlModel a tile feeds TileControls /
                 // PropertiesPanel, so the unit's card + settings panel (colour / scale / pose) look + work
                 // identically. A unit has ONE uniform scale (`size`), so all three scale axes drive it; colour →
                 // entity.color. x/y/rotate/flip ride entity.pose (persisted via the codec). Asset-only controls
                 // (Z Width, Z-Index, Display, Shape, Light, z-slide) get NO writer, so TileControls hides each of
-                // those rows for a unit — same conditional split a floor tile already uses. onOpenAnimator wires
+                // those rows for a unit, same conditional split a floor tile already uses. onOpenAnimator wires
                 // the card's "✦ Animate…" button to the frame-by-frame character editor (a floating panel now).
                 const unitScale = selEntity.size ?? 1
                 const unitTileModel: TileControlModel = {
@@ -6019,7 +6052,7 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
                   onDim: (_axis, v) => patchSelectedEntity({ size: v > 1 ? v : undefined }), // size 1 drops the field
                   onColor: c => patchSelectedEntity({ color: c }),
                   onClearColor: () => patchSelectedEntity({ color: undefined }),
-                  // A character casts the same night glow pool a tile does — a torch-bearer, a lantern NPC.
+                  // A character casts the same night glow pool a tile does, a torch-bearer, a lantern NPC.
                   // This is the setting of that set a BILLBOARD can carry:
                   // a light is a pool at a position, and a unit has a position.
                   light: selEntity.light,
@@ -6027,7 +6060,7 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
                   override: selEntity.tileOverride ?? null,
                   styleName: activeStyle.name,
                   preview: selBaseVisual, // the tile chip shows the unit's own baked art, like any other tile
-                  // A unit ALWAYS carries art, so the tile-add button reads "Replace tile" — the SAME button a
+                  // A unit ALWAYS carries art, so the tile-add button reads "Replace tile", the SAME button a
                   // cell uses. Its library lists the character tiles (the `units` category), which is how a
                   // unit's figure is changed now that the Figure variant row is gone.
                   libraryLabel: 'Replace tile',
@@ -6046,19 +6079,19 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
                     {selEntity.kind !== 'player' && (
                       <button
                         onClick={randomizeSelected}
-                        title="Re-roll this unit's random attributes — a new figure variant + a fresh wander animation (hotkey R)"
+                        title="Re-roll this unit's random attributes, a new figure variant + a fresh wander animation (hotkey R)"
                         className="w-full rounded bg-indigo-700 px-2 py-1.5 text-xs font-semibold transition-colors hover:bg-indigo-600"
                       >
                         🎲 Randomize unit
                       </button>
                     )}
-                    {/* ONE card — literally the SAME PropertiesPanel a tile uses, with the unit's extras folded
+                    {/* ONE card, literally the SAME PropertiesPanel a tile uses, with the unit's extras folded
                         IN via `unitSection`. There is no unit menu any more: collision (the unit's "blocks
                         movement"), Clear tiles, the tile chip + colour, Add/Replace tile, Edit settings…,
                         Animate…, Remove tile, Triggers… and Save map are the tile card's own controls; the unit
                         only ADDS its name/size rows and the Stats / Inventory / Quests / Attacks buttons. */}
                     {/* The old `▸ PLAYER (PLAYER) @ 32,10` header pill is gone, so there is ONE unit header, not
-                        two. NOTE: its COORDS went with it and nothing here replaced them — the card's heading is
+                        two. NOTE: its COORDS went with it and nothing here replaced them, the card's heading is
                         `Character`, the same way a cell's is `Tile`. Open question for whether a selected character
                         should still say which cell it is on. */}
                     <>
@@ -6067,7 +6100,7 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
                         // (the old standalone "Blocks movement" checkbox is gone).
                         collision={selEntity.blocksMovement ?? false}
                         onCollision={blocked => patchSelectedEntity({ blocksMovement: blocked })}
-                        // WHERE the character stands, beside its name — what the old header pill carried.
+                        // WHERE the character stands, beside its name, what the old header pill carried.
                         at={{ col: selEntity.col, row: selEntity.row }}
                         tile={unitTileModel}
                         level={1}
@@ -6078,7 +6111,7 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
                         present={presentInspectorSection}
                         onOpenTriggers={() => setTriggersOpen(true)}
                         triggerCount={selEntity.triggers?.length ?? 0}
-                        // THE CHARACTER WINDOW — figure, name, size and stats together, instead of a panel
+                        // THE CHARACTER WINDOW, figure, name, size and stats together, instead of a panel
                         // holding one button that opened a panel that opened a panel.
                         unitIdentity={
                           <CharacterWindow
@@ -6092,7 +6125,7 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
                           />
                         }
                         // Clear tiles targets the cell the unit STANDS on, through the same primitive a cell
-                        // selection uses; Remove tile deletes the unit — a unit IS a tile, so no bespoke Delete.
+                        // selection uses; Remove tile deletes the unit, a unit IS a tile, so no bespoke Delete.
                         onClearTiles={() => clearTilesAt([{ col: selEntity.col, row: selEntity.row }])}
                         onRemove={deleteSelectedEntity}
                         unitSection={
@@ -6113,7 +6146,7 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
                             {heldWeaponKind && styleTile('emoji', heldWeaponKind) && (
                               <div className="border-t border-white/10 pt-3">
                                 <p className="mb-1 text-[10px] font-bold uppercase tracking-wider text-amber-300">
-                                  🗡️ Held weapon — {heldWeaponKind} <span className="font-normal text-gray-500">(drag to retune it live in-hand)</span>
+                                  🗡️ Held weapon, {heldWeaponKind} <span className="font-normal text-gray-500">(drag to retune it live in-hand)</span>
                                 </p>
                                 <PoseControls
                                   kind={heldWeaponKind}
@@ -6128,15 +6161,15 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
                               </div>
                             )}
                             {isPlayer && activeStyleId === 'ascii' && playerWeaponRef.current?.kind && playerWeaponRef.current.kind !== 'unarmed' && (
-                              <p className="text-[10px] text-gray-500">Weapon pose tuning lives in the Emoji style — ASCII weapons draw their own glyph and aren&apos;t pose-driven yet.</p>
+                              <p className="text-[10px] text-gray-500">Weapon pose tuning lives in the Emoji style, ASCII weapons draw their own glyph and aren&apos;t pose-driven yet.</p>
                             )}
                           </div>
                         }
                       />
-                      {/* the SAME discoverable save the cell card carries — one component, one behaviour */}
+                      {/* the SAME discoverable save the cell card carries, one component, one behaviour */}
                       <SaveMapButton saving={isSaving} onSave={saveMapFromInspector} />
                     </>
-                    {/* Animate — the IDENTICAL shared modal a tile opens (the user: "both unit and tiles should
+                    {/* Animate, the IDENTICAL shared modal a tile opens (the user: "both unit and tiles should
                         use the same animations modal"), opened by the card's "✦ Animate…" button; geometry persists
                         under id "animation". A unit carries the SAME unified `Animation[]` a tile does in
                         `unitAnimations` (settings-kind AND sprite-kind), so the modal offers BOTH the settings and
@@ -6144,7 +6177,7 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
                         `animations` when a unit predates the field); on change we write `unitAnimations` AND keep the
                         render projection `animations` (its sprite subset) in sync for the untouched frame renderer. */}
                     {animEditorOpen && (
-                      <FloatingPanel title={`${selEntity.name || selEntity.kind} — Animation`} accent="cyan" onClose={() => setAnimEditorOpen(false)} {...floatingProps('animation', { w: 380 })}>
+                      <FloatingPanel title={`${selEntity.name || selEntity.kind}, Animation`} accent="cyan" onClose={() => setAnimEditorOpen(false)} {...floatingProps('animation', { w: 380 })}>
                         <TileAnimationEditor
                           animations={selEntity.unitAnimations ?? unitAnimationsFromEntity(selEntity.animations)}
                           elementType="Character"
@@ -6154,14 +6187,14 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
                         />
                       </FloatingPanel>
                     )}
-                    {/* Unit settings — the SAME floating panel + shared body a tile opens. Tile-only here: the
+                    {/* Unit settings, the SAME floating panel + shared body a tile opens. Tile-only here: the
                         unit's identity/inventory live on the CARD now, not in this modal. Geometry id "settings". */}
-                    {/* unit settings modal retired (§4.7 / Week 5) — every control it hosted is an inline accordion in the inspector now. */}
+                    {/* unit settings modal retired (§4.7 / Week 5), every control it hosted is an inline accordion in the inspector now. */}
                     {/* The standalone Stats window is gone. UnitStatsBody is unchanged, it just renders inside
                         CharacterWindow now. */}
-                    {/* Triggers — a floating modal (like settings) to manage this unit's on-defeat triggers. */}
+                    {/* Triggers, a floating modal (like settings) to manage this unit's on-defeat triggers. */}
                     {triggersOpen && (
-                      <FloatingPanel title={`${selEntity.name || selEntity.kind} — Rules`} accent="yellow" onClose={() => setTriggersOpen(false)} {...floatingProps('triggers', { w: 360 })}>
+                      <FloatingPanel title={`${selEntity.name || selEntity.kind}, Rules`} accent="yellow" onClose={() => setTriggersOpen(false)} {...floatingProps('triggers', { w: 360 })}>
                         <TriggerEditor
                           triggers={selEntity.triggers ?? []}
                           events={['defeat']}
@@ -6171,9 +6204,9 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
                         />
                       </FloatingPanel>
                     )}
-                    {/* Attacks — folded off the card into a floating modal (enemies only). */}
+                    {/* Attacks, folded off the card into a floating modal (enemies only). */}
                     {isEnemy && unitAttacksOpen && (
-                      <FloatingPanel title={`${selEntity.name || selEntity.kind} — Attacks`} accent="orange" onClose={() => setUnitAttacksOpen(false)} {...floatingProps('attacks', { w: 340 })}>
+                      <FloatingPanel title={`${selEntity.name || selEntity.kind}, Attacks`} accent="orange" onClose={() => setUnitAttacksOpen(false)} {...floatingProps('attacks', { w: 340 })}>
                         <EntityAttackBody entity={selEntity} onPatch={patchSelectedEntity} />
                       </FloatingPanel>
                     )}
@@ -6184,15 +6217,14 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
 
               // ── CONNECTOR ─────────────────────────────────────────
               // Editing a connector: the authoring form now lives in the draggable Connectors panel (opened
-              // from the ↗ Connectors button above), so the Inspector just points there instead of morphing —
-              // this keeps the connector selection distinct from a plain cell selection.
+              // from the ↗ Connectors button above), so the Inspector just points there instead of morphing, // this keeps the connector selection distinct from a plain cell selection.
               if (editingConnector) {
                 const coordLabel = selectedCells.size > 1 ? `${selectedCells.size} cells` : `(${editingConnector.col}, ${editingConnector.row})`
                 return (
                   <>
                     <SelectionHeader kind="connector" label="connector" coords={coordLabel} />
                     <p className="hint">
-                      Editing this doorway in the <span className="font-bold text-purple-300">↗ Doorways</span> panel — set where it leads, when it fires and which cell they arrive on.
+                      Editing this doorway in the <span className="font-bold text-purple-300">↗ Doorways</span> panel, set where it leads, when it fires and which cell they arrive on.
                     </p>
                   </>
                 )
@@ -6207,16 +6239,16 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
                 const trigRow = parseInt(first[1], 10)
                 return (
                   <>
-                    {/* ONE consolidated Cell card — EXACTLY TWO sections. A CELL is a fixed slot; its only
+                    {/* ONE consolidated Cell card, EXACTLY TWO sections. A CELL is a fixed slot; its only
                         tunable prop is collision (grid elevation stays a cell prop, painted with the terrain-
                         height tool). The TILE section shows the ONE SELECTED tile in the cell's stack (the floor
-                        is the height-0 tile; a wall/prop is a stacked block) as a single group — name + Open Tile
-                        Library + colour + Width/Height/Depth/Zoom + x/y/rotate/flip — with a ▲▼ level stepper to
+                        is the height-0 tile; a wall/prop is a stacked block) as a single group, name + Open Tile
+                        Library + colour + Width/Height/Depth/Zoom + x/y/rotate/flip, with a ▲▼ level stepper to
                         reach every block. The redundant `▸ CELL (coords)` header pill was removed; the coords now
                         ride this card's title so there's ONE cell header, not two. */}
                     <button
                       onClick={randomizeSelected}
-                      title="Re-roll the random attributes (palette colour / cube↔ball shape) of the selected tile(s) — hotkey R"
+                      title="Re-roll the random attributes (palette colour / cube↔ball shape) of the selected tile(s), hotkey R"
                       className="mb-2 w-full rounded bg-indigo-700 px-2 py-1.5 text-xs font-semibold transition-colors hover:bg-indigo-600"
                     >
                       🎲 Randomize selected {selectedCells.size > 1 ? `(${selectedCells.size})` : ''}
@@ -6230,19 +6262,19 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
                         const fc = cells[0]
                         // Drive the inspector off the ONE unified stack: index 0 = the floor (a height-0 tile),
                         // then loose props, then this cell's BUILDING blocks (wall/window/door/roof) and any
-                        // CHARACTER on it — the SAME model select/pick use, so a clicked wall or unit lands on a
+                        // CHARACTER on it, the SAME model select/pick use, so a clicked wall or unit lands on a
                         // real tile here with NO per-type branch. The SELECTED level (selectedTileLevel, clamped)
                         // picks the ONE tile shown; floor/asset values stay shared across the whole selection.
                         const stack = getStack(grid, fc.col, fc.row, { entities })
                         const levelCount = stack.length
                         const lvl = Math.min(Math.max(selectedTileLevel, 0), levelCount - 1)
                         // The library action names itself by WHAT IS SELECTED, not by how full the cell is: if a TILE
-                        // sits at the selected slot it gets REPLACED — and the floor slab IS a tile like any other,
+                        // sits at the selected slot it gets REPLACED, and the floor slab IS a tile like any other,
                         // so a plain grass cell reads "Replace tile" too. Only an EMPTY slot (a cleared cell, nothing
                         // to swap) reads "Add tile". Counting levels made the one-tile floor read "Add" and hid the
                         // swap entirely.
                         const libraryLabel = stack[lvl] ? 'Replace tile' : 'Add tile'
-                        // A tile's baked art for the Inspector thumbnail — pinned override first, else the style's
+                        // A tile's baked art for the Inspector thumbnail, pinned override first, else the style's
                         // tile for that slug. Undefined (ascii/none) → the preview shows a neutral placeholder.
                         const previewFor = (id: string | null | undefined, slug: string): Visual | undefined =>
                           (id ? visualForTileId(id) : undefined) ?? visualForTileId(`${activeStyleId}:${slug}`) ?? undefined
@@ -6252,14 +6284,14 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
                           return vals.length ? commonValue(vals) : 1
                         }
 
-                        // Set only on the branch whose writers cannot write (§3.13) — see below.
+                        // Set only on the branch whose writers cannot write (§3.13), see below.
                         let tileNotice: string | undefined
                         let tile: TileControlModel
-                        // Context for the Phase-4 tile-animation modal — set only for an asset tile (the sole
+                        // Context for the Phase-4 tile-animation modal, set only for an asset tile (the sole
                         // tile that owns GridAsset.animations). Read at the return so the modal can render in scope.
                         let animatorCtx: { i: number; label: string; animations: TileAnim[]; category: TileCategory; baseVisual: Visual } | null = null
                         if (stack[lvl]?.source === 'asset') {
-                          // EVERY tile in the cell — the FLOOR (a level-0 slab) AND every stacked prop/wall/roof — is
+                          // EVERY tile in the cell, the FLOOR (a level-0 slab) AND every stacked prop/wall/roof, is
                           // a plain GridAsset, so ONE branch drives them all through the SAME per-index writers with
                           // NO floor special case: the tile maps 1:1 to stackedAssetsAt by its stack index (i = lvl),
                           // and the floor gets the IDENTICAL uniform panel a wall shows (colour, dims, pose, Z Width,
@@ -6302,8 +6334,7 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
                             // The reach MAP across the selection: identical everywhere, or null = mixed.
                             thickness: commonValue(cells.map(({ col, row }) => JSON.stringify(stackedAssetsAt(grid, col, row)[i]?.thickness ?? {}))) as string | null,
                             onThicknessReach: (dir: DepthDir, value: number) => setAssetThicknessReach(i, dir, value),
-                            // The camera's quarter-turn, so the direction arrows read in SCREEN space —
-                            facing: cameraFacing,
+                            // The camera's quarter-turn, so the direction arrows read in SCREEN space, facing: cameraFacing,
                             zPos: adim(i, a => a.zOffset ?? 0),
                             onZPos: posable ? (v => setAssetZOffset(i, v)) : undefined,
                             zPosDir: commonValue(cells.map(({ col, row }) => (stackedAssetsAt(grid, col, row)[i]?.zDir ?? null) as DepthDir | null)),
@@ -6329,7 +6360,7 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
                           }
                           if (posable) {
                             // Sprite-frame picker context for THIS tile: its own tileset category (so a lamp's
-                            // frames come from nature tiles, a wall's from buildings — fallback nature) and its
+                            // frames come from nature tiles, a wall's from buildings, fallback nature) and its
                             // own baked visual for the empty "base" frame. Emoji is the authored style; ascii
                             // frames stay glyphs anyway.
                             const slug = stack[lvl]?.slug ?? ''
@@ -6340,7 +6371,7 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
                           }
                         } else {
                           // A BUILDING block (wall / window / door / roof) or a CHARACTER on the cell whose stack
-                          // entry is NOT an `asset` — so there is nowhere to write a size or a colour back to.
+                          // entry is NOT an `asset`, so there is nowhere to write a size or a colour back to.
                           // §3.13 called this out as a genuine trap ("the panel shows editable-looking controls
                           // that silently do nothing") and §4.7 settles it: say so. `tileNotice` drops the two
                           // sections those no-op writers would have faked; the tile library, collision, remove
@@ -6388,18 +6419,18 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
                               onRemove={removeSelectedTile}
                               onClearTiles={clearTilesOnSelection}
                             />
-                            {/* Tile-settings panel — the full TileControls body (colour/size/pose/z/display),
+                            {/* Tile-settings panel, the full TileControls body (colour/size/pose/z/display),
                                 opened from the inspector's "Edit settings…". A FLOATING panel (not a modal): no
                                 backdrop, so you drag it aside and WATCH the tile repaint as you edit. The writers
                                 already fan out to the i-th stacked tile of every selected cell (setAssetDim/Pose/…).
                                 Geometry persists in the backend under id "settings". */}
-                            {/* tile settings modal retired (§4.7 / Week 5) — every control it hosted is an inline accordion in the inspector now. */}
-                            {/* Phase-4 tile-animation panel — authors THIS asset tile's GridAsset.animations
+                            {/* tile settings modal retired (§4.7 / Week 5), every control it hosted is an inline accordion in the inspector now. */}
+                            {/* Phase-4 tile-animation panel, authors THIS asset tile's GridAsset.animations
                                 (e.g. the fountain water). A movable/resizable FLOATING panel like the settings one;
                                 geometry persists under id "tileAnimation". Writes fan out to the i-th stacked tile
                                 of every selected cell via setAssetAnimations. */}
                             {tileAnimatorOpen && animatorCtx && (
-                              <FloatingPanel title={`${animatorCtx.label} — Animation`} accent="purple" onClose={() => setTileAnimatorOpen(false)} {...floatingProps('tileAnimation', { w: 460 })}>
+                              <FloatingPanel title={`${animatorCtx.label}, Animation`} accent="purple" onClose={() => setTileAnimatorOpen(false)} {...floatingProps('tileAnimation', { w: 460 })}>
                                 <TileAnimationEditor
                                   animations={animatorCtx.animations}
                                   elementType="Tile"
@@ -6409,10 +6440,10 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
                                 />
                               </FloatingPanel>
                             )}
-                            {/* Triggers — the cell's enter/interact triggers, managed in a floating modal (like
+                            {/* Triggers, the cell's enter/interact triggers, managed in a floating modal (like
                                 settings), opened by the card's "⚑ Triggers…" button. Geometry id "triggers". */}
                             {triggersOpen && (
-                              <FloatingPanel title={`Cell ${cellLabel} — Rules`} accent="yellow" onClose={() => setTriggersOpen(false)} {...floatingProps('triggers', { w: 360 })}>
+                              <FloatingPanel title={`Cell ${cellLabel}, Rules`} accent="yellow" onClose={() => setTriggersOpen(false)} {...floatingProps('triggers', { w: 360 })}>
                                 <TriggerEditor
                                   triggers={triggersAtCell(cellTriggers, trigCol, trigRow)}
                                   events={['enter', 'interact']}
@@ -6425,7 +6456,7 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
                           </>
                         )
                       })()}
-                      {/* Discoverable save right where you edit — persists floor colour, element colour & dims
+                      {/* Discoverable save right where you edit, persists floor colour, element colour & dims
                           with the template. Unnamed map → a toast, not a silent no-op (spec §4). */}
                       <SaveMapButton saving={isSaving} onSave={saveMapFromInspector} />
                     </>
@@ -6441,7 +6472,7 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
                 <div className="hint">
                   <p className="text-xs font-bold uppercase tracking-wide text-gray-300">Nothing selected</p>
                   <p>
-                    Click anything on the map to edit it here — a patch of ground, a wall, a tree,
+                    Click anything on the map to edit it here, a patch of ground, a wall, a tree,
                     a character.
                   </p>
                   <p>Shift+drag to select several.</p>
@@ -6461,7 +6492,7 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
           </aside>
         )}
 
-        {/* Debug Legend — only when sidebars are hidden, so it isn't redundant */}
+        {/* Debug Legend, only when sidebars are hidden, so it isn't redundant */}
         {showDebug && !showSidebars && !showFlowView && (
           <div className="fixed bottom-4 left-4 z-20 rounded bg-black/90 p-3 font-mono text-xs text-white">
             <h3 className="mb-1 font-bold text-red-400">DEBUG</h3>
@@ -6471,13 +6502,13 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
         )}
 
         {/* No floating Inventory button. The bag opens on I, from the sidebar, or from any action bar slot bound to
-            `open_bag` — three pathways in already, so a button parked over the map was a fourth that only ever got in
+            `open_bag`, three pathways in already, so a button parked over the map was a fourth that only ever got in
             the way. */}
         {confirmDialog}
         {promptDialog}
         {/* THE SHORTCUT SHEET (§4.9). It reads the PLAYER's live bindings, so a rebound ability or
-            quick slot is documented the moment it changes — the sheet has no key literals of its own. */}
-        {/* THE GUIDES — whole jobs, start to finish, in a movable panel so they can sit beside the thing
+            quick slot is documented the moment it changes, the sheet has no key literals of its own. */}
+        {/* THE GUIDES, whole jobs, start to finish, in a movable panel so they can sit beside the thing
             they describe. Every step names the control by the words printed on it. */}
         {guidesOpen && (
           <FloatingPanel
@@ -6497,7 +6528,7 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
             specialKeys={loadouts['__player__']?.shortcuts}
           />
         )}
-        {/* THE CHARACTER PANEL. The bag button and the quest button both open THIS, each on its own tab — which is
+        {/* THE CHARACTER PANEL. The bag button and the quest button both open THIS, each on its own tab, which is
             also what makes the bag a bag again, since the stats block and the key-rebinding block that had nowhere
             else to live now have tabs of their own. */}
         {(inventoryOpen || questLogOpen) && (() => {
@@ -6533,7 +6564,7 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
                     abilityLoadout: abilityLoadouts['__player__'] ?? defaultAbilityLoadout(),
                     onAbilityChange: (l: readonly AbilityBinding[]) =>
                       setAbilityLoadouts(prev => ({ ...prev, __player__: l })),
-                    // §4.10 — the class switch is a header control of the ONE inventory now. Only the
+                    // §4.10, the class switch is a header control of the ONE inventory now. Only the
                     // player has a class, so only the player passes it.
                     talentPath,
                     onTalentPath: setArchetype,
@@ -6572,7 +6603,7 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
             character window. It is already on the player's own panel, so it never needed a button too. */}
 
 
-        {/* Quest OFFER modal — opened when the player talks to a giver with an
+        {/* Quest OFFER modal, opened when the player talks to a giver with an
             `available` quest; floats above the giver (centered if off-screen). */}
         {questGiveModal && (() => {
           const giver = entities.find(e => e.id === questGiveModal.giverId)
@@ -6590,9 +6621,9 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
           )
         })()}
 
-        {/* ↗ CONNECTORS — the whole connector flow in a DRAGGABLE/RESIZABLE floating panel (geometry persisted
+        {/* ↗ CONNECTORS, the whole connector flow in a DRAGGABLE/RESIZABLE floating panel (geometry persisted
             under id "connectors"), opened from the right-sidebar ↗ Connectors button. Same controls as before
-            (Edit/Exit authoring, the saved list, and the target/when/spawn form) — just relocated. */}
+            (Edit/Exit authoring, the saved list, and the target/when/spawn form), just relocated. */}
         {connectorPanelOpen && !playMode && !showGamesView && (
           <FloatingPanel title="Doorways" accent="purple" onClose={closeConnectorPanel} {...floatingProps('connectors', { w: 320 })}>
             <ConnectorsPanelBody
@@ -6619,13 +6650,13 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
           </FloatingPanel>
         )}
 
-        {/* ◰ TILE LIBRARY — lists the active style's tiles by category. A DRAGGABLE/RESIZABLE floating panel
+        {/* ◰ TILE LIBRARY, lists the active style's tiles by category. A DRAGGABLE/RESIZABLE floating panel
             (geometry persisted under id "tileLibrary"), opened from the Inspector's "Add tile / Replace tile"
             button (which sits below Colour). For a UNIT it PINS the picked tile as a figure override; for a
             CELL selection it PAINTS the picked tile onto the selection via the SAME path as the left Paint
             tool (paintTileOnSelection). */}
-        {/* HOW IT WILL BE PLACED — its own movable panel, as asked. */}
-        {/* THE PREVIEW — a MOVABLE panel that opens beside the LEFT panel, showing the thing drawn by the map's own
+        {/* HOW IT WILL BE PLACED, its own movable panel, as asked. */}
+        {/* THE PREVIEW, a MOVABLE panel that opens beside the LEFT panel, showing the thing drawn by the map's own
             renderer in the view you are looking at. and Both are the same panel: `MapPreview` stamps the subject
             into a real grid and calls the renderer the view bar has selected, so it cannot disagree with the map. */}
         {/* SHOWN WHEN THERE IS SOMETHING TO SHOW, which is not the same as "a library is open". Gating it on the
@@ -6649,7 +6680,7 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
               style={previewContext.style}
               styleId={previewContext.styleId}
             />
-            {/* Only says something when there IS something — `MapPreview` already carries the empty state,
+            {/* Only says something when there IS something, `MapPreview` already carries the empty state,
                 and both showing it printed "Point at something in the library" twice. */}
             {previewCaption && (
               <div className="hint">
@@ -6690,8 +6721,7 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
             : cellPaint
             ? (selectedCells.size > 1 ? `${selectedCells.size} cells` : 'cell')
             : null
-          // The BEFORE picture and the slot's address, read from the same stack the swap will write into —
-          // so what the panel shows and what it changes cannot disagree.
+          // The BEFORE picture and the slot's address, read from the same stack the swap will write into, // so what the panel shows and what it changes cannot disagree.
           const swapFocus = cellsFromKeys(selectedCells)[0]
           const swapStack = gridRef.current && swapFocus
             ? getStack(gridRef.current, swapFocus.col, swapFocus.row, { entities })
@@ -6708,8 +6738,8 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
           // For a cell selection, picking a tile lands it by the SAME state that NAMES the button (§13): once the
           // focus cell holds a stacked tile the button reads "Replace tile", so the pick SWAPS the selected tile in
           // place (replaceTileOnSelection); on a bare / floor-only cell it reads "Add tile" and STACKS as before
-          // (paintTileOnSelection). Distinguished by the focus cell's stack depth — no new mode. (A unit pins the
-          // figure override — handled by setSelectionOverride, not this.)
+          // (paintTileOnSelection). Distinguished by the focus cell's stack depth, no new mode. (A unit pins the
+          // figure override, handled by setSelectionOverride, not this.)
           const paintFromLibrary = (tileId: string | null) => {
             if (!tileId) return
             const picked = (Object.values(tilesForStyle(activeStyleId)).flat() as TileDef[]).find(t => t.id === tileId)
@@ -6752,7 +6782,7 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
           )
         })()}
 
-        {/* LIBRARY modals — the per-element SETTINGS moved inline into the Inspector;
+        {/* LIBRARY modals, the per-element SETTINGS moved inline into the Inspector;
             these two stay modal (the unit's equipment/abilities + the NPC quest authoring). */}
         {entityModal && (() => {
           const selected = entities.find(e => e.id === selectedEntityId)
@@ -6760,20 +6790,20 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
           const who = selected.name || selected.kind
           const close = () => setEntityModal(null)
           if (entityModal === 'inventory') {
-            // The carried BAG + live vitals belong to the hero alone — it is the one unit with a combat
+            // The carried BAG + live vitals belong to the hero alone, it is the one unit with a combat
             // state and an item bag. Every OTHER unit carries a loadout (weapon / armour / abilities), which
             // the equipment panel already edits per entity (`loadouts[selectedEntityId]`), so the entry point
             // is the same for all of them and only the bag section is the player's.
             const carriesItemBag = selected.kind === 'player'
             return (
-              <Modal title={`${who} — Inventory & abilities`} accent="cyan" wide onClose={close}>
+              <Modal title={`${who}, Inventory & abilities`} accent="cyan" wide onClose={close}>
                 {carriesItemBag ? (
                   <>
                     <CombatHud hud={playerHud} />
                   </>
                 ) : (
                   <p className="text-xs text-gray-400">
-                    {who} carries a loadout — weapon, armour and abilities. The carried item bag is the hero&apos;s alone.
+                    {who} carries a loadout, weapon, armour and abilities. The carried item bag is the hero&apos;s alone.
                   </p>
                 )}
                 <button
@@ -6787,7 +6817,7 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
           }
           if (entityModal === 'quests') {
             return (
-              <Modal title={`${who} — Quests`} accent="orange" wide onClose={close}>
+              <Modal title={`${who}, Quests`} accent="orange" wide onClose={close}>
                 <QuestAuthoringCard
                   npcs={entities.filter(e => e.kind === 'npc')}
                   quests={quests}
@@ -6801,7 +6831,7 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
           }
           return null
         })()}
-        {/* QUESTS, opened from the ⚑ Rules panel — no NPC has to be selected to get here (§3.8: the old
+        {/* QUESTS, opened from the ⚑ Rules panel, no NPC has to be selected to get here (§3.8: the old
             route was Select → click an NPC → scroll its card, so a level with no NPC had no way in and no
             explanation). The SAME authoring card the NPC route opens, so there is one quest editor. */}
         {questPanelOpen && (
@@ -6821,7 +6851,7 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
   )
 }
 
-/** The Inspector's "💾 Save map" action — ONE component so the cell card and the unit card carry the exact
+/** The Inspector's "💾 Save map" action, ONE component so the cell card and the unit card carry the exact
  *  same button in the same place ("all tiles behave the same"), instead of two copies drifting apart. */
 function SaveMapButton({ saving, onSave }: { saving: boolean; onSave: () => void }) {
   return (
@@ -6838,17 +6868,17 @@ function SaveMapButton({ saving, onSave }: { saving: boolean; onSave: () => void
 
 /** The error-boundary fallback for the editor: a friendly card (never a blank white screen) + a one-shot
  *  toast, shown only if the editor throws while rendering. A render crash means we can't re-show the live
- *  builder, so we offer a reload — the data-load failures (tileset/game down) degrade to the usable default
+ *  builder, so we offer a reload, the data-load failures (tileset/game down) degrade to the usable default
  *  builder instead and never reach here. */
 function EditorErrorFallback() {
   const { toast } = useToast()
   useEffect(() => {
-    toast('The builder hit an unexpected error — reload to try again.', 'error')
+    toast('The builder hit an unexpected error, reload to try again.', 'error')
   }, [toast])
   return (
     <div className="min-h-screen bg-gray-900 text-white font-mono flex flex-col items-center justify-center gap-4 p-6 text-center">
       <p className="text-xl">Something went wrong loading the builder.</p>
-      <p className="max-w-md text-sm text-gray-400">The editor hit an unexpected error. Your saved maps are safe — reload to try again.</p>
+      <p className="max-w-md text-sm text-gray-400">The editor hit an unexpected error. Your saved maps are safe, reload to try again.</p>
       <button
         onClick={() => window.location.reload()}
         className="rounded bg-gray-700 px-4 py-2 hover:bg-gray-600"
@@ -6860,7 +6890,7 @@ function EditorErrorFallback() {
 }
 
 /**
- * The page's real default export — the editor wrapped in an error boundary so a render-time crash from
+ * The page's real default export, the editor wrapped in an error boundary so a render-time crash from
  * missing/bad backend data shows the fallback + notification instead of an uncaught JS error / white screen.
  * `games/[id]` imports this default too, so the game view is covered by the same net.
  */

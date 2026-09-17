@@ -2,7 +2,7 @@ import '@/__tests__/helpers/installTilesetSeed' // the walk/run pose tiles live 
 import { seedCharacterAnimations, resolveFrame, needsAnimationReseed, type EntityAnimation } from '@/game/runtime/entityAnimation'
 import { NEBULITH_API } from '@/lib/nebulithApi'
 
-// The DB tileset's image_url is root-relative — the loader absolutizes it against the backend origin
+// The DB tileset's image_url is root-relative, the loader absolutizes it against the backend origin
 // (same as tilesetLoader's `abs()`), so a baked image src carries that origin here too.
 const ORIGIN = NEBULITH_API.replace(/\/api\/?$/, '')
 
@@ -51,7 +51,7 @@ describe('default character animation seed uses DB tiles, not hardcoded emoji', 
   })
 })
 
-describe('needsAnimationReseed — reseed the outdated hardcoded-emoji default, keep custom sets', () => {
+describe('needsAnimationReseed, reseed the outdated hardcoded-emoji default, keep custom sets', () => {
   const oldSeed: EntityAnimation[] = [
     { id: 'char-walk-down', name: 'walk down', trigger: { on: 'move' }, direction: 'down', frames: [{ char: '🚶' }, { char: '🚶', flipX: true }], durationMs: 440, loop: true },
   ]

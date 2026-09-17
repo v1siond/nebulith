@@ -1,13 +1,13 @@
 /**
- * SWAP THIS TILE — the answer to a question that had no answer in the UI.
+ * SWAP THIS TILE, the answer to a question that had no answer in the UI.
  *
- * It swaps the tile in THAT slot of the stack (`game/editor/tileBrush.ts:138` — `replaceTileInPlace`): same
+ * It swaps the tile in THAT slot of the stack (`game/editor/tileBrush.ts:138`, `replaceTileInPlace`): same
  * cell, same level, the tiles above and below untouched, and the slot adopts the new tile's art, colour,
  * height, thickness and settings. Nothing in the old UI said any of that; the button simply read "Replace
  * tile" and the library opened.
  *
  * So this panel shows the BEFORE and the AFTER, spells out exactly what carries over, names the one
- * exception, and is cancellable. The carry-over list is not prose — each row is a field
+ * exception, and is cancellable. The carry-over list is not prose, each row is a field
  * `replaceTileInPlace` actually assigns, so it cannot drift from what the code does.
  */
 import { useMemo, useState } from 'react'
@@ -20,12 +20,12 @@ import { tileFacts } from '@/engine/tilePreview'
 import { SubHeading } from './InfoButton'
 import { TilePicture } from './Previews'
 
-/** What the swap carries over — every row is a field `replaceTileInPlace` assigns. */
+/** What the swap carries over, every row is a field `replaceTileInPlace` assigns. */
 const CARRIES: readonly (readonly [string, string])[] = [
   ['Its picture', 'yes'],
   ['Its colour', 'yes'],
-  ['Its height', 'yes — replaces the old one'],
-  ['Its thickness', 'yes — cleared if it has none'],
+  ['Its height', 'yes, replaces the old one'],
+  ['Its thickness', 'yes, cleared if it has none'],
   ['Its settings', 'yes'],
   ['Its position in the stack', 'unchanged'],
   ['The cell’s other tiles', 'untouched'],
@@ -35,7 +35,7 @@ export interface SwapTilePanelProps {
   styleId: string
   /** The label currently in the slot, for the BEFORE picture. */
   fromLabel: string | null
-  /** Where in the stack this is — "cell 12, 8 · tile 2 of 3". */
+  /** Where in the stack this is, "cell 12, 8 · tile 2 of 3". */
   where: string
   /** True when the selection is a character: it keeps everything and only the picture changes. */
   isCharacter: boolean
@@ -69,7 +69,7 @@ export function SwapTilePanel({ styleId, fromLabel, where, isCharacter, onSwap, 
           ) : (
             <div className="swempty">this slot is empty</div>
           )}
-          <div className="swn">{fromLabel ? (tileFacts(styleId, fromLabel)?.name ?? fromLabel) : '—'}</div>
+          <div className="swn">{fromLabel ? (tileFacts(styleId, fromLabel)?.name ?? fromLabel) : ', '}</div>
         </div>
         <div className="swarrow" aria-hidden="true">→</div>
         <div className="swapc to">
@@ -79,14 +79,14 @@ export function SwapTilePanel({ styleId, fromLabel, where, isCharacter, onSwap, 
           ) : (
             <div className="swempty">pick one below</div>
           )}
-          <div className="swn">{picked ? picked.label : '—'}</div>
+          <div className="swn">{picked ? picked.label : ', '}</div>
         </div>
       </div>
 
       <div className="hint">
         {isCharacter
           ? 'The character keeps its name, stats, items, powers, quests and position. Only the picture changes.'
-          : `It goes in this exact slot — ${where}. The tiles above and below stay where they are.`}
+          : `It goes in this exact slot, ${where}. The tiles above and below stay where they are.`}
       </div>
 
       {!isCharacter && (

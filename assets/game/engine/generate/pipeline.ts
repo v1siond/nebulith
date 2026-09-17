@@ -3,7 +3,7 @@
  *
  * *"we generate the grid, then we add water if any, then we generate pathways with number of exits around the
  * existing area, then we add the rest of vegeation and other things, then we add the characters if any, our
- * layers aren't correctly applied"* — and then, on what this is FOR:
+ * layers aren't correctly applied"*, and then, on what this is FOR:
  *
  *   *"we'll add more layers as things get more complicated, for example, we can apply shadow and lightning as
  *   extra layers, we'll also add fog layer, then we probably will add some reprocess layer too, we'll add

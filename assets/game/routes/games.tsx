@@ -6,7 +6,7 @@ import { nextGameName } from '@/game/autoNaming'
 import { useConfirm } from '@/components/game/useConfirm'
 
 /**
- * GAMES gallery — the app is scoped to games now (templates are a reusable resource). Games are PERSISTED
+ * GAMES gallery, the app is scoped to games now (templates are a reusable resource). Games are PERSISTED
  * in the Elixir backend (a game = a named flow of templates). Open loads the game's editor at its
  * last-watched template; ▶ Play enters that level in play mode. Same nebulith layout as before.
  */
@@ -23,10 +23,10 @@ export default function GamesPage() {
   }
   useEffect(() => { load() }, [])
 
-  // The /games/[id] route resolves the start template (last-watched, else first) itself — just pass the id.
+  // The /games/[id] route resolves the start template (last-watched, else first) itself, just pass the id.
   const openGame = (g: Game) => router.push(`/personal-projects/game-engine/games/${g.id}`)
   const playGame = (g: Game) => router.push(`/personal-projects/game-engine/games/${g.id}?play=1`)
-  // Creating a game asks nothing — The gallery names it from what is
+  // Creating a game asks nothing, The gallery names it from what is
   // already there and the editor opens; renaming is a normal edit once you are in it.
   const handleNew = async () => {
     const g = await createGame({ name: nextGameName(games) })
@@ -35,7 +35,7 @@ export default function GamesPage() {
   const handleDelete = async (g: Game) => {
     const ok = await confirm({
       title: 'Delete game',
-      body: `Delete "${g.name}"? Its levels are kept — only the game that groups them goes.`,
+      body: `Delete "${g.name}"? Its levels are kept, only the game that groups them goes.`,
       confirmLabel: 'Delete game',
     })
     if (!ok) return
@@ -51,7 +51,7 @@ export default function GamesPage() {
           <span className="text-gray-400 text-sm">Games:</span>
           <span className="ml-2 text-xl font-bold">{games.length}</span>
         </div>
-        {/* ONE create button on the page, never two — while the gallery is empty the call to action
+        {/* ONE create button on the page, never two, while the gallery is empty the call to action
             IS the empty state below, so this one stands down. */}
         {games.length > 0 && (
           <button

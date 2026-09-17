@@ -2,13 +2,13 @@ import '@/__tests__/helpers/installTilesetSeed' // install the DB-equivalent til
 /**
  * RIGHT-SIDEBAR / INSPECTOR tools (the four UI deliverables). These are the seams behind the user's asks:
  *
- *   #1 Clear tiles + SEE the selected tile — the Inspector shows a thumbnail of the selected tile and a
+ *   #1 Clear tiles + SEE the selected tile, the Inspector shows a thumbnail of the selected tile and a
  *      PROMINENT "Clear tiles" action (on the ONE shared card, so a unit gets it too).
- *   #2 Connectors — the flow lives in a draggable FloatingPanel opened from a right-sidebar button (off the
+ *   #2 Connectors, the flow lives in a draggable FloatingPanel opened from a right-sidebar button (off the
  *      left rail). ConnectorsPanelBody hosts the identical controls (Edit/Exit, the list, the target/when/
  *      spawn form).
- *   #3 Tile Library — the tile-add button sits BELOW Colour and opens a draggable/resizable FloatingPanel.
- *   #4 Add tile / Replace tile — the tile-add button names itself by CELL STATE, and picking a tile in PAINT
+ *   #3 Tile Library, the tile-add button sits BELOW Colour and opens a draggable/resizable FloatingPanel.
+ *   #4 Add tile / Replace tile, the tile-add button names itself by CELL STATE, and picking a tile in PAINT
  *      mode paints it onto the selection through the SAME placement primitives the left Paint tool uses.
  */
 import { useState } from 'react'
@@ -62,7 +62,7 @@ function renderPanel(props: Partial<React.ComponentProps<typeof PropertiesPanel>
   )
 }
 
-// ── Deliverable #1 — SEE the selected tile + Clear tiles ────────────────────────────────────────────────
+// ── Deliverable #1, SEE the selected tile + Clear tiles ────────────────────────────────────────────────
 describe('#1 Inspector shows the selected tile + a Clear-tiles action', () => {
   it('renders a thumbnail of the selected tile (an <img> for an image tile)', () => {
     renderPanel({ tile: floorTile({ preview: { kind: 'image', src: '/tiles/emoji/baked/grass.png', char: '🍀' } }) })
@@ -85,7 +85,7 @@ describe('#1 Inspector shows the selected tile + a Clear-tiles action', () => {
   })
 
   // Updated with the unified-card work: a UNIT gets the SAME card as a tile, so it carries Clear tiles too
-  // (the page targets the cell the unit stands on). One card, one control set — see unitTileCardParity.
+  // (the page targets the cell the unit stands on). One card, one control set, see unitTileCardParity.
   it('shows Clear tiles for a UNIT as well (the ONE shared card)', () => {
     const onClearTiles = jest.fn()
     renderPanel({ onClearTiles, unitSection: <div>unit extras</div> })
@@ -94,16 +94,16 @@ describe('#1 Inspector shows the selected tile + a Clear-tiles action', () => {
   })
 })
 
-// ── Deliverable #3 — the Tile Library button, and the draggable/resizable modal it opens ────────────────
+// ── Deliverable #3, the Tile Library button, and the draggable/resizable modal it opens ────────────────
 describe('#3 the tile-add button opens a FloatingPanel', () => {
   it('the swap-tile row sits in the identity section, ABOVE the Appearance colour', () => {
     renderPanel({ tile: floorTile({ libraryLabel: 'Add tile' }) })
     const colour = screen.getByLabelText('grass colour')
-    // The Tile ROW is the swap now — there is no button inside it to find, because there is no inside.
+    // The Tile ROW is the swap now, there is no button inside it to find, because there is no inside.
     const libraryBtn = screen.getByRole('button', { name: 'Tile' })
 
     // ORDER CONFLICT, FLAGGED RATHER THAN SETTLED HERE. Deliverable #3 asked for this button BELOW the
-    // colour swatch. The later §4.7 section design — the approved mockup — puts identity first ("Tile", with
+    // colour swatch. The later §4.7 section design, the approved mockup, puts identity first ("Tile", with
     // the swap button that answers *what is this*), then "Appearance", which is where the colour now lives.
     // The card follows the sections, so the button precedes the colour. That reads sensibly (pick the thing,
     // then paint it) but it is the reverse of #3, and which one wins is a judgement call, not this test's.
@@ -118,7 +118,7 @@ describe('#3 the tile-add button opens a FloatingPanel', () => {
         <>
           <PropertiesPanel sectionOpen={() => true} onToggleSection={jest.fn()} collision={false} onCollision={jest.fn()} tile={floorTile({ libraryLabel: 'Add tile', onOpenLibrary: () => setOpen(true) })} level={1} levelCount={1} onLevel={jest.fn()} sectionOpen={() => true} onToggleSection={jest.fn()} />
           {open && (
-            <FloatingPanel title="Tile Library — Emoji · cell" accent="cyan" onClose={() => setOpen(false)}>
+            <FloatingPanel title="Tile Library, Emoji · cell" accent="cyan" onClose={() => setOpen(false)}>
               <TileLibraryBody styleId="emoji" styleName="Emoji" override={null} paint onPick={jest.fn()} />
             </FloatingPanel>
           )}
@@ -135,7 +135,7 @@ describe('#3 the tile-add button opens a FloatingPanel', () => {
   })
 })
 
-// ── Deliverable #4 — Add tile / Replace tile by cell status + paint via the same path ────────────────────
+// ── Deliverable #4, Add tile / Replace tile by cell status + paint via the same path ────────────────────
 describe('#4 the tile-add button names itself by cell status', () => {
   it('ArtSection defaults to "Open Tile Library…" and honors a caller label', () => {
     const { rerender } = render(<ArtSection styleName="Emoji" onOpen={jest.fn()} />)
@@ -144,7 +144,7 @@ describe('#4 the tile-add button names itself by cell status', () => {
     expect(screen.getByRole('button', { name: 'Replace tile' })).toBeInTheDocument()
   })
 
-  it('the Tile row still SAYS "Add tile" / "Replace tile" — as its badge, not a button inside it', () => {
+  it('the Tile row still SAYS "Add tile" / "Replace tile", as its badge, not a button inside it', () => {
     // Collapsing the panel must not cost the wording. That label is the only thing telling you whether the
     // click adds to an empty cell or swaps what is already there, so it moved onto the row as its summary.
     const row = () => screen.getByRole('button', { name: 'Tile' })
@@ -187,7 +187,7 @@ describe('#4 TileLibraryBody PAINT mode (right-sidebar paint the selection)', ()
     const selection = [{ col: 1, row: 1 }, { col: 2, row: 1 }, { col: 3, row: 1 }]
     for (const { col, row } of selection) stackAssetTile(grid, col, row, tree)
     for (const { col, row } of selection) {
-      // The pine STACKS on top of the grass floor (which stays as slot 0) — so read the stacked (non-floor) tile.
+      // The pine STACKS on top of the grass floor (which stays as slot 0), so read the stacked (non-floor) tile.
       const stack = grid.getAssetsAtCell(col, row).filter(a => a.type !== 'floor')
       expect(stack).toHaveLength(1)
       expect(stack[0].tileOverride).toBe('emoji:pine-tree') // a real, editable, pinned tile per cell
@@ -200,7 +200,7 @@ describe('#4 TileLibraryBody PAINT mode (right-sidebar paint the selection)', ()
   })
 })
 
-// ── Deliverable #2 — Connectors flow in a draggable modal ────────────────────────────────────────────────
+// ── Deliverable #2, Connectors flow in a draggable modal ────────────────────────────────────────────────
 function connector(overrides: Partial<Connector> = {}): Connector {
   return { cells: [{ col: 2, row: 3 }], targetTemplateId: 't1', targetTemplateName: 'Cavern', interaction: 'walk', spawnCol: 0, spawnRow: 0, ...overrides }
 }
@@ -224,7 +224,7 @@ function connectorProps(overrides: Partial<React.ComponentProps<typeof Connector
   }
 }
 
-describe('#2 Connectors — ConnectorsPanelBody hosts the whole flow', () => {
+describe('#2 Connectors, ConnectorsPanelBody hosts the whole flow', () => {
   it('the Edit/Exit toggle fires onToggleMode', () => {
     const onToggleMode = jest.fn()
     render(<ConnectorsPanelBody {...connectorProps({ connectorMode: false, onToggleMode })} />)
@@ -293,13 +293,13 @@ describe('#2 Connectors — ConnectorsPanelBody hosts the whole flow', () => {
 // The Connectors button must open STRAIGHT into the editing view on the FIRST click (user: "if I have multi
 // select and click connectors I expect to see the editing view, but instead I have to click again"). The
 // editing FORM shows iff editingConnector is set; connectorEditFromSelection is what openConnectorPanel uses
-// to arm it from the active selection — so a non-null result == the form shows on that first click.
-describe('#2 Connectors — opening lands in the editing view (no second click)', () => {
+// to arm it from the active selection, so a non-null result == the form shows on that first click.
+describe('#2 Connectors, opening lands in the editing view (no second click)', () => {
   it('no selection → null (nothing to edit; the panel just stays armed, ready to draw)', () => {
     expect(connectorEditFromSelection([], [])).toBeNull()
   })
 
-  it('a MULTI-cell selection arms editing immediately — keystone + fresh form + the whole selection', () => {
+  it('a MULTI-cell selection arms editing immediately, keystone + fresh form + the whole selection', () => {
     const selection = [{ col: 4, row: 5 }, { col: 4, row: 6 }, { col: 5, row: 5 }]
     const start = connectorEditFromSelection(selection, [])
     expect(start).not.toBeNull()
@@ -315,7 +315,7 @@ describe('#2 Connectors — opening lands in the editing view (no second click)'
     expect(start!.cells).toEqual([{ col: 7, row: 2 }])
   })
 
-  it('a selection overlapping a SAVED connector LOADS it — its full cell set + its saved form', () => {
+  it('a selection overlapping a SAVED connector LOADS it, its full cell set + its saved form', () => {
     const saved = connector({ cells: [{ col: 2, row: 3 }, { col: 2, row: 4 }], targetTemplateId: 't9', interaction: 'interact' })
     const start = connectorEditFromSelection([{ col: 2, row: 4 }], [saved]) // click one of its cells
     expect(start!.editing).toEqual({ col: 2, row: 3 })          // keystone = the connector's first cell

@@ -5,7 +5,7 @@
  * The editor used to stamp it ONCE at the first selected cell, so selecting 40
  * cells and clicking "well" gave a hardcoded 2×2 well. Here the pattern repeats by
  * its own width/height across the selection's bounding box and is clipped to the
- * SELECTED cells — so the asset fills exactly the region the user chose.
+ * SELECTED cells, so the asset fills exactly the region the user chose.
  *
  * Pure placement logic (kept out of the editor component so it's unit-testable):
  * it mutates the grid via placeAsset, no React state.
@@ -66,7 +66,7 @@ export function fillSelectionWithComposite(
 /**
  * SCALE a composite to span the selection's bounding box as ONE instance.
  * Each bounding-box cell maps (nearest-neighbour) to a pattern cell, so a 2×2 well
- * selected over 10×10 becomes a single 10×10 well — not a 5×5 grid of little wells.
+ * selected over 10×10 becomes a single 10×10 well, not a 5×5 grid of little wells.
  * (This is the "select a region → one big asset" behaviour, vs the tiling above.)
  */
 export function scaleCompositeToRegion(

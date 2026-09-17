@@ -1,10 +1,10 @@
 /**
- * HOW THE TREES ARE DISTRIBUTED — the thing that tells two forests apart when both hold the same number of
+ * HOW THE TREES ARE DISTRIBUTED, the thing that tells two forests apart when both hold the same number of
  * trees.
  *
  * with six photographs.
  *
- * Two served numbers carry it. `lattice` is the scale of the noise the canopy is scored against — small
+ * Two served numbers carry it. `lattice` is the scale of the noise the canopy is scored against, small
  * scores every few cells differently so trees land as fine scatter, large makes neighbours score alike so
  * they land as continuous masses. `spacing` is the minimum gap between trunks. A formation is DISTRIBUTION
  * only; pairing it with a density is what produces a particular look, which is why #12 and #14 use the same
@@ -38,7 +38,7 @@ const build = (formation: GeneratorFormation, canopy = 0.45, seed = 3) => {
 
 type Stage = ReturnType<typeof build>
 
-/** Mean distance from each trunk to its NEAREST neighbour — the number separating a wall from a pasture. */
+/** Mean distance from each trunk to its NEAREST neighbour, the number separating a wall from a pasture. */
 function meanNearestNeighbour(s: Stage): number {
   if (s.trees.length < 2) return 0
   let sum = 0
@@ -54,7 +54,7 @@ function meanNearestNeighbour(s: Stage): number {
   return sum / s.trees.length
 }
 
-/** The share of trunks with 8+ tree neighbours within 2 cells — how much the forest CLUMPS. */
+/** The share of trunks with 8+ tree neighbours within 2 cells, how much the forest CLUMPS. */
 function clumpiness(s: Stage): number {
   const keys = new Set(s.trees.map(t => `${t.col},${t.row}`))
   let clustered = 0
@@ -101,7 +101,7 @@ describe('spacing decides whether trees read as individuals or as a wall', () =>
     expect(clumpiness(s)).toBe(0)
   })
 
-  it('an even-aged stand spaces them regularly — closer than a pasture, still no clumps (image #11)', () => {
+  it('an even-aged stand spaces them regularly, closer than a pasture, still no clumps (image #11)', () => {
     const stand = build(FORM.stand)
     const pasture = build(FORM.scattered)
     expect(meanNearestNeighbour(stand)).toBeLessThan(meanNearestNeighbour(pasture))
@@ -115,7 +115,7 @@ describe('spacing decides whether trees read as individuals or as a wall', () =>
   })
 })
 
-describe('a formation is DISTRIBUTION — the look comes from pairing it with a density', () => {
+describe('a formation is DISTRIBUTION, the look comes from pairing it with a density', () => {
   it('the same grouping at two densities gives a patchy hillside and a closed canopy', () => {
     // Images #12 and #14 are both clumped. What separates them is how much of the map is under canopy, and
     // that is why a formation states no density: a subtype pairs the two.

@@ -1,18 +1,18 @@
 import '@/__tests__/helpers/installTilesetSeed' // install the DB-equivalent tileset the runtime loads
 /**
- * Units and tiles use the IDENTICAL shared tile-animation modal (`TileAnimationEditor`) — the user: "both unit
+ * Units and tiles use the IDENTICAL shared tile-animation modal (`TileAnimationEditor`), the user: "both unit
  * and tiles should use the same animations modal... which is the one used by settings animation on tile". So a
  * selected UNIT gets BOTH the settings AND the sprite add-buttons, exactly like a tile; a unit carries the same
  * unified `Animation[]` a tile does (`Entity.unitAnimations`), and the render projection `Entity.animations`
  * (EntityAnimation[]) stays in sync from its sprite subset. Plus the #55 fix: a frame that references a baked tile
  * must render that tile's IMAGE, never a raw glyph. These tests lock:
  *
- *   1. IDENTICAL MODAL FOR TILES AND UNITS — the same modal offers BOTH settings + sprite adds for a Unit AND a
+ *   1. IDENTICAL MODAL FOR TILES AND UNITS, the same modal offers BOTH settings + sprite adds for a Unit AND a
  *      Tile. A sprite add produces a real `kind:'sprite'` envelope with the entity frame model (a frame LIST +
  *      an idle/move/attack trigger + a direction); a settings add produces a `kind:'settings'` envelope.
- *   2. BAKED-IMAGE FRAMES (#55) — a frame slot for a tile whose visual is a baked image renders an <img> with
+ *   2. BAKED-IMAGE FRAMES (#55), a frame slot for a tile whose visual is a baked image renders an <img> with
  *      that tile's src, and the tile's SOURCE glyph never leaks out as a text glyph.
- *   3. UNIFIED STORAGE BRIDGE — a unit stores the unified `Animation[]`; the render projection is the sprite
+ *   3. UNIFIED STORAGE BRIDGE, a unit stores the unified `Animation[]`; the render projection is the sprite
  *      subset (entityAnimationsFromUnit) while the settings envelope PERSISTS; a legacy sprite-only entity lifts
  *      losslessly (unitAnimationsFromEntity), and a unit round-trips a settings + a sprite animation intact.
  */
@@ -23,7 +23,7 @@ import { tilesForStyle } from '@/game/artStyle'
 import { spriteFromEntity, entityFromSprite, entityAnimationsFromUnit, unitAnimationsFromEntity, type EntityAnimation } from '@/game/runtime/entityAnimation'
 import type { Animation, SettingsAnimation, SpriteAnimation } from '@/engine/animation/tileAnimation'
 
-/** The first emoji tile whose visual is a baked IMAGE — the case #55 is about (a frame that must draw art). */
+/** The first emoji tile whose visual is a baked IMAGE, the case #55 is about (a frame that must draw art). */
 function anImageUnitTile() {
   const tile = tilesForStyle('emoji').units.find(t => t.visual.kind === 'image')
   if (!tile || tile.visual.kind !== 'image') throw new Error('seed has no baked image unit tile')
@@ -34,7 +34,7 @@ function anImageUnitTile() {
 function Harness({
   initial = [],
   elementType = 'Character' as const,
-  // A unit is now wired with BOTH kinds (the default), exactly like a tile — no `kinds` override in templates.
+  // A unit is now wired with BOTH kinds (the default), exactly like a tile, no `kinds` override in templates.
   kinds = ['settings', 'sprite'] as readonly ('settings' | 'sprite')[],
 }: {
   initial?: Animation[]
@@ -60,16 +60,16 @@ function Harness({
 
 const readState = (): Animation[] => JSON.parse(screen.getByTestId('state').textContent || '[]')
 
-describe('units and tiles use the IDENTICAL modal — BOTH settings + sprite add-buttons', () => {
+describe('units and tiles use the IDENTICAL modal, BOTH settings + sprite add-buttons', () => {
   it('a UNIT modal exposes BOTH add-buttons (the reported bug: it was sprite-only)', () => {
     render(<Harness elementType="Character" />)
-    // the settings button — the one the user said was missing on the character modal — is now present…
+    // the settings button, the one the user said was missing on the character modal, is now present…
     expect(screen.getByRole('button', { name: /Add settings animation/i })).toBeInTheDocument()
     // …alongside the sprite (frame-swap) button.
     expect(screen.getByRole('button', { name: /Add sprite animation/i })).toBeInTheDocument()
   })
 
-  it('a UNIT can add a SETTINGS animation (parity with a tile — the fountain-style envelope)', () => {
+  it('a UNIT can add a SETTINGS animation (parity with a tile, the fountain-style envelope)', () => {
     render(<Harness elementType="Character" />)
     fireEvent.click(screen.getByRole('button', { name: /Add settings animation/i }))
     const s = readState()[0] as SettingsAnimation
@@ -88,7 +88,7 @@ describe('units and tiles use the IDENTICAL modal — BOTH settings + sprite add
     expect(s.direction).toBeDefined()
   })
 
-  it('is available for a TILE too — the SAME modal offers BOTH settings and sprite adds', () => {
+  it('is available for a TILE too, the SAME modal offers BOTH settings and sprite adds', () => {
     render(<Harness elementType="Tile" kinds={['settings', 'sprite']} />)
     expect(screen.getByRole('button', { name: /Add settings animation/i })).toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: /Add sprite animation/i }))
@@ -106,7 +106,7 @@ describe('units and tiles use the IDENTICAL modal — BOTH settings + sprite add
   })
 })
 
-describe('#55 — a sprite frame renders the BAKED tile IMAGE, not a raw glyph', () => {
+describe('#55, a sprite frame renders the BAKED tile IMAGE, not a raw glyph', () => {
   it('a frame referencing an image tile draws an <img> with that tile src (and no source-glyph text)', () => {
     const img = anImageUnitTile()
     const anim: SpriteAnimation = {
@@ -115,7 +115,7 @@ describe('#55 — a sprite frame renders the BAKED tile IMAGE, not a raw glyph',
       spriteTrigger: { on: 'move' }, direction: 'down', durationMs: 300, loop: true,
     }
     const { container } = render(<Harness initial={[anim]} elementType="Character" kinds={['sprite']} />)
-    // The frame slot draws the baked art via <img src=...> — the SAME image the canvas resolves label→src.
+    // The frame slot draws the baked art via <img src=...>, the SAME image the canvas resolves label→src.
     const imgs = Array.from(container.querySelectorAll('img')) as HTMLImageElement[]
     expect(imgs.some(el => el.getAttribute('src') === img.src)).toBe(true)
     // and the tile's SOURCE glyph (e.g. 🧍) is NOT rendered as a text glyph anywhere (the #55 regression).
@@ -123,7 +123,7 @@ describe('#55 — a sprite frame renders the BAKED tile IMAGE, not a raw glyph',
   })
 })
 
-describe('the bridge — a unit stores EntityAnimation[] but edits as the sprite kind', () => {
+describe('the bridge, a unit stores EntityAnimation[] but edits as the sprite kind', () => {
   const walk: EntityAnimation = {
     id: 'walk-left', name: 'walk left',
     trigger: { on: 'move', whileRunning: false },
@@ -156,7 +156,7 @@ describe('the bridge — a unit stores EntityAnimation[] but edits as the sprite
   })
 })
 
-describe('the UNIFIED unit storage bridge — a unit carries Animation[] (settings + sprite)', () => {
+describe('the UNIFIED unit storage bridge, a unit carries Animation[] (settings + sprite)', () => {
   const walk: EntityAnimation = {
     id: 'walk-left', name: 'walk left',
     trigger: { on: 'move', whileRunning: false }, direction: 'left',
@@ -180,9 +180,9 @@ describe('the UNIFIED unit storage bridge — a unit carries Animation[] (settin
   it('a unit with BOTH a settings and a sprite animation persists both, but projects only the sprite to the renderer', () => {
     // the modal writes the unified list (source of truth): a settings envelope AND the walk sprite.
     const unified: Animation[] = [fade, spriteFromEntity(walk)]
-    // unitAnimations keeps BOTH — the settings envelope is NOT dropped (the reported bug: it used to be filtered out).
+    // unitAnimations keeps BOTH, the settings envelope is NOT dropped (the reported bug: it used to be filtered out).
     expect(unified.filter(a => a.kind === 'settings')).toHaveLength(1)
-    // the render projection (Entity.animations) is ONLY the sprite subset — the untouched frame renderer reads this.
+    // the render projection (Entity.animations) is ONLY the sprite subset, the untouched frame renderer reads this.
     const rendered = entityAnimationsFromUnit(unified)
     expect(rendered).toHaveLength(1)
     expect(rendered[0]).toEqual(walk) // the sprite round-trips to the playable EntityAnimation, unchanged

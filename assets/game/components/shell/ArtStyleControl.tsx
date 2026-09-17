@@ -1,11 +1,11 @@
 /**
- * ART STYLE — in the top nav, before the game selector.
+ * ART STYLE, in the top nav, before the game selector.
  *
  * It belongs there and not in the rail: it is not a step in building a level, it is the skin the whole
  * product is wearing, and it is one of the first two things anyone touches.
  *
  * The control PREVIEWS rather than names. The same four labels are drawn in each style, so the choice is
- * made by looking — "ascii" and "emoji" mean nothing to someone who has just arrived. That is also the
+ * made by looking, "ascii" and "emoji" mean nothing to someone who has just arrived. That is also the
  * clearest possible statement of the engine's central rule: one label, one set of facts, a different
  * picture per style.
  */
@@ -18,8 +18,7 @@ import { TilePicture } from './Previews'
 
 /**
  * The labels the switcher previews. Four everyday things, one from each corner of the catalog, so the
- * difference between styles is visible at a glance. A label the loaded catalog lacks simply does not draw —
- * no stand-in.
+ * difference between styles is visible at a glance. A label the loaded catalog lacks simply does not draw, * no stand-in.
  */
 const SAMPLE_LABELS = ['dragon', 'wall_brick_c', 'tree', 'water'] as const
 
@@ -77,7 +76,7 @@ export function ArtStyleControl({ activeStyleId, onPick }: ArtStyleControlProps)
         ref={anchor}
         type="button"
         className="b styleb"
-        title="The pictures every tile uses. Same labels, same sizes, same behaviour — only the art changes."
+        title="The pictures every tile uses. Same labels, same sizes, same behaviour, only the art changes."
         aria-expanded={open}
         aria-haspopup="dialog"
         onClick={toggle}
@@ -97,7 +96,7 @@ export function ArtStyleControl({ activeStyleId, onPick }: ArtStyleControlProps)
         <div ref={popover} className="pop stylepop atpoint" role="dialog" aria-label="Art style" style={pos}>
           <div className="ph2">Art style</div>
           <div className="hint">
-            One engine, many looks. Every tile keeps its name, size, height and collision — only the picture
+            One engine, many looks. Every tile keeps its name, size, height and collision, only the picture
             is swapped, everywhere at once.
           </div>
           {styles.map((style) => (
@@ -128,7 +127,7 @@ export function ArtStyleControl({ activeStyleId, onPick }: ArtStyleControlProps)
                   )
                 })}
               </span>
-              {/* DIVs, matching the design — `.pd`'s `margin-top` needs a block box. */}
+              {/* DIVs, matching the design, `.pd`'s `margin-top` needs a block box. */}
               <div>
                 <div className="pn">{style.name}</div>
                 <div className="pd">{STYLE_BLURB[style.id] ?? `the ${style.name} pictures`}</div>

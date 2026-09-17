@@ -1,9 +1,9 @@
 /**
- * Enemy ARCHETYPES — the data-driven stat + attack profile per enemy "kind".
+ * Enemy ARCHETYPES, the data-driven stat + attack profile per enemy "kind".
  *
  * Enemies used to be near-identical: every one fell back to DEFAULT_ENEMY_STATS and a
  * single strength-only melee. This module gives each archetype a DISTINCT, meaningful
- * profile — a full stat block (hp/strength/defense/dodge), a move cadence, an attack
+ * profile, a full stat block (hp/strength/defense/dodge), a move cadence, an attack
  * reach, and a real attack PATTERN built on the #59 system (patterns.ts). The roster /
  * spawner picks an archetype per enemy type; makeEnemy applies it (see entities.ts).
  *
@@ -25,10 +25,10 @@ export interface EnemyArchetype {
   name: string
   /** the complete base stat block for this archetype (merged over DEFAULT_ENEMY_STATS on build). */
   stats: Stats
-  /** patrol cadence: ms between movement steps — this archetype's MOVE SPEED. LOWER = faster.
+  /** patrol cadence: ms between movement steps, this archetype's MOVE SPEED. LOWER = faster.
    *  Wired onto the spawner's patrol so brutes lumber and skirmishers dart. */
   moveDelayMs: number
-  /** headline attack reach in cells — melee = 1 (adjacency); ranged keeps its distance.
+  /** headline attack reach in cells, melee = 1 (adjacency); ranged keeps its distance.
    *  The ranged attacks below carry the same reach (that's what the combat tick reads). */
   reachCells: number
   /** the default retaliation pattern fired by the combat tick (nextEnemyAttack). */
@@ -49,7 +49,7 @@ const BOLT = ENEMY_ATTACK_PRESETS.find(a => a.mode === 'ranged' && a.animation =
  * move speed so the four placed types feel different. Attacks are built through the #59
  * helpers (makeEnemyAttack / enemyAttackFromAbility / ENEMY_ATTACK_PRESETS) so an enemy
  * attack IS a real attack like the player's. NOTE: enemy ranged "magic" (mage 'nova') is
- * cosmetic in v1 — the combat tick resolves every enemy swing as PHYSICAL (see deferred).
+ * cosmetic in v1, the combat tick resolves every enemy swing as PHYSICAL (see deferred).
  */
 export const ENEMY_ARCHETYPES: Readonly<Record<EnemyArchetypeId, EnemyArchetype>> = {
   // Average all-rounder: medium hp, medium-speed single melee.
@@ -64,7 +64,7 @@ export const ENEMY_ARCHETYPES: Readonly<Record<EnemyArchetypeId, EnemyArchetype>
     ]),
   },
   // Tank/bruiser: high hp + defense, SLOW, a heavy slow melee (the registry Fire Slash:
-  // 18 dmg on a 6s cooldown) — reuses enemyAttackFromAbility so it hits like a player ability.
+  // 18 dmg on a 6s cooldown), reuses enemyAttackFromAbility so it hits like a player ability.
   brute: {
     id: 'brute',
     name: 'Brute',
@@ -75,8 +75,8 @@ export const ENEMY_ARCHETYPES: Readonly<Record<EnemyArchetypeId, EnemyArchetype>
     //
     // It used to borrow the registry's Fire Slash object (`enemyAttackFromAbility(FIRE_SLASH)`). That
     // stopped being possible when the registry became backend data (§3.14b #2): `ENEMY_ARCHETYPES` is a
-    // module-level const, so it is built the moment this file is imported — long before any fetch resolves
-    // — and would have captured an empty registry and silently given the brute a 8-damage tap. Backend data
+    // module-level const, so it is built the moment this file is imported, long before any fetch resolves
+    //, and would have captured an empty registry and silently given the brute a 8-damage tap. Backend data
     // cannot be read at module scope; it has to be read when something renders or runs.
     //
     // The values are Fire Slash's, unchanged: 18 damage on a 6s cooldown, the fire-slash animation. When
@@ -98,7 +98,7 @@ export const ENEMY_ARCHETYPES: Readonly<Record<EnemyArchetypeId, EnemyArchetype>
       { ...makeEnemyAttack('melee', 2, 450, 'cleave'), name: 'Quick Slash' },
     ]),
   },
-  // Ranged harasser: low hp, fires a Bolt from distance (reach 6) — reuses the Bolt preset.
+  // Ranged harasser: low hp, fires a Bolt from distance (reach 6), reuses the Bolt preset.
   archer: {
     id: 'archer',
     name: 'Archer',
@@ -132,7 +132,7 @@ export const ENEMY_ARCHETYPES: Readonly<Record<EnemyArchetypeId, EnemyArchetype>
     ]),
   },
   // Cave FLYER (bat): tiny hp, VERY high dodge, a flitting nuisance that lands a light
-  // quick bite — nimble (just behind the skirmisher's darting pace).
+  // quick bite, nimble (just behind the skirmisher's darting pace).
   flyer: {
     id: 'flyer',
     name: 'Bat',
@@ -144,7 +144,7 @@ export const ENEMY_ARCHETYPES: Readonly<Record<EnemyArchetypeId, EnemyArchetype>
     ]),
   },
   // Cave CRAWLER (spider): medium hp, lurking pace, a stronger venom bite on a slower
-  // cadence — the ambush melee of a cavern.
+  // cadence, the ambush melee of a cavern.
   crawler: {
     id: 'crawler',
     name: 'Spider',
@@ -155,7 +155,7 @@ export const ENEMY_ARCHETYPES: Readonly<Record<EnemyArchetypeId, EnemyArchetype>
       { ...makeEnemyAttack('melee', 4, 900, 'cleave'), name: 'Venom Bite' },
     ]),
   },
-  // Temple SENTINEL (guardian): a stone warden — an elite BRUTE. Very high hp + defense, no
+  // Temple SENTINEL (guardian): a stone warden, an elite BRUTE. Very high hp + defense, no
   // dodge, lumbers at the brute's heavy pace, and a crushing heavy melee. The tanky wall a
   // temple's boss chamber is guarded by.
   sentinel: {
@@ -194,7 +194,7 @@ export interface ArchetypeProfile {
 }
 
 /**
- * Build a FRESH profile for an archetype — deep-cloned stats + attack list so the caller
+ * Build a FRESH profile for an archetype, deep-cloned stats + attack list so the caller
  * owns mutable copies and the shared table is never aliased. The single entry point
  * makeEnemy / the spawner use to stamp an archetype onto an enemy.
  */

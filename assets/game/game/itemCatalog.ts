@@ -1,12 +1,12 @@
 /**
- * THE ITEM CATALOG, from the backend (`GET /api/items`) — §3.14b's #1 violation, closed.
+ * THE ITEM CATALOG, from the backend (`GET /api/items`), §3.14b's #1 violation, closed.
  *
  * `game/gear.ts` used to DECLARE the catalog: 6 weapons, 10 armour pieces and 5 consumables with complete
  * stat blocks (`baseDamage: 12, baseDefense: 2, strengthBonus: 3, reachCells: 1`) plus the two starter
  * kits, in a file nothing validated.
  *
  * This module owns the load and the shape conversion; `gear.ts` became a reader over it. The rule that
- * makes it honest: an EMPTY catalog is empty. Nothing here invents a fallback sword — a failed load means
+ * makes it honest: an EMPTY catalog is empty. Nothing here invents a fallback sword, a failed load means
  * the bag has no items to offer, exactly as an unreachable tileset means no tiles, and the UI says so.
  */
 import { NEBULITH_API } from '@/lib/nebulithApi'
@@ -68,7 +68,7 @@ function toItem(row: ApiItem): Item | null {
     return { id: row.slug, name: row.name, slot: 'consumable', effect: row.stats as ConsumableEffect }
   }
 
-  // A slot the frontend does not know how to build is DROPPED, not guessed at — a half-built item would
+  // A slot the frontend does not know how to build is DROPPED, not guessed at, a half-built item would
   // read as a real one in the bag.
   return null
 }
@@ -102,7 +102,7 @@ export async function loadItemCatalog(): Promise<number> {
 }
 
 /**
- * Every item the catalog serves. FRESH copies each call — the loadout system moves items between slots by
+ * Every item the catalog serves. FRESH copies each call, the loadout system moves items between slots by
  * reference, and handing out the cached object would alias one item into two places.
  */
 export function itemCatalog(): Item[] {
@@ -123,7 +123,7 @@ export function starterKit(kit: string): Item[] {
 /**
  * A DEEP copy of one item.
  *
- * `Item` is a discriminated union, so the nested block is named differently per variant — and the copy has
+ * `Item` is a discriminated union, so the nested block is named differently per variant, and the copy has
  * to be deep: the loadout system moves items between slots by reference, so two slots holding the same
  * `weapon` object would edit each other.
  */

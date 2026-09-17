@@ -1,18 +1,17 @@
 /**
- * HOW BIG A MAP CAN BE — which is to say, as big as you type.
+ * HOW BIG A MAP CAN BE, which is to say, as big as you type.
  *
- * So there is no maximum here. There were two of them before, and both were wrong for the same reason —
- * each turned a performance characteristic into a rule about what the user is allowed to want:
+ * So there is no maximum here. There were two of them before, and both were wrong for the same reason, * each turned a performance characteristic into a rule about what the user is allowed to want:
  *
- *  · The GENERATOR's served range (`rows 24–35` for Meadow) was used as a cap, so a requested 40 silently
+ *  · The GENERATOR's served range (`rows 24-35` for Meadow) was used as a cap, so a requested 40 silently
  *    became 35. It is now only what the random roll picks from.
- *  · An engine cap of 100 per side rejected 400 × 240 outright — and because the inputs validated against
- *    it, the panel could not even count the cells, printing `400 × 240 = — cells`.
+ *  · An engine cap of 100 per side rejected 400 × 240 outright, and because the inputs validated against
+ *    it, the panel could not even count the cells, printing `400 × 240 =, cells`.
  *
  * What remains is a structural FLOOR of one cell, because a grid with no cells is not a grid. It is stated
  * rather than silently applied: nothing here may quietly change a number the user typed.
  *
- * A CEILING is back, at the word — Note the
+ * A CEILING is back, at the word, Note the
  * "for now": this is a deliberate, temporary bound while the renderer catches up, not a return to the old
  * rule. It is stated in ONE place so lifting it is a one-line change, and the panel reports it rather than
  * silently rewriting what you typed.
@@ -52,18 +51,18 @@ export function mapSizeValid(size: MapSize): boolean {
   )
 }
 
-/** Why a size is not buildable, in the panel's own words — or null when it is fine. Said out loud rather
+/** Why a size is not buildable, in the panel's own words, or null when it is fine. Said out loud rather
  *  than applied silently: a number quietly rewritten under you is the bug this file was created for. */
 export function mapSizeProblem(size: MapSize): string | null {
   for (const [axis, n] of [['Columns', size.cols], ['Rows', size.rows]] as const) {
     if (!Number.isFinite(n)) continue
     if (n < MAP_SIZE_MIN) return 'A map needs at least one cell on each side.'
-    if (n > MAP_SIZE_MAX) return `${axis} is ${Math.floor(n)} — maps are limited to ${MAP_SIZE_MAX} cells per side for now.`
+    if (n > MAP_SIZE_MAX) return `${axis} is ${Math.floor(n)}, maps are limited to ${MAP_SIZE_MAX} cells per side for now.`
   }
   return null
 }
 
-/** How many cells a size describes — the number the panel prints. */
+/** How many cells a size describes, the number the panel prints. */
 export function cellCount(size: MapSize): number | null {
   if (!atLeast(size.cols, MAP_SIZE_MIN) || !atLeast(size.rows, MAP_SIZE_MIN)) return null
   return Math.floor(size.cols) * Math.floor(size.rows)
@@ -78,8 +77,8 @@ const bound = (n: number, lo: number, hi: number, whenUnset: number): number =>
 /**
  * Hold a requested size above the structural floor, and nowhere else.
  *
- * The number you typed wins. `fallback` is used only for a number that is not a number at all — a cleared
- * or half-typed input — so that building with an empty field keeps the map's current value instead of
+ * The number you typed wins. `fallback` is used only for a number that is not a number at all, a cleared
+ * or half-typed input, so that building with an empty field keeps the map's current value instead of
  * collapsing it to 1.
  */
 export function clampMapSize(size: MapSize, fallback: MapSize): MapSize {

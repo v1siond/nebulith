@@ -1,22 +1,22 @@
 /**
- * ONE tile UI — a UNIT is configured on the EXACT SAME card as any other tile.
+ * ONE tile UI, a UNIT is configured on the EXACT SAME card as any other tile.
  *
  * "we must remove the player small card"; "the colour, etc are just the regular tile settings"; "the part that says
-  * 'figure, male female, etc' that would be removed — units are just tiles, so if we want to replace a tile we should
+  * 'figure, male female, etc' that would be removed, units are just tiles, so if we want to replace a tile we should
   * use the regular replace tile button and see a list of characters to pick"; "stats would be a button that shows a
   * draggable, movable, resizable modal where we control all those extra unit settings"; "inventory and abilities must
   * be moved to the tile menu".
  *
  * What this locks (EDITOR-INTERACTION-SPEC §8 · §10 · §13):
- *   1. PARITY — every control a selected TILE gets, a selected UNIT gets too (same components, one card).
+ *   1. PARITY, every control a selected TILE gets, a selected UNIT gets too (same components, one card).
  *   2. The FIGURE variant row is GONE; art swaps through the SAME "Replace tile" button, whose library
  *      lists the character tiles.
- *   3. Collision is ONE control — the card's Blocked/Walkable toggle IS the unit's "blocks movement";
+ *   3. Collision is ONE control, the card's Blocked/Walkable toggle IS the unit's "blocks movement";
  *      the old standalone checkbox is gone.
  *   4. "Stats…" opens a draggable/resizable FloatingPanel carrying HP/DEF/STR/INT/DODGE% + Hittable.
  *   5. Name + Size stay as ROWS on the card; Inventory & abilities is reachable from the card.
  *   6. "Remove tile" deletes the unit (no bespoke Delete/Deselect pair).
- *   7. SOURCE GUARD — the page no longer renders the unit SelectionHeader ("▸ PLAYER (PLAYER) @ 32,10")
+ *   7. SOURCE GUARD, the page no longer renders the unit SelectionHeader ("▸ PLAYER (PLAYER) @ 32,10")
  *      nor the Delete/Deselect buttons, and wires the new seams.
  */
 import { readFileSync } from 'fs'
@@ -48,7 +48,7 @@ const unitModel = (over: Partial<UnitControlModel> = {}): UnitControlModel => ({
   ...over,
 })
 
-/** The shared tile model. A unit feeds the IDENTICAL shape a tile does — that is the whole point. */
+/** The shared tile model. A unit feeds the IDENTICAL shape a tile does, that is the whole point. */
 const tileModel = (over: Partial<TileControlModel> = {}): TileControlModel => ({
   key: 'tile',
   label: 'thing',
@@ -69,7 +69,7 @@ const tileModel = (over: Partial<TileControlModel> = {}): TileControlModel => ({
   ...over,
 })
 
-/** Every control a card exposes, by its accessible name — the comparable "control set". */
+/** Every control a card exposes, by its accessible name, the comparable "control set". */
 const controlNames = (container: HTMLElement) =>
   within(container)
     .getAllByRole('button')
@@ -94,7 +94,7 @@ function renderCard(props: Partial<React.ComponentProps<typeof PropertiesPanel>>
   )
 }
 
-// ── 1. PARITY — the unit card IS the tile card ──────────────────────────────────────────────────────
+// ── 1. PARITY, the unit card IS the tile card ──────────────────────────────────────────────────────
 describe('a selected UNIT renders the SAME control set as a selected tile', () => {
   it('every control on the tile card is present on the unit card', () => {
     const cell = renderCard()
@@ -105,7 +105,7 @@ describe('a selected UNIT renders the SAME control set as a selected tile', () =
     const unitControls = controlNames(unit.container)
 
     expect(cellControls.length).toBeGreaterThan(0)
-    // The one thing that SHOULD differ is the heading naming what you selected — a tile card says "Tile", a
+    // The one thing that SHOULD differ is the heading naming what you selected, a tile card says "Tile", a
     // unit card says "Character". That is the card telling you what it is about, not a control, so it is
     // excluded here and asserted on its own below. Everything else must match.
     for (const name of cellControls.filter(n => n !== 'Tile')) expect(unitControls).toContain(name)
@@ -121,7 +121,7 @@ describe('a selected UNIT renders the SAME control set as a selected tile', () =
     expect(screen.getByText(/Goblin/)).toHaveTextContent('4, 7')
   })
 
-  it('…and the card NAMES what you selected — a tile is a Tile, a unit is a Character', () => {
+  it('…and the card NAMES what you selected, a tile is a Tile, a unit is a Character', () => {
     const cell = renderCard()
     expect(controlNames(cell.container)).toContain('Tile')
     expect(controlNames(cell.container)).not.toContain('Character')
@@ -166,7 +166,7 @@ describe('a selected UNIT renders the SAME control set as a selected tile', () =
   })
 })
 
-// ── 2. The FIGURE row is gone — art swaps via the SAME Replace tile button ──────────────────────────
+// ── 2. The FIGURE row is gone, art swaps via the SAME Replace tile button ──────────────────────────
 describe('the Figure (neutral/male/female/…) row is REMOVED', () => {
   it('renders no figure-variant buttons anywhere on the unit card', () => {
     renderCard({ unitSection: <UnitSettingsSection unit={unitModel()} /> })
@@ -203,7 +203,7 @@ describe('"Blocks movement" is served by the ONE Collision toggle', () => {
     expect(onCollision).toHaveBeenCalledWith(true)
   })
 
-  it('there is NO separate "Blocks movement" checkbox — on the card or in the Stats body', () => {
+  it('there is NO separate "Blocks movement" checkbox, on the card or in the Stats body', () => {
     const { unmount } = renderCard({ unitSection: <UnitSettingsSection unit={unitModel()} /> })
     expect(screen.queryByLabelText('Blocks movement')).toBeNull()
     unmount()
@@ -214,12 +214,12 @@ describe('"Blocks movement" is served by the ONE Collision toggle', () => {
 
 // ── 4. Stats… → a draggable/resizable FloatingPanel ─────────────────────────────────────────────────
 describe('Stats… opens a draggable, movable, resizable modal with the extra unit settings', () => {
-  it('there is NO Stats button and NO Stats window — the stats are in the character window', () => {
+  it('there is NO Stats button and NO Stats window, the stats are in the character window', () => {
     renderCard({ unitSection: <UnitSettingsSection unit={unitModel()} /> })
     expect(screen.queryByRole('button', { name: /Stats/i })).toBeNull()
   })
 
-  it('the stats render INSIDE the character window — HP/DEF/STR/INT/DODGE% + Hittable', () => {
+  it('the stats render INSIDE the character window, HP/DEF/STR/INT/DODGE% + Hittable', () => {
     render(<CharacterWindow entity={entity()} styleId="emoji" fromLabel="goblin" onPatch={jest.fn()} onSwap={jest.fn()} />)
     for (const label of ['enemy HP', 'enemy DEF', 'enemy STR', 'enemy INT', 'enemy DODGE%']) {
       expect(screen.getByLabelText(label)).toBeInTheDocument()
@@ -242,7 +242,7 @@ describe('Stats… opens a draggable, movable, resizable modal with the extra un
     expect(screen.getByLabelText('Respawn seconds')).toBeInTheDocument()
   })
 
-  it('does NOT duplicate the stats on the card — they live only in the character window', () => {
+  it('does NOT duplicate the stats on the card, they live only in the character window', () => {
     renderCard({ unitSection: <UnitSettingsSection unit={unitModel()} /> })
     expect(screen.queryByLabelText('enemy HP')).toBeNull()
     expect(screen.queryByLabelText('Hittable')).toBeNull()
@@ -280,7 +280,7 @@ describe('Inventory & abilities is reachable from the tile card', () => {
     expect(onOpenInventory).toHaveBeenCalledTimes(1)
   })
 
-  it('an NPC keeps quests and an enemy keeps attacks — nothing lost', () => {
+  it('an NPC keeps quests and an enemy keeps attacks, nothing lost', () => {
     const onOpenQuests = jest.fn()
     const { unmount } = render(
       <UnitSettingsSection unit={unitModel({ entity: entity({ kind: 'npc' }), onOpenQuests })} />,
@@ -312,7 +312,7 @@ describe('Remove tile deletes the unit (no bespoke Delete / Deselect pair)', () 
   })
 })
 
-// ── 7. SOURCE GUARD — the page drops the player header card + Delete/Deselect and wires the new seams ─
+// ── 7. SOURCE GUARD, the page drops the player header card + Delete/Deselect and wires the new seams ─
 describe('the page replaces the unit menu with the tile card', () => {
   const src = readFileSync(TEMPLATES_SRC, 'utf8')
 
@@ -339,7 +339,7 @@ describe('the page replaces the unit menu with the tile card', () => {
     expect(src).not.toContain("floatingProps('stats'")
   })
 
-  it('builds the unit model through buildUnitModel — no inline kind ternary can hide an entry point again', () => {
+  it('builds the unit model through buildUnitModel, no inline kind ternary can hide an entry point again', () => {
     expect(src).toContain('buildUnitModel(selEntity,')
     expect(src).not.toContain('onOpenInventory: isPlayer')
   })
@@ -350,7 +350,7 @@ describe('the page replaces the unit menu with the tile card', () => {
 // Reproduced on the running editor: selecting an NPC shows EXACTLY `⛊ Stats…` + `❒ Quests…` and NO
 // inventory, because the page wired `onOpenInventory` behind `isPlayer ? … : undefined`. Every unit
 // carries a loadout (the equipment panel already keys `loadouts` by entity id), so the entry point is
-// UNIVERSAL — only quests (NPC) and attacks (enemy) are kind-specific. `buildUnitModel` is the ONE place
+// UNIVERSAL, only quests (NPC) and attacks (enemy) are kind-specific. `buildUnitModel` is the ONE place
 // that decision lives, so the card and this test read the same rule.
 describe('🎒 Inventory & abilities is on EVERY unit card, not the player alone', () => {
   const openers = (): jest.Mocked<UnitCardOpeners> => ({
@@ -370,7 +370,7 @@ describe('🎒 Inventory & abilities is on EVERY unit card, not the player alone
   })
 
   it.each<EntityKind>(['player', 'npc', 'enemy'])('a %s gets its stats in the character window, whatever kind it is', kind => {
-    // Stats are universal, same as the inventory — but they are a BLOCK in the character window now rather
+    // Stats are universal, same as the inventory, but they are a BLOCK in the character window now rather
     // than a button to a window of their own.
     render(<CharacterWindow entity={entity({ kind })} styleId="emoji" fromLabel={kind} onPatch={jest.fn()} onSwap={jest.fn()} />)
     expect(screen.getByLabelText(`${kind} HP`)).toBeInTheDocument()
@@ -410,8 +410,7 @@ describe('🎒 Inventory & abilities is on EVERY unit card, not the player alone
 
 // ── 9. Nothing else lost: the old card's ANIMATION SUMMARY ───────────────────────────────────────────
 // The pre-unification card listed the unit's authored animations inline ("No custom animations…" or a
-// name/trigger/frame-count list). The unified card's vocabulary for that is the Animate button's COUNT —
-// which a CELL tile gets (`animations: a0?.animations`) but the unit model never fed, so a seeded unit
+// name/trigger/frame-count list). The unified card's vocabulary for that is the Animate button's COUNT, // which a CELL tile gets (`animations: a0?.animations`) but the unit model never fed, so a seeded unit
 // carrying 9 animations read as if it had none.
 describe('the unit card keeps the authored-animation summary the old unit card showed', () => {
   const anim = (id: string): TileAnim => ({ id, kind: 'settings', durationMs: 400, tracks: [] })

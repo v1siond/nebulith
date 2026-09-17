@@ -1,11 +1,11 @@
 /**
- * THE 🎮 GAME MENU (§4.4) — the game's identity, and the pathways out of it.
+ * THE 🎮 GAME MENU (§4.4), the game's identity, and the pathways out of it.
  *
- * §3.2 measured that inside `/games/[id]` "the only identity shown anywhere is the template name" — you
+ * §3.2 measured that inside `/games/[id]` "the only identity shown anywhere is the template name", you
  * could not tell which GAME you were editing. The stepper fixed "which level"; this fixes "which game", and
  * gathers the actions that are about the whole product rather than the map in front of you.
  *
- * §4.4 also asks for one guarantee with teeth: ** — §3.15 lists silently losing an unsaved map as one of its
+ * §4.4 also asks for one guarantee with teeth: **, §3.15 lists silently losing an unsaved map as one of its
   * inconsistencies.
  */
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
@@ -35,7 +35,7 @@ describe('it says which GAME you are in', () => {
     expect(screen.getByRole('button', { name: /game menu/i })).toHaveTextContent('Boss')
   })
 
-  it('renders nothing when the editor is not inside a game — /templates has no game to name', () => {
+  it('renders nothing when the editor is not inside a game, /templates has no game to name', () => {
     const { container } = render(
       <GameMenu gameName={null} wouldLoseWork={false} confirmLeave={jest.fn()}
         onRename={jest.fn()} onManageLevels={jest.fn()} onFlow={jest.fn()} onExport={jest.fn()} onAllGames={jest.fn()} />,

@@ -1,13 +1,13 @@
 /**
- * PLAYER-CAMERA RANGE — render only what's within a controllable radius of the player.
+ * PLAYER-CAMERA RANGE, render only what's within a controllable radius of the player.
  *
  * User: "we should have somewhere in code base code to control the 'player' camera, which controls the
  * rendering of elements that are in a given range from the user, I want to be able to see that visually
  * around the user AND I want to control that setting, so increasing, reducing, etc."
  *
- * This is NOT new — `grid.getVisibleAssets(cam, viewCols, viewRows)` was a fixed 30×20 window around the
+ * This is NOT new, `grid.getVisibleAssets(cam, viewCols, viewRows)` was a fixed 30×20 window around the
  * camera until commit b317962 made it zoom-derived. This restores it as a CONTROLLABLE range: an opt-in
- * `playerViewRange` (radius in cells) culls every element outside it — RADIALLY, so what's drawn matches the
+ * `playerViewRange` (radius in cells) culls every element outside it, RADIALLY, so what's drawn matches the
  * ring drawn around the player. Off (undefined) = today's behaviour, so nothing changes until you turn it on.
  */
 import '@/__tests__/helpers/installTilesetSeed'
@@ -45,7 +45,7 @@ function mockCtx(): CanvasRenderingContext2D {
 // Both cells sit on the down-centre diagonal so they stay ON the 800×600 screen rect (going far along +row
 // alone walks off the left edge); the range test is about DISTANCE, so the far one must still be on-screen.
 const NEAR = { col: PCOL + 1, row: PROW + 1 } // dist ~1.41
-const FAR = { col: PCOL + 4, row: PROW + 4 }  // dist ~5.66 — on-screen, beyond a range of 4
+const FAR = { col: PCOL + 4, row: PROW + 4 }  // dist ~5.66, on-screen, beyond a range of 4
 const scene = (): IsometricGrid => {
   const grid = new IsometricGrid({ cols: 40, rows: 40, cellSize: CELL, isoScale: ISO })
   grid.setAssets([wallAt(NEAR.col, NEAR.row), wallAt(FAR.col, FAR.row)])
@@ -64,7 +64,7 @@ const renderIso = (grid: IsometricGrid, playerViewRange?: number): void => {
 const drawnAt = (col: number, row: number): boolean =>
   renderedTilesInRect(0, 0, W, H).some(t => t.col === col && t.row === row && t.source !== 'entity')
 
-describe('withinPlayerRange — a radial test, not a rectangle', () => {
+describe('withinPlayerRange, a radial test, not a rectangle', () => {
   it('includes the player cell and anything inside the radius', () => {
     expect(withinPlayerRange(10, 10, 10, 10, 4)).toBe(true)
     expect(withinPlayerRange(12, 11, 10, 10, 4)).toBe(true) // dist ~2.24
@@ -89,7 +89,7 @@ describe('playerViewRange culls the render to a radius around the player', () =>
     expect(drawnAt(FAR.col, FAR.row)).toBe(false)   // ~5.7 cells → culled
   })
 
-  it('draws BOTH when the range is off (undefined) — today\'s behaviour, no regression', () => {
+  it('draws BOTH when the range is off (undefined), today\'s behaviour, no regression', () => {
     const grid = scene()
     renderIso(grid, undefined)
 
@@ -107,9 +107,9 @@ describe('playerViewRange culls the render to a radius around the player', () =>
 
 // RANGE IS A GRID TEST, NOT A PER-TILE ONE.
 // A z-width run is ONE tile spanning MANY cells, so it must stay visible while the ring crosses ANY cell it
-// covers — testing only its anchor made a whole road vanish. Same anchor either way; only the z-width differs.
+// covers, testing only its anchor made a whole road vanish. Same anchor either way; only the z-width differs.
 describe('player range culls on the GRID CELLS a tile covers, not just its anchor', () => {
-  const ANCHOR = { col: PCOL + 5, row: PROW } // dist 5 — outside a range of 4, still on-screen
+  const ANCHOR = { col: PCOL + 5, row: PROW } // dist 5, outside a range of 4, still on-screen
   const runAt = (col: number, row: number, depth: number): GridAsset =>
     ({ col, row, type: 'wall', tileKey: 'emoji:wall', art: ['#'], heightLevel: 0, height: 1, depth, depthDir: 'left-up' } as unknown as GridAsset)
   const sceneWith = (a: GridAsset): IsometricGrid => {
@@ -137,7 +137,7 @@ describe('player range culls on the GRID CELLS a tile covers, not just its ancho
     expect(drawnAt(ANCHOR.col - 1, ANCHOR.row)).toBe(true)
   })
 
-  it('the SAME tile without z-width is culled — only its own cell counts, and that is outside', () => {
+  it('the SAME tile without z-width is culled, only its own cell counts, and that is outside', () => {
     renderIso(sceneWith(runAt(ANCHOR.col, ANCHOR.row, 1)), 4)
     expect(drawnAt(ANCHOR.col, ANCHOR.row)).toBe(false)
   })

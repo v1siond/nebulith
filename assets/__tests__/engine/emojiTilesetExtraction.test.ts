@@ -1,22 +1,22 @@
 /**
- * EMOJI_STYLE is DERIVED from the loaded emoji tileset (emojiStyleMap / rebuildEmojiStyle) — this proves
+ * EMOJI_STYLE is DERIVED from the loaded emoji tileset (emojiStyleMap / rebuildEmojiStyle), this proves
  * the derivation is faithful: every kind maps to a Visual matching its tile (an image tile → ImageVisual,
  * a glyph-only tile → GlyphVisual), and the style's keys track the tileset's exactly.
  *
  * The frontend ships NO bundled tile data, so we install the DB-equivalent fixture (the captured
- * `/api/tilesets` response) and assert the derivation over THAT — the same data the runtime loads from the
+ * `/api/tilesets` response) and assert the derivation over THAT, the same data the runtime loads from the
  * backend. There is no verbatim value pin any more: the tile values live in the backend, not the frontend.
  */
 import { styleTile, styleTiles } from '@/engine/tileset/styleTiles'
 import '@/__tests__/helpers/installTilesetSeed' // fill the (empty) emoji holder with the DB-equivalent fixture
 import { EMOJI_STYLE, resolveVisual, type GlyphVisual, type ImageVisual } from '@/game/artStyle'
 
-describe('emoji tileset extraction — EMOJI_STYLE is a faithful view over the loaded tileset', () => {
+describe('emoji tileset extraction, EMOJI_STYLE is a faithful view over the loaded tileset', () => {
   test('the loaded tileset is non-empty (the fixture installed)', () => {
     expect(Object.keys(styleTiles('emoji')).length).toBeGreaterThan(0)
   })
 
-  test('every kind becomes a Visual matching its tile — image tiles → ImageVisual, else GlyphVisual', () => {
+  test('every kind becomes a Visual matching its tile, image tiles → ImageVisual, else GlyphVisual', () => {
     for (const kind of Object.keys(styleTiles('emoji'))) {
       const tile = styleTile('emoji', kind)
       const expected = tile.image

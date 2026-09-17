@@ -1,25 +1,25 @@
 /**
- * Cell-label vocabulary + per-label rules — the KEYSTONE for ASCII → tileset.
+ * Cell-label vocabulary + per-label rules, the KEYSTONE for ASCII → tileset.
  *
  * Every cell an asset occupies carries a descriptive LABEL naming its part
  * (`tree_stem_bottom`, `tree_leaf_top`, `tree_top_left`, `roof_top`, `door`, …).
  * Two things hang off that label:
- *   1. PER-LABEL COLLISION (`isWalkable`) — the label, not the asset, decides if
+ *   1. PER-LABEL COLLISION (`isWalkable`), the label, not the asset, decides if
  *      a cell blocks. A tree's canopy top is walkable (you walk *under* it), the
  *      trunk and leaves block; a building's top roof tile and doors are walkable,
  *      the rest blocks. (See project-nebulith-collision-model.)
- *   2. RENDER GLYPH + COLOR — owned by the TILESET (cellTileset.ts), not here. A
+ *   2. RENDER GLYPH + COLOR, owned by the TILESET (cellTileset.ts), not here. A
  *      label's appearance (and, downstream, the real tile chosen when ASCII is
  *      replaced by art) is presentation; this module is pure semantics.
  *
  * Tree/building MASSES are labeled by AUTOTILING: each filled cell gets a 9-piece
  * edge/corner/interior label from its 8-neighbour neighbourhood (grammar spec
- * `_tl _t _tr _l _c _r _bl _b _br`). Pure logic — no rendering, no grid mutation.
+ * `_tl _t _tr _l _c _r _bl _b _br`). Pure logic, no rendering, no grid mutation.
  */
 
 // ── label vocabulary (single source of truth) ──────────────────────────
 // Vertical single-column tree (trunk + canopy stack): bottom→top.
-// `tree_crown` is the SOLID foliage cap of a standalone tree (it blocks — the
+// `tree_crown` is the SOLID foliage cap of a standalone tree (it blocks, the
 // whole tree is impassable). `tree_leaf_top` is reserved (still walkable) for a
 // future overhead-canopy layer but is not emitted by the generator. `tree_snag`
 // is a dead/bare trunk top (a burnt or frozen stem); it blocks like any trunk.
@@ -42,7 +42,7 @@ const TREE_MASS_LABELS = [
 const BUILDING_LABELS = ['roof_top', 'roof', 'wall', 'door', 'window'] as const
 
 // Biome terrain FEATURES that anchor a hazard lake: a mountain massif (`mountain`
-// slope + `peak` crown — a glowing crater in lava) and the `spill` that connects
+// slope + `peak` crown, a glowing crater in lava) and the `spill` that connects
 // it to the water (a lava flow into a lava lake, a waterfall into a water/ice
 // lake). All block movement.
 const FEATURE_LABELS = ['mountain', 'peak', 'spill'] as const
@@ -54,29 +54,29 @@ export type CellLabel = (typeof CELL_LABELS)[number]
 // PER-LABEL COLLISION LIVED HERE AND IS GONE (2026-09-06). It hardcoded
 // `WALKABLE_LABELS = {tree_leaf_top, roof_top}` in the frontend, and it was wrong twice over: it claimed a ROOF
 // is walkable, which COMBAT-AND-SYSTEMS-SPEC §9 now forbids, and it duplicated data the backend already owns and
-// serves — `tiles.blocking` and
+// serves, `tiles.blocking` and
 // `composition_cells.walkable`. It had no runtime callers, so it was a latent bug waiting for one.
 // Walkability is BACKEND DATA. Read it from the tile/composition cell; never from a label set.
 
 // ── autotile labeler (9-piece corner/edge/interior) ────────────────────
 // Each filled cell is labeled from its neighbourhood: a corner/edge piece is
 // determined by which orthogonal sides are OPEN (not part of the mass); a fully
-// surrounded cell is interior — the standard 9-piece blob scheme.
+// surrounded cell is interior, the standard 9-piece blob scheme.
 /**
  * A label FAMILY: the 9 edge/corner/interior labels for one mass material.
  * Re-usable so tree masses (and later building roofs, water, …) share one
- * autotile algorithm — Open/Closed: add a family, not a new branch.
+ * autotile algorithm, Open/Closed: add a family, not a new branch.
  */
-export interface MassFamily {
-  topLeft: CellLabel
-  top: CellLabel
-  topRight: CellLabel
-  edgeLeft: CellLabel
-  interior: CellLabel
-  edgeRight: CellLabel
-  bottomLeft: CellLabel
-  bottom: CellLabel
-  bottomRight: CellLabel
+export interface MassFamily<L extends string = CellLabel> {
+  topLeft: L
+  top: L
+  topRight: L
+  edgeLeft: L
+  interior: L
+  edgeRight: L
+  bottomLeft: L
+  bottom: L
+  bottomRight: L
 }
 
 export const TREE_MASS_FAMILY: MassFamily = {
@@ -95,7 +95,7 @@ export const TREE_MASS_FAMILY: MassFamily = {
 type Filled = (col: number, row: number) => boolean
 
 /** A cell is GROUND-CONTACT if it is filled but the cell directly BELOW it (row+1) is not
- *  — the bottom edge of a tree/column where it meets the floor. A ground shadow belongs
+ * , the bottom edge of a tree/column where it meets the floor. A ground shadow belongs
  *  ONLY on these cells, never on every trunk/leaf cell of a dense mass. Pure + testable. */
 export function isGroundContact(filled: Filled, col: number, row: number): boolean {
   return filled(col, row) && !filled(col, row + 1)
@@ -103,7 +103,7 @@ export function isGroundContact(filled: Filled, col: number, row: number): boole
 
 // 4-bit open-side signature → 9-piece slot. Bits: top|right|bottom|left
 // (1 = that side is OPEN / not part of the mass). The table is EXHAUSTIVE over
-// all 16 signatures so labeling is a pure lookup — no fallback branching. Thin /
+// all 16 signatures so labeling is a pure lookup, no fallback branching. Thin /
 // lone masses (3-4 open sides) collapse onto the nearest outer corner so they
 // still read as edge pieces, never (wrongly) interior.
 const OPEN_TOP = 0b1000
@@ -111,7 +111,7 @@ const OPEN_RIGHT = 0b0100
 const OPEN_BOTTOM = 0b0010
 const OPEN_LEFT = 0b0001
 
-const SLOT_BY_SIGNATURE: Readonly<Record<number, keyof MassFamily>> = {
+const SLOT_BY_SIGNATURE: Readonly<Record<number, keyof MassFamily<string>>> = {
   [0]: 'interior',
   [OPEN_TOP]: 'top',
   [OPEN_BOTTOM]: 'bottom',
@@ -143,21 +143,21 @@ function openSignature(filled: Filled, col: number, row: number): number {
 }
 
 /**
- * Label one filled mass cell by its 4-orthogonal-neighbour openness — a pure
+ * Label one filled mass cell by its 4-orthogonal-neighbour openness, a pure
  * 16-entry table lookup (no branching). Corners win over single edges; a fully
  * enclosed cell is interior.
  */
-export function autotileLabel(family: MassFamily, filled: Filled, col: number, row: number): CellLabel {
+export function autotileLabel<L extends string>(family: MassFamily<L>, filled: Filled, col: number, row: number): L {
   // All 16 orthogonal signatures are mapped; '?? interior' is defensive so an
   // unmapped signature can never yield an undefined (label-less) cell.
   const slot = SLOT_BY_SIGNATURE[openSignature(filled, col, row)] ?? 'interior'
   return family[slot]
 }
 
-// The ONE display vocabulary for an autotile slot — the position tokens every cell caption uses
+// The ONE display vocabulary for an autotile slot, the position tokens every cell caption uses
 // (terrain, trees, buildings) so a label reads the SAME everywhere: <TYPE> <POSITION>. Hyphenated
 // corners (TOP-LEFT) per the tileset-label spec; a fully-surrounded fill cell is INTERIOR.
-export const SLOT_TOKEN: Readonly<Record<keyof MassFamily, string>> = {
+export const SLOT_TOKEN: Readonly<Record<keyof MassFamily<string>, string>> = {
   topLeft: 'TOP-LEFT', top: 'TOP', topRight: 'TOP-RIGHT',
   edgeLeft: 'LEFT', interior: 'INTERIOR', edgeRight: 'RIGHT',
   bottomLeft: 'BOTTOM-LEFT', bottom: 'BOTTOM', bottomRight: 'BOTTOM-RIGHT',
@@ -165,7 +165,7 @@ export const SLOT_TOKEN: Readonly<Record<keyof MassFamily, string>> = {
 
 /**
  * The 9-piece autotile POSITION token (TOP-LEFT / TOP / … / INTERIOR) for a filled cell, from its
- * 8-neighbourhood — the SAME scheme trees/buildings use, exposed so ANY material (a terrain mass:
+ * 8-neighbourhood, the SAME scheme trees/buildings use, exposed so ANY material (a terrain mass:
  * grass, water, path, …) autotiles into edge/corner/interior pieces for accurate tile replacement.
  * Pure: depends only on which same-material neighbours are present.
  */

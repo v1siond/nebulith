@@ -1,7 +1,7 @@
 /**
  * ONE ENTRY PER BUILDING TYPE, not one per baked size.
  *
- * The size used to live in the composition NAME — `house_3`, `house_4`, `house_5` — so the palette showed
+ * The size used to live in the composition NAME, `house_3`, `house_4`, `house_5`, so the palette showed
  * three houses. The backend can now compose any footprint, so the palette shows ONE House with a size
  * control, and the sizes those three names encoded become defaults rather than separate objects.
  *
@@ -18,18 +18,18 @@ import { composedKind, typeOfComposedKind, type BuildingType, type Footprint } f
 
 /** A palette entry that carries a size control, because the backend can compose its type at any size. */
 export interface SizedBuildingItem extends CompositionPaletteItem {
-  /** The backend type this entry composes — present ONLY on a sizable entry. */
+  /** The backend type this entry composes, present ONLY on a sizable entry. */
   buildingType: string
   /** The size it composes at unless the user changes it. */
   defaultSize: Footprint
   /** The footprints that were authored as separate compositions, for reference in the UI. */
   bakedSizes: readonly number[]
   /**
-   * A REAL composition kind to draw the entry's picture from — the seeded one nearest its default size.
+   * A REAL composition kind to draw the entry's picture from, the seeded one nearest its default size.
    *
    * The folded entry's own `kind` is the bare type (`house`), which is not a composition: nothing is
    * installed under it until the user picks a size and the backend composes one. Drawing from it gave a
-   * black swatch, correctly — there was nothing there. The seeded eleven still exist, so `house_4` is a
+   * black swatch, correctly, there was nothing there. The seeded eleven still exist, so `house_4` is a
    * real house to show while the size control sits underneath offering any other.
    */
   previewKind: string
@@ -81,7 +81,7 @@ export function collapseSizedBuildings(
       const type = typeOfKind(item.kind)
       const spec = byType.get(type)
       if (!spec) {
-        out.push(item) // authored object with no recipe — untouched
+        out.push(item) // authored object with no recipe, untouched
         continue
       }
       const width = bakedWidthOfKind(item.kind)
@@ -103,7 +103,7 @@ export function collapseSizedBuildings(
       } as SizedBuildingItem)
     }
 
-    // Attach the baked widths once every item has been seen, so the list is complete — and pick the picture
+    // Attach the baked widths once every item has been seen, so the list is complete, and pick the picture
     // from the baked size NEAREST the default, so a House shows the 4-wide one rather than whichever
     // happened to sort first.
     for (const [type, index] of foldedAt) {

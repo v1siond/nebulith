@@ -1,5 +1,5 @@
 /**
- * A UNIT OBEYS PERSPECTIVE — it is a tile, so depth decides what covers what.
+ * A UNIT OBEYS PERSPECTIVE, it is a tile, so depth decides what covers what.
  *
  * The user (Image #9, hero painted over the store roof): "units z-index is wrong, is not considering the
  * front view from the cammera perspective, which mean we can see units through elements when we should't,
@@ -7,7 +7,7 @@
  * z-index is > the building, which in this case it isn't, they're both 0, so perspective wins."
  *
  * Root cause: iso.ts drew units in a SECOND pass after every map tile, with the comment "A unit is the
- * interactive focus, so it is never hidden behind a tile (the z-index bug)" — the correct behaviour was
+ * interactive focus, so it is never hidden behind a tile (the z-index bug)", the correct behaviour was
  * labelled a bug and coded around. `allObjects` is already depth-sorted AND already contains the units; the
  * split simply threw that ordering away for them.
  *
@@ -30,11 +30,11 @@ const heroEntity = (): Entity => ({ id: 'hero', kind: 'player' } as unknown as E
 const heroPlayer = (): PlayerState =>
   ({ x: HERO_COL * CELL, z: HERO_ROW * CELL, moving: false, facing: 'down', frame: 0 } as PlayerState)
 
-/** A tall wall tile. `art` is required — the ascii drawer reads `asset.art[0]`. */
+/** A tall wall tile. `art` is required, the ascii drawer reads `asset.art[0]`. */
 const wallAt = (col: number, row: number): GridAsset =>
   ({ col, row, type: 'wall', tileKey: 'emoji:wall', art: ['#'], heightLevel: 0, height: 4 } as unknown as GridAsset)
 
-/** A tall wall one cell nearer the camera than the hero — it must occlude the figure. */
+/** A tall wall one cell nearer the camera than the hero, it must occlude the figure. */
 const tallWall = (): GridAsset => wallAt(WALL_COL, WALL_ROW)
 
 function mockCtx(): CanvasRenderingContext2D {

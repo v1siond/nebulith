@@ -1,5 +1,5 @@
 /**
- * Tile Animation ENGINE — pure interpolator unit tests (Phase 1).
+ * Tile Animation ENGINE, pure interpolator unit tests (Phase 1).
  *
  * Exercises the clock-derived value engine directly (no canvas): opacity 0→1 over a duration, a vertical
  * `y` rise, start-delay deferral, loop wrapping, loop-delay rest, colour RGB lerp, display step, ease
@@ -29,7 +29,7 @@ function settingsAnim(over: Partial<SettingsAnimation> & Pick<SettingsAnimation,
   }
 }
 
-describe('animationValue — a single settings animation', () => {
+describe('animationValue, a single settings animation', () => {
   test('opacity 0→1 tweens linearly across the duration, then HOLDS at 1 (non-loop)', () => {
     const anim = settingsAnim({ tracks: [{ setting: 'opacity', from: 0, to: 1 }], durationMs: 1000 })
     expect(animationValue(anim, 0, 0).opacity).toBe(0) // start = from
@@ -46,7 +46,7 @@ describe('animationValue — a single settings animation', () => {
     expect(animationValue(anim, 1000, 0).y).toBeCloseTo(0)
   })
 
-  test('startDelayMs DEFERS the tween — the value stays at `from` until the delay elapses', () => {
+  test('startDelayMs DEFERS the tween, the value stays at `from` until the delay elapses', () => {
     const anim = settingsAnim({
       tracks: [{ setting: 'opacity', from: 0, to: 1 }],
       durationMs: 1000,
@@ -138,7 +138,7 @@ describe('animationValue — a single settings animation', () => {
   })
 })
 
-describe('animationValue — colour, display, ease', () => {
+describe('animationValue, colour, display, ease', () => {
   test('color tween is an RGB lerp emitting rgb(r, g, b)', () => {
     const anim = settingsAnim({
       tracks: [{ setting: 'color', from: '#000000', to: '#ffffff' }],
@@ -180,7 +180,7 @@ describe('animationValue — colour, display, ease', () => {
   })
 })
 
-describe('resolveAnimatedSettings — composing a LIST', () => {
+describe('resolveAnimatedSettings, composing a LIST', () => {
   test('two chained animations (A y-rise + B delayed opacity-fade) stack to the expected values over time', () => {
     const riseY = settingsAnim({
       id: 'A-rise',
@@ -214,7 +214,7 @@ describe('resolveAnimatedSettings — composing a LIST', () => {
   test('higher priority wins when two animations write the same setting', () => {
     const low = settingsAnim({ id: 'low', tracks: [{ setting: 'opacity', from: 0.2, to: 0.2 }], priority: 0 })
     const high = settingsAnim({ id: 'high', tracks: [{ setting: 'opacity', from: 0.9, to: 0.9 }], priority: 5 })
-    // Order puts `high` FIRST to prove priority — not order — decides.
+    // Order puts `high` FIRST to prove priority, not order, decides.
     expect(resolveAnimatedSettings([high, low], 500, 0).opacity).toBe(0.9)
     expect(resolveAnimatedSettings([low, high], 500, 0).opacity).toBe(0.9)
   })
@@ -235,7 +235,7 @@ describe('resolveAnimatedSettings — composing a LIST', () => {
       frames: [{ tileId: 'emoji:water_c' }, { tileId: 'emoji:water_c', flipX: true }],
     }
     const out = resolveAnimatedSettings([move, sprite], 500, 0)
-    expect(out).toEqual({ x: 2 }) // sprite writes NO render settings — its live frame comes from spriteFrameIndex
+    expect(out).toEqual({ x: 2 }) // sprite writes NO render settings, its live frame comes from spriteFrameIndex
   })
 
   test('an empty list yields no overrides', () => {
@@ -262,7 +262,7 @@ describe('scope + sprite frame playback', () => {
     expect(animationValue(sprite, 500, 0)).toEqual({})
   })
 
-  test('spriteFrameIndex is REAL clock-derived playback — frames spread evenly, loopDelay + delay honored', () => {
+  test('spriteFrameIndex is REAL clock-derived playback, frames spread evenly, loopDelay + delay honored', () => {
     // 3 frames across 900ms → 300ms/frame; a looping cycle with a 300ms tail that rests on frame 0.
     const sprite: SpriteAnimation = { id: 's', kind: 'sprite', durationMs: 900, loopDelayMs: 300, loop: true, frames: [{ char: 'a' }, { char: 'b' }, { char: 'c' }] }
     expect(spriteFrameIndex(sprite, 0, 0)).toBe(0)
@@ -288,9 +288,9 @@ describe('scope + sprite frame playback', () => {
 })
 
 // The FAILING-bulb envelope. Sampled across the phase [0,1),
-// it must be a MINORITY of dips over a mostly-ON baseline, STEPPED (abrupt jumps — never a smooth sine), and
+// it must be a MINORITY of dips over a mostly-ON baseline, STEPPED (abrupt jumps, never a smooth sine), and
 // deterministic. easeAnim routes `ease:'flicker'` to it, so an opacity flicker animation reads erratic, not sine.
-describe('flickerEase — the irregular, stepped failing-bulb envelope (NOT a sine yoyo)', () => {
+describe('flickerEase, the irregular, stepped failing-bulb envelope (NOT a sine yoyo)', () => {
   const N = 400
   const samples = Array.from({ length: N }, (_, i) => flickerEase(i / N))
 
@@ -299,7 +299,7 @@ describe('flickerEase — the irregular, stepped failing-bulb envelope (NOT a si
     for (const v of samples) { expect(v).toBeGreaterThanOrEqual(0); expect(v).toBeLessThanOrEqual(1) }
   })
 
-  test('mostly ON: the MAJORITY of the loop is fully lit (envelope 0) — the dips are the minority', () => {
+  test('mostly ON: the MAJORITY of the loop is fully lit (envelope 0), the dips are the minority', () => {
     const lit = samples.filter(v => v === 0).length
     expect(lit / N).toBeGreaterThan(0.5) // a normal-looking lamp that occasionally faults, not a strobe
   })
@@ -307,8 +307,8 @@ describe('flickerEase — the irregular, stepped failing-bulb envelope (NOT a si
   test('STEPPED, not smooth: adjacent samples take a large JUMP somewhere (a sine yoyo never does)', () => {
     let maxStep = 0
     for (let i = 1; i < samples.length; i++) maxStep = Math.max(maxStep, Math.abs(samples[i] - samples[i - 1]))
-    expect(maxStep).toBeGreaterThanOrEqual(0.4) // an abrupt on↔off edge — the failing-bulb signature
-    // contrast: a sine ease over the same fine sampling is smooth — every adjacent step is tiny
+    expect(maxStep).toBeGreaterThanOrEqual(0.4) // an abrupt on↔off edge, the failing-bulb signature
+    // contrast: a sine ease over the same fine sampling is smooth, every adjacent step is tiny
     let sineMax = 0
     for (let i = 1; i < N; i++) sineMax = Math.max(sineMax, Math.abs(easeAnim('sine', i / N) - easeAnim('sine', (i - 1) / N)))
     expect(sineMax).toBeLessThan(0.05)
@@ -321,12 +321,12 @@ describe('flickerEase — the irregular, stepped failing-bulb envelope (NOT a si
 
   test('easeAnim routes `flicker` to flickerEase, and an opacity flicker reads erratic (not a sine tween)', () => {
     expect(easeAnim('flicker', 0.42)).toBe(flickerEase(0.42))
-    // an opacity 1→0.12 flicker animation, sampled over its loop, is mostly 1 (on) with abrupt dips — not a curve
+    // an opacity 1→0.12 flicker animation, sampled over its loop, is mostly 1 (on) with abrupt dips, not a curve
     const flick = settingsAnim({ durationMs: 2600, loop: true, ease: 'flicker', tracks: [{ setting: 'opacity', from: 1, to: 0.12 }] })
     const op = Array.from({ length: 130 }, (_, i) => Number(animationValue(flick, i * 20, 0).opacity))
     expect(op.filter(v => v > 0.99).length / op.length).toBeGreaterThan(0.5) // mostly fully-on
     let maxStep = 0
     for (let i = 1; i < op.length; i++) maxStep = Math.max(maxStep, Math.abs(op[i] - op[i - 1]))
-    expect(maxStep).toBeGreaterThan(0.3) // abrupt opacity dips — a failing bulb, not a smooth breathe
+    expect(maxStep).toBeGreaterThan(0.3) // abrupt opacity dips, a failing bulb, not a smooth breathe
   })
 })

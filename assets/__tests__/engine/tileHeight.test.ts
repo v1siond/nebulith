@@ -1,36 +1,35 @@
 import { resolveTileHeight, blockLayers, layerBlockScale } from '@/engine/tileset/tileHeight'
 
 // FLAT TILES NO LONGER EXIST.
-// Height is a property of the PLACED BLOCK, never of the art tile — "tiles only have data when they're
+// Height is a property of the PLACED BLOCK, never of the art tile, "tiles only have data when they're
 // assigned to a cell … the generator should assign the value when creating something". So the resolution is
 // `placement ?? 1`, with the art tile deliberately unread; there is no tile-default tier left to fall back to.
-describe("resolveTileHeight — the PLACEMENT's height ?? the TILE's height ?? one block", () => {
-  test('ONE block by default — an ordinary placement with no height pinned', () => {
+describe("resolveTileHeight, the PLACEMENT's height ?? the TILE's height ?? one block", () => {
+  test('ONE block by default, an ordinary placement with no height pinned', () => {
     expect(resolveTileHeight({}, {})).toBe(1)
     expect(resolveTileHeight(undefined, undefined)).toBe(1)
   })
 
-  test('the PLACEMENT carries the height — a generator/editor value of any size lands as given', () => {
+  test('the PLACEMENT carries the height, a generator/editor value of any size lands as given', () => {
     expect(resolveTileHeight(undefined, { height: 3 })).toBe(3)
     expect(resolveTileHeight({}, { height: 0.5 })).toBe(0.5) // blocks are a measurement, not an integer
   })
 
-  test("the TILE's own height is the default — that is the setting the backend saves", () => {
+  test("the TILE's own height is the default, that is the setting the backend saves", () => {
     // This used to be thrown away (`void tile`), because the served data was inconsistent and a road sank
-    // below the grass beside it. The data was fixed instead (migration 0008), so the column is read again —
-    // otherwise a floor could never be flat and no chosen height could ever persist.
+    // below the grass beside it. The data was fixed instead (migration 0008), so the column is read again, // otherwise a floor could never be flat and no chosen height could ever persist.
     expect(resolveTileHeight({ height: 0 }, {})).toBe(0)
     expect(resolveTileHeight({ height: 7 }, {})).toBe(7)
   })
 
-  test('…and a PLACEMENT still wins over it — a decision about THIS block beats what the thing is', () => {
+  test('…and a PLACEMENT still wins over it, a decision about THIS block beats what the thing is', () => {
     expect(resolveTileHeight({ height: 7 }, { height: 2 })).toBe(2)
     expect(resolveTileHeight({ height: 0 }, { height: 3 })).toBe(3) // a raised weir over flat water
   })
 
-  test('a DELIBERATE zero is honoured — that is how a flat floor skin is expressed', () => {
+  test('a DELIBERATE zero is honoured, that is how a flat floor skin is expressed', () => {
     // The grid takes the map's thickness; a floor becomes a flat skin on it. A flat tile has no
-    // side faces, cannot occlude, and so does not need a place in the draw order — which is what lets ground
+    // side faces, cannot occlude, and so does not need a place in the draw order, which is what lets ground
     // merge into runs at all.
     expect(resolveTileHeight({}, { height: 0 })).toBe(0)
   })
@@ -43,14 +42,14 @@ describe("resolveTileHeight — the PLACEMENT's height ?? the TILE's height ?? o
 })
 
 // Render geometry ONLY: how tall to draw a tile's base layer given its DB block-height. The VALUE comes from
-// the DB (`blocks`, via resolveTileHeight); this pure fn just turns it into pixels. It invents NOTHING — a
+// the DB (`blocks`, via resolveTileHeight); this pure fn just turns it into pixels. It invents NOTHING, a
 // flat tile is thin because its DB height IS small (e.g. 0.1), not because the frontend decided so.
-describe('blockLayers / layerBlockScale — a tile draws at its EXACT height, not rounded to whole blocks', () => {
+describe('blockLayers / layerBlockScale, a tile draws at its EXACT height, not rounded to whole blocks', () => {
   // Blocks are a unit of MEASUREMENT, not a constraint to integers. The renderer stacks
   // `blockLayers` equal layers of `layerBlockScale` each, and their product is the height it was GIVEN.
   const total = (blocks: number) => blockLayers(blocks) * layerBlockScale(blocks)
 
-  test('layers x layerScale is ALWAYS the exact height — nothing is truncated', () => {
+  test('layers x layerScale is ALWAYS the exact height, nothing is truncated', () => {
     for (const h of [0, 0.001, 0.1, 0.5, 1, 1.5, 2, 2.75, 4, 4.5, 7.25]) {
       expect(total(h)).toBeCloseTo(h, 10)
     }
@@ -63,7 +62,7 @@ describe('blockLayers / layerBlockScale — a tile draws at its EXACT height, no
     expect(layerBlockScale(0.001)).toBeCloseTo(0.001, 10)
   })
 
-  test('a whole-number tile is N full layers — unchanged from before', () => {
+  test('a whole-number tile is N full layers, unchanged from before', () => {
     expect(blockLayers(1)).toBe(1)
     expect(layerBlockScale(1)).toBe(1)
     expect(blockLayers(4)).toBe(4)

@@ -1,15 +1,15 @@
 /**
- * ROUTING GUARDRAIL (Phase 2) — the RENDERERS must DRAW from the resolved tiles, not from hardcoded
+ * ROUTING GUARDRAIL (Phase 2), the RENDERERS must DRAW from the resolved tiles, not from hardcoded
  * colors/shapes/glyphs that bypass the tileset. tileCoverage.test.ts proves every identifier RESOLVES
  * to a tile; this proves the draw sites actually USE it.
  *
- * Under the EMOJI style each previously-hardcoded world draw must produce a tile — a baked IMAGE
+ * Under the EMOJI style each previously-hardcoded world draw must produce a tile, a baked IMAGE
  * (ctx.drawImage) for image tiles, or the tile's own emoji glyph for glyph-only tiles (roof 🟥,
- * fountain ⛲) — NEVER the old fillRect blueprint / procedural arcs / ◊ / raw frame glyph. Under ASCII
+ * fountain ⛲), NEVER the old fillRect blueprint / procedural arcs / ◊ / raw frame glyph. Under ASCII
  * the passthrough look is preserved (◊ portal, blueprint roof, procedural fountain, \ | / frame glyph).
  *
  * A decoded image is normally unavailable headless (tileImage → null → glyph fallback), so we stub
- * Image (complete + naturalWidth) so an IMAGE tile genuinely reaches ctx.drawImage — and force offscreen
+ * Image (complete + naturalWidth) so an IMAGE tile genuinely reaches ctx.drawImage, and force offscreen
  * 2D contexts to null so the tint/recolour helpers fall back cleanly to that same drawImage / plain glyph.
  */
 import '@/__tests__/helpers/installTilesetSeed' // routes resolve against the loaded backend tileset fixture (baked images); no bundled default
@@ -126,11 +126,11 @@ describe('G4 attack animation routes the ability → its FX tile', () => {
 })
 
 // ── G3 · well (3D from the tile) + boss (a prop) in iso ─────────────────────────────────────────
-// ONE ENGINE, N ART STYLES. These used to be two cases per subject — emoji draws a picture, ascii draws a
-// glyph — which described two engines. Every tile is baked in every style now, so BOTH styles take the same
+// ONE ENGINE, N ART STYLES. These used to be two cases per subject, emoji draws a picture, ascii draws a
+// glyph, which described two engines. Every tile is baked in every style now, so BOTH styles take the same
 // route and differ only in WHICH picture comes back. Running each subject over both styles is the strongest
 // form of the thing this group exists to guard: no bespoke procedural drawer, no raw-glyph branch, anywhere.
-describe('G3 well/boss route through resolveDraw in iso — same path in every style', () => {
+describe('G3 well/boss route through resolveDraw in iso, same path in every style', () => {
   const STYLES: [string, Style][] = [['emoji', EMOJI_STYLE], ['ascii', ASCII_STYLE]]
 
   test.each(STYLES)('%s well → a 3D tile BLOCK from its own picture, never drawIsoWellFountain', (_id, style) => {
@@ -148,5 +148,5 @@ describe('G3 well/boss route through resolveDraw in iso — same path in every s
   })
 })
 
-// (Top-view fountain no longer has a dedicated drawer — it renders as its tile via the generic per-cell
+// (Top-view fountain no longer has a dedicated drawer, it renders as its tile via the generic per-cell
 //  pass in renderTopView, like every other asset. The bespoke drawTopFountain/drawTopTownFountain are gone.)

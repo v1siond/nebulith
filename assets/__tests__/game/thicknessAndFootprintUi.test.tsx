@@ -1,14 +1,14 @@
 /**
  * THICKNESS AND FOOTPRINT ARE ONE CONTROL SHAPE, AND THEIR ARROWS MATCH THE VIEW.
  *
- * So both controls ask the SAME question — "how far does this tile reach toward ⟨arrow⟩?" — and differ only
+ * So both controls ask the SAME question, "how far does this tile reach toward ⟨arrow⟩?", and differ only
  * in unit:
  *   FOOTPRINT  whole CELLS, minimum 1 (a tile always occupies its own cell)
  *   THICKNESS  within ONE cell, maximum 1 (1 = all the way to that face)
  *
  * And the arrows are SCREEN directions. The glyph stays where it is in the 2×2 grid (↖ is always the up-left
  * corner, matching where the block grows on screen) while the WORLD axis under it is re-derived per camera
- * facing — so clicking the arrow you can see edits the axis you are looking at, while STORAGE stays
+ * facing, so clicking the arrow you can see edits the axis you are looking at, while STORAGE stays
  * world-space (which is what keeps a door thin toward its own wall as you rotate).
  */
 import { render, screen, fireEvent } from '@testing-library/react'
@@ -50,7 +50,7 @@ const baseTile = (overrides: Partial<TileControlModel> = {}): TileControlModel =
 
 const ARROWS = ['up-left', 'up-right', 'down-left', 'down-right'] as const
 
-describe('Thickness looks like Footprint — four arrow rows, not a slider and some buttons', () => {
+describe('Thickness looks like Footprint, four arrow rows, not a slider and some buttons', () => {
   it('renders one slider per direction, in its own group', () => {
     render(<TileControls tile={baseTile()} />)
     expect(screen.getByRole('group', { name: 'Thickness per direction' })).toBeInTheDocument()
@@ -60,7 +60,7 @@ describe('Thickness looks like Footprint — four arrow rows, not a slider and s
     }
   })
 
-  it('reaches all the way by default — 1, like a full cell', () => {
+  it('reaches all the way by default, 1, like a full cell', () => {
     render(<TileControls tile={baseTile()} />)
     for (const dir of ARROWS) expect(screen.getByLabelText(`Thickness ${dir}`)).toHaveValue('1')
   })
@@ -97,7 +97,7 @@ describe('Thickness looks like Footprint — four arrow rows, not a slider and s
   })
 })
 
-describe('the arrows follow the camera — what you see is what you edit', () => {
+describe('the arrows follow the camera, what you see is what you edit', () => {
   it.each([0, 1, 2, 3])('Thickness ↘ edits the axis seen as ↘ at facing %i', facing => {
     const onThicknessReach = jest.fn()
     render(<TileControls tile={baseTile({ facing, onThicknessReach })} />)

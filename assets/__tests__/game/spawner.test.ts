@@ -19,7 +19,7 @@ const seeded = (seed: number): (() => number) => {
   }
 }
 
-describe('scatterEntities — scatter into free cells', () => {
+describe('scatterEntities, scatter into free cells', () => {
   it('places `count` enemies on distinct, walkable, unoccupied cells', () => {
     const grid = openGrid(10, 10)
     const ents = scatterEntities({ collision: grid, count: 5, rng: seeded(1), minGap: 0 })
@@ -59,7 +59,7 @@ describe('scatterEntities — scatter into free cells', () => {
 
   // User: "when I add enemies, they're added with animation by default, which should only happen when
   // 'scattering'." An enemy's out-of-the-box liveliness is its PATROL MOVEMENT (enemies carry no
-  // frame-animations — the renderer draws them static — so the auto-walk IS the movement). An enemy with NO
+  // frame-animations, the renderer draws them static, so the auto-walk IS the movement). An enemy with NO
   // movement inherits the runtime DEFAULT_ENEMY_PATROL and wanders; so a MANUALLY-placed enemy (top-nav ◈
   // Unit → Enemy) pins a STATIONARY single-waypoint pattern to STAY PUT, while a SCATTERED enemy carries a
   // real makePatrol and moves. This drives them BOTH through the real advanceEnemyMovement runtime path.
@@ -179,7 +179,7 @@ const centroid = (ents: Entity[]) => ({
 
 const meanPairwise = (pairs: number[]) => pairs.reduce((s, d) => s + d, 0) / pairs.length
 
-describe('scatterEntities — enemies grouped by type into zones', () => {
+describe('scatterEntities, enemies grouped by type into zones', () => {
   it('keeps each enemy type in its own bounded region (clustered, not scattered map-wide)', () => {
     const grid = openGrid(60, 60)
     const ents = scatterEntities({ collision: grid, count: 24, rng: seeded(21) })
@@ -233,7 +233,7 @@ describe('scatterEntities — enemies grouped by type into zones', () => {
   })
 })
 
-describe('scatterEntities — rarity-driven respawn', () => {
+describe('scatterEntities, rarity-driven respawn', () => {
   it('gives every spawned enemy a positive respawnMs taken from its rarity', () => {
     const ents = scatterEntities({ collision: openGrid(40, 40), count: 12, rng: seeded(31) })
     for (const e of ents) {
@@ -272,7 +272,7 @@ describe('scatterEntities — rarity-driven respawn', () => {
   })
 })
 
-describe('scatterEntities — never overlaps or lands on blocked cells', () => {
+describe('scatterEntities, never overlaps or lands on blocked cells', () => {
   it('places every enemy on a free, distinct cell even with obstacles', () => {
     const grid = openGrid(30, 30)
     // sprinkle some blocked cells (roads/buildings/water stand-ins)

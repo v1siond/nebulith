@@ -1,18 +1,17 @@
 /**
- * UNIT-DATA PERSISTENCE — fold each unit's LOADOUT (+ the hero's INVENTORY) onto the entities at save,
+ * UNIT-DATA PERSISTENCE, fold each unit's LOADOUT (+ the hero's INVENTORY) onto the entities at save,
  * split them back out on load.
  *
  * "everything is data... what a unit HAS is data": a unit's gear rides ON the unit, so it
  * persists through the SAME `entities` channel every entity already round-trips (templates.tsx →
- * template.entities jsonb → nebulith Postgres over HTTP). No parallel per-unit-type table — units are the
+ * template.entities jsonb → nebulith Postgres over HTTP). No parallel per-unit-type table, units are the
  * same, so their inventory is just data on the unit. These two pure functions are the boundary codec ONLY:
  * the running editor keeps its `loadouts` map + hero `inventory` state; fold marries them to the entities
- * at the save edge and split reads them back at the load edge — exactly as entities/quests already ride
+ * at the save edge and split reads them back at the load edge, exactly as entities/quests already ride
  * assetsData (lib/gridCodec.ts).
  *
  * Round-trip guarantee (tested in __tests__/game/unitDataPersistence.test.ts): for any entity list,
- * `split(fold(entities, loadouts, inventory))` reproduces `loadouts` + `playerInventory` EXACTLY —
- * including bag/special ORDER and empty gaps — for the player and any npc/enemy alike.
+ * `split(fold(entities, loadouts, inventory))` reproduces `loadouts` + `playerInventory` EXACTLY, * including bag/special ORDER and empty gaps, for the player and any npc/enemy alike.
  */
 import type { Entity, Inventory, Loadout } from '@/game/types'
 
@@ -29,7 +28,7 @@ export function loadoutKeyFor(entity: Entity): string {
 /**
  * Attach each unit's loadout (+ the hero's inventory) onto the entities so they persist with the unit.
  * Pure: returns a NEW entity per unit that has data to carry; inputs are untouched. A unit with no loadout
- * in the map (and no inventory) is passed through unchanged — no empty blob is written, keeping saves lean.
+ * in the map (and no inventory) is passed through unchanged, no empty blob is written, keeping saves lean.
  */
 export function foldUnitData(
   entities: readonly Entity[],
@@ -55,7 +54,7 @@ export interface SplitUnitData {
 }
 
 /**
- * Pull each unit's persisted loadout (+ the hero's inventory) back into the editor's maps. Pure — reads
+ * Pull each unit's persisted loadout (+ the hero's inventory) back into the editor's maps. Pure, reads
  * only the entities' own `loadout`/`inventory` DATA. The inventory is player-only by construction (fold
  * only writes it on the hero), so a stray `inventory` on a non-player is ignored.
  */

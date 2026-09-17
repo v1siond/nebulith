@@ -4,15 +4,15 @@ import { useToast } from '@/components/Toast'
 import { getGame, type Game } from '@/lib/api'
 import TemplateEditor, { type EditorGameContext } from '../templates'
 
-/** The standalone builder route — the "default builder" we fall back to when a game can't be opened. */
+/** The standalone builder route, the "default builder" we fall back to when a game can't be opened. */
 const DEFAULT_BUILDER_ROUTE = '/personal-projects/game-engine/templates'
 
 /**
- * GAME show — the same editor as before, scoped to a game. We load the game, then render the editor
+ * GAME show, the same editor as before, scoped to a game. We load the game, then render the editor
  * with its context so it opens the last-watched template (or the first) and remembers switches.
  * `?play=1` deep-links straight into play mode (from the games gallery ▶ Play).
  *
- * If the game data can't be loaded (backend down, bad id) we don't dead-end — we notify with a toast and
+ * If the game data can't be loaded (backend down, bad id) we don't dead-end, we notify with a toast and
  * fall back to the default builder (the standalone /templates route), so the view degrades gracefully
  * instead of trapping the user on an error screen. We redirect there rather than rendering the editor on
  * this URL, because the [id] segment is the GAME id (not a template) and the editor would misread it.
@@ -38,7 +38,7 @@ export default function GameShowPage() {
         }),
       )
       .catch(() => {
-        toast("Couldn't load the game — showing the default builder.", 'error')
+        toast("Couldn't load the game, showing the default builder.", 'error')
         void router.replace(DEFAULT_BUILDER_ROUTE)
       })
   }, [router.isReady, router.query.id, router.query.play, toast, router])

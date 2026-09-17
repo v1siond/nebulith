@@ -1,10 +1,10 @@
 /**
  * Load the entity resolution from the nebulith Elixir backend and install it into the (EMPTY) holder.
- * `GET /api/entities` serves `{ dir, tiles, enemyTypeSlug, variantSlug }` — the mapping from an enemy's
+ * `GET /api/entities` serves `{ dir, tiles, enemyTypeSlug, variantSlug }`, the mapping from an enemy's
  * `enemyType` / a person's `variant` to a baked tile slug. This is the SOLE runtime source of that
  * mapping: the frontend ships NO bundled entity data (per TILE-BACKEND-MIGRATION §9).
  *
- * There is NO fallback — mirroring the tileset loader. On any failure (backend down, CORS, bad JSON)
+ * There is NO fallback, mirroring the tileset loader. On any failure (backend down, CORS, bad JSON)
  * NOTHING is installed and the function returns false; the caller keeps the render gated (the loader/
  * error state stays up) and never resolves entities against a stale frontend map. Sets
  * `window.__nebulithEntities` so "entities came from the backend" is verifiable in devtools.
@@ -31,7 +31,7 @@ export async function loadEntitiesFromBackend(): Promise<boolean> {
     console.info(`[nebulith] entity resolution loaded from the Elixir API (${NEBULITH_API}): ${Object.keys(resolution.tiles).length} slugs`)
     return true
   } catch (e) {
-    console.warn(`[nebulith] entity resolution load from ${NEBULITH_API} failed — the editor stays gated (no bundled fallback). (${(e as Error).message})`)
+    console.warn(`[nebulith] entity resolution load from ${NEBULITH_API} failed, the editor stays gated (no bundled fallback). (${(e as Error).message})`)
     return false
   }
 }

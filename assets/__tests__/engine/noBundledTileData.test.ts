@@ -1,10 +1,10 @@
 /**
- * GUARD — the frontend ships NO bundled tile DATA. Every runtime tile comes from the nebulith backend
+ * GUARD, the frontend ships NO bundled tile DATA. Every runtime tile comes from the nebulith backend
  * (`/api/tilesets`); the in-memory holders start EMPTY and are filled only by the loader. This is the
  * core of the "no fallback / no wrong-style flash" fix: with nothing bundled, there is nothing for the
  * renderer to paint before the DB tileset installs.
  *
- * This file deliberately does NOT install the fixture — it asserts the pristine, freshly-imported state.
+ * This file deliberately does NOT install the fixture, it asserts the pristine, freshly-imported state.
  */
 import { loadedStyleIds, styleCatalog, styleTiles } from '@/engine/tileset/styleTiles'
 import fs from 'fs'
@@ -16,12 +16,12 @@ const TILESET_DIR = path.join(__dirname, '../../engine/tileset')
 const SRC_DIR = path.join(__dirname, '../..')
 const DATA_DIR = path.join(__dirname, '../../game/data')
 
-describe('no bundled frontend tile data — the ONE store starts empty', () => {
+describe('no bundled frontend tile data, the ONE store starts empty', () => {
   test('nothing is installed at all until the loader runs', () => {
     expect(loadedStyleIds()).toEqual([])
   })
 
-  test('every style reads back empty — an unloaded style is empty, never a stand-in for another', () => {
+  test('every style reads back empty, an unloaded style is empty, never a stand-in for another', () => {
     for (const style of ['emoji', 'ascii']) {
       expect(Object.keys(styleTiles(style))).toHaveLength(0)
       expect(Object.keys(styleCatalog(style).terrain)).toHaveLength(0)
@@ -42,10 +42,9 @@ describe('no bundled frontend tile data — the ONE store starts empty', () => {
   })
 })
 
-describe('no bundled frontend tile data — the source proves it (grep-style guard)', () => {
-  // They are deleted, and this keeps them deleted —
-  // a per-style module is exactly where bundled rows creep back in, one style at a time.
-  test('there is no per-style tileset module — one store, every style', () => {
+describe('no bundled frontend tile data, the source proves it (grep-style guard)', () => {
+  // They are deleted, and this keeps them deleted, // a per-style module is exactly where bundled rows creep back in, one style at a time.
+  test('there is no per-style tileset module, one store, every style', () => {
     expect(fs.existsSync(path.join(TILESET_DIR, 'emojiTileset.ts'))).toBe(false)
     expect(fs.existsSync(path.join(TILESET_DIR, 'asciiTileset.ts'))).toBe(false)
   })
@@ -60,7 +59,7 @@ describe('no bundled frontend tile data — the source proves it (grep-style gua
 
   test('no bundled tile/entity JSON remains in game/data (tiles + entity resolution are backend-served)', () => {
     const files = fs.existsSync(DATA_DIR) ? fs.readdirSync(DATA_DIR) : []
-    // entityTiles.json was the LAST frontend data file — it now lives in the backend (EntitySource,
+    // entityTiles.json was the LAST frontend data file, it now lives in the backend (EntitySource,
     // served by GET /api/entities). No JSON DATA blob may return to game/data.
     for (const banned of ['entityTiles.json', 'compositions.json', 'tileKinds.json', 'emojiCatalog.json', 'tilesetSeed.json']) {
       expect(files).not.toContain(banned)

@@ -7,17 +7,17 @@
  *   - a 1-deep tree (no depth) passes through untouched;
  *   - two buildings that share a screen column but sit in different row bands keep their OWN front rows.
  *
- * Geometry only — no canvas, no pixels.
+ * Geometry only, no canvas, no pixels.
  */
 import { frontElevation } from '@/engine/render/frontElevation'
 import type { GridAsset } from '@/engine/IsometricGrid'
 
-// Minimal placed-asset factory — only the fields the projection reads.
+// Minimal placed-asset factory, only the fields the projection reads.
 const cell = (col: number, row: number, level: number, label: string): GridAsset =>
   ({ art: ['#'], col, row, type: 'house', label, heightLevel: level } as GridAsset)
 
 // A house_4-shaped footprint: 4 wide (col 0-3) × 4 deep (row 0-3), 5 levels tall (0-4).
-// Perimeter walls levels 0-1, windows level 2, roof levels 3-4 (gable — narrower on top), door at front
+// Perimeter walls levels 0-1, windows level 2, roof levels 3-4 (gable, narrower on top), door at front
 // centre level 0. The exact shape of the real house_4 composition (front row = the max row = 3).
 function house4(baseCol = 0, baseRow = 0): GridAsset[] {
   const out: GridAsset[] = []
@@ -38,12 +38,12 @@ function house4(baseCol = 0, baseRow = 0): GridAsset[] {
   return out
 }
 
-describe('frontElevation — 2D depth-collapse projection', () => {
+describe('frontElevation, 2D depth-collapse projection', () => {
   test('a building reads its LEVEL height, not level + depth (front wall column anchored at the front row)', () => {
     const assets = house4(0, 0)
     const { draw, hidden } = frontElevation(assets)
 
-    // Every KEPT cell anchors at the front row (max row = 3) — the whole facade sits on one ground line,
+    // Every KEPT cell anchors at the front row (max row = 3), the whole facade sits on one ground line,
     // so the drawn stack is exactly `maxLevel + 1` cells tall (5), NOT depth(4) + levels(5).
     for (const [, fe] of draw) expect(fe.anchorRow).toBe(3)
 
@@ -51,13 +51,13 @@ describe('frontElevation — 2D depth-collapse projection', () => {
     const keptLevels = [...draw.keys()].map(a => a.heightLevel ?? 0)
     expect(Math.min(...keptLevels)).toBe(0)
     expect(Math.max(...keptLevels)).toBe(4)
-    // With depth collapsed there is exactly one kept cell per (col, level) — no depth rows survive.
+    // With depth collapsed there is exactly one kept cell per (col, level), no depth rows survive.
     const colLevel = new Set([...draw.keys()].map(a => `${a.col}|${a.heightLevel}`))
     expect(colLevel.size).toBe(draw.size)
 
     // Something behind the front face must be hidden (the collapse actually removed depth).
     expect(hidden.size).toBeGreaterThan(0)
-    // Every asset is either drawn or hidden — none left ambiguous.
+    // Every asset is either drawn or hidden, none left ambiguous.
     expect(draw.size + hidden.size).toBe(assets.length)
   })
 
@@ -65,7 +65,7 @@ describe('frontElevation — 2D depth-collapse projection', () => {
     const assets = house4(0, 0)
     const { draw, hidden } = frontElevation(assets)
 
-    // Door is at (col 2, row 3, level 0) — the front-most cell in its column at level 0 → KEPT.
+    // Door is at (col 2, row 3, level 0), the front-most cell in its column at level 0 → KEPT.
     const door = assets.find(a => a.label === 'door')!
     expect(draw.has(door)).toBe(true)
 
@@ -80,14 +80,14 @@ describe('frontElevation — 2D depth-collapse projection', () => {
     }
   })
 
-  test('the roof cap reads ≤3 blocks (levels 3-4) — a gable, not a depth-stacked tower', () => {
+  test('the roof cap reads ≤3 blocks (levels 3-4), a gable, not a depth-stacked tower', () => {
     const assets = house4(0, 0)
     const { draw } = frontElevation(assets)
     const roofLevels = new Set([...draw.keys()].filter(a => a.label === 'roof').map(a => a.heightLevel))
     expect([...roofLevels].sort()).toEqual([3, 4]) // exactly 2 roof levels survive the collapse
   })
 
-  test('a 1-deep tree (no column depth) passes through untouched — not collapsed', () => {
+  test('a 1-deep tree (no column depth) passes through untouched, not collapsed', () => {
     // tree footprint h=1: one row, canopy stacked in levels. No depth → nothing to collapse.
     const tree = [
       cell(5, 5, 0, 'tree_stem'),
@@ -97,7 +97,7 @@ describe('frontElevation — 2D depth-collapse projection', () => {
       cell(5, 5, 2, 'tree_top'),
     ]
     const { draw, hidden } = frontElevation(tree)
-    expect(draw.size).toBe(0)   // pass-through — renderer keeps drawing each at its own row
+    expect(draw.size).toBe(0)   // pass-through, renderer keeps drawing each at its own row
     expect(hidden.size).toBe(0)
   })
 
@@ -119,6 +119,6 @@ describe('frontElevation — 2D depth-collapse projection', () => {
     const anchorsA = new Set([...draw.keys()].filter(x => a.includes(x)).map(x => draw.get(x)!.anchorRow))
     const anchorsB = new Set([...draw.keys()].filter(x => b.includes(x)).map(x => draw.get(x)!.anchorRow))
     expect([...anchorsA]).toEqual([3])   // building A anchored at ITS front row
-    expect([...anchorsB]).toEqual([13])  // building B anchored at ITS front row — not swallowed by A
+    expect([...anchorsB]).toEqual([13])  // building B anchored at ITS front row, not swallowed by A
   })
 })

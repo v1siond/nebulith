@@ -92,6 +92,12 @@
   grid-template-columns:repeat(auto-fill,minmax(84px,1fr));gap:6px;align-content:start}
 /* an object is a whole building — it needs room for a silhouette, not a 24px chip */
 .neb .palgrid.objgrid{grid-template-columns:repeat(auto-fill,minmax(102px,1fr))}
+/* THE CHOICES OF ONE OPTION, each showing a picture of the map it makes.
+   Its own class rather than `palgrid`: that one is the palette's scroller (flex:1, its own overflow) and
+   reusing it inside a panel row made the choices a second scrolling region inside a scrolling panel. This is
+   just the strip. `auto-fill` so a narrow panel wraps to two rows instead of squeezing five into one. */
+.neb .swatches{display:grid;grid-template-columns:repeat(auto-fill,minmax(84px,1fr));gap:6px;
+  align-content:start;margin:5px 0 2px}
 .neb .sw{background:var(--panel2);border:1px solid var(--line);border-radius:8px;cursor:pointer;padding:7px 4px;
   display:flex;flex-direction:column;align-items:center;gap:4px;color:var(--dim);min-height:74px;overflow:hidden}
 .neb .sw:hover{border-color:var(--accent);color:var(--ink)}

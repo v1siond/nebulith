@@ -3,7 +3,7 @@ import { generateStage, type StageData } from '@/engine/stageGenerator'
 
 // Only a SMALL, RANDOM minority of a settlement's lamps flickers. The old per-cell ratio hash tagged ~a quarter of
 // every map's
-// lamps — a town got 2–3, a CITY 3–4 flickering — which read as "all of them". These lock the fix: the failing
+// lamps, a town got 2-3, a CITY 3-4 flickering, which read as "all of them". These lock the fix: the failing
 // count is a tiny ABSOLUTE number (≤ 2), never a fraction of the lamp count.
 
 function lampKinds(stage: StageData): { total: number; failing: number } {
@@ -13,7 +13,7 @@ function lampKinds(stage: StageData): { total: number; failing: number } {
 
 const seedsFor = (s: number) => ({ layout: 1000 + s, buildings: 2000 + s, nature: 3000 + s, decor: 4000 + s })
 
-describe('lamp flicker — only 1 or 2 lamps flicker, never a fraction of the count', () => {
+describe('lamp flicker, only 1 or 2 lamps flicker, never a fraction of the count', () => {
   test('a TOWN has several lamps but at most 2 flicker, every seed', () => {
     let sawMultiLamp = false
     for (let s = 0; s < 24; s++) {
@@ -26,7 +26,7 @@ describe('lamp flicker — only 1 or 2 lamps flicker, never a fraction of the co
     expect(sawMultiLamp).toBe(true) // the towns really do carry several lamps (so ≤2 failing is a real minority)
   })
 
-  test('a CITY has MANY lamps yet still at most 2 flicker — the count does NOT scale with map size', () => {
+  test('a CITY has MANY lamps yet still at most 2 flicker, the count does NOT scale with map size', () => {
     let maxTotal = 0
     for (let s = 0; s < 16; s++) {
       const stage = generateStage({ zone: 'summer', variant: 'city', cols: 60, rows: 46, seeds: seedsFor(100 + s) })
@@ -37,7 +37,7 @@ describe('lamp flicker — only 1 or 2 lamps flicker, never a fraction of the co
     expect(maxTotal).toBeGreaterThanOrEqual(8) // a city genuinely has many lamps → ≤2 failing proves no ratio scaling
   })
 
-  test('across many towns the AVERAGE failing count is small (≈1) — usually 1, sometimes 0 or 2', () => {
+  test('across many towns the AVERAGE failing count is small (≈1), usually 1, sometimes 0 or 2', () => {
     let sum = 0
     const N = 40
     for (let s = 0; s < N; s++) {
@@ -57,7 +57,7 @@ describe('lamp flicker — only 1 or 2 lamps flicker, never a fraction of the co
     }
   })
 
-  test('the failing lamps ARE the flickering variant and the rest are steady — both variants present in the mix', () => {
+  test('the failing lamps ARE the flickering variant and the rest are steady, both variants present in the mix', () => {
     // find a seed whose town has ≥1 failing lamp, then assert the split is real (steady majority + failing ≤2)
     for (let s = 0; s < 60; s++) {
       const stage = generateStage({ zone: 'summer', variant: 'town', cols: 48, rows: 36, seeds: seedsFor(9000 + s) })

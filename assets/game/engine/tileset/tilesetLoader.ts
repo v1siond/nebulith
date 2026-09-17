@@ -1,12 +1,12 @@
 /**
  * Load the tilesets from the nebulith Elixir backend and install them into the (EMPTY) holders.
  * `/api/tilesets` serves the per-tile shape (tiles: label => {image_url, blocking, height, category,
- * title, glyph, emoji, color_role, settings}, compositions: name => {footprint, cells}) — this loader
+ * title, glyph, emoji, color_role, settings}, compositions: name => {footprint, cells}), this loader
  * maps that shape onto the Tileset / EmojiTile types the renderer reads, so every tile carries its
  * backend `image`. This is the SOLE runtime source of tiles: the frontend ships NO bundled tile data.
  *
  * There is NO fallback. On any failure (backend down, CORS, bad JSON) NOTHING is installed and the
- * function returns an empty list — the caller shows a loader/error state and never paints frontend
+ * function returns an empty list, the caller shows a loader/error state and never paints frontend
  * tiles (a wrong-style flash). Sets `window.__nebulithTilesets` and logs, so "the app is using the
  * backend" is verifiable (devtools console + a GET to `${NEBULITH_API}/tilesets` in the network tab).
  */
@@ -18,7 +18,7 @@ import type { TileView, TileViewSettings } from './tileViewSettings'
 import { NEBULITH_API } from '@/lib/nebulithApi'
 import { preloadTileImages } from '@/engine/render/shared'
 
-// One backend tile row — the new per-tile shape served by /api/tilesets (ascii uses glyph, emoji uses
+// One backend tile row, the new per-tile shape served by /api/tilesets (ascii uses glyph, emoji uses
 // emoji; settings holds style-specific extras: ascii's position/colors, emoji's color/pose/views).
 interface ApiTile {
   image_url?: string | null
@@ -32,13 +32,12 @@ interface ApiTile {
   settings?: {
     position?: TilePosition
     colors?: Record<string, unknown>
-    /** Terrain tiles carry their char/fg/bg variants here (the data form of the old GROUND_COLORS row) —
-     *  read into the tileset's `terrain` map so ground colour comes from the tile, not a `data.terrain` blob. */
+    /** Terrain tiles carry their char/fg/bg variants here (the data form of the old GROUND_COLORS row), *  read into the tileset's `terrain` map so ground colour comes from the tile, not a `data.terrain` blob. */
     variants?: GroundTile
     color?: string
     pose?: TilePose
     views?: Partial<Record<TileView, TileViewSettings>>
-    // GENERIC per-tile render behavior served by the API — copied straight through onto the installed
+    // GENERIC per-tile render behavior served by the API, copied straight through onto the installed
     // tile so a stamp can read it (walls/roof fade/cutaway near the hero); any tile may carry these.
     fadeNear?: boolean
     cutawayRoof?: boolean
@@ -52,10 +51,10 @@ interface ApiTileset {
   id?: number | string
   key: string
   name: string
-  /** The style picker's affordance + order — a tileset row IS an art style (§3.14a `BUILT_IN_STYLES`). */
+  /** The style picker's affordance + order, a tileset row IS an art style (§3.14a `BUILT_IN_STYLES`). */
   icon?: string | null
   position?: number | null
-  /** The OLD blob — still holds `palettes` + `terrain` for ascii (out of scope to migrate this task). */
+  /** The OLD blob, still holds `palettes` + `terrain` for ascii (out of scope to migrate this task). */
   data: { palettes?: Record<string, ZonePalette>; terrain?: Record<string, GroundTile> }
   tiles?: Record<string, ApiTile>
   compositions?: Record<string, Composition>
@@ -65,7 +64,7 @@ interface ApiTileset {
 // re-fetching. Populated by loadTilesetsFromBackend; empty until the first successful load.
 const tilesetIdByKey = new Map<string, number | string>()
 
-// The backend's origin (no /api suffix) — every tile's image_url is a root-relative path the API
+// The backend's origin (no /api suffix), every tile's image_url is a root-relative path the API
 // returns, so it needs absolutizing against the SAME host the tileset itself was fetched from.
 const ORIGIN = NEBULITH_API.replace(/\/api\/?$/, '')
 const abs = (u: string | null | undefined): string | undefined => (u ? (u.startsWith('http') ? u : ORIGIN + u) : undefined)
@@ -122,7 +121,7 @@ function toStyleTile(label: string, tile: ApiTile): StyleTile {
     pose: tile.settings?.pose,
     views: tile.settings?.views,
     // `settings.frames` is the baked picture PER ANIMATION FRAME, and it arrives root-relative exactly
-    // like `image_url` — so it gets absolutised through the same `abs`. It was passed through raw, which
+    // like `image_url`, so it gets absolutised through the same `abs`. It was passed through raw, which
     // made every animated tile's frames unusable as URLs (`/tiles/ascii/dragon.png` resolved against the
     // FRONTEND origin and 404'd). Nothing consumed them yet, so nothing had noticed.
     settings: absoluteFrames(tile.settings),
@@ -131,12 +130,12 @@ function toStyleTile(label: string, tile: ApiTile): StyleTile {
 
 
 // The ground FAMILY: a paved road (`roads`) or a constructed floor (`floors`) is still walkable ground,
-// painted flat from its own char/fg/bg variants — the finer taxonomy split the sidebar bucket, not the
+// painted flat from its own char/fg/bg variants, the finer taxonomy split the sidebar bucket, not the
 // render path. All three build the ground map so ground rendering stays byte-identical after recategorizing.
 const GROUND_CATEGORIES = new Set(['terrain', 'roads', 'floors'])
 
 /** Build the ground/terrain map from the GROUND TILE ROWS (category terrain/roads/floors, with char/fg/bg in
- *  settings.variants) — "terrain is just another tile", so ground colour comes from each tile's own
+ *  settings.variants), "terrain is just another tile", so ground colour comes from each tile's own
  *  settings, never a `data.terrain` blob. Tiles without variants are skipped (resolveGroundTile then
  *  falls back to grass). */
 function buildTerrain(apiTiles: Record<string, ApiTile>): Record<string, GroundTile> {
@@ -152,7 +151,7 @@ function buildTerrain(apiTiles: Record<string, ApiTile>): Record<string, GroundT
 
 
 /** Install a `/api/tilesets` payload's entries (one per style: ascii/emoji) into the live tileset
- *  singletons — the same per-entry mapping `loadTilesetsFromBackend` uses, factored out so tests can
+ *  singletons, the same per-entry mapping `loadTilesetsFromBackend` uses, factored out so tests can
  *  install a captured fixture without a network round-trip. Returns the style keys it installed. */
 export function installTilesetPayload(list: ApiTileset[]): string[] {
   const loaded: string[] = []
@@ -167,7 +166,7 @@ export function installTilesetPayload(list: ApiTileset[]): string[] {
       name: t.name,
       tiles,
       compositions: t.compositions ?? {},
-      // The ground index comes from the ground TILES' own `settings.variants` — "terrain is just another
+      // The ground index comes from the ground TILES' own `settings.variants`, "terrain is just another
       // tile", so ground colour is a per-tile setting, never a `data.terrain` blob.
       terrain: buildTerrain(t.tiles ?? {}),
     })
@@ -189,7 +188,7 @@ export function installTilesetPayload(list: ApiTileset[]): string[] {
   return loaded
 }
 
-/** Every baked-image src the installed catalogs reference — the exact `tileImage` cache keys the render
+/** Every baked-image src the installed catalogs reference, the exact `tileImage` cache keys the render
  *  will draw. It covers the whole render surface: plain tiles, composition part-labels, held weapons and
  *  PLACED ENTITIES all resolve their picture through a tile row's `image` (an entity is just a `units`
  *  tile), so decoding this set decodes everything a first frame can paint.
@@ -222,7 +221,7 @@ export async function loadTilesetsFromBackend(): Promise<string[]> {
     console.info(`[nebulith] tilesets loaded from the Elixir API (${NEBULITH_API}): ${loaded.join(', ') || 'none'}`)
     return loaded
   } catch (e) {
-    console.warn(`[nebulith] tileset load from ${NEBULITH_API} failed — the editor stays on the loader/error state (no bundled fallback). (${(e as Error).message})`)
+    console.warn(`[nebulith] tileset load from ${NEBULITH_API} failed, the editor stays on the loader/error state (no bundled fallback). (${(e as Error).message})`)
     return []
   }
 }
@@ -232,8 +231,8 @@ export async function loadTilesetsFromBackend(): Promise<string[]> {
  *  id (never loaded) or a non-OK response so the caller can surface a failure toast. */
 export async function saveTilesetToBackend(key: 'emoji' | 'ascii'): Promise<void> {
   const id = tilesetIdByKey.get(key)
-  if (id == null) throw new Error(`no backend id for the ${key} tileset — load it first`)
-  // PUT the style's own tiles back. One store, so one read — no per-style branch.
+  if (id == null) throw new Error(`no backend id for the ${key} tileset, load it first`)
+  // PUT the style's own tiles back. One store, so one read, no per-style branch.
   const data = styleTiles(key)
   const res = await fetch(`${NEBULITH_API}/tilesets/${id}`, {
     method: 'PUT',

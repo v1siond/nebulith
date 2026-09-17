@@ -1,6 +1,6 @@
 import type { Orientation } from '@/engine/render/isoOrientation'
 
-/** The world (dCol, dRow) an ISO arrow key means at camera facing 0 — the projection sends each to its
+/** The world (dCol, dRow) an ISO arrow key means at camera facing 0, the projection sends each to its
  *  screen direction (up = toward screen-top, etc.). `2d` view is axis-aligned, no diagonal. */
 export type MoveDir = 'up' | 'down' | 'left' | 'right'
 
@@ -17,7 +17,7 @@ const FLAT0: Record<MoveDir, readonly [number, number]> = {
   right: [1, 0],
 }
 
-/** One CCW quarter-turn of a grid delta — the INVERSE of the camera's CW orient (`(dc,dr) → (dr,-dc)`),
+/** One CCW quarter-turn of a grid delta, the INVERSE of the camera's CW orient (`(dc,dr) → (dr,-dc)`),
  *  applied `n` times. Rotating the input by the inverse of the camera keeps a key pinned to its SCREEN
  *  direction: "up" moves toward the top of the screen at every facing (the map turns, the controls don't). */
 function rotateDeltaCCW([dc, dr]: readonly [number, number], n: Orientation): [number, number] {

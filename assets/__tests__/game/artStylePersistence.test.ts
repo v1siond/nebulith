@@ -4,7 +4,7 @@ import { entitiesToAssets, entitiesFromAssets, styleToAssets, styleFromAssets } 
 import type { Entity } from '@/game/types'
 
 // Wrap a serialized grid in the minimal TemplateData shape the loader consumes, going
-// through JSON.stringify/parse first — that is exactly what a JSON column does
+// through JSON.stringify/parse first, that is exactly what a JSON column does
 // on save/load, so this proves the field survives the real persistence path.
 function roundTripGrid(grid: IsometricGrid): IsometricGrid {
   const s = serializeGrid(grid)
@@ -20,7 +20,7 @@ function roundTripGrid(grid: IsometricGrid): IsometricGrid {
   return deserializeToGrid(data)
 }
 
-describe('art-style persistence — override + active style survive the codec', () => {
+describe('art-style persistence, override + active style survive the codec', () => {
   it('an asset tileOverride round-trips through serialize → JSON → deserialize', () => {
     const grid = new IsometricGrid({ cols: 8, rows: 8, cellSize: 40, isoScale: 1 })
     grid.placeAsset(['♣'], 2, 3, { type: 'tree', blocking: true, color: '#2e8b2e' })
@@ -58,7 +58,7 @@ describe('art-style persistence — override + active style survive the codec', 
     expect(styleFromAssets(wire)).toBe('emoji')
   })
 
-  it('the ASCII (default) style writes NO marker — nothing to clean up on load', () => {
+  it('the ASCII (default) style writes NO marker, nothing to clean up on load', () => {
     expect(styleToAssets('ascii')).toEqual([])
     expect(styleToAssets(null)).toEqual([])
     expect(styleFromAssets([])).toBeNull()

@@ -1,5 +1,5 @@
 /**
- * UNIT-DATA PERSISTENCE round-trip — proves a unit's LOADOUT (worn gear + bag + specials) and the hero's
+ * UNIT-DATA PERSISTENCE round-trip, proves a unit's LOADOUT (worn gear + bag + specials) and the hero's
  * INVENTORY survive a save→reload EXACTLY, including ORDER, for EVERY unit (player and non-player alike).
  *
  * This is the pure boundary codec (lib/unitDataPersistence.ts) that folds the editor's per-unit loadout
@@ -8,7 +8,7 @@
  * (backend-side proof lives in nebulith/test/.../template_controller_test.exs).
  *
  * Behaviour, not implementation: fixtures are built with the REAL equip / addToBag / unequip mutators
- * (game/loadout.ts) + the REAL inventory mutators (game/inventory.ts), then folded + split — mirroring
+ * (game/loadout.ts) + the REAL inventory mutators (game/inventory.ts), then folded + split, mirroring
  * exactly what the editor does when the user equips, drops, and reorders.
  */
 import { foldUnitData, splitUnitData, PLAYER_LOADOUT_KEY, loadoutKeyFor } from '@/lib/unitDataPersistence'
@@ -40,7 +40,7 @@ function roundTrip(entities: readonly Entity[], loadouts: Record<string, Loadout
   return splitUnitData(wire)
 }
 
-describe('unitDataPersistence — key mapping', () => {
+describe('unitDataPersistence, key mapping', () => {
   it('keys the player loadout under the sentinel, others under the entity id', () => {
     expect(loadoutKeyFor(player())).toBe(PLAYER_LOADOUT_KEY)
     expect(loadoutKeyFor(enemy())).toBe('e1')
@@ -48,7 +48,7 @@ describe('unitDataPersistence — key mapping', () => {
   })
 })
 
-describe('unitDataPersistence — fold is pure + additive', () => {
+describe('unitDataPersistence, fold is pure + additive', () => {
   it('leaves entities without loadout/inventory untouched (no empty blob)', () => {
     const ents = [enemy()]
     const folded = foldUnitData(ents, {}, null)
@@ -65,7 +65,7 @@ describe('unitDataPersistence — fold is pure + additive', () => {
   })
 })
 
-describe('unitDataPersistence — EQUIP survives reload', () => {
+describe('unitDataPersistence, EQUIP survives reload', () => {
   it('an equipped weapon is still equipped after a round-trip', () => {
     const equipped = equip(createLoadout(), sword(), 'weapon1')
     const { loadouts } = roundTrip([player()], { [PLAYER_LOADOUT_KEY]: equipped }, null)
@@ -79,10 +79,10 @@ describe('unitDataPersistence — EQUIP survives reload', () => {
   })
 })
 
-describe('unitDataPersistence — DROP survives reload', () => {
+describe('unitDataPersistence, DROP survives reload', () => {
   it('an item removed from the bag is gone after a round-trip', () => {
     const withTwo = addToBag(addToBag(createLoadout(), potion('a')), potion('b'))
-    // "drop" b: unequip is the equip-slot mutator; a bag drop clears the slot — model it as a bag with b removed.
+    // "drop" b: unequip is the equip-slot mutator; a bag drop clears the slot, model it as a bag with b removed.
     const dropped: Loadout = { ...withTwo, bag: withTwo.bag.map(s => (s?.id === 'b' ? null : s)) }
     const { loadouts } = roundTrip([player()], { [PLAYER_LOADOUT_KEY]: dropped }, null)
     const ids = loadouts[PLAYER_LOADOUT_KEY].bag.filter(Boolean).map(i => i!.id)
@@ -98,13 +98,13 @@ describe('unitDataPersistence — DROP survives reload', () => {
   })
 })
 
-describe('unitDataPersistence — REORDER survives reload (order is exact)', () => {
+describe('unitDataPersistence, REORDER survives reload (order is exact)', () => {
   it('bag slot ORDER (including empty gaps) is byte-identical after a round-trip', () => {
     let l = createLoadout()
     l = addToBag(l, potion('first'))
     l = addToBag(l, potion('second'))
     l = addToBag(l, potion('third'))
-    // reorder: put 'third' into slot 0, 'first' into slot 2 — a deliberate non-default order with a gap at 1.
+    // reorder: put 'third' into slot 0, 'first' into slot 2, a deliberate non-default order with a gap at 1.
     const reordered: Loadout = { ...l, bag: l.bag.map((_, i) => (i === 0 ? potion('third') : i === 1 ? null : i === 2 ? potion('first') : l.bag[i])) }
     const { loadouts } = roundTrip([player()], { [PLAYER_LOADOUT_KEY]: reordered }, null)
     expect(loadouts[PLAYER_LOADOUT_KEY].bag).toEqual(reordered.bag)
@@ -123,7 +123,7 @@ describe('unitDataPersistence — REORDER survives reload (order is exact)', () 
   })
 })
 
-describe("unitDataPersistence — a NON-PLAYER unit's loadout persists exactly like the player's", () => {
+describe("unitDataPersistence, a NON-PLAYER unit's loadout persists exactly like the player's", () => {
   it('an enemy carrying an equipped weapon + ordered bag round-trips identically', () => {
     const enemyLoadout = addToBag(equip(createLoadout(), sword('e-blade'), 'weapon1'), potion('e-potion'))
     const { loadouts } = roundTrip([enemy()], { e1: enemyLoadout }, null)
@@ -146,7 +146,7 @@ describe("unitDataPersistence — a NON-PLAYER unit's loadout persists exactly l
   })
 })
 
-describe("unitDataPersistence — the hero's INVENTORY (bag + vitals) is player-only + persists", () => {
+describe("unitDataPersistence, the hero's INVENTORY (bag + vitals) is player-only + persists", () => {
   it('the player inventory round-trips; equip / drop reflected exactly', () => {
     let inv = starterInventory()
     inv = equipWeapon(inv, 'oak-staff') // equip the staff
@@ -159,7 +159,7 @@ describe("unitDataPersistence — the hero's INVENTORY (bag + vitals) is player-
     expect(playerInventory?.items.some(i => i.id === 'looted')).toBe(true)
   })
 
-  it('only the PLAYER carries an inventory — a non-player entity never does', () => {
+  it('only the PLAYER carries an inventory, a non-player entity never does', () => {
     const folded = foldUnitData([enemy(), npc()], {}, starterInventory())
     expect(folded.every(e => e.inventory === undefined)).toBe(true)
     const { playerInventory } = splitUnitData(folded)

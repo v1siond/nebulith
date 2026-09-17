@@ -1,9 +1,9 @@
 /**
- * Nebulith — inventory system (pure, immutable).
+ * Nebulith, inventory system (pure, immutable).
  *
  * Spec: nebulith/docs/COMBAT-AND-SYSTEMS-SPEC.md §4 (equipment) & §7 (inventory).
  * Every function returns a NEW Inventory (or leaves the input untouched and returns
- * the same reference on a guarded no-op). Nothing here mutates its arguments — the
+ * the same reference on a guarded no-op). Nothing here mutates its arguments, the
  * combat module consumes `equippedStatBonuses` to fold gear into the damage model.
  *
  * Style: guard clauses / early returns, small single-responsibility helpers, strict
@@ -222,7 +222,7 @@ export function starterInventory(): Inventory {
       },
       { id: 'health-potion', name: 'Health Potion', slot: 'consumable', effect: { hp: 40 } },
     ],
-    null, // start UNARMED — the player fights bare-handed until a weapon is equipped
+    null, // start UNARMED, the player fights bare-handed until a weapon is equipped
     null,
   )
 }

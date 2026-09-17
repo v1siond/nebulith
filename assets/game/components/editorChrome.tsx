@@ -1,7 +1,7 @@
 // Editor CHROME for the game-engine editor (hybrid layout, stage A): the slim
 // left tool-rail, a reusable top-bar dropdown/popover, the ⚡ Generate + 🎨 Style
 // controls, and the right-Inspector selection placeholder. Pure presentational +
-// props-driven — all gameplay state/handlers live in the page; this is layout only.
+// props-driven, all gameplay state/handlers live in the page; this is layout only.
 import { filterTiles } from '@/game/editor/tileSearch'
 import { Fragment, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
@@ -12,7 +12,7 @@ import { compositionPreview, tileFrames } from '@/engine/tilePreview'
 import { InfoButton } from './shell/InfoButton'
 import { availableStyles, CATEGORY_LABELS, TILE_CATEGORIES, type TileCategory, type TileDef, tilesForStyle } from '@/game/artStyle'
 import { DEFAULT_ACTION_PARAMS, makeTrigger, type Trigger, type TriggerActionType, type TriggerEvent } from '@/game/runtime/trigger'
-import { catalogZones, categoryLayouts, findCategory, findGenerator, type GeneratorCatalog, type GeneratorOptionValue, optionIsOn, optionOffValue, type GeneratorDef } from '@/lib/generatorCatalog'
+import { catalogZones, categoryLayouts, choicesForSize, findCategory, findGenerator, type GeneratorCatalog, type GeneratorOptionValue, optionIsOn, optionOffValue, optionSections, trimmedBySize, type GeneratorDef } from '@/lib/generatorCatalog'
 import { CELL_SIZE_MIN, atLeast, cellCount, mapSizeProblem, mapSizeValid, type MapSize } from '@/lib/mapSize'
 import { PreviewThumb, type PreviewContext } from '@/components/game/shell/PreviewThumb'
 import { subjectFor } from '@/engine/preview/previewScene'
@@ -35,15 +35,15 @@ type RailDef = { mode: EditorMode; glyph: string; label: string; hint: string }
 
 /** The rail modes, top→bottom. Glyphs mirror the approved design mockup. The Unit tool lives in the TOP NAV
  *  now (a dropdown, like ⚙ Stage / 🎨 Style), and the Connector tool moved to a RIGHT-SIDEBAR button that
- *  opens a draggable modal — so both are off the rail. */
+ *  opens a draggable modal, so both are off the rail. */
 export const RAIL_MODES: readonly RailDef[] = [
-  { mode: 'select', glyph: '↖', label: 'Select', hint: 'Select & inspect — click an element to edit it' },
+  { mode: 'select', glyph: '↖', label: 'Select', hint: 'Select & inspect, click an element to edit it' },
   { mode: 'paint', glyph: '▢', label: 'Paint', hint: 'Paint tiles & ground onto selected cells' },
-  { mode: 'building', glyph: '⧉', label: 'Compose', hint: 'Tile composition — stamp buildings, trees, fountains, lamp posts & more' },
+  { mode: 'building', glyph: '⧉', label: 'Compose', hint: 'Tile composition, stamp buildings, trees, fountains, lamp posts & more' },
 ]
 
 /** Rail entry → its active accent. A Record over RailId, so adding an entry is a compile error until it
- *  has a colour (Open/Closed — the switcher never grows an `if`). */
+ *  has a colour (Open/Closed, the switcher never grows an `if`). */
 const RAIL_ACTIVE: Record<RailId, string> = {
   select: 'bg-yellow-600 text-black',
   terrain: 'bg-cyan-600 text-black',
@@ -71,7 +71,7 @@ function RailButton({ def, active, onClick }: { def: RailEntry; active: boolean;
         <span aria-hidden className="text-lg leading-none">{def.glyph}</span>
         <span className="text-[9px] font-bold leading-none">{def.label}</span>
       </button>
-      {/* hover flyout label for newbies — escapes the rail to the right */}
+      {/* hover flyout label for newbies, escapes the rail to the right */}
       <span className="pointer-events-none absolute left-full top-1/2 z-40 ml-2 hidden -translate-y-1/2 whitespace-nowrap rounded bg-black/95 px-2 py-1 text-[10px] text-gray-200 shadow-lg group-hover:block">
         {def.hint}
       </span>
@@ -80,15 +80,15 @@ function RailButton({ def, active, onClick }: { def: RailEntry; active: boolean;
 }
 
 /**
- * The Tile-composition PALETTE — the "Building" card, generalised. Lists EVERY composition the backend
+ * The Tile-composition PALETTE, the "Building" card, generalised. Lists EVERY composition the backend
  * serves (the same set the world randomizer stamps: buildings, trees/bushes, fountains, wells, lamp posts…),
  * GROUPED BY THE COMPOSITION'S BACKEND `category` (Buildings / Nature / Props …), exactly the way the tile
- * palette groups tiles — {@link buildCompositionPalette} reads the served category, no frontend heuristic.
+ * palette groups tiles, {@link buildCompositionPalette} reads the served category, no frontend heuristic.
  * Each button shows the composition's footprint size (w×h) so you know how many cells it takes before you even
- * hover, and arms it as the stamp brush on click. Fully data-driven — no hardcoded building list — so a new
+ * hover, and arms it as the stamp brush on click. Fully data-driven, no hardcoded building list, so a new
  * backend composition shows up in its category automatically.
  */
-/** One placeable composition button — its label + a footprint (w×h) badge so you know how many cells it takes
+/** One placeable composition button, its label + a footprint (w×h) badge so you know how many cells it takes
  *  before hovering. Clicking arms it as the stamp brush; the armed one glows in the Compose-tool accent. */
 function CompositionButton({ item, active, onArm }: { item: CompositionPaletteGroup['items'][number]; active: boolean; onArm: (kind: string) => void }) {
   return (
@@ -96,7 +96,7 @@ function CompositionButton({ item, active, onArm }: { item: CompositionPaletteGr
       type="button"
       onClick={() => onArm(item.kind)}
       aria-pressed={active}
-      title={`${item.label} — ${item.footprint.w}×${item.footprint.h} cells`}
+      title={`${item.label}, ${item.footprint.w}×${item.footprint.h} cells`}
       className={`flex items-center justify-between gap-1 rounded px-2 py-1.5 text-left text-xs font-bold transition-colors ${
         active ? 'bg-amber-600 text-black' : 'bg-gray-700 hover:bg-gray-600'
       }`}
@@ -109,7 +109,7 @@ function CompositionButton({ item, active, onArm }: { item: CompositionPaletteGr
   )
 }
 
-/** One category SECTION — a clear header (glyph + name + item count + divider) over a 2-up grid of its
+/** One category SECTION, a clear header (glyph + name + item count + divider) over a 2-up grid of its
  *  compositions. The header mirrors the tile-palette category headers so both browse the same way. */
 function CompositionSection({
   section,
@@ -151,12 +151,12 @@ function CompositionSection({
 }
 
 /**
- * ONE object swatch — a composed SILHOUETTE built from the object's own cells, plus its footprint.
+ * ONE object swatch, a composed SILHOUETTE built from the object's own cells, plus its footprint.
  *
  * Now they preview like everything
  * else, and the picture is assembled from the very tiles the stamp will place.
  */
-/** The composition to PICTURE an entry with — a folded type points at a real seeded size. */
+/** The composition to PICTURE an entry with, a folded type points at a real seeded size. */
 function previewKindOf(item: CompositionPaletteGroup['items'][number]): string {
   return isSizable(item) ? item.previewKind : item.kind
 }
@@ -171,7 +171,7 @@ function ObjectSwatch({
 }: {
   item: CompositionPaletteGroup['items'][number]
   styleId: string
-  /** How to draw it the way the map would — see `PreviewContext`. */
+  /** How to draw it the way the map would, see `PreviewContext`. */
   preview: PreviewContext
   active: boolean
   onArm: (kind: string) => void
@@ -188,7 +188,7 @@ function ObjectSwatch({
       onFocus={() => onHover?.(previewKindOf(item))}
       onClick={() => onArm(item.kind)}
     >
-      {/* The map's own render, not a composed elevation. These three — fountain, lamp post, well — were the ones
+      {/* The map's own render, not a composed elevation. These three, fountain, lamp post, well, were the ones
           that read worst of all, and all three were wrong for the same reason. */}
       {/* Drawn from a REAL composition: a folded entry's own kind is a bare type with nothing installed
           under it until a size is composed. */}
@@ -211,7 +211,7 @@ export function CompositionPalette({
 }: {
   catalog: readonly CompositionPaletteGroup[]
   styleId: string
-  /** How to draw each object the way the map would — the fix for the fountain / lamp post / well swatches. */
+  /** How to draw each object the way the map would, the fix for the fountain / lamp post / well swatches. */
   preview: PreviewContext
   armedKind: string | null
   onArm: (kind: string) => void
@@ -220,8 +220,7 @@ export function CompositionPalette({
   /**
    * The building types the backend can compose at any size, from `/api/buildings`.
    *
-   * Given these, the palette shows ONE entry per type with a size control instead of one per baked size —
-   * Empty (the backend has not answered) → the palette is unchanged.
+   * Given these, the palette shows ONE entry per type with a size control instead of one per baked size, * Empty (the backend has not answered) → the palette is unchanged.
    */
   buildingTypes?: BuildingTypeCatalog
   /** Compose a building of this type at this size and arm it. The palette never lays one out itself. */
@@ -233,7 +232,7 @@ export function CompositionPalette({
   const [sizes, setSizes] = useState<Record<string, Footprint>>({})
   const setHover = (slug: string | null) => onHover?.(slug)
 
-  // ONE entry per composable type. Pure and tested — see `collapseSizedBuildings`.
+  // ONE entry per composable type. Pure and tested, see `collapseSizedBuildings`.
   const folded = collapseSizedBuildings(catalog, buildingTypes?.types ?? [])
   // The armed entry, when it is one the backend can resize.
   //
@@ -304,9 +303,9 @@ export function CompositionPalette({
           />
         ))}
       </div>
-      {/* HOW BIG — shown only for the armed object, and only when the backend can compose that type at any size. It
+      {/* HOW BIG, shown only for the armed object, and only when the backend can compose that type at any size. It
           sits in the footer rather than on every swatch for the reason the character panel does: a control per card
-          would leave the swatches — the thing you opened the library for — as one clipped row. */}
+          would leave the swatches, the thing you opened the library for, as one clipped row. */}
       {armedSizable && onComposeBuilding && (
         <BuildingSizeControl
           item={armedSizable}
@@ -328,14 +327,13 @@ export function CompositionPalette({
 }
 
 /**
- * HOW BIG the armed building is — two numbers, and the sizes that used to be separate buttons.
+ * HOW BIG the armed building is, two numbers, and the sizes that used to be separate buttons.
  *
  * The numbers are applied IMMEDIATELY rather than behind a confirm, because unlike the map size this is not
  * destructive: it composes a building and arms it, and nothing on the map changes until you click. The map
  * size needs a commit step; this does not, and adding one would be ceremony.
  *
- * The minimum comes from the BACKEND (`/api/buildings`), which is also the only thing that knows it —
- */
+ * The minimum comes from the BACKEND (`/api/buildings`), which is also the only thing that knows it, */
 function BuildingSizeControl({
   item,
   size,
@@ -371,7 +369,7 @@ function BuildingSizeControl({
 
   return (
     <section className="bsize">
-      <div className="sub">{`How big — ${item.label}`}</div>
+      <div className="sub">{`How big, ${item.label}`}</div>
       {row('w', 'Width')}
       {row('h', 'Depth')}
       <div className="hint">
@@ -385,17 +383,17 @@ function BuildingSizeControl({
 
 /** The left tool-rail. Reflects the active editor mode and switches it on click. */
 /**
- * THE LEFT RAIL — banded by the journey, and the ONLY place the three libraries are named.
+ * THE LEFT RAIL, banded by the journey, and the ONLY place the three libraries are named.
  *
  *   > why do we have tiles, objects and characters repeated in the sidebar and inside tile sectrion?
  *   > that's confusing
  *
  * The library panel used to carry a duplicate tab strip. It is gone: this rail IS the tab strip, and each
- * row carries its COUNT so the label has information scent — you can see there are 24 objects without
+ * row carries its COUNT so the label has information scent, you can see there are 24 objects without
  * opening anything.
  *
  * The band order is the journey, not the code layout (`EDITOR_BANDS`). So `New world` leads; `Select` is gone (it
-  * acts on nothing — it is the resting state of
+  * acts on nothing, it is the resting state of
  * the cursor); and `Art style` moved to the top nav, before the game selector.
  */
 export function ToolRail({
@@ -410,7 +408,7 @@ export function ToolRail({
   counts?: Partial<Record<RailId, number>>
   /** True while the player's-UI mode is on, so its row reads as selected. */
   hudActive?: boolean
-  /** Render only the bands — the caller owns the zone element (it also owns the collapse handle). */
+  /** Render only the bands, the caller owns the zone element (it also owns the collapse handle). */
   bare?: boolean
   onPick: (entry: RailEntry) => void
 }) {
@@ -447,7 +445,7 @@ export function ToolRail({
 }
 
 // ── On-canvas quick-action toolbar (stage C) ─────────────────────────
-/** One verb in the floating toolbar — a glyph + label that focuses an Inspector section. */
+/** One verb in the floating toolbar, a glyph + label that focuses an Inspector section. */
 export type QuickAction = { key: string; glyph: string; label: string; onClick: () => void }
 
 // ── Dropdown / popover (top-bar menus) ───────────────────────────────
@@ -531,7 +529,7 @@ export function Dropdown({
 }
 
 // ── ⚡ Generate (season → map type → layout, + universal layer re-roll) ─────────────
-// Shared micro-header for the Generate menu sections — same type scale as the tile/composition palette
+// Shared micro-header for the Generate menu sections, same type scale as the tile/composition palette
 // headers, so the whole editor's grouped panels read as one system.
 const MENU_HEADER = 'text-[10px] font-bold uppercase tracking-wider text-gray-400'
 
@@ -541,7 +539,7 @@ function MenuHeader({ children, className = '' }: { children: React.ReactNode; c
 }
 
 /**
- * The ⚡ Generate controls — a clear top-down hierarchy: **Season** → **Map type** → the chosen map type's
+ * The ⚡ Generate controls, a clear top-down hierarchy: **Season** → **Map type** → the chosen map type's
  * **Layouts** (a labelled group nested UNDER the selected type, not loose buttons), then a divider and the
  * **universal per-layer re-roll** row. Shared by the top-bar Generate dropdown and the Inspector's
  * nothing-selected stage panel.
@@ -549,7 +547,7 @@ function MenuHeader({ children, className = '' }: { children: React.ReactNode; c
  * EVERY option is backend DATA (`GET /api/generators`, T-113 / §3.14b Tier-1 #1): the seasons are the union
  * of the generators' own `zones`, the map types are the catalog's categories, and a type's layouts are the
  * generators inside it that name a shape. There is no `variant === 'forest'` branch and no frontend list to
- * keep in step — adding a map type is a seed row.
+ * keep in step, adding a map type is a seed row.
  *
  * An EMPTY catalog offers nothing and SAYS so. It never falls back to a hardcoded menu: a button for a map
  * type the backend cannot generate is the same silent lie that hid the localStorage games P0 (§3.1).
@@ -563,7 +561,7 @@ export type { MapSize }
 
 
 /** The grid a preset thumbnail generates. Small enough to be cheap, big enough that a layout's structure
- *  — a clearing, a street grid, a river — is still legible at ~90px. */
+ * , a clearing, a street grid, a river, is still legible at ~90px. */
 const PRESET_THUMB_CELLS = { cols: 26, rows: 20 } as const
 
 /** The size the BIG preview draws a world at: exactly the size it will be built at. Maps are capped at
@@ -592,7 +590,7 @@ function sizePromise(draft: MapSize | undefined): string {
  *
  * Identity, not index: a counter would give the same card a different world whenever the list reordered,
  * and hand two cards the same world whenever they happened to share a position. FNV-1a over
- * category/layout/zone — cheap, and it spreads adjacent strings apart so Woodland and Meadow get visibly
+ * category/layout/zone, cheap, and it spreads adjacent strings apart so Woodland and Meadow get visibly
  * different worlds rather than two rolls of the same one.
  */
 function presetSeed(categoryKey: string, layoutId: string, zone: string): number {
@@ -624,14 +622,14 @@ export function GenerateControls({
 }: {
   /** The backend's generator catalog (see `useGeneratorCatalog`). Empty until it loads, or if it failed. */
   catalog: GeneratorCatalog
-  /** Why the catalog is empty, when it failed to load — shown so the user knows the backend is unreachable. */
+  /** Why the catalog is empty, when it failed to load, shown so the user knows the backend is unreachable. */
   catalogError?: string | null
   zone: string
   onZone: (z: string) => void
   /** `layout` steers a map type that HAS layouts (undefined otherwise → the generator's own default).
    *  The SIZE is not passed: it belongs to the Grid panel now, and the caller reads it from there.
    * */
-  /** `generatorKey` is the SUBTYPE picked below the preset, when one was — the build runs exactly that one. */
+  /** `generatorKey` is the SUBTYPE picked below the preset, when one was, the build runs exactly that one. */
   /** Returns a promise while the build runs, so the button can say so. A void return still works. */
   onGenerate: (zone: string, categoryKey: string, layout?: string, options?: Record<string, GeneratorOptionValue>, generatorKey?: string) => void | Promise<void>
   /**
@@ -660,7 +658,7 @@ export function GenerateControls({
    * left to draw them.
    */
   hasPreviewWindow?: boolean
-  /** The matrix as TYPED — what this build will produce. Owned by the parent because `Build this world`
+  /** The matrix as TYPED, what this build will produce. Owned by the parent because `Build this world`
    *  and the resize button both read it. */
   sizeDraft?: MapSize
   /** The size the open map actually IS. With `onResize`, renders the `How big` section. */
@@ -683,7 +681,7 @@ export function GenerateControls({
    * The generator's OPTIONS as the person set them.
    *
    * because a row per
-   * combination does not scale — the own example ran woodland, woodland + river, woodland + river + bridge.
+   * combination does not scale, the own example ran woodland, woodland + river, woodland + river + bridge.
    * Keyed by option key; absent means "as the backend declared it".
    */
   const [options, setOptions] = useState<Record<string, GeneratorOptionValue>>({})
@@ -692,8 +690,7 @@ export function GenerateControls({
    * is a child key, `random`, or '' for the level's own standard version.
    */
   const [path, setPath] = useState<string[]>([])
-  /** Regions the person unticked. The sub-zones existed before this but only as data nobody could see —
-   * */
+  /** Regions the person unticked. The sub-zones existed before this but only as data nobody could see, * */
   const zones = catalogZones(catalog)
   // The first category is the flagship the menu opens on, until the user picks another.
   const activeKey = categoryKey ?? catalog[0]?.key ?? null
@@ -701,11 +698,10 @@ export function GenerateControls({
   const layouts = activeKey === null ? [] : categoryLayouts(catalog, activeKey)
   const typeLabel = activeCategory?.name ?? 'map'
   /**
-   * The cards to show — always at least one.
+   * The cards to show, always at least one.
    *
    * Only the forest had cards, because only the forest has NAMED layouts; a town has a
-   * single generator with `layout: null`, so `categoryLayouts` returned nothing and the whole card grid —
-   * thumbnail included — was skipped. A category with one generator still has something to show you: what
+   * single generator with `layout: null`, so `categoryLayouts` returned nothing and the whole card grid, * thumbnail included, was skipped. A category with one generator still has something to show you: what
    * that generator builds. Its card carries no layout id, which is exactly what `generateStage` wants for
    * "run the category's own default pass".
    */
@@ -713,8 +709,7 @@ export function GenerateControls({
    * The world a preset would build, as a preview SUBJECT.
    *
    * One object, two consumers: the card's own thumbnail and the big Preview panel (`onPeek`). They used to
-   * be one consumer, which is why hovering a preset showed a tooltip and nothing else —
-   * 2026-09-10: Built here so the small
+   * be one consumer, which is why hovering a preset showed a tooltip and nothing else, * 2026-09-10: Built here so the small
    * picture and the big one can never disagree about which world they are showing.
    */
   const presetSubject = (categoryKey: string, layoutId: string | undefined, opts?: Record<string, GeneratorOptionValue>, gen?: GeneratorDef, cells: { cols: number; rows: number } = PRESET_THUMB_CELLS) => {
@@ -773,7 +768,7 @@ export function GenerateControls({
   const presets: ReadonlyArray<{ id: string | undefined; label: string }> =
     layouts.length > 0 ? layouts : activeCategory ? [{ id: undefined, label: activeCategory.name }] : []
 
-  /** The preset card's own generator — the TYPE. */
+  /** The preset card's own generator, the TYPE. */
   const presetGenerator = activeKey === null
     ? undefined
     : findGenerator(catalog, activeKey, layouts.some(l => l.id === layout) ? layout ?? undefined : layouts[0]?.id)
@@ -790,9 +785,9 @@ export function GenerateControls({
     return chain
   }
   const chain = walk(path)
-  /** The generator whose options and regions the panel is showing — the deepest subtype picked. */
+  /** The generator whose options and regions the panel is showing, the deepest subtype picked. */
   const activeGenerator = chain[chain.length - 1]
-  /** The level set to Random, if any — resolved only when building, so each build rolls again. */
+  /** The level set to Random, if any, resolved only when building, so each build rolls again. */
   const randomParent = path[chain.length - 1] === 'random' ? activeGenerator : undefined
 
   /** Is this option on: what the person set, else what the backend declared as its default. */
@@ -820,7 +815,7 @@ export function GenerateControls({
   const chosenOptions = (): Record<string, GeneratorOptionValue> => enforceRequires(options)
 
   // Picking a map type or a shape only SELECTS it. §4.6: "clicking a map type selects it rather than
-  // generating (today it generates immediately — a genuine 'why did my map just vanish' trap)".
+  // generating (today it generates immediately, a genuine 'why did my map just vanish' trap)".
   const select = (key: string, chosen?: string) => {
     setCategoryKey(key)
     if (chosen) setLayout(chosen)
@@ -830,7 +825,7 @@ export function GenerateControls({
   }
 
   /**
-   * The world the panel should be showing when nobody is hovering anything — the SELECTED preset's.
+   * The world the panel should be showing when nobody is hovering anything, the SELECTED preset's.
    *
    * Leaving a card used to
    * clear the panel to null, so the picture only existed while the pointer sat on it and you could never
@@ -920,7 +915,7 @@ export function GenerateControls({
       <div className="pfix">
         <div className="hint">
           {catalogError
-            ? `The map generators could not be loaded — ${catalogError}. Nothing can be generated until the backend answers.`
+            ? `The map generators could not be loaded, ${catalogError}. Nothing can be generated until the backend answers.`
             : 'Loading the map generators…'}
         </div>
       </div>
@@ -977,8 +972,13 @@ export function GenerateControls({
       {/* THE VARIATIONS, as options rather than as extra rows in the list above. */}
       {(activeGenerator?.options.length ?? 0) > 0 && (
         <>
-          <div className="sub">Options</div>
-          {activeGenerator?.options.map(opt => {
+          {/* GROUPED, and the headings are served. A flat list of seven made `depth`, `bridge` and the water
+              look read as peers of the river they are settings OF, which is what he called unclear. A
+              generator that serves no groups renders exactly as it did. */}
+          {optionSections(activeGenerator).map(section => (
+          <Fragment key={section.key}>
+          <div className="sub">{section.label}</div>
+          {section.options.map(opt => {
             const blocked = opt.requires !== undefined && !optionIsOn(optionValue(opt.requires))
             // Every change re-peeks, so the panel SHOWS what the extra did. Built from `next` rather than read
             // back from state, because the state write has not landed yet.
@@ -986,6 +986,48 @@ export function GenerateControls({
               const next = { ...options, [opt.key]: value }
               setOptions(next)
               if (activeKey) onPeek?.(presetSubject(activeKey, layouts.some(l => l.id === layout) ? layout ?? undefined : layouts[0]?.id, enforceRequires(next), activeGenerator, peekCells()) as never, 'resting')
+            }
+            // WHAT THIS MAP'S SIZE CAN CARRY. A count option states how many cells one of these wants, so a
+            // small map stops offering four ways across it. A choice that no longer fits is removed rather
+            // than offered and refused, and the hint below says the list moved.
+            const picks = sizeDraft ? choicesForSize(opt, sizeDraft.cols, sizeDraft.rows) : (opt.choices ?? [])
+            const trimmed = (opt.choices?.length ?? 0) - picks.length
+            // A PICTURE OF EACH CHOICE, for the options the catalog says are worth seeing. A course that
+            // divides the map and one that runs round its edge are two different maps, and two words in a
+            // dropdown say none of that. Each thumb is built from the SAME options the build will use and
+            // differs only in this one choice, which is the rule in `docs/EDITOR-UX.md` §2.2: a preview fed
+            // different inputs is a picture of a different map.
+            if (opt.preview && opt.type === 'choice' && !blocked && activeKey && preview) {
+              const current = String(optionValue(opt.key) ?? opt.default)
+              return (
+                <div key={opt.key} className="ctl" style={{ display: 'block' }}>
+                  <span className="l">{opt.label}</span>
+                  <div className="swatches">
+                    {picks.map(c => (
+                      <button
+                        key={c.key}
+                        type="button"
+                        className={`sw${c.key === current ? ' on' : ''}`}
+                        aria-pressed={c.key === current}
+                        title={c.label}
+                        onClick={() => set(c.key)}
+                      >
+                        <PreviewThumb
+                          subject={presetSubject(
+                            activeKey,
+                            layouts.some(l => l.id === layout) ? layout ?? undefined : layouts[0]?.id,
+                            enforceRequires({ ...options, [opt.key]: c.key }),
+                            activeGenerator,
+                          ) as never}
+                          context={preview}
+                          px={64}
+                        />
+                        <span className="n">{c.label}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )
             }
             return (
               <label key={opt.key} className="ctl" style={blocked ? { opacity: 0.45 } : undefined}>
@@ -999,9 +1041,10 @@ export function GenerateControls({
                       value={String(blocked ? optionOffValue(opt) : optionValue(opt.key) ?? opt.default)}
                       disabled={blocked}
                       aria-label={opt.label}
+                      title={trimmed > 0 ? `${trimmed} more on a bigger map` : undefined}
                       onChange={e => set(e.target.value)}
                     >
-                      {opt.choices?.map(c => <option key={c.key} value={c.key}>{c.label}</option>)}
+                      {picks.map(c => <option key={c.key} value={c.key}>{c.label}</option>)}
                     </select>
                   )
                   : (
@@ -1016,8 +1059,13 @@ export function GenerateControls({
               </label>
             )
           })}
+          </Fragment>
+          ))}
           <div className="hint">
             Variations are options, not extra templates. Adding one never makes the list above longer.
+            {sizeDraft && trimmedBySize(activeGenerator, sizeDraft) > 0
+              ? ` A ${sizeDraft.cols} × ${sizeDraft.rows} map is too small for some counts; a bigger one offers more.`
+              : ''}
           </div>
         </>
       )}
@@ -1201,19 +1249,19 @@ function Step({ n, label, children }: { n: number; label: string; children: Reac
   )
 }
 
-// ── 🎨 Style (art skin) — the global reskin switch (stage D) ─────────
+// ── 🎨 Style (art skin), the global reskin switch (stage D) ─────────
 /** The art-style picker: pick a built-in style → the whole world reskins instantly. ASCII is
  *  the default (byte-identical to the classic renderers); Emoji proves the swap with zero assets. */
 export function StylePicker({ activeId, onPick, onClose }: { activeId: string; onPick: (id: string) => void; onClose?: () => void }) {
   return (
     <div className="space-y-1">
-      {/* Named for what it lists (— "Style" said
+      {/* Named for what it lists (, "Style" said
           nothing). Every row is a TILESET: the same labels, the same names, the same heights, a different
           set of pictures. That is the whole difference a style makes. */}
       <p className="mb-1 text-[10px] leading-snug text-gray-400">
-        Every tile keeps its name and its behaviour — only the pictures change.
+        Every tile keeps its name and its behaviour, only the pictures change.
       </p>
-      {/* The styles the BACKEND serves, in its order — a tileset row IS a style. Empty until the catalog
+      {/* The styles the BACKEND serves, in its order, a tileset row IS a style. Empty until the catalog
           loads, which shows nothing rather than inventing a style list. */}
       {availableStyles().length === 0 && (
         <p className="text-[10px] italic text-gray-500">Loading the art styles…</p>
@@ -1235,18 +1283,18 @@ export function StylePicker({ activeId, onPick, onClose }: { activeId: string; o
         )
       })}
       <p className="pt-1 text-[10px] leading-tight text-gray-500">
-        Every element follows the active style — unless you pin a specific tile via the Tile Library (◰ Art).
+        Every element follows the active style, unless you pin a specific tile via the Tile Library (◰ Art).
       </p>
     </div>
   )
 }
 
-// ── ◰ Tile Library (stage D) — per-element override picker ───────────
+// ── ◰ Tile Library (stage D), per-element override picker ───────────
 // Sidebar section order = the canonical taxonomy order. The DATA category is a lowercase string; the
 // sidebar shows a prettier heading via CATEGORY_LABELS.
 const LIBRARY_CATEGORIES: readonly TileCategory[] = TILE_CATEGORIES
 
-/** ONE tile swatch — its picture, its NAME, and whether it is armed. Shared by the grouped grid and by
+/** ONE tile swatch, its picture, its NAME, and whether it is armed. Shared by the grouped grid and by
  *  ★ RECENT, so a tile looks the same wherever a library shows it (§4.5's "one idiom"). */
 export function TileSwatch({
   tile,
@@ -1266,7 +1314,7 @@ export function TileSwatch({
   const label = tileSlug(tile.id)
   const frames = tileFrames(tile.styleId, label)
   // A tile is drawn by the MAP's renderer when we know which view to draw it in. The flat baked image is
-  // right for a 1×1 ground square and wrong for everything with volume — a wall is an extruded block on the
+  // right for a 1×1 ground square and wrong for everything with volume, a wall is an extruded block on the
   // map, and its baked picture is only one face of it.
   const subject = preview ? subjectFor('tiles', label, preview.styleId) : null
   return (
@@ -1291,13 +1339,13 @@ export function TileSwatch({
 }
 
 /**
- * `[All][Ground][Roads][Floors][Walls]…` — the CATEGORY CHIPS §4.5 draws.
+ * `[All][Ground][Roads][Floors][Walls]…`, the CATEGORY CHIPS §4.5 draws.
  *
  * §3.5's measurement was "11 stacked headings" you had to scroll past; §4.5 replaces them with chips so the
  * library narrows to one bucket in a click. `All` keeps the grouped view, which is still the right default
  * for browsing.
  *
- * Shared by all three libraries on purpose — §4.5: Each chip carries its COUNT, so the size of a bucket is visible
+ * Shared by all three libraries on purpose, §4.5: Each chip carries its COUNT, so the size of a bucket is visible
   * before
  * you open it.
  */
@@ -1308,7 +1356,7 @@ export function LibraryChips<T extends string>({ chips, active, onPick }: {
   onPick: (id: T | null) => void
 }) {
   // So: a list, one row per bucket, each
-  // carrying its count — you can see there are 4 doors and 94 ground tiles without opening anything.
+  // carrying its count, you can see there are 4 doors and 94 ground tiles without opening anything.
   // The earlier objection was to
   // PILLS, which wrap and eat width; a native select costs one row for twelve options and needs no scroll
   // area of its own. The count rides in each option's label, so the information scent survives.
@@ -1332,39 +1380,12 @@ export function LibraryChips<T extends string>({ chips, active, onPick }: {
   )
 }
 
-/**
- * `★ RECENT` — the last tiles you placed, §4.5's addition to every library.
- *
- * Browsing 305 tiles to re-place the one you just used is the specific waste §3.5 measured. Eight is what
- * §4.5 draws.
- */
-export function LibraryRecent({ tiles, isOn, onPick, onHover, preview }: {
-  tiles: readonly TileDef[]
-  isOn: (tile: TileDef) => boolean
-  onPick: (tile: TileDef) => void
-  onHover?: (label: string | null) => void
-  /** How to draw each swatch the way the map would. Absent → the flat baked picture. */
-  preview?: PreviewContext
-}) {
-  if (tiles.length === 0) return null
-  return (
-    <div>
-      <div className="sub">★ Recent</div>
-      <div className="palgrid">
-        {tiles.map(t => (
-          <TileSwatch key={`recent-${t.id}`} tile={t} on={isOn(t)} onPick={() => onPick(t)} onHover={onHover} preview={preview} />
-        ))}
-      </div>
-    </div>
-  )
-}
-
 /** The shared categorized tile GRID: every tile of a style's `groups`, grouped by category, 4-per-row.
  *  Each tile is a button that highlights when `isOn(tile)` and calls `onPick(tile)`. Reused by the Tile
  *  Library (pins a tile to the selected element) and the Paint palette (arms a placement brush) so both
  *  read as the exact same tileset grid. */
 /**
- * THE LIBRARY SEARCH FIELD — the same header on every library (§4.5).
+ * THE LIBRARY SEARCH FIELD, the same header on every library (§4.5).
  *
  * §3.5/§3.6 measured the problem: 305 tiles in one 4-wide scroll and 79 creatures in a 256px popover, with
  * no search anywhere. §4.5's fix is that all three libraries wear the SAME header, so learning one teaches
@@ -1419,7 +1440,7 @@ function TileCategoryGrid({
   const shown = (cat: TileCategory) => filterTiles(groups[cat], query)
   const visible = LIBRARY_CATEGORIES.filter(cat => shown(cat).length > 0)
   // ONE grid, not one per category. When a filter row is picked the panel already shows a single bucket, so
-  // the per-category headings only reappear in the unfiltered view — where they are the map of the library.
+  // the per-category headings only reappear in the unfiltered view, where they are the map of the library.
   const single = visible.length === 1
   return (
     <div className="palgrid" onMouseLeave={() => onHover?.(null)}>
@@ -1453,7 +1474,7 @@ export function TileLibraryBody({
   styleName: string
   override?: string | null
   onPick: (tileId: string | null) => void
-  /** PAINT mode (a CELL selection) — picking a tile PAINTS it onto the selected area via the same path the
+  /** PAINT mode (a CELL selection), picking a tile PAINTS it onto the selected area via the same path the
    *  left Paint tool uses, instead of pinning a per-element override. Swaps the prose + hides "Follow style"
    *  (there's no override to clear). Default (a UNIT) keeps the pin-override behaviour. */
   paint?: boolean
@@ -1466,7 +1487,7 @@ export function TileLibraryBody({
     <div className="space-y-3">
       <div className="flex items-center justify-between gap-2">
         <p className="text-[11px] text-gray-400">
-          <span className="text-cyan-300">{styleName}</span> tiles — pick one to {paint ? 'paint it onto the selected cells' : 'pin it to this element'}.
+          <span className="text-cyan-300">{styleName}</span> tiles, pick one to {paint ? 'paint it onto the selected cells' : 'pin it to this element'}.
         </p>
         {!paint && (
           <button
@@ -1486,10 +1507,10 @@ export function TileLibraryBody({
   )
 }
 
-/** The Paint palette body — the "tileset builder" tile source. It shows the SAME categorized tile grid
+/** The Paint palette body, the "tileset builder" tile source. It shows the SAME categorized tile grid
  *  as the Tile Library (every terrain / building / unit / nature tile of the active style), but each click
- *  ARMS that tile as the placement brush instead of pinning an element. Clicking the armed tile again — or
- *  Disarm — clears it (onArm(null)). The page then routes a canvas click through tilePlacement by category
+ *  ARMS that tile as the placement brush instead of pinning an element. Clicking the armed tile again, or
+ *  Disarm, clears it (onArm(null)). The page then routes a canvas click through tilePlacement by category
  *  (terrain → ground, nature/buildings → stacked asset, units → entity). */
 export function TilePalette({
   styleId,
@@ -1497,7 +1518,6 @@ export function TilePalette({
   onArm,
   onHover,
   preview,
-  recent = [],
 }: {
   styleId: string
   /** kept for call-site parity; the palette header no longer prints the style name (tutorial prose removed). */
@@ -1506,17 +1526,14 @@ export function TilePalette({
   onArm: (tile: TileDef | null) => void
   /** Report what the cursor is over, so the preview zone can show it. */
   onHover?: (label: string | null) => void
-  /** How to draw each swatch the way the map would — threaded to every swatch in this library. */
+  /** How to draw each swatch the way the map would, threaded to every swatch in this library. */
   preview?: PreviewContext
-  /** The last tiles placed, newest first — §4.5's `★ RECENT`. Owned by the page so it survives switching
-   *  rails; empty until something has been placed. */
-  recent?: readonly TileDef[]
 }) {
   // The Paint palette lists REGULAR tiles only (terrain / buildings / nature). Units (player / enemies /
-  // NPCs) are placed through the top-nav ◈ Unit flow, NOT the paint brush — so drop the `units` group here
+  // NPCs) are placed through the top-nav ◈ Unit flow, NOT the paint brush, so drop the `units` group here
   // (a painted unit would spawn an entity, a separate concern the user asked to keep out of paint).
   // Units split. A figure with a person/enemy/animal role is a CHARACTER and is placed through the
-  // Characters library — painting one would spawn an entity, a separate concern. The twelve `fx` labels
+  // Characters library, painting one would spawn an entity, a separate concern. The twelve `fx` labels
   // (arrow, nova, fire-slash…) are NOT characters: they are what a power draws, they are ordinary tiles,
   // and they had no home in any library at all. They belong here, under "Effects".
   const styleGroups = tilesForStyle(styleId)
@@ -1526,7 +1543,7 @@ export function TilePalette({
   }
   const armed = armedId ? (Object.values(all).flat() as TileDef[]).find(t => t.id === armedId) ?? null : null
   const [query, setQuery] = useState('')
-  // §4.5's category CHIPS — null = All (the grouped view). Narrowing to one bucket replaces scrolling past
+  // §4.5's category CHIPS, null = All (the grouped view). Narrowing to one bucket replaces scrolling past
   // eleven stacked headings (§3.5).
   const [chip, setChip] = useState<TileCategory | null>(null)
   const groups = chip
@@ -1547,7 +1564,7 @@ export function TilePalette({
         </div>
         <div className="ls">ground, walls, roofs, nature and props</div>
       </div>
-      {/* THE PREVIEW IS NOT HERE. — because stacking it above the grid left the grid, the thing you opened the
+      {/* THE PREVIEW IS NOT HERE., because stacking it above the grid left the grid, the thing you opened the
           library FOR, as a clipped sliver. It renders in the zone that already means "what am I looking at": the
           right-hand one, which is empty while you browse. */}
       <div className="pfix">
@@ -1563,8 +1580,6 @@ export function TilePalette({
           onPick={setChip}
         />
       </div>
-      {/* ★ RECENT — the last eight you placed, so re-placing one is not a 305-tile scroll (§4.5). */}
-      <LibraryRecent tiles={recent} isOn={t => armedId === t.id} onPick={onArm} onHover={setHover} />
       <TileCategoryGrid groups={groups} isOn={t => armedId === t.id} onPick={onArm} onHover={setHover} query={query} preview={preview} />
       <div className="pfoot" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
         {armed ? (
@@ -1573,7 +1588,7 @@ export function TilePalette({
             <span style={{ flex: 1, minWidth: 0 }}>
               <b>{`Placing “${armed.label}”`}</b> · click the map · <kbd>Alt</kbd>-click erases
             </span>
-            <button type="button" className="b sm" title="Stop placing — Esc does the same" onClick={() => onArm(null)}>
+            <button type="button" className="b sm" title="Stop placing, Esc does the same" onClick={() => onArm(null)}>
               Disarm
             </button>
           </>
@@ -1586,15 +1601,15 @@ export function TilePalette({
 }
 
 // §4.5's Characters sub-groups. The bucket is the catalog's `settings.unitRole`; `fx` is deliberately
-// absent — a projectile is not a character, and the page filters those out before they reach the picker.
+// absent, a projectile is not a character, and the page filters those out before they reach the picker.
 const UNIT_GROUPS: readonly { id: UnitRole; label: string }[] = [
   { id: 'person', label: 'People' },
   { id: 'enemy', label: 'Monsters' },
   { id: 'animal', label: 'Animals' },
 ]
 
-// ── ◈ Unit — the enemy / creature picker + placement modes (top-nav) ─────
-/** One segmented-toggle button (place mode / motion) — orange when active, mirroring the Unit accent. */
+// ── ◈ Unit, the enemy / creature picker + placement modes (top-nav) ─────
+/** One segmented-toggle button (place mode / motion), orange when active, mirroring the Unit accent. */
 function ModeButton({ label, on, onClick, title }: { label: string; on: boolean; onClick: () => void; title?: string }) {
   return (
     <button
@@ -1614,7 +1629,7 @@ export interface UnitPickerProps {
   onHover?: (label: string | null) => void
   /** Open the movable "how it will be placed" panel. */
   onOpenPlacement?: () => void
-  /** the placeable `units`-category tiles (figures only — FX/projectiles filtered out by the page). */
+  /** the placeable `units`-category tiles (figures only, FX/projectiles filtered out by the page). */
   units: TileDef[]
   /** the currently-picked tile id, or null (nothing armed → clicks select). */
   pickedId: string | null
@@ -1629,7 +1644,7 @@ export interface UnitPickerProps {
   /** run the scatter (scatters the picked creature, or a mix when nothing is picked). */
   onScatter: () => void
   /**
-   * `Place as: ( ) Enemy (•) Auto ( ) NPC` — §4.5's row, and the model made visible
+   * `Place as: ( ) Enemy (•) Auto ( ) NPC`, §4.5's row, and the model made visible
    * (2026-09-08):
    *
    * So hostility is NOT a property of the tile. `Auto` takes the catalog's role for the creature you
@@ -1642,15 +1657,15 @@ export interface UnitPickerProps {
 }
 
 /** ◈ Unit → pick WHICH enemy/creature to add, then place it. Reads the `units` category tiles (the data
- *  agent folds animals in here too) so you can SEE + pick a figure — the thing the paint palette no longer
+ *  agent folds animals in here too) so you can SEE + pick a figure, the thing the paint palette no longer
  *  offers. Two modes: ADD (pick one, click the map, like painting) or SCATTER (randomize several); plus a
  *  STATIC / ANIMATED toggle so a placed unit is either still or wandering with a randomized movement
- *  animation. Pure & props-driven — the page owns the tileset, the pick, and the place/scatter handlers. */
+ *  animation. Pure & props-driven, the page owns the tileset, the pick, and the place/scatter handlers. */
 export function UnitPicker({ units, pickedId, onPick, mode, onMode, animated, onAnimated, onScatter, placeAs, onPlaceAs, autoKindLabel, onHover, onOpenPlacement }: UnitPickerProps) {
   const picked = pickedId ? units.find(u => u.id === pickedId) ?? null : null
   const [query, setQuery] = useState('')
   // §4.5's sub-groups: `[All] [People] [Monsters] [Animals]`. The bucket is the catalog's own
-  // `settings.unitRole` — never a name regex.
+  // `settings.unitRole`, never a name regex.
   const [group, setGroup] = useState<UnitRole | null>(null)
   const setHover = (label: string | null) => onHover?.(label)
   const roleOf = (t: TileDef) => unitRole(t.settings)
@@ -1702,9 +1717,9 @@ export function UnitPicker({ units, pickedId, onPick, mode, onMode, animated, on
         </div>
       )}
 
-      {/* The character's BEHAVIOUR lives in its own panel. Stacked under the grid it left the swatches — the thing
-          you opened the library for — as one clipped row. Named for the QUESTION, not the mechanism. He is right:
-          "placed" describes the click, while the panel decides three things about the CHARACTER — whose side it is
+      {/* The character's BEHAVIOUR lives in its own panel. Stacked under the grid it left the swatches, the thing
+          you opened the library for, as one clipped row. Named for the QUESTION, not the mechanism. He is right:
+          "placed" describes the click, while the panel decides three things about the CHARACTER, whose side it is
           on, whether one lands or several, and whether it stands still or wanders. The count beside the label
           already reads "Friendly · Patrols", which is a summary of behaviour, not of placement. */}
       <div className="pfoot">
@@ -1719,7 +1734,7 @@ export function UnitPicker({ units, pickedId, onPick, mode, onMode, animated, on
 }
 
 /**
- * HOW A CHARACTER WILL LAND — the second question, in its own movable panel.
+ * HOW A CHARACTER WILL LAND, the second question, in its own movable panel.
  *
  * Kept apart from "which one is it" because they are different decisions, and because stacking both in one
  * 352px column is what crushed the library grid.
@@ -1733,7 +1748,7 @@ export function UnitPlacementBody({
     <div>
 
         {/* Whose side: TWO answers and no third. Neither pressed = the catalog's own answer for this creature,
-            which is what `auto` has always meant — so the third state survives as the DEFAULT instead of as a
+            which is what `auto` has always meant, so the third state survives as the DEFAULT instead of as a
             button. */}
         <div className="ctl">
           <span className="l">
@@ -1742,11 +1757,11 @@ export function UnitPlacementBody({
           </span>
           <div className="seg" role="group" aria-label="Whose side">
             <button type="button" aria-pressed={placeAs === 'npc'} className={placeAs === 'npc' ? 'on' : ''}
-              title="Friendly — it will not fight the player" onClick={() => onPlaceAs(placeAs === 'npc' ? 'auto' : 'npc')}>
+              title="Friendly, it will not fight the player" onClick={() => onPlaceAs(placeAs === 'npc' ? 'auto' : 'npc')}>
               Friendly
             </button>
             <button type="button" aria-pressed={placeAs === 'enemy'} className={placeAs === 'enemy' ? 'on' : ''}
-              title="Unfriendly — it fights the player" onClick={() => onPlaceAs(placeAs === 'enemy' ? 'auto' : 'enemy')}>
+              title="Unfriendly, it fights the player" onClick={() => onPlaceAs(placeAs === 'enemy' ? 'auto' : 'enemy')}>
               Unfriendly
             </button>
           </div>
@@ -1766,7 +1781,7 @@ export function UnitPlacementBody({
           </span>
           <div className="seg" role="group" aria-label="How many">
             <button type="button" aria-pressed={mode === 'add'} className={mode === 'add' ? 'on' : ''}
-              title="Pick a character, then click the map to place it — one at a time, like painting" onClick={() => onMode('add')}>
+              title="Pick a character, then click the map to place it, one at a time, like painting" onClick={() => onMode('add')}>
               One at a time
             </button>
             <button type="button" aria-pressed={mode === 'scatter'} className={mode === 'scatter' ? 'on' : ''}
@@ -1778,7 +1793,7 @@ export function UnitPlacementBody({
 
         {/* Motion only bites in one-at-a-time: a sprinkle always attaches a patrol, so it is always moving.
             Only the two behaviours the ENGINE actually has are offered. The design drew seven presets
-            (guards a spot, chases the hero, runs away…) — nothing in the runtime pursues the player yet, so
+            (guards a spot, chases the hero, runs away…), nothing in the runtime pursues the player yet, so
             offering them here would be inventing features rather than wiring them. */}
         {mode === 'add' && (
           <div className="ctl">
@@ -1788,7 +1803,7 @@ export function UnitPlacementBody({
             </span>
             <div className="seg" role="group" aria-label="How it behaves">
               <button type="button" aria-pressed={!animated} className={!animated ? 'on' : ''}
-                title="Place it still — author movement later in the Inspector" onClick={() => onAnimated(false)}>
+                title="Place it still, author movement later in the Inspector" onClick={() => onAnimated(false)}>
                 Stands still
               </button>
               <button type="button" aria-pressed={animated} className={animated ? 'on' : ''}
@@ -1823,13 +1838,13 @@ const fpsColor = (v: number) => (v >= 55 ? '#22c55e' : v >= 45 ? '#eab308' : v >
  *  {@link LiveFpsReadout} is the one that samples them. */
 export function FpsReadout({ fps, renderMs = 0, variant }: { fps: number; renderMs?: number; variant: 'nav' | 'floating' }) {
   // The frame rate is CAPPED by the monitor (rAF = display refresh), so it flatlines at 60 on a 60Hz screen
-  // and hides whether the engine has room to spare. The per-frame cost does not lie — show it, and the rate
+  // and hides whether the engine has room to spare. The per-frame cost does not lie, show it, and the rate
   // it implies, so a fast engine reads as fast and a slow frame is visible immediately.
   const headroom = headroomFps(renderMs)
   const body = (
     <span className="font-mono text-xs" title="Frames per second (capped by your display refresh) · render cost per frame · the rate that cost allows">
       <span className="text-gray-400">FPS </span>
-      <span style={{ color: fpsColor(fps), fontWeight: 700 }}>{fps || '—'}</span>
+      <span style={{ color: fpsColor(fps), fontWeight: 700 }}>{fps || ', '}</span>
       {headroom > 0 && (
         <>
           <span className="text-gray-600"> · </span>
@@ -1866,8 +1881,7 @@ export function LiveFpsReadout({ variant, probe }: { variant: 'nav' | 'floating'
 // ── Morphing-Inspector selection header + not-yet-built section stubs ─
 /** Compact identity header at the top of a morphed selection (kind + coordinates). */
 export function SelectionHeader({ kind, label, coords }: { kind: string; label: string; coords?: string }) {
-  // The design's `.ihd`: the NAME of the selected thing, with where it is beneath. No per-kind colour —
-  // a cell and a character are both "the thing you selected", and four accent colours said otherwise.
+  // The design's `.ihd`: the NAME of the selected thing, with where it is beneath. No per-kind colour, // a cell and a character are both "the thing you selected", and four accent colours said otherwise.
   return (
     <div className="ihd">
       <div className="t">{label}</div>
@@ -1876,9 +1890,9 @@ export function SelectionHeader({ kind, label, coords }: { kind: string; label: 
   )
 }
 
-// ── Trigger editor (stage E) — "When [event] → do [action]." ─────────
+// ── Trigger editor (stage E), "When [event] → do [action]." ─────────
 // The unified trigger authoring UI. One editor serves both a CELL (events enter /
-// interact) and a UNIT (event defeat) — the `events` prop picks which. Pure &
+// interact) and a UNIT (event defeat), the `events` prop picks which. Pure &
 // props-driven: it holds no state; every edit flows up through `onChange`.
 
 /** Human labels for the event dropdown. */
@@ -1910,7 +1924,7 @@ export interface TriggerEditorProps {
 }
 
 
-/** The real trigger authoring editor — add / edit / remove multiple triggers. */
+/** The real trigger authoring editor, add / edit / remove multiple triggers. */
 export function TriggerEditor({ triggers, events, templates, enemyTypes, onChange }: TriggerEditorProps) {
   const replace = (i: number, next: Trigger) => onChange(triggers.map((t, j) => (j === i ? next : t)))
   const setEvent = (i: number, event: TriggerEvent) => replace(i, { ...triggers[i], event } as Trigger)
@@ -1925,7 +1939,7 @@ export function TriggerEditor({ triggers, events, templates, enemyTypes, onChang
   return (
     <div className="space-y-2 text-xs">
       {triggers.length === 0 && (
-        <p className="text-[10px] leading-tight text-gray-500">No rules yet — add one to make this cell do something.</p>
+        <p className="text-[10px] leading-tight text-gray-500">No rules yet, add one to make this cell do something.</p>
       )}
       {triggers.map((t, i) => (
         <div key={t.id} className="space-y-1 rounded border border-yellow-500/20 bg-black/40 p-1.5">
@@ -1992,28 +2006,28 @@ function TriggerParamsFields({
   return null
 }
 
-// ── ✦ Animation editor (stage 2, #91) — author DATA-DRIVEN per-entity animations ─────
+// ── ✦ Animation editor (stage 2, #91), author DATA-DRIVEN per-entity animations ─────
 // The Inspector authoring UI for `entity.animations`. EVERY entity carries a list of
 // EntityAnimation (the player IS an entity, so this authors the live hero too); the renderer
 // already plays them by trigger + direction, so saving an animation here makes it play in-game
-// with NO extra code. Pure & props-driven like TriggerEditor — the only local state is which
+// with NO extra code. Pure & props-driven like TriggerEditor, the only local state is which
 // frame's tile-picker is open; every edit flows up through `onChange` immutably.
 
 // Tile/sprite animation authoring (frame picker, track editors, preview, TileAnimationEditor) lives in editorAnimation.tsx.
 export { TileAnimationEditor, type TileAnimationEditorProps, type SpriteAnimationContext } from './editorAnimation'
 
-// ── THE VIEW BAR (§4.3 / §5.2 — Week 2's bar split) ──────────────────────
+// ── THE VIEW BAR (§4.3 / §5.2, Week 2's bar split) ──────────────────────
 /**
  * The bottom VIEW bar: how you LOOK at the map, never what the map IS.
  *
- * §4.1's first principle is one question per region — top = *what am I working on*, bottom = *how am I
+ * §4.1's first principle is one question per region, top = *what am I working on*, bottom = *how am I
  * looking at it / does it work*. Splitting these out of the top bar is what fixes §3.3, a **P0**: measured at
  * 1280×800 the nav's `scrollWidth` was **1763px against a clientWidth of 1246**, so Save, Play, Load and the
  * ⋯ More menu simply scrolled off the right edge of a normal laptop, in an `overflow-x-auto` strip with no
  * scroll affordance. Nothing here changes the map, so nothing here can be lost off-screen with consequences.
  *
  * It also collects the four VIEW toggles that were living inside ⚙ Stage next to a destructive grid resize
- * (§3.11) — "Night mode", "Debug overlay", "Show collisions", "Hide entities" are presentation, and they now
+ * (§3.11), "Night mode", "Debug overlay", "Show collisions", "Hide entities" are presentation, and they now
  * sit with presentation. The resize stays behind until §4.6 gives it a home in the Generate panel.
  *
  * Presentational: every value and handler is a prop, so the bar has no idea what a grid is.
@@ -2046,7 +2060,7 @@ export function ViewBar({
   slabBlocks?: number
   onSlabBlocks?: (blocks: number) => void
   /** The 🎨 art-style switch. §4.1's first principle puts "how am I looking at it" in this bar, and a
-   *  reskin changes no map data — so the style belongs here, not in the PROJECT bar (§4.3 lists only six
+   *  reskin changes no map data, so the style belongs here, not in the PROJECT bar (§4.3 lists only six
    *  things there). */
   /** §4.3 draws `🔍 100%` in this bar. */
   zoomPct: number
@@ -2097,11 +2111,11 @@ export function ViewBar({
         <ViewButton label="Flow" active={activeView === 'flow'} activeClass="" onClick={onFlow} />
       </div>
 
-      {/* Rotation + the render cull are ISO-only — they have no meaning in a flat projection. */}
+      {/* Rotation + the render cull are ISO-only, they have no meaning in a flat projection. */}
       {activeView === 'iso' && <span className="vr" aria-hidden="true" />}
       {activeView === 'iso' && <CameraRotateButton facing={facing} onFacing={onFacing} />}
       {activeView === 'iso' && <PlayerRangeControl range={playerRange} onRange={onPlayerRange} />}
-      {/* ▤ Ground — the map's own depth. The requirement: ISO-only for the same reason those two are: a flat projection
+      {/* ▤ Ground, the map's own depth. The requirement: ISO-only for the same reason those two are: a flat projection
           has no body to show. */}
       {activeView === 'iso' && slabBlocks !== undefined && onSlabBlocks && (
         <GroundThicknessControl blocks={slabBlocks} onBlocks={onSlabBlocks} />
@@ -2128,7 +2142,7 @@ export function ViewBar({
       )}
 
       {/* RELATIVE trigger, ABSOLUTE panel anchored to it. The shared `Dropdown` is deliberately FIXED so it
-          can escape the TOP bar's clipping — but this bar sits at the BOTTOM, so a fixed panel anchored
+          can escape the TOP bar's clipping, but this bar sits at the BOTTOM, so a fixed panel anchored
           "under" the button lands off the bottom of the screen. Anchored to its own trigger it opens
           UPWARD (`bottom-full`), where there is room. */}
       <div ref={overlaysRef} className="relative shrink-0">
@@ -2162,11 +2176,11 @@ export function ViewBar({
         )}
       </div>
 
-      {/* 🔍 zoom readout — §4.3 draws it between ◎ Range and the day/night toggle. */}
+      {/* 🔍 zoom readout, §4.3 draws it between ◎ Range and the day/night toggle. */}
       <span className="h-5 w-px shrink-0 bg-white/15" />
       <span className="shrink-0 tabular-nums text-xs text-gray-300" title="Camera zoom (mouse wheel)">🔍 {zoomPct}%</span>
 
-      {/* 🎨 Style is NOT here — it is so it is a rail entry (`artstyle`) with its own panel. */}
+      {/* 🎨 Style is NOT here, it is so it is a rail entry (`artstyle`) with its own panel. */}
 
       <span className="ml-auto flex shrink-0 items-center gap-2">
         {/* The bar already knows which view is drawing, which is the only thing the sampler needs. */}
@@ -2175,7 +2189,7 @@ export function ViewBar({
           type="button"
           className="b sm"
           onClick={onGuides}
-          title="Whole jobs, start to finish — each step names the button it means"
+          title="Whole jobs, start to finish, each step names the button it means"
         >
           Guides
         </button>

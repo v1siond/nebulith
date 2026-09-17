@@ -1,14 +1,14 @@
 /**
- * A PREVIEW IS A TINY MAP — built by the map's own code, so it cannot disagree with the map.
+ * A PREVIEW IS A TINY MAP, built by the map's own code, so it cannot disagree with the map.
  *
  * The old previews DREW THEIR OWN PICTURE: a "front elevation" composed from a composition's parts, plus a
  * flat plan grid. That is a second opinion about what a thing looks like, and it was wrong in exactly the
- * cases where it had the most work to do — a fountain (animated water columns), a lamp post (a glow anchor
+ * cases where it had the most work to do, a fountain (animated water columns), a lamp post (a glow anchor
  * whose art is not its footprint) and a well (a 5×3 composition). Anything that makes a tile interesting is
  * something a hand-rolled elevation does not know about.
  *
  * So this builds a REAL grid, puts the subject into it through the SAME functions the editor's brush and the
- * generator use — `placeGroundTile` / `stackAssetTile` / `stampComposition` — and hands it back for the
+ * generator use, `placeGroundTile` / `stackAssetTile` / `stampComposition`, and hands it back for the
  * ACTIVE view's renderer to draw. Height runs, thickness, per-cell settings, animation, art frames and
  * stacking all arrive for free, because none of them are re-implemented here.
  *
@@ -32,12 +32,12 @@ export type PreviewSubject =
   | { kind: 'tile'; tile: TileDef }
   | { kind: 'composition'; comp: string }
   /**
-   * A whole generated LEVEL — what a preset card shows.
+   * A whole generated LEVEL, what a preset card shows.
    *
    * (preset thumbnails). It is the same machinery as a
    * tile preview, one level up: generate the stage the preset would build, put it in a scratch grid through
    * the editor's own applier, and let the map's renderer draw it. So the thumbnail cannot promise something
-   * the button does not deliver — and with the new Woodland preset beside two Meadows, the difference
+   * the button does not deliver, and with the new Woodland preset beside two Meadows, the difference
    * between them is the whole reason to look.
    */
   | {
@@ -47,10 +47,10 @@ export type PreviewSubject =
       layout?: string
       /** The picked generator's own NAME ("Mountain forest"), so a caption can say which world this is. */
       name?: string
-      /** The generator's nature densities — `canopy` is what makes a woodland thumbnail a woodland. */
+      /** The generator's nature densities, `canopy` is what makes a woodland thumbnail a woodland. */
       nature?: NatureDensity
       /**
-       * The rest of what a build is fed — the switches, the colours, the regions.
+       * The rest of what a build is fed, the switches, the colours, the regions.
        *
        * It was
        * not clear because the preview was generated WITHOUT them, so a river you switched on changed the
@@ -71,13 +71,13 @@ export type PreviewSubject =
 
 export interface PreviewScene {
   grid: IsometricGrid
-  /** The subject's footprint in cells — what the camera has to frame. */
+  /** The subject's footprint in cells, what the camera has to frame. */
   span: { cols: number; rows: number }
   /** Where in the grid the subject was placed (its top-left cell). */
   anchor: { col: number; row: number }
   /** True when the subject is a CHARACTER: it is an entity, not a grid tile, so the caller draws it as one. */
   entity: boolean
-  /** How many levels tall the tallest stack in the footprint is — vertical room the camera must leave. */
+  /** How many levels tall the tallest stack in the footprint is, vertical room the camera must leave. */
   levels: number
 }
 
@@ -102,7 +102,7 @@ export function compositionSpan(comp: string): { cols: number; rows: number } | 
 /**
  * Build the scene for a subject, or null when the loaded catalog cannot describe it.
  *
- * Null is the honest answer to a missing subject — the caller renders nothing and says so. There is no
+ * Null is the honest answer to a missing subject, the caller renders nothing and says so. There is no
  * stand-in tile and no invented footprint: a preview of something the backend does not serve would be a
  * picture of a thing that does not exist.
  */
@@ -152,7 +152,7 @@ export function buildPreviewScene(subject: PreviewSubject, zone: ZoneId, styleId
   const rows = span.rows + MARGIN * 2
   const grid = new IsometricGrid({ cols, rows, cellSize: PREVIEW_CELL, isoScale: 2.5 })
 
-  // THE SAME GROUND THE MAP WOULD HAVE under it, from the zone's own palette — so a tile is previewed
+  // THE SAME GROUND THE MAP WOULD HAVE under it, from the zone's own palette, so a tile is previewed
   // standing on the surface it will actually stand on, not floating in a void. `groundTypes[0]` is the
   // palette's base, exactly as `generateStage` reads it.
   const groundTile = groundTileFor(zone, styleId)
@@ -165,8 +165,7 @@ export function buildPreviewScene(subject: PreviewSubject, zone: ZoneId, styleId
   const anchor = { col: MARGIN, row: MARGIN }
 
   if (subject.kind === 'composition') {
-    // The generator's own stamp. Variant 0 and rotation 0 so the same preset always previews identically —
-    // a thumbnail that re-rolls its material every render is not a reference.
+    // The generator's own stamp. Variant 0 and rotation 0 so the same preset always previews identically, // a thumbnail that re-rolls its material every render is not a reference.
     const placed = stampComposition(grid, subject.comp, anchor.col, anchor.row, zone, 0, 0)
     if (placed === 0) return null
     return { grid, span, anchor, entity: false, levels: tallestStack(grid, anchor, span) }
@@ -209,7 +208,7 @@ export function buildPreviewScene(subject: PreviewSubject, zone: ZoneId, styleId
  * The tallest stack anywhere in the footprint, in LEVELS.
  *
  * Measured off the grid after stamping rather than read from the composition, because `stampComposition`
- * collapses each vertical run of identical tiles into one block with a `scaleY` — so a four-high wall is a
+ * collapses each vertical run of identical tiles into one block with a `scaleY`, so a four-high wall is a
  * single asset four levels tall, and counting assets would report 1.
  */
 function tallestStack(grid: IsometricGrid, anchor: { col: number; row: number }, span: { cols: number; rows: number }): number {
@@ -225,7 +224,7 @@ function tallestStack(grid: IsometricGrid, anchor: { col: number; row: number },
 }
 
 /**
- * The zoom each renderer needs to fit the whole scene in a box — derived from that renderer's OWN
+ * The zoom each renderer needs to fit the whole scene in a box, derived from that renderer's OWN
  * projection constants, not guessed.
  *
  * · **iso** maps screen x to `(col - row)` at `Kx = cellSize · isoScale · zoom · 0.71` and screen y to
@@ -252,7 +251,7 @@ export function fitZoom(
   //
   // That last part was wrong and it SHOWED: the allowance was 0.4 per level while the renderer draws a block
   // at `tileW * ISO_BLOCK_H_FRAC` (0.9), so anything tall was zoomed to fit a box less than half its height
-  // and had its top cut off — which is what a roof on a wall stub does. One constant, imported from the renderer, so
+  // and had its top cut off, which is what a roof on a wall stub does. One constant, imported from the renderer, so
   // the two cannot drift.
   const diagonal = grid.cols + grid.rows
   const perZoomX = cs * grid.isoScale * 0.71 * diagonal
@@ -264,7 +263,7 @@ export function fitZoom(
  * The zone's base ground tile, IN THE STYLE BEING PREVIEWED.
  *
  * Looked up in the real library rather than assembled here. An earlier version of this function built a
- * `TileDef` by hand and hardcoded `'ascii'` — which is the "one engine, many styles" rule broken twice over:
+ * `TileDef` by hand and hardcoded `'ascii'`, which is the "one engine, many styles" rule broken twice over:
  * it invented a tile the catalog never served, and it would have previewed emoji tiles standing on ASCII
  * ground. A label owns the facts, a style owns only the picture, so the style must come from the caller.
  *
@@ -278,7 +277,7 @@ function groundTileFor(zone: ZoneId, styleId: string): TileDef | undefined {
 }
 
 /**
- * The subject for a library row — the one place that maps "which library, which label" onto what to build.
+ * The subject for a library row, the one place that maps "which library, which label" onto what to build.
  *
  * Kept here rather than in the page so it can be tested without a canvas, and so the three libraries cannot
  * drift into three different answers. Null when the label is absent or the catalog does not carry it: the
@@ -300,7 +299,7 @@ export function subjectFor(
 /**
  * A whole level, generated small and seeded, for a preset card.
  *
- * Generated at a REDUCED size — a thumbnail is 100-odd pixels, and generating the preset's real 30×24 to
+ * Generated at a REDUCED size, a thumbnail is 100-odd pixels, and generating the preset's real 30×24 to
  * draw it at 4px a cell is work thrown away. The layout still reads correctly because every archetype
  * scales its features from `cols`/`rows` rather than placing them at absolute coordinates.
  *

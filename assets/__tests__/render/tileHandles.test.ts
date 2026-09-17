@@ -18,7 +18,7 @@ const RECT = [
   { x: 0, y: 80 },
 ]
 
-describe('tileHandles — geometry', () => {
+describe('tileHandles, geometry', () => {
   it('polyBBox returns the AABB + centre of a silhouette polygon', () => {
     const b = polyBBox(RECT)
     expect(b).toMatchObject({ minX: 0, minY: 0, maxX: 100, maxY: 80, cx: 50, cy: 40, width: 100, height: 80 })
@@ -59,7 +59,7 @@ describe('tileHandles — geometry', () => {
   })
 })
 
-describe('tileHandles — drag mapping', () => {
+describe('tileHandles, drag mapping', () => {
   it('projects the drag onto each handle OUTWARD axis (width=+x, height=-y, zwidth=+y)', () => {
     expect(dragOutwardPx('width', 30, -12)).toBe(30) // horizontal only
     expect(dragOutwardPx('height', 7, -25)).toBe(25) // up is +height
@@ -104,7 +104,7 @@ describe('tileHandles — drag mapping', () => {
   })
 })
 
-describe('tileHandles — drawing (real canvas)', () => {
+describe('tileHandles, drawing (real canvas)', () => {
   it('paints a visible marker at each handle point', () => {
     const canvas = createCanvas(200, 160)
     const ctx = canvas.getContext('2d')

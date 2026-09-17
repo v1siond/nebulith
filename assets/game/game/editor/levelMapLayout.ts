@@ -1,10 +1,10 @@
 /**
- * THE LEVEL MAP — levels placed where their doorways say they are.
+ * THE LEVEL MAP, levels placed where their doorways say they are.
  *
  * Earlier, asking for
  *
  * What it replaced laid every level on a CIRCLE by its position in the array
- * (`angle = i / count * 2π`). That draws the right edges — you could see what connects to what — but the
+ * (`angle = i / count * 2π`). That draws the right edges, you could see what connects to what, but the
  * POSITIONS carried no information at all: the level through your east door might be drawn to the
  * north-west, and reordering the list moved everything. It was a graph diagram, not a map.
  *
@@ -29,7 +29,7 @@ const STEP: Readonly<Record<Direction, { x: number; y: number }>> = {
   west: { x: -1, y: 0 },
 }
 
-/** A level as the layout needs to see it — no api types, so this stays testable in isolation. */
+/** A level as the layout needs to see it, no api types, so this stays testable in isolation. */
 export interface LevelNode {
   id: string
   name: string
@@ -51,7 +51,7 @@ export interface PlacedLevel {
   name: string
   gx: number
   gy: number
-  /** False when nothing links this level to the one you are standing in — see `layoutLevels`. */
+  /** False when nothing links this level to the one you are standing in, see `layoutLevels`. */
   connected: boolean
 }
 
@@ -137,7 +137,7 @@ export function layoutLevels(nodes: readonly LevelNode[], originId: string): Pla
 }
 
 /**
- * The free lattice slot nearest to (x, y) — the wanted slot itself when it is free.
+ * The free lattice slot nearest to (x, y), the wanted slot itself when it is free.
  *
  * An outward ring search, so a displaced level lands as close to its true direction as it can. Bounded by
  * a radius no realistic graph will reach; past it the slot is returned anyway rather than looping forever,

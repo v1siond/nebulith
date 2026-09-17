@@ -1,9 +1,9 @@
 /**
- * Per-element dimensions (#77/#78) — resolve an element's sprite-scale multipliers into a
+ * Per-element dimensions (#77/#78), resolve an element's sprite-scale multipliers into a
  * concrete draw size for a given view, plus how far to lift the draw center so the base stays
  * planted (Height grows UP, not centered).
  *
- * These are SPRITE SCALE, not footprint/collision — a plant with Height 3 is drawn ~3× tall from
+ * These are SPRITE SCALE, not footprint/collision, a plant with Height 3 is drawn ~3× tall from
  * its base; it does not occupy 3 cells. (Footprint is #51.)
  */
 
@@ -14,13 +14,13 @@ export type DimView =
 
 /** Per-element sprite-scale multipliers carried on a GridAsset. Every axis defaults to 1 (current look). */
 export interface AssetDims {
-  /** Uniform Zoom — multiplies every axis at once. */
+  /** Uniform Zoom, multiplies every axis at once. */
   scale?: number
-  /** Width (x) — horizontal stretch, in every view. */
+  /** Width (x), horizontal stretch, in every view. */
   scaleX?: number
-  /** Height (up) — vertical stretch that grows UP from the base; billboard views only. */
+  /** Height (up), vertical stretch that grows UP from the base; billboard views only. */
   scaleY?: number
-  /** Depth (into-screen ground axis) — renders as vertical stretch in the overhead view only. */
+  /** Depth (into-screen ground axis), renders as vertical stretch in the overhead view only. */
   scaleZ?: number
 }
 

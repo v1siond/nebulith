@@ -1,8 +1,8 @@
 /**
  * Per-entity LOADOUT: worn gear by equip slot, a fixed-size bag, and quick-use special-action
- * slots (bombs / scrolls / potions) bound to trigger keys (default 5–8, rebindable to any key).
+ * slots (bombs / scrolls / potions) bound to trigger keys (default 5-8, rebindable to any key).
  *
- * Pure + immutable — every mutator returns a new Loadout, inputs untouched.
+ * Pure + immutable, every mutator returns a new Loadout, inputs untouched.
  * `loadoutBonuses` aggregates the stat contribution of everything worn (dodge from
  * armor, block from shields) so combat/derived-stats can fold it into an entity.
  */
@@ -18,7 +18,7 @@ import {
 import { starterWarriorGear } from './gear'
 
 /** Default trigger keys for the special-action slots. They start at 5 (not 1) so they never
- *  collide with the ABILITY slots, which default to 1–4. Both sets are independently rebindable
+ *  collide with the ABILITY slots, which default to 1-4. Both sets are independently rebindable
  *  to any key (setShortcut for specials, rebindAbility for abilities). */
 export const DEFAULT_SPECIAL_KEYS = ['5', '6', '7', '8', '9', '0', '1', '2', '3', '4'] as const
 
@@ -54,7 +54,7 @@ export function createLoadout(config: LoadoutConfig = {}): Loadout {
 export function allowedSlots(item: Item): EquipSlot[] {
   if (item.slot === 'weapon') return ['weapon1', 'weapon2']
   if (item.slot === 'armor') return ARMOR_SLOTS[item.armor.slot ?? 'chest']
-  return [] // consumables aren't equipped — they live in bag / special slots
+  return [] // consumables aren't equipped, they live in bag / special slots
 }
 
 export function equip(loadout: Loadout, item: Item, slot: EquipSlot): Loadout {

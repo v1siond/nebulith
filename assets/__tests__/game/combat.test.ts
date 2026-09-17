@@ -102,7 +102,7 @@ const attack = (over: Partial<Attack> = {}): Attack => ({
 })
 
 // ── deriveStats ─────────────────────────────────────────────────────
-describe('deriveStats — base + weapon + armor aggregation', () => {
+describe('deriveStats, base + weapon + armor aggregation', () => {
   it('returns the base stats unchanged with no equipment', () => {
     expect(deriveStats(baseStats())).toEqual(baseStats())
   })
@@ -143,7 +143,7 @@ describe('deriveStats — base + weapon + armor aggregation', () => {
 })
 
 // ── resource caps ───────────────────────────────────────────────────
-describe('rageCap / manaCap — derived from strength / intelligence', () => {
+describe('rageCap / manaCap, derived from strength / intelligence', () => {
   it('rage cap scales with strength', () => {
     expect(rageCap(0)).toBeLessThan(rageCap(20))
     expect(rageCap(20)).toBeGreaterThan(rageCap(10))
@@ -163,7 +163,7 @@ describe('rageCap / manaCap — derived from strength / intelligence', () => {
 })
 
 // ── startingCombatState ─────────────────────────────────────────────
-describe('startingCombatState — runtime state from stats', () => {
+describe('startingCombatState, runtime state from stats', () => {
   it('starts full hp and full resources at their derived caps', () => {
     const s: CombatState = startingCombatState(baseStats({ strength: 20, intelligence: 20, maxHp: 80 }))
     expect(s.hp).toBe(80)
@@ -173,7 +173,7 @@ describe('startingCombatState — runtime state from stats', () => {
 })
 
 // ── applyDamage / isDead ────────────────────────────────────────────
-describe('applyDamage / isDead — HP + death helpers', () => {
+describe('applyDamage / isDead, HP + death helpers', () => {
   it('subtracts damage and never drops below zero', () => {
     expect(applyDamage(30, 12)).toBe(18)
     expect(applyDamage(10, 999)).toBe(0)
@@ -187,7 +187,7 @@ describe('applyDamage / isDead — HP + death helpers', () => {
 })
 
 // ── resolveAttack: regular attacks ──────────────────────────────────
-describe('resolveAttack — regular (free) attacks', () => {
+describe('resolveAttack, regular (free) attacks', () => {
   it('regular physical melee fires and spends no resource', () => {
     const r = resolveAttack({
       attacker: baseStats(),
@@ -215,7 +215,7 @@ describe('resolveAttack — regular (free) attacks', () => {
 })
 
 // ── resolveAttack: physical vs magical scaling ──────────────────────
-describe('resolveAttack — physical vs magical schools', () => {
+describe('resolveAttack, physical vs magical schools', () => {
   it('strength increases physical damage', () => {
     const weak = resolveAttack({
       attacker: baseStats({ strength: 5 }),
@@ -266,7 +266,7 @@ describe('resolveAttack — physical vs magical schools', () => {
 })
 
 // ── resolveAttack: defense mitigation ───────────────────────────────
-describe('resolveAttack — defense mitigates melee physical only', () => {
+describe('resolveAttack, defense mitigates melee physical only', () => {
   it('defense reduces incoming melee physical damage', () => {
     const noDef = resolveAttack({
       attacker: baseStats(),
@@ -344,7 +344,7 @@ describe('resolveAttack — defense mitigates melee physical only', () => {
 })
 
 // ── resolveAttack: special attacks & resources ──────────────────────
-describe('resolveAttack — special attacks consume rage / mana', () => {
+describe('resolveAttack, special attacks consume rage / mana', () => {
   it('physical special hits harder than regular and consumes rage', () => {
     const reg = resolveAttack({
       attacker: baseStats(),
@@ -432,7 +432,7 @@ describe('resolveAttack — special attacks consume rage / mana', () => {
 })
 
 // ── resolveAttack: hp resolution & lethality ────────────────────────
-describe('resolveAttack — defender hp resolution & lethality', () => {
+describe('resolveAttack, defender hp resolution & lethality', () => {
   it('reports defender hp after the hit using defenderHp input', () => {
     const r = resolveAttack({
       attacker: baseStats(),
@@ -483,7 +483,7 @@ describe('resolveAttack — defender hp resolution & lethality', () => {
   })
 })
 
-describe('resolveAttack — dodge & block (avoidance before damage)', () => {
+describe('resolveAttack, dodge & block (avoidance before damage)', () => {
   const hit = (): Attack => ({ school: 'physical', range: 'melee', tier: 'regular' })
 
   it('a dodged attack still fires but deals no damage and leaves HP intact', () => {

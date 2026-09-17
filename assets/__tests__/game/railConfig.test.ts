@@ -1,11 +1,11 @@
 /**
- * THE RAIL IS A TABLIST — every mode must resolve to a tab that exists.
+ * THE RAIL IS A TABLIST, every mode must resolve to a tab that exists.
  *
  * This suite exists because of a real defect, not a hypothetical one. `RAIL_BY_MODE` mapped the resting
- * state (`select` — nothing armed) to a rail id `'select'`. The approved design then DELETED that entry
+ * state (`select`, nothing armed) to a rail id `'select'`. The approved design then DELETED that entry
  * ("it acts on no object, so it is not a tool"). Nothing failed: the mapping still compiled, because
  * `'select'` is a member of the `RailId` union whether or not any band lists it. The visible result was
- * that the editor opened with no tab selected and an EMPTY 352px library column — every branch that
+ * that the editor opened with no tab selected and an EMPTY 352px library column, every branch that
  * renders the panel gates on `activeRailId`, and no branch equals `'select'`.
  *
  * TypeScript cannot catch it: the union is the vocabulary, the bands are the MENU, and a vocabulary word
@@ -21,7 +21,7 @@ describe('every canvas mode resolves to a rail entry that exists', () => {
     expect(RAIL_IDS.has(id)).toBe(true)
   })
 
-  it('covers every mode — a new mode with no rail home would blank the panel', () => {
+  it('covers every mode, a new mode with no rail home would blank the panel', () => {
     expect(Object.keys(RAIL_BY_MODE).sort()).toEqual([...MODES].sort())
   })
 

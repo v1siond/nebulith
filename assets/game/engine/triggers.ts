@@ -6,8 +6,8 @@
  * loop performs the action's side effect. This module owns only the PURE parts
  * so they can be unit-tested in isolation:
  *
- *   - `findTrigger`   — the activation rule (which trigger fires for cell+event)
- *   - `resolveAction` — a classifier mapping an Action to a ResolvedEffect that
+ *   - `findTrigger`  , the activation rule (which trigger fires for cell+event)
+ *   - `resolveAction`, a classifier mapping an Action to a ResolvedEffect that
  *                       describes what the loop should do (no side effects here)
  *
  * The game loop owns the stateful parts (detecting cell changes, reading keys)
@@ -26,15 +26,15 @@ export interface Cell {
 
 /**
  * How a trigger fires:
- * - 'enter'    — the player moved onto the cell (edge-triggered by the loop)
- * - 'interact' — the player pressed the interact key on the cell
- * - 'attack'   — the player attacked on the cell
- * - 'touch'    — something touched the cell (e.g. a projectile/contact)
+ * - 'enter'   , the player moved onto the cell (edge-triggered by the loop)
+ * - 'interact', the player pressed the interact key on the cell
+ * - 'attack'  , the player attacked on the cell
+ * - 'touch'   , something touched the cell (e.g. a projectile/contact)
  */
 export type TriggerEvent = 'enter' | 'interact' | 'attack' | 'touch'
 
 /**
- * What a trigger does — a discriminated union on `type`. Open/Closed: adding a
+ * What a trigger does, a discriminated union on `type`. Open/Closed: adding a
  * new action is a new member here + one row in the dispatch map below, never an
  * edit to the existing members.
  * - goto_level   teleport to another template (the old connector)
@@ -58,7 +58,7 @@ export interface Trigger {
 }
 
 /**
- * A description of the side effect the loop should perform — the pure output of
+ * A description of the side effect the loop should perform, the pure output of
  * `resolveAction`. Each effect mirrors one Action variant, plus a `noop` for
  * defensively-handled unknown action types. The loop dispatches on `kind`.
  */
@@ -102,7 +102,7 @@ function fires(
 
 /**
  * Per-action-type handlers. Keyed by `action.type` so adding an action is one
- * new row (Open/Closed) — no branching. The mapped type binds each key to the
+ * new row (Open/Closed), no branching. The mapped type binds each key to the
  * exact action variant it handles (via `Extract`), so every handler body is
  * fully typed with no casts.
  */

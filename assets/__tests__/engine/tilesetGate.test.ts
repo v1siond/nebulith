@@ -1,11 +1,11 @@
 /**
- * GATE + NO-FALLBACK contract — the runtime loads tiles ONLY from `/api/tilesets`, and until that load
+ * GATE + NO-FALLBACK contract, the runtime loads tiles ONLY from `/api/tilesets`, and until that load
  * succeeds the tile holders stay EMPTY. The editor gates its canvas on exactly this: no installed tileset
  * → the loader stays up (there is nothing to paint); a FAILED load installs NOTHING → the error/retry
  * state shows and we NEVER fall back to frontend tiles. These tests pin that data contract (the full UI
  * gate is validated on the running page).
  *
- * This file does NOT install the fixture — it drives `loadTilesetsFromBackend` against a mocked fetch.
+ * This file does NOT install the fixture, it drives `loadTilesetsFromBackend` against a mocked fetch.
  */
 import { installStyleTiles, styleTiles } from '@/engine/tileset/styleTiles'
 import { loadTilesetsFromBackend } from '@/engine/tileset/tilesetLoader'
@@ -14,32 +14,32 @@ const realFetch = global.fetch
 const RealImage = (global as { Image: unknown }).Image
 
 // The loader now DECODES every baked image before it resolves (the render gate waits on decoded images,
-// not just the JSON — see tilesetLoader → preloadTileImages). jsdom never loads/decodes a real Image, so
+// not just the JSON, see tilesetLoader → preloadTileImages). jsdom never loads/decodes a real Image, so
 // a real `<img>` would hang the success case forever. Stand in a synchronously-"decoded" Image (complete +
-// naturalWidth) so preloadTileImages skips the wait — the load resolves, exactly as it does in the browser
+// naturalWidth) so preloadTileImages skips the wait, the load resolves, exactly as it does in the browser
 // once the PNGs are ready.
 class DecodedImage { complete = true; naturalWidth = 64; naturalHeight = 64; src = ''; decode() { return Promise.resolve() } }
 beforeAll(() => { (global as { Image: unknown }).Image = DecodedImage })
 afterAll(() => { (global as { Image: unknown }).Image = RealImage })
 
-// Restore fetch AND reset the emoji holder to empty after each case — the success case installs a tileset,
+// Restore fetch AND reset the emoji holder to empty after each case, the success case installs a tileset,
 // so we return the module to its pristine (empty) resting state so nothing leaks to a sibling test.
 afterEach(() => {
   ;(global as { fetch: typeof fetch }).fetch = realFetch
   installStyleTiles('emoji', {})
 })
 
-describe('the tileset gate — empty until the backend load succeeds', () => {
-  test('before any load, the holders are empty (the loader stays up — nothing to draw)', () => {
+describe('the tileset gate, empty until the backend load succeeds', () => {
+  test('before any load, the holders are empty (the loader stays up, nothing to draw)', () => {
     expect(Object.keys(styleTiles('emoji'))).toHaveLength(0)
     expect(Object.keys(styleTiles('ascii'))).toHaveLength(0)
   })
 
-  test('a FAILED load installs nothing — no fallback to frontend tiles (error/retry state)', async () => {
+  test('a FAILED load installs nothing, no fallback to frontend tiles (error/retry state)', async () => {
     ;(global as { fetch: typeof fetch }).fetch = jest.fn().mockRejectedValue(new Error('network down')) as unknown as typeof fetch
     const loaded = await loadTilesetsFromBackend()
     expect(loaded).toEqual([]) // nothing installed → the caller shows the error state
-    expect(Object.keys(styleTiles('emoji'))).toHaveLength(0) // holders untouched — NO bundled fallback
+    expect(Object.keys(styleTiles('emoji'))).toHaveLength(0) // holders untouched, NO bundled fallback
     expect(Object.keys(styleTiles('ascii'))).toHaveLength(0)
   })
 
@@ -51,7 +51,7 @@ describe('the tileset gate — empty until the backend load succeeds', () => {
   })
 })
 
-describe('the tileset gate — a successful load opens it', () => {
+describe('the tileset gate, a successful load opens it', () => {
   test('a successful load installs the backend tiles (the gate opens)', async () => {
     const payload = {
       data: [
@@ -71,6 +71,6 @@ describe('the tileset gate — a successful load opens it', () => {
     const loaded = await loadTilesetsFromBackend()
     expect(loaded).toContain('emoji')
     expect(styleTiles('emoji').grass).toBeDefined()
-    expect(styleTiles('emoji').grass.char).toBe('🍀') // the backend tile is what installs — nothing frontend-authored
+    expect(styleTiles('emoji').grass.char).toBe('🍀') // the backend tile is what installs, nothing frontend-authored
   })
 })

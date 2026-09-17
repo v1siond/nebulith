@@ -1,8 +1,7 @@
 /**
  * COLLISION MUST MATCH THE STRUCTURE.
  *
- * The collision overlay tints `grid.isBlocked(col,row)`. The grid's collision map is 2D — one flag per cell —
- * and it means "a unit standing on the ground here is stopped". So the flag has exactly one truthful source:
+ * The collision overlay tints `grid.isBlocked(col,row)`. The grid's collision map is 2D, one flag per cell, * and it means "a unit standing on the ground here is stopped". So the flag has exactly one truthful source:
  *
  *     a cell is blocked  ⟺  a GROUND-COURSE tile in it is non-walkable
  *
@@ -31,10 +30,10 @@ function blockedCells(grid: IsometricGrid): Set<string> {
 }
 
 /**
- * Cells that genuinely hold a blocking tile ON THE SURFACE A UNIT WALKS — the only thing a 2D collision flag
+ * Cells that genuinely hold a blocking tile ON THE SURFACE A UNIT WALKS, the only thing a 2D collision flag
  * can mean. NOT `heightLevel === 0`: every cell carries a floor slab at level 0, so a building's ground course
  * sits at level 1. `unitStandLevel` is the shared answer to "what level does a unit stand at here", and the
- * load path (`lib/api.ts`) already rebuilds collision with exactly this rule — a roof five levels up must not
+ * load path (`lib/api.ts`) already rebuilds collision with exactly this rule, a roof five levels up must not
  * seal the floor under it.
  */
 function groundBlockingCells(grid: IsometricGrid): Set<string> {
@@ -56,19 +55,19 @@ describe.each<Facing>(['south', 'north', 'east', 'west'])('a stamped house facin
     return grid
   }
 
-  it('blocks exactly the cells that hold a blocking ground tile — no more, no less', () => {
+  it('blocks exactly the cells that hold a blocking ground tile, no more, no less', () => {
     const grid = build()
     expect(sorted(blockedCells(grid))).toEqual(sorted(groundBlockingCells(grid)))
   })
 
-  it('never blocks a cell the building does not stand in — that is red paint on bare grass', () => {
+  it('never blocks a cell the building does not stand in, that is red paint on bare grass', () => {
     const grid = build()
     const occupied = new Set(grid.assets.map(a => `${a.col},${a.row}`))
     const strays = [...blockedCells(grid)].filter(cell => !occupied.has(cell))
     expect(strays).toEqual([])
   })
 
-  it('leaves the doorway walkable — the way in', () => {
+  it('leaves the doorway walkable, the way in', () => {
     const grid = build()
     // The door's ground course sits at the stand level (above the floor slab), not at heightLevel 0.
     const doors = grid.assets.filter(a => a.label === 'door' && (a.heightLevel ?? 0) <= unitStandLevel(grid, a.col, a.row))

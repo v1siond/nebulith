@@ -1,19 +1,19 @@
 /**
- * Ticket 5 — FLAT compositions (fountain, well) must render their BODY in the 2D front-elevation view, not
- * just in ISO (MAP-MODEL §5 — a composition cell resolves by its own LABEL in EVERY view; RENDER-AND-CAMERA
- * §7 — the 2D front elevation).
+ * Ticket 5, FLAT compositions (fountain, well) must render their BODY in the 2D front-elevation view, not
+ * just in ISO (MAP-MODEL §5, a composition cell resolves by its own LABEL in EVERY view; RENDER-AND-CAMERA
+ * §7, the 2D front elevation).
  *
  * The bug: `frontElevation` depth-collapse kept only the FRONT-most cell per (col, heightLevel). A building
- * survives that because its facade has real HEIGHT (walls stack level 0..N). But a FLAT composition — the
- * fountain / well, whose cells all sit at level 0 but span depth — collapsed to its single front rim row, so
+ * survives that because its facade has real HEIGHT (walls stack level 0..N). But a FLAT composition, the
+ * fountain / well, whose cells all sit at level 0 but span depth, collapsed to its single front rim row, so
  * every interior WATER cell (the whole point of the fountain, and the cells that carry the grow animation)
  * hid behind the front rim. In 2D the fountain read as a bare strip of stone.
  *
- * The fix: collapse by OCCLUSION — hide a cell only when a cell IN FRONT of it is at LEAST as tall. Equal-
+ * The fix: collapse by OCCLUSION, hide a cell only when a cell IN FRONT of it is at LEAST as tall. Equal-
  * height rows (a wall column, a back wall behind a door) still dedupe to the front-most; a TALLER cell behind
  * a SHORT one (the water, which grows 1→4 blocks over its 1-block rim) survives and draws above the front
  * face. These assert the module behaviour end-to-end (positive: the water renders; negative: buildings still
- * depth-collapse, equal-height rows still dedupe) — no pixels, GEOMETRY + the real render's drawn-cell record.
+ * depth-collapse, equal-height rows still dedupe), no pixels, GEOMETRY + the real render's drawn-cell record.
  */
 import { styleCatalog } from '@/engine/tileset/styleTiles'
 import '@/__tests__/helpers/installTilesetSeed'
@@ -64,7 +64,7 @@ describe('flat compositions (fountain / well) render their body in the 2D front 
       const fe = frontElevation(grid.assets)
       const waterDrawn = water.filter(a => fe.draw.has(a))
       const waterHidden = water.filter(a => fe.hidden.has(a))
-      // POSITIVE — at least the animated water (the grow-track cells) survives; none of them is the old
+      // POSITIVE, at least the animated water (the grow-track cells) survives; none of them is the old
       // "all water hidden" state. Every water cell is accounted for (drawn or explicitly hidden, none lost).
       expect(waterDrawn.length).toBeGreaterThan(0)
       expect(waterDrawn.length + waterHidden.length).toBe(water.length)
@@ -89,14 +89,14 @@ describe('flat compositions (fountain / well) render their body in the 2D front 
     })
   }
 
-  test('AUDIT — every composition in the tileset renders at least one facade cell in 2D', () => {
+  test('AUDIT, every composition in the tileset renders at least one facade cell in 2D', () => {
     const missing: string[] = []
     for (const kind of Object.keys(styleCatalog('ascii').compositions)) {
       const grid = grid40()
       // Every composition (building, tree, fountain, well, lamp, bush) stamps by kind through the ONE generic
       // per-cell path and must project at least one facade cell in the 2D view.
       const placed = stampComposition(grid, kind, 16, 16, 'spring')
-      if (placed === 0) continue // a kind with no cells in this tileset — nothing to render, not a drop
+      if (placed === 0) continue // a kind with no cells in this tileset, nothing to render, not a drop
       const facade = drawFacade(grid)
       if (facade.length === 0) missing.push(kind)
     }
@@ -126,7 +126,7 @@ describe('buildings still depth-collapse (the occlusion rule did NOT un-collapse
   })
 
   test('an all-equal-height flat run collapses to ONE cell (edge column dedupes, not the fountain body)', () => {
-    // A synthetic 1-wide × 4-deep column of identical flat cells — like a fountain edge rim (all height 1).
+    // A synthetic 1-wide × 4-deep column of identical flat cells, like a fountain edge rim (all height 1).
     const col: GridAsset[] = [0, 1, 2, 3].map(dy =>
       ({ art: ['#'], col: 5, row: 5 + dy, type: 'rim', label: 'fountain_l', height: 1, heightLevel: 0 } as GridAsset),
     )

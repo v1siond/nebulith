@@ -1,7 +1,7 @@
 /**
  * ONLY GROUND-LEVEL BLOCKS BLOCK THE FLOOR.
  *
- * The grid's collision map is 2D — one flag per (col,row) — while a composition is 3D: a wall at level 0, a
+ * The grid's collision map is 2D, one flag per (col,row), while a composition is 3D: a wall at level 0, a
  * window at level 3, a roof at level 5, a rooftop AC unit above that. If EVERY non-walkable cell wrote into
  * that flat map, anything overhead would seal the floor underneath it.
  *
@@ -13,8 +13,7 @@
  *     ##d##
  *
  * A unit walks at ground level, so ground level is what the 2D map means. A roof still BLOCKS as a block
- * — it is authored `walkable: false` and nothing stands on it —
- * it just does not seal the room beneath it.
+ *, it is authored `walkable: false` and nothing stands on it, * it just does not seal the room beneath it.
  */
 import '@/__tests__/helpers/installTilesetSeed'
 import { IsometricGrid } from '@/engine/IsometricGrid'
@@ -40,7 +39,7 @@ describe('a stamped building leaves its FLOOR walkable under overhead blocks', (
     expect(blockedInterior).toEqual([])
   })
 
-  test('the SHELL still blocks — ground-level walls are solid', () => {
+  test('the SHELL still blocks, ground-level walls are solid', () => {
     const grid = mkGrid()
     stampComposition(grid, 'store_5', ANCHOR, ANCHOR, 'spring')
 

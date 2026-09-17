@@ -1,7 +1,7 @@
 import { IsometricGrid } from '@/engine/IsometricGrid'
 import { serializeGrid, deserializeToGrid } from '@/lib/api'
 
-// #77/#78 — per-element dimensions must SAVE with the template. serializeGrid captures the whole asset
+// #77/#78, per-element dimensions must SAVE with the template. serializeGrid captures the whole asset
 // and deserialize clones every field, so scaleX/scaleY/scaleZ/scale must survive the JSON DB column.
 // This guards the contract: deserialize previously cherry-picked columns and DROPPED fields like footprint.
 

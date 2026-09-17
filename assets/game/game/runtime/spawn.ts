@@ -1,7 +1,7 @@
 /**
  * THE PLAYER ALWAYS LANDS WHERE THEY CAN WALK.
  *
- * The old rule checked ONE cell — not water, not blocked — and a one-cell pocket between trees passes that
+ * The old rule checked ONE cell, not water, not blocked, and a one-cell pocket between trees passes that
  * test while leading nowhere. It only held because every generator happens to repair its own floor into one
  * piece; a hand-edited map, or any future generator, owed nothing. This picks a cell in the LARGEST connected
  * walkable area of the live grid, as close as it can to where the generator wanted the player.
@@ -54,7 +54,7 @@ export function spawnInMainArea(
   const inside = target.col >= 0 && target.row >= 0 && target.col < cols && target.row < rows
   if (inside && region[at(target.col, target.row)] === main) return { col: target.col, row: target.row }
 
-  // The nearest cell of the main area — as close to the intended spawn as the map allows.
+  // The nearest cell of the main area, as close to the intended spawn as the map allows.
   let best: SpawnTarget | null = null
   let bestD = Infinity
   for (let r = 0; r < rows; r++) {

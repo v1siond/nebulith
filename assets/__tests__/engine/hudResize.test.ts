@@ -1,8 +1,8 @@
 /**
- * RESIZING A HUD PIECE — the grip has to follow the cursor, whatever the piece is pinned to.
+ * RESIZING A HUD PIECE, the grip has to follow the cursor, whatever the piece is pinned to.
  *
  * That describes anchor maths, not a sign error. A piece pinned to the BOTTOM keeps its bottom edge where
- * it is, so growing its height pushes the TOP up — and the grip, drawn at the bottom-right, sits still under
+ * it is, so growing its height pushes the TOP up, and the grip, drawn at the bottom-right, sits still under
  * the cursor while the piece grows away from it. On a centre anchor the piece grows both pathways at once, so
  * the grip tracks at half speed. Only a top-left pinned piece ever behaved.
  */
@@ -45,7 +45,7 @@ describe('the grip follows the cursor', () => {
     expect(hudResize(piece({ a: 'BR' }), -30, -20)).toEqual({ w: 230, h: 120 })
   })
 
-  it('accounts for the piece SCALE — a 2× piece needs half the placement change to move the same pixels', () => {
+  it('accounts for the piece SCALE, a 2× piece needs half the placement change to move the same pixels', () => {
     expect(hudResize(piece({ a: 'TL', s: 2 }), 40, 40)).toEqual({ w: 220, h: 120 })
   })
 

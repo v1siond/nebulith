@@ -1,5 +1,5 @@
 /**
- * INVERTED ISO PICK (end-to-end) — the selector picks the TILE the user SEES and cascades to its cell.
+ * INVERTED ISO PICK (end-to-end), the selector picks the TILE the user SEES and cascades to its cell.
  *
  * render() records every drawn tile's transform-aware silhouette (isoTileHits); pickIsoTileAt hit-tests THAT,
  * so a click on a TALL / slid / lifted / extruded tile selects the tile at its ON-SCREEN position, and a click
@@ -7,7 +7,7 @@
  * (cellSize 100, isoScale 1 → tileW 71, tileH 36, camX=player.x) so every expected pixel is exact.
  *
  * The old CELL-FIRST picker (pickIsoBlocksAll) inverts only the flat diamond and uses a FIXED block height, so
- * it MISSES a tile grown by scaleY — asserted here (red for the old path, green for the new one).
+ * it MISSES a tile grown by scaleY, asserted here (red for the old path, green for the new one).
  */
 import '@/__tests__/helpers/installTilesetSeed'
 import {
@@ -58,7 +58,7 @@ const renderIso = (grid: IsometricGrid): void => {
   render({ ctx: mockCtx(), w: W, h: H, grid, player: player(), time: 0, camOffset: { x: 0, y: 0 }, entities: [], enemyCombat: new Map(), hitMarkers: [], now: 0, zoom: 1, attackAnims: [], connectors: [], quests: [], projectiles: [], dayNight: 'day', attackReach: 1, style: ASCII_STYLE, clampCamera: false })
 }
 
-describe('a TALL (scaleY) block — picked at its lifted top, not the ground below', () => {
+describe('a TALL (scaleY) block, picked at its lifted top, not the ground below', () => {
   const SCALE_Y = 5
   const labeledTallBlock: GridAsset = { art: ['#'], col: ACOL, row: AROW, type: 'wall', label: 'wall', height: 1, scaleY: SCALE_Y, color: '#8a8a8a' }
 
@@ -66,7 +66,7 @@ describe('a TALL (scaleY) block — picked at its lifted top, not the ground bel
     renderIso(gridWith(labeledTallBlock))
     const o = cellOrigin(ACOL, AROW)
     const bh = TILE_W * ISO_BLOCK_H_FRAC * SCALE_Y // the block extrudes 5× up
-    const highOnTile = { x: o.x, y: o.y - bh * 0.75 } // well up the tall tile — only reachable BECAUSE it's tall
+    const highOnTile = { x: o.x, y: o.y - bh * 0.75 } // well up the tall tile, only reachable BECAUSE it's tall
     const hit = pickIsoTileAt(highOnTile.x, highOnTile.y)
     expect(hit).not.toBeNull()
     expect({ col: hit!.col, row: hit!.row, level: hit!.level }).toEqual({ col: ACOL, row: AROW, level: 0 })
@@ -78,14 +78,14 @@ describe('a TALL (scaleY) block — picked at its lifted top, not the ground bel
     expect(pickIsoTileAt(o.x, o.y + TILE_H + 120)).toBeNull() // well below the base diamond
   })
 
-  test('the recorded silhouette is a cube extruded ~scaleY·blockH — a cell-first fixed cube never is', () => {
+  test('the recorded silhouette is a cube extruded ~scaleY·blockH, a cell-first fixed cube never is', () => {
     renderIso(gridWith(labeledTallBlock))
     const g = isoRecordedGeom(ACOL, AROW, 0)
     expect(g?.kind).toBe('cube')
     if (g?.kind !== 'cube') throw new Error('expected cube')
     const o = cellOrigin(ACOL, AROW)
     const topY = Math.min(...g.top.map(p => p.y))
-    // top sits ~scaleY·blockH above the base — a fixed-height (scaleY-ignoring) cube would be ~1·blockH.
+    // top sits ~scaleY·blockH above the base, a fixed-height (scaleY-ignoring) cube would be ~1·blockH.
     expect(o.y - topY).toBeGreaterThan(TILE_W * ISO_BLOCK_H_FRAC * (SCALE_Y - 1))
   })
 
@@ -94,7 +94,7 @@ describe('a TALL (scaleY) block — picked at its lifted top, not the ground bel
     const o = cellOrigin(ACOL, AROW)
     const bh = TILE_W * ISO_BLOCK_H_FRAC * SCALE_Y
     const highOnTile = { x: o.x, y: o.y - bh * 0.75 }
-    // The old picker: a fixed-height cube for this cell (scaleY ignored) — reproduces the pre-inversion path.
+    // The old picker: a fixed-height cube for this cell (scaleY ignored), reproduces the pre-inversion path.
     const cam: IsoPickCamera = { w: W, h: H, cellSize: CELL, isoScale: ISO, camX: PCOL * CELL, camZ: PROW * CELL }
     const oldBlock: IsoPickBlock = { col: ACOL, row: AROW, heightLevel: 0, terrainHeight: 0 }
     expect(pickIsoBlocksAll(highOnTile.x, highOnTile.y, [oldBlock], cam)).toHaveLength(0) // OLD: miss
@@ -102,7 +102,7 @@ describe('a TALL (scaleY) block — picked at its lifted top, not the ground bel
   })
 })
 
-describe('a zOffset-slid block — picked where it slid to, not at its cell origin', () => {
+describe('a zOffset-slid block, picked where it slid to, not at its cell origin', () => {
   const dir: DepthDir = 'right-down'
   const slid: GridAsset = { art: ['#'], col: ACOL, row: AROW, type: 'crate', label: 'crate', height: 1, scaleY: 2, zOffset: 3, zDir: dir, color: '#abcdef' }
 
@@ -118,7 +118,7 @@ describe('a zOffset-slid block — picked where it slid to, not at its cell orig
   })
 })
 
-describe('a directional-depth box — picked along its extruded length', () => {
+describe('a directional-depth box, picked along its extruded length', () => {
   const box: GridAsset = { art: ['#'], col: ACOL, row: AROW, type: 'wall', label: 'wall', height: 1, depth: 4, depthDir: 'right-down', color: '#8a8a8a' }
 
   test('hit along the length; miss in the opposite direction; geom is the box hull (poly)', () => {
@@ -126,12 +126,12 @@ describe('a directional-depth box — picked along its extruded length', () => {
     const o = cellOrigin(ACOL, AROW)
     const along = pickIsoTileAt(o.x + 2 * TILE_W, o.y + 2 * TILE_H) // 2 cells down the right-down length
     expect(along && { col: along.col, row: along.row }).toEqual({ col: ACOL, row: AROW })
-    expect(pickIsoTileAt(o.x - 3 * TILE_W, o.y)).toBeNull()          // opposite direction — nothing there
+    expect(pickIsoTileAt(o.x - 3 * TILE_W, o.y)).toBeNull()          // opposite direction, nothing there
     expect(isoRecordedGeom(ACOL, AROW, 0)?.kind).toBe('poly')
   })
 })
 
-describe('an ASCII per-type sprite (a lamp) — picked at its lifted bulb, not the post base', () => {
+describe('an ASCII per-type sprite (a lamp), picked at its lifted bulb, not the post base', () => {
   const lamp: GridAsset = { art: ['|'], col: ACOL, row: AROW, type: 'lamp', color: '#ffcc33' }
 
   test('the pick at the lifted bulb selects the lamp; the ground below returns nothing', () => {
@@ -145,7 +145,7 @@ describe('an ASCII per-type sprite (a lamp) — picked at its lifted bulb, not t
   })
 })
 
-describe('overlap resolution — the topmost (last-drawn) tile wins', () => {
+describe('overlap resolution, the topmost (last-drawn) tile wins', () => {
   test('two stacked blocks: the pick returns the higher level under the pixel', () => {
     const grid = new IsometricGrid({ cols: 30, rows: 30, cellSize: CELL, isoScale: ISO })
     grid.setAssets([

@@ -2,7 +2,7 @@
  * ONE-SHOT IMPORT of the retired localStorage games into the backend.
  *
  * Games used to live under `nebulith:games` in the browser, with their own id scheme and their own
- * `Game` type, while `/api/games` held a completely separate set — §3.1's P0: "the user is *inside*
+ * `Game` type, while `/api/games` held a completely separate set, §3.1's P0: "the user is *inside*
  * a game and the app tells them they have none." The localStorage half is gone; this carries
  * whatever a browser still holds across to the backend before it does.
  *
@@ -33,7 +33,7 @@ export interface ImportDeps {
 
 export interface ImportResult {
   imported: number
-  /** Entries in the key that were not games — counted, not thrown over. */
+  /** Entries in the key that were not games, counted, not thrown over. */
   skipped: number
 }
 
@@ -66,7 +66,7 @@ function parseStored(raw: string | null): { games: StoredGame[]; skipped: number
 /**
  * Import every stored game, then clear the key.
  *
- * The key is cleared ONLY after all creates resolve — a half-finished import that cleared would
+ * The key is cleared ONLY after all creates resolve, a half-finished import that cleared would
  * destroy the data it exists to save. A create that rejects propagates, key intact, so the next
  * load simply tries again.
  */

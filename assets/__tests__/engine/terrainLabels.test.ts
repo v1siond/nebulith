@@ -1,6 +1,6 @@
 import { terrainLabelAt, terrainCaptions } from '@/engine/terrainLabels'
 
-// A 3×3 grass field surrounded by a path border — the canonical autotile case: interior fill,
+// A 3×3 grass field surrounded by a path border, the canonical autotile case: interior fill,
 // straight edges, and corners, all keyed off which orthogonal neighbours are a DIFFERENT terrain.
 const ground = [
   ['path', 'path', 'path', 'path', 'path'],
@@ -10,7 +10,7 @@ const ground = [
   ['path', 'path', 'path', 'path', 'path'],
 ]
 
-describe('terrainLabelAt — every ground cell autotiles to <TERRAIN> <POSITION>', () => {
+describe('terrainLabelAt, every ground cell autotiles to <TERRAIN> <POSITION>', () => {
   it('a fully-surrounded grass cell is GRASS INTERIOR', () => {
     expect(terrainLabelAt(ground, 2, 2)).toBe('GRASS INTERIOR')
   })

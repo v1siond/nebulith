@@ -2,11 +2,11 @@
  * THE RIVER'S COURSE.
  *
  * Each course has a SIGNATURE, and the tests assert the signature rather than the pixels:
- *   · through — reaches two opposite edges, and is crossable in several places
- *   · divides — runs edge to edge across the middle, crossable in exactly ONE place; take that crossing away
+ *   · through, reaches two opposite edges, and is crossable in several places
+ *   · divides, runs edge to edge across the middle, crossable in exactly ONE place; take that crossing away
  *               and the map falls into two halves
- *   · around  — runs round the map inset from its edges, leaving the way in open
- *   · random  — one of those three, picked per seed, and genuinely more than one across seeds
+ *   · around , runs round the map inset from its edges, leaving the way in open
+ *   · random , one of those three, picked per seed, and genuinely more than one across seeds
  *
  * And one thing no course may do, whatever it looks like: make its CHANNEL walkable past the shallows.
  *
@@ -146,12 +146,12 @@ describe('no river means no river', () => {
     expect(waterCells(grow(layout, 'none'))).toHaveLength(0)
   })
 
-  it('a jungle still has its creek — the option says what KIND of water, not whether a jungle has any', () => {
+  it('a jungle still has its creek, the option says what KIND of water, not whether a jungle has any', () => {
     expect(waterCells(grow('jungle', 'none')).length).toBeGreaterThan(0)
   })
 })
 
-describe('through — winds across, and is easy to cross', () => {
+describe('through, winds across, and is easy to cross', () => {
   it.each([1, 2, 3, 4])('seed %i reaches two opposite edges and is crossable in several places', seed => {
     const s = grow('woodland', 'through', seed)
     const e = edges(s)
@@ -161,7 +161,7 @@ describe('through — winds across, and is easy to cross', () => {
   })
 })
 
-describe('divides — cuts the map in two, crossable in ONE place', () => {
+describe('divides, cuts the map in two, crossable in ONE place', () => {
   it.each([1, 2, 3, 4])('seed %i runs edge to edge with exactly one crossing', seed => {
     const s = grow('woodland', 'divides', seed)
     const e = edges(s)
@@ -170,16 +170,16 @@ describe('divides — cuts the map in two, crossable in ONE place', () => {
     expect(regionSizes(s)).toHaveLength(1)
   })
 
-  it('take the crossing away and the map falls into two halves — that is what "divides" means', () => {
+  it('take the crossing away and the map falls into two halves, that is what "divides" means', () => {
     const s = grow('woodland', 'divides', 2)
     const halves = regionSizes(s, deckCells(s)).filter(n => n > 40)
     expect(halves.length).toBeGreaterThanOrEqual(2)
   })
 })
 
-describe('around — runs round the map and leaves the way in open', () => {
+describe('around, runs round the map and leaves the way in open', () => {
   it('hugs the far edge and both sides, keeps the near edge open, and is bridged once', () => {
-    // Its wobble can brush the map edge — the old meadow river always could — so the signature is WHICH sides
+    // Its wobble can brush the map edge, the old meadow river always could, so the signature is WHICH sides
     // it follows, not that it never touches an edge.
     const s = grow('woodland', 'around')
     const w = waterCells(s)
@@ -202,7 +202,7 @@ describe('around — runs round the map and leaves the way in open', () => {
   })
 })
 
-describe('random — one of the courses, and more than one across seeds', () => {
+describe('random, one of the courses, and more than one across seeds', () => {
   // Tested as a DISTRIBUTION through the resolver, not guessed from what a map happens to look like: two
   // different "through" maps also look different, so comparing pictures cannot prove the course varied.
   it('resolves to each of the three courses over enough rolls', () => {
@@ -241,14 +241,16 @@ describe('water by depth: wade the shallows, the rest blocks', () => {
       // now, so counting it here measured the wrong thing. Pools are the cells wearing the served swamp tone.
       const pal = findGenerator(CATALOG, 'wilderness', layout)!.config.palette
       const channel = waterCells(s).filter(([c, r]) => !(pal?.swamp && s.floorColors[r][c] === pal.swamp))
-      // `water_bend` is a cell where the channel TURNS, at whatever depth it happens to be, so it is not
-      // evidence of depth either way. Only the bands past the shallow edge count as deep here.
-      const shallowish = new Set(['water_shallow', 'water_bend'])
+      // DEPTH COMES FROM THE DEPTH MAP, not from the label. The generator stopped writing `water_shallow` /
+      // `water_deep` over the channel when water became terrain with a border, so asking the label which cells
+      // are shallow now answers "none of them" and this test passed vacuously in the wrong direction. The
+      // number it always meant is carried on the stage.
+      const shallowAt = (c: number, r: number) => (s.waterDepth?.get(`${c},${r}`) ?? 99) <= 1
       // AND NOT UNDER A CROSSING. A crossing no longer replaces the water it spans, so its cells are deep
       // river that you can nonetheless walk over, because there is a bridge there. That is the point of the
       // change, not a hole in this rule.
       const crossed = (c: number, r: number) => (s.decks?.has(`${c},${r}`) ?? false) || (s.fords?.has(`${c},${r}`) ?? false)
-      const walkableDeep = channel.filter(([c, r]) => !shallowish.has(s.ground[r][c]) && !s.collision[r][c] && !crossed(c, r))
+      const walkableDeep = channel.filter(([c, r]) => !shallowAt(c, r) && !s.collision[r][c] && !crossed(c, r))
       expect({ layout, course, walkableDeep: walkableDeep.length }).toEqual({ layout, course, walkableDeep: 0 })
     }
   })
@@ -259,15 +261,23 @@ describe('water by depth: wade the shallows, the rest blocks', () => {
     // above covers.
     for (const layout of ['woodland', 'meadow', 'jungle'] as const) {
       const s = grow(layout, 'divides', 3, { depth: '1' })
-      const open = waterCells(s).filter(([c, r]) => !s.collision[r][c])
+      // EXCEPT THE CROSSING, the same exception the case above already makes. A ford is not an oversight in a
+      // cut channel: `wadeCrossing` adds the cut back to its cells, so a ford sits flush with its banks and
+      // you wade it. That is the whole point of a ford, and it is what "the crossing is the way over" means
+      // here. This case was written before fords existed and asserted the rule without the exception.
+      const crossed = (c: number, r: number) => (s.decks?.has(`${c},${r}`) ?? false) || (s.fords?.has(`${c},${r}`) ?? false)
+      const open = waterCells(s).filter(([c, r]) => !s.collision[r][c] && !crossed(c, r))
       expect({ layout, open: open.length }).toEqual({ layout, open: 0 })
     }
   })
 
   it('a wide river is shallow at the edge and deep in the middle, and still divides the map', () => {
     const s = grow('woodland', 'divides', 2)
-    const labels = new Set(waterCells(s).map(([c, r]) => s.ground[r][c]))
-    expect([...labels].sort()).toEqual(['water', 'water_deep', 'water_shallow'])
+    // The river is shallow at its edge and deep in its middle, asked of the DEPTH rather than of three label
+    // spellings that no longer exist. A wide river has to show both.
+    const depths = waterCells(s).map(([c, r]) => s.waterDepth?.get(`${c},${r}`) ?? 0)
+    expect(Math.min(...depths)).toBe(1)
+    expect(Math.max(...depths)).toBeGreaterThanOrEqual(3)
     // wading the edges does not get you across. The middle still blocks, so the one crossing is still THE way
     expect(crossings(s)).toBe(1)
     expect(regionSizes(s, deckCells(s)).filter(n => n > 40).length).toBeGreaterThanOrEqual(2)
@@ -350,7 +360,8 @@ describe('water by depth: wade the shallows, the rest blocks', () => {
 
   it('and a SUMMER river still blocks past its shallows, so the season is the only difference', () => {
     const s = grow('woodland', 'divides', 5)
-    const deep = waterCells(s).filter(([c, r]) => s.ground[r][c] === 'water_deep')
+    // DEEP comes from the depth map, not from a label spelling the generator no longer writes.
+    const deep = waterCells(s).filter(([c, r]) => (s.waterDepth?.get(`${c},${r}`) ?? 0) >= 3)
     expect(deep.length).toBeGreaterThan(0)
     expect(deep.every(([c, r]) => s.collision[r][c])).toBe(true)
   })

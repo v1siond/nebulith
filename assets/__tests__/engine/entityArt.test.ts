@@ -3,7 +3,7 @@ import { entityArt, entityArtFrame, entityFootprint, unitArtLabels, weaponGlyph,
 import { makeEnemy, makeNpc, makePlayer } from '@/game/entities'
 import type { Quest } from '@/game/types'
 
-// The rows a real backend payload carries — `settings.artFrames`, frame 0 then the movement frame. These
+// The rows a real backend payload carries, `settings.artFrames`, frame 0 then the movement frame. These
 // are the served shapes verbatim (goblin recovered from this repo's own deleted ENEMY_ART, villager from
 // NPC_ART), so the reader is exercised against what nebulith actually sends.
 const GOBLIN = [
@@ -20,15 +20,15 @@ const installUnitArt = (): void =>
     goblin: { char: 'g', category: 'units', settings: { artFrames: GOBLIN, frameMs: 900 } },
     npc: { char: '@', category: 'units', settings: { artFrames: VILLAGER, frameMs: 900 } },
     player: { char: '@', category: 'units', settings: { artFrames: VILLAGER, frameMs: 900 } },
-    // a units tile the backend serves NO figure for — the seeding gap that must read as missing
+    // a units tile the backend serves NO figure for, the seeding gap that must read as missing
     mimic: { char: 'm', category: 'units' },
   })
 
-describe('entityArt — the FIGURE comes from the backend, never from this file', () => {
+describe('entityArt, the FIGURE comes from the backend, never from this file', () => {
   beforeEach(clearStyleCatalogs)
 
   it('a unit is a GRID of characters, not one character', () => {
-    // THE regression guard. Treating a unit like a terrain slab — one distinct glyph each — is what turned
+    // THE regression guard. Treating a unit like a terrain slab, one distinct glyph each, is what turned
     // the whole cast into `♀`/`♂`/`d` (Image #13). A figure has depth AND width.
     installUnitArt()
     for (const entity of [makeEnemy('e', 0, 0, 'goblin'), makeNpc('n', 0, 0), makePlayer('p', 0, 0)]) {
@@ -38,7 +38,7 @@ describe('entityArt — the FIGURE comes from the backend, never from this file'
     }
   })
 
-  it('reads the SERVED rows for a unit — re-seed the tile and the figure moves', () => {
+  it('reads the SERVED rows for a unit, re-seed the tile and the figure moves', () => {
     installUnitArt()
     expect(entityArt(makeEnemy('e1', 0, 0, 'goblin'))).toEqual(GOBLIN[0])
     expect(entityArt(makeNpc('n1', 2, 2, { name: 'Bob' }))).toEqual(VILLAGER[0])
@@ -61,14 +61,14 @@ describe('entityArt — the FIGURE comes from the backend, never from this file'
     expect(unitArtLabels()).toEqual([])
   })
 
-  it('unitArtLabels asks the CATALOG — a function, so a late load is seen', () => {
+  it('unitArtLabels asks the CATALOG, a function, so a late load is seen', () => {
     expect(unitArtLabels()).toEqual([]) // read before the load…
     installUnitArt()
     expect(unitArtLabels()).toEqual(['goblin', 'npc', 'player']) // …and again after it
   })
 })
 
-describe('entityArtFrame — the movement frames', () => {
+describe('entityArtFrame, the movement frames', () => {
   beforeEach(() => { clearStyleCatalogs(); installUnitArt() })
 
   it('every frame has the SAME dimensions as frame 0, so cycling never jitters the footprint', () => {
@@ -96,7 +96,7 @@ describe('entityArtFrame — the movement frames', () => {
   })
 })
 
-describe('entityFootprint — derived from the SERVED rows', () => {
+describe('entityFootprint, derived from the SERVED rows', () => {
   beforeEach(() => { clearStyleCatalogs(); installUnitArt() })
 
   it('entities are at least 2 cells tall (like the player), not 1×1', () => {
@@ -117,7 +117,7 @@ describe('entityFootprint — derived from the SERVED rows', () => {
   })
 })
 
-describe('weaponGlyph — the held weapon drawn beside the player', () => {
+describe('weaponGlyph, the held weapon drawn beside the player', () => {
   it('returns nothing when unarmed (no weapon, or the bare-hands kind)', () => {
     expect(weaponGlyph(undefined)).toBe('')
     expect(weaponGlyph(null)).toBe('')
@@ -141,7 +141,7 @@ describe('weaponGlyph — the held weapon drawn beside the player', () => {
   })
 
   it('a ranged weapon reads as a bow regardless of its kind tag', () => {
-    // The catalog's bow is kind:'sword' but range:'ranged' — range wins.
+    // The catalog's bow is kind:'sword' but range:'ranged', range wins.
     expect(weaponGlyph({ kind: 'sword', range: 'ranged' })).toBe('}')
   })
 
@@ -161,7 +161,7 @@ describe('weaponGlyph — the held weapon drawn beside the player', () => {
   })
 })
 
-describe('entityPalette — robust fg/bg block colors (the trees\' language)', () => {
+describe('entityPalette, robust fg/bg block colors (the trees\' language)', () => {
   it('gives every enemy type a hex fg + bg pair, distinct hues across the cast', () => {
     for (const p of [...Object.values(ENEMY_PALETTE), ENEMY_PALETTE_FALLBACK]) {
       expect(p.fg).toMatch(/^#[0-9a-f]{6}$/i)
@@ -177,7 +177,7 @@ describe('entityPalette — robust fg/bg block colors (the trees\' language)', (
     expect(entityPalette(makeEnemy('e', 0, 0, 'dragon-xyz'))).toEqual(ENEMY_PALETTE_FALLBACK)
   })
 
-  it('player + npc get a per-id character tone — deterministic by id, varied across ids', () => {
+  it('player + npc get a per-id character tone, deterministic by id, varied across ids', () => {
     // every CHARACTER_TONE is a valid bright-on-dark pair
     for (const t of CHARACTER_TONES) {
       expect(t.fg).toMatch(/^#[0-9a-f]{6}$/i)
@@ -195,7 +195,7 @@ describe('entityPalette — robust fg/bg block colors (the trees\' language)', (
   })
 
   it('the skeleton reads as bone-white on dark', () => {
-    // Its ART dimensions are asserted where the art now lives — nebulith's unit-art guard — and the
+    // Its ART dimensions are asserted where the art now lives, nebulith's unit-art guard, and the
     // frame-alignment rule is covered by `entityArtFrame` above.
     expect(ENEMY_PALETTE.skeleton.fg).toBe('#ece8d2')
   })
@@ -210,7 +210,7 @@ describe('entityPalette — robust fg/bg block colors (the trees\' language)', (
   })
 })
 
-describe('topRoleColor — top-view > glyph colors by role + quest state', () => {
+describe('topRoleColor, top-view > glyph colors by role + quest state', () => {
   const quest = (giverId: string, state: Quest['state']): Quest =>
     ({ giverId, state } as unknown as Quest) // topRoleColor only reads giverId + state
 
@@ -236,13 +236,13 @@ describe('topRoleColor — top-view > glyph colors by role + quest state', () =>
 })
 
 // NOTE: this REPLACES the in-memory emoji tileset (like the backend loader does), so it lives last
-// and its own describe — the weaponEmoji tests above rely on the bundled fallback tileset.
-describe('weaponPose — the equipped weapon reads its pose from the loaded tileset', () => {
+// and its own describe, the weaponEmoji tests above rely on the bundled fallback tileset.
+describe('weaponPose, the equipped weapon reads its pose from the loaded tileset', () => {
   it('returns the tileset entry pose for emoji, the ascii tileset pose (fallback) for ascii, undefined for unknown', () => {
     installStyleTiles('emoji', { sword: { char: '🗡️', color: '#fff', pose: { rot: 3.14, scale: 1.1 } } } as never)
     expect(weaponPose('sword', 'emoji')).toEqual({ rot: 3.14, scale: 1.1 })
     // ASCII now reads its tileset pose; the bundled ascii tileset carries no per-weapon pose here, so it
-    // falls back to the shared ASCII_WEAPON_POSE — the ascii weapon look is data-driven, never regresses.
+    // falls back to the shared ASCII_WEAPON_POSE, the ascii weapon look is data-driven, never regresses.
     expect(weaponPose('sword', 'ascii')).toEqual(ASCII_WEAPON_POSE)
     expect(weaponPose('bow', 'emoji')).toBeUndefined() // not in the tileset → no pose
     expect(weaponPose(undefined, 'emoji')).toBeUndefined()

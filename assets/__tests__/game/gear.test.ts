@@ -21,7 +21,7 @@ describe('with NO catalog loaded, the frontend invents nothing', () => {
   })
 })
 
-describe('gear catalog — weapons', () => {
+describe('gear catalog, weapons', () => {
   it('melee physical weapons (sword/axe), axe hits harder', () => {
     for (const w of [sword()!, axe()!]) {
       expect(w.slot).toBe('weapon')
@@ -66,7 +66,7 @@ describe('gear catalog — weapons', () => {
   })
 })
 
-describe('gear catalog — armor covers every slot, with dodge gear', () => {
+describe('gear catalog, armor covers every slot, with dodge gear', () => {
   const armors = () => [ironHelmet()!, ironChest()!, leatherChest()!, ironGloves()!, leatherGloves()!, ironBoots()!, leatherBoots()!, dodgeRing()!, focusRing()!, amulet()!]
 
   it('provides a piece for all 6 GearSlots', () => {
@@ -89,7 +89,7 @@ describe('gear catalog — armor covers every slot, with dodge gear', () => {
   })
 })
 
-describe('gear catalog — consumables / special items', () => {
+describe('gear catalog, consumables / special items', () => {
   it('potions/tonic carry their effect; bomb + scroll exist as consumables', () => {
     const hp = healthPotion()!, mp = manaPotion()!, rt = rageTonic()!
     if (hp.slot === 'consumable') expect(hp.effect.hp).toBe(30)
@@ -105,7 +105,7 @@ describe('gear catalog — consumables / special items', () => {
   })
 })
 
-describe('gear catalog — catalog + starter sets', () => {
+describe('gear catalog, catalog + starter sets', () => {
   it('gearCatalog() holds many items with unique ids', () => {
     expect(gearCatalog().length).toBeGreaterThanOrEqual(18)
     const ids = gearCatalog().map(i => i.id)

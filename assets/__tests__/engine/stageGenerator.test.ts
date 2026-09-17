@@ -8,14 +8,13 @@ import { parseColor } from '@/engine/colors'
 import { groundTileColor } from '@/engine/tileset/groundColor'
 import { resolveGroundTile, canopyCount, resolveComposition } from '@/engine/tileset/tileset'
 
-// The zone canopy shades now live on the loaded backend `leaf_center` tile (settings.colors[zone]) —
-// the data-driven replacement for the deleted frontend TREE_CANOPY_SHADES table.
+// The zone canopy shades now live on the loaded backend `leaf_center` tile (settings.colors[zone]), // the data-driven replacement for the deleted frontend TREE_CANOPY_SHADES table.
 const canopyShades = (zone: string): string[] =>
   ((styleTile('ascii', 'leaf_center').settings as { colors: Record<string, string[]> }).colors[zone]) ?? []
 
 // The small GROUND footprint cells of a placed building: cols [col, col+length) × rows
-// [row-(height-1), row] (length = grid col-span, height = grid row-span — both small now).
-/** The building's FACADE length — the axis its front runs along. A south/north-facing building fronts along
+// [row-(height-1), row] (length = grid col-span, height = grid row-span, both small now).
+/** The building's FACADE length, the axis its front runs along. A south/north-facing building fronts along
  *  the columns (`length`); an east/west one is rotated, so its facade runs down the rows (`height`) and its
  *  `length` is the ground depth instead. The composition is named after the facade, so this is what names it. */
 const facadeLength = (b: { length: number; height: number; facing: string }): number =>
@@ -28,10 +27,10 @@ const footprintCells = (b: { col: number; row: number; length: number; height: n
   return cells
 }
 
-describe('generateStage — town vertical slice', () => {
+describe('generateStage, town vertical slice', () => {
   const stage = generateStage({ zone: 'autumn', variant: 'town' })
 
-  /** The cells the generator tinted as ROAD. Roads carry no tile of their own any more — their identity is the
+  /** The cells the generator tinted as ROAD. Roads carry no tile of their own any more, their identity is the
    *  per-cell floor COLOUR the layout writes, so that is what a road test has to read. Compared per cell
    *  because `groundTileColor` varies the shade by position. */
   const roadCellKeys = (): Set<string> => {
@@ -51,20 +50,20 @@ describe('generateStage — town vertical slice', () => {
 
   it('carves streets as a dark-gray ROAD COLOUR on the ground block, never a separate road tile', () => {
     // A road is the ordinary
-    // ground block TINTED asphalt, so it sits FLUSH with the grass — a road tile of its own re-introduced the
+    // ground block TINTED asphalt, so it sits FLUSH with the grass, a road tile of its own re-introduced the
     // raised trench. Road identity lives in the layout and lands here as a per-cell floor colour.
     // The open ground is the flat floor wearing the season's colour, the meadow's way on every template
     // . path_stone is left only under the buildings, as their foundation.
     const allowed = new Set([FLAT_FLOOR, 'autumn_leaves', 'path_stone'])
     const allThemed = stage.ground.every(row => row.every(t => allowed.has(t)))
     expect(allThemed).toBe(true)
-    // No cell is a road TILE — that is the thing that was removed.
+    // No cell is a road TILE, that is the thing that was removed.
     expect(stage.ground.flat().filter(t => t === 'road').length).toBe(0)
     // …and streets ARE carved: a good number of cells carry the road tint.
     expect(roadCellKeys().size).toBeGreaterThan(0)
     // the broken cavefloor hijack is gone
     expect(stage.ground.flat().includes('cavefloor')).toBe(false)
-    // and the road tile RESOLVES dark-gray in ASCII — assert the COMPOSITION, not just the string
+    // and the road tile RESOLVES dark-gray in ASCII, assert the COMPOSITION, not just the string
     const bg = parseColor(resolveGroundTile(styleCatalog('ascii'), 'road', 0, 0).bg)!
     expect(Math.max(bg.r, bg.g, bg.b) - Math.min(bg.r, bg.g, bg.b)).toBeLessThan(24) // neutral gray
     expect((bg.r + bg.g + bg.b) / 3).toBeLessThan(110) // dark
@@ -79,7 +78,7 @@ describe('generateStage — town vertical slice', () => {
     }
   })
 
-  it('never scatters nature onto road cells — nature belongs on grass, not streets (Image #12)', () => {
+  it('never scatters nature onto road cells, nature belongs on grass, not streets (Image #12)', () => {
     const roadCells = roadCellKeys()
     expect(roadCells.size).toBeGreaterThan(0) // there ARE roads in a town
     const nature = new Set(['ground_decor', 'flower', 'tree', 'bush'])
@@ -87,32 +86,32 @@ describe('generateStage — town vertical slice', () => {
     expect(natureOnRoad.map(p => `${p.type}@${p.col},${p.row}`)).toEqual([])
   })
 
-  it('places at least one building — each names a backend composition + faces a road with a door', () => {
+  it('places at least one building, each names a backend composition + faces a road with a door', () => {
     expect(stage.buildings.length).toBeGreaterThan(0)
     for (const b of stage.buildings) {
       // A building is a COMPOSITION now: it names its kind (house_4 / store_5 / …) and its footprint DEPTH
       // matches the composition's baked depth (small ground, not a tall facade).
       // The kind names the composition this plot needs. Two spellings are legitimate now:
-      //   `house_4`   — an AUTHORED composition, the shape before /api/buildings existed
-      //   `house@4x4` — one COMPOSED to the footprint the plot rolled
+      //   `house_4`  , an AUTHORED composition, the shape before /api/buildings existed
+      //   `house@4x4`, one COMPOSED to the footprint the plot rolled
       // The second form is
       // what a generate produces once the backend has answered; this test's generate has no backend, so it
       // gets the first. Both are asserted so neither path can drift into a name nothing can resolve.
       expect(b.kind).toMatch(/^(house|big[-_]house|store|hospital|office|temple|cathedral|castle)([_]\d+|@\d+x\d+)$/)
-      // The FACADE length is whichever axis the facade lies on — a building facing east/west is rotated, so
+      // The FACADE length is whichever axis the facade lies on, a building facing east/west is rotated, so
       // its facade runs down the rows (`height`) and its `length` is the depth. Passing `length` blindly
       // asked for a `hospital_4` that is not baked; the hospital is 6 wide × 4 deep, the first type whose two
       // axes differ, so the swap only became visible once one of them was placed rotated.
       expect(b.depth).toBe(buildingDepth(b.type, facadeLength(b)))
-      // The opening matches the composition's OWN door span (G7) — an odd facade bakes 1 door column, an
-      // even one a centred 2-wide doorway — so it is read, never assumed to be 1.
+      // The opening matches the composition's OWN door span (G7), an odd facade bakes 1 door column, an
+      // even one a centred 2-wide doorway, so it is read, never assumed to be 1.
       expect(b.doorCells).toHaveLength(buildingDoorOffset(b.kind)?.width ?? 0)
     }
   })
 
-  it('blocks the building SHELL — the wall ring — leaving the doorway and the interior walkable', () => {
+  it('blocks the building SHELL, the wall ring, leaving the doorway and the interior walkable', () => {
     // A building reserves a HOLLOW footprint: its wall ring blocks, its inside does not. That is what makes a
-    // building enterable, which is the whole point — A solid block would put the interior permanently out of reach.
+    // building enterable, which is the whole point, A solid block would put the interior permanently out of reach.
     for (const b of stage.buildings) {
       expect(b.doorCells).toHaveLength(buildingDoorOffset(b.kind)?.width ?? 0)
       for (const door of b.doorCells) expect(stage.collision[door.row][door.col]).toBe(false) // the way in
@@ -140,11 +139,11 @@ describe('generateStage — town vertical slice', () => {
   })
 })
 
-describe('generateStage — a building reserves a small width×depth footprint (the collision blueprint)', () => {
+describe('generateStage, a building reserves a small width×depth footprint (the collision blueprint)', () => {
   // A building no longer bakes flat per-cell props; it reserves its small width×depth GROUND footprint
   // (blocked, minus the door) and is STAMPED as its composition's tiles at load. So there are no
-  // `type:'building'` props — the footprint reads purely from stage.buildings + stage.collision.
-  it('emits NO flat building props — the building is stamped from its composition at load', () => {
+  // `type:'building'` props, the footprint reads purely from stage.buildings + stage.collision.
+  it('emits NO flat building props, the building is stamped from its composition at load', () => {
     const stage = generateStage({ zone: 'autumn', variant: 'town' })
     expect(stage.buildings.length).toBeGreaterThan(0)
     expect(stage.props.filter(p => p.type === 'building')).toHaveLength(0)
@@ -156,7 +155,7 @@ describe('generateStage — a building reserves a small width×depth footprint (
       const doors = new Set(b.doorCells.map(d => `${d.col},${d.row}`))
       const horizontal = b.facing === 'south' || b.facing === 'north'
       expect(horizontal ? b.height : b.length).toBe(buildingDepth(b.type, facadeLength(b))) // small ground depth
-      // The reservation is the SHELL, not a solid slab — see the sibling test above for why.
+      // The reservation is the SHELL, not a solid slab, see the sibling test above for why.
       const top = b.row - (b.height - 1)
       for (const { col, row } of footprintCells(b)) {
         const onRing = col === b.col || col === b.col + b.length - 1 || row === top || row === b.row
@@ -167,7 +166,7 @@ describe('generateStage — a building reserves a small width×depth footprint (
 
   it('generates the temple INTERIOR as a walled dungeon with a boss altar (not a building)', () => {
     // The `temple` variant is now the temple INTERIOR dungeon (rooms/corridors/altar), so it
-    // has NO overworld buildings — the temple STRUCTURE is a settlement building type instead
+    // has NO overworld buildings, the temple STRUCTURE is a settlement building type instead
     // (see stageGenerator.temple.test.ts). Here we just assert the dungeon's signature content.
     const stage = generateStage({ zone: 'winter', variant: 'temple', cols: 36, rows: 30 })
     expect(stage.buildings).toHaveLength(0)
@@ -179,8 +178,8 @@ describe('generateStage — a building reserves a small width×depth footprint (
   })
 })
 
-describe('generateStage — forest archetype (Viridian-Forest style)', () => {
-  // Seeded so the density assertions are deterministic — the forest path now honours the injected rng
+describe('generateStage, forest archetype (Viridian-Forest style)', () => {
+  // Seeded so the density assertions are deterministic, the forest path now honours the injected rng
   // (ticket 8: it used to draw from Math.random, so these thresholds were flaky only in full runs).
   const stage = generateStage({ zone: 'summer', variant: 'forest', cols: 30, rows: 24, seeds: { layout: 42, buildings: 42, nature: 42, decor: 42 } })
 
@@ -198,7 +197,7 @@ describe('generateStage — forest archetype (Viridian-Forest style)', () => {
   })
 })
 
-// 4-neighbour flood fill over walkable cells — proves the open floor is one region.
+// 4-neighbour flood fill over walkable cells, proves the open floor is one region.
 /** Every walkable cell reachable from `start`, as `col,row` keys. The set, not just the size, because a
  *  test that asks "is THIS cell reachable" (a bridge deck) needs membership, not a count. */
 function reachableFrom(collision: boolean[][], start: { col: number; row: number }): Set<string> {
@@ -228,7 +227,7 @@ function reachableCount(collision: boolean[][], start: { col: number; row: numbe
   return reachableFrom(collision, start).size
 }
 
-describe('generateStage — cave archetype (cellular automata)', () => {
+describe('generateStage, cave archetype (cellular automata)', () => {
   const stage = generateStage({ zone: 'autumn', variant: 'cave', cols: 40, rows: 30 })
 
   it('carves rock walls as blocking props', () => {
@@ -246,7 +245,7 @@ describe('generateStage — cave archetype (cellular automata)', () => {
   })
 })
 
-describe('generateStage — boss-stage archetype (arena)', () => {
+describe('generateStage, boss-stage archetype (arena)', () => {
   const stage = generateStage({ zone: 'winter', variant: 'boss-stage', cols: 36, rows: 30 })
 
   it('opens a large connected arena reachable from spawn', () => {
@@ -262,9 +261,9 @@ describe('generateStage — boss-stage archetype (arena)', () => {
   })
 })
 
-describe('generateStage — temple archetype (INTERIOR dungeon)', () => {
+describe('generateStage, temple archetype (INTERIOR dungeon)', () => {
   // The `temple` variant is a room-and-corridor DUNGEON now (see stageGenerator.temple.test.ts
-  // for the full suite). It has no overworld buildings — the temple STRUCTURE is a settlement
+  // for the full suite). It has no overworld buildings, the temple STRUCTURE is a settlement
   // building type. These two smoke tests live alongside the other archetype slices.
   const stage = generateStage({ zone: 'autumn', variant: 'temple', cols: 36, rows: 30 })
 
@@ -280,11 +279,11 @@ describe('generateStage — temple archetype (INTERIOR dungeon)', () => {
   })
 })
 
-describe('generateStage — zone-tinted trees (varied canopy tones per zone)', () => {
+describe('generateStage, zone-tinted trees (varied canopy tones per zone)', () => {
   // The generator records a per-tree canopy VARIANT (an index into the zone palette); a forest uses many
   // variants so it reads in multiple tones, and a single anchor carries ONE variant → one tone per tree. The
   // variant→colour RESOLUTION (trunk one tone, distinct canopy shades, glyph+colour loaded from the DB tile) is
-  // covered against the real tileset by treeComposition.test.ts — colour no longer lives on the generated props.
+  // covered against the real tileset by treeComposition.test.ts, colour no longer lives on the generated props.
   const variantsFor = (zone: 'summer' | 'winter' | 'autumn'): Set<number> =>
     new Set(generateStage({ zone, variant: 'forest', cols: 40, rows: 30 }).trees.map(t => t.variant))
 
@@ -308,14 +307,14 @@ describe('generateStage — zone-tinted trees (varied canopy tones per zone)', (
     expect(new Set(all).size).toBe(all.length) // every tone unique → biomes never blur together
   })
 
-  it('keeps the verdant forest classic — a green canopy shade in the summer palette', () => {
+  it('keeps the verdant forest classic, a green canopy shade in the summer palette', () => {
     expect(canopyShades('summer')).toContain('#2e8b2e')
   })
 })
 
-describe('generateStage — bare/dead trees (snags)', () => {
+describe('generateStage, bare/dead trees (snags)', () => {
   it('scatters dead-tree anchors in a harsh-zone forest (burnt/frost-killed stems), all blocking', () => {
-    // dead trees are a small random fraction of the meadow's border scatter — sample several harsh-zone
+    // dead trees are a small random fraction of the meadow's border scatter, sample several harsh-zone
     // (winter) maps until at least one snag appears, and assert each blocks like a living tree.
     let snags = 0
     for (let i = 0; i < 30 && snags === 0; i++) {
@@ -323,7 +322,7 @@ describe('generateStage — bare/dead trees (snags)', () => {
       const dead = stage.trees.filter(t => t.kind === 'tree_dead')
       if (dead.length > 0) {
         snags += dead.length
-        // a dead tree is solid — its trunk-base cell blocks, same as a living one
+        // a dead tree is solid, its trunk-base cell blocks, same as a living one
         expect(dead.every(d => stage.collision[d.row][d.col] === true)).toBe(true)
       }
     }
@@ -331,40 +330,40 @@ describe('generateStage — bare/dead trees (snags)', () => {
   })
 })
 
-describe('generateStage — trees are recorded as stacked-composition anchors (the keystone)', () => {
+describe('generateStage, trees are recorded as stacked-composition anchors (the keystone)', () => {
   // Trees are no longer baked as flat per-cell props; the generator RECORDS anchors and applyStageToGrid
-  // stamps each as a composition (per-cell heightLevel-stacked DB tiles) — the same model buildings use, so
+  // stamps each as a composition (per-cell heightLevel-stacked DB tiles), the same model buildings use, so
   // every tile is selectable. The stacked-block shape + glyph/colour are covered by treeComposition.test.ts.
   const stage = generateStage({ zone: 'summer', variant: 'forest', cols: 30, rows: 24 })
 
   const TREE_KINDS = new Set(['tree', 'tree_tall', 'tree_stub', 'tree_round', 'bush', 'bush_round', 'tree_dead'])
 
-  it('records tree ANCHORS (not flat props) — each names a living-tree composition kind + canopy variant', () => {
+  it('records tree ANCHORS (not flat props), each names a living-tree composition kind + canopy variant', () => {
     expect(stage.trees.length).toBeGreaterThan(0)
     expect(stage.props.filter(p => p.type === 'tree')).toHaveLength(0) // trees no longer bake flat props
     expect(stage.trees.every(t => TREE_KINDS.has(t.kind))).toBe(true)
     expect(stage.trees.every(t => Number.isInteger(t.variant) && t.variant >= 0)).toBe(true)
   })
 
-  it('RANDOMIZES the tree shapes — a forest shows MULTIPLE variants, not one repeated shape', () => {
+  it('RANDOMIZES the tree shapes, a forest shows MULTIPLE variants, not one repeated shape', () => {
     const kinds = new Set(stage.trees.map(t => t.kind))
     expect(kinds.size).toBeGreaterThanOrEqual(3) // standard + several of tall/small/round/bush appear
   })
 
-  it('blocks EVERY tree anchor cell — trees are fully solid (no passable cell to step into)', () => {
+  it('blocks EVERY tree anchor cell, trees are fully solid (no passable cell to step into)', () => {
     expect(stage.trees.length).toBeGreaterThan(0)
     for (const t of stage.trees) expect(stage.collision[t.row][t.col]).toBe(true)
   })
 
-  it('keeps the forest FLOOR walkable as ONE place — nothing but the far bank is cut off', () => {
+  it('keeps the forest FLOOR walkable as ONE place, nothing but the far bank is cut off', () => {
     // SEEDED, and bounded rather than absolute. This asserted `reachable === floor` on an UNSEEDED map and
-    // flaked about one run in four, at HEAD, before any of today's work — because a `meadow_river` map
+    // flaked about one run in four, at HEAD, before any of today's work, because a `meadow_river` map
     // DELIBERATELY keeps the land strip on the far side of the river ("the land strip beyond the river stays
     // (decor)"); the repair only fills pockets of 12 cells or fewer. So an absolute assertion was demanding
     // the generator stop doing something it does on purpose, and it only noticed when the layout roll landed
     // on a river.
     //
-    // What still matters — and what a REAL break would trip — is that the part you walk in is one region and
+    // What still matters, and what a REAL break would trip, is that the part you walk in is one region and
     // anything cut off is a decor sliver, not half the map.
     // Measured: on a river map the strip beyond the OTHER two river arms is ~20% of the floor on a small map
     // (the bridge crosses one arm only). So the bound is "the part you play in is the large majority", and
@@ -382,7 +381,7 @@ describe('generateStage — trees are recorded as stacked-composition anchors (t
       if (reachable / Math.max(1, floor) < MIN_PLAYABLE) {
         broken.push(`seed ${seed}: only ${((100 * reachable) / floor).toFixed(0)}% of the floor reachable`)
       }
-      // AND every bridge deck cell is walkable AND reachable — a bridge you cannot set foot on is the same
+      // AND every bridge deck cell is walkable AND reachable, a bridge you cannot set foot on is the same
       // defect as no bridge, and it is the thing that makes a river map navigable at all.
       s.ground.forEach((row, r) => row.forEach((tile, c) => {
         if (tile !== 'bridge') return
@@ -395,7 +394,7 @@ describe('generateStage — trees are recorded as stacked-composition anchors (t
 })
 
 
-describe('generateStage — spring flower variety (a meadow in bloom)', () => {
+describe('generateStage, spring flower variety (a meadow in bloom)', () => {
   it('scatters MANY distinct walkable flower types across spring forests', () => {
     // sample a few maps so we see the full palette, not one unlucky draw
     const flowers = [0, 1, 2].flatMap(seed =>
@@ -412,10 +411,10 @@ describe('generateStage — spring flower variety (a meadow in bloom)', () => {
 
 
 // Tree GROUNDING (a shadow under the trunk base so a tree never looks floaty) now lives on the stamped
-// composition — the level-0 tile carries baseShadow — not on generated props. It is covered against the grid
+// composition, the level-0 tile carries baseShadow, not on generated props. It is covered against the grid
 // by treeComposition.test.ts ('the grounded trunk base casts a shadow').
 
-describe('generateStage — buildings are backend COMPOSITIONS (store + hospital guaranteed, cells labeled)', () => {
+describe('generateStage, buildings are backend COMPOSITIONS (store + hospital guaranteed, cells labeled)', () => {
   beforeAll(() => installSeedTileset()) // re-assert the fixture so resolveComposition is never seen empty (cross-file safety)
 
   it('a settlement guarantees a store + a hospital, and bakes NO flat building props', () => {
@@ -432,7 +431,7 @@ describe('generateStage — buildings are backend COMPOSITIONS (store + hospital
       const comp = resolveComposition(styleCatalog('ascii'), b.kind)
       expect(comp).not.toBeNull()
       const cellLabels = comp!.cells.map(c => c.label)
-      // Each building has wall + door cells + a ROOF CAP — matched by FAMILY since store/hospital/houses
+      // Each building has wall + door cells + a ROOF CAP, matched by FAMILY since store/hospital/houses
       // use type-specific tiles (roof_store / wall_house_b …) while temple/cathedral/… keep the base
       // labels. The cap is a gable `roof`/`roof_top` OR a flat `parapet`/`flat_roof` (store/office).
       for (const part of ['wall', 'door']) expect(cellLabels.some(l => l.startsWith(part))).toBe(true)
@@ -451,7 +450,7 @@ describe('generateStage — buildings are backend COMPOSITIONS (store + hospital
   })
 })
 
-describe('generateStage — town & city both build legal stages', () => {
+describe('generateStage, town & city both build legal stages', () => {
   it('generates legal buildings + streets for town and city', () => {
     for (const variant of ['town', 'city'] as const) {
       const stage = generateStage({ zone: 'summer', variant, cols: 50, rows: 44 })
@@ -483,7 +482,7 @@ const FACING_STEP: Record<string, [number, number]> = {
   west: [-1, 0],
 }
 
-describe('generateStage — a settlement guarantees a store + a hospital', () => {
+describe('generateStage, a settlement guarantees a store + a hospital', () => {
   it('places at least one store building and one hospital building', () => {
     const stage = generateStage({ zone: 'summer', variant: 'town' })
     expect(stage.buildings.some(b => b.type === 'store')).toBe(true)
@@ -491,7 +490,7 @@ describe('generateStage — a settlement guarantees a store + a hospital', () =>
   })
 })
 
-describe('generateStage — a driveway crosses the setback from every door to its street', () => {
+describe('generateStage, a driveway crosses the setback from every door to its street', () => {
   it('paints ≥1 paving-stone cell toward the road for every building', () => {
     const stage = generateStage({ zone: 'summer', variant: 'town' })
     // Flat like every other open floor, wearing the paving stone's colour.
@@ -509,7 +508,7 @@ describe('generateStage — a driveway crosses the setback from every door to it
   })
 })
 
-describe('generateStage — lamps never block a door or its driveway', () => {
+describe('generateStage, lamps never block a door or its driveway', () => {
   it('places no lamp prop on a building door cell or its driveway cell', () => {
     for (let i = 0; i < 6; i++) {
       const stage = generateStage({ zone: 'summer', variant: 'town' })
@@ -524,7 +523,7 @@ describe('generateStage — lamps never block a door or its driveway', () => {
   })
 })
 
-describe('footprintEdgeClass — corner/edge/interior tileset classification (#41)', () => {
+describe('footprintEdgeClass, corner/edge/interior tileset classification (#41)', () => {
   // A 4-wide × 3-deep footprint rect at (10,5): cols 10..13, rows 5..7.
   const rect = { col: 10, row: 5, w: 4, h: 3 }
 
@@ -563,8 +562,8 @@ describe('footprintEdgeClass — corner/edge/interior tileset classification (#4
 
 })
 
-describe('labelForCell — ONE consistent debug-label standard across every element', () => {
-  // A 3×3 footprint at (10,5): cols 10..12, rows 5..7 — the canonical multi-cell element.
+describe('labelForCell, ONE consistent debug-label standard across every element', () => {
+  // A 3×3 footprint at (10,5): cols 10..12, rows 5..7, the canonical multi-cell element.
   const rect = { col: 10, row: 5, w: 3, h: 3 }
 
   it('footprintSide yields the 4 corners + 4 edges + INTERIOR centre of a 3×3', () => {
@@ -642,7 +641,7 @@ describe('labelForCell — ONE consistent debug-label standard across every elem
   })
 
   it('produces the SAME caption string regardless of which view asks (no drift)', () => {
-    // The label is a pure function of (type, resolved position) — identical inputs, identical output.
+    // The label is a pure function of (type, resolved position), identical inputs, identical output.
     const inputs: Array<[string, string]> = [
       ['building', footprintSide(12, 7, rect)],
       ['tree', treeSubpart('tree_top_right')],
@@ -657,7 +656,7 @@ describe('labelForCell — ONE consistent debug-label standard across every elem
   })
 })
 
-describe('pickLivingTree — weighted random tree-shape variety', () => {
+describe('pickLivingTree, weighted random tree-shape variety', () => {
   it('spans the FULL variant set across the [0,1) roll range (no shape is unreachable)', () => {
     const seen = new Set<string>()
     for (let i = 0; i < 1000; i++) seen.add(pickLivingTree(i / 1000))

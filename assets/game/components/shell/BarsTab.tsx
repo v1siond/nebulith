@@ -4,14 +4,14 @@ import { NumberField } from '@/components/game/gridPanel'
 import { type UiBar, type UiBarSlot, saveBars, uiActions, uiProfile } from '@/game/uiProfile'
 
 /**
- * THE BARS TAB — add a bar, shape it, say when it shows.
+ * THE BARS TAB, add a bar, shape it, say when it shows.
  *
  * Each of those is a control here, and each is a column on `ui_bars`:
  *
- * - **add / remove / reorder** — `+ Add a bar` and the per-bar buttons; the whole list is saved at once.
- * - **rows and columns** — the
- * - **size, font size, show the text** — per bar, in its settings.
- * - **conditionals** — WHEN a bar is up: always, or once something is in it, or on an event / quest /
+ * - **add / remove / reorder**, `+ Add a bar` and the per-bar buttons; the whole list is saved at once.
+ * - **rows and columns**, the
+ * - **size, font size, show the text**, per bar, in its settings.
+ * - **conditionals**, WHEN a bar is up: always, or once something is in it, or on an event / quest /
  *   ability. Null condition IS "always", which is why the select's first option writes null rather than a
  *   sentinel string.
  *

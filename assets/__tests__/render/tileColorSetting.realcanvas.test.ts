@@ -1,14 +1,14 @@
 /**
- * REAL-CANVAS colour-setting tests — the standard the jsdom tests can't meet.
+ * REAL-CANVAS colour-setting tests, the standard the jsdom tests can't meet.
  *
  * MODEL (nebulith MAP-MODEL §4/§8, TILE-BACKEND-MIGRATION §5/§7, TILESET-AUTHORING §1): every tile is a
  * baked backend IMAGE resolved by label; the tile's COLOUR is a per-tile SETTING that FILTERS (recolours)
- * that image via `tintedImage` (luminance-mapped, shading kept). ONE path, every art style — no glyph
+ * that image via `tintedImage` (luminance-mapped, shading kept). ONE path, every art style, no glyph
  * fallback, no per-type hack. So setting a cell's colour in the editor MUST recolour the baked tile
  * IMAGE on the cube, not merely the cell fill behind it.
  *
  * `compositionImageRender.test.ts` (jsdom) proves recolour by OBJECT IDENTITY only ("the drawn source is
- * a distinct object from the raw image"), which passes for ANY distinct object — including an UNtinted
+ * a distinct object from the raw image"), which passes for ANY distinct object, including an UNtinted
  * one. These tests render to a real rasteriser (@napi-rs/canvas) and read the PIXELS: a GREEN baked-tile
  * stand-in painted on a cube with `color = magenta` must come back MAGENTA, with no green left.
  */
@@ -55,13 +55,13 @@ function renderCubeDirect(imgSrc: string): ReturnType<RealCanvasHarness['scan']>
   return H.scan(cv)
 }
 
-describe('colour recolours the baked tile IMAGE on a cube — drawIsoTileBlock (direct label-cube path)', () => {
+describe('colour recolours the baked tile IMAGE on a cube, drawIsoTileBlock (direct label-cube path)', () => {
   test('EMOJI/generic: a GREEN baked tile on a magenta cube comes back MAGENTA, not green', async () => {
     const src = '/tiles/probe/cube-green.png'
     H.registerSolid(src, GREEN)
     await H.warm([src])
     const s = renderCubeDirect(src)
-    // The cube must be visibly present and recoloured — the leaf image itself is magenta, not green.
+    // The cube must be visibly present and recoloured, the leaf image itself is magenta, not green.
     expect(s.opaque).toBeGreaterThan(500)
     expect(s.greenish).toBe(0)                    // FAILS pre-fix: the green leaf image is NOT filtered
     expect(s.magentaish).toBeGreaterThan(0)
@@ -71,7 +71,7 @@ describe('colour recolours the baked tile IMAGE on a cube — drawIsoTileBlock (
 /**
  * THE REAL RUNNING-APP BUG (empirically proven by Playwright): the backend serves tile PNGs on a
  * different origin with NO CORS header, so drawing one onto the recolour canvas TAINTS it and
- * `getImageData` throws SecurityError — the tint was silently dropped and the tile kept its native
+ * `getImageData` throws SecurityError, the tint was silently dropped and the tile kept its native
  * colour while only the cell fill recoloured. `setTaint(true)` reproduces that exact failure mode.
  * This FAILS pre-fix (the leaf survives green) and PASSES once the recolour needs no pixel read-back.
  */
@@ -112,7 +112,7 @@ describe('colour recolours the baked tile IMAGE on a TAINTED cross-origin canvas
 const labeledAsset = (label: string, color: string): GridAsset =>
   ({ art: ['?'], col: 3, row: 3, type: 'leaf', height: 1, label, color, scale: 3 } as GridAsset)
 
-describe('colour recolours the baked tile IMAGE on a cube — drawIsoAssetAscii label path (end-to-end)', () => {
+describe('colour recolours the baked tile IMAGE on a cube, drawIsoAssetAscii label path (end-to-end)', () => {
   const EMOJI_LABEL = '__rc_emoji_leaf__'
   const ASCII_LABEL = '__rc_ascii_leaf__'
   const EMOJI_SRC = '/tiles/emoji/__rc_leaf.png'
@@ -147,7 +147,7 @@ describe('colour recolours the baked tile IMAGE on a cube — drawIsoAssetAscii 
   })
 })
 
-describe('per-art-style scenarios — stacked, multi-detail, and NEGATIVE cases', () => {
+describe('per-art-style scenarios, stacked, multi-detail, and NEGATIVE cases', () => {
   const STACK_LABEL = '__rc_stack_leaf__'
   const WINDOW_LABEL = '__rc_window__'
   const STACK_SRC = '/tiles/emoji/__rc_stack.png'
@@ -175,7 +175,7 @@ describe('per-art-style scenarios — stacked, multi-detail, and NEGATIVE cases'
     expect(s.magentaish).toBeGreaterThan(0)
   })
 
-  test('EMOJI: colour filters a MULTI-DETAIL tile (window: blue glass + white frame) — the WHOLE image', () => {
+  test('EMOJI: colour filters a MULTI-DETAIL tile (window: blue glass + white frame), the WHOLE image', () => {
     const cv = H.makeCanvas(240, 260)
     const ctx = cv.getContext('2d') as unknown as CanvasRenderingContext2D
     const win = { art: ['?'], col: 3, row: 3, type: 'window', height: 1, label: WINDOW_LABEL, color: MAGENTA, scale: 3 } as GridAsset
@@ -192,12 +192,12 @@ describe('per-art-style scenarios — stacked, multi-detail, and NEGATIVE cases'
     const img = tileImage(NATIVE_SRC)!
     drawStyledImage(ctx, { kind: 'image', src: NATIVE_SRC }, 40, 40, 64) // no tint arg → native
     const s = H.scan(cv)
-    expect(s.greenish).toBeGreaterThan(0)      // stays GREEN — no colour set, so the native image is untouched
+    expect(s.greenish).toBeGreaterThan(0)      // stays GREEN, no colour set, so the native image is untouched
     expect(s.magentaish).toBe(0)
     expect(img).toBeTruthy()
   })
 
-  test('NEGATIVE: an unparseable colour is ignored — tintedImage returns the native image (no throw)', async () => {
+  test('NEGATIVE: an unparseable colour is ignored, tintedImage returns the native image (no throw)', async () => {
     const src = '/tiles/emoji/__rc_badcolor.png'
     H.registerSolid(src, GREEN)
     await H.warm([src])

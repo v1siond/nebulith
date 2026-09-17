@@ -1,10 +1,10 @@
 /**
- * BUILDINGS AT ANY SIZE — the client for `/api/buildings`.
+ * BUILDINGS AT ANY SIZE, the client for `/api/buildings`.
  *
  * Two calls and one install. `fetchBuildingTypes` gets the types with their default footprints;
  * `composeBuilding` asks the backend to lay one out and installs the answer into the loaded catalog under a
  * synthetic kind, so the editor's existing stamp path places it. Nothing downstream learns that a building
- * was composed rather than seeded — that distinction stops here.
+ * was composed rather than seeded, that distinction stops here.
  *
  * NO LAYOUT LOGIC LIVES IN THIS FILE, and that is the point. The recipe is Elixir's
  * (`BuildingCompositions.compose_building/4`), beside the composition seeds, because a composition is DATA
@@ -23,7 +23,7 @@ export interface Footprint {
 
 export interface BuildingType {
   key: string
-  /** The type's own authored footprint — */
+  /** The type's own authored footprint, */
   default: Footprint
 }
 
@@ -91,11 +91,11 @@ export function backendTypeKey(type: string): string {
 }
 
 /**
- * The TYPE inside a kind, composed or not — `house@6x4` → `house`, `fountain` → `fountain`.
+ * The TYPE inside a kind, composed or not, `house@6x4` → `house`, `fountain` → `fountain`.
  *
  * The inverse of `composedKind`, and the palette needs it: arming a composed building sets the armed kind
  * to the synthetic one, so a palette matching `armedKind === item.kind` immediately stopped recognising its
- * own entry — the size control vanished after the first change and the swatch un-highlighted.
+ * own entry, the size control vanished after the first change and the swatch un-highlighted.
  */
 export function typeOfComposedKind(kind: string): string {
   const at = kind.indexOf('@')
@@ -112,7 +112,7 @@ export interface ComposeOptions {
   material?: string
   roof?: string
   roofTop?: string
-  /** Reproducible material roll — pass one for a stable picture, omit for a fresh roll. */
+  /** Reproducible material roll, pass one for a stable picture, omit for a fresh roll. */
   seed?: number
 }
 
@@ -144,8 +144,7 @@ export async function composeBuilding(
     throw new Error(`The backend served no usable ${type} at ${size.w}x${size.h}`)
   }
 
-  // Installed in the SAME shape the tileset loader installs a seeded composition, so every reader —
-  // the ghost, the stamp, the preview, the palette — treats it identically. Into EVERY loaded style, not
+  // Installed in the SAME shape the tileset loader installs a seeded composition, so every reader, // the ghost, the stamp, the preview, the palette, treats it identically. Into EVERY loaded style, not
   // just the active one: a composition is structure and the label carries the art, so a house composed
   // while emoji is active is the same house in ascii. Installing it into one style is what made a town
   // come out with no buildings at all.
@@ -162,7 +161,7 @@ export async function composeBuilding(
  * A `BuildingSizes` backed by the BACKEND's default footprints.
  *
  * So the generator rolls around these numbers and the building is composed to fit
- * whatever it rolls — nothing snaps to an authored size.
+ * whatever it rolls, nothing snaps to an authored size.
  *
  * Undefined until `/api/buildings` has answered, and the planner then keeps using the composition-backed
  * source. That is not a fallback in the forbidden sense: it is the OLD behaviour, unchanged, for the window
@@ -175,7 +174,7 @@ export function buildingSizeSource(catalog: BuildingTypeCatalog): {
 } | undefined {
   if (catalog.types.length === 0) return undefined
   const byKey = new Map(catalog.types.map(t => [t.key, t]))
-  // Looked up by the BACKEND's spelling — see `backendTypeKey`.
+  // Looked up by the BACKEND's spelling, see `backendTypeKey`.
   const defaultOf = (type: string) => byKey.get(backendTypeKey(type))?.default ?? null
   return {
     defaultOf,
@@ -191,7 +190,7 @@ export function buildingSizeSource(catalog: BuildingTypeCatalog): {
  * has already decided each building's footprint and named the composition for it, so the names can be
  * collected and fetched before anything is placed.
  *
- * DISTINCT kinds only, and `composeBuilding` returns early for one already in the catalog — so a town of
+ * DISTINCT kinds only, and `composeBuilding` returns early for one already in the catalog, so a town of
  * eighteen buildings is a handful of requests, and a re-generate at the same sizes is none. A kind that
  * fails to compose is warned about and skipped: the stamp then places nothing for that plot, which is the
  * correct outcome for a building the backend could not lay out.
@@ -218,13 +217,13 @@ export async function installComposedBuildings(
  * Install every footprint a GENERATE could plan, before it plans.
  *
  * The ordering problem this solves: `generateStage` reads each building's composition while planning, to
- * learn its real DOOR SPAN — so composing after the plan is too late, and the generator correctly warns
+ * learn its real DOOR SPAN, so composing after the plan is too late, and the generator correctly warns
  * that it is "opening a GUESSED 1-cell entrance". But the kinds are not known until the plan exists,
  * because they depend on the footprints it rolls.
  *
  * The way out is that the rolls are not arbitrary: `plotWidth` picks a house width from the SERVED
  * `houseWidths` and every other type takes its served default. So the set of footprints a generate could
- * possibly want is enumerable up front — a handful, about ten for a town — and composing them first makes
+ * possibly want is enumerable up front, a handful, about ten for a town, and composing them first makes
  * the generate single-pass, deterministic and warning-free.
  *
  * Failures are warned and skipped, never thrown: one type the backend cannot lay out must not stop a whole
@@ -241,7 +240,7 @@ export async function installPlannableBuildings(
 
   for (const { key, default: size } of catalog.types) {
     want(key, size)
-    // A house is the one type the settlement config re-weights, so its widths come from there — at the
+    // A house is the one type the settlement config re-weights, so its widths come from there, at the
     // type's own default depth, which is what `plotDepth` uses.
     if (key === 'house') for (const w of new Set(houseWidths)) want(key, { w, h: size.h })
   }

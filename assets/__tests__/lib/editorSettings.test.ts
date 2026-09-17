@@ -1,5 +1,5 @@
 /**
- * Editor-settings API client — the backend-owned store for floating-panel geometry.
+ * Editor-settings API client, the backend-owned store for floating-panel geometry.
  * We drive the REAL client against a mocked fetch and assert the wire contract the nebulith
  * `/api/editor_settings` resource speaks: GET returns a `{editorSettings: {key→geo}}` map,
  * PUT `/editor_settings/:key` sends `{value}` and echoes the stored geometry.

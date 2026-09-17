@@ -1,5 +1,5 @@
 /**
- * THE GRID's controls — the matrix inside New world, the thickness in the view bar.
+ * THE GRID's controls, the matrix inside New world, the thickness in the view bar.
  *
  *   > the UX experience from ground tickness is bad, plus the ground thicknes is not a per template
  *   > setting, is just a general setting of the grid. It doesn't allow me to delete number, it doesn't
@@ -8,7 +8,7 @@
  *
  * The matrix tests came over from `generateControls.test.tsx` unchanged in intent: the numbers are still a
  * draft, the panel still refuses to quietly rewrite a size, and it still counts whatever you type. What is
- * NEW here is the two things reported as broken — a field you can empty, and a thickness that lands as
+ * NEW here is the two things reported as broken, a field you can empty, and a thickness that lands as
  * you type.
  */
 import { render, screen, fireEvent } from '@testing-library/react'
@@ -110,7 +110,7 @@ describe('a number field you can actually empty', () => {
   })
 })
 
-describe('the matrix — a draft, not an edit', () => {
+describe('the matrix, a draft, not an edit', () => {
   it('exposes all three matrix variables', () => {
     panel()
     expect(columns()).toHaveValue(40)
@@ -124,7 +124,7 @@ describe('the matrix — a draft, not an edit', () => {
     expect(screen.getByText(/how many cells fit in one row/i)).toBeInTheDocument()
   })
 
-  it('does NOT touch the open map while you type — it reports a draft', () => {
+  it('does NOT touch the open map while you type, it reports a draft', () => {
     const props = panel()
     fireEvent.change(columns(), { target: { value: '60' } })
     expect(props.onResize).not.toHaveBeenCalled()
@@ -142,14 +142,14 @@ describe('the matrix — a draft, not an edit', () => {
     expect(props.onResize).toHaveBeenCalledWith(60, 20, 24)
   })
 
-  it('counts any size you type, however big — the field never refuses to do arithmetic', () => {
+  it('counts any size you type, however big, the field never refuses to do arithmetic', () => {
     panel({ settings: { cols: 400, rows: 240, cellSize: 16, slabBlocks: 1 } })
     expect(screen.getByText(/400 × 240 = 96,000 cells/)).toBeInTheDocument()
   })
 
   it('SAYS a size is over the cap instead of quietly building a smaller one', () => {
     panel({ settings: { cols: MAP_SIZE_MAX + 1, rows: 20, cellSize: 16, slabBlocks: 1 } })
-    // It NAMES the offending number rather than clamping it — the silent rewrite is the bug this guards.
+    // It NAMES the offending number rather than clamping it, the silent rewrite is the bug this guards.
     expect(screen.getByText(new RegExp(`Columns is ${MAP_SIZE_MAX + 1}`))).toBeInTheDocument()
     expect(screen.getByRole('button', { name: /resize this map/i })).toBeDisabled()
   })
@@ -167,20 +167,20 @@ describe('the ground control, in the view bar beside Rotate and Range', () => {
     expect(screen.getByLabelText('Ground thickness in blocks')).toHaveValue(5)
   })
 
-  it('applies on the spot — it rebuilds nothing, so it needs no button', () => {
+  it('applies on the spot, it rebuilds nothing, so it needs no button', () => {
     const onBlocks = ground(1)
     fireEvent.change(screen.getByLabelText('Ground thickness in blocks'), { target: { value: '9' } })
     expect(onBlocks).toHaveBeenCalledWith(9)
     expect(screen.queryByRole('button')).not.toBeInTheDocument()
   })
 
-  it('accepts zero — a map laid flat', () => {
+  it('accepts zero, a map laid flat', () => {
     const onBlocks = ground(3)
     fireEvent.change(screen.getByLabelText('Ground thickness in blocks'), { target: { value: '0' } })
     expect(onBlocks).toHaveBeenCalledWith(0)
   })
 
-  it('refuses a negative thickness — there is no such map', () => {
+  it('refuses a negative thickness, there is no such map', () => {
     const onBlocks = ground(2)
     fireEvent.change(screen.getByLabelText('Ground thickness in blocks'), { target: { value: '-2' } })
     expect(onBlocks).not.toHaveBeenCalled()

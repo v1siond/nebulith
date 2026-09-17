@@ -1,12 +1,12 @@
 /**
  * The Tile Library SIDEBAR must read its tiles ONLY from the backend-loaded tilesets (styleTiles('emoji') /
- * styleCatalog('ascii') — swapped in by tilesetLoader from the :4000 DB), the SAME source the MAP renders from,
+ * styleCatalog('ascii'), swapped in by tilesetLoader from the :4000 DB), the SAME source the MAP renders from,
  * with NOTHING art-related hardcoded on the frontend (user directive; MAP-MODEL §4 "art comes from the DB
  * tileset, the front end hardcodes nothing"; TILE-VOCABULARY-CONTRACT "one source generates the rest").
  *
  * Guards:
- *   G3 (Image #15) — emoji image tiles render their baked art (an <img>), never a 🖼 placeholder box.
- *   G4 (Image #16) — the list is DERIVED from the loaded tileset, so it always matches the map (no stale
+ *   G3 (Image #15), emoji image tiles render their baked art (an <img>), never a 🖼 placeholder box.
+ *   G4 (Image #16), the list is DERIVED from the loaded tileset, so it always matches the map (no stale
  *                    hardcoded copy like the old ASCII_TILE_GLYPHS / emojiCatalog.json).
  */
 import { clearStyleCatalogs, installStyleTiles } from '@/engine/tileset/styleTiles'
@@ -14,13 +14,13 @@ import { render, screen } from '@testing-library/react'
 import { TilePalette, TileLibraryBody } from '@/components/game/editorChrome'
 import { tilesForStyle, visualForTileId, rebuildEmojiStyle } from '@/game/artStyle'
 
-// Every case installs its rows through `installStyleTiles` — the ONE store's own door, the same one the
+// Every case installs its rows through `installStyleTiles`, the ONE store's own door, the same one the
 // loader uses. Nothing here hand-builds a catalog shape, so a change to `StyleTile` breaks these tests
 // instead of being quietly translated away by a test-local shim.
 afterEach(clearStyleCatalogs)
 
 describe('Tile Library sidebar reads ONLY the backend-loaded tileset (G3/G4)', () => {
-  it('emoji sidebar derives from the loaded tileset — image art, DB labels, no hardcoded-catalog leak', () => {
+  it('emoji sidebar derives from the loaded tileset, image art, DB labels, no hardcoded-catalog leak', () => {
     installStyleTiles('emoji', {
       grass: { char: '🍀', color: '#5faf4a', image: '/tiles/emoji/baked/grass.png', category: 'terrain', title: 'Grass' },
       db_only: { char: '🆕', color: '#123456', image: '/tiles/emoji/catalog/db_only.png', category: 'nature', title: 'DB Only' },
@@ -49,16 +49,15 @@ describe('Tile Library sidebar reads ONLY the backend-loaded tileset (G3/G4)', (
   })
 
   // User: "we have 'enemy' tiles, outside of the 'units' option from the top nav … the paint should work for
-  // regular tiles." The PAINT palette must list REGULAR tiles ONLY (every browseable bucket EXCEPT units —
-  // terrain / roads / floors / walls / … / nature / props) — units (player / enemies / NPCs) are placed via
+  // regular tiles." The PAINT palette must list REGULAR tiles ONLY (every browseable bucket EXCEPT units, // terrain / roads / floors / walls / … / nature / props), units (player / enemies / NPCs) are placed via
   // the top-nav ◈ Unit flow, never armed as a paint brush.
-  it('the Paint palette lists REGULAR tiles only — no unit/enemy tiles (units come from the top-nav)', () => {
+  it('the Paint palette lists REGULAR tiles only, no unit/enemy tiles (units come from the top-nav)', () => {
     installStyleTiles('emoji', {
       grass: { char: '🍀', color: '#5faf4a', image: '/tiles/emoji/baked/grass.png', category: 'terrain', title: 'Grass' },
       pine_tree: { char: '🌲', color: '#2f7d3a', category: 'nature', title: 'Pine Tree', height: 1 },
       // A units-category tile is only a CHARACTER when its backend row says so (`settings.unitRole`). The
       // split is by ROLE, not by category, because the twelve fx labels (arrow, nova, fire-slash…) live in
-      // `units` too and ARE paintable. A fixture without the role reads as fx and is kept — which is right.
+      // `units` too and ARE paintable. A fixture without the role reads as fx and is kept, which is right.
       goblin: { char: '👺', color: '#c0392b', category: 'units', title: 'Goblin', settings: { unitRole: 'enemy' } },
       npc: { char: '🧍', color: '#4aa3df', category: 'units', title: 'NPC', settings: { unitRole: 'person' } },
     })
@@ -68,13 +67,13 @@ describe('Tile Library sidebar reads ONLY the backend-loaded tileset (G3/G4)', (
     // regular tiles ARE offered
     expect(screen.getByTitle('Grass')).toBeInTheDocument()
     expect(screen.getByTitle('Pine Tree')).toBeInTheDocument()
-    // unit/enemy tiles are NOT — and the "units" category header never renders in the paint palette
+    // unit/enemy tiles are NOT, and the "units" category header never renders in the paint palette
     expect(screen.queryByTitle('Goblin')).toBeNull()
     expect(screen.queryByTitle('NPC')).toBeNull()
     expect(screen.queryByText('Units')).toBeNull()
   })
 
-  // The Tile LIBRARY (pin a tile as an element override) is a DIFFERENT surface — it still browses every
+  // The Tile LIBRARY (pin a tile as an element override) is a DIFFERENT surface, it still browses every
   // category, units included; only the Paint palette drops units. Proves the filter is scoped to paint.
   it('the Tile Library still lists units (only the Paint palette drops them)', () => {
     installStyleTiles('emoji', {
@@ -87,7 +86,7 @@ describe('Tile Library sidebar reads ONLY the backend-loaded tileset (G3/G4)', (
     // NOTE the heading: the library calls the `units` bucket "Effects", because in the PAINT palette that
     // group holds only the fx labels (arrow, nova, fire-slash…) once characters are filtered out. The library
     // does not filter, so a character lands under a heading that does not describe it. Asserted as-is rather
-    // than quietly renamed — it is a labelling wart worth a look, not a test to bend.
+    // than quietly renamed, it is a labelling wart worth a look, not a test to bend.
     expect(screen.getByText('Effects')).toBeInTheDocument()
   })
 
@@ -105,8 +104,8 @@ describe('Tile Library sidebar reads ONLY the backend-loaded tileset (G3/G4)', (
     expect(all.find(t => t.id === 'ascii:tree_top')).toBeUndefined()
   })
 
-  // The palette tile must FULLY describe the DB tile — its BLOCK height and render settings ride along, not
-  // just the art — so the brush can seed a painted asset that matches the generator (#52 single source of truth).
+  // The palette tile must FULLY describe the DB tile, its BLOCK height and render settings ride along, not
+  // just the art, so the brush can seed a painted asset that matches the generator (#52 single source of truth).
   it('the palette tile carries the DB block height + settings (so a painted tile === a generated one)', () => {
     installStyleTiles('emoji', {
       boulder: { char: '🪨', color: '#8a8a8a', image: '/tiles/emoji/catalog/boulder.png', category: 'nature', title: 'Boulder', height: 1, settings: { color: '#8a8a8a' } },

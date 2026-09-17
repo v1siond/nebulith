@@ -1,6 +1,6 @@
 /**
  * Pure selection-SET logic behind cell/block selection in every view. The editor's mouse handlers compute the
- * NEXT selection set from a gesture through THESE functions — so "batch a rectangle", "additively extend it",
+ * NEXT selection set from a gesture through THESE functions, so "batch a rectangle", "additively extend it",
  * and "add a single cell" live in ONE tested place instead of scattered inline in the React handlers.
  *
  * Keys are "col,row" (a flat CELL) or "col,row,level" (a raised BLOCK), matching the render's selection outline.
@@ -36,9 +36,9 @@ export function applyCellSelection(base: ReadonlySet<string>, key: string, addit
   return next
 }
 
-/** The selection KEY for a picked TILE — its cell + its STACK INDEX (the tile's slot in the cell's ordered
+/** The selection KEY for a picked TILE, its cell + its STACK INDEX (the tile's slot in the cell's ordered
  *  stack, `getAssetsAtCell` order: 0 = base/floor slab, then up). Two tiles at the SAME level (a grass slab and
- *  a wall block, both level 0) are DIFFERENT stack slots, so this keys them APART — which is what lets the user
+ *  a wall block, both level 0) are DIFFERENT stack slots, so this keys them APART, which is what lets the user
  *  select each as its own tile (the "clicking the column selected the grass below" fix). A pick with NO tile (a
  *  bare/empty cell region, or a shift-drag over empty ground) has no stackIndex → the flat "col,row" cell key.
  *  There is NO tile-kind branch: the stack index drives the key for grass, road, wall, roof and decor alike.

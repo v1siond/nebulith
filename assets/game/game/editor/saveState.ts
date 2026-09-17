@@ -2,9 +2,9 @@
  * IS THE MAP IN FRONT OF YOU SAVED? (§4.4, and Week 3's prerequisite per §5.3.)
  *
  * Two things need this answer and neither could ask it before:
- *   - the LEVEL SWITCHER, which must not throw away edits when you step to another level — §5.3 rates it
+ *   - the LEVEL SWITCHER, which must not throw away edits when you step to another level, §5.3 rates it
  *     medium risk for exactly this reason: "switching a template inside a game already works but does not
- *     prompt about unsaved changes. Needs a dirty-tracker first — there isn't one today";
+ *     prompt about unsaved changes. Needs a dirty-tracker first, there isn't one today";
  *   - the SAVE BUTTON, which §4.4 turns from a bare verb into a status + action:
  *     `● Saved 12s ago` / `● Unsaved changes` / `Saving…`.
  *
@@ -21,7 +21,7 @@ export interface SaveState {
   savedAt: number | null
 }
 
-/** How the status reads. `tone` drives the dot's colour — a warning must never look like an OK. */
+/** How the status reads. `tone` drives the dot's colour, a warning must never look like an OK. */
 export interface SaveStatus {
   label: string
   tone: 'ok' | 'warning' | 'busy'
@@ -38,7 +38,7 @@ function agoLabel(elapsedMs: number): string {
 
 /**
  * Describe the save state at `now`. Precedence is deliberate: an in-flight save outranks dirtiness (the user
- * pressed the button — tell them it is happening, and a switch would not lose work because the write is
+ * pressed the button, tell them it is happening, and a switch would not lose work because the write is
  * already going out), and dirtiness outranks "never saved" (the actionable fact is the unsaved edits).
  */
 export function describeSaveState(state: SaveState, now: number): SaveStatus {

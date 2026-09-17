@@ -1,5 +1,5 @@
 /**
- * Building CATALOG + placement — the data-driven replacement for the retired procedural building unit (the
+ * Building CATALOG + placement, the data-driven replacement for the retired procedural building unit (the
  * old frontend facade composer + grouped-building factories). A pre-built building (house/store/hospital/…)
  * is a backend COMPOSITION template stamped as per-cell tiles, the SAME path trees use (MAP-MODEL §5,
  * TILE-BACKEND-MIGRATION §4). This module names the composition for a (type,length), reads its footprint
@@ -33,12 +33,12 @@ export function isRoadGround(ground: string | undefined): boolean {
 // ── composition catalog ───────────────────────────────────────────────────
 // A building's SIZE is backend data. These used to be two hardcoded tables here and a THIRD copy inside
 // villageLayout, each hand-maintained against Nebulith.Catalog.BuildingCompositions with nothing enforcing the
-// match — so deepening a building in Elixir silently desynced the plot planner from what the stamp fills
+// match, so deepening a building in Elixir silently desynced the plot planner from what the stamp fills
 // .
 // Now every size RESOLVES from the loaded compositions, whose names encode `<type>_<facadeWidth>`.
-// Null when nothing is loaded — an unknown size is never invented (MAP-MODEL §8, the no-fallback law).
+// Null when nothing is loaded, an unknown size is never invented (MAP-MODEL §8, the no-fallback law).
 
-/** The baked facade widths for a type, ascending — parsed from the loaded composition NAMES (`house_3/4/5`).
+/** The baked facade widths for a type, ascending, parsed from the loaded composition NAMES (`house_3/4/5`).
  *  Empty when nothing is loaded; the caller picks from what EXISTS rather than from a hand-kept list. */
 export function buildingFacadeLengths(type: BuildingType): number[] {
   const prefix = `${type.replace(/-/g, '_')}_`
@@ -53,14 +53,14 @@ export function buildingFacadeLengths(type: BuildingType): number[] {
   return out.sort((a, b) => a - b)
 }
 
-/** Ground footprint DEPTH of ONE baked size: cells perpendicular to the facade, away from the road — that
+/** Ground footprint DEPTH of ONE baked size: cells perpendicular to the facade, away from the road, that
  *  composition's own south-facing `footprint.h`, so a plot reserves exactly what the stamp fills. Depth is
  *  per (type,LENGTH), not per type: a wider house may be a deeper house. Null when that size is not baked. */
 export function buildingDepth(type: BuildingType, length: number): number | null {
   return resolveComposition(styleCatalog('ascii'), buildingCompositionKind(type, length))?.footprint.h ?? null
 }
 
-/** The planner's size source, backed by the loaded compositions — one object so `villageLayout` stays pure and
+/** The planner's size source, backed by the loaded compositions, one object so `villageLayout` stays pure and
  *  depends on the ABSTRACTION it is handed, never on this module's tileset access. */
 export const BACKEND_BUILDING_SIZES: BuildingSizes = {
   depthOf: buildingDepth,
@@ -83,7 +83,7 @@ export function buildingCompositionKind(type: BuildingType, length: number): str
 }
 
 // CW quarter-turns that rotate a south-baked building so its door faces the road: south=0 (door front),
-// west=1, north=2, east=3 — the same edge mapping the deleted facade rotation used.
+// west=1, north=2, east=3, the same edge mapping the deleted facade rotation used.
 const FACING_ROTATION: Readonly<Record<Facing, number>> = { south: 0, west: 1, north: 2, east: 3 }
 
 /** CW quarter-turns to rotate a south-baked building composition so its door faces `facing`. */
@@ -92,12 +92,12 @@ export function facingRotation(facing: Facing): number {
 }
 
 /** One 90° CLOCKWISE turn of a footprint offset: a cell at (dx,dy) in a `w`×`h` footprint lands at
- *  (h-1-dy, dx) in the rotated `h`×`w` footprint — the geometry the deleted facade rotation used. Pure. */
+ *  (h-1-dy, dx) in the rotated `h`×`w` footprint, the geometry the deleted facade rotation used. Pure. */
 function rotateOffsetCW(dx: number, dy: number, w: number, h: number): { dx: number; dy: number; w: number; h: number } {
   return { dx: h - 1 - dy, dy: dx, w: h, h: w }
 }
 
-/** Rotate a footprint offset by `rotation` × 90° CW (0–3, negatives/≥4 wrap), returning the offset within
+/** Rotate a footprint offset by `rotation` × 90° CW (0-3, negatives/≥4 wrap), returning the offset within
  *  the rotated footprint. Shared by the live stamp (stampComposition) and the save-path expansion so a
  *  building rotates the SAME way live and persisted. Pure. */
 export function rotateFootprintOffset(dx: number, dy: number, w: number, h: number, rotation: number): { dx: number; dy: number } {
@@ -122,7 +122,7 @@ export function buildingFootprint(kind: string, facing: Facing): { w: number; h:
   return swap ? { w: comp.footprint.h, h: comp.footprint.w } : { w: comp.footprint.w, h: comp.footprint.h }
 }
 
-/** The south-facing DOOR span of a composition — the level-0 `door` cells' first offset + width — so the
+/** The south-facing DOOR span of a composition, the level-0 `door` cells' first offset + width, so the
  *  generator can place the walkable entrance + its driveway. Null when the composition isn't loaded or has
  *  no door. Measured along the facade length (dx), matching the generator's `doorCells(facing, rect, door)`. */
 export function buildingDoorOffset(kind: string): { x: number; width: number } | null {
@@ -154,7 +154,7 @@ export function nearestRoadFacing(grid: IsometricGrid, col: number, row: number)
 
 /** True iff a building composition of `kind` rotated to `facing` fits with its footprint TOP-LEFT at
  *  (anchorCol,anchorRow): every footprint cell in-bounds, not blocked (trees/water/another building), and
- *  not on a road/path. Conservative over the whole footprint rect — the same rule the retired
+ *  not on a road/path. Conservative over the whole footprint rect, the same rule the retired
  *  canPlaceBuilding used. False when the composition isn't loaded. */
 export function canPlaceBuildingComposition(grid: IsometricGrid, kind: string, anchorCol: number, anchorRow: number, facing: Facing): boolean {
   const fp = buildingFootprint(kind, facing)
@@ -173,17 +173,17 @@ export function canPlaceBuildingComposition(grid: IsometricGrid, kind: string, a
 
 // ── generic composition placement (buildings AND props/trees) ────────────────
 // Buildings are one kind of composition; fountains, wells, lamp posts and trees are others. The editor's
-// Tile-composition tool arms ANY of them, so placement here is composition-generic — the SAME plan the ghost
+// Tile-composition tool arms ANY of them, so placement here is composition-generic, the SAME plan the ghost
 // preview draws and the click stamps, so what you see is exactly what lands (no building-only special case).
 
-/** True iff a composition reads as a BUILDING — it has a ground-level `door` cell. Data-driven: a building
+/** True iff a composition reads as a BUILDING, it has a ground-level `door` cell. Data-driven: a building
  *  fronts a road (rotate its door to face it), while a fountain / well / lamp post / tree has no door and
  *  never rotates. This is the single signal that separates "faces the road" from "drops as-is". Pure. */
 export function compositionFacesRoad(comp: Composition): boolean {
   return comp.cells.some(c => (c.level ?? 0) === 0 && c.label === 'door')
 }
 
-/** How many blocks TALL a composition stands — its highest cell level + 1 (a flat fountain = 1, a 6-storey
+/** How many blocks TALL a composition stands, its highest cell level + 1 (a flat fountain = 1, a 6-storey
  *  building = 7). Used by the ghost preview to extrude a translucent volume so you sense the massing. Pure. */
 export function compositionHeight(comp: Composition): number {
   let max = 0
@@ -192,9 +192,9 @@ export function compositionHeight(comp: Composition): number {
 }
 
 /** The distinct GRID CELLS a composition occupies when stamped with its footprint TOP-LEFT at
- *  (anchorCol,anchorRow), rotated `rotation` quarter-turns — deduped across stack levels (a wall column →
+ *  (anchorCol,anchorRow), rotated `rotation` quarter-turns, deduped across stack levels (a wall column →
  *  one cell). Reuses the SAME `rotateFootprintOffset` the stamp applies, so the previewed footprint is
- *  byte-accurate to what gets placed. Pure — the geometry the ghost preview + validity check both read. */
+ *  byte-accurate to what gets placed. Pure, the geometry the ghost preview + validity check both read. */
 export function compositionFootprintCells(comp: Composition, anchorCol: number, anchorRow: number, rotation: number): { col: number; row: number }[] {
   const { w, h } = comp.footprint
   const seen = new Set<string>()
@@ -211,9 +211,9 @@ export function compositionFootprintCells(comp: Composition, anchorCol: number, 
   return cells
 }
 
-/** True iff EVERY occupied cell is IN BOUNDS — the ONLY thing that blocks a composition placement. A
+/** True iff EVERY occupied cell is IN BOUNDS, the ONLY thing that blocks a composition placement. A
  * composition REPLACES whatever it lands on, so occupied cells and roads
- *  are FINE — the stamp clears the footprint first. Invalid means the footprint runs OFF the map (not enough
+ *  are FINE, the stamp clears the footprint first. Invalid means the footprint runs OFF the map (not enough
  *  room), nothing else. Reads the ACTUAL occupied cells (not the bounding rect), so an L-shaped or basin
  *  composition is judged on the cells it truly fills. Pure. */
 export function compositionFits(grid: IsometricGrid, cells: readonly { col: number; row: number }[]): boolean {
@@ -238,14 +238,13 @@ export interface CompositionPlan {
   footprint: { w: number; h: number }
   /** the distinct grid cells the composition occupies (deduped across levels). */
   cells: { col: number; row: number }[]
-  /** blocks tall (max level + 1) — the ghost's extrusion height. */
+  /** blocks tall (max level + 1), the ghost's extrusion height. */
   height: number
-  /** true when the footprint fits IN BOUNDS. Occupied cells and roads are fine — the stamp REPLACES them —
-   *  so red (invalid) means only "not enough room / runs off the map". */
+  /** true when the footprint fits IN BOUNDS. Occupied cells and roads are fine, the stamp REPLACES them, *  so red (invalid) means only "not enough room / runs off the map". */
   valid: boolean
 }
 
-/** Plan where composition `kind` would land if placed with the CLICKED cell as its footprint CENTRE — the
+/** Plan where composition `kind` would land if placed with the CLICKED cell as its footprint CENTRE, the
  *  generic replacement for the building-only placeNewBuilding math. Buildings rotate to face the nearest road;
  *  props/trees drop unrotated. Returns null only when the composition isn't in the loaded tileset yet. */
 export function planComposition(grid: IsometricGrid, kind: string, col: number, row: number): CompositionPlan | null {

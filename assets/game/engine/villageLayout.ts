@@ -1,14 +1,14 @@
 /**
- * Systematic settlement LAYOUT planner — divide & conquer.
+ * Systematic settlement LAYOUT planner, divide & conquer.
  *
  * Built by SMALL, individually-tested steps, composed by `planVillage`:
- *   1. planRoads   — the street skeleton + the FRONTAGES (a line of buildable cells beside each
+ *   1. planRoads  , the street skeleton + the FRONTAGES (a line of buildable cells beside each
  *                    road: both sides of every horizontal street, both sides of every connector).
- *   2. buildingMix — WHICH buildings a settlement must have (≥ counts scale town→city).
- *   3. placePlots  — WHERE each goes: distribute the mix ROUND-ROBIN across all frontages, each
+ *   2. buildingMix, WHICH buildings a settlement must have (≥ counts scale town→city).
+ *   3. placePlots , WHERE each goes: distribute the mix ROUND-ROBIN across all frontages, each
  *                    building FACING its road (facade parallel to it), footprint extruded AWAY.
  *
- * PURE: same (dims, rng() sequence) → same plan. No grid mutation / rendering — connectivity,
+ * PURE: same (dims, rng() sequence) → same plan. No grid mutation / rendering, connectivity,
  * distribution, facing, and no-overlap are all unit-testable. The stage generator carves the
  * roads, stamps each building ORIENTED by its facing, then fills nature around it.
  */
@@ -18,7 +18,7 @@ import { clamp, randIntWith as randInt } from '@/lib/math'
 
 export type Rng = () => number
 export type Settlement = 'town' | 'city'
-/** The direction a building's door/facade FACES — i.e. toward the road it fronts. */
+/** The direction a building's door/facade FACES, i.e. toward the road it fronts. */
 export type Facing = 'south' | 'north' | 'east' | 'west'
 
 export interface Plot {
@@ -29,7 +29,7 @@ export interface Plot {
   type: BuildingType
   /** Road-PARALLEL footprint width (the frontage span). */
   length: number
-  /** Ground footprint depth — perpendicular extent (away from the road). Small / square-ish.
+  /** Ground footprint depth, perpendicular extent (away from the road). Small / square-ish.
    *  The footprint is `length × depth` (matches the baked composition's footprint). */
   depth: number
   facing: Facing
@@ -57,7 +57,7 @@ export interface RoadPlan {
   frontages: Frontage[]
   entrances: Entrance[]
 }
-/** A reserved, road-free square block — the town SQUARE. Buildings keep off it; the generator paves
+/** A reserved, road-free square block, the town SQUARE. Buildings keep off it; the generator paves
  *  it path_stone and drops ONE big fountain at its centre. `c0/r0` = min-col/min-row, `size` = side. */
 export interface PlazaRect {
   c0: number
@@ -72,7 +72,7 @@ export interface VillageLayout {
   plaza: PlazaRect | null
 }
 
-// Settlement scaling — a city is a much bigger, denser place than a town (more + bigger buildings,
+// Settlement scaling, a city is a much bigger, denser place than a town (more + bigger buildings,
 // a denser street grid). The [min, max] count of each.
 const HOUSE_RANGE: Record<Settlement, [number, number]> = { town: [4, 6], city: [7, 11] }
 // WHICH BUILDINGS A PLACE IS MADE OF. and
@@ -128,14 +128,14 @@ const PLAZA_SIZE: Record<Settlement, number> = { town: 5, city: 7 }
 
 /**
  * How big each building TYPE is on the ground. The caller SUPPLIES this from the backend composition data
- * (`buildingCatalog`'s resolvers) — the planner never reaches for the tileset and never guesses a size, so it
+ * (`buildingCatalog`'s resolvers), the planner never reaches for the tileset and never guesses a size, so it
  * stays pure and a footprint change in Elixir moves the plots automatically.
  *
  * This replaced two hardcoded tables here that duplicated a third pair in `buildingCatalog`, all three
  * hand-maintained against the backend with nothing enforcing the match.
  */
 export interface BuildingSizes {
-  /** Cells perpendicular to the facade, away from the road, for ONE facade length — that composition's
+  /** Cells perpendicular to the facade, away from the road, for ONE facade length, that composition's
    *  south-facing `footprint_h`. Per (type,length) because a wider variant may also be a deeper one.
    *  Null when that size is not baked, which the planner reads as "skip", never as a default. */
   depthOf(type: BuildingType, length: number): number | null
@@ -155,9 +155,9 @@ export interface BuildingSizes {
 // the street) and a LOT_GAP (side-yard cells between neighbours). The door faces the road across
 // the setback; a driveway crosses it (stamped by the generator).
 const SETBACK = 1
-// Street width in cells — wider avenues read better than a thin 2-cell path.
+// Street width in cells, wider avenues read better than a thin 2-cell path.
 const ROAD_W = 4
-// Density per settlement: a town is a modest, leafy settlement — tidy side-yard gaps and a low cap
+// Density per settlement: a town is a modest, leafy settlement, tidy side-yard gaps and a low cap
 // so it stays small; a city packs the same lots much harder (no per-frontage limit, a far higher
 // cap) so it ends up ~4× the town on the same map.
 const LOT_GAP_BY: Record<Settlement, [number, number]> = {
@@ -170,7 +170,7 @@ const BUILDING_CAP: Record<Settlement, number> = { town: 18, city: 72 }
 /**
  * THE SETTLEMENT TUNING THE BACKEND SERVES.
  *
- * Every field above is also a value in `settlement` on `/api/generators` — `plazaSize`, `setback`,
+ * Every field above is also a value in `settlement` on `/api/generators`, `plazaSize`, `setback`,
  * `roadWidth`, `lotGap`, `maxPerFrontage`, `buildingCap`, `houseRange`, `houseWidths`,
  * and until now the frontend kept its own copy of each and read that instead. `houseWidths` was the first
  * one traced (it duplicated the served list exactly); these are the rest of the same family.
@@ -209,7 +209,7 @@ export interface SettlementTuning {
   streets?: string
 }
 
-/** The tuning with every value settled — served first, this file's default second. */
+/** The tuning with every value settled, served first, this file's default second. */
 interface Tuning {
   plazaSize: number
   setback: number
@@ -245,7 +245,7 @@ function resolveTuning(settlement: Settlement, served?: SettlementTuning): Tunin
  * The facade width this plot rolls for a building.
  *
  * `HOUSE_WIDTHS = [3, 3, 4, 4, 4, 5]` used to live here, and the backend has been serving that exact list
- * as `settlement.houseWidths` all along — parsed into `GeneratorSettlement` and then ignored, the same
+ * as `settlement.houseWidths` all along, parsed into `GeneratorSettlement` and then ignored, the same
  * dead-served-data trap `nature.groundCover` was in. It is read now, so re-weighting a town's houses is a
  * data change rather than an edit here.
  *
@@ -260,12 +260,12 @@ const plotWidth = (type: BuildingType, rng: Rng, sizes: BuildingSizes, widths?: 
   return sizes.defaultOf?.(type)?.w ?? sizes.lengthOf(type)
 }
 
-/** The plot's depth — the served default, else the baked composition's own. */
+/** The plot's depth, the served default, else the baked composition's own. */
 const plotDepth = (type: BuildingType, len: number, sizes: BuildingSizes): number | null =>
   sizes.defaultOf?.(type)?.h ?? sizes.depthOf(type, len)
 
 /**
- * STEP 2 — the building MIX: ALWAYS one store + one hospital (every settlement has them), plus
+ * STEP 2, the building MIX: ALWAYS one store + one hospital (every settlement has them), plus
  * houses + big buildings scaled by size, shuffled so a street isn't a fixed order. Pure.
  */
 export function buildingMix(settlement: Settlement, rng: Rng, tuning: Tuning = resolveTuning(settlement)): BuildingType[] {
@@ -452,7 +452,7 @@ function streetLines(span: number, n: number, roadWidth: number): number[] {
 }
 
 /**
- * STEP 1 — the road GRID: H horizontal × V vertical FULL-SPAN 2-wide streets that cross into blocks,
+ * STEP 1, the road GRID: H horizontal × V vertical FULL-SPAN 2-wide streets that cross into blocks,
  * then a FRONTAGE on BOTH sides of every street (the rows of lots placePlots fills). Grid size is
  * clamped to the map so each block still fits a row of houses between streets.
  */
@@ -494,7 +494,7 @@ interface Rect {
 }
 
 /** The GROUND footprint rect for a building of `len` (road-parallel) × `depth` (perpendicular) at
- *  position `pos` on frontage `f`. Depth — NOT facade height — sets the away-from-road extent, so
+ *  position `pos` on frontage `f`. Depth, NOT facade height, sets the away-from-road extent, so
  *  collision + lots stay a small footprint while the facade rises tall only in the iso render. */
 function footprint(f: Frontage, pos: number, len: number, depth: number, setback: number): Rect {
   if (f.axis === 'col') {
@@ -507,7 +507,7 @@ function footprint(f: Frontage, pos: number, len: number, depth: number, setback
   return { c0, r0: pos, w: depth, h: len }
 }
 
-/** The footprint expanded by the setback toward the road — the front-yard the planner reserves so
+/** The footprint expanded by the setback toward the road, the front-yard the planner reserves so
  *  no neighbour lands on the driveway/yard between this building and its street. */
 function clearanceRect(foot: Rect, f: Frontage, setback: number, roadWidth: number): Rect {
   if (f.axis === 'col') {
@@ -520,7 +520,7 @@ function clearanceRect(foot: Rect, f: Frontage, setback: number, roadWidth: numb
     : { ...foot, c0: foot.c0 - setback, w: foot.w + setback } // road left → reserve left
 }
 
-/** A rect grown by `n` cells on every side — a candidate must clear this, so a 1-cell no-touch buffer
+/** A rect grown by `n` cells on every side, a candidate must clear this, so a 1-cell no-touch buffer
  *  (filled by trees) always sits between neighbouring buildings; they never abut. */
 function expandRect(r: Rect, n: number): Rect {
   return { c0: r.c0 - n, r0: r.r0 - n, w: r.w + 2 * n, h: r.h + 2 * n }
@@ -561,10 +561,10 @@ function findPlazaSpot(cols: number, rows: number, roads: boolean[][], size: num
 }
 
 /**
- * STEP 2.5 — reserve the town SQUARE: a road-free block as close to map CENTRE as possible, sized for
+ * STEP 2.5, reserve the town SQUARE: a road-free block as close to map CENTRE as possible, sized for
  * the settlement (a city's square is grander), falling back to a smaller square when a dense street
  * grid leaves no room for the big one. Deterministic (no rng). Null only on a map too small for any
- * square — the generator then just skips the fountain.
+ * square, the generator then just skips the fountain.
  */
 export function planPlaza(cols: number, rows: number, roads: boolean[][], settlement: Settlement, tuning: Tuning = resolveTuning(settlement)): PlazaRect | null {
   const sizes = [...new Set([tuning.plazaSize, 5])] // preferred, then a compact fallback
@@ -589,7 +589,7 @@ export function planPlaza(cols: number, rows: number, roads: boolean[][], settle
 }
 
 /**
- * STEP 3 — FILL every frontage with a tidy ROW of lots: walk it end-to-end placing buildings back
+ * STEP 3, FILL every frontage with a tidy ROW of lots: walk it end-to-end placing buildings back
  * to back (uniform-ish width + a side-yard gap), each SET BACK behind a front yard and FACING its
  * street. Store + hospital are placed first (every settlement gets them), the
  * rest fill as houses; where an essential doesn't fit a spot, a house fills it instead so rows never
@@ -599,8 +599,7 @@ export function placePlots(roads: boolean[][], frontages: Frontage[], cols: numb
   const plots: Plot[] = []
   if (frontages.length === 0) return plots
   const occ = roads.map(r => r.slice())
-  // Pre-mark the reserved town SQUARE as occupied so the round-robin fill builds houses AROUND it —
-  // the square is a focal landmark, claimed FIRST, not squeezed into leftovers. No extra moat needed:
+  // Pre-mark the reserved town SQUARE as occupied so the round-robin fill builds houses AROUND it, // the square is a focal landmark, claimed FIRST, not squeezed into leftovers. No extra moat needed:
   // every candidate already clears its own footprint+1 buffer against `occ`, so houses keep off it.
   if (reserved) {
     for (let r = reserved.r0; r < reserved.r0 + reserved.size; r++)
@@ -617,7 +616,7 @@ export function placePlots(roads: boolean[][], frontages: Frontage[], cols: numb
   const pending: BuildingType[] = demandedBuildings(rng, tuning)
 
   // Store + hospital ALWAYS go on the TOP horizontal street, facing FRONT (south = door toward the
-  // viewer) — good civic practice and it guarantees their labeled fronts show in 2D. Place them there
+  // viewer), good civic practice and it guarantees their labeled fronts show in 2D. Place them there
   // first; anything that can't fit stays in `pending` and the normal fill guarantees it elsewhere.
   const topSouth = frontages
     .filter(f => f.facing === 'south')
@@ -629,7 +628,7 @@ export function placePlots(roads: boolean[][], frontages: Frontage[], cols: numb
       while (pos + 2 <= topSouth.hi && guard++ < 1000) {
         const len = plotWidth(type, rng, sizes, tuning.houseWidths)
         const depth = len === null ? null : plotDepth(type, len, sizes)
-        if (len === null || depth === null) break // no backend size for this type — never invent one
+        if (len === null || depth === null) break // no backend size for this type, never invent one
         const foot = footprint(topSouth, pos, len, depth, tuning.setback)
         const reserve = expandRect(foot, 1)
         if (!rectClear(reserve, occ, cols, rows)) { pos += 1; continue }
@@ -684,7 +683,7 @@ export function placePlots(roads: boolean[][], frontages: Frontage[], cols: numb
       for (const type of tryTypes) {
         const len = plotWidth(type, rng, sizes, tuning.houseWidths)
         const depth = len === null ? null : plotDepth(type, len, sizes)
-        if (len === null || depth === null) continue // no backend size for this type — never invent one
+        if (len === null || depth === null) continue // no backend size for this type, never invent one
         const foot = footprint(f, pos, len, depth, tuning.setback)
         // Reserve the footprint + a 1-cell margin on every side (the road-side cell is the setback
         // yard, never the street; the other sides are the no-touch buffer trees fill) so no two

@@ -1,10 +1,10 @@
 /**
- * THE ⚑ RULES PANEL (§4.8, Week 6) — the component.
+ * THE ⚑ RULES PANEL (§4.8, Week 6), the component.
  *
  * The model tests pin the phrasing; these pin the two behaviours §4.8 asks for that a list alone does not
  * give you:
  *
- *   1. the connector PLACING MODE is stated on screen with a way out (§3.9 — it used to be invisible, and
+ *   1. the connector PLACING MODE is stated on screen with a way out (§3.9, it used to be invisible, and
  *      the instruction that did exist told you to switch to Top view, which had stopped being true), and
  *   2. an unavailable add-action shows its REASON rather than vanishing (§3.8's silent dead end).
  */
@@ -55,7 +55,7 @@ describe('three tabs, one workspace (§4.8)', () => {
     expect(screen.getByRole('tab', { name: 'Triggers' })).toHaveAttribute('aria-selected', 'false')
   })
 
-  it('reports a tab change instead of owning it — the caller persists which tab you were on', () => {
+  it('reports a tab change instead of owning it, the caller persists which tab you were on', () => {
     const props = setup()
     fireEvent.click(screen.getByRole('tab', { name: 'Connections' }))
     expect(props.onTab).toHaveBeenCalledWith('connections')
@@ -68,7 +68,7 @@ describe('three tabs, one workspace (§4.8)', () => {
   })
 })
 
-describe('TRIGGERS — the rules a level already has', () => {
+describe('TRIGGERS, the rules a level already has', () => {
   it('lists cell rules and character rules together', () => {
     setup()
     expect(screen.getByText('Cell')).toBeInTheDocument()
@@ -100,7 +100,7 @@ describe('TRIGGERS — the rules a level already has', () => {
   })
 })
 
-describe('CONNECTIONS — the placing mode is STATED (§3.9)', () => {
+describe('CONNECTIONS, the placing mode is STATED (§3.9)', () => {
   it('says nothing about placing while the mode is off', () => {
     setup({ tab: 'connections' })
     expect(screen.queryByText(/placing mode on/i)).not.toBeInTheDocument()
@@ -114,7 +114,7 @@ describe('CONNECTIONS — the placing mode is STATED (§3.9)', () => {
     expect(props.onStopPlacing).toHaveBeenCalled()
   })
 
-  it('carries NO instruction to switch view — the stale "Top view" text is gone', () => {
+  it('carries NO instruction to switch view, the stale "Top view" text is gone', () => {
     setup({ tab: 'connections', placingConnection: true })
     expect(screen.queryByText(/top view/i)).not.toBeInTheDocument()
   })
@@ -133,7 +133,7 @@ describe('CONNECTIONS — the placing mode is STATED (§3.9)', () => {
   })
 })
 
-describe('QUESTS — first class, with its prerequisite said out loud (§3.8)', () => {
+describe('QUESTS, first class, with its prerequisite said out loud (§3.8)', () => {
   it('lists giver, state and progress', () => {
     setup({ tab: 'quests' })
     expect(screen.getByText('Cull the goblins')).toBeInTheDocument()

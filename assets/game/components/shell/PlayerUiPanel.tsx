@@ -1,11 +1,11 @@
 /**
- * THE PLAYER'S UI — the panel, and the hybrid layout mode that goes with it.
+ * THE PLAYER'S UI, the panel, and the hybrid layout mode that goes with it.
  *
  * So the game keeps running and the real HUD becomes draggable on top of it. The panel and the overlay share
  * ONE piece of state (`useHudLayout`), which is what makes dragging and typing the same surface instead of
  * two views that drift.
  *
- * WHAT THIS DOES NOT DO: persist. Configuring the HUD has never existed in the product — there is no
+ * WHAT THIS DOES NOT DO: persist. Configuring the HUD has never existed in the product, there is no
  * `ui_profiles` table, no endpoint, nothing (T-115 is a spec). The defaults are transcribed from the
  * Tailwind classes each element is hardcoded with today, so this is a faithful, editable view of the real
  * layout; it simply has nowhere to save to. The panel says so rather than implying otherwise.
@@ -94,7 +94,7 @@ const CONTENT: Record<string, () => React.ReactNode> = {
     <div className="hslots">{[1, 2, 3, 4].map((n) => <b key={n}><s>{n}</s></b>)}</div>
   ),
   quest_tracker: () => (
-    <div className="hq"><b>Clear the cellar</b><i>Rats defeated — 2 of 5</i><i>Talk to the elder</i></div>
+    <div className="hq"><b>Clear the cellar</b><i>Rats defeated, 2 of 5</i><i>Talk to the elder</i></div>
   ),
   fps: () => <span className="hfps">60 fps · 5.8 ms</span>,
   exit: () => <span className="hbtn">■ Exit game</span>,
@@ -105,7 +105,7 @@ const CONTENT: Record<string, () => React.ReactNode> = {
     <div className="hpanel"><b>Bag</b><div className="hslotgrid">{Array.from({ length: 12 }, (_, i) => <i key={i} />)}</div></div>
   ),
   journal_panel: () => (
-    <div className="hpanel"><b>Journal</b><i>Clear the cellar — 2 of 5</i><i>Find the lost goat</i></div>
+    <div className="hpanel"><b>Journal</b><i>Clear the cellar, 2 of 5</i><i>Find the lost goat</i></div>
   ),
   debug_legend: () => (
     <div className="hdbg"><i className="d1">blocked</i><i className="d2">walkable</i><i className="d3">has a rule</i></div>
@@ -120,7 +120,7 @@ const NAME_BY_KEY = Object.fromEntries(HUD_ELEMENTS.map((e) => [e.k, e.n]))
  *
  * The stage is a REAL game window drawn at 1:1 and scaled as a whole, so what you arrange is what a player
  * on that screen size sees. Sizing it from the pane instead would make a 256px health bar look like it
- * swamps the screen purely because the editor's pane is narrow — the preview would lie about the one thing
+ * swamps the screen purely because the editor's pane is narrow, the preview would lie about the one thing
  * it exists to show.
  */
 export function HudOverlay({ state }: { state: HudLayoutState }) {
@@ -214,7 +214,7 @@ export function HudOverlay({ state }: { state: HudLayoutState }) {
                 <i>{HUD_ANCHOR_NAMES[placement.a]}</i>
                 {!placement.on && <u>hidden in play</u>}
               </span>
-              {/* On the corner OPPOSITE the pin — the only one free to move. A bottom-pinned piece grows
+              {/* On the corner OPPOSITE the pin, the only one free to move. A bottom-pinned piece grows
                   upward, so its grip goes on top; drawing it at the bottom-right regardless is what made
                   resizing read as inverted. */}
               <div
@@ -227,7 +227,7 @@ export function HudOverlay({ state }: { state: HudLayoutState }) {
         })}
       </div>
       <div className="hscale">
-        {`${stageW} × ${stageH} game window · ${zoom === 'full' ? 'true size — scroll to move around' : `shown at ${Math.round(fit * 100)}%`}`}
+        {`${stageW} × ${stageH} game window · ${zoom === 'full' ? 'true size, scroll to move around' : `shown at ${Math.round(fit * 100)}%`}`}
       </div>
     </div>
   )
@@ -247,7 +247,7 @@ const EXTRAS: Record<string, () => React.ReactNode> = {
       than &ldquo;while playing&rdquo;.
     </Hint>
   ),
-  nameplate: () => <Hint>Drawn on the canvas above each character, so it has no anchor of its own — it follows whoever it belongs to.</Hint>,
+  nameplate: () => <Hint>Drawn on the canvas above each character, so it has no anchor of its own, it follows whoever it belongs to.</Hint>,
 }
 
 /** The panel beside the running game. */
@@ -270,7 +270,7 @@ export function PlayerUiPanel({ state, onDone, gameId }: { state: HudLayoutState
 
       <div className="pfix">
         <Hint>
-          The game is running to the right. Drag any piece of the HUD on it — what you see is what your
+          The game is running to the right. Drag any piece of the HUD on it, what you see is what your
           players get.
         </Hint>
         {/* It saves now. This block used to say it did not, which was true until the profile model landed. */}
@@ -297,11 +297,11 @@ export function PlayerUiPanel({ state, onDone, gameId }: { state: HudLayoutState
             ))}
           </div>
         </div>}
-        <Hint>Two separate layouts, not one scaled down — a thumb needs a bigger action bar and no FPS readout.</Hint>
+        <Hint>Two separate layouts, not one scaled down, a thumb needs a bigger action bar and no FPS readout.</Hint>
         <div className="ctl">
           <span className="l"><span>While dragging</span></span>
           <div className="seg" role="group" aria-label="While dragging">
-            <button type="button" className={snap ? 'on' : ''} aria-pressed={snap} title="Snap to a 4px grid — hold Shift to nudge freely" onClick={() => setSnap(!snap)}>
+            <button type="button" className={snap ? 'on' : ''} aria-pressed={snap} title="Snap to a 4px grid, hold Shift to nudge freely" onClick={() => setSnap(!snap)}>
               Snap
             </button>
             <button type="button" className={guides ? 'on' : ''} aria-pressed={guides} title="Show the alignment grid" onClick={() => setGuides(!guides)}>
@@ -365,8 +365,7 @@ export function PlayerUiPanel({ state, onDone, gameId }: { state: HudLayoutState
             <Hint>Pinned, not placed. &ldquo;16 up from the bottom-left&rdquo; survives a resized window; &ldquo;y = 812&rdquo; does not.</Hint>
             <NumberField label="Across" value={placement.x} unit="px" onChange={(v) => patch(selected, { x: v })} />
             <NumberField label="In from the edge" value={placement.y} unit="px" onChange={(v) => patch(selected, { y: v })} />
-            {/* No reason —
-                they are the same kind of decision, so they get the same control. Bounded by the STAGE,
+            {/* No reason, they are the same kind of decision, so they get the same control. Bounded by the STAGE,
                 because a piece of HUD cannot usefully be wider than the window it sits in. */}
             <Slider label="Width" min={HUD_MIN_W} max={stageW} step={1} value={placement.w} unit="px"
               onChange={(v) => patch(selected, { w: v })} />
@@ -394,7 +393,7 @@ export function PlayerUiPanel({ state, onDone, gameId }: { state: HudLayoutState
               {`Measured on a ${stageW} × ${stageH} window, so it is the layout overlapping and not this preview
               being narrow. In the product today the vitals and the debug legend are both `}
               <code>fixed bottom-4 left-4</code>
-              {` — turn debug on and your health bar disappears underneath it.`}
+              {`, turn debug on and your health bar disappears underneath it.`}
             </u>
           </div>
         )}
@@ -404,7 +403,7 @@ export function PlayerUiPanel({ state, onDone, gameId }: { state: HudLayoutState
 
       <div className="pfoot">
         <button type="button" className="b pri" style={{ width: '100%', justifyContent: 'center' }} onClick={onDone}>
-          ✓ Done — back to the map
+          ✓ Done, back to the map
         </button>
       </div>
     </>

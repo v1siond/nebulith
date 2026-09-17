@@ -1,6 +1,6 @@
 /**
  * THE EDITOR'S SELF-DOCUMENTATION (games-page UX design §4.9, fixing §3.4 "Nothing tells the user
- * how to use the editor" — a P0).
+ * how to use the editor", a P0).
  *
  * Two surfaces, one contract: the chip states the current mode on the canvas, and the help sheet
  * lists every shortcut FROM the shortcut table. These tests render the real components and read the
@@ -22,14 +22,14 @@ describe('the canvas mode chip', () => {
     expect(screen.getByText(/Alt-click erases/)).toBeInTheDocument()
   })
 
-  it('is announced politely — it changes while the user works, so it must not steal focus', () => {
+  it('is announced politely, it changes while the user works, so it must not steal focus', () => {
     render(<CanvasModeChip connectorMode buildingTool={null} entityTool={null} armedTileLabel={null} />)
     const chip = screen.getByRole('status')
     expect(chip).toHaveAttribute('aria-live', 'polite')
     expect(chip).toHaveTextContent(/Placing a connection/)
   })
 
-  it('still shows in Select — a mode chip that disappears teaches nothing', () => {
+  it('still shows in Select, a mode chip that disappears teaches nothing', () => {
     render(<CanvasModeChip connectorMode={false} buildingTool={null} entityTool={null} armedTileLabel={null} />)
     expect(screen.getByRole('status')).toHaveTextContent(/Select/)
   })
@@ -68,6 +68,6 @@ describe('the help sheet', () => {
   it('names the ability bound RIGHT NOW, not a hardcoded key list', () => {
     render(<HelpSheet onClose={jest.fn()} specialKeys={['5', '6', '7', '8']} />)
     expect(screen.getByText(/Fire Slash/)).toBeInTheDocument()
-    expect(screen.getByText('quick-slot items').closest('tr')).toHaveTextContent('5 – 8')
+    expect(screen.getByText('quick-slot items').closest('tr')).toHaveTextContent('5, 8')
   })
 })

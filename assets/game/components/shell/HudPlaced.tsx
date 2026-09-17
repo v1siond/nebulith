@@ -8,13 +8,13 @@ import { layoutFor } from '@/game/uiProfile'
  * Put a piece of the HUD where the PROFILE says, not where a Tailwind literal says.
  *
  * They could not be moved because their position was `fixed bottom-16 left-1/2` written into
- * the markup — there was nothing to move. Wrapping a piece in this makes its position DATA: the profile's
+ * the markup, there was nothing to move. Wrapping a piece in this makes its position DATA: the profile's
  * placement for that element, in the form factor being played.
  *
  * The placement model is anchor + offset (see `hudLayout`), so "16 up from the bottom-left" still means the
  * bottom-left on a phone, a laptop and a 4K monitor.
  *
- * No placement, no render — and it says why. The seeded default carries one for every element in the
+ * No placement, no render, and it says why. The seeded default carries one for every element in the
  * inventory, so a missing placement means the profile did not load, and drawing the piece at a position
  * this file invented is exactly the hardcoded fallback the migration exists to remove.
  */

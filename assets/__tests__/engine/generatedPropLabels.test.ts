@@ -6,9 +6,9 @@ import '@/__tests__/helpers/installZoneSeed' // the generator reads every season
  * so the ONLY way an ascii tile paints a baked IMAGE is the label→image path (render/shared.labelTileImage,
  * iso.ts:2082). The generator's scattered nature props (flower / mushroom / crystal / rock) carried NO label,
  * so under ascii they fell through to the legacy glyph drawers (`+`, `O`, `♠`, `◆`, or `?`). Every one of these
- * labels ALREADY exists as a baked tile in BOTH the ascii and emoji DB tilesets — the generator just wasn't
+ * labels ALREADY exists as a baked tile in BOTH the ascii and emoji DB tilesets, the generator just wasn't
  * emitting it. This test asserts each scattered prop now carries its baked backend label, so it resolves to the
- * baked image (in EVERY style) instead of a glyph — "everything is a baked image resolved by label."
+ * baked image (in EVERY style) instead of a glyph, "everything is a baked image resolved by label."
  */
 import { generateStage, type StageProp } from '@/engine/stageGenerator'
 import { labelTileImage } from '@/engine/render/shared'

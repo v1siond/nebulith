@@ -1,7 +1,7 @@
 /**
  * THE LEVEL MAP places levels where their DOORWAYS say they are.
  *
- * The old layout put every level on a circle by array index — the edges were right, the
+ * The old layout put every level on a circle by array index, the edges were right, the
  * positions meant nothing. These tests are about the positions, because that is the entire change.
  */
 import {
@@ -48,7 +48,7 @@ describe('levels land in the direction their doorway pointed', () => {
     expect(at(placed, 'b')).toMatchObject({ gx: 1, gy: 0 })
   })
 
-  it('puts a NORTH door UP — negative y, the screen convention', () => {
+  it('puts a NORTH door UP, negative y, the screen convention', () => {
     const placed = layoutLevels([level('a', [door('b', [10, 0])]), level('b')], 'a')
     expect(at(placed, 'b')).toMatchObject({ gx: 0, gy: -1 })
   })

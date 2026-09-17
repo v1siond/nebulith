@@ -1,8 +1,8 @@
 /**
- * useEditorHistory — the React wiring for the editor's undo/redo. It owns a bounded snapshot
+ * useEditorHistory, the React wiring for the editor's undo/redo. It owns a bounded snapshot
  * ring (see editorHistory.ts + mapSnapshot.ts) and binds Ctrl+Z (undo) / Ctrl+Y or Ctrl+Shift+Z (redo).
  *
- * Contract: call the returned `checkpoint()` at the START of every map-mutating edit — BEFORE it mutates — so a
+ * Contract: call the returned `checkpoint()` at the START of every map-mutating edit, BEFORE it mutates, so a
  * later undo restores the exact pre-edit map. The keybinds are ignored while typing in a text field, so undo in
  * an input still edits text, not the map.
  */
@@ -13,11 +13,11 @@ import type { Entity } from '@/game/types'
 import { captureMapSnapshot, restoreMapSnapshot, type MapSnapshot } from './mapSnapshot'
 import { HISTORY_LIMIT, createHistory, checkpoint as pushCheckpoint, redo as redoHistory, undo as undoHistory } from './editorHistory'
 
-type Step = typeof undoHistory // undo/redo share one signature — one applier drives both
+type Step = typeof undoHistory // undo/redo share one signature, one applier drives both
 
 interface UseEditorHistoryArgs {
   gridRef: MutableRefObject<IsometricGrid | null>
-  /** live entities (React state mirrored to a ref) — snapshotted alongside the grid. */
+  /** live entities (React state mirrored to a ref), snapshotted alongside the grid. */
   entitiesRef: MutableRefObject<Entity[]>
   /** push restored entities back into React state. */
   setEntities: (entities: Entity[]) => void
@@ -33,7 +33,7 @@ export function useEditorHistory({ gridRef, entitiesRef, setEntities, onRestore 
     return grid ? captureMapSnapshot(grid, entitiesRef.current) : null
   }, [gridRef, entitiesRef])
 
-  /** Record the current map as an undo checkpoint — call at the top of a mutating edit, before it mutates. */
+  /** Record the current map as an undo checkpoint, call at the top of a mutating edit, before it mutates. */
   const checkpoint = useCallback(() => {
     const snap = snapshot()
     if (!snap) return
@@ -59,7 +59,7 @@ export function useEditorHistory({ gridRef, entitiesRef, setEntities, onRestore 
   const undo = useCallback(() => applyStep(undoHistory), [applyStep])
   const redo = useCallback(() => applyStep(redoHistory), [applyStep])
 
-  /** Drop all history — call when the whole map is REPLACED (template load / stage generate) so an undo can't
+  /** Drop all history, call when the whole map is REPLACED (template load / stage generate) so an undo can't
    *  drag back the previous map's content. */
   const reset = useCallback(() => {
     historyRef.current = createHistory<MapSnapshot>()

@@ -1,12 +1,12 @@
 /**
- * REAL-CANVAS ground-decor tests — the standard (jsdom can't read pixels).
+ * REAL-CANVAS ground-decor tests, the standard (jsdom can't read pixels).
  *
  * MODEL (nebulith MAP-MODEL §4/§8, TILE-BACKEND-MIGRATION §5/§7): every tile is a baked backend IMAGE
  * resolved by its LABEL; there are NO glyphs, no glyph fallbacks. Ground decor (flowers/clover/pebbles) is
- * a tile like any other — so it must draw its OWN baked decor tile image (resolved by label for the active
+ * a tile like any other, so it must draw its OWN baked decor tile image (resolved by label for the active
  * style, colour-composited via `tintedImage`), NOT a fillText dingbat. These tests render the production
  * draw path to a real rasteriser (@napi-rs/canvas) and read the PIXELS: a baked decor tile stand-in painted
- * on the ground comes back as an IMAGE (a filled diamond), recoloured to the decor colour — never a glyph.
+ * on the ground comes back as an IMAGE (a filled diamond), recoloured to the decor colour, never a glyph.
  *
  * Routing: makeGroundDecor carries the decor tile's LABEL, and the render (groundDecorImage → labelTileImage)
  * resolves that label to the baked image per style. Both proven here, per style (emoji AND ascii).
@@ -59,10 +59,10 @@ beforeAll(async () => {
 })
 afterAll(() => { delete styleTile('emoji', EMOJI_LABEL); delete styleTile('ascii', ASCII_LABEL) })
 
-describe('ground decor renders its BAKED IMAGE (not a fillText glyph) — iso, per style', () => {
+describe('ground decor renders its BAKED IMAGE (not a fillText glyph), iso, per style', () => {
   test('EMOJI: decor with no colour draws its NATIVE baked image (a filled GREEN diamond, not a small glyph)', () => {
     const s = renderDecorIso(EMOJI_LABEL, undefined, EMOJI_STYLE)
-    expect(s.opaque).toBeGreaterThan(300)   // a full ground-diamond image fill — a dingbat glyph could never
+    expect(s.opaque).toBeGreaterThan(300)   // a full ground-diamond image fill, a dingbat glyph could never
     expect(s.greenish).toBeGreaterThan(300) // the GREEN baked tile itself is on the ground (image, not a glyph)
     expect(s.magentaish).toBe(0)
   })
@@ -78,7 +78,7 @@ describe('ground decor renders its BAKED IMAGE (not a fillText glyph) — iso, p
   })
 })
 
-describe('the decor COLOUR setting filters the decor image — iso, per style', () => {
+describe('the decor COLOUR setting filters the decor image, iso, per style', () => {
   test('EMOJI: a GREEN decor tile set to magenta comes back MAGENTA, no green survives', () => {
     const s = renderDecorIso(EMOJI_LABEL, MAGENTA, EMOJI_STYLE)
     expect(s.opaque).toBeGreaterThan(300)
@@ -93,7 +93,7 @@ describe('the decor COLOUR setting filters the decor image — iso, per style', 
   })
 })
 
-describe('routing — makeGroundDecor carries the tile LABEL, and the render resolves its baked image', () => {
+describe('routing, makeGroundDecor carries the tile LABEL, and the render resolves its baked image', () => {
   // NOTE: makeGroundDecor reads the module styleCatalog('ascii'); only our ascii decor label is present, so the
   // per-cell pick lands on it for the 'spring' zone (its settings.colors carries 'spring').
   test('pickGroundDecor exposes the decor tile LABEL (the render swap key)', () => {

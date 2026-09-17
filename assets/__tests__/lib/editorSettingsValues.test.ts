@@ -1,12 +1,12 @@
 /**
  * THE EDITOR-SETTINGS STORE HOLDS MORE THAN PANEL GEOMETRY (§5.1 #7).
  *
- * `/api/editor_settings` is a key → jsonb store — the backend column has always been `:map`. The frontend
+ * `/api/editor_settings` is a key → jsonb store, the backend column has always been `:map`. The frontend
  * client, though, was typed `Record<string, PanelGeometry>`, so the only thing that could be persisted was
  * a floating panel's `{x,y,w,h}`. That is why the player camera range still admits, at `templates.tsx:234`,
- * "Not persisted yet — a follow-up": there was nowhere to put it.
+ * "Not persisted yet, a follow-up": there was nowhere to put it.
  *
- * Widening the value type is the whole fix. These tests pin the reading half — a stored value must survive
+ * Widening the value type is the whole fix. These tests pin the reading half, a stored value must survive
  * the round trip, and a MALFORMED one must be ignored rather than trusted into the editor, because this
  * store is shared and a bad row must never break the page (the same rule `parseGames` follows).
  */
@@ -36,14 +36,14 @@ describe('readNumberSetting', () => {
   })
 })
 
-describe('readGeometrySetting — the panel geometry the store already held', () => {
+describe('readGeometrySetting, the panel geometry the store already held', () => {
   const geo = { x: 10, y: 20, w: 300, h: 200 }
 
   it('still reads a full geometry', () => {
     expect(readGeometrySetting({ settings: geo }, 'settings')).toEqual(geo)
   })
 
-  it('ignores a partial geometry — half a rectangle would place a panel off-screen', () => {
+  it('ignores a partial geometry, half a rectangle would place a panel off-screen', () => {
     expect(readGeometrySetting({ settings: { x: 10, y: 20 } } as never, 'settings')).toBeUndefined()
   })
 
@@ -54,10 +54,10 @@ describe('readGeometrySetting — the panel geometry the store already held', ()
 
 /**
  * `readBooleanSetting` backs the inspector's remembered section state (§4.7, Week 5). Its whole job is to
- * keep "never touched" distinguishable from "explicitly false" — see `sectionIsOpen`, which needs that
+ * keep "never touched" distinguishable from "explicitly false", see `sectionIsOpen`, which needs that
  * difference to honour §4.7's defaults without overriding a user who closed a section on purpose.
  */
-describe('readBooleanSetting — three states, not two', () => {
+describe('readBooleanSetting, three states, not two', () => {
   it('reads a stored true and a stored false', () => {
     expect(readBooleanSetting({ 'inspector.section.size': { value: true } }, 'inspector.section.size')).toBe(true)
     expect(readBooleanSetting({ 'inspector.section.size': { value: false } }, 'inspector.section.size')).toBe(false)
@@ -67,7 +67,7 @@ describe('readBooleanSetting — three states, not two', () => {
     expect(readBooleanSetting({}, 'inspector.section.size')).toBeUndefined()
   })
 
-  it('is undefined for a cleared value — null is not false', () => {
+  it('is undefined for a cleared value, null is not false', () => {
     expect(readBooleanSetting({ 'inspector.section.size': { value: null } }, 'inspector.section.size')).toBeUndefined()
   })
 

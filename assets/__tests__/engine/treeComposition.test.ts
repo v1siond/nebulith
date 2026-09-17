@@ -1,9 +1,9 @@
 /**
- * COMPOSITION MODEL — the tree is the user's reference: every rich ascii asset is a COLLECTION of ascii tiles
+ * COMPOSITION MODEL, the tree is the user's reference: every rich ascii asset is a COLLECTION of ascii tiles
  * placed across CELLS + LEVELS, stamped from the BACKEND DB tileset (no hardcoded frontend tile art), and each
- * tile is an independently SELECTABLE block — the SAME lego model buildings use (see legoBlocks.test.ts).
+ * tile is an independently SELECTABLE block, the SAME lego model buildings use (see legoBlocks.test.ts).
  * These assert grid state directly after stampComposition: the stacked per-cell blocks, the selectable-block
- * shape (heightLevel + height>=1 — the picker's gate), collision, and that glyph+colour come from the DB tile.
+ * shape (heightLevel + height>=1, the picker's gate), collision, and that glyph+colour come from the DB tile.
  */
 import { styleCatalog } from '@/engine/tileset/styleTiles'
 import { IsometricGrid } from '@/engine/IsometricGrid'
@@ -14,7 +14,7 @@ import { useSeedTileset } from '@/__tests__/helpers/tilesetSeed'
 
 const mkGrid = () => new IsometricGrid({ cols: 14, rows: 14, cellSize: 16, isoScale: 1.4 })
 
-describe('tree composition — every ascii asset is a collection of selectable DB tiles', () => {
+describe('tree composition, every ascii asset is a collection of selectable DB tiles', () => {
   useSeedTileset() // the DB-equivalent tileset the runtime loads (carries the tree_small / tree_dead compositions)
 
   /**
@@ -58,7 +58,7 @@ describe('tree composition — every ascii asset is a collection of selectable D
     }
   })
 
-  test('EVERY composition tile is an independently selectable block (heightLevel set + height>=1 — the picker gate)', () => {
+  test('EVERY composition tile is an independently selectable block (heightLevel set + height>=1, the picker gate)', () => {
     const grid = mkGrid()
     stampComposition(grid, 'tree_small', 7, 7, 'spring', 0)
     const tiles = grid.assets.filter(a => a.type === 'tree_small')
@@ -83,15 +83,15 @@ describe('tree composition — every ascii asset is a collection of selectable D
     expect(leaf.color).toBe(dbLeaf.color)   // canopy colour from the DB palette
   })
 
-  test('only the TRUNK cell blocks — the canopy is walkable overhead (you walk under the tree)', () => {
+  test('only the TRUNK cell blocks, the canopy is walkable overhead (you walk under the tree)', () => {
     const grid = mkGrid()
     stampComposition(grid, 'tree_small', 7, 7, 'spring', 0)
     expect(grid.isBlocked(7, 7)).toBe(true)  // the trunk cell blocks (trunk_base walkable:false at L0)
-    // the canopy leaves are walkable, so the ground under them stays open — even though the trunk cell ALSO
+    // the canopy leaves are walkable, so the ground under them stays open, even though the trunk cell ALSO
     // holds a walkable canopy tile above it, the trunk's collision is never cleared.
-    expect(grid.isBlocked(6, 7)).toBe(false) // canopy-left cell — walkable
-    expect(grid.isBlocked(8, 7)).toBe(false) // canopy-right cell — walkable
-    expect(grid.isBlocked(7, 6)).toBe(false) // canopy-front cell — walkable
+    expect(grid.isBlocked(6, 7)).toBe(false) // canopy-left cell, walkable
+    expect(grid.isBlocked(8, 7)).toBe(false) // canopy-right cell, walkable
+    expect(grid.isBlocked(7, 6)).toBe(false) // canopy-front cell, walkable
   })
 
   test('a per-tree variant picks a different canopy shade (keep-all-variants: seasonal forests)', () => {
@@ -120,8 +120,8 @@ describe('tree composition — every ascii asset is a collection of selectable D
     expect(col.map(t => t.label)).toEqual(['trunk_base', 'trunk', 'snag'])
   })
 
-  // ── The optimized living `tree` — EXACTLY 2 tiles (thin tall trunk + bigger leaf cube on top) ──────────
-  test('the tree stamps EXACTLY 2 cells — a thin tall trunk on the ground + a bigger leaf cube on its top', () => {
+  // ── The optimized living `tree`, EXACTLY 2 tiles (thin tall trunk + bigger leaf cube on top) ──────────
+  test('the tree stamps EXACTLY 2 cells, a thin tall trunk on the ground + a bigger leaf cube on its top', () => {
     const grid = mkGrid()
     const placed = stampComposition(grid, 'tree', 7, 7, 'spring', 0)
     expect(placed).toBe(2) // (down from 3)
@@ -131,7 +131,7 @@ describe('tree composition — every ascii asset is a collection of selectable D
     expect(col.map(t => t.heightLevel)).toEqual([0, 2]) // trunk ON the flat ground; leaf lifted to the trunk top
 
     // The user's hand-tuned settings ride the cell: trunk = Height(scaleY) 3.15 at Zoom(scale) 0.6 (thin tall
-    // post); leaf = Height(scaleY) 2 at Zoom(scale) 1.35 (a bigger cube). All DATA — nothing hardcoded.
+    // post); leaf = Height(scaleY) 2 at Zoom(scale) 1.35 (a bigger cube). All DATA, nothing hardcoded.
     const trunk = grid.assets.find(a => a.label === 'trunk_mid')!
     const leaf = grid.assets.find(a => a.label === 'leaf_center')!
     expect(trunk.scale).toBe(0.6)
@@ -140,26 +140,26 @@ describe('tree composition — every ascii asset is a collection of selectable D
     expect(leaf.scaleY).toBe(2)
   })
 
-  test('the tree: only the trunk cell blocks — the leaf cube is walkable overhead', () => {
+  test('the tree: only the trunk cell blocks, the leaf cube is walkable overhead', () => {
     const grid = mkGrid()
     stampComposition(grid, 'tree', 7, 7, 'spring', 0)
     expect(grid.isBlocked(7, 7)).toBe(true) // the trunk column blocks its cell
     expect(grid.assets.find(a => a.label === 'leaf_center')!.blocking).toBeFalsy() // canopy walkable overhead
   })
 
-  test('a per-tree variant tints the leaf a different canopy SHADE (spring green → pink) — colour is a SETTING', () => {
+  test('a per-tree variant tints the leaf a different canopy SHADE (spring green → pink), colour is a SETTING', () => {
     const g0 = mkGrid(); stampComposition(g0, 'tree', 7, 7, 'spring', 0)
     const g3 = mkGrid(); stampComposition(g3, 'tree', 7, 7, 'spring', 3)
     const c0 = g0.assets.find(a => a.label === 'leaf_center')!.color
     const c3 = g3.assets.find(a => a.label === 'leaf_center')!.color
-    expect(c0).toBe('#7cc46a') // spring canopy shade 0 — the GREEN tree
-    expect(c3).toBe('#e79ec8') // spring canopy shade 3 — the PINK tree; same label, colour is the per-tree SETTING
+    expect(c0).toBe('#7cc46a') // spring canopy shade 0, the GREEN tree
+    expect(c3).toBe('#e79ec8') // spring canopy shade 3, the PINK tree; same label, colour is the per-tree SETTING
   })
 
-  // ── The variant SET — small / tall / round, and the trunkless bush ────────────────────────────────────
+  // ── The variant SET, small / tall / round, and the trunkless bush ────────────────────────────────────
   const TREE_VARIANTS = ['tree', 'tree_tall', 'tree_stub', 'tree_round'] as const
 
-  test('every tree variant is EXACTLY 2 tiles — a trunk + a leaf (optimization: fewest tiles possible)', () => {
+  test('every tree variant is EXACTLY 2 tiles, a trunk + a leaf (optimization: fewest tiles possible)', () => {
     for (const kind of TREE_VARIANTS) {
       const grid = mkGrid()
       const placed = stampComposition(grid, kind, 7, 7, 'spring', 0)
@@ -169,11 +169,11 @@ describe('tree composition — every ascii asset is a collection of selectable D
     }
   })
 
-  test('a bush is the trunkless variant — a SINGLE leaf tile, no trunk cell', () => {
+  test('a bush is the trunkless variant, a SINGLE leaf tile, no trunk cell', () => {
     for (const kind of ['bush', 'bush_round']) {
       const grid = mkGrid()
       const placed = stampComposition(grid, kind, 7, 7, 'spring', 0)
-      expect(placed).toBe(1) // one tile — the leanest asset
+      expect(placed).toBe(1) // one tile, the leanest asset
       const cells = grid.assets.filter(a => a.type === kind)
       expect(cells.map(a => a.label)).toEqual(['leaf_center'])
       expect(cells.some(a => a.label!.startsWith('trunk'))).toBe(false) // NO trunk

@@ -3,15 +3,15 @@
  * cuboid and BENDS ITS CORNERS into a smooth rounded silhouette.
  *
  * MODEL: `shape: 'circle'` draws the tile's NORMAL cube (its baked art painted on all three shaded faces) and
- * then CLIPS the silhouette to an ELLIPSE of the block's OWN projected extent — so the corners are rounded away
+ * then CLIPS the silhouette to an ELLIPSE of the block's OWN projected extent, so the corners are rounded away
  * but the shape stays PROPORTIONAL to the block: a TALL block → a TALL OVAL (an egg standing up), a unit cube →
  * a rounder blob. It is NOT a repainted sphere: there is no spherical relight, no single flat surface, and no
  * fixed circle (rx==ry). These render to a real rasteriser (@napi-rs/canvas) and read the PIXELS:
  *   • the form is ROUND (its bounding-box corners are transparent; a rect would fill them) and its centre is filled;
- *   • the silhouette is PROPORTIONAL — a tall (height-3) block's rounded silhouette is clearly TALLER than wide,
+ *   • the silhouette is PROPORTIONAL, a tall (height-3) block's rounded silhouette is clearly TALLER than wide,
  *     a unit (height-1) block's is roughly square: the aspect follows the block, never a fixed 1:1;
- *   • the tile's ART survives — a TWO-BAND tile (green top, blue bottom) drawn as a circle still shows BOTH bands;
- *   • the cuboid's NORMAL per-face shading is KEPT — the top face is brighter than the front walls, and the two
+ *   • the tile's ART survives, a TWO-BAND tile (green top, blue bottom) drawn as a circle still shows BOTH bands;
+ *   • the cuboid's NORMAL per-face shading is KEPT, the top face is brighter than the front walls, and the two
  *     front walls differ from each other (real 3 faces, NOT one uniformly-lit ball);
  *   • the tile keeps its BACKGROUND COLOUR where the art is transparent (the cube fills colour then paints art);
  *   • the colour SETTING still FILTERS the tile (a magenta colour → a magenta form; a green baked image is
@@ -33,9 +33,9 @@ const MAGENTA = '#ff00ff'
 const GREEN = '#00c800'
 const BLUE = '#1030ff'
 
-// Rounded-block geometry — the SAME dims the display-mode cube test uses. drawIsoRoundedBlock clips the cube to
+// Rounded-block geometry, the SAME dims the display-mode cube test uses. drawIsoRoundedBlock clips the cube to
 // the block's INSCRIBED ellipse (roundedBlockEllipse: rx = TW, ry = √((stack/2)² + stack·TH), centred at the
-// cuboid mid-height) — tangent to the slanted faces so EVERY corner is bent away. Read its geometry straight
+// cuboid mid-height), tangent to the slanted faces so EVERY corner is bent away. Read its geometry straight
 // from the implementation so the bounding-box probes track it (n=1 here → rx 40, ry ≈ 36.9, centre 140,168).
 const TW = 40, TH = 20, BH = 44, CX = 140, CY = 190
 const { cx: BCX, cy: BCY, rx: RX, ry: RY } = roundedBlockEllipse({ x: CX, y: CY }, TW, TH, BH, 1)
@@ -47,7 +47,7 @@ const bandsDv = (): { char: string; color: string; image: ImageVisual } => ({ ch
 
 beforeAll(async () => {
   H = installRealCanvas().harness
-  H.registerBands(BANDS, GREEN, BLUE) // a two-band tile: green top, blue bottom — its ART must survive the round
+  H.registerBands(BANDS, GREEN, BLUE) // a two-band tile: green top, blue bottom, its ART must survive the round
   await H.warm([BANDS])
 })
 
@@ -58,7 +58,7 @@ function regionOpaque(canvas: Canvas, x: number, y: number, w: number, h: number
   for (let i = 0; i < data.length; i += 4) if (data[i + 3] >= 128) n++
   return n
 }
-/** Mean luminance of the opaque pixels in a sub-rect (0 when none) — the shading probe. */
+/** Mean luminance of the opaque pixels in a sub-rect (0 when none), the shading probe. */
 function regionMeanLum(canvas: Canvas, x: number, y: number, w: number, h: number): number {
   const { data } = canvas.getContext('2d').getImageData(x, y, w, h)
   let sum = 0, n = 0
@@ -68,7 +68,7 @@ function regionMeanLum(canvas: Canvas, x: number, y: number, w: number, h: numbe
   }
   return n ? sum / n : 0
 }
-/** The tight opaque bounding box (alpha ≥ 128) inside a scan window — the aspect-ratio probe. */
+/** The tight opaque bounding box (alpha ≥ 128) inside a scan window, the aspect-ratio probe. */
 function opaqueBounds(canvas: Canvas, x: number, y: number, w: number, h: number): { w: number; h: number } {
   const { data } = canvas.getContext('2d').getImageData(x, y, w, h)
   let minX = w, minY = h, maxX = -1, maxY = -1
@@ -86,7 +86,7 @@ function opaqueBounds(canvas: Canvas, x: number, y: number, w: number, h: number
 }
 
 describe('shape = circle: ROUNDS the cuboid (bounding-box corners cut) but keeps it filled', () => {
-  test('the centre is filled but every bounding-box CORNER is transparent — a round form, not a rectangle', () => {
+  test('the centre is filled but every bounding-box CORNER is transparent, a round form, not a rectangle', () => {
     const cv = H.makeCanvas(300, 280)
     const ctx = cv.getContext('2d') as unknown as CanvasRenderingContext2D
     drawIsoRoundedBlock(ctx, { x: CX, y: CY }, TW, TH, BH, 1, { char: 'o', color: MAGENTA }, MAGENTA)
@@ -104,9 +104,9 @@ describe('shape = circle: ROUNDS the cuboid (bounding-box corners cut) but keeps
     drawIsoRoundedBlock(cv.getContext('2d') as unknown as CanvasRenderingContext2D, { x: CX, y: CY }, TW, TH, BH, 1, { char: 'o', color: MAGENTA }, MAGENTA)
     const fill = regionOpaque(cv, BB.x, BB.y, BB.w, BB.h) / (BB.w * BB.h)
     expect(fill).toBeGreaterThan(0.5)  // a rounded solid, clearly filled
-    expect(fill).toBeLessThan(0.85)    // but clearly NOT a full rectangle — the corners are cut
+    expect(fill).toBeLessThan(0.85)    // but clearly NOT a full rectangle, the corners are cut
 
-    // Contrast: a solid rectangle over the SAME box fills nearly all of it — proves the ratio test discriminates.
+    // Contrast: a solid rectangle over the SAME box fills nearly all of it, proves the ratio test discriminates.
     const rectCv = H.makeCanvas(300, 280)
     const rctx = rectCv.getContext('2d') as unknown as CanvasRenderingContext2D
     rctx.fillStyle = MAGENTA
@@ -115,7 +115,7 @@ describe('shape = circle: ROUNDS the cuboid (bounding-box corners cut) but keeps
   })
 })
 
-describe('shape = circle is PROPORTIONAL to the block — the rounded silhouette follows the cuboid, never a fixed 1:1', () => {
+describe('shape = circle is PROPORTIONAL to the block, the rounded silhouette follows the cuboid, never a fixed 1:1', () => {
   test('a TALL (height-3) block rounds to a TALL OVAL; a UNIT (height-1) block to a roughly-square blob', () => {
     // TALL: n=3 → ry = √(66² + 132·20) ≈ 84, rx = 40 → the silhouette bbox is ~80 wide × ~167 tall (an egg standing up).
     const tallCv = H.makeCanvas(300, 280)
@@ -132,7 +132,7 @@ describe('shape = circle is PROPORTIONAL to the block — the rounded silhouette
     expect(unit.w).toBeGreaterThan(0)
     // The tall block's oval is clearly TALLER than wide (the block's proportions carried into the silhouette).
     expect(tallRatio).toBeGreaterThan(1.6)
-    // The unit block's is roughly square — NOT a tall oval — so the aspect is NOT fixed; it follows the block.
+    // The unit block's is roughly square, NOT a tall oval, so the aspect is NOT fixed; it follows the block.
     expect(unitRatio).toBeLessThan(1.3)
     // And the taller block yields a decisively taller silhouette than the unit block (aspect tracks height).
     expect(tallRatio).toBeGreaterThan(unitRatio * 1.4)
@@ -149,10 +149,10 @@ describe('shape = circle KEEPS the tile painting AND the cuboid face shading', (
     const s = H.scan(cv)
     expect(s.opaque).toBeGreaterThan(300) // the round form is drawn
     expect(s.greenish).toBeGreaterThan(0) // the tile's TOP band shows
-    expect(s.blueish).toBeGreaterThan(0)  // and its BOTTOM band shows — the painting is intact under the round clip
+    expect(s.blueish).toBeGreaterThan(0)  // and its BOTTOM band shows, the painting is intact under the round clip
   })
 
-  test('the CUBOID face shading is kept — top face brighter than the walls, and the two walls differ (3 real faces, not a uniform ball)', () => {
+  test('the CUBOID face shading is kept, top face brighter than the walls, and the two walls differ (3 real faces, not a uniform ball)', () => {
     const cv = H.makeCanvas(300, 280)
     // Solid colour, no glyph/image → the faces render as clean per-face shades (top full, left/right darkened).
     drawIsoRoundedBlock(cv.getContext('2d') as unknown as CanvasRenderingContext2D, { x: CX, y: CY }, TW, TH, BH, 1, { char: '', color: MAGENTA }, MAGENTA)
@@ -173,7 +173,7 @@ describe('shape = circle honours the colour SETTING per style (emoji + ascii), p
 
   beforeAll(async () => {
     setStyleTile('emoji', LABEL, makeStyleTile(LABEL, { char: '🌊', color: '#2f6fbf', image: SRC, height: 1 }))
-    H.registerSolid(SRC, GREEN) // a GREEN baked tile — the colour setting must RECOLOUR it (never leave it green)
+    H.registerSolid(SRC, GREEN) // a GREEN baked tile, the colour setting must RECOLOUR it (never leave it green)
     await H.warm([SRC])
   })
   afterAll(() => { delete styleTile('emoji', LABEL) })
@@ -197,7 +197,7 @@ describe('shape = circle honours the colour SETTING per style (emoji + ascii), p
     expect(s.greenish).toBe(0)
   })
 
-  test('negative: with NO colour set, the block falls back to grey — NOT magenta, and still not green', () => {
+  test('negative: with NO colour set, the block falls back to grey, NOT magenta, and still not green', () => {
     const cv = H.makeCanvas(260, 300)
     drawIsoAssetAscii(cv.getContext('2d') as unknown as CanvasRenderingContext2D, 130, 210, asset({}), 30, 15, 0, false, 'day', EMOJI_STYLE)
     const s = H.scan(cv)
@@ -240,10 +240,10 @@ describe('2D: shape = circle rounds the cell face but keeps its painting', () =>
     expect(regionOpaque(cv, boxX + TW2 - 8, boxTop + TH2 - 8, 8, 8)).toBe(0)
   })
 
-  test('square (default): the SAME cell FILLS its box corners — proving circle changed only the form', () => {
+  test('square (default): the SAME cell FILLS its box corners, proving circle changed only the form', () => {
     const cv = H.makeCanvas(320, 260)
     draw2DLabeledCell(cv.getContext('2d') as unknown as CanvasRenderingContext2D, X, BASEY, TW2, TH2, asset({}), EMOJI_STYLE)
-    // a square cell paints the whole rect — its corners are opaque (the circle cut them)
+    // a square cell paints the whole rect, its corners are opaque (the circle cut them)
     expect(regionOpaque(cv, boxX, boxTop, 8, 8)).toBeGreaterThan(50)
     expect(regionOpaque(cv, boxX + TW2 - 8, boxTop + TH2 - 8, 8, 8)).toBeGreaterThan(50)
   })
@@ -251,10 +251,10 @@ describe('2D: shape = circle rounds the cell face but keeps its painting', () =>
 
 // ── The rounded block KEEPS THE BACKGROUND COLOUR. The cube face fills the tile's colour THEN paints the art on
 //    top, so the whole face reads the colour even where the (emoji) art is transparent. Rounding it must keep that
-//    — an emoji tile's transparent gaps must show the tile's background colour, never the dark scene through it. ──
+//   , an emoji tile's transparent gaps must show the tile's background colour, never the dark scene through it. ──
 describe('shape = circle KEEPS THE BACKGROUND COLOUR where the art is transparent (cube parity)', () => {
   const CENTER = '/tiles/emoji/__shape_centered.png'
-  // A tile whose ART is a GREEN square in the MIDDLE on an otherwise TRANSPARENT field — like an emoji that
+  // A tile whose ART is a GREEN square in the MIDDLE on an otherwise TRANSPARENT field, like an emoji that
   // covers only part of its cell. The transparent border is exactly where "the background colour" must show.
   beforeAll(async () => {
     H.registerCentered(CENTER, GREEN)
@@ -266,18 +266,18 @@ describe('shape = circle KEEPS THE BACKGROUND COLOUR where the art is transparen
   const centeredDv = (fill: string): { char: string; color: string; image: ImageVisual } =>
     ({ char: '', color: fill, image: { kind: 'image', src: CENTER } })
 
-  test('the rounded block carries BOTH the tile colour fill (blue) AND the art (green) — the background is not lost', () => {
+  test('the rounded block carries BOTH the tile colour fill (blue) AND the art (green), the background is not lost', () => {
     const cv = H.makeCanvas(300, 280)
     drawIsoRoundedBlock(cv.getContext('2d') as unknown as CanvasRenderingContext2D, { x: CX, y: CY }, TW, TH, BH, 1, centeredDv(BLUE), undefined)
     const s = H.scan(cv)
     // The source art is a GREEN square on a TRANSPARENT field, so the ONLY way BLUE reaches the pixels is the
-    // FACE FILL painted into those transparent gaps — blueish > 0 proves the background colour is NOT lost.
+    // FACE FILL painted into those transparent gaps, blueish > 0 proves the background colour is NOT lost.
     expect(s.blueish).toBeGreaterThan(0)  // the tile's background colour fills the faces (the transparent gaps)
     expect(s.greenish).toBeGreaterThan(0) // the centred art survives on top of the fill
   })
 
   test('rounded block ≙ cube: BOTH show the colour fill (blue) AND the art (green) for the SAME tile', () => {
-    // The cube: colour fill + art on top — the reference the rounded block must match.
+    // The cube: colour fill + art on top, the reference the rounded block must match.
     const cubeCv = H.makeCanvas(300, 280)
     drawIsoTileBlock(cubeCv.getContext('2d') as unknown as CanvasRenderingContext2D, { x: CX, y: CY }, TW, TH, BH, 1, centeredDv(BLUE), undefined)
     const cube = H.scan(cubeCv)
@@ -291,9 +291,9 @@ describe('shape = circle KEEPS THE BACKGROUND COLOUR where the art is transparen
     expect(round.greenish).toBeGreaterThan(0) // and the SAME art
   })
 
-  test('the colour SETTING (tint) still fills the block — a magenta-set centred-art tile → a magenta body', () => {
+  test('the colour SETTING (tint) still fills the block, a magenta-set centred-art tile → a magenta body', () => {
     const cv = H.makeCanvas(300, 280)
-    // With a tint the whole tile (fill + art) recolours to magenta, exactly like the cube — no green survives.
+    // With a tint the whole tile (fill + art) recolours to magenta, exactly like the cube, no green survives.
     drawIsoRoundedBlock(cv.getContext('2d') as unknown as CanvasRenderingContext2D, { x: CX, y: CY }, TW, TH, BH, 1, centeredDv('#888888'), MAGENTA)
     const s = H.scan(cv)
     expect(s.magentaish).toBeGreaterThan(0)
@@ -304,17 +304,17 @@ describe('shape = circle KEEPS THE BACKGROUND COLOUR where the art is transparen
   })
 })
 
-// ── 2D/Top route their circle/square through the SAME shared dispatch (drawFlatTileForShape) iso uses — no
+// ── 2D/Top route their circle/square through the SAME shared dispatch (drawFlatTileForShape) iso uses, no
 //    per-view `if (shape === 'circle')`. This tests the SEAM directly: given a face painter, the map either
-//    paints it plain (square/undefined) or clips it round (circle) — the corners bent away, no relight. ──
+//    paints it plain (square/undefined) or clips it round (circle), the corners bent away, no relight. ──
 describe('shape dispatch (drawFlatTileForShape): the shared flat shape seam for 2D + Top', () => {
   const DCX = 150, DCY = 130, DRX = 60, DRY = 60
   const paintFace = (ctx: CanvasRenderingContext2D): void => {
     ctx.fillStyle = MAGENTA
-    ctx.fillRect(DCX - DRX, DCY - DRY, DRX * 2, DRY * 2) // a full rect — the drawer decides if its corners survive
+    ctx.fillRect(DCX - DRX, DCY - DRY, DRX * 2, DRY * 2) // a full rect, the drawer decides if its corners survive
   }
 
-  test("'circle' clips the face ROUND — centre kept, bounding-box corners cut", () => {
+  test("'circle' clips the face ROUND, centre kept, bounding-box corners cut", () => {
     const cv = H.makeCanvas(320, 260)
     const ctx = cv.getContext('2d') as unknown as CanvasRenderingContext2D
     drawFlatTileForShape(ctx, 'circle', () => paintFace(ctx), DCX, DCY, DRX, DRY)
@@ -323,13 +323,13 @@ describe('shape dispatch (drawFlatTileForShape): the shared flat shape seam for 
     expect(regionOpaque(cv, DCX + DRX - 8, DCY + DRY - 8, 8, 8)).toBe(0)  // bottom-right corner cut
   })
 
-  test("'square' and undefined both paint the PLAIN face — corners FILLED (the same default drawer)", () => {
+  test("'square' and undefined both paint the PLAIN face, corners FILLED (the same default drawer)", () => {
     for (const shape of ['square', undefined] as const) {
       const cv = H.makeCanvas(320, 260)
       const ctx = cv.getContext('2d') as unknown as CanvasRenderingContext2D
       drawFlatTileForShape(ctx, shape, () => paintFace(ctx), DCX, DCY, DRX, DRY)
       expect(regionOpaque(cv, DCX - 4, DCY - 4, 8, 8)).toBeGreaterThan(50)       // centre painted
-      expect(regionOpaque(cv, DCX - DRX, DCY - DRY, 8, 8)).toBeGreaterThan(50)   // corner FILLED — no round clip
+      expect(regionOpaque(cv, DCX - DRX, DCY - DRY, 8, 8)).toBeGreaterThan(50)   // corner FILLED, no round clip
       expect(regionOpaque(cv, DCX + DRX - 8, DCY + DRY - 8, 8, 8)).toBeGreaterThan(50)
     }
   })

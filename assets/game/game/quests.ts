@@ -1,5 +1,5 @@
 /**
- * Nebulith quest / mission system — pure, immutable domain logic.
+ * Nebulith quest / mission system, pure, immutable domain logic.
  *
  * Implements the lifecycle from COMBAT-AND-SYSTEMS-SPEC.md §10:
  *   available → (accept) → active → (events advance objectives) → completed → (turn in) → turned_in
@@ -9,7 +9,7 @@
  * dispatch is table-driven (Open/Closed) so adding a kind never edits the advancer.
  *
  * Contract types (Quest/Objective/Reward/QuestState/ObjectiveKind) live in @/game/types and are
- * shared across combat, inventory and entities — treat them as read-only here.
+ * shared across combat, inventory and entities, treat them as read-only here.
  */
 
 import type { Objective, ObjectiveKind, Quest, Reward } from '@/game/types'
@@ -32,8 +32,7 @@ export interface QuestProgress {
 }
 
 // ── turn-in result ──────────────────────────────────────────────────
-// turnIn hands back the turned-in quest plus the rewards for the CALLER to grant —
-// the module stays pure and never touches inventory/stats itself.
+// turnIn hands back the turned-in quest plus the rewards for the CALLER to grant, // the module stays pure and never touches inventory/stats itself.
 
 export interface TurnInResult {
   quest: Quest
@@ -42,7 +41,7 @@ export interface TurnInResult {
 
 // ── objective-kind dispatch (Open/Closed) ───────────────────────────
 // One matcher per ObjectiveKind decides whether an incoming event advances a given
-// objective. Adding a kind means adding a row here — no advancer edits.
+// objective. Adding a kind means adding a row here, no advancer edits.
 
 type EventOfKind<K extends ObjectiveKind> = Extract<QuestEvent, { kind: K }>
 
@@ -78,7 +77,7 @@ function advanceObjective(objective: Objective): Objective {
 /** Return the objective advanced if the event matches it, otherwise the same objective. */
 function applyEvent(objective: Objective, event: QuestEvent): Objective {
   if (!eventAdvances(objective, event)) return objective
-  if (objective.done) return objective // already finished — clamp, don't over-count
+  if (objective.done) return objective // already finished, clamp, don't over-count
   return advanceObjective(objective)
 }
 

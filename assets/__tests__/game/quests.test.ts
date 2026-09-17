@@ -40,7 +40,7 @@ const KILL = (enemyType: string): QuestEvent => ({ kind: 'kill', enemyType })
 const TRAVEL = (place: string): QuestEvent => ({ kind: 'travel', place })
 const FIND = (npcId: string): QuestEvent => ({ kind: 'find', npcId })
 
-describe('acceptQuest — available → active, guarded', () => {
+describe('acceptQuest, available → active, guarded', () => {
   it('moves an available quest to active', () => {
     const quest = acceptQuest(mkQuest({ state: 'available' }))
     expect(quest.state).toBe('active')
@@ -63,7 +63,7 @@ describe('acceptQuest — available → active, guarded', () => {
   )
 })
 
-describe('recordEvent — kill objectives', () => {
+describe('recordEvent, kill objectives', () => {
   it('increments only the matching enemyType', () => {
     const quest = mkQuest({
       state: 'active',
@@ -117,7 +117,7 @@ describe('recordEvent — kill objectives', () => {
   })
 })
 
-describe('recordEvent — travel and find objective kinds', () => {
+describe('recordEvent, travel and find objective kinds', () => {
   it('advances a travel objective on reaching the place', () => {
     const quest = mkQuest({
       state: 'active',
@@ -153,7 +153,7 @@ describe('recordEvent — travel and find objective kinds', () => {
   it('does not cross-advance: a kill event never advances a travel objective', () => {
     const quest = mkQuest({
       state: 'active',
-      // same target string, different kind — must not match
+      // same target string, different kind, must not match
       objectives: [mkObjective({ kind: 'travel', target: 'goblin', required: 1 })],
     })
     const after = recordEvent(quest, KILL('goblin'))
@@ -182,7 +182,7 @@ describe('recordEvent — travel and find objective kinds', () => {
   })
 })
 
-describe('recordEvent — quest completion', () => {
+describe('recordEvent, quest completion', () => {
   it('flips state to completed when ALL objectives are done', () => {
     let quest = mkQuest({
       state: 'active',
@@ -238,7 +238,7 @@ describe('objectiveProgress', () => {
   })
 })
 
-describe('progress — completed/total/ratio for auto display', () => {
+describe('progress, completed/total/ratio for auto display', () => {
   it('reports the right counts and ratio ("3/5")', () => {
     const objectives: Objective[] = [
       mkObjective({ done: true }),
@@ -264,7 +264,7 @@ describe('progress — completed/total/ratio for auto display', () => {
   })
 })
 
-describe('turnIn — guarded to completed, yields rewards', () => {
+describe('turnIn, guarded to completed, yields rewards', () => {
   const rewards: Reward[] = [
     { kind: 'xp', amount: 250 },
     { kind: 'item', amount: 1, itemId: 'sword-of-dawn' },
@@ -291,7 +291,7 @@ describe('turnIn — guarded to completed, yields rewards', () => {
   })
 })
 
-describe('full flow — accept → kill → complete → turn in', () => {
+describe('full flow, accept → kill → complete → turn in', () => {
   it('runs the headline quest loop end to end', () => {
     let quest = mkQuest({
       state: 'available',

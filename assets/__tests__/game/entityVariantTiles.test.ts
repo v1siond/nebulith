@@ -1,7 +1,7 @@
 import '@/__tests__/helpers/installTilesetSeed' // install the DB-equivalent tileset the runtime loads
 /**
  * Entities as IMAGES: typed enemies (goblin/wolf/…) and person VARIANTS (male/female + age/exotic)
- * now resolve to baked Noto PNGs, not live glyphs — so they render identically on every OS (no Segoe
+ * now resolve to baked Noto PNGs, not live glyphs, so they render identically on every OS (no Segoe
  * tofu). These assert the resolution returns an ImageVisual pointing at a bundled PNG that exists on
  * disk, that a variant/type with no baked tile falls back to the BASE figure (never a raw glyph), and
  * that the shared entityStyleOverride routes enemies by type and people by variant.
@@ -39,7 +39,7 @@ describe('typed enemies resolve to baked images', () => {
     const v = resolveVisual('enemy', EMOJI_STYLE, enemyTileId(type, EMOJI_STYLE))
     expect(v.kind).toBe('image')
     const img = v as ImageVisual
-    expect(img.src).toMatch(/\/tiles\/emoji\/(baked|catalog)\/.*\.png$/) // a baked Noto PNG (entity or catalog dir — a slug can be both)
+    expect(img.src).toMatch(/\/tiles\/emoji\/(baked|catalog)\/.*\.png$/) // a baked Noto PNG (entity or catalog dir, a slug can be both)
     expect(img.char).toBe(char) // source glyph kept as label + first-paint fallback
     expect(onDisk(img.src)).toBe(true)
   })
@@ -50,7 +50,7 @@ describe('typed enemies resolve to baked images', () => {
   })
 
   // One engine, N styles: a goblin is a goblin in every style, and /tiles/ascii/goblin.png exists.
-  it('resolves the enemy tile in WHATEVER style is active — same label, different png', () => {
+  it('resolves the enemy tile in WHATEVER style is active, same label, different png', () => {
     expect(enemyTileId('goblin', ASCII_STYLE)).toBe('ascii:goblin')
     expect(enemyTileId('goblin', EMOJI_STYLE)).toBe('emoji:goblin')
   })

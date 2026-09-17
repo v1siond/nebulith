@@ -1,5 +1,5 @@
 import { makeStyleTile, setStyleCatalog, styleCatalog } from '@/engine/tileset/styleTiles'
-import '@/__tests__/helpers/installTilesetSeed' // the opening is READ from the loaded composition — install what production loads
+import '@/__tests__/helpers/installTilesetSeed' // the opening is READ from the loaded composition, install what production loads
 import { generateStage, doorCells, type StageData } from '@/engine/stageGenerator'
 import { buildingDoorOffset, facingRotation, rotateFootprintOffset } from '@/engine/buildingCatalog'
 import { resolveComposition } from '@/engine/tileset/tileset'
@@ -8,7 +8,7 @@ import { makeRng } from '@/lib/math'
 // G7 (REQUIREMENTS-cell-block-tile.md:110): "The walk-in ENTRANCE opening must ALWAYS match the door's
 // width." The backend now derives BOTH the facade doors and the entrance apron from one `door_cols/1` list
 // (2 doors → a 2-block entrance), so the frontend's walkable opening has to be read from the SAME
-// composition — never re-derived. These tests assert the opening equals the STAMPED door cells.
+// composition, never re-derived. These tests assert the opening equals the STAMPED door cells.
 
 function genSeeded(opts: Parameters<typeof generateStage>[0], seed: number): StageData {
   const orig = Math.random
@@ -20,7 +20,7 @@ function genSeeded(opts: Parameters<typeof generateStage>[0], seed: number): Sta
   }
 }
 
-/** The grid cells a building's composition really puts its ground-level `door` tiles on — computed with the
+/** The grid cells a building's composition really puts its ground-level `door` tiles on, computed with the
  *  SAME rotation the stamp applies (rotateFootprintOffset), so this is the drawn doorway, not a re-derivation. */
 function stampedDoorCells(b: StageData['buildings'][number]): Set<string> {
   const comp = resolveComposition(styleCatalog('ascii'), b.kind)
@@ -40,7 +40,7 @@ function stampedDoorCells(b: StageData['buildings'][number]): Set<string> {
 
 const TOWN_SEEDS = [1, 7, 12345, 777, 42, 3]
 
-describe('G7 — the walkable ENTRANCE opening matches the door width', () => {
+describe('G7, the walkable ENTRANCE opening matches the door width', () => {
   test('the seeded compositions really do carry BOTH 1-door and 2-door facades (the premise)', () => {
     // Odd facade → one centred door column; even facade → the backend's centred 2-wide doorway.
     expect(buildingDoorOffset('house_3')).toEqual({ x: 1, width: 1 })
@@ -51,13 +51,13 @@ describe('G7 — the walkable ENTRANCE opening matches the door width', () => {
   })
 
   test('doorCells spans the FULL door width on ALL FOUR facings (east/west along rows, like the stamp rotates it)', () => {
-    // A south-baked 6×4 facade, door span [2,4) — the rect is the ON-GRID footprint, so east/west swap axes.
+    // A south-baked 6×4 facade, door span [2,4), the rect is the ON-GRID footprint, so east/west swap axes.
     const flat = { col: 10, row: 20, w: 6, h: 4 } // south/north: 6 wide (facade) × 4 deep
     expect(doorCells('south', flat, { x: 2, width: 2 })).toEqual([{ col: 12, row: 23 }, { col: 13, row: 23 }])
     expect(new Set(doorCells('north', flat, { x: 2, width: 2 }).map(c => `${c.col},${c.row}`)))
       .toEqual(new Set(['12,20', '13,20']))
     // east/west: the SAME 6-long facade now runs down the ROWS (rect is 4 wide × 6 tall), so a 2-wide door
-    // opens TWO rows on the edge — one cell would leave half the drawn doorway walled off.
+    // opens TWO rows on the edge, one cell would leave half the drawn doorway walled off.
     const turned = { col: 10, row: 20, w: 4, h: 6 }
     expect(new Set(doorCells('west', turned, { x: 2, width: 2 }).map(c => `${c.col},${c.row}`)))
       .toEqual(new Set(['10,22', '10,23']))
@@ -65,7 +65,7 @@ describe('G7 — the walkable ENTRANCE opening matches the door width', () => {
       .toEqual(new Set(['13,22', '13,23']))
   })
 
-  test('a 1-door composition opens 1 cell and a 2-door composition opens 2 — the opening EQUALS the stamped doors', () => {
+  test('a 1-door composition opens 1 cell and a 2-door composition opens 2, the opening EQUALS the stamped doors', () => {
     let sawSingle = false
     let sawDouble = false
     const seenFacings = new Set<string>()
@@ -96,8 +96,7 @@ describe('G7 — the walkable ENTRANCE opening matches the door width', () => {
 
   test('the WALLS block everywhere except the doors, and the ROOM inside is walkable', () => {
     // A building is a room you walk into, not a solid lump: the perimeter is wall (opened only at the door
-    // cells) and every interior cell is clear. That is what makes the interior reveal mean anything —
-    // You cannot enter a footprint that blocks all the way through.
+    // cells) and every interior cell is clear. That is what makes the interior reveal mean anything, // You cannot enter a footprint that blocks all the way through.
     for (const seed of TOWN_SEEDS) {
       const stage = genSeeded({ zone: 'spring', variant: 'town', cols: 48, rows: 48 }, seed)
       expect(stage.buildings.length).toBeGreaterThan(0)
@@ -123,7 +122,7 @@ describe('G7 — the walkable ENTRANCE opening matches the door width', () => {
   test('NO tileset loaded → NO buildings, said out loud (a size is never invented)', () => {
     // This used to assert a "degraded path" that still planted buildings. It does not any more, and that is
     // the point: a building's SIZE is backend data (the composition footprints), so with none loaded there is
-    // no size to plan and nothing to stamp (MAP-MODEL §8, the no-fallback law — `layoutPass`). Inventing a
+    // no size to plan and nothing to stamp (MAP-MODEL §8, the no-fallback law, `layoutPass`). Inventing a
     // 4×3 house here would put a building on the map that the backend cannot stamp, which is exactly the
     // class of "fake tile" being removed everywhere else.
     const loaded = styleCatalog('ascii')
@@ -132,7 +131,7 @@ describe('G7 — the walkable ENTRANCE opening matches the door width', () => {
       setStyleCatalog({ id: 'ascii', name: 'ASCII', tiles: {}, compositions: {}, terrain: {} })
       const stage = genSeeded({ zone: 'spring', variant: 'town', cols: 40, rows: 40 }, 1)
       expect(stage.buildings).toEqual([])
-      // The one thing worse than an empty town is a SILENTLY empty town — the warning has to name the cause.
+      // The one thing worse than an empty town is a SILENTLY empty town, the warning has to name the cause.
       expect(warn).toHaveBeenCalled()
       expect(warn.mock.calls.some(c => String(c[0]).includes('no building compositions are loaded'))).toBe(true)
     } finally {

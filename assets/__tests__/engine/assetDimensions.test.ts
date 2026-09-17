@@ -1,6 +1,6 @@
 import { resolveAssetDrawSize } from '@/engine/render/assetDimensions'
 
-// #77/#78 — per-element dimensions resolved into a draw (w, h) + a bottom-anchor lift.
+// #77/#78, per-element dimensions resolved into a draw (w, h) + a bottom-anchor lift.
 // View semantics (locked with the user):
 //   billboard (iso + 2D): horizontal = Width (scaleX), vertical = Height (scaleY, grows UP from base)
 //   overhead (top):       horizontal = Width (scaleX), vertical = Depth  (scaleZ)
@@ -9,7 +9,7 @@ import { resolveAssetDrawSize } from '@/engine/render/assetDimensions'
 
 const BASE = 100
 
-describe('resolveAssetDrawSize — defaults (no dims set)', () => {
+describe('resolveAssetDrawSize, defaults (no dims set)', () => {
   it('billboard: undefined dims render at the base square, no lift', () => {
     expect(resolveAssetDrawSize(BASE, {}, 'billboard')).toEqual({ w: 100, h: 100, baseLift: 0 })
   })
@@ -18,7 +18,7 @@ describe('resolveAssetDrawSize — defaults (no dims set)', () => {
   })
 })
 
-describe('resolveAssetDrawSize — uniform Zoom (scale)', () => {
+describe('resolveAssetDrawSize, uniform Zoom (scale)', () => {
   it('billboard: zoom 2 doubles both axes and lifts the center so the base stays planted', () => {
     // h grows base→200, so the center must rise (200-100)/2 = 50 to keep the bottom fixed.
     expect(resolveAssetDrawSize(BASE, { scale: 2 }, 'billboard')).toEqual({ w: 200, h: 200, baseLift: 50 })
@@ -28,7 +28,7 @@ describe('resolveAssetDrawSize — uniform Zoom (scale)', () => {
   })
 })
 
-describe('resolveAssetDrawSize — Width (scaleX) stretches horizontally in every view', () => {
+describe('resolveAssetDrawSize, Width (scaleX) stretches horizontally in every view', () => {
   it('billboard: width 1.5 widens only, height unchanged, no lift', () => {
     expect(resolveAssetDrawSize(BASE, { scaleX: 1.5 }, 'billboard')).toEqual({ w: 150, h: 100, baseLift: 0 })
   })
@@ -37,7 +37,7 @@ describe('resolveAssetDrawSize — Width (scaleX) stretches horizontally in ever
   })
 })
 
-describe('resolveAssetDrawSize — Height (scaleY) grows UP in billboard views only', () => {
+describe('resolveAssetDrawSize, Height (scaleY) grows UP in billboard views only', () => {
   it('billboard: height 3 makes it 3× tall and lifts by (300-100)/2 = 100 so the base is fixed', () => {
     expect(resolveAssetDrawSize(BASE, { scaleY: 3 }, 'billboard')).toEqual({ w: 100, h: 300, baseLift: 100 })
   })
@@ -46,7 +46,7 @@ describe('resolveAssetDrawSize — Height (scaleY) grows UP in billboard views o
   })
 })
 
-describe('resolveAssetDrawSize — Depth (scaleZ) stretches vertically in the overhead view only', () => {
+describe('resolveAssetDrawSize, Depth (scaleZ) stretches vertically in the overhead view only', () => {
   it('overhead: depth 2 stretches the ground-y axis, no lift', () => {
     expect(resolveAssetDrawSize(BASE, { scaleZ: 2 }, 'overhead')).toEqual({ w: 100, h: 200, baseLift: 0 })
   })
@@ -55,7 +55,7 @@ describe('resolveAssetDrawSize — Depth (scaleZ) stretches vertically in the ov
   })
 })
 
-describe('resolveAssetDrawSize — combined Zoom × per-axis', () => {
+describe('resolveAssetDrawSize, combined Zoom × per-axis', () => {
   it('billboard: zoom 2 × width 1.5 × height 2 → w=300, h=400, lift=(400-100)/2=150', () => {
     expect(resolveAssetDrawSize(BASE, { scale: 2, scaleX: 1.5, scaleY: 2 }, 'billboard'))
       .toEqual({ w: 300, h: 400, baseLift: 150 })

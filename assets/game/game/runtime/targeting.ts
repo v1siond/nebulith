@@ -1,5 +1,5 @@
 // Pure target selection + per-enemy runtime bookkeeping for the combat tick.
-// Moved out of the game-engine page (stage 2). Pure — no React, no DOM.
+// Moved out of the game-engine page (stage 2). Pure, no React, no DOM.
 import type { Entity, CombatState } from '@/game/types'
 import { isDead } from '@/game/combat'
 import { entityCovers } from '@/game/entities'
@@ -25,7 +25,7 @@ export const makeEnemyRuntime = (): EnemyRuntime => ({
 })
 
 /** Is this unit a living (not dead/awaiting-respawn) ATTACKABLE target? "Can be attacked" is the per-unit
- *  `hittable` SETTING (isAttackable), NOT the kind — so any unit flagged attackable is a valid target and a
+ *  `hittable` SETTING (isAttackable), NOT the kind, so any unit flagged attackable is a valid target and a
  *  `hittable: false` enemy is passive scenery. Enemies default attackable, so existing saves are unchanged. */
 export function isLivingEnemy(entity: Entity, runtime: EnemyRuntime): boolean {
   if (!isAttackable(entity)) return false
@@ -50,7 +50,7 @@ const ADJACENT_DELTAS: ReadonlyArray<readonly [number, number]> = [
 
 /**
  * Pick the enemy the player is attacking: the aimed cell wins; otherwise scan down
- * the 8-way aim line up to the weapon's `reach` (melee 1–2, ranged 6–12); otherwise the
+ * the 8-way aim line up to the weapon's `reach` (melee 1-2, ranged 6-12); otherwise the
  * nearest living adjacent enemy; null if none in reach. Dead enemies are skipped.
  */
 export const RANGED_RANGE = 6 // default cells a ranged enemy reaches (enemy retaliation)
@@ -66,7 +66,7 @@ export function findTarget(
   const faced = aimCell(player, cellSize, use2D)
   const facedEnemy = enemyAtCell(entities, runtime, faced.col, faced.row)
   if (facedEnemy) return facedEnemy
-  // Scan further down the aim line for reach > 1 (2H melee = 2, ranged = 6–12).
+  // Scan further down the aim line for reach > 1 (2H melee = 2, ranged = 6-12).
   if (reach >= 2) {
     const [dCol, dRow] = aimDelta(player, use2D)
     const pCol = Math.floor(player.x / cellSize)
@@ -80,8 +80,7 @@ export function findTarget(
 }
 
 /** A living enemy whose FOOTPRINT covers (col,row), or null. Footprint-aware (not just the anchor):
- *  enemies are multi-cell (a goblin is 2 wide × 3 tall), so a swing at ANY of its cells lands —
- *  otherwise attacking from the side its body extends toward silently missed (#36). Topmost-first. */
+ *  enemies are multi-cell (a goblin is 2 wide × 3 tall), so a swing at ANY of its cells lands, *  otherwise attacking from the side its body extends toward silently missed (#36). Topmost-first. */
 function enemyAtCell(
   entities: readonly Entity[],
   runtime: EnemyRuntime,

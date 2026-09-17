@@ -7,7 +7,7 @@ import type { ZoneId } from '@/engine/zones'
 import { useSeedTileset } from '@/__tests__/helpers/tilesetSeed'
 import { resolveComposition } from '@/engine/tileset/tileset'
 
-// 4-neighbour flood fill over walkable cells — proves the open floor is ONE region.
+// 4-neighbour flood fill over walkable cells, proves the open floor is ONE region.
 function reachableCount(collision: boolean[][], start: { col: number; row: number }): number {
   const cols = collision[0].length
   const rows = collision.length
@@ -33,7 +33,7 @@ function reachableCount(collision: boolean[][], start: { col: number; row: numbe
 const TEMPLE_SIZE = { cols: 44, rows: 34 } as const
 const temple = (zone: ZoneId) => generateStage({ zone, variant: 'temple', ...TEMPLE_SIZE })
 
-describe('generateStage — temple interior: floor is fully connected (flood-fill guarantee)', () => {
+describe('generateStage, temple interior: floor is fully connected (flood-fill guarantee)', () => {
   it.each(['summer', 'winter', 'desert'] as const)('%s: every walkable cell is reachable from spawn', zone => {
     // Run several seeds: the flood-fill repair must make the dungeon floor ONE region every time,
     // even after blocking hazard pools carve the halls.
@@ -47,7 +47,7 @@ describe('generateStage — temple interior: floor is fully connected (flood-fil
   })
 })
 
-describe('generateStage — temple interior: walls are collision + border enclosed', () => {
+describe('generateStage, temple interior: walls are collision + border enclosed', () => {
   it('emits blocking temple_wall props whose cells are all blocked in the collision grid', () => {
     const stage = temple('autumn')
     const walls = stage.props.filter(p => p.type === 'temple_wall')
@@ -70,14 +70,14 @@ describe('generateStage — temple interior: walls are collision + border enclos
   })
 })
 
-describe('generateStage — temple interior: rooms + a boss/altar chamber + pillared halls', () => {
+describe('generateStage, temple interior: rooms + a boss/altar chamber + pillared halls', () => {
   it('builds a central altar chamber ringed with pillars (the boss set-piece)', () => {
     const stage = temple('summer')
     const altars = stage.props.filter(p => p.type === 'altar')
     const pillars = stage.props.filter(p => p.type === 'pillar')
     expect(altars.length).toBe(1) // one boss altar
     expect(pillars.length).toBeGreaterThan(4) // colonnades + the altar ring → pillared halls
-    // the altar blocks and sits on a blocked cell; it lives in the NORTH (top) half — the boss chamber
+    // the altar blocks and sits on a blocked cell; it lives in the NORTH (top) half, the boss chamber
     const altar = altars[0]
     expect(altar.blocking).toBe(true)
     expect(stage.collision[altar.row][altar.col]).toBe(true)
@@ -88,13 +88,13 @@ describe('generateStage — temple interior: rooms + a boss/altar chamber + pill
     const stage = temple('summer')
     const walkable = stage.collision.flat().filter(c => !c).length
     const total = stage.cols * stage.rows
-    // a room-and-corridor dungeon leaves a meaningful — but far from full — open floor
+    // a room-and-corridor dungeon leaves a meaningful, but far from full, open floor
     expect(walkable).toBeGreaterThan(total * 0.12)
     expect(walkable).toBeLessThan(total * 0.7)
   })
 })
 
-describe('generateStage — temple interior: seasons yield DISTINCT palettes', () => {
+describe('generateStage, temple interior: seasons yield DISTINCT palettes', () => {
   const wallColors = (zone: ZoneId): Set<string> =>
     new Set(temple(zone).props.filter(p => p.type === 'temple_wall').map(p => p.color))
 
@@ -125,7 +125,7 @@ describe('generateStage — temple interior: seasons yield DISTINCT palettes', (
   })
 })
 
-describe('generateStage — temple interior: seasonal hazards + torches', () => {
+describe('generateStage, temple interior: seasonal hazards + torches', () => {
   it('lights the halls with wall torches (non-blocking)', () => {
     const stage = temple('autumn')
     const torches = stage.props.filter(p => p.type === 'torch')
@@ -163,12 +163,12 @@ describe('generateStage — temple interior: seasonal hazards + torches', () => 
   })
 })
 
-describe('generateStage — temple interior: a clear walkable entrance/spawn region', () => {
+describe('generateStage, temple interior: a clear walkable entrance/spawn region', () => {
   it('keeps a walkable, reachable hall in the south (entrance) band', () => {
     for (let i = 0; i < 6; i++) {
       const stage = temple('summer')
       const reachable = reachableCount(stage.collision, stage.spawn)
-      // find a walkable cell in the bottom quarter, centre 40% of the columns — the entrance hall
+      // find a walkable cell in the bottom quarter, centre 40% of the columns, the entrance hall
       const rowLo = Math.floor(stage.rows * 0.72)
       const colLo = Math.floor(stage.cols * 0.3)
       const colHi = Math.floor(stage.cols * 0.7)
@@ -185,7 +185,7 @@ describe('generateStage — temple interior: a clear walkable entrance/spawn reg
   })
 })
 
-describe('generateStage — temple interior: seeded enemies land on floor cells', () => {
+describe('generateStage, temple interior: seeded enemies land on floor cells', () => {
   it('scatters temple enemies (skeletons/guardians/wraiths) only onto walkable floor', () => {
     const stage = temple('summer')
     const enemies = scatterEntities({
@@ -202,7 +202,7 @@ describe('generateStage — temple interior: seeded enemies land on floor cells'
   })
 })
 
-describe('generateStage — temple STRUCTURE: a grand settlement building composition', () => {
+describe('generateStage, temple STRUCTURE: a grand settlement building composition', () => {
   useSeedTileset() // the temple_8 composition comes from the loaded backend tileset for this describe
 
   // The overworld temple is a BUILDING TYPE placed in settlements (like store/hospital). Generate
@@ -216,7 +216,7 @@ describe('generateStage — temple STRUCTURE: a grand settlement building compos
     return null
   }
 
-  it('stamps the temple SHELL as collision — its doorway and its inside stay walkable', () => {
+  it('stamps the temple SHELL as collision, its doorway and its inside stay walkable', () => {
     const found = findTempleBuilding()
     expect(found).not.toBeNull()
     const { stage, temple: b } = found!
@@ -225,12 +225,12 @@ describe('generateStage — temple STRUCTURE: a grand settlement building compos
     const cells: { col: number; row: number }[] = []
     const top = b.row - (b.height - 1)
     for (let r = top; r <= b.row; r++) for (let c = b.col; c < b.col + b.length; c++) cells.push({ col: c, row: r })
-    // temple_8's 8-wide facade bakes a CENTRED 2-wide doorway, so the walk-in opening is 2 cells (G7 — the
+    // temple_8's 8-wide facade bakes a CENTRED 2-wide doorway, so the walk-in opening is 2 cells (G7, the
     // entrance always matches the door), not the one cell the hardcoded span used to open.
     expect(b.doorCells).toHaveLength(2)
     const doorSet = new Set(b.doorCells.map(d => `${d.col},${d.row}`))
     for (const d of b.doorCells) expect(stage.collision[d.row][d.col]).toBe(false) // the door is a way in
-    // The reservation is a HOLLOW shell: the wall ring blocks, the inside does not — which is what makes the
+    // The reservation is a HOLLOW shell: the wall ring blocks, the inside does not, which is what makes the
     // temple something you can walk INTO rather than a solid slab on the map.
     for (const c of cells) {
       const onRing = c.col === b.col || c.col === b.col + b.length - 1 || c.row === top || c.row === b.row

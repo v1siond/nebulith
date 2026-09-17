@@ -1,10 +1,10 @@
 /**
- * LEVEL ORDER — the ordered template ids that make a game's levels.
+ * LEVEL ORDER, the ordered template ids that make a game's levels.
  *
  * This is what survives the deletion of the localStorage Game model (§3.14b #18, §3.1). The MODEL
  * is the backend's now (`/api/games` owns identity, names and membership); what stays in the
  * frontend is the pure ordering a user performs before the list is PUT back. So these functions
- * take a plain `string[]` and never mint an id or invent a Game — there is exactly one Game model.
+ * take a plain `string[]` and never mint an id or invent a Game, there is exactly one Game model.
  */
 import { levelTemplateId, moveLevel, removeLevel } from '@/game/levelOrder'
 
@@ -35,7 +35,7 @@ describe('moveLevel', () => {
     expect(moveLevel(IDS, from, to)).toEqual(IDS)
   })
 
-  it('keeps duplicates — the same template may appear at two levels', () => {
+  it('keeps duplicates, the same template may appear at two levels', () => {
     expect(moveLevel(['a', 'a', 'b'], 2, 0)).toEqual(['b', 'a', 'a'])
   })
 })
@@ -58,7 +58,7 @@ describe('removeLevel', () => {
 })
 
 describe('levelTemplateId', () => {
-  it('is 1-based — level 1 is the first template', () => {
+  it('is 1-based, level 1 is the first template', () => {
     expect(levelTemplateId(IDS, 1)).toBe('a')
     expect(levelTemplateId(IDS, 3)).toBe('c')
   })

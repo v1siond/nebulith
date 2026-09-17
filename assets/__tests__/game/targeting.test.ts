@@ -1,4 +1,4 @@
-import '@/__tests__/helpers/installTilesetSeed' // an entity's FOOTPRINT is derived from the art the backend serves (settings.artFrames) — with no catalog every creature collapses to one cell
+import '@/__tests__/helpers/installTilesetSeed' // an entity's FOOTPRINT is derived from the art the backend serves (settings.artFrames), with no catalog every creature collapses to one cell
 import { findTarget, makeEnemyRuntime } from '@/game/runtime/targeting'
 import { type PlayerState } from '@/game/runtime/player'
 import { makeEnemy } from '@/game/entities'
@@ -6,7 +6,7 @@ import { entityFootprint } from '@/engine/entityArt'
 import type { Entity } from '@/game/types'
 
 // ───────────────────────────────────────────────────────────────────────────
-// Melee TARGET SELECTION (findTarget) — the bug behind #36: enemies have multi-cell
+// Melee TARGET SELECTION (findTarget), the bug behind #36: enemies have multi-cell
 // footprints (a goblin is 2 wide × 3 tall), but targeting matched only the ANCHOR cell,
 // so attacking a monster from the side its body extends toward (its right / top) silently
 // missed. In 2D, where you approach orthogonally, that read as "left/right does nothing".
@@ -24,7 +24,7 @@ const playerAt = (col: number, row: number, facing: PlayerState['facing']): Play
   frame: 0,
 })
 
-/** The enemy's footprint rect (bottom-anchored, horizontally centred — matches the renderer). */
+/** The enemy's footprint rect (bottom-anchored, horizontally centred, matches the renderer). */
 const footRect = (e: Entity) => {
   const { w, h } = entityFootprint(e)
   return {
@@ -35,7 +35,7 @@ const footRect = (e: Entity) => {
   }
 }
 
-describe('findTarget — a melee swing hits an adjacent enemy on every side (2D)', () => {
+describe('findTarget, a melee swing hits an adjacent enemy on every side (2D)', () => {
   const enemy = makeEnemy('g', 10, 10, 'goblin')
   const entities = [enemy]
   const r = footRect(enemy)
@@ -79,7 +79,7 @@ describe('findTarget — a melee swing hits an adjacent enemy on every side (2D)
   })
 })
 
-describe('findTarget — iso parity (all-direction adjacency still works)', () => {
+describe('findTarget, iso parity (all-direction adjacency still works)', () => {
   const enemy = makeEnemy('g', 10, 10, 'goblin')
   const r = footRect(enemy)
 

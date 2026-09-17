@@ -1,11 +1,11 @@
 /**
- * A UNIT IS A TILE — but a unit's POSITION is CONTINUOUS while a tile's col/row is a GRID INDEX.
+ * A UNIT IS A TILE, but a unit's POSITION is CONTINUOUS while a tile's col/row is a GRID INDEX.
  *
  * The iso pick registry records every drawn unit so a click on the figure selects the unit (units-as-tiles).
- * The player object is built as `col: player.x / cellSize` (iso.ts) — a FRACTION the moment the hero steps off
- * a whole cell — and a walking NPC uses the interpolated `entityRenderCell`. If that fraction is recorded as
+ * The player object is built as `col: player.x / cellSize` (iso.ts), a FRACTION the moment the hero steps off
+ * a whole cell, and a walking NPC uses the interpolated `entityRenderCell`. If that fraction is recorded as
  * the hit's col/row it flows into the selection KEY ("15.849862000000009,8.34,-1"); every LATER frame
- * re-parses that key and calls `grid.getHeight(col, row)`, which indexes `height[row][col]` — `height[8.34]`
+ * re-parses that key and calls `grid.getHeight(col, row)`, which indexes `height[row][col]`, `height[8.34]`
  * is `undefined`, so the renderer throws:
  *
  *   Cannot read properties of undefined (reading '15.849862000000009')
@@ -26,11 +26,11 @@ const CELL = 100, W = 800, H = 600, ISO = 1
 const FRAC_COL = 15.849862000000009, FRAC_ROW = 8.34
 
 const heroEntity = (): Entity => ({ id: 'hero', kind: 'player' } as unknown as Entity)
-// `facing`/`frame` are required by getPlayerArt — without them the hero never draws, so the hit is never recorded.
+// `facing`/`frame` are required by getPlayerArt, without them the hero never draws, so the hit is never recorded.
 const movingPlayer = (): PlayerState =>
   ({ x: FRAC_COL * CELL, z: FRAC_ROW * CELL, moving: true, facing: 'down', frame: 0 } as PlayerState)
 
-/** A no-op recording ctx — the tile GEOMETRY the pick reads is independent of the pixels drawn. */
+/** A no-op recording ctx, the tile GEOMETRY the pick reads is independent of the pixels drawn. */
 function mockCtx(): CanvasRenderingContext2D {
   const ctx = {
     fillStyle: '#000', strokeStyle: '#000', font: '', textAlign: '' as CanvasTextAlign,
@@ -112,7 +112,7 @@ describe('getHeight is total over its declared bounds', () => {
     expect(grid.getHeight(FRAC_COL, FRAC_ROW)).toBe(3)
   })
 
-  // setHeight sits behind the SAME range-only guard and writes height[row][col] — the identical landmine.
+  // setHeight sits behind the SAME range-only guard and writes height[row][col], the identical landmine.
   it('setHeight writes the cell a fractional coordinate falls inside instead of throwing', () => {
     const grid = newGrid()
     expect(() => grid.setHeight(FRAC_COL, FRAC_ROW, 2)).not.toThrow()

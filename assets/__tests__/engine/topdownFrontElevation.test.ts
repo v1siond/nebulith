@@ -7,8 +7,8 @@
  *
  * We drive the REAL render2D with a stamped house_4 through a recording ctx. Each facade cell (walls/
  * windows/door/roof) is drawn by draw2DLabeledCell, which stamps a unique translucent-black overlay rect
- * ('rgba(0, 0, 0, 0.45)') — a clean, ground-free marker for the drawn facade cells. Its WIDTH is one TILE;
- * its HEIGHT is `scaleY` TILEs (a collapsed vertical run of span N draws ONE rect N cells tall — 2D now
+ * ('rgba(0, 0, 0, 0.45)'), a clean, ground-free marker for the drawn facade cells. Its WIDTH is one TILE;
+ * its HEIGHT is `scaleY` TILEs (a collapsed vertical run of span N draws ONE rect N cells tall, 2D now
  * honours scaleY exactly like iso, per the composition.ts collapse contract). We assert their GEOMETRY
  * (not pixels): the facade's vertical extent equals the building's LEVEL height, NOT level + depth (~9);
  * and the number of drawn facade cells equals the depth-collapsed projection.
@@ -43,19 +43,18 @@ const PCOL = 20, PROW = 20
 const player = (): PlayerState => ({ x: PCOL * CELL, z: PROW * CELL, moving: false } as PlayerState)
 const grid40 = (): IsometricGrid => new IsometricGrid({ cols: 40, rows: 40, cellSize: CELL, isoScale: 1 })
 
-// draw2DLabeledCell stamps this exact translucent-black overlay on EVERY facade cell it draws (ascii) —
-// the ground/props never use it, so it isolates the building's drawn cells.
+// draw2DLabeledCell stamps this exact translucent-black overlay on EVERY facade cell it draws (ascii), // the ground/props never use it, so it isolates the building's drawn cells.
 const FACADE_OVERLAY = 'rgba(0, 0, 0, 0.45)'
 
-describe('render2D — a stamped building renders as a front elevation (depth collapsed)', () => {
+describe('render2D, a stamped building renders as a front elevation (depth collapsed)', () => {
   test("the house's 2D vertical extent equals its LEVEL height, not level + depth", () => {
     const grid = grid40()
-    // house_4: 4 wide × 4 deep — living floors (levels 0-3) + a gable roof whose eave starts at level 4.
+    // house_4: 4 wide × 4 deep, living floors (levels 0-3) + a gable roof whose eave starts at level 4.
     // Front door faces south → front row = anchor + 3.
     const ANCHOR = PROW - 1 // near centre so the camera never clamps and the whole house is on-screen
     stampBuildingComposition(grid, 'house', 4, ANCHOR, ANCHOR, 'spring', 'south')
 
-    // The building's TRUE rendered height in blocks — `level + own height × scaleY`, the same accumulation
+    // The building's TRUE rendered height in blocks, `level + own height × scaleY`, the same accumulation
     // the stacking rule uses, measured from the building's own BASE rather than from zero. The house stands
     // ON the ground, which is a block like anything else, so its cells start a level up; what the facade
     // spans is its own height, not its distance from the grid plane.
@@ -75,7 +74,7 @@ describe('render2D — a stamped building renders as a front elevation (depth co
     const top = Math.min(...facade.map(r => r.y))
     const bottom = Math.max(...facade.map(r => r.y + r.h))
     const extentCells = (bottom - top) / TILE
-    expect(extentCells).toBeCloseTo(topBlocks, 5)  // 6 cells tall — NOT depth(4) + height(6) ≈ 10
+    expect(extentCells).toBeCloseTo(topBlocks, 5)  // 6 cells tall, NOT depth(4) + height(6) ≈ 10
     expect(extentCells).toBeLessThan(topBlocks + 1) // hard upper bound: depth is truly collapsed
 
     // The number of drawn facade cells equals the depth-collapsed projection (front-most per col/level).

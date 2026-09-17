@@ -4,13 +4,13 @@
  * A tile is a flat square in 2D/top; in iso a tile (or placed asset) with height ≥ 1 rises into
  * `height` stacked blocks. `isoBlockFaces` returns the geometry of ONE block at a given stacking
  * `level`: its TOP face plus the two CAMERA-VISIBLE side faces (the front-left L→B wall and the
- * front-right B→R wall — the same two edges the ground cube exposes). The two far walls and the
+ * front-right B→R wall, the same two edges the ground cube exposes). The two far walls and the
  * bottom are never seen, so they're never emitted.
  *
  * Conventions MIRROR the ground cube (drawIsoGroundLayer) and drawIsoBuilding: a cell centred at
  * (px, py) is a diamond with half-extents (tileW, tileH); one block is `blockH` px tall. Each face
  * is a quad [a, b, c, d] where `a` is the fillIsoFaceWithTile ORIGIN (bottom-left corner),
- * eA = b − a is the bottom edge and eB = d − a is the up/side edge — so a tile shears onto the face
+ * eA = b − a is the bottom edge and eB = d − a is the up/side edge, so a tile shears onto the face
  * at the iso angle exactly like a wall, and the top face reads as a flat diamond.
  *
  * Pure geometry, unit-tested. drawIsoTileBlock (impure canvas glue in iso.ts) stacks these and fills
@@ -39,7 +39,7 @@ export interface BlockFaces {
 /**
  * A cell's ground footprint as its FOUR corners, offset from the cell centre.
  *
- * The names are positional on screen — `l`eft, `t`op, `r`ight, `b`ottom — and the block builder walks them
+ * The names are positional on screen, `l`eft, `t`op, `r`ight, `b`ottom, and the block builder walks them
  * in that cyclic order, so a THINNED footprint (a parallelogram) composes exactly like the full diamond.
  */
 export interface GroundQuad {
@@ -59,7 +59,7 @@ export function unitGroundQuad(tileW: number, tileH: number): GroundQuad {
   }
 }
 
-/** THICKNESS as four independent REACHES — how far the block extends toward each world direction, as a
+/** THICKNESS as four independent REACHES, how far the block extends toward each world direction, as a
  *  fraction of the cell. 1 (the default) reaches all the way to that face; lowering it pulls that face in. */
 export type ThicknessReach = Partial<Record<DepthDir, number>>
 
@@ -74,7 +74,7 @@ const reachOf = (reach: ThicknessReach, dir: DepthDir): number => {
   return typeof raw === 'number' && raw > 0 && raw < 1 ? raw : 1
 }
 
-/** Never let two opposing reaches close the block to nothing — it would silently vanish mid-drag. */
+/** Never let two opposing reaches close the block to nothing, it would silently vanish mid-drag. */
 const MIN_SPAN = 0.05
 
 /**
@@ -92,13 +92,13 @@ export const thicknessThins = (reach: ThicknessReach | undefined): boolean =>
 /**
  * THICKNESS: the block's footprint INSIDE its own cell, from four independent per-direction reaches.
  *
- * This is the same question the Footprint asks — "how far does this tile reach toward ⟨direction⟩?" — only
+ * This is the same question the Footprint asks, "how far does this tile reach toward ⟨direction⟩?", only
  * the unit differs: Footprint counts whole CELLS (≥1), thickness measures WITHIN one cell (≤1). The two are
  * meant to work alike, so they share the vocabulary, the four diagonals and the control shape.
  *
  * The axes are WORLD axes, not screen ones: a cell's ground axes are the diamond's DIAGONALS
  * (`u = (+tileW,+tileH)` = +col, `v = (−tileW,+tileH)` = +row), so the old screen-extent squash thinned along
- * no world direction at all — which is why a door read thin from one side of the house and solid from the
+ * no world direction at all, which is why a door read thin from one side of the house and solid from the
  * other. Along each axis the block spans from `1 − reach(back)` to `reach(forward)`, so a door with reach 1
  * toward its wall and 0.3 the other way is a 0.3-thick panel FLUSH with that wall.
  */
@@ -129,7 +129,7 @@ export function reachGroundQuad(tileW: number, tileH: number, reach: ThicknessRe
   return { t: at(c0, r0), r: at(c1, r0), b: at(c1, r1), l: at(c0, r1) }
 }
 
-/** Turn a reach map by `rotation` quarter-turns — the KEYS move, the values ride along. Thickness axes are
+/** Turn a reach map by `rotation` quarter-turns, the KEYS move, the values ride along. Thickness axes are
  *  WORLD axes, so they rotate with the camera (`orientAssetForView`) and with the building a tile is stamped
  *  into (`compositionCellRender`), exactly like `depthDir`. */
 export function rotateThicknessReach(reach: ThicknessReach, rotation: number): ThicknessReach {
@@ -141,7 +141,7 @@ export function rotateThicknessReach(reach: ThicknessReach, rotation: number): T
 }
 
 /**
- * Shrink along ONE axis to a fraction `t`, HUGGING the face `dir` points at — the authoring shorthand a
+ * Shrink along ONE axis to a fraction `t`, HUGGING the face `dir` points at, the authoring shorthand a
  * backend tile uses ("a door is 0.3 thick toward its wall"). Expressed in reaches: full toward `dir`, `t`
  * toward its opposite.
  */
@@ -158,7 +158,7 @@ export function isoBlockFaces(
   level = 0,
   /** The ground footprint, as corner offsets from the cell centre. Defaults to the FULL cell, so every
    *  existing caller draws byte-identically; a THINNED quad (`thinGroundQuad`) composes the same way
-   *  because the corners keep their cyclic order — the walls are still "the two edges meeting at `b`". */
+   *  because the corners keep their cyclic order, the walls are still "the two edges meeting at `b`". */
   quad: GroundQuad = unitGroundQuad(tileW, tileH),
 ): BlockFaces {
   const px = center.x
@@ -194,10 +194,10 @@ export function isoBlockFaces(
 }
 
 /**
- * DIRECTIONAL DEPTH — a block extruded into a long iso box.
+ * DIRECTIONAL DEPTH, a block extruded into a long iso box.
  *
  * A block with `depth = D` and one of the four diagonal `DepthDir`s renders as ONE long box spanning D
- * cells along that diagonal, anchored at its base cell — NOT D separate cubes and NOT a symmetric widening.
+ * cells along that diagonal, anchored at its base cell, NOT D separate cubes and NOT a symmetric widening.
  * The direction is a screen-space step (in the SAME tileW/tileH units isoBlockFaces uses), derived from the
  * iso projection (Kx per unit of col−row, Ky per unit of col+row): +col = (+tileW,+tileH) = right-down,
  * +row = (−tileW,+tileH) = left-down, −col = (−tileW,−tileH) = left-up, −row = (+tileW,−tileH) = right-up.
@@ -206,7 +206,7 @@ export function isoBlockFaces(
  * TURN A FACE'S TEXTURE, without moving the face.
  *
  * That is right and the reason is one line of the renderer. `fillIsoFaceWithTile` paints a face by mapping the
- * unit texture square onto it through `ctx.transform(eA, eB)` — two basis vectors. Rotating what the texture
+ * unit texture square onto it through `ctx.transform(eA, eB)`, two basis vectors. Rotating what the texture
  * shows by a quarter turn is therefore just PERMUTING THOSE TWO VECTORS, which costs nothing and needs no art.
  * I had instead baked a second set of water frames (`water_y*`) plus two reversals to get four headings: eight
  * PNGs to do what a basis swap does for free. They are gone.
@@ -254,7 +254,7 @@ export const DEPTH_STEP: Record<DepthDir, { sx: number; sy: number }> = {
   'right-down': { sx: +1, sy: +1 }, // +col
 }
 
-/** GRID per-cell step (which cells the box covers) for each direction — the collision + depth-sort axis. */
+/** GRID per-cell step (which cells the box covers) for each direction, the collision + depth-sort axis. */
 export const DEPTH_CELL_STEP: Record<DepthDir, { dc: number; dr: number }> = {
   'right-up': { dc: 0, dr: -1 },
   'left-up': { dc: -1, dr: 0 },
@@ -263,7 +263,7 @@ export const DEPTH_CELL_STEP: Record<DepthDir, { dc: number; dr: number }> = {
 }
 
 /**
- * Rotate a directional-depth `dir` by `rotation` CW quarter-turns (0–3; negatives/≥4 wrap) — the SAME grid
+ * Rotate a directional-depth `dir` by `rotation` CW quarter-turns (0-3; negatives/≥4 wrap), the SAME grid
  * rotation `rotateFootprintOffset` applies to a composition cell's offset, so a span authored along the +row
  * (south, `left-down`) axis follows its building when it's rotated to face east/west/north (no sideways roof).
  * DERIVED from DEPTH_CELL_STEP: one CW quarter-turn sends a grid step (dc,dr) → (−dr,dc); apply it `k` times
@@ -277,12 +277,12 @@ export function rotateDepthDir(dir: DepthDir, rotation: number): DepthDir {
 }
 
 /**
- * Z-POSITION — slide a tile along an ISO DIAGONAL (NOT a vertical lift). `z` is the magnitude in cells;
+ * Z-POSITION, slide a tile along an ISO DIAGONAL (NOT a vertical lift). `z` is the magnitude in cells;
  * `dir` picks one of the four iso diagonals (the SAME 4 dirs as directional depth / z-width). +z slides
  * the tile TOWARD `dir`, −z toward its opposite. Returns the screen-space offset in the caller's tileW/tileH
  * units (the iso half-diamond extents), so ±1 lands the tile on the neighbouring diamond exactly like the
  * z-width per-cell step: right-up = (+tileW,−tileH) up-right, right-down = (+tileW,+tileH) down-right, etc.
- * Pure — unit-tested.
+ * Pure, unit-tested.
  */
 export function isoZOffset(z: number, dir: DepthDir, tileW: number, tileH: number): { dx: number; dy: number } {
   const s = DEPTH_STEP[dir]
@@ -301,7 +301,7 @@ export interface DepthBoxFaces {
 }
 
 /** The D grid cells a depth box covers: anchor (col,row) then D−1 steps along the direction's grid axis.
- *  Anchor stays the base cell. Pure — used for collision-adapt and depth-sort. depth≤1 → just the anchor. */
+ *  Anchor stays the base cell. Pure, used for collision-adapt and depth-sort. depth≤1 → just the anchor. */
 export function depthCells(col: number, row: number, depth: number, dir: DepthDir): { col: number; row: number }[] {
   const n = Math.max(1, Math.floor(depth))
   const { dc, dr } = DEPTH_CELL_STEP[dir]
@@ -323,7 +323,7 @@ export function normalizeDepthSpan(col: number, row: number, depth: number | und
   return { col: col - b * dc, row: row - b * dr, depth: b + d }
 }
 
-/** The GRID extents of a 2-axis z-width tile — how many cells it spans in each of ±col/±row from its anchor.
+/** The GRID extents of a 2-axis z-width tile, how many cells it spans in each of ±col/±row from its anchor.
  *  Folds the model (depthDir + depth/depthBack on the primary axis, depthPerp/depthPerpBack on the perpendicular)
  *  into a plain rectangle cols [col−colMinus, col+colPlus] × rows [row−rowMinus, row+rowPlus]. `depth` INCLUDES the
  *  anchor (depth−1 cells forward); the other three are cells BEYOND the anchor. depthDir absent → all 0 (1 cell). */
@@ -347,7 +347,7 @@ export function assetRectExtents(a: { depthDir?: DepthDir; depth?: number; depth
   return ext
 }
 
-/** How much a depth box reaches TOWARD the camera (in col+row units) past its anchor — the FRONTMOST covered
+/** How much a depth box reaches TOWARD the camera (in col+row units) past its anchor, the FRONTMOST covered
  *  cell's (col+row) minus the anchor's. Approaching dirs (+col/+row) reach (D−1) closer; receding dirs
  *  (−col/−row) reach 0 (the anchor stays the frontmost). Added to the iso depth-sort key so a box that
  *  extends toward the camera sorts in FRONT of what it overlaps, and receding boxes stay byte-identical. */
@@ -361,11 +361,10 @@ export function depthFrontExtent(depth: number, dir: DepthDir): number {
  * Restate a span from the end FARTHEST from the camera: the same cells, described from the other end.
  *
  * The depth sort keys on a span's anchor and only adds its length when the span runs toward the camera
- * (`depthFrontExtent`) — both rest on one invariant: THE ANCHOR IS THE BACKMOST CELL. Authoring holds to it
+ * (`depthFrontExtent`), both rest on one invariant: THE ANCHOR IS THE BACKMOST CELL. Authoring holds to it
  * (`compressGround` anchors a run at min col/row; `right-down`/`left-down` both step forward), but a rotated
  * camera can turn a span's axis to `left-up`/`right-up`, which runs BACKWARD from the anchor. The anchor is
- * then the span's FRONT end, the sort treats it as the back, and the run draws over everything behind it —
- * a merged grass run painting over the tree trunks it should sit behind.
+ * then the span's FRONT end, the sort treats it as the back, and the run draws over everything behind it, * a merged grass run painting over the tree trunks it should sit behind.
  *
  * Re-anchoring restores the invariant instead of teaching every sort rule about a second case. Pure.
  */
@@ -378,7 +377,7 @@ export function spanBackmost(col: number, row: number, depth: number, dir: Depth
 }
 
 /**
- * The extruded-hull faces of a depth-D box at stacking `level` — the outer hull only (no internal seams).
+ * The extruded-hull faces of a depth-D box at stacking `level`, the outer hull only (no internal seams).
  * The unit block is swept `(D−1)` steps along `dir`: its TOP diamond becomes a long parallelogram (the two
  * LEADING corners pushed by the sweep vector, the two trailing corners anchored), one front wall runs the
  * full length, and the other front wall stays a single-cell end cap. Same conventions as isoBlockFaces so

@@ -33,7 +33,7 @@ import { installLiveCatalogs } from '@/__tests__/helpers/catalogs'
 
 beforeEach(installLiveCatalogs)
 
-describe('enemy archetype TABLE — distinct, meaningful profiles', () => {
+describe('enemy archetype TABLE, distinct, meaningful profiles', () => {
   it('every roster id resolves to an archetype whose id matches its key', () => {
     expect(ALL.length).toBeGreaterThanOrEqual(5)
     for (const id of ALL) {
@@ -93,7 +93,7 @@ describe('enemy archetype TABLE — distinct, meaningful profiles', () => {
   })
 })
 
-describe('archetype builder — yields the right hp / damage / pattern', () => {
+describe('archetype builder, yields the right hp / damage / pattern', () => {
   it('brute is a HIGH-hp, slow, heavy MELEE hitter', () => {
     const p = buildArchetypeProfile('brute')
     const grunt = buildArchetypeProfile('grunt')
@@ -131,7 +131,7 @@ describe('archetype builder — yields the right hp / damage / pattern', () => {
     expect(nextEnemyAttack(attack, { fireCount: 2 }).mode).toBe('melee') // cycles
   })
 
-  it('returns FRESH clones — mutating a profile never touches the shared table', () => {
+  it('returns FRESH clones, mutating a profile never touches the shared table', () => {
     const a = buildArchetypeProfile('grunt')
     const b = buildArchetypeProfile('grunt')
     expect(a).not.toBe(b)
@@ -153,7 +153,7 @@ describe('archetype builder — yields the right hp / damage / pattern', () => {
   })
 })
 
-describe('makeEnemy — the creature\'s own tile, and the default when it carries none', () => {
+describe('makeEnemy, the creature\'s own tile, and the default when it carries none', () => {
   beforeEach(() => installCreatureTiles())
 
   it('a creature whose TILE carries no combat keeps the defaults', () => {
@@ -180,7 +180,7 @@ describe('makeEnemy — the creature\'s own tile, and the default when it carrie
   })
 })
 
-describe('spawner — enemies vary by type, each from its own tile', () => {
+describe('spawner, enemies vary by type, each from its own tile', () => {
   beforeEach(() => installCreatureTiles())
 
   it('resolves each roster type to its own creature block, unknown → undefined', () => {

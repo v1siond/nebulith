@@ -1,10 +1,10 @@
 /**
- * THICKNESS ALONG A WORLD AXIS — the geometry behind a door that is thin the way the HOUSE faces.
+ * THICKNESS ALONG A WORLD AXIS, the geometry behind a door that is thin the way the HOUSE faces.
  *
- * The old `scaleZ` scaled `bd` — the diamond's SCREEN-VERTICAL half-extent. A cell's two ground axes are
+ * The old `scaleZ` scaled `bd`, the diamond's SCREEN-VERTICAL half-extent. A cell's two ground axes are
  * the diamond's DIAGONALS (`isoBlock.ts`: the top face runs `T → T+u → T+u+v → T+v` with
  * `u = (+tileW,+tileH)` = +col and `v = (−tileW,+tileH)` = +row), so squashing the screen axis thins the
- * block along no world direction at all — it just looks right when the camera happens to agree.
+ * block along no world direction at all, it just looks right when the camera happens to agree.
  *
  * `thinGroundQuad` shrinks the footprint along ONE world axis and keeps the block HUGGING the face that
  * direction points at, so a door stays flush with its wall instead of floating in the middle of the cell.
@@ -40,7 +40,7 @@ describe('a full-thickness block is the untouched unit diamond', () => {
 })
 
 describe('thinning keeps the block flush with the face its direction points at', () => {
-  // +col ('right-down'): the +col edge is {r, b} — those two corners must NOT move.
+  // +col ('right-down'): the +col edge is {r, b}, those two corners must NOT move.
   it('+col hugs the +col edge', () => {
     const q = thinGroundQuad(TW, TH, 'right-down', 0.25)
     sameQuad({ ...q, l: unit.l, t: unit.t }, { ...q, l: unit.l, t: unit.t }) // shape check below
@@ -70,7 +70,7 @@ describe('thinning keeps the block flush with the face its direction points at',
   })
 })
 
-describe('the perpendicular axis keeps its full length — a thin door is still a full-width door', () => {
+describe('the perpendicular axis keeps its full length, a thin door is still a full-width door', () => {
   const len = (a: { x: number; y: number }, b: { x: number; y: number }) => Math.hypot(b.x - a.x, b.y - a.y)
   const fullEdge = Math.hypot(TW, TH)
 
@@ -93,7 +93,7 @@ describe('the perpendicular axis keeps its full length — a thin door is still 
     }
   })
 
-  it('stays a parallelogram — opposite edges remain equal', () => {
+  it('stays a parallelogram, opposite edges remain equal', () => {
     const q = thinGroundQuad(TW, TH, 'right-down', 0.3)
     near(len(q.t, q.r), len(q.l, q.b))
     near(len(q.t, q.l), len(q.r, q.b))
@@ -115,7 +115,7 @@ describe('a malformed thickness never collapses or inverts the block', () => {
     sameQuad(thinGroundQuad(TW, TH, 'right-down', t as number), unit)
   })
 
-  it('a thickness above 1 is clamped — a block cannot spill outside its own cell', () => {
+  it('a thickness above 1 is clamped, a block cannot spill outside its own cell', () => {
     sameQuad(thinGroundQuad(TW, TH, 'right-down', 4), unit)
   })
 })

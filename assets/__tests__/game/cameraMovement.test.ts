@@ -4,7 +4,7 @@
  *
  * The render orients a world delta by `facing` CW quarter-turns ((dc,dr) → (-dr,dc), isoBlock.ts) before
  * projecting. So to keep a key pinned to its SCREEN direction, the input's facing-0 world delta is rotated
- * the OPPOSITE way (CCW) by `facing` — the two cancel, so the delta always lands on screen where it does at
+ * the OPPOSITE way (CCW) by `facing`, the two cancel, so the delta always lands on screen where it does at
  * facing 0. This test proves the cancellation: orient(moveWorldDelta(dir,facing)) === the facing-0 delta.
  */
 import { moveWorldDelta, type MoveDir } from '@/game/runtime/cameraMovement'

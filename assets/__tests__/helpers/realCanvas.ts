@@ -1,19 +1,19 @@
 /**
  * REAL-CANVAS test harness (@napi-rs/canvas).
  *
- * jsdom's canvas is a stub — `getContext('2d')` returns null and there is no real `getImageData`,
+ * jsdom's canvas is a stub, `getContext('2d')` returns null and there is no real `getImageData`,
  * so a colour/tint bug that only shows up in PIXELS is invisible to the jsdom render tests. This
  * harness wires the production render path onto a real rasteriser so a test can read back the actual
  * pixels a cube face is painted with:
  *
  *   • `global.Image`  → a registry-backed napi Image, so `tileImage()` (which does `new Image()`,
  *     `img.src = url`, then checks `complete`/`naturalWidth`) resolves a real, drawable raster for a
- *     registered URL — standing in for a baked backend tile PNG.
+ *     registered URL, standing in for a baked backend tile PNG.
  *   • `document.createElement('canvas')` → a real napi canvas, so the render code's OWN offscreen
  *     canvases (`tintedImage`, the cube-sprite cache, the ground-sprite cache) rasterise for real.
  *
  * A registered image decodes ASYNCHRONOUSLY (napi decodes `img.src = buffer` off-thread), so a test
- * MUST `await warm([...srcs])` after installing the tileset and BEFORE rendering — that primes
+ * MUST `await warm([...srcs])` after installing the tileset and BEFORE rendering, that primes
  * `tileImage`'s cache with fully-decoded rasters. Rendering before the decode would draw a
  * transparent (not-yet-ready) image and is the caller's bug, not the renderer's.
  */
@@ -46,7 +46,7 @@ let installed = false
 let origCreateElement: typeof document.createElement | null = null
 
 // When on, canvases created via `document.createElement('canvas')` (the render code's OWN offscreen
-// canvases) throw on getImageData — faithfully simulating a canvas TAINTED by a cross-origin tile image,
+// canvases) throw on getImageData, faithfully simulating a canvas TAINTED by a cross-origin tile image,
 // which is what the real backend-served PNGs do (getImageData → SecurityError). The main render target
 // (makeCanvas) is never wrapped, so a test can still read its pixels.
 let taintOffscreen = false
@@ -54,9 +54,9 @@ let taintOffscreen = false
 export interface RealCanvasHarness {
   /** Make a solid-fill square PNG (an emoji/ascii baked tile stand-in) and register it at `src`. */
   registerSolid(src: string, color: string, size?: number): void
-  /** Make a two-band PNG (top half `top`, bottom half `bottom`) and register it — a non-monochrome tile. */
+  /** Make a two-band PNG (top half `top`, bottom half `bottom`) and register it, a non-monochrome tile. */
   registerBands(src: string, top: string, bottom: string, size?: number): void
-  /** Make a mostly-TRANSPARENT PNG with only a small opaque `color` square in the CENTRE — an emoji-like tile
+  /** Make a mostly-TRANSPARENT PNG with only a small opaque `color` square in the CENTRE, an emoji-like tile
    *  whose art fills only part of the cell (the rest is clear). Proves a shape fills the tile's BACKGROUND
    *  colour where the art is transparent (the cube face does; the sphere must too). */
   registerCentered(src: string, color: string, size?: number): void
@@ -76,11 +76,11 @@ export interface PixelScan {
   meanR: number
   meanG: number
   meanB: number
-  /** pixels that read clearly GREEN (G noticeably above R and B) — the "untinted green tile" signature. */
+  /** pixels that read clearly GREEN (G noticeably above R and B), the "untinted green tile" signature. */
   greenish: number
-  /** pixels that read clearly MAGENTA (R and B high, G low) — the "recoloured toward magenta" signature. */
+  /** pixels that read clearly MAGENTA (R and B high, G low), the "recoloured toward magenta" signature. */
   magentaish: number
-  /** pixels that read clearly BLUE (B above R and G) — e.g. an untinted window-glass pane. */
+  /** pixels that read clearly BLUE (B above R and G), e.g. an untinted window-glass pane. */
   blueish: number
 }
 
@@ -102,7 +102,7 @@ function encodeBands(top: string, bottom: string, size: number): Buffer {
   return c.toBuffer('image/png')
 }
 
-/** A CLEAR field with a small opaque `color` square in the middle (half the tile) — the rest is transparent,
+/** A CLEAR field with a small opaque `color` square in the middle (half the tile), the rest is transparent,
  *  like an emoji whose art covers only part of the cell. */
 function encodeCentered(color: string, size: number): Buffer {
   const c = createCanvas(size, size)
@@ -134,7 +134,7 @@ export function installRealCanvas(): { harness: RealCanvasHarness; restore: () =
     async warm(srcs) {
       for (const s of srcs) tileImage(s) // create + kick off the native decode, cache the Image
       await new Promise((r) => setTimeout(r, 60)) // let the async decode finish so the raster is drawable
-      for (const s of srcs) tileImage(s) // resolve again now that it's complete (idempotent — same cached Image)
+      for (const s of srcs) tileImage(s) // resolve again now that it's complete (idempotent, same cached Image)
     },
     makeCanvas(w, h) { return createCanvas(w, h) },
     scan(canvas) { return scanPixels(canvas) },
@@ -144,7 +144,7 @@ export function installRealCanvas(): { harness: RealCanvasHarness; restore: () =
 }
 
 /** An offscreen canvas for the render code (via `document.createElement('canvas')`). In taint mode its
- *  2D context throws on getImageData — exactly like a canvas tainted by a cross-origin tile PNG. */
+ *  2D context throws on getImageData, exactly like a canvas tainted by a cross-origin tile PNG. */
 function makeOffscreen(): HTMLCanvasElement {
   const cv = createCanvas(300, 150)
   if (!taintOffscreen) return cv as unknown as HTMLCanvasElement
@@ -153,7 +153,7 @@ function makeOffscreen(): HTMLCanvasElement {
     const ctx = realGetContext(t)
     if (t === '2d' && ctx) {
       ;(ctx as { getImageData: () => never }).getImageData = () => {
-        throw new DOMException('Tainted canvas (cross-origin) — getImageData blocked', 'SecurityError')
+        throw new DOMException('Tainted canvas (cross-origin), getImageData blocked', 'SecurityError')
       }
     }
     return ctx

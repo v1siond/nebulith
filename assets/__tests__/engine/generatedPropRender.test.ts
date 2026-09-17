@@ -1,6 +1,6 @@
 /**
  * The generator's PER-INSTANCE render override for standing props. A scattered FLOWER must render as a single
- * billboard a block tall — `height: 1` + `settings.display: 'single'` — NOT the flat 0.1 the tile carries. This
+ * billboard a block tall, `height: 1` + `settings.display: 'single'`, NOT the flat 0.1 the tile carries. This
  * is set by the GENERATOR on the placed asset (no tile-definition change, no migration), so it rides the normal
  * stage save/load exactly like a setting a hand-painter would apply. A prop TYPE with no override carries nothing
  * and keeps the tile-driven flat render.
@@ -11,8 +11,8 @@
 import { generatedPropRender } from '@/engine/stageGenerator'
 import { IsometricGrid } from '@/engine/IsometricGrid'
 
-describe('generatedPropRender — per-instance standing-prop render', () => {
-  test('a flower — and a scattered ground-decor bloom — renders as a small single transparent billboard', () => {
+describe('generatedPropRender, per-instance standing-prop render', () => {
+  test('a flower, and a scattered ground-decor bloom, renders as a small single transparent billboard', () => {
     // flowers (and the daisy ground-decor that used to render as coloured CUBES) must be
     // single + transparent + slightly smaller (scale < 1), NOT full-cell blocks.
     const bloom = { height: 1, scale: 0.85, settings: { display: 'single', transparent: true } }

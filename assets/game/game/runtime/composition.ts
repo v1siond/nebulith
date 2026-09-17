@@ -1,10 +1,10 @@
-// LIVE stamp for a multi-cell COMPOSITION (tree / bush / house / store …) — the data-driven, ALL-asset
+// LIVE stamp for a multi-cell COMPOSITION (tree / bush / house / store …), the data-driven, ALL-asset
 // path every pre-built asset uses. Reads the composition (footprint + per-cell tile) from the LOADED DB
 // tileset and places one labeled per-cell asset per cell; each cell's glyph + colour come from resolveTile
 // (DB), its collision from the cell's `walkable` flag, its stack from `level`. The three views then draw
 // each cell through the generic per-cell path (drawIsoLabeledCell / draw2DLabeledCell / the birdseye
-// per-cell pass) — NO per-type drawer. A pre-built BUILDING is stamped through THIS exact path (rotated to
-// face its road), not a special building unit — that is how "everything is a collection of backend tiles"
+// per-cell pass), NO per-type drawer. A pre-built BUILDING is stamped through THIS exact path (rotated to
+// face its road), not a special building unit, that is how "everything is a collection of backend tiles"
 // is enforced.
 import { styleCatalog } from '@/engine/tileset/styleTiles'
 import { resolveComposition, resolveTile, tileRenderBehavior, tileThickness, tileThicknessReach } from '@/engine/tileset/tileset'
@@ -17,7 +17,7 @@ import type { Facing } from '@/engine/villageLayout'
 import { buildingCompositionKind, facingRotation, rotateFootprintOffset } from '@/engine/buildingCatalog'
 import { rotateDepthDir, rotateThicknessReach, type DepthDir, type ThicknessReach } from '@/engine/render/isoBlock'
 
-// Apex-signage colour for a titled building — a single readable signage tone drawn on drawApexBadge's
+// Apex-signage colour for a titled building, a single readable signage tone drawn on drawApexBadge's
 // dark backing. The building NAME is the DATA (the composition's `title`); the colour is a fixed render
 // constant (the old per-type gold/white marquee collapses now that only the name is data).
 const BADGE_COLOR = '#ffffff'
@@ -28,14 +28,14 @@ const BADGE_COLOR = '#ffffff'
  *  trees/props leave it 0 (unrotated). The anchor stays the footprint's origin/top-left after rotation. */
 // One wall MATERIAL is chosen per BUILDING at generation and rewritten onto its wall pieces here, so the
 // composition stays SHAPE-only (a building never mixes materials; variety is BETWEEN buildings). Rewrites
-// ONLY `wall_<material>_<pos>` cells — roofs/windows/doors/signage keep their own labels. `material` is a
+// ONLY `wall_<material>_<pos>` cells, roofs/windows/doors/signage keep their own labels. `material` is a
 // wall base like "wall_stone"; absent → the composition's authored material stands (store/hospital/civic).
 const WALL_MAT = /^wall_(stone|brick|wood|plaster)_/
 
-// A cell's COLOUR is a per-tile SETTING (TILESET-AUTHORING §1, TILE-BACKEND-MIGRATION §5) — the engine
+// A cell's COLOUR is a per-tile SETTING (TILESET-AUTHORING §1, TILE-BACKEND-MIGRATION §5), the engine
 // FILTERS the baked tile to it at draw time (render/shared.ts tintedImage, luminance-mapped). The generator
 // can therefore override a building's ROOF / WALL colour without touching the composition SHAPE. A ROOF cell
-// is the whole roof volume: the gable body/cap (`roof*` — also catches `rooftop_unit`), plus the flat-roof
+// is the whole roof volume: the gable body/cap (`roof*`, also catches `rooftop_unit`), plus the flat-roof
 // deck (`flat_roof`) and its parapet lip (`parapet`), which don't start with "roof". A WALL cell is any
 // `wall_*` material piece. Windows / doors / awnings / storefront glass keep their OWN colour. An absent
 // override → the tile's authored colour stands, so a colour-less stamp is byte-identical to before.
@@ -100,28 +100,39 @@ export function flattenedRoof(label: string, roofTile: string | undefined): bool
  */
 const isWallLabel = (label: string): boolean => label === 'wall' || label.startsWith('wall_')
 
+/**
+ * IS THIS CELL FOLIAGE? The TILE says so, the frontend does not guess.
+ *
+ * This tested `label.startsWith('leaf_') || startsWith('canopy_')`, which is the frontend deciding a fact
+ * about backend data, and it was wrong by omission the moment the same question was asked of the
+ * undergrowth: `thicket` and `shrub` are just as much foliage and match neither prefix. `settings.foliage`
+ * is served on the 23 tiles that ARE green foliage and withheld from the ones whose colour is their own (a
+ * rock, a flower, autumn litter), so one rule now covers every green thing.
+ */
+const isFoliage = (tile: { settings?: Record<string, unknown> }): boolean => tile.settings?.foliage === true
+
 /** The per-cell RENDER fields a composition cell contributes to the tile placed in it. */
 export type CompositionCellRender = Pick<
   GridAsset,
   'height' | 'heightLevel' | 'scale' | 'zIndex' | 'scaleX' | 'scaleY' | 'scaleZ' | 'thickness' | 'depth' | 'depthDir' | 'depthBack' | 'depthPerp' | 'depthPerpBack' | 'pose' | 'shape' | 'light' | 'settings' | 'animations' | 'placedAt'
 >
 
-/** ONE mapping of a composition CELL onto those render fields — shared by the LIVE stamp (stampRun) and the
+/** ONE mapping of a composition CELL onto those render fields, shared by the LIVE stamp (stampRun) and the
  *  SAVE path (stageToTemplate), so a generated stage RELOADS exactly as it was stamped. Duplicating this
  *  mapping is what dropped the authored `settings` on save: the 2-wide entrance collapsed back to one block
  *  and the roof's z-width span broke into per-cell blocks on load.
  *
- *  HEIGHT is the TILE's OWN DB height (MAP-MODEL §4 — per-tile DATA, read the same way for every tile with no
+ *  HEIGHT is the TILE's OWN DB height (MAP-MODEL §4, per-tile DATA, read the same way for every tile with no
  *  branch by type/category/art style): a floor tile (the entrance's `path` doorstep) is its flat 0.1 slab, a
  *  standing tile a whole block. A label with no DB tile keeps the unit block, so a stamp never vanishes.
  *  `span` is the collapsed vertical RUN length (1 for a lone cell); `rotation` the building's quarter-turns,
  *  applied to `depthDir` so a turned building's roof spans the right grid axis. */
 // `baseLevel` LIFTS every cell onto the raised FLOOR block it is stamped on (0 for a flat/thin town floor, so
 // towns are byte-identical; 1 for a height-1 meadow, so a trunk sits ON TOP of the block instead of embedding
-// at level 0). Added to the cell's OWN authored level so the whole composition rises as one — the live callers
+// at level 0). Added to the cell's OWN authored level so the whole composition rises as one, the live callers
 // pass the cell's shared stack top (`cellStackTop`), so a composition just lands ON TOP of the floor tile like
 // any stacked tile; there is no floor-special lift.
-/** Turn a thickness reach map by the building's quarter-turns. Undefined stays undefined — a tile with no
+/** Turn a thickness reach map by the building's quarter-turns. Undefined stays undefined, a tile with no
  *  thickness must not acquire one from a rotation. */
 function rotateThickness(reach: ThicknessReach | undefined, rotation: number): ThicknessReach | undefined {
   return reach ? rotateThicknessReach(reach, rotation) : undefined
@@ -131,7 +142,7 @@ export function compositionCellRender(comp: Composition, cell: CompositionCell, 
   const cs = cell.settings
   const animated = (cell.animations?.length ?? 0) > 0
   return {
-    // A placed block is ALWAYS height 1. A tile is pure ART — it does NOT carry height; the GENERATOR/stamp assigns
+    // A placed block is ALWAYS height 1. A tile is pure ART, it does NOT carry height; the GENERATOR/stamp assigns
     // it here when it
     // creates the block. Tallness comes from STACKING cells (a 5-storey building = 5 stacked level-0..4 cells)
     // and `scaleY` (the run-collapse below, and the lamp POST drawn ~7 tall), never from a per-art height. This
@@ -145,13 +156,12 @@ export function compositionCellRender(comp: Composition, cell: CompositionCell, 
     // of a run, so the two never collide.
     scaleY: cs?.scaleY ?? (span > 1 ? span : undefined),
     // WIDTH + DEPTH: a cell can ship a THIN or WIDE tile independent of the uniform Zoom (a tree's trunk width).
-    // THICKNESS is TILE data first (`tile.settings.scaleZ`) so a door is a thin panel WHEREVER it is placed —
-    // generator-stamped or hand-painted — instead of drawing as a full cube that reads as a block, not a door
+    // THICKNESS is TILE data first (`tile.settings.scaleZ`) so a door is a thin panel WHEREVER it is placed, // generator-stamped or hand-painted, instead of drawing as a full cube that reads as a block, not a door
     // . An explicit per-cell value still wins. Note this is NOT the editor's "z-width":
     // that is `depth`, the number of CELLS spanned, which is always ≥1 because a tile occupies its own cell.
     scaleX: cs?.scaleX,
     scaleZ: cs?.scaleZ ?? tileThickness(tile.settings as Record<string, unknown> | undefined),
-    // The thickness AXIS is authored south-facing, exactly like `depthDir` — ROTATE it by the building's
+    // The thickness AXIS is authored south-facing, exactly like `depthDir`, ROTATE it by the building's
     // rotation so a house turned a quarter-turn has its doors thin toward ITS front, not the map's.
     thickness: rotateThickness(
       tileThicknessReach((cs ?? undefined) as Record<string, unknown> | undefined)
@@ -159,7 +169,7 @@ export function compositionCellRender(comp: Composition, cell: CompositionCell, 
       rotation,
     ),
     // Directional DEPTH (roof-z-width / the entrance apron): ONE block spanning `depth` cells along a diagonal.
-    // `depthDir` is authored south-facing — ROTATE it by the building's rotation (the SAME quarter-turns
+    // `depthDir` is authored south-facing, ROTATE it by the building's rotation (the SAME quarter-turns
     // rotateFootprintOffset applied to the cell's offset).
     depth: cs?.depth,
     depthDir: cs?.depthDir ? rotateDepthDir(cs.depthDir, rotation) : undefined,
@@ -172,7 +182,7 @@ export function compositionCellRender(comp: Composition, cell: CompositionCell, 
     light: cs?.light,
     settings: cellSettings(comp, cell, tile),
     // A composition cell can ship DEFAULT animations (the fountain water's rise/fade loop), anchored at
-    // placedAt 0 — the render clock's origin, so a LOAD-triggered loop plays immediately and every fountain
+    // placedAt 0, the render clock's origin, so a LOAD-triggered loop plays immediately and every fountain
     // stays in sync (an epoch timestamp would read as "far future" → never start).
     animations: animated ? cell.animations : undefined,
     placedAt: animated ? 0 : undefined,
@@ -200,11 +210,39 @@ function cellSettings(comp: Composition, cell: CompositionCell, tile: ResolvedTi
   }
 }
 
-export function stampComposition(grid: IsometricGrid, kind: string, anchorCol: number, anchorRow: number, zone: ZoneId, variant = 0, rotation = 0, material?: string, roofColor?: string, wallColor?: string, roofTile?: string, baseAt?: number): number {
+/**
+ * WHAT A STAMP MAY OVERRIDE about the composition it places. One object rather than five trailing positional
+ * parameters: the call that wanted only `baseAt` had to write `undefined, undefined, undefined, undefined`
+ * to reach it, and adding a fourth colour would have made this a fourteen-parameter function.
+ *
+ * Every field is optional and absent means "use what the composition and its tiles already say".
+ */
+export interface StampOverrides {
+  /** Swap the wall MATERIAL of every wall cell (`wall_stone` for `wall_wood`). */
+  material?: string
+  /** Recolour just the roof cells. */
+  roofColor?: string
+  /** Recolour just the wall cells. */
+  wallColor?: string
+  /**
+   * Recolour just the LEAF cells, so one tree is a different green from the next.
+   *
+   * The generator resolves this per tree from the season, the biome and the region (`foliageColor`) and
+   * passes it here as INSTANCE state. The composition template itself still invents no colour, which is the
+   * rule every approved object keeps (`OBJECT-CONSTRUCTION.md` §1.1).
+   */
+  leafColor?: string
+  /** Swap the roof TILE (a flat deck for a pitch). `null` cells are dropped rather than substituted. */
+  roofTile?: string
+  /** Place at this absolute level instead of resting on the cell stack. A bridge SPANS, it does not rest. */
+  baseAt?: number
+}
+
+export function stampComposition(grid: IsometricGrid, kind: string, anchorCol: number, anchorRow: number, zone: ZoneId, variant = 0, rotation = 0, over: StampOverrides = {}): number {
   const comp = resolveComposition(styleCatalog('ascii'), kind)
   if (!comp) return 0
   // ONE global rule for EVERY composition (building, tree, fountain, lamp): it stacks ON TOP of whatever already
-  // fills its anchor cell — the shared cell stack top, so a house lifts onto the height-1 grass exactly like a tree.
+  // fills its anchor cell, the shared cell stack top, so a house lifts onto the height-1 grass exactly like a tree.
   //
   // `baseLevel` is the one exception and it is a different question, not a loophole. Stacking asks what this
   // object RESTS on; a bridge rests on nothing, it SPANS a cut, so where it sits cannot be read from whatever
@@ -217,10 +255,10 @@ export function stampComposition(grid: IsometricGrid, kind: string, anchorCol: n
   //
   // So a caller that knows where its object belongs states it OUTRIGHT and the cell stack is not consulted.
   // Everything else passes none and rests exactly as before.
-  const baseLevel = baseAt ?? cellStackTop(grid, anchorCol, anchorRow)
+  const baseLevel = over.baseAt ?? cellStackTop(grid, anchorCol, anchorRow)
   const { w, h } = comp.footprint
   // PERF + "intelligent building": collapse each vertical RUN of the SAME tile at a footprint cell
-  // into ONE block sized `scaleY = run length`, instead of N stacked unit cubes — a wall column of 4 becomes 1
+  // into ONE block sized `scaleY = run length`, instead of N stacked unit cubes, a wall column of 4 becomes 1
   // block (fewer draws + no hidden-interior overdraw). Windows / doors / roof caps have their own label so they
   // break the run and stay their own block. Reuses the composition data as-is; scaleY renders identically
   // (ISO + 2D) to the old stack, so the look is unchanged.
@@ -248,7 +286,7 @@ export function stampComposition(grid: IsometricGrid, kind: string, anchorCol: n
         cells[j + 1].walkable === cells[i].walkable
       )
         j++
-      if (stampRun(grid, comp, kind, cells[i], j - i + 1, anchorCol, anchorRow, w, h, rotation, zone, variant, material, roofColor, wallColor, roofTile, baseLevel)) placed += j - i + 1
+      if (stampRun(grid, comp, kind, cells[i], j - i + 1, anchorCol, anchorRow, w, h, rotation, zone, variant, over, baseLevel)) placed += j - i + 1
       i = j + 1
     }
   }
@@ -271,12 +309,10 @@ function stampRun(
   rotation: number,
   zone: ZoneId,
   variant: number,
-  material: string | undefined,
-  roofColor: string | undefined,
-  wallColor: string | undefined,
-  roofTile: string | undefined,
+  over: StampOverrides,
   baseLevel: number,
 ): boolean {
+  const { material, roofColor, wallColor, leafColor, roofTile } = over
   const off = rotation ? rotateFootprintOffset(c.dx, c.dy, w, h, rotation) : { dx: c.dx, dy: c.dy }
   const col = anchorCol + off.dx
   const row = anchorRow + off.dy
@@ -296,21 +332,29 @@ function stampRun(
   const tile = resolveTile(styleCatalog('ascii'), zone, label, variant)
   // Colour SETTING = the filter the renderer tints the baked tile to. A roof/wall material override recolours
   // just those cells; otherwise an AUTHORED per-cell `settings.color` wins (MAP-MODEL §8: "colour is a setting
-  // of the tile" — e.g. the lamp BULB is a dark lantern by day); absent → the tile's own colour.
-  const color = isRoofLabel(label) && roofColor ? roofColor : isWallLabel(label) && wallColor ? wallColor : c.settings?.color ?? tile.color
+  // of the tile", e.g. the lamp BULB is a dark lantern by day); absent → the tile's own colour.
+  // A LEAF joins the chain the roof and the wall are already on, so a tree takes its map's foliage colour
+  // without the renderer learning anything new: it is a tile SETTING either way.
+  const color = isRoofLabel(label) && roofColor
+    ? roofColor
+    : isWallLabel(label) && wallColor
+      ? wallColor
+      : isFoliage(tile) && leafColor
+        ? leafColor
+        : c.settings?.color ?? tile.color
   const grounded = (c.level ?? 0) === 0 || undefined
-  // The grid's collision map is 2D — one flag per (col,row) — so only the composition's GROUND course may write
+  // The grid's collision map is 2D, one flag per (col,row), so only the composition's GROUND course may write
   // to it. A unit walks at ground level, so that is what the flat map means: a wall at the ground blocks the
   // cell, while a roof or a rooftop unit five levels up must not seal the floor beneath it (a flat-roof shop's
   // crown sits over the middle of its own room and punched a blocked hole in the shop floor). The tile keeps
-  // its own truthful `blocking` DATA either way — a roof blocks as a block, nothing stands on it.
+  // its own truthful `blocking` DATA either way, a roof blocks as a block, nothing stands on it.
   const asset = grid.placeAsset([tile.char], col, row, { type: kind, color, baseShadow: grounded })
   asset.label = label
-  // Every render field the cell shapes — its own HEIGHT, stack level, zoom/z-index, scale axes, z-width,
-  // pose/shape/light, behavior settings + apex signage, animations — through the ONE shared mapping the SAVE
+  // Every render field the cell shapes, its own HEIGHT, stack level, zoom/z-index, scale axes, z-width,
+  // pose/shape/light, behavior settings + apex signage, animations, through the ONE shared mapping the SAVE
   // path uses too, so the live stamp and a reloaded save can never diverge.
   Object.assign(asset, compositionCellRender(comp, c, tile, span, rotation, baseLevel))
-  // A CELL MAY OVERRIDE WHAT IT OCCUPIES — an open doorway in a wall is the case this exists for. It used to
+  // A CELL MAY OVERRIDE WHAT IT OCCUPIES, an open doorway in a wall is the case this exists for. It used to
   // say so with `walkable`, a flag beside the tile; it says so with a box list now, which is the only
   // statement about walking through a tile. Written AFTER the render mapping so it cannot be clobbered by it,
   // and only at the GROUND course, for the reason in the note above: the collision map is 2D, so a roof five
@@ -321,22 +365,22 @@ function stampRun(
     asset.scaleY = 1
     asset.heightLevel = (comp.cells.reduce((lowest, x) => (isRoofLabel(x.label) ? Math.min(lowest, x.level ?? 0) : lowest), Infinity) || 0) + baseLevel
   }
-  if (!c.walkable && grounded) grid.setCollision(col, row, true) // ground course only — see the note above
+  if (!c.walkable && grounded) grid.setCollision(col, row, true) // ground course only, see the note above
   return true
 }
 
 /** Stamp a pre-built BUILDING by its explicit composition KIND (`house_4`, `store_5`, `hospital_6`, …) at the
- *  footprint TOP-LEFT (anchorCol,anchorRow), rotated so its door faces `facing`'s road — the SAME stamp trees
+ *  footprint TOP-LEFT (anchorCol,anchorRow), rotated so its door faces `facing`'s road, the SAME stamp trees
  *  use, no special building drawer. Returns the number of cells placed (0 if `kind` isn't in the loaded
  *  tileset). Use this for a GENERATED building: pass its recorded `PlacedBuilding.kind`, which is derived from
  *  the FACADE length at plan time. Re-deriving the kind from a building's grid col-span instead is wrong for an
  *  east/west-facing plot (whose col-span is the DEPTH, not the facade length) and asks for a non-existent
  *  composition (`hospital_4`), stamping 0 cells → a foundation with NO building (the Image #42 orphan). */
 export function stampBuildingKind(grid: IsometricGrid, kind: string, anchorCol: number, anchorRow: number, zone: ZoneId, facing: Facing, material?: string, roofColor?: string, wallColor?: string, roofTile?: string): number {
-  return stampComposition(grid, kind, anchorCol, anchorRow, zone, 0, facingRotation(facing), material, roofColor, wallColor, roofTile)
+  return stampComposition(grid, kind, anchorCol, anchorRow, zone, 0, facingRotation(facing), { material, roofColor, wallColor, roofTile })
 }
 
-/** Stamp a building selected by (type, length) — the MANUAL/editor path where `length` IS the facade length
+/** Stamp a building selected by (type, length), the MANUAL/editor path where `length` IS the facade length
  *  the user picked. For a GENERATED building use {@link stampBuildingKind} with its authoritative `kind` (see
  *  the orphan-foundation note above). Returns the number of cells placed (0 if the (type,length) composition
  *  isn't in the loaded tileset). */

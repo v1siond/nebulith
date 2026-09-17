@@ -11,7 +11,7 @@ import {
 } from '@/engine/zones'
 
 // Compliance item B: the scattered colour/prop tables the generator used to bake inline now live in
-// zones.ts as the SINGLE source of truth. These tests pin the LINKAGE — every generated colour/glyph
+// zones.ts as the SINGLE source of truth. These tests pin the LINKAGE, every generated colour/glyph
 // must trace back to that zone data, so the generator can never drift back to inline literals.
 
 const colorsOf = (props: { type: string; color: string }[], type: string): Set<string> =>
@@ -26,7 +26,7 @@ describe('generator resolves palette + prop colours from zone data (zones.ts sin
     const pal = templePalette(zone)!
     const stage = generateStage({ zone, variant: 'temple', cols: 44, rows: 34 })
 
-    // Every seasonal wall tone is one of the zone's wall shades — nothing off-palette.
+    // Every seasonal wall tone is one of the zone's wall shades, nothing off-palette.
     const walls = colorsOf(stage.props, 'temple_wall')
     expect(walls.size).toBeGreaterThan(0)
     walls.forEach(c => expect(pal.wall).toContain(c))

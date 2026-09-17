@@ -1,6 +1,6 @@
 import { ApiError, apiFailure, isApiError } from '@/lib/apiError'
 
-/** A Response stand-in — only the four fields `apiFailure` reads, so no network is involved. */
+/** A Response stand-in, only the four fields `apiFailure` reads, so no network is involved. */
 function responseWith(status: number, statusText: string, body?: unknown): Response {
   return {
     status,

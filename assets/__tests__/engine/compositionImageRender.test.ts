@@ -1,15 +1,14 @@
 /**
- * The tileset loader populates each tile's backend IMAGE — `styleTile(style, label).image`, the SAME field
- * and the same URL shape in every style — but the COMPOSITION render path (a labeled
+ * The tileset loader populates each tile's backend IMAGE, `styleTile(style, label).image`, the SAME field
+ * and the same URL shape in every style, but the COMPOSITION render path (a labeled
  * tree/building/feature cell drawn as an iso cube / 2D cell / top cell) still drew the glyph, never the
- * image. This proves it now draws the image — mirroring emojiImageTiles.test.ts's setup and
+ * image. This proves it now draws the image, mirroring emojiImageTiles.test.ts's setup and
  * tileRouting.test.ts's recordingCtx render-test pattern.
  *
- * The core rule under test (COLOUR is a per-tile SETTING that FILTERS the baked tile —
- * "the tiles themselves are irrelevant … select the brick tile and apply white"):
+ * The core rule under test (COLOUR is a per-tile SETTING that FILTERS the baked tile, * "the tiles themselves are irrelevant … select the brick tile and apply white"):
  *   - ascii tile images are white, TRANSPARENT TINT-TARGETS → recoloured to the tile's colour.
  *   - emoji tile images are baked near-monochrome part-tiles → luminance-FILTERED to the tile's colour
- *     TOO (a brick 🧱 → white, a roof 🟥 → slate), shading kept. BOTH styles recolour now — the old
+ *     TOO (a brick 🧱 → white, a roof 🟥 → slate), shading kept. BOTH styles recolour now, the old
  *     "emoji is pre-coloured, never recolour" rule broke colour-as-a-setting for emoji buildings.
  *   - no image on the label → falls back to the glyph, never a blank cell/block.
  *
@@ -17,7 +16,7 @@
  * DISTINCT offscreen canvas object when a tint is given (and the fake 2D context below makes that path
  * succeed instead of degrading to "no document/no context" passthrough); with no tint it returns the raw
  * image untouched. So "the drawn source !== the raw stub image" IS "a tint was applied", and
- * "drawn source === the raw stub image" IS "no tint was applied" — a genuine behavioural assertion.
+ * "drawn source === the raw stub image" IS "no tint was applied", a genuine behavioural assertion.
  */
 import { makeStyleTile, setStyleTile, styleCatalog, styleTile, styleTiles } from '@/engine/tileset/styleTiles'
 import { installTilesetPayload } from '@/engine/tileset/tilesetLoader'
@@ -46,7 +45,7 @@ beforeAll(() => {
   ;(global as unknown as { Image: unknown }).Image = MockImage
   // A minimal, WORKING offscreen 2D context (unlike tileRouting.test.ts's `() => null`) so tintedImage's
   // draw/getImageData/putImageData sequence actually completes and hands back a genuinely DISTINCT
-  // canvas object — the signal this file uses to prove a tint was (or wasn't) applied.
+  // canvas object, the signal this file uses to prove a tint was (or wasn't) applied.
   class FakeOffscreenCtx {
     globalCompositeOperation = 'source-over'
     fillStyle = '#000'
@@ -61,7 +60,7 @@ beforeAll(() => {
     return t === '2d' ? new FakeOffscreenCtx() : null
   }
   // The render paints ground from the loaded backend tileset's terrain; install ONLY the ascii entry so
-  // styleCatalog('ascii') has terrain (no longer bundled). Emoji is left as the bundled default on purpose — this
+  // styleCatalog('ascii') has terrain (no longer bundled). Emoji is left as the bundled default on purpose, this
   // suite drives styleTiles('emoji')/EMOJI_STYLE manually, so it must not be rebuilt from the fixture.
   installTilesetPayload((tilesetFixture.data as Parameters<typeof installTilesetPayload>[0]).filter(t => t.key === 'ascii'))
 })
@@ -102,7 +101,7 @@ function recordingCtx(): Rec {
 
 const asset = (over: Partial<GridAsset>): GridAsset => ({ art: ['?'], col: 3, row: 3, type: 'x', height: 1, label: LABEL, ...over })
 
-describe('composition tiles paint their backend IMAGE (tint ascii, never emoji) — iso', () => {
+describe('composition tiles paint their backend IMAGE (tint ascii, never emoji), iso', () => {
   test('ascii: the label image is drawn AND recoloured to the block tint', () => {
     const rawImg = tileImage(ASCII_SRC)
     const r = recordingCtx()
@@ -116,13 +115,13 @@ describe('composition tiles paint their backend IMAGE (tint ascii, never emoji) 
     const r = recordingCtx()
     drawIsoAssetAscii(r.ctx, 100, 100, asset({ color: '#ff00ff' }), 22, 11, 0, false, 'day', EMOJI_STYLE)
     expect(r.images.length).toBeGreaterThan(0)
-    expect(r.images.every((src) => src !== rawImg)).toBe(true) // every face drew the FILTERED sprite — colour is a per-tile setting
+    expect(r.images.every((src) => src !== rawImg)).toBe(true) // every face drew the FILTERED sprite, colour is a per-tile setting
   })
 
-  // The last resort is the TILE's `char` — the backend mark the picture was baked from — and NOT the placed
+  // The last resort is the TILE's `char`, the backend mark the picture was baked from, and NOT the placed
   // asset's own `art`. That distinction is the one-engine rule in miniature: both styles reach the same line
   // of the same renderer and read the same field, so `'Q'` (bundled onto the asset) must never appear.
-  test('a label with no image falls back to the TILE\'s char, in BOTH styles — never blank, never asset.art', () => {
+  test('a label with no image falls back to the TILE\'s char, in BOTH styles, never blank, never asset.art', () => {
     const rAscii = recordingCtx()
     drawIsoAssetAscii(rAscii.ctx, 100, 100, asset({ label: NO_IMAGE_LABEL, art: ['Q'] }), 22, 11, 0, false, 'day', ASCII_STYLE)
     expect(rAscii.images.length).toBe(0)
@@ -137,7 +136,7 @@ describe('composition tiles paint their backend IMAGE (tint ascii, never emoji) 
   })
 })
 
-describe('composition tiles paint their backend IMAGE (tint ascii, never emoji) — 2D (draw2DLabeledCell)', () => {
+describe('composition tiles paint their backend IMAGE (tint ascii, never emoji), 2D (draw2DLabeledCell)', () => {
   test('ascii: recoloured image', () => {
     const rawImg = tileImage(ASCII_SRC)
     const r = recordingCtx()
@@ -163,7 +162,7 @@ describe('composition tiles paint their backend IMAGE (tint ascii, never emoji) 
   })
 })
 
-describe('composition tiles paint their backend IMAGE (tint ascii, never emoji) — top (renderTopView)', () => {
+describe('composition tiles paint their backend IMAGE (tint ascii, never emoji), top (renderTopView)', () => {
   const player = (): PlayerState => ({ x: 5 * 32, z: 5 * 32, moving: false } as PlayerState)
   const gridWith = (label: string, color?: string): IsometricGrid => {
     const grid = new IsometricGrid({ cols: 10, rows: 10, cellSize: 32, isoScale: 1 })

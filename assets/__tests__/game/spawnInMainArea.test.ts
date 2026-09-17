@@ -1,6 +1,5 @@
 /**
- * The player always lands where they can walk —
- */
+ * The player always lands where they can walk, */
 import { spawnInMainArea } from '@/game/runtime/spawn'
 
 /** Build a predicate from a picture: '.' open, '#' blocked. */
@@ -16,7 +15,7 @@ describe('spawnInMainArea', () => {
     expect(spawnInMainArea(m.isOpen, m.cols, m.rows, { col: 2, row: 1 })).toEqual({ col: 2, row: 1 })
   })
 
-  it('moves a spawn OUT of a one-cell pocket into the big area — the stuck case', () => {
+  it('moves a spawn OUT of a one-cell pocket into the big area, the stuck case', () => {
     // The pocket at (1,1) is open and passes a single-cell check, and it leads nowhere.
     const m = map([
       '###.......',
@@ -28,7 +27,7 @@ describe('spawnInMainArea', () => {
     expect(spawn!.col).toBeGreaterThanOrEqual(3)
   })
 
-  it('counts a DIAGONAL-only touch as a different place — the body cannot fit through a corner gap', () => {
+  it('counts a DIAGONAL-only touch as a different place, the body cannot fit through a corner gap', () => {
     // The three-cell area top-left touches the big area only at a corner; the big one wins.
     const m = map([
       '..#.......',

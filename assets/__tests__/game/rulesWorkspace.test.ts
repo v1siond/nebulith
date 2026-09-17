@@ -2,7 +2,7 @@
  * THE RULES WORKSPACE MODEL (§4.8, Week 6).
  *
  * §4.8 gathers triggers, connections and quests into one panel that lists what a level ALREADY has. The
- * value is in the phrasing — "Cell (12, 8) · when entered → show message" — because the whole point is that
+ * value is in the phrasing, "Cell (12, 8) · when entered → show message", because the whole point is that
  * you can read a level's rules without opening each one. That phrasing is what these tests pin.
  *
  * Two of them guard §3.8's actual defect: the reason an action is unavailable must be RETURNED, not
@@ -64,7 +64,7 @@ describe('a trigger reads as a sentence', () => {
     expect(describeTriggerAction({ action: 'goto', params: { templateId: 'cave' } })).toMatch(/go to another level/i)
   })
 
-  it('says a trigger with no action does nothing YET — never invents an effect', () => {
+  it('says a trigger with no action does nothing YET, never invents an effect', () => {
     expect(describeTriggerAction(undefined)).toMatch(/nothing yet/i)
   })
 })
@@ -81,7 +81,7 @@ describe('the TRIGGERS tab lists cells AND characters together (§4.8)', () => {
     expect(rows.map(r => r.where)).toEqual(['(12, 8)', '(24, 9)'])
   })
 
-  it('lists cells first, then characters — a stable reading order', () => {
+  it('lists cells first, then characters, a stable reading order', () => {
     expect(triggerRows(sources)[0].subject).toBe('Cell')
   })
 
@@ -173,7 +173,7 @@ describe('the QUESTS tab', () => {
   })
 })
 
-describe('an unavailable action states WHY (§3.8 — the silent dead end)', () => {
+describe('an unavailable action states WHY (§3.8, the silent dead end)', () => {
   it('explains that a quest needs an NPC', () => {
     expect(questBlockedReason([])).toMatch(/needs an NPC/i)
   })

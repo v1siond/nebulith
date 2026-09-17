@@ -1,24 +1,23 @@
 /**
- * MAP SNAPSHOT — the deep copy an undo checkpoint stores and a redo/undo restores. Everything a map EDIT can
+ * MAP SNAPSHOT, the deep copy an undo checkpoint stores and a redo/undo restores. Everything a map EDIT can
  * change lives here: the grid's per-cell layers (ground / height / collision / floor colour / floor dims), its
- * placed assets, its ground thickness, and the entities. UI-only state (selection, panels, camera) is deliberately NOT captured —
- * undo restores the MAP, not the workspace. Snapshots are the
+ * placed assets, its ground thickness, and the entities. UI-only state (selection, panels, camera) is deliberately NOT captured, * undo restores the MAP, not the workspace. Snapshots are the
  * currency of editorHistory.ts; this module owns the grid⇄snapshot deep-clone so neither side aliases the other.
  */
 import type { GridAsset, IsometricGrid } from '@/engine/IsometricGrid'
 import type { Entity } from '@/game/types'
 
 export interface MapSnapshot {
-  /** the grid size the snapshot was taken at — a restore refuses a snapshot from a differently-sized map
+  /** the grid size the snapshot was taken at, a restore refuses a snapshot from a differently-sized map
    *  (template load / resize) so a stale snapshot can never corrupt the live grid. */
   cols: number
   rows: number
   height: number[][]
   collision: number[][]
   /** How thick the map's BODY is, in blocks. A whole-map number rather than a per-cell one, but it IS a map
-   *  edit — the Generate panel changes it — so undo has to carry it or Ctrl+Z would silently skip it. */
+   *  edit, the Generate panel changes it, so undo has to carry it or Ctrl+Z would silently skip it. */
   slabBlocks: number
-  // The FLOOR is an asset now, so it rides `assets` with every other tile — no separate ground/colour/dims arrays.
+  // The FLOOR is an asset now, so it rides `assets` with every other tile, no separate ground/colour/dims arrays.
   assets: GridAsset[]
   entities: Entity[]
 }
@@ -26,7 +25,7 @@ export interface MapSnapshot {
 const clone = <T>(value: T): T => structuredClone(value)
 
 /** Snapshot the LIVE map, DEEP-cloned so a later edit can't mutate the stored copy (the grid mutates its arrays
- *  in place — placeAsset pushes, setGround rewrites a floor asset). Entities are passed in because they live in
+ *  in place, placeAsset pushes, setGround rewrites a floor asset). Entities are passed in because they live in
  *  React state, not on the grid. */
 export function captureMapSnapshot(grid: IsometricGrid, entities: readonly Entity[]): MapSnapshot {
   return {
@@ -42,7 +41,7 @@ export function captureMapSnapshot(grid: IsometricGrid, entities: readonly Entit
 
 /** Restore a snapshot onto the grid, writing DEEP CLONES so the stored snapshot stays pristine for a later
  *  undo/redo (an undo/redo cycle restores the SAME snapshot more than once). setAssets rebuilds the floor index
- *  + bumps groundVersion. Returns the cloned entities for the caller to push into React state — or null (a
+ *  + bumps groundVersion. Returns the cloned entities for the caller to push into React state, or null (a
  *  no-op) when the snapshot's size doesn't match the live grid, so a snapshot from another map never corrupts
  *  this one. */
 export function restoreMapSnapshot(grid: IsometricGrid, snap: MapSnapshot): Entity[] | null {

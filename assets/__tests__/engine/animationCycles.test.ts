@@ -12,7 +12,7 @@ const B: Animation = { id: 'B', frames: [['b0'], ['b1']], durationMs: 200, loop:
 const ONE: Animation = { id: 'ONE', frames: [['x0'], ['x1']], durationMs: 100, loop: false }
 const byId = { A, B, ONE }
 
-describe('frameAt — frame selection over an animation timeline', () => {
+describe('frameAt, frame selection over an animation timeline', () => {
   it('advances one frame per (duration/frames) and loops', () => {
     expect(frameAt(A, 0)).toEqual(['a0'])
     expect(frameAt(A, 100)).toEqual(['a1']) // 300/3 = 100ms per frame
@@ -29,7 +29,7 @@ describe('frameAt — frame selection over an animation timeline', () => {
   })
 })
 
-describe('cycleActive — trigger gating', () => {
+describe('cycleActive, trigger gating', () => {
   it('always-cycles are always active', () => {
     const c: AnimationCycle = { id: 'c', animations: ['A'], mode: 'sequential', delayMs: 0, trigger: { kind: 'always' } }
     expect(cycleActive(c, new Set())).toBe(true)
@@ -41,7 +41,7 @@ describe('cycleActive — trigger gating', () => {
   })
 })
 
-describe('cycleFrames — the three modes', () => {
+describe('cycleFrames, the three modes', () => {
   it('SEQUENTIAL plays A then B in order, looping (no delay = continuous)', () => {
     const c: AnimationCycle = { id: 'c', animations: ['A', 'B'], mode: 'sequential', delayMs: 0, trigger: { kind: 'always' } }
     // period = 300 + 200 = 500. t in [0,300) → A, [300,500) → B.
@@ -51,7 +51,7 @@ describe('cycleFrames — the three modes', () => {
     expect(cycleFrames(c, byId, 500, 0)).toEqual([['a0']]) // wraps back to A
   })
 
-  it('STACKED plays every animation at once (one frame each — layers to composite)', () => {
+  it('STACKED plays every animation at once (one frame each, layers to composite)', () => {
     const c: AnimationCycle = { id: 'c', animations: ['A', 'B'], mode: 'stacked', delayMs: 0, trigger: { kind: 'always' } }
     // at t=100: A→frame1 (100/100), B→frame1 (100/100). Both present.
     expect(cycleFrames(c, byId, 100, 0)).toEqual([['a1'], ['b1']])
@@ -69,7 +69,7 @@ describe('cycleFrames — the three modes', () => {
   })
 })
 
-describe('activeFrames — composites ONLY active cycles (independent / stackable)', () => {
+describe('activeFrames, composites ONLY active cycles (independent / stackable)', () => {
   const walk: AnimationCycle = { id: 'walk', animations: ['A'], mode: 'sequential', delayMs: 0, trigger: { kind: 'state', state: 'walk' } }
   const attack: AnimationCycle = { id: 'attack', animations: ['B'], mode: 'stacked', delayMs: 0, trigger: { kind: 'state', state: 'combat' } }
   const cycles = [walk, attack]

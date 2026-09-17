@@ -1,17 +1,17 @@
 /**
- * Z-POSITION — the "z" inspector axis SLIDES a tile along an ISO DIAGONAL, it is NOT a vertical lift.
+ * Z-POSITION, the "z" inspector axis SLIDES a tile along an ISO DIAGONAL, it is NOT a vertical lift.
  *
  * This is the fix for the user's Image #32: setting z moved the tile straight up/down (it behaved like Y).
- * z is "the ISO metric angle move" — the tile must travel along one of the four iso diagonals: +z toward
+ * z is "the ISO metric angle move", the tile must travel along one of the four iso diagonals: +z toward
  * zDir (default 'right-up' = up-right toward the back), −z toward its opposite.
  *
  * Coverage (real geometry + real canvas, per the user's standard):
- *   A. isoZOffset — the per-cell step math, i.e. the ACTUAL screen delta per direction (+N, −N opposite, 0).
+ *   A. isoZOffset, the per-cell step math, i.e. the ACTUAL screen delta per direction (+N, −N opposite, 0).
  *   B. the ISO render() applies that slide to a placed asset's DRAWN ORIGIN (real recording ctx).
  *   C. render2D projects the slide to the ground plane and carries NO vertical lift (real recording ctx).
  *   D. zOffset + zDir round-trip through serializeGrid/deserializeToGrid (like zOffset/depthDir already do).
  */
-import '@/__tests__/helpers/installTilesetSeed' // ground reads the loaded backend tileset — install the fixture
+import '@/__tests__/helpers/installTilesetSeed' // ground reads the loaded backend tileset, install the fixture
 import { isoZOffset, DEPTH_STEP, type DepthDir } from '@/engine/render/isoBlock'
 import { render } from '@/engine/render/iso'
 import { render2D, twoDRecordedTileGeom } from '@/engine/render/topdown'
@@ -24,8 +24,8 @@ import type { PlayerState } from '@/game/runtime/player'
 
 const DIRS: DepthDir[] = ['right-up', 'left-up', 'left-down', 'right-down']
 
-// ── A. isoZOffset — the per-cell step math ──────────────────────────────────────────────────────
-describe('A. isoZOffset — z slides a tile along the iso diagonal (the per-cell screen step)', () => {
+// ── A. isoZOffset, the per-cell step math ──────────────────────────────────────────────────────
+describe('A. isoZOffset, z slides a tile along the iso diagonal (the per-cell screen step)', () => {
   const tileW = 40, tileH = 20
 
   test.each(DIRS)('%s: +N moves N·step; −N is the exact OPPOSITE; 0 is no move', dir => {
@@ -79,14 +79,14 @@ function recordingCtx() {
 }
 
 // ── B. the ISO render() applies the diagonal slide to a placed asset's drawn origin ──────────────
-describe('B. ISO render — the asset SLIDES along the diagonal (drawn origin moves by isoZOffset)', () => {
+describe('B. ISO render, the asset SLIDES along the diagonal (drawn origin moves by isoZOffset)', () => {
   // Clamp-free geometry: cellSize 100, isoScale 1, zoom 1 → tileW=71, tileH=36, camX=player.x, camZ=player.z.
   const CELL = 100, W = 800, H = 600
   const ISO = 1, TILE_W = CELL * ISO * 0.71, TILE_H = CELL * ISO * 0.36
   const PCOL = 10, PROW = 10, ACOL = 12, AROW = 10
   const player = (): PlayerState => ({ x: PCOL * CELL, z: PROW * CELL, moving: false } as PlayerState)
 
-  // The render's own iso projection for a cell centre (camX=player.x, camZ=player.z — no clamp).
+  // The render's own iso projection for a cell centre (camX=player.x, camZ=player.z, no clamp).
   const cellOrigin = (col: number, row: number): XY => {
     const wx = col * CELL - PCOL * CELL
     const wz = row * CELL - PROW * CELL
@@ -137,8 +137,8 @@ describe('B. ISO render — the asset SLIDES along the diagonal (drawn origin mo
   })
 })
 
-// ── C. render2D — the slide projects to the ground plane, with NO vertical lift ──────────────────
-describe('C. render2D — z projects to the ground-plane delta, never a vertical lift', () => {
+// ── C. render2D, the slide projects to the ground plane, with NO vertical lift ──────────────────
+describe('C. render2D, z projects to the ground-plane delta, never a vertical lift', () => {
   const CELL = 16, W = 480, H = 480, TILE = 24, PCOL = 20, PROW = 20, ACOL = 22, AROW = 20
   const player = (): PlayerState => ({ x: PCOL * CELL, z: PROW * CELL, moving: false } as PlayerState)
 
@@ -152,11 +152,11 @@ describe('C. render2D — z projects to the ground-plane delta, never a vertical
   }
 
   /**
-   * Where the renderer says it drew the tile — read from its OWN per-frame hit record, the same one the
+   * Where the renderer says it drew the tile, read from its OWN per-frame hit record, the same one the
    * editor's picker reads back, so this can never drift from the draw.
    *
    * The earlier probe hunted the raw fillRect stream for a magic `bgColor`. That colour is only filled by
-   * `drawTopLastResortGlyph` — the no-baked-tile path — so once every tile became image-backed (MAP-MODEL §8)
+   * `drawTopLastResortGlyph`, the no-baked-tile path, so once every tile became image-backed (MAP-MODEL §8)
    * the asset drew through `drawImage` and the probe found nothing at all. It was pinned to a rescue path,
    * not to the geometry under test.
    */
@@ -168,7 +168,7 @@ describe('C. render2D — z projects to the ground-plane delta, never a vertical
     return tileGeomCentroid(geom)
   }
 
-  test('z=0 baseline — drawn at its own cell centre, no slide', () => {
+  test('z=0 baseline, drawn at its own cell centre, no slide', () => {
     // camCol = player.x / cellSize = PCOL, and render2D projects at a FIXED 24px base tile.
     expect(assetAt(0).x).toBeCloseTo(W / 2 + (ACOL + 0.5 - PCOL) * TILE, 6)
   })
@@ -177,7 +177,7 @@ describe('C. render2D — z projects to the ground-plane delta, never a vertical
     const base = assetAt(0)
     const moved = assetAt(3, 'right-down') // dc=+1, dr=0 → pure +col
     expect(moved.x - base.x).toBeCloseTo(3 * TILE, 6) // slid right by 3 cells
-    expect(moved.y).toBeCloseTo(base.y, 6) // NO vertical lift — the old zOffset*tileH*0.9 lift is gone
+    expect(moved.y).toBeCloseTo(base.y, 6) // NO vertical lift, the old zOffset*tileH*0.9 lift is gone
   })
 
   test('right-up (+3): pure depth (−row) → x UNCHANGED, projects to screen-up (still a ground move, not a lift)', () => {

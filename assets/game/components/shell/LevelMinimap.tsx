@@ -1,10 +1,10 @@
 /**
- * THE LEVEL MAP — the whole level at a glance, with where you are marked.
+ * THE LEVEL MAP, the whole level at a glance, with where you are marked.
  *
  * That is right that it is half built: `renderTopView` already draws an entire level from above, entities
  * included. It is used today as a full-screen VIEW MODE ("Top"). This draws the SAME function into a small
  * canvas at a zoom that fits the whole grid, and adds the one thing a minimap has that a view mode does not
- * — a rectangle showing which part you are looking at, and a click to go there.
+ *, a rectangle showing which part you are looking at, and a click to go there.
  *
  * Reusing the renderer rather than writing a second one is the point: a minimap that draws the level its own
  * way is a second opinion about what the level looks like, and the two will disagree the first time a tile
@@ -34,11 +34,11 @@ export interface LevelMinimapProps {
   style: Style
   /** The main view's camera pan, in the same units the editor keeps it. */
   camOffset: { x: number; y: number }
-  /** The main view's zoom, as a percentage — 100 = one cell drawn at `grid.cellSize`. */
+  /** The main view's zoom, as a percentage, 100 = one cell drawn at `grid.cellSize`. */
   zoomPct: number
   /** The main canvas, to know how many cells it is showing. */
   mainCanvas: HTMLCanvasElement | null
-  /** Centre the main view on a cell. The editor already has this — `__centerOn` uses the same maths. */
+  /** Centre the main view on a cell. The editor already has this, `__centerOn` uses the same maths. */
   onJumpTo?: (col: number, row: number) => void
   /** Collapse it. the HUD version will be hideable "like almost everything in HUD". */
   onHide?: () => void
@@ -47,14 +47,14 @@ export interface LevelMinimapProps {
    * itself again).
    */
   onMaximize?: () => void
-  /** Drawn large, in a panel of its own. Only changes the chrome — the map is the same component. */
+  /** Drawn large, in a panel of its own. Only changes the chrome, the map is the same component. */
   big?: boolean
 }
 
 export function LevelMinimap({ grid, player, entities, style, camOffset, zoomPct, mainCanvas, onJumpTo, onHide, onMaximize, big = false }: LevelMinimapProps) {
   const canvas = useRef<HTMLCanvasElement>(null)
 
-  // The map's aspect follows the LEVEL's, so a 40×40 map is square and a 60×20 one is wide — the shape of
+  // The map's aspect follows the LEVEL's, so a 40×40 map is square and a 60×20 one is wide, the shape of
   // the picture is itself information about the level.
   const cols = grid?.cols ?? 0
   const rows = grid?.rows ?? 0
@@ -63,7 +63,7 @@ export function LevelMinimap({ grid, player, entities, style, camOffset, zoomPct
     const node = canvas.current
     if (!node || !grid) return
     // MEASURE HERE, every paint. A mount-time measurement reads 0 (no layout yet) and a ResizeObserver on a
-    // canvas whose backing store this function also writes is a fight over the same element — the first
+    // canvas whose backing store this function also writes is a fight over the same element, the first
     // version did both and never got past 0, leaving the default 300×150 store and an empty map. The paint
     // already runs on a timer, so it can just ask the element how big it is.
     const w = node.clientWidth
@@ -90,7 +90,7 @@ export function LevelMinimap({ grid, player, entities, style, camOffset, zoomPct
       // The map shows the level, not the editing state: no selection, no hover, no placement ghost. Those
       // belong to the thing you are working in, and repeating them here would just be noise at 4px a cell.
     })
-    // WHERE THE MAIN VIEW IS LOOKING, derived here from the same camera the render reads — the exact
+    // WHERE THE MAIN VIEW IS LOOKING, derived here from the same camera the render reads, the exact
     // inverse `__centerOn` applies, so the rectangle cannot drift from what is on screen.
     if (!mainCanvas || !mainCanvas.width) return
     const cs = grid.cellSize

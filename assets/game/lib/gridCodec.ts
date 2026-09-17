@@ -1,5 +1,5 @@
 /**
- * GRID CODEC — entity / quest / building ↔ GridAsset persistence
+ * GRID CODEC, entity / quest / building ↔ GridAsset persistence
  *
  * Extracted verbatim from the game-engine templates page. The template schema
  * (api.ts) has no entities/quests/buildings fields and is read-only here, so
@@ -25,7 +25,7 @@ const ENTITY_COLOR: Record<EntityKind, string> = {
   npc: '#33d6ff',
 }
 
-/** The glyph an entity renders as — enemies use their type's first letter. */
+/** The glyph an entity renders as, enemies use their type's first letter. */
 function entityGlyph(entity: Entity): string {
   if (entity.kind !== 'enemy') return ENTITY_GLYPH[entity.kind]
   const first = entity.enemyType?.trim()?.[0]
@@ -123,18 +123,17 @@ export const isQuestAsset = questCodec.isMarker
 
 // Buildings are NOT persisted through a marker codec anymore: a pre-built building is stamped as its
 // composition's per-cell tiles (game/runtime/composition.ts), which are plain GridAssets, so they
-// serialize/deserialize with the rest of grid.assets — exactly like a stamped tree. There is no
+// serialize/deserialize with the rest of grid.assets, exactly like a stamped tree. There is no
 // grouped-building metadata to round-trip.
 
 // ── cell-trigger persistence codec ───────────────────────────────────
 // Cell triggers (on enter / on interact → action) belong to a CELL, but the
-// template schema has no per-cell channel. So — exactly like quests + buildings —
-// each cell's trigger group rides assetsData as ONE off-grid marker record, split
+// template schema has no per-cell channel. So, exactly like quests + buildings, // each cell's trigger group rides assetsData as ONE off-grid marker record, split
 // back out on load. (On-DEFEAT triggers live on the entity itself and ride the
 // `entities` field, so they're not part of this codec.) The group carries its own
 // col/row in the payload; the marker asset is off-grid so no renderer draws it.
 
-/** All triggers authored on one cell — the persisted unit for cell triggers. */
+/** All triggers authored on one cell, the persisted unit for cell triggers. */
 export interface CellTriggerGroup {
   col: number
   row: number
@@ -166,7 +165,7 @@ export function triggersAtCell(groups: readonly CellTriggerGroup[], col: number,
 
 // ── active-art-style persistence ─────────────────────────────────────
 // The active GLOBAL art style (a single style id) rides assetsData as ONE off-grid marker,
-// exactly like buildings — so it saves/loads with the template without touching api.ts. A
+// exactly like buildings, so it saves/loads with the template without touching api.ts. A
 // scalar, not a list, so it's a small pair rather than the list codec. Absent on load →
 // the editor keeps ASCII (styleById defaults to ASCII).
 

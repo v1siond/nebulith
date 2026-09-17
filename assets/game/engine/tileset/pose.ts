@@ -1,8 +1,8 @@
 /**
- * TilePose — the per-tile positioning data that lives in the backend tileset (deviations-only).
+ * TilePose, the per-tile positioning data that lives in the backend tileset (deviations-only).
  *
  * ONE transform, read by every renderer: a held weapon (anchor = the hand), a ground/prop tile
- * (anchor = the cell centre), and — via `muzzle` — where a projectile leaves a weapon. `dx/dy/rot/scale`
+ * (anchor = the cell centre), and, via `muzzle`, where a projectile leaves a weapon. `dx/dy/rot/scale`
  * are deliberately the SAME fields `cellAnimation.AnimTransform` uses (rot in radians), so a Phase-2
  * animation keyframe is this exact shape. Absent pose or field = default → `applyPose` is a no-op, so an
  * unposed tile renders byte-identically to before this system existed.
@@ -24,7 +24,7 @@ export interface TilePose {
   color?: string | null
 }
 
-/** The spatial fields resolved to concrete numbers — absent pose/field → identity. */
+/** The spatial fields resolved to concrete numbers, absent pose/field → identity. */
 export interface ResolvedPose {
   dx: number
   dy: number

@@ -1,15 +1,15 @@
 /**
- * REAL-CANVAS evidence for BUG #1 (Image #40) — an animated setting must COMPOSE with the tile's BASE
+ * REAL-CANVAS evidence for BUG #1 (Image #40), an animated setting must COMPOSE with the tile's BASE
  * setting, not OVERRIDE it. Drives the ACTUAL iso render (@napi-rs/canvas, the project standard) with a
  * controlled clock and measures the drawn magenta water column's rendered HEIGHT (vertical extent) + BASE row.
  *
  * The model (ANIMATION-SYSTEM.md §3.5): height is ADDITIVE, so rendered scaleY = base + (value − from). A tile
- * with BASE height 3 carrying a `height 1→4` grow (delta 0→3) must render 3→6 over the loop — NOT 0→3 (the old
+ * with BASE height 3 carrying a `height 1→4` grow (delta 0→3) must render 3→6 over the loop, NOT 0→3 (the old
  * override bug, which masked the base slider). Editing the base height shifts the whole range (base 2 → 2→5),
  * and zoom (a MULTIPLICATIVE base setting) still applies alongside the active height animation.
  *
  * Why real-canvas + a controlled clock: live Playwright MOTION capture is frozen in this WSL2 box, so we render
- * the SAME production draw code onto a real rasteriser at chosen clock times — baked tiles are OS-independent,
+ * the SAME production draw code onto a real rasteriser at chosen clock times, baked tiles are OS-independent,
  * so the measured pixels are authoritative for the visible behaviour.
  */
 import { makeStyleTile, setStyleTile, styleCatalog, styleTile } from '@/engine/tileset/styleTiles'
@@ -103,13 +103,13 @@ afterAll(() => {
   }
 })
 
-describe('BUG #1: a height animation COMPOSES with the base height — base 3 + grow(+3) renders 3→6 (not 0→3)', () => {
+describe('BUG #1: a height animation COMPOSES with the base height, base 3 + grow(+3) renders 3→6 (not 0→3)', () => {
   for (const [styleName, style] of [['EMOJI', EMOJI_STYLE], ['ASCII', ASCII_STYLE]] as const) {
     test(`${styleName}: base height 3 with a 1→4 grow renders 3 at the base and ~6 at the peak`, () => {
       const ref1 = staticExtent(1, style)
       const ref3 = staticExtent(3, style)
       const ref6 = staticExtent(6, style)
-      // The static references are ordered (scaleY drives the block's drawn height — a fixed cap + per-block rise).
+      // The static references are ordered (scaleY drives the block's drawn height, a fixed cap + per-block rise).
       expect(ref3).toBeGreaterThan(ref1 * 1.7)         // scaleY 3 is clearly taller than scaleY 1
       expect(ref6).toBeGreaterThan(ref3 * 1.6)         // scaleY 6 clearly taller than scaleY 3
 
@@ -131,7 +131,7 @@ describe('BUG #1: a height animation COMPOSES with the base height — base 3 + 
       expect(peak.extent / base.extent).toBeGreaterThan(1.7)
       expect(peak.extent / base.extent).toBeLessThan(2.3)
 
-      // Grows UP FROM THE BASE — the bottom row barely moves while the column doubles (planted, not levitating).
+      // Grows UP FROM THE BASE, the bottom row barely moves while the column doubles (planted, not levitating).
       expect(Math.abs(peak.bottom - base.bottom)).toBeLessThan(14)
       expect(peak.top).toBeLessThan(base.top - 40)
       for (const m of [base, peak]) expect(m.mass).toBeGreaterThan(0) // always visible (no opacity track)
@@ -156,7 +156,7 @@ describe('BUG #1: editing the BASE height shifts the whole animated range (base 
       expect(Math.abs(b2Base - ref2)).toBeLessThan(ref2 * 0.2)
       expect(Math.abs(b2Peak - ref5)).toBeLessThan(ref5 * 0.15)
 
-      // Editing the base DOWN (3→2) shortens BOTH ends of the rendered range — the base slider is live.
+      // Editing the base DOWN (3→2) shortens BOTH ends of the rendered range, the base slider is live.
       expect(b2Base).toBeLessThan(b3Base)   // 2 < 3
       expect(b2Peak).toBeLessThan(b3Peak)   // 5 < 6
     })

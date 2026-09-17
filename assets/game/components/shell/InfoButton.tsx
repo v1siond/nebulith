@@ -1,9 +1,9 @@
 /**
- * THE (i) BUTTON — a click-to-open explanation next to a control.
+ * THE (i) BUTTON, a click-to-open explanation next to a control.
  *
  * CLICK, not hover, and it stays open until dismissed. That is deliberate: a hover tooltip cannot be read
  * on a touch screen, cannot be selected or copied, and vanishes the moment you move toward the thing it
- * describes — which is exactly when you still need it. Godot's editor made the same correction.
+ * describes, which is exactly when you still need it. Godot's editor made the same correction.
  *
  * The copy lives in `editorHelp.data.ts`. An id with no copy renders NO button, so an (i) never opens an
  * empty box.
@@ -92,7 +92,7 @@ export function InfoButton({ helpId, docHref }: InfoButtonProps) {
               ✕
             </button>
           </div>
-          {/* Authored copy from editorHelp.data.ts — never user input. See that file's header. */}
+          {/* Authored copy from editorHelp.data.ts, never user input. See that file's header. */}
           <div className="pb" dangerouslySetInnerHTML={{ __html: entry.body }} />
           {docHref && (
             <div className="pb" style={{ paddingTop: 0 }}>
@@ -105,7 +105,7 @@ export function InfoButton({ helpId, docHref }: InfoButtonProps) {
   )
 }
 
-/** A section heading with an optional (i) — the `sub()` helper from the design. */
+/** A section heading with an optional (i), the `sub()` helper from the design. */
 export function SubHeading({
   children,
   helpId,

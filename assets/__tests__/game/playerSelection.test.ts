@@ -2,11 +2,11 @@
  * Regression: clicking the PLAYER selected nothing (stats + animation panel never appeared).
  *
  * Root cause: the player SPRITE is drawn at its live play-loop position (playerRef), but the
- * player ENTITY's col/row is only written by syncPlayerEntity (spawn / load / place) — the game
+ * player ENTITY's col/row is only written by syncPlayerEntity (spawn / load / place), the game
  * loop never re-syncs it. So once the hero walks, entityAtClick hit-tested the STALE spawn cell
  * and missed. Enemies/NPCs worked because their entity col/row IS advanced every patrol tick.
  *
- * Fix: hit-test the player at its LIVE cell — withPlayerCell() overrides the player entity's cell
+ * Fix: hit-test the player at its LIVE cell, withPlayerCell() overrides the player entity's cell
  * before the existing (view-aware, billboard-aware) entityAtClick runs.
  */
 import { makePlayer, makeEnemy, entityAtClick, withPlayerCell } from '@/game/entities'
@@ -36,7 +36,7 @@ describe('player selection follows the live player position, not the frozen spaw
   test('the moved player is NOT found at its now-vacated spawn cell', () => {
     const player = makePlayer('p1', 5, 5)
     const live = { col: 10, row: 10 }
-    // the spawn cell (5,5) is empty now that the player is at its live cell — clicking it selects nothing
+    // the spawn cell (5,5) is empty now that the player is at its live cell, clicking it selects nothing
     expect(entityAtClick(withPlayerCell([player], live), 5, 5, 'top')).toBeNull()
   })
 })

@@ -1,6 +1,6 @@
 /**
  * BUILDINGS ARE COMPOSITIONS: a pre-built building stamps as PLAIN per-cell tiles (like a tree), through the
- * SAME stampComposition path — not a special `type:'building'` unit. Its behaviors ride on GENERIC per-tile
+ * SAME stampComposition path, not a special `type:'building'` unit. Its behaviors ride on GENERIC per-tile
  * settings the ONE render path reads:
  *   - walls / windows / doors carry settings.fadeNear  (ease translucent near the hero)
  *   - roof blocks carry        settings.cutawayRoof     (lift off entirely near the hero)
@@ -13,13 +13,13 @@ import { stampBuildingComposition } from '@/game/runtime/composition'
 
 const mkGrid = () => new IsometricGrid({ cols: 32, rows: 32, cellSize: 16, isoScale: 1.4 })
 // A cell label is a building PART when it is a base part OR a material/variant of one
-// (a store's `roof_top_store`, a house's `wall_wood_c`, a slate `roof_slate`, …) — each still a
-// roof/wall/window/door/apex — OR the entrance APRON, the `path` FLOOR tile the backend's
+// (a store's `roof_top_store`, a house's `wall_wood_c`, a slate `roof_slate`, …), each still a
+// roof/wall/window/door/apex, OR the entrance APRON, the `path` FLOOR tile the backend's
 // `entrance_cells/2` lays on the row in front of the doors so the doorstep joins the road it meets.
 const isBuildingPart = (label = '') => /^(roof_top|roof|wall|window|door|path)/.test(label)
 
 describe('stampBuildingComposition → plain per-cell tiles carrying generic behavior settings', () => {
-  test('every stamped cell is a labeled tile — none is `type:"building"`, none carries `buildingType`', () => {
+  test('every stamped cell is a labeled tile, none is `type:"building"`, none carries `buildingType`', () => {
     const grid = mkGrid()
     const placed = stampBuildingComposition(grid, 'house', 4, 12, 12, 'spring', 'south')
     expect(placed).toBeGreaterThan(0)
@@ -65,11 +65,11 @@ describe('stampBuildingComposition → plain per-cell tiles carrying generic beh
     expect(grid.assets.filter(a => a.type !== 'floor').every(a => a.type === 'store_5')).toBe(true)
   })
 
-  test('the roof RIDGE wears roof_top — one ridge column per peak, symmetric about the centre', () => {
+  test('the roof RIDGE wears roof_top, one ridge column per peak, symmetric about the centre', () => {
     // The gable is one depth-spanned bar PER COLUMN at its symmetric step height (`gable_roof`), with the
     // PEAK-height columns wearing the ridge tile. An ODD width peaks on one centre column; an EVEN width
     // peaks on two (w=4 → steps [1,2,2,1]). The old separate apex "cap" was removed because it shortened one
-    // centre column and broke that left/right symmetry — so the count follows the width, it is not always 1.
+    // centre column and broke that left/right symmetry, so the count follows the width, it is not always 1.
     const ridges = (w: number): number => {
       const grid = mkGrid()
       stampBuildingComposition(grid, 'house', w, 12, 12, 'spring', 'south')

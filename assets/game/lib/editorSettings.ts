@@ -1,9 +1,9 @@
 /**
- * Editor UI settings client — backend-owned editor chrome state (nebulith `/api/editor_settings`).
+ * Editor UI settings client, backend-owned editor chrome state (nebulith `/api/editor_settings`).
  *
  * A tiny key→value store: the key is a stable modal id ("settings" / "animation" / "triggers"),
  * the value is a floating panel's remembered geometry `{x,y,w,h}`. The backend owns this so the
- * editor never hardcodes panel positions — on mount it loads the whole map once, and on every
+ * editor never hardcodes panel positions, on mount it loads the whole map once, and on every
  * move/resize it upserts the one key (debounced by the caller).
  */
 import { NEBULITH_API } from './nebulithApi'
@@ -16,13 +16,13 @@ export interface PanelGeometry {
   h: number
 }
 
-/** A scalar editor setting — the player camera range, a section's open/closed state, … `null` means the
+/** A scalar editor setting, the player camera range, a section's open/closed state, … `null` means the
  *  user explicitly turned it OFF, which is different from never having set it. */
 export interface SettingValue {
   value: number | string | boolean | null
 }
 
-/** Anything the store may hold under a key. The backend column is `:map` (jsonb) and always was — the
+/** Anything the store may hold under a key. The backend column is `:map` (jsonb) and always was, the
  *  frontend simply never modelled more than panel geometry, which is why the camera range had nowhere to
  *  live (§5.1 #7). */
 export type EditorSettingValue = PanelGeometry | SettingValue
@@ -31,7 +31,7 @@ export type EditorSettingValue = PanelGeometry | SettingValue
 export type EditorSettings = Record<string, EditorSettingValue>
 
 /** A stored NUMBER, or undefined when the key is unset, cleared, or malformed. A shared store must never
- *  hand the editor a value it cannot use — a bad row is dropped, exactly as a bad games payload is. */
+ *  hand the editor a value it cannot use, a bad row is dropped, exactly as a bad games payload is. */
 export function readNumberSetting(settings: EditorSettings, key: string): number | undefined {
   const stored = settings[key] as SettingValue | undefined
   if (!stored || typeof stored !== 'object') return undefined

@@ -1,5 +1,5 @@
 /**
- * TILE-PLACEMENT ROUTING — the pure decision layer behind the editor's Minecraft-style
+ * TILE-PLACEMENT ROUTING, the pure decision layer behind the editor's Minecraft-style
  * "pick a tile, click to place it" brush. Given a catalog TileDef (the SAME tiles the Tile
  * Library browses via tilesForStyle), it answers the questions the page's brush needs:
  *
@@ -9,7 +9,7 @@
  * There is deliberately NO type/category classifier for a stacked asset: a nature/building tile's
  * insertion HEIGHT is the tile's OWN height DATA (see stackAssetTile) and its COLLISION is one uniform
  * walkable default (a per-cell SETTING the user drives, never derived from height/type/category/style),
- * not a per-type list — so every tile inserts through the same uniform path. The tile's VISUAL is
+ * not a per-type list, so every tile inserts through the same uniform path. The tile's VISUAL is
  * pinned via `tileOverride = tile.id`, so the exact catalog tile always renders. Kept pure + here
  * so the routing is unit-testable without the React page.
  */
@@ -27,7 +27,7 @@ export function tileSlug(id: string): string {
 /**
  * What a `units` tile IS, per the backend: a walking figure, a hostile, or a combat effect.
  *
- * This is `tiles.settings.unitRole` — the row the editor reads instead of classifying 36 backend-owned
+ * This is `tiles.settings.unitRole`, the row the editor reads instead of classifying 36 backend-owned
  * slugs itself (§3.14b Tier-1 #2). It is also the grouping the Characters library needs to sub-divide its
  * 79 creatures (§3.6).
  */
@@ -36,7 +36,7 @@ export type UnitRole = 'person' | 'enemy' | 'animal' | 'fx'
 const UNIT_ROLES: ReadonlySet<string> = new Set<UnitRole>(['person', 'enemy', 'animal', 'fx'])
 
 /**
- * The roles that are CHARACTERS — people, monsters and animals.
+ * The roles that are CHARACTERS, people, monsters and animals.
  *
  * `fx` is a role but NOT a character: an arrow, a nova, a fire-slash is what a power DRAWS. Nobody places a
  * bolt as a character. Anything counting or listing characters must exclude it, and the count in the rail
@@ -51,7 +51,7 @@ export function isCharacterTile(settings?: Record<string, unknown>): boolean {
 }
 
 /** The role the backend gives this tile, or undefined when its row carries none. A value the frontend does
- *  not recognise is undefined too — an unknown role must read as "not said", never as a guess. */
+ *  not recognise is undefined too, an unknown role must read as "not said", never as a guess. */
 export function unitRole(settings?: Record<string, unknown>): UnitRole | undefined {
   const raw = settings?.unitRole
   return typeof raw === 'string' && UNIT_ROLES.has(raw) ? (raw as UnitRole) : undefined
@@ -59,7 +59,7 @@ export function unitRole(settings?: Record<string, unknown>): UnitRole | undefin
 
 
 /**
- * The entity kind a `units` TILE places as — the tile's served `unitRole` first, the slug bridge second.
+ * The entity kind a `units` TILE places as, the tile's served `unitRole` first, the slug bridge second.
  *
  * `player` stays a slug check: the hero is the one distinguished entity in the model ("only units are
  * special, they move"), and its row's role is `person` like any other figure. An `fx` tile is not an
@@ -78,7 +78,7 @@ export function entityKindForUnitTile(tile: Pick<TileDef, 'id' | 'settings'>): '
  * An `fx` tile is not an entity at all → null; `placementFor` routes it to a decoration asset.
  *
  * `animal` places as an ENEMY, exactly as before. The role exists so the Characters library can sub-group
- * People / Monsters / Animals (§4.5) — it is a GROUPING, and changing what an animal places as would be a
+ * People / Monsters / Animals (§4.5), it is a GROUPING, and changing what an animal places as would be a
  * behaviour change nobody asked for. The old rule was "everything that is not a person is an enemy", and a
  * bear still spawns as one.
  */
@@ -91,7 +91,7 @@ const ENTITY_KIND_BY_ROLE: Record<UnitRole, 'player' | 'npc' | 'enemy' | null> =
 
 // Ground-family categories all lay down the cell's walkable ground (a terrain/road/floor is painted flat,
 // height 0). The finer taxonomy split `buildings` into stacked structural pieces (walls/windows/doors/roofs)
-// and `terrain` into terrain/roads/floors — but the PLACEMENT primitive only cares about ground-vs-asset.
+// and `terrain` into terrain/roads/floors, but the PLACEMENT primitive only cares about ground-vs-asset.
 const GROUND_CATEGORIES = new Set<TileCategory>(['terrain', 'roads', 'floors'])
 
 /** Route an armed tile to its placement primitive:
@@ -100,13 +100,13 @@ const GROUND_CATEGORIES = new Set<TileCategory>(['terrain', 'roads', 'floors'])
  *   - units (FX) / walls / windows / doors / roofs / props / nature → stamp a (stackable) cell asset
  *
  * A `units` tile is routed by its SERVED role (`settings.unitRole`). The two hardcoded slug Sets that used
- * to stand in for it — §3.14b #11, 36 backend-owned slugs classified in the frontend — are DELETED: the
+ * to stand in for it, §3.14b #11, 36 backend-owned slugs classified in the frontend, are DELETED: the
  * backend seeds every `units` row's role now (`seed_unit_roles/0`). */
 export function placementFor(tile: Pick<TileDef, 'category' | 'id' | 'settings'>): PlacementKind {
   const cat: TileCategory = tile.category
   if (GROUND_CATEGORIES.has(cat)) return 'terrain'
-  if (cat !== 'units') return 'asset' // walls/windows/doors/roofs/props/nature — every standing piece stacks
-  // Routed by the tile's SERVED role. A row with no role is not a placeable creature — the catalog has not
+  if (cat !== 'units') return 'asset' // walls/windows/doors/roofs/props/nature, every standing piece stacks
+  // Routed by the tile's SERVED role. A row with no role is not a placeable creature, the catalog has not
   // said what it is, and inventing an answer is what the deleted slug lists used to do.
   return unitRole(tile.settings) === 'fx' || !unitRole(tile.settings) ? 'asset' : 'entity'
 }

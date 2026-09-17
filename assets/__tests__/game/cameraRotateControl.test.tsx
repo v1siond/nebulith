@@ -3,8 +3,8 @@
  *
  * / "we can rotate the corners, 4 corners, 4 rotation options, all faces of the map are visible."
  *
- * So the control must (a) advance ONE quarter-turn per click and wrap 0→1→2→3→0 — four corners, no fifth
- * state — and (b) SHOW which corner you are on, or the user cannot tell a rotated map from the default one.
+ * So the control must (a) advance ONE quarter-turn per click and wrap 0→1→2→3→0, four corners, no fifth
+ * state, and (b) SHOW which corner you are on, or the user cannot tell a rotated map from the default one.
  */
 import { useState } from 'react'
 import { render, screen, fireEvent } from '@testing-library/react'
@@ -37,7 +37,7 @@ describe('the rotate control advances one quarter-turn per click', () => {
     expect(seen).toEqual(['1', '2', '3', '0'])
   })
 
-  test('it wraps from ANY starting corner — 3 → 0, never a fifth state', () => {
+  test('it wraps from ANY starting corner, 3 → 0, never a fifth state', () => {
     render(<Harness start={3} />)
     clickRotate()
     expect(facingNow()).toBe('0')

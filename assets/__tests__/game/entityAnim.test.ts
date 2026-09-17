@@ -23,7 +23,7 @@ describe('entityFrameIndex', () => {
   })
   test('walk advances frames over time (period-robust: produces >1 distinct frame)', () => {
     // Sample across time; a swapping walk must show BOTH frames regardless of the exact period
-    // (asserting a single hardcoded time is fragile — it can alias on the frame period).
+    // (asserting a single hardcoded time is fragile, it can alias on the frame period).
     const seen = new Set<number>()
     for (let t = 0; t <= 4000; t += 60) seen.add(entityFrameIndex('walk', t, 2))
     expect(seen.size).toBeGreaterThan(1)

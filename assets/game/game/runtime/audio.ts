@@ -1,4 +1,4 @@
-// Tiny Web-Audio SFX for the play loop — moved out of the game-engine page (stage 5a).
+// Tiny Web-Audio SFX for the play loop, moved out of the game-engine page (stage 5a).
 // No assets: sounds are synthesized on demand. The AudioContext is created lazily on
 // the first call (a key press = a user gesture, so autoplay policy is satisfied) and
 // reused thereafter. SSR-safe: `window` is only touched inside the call (guarded), and
@@ -6,7 +6,7 @@
 
 let swooshCtx: AudioContext | null = null
 
-/** A short synthesized "swoosh" for a melee swing — decaying noise through a bandpass that
+/** A short synthesized "swoosh" for a melee swing, decaying noise through a bandpass that
  *  sweeps down. Lazily creates the AudioContext on the first swing; no-op during SSR. */
 export function playSwoosh(): void {
   if (typeof window === 'undefined') return
@@ -34,6 +34,6 @@ export function playSwoosh(): void {
     g.connect(ctx.destination)
     src.start()
   } catch {
-    /* audio unavailable — stay silent */
+    /* audio unavailable, stay silent */
   }
 }

@@ -1,12 +1,12 @@
 /**
- * THE EDITOR'S SELF-DOCUMENTATION — the mode chip and the `? Help` sheet (design §4.9).
+ * THE EDITOR'S SELF-DOCUMENTATION, the mode chip and the `? Help` sheet (design §4.9).
  *
  * §3.4 is a P0: "Nothing tells the user how to use the editor." Two surfaces answer it, and neither
  * invents its content:
  *   - CanvasModeChip states what the next click does (`describeCanvasMode`), so a mode is VISIBLE
  *     on the canvas instead of implied by which panel happens to be open (§4.1.7).
- *   - HelpSheet prints the shortcut table — the same table the keydown dispatcher matches against,
- *     plus the LIVE ability/quick-slot bindings — so it cannot drift from the handlers.
+ *   - HelpSheet prints the shortcut table, the same table the keydown dispatcher matches against,
+ *     plus the LIVE ability/quick-slot bindings, so it cannot drift from the handlers.
  *
  * Presentational: no editor state, no fetching. Both take exactly what they render.
  */
@@ -16,7 +16,7 @@ import { helpSheetGroups, type HelpSheetContext, type ShortcutGroup } from '@/ga
 
 /**
  * The always-visible mode chip. `role="status"` + `aria-live="polite"` because it changes WHILE the
- * user works — a screen reader should mention the new mode without yanking focus off the canvas.
+ * user works, a screen reader should mention the new mode without yanking focus off the canvas.
  */
 export function CanvasModeChip(props: CanvasModeState) {
   const { glyph, what, how } = describeCanvasMode(props)
@@ -34,7 +34,7 @@ export function CanvasModeChip(props: CanvasModeState) {
   )
 }
 
-/** One group's rows as a two-column table — chord on the left, what it does on the right. */
+/** One group's rows as a two-column table, chord on the left, what it does on the right. */
 function ShortcutTable({ group }: { group: ShortcutGroup }) {
   return (
     <section>

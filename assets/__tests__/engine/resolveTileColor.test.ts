@@ -1,5 +1,5 @@
 /**
- * resolveTile COLOUR SOURCE — a tile's colour must come from its OWN backend `settings.colors`
+ * resolveTile COLOUR SOURCE, a tile's colour must come from its OWN backend `settings.colors`
  * (per zone; canopy = a per-zone variant array), NOT a shared per-zone palette blob. This is the
  * "everything is data" rule: the frontend resolves colour from the tile the backend served, never
  * from a hardcoded/shared palette. The fixture deliberately has EMPTY `palettes` to prove colour
@@ -10,7 +10,7 @@ import { resolveTile, FALLBACK_RESOLVED, type Tileset } from '@/engine/tileset/t
 const TILESET: Tileset = {
   id: 'ascii',
   name: 'ASCII',
-  palettes: {}, // EMPTY on purpose — colour must come from each tile's settings.colors
+  palettes: {}, // EMPTY on purpose, colour must come from each tile's settings.colors
   terrain: {},
   compositions: {},
   tiles: {
@@ -60,8 +60,8 @@ describe("resolveTile resolves colour from each tile's own settings.colors (not 
     expect(resolveTile(TILESET, 'winter', 'wall').color).toBe(FALLBACK_RESOLVED.color) // wall has no winter
   })
 
-  // The mark and the settings ride through untouched. The field is `char` — the mark the picture was
-  // baked FROM — not `glyph`; authoring `glyph` here handed resolveTile an undefined it passed straight on.
+  // The mark and the settings ride through untouched. The field is `char`, the mark the picture was
+  // baked FROM, not `glyph`; authoring `glyph` here handed resolveTile an undefined it passed straight on.
   test('the tile mark + settings still pass through', () => {
     const r = resolveTile(TILESET, 'spring', 'wall')
     expect(r.char).toBe('█')

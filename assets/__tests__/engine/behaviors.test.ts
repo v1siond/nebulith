@@ -1,6 +1,6 @@
 import { shouldFire, lampPulse } from '@/engine/behaviors'
 
-describe('behaviors — periodic firing (cannon)', () => {
+describe('behaviors, periodic firing (cannon)', () => {
   it('fires only once the interval has elapsed since the last shot', () => {
     expect(shouldFire(1000, 0, 999)).toBe(false)
     expect(shouldFire(1000, 0, 1000)).toBe(true)
@@ -13,7 +13,7 @@ describe('behaviors — periodic firing (cannon)', () => {
   })
 })
 
-describe('behaviors — lamp pulse', () => {
+describe('behaviors, lamp pulse', () => {
   it('stays within 0..1 across the cycle', () => {
     for (const t of [0, 300, 600, 900, 1200, 5000]) {
       const v = lampPulse(t)

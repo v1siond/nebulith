@@ -1,8 +1,7 @@
 /**
- * THE APP'S CONFIRMATION (design §5.1 — "Replace window.confirm/prompt with the app's Modal").
+ * THE APP'S CONFIRMATION (design §5.1, "Replace window.confirm/prompt with the app's Modal").
  *
- * The value of the hook is that it keeps the call site's shape — `if (!(await confirm(…))) return` —
- * so a destructive handler still reads top-to-bottom. That only holds if the promise ALWAYS settles:
+ * The value of the hook is that it keeps the call site's shape, `if (!(await confirm(…))) return`, * so a destructive handler still reads top-to-bottom. That only holds if the promise ALWAYS settles:
  * on confirm, on cancel, and on unmount. A confirmation that leaves its promise pending silently
  * swallows the delete instead of cancelling it, which is the bug worth testing for.
  */
@@ -53,7 +52,7 @@ describe('useConfirm', () => {
     expect(onAnswer).toHaveBeenCalledWith(false)
   })
 
-  it('resolves false on Esc — the dialog cannot be dismissed into silence', async () => {
+  it('resolves false on Esc, the dialog cannot be dismissed into silence', async () => {
     const onAnswer = jest.fn()
     render(<Harness onAnswer={onAnswer} />)
     ask()

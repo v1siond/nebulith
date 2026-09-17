@@ -15,7 +15,7 @@ const COLS = 50, ROWS = 50, CELL = 100
 const PLAYER = { fc: 25, fr: 25 }      // player cell (camera target base)
 const PAN = { x: 640, y: -280 }        // a drag pan in PIXELS (the user had panned to the store)
 
-/** The WORLD cell at screen centre for a given facing + pan — deorient(the view focus). Editor = unclamped. */
+/** The WORLD cell at screen centre for a given facing + pan, deorient(the view focus). Editor = unclamped. */
 function centeredCell(facing: Orientation, pan: { x: number; y: number }) {
   const f = isoViewFocus(PLAYER.fc, PLAYER.fr, pan.x / CELL, pan.y / CELL, 999, 999, COLS, ROWS, facing, false)
   return deorientCell(f.fc, f.fr, COLS, ROWS, facing)
@@ -43,13 +43,13 @@ describe('rotation stays anchored on the point you were looking at', () => {
     }
   })
 
-  it('WITHOUT the fix the centre moves — proving the bug is real (control)', () => {
+  it('WITHOUT the fix the centre moves, proving the bug is real (control)', () => {
     const base = centeredCell(0, PAN)
     const moved = centeredCell(1, PAN) // same pan, just rotated facing → the old buggy behaviour
     expect(Math.abs(moved.col - base.col) + Math.abs(moved.row - base.row)).toBeGreaterThan(1)
   })
 
-  it('a zero pan (already player-centred) is unaffected — no needless shift', () => {
+  it('a zero pan (already player-centred) is unaffected, no needless shift', () => {
     for (const to of FACINGS) expect(panKeepingCenter({ x: 0, y: 0 }, 0, to)).toEqual({ x: 0, y: 0 })
   })
 })

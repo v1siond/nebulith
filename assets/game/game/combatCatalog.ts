@@ -14,7 +14,7 @@
  *
  * 1. **Nothing is invented.** An unloaded catalog is EMPTY, exactly like an unreachable tileset means no
  *    tiles. A caller that needs a number it was not given does nothing and says so, rather than falling
- *    back to a value this file made up — a hardcoded fallback for backend data is the violation the
+ *    back to a value this file made up, a hardcoded fallback for backend data is the violation the
  *    migration exists to remove.
  * 2. **Never read at module scope.** `ENEMY_ARCHETYPES` was a module-level `const` built the moment its
  *    file was imported, which is exactly how the brute once captured an empty ability registry and
@@ -85,7 +85,7 @@ export async function loadCombatCatalog(): Promise<void> {
     // bundles, because they are rules rather than anything one season owns. One fetch, both readers.
     installZoneRules((body as { data?: { rules?: unknown } })?.data?.rules)
   } catch (error) {
-    console.warn('[combat] the creature + combat catalog could not be loaded — nothing will fight', error)
+    console.warn('[combat] the creature + combat catalog could not be loaded, nothing will fight', error)
   }
 }
 
@@ -93,7 +93,7 @@ export async function loadCombatCatalog(): Promise<void> {
  * The stat block a creature fights with, read off its own TILE.
  *
  * A creature IS a unit tile, so its numbers live in that tile's `settings.combat` and arrive with the
- * tileset. Undefined for a tile that carries none — a peaceful animal, a prop, a person — and the caller
+ * tileset. Undefined for a tile that carries none, a peaceful animal, a prop, a person, and the caller
  * then places a plain unit rather than inventing a fighter.
  *
  * Structure is style-identical (a style only changes the picture), so this reads the same catalog every

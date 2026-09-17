@@ -1,4 +1,4 @@
-// Play-loop MOVEMENT runtime — pulled out of the game-engine page (stage 5a).
+// Play-loop MOVEMENT runtime, pulled out of the game-engine page (stage 5a).
 // Orchestration over the pure steppers in engine/movement: per-enemy patrol
 // advancement (with an unstick BFS), the player jump-arc kickoff, and the cannon
 // turret tick. Pure + module-level so nothing re-allocates per frame and the
@@ -53,7 +53,7 @@ const isRunState = (s: Cursor | undefined): s is RunState => !!s && 'stepsLeft' 
 const isMoverState = (s: Cursor | undefined): s is MoverState => !!s && 'target' in s
 
 /** Nearest walkable cell to (col,row) via bounded 4-neighbour BFS. Returns the cell
- *  itself if already walkable, or null if nothing walkable is near — used to unstick
+ *  itself if already walkable, or null if nothing walkable is near, used to unstick
  *  enemies embedded in terrain / out of bounds. */
 function nearestWalkable(grid: IsometricGrid, col: number, row: number, maxRings = 12): { col: number; row: number } | null {
   if (!grid.isBlocked(col, row)) return { col, row }
@@ -140,7 +140,7 @@ export function advanceEnemyMovement(
 // ── CANNONS ──────────────────────────────────────────────────────────
 // Cannon behavior: a placed `cannon` asset auto-fires on this cadence, hitting a
 // player within CANNON_RANGE cells for CANNON_DAMAGE (a simple line-of-no-sight
-// turret — projectile travel is a later refinement).
+// turret, projectile travel is a later refinement).
 const CANNON_INTERVAL_MS = 1800
 const CANNON_RANGE = 4
 const CANNON_DAMAGE = 6

@@ -1,14 +1,14 @@
 /**
- * CELL inspector STRUCTURE (§4.7) — the inspector IS the settings now.
+ * CELL inspector STRUCTURE (§4.7), the inspector IS the settings now.
  *
  * §3.10 measured the previous shape as a flat summary hiding everything real behind an "Edit settings…"
- * modal. §4.7 replaces it with six accordions titled after the questions people ask — WHAT IS IT / HOW IT
- * LOOKS / SIZE & POSITION / HOW IT BEHAVES / ANIMATION / RULES — with the full control set INLINE and the
+ * modal. §4.7 replaces it with six accordions titled after the questions people ask, WHAT IS IT / HOW IT
+ * LOOKS / SIZE & POSITION / HOW IT BEHAVES / ANIMATION / RULES, with the full control set INLINE and the
  * open/closed state remembered per section.
  *
  * Asserted here:
- *   1. STRUCTURE — the sections §4.7 draws, in its order, with the collapse actually hiding their contents.
- *   2. CONTENT — each control lands in the section that answers its question, and still writes through.
+ *   1. STRUCTURE, the sections §4.7 draws, in its order, with the collapse actually hiding their contents.
+ *   2. CONTENT, each control lands in the section that answers its question, and still writes through.
  *   3. The destructive footer stays OUT of every section, so it can never hide inside a collapsed one.
  *
  * Plus Part A: the numeric fields accept an EMPTY transient value (so you can clear + retype) and values
@@ -84,7 +84,7 @@ function sectionList(): string[] {
 describe('the inspector renders §4.7\'s sections', () => {
   it('draws them in the design\'s order for a cell holding a tile', () => {
     renderPanel({ tile: assetTile({ onOpenAnimator: jest.fn() }), onOpenTriggers: jest.fn() })
-    // "What is this?" used to show up here, but it is not a section — it is a disclosure nested INSIDE
+    // "What is this?" used to show up here, but it is not a section, it is a disclosure nested INSIDE
     // Behaviour that the old aria-expanded sweep picked up by accident. Keying off `data-section` lists the
     // sections and nothing else.
     expect(sectionList()).toEqual([
@@ -92,7 +92,7 @@ describe('the inspector renders §4.7\'s sections', () => {
     ])
   })
 
-  it('names WHAT you selected — a cell holds a Tile, a unit is a Character', () => {
+  it('names WHAT you selected, a cell holds a Tile, a unit is a Character', () => {
     const { unmount } = renderPanel()
     expect(sectionList()[0]).toBe('Tile')
     unmount()
@@ -100,13 +100,13 @@ describe('the inspector renders §4.7\'s sections', () => {
     expect(sectionList()[0]).toBe('Character')
   })
 
-  it('keeps HOW IT BEHAVES for a cell holding NO tile — an empty cell can still be blocked', () => {
+  it('keeps HOW IT BEHAVES for a cell holding NO tile, an empty cell can still be blocked', () => {
     renderPanel({ tile: null, collision: true, levelCount: 0 })
     expect(sectionList()).toEqual(['Behaviour'])
     expect(screen.getByRole('button', { name: 'Blocked' })).toHaveAttribute('aria-pressed', 'true')
   })
 
-  it('has no "Edit settings…" — §4.7 folded the modal\'s controls inline', () => {
+  it('has no "Edit settings…", §4.7 folded the modal\'s controls inline', () => {
     renderPanel()
     expect(screen.queryByRole('button', { name: /Edit settings/i })).toBeNull()
   })
@@ -116,7 +116,7 @@ describe('the inspector renders §4.7\'s sections', () => {
     expect(screen.getByText(/cell · wall/i)).toBeInTheDocument()
   })
 
-  it('the Tile row IS the swap — one click, not a panel holding one button', () => {
+  it('the Tile row IS the swap, one click, not a panel holding one button', () => {
     // A cell's identity
     // has exactly one control, so the row does it rather than opening a panel to show it to you.
     const onOpenLibrary = jest.fn()
@@ -127,7 +127,7 @@ describe('the inspector renders §4.7\'s sections', () => {
     expect(screen.queryByRole('button', { name: /Open Tile Library/i })).toBeNull()
   })
 
-  it('Animation and Rules are one-click too — same reason, same shape', () => {
+  it('Animation and Rules are one-click too, same reason, same shape', () => {
     const onOpenAnimator = jest.fn()
     const onOpenTriggers = jest.fn()
     renderPanel({ tile: assetTile({ onOpenAnimator }), onOpenTriggers })
@@ -150,7 +150,7 @@ describe('the inspector renders §4.7\'s sections', () => {
     expect(screen.getByRole('group', { name: 'Footprint per direction' })).toBeInTheDocument()
   })
 
-  it('the level stepper stays in the header — it says WHICH tile you are editing', () => {
+  it('the level stepper stays in the header, it says WHICH tile you are editing', () => {
     const onLevel = jest.fn()
     renderPanel({ tile: assetTile(), collision: true, level: 2, levelCount: 3, onLevel })
     expect(screen.getByText('level 2/3')).toBeInTheDocument()
@@ -228,14 +228,14 @@ describe('a tile the editor cannot write to SAYS so, instead of faking controls 
 })
 
 /**
- * The CONTROL BODIES (`TileControls`) — every setting renders and writes through.
+ * The CONTROL BODIES (`TileControls`), every setting renders and writes through.
  *
  * Rewritten for §4.7's labels. It used to name the pre-relabel controls (`x`, `y`, `flip horizontally`,
- * `Z Width left top`, `Z-Index`, `Z position direction`) — §3.10's jargon, which §4.7 replaced with
+ * `Z Width left top`, `Z-Index`, `Z position direction`), §3.10's jargon, which §4.7 replaced with
  * `Left ↔ Right`, `Up ↕ Down`, `Mirror`, `Footprint <direction>`, `Draw order` and `Slide <direction>`.
  * Asserting the old names tested a UI that no longer exists.
  */
-describe('the control bodies — every setting renders + writes through', () => {
+describe('the control bodies, every setting renders + writes through', () => {
   it('a floor tile shows colour, the three scale axes and the nudge controls', () => {
     render(<TileControls tile={floorTile()} />)
     expect(screen.getAllByLabelText(/colour/i).length).toBeGreaterThan(0)
@@ -244,20 +244,20 @@ describe('the control bodies — every setting renders + writes through', () => 
     }
   })
 
-  it('a FLOOR gets no Footprint and no Draw order — the model wires it no writer for them', () => {
+  it('a FLOOR gets no Footprint and no Draw order, the model wires it no writer for them', () => {
     render(<TileControls tile={floorTile()} />)
     expect(screen.queryByRole('group', { name: 'Footprint per direction' })).toBeNull()
     expect(screen.queryByLabelText('Draw order')).toBeNull()
   })
 
-  it('EVERY dimension slider drags down to 0 — the slider is the control, not a fallback to typing', () => {
+  it('EVERY dimension slider drags down to 0, the slider is the control, not a fallback to typing', () => {
     render(<TileControls tile={floorTile()} />)
     for (const axis of ['Width', 'Height', 'Zoom']) {
       expect(screen.getByLabelText(axis)).toHaveAttribute('min', '0')
     }
   })
 
-  it('the bodies do NOT carry Open Tile Library or Animate — those stay in the inspector header', () => {
+  it('the bodies do NOT carry Open Tile Library or Animate, those stay in the inspector header', () => {
     render(<TileControls tile={assetTile({ onOpenAnimator: jest.fn() })} />)
     expect(screen.queryByRole('button', { name: /Open Tile Library/i })).toBeNull()
     expect(screen.queryByRole('button', { name: /Animate tile/i })).toBeNull()
@@ -273,7 +273,7 @@ describe('the control bodies — every setting renders + writes through', () => 
     expect(onPose).toHaveBeenCalledWith(expect.objectContaining({ flip: true }))
   })
 
-  it('an ASSET tile gets the FOOTPRINT control — four independent diagonals, each in CELLS', () => {
+  it('an ASSET tile gets the FOOTPRINT control, four independent diagonals, each in CELLS', () => {
     const onZWidth = jest.fn()
     render(<TileControls tile={assetTile({ onZWidth, onZBack: jest.fn(), onZPerp: jest.fn(), onZPerpBack: jest.fn() })} />)
     const group = screen.getByRole('group', { name: 'Footprint per direction' })
@@ -281,7 +281,7 @@ describe('the control bodies — every setting renders + writes through', () => 
     expect(within(group).getAllByRole('slider')).toHaveLength(4)
   })
 
-  it('an ASSET tile gets the SLIDE direction picker — the same four diagonals', () => {
+  it('an ASSET tile gets the SLIDE direction picker, the same four diagonals', () => {
     const onZPosDir = jest.fn()
     render(<TileControls tile={assetTile({ onZPos: jest.fn(), onZPosDir })} />)
     const group = screen.getByRole('group', { name: 'Slide direction' })
@@ -299,7 +299,7 @@ describe('the control bodies — every setting renders + writes through', () => 
   })
 })
 
-describe('Part A — free numeric input (empty allowed + out-of-range honored)', () => {
+describe('Part A, free numeric input (empty allowed + out-of-range honored)', () => {
   it('clearing a number field is allowed and does NOT write (value treated as unchanged)', () => {
     const onDim = jest.fn()
     render(<TileControls tile={floorTile({ onDim })} />)

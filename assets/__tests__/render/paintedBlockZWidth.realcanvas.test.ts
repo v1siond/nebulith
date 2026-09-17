@@ -1,11 +1,11 @@
 /**
- * REAL-CANVAS tests for the PAINTER fix: a placed (painted) tile is a first-class iso BLOCK — for ALL tiles.
+ * REAL-CANVAS tests for the PAINTER fix: a placed (painted) tile is a first-class iso BLOCK, for ALL tiles.
  *
  * BUG (Image #56, then reopened for height-0 decor): a painted tile whose DB block height is 0 (the "Wall" 🧱
- * tile, and every flat NATURE/DECOR tile — flower/blossom/leaf/…) rendered through the FLAT billboard path on
+ * tile, and every flat NATURE/DECOR tile, flower/blossom/leaf/…) rendered through the FLAT billboard path on
  * the iso side, which silently DROPPED Z-Width (directional depth), Display and shape. THE FIX (MAP-MODEL §4,
- * EDITOR-INTERACTION §11): a height-0 tile now renders through the SAME block path as every tile — as a
- * MINIMAL-height THIN SLAB (the floor's FLOOR_SLAB_SCALE_Y model), never a billboard — so it looks flat while
+ * EDITOR-INTERACTION §11): a height-0 tile now renders through the SAME block path as every tile, as a
+ * MINIMAL-height THIN SLAB (the floor's FLOOR_SLAB_SCALE_Y model), never a billboard, so it looks flat while
  * Z-Width/display/shape/scale ALL apply. Only a UNIT is a billboard (a different render path).
  *
  * These render drawIsoAssetAscii to @napi-rs/canvas and read the PIXELS (extrusion coverage) AND assert the
@@ -24,10 +24,10 @@ const GREEN = '#00c800'
 const SRC = '/tiles/emoji/__probe_wall.png'
 const OVERRIDE = 'emoji:__probe_wall__'
 const TW = 30, TH = 15
-const CX = 150, CY = 235 // base diamond centre — room UP-RIGHT (higher x, lower y) for a right-up depth box
+const CX = 150, CY = 235 // base diamond centre, room UP-RIGHT (higher x, lower y) for a right-up depth box
 
 // A PAINTED flat tile: no `label` (so it takes the non-label asset path), a pinned tileOverride (→ the baked
-// image), and the real minimal FLAT height (0.1 — a flat tile's DB block-height, drawn as a thin slab).
+// image), and the real minimal FLAT height (0.1, a flat tile's DB block-height, drawn as a thin slab).
 // `blocking` mirrors the brush.
 const paintedWall = (over: Partial<GridAsset>): GridAsset => ({
   art: ['🧱'], col: 4, row: 4, type: 'building', height: 0.1, blocking: true, tileOverride: OVERRIDE, ...over,
@@ -53,7 +53,7 @@ function regionGreen(canvas: Canvas, x: number, y: number, w: number, h: number)
 }
 
 /** Bounding box of GREEN pixels over the whole canvas: total count + vertical extent (maxY-minY). The
- *  vertical extent is the tile's SILHOUETTE HEIGHT — a real extruded block is measurably TALLER than a
+ *  vertical extent is the tile's SILHOUETTE HEIGHT, a real extruded block is measurably TALLER than a
  *  flat face. */
 function greenBBox(canvas: Canvas): { count: number; vExtent: number } {
   const { width, height } = canvas
@@ -84,12 +84,12 @@ const cubeExtrudePx = (asset: GridAsset): number => {
 }
 
 describe('a painted base-height-0 tile honours Z-Width by extruding into a real iso block', () => {
-  test('Z-Width (depth) makes it a BLOCK that reaches up-right — the flat face does not', () => {
+  test('Z-Width (depth) makes it a BLOCK that reaches up-right, the flat face does not', () => {
     const flat = draw(paintedWall({}))                                  // no Z-Width → flat billboard
     const extruded = draw(paintedWall({ depth: 5, depthDir: 'right-up' })) // Z-Width 5 → extruded depth-box
 
     // The UP-RIGHT region (well past the base cell toward the depth direction) is EMPTY for the flat face
-    // but FILLED by the extruded box — the extrusion is the visible fix.
+    // but FILLED by the extruded box, the extrusion is the visible fix.
     const UP_RIGHT = { x: CX + TW + 20, y: CY - TH - 60, w: 60, h: 55 }
     const flatUR = regionGreen(flat, UP_RIGHT.x, UP_RIGHT.y, UP_RIGHT.w, UP_RIGHT.h)
     const extrudedUR = regionGreen(extruded, UP_RIGHT.x, UP_RIGHT.y, UP_RIGHT.w, UP_RIGHT.h)
@@ -109,15 +109,15 @@ describe('a painted base-height-0 tile honours Z-Width by extruding into a real 
   })
 
   test('no Z-Width + base height 0 renders as a THIN SLAB through the block path (NOT a flat billboard)', () => {
-    // THE FIX: a height-0 tile is no longer a flat 2D billboard — it goes through the SAME block path as every
+    // THE FIX: a height-0 tile is no longer a flat 2D billboard, it goes through the SAME block path as every
     // tile and returns a CUBE geom (a billboard would be a poly). It is a MINIMAL-height slab: a real (thin)
-    // block, far shorter than a full height-1 cube — so it looks FLAT, not a tall cube.
+    // block, far shorter than a full height-1 cube, so it looks FLAT, not a tall cube.
     const geom = drawGeom(paintedWall({}))
     expect(geom?.kind).toBe('cube') // the block/slab path, not billboardGeom (which is kind 'poly')
 
     const slabPx = cubeExtrudePx(paintedWall({}))       // the thin slab's extruded height
     const cubePx = cubeExtrudePx(paintedWall({ height: 1 })) // a full 1-block cube
-    expect(slabPx).toBeGreaterThan(0)          // it HAS height — a real slab, not a zero-height overlay
+    expect(slabPx).toBeGreaterThan(0)          // it HAS height, a real slab, not a zero-height overlay
     expect(slabPx).toBeLessThan(cubePx * 0.4)  // …but far thinner than a full cube (the floor-slab look)
 
     // A flat slab does not extrude a tall side-face column far below the base diamond (it stays flat).
@@ -128,13 +128,13 @@ describe('a painted base-height-0 tile honours Z-Width by extruding into a real 
 })
 
 // THE FIX for the painter bug: the whole-object building tiles (wall/house/castle) carry a DB block height >= 1
-// again (the height had DRIFTED to 0). So a PAINTED wall is an all-faces 3D block the moment it lands — with
+// again (the height had DRIFTED to 0). So a PAINTED wall is an all-faces 3D block the moment it lands, with
 // NO Z-Width and NO manual height edit. These render a height-1 painted wall (depth unset) and prove it is a
 // taller, higher-coverage BLOCK than the genuinely-flat height-0 face.
 describe('a painted tile with DB block height >= 1 renders as an all-faces BLOCK without any Z-Width', () => {
   test('height 1 (no z-width) is a TALLER, higher-coverage cube than a minimal thin slab', () => {
     // The slab is 0.1 blocks, not 0. Blocks are a MEASUREMENT and a fraction is honoured, but ZERO is not a
-    // height a block can have any more — "all tiles/blocks are height 1, GLOBAL, no exceptions", so
+    // height a block can have any more, "all tiles/blocks are height 1, GLOBAL, no exceptions", so
     // resolveTileHeight clamps 0 back up to a full block and the two cases would be the same picture.
     const flat = greenBBox(draw(paintedWall({ height: 0.1 })))     // a genuinely thin slab (block path)
     const block = greenBBox(draw(paintedWall({ height: 1 })))      // DB block tile → a full extruded cube, NO depth
@@ -144,7 +144,7 @@ describe('a painted tile with DB block height >= 1 renders as an all-faces BLOCK
   })
 
   test('the full cube paints a taller side-face COLUMN than the thin slab (both are blocks, cube is deeper)', () => {
-    // Directly under-left of the base diamond is the block's LEFT side face — a tall column for the full cube,
+    // Directly under-left of the base diamond is the block's LEFT side face, a tall column for the full cube,
     // only a thin sliver for the 0.1-block slab (which is a minimal-height block, not a billboard).
     const SIDE = { x: CX - TW, y: CY - TH, w: TW, h: TH + 24 }
     const slabSide = regionGreen(draw(paintedWall({ height: 0.1 })), SIDE.x, SIDE.y, SIDE.w, SIDE.h)

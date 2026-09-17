@@ -47,7 +47,7 @@ describe('a painted tile carries its authored thickness axis', () => {
     expect(topAsset(g).thickness).toEqual({ [HUGGED]: 0.3 })
   })
 
-  it('a tile with thickness but NO direction keeps the legacy behaviour — amount only', () => {
+  it('a tile with thickness but NO direction keeps the legacy behaviour, amount only', () => {
     const g = grid()
     stackAssetTile(g, 1, 1, tileWith({ scaleZ: 0.3 }))
     expect(topAsset(g).scaleZ).toBe(0.3)
@@ -103,7 +103,7 @@ describe('a stamped composition rotates the axis with the BUILDING', () => {
   })
 })
 
-describe('the axis survives save and load — a reloaded map keeps its thin doors', () => {
+describe('the axis survives save and load, a reloaded map keeps its thin doors', () => {
   /** serialize → the Postgres JSON column → deserialize, exactly as a template save/load does. */
   const hydrate = (g: IsometricGrid) => {
     const wire = JSON.parse(JSON.stringify(serializeGrid(g)))

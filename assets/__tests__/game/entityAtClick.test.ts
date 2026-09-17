@@ -1,7 +1,7 @@
 /**
  * Selecting a unit must be VIEW-AWARE: in iso/2d the figure is drawn ABOVE its foot cell, so a click
  * on the figure lands on a cell above it (screen-up). entityAtClick also checks toward the feet, so
- * clicking the standing figure selects the unit — the reason "select the player" only worked in top.
+ * clicking the standing figure selects the unit, the reason "select the player" only worked in top.
  */
 import { entityAtClick } from '@/game/entities'
 import type { Entity, Stats } from '@/game/types'
@@ -9,7 +9,7 @@ import type { Entity, Stats } from '@/game/types'
 const stats: Stats = { strength: 1, intelligence: 1, defense: 1, maxHp: 10 }
 const E: Entity[] = [{ id: 'p', kind: 'player', col: 10, row: 10, baseStats: stats }]
 
-describe('entityAtClick — billboard-aware selection', () => {
+describe('entityAtClick, billboard-aware selection', () => {
   test('exact foot cell hits in every view', () => {
     for (const v of ['top', '2d', 'iso'] as const) expect(entityAtClick(E, 10, 10, v)?.id).toBe('p')
   })

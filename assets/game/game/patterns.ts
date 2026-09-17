@@ -1,7 +1,7 @@
 /**
  * MOVEMENT + ATTACK PATTERN builders for the editor's entity inspector.
  *
- * PURE + immutable — every function returns a NEW pattern, inputs untouched. The
+ * PURE + immutable, every function returns a NEW pattern, inputs untouched. The
  * editor authors patrols (waypoints + sequential/random traversal) and enemy
  * retaliation (melee/ranged + cooldown) through these so the UI stays data-only
  * and the rules are unit-testable.
@@ -12,7 +12,7 @@ import type {
 } from './types'
 import type { AbilityAnimation, AbilityDef } from './abilities'
 
-/** Smallest sane retaliation cooldown (ms) — keeps the editor off 0/negative. */
+/** Smallest sane retaliation cooldown (ms), keeps the editor off 0/negative. */
 export const MIN_ATTACK_COOLDOWN_MS = 200
 /** Default pause (ms) between movement steps. */
 export const DEFAULT_STEP_DELAY_MS = 1200
@@ -85,7 +85,7 @@ export function removeMovementStep(pattern: MovementPattern, index: number): Mov
   return { ...pattern, steps: (pattern.steps ?? []).filter((_, i) => i !== index) }
 }
 
-/** Patch the step at `index` — change its direction or cell count (cells clamped ≥1). */
+/** Patch the step at `index`, change its direction or cell count (cells clamped ≥1). */
 export function updateMovementStep(pattern: MovementPattern, index: number, patch: Partial<MovementStep>): MovementPattern {
   const steps = (pattern.steps ?? []).map((s, i) => {
     if (i !== index) return s
@@ -111,9 +111,9 @@ export function clearWaypoints(
 // ── enemy attack patterns (MANY attacks, sequential / random) ───────
 // Mirrors the movement model: an ordered LIST of attacks + a traversal mode. Each attack is
 // the enemy-side mirror of a player ability/attack (melee/ranged + damage + cooldown + tint).
-// PURE + immutable — the editor authors through these; the combat tick selects through them.
+// PURE + immutable, the editor authors through these; the combat tick selects through them.
 
-/** Engine default attack — a flat strength-only melee on the legacy cooldown. Used when an
+/** Engine default attack, a flat strength-only melee on the legacy cooldown. Used when an
  *  enemy has NO authored pattern, so nothing regresses. */
 export const DEFAULT_ENEMY_ATTACK: EnemyAttack = {
   mode: 'melee',
@@ -159,7 +159,7 @@ export function makeEnemyAttack(
   }
 }
 
-/** Build an enemy attack FROM a registry ability — reuses its damage, cooldown, animation/tint and
+/** Build an enemy attack FROM a registry ability, reuses its damage, cooldown, animation/tint and
  *  infers melee vs ranged from the animation, so "add an attack from the registry" gives the enemy a
  *  real, player-grade attack. */
 export function enemyAttackFromAbility(ability: AbilityDef): EnemyAttack {
@@ -173,7 +173,7 @@ export function enemyAttackFromAbility(ability: AbilityDef): EnemyAttack {
   }
 }
 
-/** A few ready-made enemy attacks for quick authoring — fast cooldowns (unlike the heavy player
+/** A few ready-made enemy attacks for quick authoring, fast cooldowns (unlike the heavy player
  *  abilities), a mix of melee + ranged so an author can build a varied pattern in two clicks. */
 export const ENEMY_ATTACK_PRESETS: readonly EnemyAttack[] = [
   { mode: 'melee', damage: 0, cooldownMs: 900, animation: 'cleave', name: 'Claw' },
@@ -205,7 +205,7 @@ export function removeEnemyAttack(pattern: AttackPattern, index: number): Attack
   return { ...pattern, attacks: pattern.attacks.filter((_, i) => i !== index) }
 }
 
-/** Patch the attack at `index` — change mode/damage/cooldown/animation (clamped). Immutable. */
+/** Patch the attack at `index`, change mode/damage/cooldown/animation (clamped). Immutable. */
 export function updateEnemyAttack(pattern: AttackPattern, index: number, patch: Partial<EnemyAttack>): AttackPattern {
   const attacks = pattern.attacks.map((a, i) => {
     if (i !== index) return a
@@ -254,7 +254,7 @@ export function normalizeAttackPattern(
 export interface EnemyAttackSelectState {
   /** how many times this enemy has already fired (sequential index source). */
   fireCount: number
-  /** RNG for random mode (returns 0–1); defaults to Math.random. */
+  /** RNG for random mode (returns 0-1); defaults to Math.random. */
   rng?: () => number
 }
 

@@ -47,7 +47,7 @@ export interface QuestAuthoringCardProps {
  * Editor panel to author ONE kill-quest and link it to a placed NPC (spec §10):
  * pick a giver, set a title + kill objective (enemy type × count) + a reward
  * (xp or item). Lists already-authored quests with their lifecycle state. Purely
- * presentational — all quest logic lives in the page/module; this only edits the
+ * presentational, all quest logic lives in the page/module; this only edits the
  * draft and fires onSave.
  */
 export function QuestAuthoringCard({ npcs, quests, draft, playerXp, onDraftChange, onSave }: QuestAuthoringCardProps) {
@@ -68,7 +68,7 @@ export function QuestAuthoringCard({ npcs, quests, draft, playerXp, onDraftChang
           aria-label="Quest-giver NPC"
           className={QUEST_FIELD_CLASS}
         >
-          <option value="">— pick a placed NPC —</option>
+          <option value="">, pick a placed NPC, </option>
           {npcs.map(npc => (
             <option key={npc.id} value={npc.id}>
               {npc.name?.trim() || `NPC @ ${npc.col},${npc.row}`}
@@ -106,7 +106,7 @@ export function QuestAuthoringCard({ npcs, quests, draft, playerXp, onDraftChang
             <span className="mb-1 block text-[10px] text-gray-400">{OBJECTIVE_TARGET_LABEL[draft.objectiveKind]}</span>
             {draft.objectiveKind === 'find' ? (
               <select value={draft.target} onChange={e => patch({ target: e.target.value })} aria-label="Target NPC" className={QUEST_FIELD_CLASS}>
-                <option value="">— pick NPC —</option>
+                <option value="">, pick NPC, </option>
                 {npcs.map(n => <option key={n.id} value={n.id}>{n.name?.trim() || `NPC @ ${n.col},${n.row}`}</option>)}
               </select>
             ) : (
@@ -305,7 +305,7 @@ export function ItemTooltip({ item, x, y }: { item: Item; x: number; y: number }
   )
 }
 
-/** Tooltip stat lines for an ability (category / cooldown / effect) — mirrors itemTooltipStats. */
+/** Tooltip stat lines for an ability (category / cooldown / effect), mirrors itemTooltipStats. */
 export function abilityTooltipLines(a: AbilityDef): string[] {
   const lines = [`Category: ${a.category}`, `Cooldown ${(a.cooldownMs / 1000).toFixed(1)}s`]
   if (a.effect.damage) lines.push(`Damage ${a.effect.damage}`)
@@ -323,10 +323,10 @@ export function abilityEffectLabel(a: AbilityDef): string {
   const parts: string[] = []
   if (e.damage) parts.push(`${e.damage} dmg`)
   if (e.debuff) parts.push(e.debuff.kind)
-  return parts.join(' · ') || '—'
+  return parts.join(' · ') || ', '
 }
 
-/** Floating ability tooltip — same cursor-anchored dark panel as ItemTooltip (#51), tinted to the
+/** Floating ability tooltip, same cursor-anchored dark panel as ItemTooltip (#51), tinted to the
  *  ability's animation color so a Fire Slash reads orange, a Frost reads blue, etc. */
 export function AbilityTooltip({ ability, x, y }: { ability: AbilityDef; x: number; y: number }) {
   const lines = abilityTooltipLines(ability)
@@ -358,7 +358,7 @@ export function StatChip({ label, value }: { label: string; value: string }) {
 }
 
 /**
- * Live stats for the entity whose loadout is open — the SAME source the combat HUD
+ * Live stats for the entity whose loadout is open, the SAME source the combat HUD
  * reads from: base stats folded with the equipped gear's bonuses (loadoutBonuses)
  * and the equipped weapon. Equipping/unequipping re-renders this with new totals, so
  * the numbers move as you change gear (sword → attack up, shield → block up, etc.).
@@ -382,7 +382,7 @@ export function PlayerStatsPanel({ baseStats, loadout, hp }: {
   const attack = weapon.school === 'magical' ? weapon.baseMagic + intelligence : weapon.baseDamage + strength
   return (
     <div className="mb-3 rounded-lg border border-amber-500/30 bg-black/40 p-2">
-      <p className="mb-1.5 text-[10px] font-bold uppercase tracking-wider text-amber-300">Stats — live totals (incl. gear)</p>
+      <p className="mb-1.5 text-[10px] font-bold uppercase tracking-wider text-amber-300">Stats, live totals (incl. gear)</p>
       <div className="grid grid-cols-4 gap-1">
         <StatChip label="HP" value={`${hp.current}/${hp.max}`} />
         <StatChip label="Attack" value={`${attack} ${weapon.school === 'magical' ? '✦' : '⚔'}`} />
@@ -405,7 +405,7 @@ export type AbilityTipProps = {
   onMouseLeave: () => void
 }
 
-/** First ability slot with no binding — the default target for the "Browse abilities" button. */
+/** First ability slot with no binding, the default target for the "Browse abilities" button. */
 export function firstEmptyAbilitySlot(loadout: readonly AbilityBinding[]): AbilitySlot {
   return ABILITY_SLOTS.find(s => !bindingForSlot(loadout, s)) ?? 1
 }
@@ -434,7 +434,7 @@ export function KeyCaptureBadge({ keyLabel, capturing, onClick, ariaLabel, tone 
 }
 
 /**
- * External "browse abilities" modal (#51-style cards) — lists the WHOLE registry (name, category,
+ * External "browse abilities" modal (#51-style cards), lists the WHOLE registry (name, category,
  * cooldown, effect) and assigns the picked ability into the chosen slot. Slot tabs across the top
  * select the target; assigning keeps the modal open so several slots can be filled in one visit.
  * Sits above the inventory panel (z-40); its hover tooltips render in the parent at z-50.
@@ -494,14 +494,14 @@ export function AbilityBrowseModal({ loadout, targetSlot, onPickSlot, onAssign, 
 
 export function EquipmentPanel({ label, styleId, loadout, baseStats, hp, onChange, onClose, abilityLoadout, onAbilityChange, nameValue, onNameChange, talentPath, onTalentPath, embedded = false }: {
   label: string
-  /** The active art style — an item's picture is a real tile, resolved by label like everything else. */
+  /** The active art style, an item's picture is a real tile, resolved by label like everything else. */
   styleId: string
   loadout: Loadout
   baseStats: Stats
   hp: { current: number; max: number }
   onChange: (l: Loadout) => void
   onClose: () => void
-  // Ability loadout (slot 1–4 → ability). Optional: only the player passes these in v1, so an
+  // Ability loadout (slot 1-4 → ability). Optional: only the player passes these in v1, so an
   // enemy's inventory shows gear only. When present, the Abilities section becomes editable.
   abilityLoadout?: readonly AbilityBinding[]
   onAbilityChange?: (l: readonly AbilityBinding[]) => void
@@ -511,14 +511,14 @@ export function EquipmentPanel({ label, styleId, loadout, baseStats, hp, onChang
   onNameChange?: (name: string) => void
   // §4.10: the Class switch moves INTO this panel as a header control. It used to live in `InventoryCard`,
   // a second inventory surface over a second model (§3.7: "three inventory surfaces, TWO inventory
-  // models") — deleting that card is what makes this the one inventory, so its one unique control moves
+  // models"), deleting that card is what makes this the one inventory, so its one unique control moves
   // here rather than being lost. Optional: only the player has a class.
   talentPath?: TalentPath
   onTalentPath?: (path: TalentPath) => void
   /**
    * Rendered INSIDE the character panel's Inventory tab rather than as its own overlay.
    *
-   * Without this the bag draws `fixed inset-0 z-30` on top of the panel that contains it — the tab rail
+   * Without this the bag draws `fixed inset-0 z-30` on top of the panel that contains it, the tab rail
    * ends up underneath the tab's own content and nothing is clickable. A tab owns the frame; the thing in
    * it draws only itself.
    */
@@ -545,7 +545,7 @@ export function EquipmentPanel({ label, styleId, loadout, baseStats, hp, onChang
     const item = loadout.special[i]
     if (item) onChange(addToBag(setSpecial(loadout, i, null), item))
   }
-  // Hovered ability tooltip (#51 style) — fed by the ability slots AND the browse modal's cards.
+  // Hovered ability tooltip (#51 style), fed by the ability slots AND the browse modal's cards.
   const [hoveredAbility, setHoveredAbility] = useState<{ ability: AbilityDef; x: number; y: number } | null>(null)
   const abilityTipProps = (a: AbilityDef): AbilityTipProps => ({
     onMouseEnter: (e: React.MouseEvent) => setHoveredAbility({ ability: a, x: e.clientX, y: e.clientY }),
@@ -594,7 +594,7 @@ export function EquipmentPanel({ label, styleId, loadout, baseStats, hp, onChang
         >
           <div className={embedded ? 'mb-3 flex items-center justify-between' : 'mb-3 flex items-center justify-between'}>
             <h2 className="flex items-center gap-1 text-sm font-bold text-cyan-400">
-              Inventory —{' '}
+              Inventory, {' '}
               {onNameChange ? (
                 <input
                   value={nameValue ?? ''}
@@ -607,7 +607,7 @@ export function EquipmentPanel({ label, styleId, loadout, baseStats, hp, onChang
                 label
               )}
             </h2>
-            {/* Class — §4.10 draws it as a header control: "Class: (•) Warrior ( ) Magician". */}
+            {/* Class, §4.10 draws it as a header control: "Class: (•) Warrior ( ) Magician". */}
             {talentPath && onTalentPath && (
               <div className="flex items-center gap-1" role="group" aria-label="Class">
                 <span className="text-[10px] uppercase tracking-wider text-gray-400">Class</span>
@@ -628,15 +628,15 @@ export function EquipmentPanel({ label, styleId, loadout, baseStats, hp, onChang
             <button onClick={onClose} className="rounded bg-gray-700 px-2 py-1 text-xs hover:bg-gray-600" aria-label="Close inventory">✕ (I)</button>
           </div>
 
-          {/* ── Action slots: SPECIAL ACTIONS beside ABILITIES — two distinct, user-keyed sets ── */}
-          {/* ONE COLUMN. — the bag and the
+          {/* ── Action slots: SPECIAL ACTIONS beside ABILITIES, two distinct, user-keyed sets ── */}
+          {/* ONE COLUMN., the bag and the
               equipment list were `grid-cols-2` inside an already-narrow panel, so each got half the width
               and the bag's four-across slots came out as unreadable squares. Stacked, both get the full
               width and the slots are big enough to show an item. */}
           <div className="space-y-3">
-            {/* LEFT — the bag */}
+            {/* LEFT, the bag */}
             <section>
-              <p className="mb-1 text-xs font-bold text-gray-400">Inventory — Bag ({loadout.bag.filter(Boolean).length}/{loadout.bag.length})</p>
+              <p className="mb-1 text-xs font-bold text-gray-400">Inventory, Bag ({loadout.bag.filter(Boolean).length}/{loadout.bag.length})</p>
               <div className="mb-3 grid grid-cols-6 gap-1.5">
                 {loadout.bag.map((item, i) => (
                   <button key={i} onClick={() => onChange(useBagItem(loadout, i))} disabled={!item} {...tipProps(item)}
@@ -645,8 +645,7 @@ export function EquipmentPanel({ label, styleId, loadout, baseStats, hp, onChang
                     {item ? (
                       <span className="flex flex-col items-center gap-0.5">
                         <ItemFace item={item} styleId={styleId} size={26} />
-                        {/* THE FULL NAME. the bag showed "Iron Swo" and "Hunter B" —
-                          not a CSS overflow but `item.name.slice(0, 8)`, a hard cut at eight characters.
+                        {/* THE FULL NAME. the bag showed "Iron Swo" and "Hunter B", not a CSS overflow but `item.name.slice(0, 8)`, a hard cut at eight characters.
                           The slot is wide enough to read now (one column, not two), so the name is the
                           name and long ones wrap onto a second line instead of being amputated. */}
                       <span className="w-full text-center leading-tight">{item.name}</span>
@@ -656,7 +655,7 @@ export function EquipmentPanel({ label, styleId, loadout, baseStats, hp, onChang
                 ))}
               </div>
               {/* The gap, stated. The old panel returned 🛡️ / 🧪 for anything it did not recognise, which made
-                  every pictureless item look finished — so nobody knew the art was missing. */}
+                  every pictureless item look finished, so nobody knew the art was missing. */}
               <MissingArtNote items={loadout.bag} styleId={styleId} />
               <details>
                 <summary className="cursor-pointer text-xs text-gray-400">+ Add gear to bag</summary>
@@ -668,7 +667,7 @@ export function EquipmentPanel({ label, styleId, loadout, baseStats, hp, onChang
               </details>
             </section>
 
-            {/* RIGHT — character equipment + live stat totals */}
+            {/* RIGHT, character equipment + live stat totals */}
             <section>
               <PlayerStatsPanel baseStats={baseStats} loadout={loadout} hp={hp} />
               <p className="mb-1 text-xs font-bold text-gray-400">Equipment</p>
@@ -680,7 +679,7 @@ export function EquipmentPanel({ label, styleId, loadout, baseStats, hp, onChang
                       className={`rounded border px-2 py-1.5 text-left text-[11px] ${item ? 'border-cyan-600 bg-cyan-900/40 hover:bg-cyan-900/70' : 'border-white/10 bg-black/40 text-gray-600'}`}>
                       <span className="block text-[9px] uppercase text-gray-500">{SLOT_LABEL[slot]}</span>
                       <span className="block truncate" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                        {item ? <><ItemFace item={item} styleId={styleId} size={20} />{item.name}</> : '—'}
+                        {item ? <><ItemFace item={item} styleId={styleId} size={20} />{item.name}</> : ', '}
                       </span>
                     </button>
                   )
@@ -688,7 +687,7 @@ export function EquipmentPanel({ label, styleId, loadout, baseStats, hp, onChang
               </div>
             </section>
           </div>
-          {/* THESE TWO BELONG TO THE PLAYER'S UI, not to an inventory. That is right — a key you press during play is
+          {/* THESE TWO BELONG TO THE PLAYER'S UI, not to an inventory. That is right, a key you press during play is
               a HUD binding, not a possession. They are demoted to a closed disclosure at the bottom rather than
               deleted, because Player UI does not host them yet and deleting a working feature to make a point is
               not a fix. Moving them there is the follow-up. */}
@@ -698,9 +697,9 @@ export function EquipmentPanel({ label, styleId, loadout, baseStats, hp, onChang
             </summary>
             <div className="mt-2">
           <div className="grid grid-cols-2 gap-3">
-            {/* Special actions (consumables / throwables) — default keys 5–8, rebindable to any key. */}
+            {/* Special actions (consumables / throwables), default keys 5-8, rebindable to any key. */}
             <section className="rounded-lg border border-amber-500/30 bg-black/40 p-2">
-              <p className="mb-1.5 text-[10px] font-bold uppercase tracking-wider text-amber-300">Special actions — own keys</p>
+              <p className="mb-1.5 text-[10px] font-bold uppercase tracking-wider text-amber-300">Special actions, own keys</p>
               <div className="grid grid-cols-2 gap-1">
                 {loadout.special.map((item, i) => (
                   <div key={i} className="rounded border border-amber-600/40 bg-amber-900/20 p-1 text-center text-[11px]">
@@ -711,16 +710,16 @@ export function EquipmentPanel({ label, styleId, loadout, baseStats, hp, onChang
                       ariaLabel={`Rebind key for special slot ${i + 1}`}
                       tone="amber"
                     />
-                    <button onClick={() => sendSpecialToBag(i)} disabled={!item} {...tipProps(item)} className="mt-0.5 block w-full truncate hover:text-amber-300">{item ? item.name : '—'}</button>
+                    <button onClick={() => sendSpecialToBag(i)} disabled={!item} {...tipProps(item)} className="mt-0.5 block w-full truncate hover:text-amber-300">{item ? item.name : ', '}</button>
                   </div>
                 ))}
               </div>
             </section>
 
-            {/* Abilities — default keys 1–4, rebindable; assigned from the external browse modal. */}
+            {/* Abilities, default keys 1-4, rebindable; assigned from the external browse modal. */}
             <section className="rounded-lg border border-fuchsia-500/30 bg-black/40 p-2">
               <div className="mb-1.5 flex items-center justify-between">
-                <p className="text-[10px] font-bold uppercase tracking-wider text-fuchsia-300">Abilities — own keys</p>
+                <p className="text-[10px] font-bold uppercase tracking-wider text-fuchsia-300">Abilities, own keys</p>
                 {abilityLoadout && onAbilityChange && (
                   <button
                     onClick={() => setBrowseSlot(firstEmptyAbilitySlot(abilityLoadout))}
@@ -818,7 +817,7 @@ export const QUEST_LOG_GROUPS: ReadonlyArray<{ state: Quest['state']; label: str
 ]
 
 /**
- * Quest LOG overlay — the player's quests grouped by lifecycle state, each with the
+ * Quest LOG overlay, the player's quests grouped by lifecycle state, each with the
  * shared objective checklist + a progress count. Mirrors the inventory EquipmentPanel:
  * backdrop click or the ✕ button closes it (the page also wires Esc + the Q key).
  */
@@ -891,16 +890,16 @@ export function QuestLogPanel({ quests, onClose, embedded = false }: {
  * The LABEL whose baked picture represents this item, or null when the backend has no art for it.
  *
  * An item's picture is a real tile,
- * resolved by label like everything else — `Iron Sword` → `sword`, `Battle Axe` → `axe`.
+ * resolved by label like everything else, `Iron Sword` → `sword`, `Battle Axe` → `axe`.
  *
  * It returns NULL rather than a stand-in, and that matters: only 6 of the 21 seeded items have art (the
  * weapons). All the armour and every consumable have none. The old version hid that by returning 🛡️ or 🧪
- * for anything it did not recognise, which made 15 pictureless items look finished — so the gap was
+ * for anything it did not recognise, which made 15 pictureless items look finished, so the gap was
  * invisible and never got authored.
  */
 function itemArtLabel(item: Item, styleId: string): string | null {
   // `Item` is a discriminated union, so the candidate label comes from the arm that HAS one. A consumable
-  // has neither a weapon nor an armour kind — there is nothing to look up, and that is the answer.
+  // has neither a weapon nor an armour kind, there is nothing to look up, and that is the answer.
   const candidate = item.slot === 'weapon' ? item.weapon.kind : item.slot === 'armor' ? item.armor.kind : null
   if (!candidate) return null
   return tileFrames(styleId, candidate).length > 0 ? candidate : null
@@ -910,7 +909,7 @@ function itemArtLabel(item: Item, styleId: string): string | null {
  * How many of these items have no picture on the backend.
  *
  * Only the weapons are authored: all the armour and every consumable are missing, so this is not a rare
- * edge — it is 15 of the 21 seeded items. Naming the number is what turns it into a task instead of a
+ * edge, it is 15 of the 21 seeded items. Naming the number is what turns it into a task instead of a
  * mystery, and it disappears on its own once the tiles are baked.
  */
 function MissingArtNote({ items, styleId }: { items: readonly (Item | null)[]; styleId: string }) {
@@ -921,7 +920,7 @@ function MissingArtNote({ items, styleId }: { items: readonly (Item | null)[]; s
     <div className="warn">
       <b>{`${missing.length} of ${present.length} have no picture`}</b>
       <u>
-        {'Armour and consumables have no tile on the backend yet, so there is nothing to draw for them. They need authoring through the bake pipeline — not an emoji picked from the item\u2019s name, which is what this panel used to do.'}
+        {'Armour and consumables have no tile on the backend yet, so there is nothing to draw for them. They need authoring through the bake pipeline, not an emoji picked from the item\u2019s name, which is what this panel used to do.'}
       </u>
     </div>
   )
@@ -936,8 +935,8 @@ function ItemFace({ item, styleId, size = 22 }: { item: Item; styleId: string; s
         className="ig q"
         style={{ width: size, height: size }}
         role="img"
-        aria-label={`${item.name} — no picture`}
-        title={`${item.name} — no picture on the backend yet`}
+        aria-label={`${item.name}, no picture`}
+        title={`${item.name}, no picture on the backend yet`}
       >
         ?
       </span>
@@ -947,6 +946,6 @@ function ItemFace({ item, styleId, size = 22 }: { item: Item; styleId: string; s
 }
 
 /* InventoryCard deleted (§4.10 / Week 6). §3.7 measured three inventory surfaces over TWO models; this
-   card was the second surface AND the second model's only UI. Its one unique control — the Warrior /
-   Magician class switch — moved into EquipmentPanel's header, which is now the single inventory. */
+   card was the second surface AND the second model's only UI. Its one unique control, the Warrior /
+   Magician class switch, moved into EquipmentPanel's header, which is now the single inventory. */
 

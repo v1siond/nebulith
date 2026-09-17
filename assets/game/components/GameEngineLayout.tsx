@@ -3,7 +3,7 @@ import Link from 'next/link'
 import type { ReactNode } from 'react'
 
 /**
- * Shared shell for the game-engine pages — the nebulith layout + nav. Everything is scoped to GAMES now
+ * Shared shell for the game-engine pages, the nebulith layout + nav. Everything is scoped to GAMES now
  * (templates are a reusable resource reached only inside a game), so the nav is just Games + Back to CV.
  * The `active` prop is kept for forward-compat but currently only 'games' exists.
  */

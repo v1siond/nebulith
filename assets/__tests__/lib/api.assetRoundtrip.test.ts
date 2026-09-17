@@ -36,7 +36,7 @@ describe('deserializeToGrid preserves every saved asset field (#72)', () => {
   })
 
   // Phase 3: a per-instance tile ANIMATION list + its placedAt anchor must survive save/load exactly like
-  // cellAnim — through serializeGrid → the JSON wire (backend store) → deserializeToGrid. placedAt 0 is the
+  // cellAnim, through serializeGrid → the JSON wire (backend store) → deserializeToGrid. placedAt 0 is the
   // fountain default AND the tricky falsy case (must not be dropped/defaulted away).
   it('round-trips per-instance tile animations + placedAt through the JSON wire', () => {
     const anims = [
@@ -53,8 +53,7 @@ describe('deserializeToGrid preserves every saved asset field (#72)', () => {
     expect(a?.placedAt).toBe(0)
   })
 
-  // The per-instance LIGHT setting (night ground glow pool) must survive save/load exactly like shape —
-  // through serializeGrid → the JSON wire → deserializeToGrid — so a lamp keeps its authored intensity/
+  // The per-instance LIGHT setting (night ground glow pool) must survive save/load exactly like shape, // through serializeGrid → the JSON wire → deserializeToGrid, so a lamp keeps its authored intensity/
   // distance/colour/on across a reload.
   it('round-trips the per-instance light setting through the JSON wire', () => {
     const light = { intensity: 0.7, distance: 4.5, color: '#ffcc00', on: true }

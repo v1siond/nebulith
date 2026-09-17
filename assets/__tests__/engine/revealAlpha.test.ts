@@ -1,5 +1,5 @@
 /**
- * HOW TRANSPARENT a building tile draws — the one alpha rule for the reveal.
+ * HOW TRANSPARENT a building tile draws, the one alpha rule for the reveal.
  *
  * Three bands, plus a per-tile floor:
  *  - FAR      → fully opaque. A building you are nowhere near is a solid building.
@@ -10,7 +10,7 @@
  */
 import { revealAlpha, APPROACH_RADIUS, APPROACH_ALPHA, INTERIOR_SHELL_ALPHA } from '@/engine/render/roofReveal'
 
-describe('revealAlpha — far is solid, approach eases, inside reveals', () => {
+describe('revealAlpha, far is solid, approach eases, inside reveals', () => {
   test('far from the building → fully opaque', () => {
     expect(revealAlpha({ dist: APPROACH_RADIUS, inside: false })).toBe(1)
     expect(revealAlpha({ dist: APPROACH_RADIUS + 10, inside: false })).toBe(1)
@@ -26,7 +26,7 @@ describe('revealAlpha — far is solid, approach eases, inside reveals', () => {
   })
 
   // The old smoothstep was
-  // far too gradual — at 4 cells out it computed ~0.96, i.e. no visible change at all. Standing NEAR a building
+  // far too gradual, at 4 cells out it computed ~0.96, i.e. no visible change at all. Standing NEAR a building
   // must actually make it see-through, not almost-solid.
   test('being NEAR the building is an unmistakable change, not a 4% one', () => {
     expect(revealAlpha({ dist: 2, inside: false })).toBeLessThanOrEqual(0.6)

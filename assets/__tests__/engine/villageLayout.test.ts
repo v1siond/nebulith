@@ -1,9 +1,9 @@
-import '@/__tests__/helpers/installTilesetSeed' // the planner sizes its plots from the LOADED compositions — install the captured backend payload
+import '@/__tests__/helpers/installTilesetSeed' // the planner sizes its plots from the LOADED compositions, install the captured backend payload
 import { planVillage, planRoads, placePlots, buildingMix, type Rng, type Entrance, type Plot } from '@/engine/villageLayout'
 import { BACKEND_BUILDING_SIZES } from '@/engine/buildingCatalog'
 
 // The planner takes its sizes as a DEPENDENCY (`BuildingSizes`) so it stays pure. Every case here hands it
-// the real backend-backed one — `BUILDING_DEPTH`, the hardcoded table this used to assert against, was one of
+// the real backend-backed one, `BUILDING_DEPTH`, the hardcoded table this used to assert against, was one of
 // three hand-kept copies of data the compositions already carry, and is gone.
 const SIZES = BACKEND_BUILDING_SIZES
 
@@ -17,13 +17,13 @@ function seededRng(seed: number): Rng {
 }
 
 // The oriented GROUND footprint rect of a plot: south/north run length×DEPTH (cols×rows); east/west
-// swap to depth×length. Mirrors villageLayout's `footprint` — DEPTH (small), not the facade height.
+// swap to depth×length. Mirrors villageLayout's `footprint`, DEPTH (small), not the facade height.
 function plotRect(p: Plot): { c0: number; r0: number; w: number; h: number } {
   const horizontal = p.facing === 'south' || p.facing === 'north'
   return { c0: p.col, r0: p.row, w: horizontal ? p.length : p.depth, h: horizontal ? p.depth : p.length }
 }
 
-// The door cell — centre of the footprint's ROAD-FACING edge (mirrors stageGenerator's doorCell).
+// The door cell, centre of the footprint's ROAD-FACING edge (mirrors stageGenerator's doorCell).
 const STEP: Record<Plot['facing'], readonly [number, number]> = {
   south: [0, 1], north: [0, -1], east: [1, 0], west: [-1, 0],
 }
@@ -37,7 +37,7 @@ function doorOf(p: Plot): { col: number; row: number } {
   return { col: r.c0, row: midRow }
 }
 
-// 4-neighbour flood fill over ROAD cells from a start — proves the streets are one network.
+// 4-neighbour flood fill over ROAD cells from a start, proves the streets are one network.
 function floodRoads(roads: boolean[][], start: Entrance): Set<string> {
   const seen = new Set<string>()
   const stack = [{ col: start.col, row: start.row }]
@@ -56,7 +56,7 @@ function floodRoads(roads: boolean[][], start: Entrance): Set<string> {
   return seen
 }
 
-describe('villageLayout — buildingMix scales by settlement', () => {
+describe('villageLayout, buildingMix scales by settlement', () => {
   it('always includes exactly one store + one hospital, plus houses', () => {
     const mix = buildingMix('town', seededRng(1))
     expect(mix.filter(t => t === 'store')).toHaveLength(1)
@@ -116,7 +116,7 @@ describe('villageLayout: a town and a city are made of different buildings', () 
   })
 })
 
-describe('villageLayout — planVillage', () => {
+describe('villageLayout, planVillage', () => {
   it('is deterministic for the same seed', () => {
     expect(planVillage(40, 30, seededRng(7), SIZES)).toEqual(planVillage(40, 30, seededRng(7), SIZES))
   })
@@ -187,33 +187,33 @@ describe('villageLayout — planVillage', () => {
     }
   })
 
-  it('footprint DEPTH matches the baked composition depth — a small ground footprint', () => {
+  it('footprint DEPTH matches the baked composition depth, a small ground footprint', () => {
     const layout = planVillage(60, 44, seededRng(31), SIZES)
     expect(layout.plots.length).toBeGreaterThan(0)
     for (const p of layout.plots) {
       expect(p.depth).toBe(SIZES.depthOf(p.type, p.length)) // depth = THAT size's own south-facing footprint_h
-      expect(p.depth).toBeLessThanOrEqual(6) // small + roughly square — never a tall facade elevation
+      expect(p.depth).toBeLessThanOrEqual(6) // small + roughly square, never a tall facade elevation
     }
   })
 
-  it('DISTRIBUTES buildings across roads — not all on one frontage/facing', () => {
+  it('DISTRIBUTES buildings across roads, not all on one frontage/facing', () => {
     const layout = planVillage(60, 44, seededRng(23), SIZES)
     const facings = new Set(layout.plots.map(p => p.facing))
     expect(facings.size).toBeGreaterThan(1) // buildings face more than one direction → multiple roads used
   })
 
-  it('a CITY is ~3-5× a TOWN — on a large map (same seed) a city has ≥3× the plots', () => {
+  it('a CITY is ~3-5× a TOWN, on a large map (same seed) a city has ≥3× the plots', () => {
     // On a large map the town stays capped (a modest settlement) while the city fills its much
     // denser grid up to its big cap → ~4× the buildings. ≥3× is the contract ("3-5× a town"). Sized
     // large enough (110×84) that the city SATURATES its cap, so the central plaza's one reserved lot
-    // leaves the contract real headroom (a 90×70 city is frontage-pinned at exactly 3.0× — a knife-edge).
+    // leaves the contract real headroom (a 90×70 city is frontage-pinned at exactly 3.0×, a knife-edge).
     const town = planVillage(110, 84, seededRng(21), SIZES, 'town')
     const city = planVillage(110, 84, seededRng(21), SIZES, 'city')
     expect(city.plots.length).toBeGreaterThanOrEqual(3 * town.plots.length)
   })
 })
 
-describe('villageLayout — planRoads (street skeleton step)', () => {
+describe('villageLayout, planRoads (street skeleton step)', () => {
   it('produces a frontage on BOTH sides of every street (+ both sides of connectors)', () => {
     const plan = planRoads(40, 30, seededRng(2), 'town')
     // 2 streets × 2 sides = 4, plus 1 connector × 2 sides = 2 → at least 6, all facing inward.
@@ -236,11 +236,11 @@ describe('villageLayout — planRoads (street skeleton step)', () => {
   })
 })
 
-describe('villageLayout — placePlots (distribution step)', () => {
+describe('villageLayout, placePlots (distribution step)', () => {
   it('FILLS frontages into rows of lots (a populated neighborhood, with the essentials)', () => {
     const plan = planRoads(72, 48, seededRng(8), 'town')
     const plots = placePlots(plan.roads, plan.frontages, 72, 48, seededRng(9), 'town', SIZES)
-    expect(plots.length).toBeGreaterThanOrEqual(8) // a modest town — capped + spread, with trees between
+    expect(plots.length).toBeGreaterThanOrEqual(8) // a modest town, capped + spread, with trees between
     expect(plots.some(p => p.type === 'store')).toBe(true)
     expect(plots.some(p => p.type === 'hospital')).toBe(true)
   })
@@ -257,7 +257,7 @@ describe('villageLayout — placePlots (distribution step)', () => {
   })
 })
 
-describe('villageLayout — planVillage GUARANTEES the essentials', () => {
+describe('villageLayout, planVillage GUARANTEES the essentials', () => {
   it('every settlement gets at least one store + one hospital + a house, across seeds', () => {
     for (const seed of [1, 2, 3, 4, 5, 6]) {
       const layout = planVillage(48, 34, seededRng(seed), SIZES, 'town')
@@ -283,7 +283,7 @@ describe('villageLayout — planVillage GUARANTEES the essentials', () => {
   })
 })
 
-describe('villageLayout — settlement scale (town/city)', () => {
+describe('villageLayout, settlement scale (town/city)', () => {
   it('a city gets more frontages than a town (capacity scales)', () => {
     const t = planRoads(50, 44, seededRng(2), 'town')
     const c = planRoads(50, 44, seededRng(2), 'city')
@@ -297,7 +297,7 @@ describe('villageLayout — settlement scale (town/city)', () => {
   })
 })
 
-describe('villageLayout — reserves a central town SQUARE before houses', () => {
+describe('villageLayout, reserves a central town SQUARE before houses', () => {
   it('returns a road-free plaza near the map centre, and NO plot footprint overlaps it', () => {
     for (const settlement of ['town', 'city'] as const) {
       for (const seed of [11, 12, 13, 14, 15]) {
@@ -316,11 +316,11 @@ describe('villageLayout — reserves a central town SQUARE before houses', () =>
             expect(layout.roads[r][c]).toBe(false)
           }
         }
-        // central — the square sits in the middle of the map, not shoved to an edge
+        // central, the square sits in the middle of the map, not shoved to an edge
         expect(Math.abs(plaza.c0 + plaza.size / 2 - 28)).toBeLessThanOrEqual(56 * 0.3)
         expect(Math.abs(plaza.r0 + plaza.size / 2 - 22)).toBeLessThanOrEqual(44 * 0.3)
 
-        // houses build AROUND it — no plot footprint lands on the reserved square
+        // houses build AROUND it, no plot footprint lands on the reserved square
         for (const p of layout.plots) {
           const r = plotRect(p)
           for (let row = r.r0; row < r.r0 + r.h; row++) {
@@ -340,9 +340,9 @@ describe('villageLayout — reserves a central town SQUARE before houses', () =>
   })
 })
 
-describe('villageLayout — house footprints vary in size', () => {
+describe('villageLayout, house footprints vary in size', () => {
   // The weighting the BACKEND serves as `settlement.houseWidths`. It used to be a `HOUSE_WIDTHS` constant
-  // in villageLayout — an exact duplicate of this served list, which was parsed and then ignored. The
+  // in villageLayout, an exact duplicate of this served list, which was parsed and then ignored. The
   // planner reads the served one now, so the variety is an INPUT and the test supplies it, exactly as a
   // generate does.
   const SERVED_HOUSE_WIDTHS = [3, 3, 4, 4, 4, 5]
@@ -357,7 +357,7 @@ describe('villageLayout — house footprints vary in size', () => {
     expect(Math.min(...[...widths])).toBeLessThanOrEqual(3) // small cottages exist
   })
 
-  it('plants ONE default width when no weighting is served — it invents no variety of its own', () => {
+  it('plants ONE default width when no weighting is served, it invents no variety of its own', () => {
     // With nothing served there is nothing to randomize FROM, and
     // the honest result is the default size rather than a spread this file made up.
     const widths = new Set<number>()
@@ -368,7 +368,7 @@ describe('villageLayout — house footprints vary in size', () => {
     expect(widths.size).toBe(1)
   })
 
-  it('rolls only widths the weighting offers — never one it was not given', () => {
+  it('rolls only widths the weighting offers, never one it was not given', () => {
     for (let s = 1; s <= 12; s++) {
       const layout = planVillage(60, 44, seededRng(s), SIZES, 'town', { houseWidths: SERVED_HOUSE_WIDTHS })
       for (const p of layout.plots) {
@@ -380,11 +380,11 @@ describe('villageLayout — house footprints vary in size', () => {
 
 describe('the SERVED settlement tuning wins over this file\'s defaults', () => {
   // Nine numbers in
-  // villageLayout had a hand-kept twin in `settlement` on /api/generators — houseWidths was the first one
+  // villageLayout had a hand-kept twin in `settlement` on /api/generators, houseWidths was the first one
   // traced, and it was being parsed and ignored. These prove the served value is the one that lands.
   const seed = () => seededRng(5)
 
-  it('PREFERS the served plaza size — the compact 5 is the fallback when it will not fit', () => {
+  it('PREFERS the served plaza size, the compact 5 is the fallback when it will not fit', () => {
     // `planPlaza` tries [served, 5] in that order, by design: a grand square that does not fit the road
     // grid becomes a modest one rather than nothing. So the assertion is that the served size is what it
     // REACHES FOR, not that it always lands.
@@ -413,7 +413,7 @@ describe('the SERVED settlement tuning wins over this file\'s defaults', () => {
     expect(paved(wide)).toBeGreaterThan(paved(narrow))
   })
 
-  it('falls back to a default for anything the config omits — a partial block is fine', () => {
+  it('falls back to a default for anything the config omits, a partial block is fine', () => {
     // The served block is read field by field, so a generator stating only one number still works: the
     // other eight come from this file's defaults rather than being undefined.
     const partial = planVillage(60, 44, seed(), SIZES, 'town', { buildingCap: 4 })

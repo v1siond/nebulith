@@ -3,7 +3,7 @@
  * because units are billboarded above their grid cell across 3 camera modes; instead we pick the unit
  * whose DRAWN figure is nearest the click in SCREEN space, and Tab cycles the selection through the unit
  * list. No DOM, deterministic, unit-tested. The caller computes each unit's screen point via the view
- * projection. (Distinct from combat `game/runtime/targeting` — which enemy a melee swing hits.)
+ * projection. (Distinct from combat `game/runtime/targeting`, which enemy a melee swing hits.)
  */
 
 export interface ScreenPoint {
@@ -12,7 +12,7 @@ export interface ScreenPoint {
   y: number
 }
 
-/** The id of the candidate whose screen point is NEAREST to (px,py), within `maxDist` px — else null.
+/** The id of the candidate whose screen point is NEAREST to (px,py), within `maxDist` px, else null.
  *  Robust selection: pick the closest drawn figure to the click instead of an exact grid-cell hit. */
 export function nearestUnit(candidates: readonly ScreenPoint[], px: number, py: number, maxDist: number): string | null {
   let best: string | null = null
@@ -35,7 +35,7 @@ export interface UnitCell {
   row: number
 }
 
-/** Ids of units within `range` cells of the player (pCol,pRow), NEAREST first — the Tab-target
+/** Ids of units within `range` cells of the player (pCol,pRow), NEAREST first, the Tab-target
  *  candidates. The caller passes only eligible units (living ENEMIES); this applies the distance cutoff
  *  (≤ range, so Tab only targets enemies close to the player) and nearest-first ordering so cycling is
  *  predictable. */

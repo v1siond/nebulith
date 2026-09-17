@@ -1,12 +1,12 @@
 /**
- * THE GAMES OVERLAY READS THE BACKEND (§3.1 — a P0).
+ * THE GAMES OVERLAY READS THE BACKEND (§3.1, a P0).
  *
  * Before: the route read `/api/games` while this overlay read localStorage, so opening ⋯ More → Games
  * from *inside* a backend game announced "No games yet". Two Game types, two id schemes, one menu label.
  *
  * The overlay now has exactly one source. These tests drive the real component against a stubbed API and
  * assert the behaviour that P0 was made of: what it lists, that edits reach the server, and that a server
- * it cannot reach is SAID rather than rendered as an empty gallery — the failure that made the old bug
+ * it cannot reach is SAID rather than rendered as an empty gallery, the failure that made the old bug
  * invisible.
  */
 import { render, screen, waitFor, fireEvent } from '@testing-library/react'
@@ -63,7 +63,7 @@ describe('the overlay lists the backend\'s games', () => {
     expect(await screen.findByText(/No games yet/)).toBeInTheDocument()
   })
 
-  it('reports an unreachable server instead of an empty gallery — the P0 was invisible for exactly this reason', async () => {
+  it('reports an unreachable server instead of an empty gallery, the P0 was invisible for exactly this reason', async () => {
     asMock(listGames).mockRejectedValue(new Error('offline'))
     openOverlay()
     expect(await screen.findByText(/Could not reach the server/)).toBeInTheDocument()
@@ -111,7 +111,7 @@ describe('edits go to the backend', () => {
 
 describe('the retired localStorage games are carried across, not dropped', () => {
   // jest.setup.ts replaces window.localStorage with a stub whose setItem stores NOTHING, so the stored
-  // payload has to be driven through getItem directly — writing a key here would silently read back empty
+  // payload has to be driven through getItem directly, writing a key here would silently read back empty
   // and the test would pass without ever exercising the import.
   const storedRaw = (raw: string | null) => asMock(window.localStorage.getItem).mockReturnValue(raw)
 
@@ -130,7 +130,7 @@ describe('the retired localStorage games are carried across, not dropped', () =>
     expect(window.localStorage.removeItem).not.toHaveBeenCalled()
   })
 
-  it('KEEPS the key when the import cannot reach the server — a half-import must not destroy the source', async () => {
+  it('KEEPS the key when the import cannot reach the server, a half-import must not destroy the source', async () => {
     storedRaw(JSON.stringify([{ id: 'g', name: 'Legacy', templateIds: [] }]))
     asMock(createGame).mockRejectedValue(new Error('offline'))
     asMock(listGames).mockResolvedValue([game()])

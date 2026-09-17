@@ -1,5 +1,5 @@
 /**
- * THE JUNGLE — a jungle, not a dense woodland.
+ * THE JUNGLE, a jungle, not a dense woodland.
  *
  * I had shipped it as `layoutWoodland` with heavier numbers, which is exactly what was rejected. The
  * tests below assert the four pathways the STRUCTURE differs, because density is not the difference:
@@ -11,6 +11,7 @@
  *
  * And the one thing that is not negotiable whatever it looks like: the whole floor is ONE PLACE.
  */
+import { isWaterGround } from '@/engine/riverNetwork'
 import '@/__tests__/helpers/installTilesetSeed'
 import { FLAT_FLOOR, generateStage, RUIN_MIN_SITE, type NatureDensity } from '@/engine/stageGenerator'
 import { groundTileColor } from '@/engine/tileset/groundColor'
@@ -26,8 +27,7 @@ const JUNGLE: NatureDensity = { canopy: 0.62, groundCover: 0.5, flowers: 0.1 }
 const WOOD_PAL: GeneratorPalette = { floor: '#6f7f4a', floorAlt: '#7d8a55', litter: '#7a6a44', canopy: '#5d7340', canopyAlt: '#6b8049', undergrowth: '#6d7f45', water: '#4f93b3', bank: '#c1a877', trail: '#9a8a62' }
 const JUNG_PAL: GeneratorPalette = { floor: '#2f4a2a', floorAlt: '#38552f', litter: '#46442a', canopy: '#2e6b32', canopyAlt: '#3f8a3c', undergrowth: '#25532a', water: '#5e6b3a', bank: '#6b5f3c', trail: '#57502f' }
 
-/** The served sub-zones, as `generator_source.ex` carries them. Regions inside ONE map —
- *  2026-09-11, choosing between that and separate templates. */
+/** The served sub-zones, as `generator_source.ex` carries them. Regions inside ONE map, *  2026-09-11, choosing between that and separate templates. */
 const ZONES: readonly GeneratorSubZone[] = [
   { key: 'open', weight: 3, canopy: 0.45, undergrowth: 0.5, floor: '#3f5f33' },
   { key: 'dense', weight: 4, canopy: 1.3, undergrowth: 1.45, floor: '#24381f' },
@@ -51,8 +51,12 @@ const jungle = (seed = 3, cols = 60, rows = 40) => build('jungle', JUNGLE, JUNG_
 const woodland = (seed = 3) => build('woodland', WOODLAND, WOOD_PAL, seed)
 
 const countGround = (s: ReturnType<typeof jungle>, tile: string) => s.ground.flat().filter(t => t === tile).length
+// WATER IS A FAMILY now, not one label: a creek's cells wear their autotile piece (`water_smooth_c`,
+// `water_smooth_tl`, ...). Counting the exact string 'water' answers zero on every map, which would have
+// made the woodland half of this pair pass for the wrong reason.
+const countWater = (s: ReturnType<typeof jungle>) => s.ground.flat().filter(isWaterGround).length
 
-/** The walkable regions, largest first — the measure that says whether a map is one place or several. */
+/** The walkable regions, largest first, the measure that says whether a map is one place or several. */
 function regions(s: ReturnType<typeof jungle>): number[] {
   const seen = new Set<string>()
   const sizes: number[] = []
@@ -79,14 +83,14 @@ function regions(s: ReturnType<typeof jungle>): number[] {
 }
 
 describe('a jungle is structurally a different place from a woodland', () => {
-  it('travels along WATER — a creek runs through it, where a plain woodland has none', () => {
+  it('travels along WATER, a creek runs through it, where a plain woodland has none', () => {
     // The creek is not the river OPTION. A wood may or may not have a river; a jungle IS built around its
     // watercourse, which is why this holds with no options passed at all.
-    expect(countGround(jungle(), 'water')).toBeGreaterThan(0)
-    expect(countGround(woodland(), 'water')).toBe(0)
+    expect(countWater(jungle())).toBeGreaterThan(0)
+    expect(countWater(woodland())).toBe(0)
   })
 
-  it('lays NO trails — a jungle has no roads, a woodland paves its corridors', () => {
+  it('lays NO trails, a jungle has no roads, a woodland paves its corridors', () => {
     // A DEGENERATE ORACLE LIVED HERE, and it is why the map came out as a woodland with no visible paths.
     //
     // It counted cells whose colour equalled `groundTileColor(zonePalette(zone).trail)`, and that call falls
@@ -114,7 +118,7 @@ describe('a jungle is structurally a different place from a woodland', () => {
     expect(trail(jungle())).toBe(0)
   })
 
-  it('is CHOKED — its undergrowth blocks, so far less of it is walkable', () => {
+  it('is CHOKED, its undergrowth blocks, so far less of it is walkable', () => {
     const openPct = (s: ReturnType<typeof jungle>) =>
       s.collision.flat().filter(c => !c).length / (s.cols * s.rows)
     // Not a tuned threshold: the assertion is the GAP. If a jungle ever walks as freely as a wood it has
@@ -122,7 +126,7 @@ describe('a jungle is structurally a different place from a woodland', () => {
     expect(openPct(jungle())).toBeLessThan(openPct(woodland()) * 0.6)
   })
 
-  it('stands EMERGENTS above the canopy — the giants a temperate wood does not roll', () => {
+  it('stands EMERGENTS above the canopy, the giants a temperate wood does not roll', () => {
     const tall = jungle().trees.filter(t => t.kind === 'tree_tall').length
     expect(tall).toBeGreaterThan(0)
   })
@@ -151,7 +155,7 @@ describe('the COLOURS come from the served palette, and only from there', () => 
   it('paints the FLOOR from the served palette and from nothing else', () => {
     const j = jungle()
     // The floor, the gaps and the banks are painted flat from served tones, so every colour on a cell that
-    // is NOT water has to be one the backend sent. (Water is rippled — `varyIntensity` derives shades of the
+    // is NOT water has to be one the backend sent. (Water is rippled, `varyIntensity` derives shades of the
     // served colour, so it is excluded here and covered by the creek test instead.)
     const served = new Set(Object.values(JUNG_PAL))
     const land = new Set<string>()
@@ -164,7 +168,7 @@ describe('the COLOURS come from the served palette, and only from there', () => 
     expect(land.has(JUNG_PAL.floor!)).toBe(true)
   })
 
-  it('paints NOTHING when the backend serves no palette — never a colour of its own', () => {
+  it('paints NOTHING when the backend serves no palette, never a colour of its own', () => {
     // The compliance rule: a missing served value means "no opinion", not "pick one".
     const bare = build('jungle', JUNGLE, undefined)
     expect(bare.floorColors.flat().filter(Boolean)).toHaveLength(0)
@@ -192,14 +196,14 @@ describe('however dense it gets, the jungle is ONE place', () => {
   })
 })
 
-describe('the jungle is PARTITIONED into sub-zones — regions inside one map', () => {
+describe('the jungle is PARTITIONED into sub-zones, regions inside one map', () => {
   // On 2026-09-11 it chose the shape: regions inside ONE map, so you walk out of the open canopy
   // into dense growth without loading anything, and the template list stays at three forests.
 
   const floorCells = (s: ReturnType<typeof zoned>, tone: string) =>
     s.floorColors.flat().filter(t => t === tone).length
 
-  it('puts EVERY served region on the map — none is quietly dropped', () => {
+  it('puts EVERY served region on the map, none is quietly dropped', () => {
     const s = zoned()
     for (const z of ZONES) {
       // The swamp is mostly under its own pools, so it is asserted as present rather than at a size.
@@ -210,7 +214,7 @@ describe('the jungle is PARTITIONED into sub-zones — regions inside one map', 
 
   it('a DENSE region is genuinely denser than an OPEN one on the SAME map', () => {
     // The point of the whole thing. Before this the canopy took one target over the whole map, so averaging
-    // a dense region and an open one gave you neither — just a uniform middle everywhere.
+    // a dense region and an open one gave you neither, just a uniform middle everywhere.
     const s = zoned()
     const dense = ZONES.find(z => z.key === 'dense')!
     const open = ZONES.find(z => z.key === 'open')!

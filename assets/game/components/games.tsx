@@ -3,7 +3,7 @@
 //
 // The GAME MODEL IS THE BACKEND'S (§3.1's P0): this overlay used to read a completely separate
 // localStorage list, so a user sitting inside a backend game was told they had none. It now reads
-// and writes `/api/games` — one model, one id scheme, one source of truth. Ordering the levels is
+// and writes `/api/games`, one model, one id scheme, one source of truth. Ordering the levels is
 // the only game logic left in the frontend (@/game/levelOrder), because that is a user gesture
 // applied before the list is PUT back.
 import { layoutBounds, layoutLevels } from '@/game/editor/levelMapLayout'
@@ -16,7 +16,7 @@ import { type Connector, type Game, type TemplateListItem, createGame, deleteGam
 // ── GAMES VIEW ───────────────────────────────────────────────────────────────
 // A Game is an ORDERED list of templates presented as levels (see docs/games-flows.md):
 // index 0 = level 1. This overlay lists saved games and, per game, an editor to set the
-// level sequence — add templates in order, reorder (up/down), remove, jump into any level.
+// level sequence, add templates in order, reorder (up/down), remove, jump into any level.
 // Pure ops live in @/game/games; persistence (localStorage v1) in @/game/gamesStore.
 
 /** One level row in the game editor: "Level N: <template name>" + reorder / remove / play. */
@@ -88,7 +88,7 @@ export function GameEditor({
         </div>
 
         {levels.length === 0 && (
-          <p className="rounded border border-dashed border-white/10 px-3 py-6 text-center text-xs text-gray-500">No levels yet — add templates in the order you want to play them.</p>
+          <p className="rounded border border-dashed border-white/10 px-3 py-6 text-center text-xs text-gray-500">No levels yet, add templates in the order you want to play them.</p>
         )}
 
         <div className="space-y-1.5">
@@ -132,7 +132,7 @@ export function GamesViewOverlay({
   const [error, setError] = useState<string | null>(null)
 
   // On open: carry any games this browser still holds under the retired `nebulith:games` key across
-  // to the backend (§5.3's one-shot migration), THEN list. Import failure is not fatal — the key is
+  // to the backend (§5.3's one-shot migration), THEN list. Import failure is not fatal, the key is
   // left intact and the backend list still renders, so a server hiccup can't hide the real games.
   const refresh = useCallback(async () => {
     const deps = browserImportDeps(input => createGame(input))
@@ -143,7 +143,7 @@ export function GamesViewOverlay({
   useEffect(() => {
     let live = true
     refresh()
-      .catch(() => { if (live) setError('Could not reach the server — games are stored there now.') })
+      .catch(() => { if (live) setError('Could not reach the server, games are stored there now.') })
       .finally(() => { if (live) setLoading(false) })
     return () => { live = false }
   }, [refresh])
@@ -248,13 +248,13 @@ export function FlowViewOverlay({
 }) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
 
-  // Lay EVERY saved template (+ the current one) out as a MAP — each level placed in the direction its
+  // Lay EVERY saved template (+ the current one) out as a MAP, each level placed in the direction its
   // doorway pointed, walking outward from the level you are standing in. x/y are node centres; each node
   // carries its own connectors (the current room's come from the live `connectors` prop, since it may have
   // unsaved edits). Shared by render + click hit-testing.
   //
   // This used to be a CIRCLE by array index: `angle = i / count * 2π`. The edges were right, so you could
-  // see what connected to what, but the positions carried no information — the level through your east
+  // see what connected to what, but the positions carried no information, the level through your east
   // door might be drawn to the north-west, and reordering the list moved everything.
   // 2026-09-08:
   //
@@ -269,8 +269,7 @@ export function FlowViewOverlay({
         connectors: (t.connectors as Connector[]) || [],
       }))
       if (currentTemplate && !base.some(t => t.id === currentTemplate.id)) {
-        // The open level may not be saved yet. Its own size is not in the list, so use the served default —
-        // it only decides which EDGE a doorway is nearest, and a doorway is at an edge either way.
+        // The open level may not be saved yet. Its own size is not in the list, so use the served default, // it only decides which EDGE a doorway is nearest, and a doorway is at an edge either way.
         base.push({ id: currentTemplate.id, name: currentTemplate.name, cols: 40, rows: 40, connectors })
       }
       const live = base.map(t => ({ ...t, connectors: t.id === currentTemplate?.id ? connectors : t.connectors }))
@@ -316,7 +315,7 @@ export function FlowViewOverlay({
     canvas.height = window.innerHeight
 
     // NOTHING SAVED YET → say so. With no current template this used to return before drawing anything,
-    // leaving whatever was on the canvas before — in practice a black rectangle with no explanation of
+    // leaving whatever was on the canvas before, in practice a black rectangle with no explanation of
     // whether the view was broken, loading, or simply empty. A map of nothing still has to say it is a map.
     if (!currentTemplate) {
       ctx.fillStyle = '#0a0a12'
@@ -327,7 +326,7 @@ export function FlowViewOverlay({
       ctx.fillText('No levels saved yet.', canvas.width / 2, canvas.height / 2 - 12)
       ctx.fillStyle = '#5a6b7a'
       ctx.font = '13px ui-monospace, monospace'
-      ctx.fillText('Save this level, then add a doorway to another one — they will appear here as a map.', canvas.width / 2, canvas.height / 2 + 14)
+      ctx.fillText('Save this level, then add a doorway to another one, they will appear here as a map.', canvas.width / 2, canvas.height / 2 + 14)
       return
     }
 
@@ -352,7 +351,7 @@ export function FlowViewOverlay({
     const nodes = layoutNodes(canvas.width, canvas.height)
     const nodeOf = (id: string) => nodes.find(n => n.id === id)
 
-    // Edges — one arrowed, labelled link per connector, between its two nodes.
+    // Edges, one arrowed, labelled link per connector, between its two nodes.
     for (const node of nodes) {
       for (const connector of node.connectors) {
         const target = nodeOf(connector.targetTemplateId)
@@ -388,7 +387,7 @@ export function FlowViewOverlay({
       }
     }
 
-    // Nodes — the current room glows gold; the rest are blue boxes.
+    // Nodes, the current room glows gold; the rest are blue boxes.
     for (const node of nodes) {
       const isCurrent = node.id === currentTemplate.id
       ctx.fillStyle = isCurrent ? '#2a1a3a' : '#16213a'

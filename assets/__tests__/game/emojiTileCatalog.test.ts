@@ -2,12 +2,12 @@ import '@/__tests__/helpers/installTilesetSeed' // install the DB-equivalent til
 import { tilesForStyle, type TileDef } from '@/game/artStyle'
 
 /**
- * The FULL emoji tileset browser: the Library must read like a real, categorized + labeled tileset — all
- * terrain, all trees/plants, all buildings, all characters — read LIVE from the LOADED (DB) tileset, not a
+ * The FULL emoji tileset browser: the Library must read like a real, categorized + labeled tileset, all
+ * terrain, all trees/plants, all buildings, all characters, read LIVE from the LOADED (DB) tileset, not a
  * hardcoded frontend catalog. These assert the coverage minimums, that every browseable tile is properly
  * labeled + drawable, and that ids stay globally unique (so per-element overrides resolve unambiguously).
  */
-describe('emoji tile catalog — full categorized + labeled tileset (from the loaded tileset)', () => {
+describe('emoji tile catalog, full categorized + labeled tileset (from the loaded tileset)', () => {
   const grouped = tilesForStyle('emoji')
   const all: TileDef[] = Object.values(grouped).flat()
   // the old `buildings` bucket now spreads across walls/windows/doors/roofs/props (structural pieces + anchors).

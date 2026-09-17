@@ -1,19 +1,19 @@
 /**
- * ASSET ANIMATION — the render-side bridge between the pure animation ENGINE (`tileAnimation`) and the
+ * ASSET ANIMATION, the render-side bridge between the pure animation ENGINE (`tileAnimation`) and the
  * three view renderers (iso / 2D / top). ONE place resolves a placed asset's live per-frame overrides,
  * gated by each animation's `scope{styles,views}`, so every view applies the SAME values consistently.
  *
  * Clock-derived + stateless (exactly like `cellAnimation`): the renderer reads the RAF clock each frame and
- * calls `resolveAssetAnimation`; nothing is stored between frames. Returns `null` — the cheap, allocation-free
- * path — when the asset has NO animations, none match the active (style, view) scope, or they contribute no
+ * calls `resolveAssetAnimation`; nothing is stored between frames. Returns `null`, the cheap, allocation-free
+ * path, when the asset has NO animations, none match the active (style, view) scope, or they contribute no
  * settings (e.g. only `sprite` animations, whose playback is stubbed in Phase 1). That null case is what keeps
  * an un-animated tile's render BYTE-IDENTICAL to before this system existed.
  *
  * Split of concerns: `opacity` (a multiplier onto the tile's base alpha) and the screen POSITION shift
- * (`x`/`y`, in tile fractions — `y` positive = a RISE / lift UP) are applied by the caller at the canvas
+ * (`x`/`y`, in tile fractions, `y` positive = a RISE / lift UP) are applied by the caller at the canvas
  * level (globalAlpha + translate), because they must work uniformly in every view's own coordinate space.
  * The remaining live settings that map 1:1 onto plain `GridAsset` fields (colour, zoom, width, height) are
- * COMPOSED onto the tile's BASE value on a shallow-cloned `asset` (`fx.asset`) — an animation LAYERS on top of
+ * COMPOSED onto the tile's BASE value on a shallow-cloned `asset` (`fx.asset`), an animation LAYERS on top of
  * the base slider, it does not mask it (Image #40): height ADDS its delta-from-start onto `scaleY`, zoom/width
  * MULTIPLY the base by their ratio-from-start, colour is last-wins. So the base height/zoom sliders stay live
  * and editable while an animation plays, and the existing draw code reads the composed fields with no changes.
@@ -39,14 +39,14 @@ import type { DayNight } from './shared'
 
 /** The live animation effect applied to ONE placed asset for ONE frame in ONE view. */
 export interface AssetAnimationFx {
-  /** Opacity MULTIPLIER (1 = unchanged) — composited onto the asset's base opacity by the caller. */
+  /** Opacity MULTIPLIER (1 = unchanged), composited onto the asset's base opacity by the caller. */
   opacity: number
   /** Horizontal screen shift in TILE fractions (+ = right). Caller multiplies by the view's horizontal unit. */
   x: number
   /** Vertical screen LIFT in TILE fractions (+ = UP / rise). Caller multiplies by the view's vertical unit and
    *  SUBTRACTS it from the draw origin (screen-space up is negative Y). */
   y: number
-  /** The asset with animated FIELD settings (colour / zoom / width / height) overlaid — the SAME reference
+  /** The asset with animated FIELD settings (colour / zoom / width / height) overlaid, the SAME reference
    *  when the animation writes none of them, so no needless clone. */
   asset: GridAsset
 }
@@ -98,7 +98,7 @@ export function spriteFrame(
   return resolveFrame(frame, { char: asset.art?.[0] })
 }
 
-/** Map a render `Style` to the pure engine's scope token — only ascii/emoji exist as tile styles. */
+/** Map a render `Style` to the pure engine's scope token, only ascii/emoji exist as tile styles. */
 function styleToken(style: Style): TileStyle {
   return style.id === 'emoji' ? 'emoji' : 'ascii'
 }
@@ -194,7 +194,7 @@ function withAnimatedFields(asset: GridAsset, values: AnimatedSettingsDetailed):
  * Resolve the live animation effect for `asset` at clock time `nowMs`, rendered under `style` in `view` with
  * the scene in `dayNight`. Filters the asset's animations to those whose scope matches (style, view) AND whose
  * day/night gate passes (a `night`-triggered animation only when `dayNight === 'night'`), composes their live
- * settings (higher priority / later-in-list wins per setting), and returns the caller-ready effect — or `null`
+ * settings (higher priority / later-in-list wins per setting), and returns the caller-ready effect, or `null`
  * when nothing applies (no animations / none in scope / gated out / no settings produced), keeping the fast path.
  */
 export function resolveAssetAnimation(

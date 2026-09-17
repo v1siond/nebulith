@@ -1,24 +1,24 @@
 /**
  * REAL-CANVAS regression test for the "tree on tree" 2D doubling bug (@napi-rs/canvas).
  *
- * THE BUG: a tree (and every pre-built composition) is stamped as several per-cell assets — a TRUNK cell at
+ * THE BUG: a tree (and every pre-built composition) is stamped as several per-cell assets, a TRUNK cell at
  * heightLevel 0 and a CANOPY cell at heightLevel 1, each carrying its OWN part LABEL (`tree_trunk` /
  * `tree_canopy`) but the SAME composition `type` ('tree'). The ISO view draws each cell by its LABEL (its own
  * trunk/leaf tile), so the two cells compose into ONE coherent tree. The 2D view (render2D) resolved the tile
- * by the composition's KIND instead — `assetKind` collapses every `tree_*` label to the 'tree' kind, whose
- * emoji is the whole 🌲 — so BOTH stacked cells painted a full tree, one over the other: "tree on tree".
+ * by the composition's KIND instead, `assetKind` collapses every `tree_*` label to the 'tree' kind, whose
+ * emoji is the whole 🌲, so BOTH stacked cells painted a full tree, one over the other: "tree on tree".
  *
  * THE FIX mirrors iso's label-FIRST seam: a cell with a `label` and `height >= 1` (a composition cell) draws
  * its OWN per-label tile in 2D too, BEFORE the kind-based emoji is ever consulted. Keyed on the cell's DATA
- * (label + height), NOT on the tile type — so ANY composition (tree/building/fountain/lamp) translates.
+ * (label + height), NOT on the tile type, so ANY composition (tree/building/fountain/lamp) translates.
  *
  * WHAT THIS PROVES, on real pixels: with the two part cells tinted to distinct, ground-free colours
  * (canopy = MAGENTA, trunk = BLUE), rendering the 2-level composition in the 2D view yields
  *   • BOTH part tiles painted (each cell drew its own tile);
- *   • them STACKED — the canopy sits ABOVE the trunk (matching iso's per-level stacking);
- *   • the canopy CONFINED to ~one cell — it does NOT balloon into a second full-tree billboard over the
+ *   • them STACKED, the canopy sits ABOVE the trunk (matching iso's per-level stacking);
+ *   • the canopy CONFINED to ~one cell, it does NOT balloon into a second full-tree billboard over the
  *     trunk. Pre-fix the canopy painted the whole-tree KIND emoji (~1.5 cells tall, lifted), so its vertical
- *     extent was far larger and it overlapped the trunk — the doubling this test locks out.
+ *     extent was far larger and it overlapped the trunk, the doubling this test locks out.
  */
 import { styleCatalog, styleTiles } from '@/engine/tileset/styleTiles'
 import { installRealCanvas, type RealCanvasHarness } from '@/__tests__/helpers/realCanvas'
@@ -45,7 +45,7 @@ const COLS = 20, ROWS = 20, CELL = 40
 const C = 10, R = 10 // the composition's anchor cell
 const W = 480, H2 = 480
 const ZOOM = 2
-const TILE = 24 * ZOOM // render2D's tileH at this zoom (baseTileSize 24 × zoom) — the "one cell" ruler
+const TILE = 24 * ZOOM // render2D's tileH at this zoom (baseTileSize 24 × zoom), the "one cell" ruler
 
 // Player parked ON the composition cell so toScreen(C+0.5,R+0.5) lands at the canvas centre; the gold hero
 // figure reads neither magenta nor blue, so it can't skew the scan.
@@ -64,13 +64,13 @@ beforeAll(async () => {
   styleTiles('emoji').tree = { char: '🌲', color: '#3aaa3a', image: KIND_SRC }
   styleTiles('emoji').tree_trunk = { char: '▮', color: '#8a5a2a', image: TRUNK_SRC, height: 1 }
   styleTiles('emoji').tree_canopy = { char: '●', color: '#2fbf2f', image: CANOPY_SRC, height: 1 }
-  // The parked hero must render as a SHORT emoji billboard (gold 🧍), not a tall ASCII figure — a tall
+  // The parked hero must render as a SHORT emoji billboard (gold 🧍), not a tall ASCII figure, a tall
   // figure would occlude the top of the magenta canopy and skew the centroid scan. The frontend ships no
   // bundled default now, so seed the person tile here alongside the tree tiles.
   styleTiles('emoji').player = { char: '🧍', color: '#ffcf3a' }
   rebuildEmojiStyle() // install the KIND tile into EMOJI_STYLE.map so resolveAssetDraw('tree') sees its image
   await H.warm([KIND_SRC, TRUNK_SRC, CANOPY_SRC])
-  // render2D/iso paint ground from the loaded tileset terrain (DB-seeded, `{}` in tests) — seed grass so the
+  // render2D/iso paint ground from the loaded tileset terrain (DB-seeded, `{}` in tests), seed grass so the
   // ground draws without a lookup crash; its dark bg reads neither magenta nor blue.
   if (!styleCatalog('ascii').terrain.grass) {
     ;(styleCatalog('ascii').terrain as Record<string, { char: string[]; fg: string[]; bg: string[] }>).grass =
@@ -92,7 +92,7 @@ afterAll(() => {
 })
 
 /** A grid holding ONE 2-level tree composition at (C,R): a trunk cell (level 0) + a canopy cell (level 1),
- *  each with its own part label — exactly what stampComposition places for a tree. */
+ *  each with its own part label, exactly what stampComposition places for a tree. */
 function compositionGrid(): IsometricGrid {
   const grid = new IsometricGrid({ cols: COLS, rows: ROWS, cellSize: CELL })
   const trunk: GridAsset = { art: ['▮'], col: C, row: R, type: 'tree', label: 'tree_trunk', heightLevel: 0, height: 1, color: BLUE } as GridAsset
@@ -105,7 +105,7 @@ function twoD(grid: IsometricGrid): Canvas {
   const cv = H.makeCanvas(W, H2)
   const ctx = cv.getContext('2d') as unknown as CanvasRenderingContext2D
   // chrome OFF: the view's heading/hint is drawn in a blue that the trunk scan reads as trunk pixels, at the
-  // top of the canvas — it dragged the trunk's centroid a whole cell upward and hid the real stacking.
+  // top of the canvas, it dragged the trunk's centroid a whole cell upward and hid the real stacking.
   render2D({ ctx, w: W, h: H2, grid, player: PLAYER, time: 0, zoom: ZOOM, camOffset: { x: 0, y: 0 }, entities: [], enemyCombat: new Map(), connectors: [], quests: [], dayNight: 'day', attackAnims: [], hitMarkers: [], projectiles: [], attackReach: 1, style: EMOJI_STYLE, chrome: false })
   return cv
 }
@@ -144,7 +144,7 @@ function colorStats(cv: Canvas, wantMag: boolean): ColorStats {
 }
 
 describe('2D renders a 2-level tree composition WITHOUT doubling (trunk + canopy = one coherent tree)', () => {
-  test('both part tiles are painted — each cell drew its OWN label tile, not one shared whole-tree image', () => {
+  test('both part tiles are painted, each cell drew its OWN label tile, not one shared whole-tree image', () => {
     const cv = twoD(compositionGrid())
     const canopy = colorStats(cv, true)
     const trunk = colorStats(cv, false)
@@ -152,7 +152,7 @@ describe('2D renders a 2-level tree composition WITHOUT doubling (trunk + canopy
     expect(trunk.count).toBeGreaterThan(200)  // the blue trunk tile reached the canvas
   })
 
-  test('the canopy sits ABOVE the trunk — the two levels stack like iso, not on the same spot', () => {
+  test('the canopy sits ABOVE the trunk, the two levels stack like iso, not on the same spot', () => {
     const cv = twoD(compositionGrid())
     const canopy = colorStats(cv, true)
     const trunk = colorStats(cv, false)
@@ -162,12 +162,12 @@ describe('2D renders a 2-level tree composition WITHOUT doubling (trunk + canopy
     expect(canopy.centroidRow).toBeLessThan(trunk.centroidRow - TILE * 0.4)
   })
 
-  test('the canopy is CONFINED to ~one cell — it does NOT balloon into a second full tree over the trunk', () => {
+  test('the canopy is CONFINED to ~one cell, it does NOT balloon into a second full tree over the trunk', () => {
     const cv = twoD(compositionGrid())
     const canopy = colorStats(cv, true)
     const extent = canopy.maxRow - canopy.minRow
     // A single labeled cell spans ~one TILE tall. The pre-fix whole-tree KIND billboard spanned ~1.5 TILE
-    // (lifted), overlapping the trunk. Anything under ~1.3 TILE proves the canopy stayed one cell — no double.
+    // (lifted), overlapping the trunk. Anything under ~1.3 TILE proves the canopy stayed one cell, no double.
     expect(extent).toBeLessThan(TILE * 1.3)
     expect(extent).toBeGreaterThan(TILE * 0.4) // sanity: it really did draw a cell-sized tile
   })

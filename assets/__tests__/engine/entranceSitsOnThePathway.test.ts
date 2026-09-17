@@ -26,7 +26,7 @@ function mouthCell(foot: { w: number; h: number }, anchor: { col: number; row: n
   return { col: anchor.col + o.dx, row: anchor.row + o.dy }
 }
 
-// south, west, north, east — the four ENTRANCE_TURN values, in order.
+// south, west, north, east, the four ENTRANCE_TURN values, in order.
 const ROTATIONS = [0, 1, 2, 3]
 const FOOTPRINTS = [
   { w: 1, h: 1 },

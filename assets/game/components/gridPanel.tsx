@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { type MapSize, CELL_SIZE_MIN, atLeast, cellCount, mapSizeProblem, mapSizeValid } from '@/lib/mapSize'
 
 /**
- * THE GRID's controls — the map's own numbers, split by where they belong.
+ * THE GRID's controls, the map's own numbers, split by where they belong.
  *
  * They lived in the Generate panel, then moved to a rail section of their own, and are now split. Both
  * moves are
@@ -51,7 +51,7 @@ export function NumberField({
   const [draft, setDraft] = useState(String(value))
   const focused = useRef(false)
 
-  // Follow the value when something ELSE changes it — a generate, an undo, loading a map. Never while the
+  // Follow the value when something ELSE changes it, a generate, an undo, loading a map. Never while the
   // field has focus: that would overwrite the digits being typed, which is the bug this control exists for.
   useEffect(() => {
     if (!focused.current) setDraft(String(value))
@@ -83,7 +83,7 @@ export function NumberField({
 }
 
 /**
- * `How big` — the grid's MATRIX, inside the New world panel.
+ * `How big`, the grid's MATRIX, inside the New world panel.
  *
  * The typed numbers are a DRAFT owned by the PARENT, because two actions read it: `Build this world`
  * generates into it, and the resize button applies it to the open map. A number two actions depend on
@@ -149,10 +149,10 @@ export function MapMatrixSection({
 }
 
 /**
- * `▤ Ground` — the map's BODY depth, in the view bar beside Rotate and Range.
+ * `▤ Ground`, the map's BODY depth, in the view bar beside Rotate and Range.
  *
  * That is right about the kind of thing it is: it rebuilds nothing and touches no cell, it only
- * changes how deep the map draws — the same class of property as which way the camera faces.
+ * changes how deep the map draws, the same class of property as which way the camera faces.
  *
  * It is only VISIBLE where the map stops, so an empty map shows no change at all. The title says so,
  * because that silence is what made it read as broken.

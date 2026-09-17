@@ -1,5 +1,5 @@
 /**
- * rotateDepthDir — rotate a directional-DEPTH direction by CW quarter-turns, the SAME way rotateFootprintOffset
+ * rotateDepthDir, rotate a directional-DEPTH direction by CW quarter-turns, the SAME way rotateFootprintOffset
  * rotates a composition cell's grid offset. A roof column is authored spanning the +row (south, `left-down`)
  * axis; when a building is rotated to face east/west/north the roof's span must rotate WITH the footprint, or an
  * east/west building gets a sideways roof. The mapping is DERIVED from DEPTH_CELL_STEP: a CW quarter-turn sends
@@ -9,7 +9,7 @@ import { rotateDepthDir, DEPTH_CELL_STEP, type DepthDir } from '@/engine/render/
 
 const DIRS: DepthDir[] = ['right-up', 'left-up', 'left-down', 'right-down']
 
-describe('rotateDepthDir — CW quarter-turns on a depth direction (matches rotateFootprintOffset)', () => {
+describe('rotateDepthDir, CW quarter-turns on a depth direction (matches rotateFootprintOffset)', () => {
   test('rotation 0 is the identity for every direction', () => {
     for (const d of DIRS) expect(rotateDepthDir(d, 0)).toBe(d)
   })

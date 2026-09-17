@@ -1,6 +1,6 @@
 /**
  * BIDIRECTIONAL z-width: a tile z-widths `depth` cells ahead along `depthDir` AND `depthBack`
- * cells behind it, from ONE anchor — so a 4-cell roof becomes 1 tile. normalizeDepthSpan folds that into the
+ * cells behind it, from ONE anchor, so a 4-cell roof becomes 1 tile. normalizeDepthSpan folds that into the
  * one-way "anchor is the start, depth runs along dir" span every existing depth fn understands, so nothing else
  * in the render/sort has to learn a second case. These lock the fold: same cells, anchor moved to the back.
  */
@@ -8,7 +8,7 @@ import { normalizeDepthSpan, depthCells, assetRectExtents } from '@/engine/rende
 import { IsometricGrid } from '@/engine/IsometricGrid'
 import { cellStackTop } from '@/engine/cellStack'
 
-describe('normalizeDepthSpan — bidirectional span folds to a one-way span', () => {
+describe('normalizeDepthSpan, bidirectional span folds to a one-way span', () => {
   test('no backward extent → anchor + depth unchanged (byte-identical to today)', () => {
     expect(normalizeDepthSpan(5, 3, 4, 0, 'right-down')).toEqual({ col: 5, row: 3, depth: 4 })
     expect(normalizeDepthSpan(5, 3, 4, undefined, 'right-down')).toEqual({ col: 5, row: 3, depth: 4 })
@@ -31,7 +31,7 @@ describe('normalizeDepthSpan — bidirectional span folds to a one-way span', ()
   })
 })
 
-describe('assetRectExtents — model → ±col/±row grid extents', () => {
+describe('assetRectExtents, model → ±col/±row grid extents', () => {
   test('two perpendicular sides (right-down + left-down) → a rectangle both pathways', () => {
     expect(assetRectExtents({ depthDir: 'right-down', depth: 4, depthPerp: 2 })).toEqual({ colMinus: 0, colPlus: 3, rowMinus: 0, rowPlus: 2 })
   })
@@ -52,10 +52,10 @@ describe('a z-width RECTANGLE registers its covered cells for stacking ', () => 
     roof.depthDir = 'right-down'
     roof.depthPerp = 2 // → a 3×3 rectangle: cols [5,7] × rows [5,7]
     g.assetLevelsChanged() // re-index the covered footprint (what applyToSelectedTiles now does on a z-width edit)
-    const ground = cellStackTop(g, 10, 10) // an untouched cell — just the base ground layer
+    const ground = cellStackTop(g, 10, 10) // an untouched cell, just the base ground layer
     const anchor = cellStackTop(g, 5, 5)
     expect(anchor).toBeGreaterThan(ground) // the raised deck sits above the ground
-    expect(cellStackTop(g, 6, 6)).toBe(anchor) // MIDDLE cell — was `ground` before the covered-cells fix; now sees the deck
+    expect(cellStackTop(g, 6, 6)).toBe(anchor) // MIDDLE cell, was `ground` before the covered-cells fix; now sees the deck
     expect(cellStackTop(g, 7, 7)).toBe(anchor) // far corner of the rectangle also sees the deck
     expect(cellStackTop(g, 8, 8)).toBe(ground) // just outside the rectangle → unaffected
   })

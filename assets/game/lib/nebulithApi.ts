@@ -1,5 +1,5 @@
 // Base URL for the nebulith Elixir backend, shared by every client that talks to it
-// (templates, tilesets, cv, games). ALWAYS configured through the environment — set
+// (templates, tilesets, cv, games). ALWAYS configured through the environment, set
 // NEXT_PUBLIC_NEBULITH_API in .env.local so the port can move without editing code.
 // The NEXT_PUBLIC_ prefix is required for the value to reach the browser bundle (these
 // fetches run client-side).

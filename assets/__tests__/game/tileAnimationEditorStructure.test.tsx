@@ -1,16 +1,16 @@
 /**
  * TILE animation editor STRUCTURE + behaviour (Phase 4). The dedicated modal body that authors
  * `GridAsset.animations` for ONE selected tile must:
- *   1. HEADER — clearly name the element TYPE (Tile vs Character) so it's unmistakable what's being animated.
- *   2. ADD — "Add settings animation" appends a `kind:'settings'` envelope (Sprite is a labeled STUB).
- *   3. FIELDS — each animation exposes the settings MULTI-PICKER (a checkbox per SettingKey), from/to per
+ *   1. HEADER, clearly name the element TYPE (Tile vs Character) so it's unmistakable what's being animated.
+ *   2. ADD, "Add settings animation" appends a `kind:'settings'` envelope (Sprite is a labeled STUB).
+ *   3. FIELDS, each animation exposes the settings MULTI-PICKER (a checkbox per SettingKey), from/to per
  *      checked setting, duration / start delay / loop delay / loop / ease / trigger (+radius on proximity),
  *      and style/view scope chips.
- *   4. WRITE-THROUGH — checking opacity + y and typing from/to writes the RIGHT asset.animations shape (the
+ *   4. WRITE-THROUGH, checking opacity + y and typing from/to writes the RIGHT asset.animations shape (the
  *      fountain water: an opacity 0→1 + y 0→3 settings track over a duration). This is the load-bearing test.
  *
  * A controlled Harness holds the list so successive edits accumulate (a real onChange consumer), and the
- * current shape is mirrored into a <pre> we parse — asserting the DATA written, not just that a control exists.
+ * current shape is mirrored into a <pre> we parse, asserting the DATA written, not just that a control exists.
  */
 import { useState } from 'react'
 import { render, screen, fireEvent, within } from '@testing-library/react'
@@ -57,7 +57,7 @@ function fountainDraft(): Animation {
   }
 }
 
-describe('TileAnimationEditor — header + empty state', () => {
+describe('TileAnimationEditor, header + empty state', () => {
   it('the header names the element TYPE (Tile) and label', () => {
     render(<Harness />)
     expect(screen.getByText(/✦ Tile animation/i)).toBeInTheDocument()
@@ -76,7 +76,7 @@ describe('TileAnimationEditor — header + empty state', () => {
   })
 })
 
-describe('TileAnimationEditor — add / kind', () => {
+describe('TileAnimationEditor, add / kind', () => {
   it('"Add settings animation" appends ONE kind:settings envelope with empty tracks + load trigger', () => {
     render(<Harness />)
     fireEvent.click(screen.getByRole('button', { name: /Add settings animation/i }))
@@ -87,7 +87,7 @@ describe('TileAnimationEditor — add / kind', () => {
     expect(state[0].trigger).toEqual({ on: 'load' })
   })
 
-  it('"Add sprite animation" is REAL — appends a kind:sprite frame-swap envelope (frames + entity trigger)', () => {
+  it('"Add sprite animation" is REAL, appends a kind:sprite frame-swap envelope (frames + entity trigger)', () => {
     render(<Harness />)
     const sprite = screen.getByRole('button', { name: /Add sprite animation/i })
     expect(sprite).not.toBeDisabled()
@@ -102,17 +102,17 @@ describe('TileAnimationEditor — add / kind', () => {
     expect(s.spriteTrigger?.on).toBe('move')
   })
 
-  it('a UNIT modal (kinds=[sprite]) offers ONLY the sprite add — a unit stores no settings envelope', () => {
+  it('a UNIT modal (kinds=[sprite]) offers ONLY the sprite add, a unit stores no settings envelope', () => {
     render(<Harness elementType="Character" kinds={['sprite']} />)
     expect(screen.getByRole('button', { name: /Add sprite animation/i })).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: /Add settings animation/i })).toBeNull()
   })
 })
 
-describe('TileAnimationEditor — an animation row exposes every field', () => {
+describe('TileAnimationEditor, an animation row exposes every field', () => {
   beforeEach(() => render(<Harness initial={[fountainDraft()]} />))
 
-  it('renders the settings MULTI-PICKER — a checkbox per SettingKey (opacity, y, color, display…)', () => {
+  it('renders the settings MULTI-PICKER, a checkbox per SettingKey (opacity, y, color, display…)', () => {
     for (const key of ['opacity', 'y', 'x', 'zoom', 'width', 'height', 'color', 'display', 'zIndex']) {
       expect(screen.getByLabelText(`animate ${key}`)).toBeInTheDocument()
     }
@@ -152,7 +152,7 @@ describe('TileAnimationEditor — an animation row exposes every field', () => {
   })
 })
 
-describe('TileAnimationEditor — manual authoring writes the right asset.animations shape', () => {
+describe('TileAnimationEditor, manual authoring writes the right asset.animations shape', () => {
   it('add → check opacity + y → type from/to → produces the fountain settings track', () => {
     render(<Harness />)
 
@@ -214,9 +214,9 @@ describe('TileAnimationEditor — manual authoring writes the right asset.animat
   })
 })
 
-// ── UX: the add buttons sit ABOVE the list (a long list can't push them off), and rows show NEWEST-FIRST — while
+// ── UX: the add buttons sit ABOVE the list (a long list can't push them off), and rows show NEWEST-FIRST, while
 //    the underlying DATA order (chaining/priority) is untouched, so edit/remove still hit the right entry. ──
-describe('TileAnimationEditor — add buttons on top, newest-first list', () => {
+describe('TileAnimationEditor, add buttons on top, newest-first list', () => {
   const settingsAnim = (id: string, name: string): Animation => ({
     id, name, kind: 'settings', tracks: [], durationMs: 1000, startDelayMs: 0, loopDelayMs: 0,
     loop: true, ease: 'sine', priority: 0, trigger: { on: 'load' },

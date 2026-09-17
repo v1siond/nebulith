@@ -6,12 +6,12 @@
  * is ok to not have settings yet, but I do want to have anything related to adding, removing, replacing
  * tiles, anything that is related to building the map".
  *
- * Root cause of the report: undo was OPT-IN PER HANDLER — `clearTilesOnSelection` and `paintTileOnSelection`
+ * Root cause of the report: undo was OPT-IN PER HANDLER, `clearTilesOnSelection` and `paintTileOnSelection`
  * each called `checkpointHistory()`, `removeSelectedTile` did not. Every new edit handler was a fresh chance
  * to forget. `editMap` makes the snapshot part of the EDIT BOUNDARY instead: a structural edit cannot run
  * without checkpointing first, so "did the author remember?" stops being a question.
  *
- * Settings tweaks (colour/size/shape/…) deliberately do NOT route through here — "is ok to not have settings
+ * Settings tweaks (colour/size/shape/…) deliberately do NOT route through here, "is ok to not have settings
  * yet".
  */
 import { editMap } from '@/game/editor/mapEdit'
@@ -48,7 +48,7 @@ function historyHarness(grid: IsometricGrid) {
 
 const assetCount = (grid: IsometricGrid): number => grid.getAssetsAtCell(COL, ROW).length
 
-describe('editMap — a structural edit always snapshots first', () => {
+describe('editMap, a structural edit always snapshots first', () => {
   it('restores a REMOVED tile on undo (the reported bug)', () => {
     const grid = gridWithWall()
     const hist = historyHarness(grid)

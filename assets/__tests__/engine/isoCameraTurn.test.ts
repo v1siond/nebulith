@@ -1,21 +1,21 @@
 /**
- * ANIMATED CAMERA TURN IN ISO — end-to-end through render().
+ * ANIMATED CAMERA TURN IN ISO, end-to-end through render().
  *
  * Chosen shape: the world SPINS continuously while you drag and EASES into the NEAREST of the 4 corners on
  * release; the 4 buttons stay as quick jumps. **At rest nothing about today's render changes.**
  *
  * So this file asserts, against the RENDERED frame (the pure maths is `isoTurn.test.ts`):
- *   1. A WHOLE turn is BIT-IDENTICAL to today — same op stream as the `cameraFacing` render, and the same
+ *   1. A WHOLE turn is BIT-IDENTICAL to today, same op stream as the `cameraFacing` render, and the same
  *      literal screen coords `isoCameraRotation.test.ts` already pins. This is the hard regression guard.
  *   2. A FRACTIONAL turn really rotates the world: a known corner lands at a predicted INTERMEDIATE screen
- *      position, and the sweep is smooth — including across the 45° nearest-corner crossover.
+ *      position, and the sweep is smooth, including across the 45° nearest-corner crossover.
  *   3. The depth sort mid-turn uses the CONTINUOUS projected key: the order flips where the two tiles are
  *      genuinely at the same screen depth, NOT at the corner crossover.
  *   4. The pick still round-trips at REST.
  *   5. The `__setCameraTurn` / `__cameraTurn` seams the UI controller will drive.
  *
  * Deterministic camera idiom from isoCameraRotation.test.ts: cellSize 100 / isoScale 1 (tileW 71, tileH 36),
- * clampCamera:false, player on the map CENTRE — so every expected pixel is exact.
+ * clampCamera:false, player on the map CENTRE, so every expected pixel is exact.
  */
 import '@/__tests__/helpers/installTilesetSeed'
 import {
@@ -32,13 +32,13 @@ const CELL = 100, W = 800, H = 600, ISO = 1
 const TILE_W = CELL * ISO * 0.71, TILE_H = CELL * ISO * 0.36
 // A NON-SQUARE map: an odd turn swaps the view dims, so a dims bug can't hide behind a square.
 const COLS = 5, ROWS = 3
-const PCOL = 2, PROW = 1 // the map centre — the four corners are then a clean turn about the middle
+const PCOL = 2, PROW = 1 // the map centre, the four corners are then a clean turn about the middle
 const WHOLE: Orientation[] = [0, 1, 2, 3]
 const CORNERS: readonly [number, number][] = [[0, 0], [COLS - 1, 0], [COLS - 1, ROWS - 1], [0, ROWS - 1]]
 
 const player = (): PlayerState => ({ x: PCOL * CELL, z: PROW * CELL, moving: false } as PlayerState)
 
-/** A no-op ctx — the tile GEOMETRY the pick reads is independent of the pixels drawn. */
+/** A no-op ctx, the tile GEOMETRY the pick reads is independent of the pixels drawn. */
 function mockCtx(): CanvasRenderingContext2D {
   const ctx = {
     fillStyle: '#000', strokeStyle: '#000', font: '', textAlign: '' as CanvasTextAlign,
@@ -77,7 +77,7 @@ const gridWith = (assets: GridAsset[]): IsometricGrid => {
   return grid
 }
 
-/** One block per map corner — the four things whose on-screen positions the rotation must move. */
+/** One block per map corner, the four things whose on-screen positions the rotation must move. */
 const cornerBlocks = (): GridAsset[] =>
   CORNERS.map(([col, row]) => ({ art: ['#'], col, row, type: 'wall', label: 'wall', height: 1, color: '#8a8a8a' }))
 
@@ -92,7 +92,7 @@ const renderIso = (grid: IsometricGrid, camera: CameraParam = {}, ctx: CanvasRen
   })
 }
 
-/** The screen ANCHOR (base-diamond centre) of the block drawn at world (col,row) this frame — read back from
+/** The screen ANCHOR (base-diamond centre) of the block drawn at world (col,row) this frame, read back from
  *  the frame's OWN recorded silhouette, so it is literally where the renderer put it. */
 const drawnAnchor = (col: number, row: number): { x: number; y: number } => {
   const g = isoRecordedGeom(col, row, 0)
@@ -121,7 +121,7 @@ const near = (a: { x: number; y: number }, b: { x: number; y: number }, digits =
 const dist = (a: { x: number; y: number }, b: { x: number; y: number }): number => Math.hypot(a.x - b.x, a.y - b.y)
 
 // ────────────────────────────────────────────────────────────────────────────────────────────────────────
-describe('1 — a WHOLE turn is BIT-IDENTICAL to today (the hard regression guard)', () => {
+describe('1, a WHOLE turn is BIT-IDENTICAL to today (the hard regression guard)', () => {
   test('cameraTurn: 0 draws the exact op stream of a render with NO camera param', () => {
     const withoutParam: string[] = [], withZero: string[] = []
     renderIso(gridWith(cornerBlocks()), {}, recordingCtx(withoutParam))
@@ -150,7 +150,7 @@ describe('1 — a WHOLE turn is BIT-IDENTICAL to today (the hard regression guar
   })
 
   test('every corner block sits at the LITERAL screen coords today\'s projection produces, at all 4 corners', () => {
-    // The same literals isoCameraRotation.test.ts pins for the 4-way camera — so "bit-identical at rest" is
+    // The same literals isoCameraRotation.test.ts pins for the 4-way camera, so "bit-identical at rest" is
     // measured against hard-coded pixels, not against the renderer agreeing with itself.
     const literals: Record<number, { x: number; y: number }> = {
       0: { x: 329, y: 192 }, 1: { x: 613, y: 264 }, 2: { x: 471, y: 408 }, 3: { x: 187, y: 336 },
@@ -164,8 +164,8 @@ describe('1 — a WHOLE turn is BIT-IDENTICAL to today (the hard regression guar
 })
 
 // ────────────────────────────────────────────────────────────────────────────────────────────────────────
-describe('2 — a FRACTIONAL turn visibly ROTATES the world', () => {
-  test('at turn 0.5 the corner (0,0) sits at the hand-derived 45° position — between its two corners, on the arc', () => {
+describe('2, a FRACTIONAL turn visibly ROTATES the world', () => {
+  test('at turn 0.5 the corner (0,0) sits at the hand-derived 45° position, between its two corners, on the arc', () => {
     renderIso(gridWith(cornerBlocks()), { cameraTurn: 0.5 })
     const a = drawnAnchor(0, 0)
     // Hand-derived: cu=-2, cv=-1, cos=sin=√2/2 → du=-√2/2, dv=-3√2/2 → x=400+(√2)*71, y=300-(2√2)*36.
@@ -212,9 +212,9 @@ describe('2 — a FRACTIONAL turn visibly ROTATES the world', () => {
 })
 
 // ────────────────────────────────────────────────────────────────────────────────────────────────────────
-describe('3 — the depth sort MID-TURN uses the CONTINUOUS projected key', () => {
+describe('3, the depth sort MID-TURN uses the CONTINUOUS projected key', () => {
   // Two tiles on the same iso screen column at rest: (1,1) is BEHIND (2,2) at turn 0 and IN FRONT at turn 2.
-  // Their screen depths are (viewCol+viewRow), which for a continuous turn is a continuous quantity — so the
+  // Their screen depths are (viewCol+viewRow), which for a continuous turn is a continuous quantity, so the
   // order must flip exactly where those depths TIE (turn 1 for this pair), NOT at the 0.5 corner crossover.
   const BACK = { col: 1, row: 1, asset: { heightLevel: 0 } }
   const FRONT = { col: 2, row: 2, asset: { heightLevel: 0 } }
@@ -234,7 +234,7 @@ describe('3 — the depth sort MID-TURN uses the CONTINUOUS projected key', () =
     expect(compareAt(1.5)).toBeGreaterThan(0)
   })
 
-  test('the RENDER draws in that order — the frontmost tile is drawn LAST', () => {
+  test('the RENDER draws in that order, the frontmost tile is drawn LAST', () => {
     const tall = (col: number, row: number): GridAsset =>
       ({ art: ['#'], col, row, type: 'wall', label: 'wall', height: 1, scaleY: 3, color: '#8a8a8a' })
     const topmostOf = (turn: number): { col: number; row: number } => {
@@ -252,7 +252,7 @@ describe('3 — the depth sort MID-TURN uses the CONTINUOUS projected key', () =
 })
 
 // ────────────────────────────────────────────────────────────────────────────────────────────────────────
-describe('4 — the PICK still round-trips AT REST (a settled camera is today\'s camera)', () => {
+describe('4, the PICK still round-trips AT REST (a settled camera is today\'s camera)', () => {
   const camFor = (turn: number) => ({
     w: W, h: H, cellSize: CELL, isoScale: ISO,
     ...isoViewFocus(PCOL, PROW, 0, 0, W / (2 * TILE_W), H / (2 * TILE_H), COLS, ROWS, turn, false),
@@ -289,7 +289,7 @@ describe('4 — the PICK still round-trips AT REST (a settled camera is today\'s
 })
 
 // ────────────────────────────────────────────────────────────────────────────────────────────────────────
-describe('5 — the camera-turn seams the UI controller drives', () => {
+describe('5, the camera-turn seams the UI controller drives', () => {
   type TurnSeam = {
     __setCameraTurn?: (t: number) => number
     __cameraTurn?: () => number
@@ -307,7 +307,7 @@ describe('5 — the camera-turn seams the UI controller drives', () => {
 
     expect(seam().__setCameraTurn!(1.5)).toBe(1.5)
     expect(seam().__cameraTurn!()).toBe(1.5)
-    renderIso(gridWith(cornerBlocks())) // NO camera param — the seam drives it
+    renderIso(gridWith(cornerBlocks())) // NO camera param, the seam drives it
     near(drawnAnchor(0, 0), expectedScreenAtTurn(0, 0, 1.5))
   })
 
@@ -325,7 +325,7 @@ describe('5 — the camera-turn seams the UI controller drives', () => {
     expect(seam().__cameraTurn!()).toBe(2) // one source of truth: a facing IS a whole turn
     setIsoCameraTurn(2.6)
     expect(isoCameraFacing()).toBe(3)
-    renderIso(gridWith(cornerBlocks())) // param-less, mid-spin — the frame follows the TURN, not the corner
+    renderIso(gridWith(cornerBlocks())) // param-less, mid-spin, the frame follows the TURN, not the corner
     near(drawnAnchor(0, 0), expectedScreenAtTurn(0, 0, 2.6))
   })
 

@@ -6,7 +6,7 @@ import { useSeedTileset } from '@/__tests__/helpers/tilesetSeed' // stageToTempl
 // Reproduces what the LOADED game actually sees: a generated stage saved to a
 // template payload and deserialized back into the live IsometricGrid (the path
 // the editor now uses on auto-load). The play loop blocks movement via
-// grid.isBlocked(col,row), so that grid — not the generator's StageData — must
+// grid.isBlocked(col,row), so that grid, not the generator's StageData, must
 // agree with the per-label collision rule.
 describe('forest collision survives stageToTemplate → deserializeToGrid', () => {
   useSeedTileset() // the DB-equivalent tileset carries the tree compositions stageToTemplate expands
@@ -17,7 +17,7 @@ describe('forest collision survives stageToTemplate → deserializeToGrid', () =
 
     expect(stage.trees.length).toBeGreaterThan(0)
     // Trees are stamped as composition cells on save, so every anchor's trunk cell blocks in the round-tripped
-    // grid — the forest's collision (and its rich tiles) survive stageToTemplate → deserializeToGrid.
+    // grid, the forest's collision (and its rich tiles) survive stageToTemplate → deserializeToGrid.
     const offenders = stage.trees.filter(t => grid.isBlocked(t.col, t.row) !== true)
     const sample = offenders.slice(0, 5).map(t => `${t.kind}@(${t.col},${t.row})`)
     expect({ count: offenders.length, sample }).toEqual({ count: 0, sample: [] })

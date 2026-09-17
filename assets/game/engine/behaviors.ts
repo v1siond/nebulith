@@ -1,5 +1,5 @@
 /**
- * Structure / asset behaviors — pure timing helpers for animated props.
+ * Structure / asset behaviors, pure timing helpers for animated props.
  *
  * A "cannon" fires on a fixed interval; a "lamp" pulses its light. Kept pure (time
  * passed in) so cadence + animation phase are deterministic and unit-testable; the
@@ -7,7 +7,7 @@
  * (spawning a shot, brightening a tile).
  */
 
-/** True when `intervalMs` has elapsed since the last shot — the cannon may fire. */
+/** True when `intervalMs` has elapsed since the last shot, the cannon may fire. */
 export function shouldFire(intervalMs: number, lastFiredAt: number, now: number): boolean {
   return now - lastFiredAt >= intervalMs
 }

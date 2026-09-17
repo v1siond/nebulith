@@ -3,12 +3,12 @@
  *
  * Two different properties get confused here:
  *  - `depth` (the editor's "z-width") = how many CELLS the block spans. It is clamped to ≥1 because a tile
- *    always occupies its own cell — so 0 and 1 are the same thing by definition. That is not the door knob.
+ *    always occupies its own cell, so 0 and 1 are the same thing by definition. That is not the door knob.
  *  - `scaleZ` = the block's THICKNESS along the into-screen axis. A door is a thin panel in a wall; drawn at
  *    the default thickness of 1 it is a full cube, which is why it does not read as a door.
  *
  * Thickness must be TILE data (backend), not a per-composition-cell accident: a door is thin wherever it is
- * placed — stamped by the generator, or painted by hand in the editor. A composition cell may still override.
+ * placed, stamped by the generator, or painted by hand in the editor. A composition cell may still override.
  */
 import { compositionCellRender } from '@/game/runtime/composition'
 import type { Composition, CompositionCell, ResolvedTile } from '@/engine/tileset/tileset'
@@ -20,7 +20,7 @@ const tile = (settings?: Record<string, unknown>): ResolvedTile =>
   ({ char: 'D', color: '#5a3a22', settings }) as unknown as ResolvedTile
 
 describe('a tile carries its own thickness, and a composition cell may override it', () => {
-  test("the TILE's scaleZ reaches the placed block — a thin door stays thin wherever it is stamped", () => {
+  test("the TILE's scaleZ reaches the placed block, a thin door stays thin wherever it is stamped", () => {
     const render = compositionCellRender(comp, cell(), tile({ scaleZ: 0.25 }), 1, 0)
     expect(render.scaleZ).toBe(0.25)
   })

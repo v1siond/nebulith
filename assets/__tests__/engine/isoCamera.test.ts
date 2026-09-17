@@ -2,9 +2,9 @@ import { isoCameraFocus } from '@/engine/render/shared'
 
 // Iso screen axes: p = col - row (horizontal), q = col + row (vertical). The camera focus
 // (fc, fr) is in cell coords; the viewport spans ±pPad in p and ±qPad in q. The clamp must
-// let the camera reach the map's top/bottom (q) corners — the old combined col/row clamp
-// stopped it pPad short of them (#38) — while keeping the sides within the diamond.
-describe('isoCameraFocus — reaches the map vertical extremes (#38)', () => {
+// let the camera reach the map's top/bottom (q) corners, the old combined col/row clamp
+// stopped it pPad short of them (#38), while keeping the sides within the diamond.
+describe('isoCameraFocus, reaches the map vertical extremes (#38)', () => {
   const cols = 20
   const rows = 20
   const pPad = 2

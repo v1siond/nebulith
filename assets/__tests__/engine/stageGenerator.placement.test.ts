@@ -13,8 +13,8 @@ function seeded(seed: number): () => number {
   }
 }
 
-// The oriented GROUND footprint rect of a plot — south/north run length×DEPTH (cols×rows); east/west
-// swap to depth×length. Mirrors villageLayout's `footprint` — the small ground depth, not the facade.
+// The oriented GROUND footprint rect of a plot, south/north run length×DEPTH (cols×rows); east/west
+// swap to depth×length. Mirrors villageLayout's `footprint`, the small ground depth, not the facade.
 function plotRect(p: Plot): { c0: number; r0: number; w: number; h: number } {
   const horizontal = p.facing === 'south' || p.facing === 'north'
   return { c0: p.col, r0: p.row, w: horizontal ? p.length : p.depth, h: horizontal ? p.depth : p.length }
@@ -63,7 +63,7 @@ describe('settlement building placement (consumer matches planner contract)', ()
       }
 
       // (b) Every ACTUALLY-stamped building sits off the roads (the small footprint never spills onto the
-      //     street it fronts) — checked over the footprint rect from stage.buildings (no flat props now).
+      //     street it fronts), checked over the footprint rect from stage.buildings (no flat props now).
       expect(stage.buildings.length).toBeGreaterThan(0)
       for (const b of stage.buildings) {
         const top = b.row - (b.height - 1)
@@ -83,7 +83,7 @@ describe('settlement building placement (consumer matches planner contract)', ()
       //     the footprint depth is the composition's baked (small) depth.
       for (const b of stage.buildings) {
         const horizontal = b.facing === 'south' || b.facing === 'north'
-        // The FACADE length is whichever axis the facade lies on — an east/west building is rotated, so its
+        // The FACADE length is whichever axis the facade lies on, an east/west building is rotated, so its
         // facade runs down the rows and `length` is the depth. That is what names its composition.
         const facade = horizontal ? b.length : b.height
         expect(horizontal ? b.height : b.length).toBe(buildingDepth(b.type, facade)) // perpendicular span = depth
@@ -103,7 +103,7 @@ describe('settlement building placement (consumer matches planner contract)', ()
 
   test('the town SQUARE is reserved CENTRALLY before houses, and is ONE water composition (well OR fountain by size, never N props)', () => {
     // Generate on a bigger map so a CITY square reaches its grand size (PLAZA_SIZE.city = 7 ⇒ the `fountain`
-    // variant), while a TOWN square stays 5 (⇒ the `well`) — exercising BOTH branches of the size-based choice.
+    // variant), while a TOWN square stays 5 (⇒ the `well`), exercising BOTH branches of the size-based choice.
     const DIM = 64
     for (const settlement of ['town', 'city'] as const) {
       let sawWell = false
@@ -114,7 +114,7 @@ describe('settlement building placement (consumer matches planner contract)', ()
         expect(plaza).not.toBeNull()
         if (!plaza) continue
 
-        // (a) reserved CENTRALLY — the square sits near the map centre (a town square, not wherever-fits).
+        // (a) reserved CENTRALLY, the square sits near the map centre (a town square, not wherever-fits).
         const pcx = plaza.c0 + plaza.size / 2
         const pcy = plaza.r0 + plaza.size / 2
         expect(Math.abs(pcx - DIM / 2)).toBeLessThanOrEqual(DIM * 0.3)
@@ -131,7 +131,7 @@ describe('settlement building placement (consumer matches planner contract)', ()
           }
         }
 
-        // (c) NO fountain/well PROP is emitted anymore (both are COMPOSITIONS now — rim + water, stamped at
+        // (c) NO fountain/well PROP is emitted anymore (both are COMPOSITIONS now, rim + water, stamped at
         //     load), and the centrepiece is EXACTLY ONE water composition anchor (never a cluster of N props).
         expect(stage.props.filter(p => p.type === 'well')).toHaveLength(0)
         expect(stage.props.filter(p => p.type === 'fountain')).toHaveLength(0)
@@ -162,7 +162,7 @@ describe('settlement building placement (consumer matches planner contract)', ()
   })
 
   // A tree occupies only its TRUNK cell (the canopy stacks in levels ABOVE it and is walkable overhead), so
-  // paving clearance checks just that one cell — a tree never lands its trunk on the stone plaza / a road, the
+  // paving clearance checks just that one cell, a tree never lands its trunk on the stone plaza / a road, the
   // "trees weirdly in the centre, not on grass" bug. A merely-adjacent paved cell is fine (canopy is overhead).
   test('treeColumnClearsPaving rejects a trunk cell on paving (canopy is walkable overhead)', () => {
     const grass = (): string[][] => Array.from({ length: 6 }, () => ['grass', 'grass', 'grass'])
@@ -174,13 +174,13 @@ describe('settlement building placement (consumer matches planner contract)', ()
   })
 
   // The DRAWN door is `door.width` cells wide (2 on even frontages, #49) but only 1 collision cell used to
-  // open — so a 2-wide door had a walkable half and a blocked half: you could "walk between two tiles" but
+  // open, so a 2-wide door had a walkable half and a blocked half: you could "walk between two tiles" but
   // not stand on the actual entrance. The walkable opening must match the drawn door, on EVERY facing.
   test('doorCells: the entrance spans the full door width on every facing (rotated included)', () => {
     const rect = { col: 10, row: 20, w: 6, h: 4 }
     // south: door at facade x=2, width=2 → the two middle cells of the bottom edge (row 23), cols 12 & 13.
     expect(doorCells('south', rect, { x: 2, width: 2 })).toEqual([{ col: 12, row: 23 }, { col: 13, row: 23 }])
-    // north: same span on the TOP edge (row 20) — the 180° turn mirrors the offsets, same two cells.
+    // north: same span on the TOP edge (row 20), the 180° turn mirrors the offsets, same two cells.
     expect(doorCells('north', rect, { x: 2, width: 2 })).toEqual([{ col: 13, row: 20 }, { col: 12, row: 20 }])
     // east/west (rotated): the facade runs down the ROWS, so the same 2-wide door opens two rows on the edge.
     expect(doorCells('east', rect, { x: 2, width: 2 })).toEqual([{ col: 15, row: 21 }, { col: 15, row: 20 }])
@@ -199,9 +199,9 @@ describe('settlement building placement (consumer matches planner contract)', ()
     }
   })
 
-  test('town: every tree anchor stands on GRASS — never on the paved plaza or roads', () => {
+  test('town: every tree anchor stands on GRASS, never on the paved plaza or roads', () => {
     // spring/summer settlements floor with the flat 'meadow' tile (groundTypes[0]); grass/grass_tall are the
-    // accent + legacy grass — all are natural, unpaved ground a tree may stand on (never plaza/road).
+    // accent + legacy grass, all are natural, unpaved ground a tree may stand on (never plaza/road).
     const GRASS = new Set(['meadow', 'grass', 'grass_tall'])
     for (const seed of [12345, 777, 42, 1, 2, 3, 7, 99]) {
       const { stage } = genWithSeed('town', seed)

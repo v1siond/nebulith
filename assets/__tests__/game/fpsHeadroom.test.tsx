@@ -1,8 +1,8 @@
 /**
- * FPS HEADROOM — "we need to be able to see fps over 60, right now seems it's limited to that".
+ * FPS HEADROOM, "we need to be able to see fps over 60, right now seems it's limited to that".
  *
  * `useFps` counts requestAnimationFrame callbacks, and rAF is locked to the DISPLAY REFRESH RATE. On the
- * user's 60Hz monitor that number physically cannot exceed 60 however fast the engine gets — so a steady "60"
+ * user's 60Hz monitor that number physically cannot exceed 60 however fast the engine gets, so a steady "60"
  * says nothing about whether there is room to spare. Nothing in our code throttles it; the browser does.
  *
  * The number that DOES answer "is the engine fast?" is the real work per frame (`isoRenderMsEMA`, already
@@ -13,7 +13,7 @@ import { render, screen, renderHook, act } from '@testing-library/react'
 import { FpsReadout, LiveFpsReadout } from '@/components/game/editorChrome'
 import { headroomFps, useRenderMs } from '@/components/useFps'
 
-describe('useRenderMs — samples the ACTIVE view\'s render-cost probe', () => {
+describe('useRenderMs, samples the ACTIVE view\'s render-cost probe', () => {
   beforeEach(() => { jest.useFakeTimers() })
   afterEach(() => { jest.useRealTimers() })
 
@@ -26,7 +26,7 @@ describe('useRenderMs — samples the ACTIVE view\'s render-cost probe', () => {
     expect(result.current).toBeCloseTo(4.2)
   })
 
-  it('reads the 2D probe when the 2D view is active — each view measures its own renderer', () => {
+  it('reads the 2D probe when the 2D view is active, each view measures its own renderer', () => {
     ;(window as unknown as { __2dRenderMs?: number }).__2dRenderMs = 9.5
     const { result } = renderHook(() => useRenderMs('__2dRenderMs'))
 
@@ -45,7 +45,7 @@ describe('useRenderMs — samples the ACTIVE view\'s render-cost probe', () => {
   })
 })
 
-describe('headroomFps — frames the engine COULD draw, from the work it actually does', () => {
+describe('headroomFps, frames the engine COULD draw, from the work it actually does', () => {
   it('converts render milliseconds into a frame rate', () => {
     expect(headroomFps(10)).toBe(100)
     expect(headroomFps(3.125)).toBe(320)
@@ -57,7 +57,7 @@ describe('headroomFps — frames the engine COULD draw, from the work it actuall
     expect(headroomFps(-1)).toBe(0)
   })
 
-  it('is not capped by the display refresh rate — that is the whole point', () => {
+  it('is not capped by the display refresh rate, that is the whole point', () => {
     expect(headroomFps(1)).toBe(1000)
     expect(headroomFps(2)).toBeGreaterThan(60)
   })

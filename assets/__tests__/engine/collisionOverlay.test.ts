@@ -1,11 +1,11 @@
 /**
  * The iso COLLISION overlay (renderDebugOverlays) must draw its red diamond at the SAME size the ground
- * tiles + building-footprint cubes use — the render's ALREADY-ZOOMED tileW/tileH — so the tints fill each
+ * tiles + building-footprint cubes use, the render's ALREADY-ZOOMED tileW/tileH, so the tints fill each
  * cell edge-to-edge with no gaps at any zoom. The bug this guards: the half-extent used to be recomputed
  * off the UNZOOMED grid.isoScale, so a zoomed-in view drew diamonds SMALLER than the cells (visible gaps).
  *
- * We record the diamond's four vertices and assert its half-extents equal the tileW/tileH passed in — not
- * the grid.isoScale default — and that only a BLOCKED cell tints (a clear cell draws no red).
+ * We record the diamond's four vertices and assert its half-extents equal the tileW/tileH passed in, not
+ * the grid.isoScale default, and that only a BLOCKED cell tints (a clear cell draws no red).
  */
 import { ISO_BLOCK_H_FRAC, renderDebugOverlays } from '@/engine/render/iso'
 import { IsometricGrid } from '@/engine/IsometricGrid'
@@ -46,7 +46,7 @@ function grid20(): IsometricGrid {
   return new IsometricGrid({ cols: 20, rows: 20, cellSize: CELL, isoScale: 1.4 })
 }
 
-describe('renderDebugOverlays — collision diamonds fill cells at the render zoom', () => {
+describe('renderDebugOverlays, collision diamonds fill cells at the render zoom', () => {
   test('the red diamond half-extents equal the PASSED (zoomed) tileW/tileH, not the grid.isoScale default', () => {
     const grid = grid20()
     grid.setCollision(10, 10, true)
@@ -59,12 +59,12 @@ describe('renderDebugOverlays — collision diamonds fill cells at the render zo
 
     const red = fills.filter(f => f.style === RED)
     expect(red).toHaveLength(1) // exactly the one blocked cell tinted
-    // The tint is painted on the SURFACE A UNIT WOULD STAND ON, not on the flat grid plane — "a unit walking
+    // The tint is painted on the SURFACE A UNIT WOULD STAND ON, not on the flat grid plane, "a unit walking
     // HERE is stopped" is about the walkable top of the cell. The ground is a block like everything else now,
     // so that surface is one block up and the diamond rides with it; sitting at the plane would draw the tint
     // buried inside the ground it describes.
     const top = { x: centre.x, y: centre.y - tileW * ISO_BLOCK_H_FRAC }
-    // Diamond vertices in draw order: top, right, bottom, left — each offset from that surface centre by the
+    // Diamond vertices in draw order: top, right, bottom, left, each offset from that surface centre by the
     // passed half-extents. This is the fix: the size follows the render's zoomed tileW/tileH.
     expect(red[0].pts).toEqual([
       [top.x, top.y - tileH],

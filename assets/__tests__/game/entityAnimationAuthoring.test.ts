@@ -1,10 +1,10 @@
 import '@/__tests__/helpers/installTilesetSeed' // install the DB-equivalent tileset the runtime loads
 /**
- * #91 Stage 2 — AUTHORING. The Inspector's shared animation modal (sprite kind) writes `entity.animations`; the engine
+ * #91 Stage 2, AUTHORING. The Inspector's shared animation modal (sprite kind) writes `entity.animations`; the engine
  * (Stage 1) plays them. These tests prove the authored DATA an author produces actually plays,
  * that the frame picker is constrained to the entity's own category (characters, not buildings),
  * and that authored animations survive a save→load round-trip. The player IS an entity, so the same
- * authoring path animates the live hero — covered here by authoring onto a `kind: 'player'` entity.
+ * authoring path animates the live hero, covered here by authoring onto a `kind: 'player'` entity.
  */
 import { activeFrame, type EntityAnimation } from '@/game/runtime/entityAnimation'
 import { tilesForStyle } from '@/game/artStyle'
@@ -29,7 +29,7 @@ function authoredPlayer(): Entity {
   return { id: 'p1', kind: 'player', col: 3, row: 4, name: 'Hero', baseStats: STATS, animations: [walkRight] }
 }
 
-describe('AC-plays — an authored custom frame actually plays (engine is a dumb player of the data)', () => {
+describe('AC-plays, an authored custom frame actually plays (engine is a dumb player of the data)', () => {
   const player = authoredPlayer()
 
   test('walking right on the motion beat plays the AUTHORED 🔥 frame, mirrored', () => {
@@ -48,7 +48,7 @@ describe('AC-plays — an authored custom frame actually plays (engine is a dumb
   })
 })
 
-describe('AC-picker-constrained — the frame picker draws from the entity CATEGORY (units), not buildings', () => {
+describe('AC-picker-constrained, the frame picker draws from the entity CATEGORY (units), not buildings', () => {
   const emoji = tilesForStyle('emoji')
 
   test('the character picker source (units) is non-empty and contains a person tile', () => {
@@ -59,8 +59,8 @@ describe('AC-picker-constrained — the frame picker draws from the entity CATEG
     expect(person?.visual).toMatchObject({ char: '🧍' })
   })
 
-  test('building pieces are a DIFFERENT, disjoint set — a character never picks a house as a frame', () => {
-    // the old `buildings` bucket split into walls/windows/doors/roofs/props — all still disjoint from units.
+  test('building pieces are a DIFFERENT, disjoint set, a character never picks a house as a frame', () => {
+    // the old `buildings` bucket split into walls/windows/doors/roofs/props, all still disjoint from units.
     const buildingPieces = [...emoji.walls, ...emoji.windows, ...emoji.doors, ...emoji.roofs, ...emoji.props]
     expect(buildingPieces.length).toBeGreaterThan(0)
     const unitIds = new Set(emoji.units.map(t => t.id))
@@ -70,7 +70,7 @@ describe('AC-picker-constrained — the frame picker draws from the entity CATEG
   })
 })
 
-describe('AC-save — an entity\'s authored animations survive the save→load codec round-trip', () => {
+describe('AC-save, an entity\'s authored animations survive the save→load codec round-trip', () => {
   test('animations are preserved verbatim through entitiesToAssets → entitiesFromAssets', () => {
     const player = authoredPlayer()
     const round = entitiesFromAssets(entitiesToAssets([player]))

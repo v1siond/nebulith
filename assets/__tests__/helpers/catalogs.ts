@@ -2,7 +2,7 @@
  * Installs the BACKEND CATALOGS into a test, from verbatim captures of the live API.
  *
  * The item catalog and the ability registry are backend data now (§3.14b #1 and #2), and both are
- * deliberately EMPTY until something installs them — nothing invents a fallback sword or a stand-in Fire
+ * deliberately EMPTY until something installs them, nothing invents a fallback sword or a stand-in Fire
  * Slash. That is the right runtime behaviour and it means any test touching gear or abilities has to say
  * which catalog it is testing against.
  *

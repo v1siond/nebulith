@@ -1,5 +1,5 @@
 /**
- * MAP DRAG IS SCREEN-FIXED — the camera rotates the map, not the controls. User: "moving camera horizontally
+ * MAP DRAG IS SCREEN-FIXED, the camera rotates the map, not the controls. User: "moving camera horizontally
  * has nothing to do with the drag functionality, drag should work the same regardless of the perspective …
  * it gets inverted when rotating camera."
  *
@@ -14,7 +14,7 @@ const PFC = 12, PFR = 8, COLS = 30, ROWS = 20, PAN_C = 1.3, PAN_R = -0.7
 const FACINGS: Orientation[] = [0, 1, 2, 3]
 
 describe('drag pan is un-rotated (screen-fixed at every camera facing)', () => {
-  it('a pan shifts the focus by exactly (-panCol, -panRow) at every facing — the pan never spins', () => {
+  it('a pan shifts the focus by exactly (-panCol, -panRow) at every facing, the pan never spins', () => {
     for (const facing of FACINGS) {
       const noPan = isoViewFocus(PFC, PFR, 0, 0, 100, 100, COLS, ROWS, facing, false)
       const panned = isoViewFocus(PFC, PFR, PAN_C, PAN_R, 100, 100, COLS, ROWS, facing, false)
@@ -23,7 +23,7 @@ describe('drag pan is un-rotated (screen-fixed at every camera facing)', () => {
     }
   })
 
-  it('the pan direction is identical across facings (facing-independent) — the whole point', () => {
+  it('the pan direction is identical across facings (facing-independent), the whole point', () => {
     const shift = (facing: Orientation) => {
       const a = isoViewFocus(PFC, PFR, 0, 0, 100, 100, COLS, ROWS, facing, false)
       const b = isoViewFocus(PFC, PFR, PAN_C, PAN_R, 100, 100, COLS, ROWS, facing, false)

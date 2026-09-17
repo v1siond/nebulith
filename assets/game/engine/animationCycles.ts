@@ -1,12 +1,12 @@
 /**
- * A general, reusable ANIMATION-CYCLE engine — for entities AND assets alike. A thing owns
+ * A general, reusable ANIMATION-CYCLE engine, for entities AND assets alike. A thing owns
  * a set of CYCLES; each cycle plays its animations in a MODE (sequential / randomized /
  * stacked), with a delay between iterations, gated by a TRIGGER (always, or while a state is
- * active). Cycles are INDEPENDENT, so several run at once — that's how a walk cycle and an
+ * active). Cycles are INDEPENDENT, so several run at once, that's how a walk cycle and an
  * attack cycle overlap ("stacked" at the set level).
  *
  * Pure: (cycles, now, active states) → frames. The renderer composites the returned frames.
- * No entity/asset-specific logic lives here — same engine for a goblin, the player, or an
+ * No entity/asset-specific logic lives here, same engine for a goblin, the player, or an
  * animated leaf tile.
  */
 export type AnimFrame = readonly string[]
@@ -30,7 +30,7 @@ export interface AnimationCycle {
   /** ids of the animations this cycle plays. */
   animations: string[]
   mode: CycleMode
-  /** delay (ms) between animations for sequential/randomized — 0 = continuous. */
+  /** delay (ms) between animations for sequential/randomized, 0 = continuous. */
   delayMs: number
   trigger: AnimTrigger
 }

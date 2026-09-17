@@ -1,15 +1,15 @@
 /**
- * TILE RESIZE HANDLES — the small on-canvas grips that let you resize the SELECTED tile with the mouse
+ * TILE RESIZE HANDLES, the small on-canvas grips that let you resize the SELECTED tile with the mouse
  * (the user's ask: "we also need to be able to control it's size with mouse"). This module is pure geometry
  * + a tiny draw helper; it is the ONE place that turns a tile's already-recorded SILHOUETTE polygon (from
- * tileHit.ts — the transform-aware shape the renderer actually drew) into handle screen points, and maps a
+ * tileHit.ts, the transform-aware shape the renderer actually drew) into handle screen points, and maps a
  * drag on a handle back to a dimension value. It invents NO parallel geometry: the caller passes the same
  * silhouette polygon the selection outline hugs, so a handle can never drift from what's on screen.
  *
  * Handle → dimension (matches the modal sliders one-for-one, so drag + slider share one source of truth):
  *   • width  (right-middle)  → scaleX  (DimRow "Width")
  *   • height (top-middle)    → scaleY  (DimRow "Height")
- *   • zwidth (bottom-middle) → depth   (ZWidthRow "Z Width"), ISO only — integer cells
+ *   • zwidth (bottom-middle) → depth   (ZWidthRow "Z Width"), ISO only, integer cells
  */
 import type { Pt } from './tileHit'
 
@@ -60,7 +60,7 @@ export function polyBBox(pts: readonly Pt[]): BBox {
 
 /**
  * The handle grips for a tile, computed from its silhouette polygon. Width sits on the RIGHT edge, height on
- * the TOP edge, z-width on the BOTTOM edge — each on a different side of the AABB so they never overlap and
+ * the TOP edge, z-width on the BOTTOM edge, each on a different side of the AABB so they never overlap and
  * each reads clearly (right = wider, top = taller, bottom = deeper). z-width is ISO-only (`zWidth`).
  */
 export function tileHandlePoints(poly: readonly Pt[], opts: { zWidth: boolean }): TileHandle[] {
@@ -89,7 +89,7 @@ export function handleAtPoint(handles: readonly TileHandle[], x: number, y: numb
   return best
 }
 
-/** Project a drag delta onto the handle's OUTWARD axis (away from the tile centre) — the signed px that grows
+/** Project a drag delta onto the handle's OUTWARD axis (away from the tile centre), the signed px that grows
  *  the dimension: width grows right (+x), height grows up (−y, screen-up), z-width grows down (+y). */
 export function dragOutwardPx(id: HandleId, dxPx: number, dyPx: number): number {
   if (id === 'width') return dxPx

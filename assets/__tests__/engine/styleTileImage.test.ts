@@ -1,10 +1,10 @@
 /**
- * `styleTileImage` — the ONE tile-image resolver, identical in every art style.
+ * `styleTileImage`, the ONE tile-image resolver, identical in every art style.
  *
  * "all arts have the exact same behavior and engine and the only thing that changes is the tiles".
  *
- * ROOT CAUSE this pins: a tile identified by KIND rather than by LABEL — chiefly a FLOOR, a `type:'floor'`
- * GridAsset carrying only a `tileKey` (its ground kind), NO label and empty `art: ['']` — had no way to reach
+ * ROOT CAUSE this pins: a tile identified by KIND rather than by LABEL, chiefly a FLOOR, a `type:'floor'`
+ * GridAsset carrying only a `tileKey` (its ground kind), NO label and empty `art: ['']`, had no way to reach
  * its baked picture under ASCII. The old pair of helpers gated one to `style.id === 'emoji'`/ascii and the
  * caller gated the other to `FLOOR_TYPE`, so a label-less ASCII prop fell through to the legacy glyph drawers
  * (`'' || '?'` → the screen-filling `?` on grass/road, and the per-frame `measureText` that tanked ASCII FPS).
@@ -25,7 +25,7 @@ const floorOf = (tileKey: string): GridAsset =>
 
 const STYLES: Style[] = [ASCII_STYLE, EMOJI_STYLE]
 
-describe('styleTileImage — one resolver, same answer shape in every style', () => {
+describe('styleTileImage, one resolver, same answer shape in every style', () => {
   useSeedTileset()
 
   const GROUND = ['grass', 'road', 'water', 'sand', 'path', 'snow']
