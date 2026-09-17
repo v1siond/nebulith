@@ -205,6 +205,55 @@ happen we can walk more"*
 A meadow genuinely has no gradient: the hedge is where the hedge is. This is the one biome the scatter suits,
 and it keeps it.
 
+
+### The settlements, from his words, and what each one needs
+
+*"we must thread every single tipe of settlements the same way we treat forests, each one with their own
+flavor, distinct vibe, dictinct ornaments, distinct architecture, distinct objects, colors, zones, etc"*.
+
+Two axes, so this is 3 kinds x 9 biomes and not 9 sets. The KIND decides the zones and the architecture; the
+BIOME decides the vegetation, the colours and the materials, which is the axis the settlement pass already
+carries.
+
+**City**, `scatter`. His list: *"cities might have parks, market sections, wealth based neighborhoods,
+graveyard, etc"*.
+
+| zone | what it is | what it needs |
+|---|---|---|
+| `upper` / `middle` / `lower` | the wealth neighbourhoods, which exist and now work | nothing, built |
+| `park` | trees, no houses, a fountain and lamps down a path | **nothing new**: trees, `fountain`, `lamp_post` all exist |
+| `market` | stalls, crates, awnings, no houses | **a STALL composition**, which does not exist |
+| `graveyard` | rows of graves on bare ground, walled | ground can be `grave_dirt`, which exists; **a GRAVE prop does not** |
+
+**Town**, `scatter`. *"towns have sections similar to city but less scale and they have different
+architecture"*. So the same shape of set, fewer zones and its own materials, not a city scaled down.
+
+**Village**, `scatter`. *"vilages are practically indian settlements, even more different architecture, simpler
+settlements"*. This is the one that needs the most and has the least: a village today serves the same
+`store / hospital / barn / stable / house` mix a town does, in different wall materials.
+
+### The gate, stated plainly
+
+`mud_hut` and `tent` are in the catalog and look like the answer. They are not, yet:
+
+- `mud_hut` is `category: terrain, height: 0.0`, a FLOOR tile. It is also a whole building drawn into one
+  tile, and `OBJECT-CONSTRUCTION.md` §1 condemns exactly that shortcut: *"take a WHOLE-OBJECT tile and flatten
+  it into a billboard"* is the method every rejected object was built with. A hut is an OBJECT and wants
+  construction pieces.
+- `grave_dirt` is a floor and is genuinely usable as a graveyard's ground with no new art at all.
+- `tent` is a height-1 prop and is usable as a prop.
+
+So the split is:
+
+**Buildable with no new art**: the `park` zone, the `graveyard` GROUND, and the wealth neighbourhoods, which
+are already working.
+
+**Blocked on `OBJECT-CONSTRUCTION.md` §4 step 1 and 1b**, which is a full stop and needs references in front
+of him and his approval in words: the market STALL, the GRAVE prop, and the village's hut and tent
+architecture as real compositions. Those are three object families, and the framework's own record is that
+four objects were built without that gate and all four were rejected on sight.
+
+
 ### Woodland and jungle, `scatter`
 
 `edge / deep / glade / thicket / lakeside` are woodland words and belong to a wood. A glade really is anywhere.
