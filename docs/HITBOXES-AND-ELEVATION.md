@@ -546,6 +546,32 @@ wherever a way crosses a level change"* without saying how the regions are chose
 `base + detail` above, the profile is served, and the ramp cutting stays exactly as written: a cliff from a
 band edge is what makes a ramp necessary in the first place.
 
+### 4.12 The terrain math runs FIRST, and it decides the mountains too
+
+His note, 2026-09-17, which changes where this lands in the layer order:
+
+> *"our elevation will change everything on terrain, because we'll apply math that will randonmize the terrain
+> forms, and based of that, we want to use the same formulla to determine the volcano and other mountains
+> height, that said, we still can have some pre-made objects, but in most cases, we'll just run the terrain
+> math as the first layer that runs after grid-generatoon, before rivers, and pathways and everything else."*
+
+Three things follow, and none of them is what the current order does.
+
+1. **It is the FIRST layer after the grid**, ahead of water. Today `terrain` paints a floor and the relief a
+   region asks for, and the river is cut afterwards. Under this, the land has its shape before anything is cut
+   into it, and the river then runs downhill through relief that already exists rather than carving a channel
+   into a flat plane.
+2. **One formula for every raised thing.** A volcano's height and a mountain's height come out of the same
+   function, sampled at different places, rather than a mountain being terrain and a volcano being an object
+   with its own hand-set `scaleY` profile. The volcano composition built on 2026-09-17 is explicitly a
+   placeholder for that: *"we'll handle the elevation in ticket 2, for now we just need to have the base art"*.
+3. **Pre-made objects survive but stop being the rule.** *"we still can have some pre-made objects, but in most
+   cases"* the math decides.
+
+`REGIONS.md` §4 states mountain and volcanic region sets with `level` steps between their bands. Those are a
+PLACEHOLDER for this formula and must give way to it, not compete with it.
+
+
 ## 5. The data model
 
 ### 5.1 Where a box lives, and why there

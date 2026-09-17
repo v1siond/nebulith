@@ -119,6 +119,66 @@ undefined `get_largest_size_in_pack`; stale `.pyc`).
 
 ---
 
+## 6. PERFORMANCE, raised 2026-09-17. Both are worked during ticket 2
+
+Measured on his own screen, not inferred. An 80 x 80 map, which is 6,400 cells:
+
+| where | his screenshot | reading |
+|---|---|---|
+| editor, panels open, just after a build | mid-build capture | **FPS 7, 44.2 ms a frame** |
+| editor, panels closed | Image #154 | FPS 50, 10.9 ms |
+| play mode, full screen | Image #153 | FPS 38, 18.4 ms |
+
+The editor costs more than the game does for the same map, and with a panel open it costs six times more.
+That is the shape of the two tickets below: one is the React tree, one is the renderer.
+
+### T-PERF-1. Split the editor UI off the map renderer, and find the leak
+
+> *"we need to separate the editor UI from the actual MAP renderer/visual UI. we have lots of performance
+> issues right and I think one of the main reasons is that we have both in the same layer/layout with
+> re-renders happening at the top level everytime something changes on the UI it re-renders the map to,
+> making it slow."*
+
+> *"also, we most likely have some memory leaks, because the editor gets progresively slower the more time
+> it's open, when that shouldn't happen, my guess is we accumulate 'somnething' which eventually consumed
+> available resources."*
+
+Two claims, and both are checkable before anything is designed:
+
+1. **Does a UI state change re-render the map?** `templates.tsx` holds the canvas AND the editor state in one
+   component, so every `useState` in it re-runs the whole tree. Count the renders per keystroke before
+   deciding the split.
+2. **What accumulates?** *"my guess is we accumulate something"*. Take a heap snapshot on load and another
+   after twenty minutes of editing and diff them, rather than guessing at listeners. The window seams
+   (`__setHero`, `__cellScreen` and the rest) are installed in an effect with a cleanup, so they are a
+   candidate but not an accusation. Tile image caches, the undo stack (now unlimited, by his request) and
+   per-frame sprite caches are the others.
+
+The fix is stated by him and should not be re-derived: the map renderer is its own layer, the editor chrome is
+another, and editor state does not reach the renderer's render path.
+
+### T-PERF-2. Cull and degrade by camera, in both modes
+
+> *"we need to add a new ticket to deal with performance on the maps themselves. for example, NOT rendering or
+> rendering low quality assets based of camera distance and camera view area, right now if I make a 100 rows x
+> 100 columns map, everything isn rendered and with the same level of quality even when it's not viewable in
+> my screen."*
+
+> Image #153, play mode full screen, and Image #154, editor mode: *"nothing outside red square should render
+> nor show, OR should be rendered with super low quality"*.
+
+> *"as I zoom in / zoom out, things are hidden or visible based of the same camera area"*
+
+So two things, and they are separate:
+
+- **Cull**: anything outside the camera's view area is not drawn at all. `__isoCull` already exists as a seam,
+  so measure what it currently excludes before adding anything.
+- **Degrade**: what is far away but still in view draws at lower quality rather than at full detail.
+
+And it is **both modes**, stated separately for play and for the editor, because he sent one image of each.
+The red square in both is the view area, and it is the same rule in both.
+
+
 ## 5. Suggested sequence
 
 ```
