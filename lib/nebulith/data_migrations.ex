@@ -118,7 +118,9 @@ defmodule Nebulith.DataMigrations do
     Nebulith.DataMigration.HowMuchGrowsThere,
     Nebulith.DataMigration.ACactusIsAnObject,
     Nebulith.DataMigration.ATownGrowsWhatSurroundsIt,
-    Nebulith.DataMigration.TheGroundBelongsToItsBiome
+    Nebulith.DataMigration.TheGroundBelongsToItsBiome,
+    Nebulith.DataMigration.NoTwoCactiAlike,
+    Nebulith.DataMigration.GrassIsASingleTileToo
   ]
 
   @doc "Every registered data migration module, in run order."

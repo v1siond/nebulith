@@ -3403,6 +3403,68 @@ defmodule Nebulith.Catalog.TileSource do
           bar(1, "cactus_stem", 0.26, 1.3, 0.26, %{"dx" => 0.56, "dy" => -0.6})
         ]
       },
+      # SEVEN FORMS, NOT ONE. *"we can't have all of them looking the same"*. A saguaro grows its first arm
+      # at around 70 years old, so age alone gives four honestly different silhouettes, and the arms are
+      # never symmetric on a real one.
+      #
+      # young: no arms yet, just a short column
+      "cactus_saguaro_young" => %{
+        footprint_w: 1,
+        footprint_h: 1,
+        category: "nature",
+        cells: [bar(0, "cactus_stem", 0.32, 1.9, 0.32)]
+      },
+      # one arm, on one side only
+      "cactus_saguaro_one" => %{
+        footprint_w: 1,
+        footprint_h: 1,
+        category: "nature",
+        cells: [
+          bar(0, "cactus_stem", 0.3, 3.0, 0.3),
+          bar(1, "cactus_stem", 0.9, 0.3, 0.3, %{"dx" => -0.22, "dy" => 0.3}),
+          bar(1, "cactus_stem", 0.26, 1.15, 0.26, %{"dx" => -0.5, "dy" => -0.35})
+        ]
+      },
+      # old: taller, with a third arm higher up the trunk
+      "cactus_saguaro_old" => %{
+        footprint_w: 1,
+        footprint_h: 1,
+        category: "nature",
+        cells: [
+          bar(0, "cactus_stem", 0.34, 4.2, 0.34),
+          bar(1, "cactus_stem", 1.4, 0.3, 0.3, %{"dy" => 0.35}),
+          bar(1, "cactus_stem", 0.26, 1.5, 0.26, %{"dx" => -0.56, "dy" => -0.5}),
+          bar(1, "cactus_stem", 0.26, 1.15, 0.26, %{"dx" => 0.56, "dy" => -0.35}),
+          bar(2, "cactus_stem", 0.9, 0.28, 0.28, %{"dx" => 0.2, "dy" => 0.1}),
+          bar(2, "cactus_stem", 0.24, 1.0, 0.24, %{"dx" => 0.46, "dy" => -0.45})
+        ]
+      },
+      # a pair of barrels, one smaller beside the other
+      "cactus_barrel_pair" => %{
+        footprint_w: 1,
+        footprint_h: 1,
+        category: "nature",
+        cells: [
+          %{dx: 0, dy: 0, level: 0, label: "cactus_barrel", walkable: false, scale: 1.0,
+            settings: %{"scaleX" => 0.72, "scaleY" => 0.72, "shape" => "circle", "pose" => %{"dx" => -0.2}}},
+          %{dx: 0, dy: 0, level: 0, label: "cactus_barrel", walkable: false, scale: 1.0,
+            settings: %{"scaleX" => 0.48, "scaleY" => 0.5, "shape" => "circle", "pose" => %{"dx" => 0.3, "dy" => 0.1}}}
+        ]
+      },
+      # a taller prickly pear, three pads instead of two
+      "cactus_prickly_tall" => %{
+        footprint_w: 1,
+        footprint_h: 1,
+        category: "nature",
+        cells: [
+          %{dx: 0, dy: 0, level: 0, label: "cactus_pad", walkable: false, scale: 1.0,
+            settings: %{"scaleX" => 0.86, "scaleY" => 0.9, "shape" => "circle"}},
+          %{dx: 0, dy: 0, level: 1, label: "cactus_pad", walkable: false, scale: 1.0,
+            settings: %{"scaleX" => 0.66, "scaleY" => 0.85, "shape" => "circle", "pose" => %{"dx" => -0.24}}},
+          %{dx: 0, dy: 0, level: 2, label: "cactus_pad", walkable: false, scale: 1.0,
+            settings: %{"scaleX" => 0.5, "scaleY" => 0.7, "shape" => "circle", "pose" => %{"dx" => 0.2}}}
+        ]
+      },
       # barrel: squat and round, wider than tall. ROUND is `shape: circle`, which is how this renderer rounds
       # a block off: an ellipse drawn on a cube FACE is still a cube.
       "cactus_barrel" => %{
