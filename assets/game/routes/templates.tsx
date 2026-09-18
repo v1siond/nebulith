@@ -233,12 +233,20 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
   const selectedCellsRef = useRef<Set<string>>(new Set())
   // Camera panning with mouse drag
   const [isPanning, setIsPanning] = useState(false)
-  const [panStart, setPanStart] = useState<{ x: number; y: number } | null>(null)
+  // WHERE THE DRAG WAS LAST SEEN. A ref, not state: nothing renders it, it is read only to work out how far
+  // the mouse moved since the previous event, and as state it re-rendered the whole editor on every single
+  // mousemove of a pan. `isPanning` stays state because the CURSOR reads it, and that changes once per
+  // gesture rather than once per event.
+  const panStartRef = useRef<{ x: number; y: number } | null>(null)
   // Click-vs-drag in the play views: a clean click selects the entity under it, a drag pans.
   const dragMovedRef = useRef(false)
   const downCellRef = useRef<{ col: number; row: number; stackIndex?: number; source?: TileSource; entityId?: string } | null>(null)
   const downAltRef = useRef(false) // Alt held on mouse-DOWN, mouse-up reads it to select the CELL under a unit (instead of the unit)
-  const [camOffset, setCamOffset] = useState({ x: 0, y: 0 })
+  // THE CAMERA IS A REF, and only a ref. It was held here in React state as well, read by nothing but the
+  // level minimap's props, and written from `handleCanvasMouseMove`: dragging the map re-rendered the whole
+  // editor once per mouse move to refresh one prop. Everything that draws or picks already reads
+  // `camOffsetRef`, and the minimap reads it at paint time now. `CODING-STANDARDS.md` §2, refs for the
+  // imperative layer, and never the same fact in two places.
   const camOffsetRef = useRef({ x: 0, y: 0 })
   // The ARMED placement brush, a full catalog TileDef (from the Paint palette). Minecraft-style: pick a
   // tile, then each LEFT-click on the map places it (⌥Alt-click removes the top asset); one brush at a
@@ -644,7 +652,6 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
       if (k < 1) { turnAnimRef.current = requestAnimationFrame(step); return }
       turnAnimRef.current = null
       camOffsetRef.current = pan1
-      setCamOffset(pan1)
       setCameraFacing(to) // settle EXACTLY on the corner (the effect writes the whole turn)
     }
     turnAnimRef.current = requestAnimationFrame(step)
@@ -1076,7 +1083,6 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
     const cs = grid.cellSize
     const off = { x: playerRef.current.x - col * cs, y: playerRef.current.z - row * cs }
     camOffsetRef.current = off
-    setCamOffset(off)
   }
 
   /**
@@ -1556,7 +1562,7 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
     if (e.button === 1 || e.button === 2) {
       e.preventDefault()
       setIsPanning(true)
-      setPanStart({ x: e.clientX, y: e.clientY })
+      panStartRef.current = { x: e.clientX, y: e.clientY }
       return
     }
 
@@ -1589,7 +1595,7 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
       downAltRef.current = e.altKey // Alt+left → resolve to the CELL under any unit (mouse-up reads this)
       dragMovedRef.current = false
       setIsPanning(true)
-      setPanStart({ x: e.clientX, y: e.clientY })
+      panStartRef.current = { x: e.clientX, y: e.clientY }
       return
     }
 
@@ -1693,6 +1699,7 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
     }
 
     // Handle panning
+    const panStart = panStartRef.current
     if (isPanning && panStart) {
       const dx = e.clientX - panStart.x
       const dy = e.clientY - panStart.y
@@ -1701,9 +1708,8 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
         x: camOffsetRef.current.x + dx,
         y: camOffsetRef.current.y + dy
       }
-      setCamOffset(newOffset)
       camOffsetRef.current = newOffset
-      setPanStart({ x: e.clientX, y: e.clientY })
+      panStartRef.current = { x: e.clientX, y: e.clientY }
       return
     }
 
@@ -1730,7 +1736,7 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
     if (handleDragRef.current) {
       handleDragRef.current = null
       setIsPanning(false)
-      setPanStart(null)
+      panStartRef.current = null
       return
     }
     // A no-drag click in a play view (iso/2d) selects the unit under it, view-aware so clicking the
@@ -1777,7 +1783,7 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
     downAltRef.current = false
     setIsSelecting(false)
     setIsPanning(false)
-    setPanStart(null)
+    panStartRef.current = null
   }
 
   // Prevent context menu on right click (for panning)
@@ -2741,8 +2747,7 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
       const cs = grid.cellSize
       const off = { x: playerRef.current.x - col * cs, y: playerRef.current.z - row * cs }
       camOffsetRef.current = off
-      setCamOffset(off)
-    }
+      }
     // Move the hero to a cell, validates proximity-driven render (building fade + roof cutaway) deterministically.
     win.__setHero = (col: number, row: number) => {
       const grid = gridRef.current
@@ -5431,7 +5436,7 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
               player={playerRef.current}
               entities={entities}
               style={activeStyle}
-              camOffset={camOffset}
+              camOffsetRef={camOffsetRef}
               zoomPct={zoomPct}
               mainCanvas={canvasRef.current}
               onJumpTo={jumpToCell}
@@ -5455,7 +5460,7 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
                 player={playerRef.current}
                 entities={entities}
                 style={activeStyle}
-                camOffset={camOffset}
+                camOffsetRef={camOffsetRef}
                 zoomPct={zoomPct}
                 mainCanvas={canvasRef.current}
                 onJumpTo={jumpToCell}

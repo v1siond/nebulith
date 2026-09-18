@@ -32,8 +32,18 @@ export interface LevelMinimapProps {
   player: PlayerState
   entities: readonly Entity[]
   style: Style
-  /** The main view's camera pan, in the same units the editor keeps it. */
-  camOffset: { x: number; y: number }
+  /**
+   * The main view's camera pan, as the editor's own REF rather than a value.
+   *
+   * It used to be a value, which meant the editor had to hold the pan in React state as well as in the ref
+   * every renderer and picker reads, and had to `setState` it from `mousemove`. Dragging the map therefore
+   * re-rendered the whole editor once per mouse move to keep this one prop fresh, which is the constant
+   * re-rendering that got reported.
+   *
+   * This map repaints on its own 250ms timer, so it does not need to be told: it reads the camera when it
+   * paints. The value is now live and the editor re-renders for a pan exactly never.
+   */
+  camOffsetRef: React.RefObject<{ x: number; y: number }>
   /** The main view's zoom, as a percentage, 100 = one cell drawn at `grid.cellSize`. */
   zoomPct: number
   /** The main canvas, to know how many cells it is showing. */
@@ -51,7 +61,7 @@ export interface LevelMinimapProps {
   big?: boolean
 }
 
-export function LevelMinimap({ grid, player, entities, style, camOffset, zoomPct, mainCanvas, onJumpTo, onHide, onMaximize, big = false }: LevelMinimapProps) {
+export function LevelMinimap({ grid, player, entities, style, camOffsetRef, zoomPct, mainCanvas, onJumpTo, onHide, onMaximize, big = false }: LevelMinimapProps) {
   const canvas = useRef<HTMLCanvasElement>(null)
 
   // The map's aspect follows the LEVEL's, so a 40×40 map is square and a 60×20 one is wide, the shape of
@@ -94,6 +104,8 @@ export function LevelMinimap({ grid, player, entities, style, camOffset, zoomPct
     // inverse `__centerOn` applies, so the rectangle cannot drift from what is on screen.
     if (!mainCanvas || !mainCanvas.width) return
     const cs = grid.cellSize
+    // READ AT PAINT TIME, so the rectangle follows the camera without anything having to re-render.
+    const camOffset = camOffsetRef.current ?? { x: 0, y: 0 }
     const focusCol = (player.x - camOffset.x) / cs
     const focusRow = (player.z - camOffset.y) / cs
     const mainTile = Math.max(1, cs * (zoomPct / 100))
@@ -112,7 +124,7 @@ export function LevelMinimap({ grid, player, entities, style, camOffset, zoomPct
       Math.max(3, spanRows * tile),
     )
     ctx.restore()
-  }, [grid, player, entities, style, camOffset, zoomPct, mainCanvas, cols, rows])
+  }, [grid, player, entities, style, camOffsetRef, zoomPct, mainCanvas, cols, rows])
 
   useEffect(() => {
     paint()

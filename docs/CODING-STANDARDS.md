@@ -41,6 +41,15 @@ touch it — don't add new violations.
   loop must read the latest closure through a ref, not capture a stale one.
 - **Memoize expensive render work**; don't allocate per frame in hot paths. *Anti-example: the
   render functions re-allocate and re-sort the draw list and recompute trig noise every frame.*
+- **Never `setState` from a pointer-move or from the loop unless something RENDERS the value.** A value that
+  only feeds the imperative layer is a ref. *Measured 2026-09-18: `templates.tsx` held the camera pan as BOTH
+  `camOffsetRef` and a `camOffset` state. Every renderer, picker and seam read the ref; the state was read at
+  exactly two places, both passing it to the level minimap, and it was written from `handleCanvasMouseMove`.
+  So dragging the map re-rendered the whole seven thousand line editor once per mouse move, to refresh one
+  prop on a map that repaints on its own 250ms timer. `panStart` was the same, state that nothing rendered.
+  Both are refs now and a pan re-renders nothing.*
+- **A child that needs live imperative state takes the REF, not a value.** Passing the value forces the parent
+  to hold it in state, which is how the whole page ends up subscribed to a 60Hz number.
 
 ## 3. Separation of concerns / file size
 
