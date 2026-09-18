@@ -1,0 +1,58 @@
+{
+    "data": {
+        "dir": "/tiles/emoji/baked/entities",
+        "tiles": {
+            "adult": "\ud83e\uddd1",
+            "alien": "\ud83d\udc7e",
+            "bat": "\ud83e\udd87",
+            "boy": "\ud83d\udc66",
+            "child": "\ud83e\uddd2",
+            "dragon": "\ud83d\udc09",
+            "elder": "\ud83e\uddd3",
+            "ghost": "\ud83d\udc7b",
+            "girl": "\ud83d\udc67",
+            "goblin": "\ud83d\udc7a",
+            "grey-alien": "\ud83d\udc7d",
+            "guardian": "\ud83d\uddff",
+            "man": "\ud83e\uddcd\u200d\u2642\ufe0f",
+            "ninja": "\ud83e\udd77",
+            "ogre": "\ud83d\udc79",
+            "old-man": "\ud83d\udc74",
+            "old-woman": "\ud83d\udc75",
+            "person": "\ud83e\uddcd",
+            "robot": "\ud83e\udd16",
+            "skeleton": "\ud83d\udc80",
+            "spider": "\ud83d\udd77\ufe0f",
+            "vampire": "\ud83e\udddb",
+            "wolf": "\ud83d\udc3a",
+            "woman": "\ud83e\uddcd\u200d\u2640\ufe0f",
+            "zombie": "\ud83e\udddf"
+        },
+        "enemyTypeSlug": {
+            "bandit": "ninja",
+            "bat": "bat",
+            "dragon": "dragon",
+            "ghost": "ghost",
+            "goblin": "goblin",
+            "guardian": "guardian",
+            "ogre": "ogre",
+            "orc": "ogre",
+            "skeleton": "skeleton",
+            "slime": "alien",
+            "spider": "spider",
+            "troll": "guardian",
+            "vampire": "vampire",
+            "wolf": "wolf",
+            "wraith": "ghost",
+            "zombie": "zombie"
+        },
+        "variantSlug": {
+            "alien": "grey-alien",
+            "child": "child",
+            "female": "woman",
+            "male": "man",
+            "old": "elder",
+            "robot": "robot"
+        }
+    }
+}

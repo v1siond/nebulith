@@ -1,0 +1,124 @@
+/**
+ * PERMANENT GUARD: a tile renders at its OWN DB block-height, read, never invented, never floored.
+ *
+ * WHY: a tile's height is DATA in the DB (nebulith), not a frontend constant. The frontend only
+ * READS `height` and draws it: a sub-1 tile is a proportional thin slab, a 1-block tile a full cube, a
+ * 3-block tile three tall. The old bugs were the frontend INVENTING the flat height (FLOOR_SLAB_SCALE_Y /
+ * resolveHeightScale) and the render FLOORING a sub-1 height to a full cube.
+ *
+ * A FLAT tile is 0 blocks tall, data migration 0005, "GET THE TILES OF 0.1 DOWN TO 0". So it draws NO side
+ * walls: it is the flat ground diamond, which is what a floor should look like. The thing that must never
+ * break is that it is still PAINTED, the ground is the map, so the flat case is proved on real pixels, not
+ * on geometry alone. Sub-1 heights remain supported for any tile whose DATA says so (a 0.1 tile still draws a
+ * 0.1 slab); nothing here hardcodes a flat height either way.
+ *
+ * Proved against the production iso path (drawIsoAssetAscii) on a REAL @napi-rs/canvas.
+ */
+import { styleTiles } from '@/engine/tileset/styleTiles'
+import { installRealCanvas, type RealCanvasHarness } from '@/__tests__/helpers/realCanvas'
+import { installSeedTileset } from '@/__tests__/helpers/tilesetSeed'
+import { drawIsoAssetAscii } from '@/engine/render/iso'
+import { EMOJI_STYLE } from '@/game/artStyle'
+import type { GridAsset } from '@/engine/IsometricGrid'
+import type { TileGeom } from '@/engine/render/tileHit'
+
+installSeedTileset()
+
+let H: RealCanvasHarness
+const TW = 30, TH = 15, CX = 200, CY = 250
+
+/** Any emoji tile that carries a baked image, a concrete tile to render at various heights. */
+function anImageTileKey(): string {
+  const hit = Object.entries(styleTiles('emoji')).find(([, t]) => t.image && t.category !== 'units')
+  if (!hit) throw new Error('fixture has no image-backed non-unit emoji tile')
+  return hit[0]
+}
+
+function render(key: string, extra: Partial<GridAsset>): TileGeom | null {
+  const cv = H.makeCanvas(480, 420)
+  const asset = { art: [''], col: 4, row: 4, type: key, tileOverride: `emoji:${key}`, heightLevel: 0, color: '#c9c9c9', ...extra } as unknown as GridAsset
+  return drawIsoAssetAscii(cv.getContext('2d') as unknown as CanvasRenderingContext2D, CX, CY, asset, TW, TH, 0, false, 'day', EMOJI_STYLE)
+}
+
+/** A cube's extruded on-screen height in px (base back corner y − top back corner y), proportional to height. */
+const extrudePx = (g: TileGeom | null): number => (g && g.kind === 'cube' ? g.base[1].y - g.top[1].y : 0)
+
+/** How many pixels the draw actually PAINTED (alpha > 0), the honest "is it visible?" measure. */
+function paintedPixels(cv: ReturnType<RealCanvasHarness['makeCanvas']>): number {
+  const { data } = cv.getContext('2d').getImageData(0, 0, cv.width, cv.height) as unknown as { data: Uint8ClampedArray }
+  let n = 0
+  for (let i = 3; i < data.length; i += 4) if (data[i] > 0) n++
+  return n
+}
+
+beforeAll(async () => {
+  H = installRealCanvas().harness
+  const srcs = new Set<string>()
+  for (const t of Object.values(styleTiles('emoji'))) if (t.image) srcs.add(t.image)
+  for (const s of srcs) H.registerSolid(s, '#00c800')
+  await H.warm([...srcs])
+})
+
+describe('a tile renders at its OWN DB height, read, not invented; sub-1 not floored', () => {
+  test('a 0.1-block tile draws a THIN slab ~0.1 of a full block (not a full cube, not invisible)', () => {
+    const key = anImageTileKey()
+    const flat = extrudePx(render(key, { height: 0.1 }))
+    const full = extrudePx(render(key, { height: 1 }))
+    expect(flat).toBeGreaterThan(0)             // a REAL slab, not floored to nothing
+    expect(flat).toBeCloseTo(full * 0.1, 0)     // proportional to the DB height, 0.1 of a full block
+    expect(flat).toBeLessThan(full * 0.25)      // clearly a thin slab, NOT a full cube (the old floor-to-1 bug)
+  })
+
+  test('extrude scales with the DB height: 0.1 < 1 < 3 (the render reads the number it is given)', () => {
+    const key = anImageTileKey()
+    const h01 = extrudePx(render(key, { height: 0.1 }))
+    const h1 = extrudePx(render(key, { height: 1 }))
+    const h3 = extrudePx(render(key, { height: 3 }))
+    expect(h01).toBeLessThan(h1)
+    expect(h1).toBeLessThan(h3)
+    expect(h3).toBeCloseTo(h1 * 3, 0)           // 3 blocks tall = 3× a one-block tile
+  })
+
+  test('the per-instance Height multiplier (scaleY) scales the DB height, not replaces it', () => {
+    const key = anImageTileKey()
+    const flat = extrudePx(render(key, { height: 0.1 }))
+    const flatX2 = extrudePx(render(key, { height: 0.1, scaleY: 2 }))
+    expect(flatX2).toBeCloseTo(flat * 2, 0)     // 0.1 × 2 = 0.2, grows proportionally
+  })
+
+  test('a LABELED composition tile extrudes to its height too, not pinned to one block', () => {
+    // The labeled-cell path drew a single layer whatever the height was, so raising a wall/ground
+    // cell lifted everything above it while the tile itself stayed one block tall. A labeled tile is a tile:
+    // it extrudes exactly like an unlabeled one.
+    const labeled = (height: number): number => {
+      const a = { art: [''], col: 4, row: 4, type: 'house_4', label: 'wall_wood_c', heightLevel: 0, height, color: '#c9c9c9' } as unknown as GridAsset
+      const cv = H.makeCanvas(480, 420)
+      return extrudePx(drawIsoAssetAscii(cv.getContext('2d') as unknown as CanvasRenderingContext2D, CX, CY, a, TW, TH, 0, false, 'day', EMOJI_STYLE))
+    }
+    const one = labeled(1)
+    expect(one).toBeGreaterThan(0)
+    expect(labeled(3)).toBeCloseTo(one * 3, 0) // 3 blocks tall = 3x a one-block tile
+    expect(labeled(5)).toBeCloseTo(one * 5, 0)
+  })
+
+  test('the floor is FLAT, no side walls, so it can never occlude what stands beyond it', () => {
+    const floor = { art: [''], col: 4, row: 4, type: 'floor', tileKey: 'grass', heightLevel: 0, blocking: false } as unknown as GridAsset
+    const cv = H.makeCanvas(480, 420)
+    const g = drawIsoAssetAscii(cv.getContext('2d') as unknown as CanvasRenderingContext2D, CX, CY, floor, TW, TH, 0, false, 'day', EMOJI_STYLE)
+    expect(g?.kind).toBe('cube')          // still the ONE tile path, a flat tile, never a billboard
+    // The ground's own served height is 0 (migration 0008), so it draws with NO extrusion at all, while the
+    // labeled wall beside it still stands a full block. That difference is the point: a flat tile has no side
+    // faces, so it cannot occlude, so it needs no turn in the depth sort, which is what lets ground merge
+    // into z-width runs. A floor that extrudes like the wall brings back the road-behind-grass bug.
+    const wall = { art: [''], col: 4, row: 4, type: 'house_4', label: 'wall_wood_c', heightLevel: 0, height: 1, color: '#c9c9c9' } as unknown as GridAsset
+    const wallPx = extrudePx(drawIsoAssetAscii(H.makeCanvas(480, 420).getContext('2d') as unknown as CanvasRenderingContext2D, CX, CY, wall, TW, TH, 0, false, 'day', EMOJI_STYLE))
+    expect(extrudePx(g)).toBe(0)
+    expect(wallPx).toBeGreaterThan(0)
+
+    // …and it is PAINTED. Geometry alone cannot catch a ground that computes correctly and draws nothing,
+    // and the map is made of these, so assert real pixels over a real area of the canvas.
+    const painted = paintedPixels(cv)
+    const diamondArea = TW * TH // the iso ground diamond's bounding box for one cell
+    expect(painted).toBeGreaterThan(diamondArea * 0.25)
+  })
+})

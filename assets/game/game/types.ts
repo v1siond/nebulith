@@ -1,0 +1,370 @@
+/**
+ * Shared game-domain type contract for Nebulith's RPG layer
+ * (see nebulith/docs/COMBAT-AND-SYSTEMS-SPEC.md).
+ *
+ * This is the cross-module CONTRACT, combat, inventory, quests, and entities all
+ * build against these types. Treat it as stable/read-only from those modules;
+ * module-internal types live in their own files.
+ */
+import type { AbilityAnimation } from './abilities'
+import type { EntityAnimation } from './runtime/entityAnimation'
+import type { Animation } from '@/engine/animation/tileAnimation'
+import type { Trigger } from './runtime/trigger'
+import type { TilePose } from '@/engine/tileset/pose'
+import type { AssetLight } from '@/engine/tileset/tileset'
+
+// ── stats & runtime combat state ────────────────────────────────────
+export interface Stats {
+  strength: number // ↑ physical damage, ↑ rage cap
+  intelligence: number // ↑ magical damage, ↑ mana cap
+  defense: number // ↓ melee (physical) damage taken
+  maxHp: number
+  /** % chance (0-100) to fully dodge an incoming attack. Optional → 0 when absent. */
+  dodge?: number
+}
+
+/** Mutable per-entity runtime state during play. */
+export interface CombatState {
+  hp: number
+  rage: number // resource for physical specials (cap derived from strength)
+  mana: number // resource for magical specials (cap derived from intelligence)
+}
+
+// ── equipment ───────────────────────────────────────────────────────
+export type AttackSchool = 'physical' | 'magical'
+export type AttackRange = 'melee' | 'ranged'
+export type AttackTier = 'regular' | 'special'
+
+export interface Attack {
+  school: AttackSchool
+  range: AttackRange
+  tier: AttackTier
+}
+
+export type WeaponKind = 'sword' | 'axe' | 'shield' | 'staff' | 'bow' | 'gun' | 'unarmed'
+export interface Weapon {
+  id: string
+  kind: WeaponKind
+  name: string
+  baseDamage: number // physical base
+  baseMagic: number // magical base (staff)
+  baseDefense: number // shields / some weapons
+  strengthBonus: number
+  intBonus: number
+  school: AttackSchool // the school this weapon attacks with by default
+  range: AttackRange
+  /** how many hands the weapon needs: 1 = one-handed, 2 = two-handed.
+   *  Drives melee reach (1H → 1 cell, 2H → 2 cells). */
+  hands: 1 | 2
+  /** authored cell reach. Ranged weapons clamp this to [6,12]; melee derive reach
+   *  from `hands` instead (see game/weapons.ts weaponReach). */
+  reachCells: number
+  /** shields: % chance (0-100) to fully block one incoming attack. */
+  blockChance?: number
+}
+
+export type ArmorKind = 'iron' | 'leather'
+/** The body slot a piece of armor / jewelry occupies. */
+export type GearSlot = 'helmet' | 'chest' | 'gloves' | 'boots' | 'ring' | 'neck'
+export interface Armor {
+  id: string
+  kind: ArmorKind // iron → strength build, leather → int build
+  name: string
+  defenseBonus: number
+  strengthBonus: number
+  intBonus: number
+  /** body slot; defaults to 'chest' when omitted (back-compat with older armor). */
+  slot?: GearSlot
+  /** % dodge granted while worn. */
+  dodgeBonus?: number
+}
+
+// ── inventory ───────────────────────────────────────────────────────
+export type ItemSlot = 'weapon' | 'armor' | 'consumable'
+export interface ConsumableEffect {
+  hp?: number
+  rage?: number
+  mana?: number
+}
+export type Item =
+  | { id: string; name: string; slot: 'weapon'; weapon: Weapon }
+  | { id: string; name: string; slot: 'armor'; armor: Armor }
+  | { id: string; name: string; slot: 'consumable'; effect: ConsumableEffect }
+
+export interface Inventory {
+  items: Item[]
+  equippedWeapon: Weapon | null
+  equippedArmor: Armor | null
+}
+
+// ── loadout (per-entity equip slots + bag + special slots) ──────────
+export type EquipSlot =
+  | 'helmet' | 'chest' | 'gloves' | 'boots'
+  | 'weapon1' | 'weapon2'
+  | 'ring1' | 'ring2' | 'neck'
+
+/** Render/iteration order for the equip panel. */
+export const EQUIP_SLOTS: readonly EquipSlot[] = [
+  'helmet', 'chest', 'gloves', 'boots', 'weapon1', 'weapon2', 'ring1', 'ring2', 'neck',
+] as const
+
+export const DEFAULT_BAG_SLOTS = 24
+export const DEFAULT_SPECIAL_SLOTS = 4
+
+export interface LoadoutConfig {
+  bagSlots?: number // default 24
+  specialSlots?: number // default 4
+}
+
+/** One entity's gear: worn items by slot, a fixed-size bag, and quick-use special-action
+ *  slots (bombs / scrolls / potions) each bound to a trigger key (default 5-8, rebindable). */
+export interface Loadout {
+  equipped: Partial<Record<EquipSlot, Item>>
+  bag: (Item | null)[]
+  special: (Item | null)[]
+  /** the trigger key bound to each special-action slot, by index (default 5-8, rebindable). */
+  shortcuts: string[]
+}
+
+// ── talents ─────────────────────────────────────────────────────────
+export type TalentPath = 'warrior' | 'magician'
+
+// ── movement patterns (patrolling entities) ─────────────────────────
+export interface Cell {
+  col: number
+  row: number
+}
+/** sequential = walk the waypoints in order, looping; random = pick a random
+ *  next waypoint on arrival. (See engine/movement.ts for the stepper.) */
+export type MovementMode = 'sequential' | 'random'
+/** Run-patrol axis: which directions an entity runs along between pauses.
+ *  vertical = up/down runs; horizontal = left/right runs; mixed = pick an axis each
+ *  run (vertical → randomize up/down, horizontal → reverse / go back). */
+export type MovementAxis = 'vertical' | 'horizontal' | 'mixed'
+
+/** A cardinal direction for a movement step. */
+export type Direction = 'up' | 'down' | 'left' | 'right'
+/** One authored movement step: "advance `cells` cells in `dir`". */
+export interface MovementStep {
+  dir: Direction
+  cells: number
+}
+export interface MovementPattern {
+  mode: MovementMode
+  waypoints: Cell[]
+  /** CANONICAL model: an ordered list of "advance N cells in a direction" steps.
+   *  sequential = run them in order, looping; random = pick one, run it, pause, repeat.
+   *  Collision-aware (see engine/movement.ts stepStepList). Takes precedence over
+   *  waypoints/axis when present + non-empty. */
+  steps?: MovementStep[]
+  /** When set, the entity uses RUN-PATROL instead of waypoints: it runs `runLength`
+   *  cells in one direction, pauses `delayMs`, then picks the next direction by axis. */
+  axis?: MovementAxis
+  /** cells per run before pausing (run-patrol). Default RUN_PATROL_LENGTH. */
+  runLength?: number
+  /** pause between steps/runs, in ms. Default RUN_PATROL_DELAY_MS. */
+  delayMs?: number
+}
+
+/** Per-attack range: melee = strike when adjacent; ranged = fling a bolt within reach. */
+export type AttackMode = 'melee' | 'ranged'
+
+/** Traversal across an enemy's attack list, mirrors MovementMode. 'sequential' cycles the
+ *  attacks in order (then repeats); 'random' picks one each time it fires. */
+export type AttackPatternMode = 'sequential' | 'random'
+
+/** One attack in an enemy's pattern, the enemy-side mirror of a player ability/attack:
+ *  melee vs ranged, its damage, cooldown, and a visual (animation → blade/bolt tint). Authored
+ *  per-enemy in the editor, or derived from a registry AbilityDef (patterns.enemyAttackFromAbility),
+ *  so an enemy attack IS an attack like the player's. */
+export interface EnemyAttack {
+  /** strike when adjacent (melee) vs fling a bolt within reach (ranged). */
+  mode: AttackMode
+  /** extra damage on top of the enemy's strength (this swing's "weapon base"); 0 = strength only. */
+  damage: number
+  /** cooldown (ms) before this enemy can fire its NEXT attack. */
+  cooldownMs: number
+  /** which seeded animation plays, drives the swing/bolt tint. Omitted → the kind's default. */
+  animation?: AbilityAnimation
+  /** ranged reach in cells (chebyshev). Ignored for melee (uses adjacency). */
+  reachCells?: number
+  /** set when built from a registry ability, provenance + a display label. */
+  abilityId?: string
+  /** display label (registry name / preset name). */
+  name?: string
+}
+
+/** How an enemy retaliates: an ORDERED list of attacks + a traversal `mode` (sequential cycles,
+ *  random picks), mirroring MovementPattern. Authored per-enemy in the editor's inspector.
+ *  Legacy single-attack saves ({ mode:'melee'|'ranged', cooldownMs }) are still accepted and
+ *  normalized to a one-attack list, see patterns.normalizeAttackPattern. */
+export interface AttackPattern {
+  /** traversal of `attacks`: 'sequential' | 'random'. */
+  mode: AttackPatternMode
+  /** the ordered attacks this enemy fires from. */
+  attacks: EnemyAttack[]
+}
+
+// ── rarity & respawn ────────────────────────────────────────────────
+/** Enemy rarity tier. Rarer enemies are slower to respawn, so they stay scarce. */
+export type Rarity = 'common' | 'uncommon' | 'rare' | 'elite'
+
+/** Respawn delay (ms) per rarity: regulars come back in ~20s, elites take minutes.
+ *  Single source of truth shared by the factories, the spawner, and the play loop. */
+export const RESPAWN_MS_BY_RARITY: Record<Rarity, number> = {
+  common: 20_000,
+  uncommon: 35_000,
+  rare: 60_000,
+  elite: 120_000,
+}
+
+/** The respawn delay for a rarity, defaulting to 'common' when none is given. */
+export function respawnMsForRarity(rarity?: Rarity): number {
+  return RESPAWN_MS_BY_RARITY[rarity ?? 'common']
+}
+
+// ── entities ────────────────────────────────────────────────────────
+export type EntityKind = 'player' | 'enemy' | 'npc'
+
+/** A person/entity VARIANT, which baked figure renders. Beyond male/female to age (old, child) and
+ *  the exotic (alien, robot). Resolves to a baked image in artStyle (variantSlug); male/female also
+ *  gender the glyph fallback. */
+export type EntityVariant = 'male' | 'female' | 'old' | 'child' | 'alien' | 'robot'
+export interface Entity {
+  id: string
+  kind: EntityKind
+  col: number
+  row: number
+  name?: string
+  baseStats: Stats
+  /** enemies: respawn delay in ms after death (kill-quests stay farmable). */
+  respawnMs?: number
+  /** npc: the quest this giver offers. */
+  questId?: string
+  /** enemy type tag used by 'kill' objectives. */
+  enemyType?: string
+  /** enemy rarity tier; drives respawn timing (see RESPAWN_MS_BY_RARITY). */
+  rarity?: Rarity
+  /** patrol path; the play loop advances it each movement tick. */
+  movement?: MovementPattern
+  /** retaliation pattern (enemies): melee/ranged + cooldown. Omitted = engine default. */
+  attack?: AttackPattern
+  /** CAPABILITY SETTING, can this unit be attacked (targeted + take damage)? "all units are the same …
+   * can be attacked is a setting". Read via runtime/capabilities.isAttackable, which defaults it BY KIND (enemy =
+    * true, others = false) so existing saves are unchanged; ANY unit flagged true
+   *  becomes attackable regardless of kind. NOT gated on `kind === 'enemy'` in the combat/targeting code. */
+  hittable?: boolean
+  /** CAPABILITY SETTING, is this unit hostile (does it attack the player / retaliate)? "hostile … is a
+   * setting". Read via runtime/capabilities.isHostile, defaulting BY KIND (enemy = true). A
+   *  unit can thus be `hittable: true, hostile: false`, attackable but peaceful, without a per-kind branch. */
+  hostile?: boolean
+  /** does this character obstruct movement? Defaults to false, characters are walk-through
+   *  (the player + patrols pass right through them) unless the author flips on the per-unit
+   *  "Blocks movement" toggle. Separate from terrain collision (grid.isBlocked / the cell
+   *  collision-paint tool) and from `hittable` (whether it can be attacked). */
+  blocksMovement?: boolean
+  /** art-style override: a style-agnostic Tile Library id pinning THIS entity's visual
+   *  regardless of the active global style. Absent → follows the active style. */
+  tileOverride?: string
+  /** on-defeat triggers: fire when THIS entity is killed (spawn/give/win/message/…).
+   *  Rides the `entities` field on save; the play loop fires them on death. Additive. */
+  triggers?: Trigger[]
+  /** the RENDER PROJECTION of the unit's frame-swap animations (#91): the game plays frames by trigger +
+   *  direction; frame 0 seeds from this entity's own tile. Absent → the default character set (person
+   *  walk/idle). This is the sprite subset of `unitAnimations`, kept in sync by the shared modal so the
+   *  renderer/PlayerState keep reading `EntityAnimation[]` unchanged (entityAnimation.entityAnimationsFromUnit). */
+  animations?: EntityAnimation[]
+  /** the UNIFIED authored animation list a unit carries, the SAME `Animation[]` model a tile's
+   *  `GridAsset.animations` uses (settings-kind envelopes AND sprite-kind frame swaps). The shared
+   *  `TileAnimationEditor` reads/writes THIS (source of truth) so a unit offers the IDENTICAL settings + sprite
+   *  buttons a tile does; `animations` above is derived from its sprite subset. Absent → bridged live from
+   *  `animations` (a unit minted before this field). Settings-kind entries persist + author but the entity
+   *  RENDERER doesn't consume them yet (render-parity follow-up). */
+  unitAnimations?: Animation[]
+  /** person variant → which baked figure renders (male/female + age/exotic; see EntityVariant). */
+  variant?: EntityVariant
+  /** render + stat SCALE (1 = normal). A boss at size 2 draws twice as big and derives beefier
+   *  stats (see scaleStatsBySize). Bottom-grounded so a bigger figure still stands on its shadow. */
+  size?: number
+  /** editor colour override for the figure glyph. Absent → the kind/role default palette. */
+  color?: string
+  /**
+   * PER-UNIT LIGHT, this character casts the same warm night ground pool a tile does, from the same
+   * `AssetLight` shape and through the same resolver. A torch-bearer, a lantern NPC, a glowing boss.
+   *
+   * This is the one of those that a BILLBOARD can honour: a light is a pool at a position,
+   * and a unit has a position. Display / transparent / shape describe the faces of a BLOCK, and a unit is
+   * not drawn as one (`drawIsoEntity` is the billboard exception), so those stay with the block work.
+   */
+  light?: AssetLight
+  /** shared settings-panel pose, x/y offset, rotation, flip (same shape a tile carries). Authored in the
+   *  unit's settings panel like a tile's; round-trips via the entity codec. NOTE: the unit RENDERER does not
+   *  read this yet, pose-honoring on units is the broader unit/tile render-parity work (#35). */
+  pose?: TilePose
+  /** everything this unit can say (see UnitDialog). Rides the entity codec like every other field. */
+  dialogs?: UnitDialog[]
+  /** the unit's worn gear + bag + special slots + shortcuts, the SAME `Loadout` the equipment panel edits
+   *  (game/loadout.ts). EVERY unit carries one ("units are tiles with extra stuff; what a unit HAS is data")
+   *  and it PERSISTS on the entity, so equip / unequip / drop / reorder survive a reload EXACTLY, including
+   *  bag order. Folded onto the entity at save and split back into the editor's per-entity loadout map on
+   *  load (lib/unitDataPersistence.ts); rides the same `entities` channel every entity round-trips through.
+   *  Absent → the editor mints a fresh/empty loadout. */
+  loadout?: Loadout
+  /** the HERO's carried item bag + equipped weapon/armour (game/inventory.ts). PLAYER-ONLY, "the carried
+   *  item bag + vitals stay the hero's alone" (EDITOR-INTERACTION-SPEC §8). Persists on the player entity
+   *  alongside `loadout`, so an equipped weapon / dropped item / reordered bag survives a reload. */
+  inventory?: Inventory
+}
+
+// ── quests / missions ───────────────────────────────────────────────
+export type ObjectiveKind = 'kill' | 'travel' | 'find'
+export interface Objective {
+  kind: ObjectiveKind
+  /** enemyType for kill, stage/cell id for travel, npc id for find. */
+  target: string
+  required: number
+  current: number
+  done: boolean
+  label: string
+}
+
+export type RewardKind = 'item' | 'xp' | 'stat'
+export interface Reward {
+  kind: RewardKind
+  amount: number
+  itemId?: string
+  stat?: keyof Stats
+}
+
+export type QuestState = 'available' | 'active' | 'completed' | 'turned_in'
+
+/**
+ * WHAT A UNIT SAYS.
+ *
+ *  · static      what it says any time
+ *  · quest       what it says about ONE quest while that quest is in a given state
+ *  · situational what it says while a situation holds (see DIALOG_SITUATIONS in runtime/dialog.ts)
+ */
+export type DialogKind = 'static' | 'quest' | 'situational'
+/** The situations a dialog can wait for: the world state the engine actually tracks today. */
+export type DialogSituation = 'day' | 'night' | 'rain' | 'clear'
+export interface UnitDialog {
+  id: string
+  kind: DialogKind
+  /** Said in order, one line after another. */
+  lines: string[]
+  /** quest dialogs: which quest, and the state it has to be in. */
+  questId?: string
+  questState?: QuestState
+  /** situational dialogs: the situation that has to hold. */
+  situation?: DialogSituation
+}
+export interface Quest {
+  id: string
+  giverId: string
+  title: string
+  description: string
+  objectives: Objective[]
+  rewards: Reward[]
+  state: QuestState
+}

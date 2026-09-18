@@ -1,0 +1,1000 @@
+// Reusable modal + entity-inspector modal bodies (identity/stats, movement,
+// attacks) and the quest-offer body. Moved out of the page (stage 4);
+// props-driven presentational components.
+import { useEffect, useLayoutEffect, useRef, useState, type Dispatch, type SetStateAction } from 'react'
+import type { Connector } from '@/lib/api'
+import { ABILITY_ANIMATIONS, abilityRegistry, type AbilityAnimation } from '@/game/abilities'
+import { abilityTint } from '@/game/abilityArt'
+import { ENEMY_ATTACK_PRESETS, addEnemyAttack, buildAttackPattern, defaultEnemyAttack, enemyAttackFromAbility, normalizeAttackPattern, removeEnemyAttack, setAttackPatternMode, updateEnemyAttack } from '@/game/patterns'
+import { rewardSummary } from '@/game/runtime/quest'
+import { isAttackable } from '@/game/runtime/capabilities'
+import { type AttackMode, type AttackPattern, type AttackPatternMode, type DialogKind, type DialogSituation, type EnemyAttack, type Entity, type EntityKind, type Quest, type QuestState, type UnitDialog } from '@/game/types'
+import { DIALOG_KIND_LABEL, DIALOG_SITUATIONS, QUEST_STATE_LABEL, newDialog } from '@/game/runtime/dialog'
+import { QuestObjectives } from '@/components/game/hud'
+import { TileControls, type TileControlModel } from '@/components/game/editorChrome'
+import { SwapTilePanel } from '@/components/game/shell/SwapTilePanel'
+import type { TileDef } from '@/game/artStyle'
+
+/** Right-sidebar inspector for a clicked entity: edit its name / enemy-type, toggle
+ *  whether it's hittable (a non-hittable enemy becomes passive scenery), see its
+ *  stats + patrol, and delete it. Presentational, actions bubble to the editor. */
+/** The accent name every panel (Modal + FloatingPanel) shares, one place so a new colour is added once. */
+export type PanelAccent = 'orange' | 'cyan' | 'purple' | 'blue' | 'yellow' | 'red'
+
+/** Accent → border ring class. Shared by the centered Modal and the floating panel so they read as one family. */
+const ACCENT_RING: Record<PanelAccent, string> = {
+  orange: 'border-orange-500/40', cyan: 'border-cyan-500/40', purple: 'border-purple-500/40',
+  blue: 'border-blue-500/40', yellow: 'border-yellow-500/40', red: 'border-red-500/40',
+}
+/** Accent → header text class. */
+const ACCENT_HEAD: Record<PanelAccent, string> = {
+  orange: 'text-orange-300', cyan: 'text-cyan-300', purple: 'text-purple-300',
+  blue: 'text-blue-300', yellow: 'text-yellow-300', red: 'text-red-300',
+}
+
+/** Reusable modal, dark gaming panel; click the backdrop or press Esc to close. */
+export function Modal({ title, accent = 'orange', onClose, children, wide, anchor }: {
+  title: string
+  accent?: PanelAccent
+  onClose: () => void
+  children: React.ReactNode
+  wide?: boolean
+  /** World-anchored screen point (px): when set, the panel floats ABOVE it (its
+   *  bottom edge sitting at anchor.y) instead of centering. Off-screen → centered. */
+  anchor?: { x: number; y: number } | null
+}) {
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose() }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [onClose])
+  const ring = ACCENT_RING[accent]
+  const head = ACCENT_HEAD[accent]
+  // Anchored: float the panel above the world point (translate up + center on x);
+  // otherwise fall back to the centered flex layout.
+  const panelPos = anchor
+    ? 'absolute -translate-x-1/2 -translate-y-full'
+    : ''
+  const panelStyle = anchor ? { left: anchor.x, top: anchor.y } : undefined
+  return (
+    <div
+      className={`fixed inset-0 z-40 ${anchor ? '' : 'flex items-center justify-center'} bg-black/70 p-4 font-mono`}
+      onClick={onClose}
+      role="dialog"
+      aria-modal="true"
+      aria-label={title}
+    >
+      <div
+        className={`${panelPos} flex max-h-[85vh] w-full ${wide ? 'max-w-2xl' : 'max-w-md'} flex-col overflow-hidden rounded-xl border ${ring} bg-gray-950 text-white shadow-2xl shadow-black/60`}
+        style={panelStyle}
+        onClick={e => e.stopPropagation()}
+      >
+        <header className="flex items-center justify-between border-b border-white/10 bg-black/40 px-4 py-3">
+          <h3 className={`text-sm font-bold uppercase tracking-widest ${head}`}>{title}</h3>
+          <button onClick={onClose} aria-label="Close" className="rounded px-2 py-1 text-gray-400 hover:bg-white/10 hover:text-white">✕</button>
+        </header>
+        <div className="overflow-y-auto p-4">{children}</div>
+      </div>
+    </div>
+  )
+}
+
+/**
+ * How many panels are currently placed by `openBeside`, so the next one cascades instead of landing on
+ * the last one's exact spot.
+ *
+ * Three inspector sections opened at (951, 96) each, perfectly stacked, so only the top one could be used
+ * at all. Panels are for working in two at once; that is the whole reason they are movable.
+ */
+let besidePlaced = 0
+
+/** Enough to leave the panel beneath grabbable by its title bar without throwing it across the screen. */
+const CASCADE = { x: 34, y: 36 }
+
+/** A screen point / size (px). */
+interface XY { x: number; y: number }
+interface WH { w: number; h: number }
+
+const FLOATING_MIN: WH = { w: 260, h: 200 } // small enough to tuck aside, big enough to grab
+
+/** Keep at least the header grabbable: clamp so the panel can never be dragged fully off-screen. */
+function clampToViewport(pos: XY, width: number): XY {
+  if (typeof window === 'undefined') return pos
+  const maxX = window.innerWidth - 80 // leave a sliver + the ✕ reachable
+  const maxY = window.innerHeight - 40
+  return { x: Math.max(8 - (width - 80), Math.min(pos.x, maxX)), y: Math.max(8, Math.min(pos.y, maxY)) }
+}
+
+/**
+ * The height a panel was GIVEN, or null to grow to its content.
+ *
+ * A panel is content-height until someone drags the grip, and only a drag of the grip writes a height worth
+ * remembering. A remembered 0 is how "never resized" survives a save: moving a panel persists its geometry
+ * too, and writing the measured height there would freeze the panel at whatever it happened to hold.
+ */
+function pinnedHeight(h: number | undefined): number | null {
+  return typeof h === 'number' && h > 0 ? h : null
+}
+
+/** The breathing room between a panel at full height and the bars it stops short of. */
+const CHROME_GAP = 28
+
+/**
+ * The room a panel has: the viewport, less the editor's top bar and view bar.
+ *
+ * Measured rather than declared, because both bars are content-height rows and wrap at narrow widths. The
+ * floor keeps a panel usable on a short screen even if that means overlapping a bar.
+ */
+function chromeCap(): number {
+  if (typeof document === 'undefined') return 0
+  const barHeight = (selector: string) => document.querySelector(selector)?.getBoundingClientRect().height ?? 0
+  return Math.max(FLOATING_MIN.h, Math.round(window.innerHeight - barHeight('.z-top') - barHeight('.z-bar') - CHROME_GAP))
+}
+
+/**
+ * FLOATING PANEL, a NON-BLOCKING sibling of {@link Modal} for settings you edit while watching the thing
+ * change: it has NO full-screen backdrop (so the canvas behind stays pannable and the edited tile stays
+ * visible + clickable), you DRAG it aside by its header, and RESIZE it from the bottom-right grip. Same dark
+ * accent chrome + Esc-to-close as Modal, but positioned `fixed` at an (x,y) the user can move. Live-updating
+ * is inherent: the body is just children (e.g. TileControls) whose writers already fan out to the selection,
+ * and because the panel never covers the whole screen the edit's effect is visible immediately.
+ *
+ * `role="dialog"` WITHOUT `aria-modal`, it is deliberately non-modal (the rest of the page stays live).
+ */
+export function FloatingPanel({ title, accent = 'cyan', onClose, children, initialPos, initialSize, openBeside, onGeometryChange }: {
+  title: string
+  accent?: PanelAccent
+  onClose: () => void
+  children: React.ReactNode
+  /** where the panel first appears; defaults to the top-right so it doesn't cover the centred selection. */
+  initialPos?: XY
+  initialSize?: WH
+  /**
+   * A CSS selector to open NEXT TO, when there is no remembered position, the panel lands just right of
+   * that element instead of in the top-right corner.
+   *
+   * Measured from the
+   * element rather than computed from the column widths, which are CSS custom properties that change
+   * whenever a zone is collapsed. It only decides where the panel STARTS, it stays movable.
+   */
+  openBeside?: string
+  /** Fired once at the END of a drag or resize with the final `{x,y,w,h}`, the page persists it as a
+   *  backend editor setting (debounced), so the panel reopens where the user left it. */
+  onGeometryChange?: (geometry: { x: number; y: number; w: number; h: number }) => void
+}) {
+  const [width, setWidth] = useState<number>(() => initialSize?.w ?? 340)
+  /** A number is a height the person dragged; null grows the panel to its content, capped by the room. */
+  const [height, setHeight] = useState<number | null>(() => pinnedHeight(initialSize?.h))
+  const [pos, setPos] = useState<XY>(() => {
+    if (initialPos) return initialPos
+    if (typeof window === 'undefined') return { x: 24, y: 96 }
+    const w = initialSize?.w ?? 340
+    return { x: window.innerWidth - w - 24, y: 96 }
+  })
+  /** The panel itself, so a resize can start from the height the content is actually drawing at. */
+  const panel = useRef<HTMLDivElement | null>(null)
+  // THE CAP FOLLOWS THE WINDOW. Measured on mount and on every window resize, and published as a custom
+  // property so the stylesheet owns the rule and this owns the number.
+  const [cap, setCap] = useState(0)
+  useEffect(() => {
+    const measure = () => setCap(chromeCap())
+    measure()
+    window.addEventListener('resize', measure)
+    return () => window.removeEventListener('resize', measure)
+  }, [])
+
+  /**
+   * OPEN BESIDE an element, measured after mount, not while rendering.
+   *
+   * Two things this has to get right, each of which it got wrong first:
+   *
+   *  · **Measure after commit.** The `useState` initialiser runs during render, so a panel rendered INSIDE
+   *    the element it wants to sit beside cannot see that element yet, `querySelector` returned null and
+   *    every inspector section panel fell back to the top-right, landing on top of the inspector and
+   *    swallowing clicks on the rows you open the next section with. A layout effect runs after the DOM is
+   *    committed and before paint, so the panel never appears in the wrong place.
+   *  · **Pick the side with room.** Preferring the right unconditionally fails for a right-hand anchor: the
+   *    inspector is the last column, so "just right of it" is off-screen and the clamp drags the panel back
+   *    over it.
+   *
+   * A remembered position always wins, this only decides where a panel appears the FIRST time.
+   */
+  const placed = useRef(false)
+  useLayoutEffect(() => {
+    if (placed.current || initialPos || !openBeside) return
+    placed.current = true
+    const beside = document.querySelector(openBeside)?.getBoundingClientRect()
+    if (!beside) return
+    const GAP = 10
+    const fitsRight = beside.right + GAP + width <= window.innerWidth - 12
+    const slot = besidePlaced++ % 4
+    // Cascade AWAY from the anchor, so a stack of panels never creeps back over the thing it opened from.
+    const step = (fitsRight ? 1 : -1) * CASCADE.x * slot
+    const x = (fitsRight ? beside.right + GAP : beside.left - GAP - width) + step
+    setPos({
+      x: Math.max(12, Math.min(x, window.innerWidth - width - 12)),
+      y: Math.max(12, Math.min(beside.top + CASCADE.y * slot, window.innerHeight - 90)),
+    })
+  }, [openBeside, initialPos, width])
+
+  // Release the cascade slot, so closing and reopening does not walk panels off the screen.
+  useEffect(() => () => { if (placed.current) besidePlaced = Math.max(0, besidePlaced - 1) }, [])
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose() }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [onClose])
+
+  // Drag by the header: capture the grab origin, then follow the pointer on WINDOW listeners (not the panel's
+  // own) so the drag keeps tracking even when the cursor races out over the canvas. Removed on mouse-up, which
+  // also reports the FINAL geometry so the page can persist it (the gesture tracks `latest` to avoid stale state).
+  const startDrag = (e: React.MouseEvent) => {
+    e.preventDefault()
+    const origin = { mx: e.clientX, my: e.clientY, x: pos.x, y: pos.y }
+    let latest = pos
+    const onMove = (ev: MouseEvent) => {
+      latest = clampToViewport({ x: origin.x + (ev.clientX - origin.mx), y: origin.y + (ev.clientY - origin.my) }, width)
+      setPos(latest)
+    }
+    const onUp = () => {
+      window.removeEventListener('mousemove', onMove)
+      window.removeEventListener('mouseup', onUp)
+      onGeometryChange?.({ x: latest.x, y: latest.y, w: width, h: height ?? 0 })
+    }
+    window.addEventListener('mousemove', onMove)
+    window.addEventListener('mouseup', onUp)
+  }
+
+  // Resize from the bottom-right grip, same window-listener pattern; clamp to a sane minimum so it can't
+  // collapse to nothing. Reports the FINAL geometry on release, mirroring the drag path.
+  const startResize = (e: React.MouseEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    // A content-height panel starts its resize from the height it is DRAWING at, so the grip does not jump.
+    const drawn = height ?? panel.current?.offsetHeight ?? 0
+    const origin = { mx: e.clientX, my: e.clientY, w: width, h: Math.max(FLOATING_MIN.h, drawn) }
+    let latest: WH = { w: origin.w, h: origin.h }
+    const onMove = (ev: MouseEvent) => {
+      latest = {
+        w: Math.max(FLOATING_MIN.w, origin.w + (ev.clientX - origin.mx)),
+        h: Math.max(FLOATING_MIN.h, origin.h + (ev.clientY - origin.my)),
+      }
+      setWidth(latest.w)
+      setHeight(latest.h)
+    }
+    const onUp = () => {
+      window.removeEventListener('mousemove', onMove)
+      window.removeEventListener('mouseup', onUp)
+      onGeometryChange?.({ x: pos.x, y: pos.y, w: latest.w, h: latest.h })
+    }
+    window.addEventListener('mousemove', onMove)
+    window.addEventListener('mouseup', onUp)
+  }
+
+  // The design's movable panel (`.mw`). Every deep editor in the app already opened through this
+  // component, so dressing THIS in the design clothes every one of them at once, and the per-panel accent
+  // colour is gone, because eight different header colours said the eight panels were different kinds of
+  // thing when they are all "a panel about the selection".
+  //
+  // `neb` is on the root because the design's tokens are scoped to it and this renders outside the editor
+  // grid (it is `position:fixed`).
+  return (
+    <div
+      ref={panel}
+      className="neb mw"
+      // The HEIGHT is the stylesheet's (`max-content`, capped) until the person drags the grip; `--mw-cap` is
+      // the measured room, so the rule stays in CSS and only the number comes from here.
+      style={{ left: pos.x, top: pos.y, width, ...(height === null ? {} : { height }), ...(cap > 0 ? { ['--mw-cap' as string]: `${cap}px` } : {}) } as React.CSSProperties}
+      role="dialog"
+      aria-label={title}
+    >
+      <div onMouseDown={startDrag} data-drag-handle className="bar">
+        <span className="gr" aria-hidden="true">⣿</span>
+        <span className="ti">{title}</span>
+        <button
+          type="button"
+          onMouseDown={e => e.stopPropagation()}
+          onClick={onClose}
+          aria-label="Close"
+          title="Close"
+        >
+          ✕
+        </button>
+      </div>
+      <div className="body">{children}</div>
+      <div onMouseDown={startResize} data-resize-handle aria-label="Resize panel" role="separator" className="rz" />
+    </div>
+  )
+}
+
+/** The five combat stats every unit carries, in display order, a table, so a new stat is one row here. */
+const UNIT_STATS: ReadonlyArray<readonly ['maxHp' | 'defense' | 'strength' | 'intelligence' | 'dodge', string]> = [
+  ['maxHp', 'HP'],
+  ['defense', 'DEF'],
+  ['strength', 'STR'],
+  ['intelligence', 'INT'],
+  ['dodge', 'DODGE%'],
+]
+
+/**
+ * The unit's STATS body, the contents of the card's "⛊ Stats…" button, hosted in a draggable/resizable
+ * FloatingPanel.
+ *
+ * What is deliberately NOT here: **Name** and **Size** stay as rows on the tile card (identity you retune
+ * inline), and **"Blocks movement" is gone**, a unit's collision is the card's ONE `Blocked / Walkable`
+ * toggle, the same control every tile uses. Everything else a unit uniquely owns lives here: the enemy's
+ * kill-quest tag, the five combat stats, hittable, and the respawn timer.
+ */
+export function UnitStatsBody({ entity, onPatch }: {
+  entity: Entity
+  onPatch: (patch: Partial<Entity>) => void
+}) {
+  const hittable = isAttackable(entity) // the `hittable` capability (setting, kind-defaulted), one source of truth
+  const isEnemy = entity.kind === 'enemy'
+  return (
+    <div className="space-y-2 text-xs">
+      {isEnemy && (
+        <label className="block">
+          <span className="mb-0.5 block text-[10px] text-gray-400">Enemy type (kill-quest tag)</span>
+          <input value={entity.enemyType ?? ''} onChange={e => onPatch({ enemyType: e.target.value })} aria-label="Enemy type" className="w-full rounded bg-gray-800 p-1 text-xs" />
+        </label>
+      )}
+      <div>
+        <span className="mb-0.5 block text-[10px] text-gray-400">Stats (editable)</span>
+        <div className="grid grid-cols-2 gap-1">
+          {UNIT_STATS.map(([stat, label]) => (
+            <label key={stat} className="flex items-center gap-1 text-[10px] text-gray-400">
+              <span className="w-12 shrink-0">{label}</span>
+              {/* `min-w-0` is the load-bearing half: a flex item will not shrink below its content width
+                  without it, so a number field next to a fixed label overflows and then gets squeezed. */}
+              <input
+                type="number"
+                value={entity.baseStats[stat] ?? 0}
+                onChange={e => onPatch({ baseStats: { ...entity.baseStats, [stat]: Number(e.target.value) } })}
+                aria-label={`${entity.kind} ${label}`}
+                className="min-w-0 flex-1 rounded bg-gray-800 p-1 text-xs"
+              />
+            </label>
+          ))}
+        </div>
+      </div>
+      <label className="flex items-center gap-2 text-gray-300">
+        <input type="checkbox" checked={hittable} onChange={e => onPatch({ hittable: e.target.checked })} aria-label="Hittable" />
+        Hittable (can be attacked)
+      </label>
+      {isEnemy && (
+        <label className="flex items-center gap-2 text-[10px] text-gray-400">
+          <span className="w-28 shrink-0">Respawn (s · 0 = never)</span>
+          <input
+            type="number"
+            min={0}
+            value={Math.round((entity.respawnMs ?? 0) / 1000)}
+            onChange={e => onPatch({ respawnMs: Math.max(0, Number(e.target.value)) * 1000 })}
+            aria-label="Respawn seconds"
+            className="min-w-0 flex-1 rounded bg-gray-800 p-1 text-xs"
+          />
+        </label>
+      )}
+    </div>
+  )
+}
+
+/** The unit-only EXTRAS folded into the ONE shared tile card: the two identity ROWS a unit keeps inline
+ *  (name + size) plus the entry-point buttons a tile never has, STATS (the draggable modal), the INVENTORY
+ *  (player), quests (NPC) and attacks (enemy). Driven by the selected entity + the SAME patch writer the rest
+ *  of the card uses, so every edit lands on one source of truth. */
+export interface UnitControlModel {
+  entity: Entity
+  onPatch: (patch: Partial<Entity>) => void
+  /** the discrete SIZE preset (1×/2×/3×, a boss scales its stats too, not just the figure). Absent → the
+   *  size row hides (the raw scale is still editable via the settings sliders). */
+  onSize?: (size: number) => void
+  /** open the unit's STATS modal (HP/DEF/STR/INT/DODGE% + hittable + respawn), absent → no button. */
+  /** open the unit's inventory & abilities (the player carries one), absent → no button. */
+  onOpenInventory?: () => void
+  /** open the NPC's quest authoring, absent → no button. */
+  onOpenQuests?: () => void
+  /** open the enemy's attacks / abilities editor, absent → no button. */
+  onOpenAttacks?: () => void
+}
+
+/** The page's openers, one per entry point. The page owns what each button DOES; {@link buildUnitModel}
+ *  owns which of them a unit KIND gets, so a handler is never quietly dropped at the call site again. */
+export interface UnitCardOpeners {
+  onPatch: (patch: Partial<Entity>) => void
+  onSize: (size: number) => void
+  openInventory: () => void
+  openQuests: () => void
+  openAttacks: () => void
+}
+
+/** The KIND-specific entry points, as a dispatch table, a new unit kind adds a row, never a branch.
+ *  Stats and inventory are deliberately absent here because they are UNIVERSAL: every unit carries a stat
+ *  block, and every unit carries a loadout (the equipment panel already keys `loadouts` by entity id).
+ *  Gating the inventory on `kind === 'player'` is what hid it on the NPC card. */
+const KIND_ENTRY_POINTS: Record<EntityKind, { quests: boolean; attacks: boolean }> = {
+  player: { quests: false, attacks: false },
+  npc: { quests: true, attacks: false },
+  enemy: { quests: false, attacks: true },
+}
+
+/** Build the unit card's model, the ONE place that decides which entry points a unit offers. PURE. */
+export function buildUnitModel(entity: Entity, open: UnitCardOpeners): UnitControlModel {
+  const kindEntries = KIND_ENTRY_POINTS[entity.kind]
+  return {
+    entity,
+    onPatch: open.onPatch,
+    onSize: open.onSize,
+    onOpenInventory: open.openInventory,
+    onOpenQuests: kindEntries.quests ? open.openQuests : undefined,
+    onOpenAttacks: kindEntries.attacks ? open.openAttacks : undefined,
+  }
+}
+
+/**
+ * THE CHARACTER WINDOW, everything about who this is, in one place.
+ *
+ * Before this the Character row opened a panel holding one button, that button opened a SECOND panel to pick
+ * a figure, and the stat block lived in a THIRD window off a separate button. Three windows for one
+ * character. Now the figure picker is inline (no intermediate button, so the stops applying here too), the name and
+  * size sit under it, and the stats are in the same
+ * window rather than beside it.
+ */
+export function CharacterWindow({ entity, styleId, fromLabel, onPatch, onSize, onSwap, quests = [] }: {
+  entity: Entity
+  styleId: string
+  /** The figure currently in the slot, for the swap panel's BEFORE picture. */
+  fromLabel: string | null
+  /** The level's quests, so a dialog can be tied to one. */
+  quests?: readonly Quest[]
+  onPatch: (patch: Partial<Entity>) => void
+  onSize?: (size: number) => void
+  onSwap: (tile: TileDef) => void
+}) {
+  return (
+    <div className="space-y-3 text-xs">
+      <UnitIdentityRows entity={entity} onPatch={onPatch} onSize={onSize} />
+      <div className="border-t border-white/10 pt-2">
+        <p className="mb-1.5 text-[9px] font-bold uppercase tracking-wider text-gray-500">Stats</p>
+        <UnitStatsBody entity={entity} onPatch={onPatch} />
+      </div>
+      <div className="border-t border-white/10 pt-2">
+        <p className="mb-1.5 text-[9px] font-bold uppercase tracking-wider text-gray-500">Figure</p>
+        {/* The picker itself, not a button that opens the picker. `onCancel` is a no-op: there is nothing to
+            back out OF when the panel is the section you already opened, and the section's own ✕ closes it. */}
+        <SwapTilePanel
+          styleId={styleId}
+          fromLabel={fromLabel}
+          where={`cell ${entity.col}, ${entity.row}`}
+          isCharacter
+          onSwap={onSwap}
+          onCancel={() => {}}
+        />
+      </div>
+      <div className="border-t border-white/10 pt-2">
+        <p className="mb-1.5 text-[9px] font-bold uppercase tracking-wider text-gray-500">Dialogs</p>
+        <UnitDialogsSection dialogs={entity.dialogs ?? []} quests={quests} onChange={dialogs => onPatch({ dialogs })} />
+      </div>
+    </div>
+  )
+}
+
+/** The two identity ROWS that stay INLINE on the card, the unit's NAME and its discrete SIZE preset (a boss
+ *  is bigger AND tougher; `resizeEntityById` rescales the stat block by the same ratio). The old FIGURE
+ *  (neutral/male/female/old/child/alien/robot) row is GONE: a unit is a tile, so its art is swapped with the
+ *  card's regular "Replace tile" button, which lists the character tiles like any other tile. */
+/**
+ * WHAT THIS UNIT SAYS, as many dialogs as it needs. Each dialog is its
+ * lines (one per line) and what it waits for: nothing, a quest in a given state, or a situation.
+ */
+export function UnitDialogsSection({ dialogs, quests, onChange }: {
+  dialogs: readonly UnitDialog[]
+  quests: readonly Quest[]
+  onChange: (next: UnitDialog[]) => void
+}) {
+  const update = (id: string, patch: Partial<UnitDialog>) => onChange(dialogs.map(d => (d.id === id ? { ...d, ...patch } : d)))
+  const retype = (id: string, kind: DialogKind) => onChange(dialogs.map(d => (d.id === id ? { ...newDialog(kind, d.id), lines: d.lines } : d)))
+  return (
+    <div className="space-y-2">
+      {dialogs.length === 0 && <p className="text-[11px] text-gray-500">Says nothing yet.</p>}
+      {dialogs.map((d, n) => (
+        <div key={d.id} className="space-y-1 rounded bg-gray-900/60 p-1.5" aria-label={`Dialog ${n + 1}`}>
+          <div className="flex items-center gap-1">
+            <select value={d.kind} onChange={e => retype(d.id, e.target.value as DialogKind)} aria-label={`Dialog ${n + 1} kind`} className="min-w-0 flex-1 rounded bg-gray-800 p-1 text-xs">
+              {(Object.keys(DIALOG_KIND_LABEL) as DialogKind[]).map(k => <option key={k} value={k}>{DIALOG_KIND_LABEL[k]}</option>)}
+            </select>
+            <button type="button" onClick={() => onChange(dialogs.filter(x => x.id !== d.id))} aria-label={`Remove dialog ${n + 1}`} className="rounded bg-gray-700 px-2 py-0.5 text-gray-300 hover:bg-red-800">✕</button>
+          </div>
+          {d.kind === 'quest' && (
+            <div className="flex gap-1">
+              <select value={d.questId ?? ''} onChange={e => update(d.id, { questId: e.target.value || undefined })} aria-label={`Dialog ${n + 1} quest`} className="min-w-0 flex-1 rounded bg-gray-800 p-1 text-xs">
+                <option value="">{quests.length === 0 ? 'No quests on this level yet' : 'Pick a quest'}</option>
+                {quests.map(q => <option key={q.id} value={q.id}>{q.title}</option>)}
+              </select>
+              <select value={d.questState ?? 'available'} onChange={e => update(d.id, { questState: e.target.value as QuestState })} aria-label={`Dialog ${n + 1} quest state`} className="min-w-0 flex-1 rounded bg-gray-800 p-1 text-xs">
+                {(Object.keys(QUEST_STATE_LABEL) as QuestState[]).map(s => <option key={s} value={s}>{QUEST_STATE_LABEL[s]}</option>)}
+              </select>
+            </div>
+          )}
+          {d.kind === 'situational' && (
+            <select value={d.situation ?? 'night'} onChange={e => update(d.id, { situation: e.target.value as DialogSituation })} aria-label={`Dialog ${n + 1} situation`} className="w-full rounded bg-gray-800 p-1 text-xs">
+              {(Object.keys(DIALOG_SITUATIONS) as DialogSituation[]).map(s => <option key={s} value={s}>{DIALOG_SITUATIONS[s].label}</option>)}
+            </select>
+          )}
+          <textarea
+            value={d.lines.join('\n')}
+            onChange={e => update(d.id, { lines: e.target.value.split('\n') })}
+            rows={2}
+            placeholder="One line per line. They are said in order."
+            aria-label={`Dialog ${n + 1} lines`}
+            className="w-full rounded bg-gray-800 p-1 text-xs"
+          />
+        </div>
+      ))}
+      <button type="button" onClick={() => onChange([...dialogs, newDialog('static', `dlg-${Date.now().toString(36)}-${dialogs.length}`)])} className="w-full rounded bg-gray-700 px-2 py-1 text-gray-200 hover:bg-gray-600">
+        + Add a dialog
+      </button>
+    </div>
+  )
+}
+
+function UnitIdentityRows({ entity, onPatch, onSize }: { entity: Entity; onPatch: (patch: Partial<Entity>) => void; onSize?: (size: number) => void }) {
+  return (
+    <div className="space-y-1.5">
+      <label className="flex items-center gap-2 text-[11px]">
+        <span className="w-12 shrink-0 text-gray-400">Name</span>
+        <input value={entity.name ?? ''} onChange={e => onPatch({ name: e.target.value })} aria-label="Entity name" className="min-w-0 flex-1 rounded bg-gray-800 p-1 text-xs" />
+      </label>
+      {onSize && (
+        <div className="flex items-center gap-1 text-[11px]">
+          <span className="w-12 shrink-0 text-gray-400">Size</span>
+          {[1, 2, 3].map(sz => (
+            <button
+              key={sz}
+              type="button"
+              onClick={() => onSize(sz)}
+              title={sz > 1 ? `${sz}×, a boss: bigger figure + ~${sz}× stats` : 'normal size'}
+              aria-pressed={(entity.size ?? 1) === sz}
+              className={`rounded px-2 py-0.5 font-bold transition-colors ${(entity.size ?? 1) === sz ? 'bg-cyan-600 text-white' : 'bg-gray-700 text-gray-300 hover:bg-gray-600'}`}
+            >
+              {sz}×
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
+/** The unit-only section of the shared card, the name/size rows + the entry-point buttons a tile never has:
+ *  stats (every unit), inventory (player), quests (NPC), attacks (enemy). Each button opens its own draggable
+ *  modal. Rendered ONLY for a unit; a tile passes no unit model so this never shows. */
+export function UnitSettingsSection({ unit }: { unit: UnitControlModel }) {
+  const { entity, onPatch, onSize, onOpenInventory, onOpenQuests, onOpenAttacks } = unit
+  const btn = 'w-full rounded bg-gray-700 px-2 py-1.5 text-left text-xs font-bold transition-colors hover:bg-gray-600'
+  const hasEntries = onOpenInventory || onOpenQuests || onOpenAttacks
+  return (
+    <div className="space-y-2">
+      <p className="text-[9px] font-bold uppercase tracking-wider text-gray-500">, unit · {entity.kind}, </p>
+      {hasEntries && (
+        <div className="space-y-1 border-t border-white/10 pt-2">
+          {onOpenInventory && <button type="button" className={btn} onClick={onOpenInventory}>🎒 Inventory &amp; abilities…</button>}
+          {onOpenQuests && <button type="button" className={btn} onClick={onOpenQuests}>❒ Quests…</button>}
+          {onOpenAttacks && <button type="button" className={btn} onClick={onOpenAttacks}>⚔ Attacks / abilities…</button>}
+        </div>
+      )}
+    </div>
+  )
+}
+
+
+/** The seeded animation ids (drive the swing/bolt tint), for the per-attack tint picker. */
+// The animations an attack may use, TYPE data, straight from the engine's own list. It used to read
+// the KEYS of the colour table, which made the list a side effect of where colours happened to live.
+export const ATTACK_ANIMATION_OPTIONS: AbilityAnimation[] = [...ABILITY_ANIMATIONS]
+
+/** One attack row in the pattern editor: melee/ranged + damage + cooldown + tint + remove. */
+export function EnemyAttackRow({ attack, index, onChange, onRemove }: {
+  attack: EnemyAttack
+  index: number
+  onChange: (patch: Partial<EnemyAttack>) => void
+  onRemove: () => void
+}) {
+  const tint = (attack.animation ? abilityTint(attack.animation) : undefined) ?? '#9aa4b2'
+  return (
+    <div className="rounded border border-gray-700 p-1.5">
+      <div className="mb-1 flex items-center gap-1">
+        <span className="text-[11px] font-bold" style={{ color: tint }}>
+          {attack.name ?? `Attack ${index + 1}`}
+        </span>
+        <span className="text-[10px] text-gray-500">{attack.mode}</span>
+        <button
+          onClick={onRemove}
+          aria-label={`Remove attack ${index + 1}`}
+          className="ml-auto rounded bg-gray-700 px-2 text-[11px] hover:bg-red-700"
+        >
+          ×
+        </button>
+      </div>
+      <div className="flex flex-wrap items-center gap-1">
+        <select
+          value={attack.mode}
+          onChange={e => onChange({ mode: e.target.value as AttackMode })}
+          aria-label={`Attack ${index + 1} mode`}
+          className="rounded bg-gray-800 p-1 text-[11px]"
+        >
+          <option value="melee">Melee (adjacent)</option>
+          <option value="ranged">Ranged (reach)</option>
+        </select>
+        <label className="flex items-center gap-1 text-[10px] text-gray-400">
+          <span className="shrink-0">dmg</span>
+          <input
+            type="number"
+            min={0}
+            value={attack.damage}
+            onChange={e => onChange({ damage: Number(e.target.value) })}
+            aria-label={`Attack ${index + 1} damage`}
+            className="w-14 rounded bg-gray-800 p-1 text-[11px]"
+          />
+        </label>
+        <label className="flex items-center gap-1 text-[10px] text-gray-400">
+          <span className="shrink-0">CD ms</span>
+          <input
+            type="number"
+            value={attack.cooldownMs}
+            onChange={e => onChange({ cooldownMs: Number(e.target.value) })}
+            aria-label={`Attack ${index + 1} cooldown ms`}
+            className="w-16 rounded bg-gray-800 p-1 text-[11px]"
+          />
+        </label>
+        <select
+          value={attack.animation ?? ''}
+          onChange={e => onChange({ animation: (e.target.value || undefined) as AbilityAnimation | undefined })}
+          aria-label={`Attack ${index + 1} animation`}
+          className="rounded bg-gray-800 p-1 text-[11px]"
+          style={{ color: tint }}
+        >
+          <option value="">(default tint)</option>
+          {ATTACK_ANIMATION_OPTIONS.map(a => (
+            <option key={a} value={a}>{a}</option>
+          ))}
+        </select>
+      </div>
+    </div>
+  )
+}
+
+/**
+ * Attack-pattern editor for enemies (Attacks modal body), the enemy mirror of the movement
+ * editor. The author builds an ordered LIST of attacks (add presets / registry abilities / blank
+ * melee + ranged), tunes each one's damage / cooldown / tint, and picks the traversal mode
+ * (sequential cycles the list, random picks one), exactly how movement steps are authored. The
+ * pattern rides the entity record, so it saves with the template.
+ */
+export function EntityAttackBody({ entity, onPatch }: {
+  entity: Entity
+  onPatch: (patch: Partial<Entity>) => void
+}) {
+  // entity.attack may be absent (engine default) or a legacy single-attack save → normalize for
+  // display, but only AFTER the author has opted into a pattern (absent stays "Default").
+  const pattern = entity.attack ? normalizeAttackPattern(entity.attack) : undefined
+
+  const setPattern = (next: AttackPattern) =>
+    onPatch({ attack: next.attacks.length > 0 ? next : undefined })
+
+  return (
+    <div className="text-xs">
+      <span className="mb-0.5 block text-[10px] text-gray-400">Attack pattern</span>
+      <select
+        value={pattern ? pattern.mode : 'default'}
+        onChange={e => {
+          const mode = e.target.value
+          if (mode === 'default') {
+            onPatch({ attack: undefined })
+            return
+          }
+          const next = pattern
+            ? setAttackPatternMode(pattern, mode as AttackPatternMode)
+            : buildAttackPattern(mode as AttackPatternMode)
+          onPatch({ attack: next })
+        }}
+        aria-label="Attack pattern mode"
+        className="w-full rounded bg-gray-800 p-1 text-xs"
+      >
+        <option value="default">Default (single melee)</option>
+        <option value="sequential">Sequential (cycle attacks in order)</option>
+        <option value="random">Random (pick an attack each swing)</option>
+      </select>
+
+      {pattern && (
+        <div className="mt-1 space-y-1">
+          {pattern.attacks.map((attack, i) => (
+            <EnemyAttackRow
+              key={i}
+              attack={attack}
+              index={i}
+              onChange={patch => setPattern(updateEnemyAttack(pattern, i, patch))}
+              onRemove={() => setPattern(removeEnemyAttack(pattern, i))}
+            />
+          ))}
+
+          <div className="flex flex-wrap items-center gap-1">
+            <button
+              onClick={() => onPatch({ attack: addEnemyAttack(pattern, defaultEnemyAttack()) })}
+              className="rounded bg-gray-700 px-2 py-1 text-[10px] hover:bg-gray-600"
+            >
+              + Melee
+            </button>
+            <button
+              onClick={() => onPatch({ attack: addEnemyAttack(pattern, ENEMY_ATTACK_PRESETS[2]) })}
+              className="rounded bg-gray-700 px-2 py-1 text-[10px] hover:bg-gray-600"
+            >
+              + Ranged
+            </button>
+            <select
+              value=""
+              onChange={e => {
+                const v = e.target.value
+                if (!v) return
+                if (v.startsWith('preset:')) {
+                  const preset = ENEMY_ATTACK_PRESETS[Number(v.slice('preset:'.length))]
+                  if (preset) onPatch({ attack: addEnemyAttack(pattern, preset) })
+                  return
+                }
+                const ability = abilityRegistry().find(a => a.id === v.slice('ability:'.length))
+                if (ability) onPatch({ attack: addEnemyAttack(pattern, enemyAttackFromAbility(ability)) })
+              }}
+              aria-label="Add attack from preset or ability"
+              className="rounded bg-gray-800 p-1 text-[10px]"
+            >
+              <option value="">+ From library…</option>
+              <optgroup label="Presets">
+                {ENEMY_ATTACK_PRESETS.map((p, i) => (
+                  <option key={i} value={`preset:${i}`}>{p.name}</option>
+                ))}
+              </optgroup>
+              <optgroup label="Abilities">
+                {abilityRegistry().filter(a => (a.effect.damage ?? 0) > 0).map(a => (
+                  <option key={a.id} value={`ability:${a.id}`}>{a.name}</option>
+                ))}
+              </optgroup>
+            </select>
+          </div>
+
+          <p className="text-[10px] text-gray-500">
+            {pattern.attacks.length} attack{pattern.attacks.length === 1 ? '' : 's'} · {pattern.mode} · melee strikes adjacent, ranged fires within reach
+          </p>
+        </div>
+      )}
+      {!pattern && (
+        <p className="mt-1 text-[10px] text-gray-500">No pattern: a single strength-only melee swing. Pick Sequential / Random to build a multi-attack list.</p>
+      )}
+    </div>
+  )
+}
+
+/**
+ * Quest OFFER body, the modal contents shown when a player talks to a giver whose
+ * quest is still `available`. Renders the title, story, objectives and rewards, with
+ * Accept (runs the engine's acceptQuest → active) and Reject (close only, the quest
+ * stays `available`, so the giver can be re-asked later). Rendered inside the reusable
+ * Modal, anchored above the giver entity.
+ */
+export function QuestGiveBody({ quest, onAccept, onReject }: {
+  quest: Quest
+  onAccept: () => void
+  onReject: () => void
+}) {
+  return (
+    <div className="space-y-3 text-xs">
+      <h4 className="text-sm font-bold text-amber-300">{quest.title}</h4>
+      {quest.description && <p className="leading-relaxed text-gray-300">{quest.description}</p>}
+      <div>
+        <p className="mb-1 text-[10px] font-bold uppercase tracking-wider text-gray-400">Objectives</p>
+        <QuestObjectives quest={quest} />
+      </div>
+      <div>
+        <p className="mb-1 text-[10px] font-bold uppercase tracking-wider text-gray-400">Rewards</p>
+        <ul className="flex flex-col gap-0.5">
+          {quest.rewards.length === 0 && <li className="text-gray-500">, </li>}
+          {quest.rewards.map((reward, i) => (
+            <li key={i} className="text-emerald-300">{rewardSummary(reward)}</li>
+          ))}
+        </ul>
+      </div>
+      <div className="flex gap-2 pt-1">
+        <button onClick={onAccept} className="flex-1 rounded bg-emerald-700 px-3 py-1.5 text-xs font-bold text-white hover:bg-emerald-600">
+          Accept
+        </button>
+        <button onClick={onReject} className="flex-1 rounded bg-gray-700 px-3 py-1.5 text-xs font-bold text-gray-200 hover:bg-gray-600">
+          Reject
+        </button>
+      </div>
+    </div>
+  )
+}
+
+/**
+ * CONNECTORS authoring flow, hosted in a draggable {@link FloatingPanel} opened from a right-sidebar button
+ * (its entry moved OFF the left tool-rail; user: "move the connectors to a button in the right sidebar, which
+ * would open a connectors draggable/movable modal like the settings one"). The controls are IDENTICAL to the
+ * old left-card + right-inspector form, an Edit/Exit toggle for click-to-add mode, the list of saved
+ * connectors, and (when one is being edited) its target / when / spawn-cell form + Save/Delete. Presentational:
+ * every edit flows up through the page's handlers, so the connector data + behaviour are unchanged.
+ */
+export interface ConnectorsPanelProps {
+  /** click-to-add authoring is armed (canvas clicks add/edit connectors). */
+  connectorMode: boolean
+  /** toggle authoring on/off without closing the panel (the old card's Edit/Exit). */
+  onToggleMode: () => void
+  /** the connector being edited (its keystone cell), or null. */
+  editing: { col: number; row: number } | null
+  /** human label for the edited connector (a coord, or "N cells"). */
+  editingLabel: string
+  form: Partial<Connector>
+  setForm: Dispatch<SetStateAction<Partial<Connector>>>
+  /** teleport targets (already excludes the current template). */
+  templates: ReadonlyArray<{ id: string; name: string }>
+  onNewTarget: () => void
+  onSave: () => void
+  onDelete: () => void
+  onCancel: () => void
+  connectors: readonly Connector[]
+  /** load a saved connector into the editor. */
+  onSelectConnector: (c: Connector) => void
+}
+
+export function ConnectorsPanelBody(p: ConnectorsPanelProps) {
+  const actionType = p.form.action?.type ?? 'teleport'
+  const label = 'mb-1 mt-2 text-[10px] font-bold uppercase tracking-wide text-purple-300'
+  const input = 'w-full rounded bg-gray-800 p-1 text-xs'
+  const saveDisabled = !p.form.targetTemplateId && !p.form.action
+  return (
+    <div className="space-y-2 text-xs">
+      <button
+        onClick={p.onToggleMode}
+        aria-pressed={p.connectorMode}
+        className={`w-full rounded px-2 py-1.5 text-xs font-bold transition-colors ${p.connectorMode ? 'bg-purple-600 text-white' : 'bg-gray-700 hover:bg-gray-600'}`}
+      >
+        {p.connectorMode ? '● Authoring on, Exit' : 'Edit connectors'}
+      </button>
+
+      {p.editing ? (
+        <div className="space-y-1 rounded border border-purple-500/20 bg-black/40 p-2">
+          <p className="text-[10px] font-bold text-purple-300">Editing {p.editingLabel}</p>
+          <p className={label}>Target</p>
+          <select
+            value={actionType}
+            onChange={e => {
+              const t = e.target.value
+              p.setForm(f => ({
+                ...f,
+                action:
+                  t === 'teleport' ? undefined
+                  : t === 'collect' ? { type: 'collect', itemId: '', qty: 1 }
+                  : t === 'content' ? { type: 'content', sectionId: '' }
+                  : { type: 'goto_region', col: f.spawnCol ?? 0, row: f.spawnRow ?? 0 },
+              }))
+            }}
+            aria-label="What this doorway does"
+            className={input}
+          >
+            <option value="teleport">Go to template (teleport)</option>
+            <option value="goto_region">Move within stage (uses Arrive-at)</option>
+            <option value="collect">Collect item</option>
+            <option value="content">Reveal content</option>
+          </select>
+          {p.form.action?.type === 'collect' && (
+            <input
+              type="text"
+              placeholder="Item id to grant"
+              aria-label="Item id to collect"
+              value={p.form.action.itemId}
+              onChange={e => p.setForm(f => ({ ...f, action: { type: 'collect', itemId: e.target.value, qty: 1 } }))}
+              className={input}
+            />
+          )}
+          {p.form.action?.type === 'content' && (
+            <input
+              type="text"
+              placeholder="Section id to reveal"
+              aria-label="Section id to reveal"
+              value={p.form.action.sectionId}
+              onChange={e => p.setForm(f => ({ ...f, action: { type: 'content', sectionId: e.target.value } }))}
+              className={input}
+            />
+          )}
+          {actionType === 'teleport' && (
+            <div className="flex items-center gap-1">
+              <select
+                value={p.form.targetTemplateId || ''}
+                onChange={e => p.setForm(f => ({ ...f, targetTemplateId: e.target.value }))}
+                aria-label="Target template"
+                className="flex-1 rounded bg-gray-800 p-1 text-xs"
+              >
+                <option value="">Target template…</option>
+                {p.templates.map(t => (
+                  <option key={t.id} value={t.id}>{t.name}</option>
+                ))}
+              </select>
+              <button
+                type="button"
+                onClick={p.onNewTarget}
+                title="Create a new template to connect to"
+                className="whitespace-nowrap rounded bg-blue-700 px-2 py-1 text-xs font-bold hover:bg-blue-600"
+              >
+                ＋ New
+              </button>
+            </div>
+          )}
+
+          <p className={label}>When</p>
+          <select
+            value={p.form.interaction || 'walk'}
+            onChange={e => p.setForm(f => ({ ...f, interaction: e.target.value as Connector['interaction'] }))}
+            aria-label="How the player opens this doorway"
+            className={input}
+          >
+            <option value="walk">Walk onto it</option>
+            <option value="interact">Press E on it</option>
+            <option value="auto">Auto on enter</option>
+          </select>
+
+          <p className={label}>Spawn cell</p>
+          <div className="flex items-center gap-1">
+            <span className="whitespace-nowrap text-gray-400">Arrive at</span>
+            <input
+              type="number"
+              min={0}
+              aria-label="Spawn column in target template"
+              value={p.form.spawnCol ?? 0}
+              onChange={e => p.setForm(f => ({ ...f, spawnCol: Math.max(0, parseInt(e.target.value, 10) || 0) }))}
+              className="w-14 rounded bg-gray-800 p-1 text-xs"
+            />
+            <span className="text-gray-500">,</span>
+            <input
+              type="number"
+              min={0}
+              aria-label="Spawn row in target template"
+              value={p.form.spawnRow ?? 0}
+              onChange={e => p.setForm(f => ({ ...f, spawnRow: Math.max(0, parseInt(e.target.value, 10) || 0) }))}
+              className="w-14 rounded bg-gray-800 p-1 text-xs"
+            />
+            <span className="whitespace-nowrap text-gray-400">in target</span>
+          </div>
+
+          <div className="flex gap-1 pt-1">
+            <button onClick={p.onSave} disabled={saveDisabled} className="flex-1 rounded bg-green-700 px-2 py-1.5 text-xs font-bold hover:bg-green-600 disabled:bg-gray-700">Save</button>
+            <button onClick={p.onDelete} className="rounded bg-red-800 px-2 py-1.5 text-xs hover:bg-red-700">Del</button>
+            <button onClick={p.onCancel} className="rounded bg-gray-700 px-2 py-1.5 text-xs hover:bg-gray-600">Cancel</button>
+          </div>
+        </div>
+      ) : (
+        <p className="text-[10px] leading-tight text-gray-500">
+          {p.connectorMode ? 'Click a cell on the map to place a connection.' : 'Turn on Edit, then click a cell on the map to add one.'}
+        </p>
+      )}
+
+      {p.connectors.length > 0 && (
+        <div className="space-y-1">
+          <p className={label}>Doorways in this level</p>
+          <div className="max-h-64 space-y-1 overflow-y-auto">
+            {p.connectors.map((c, i) => (
+              <button
+                key={`${c.cells[0]?.col},${c.cells[0]?.row},${i}`}
+                type="button"
+                className="flex w-full items-center justify-between rounded bg-gray-800 p-1 text-left text-xs hover:bg-gray-700"
+                onClick={() => p.onSelectConnector(c)}
+              >
+                <span>({c.cells[0]?.col},{c.cells[0]?.row}){c.cells.length > 1 ? ` +${c.cells.length - 1}` : ''}→{c.targetTemplateName?.slice(0, 8) || '?'}</span>
+                <span className="text-purple-400">{c.interaction}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+      {p.connectors.length === 0 && !p.editing && <p className="text-[10px] text-gray-500">No doorways yet.</p>}
+    </div>
+  )
+}

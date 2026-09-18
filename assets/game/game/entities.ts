@@ -1,0 +1,338 @@
+/**
+ * Entity model + placement logic for Nebulith's RPG/game layer.
+ * (see nebulith/docs/COMBAT-AND-SYSTEMS-SPEC.md §1 entities, §2 HP, §10 quests/respawn)
+ *
+ * PURE module: no module-level mutable state, no globals, no clock, no RNG.
+ * Ids and the current time are passed IN so every function is deterministic and
+ * unit-testable. Lists are treated as immutable, mutating helpers return a NEW
+ * list. The game loop / editor own the stateful orchestration around these rules.
+ */
+import type { Entity, EntityKind, Stats, Rarity } from '@/game/types'
+import { RESPAWN_MS_BY_RARITY, respawnMsForRarity } from '@/game/types'
+import { entityFootprint } from '@/engine/entityArt'
+import { combatForEnemyType } from '@/game/combatCatalog'
+import { seedCharacterAnimations } from '@/game/runtime/entityAnimation'
+
+// ── default stats ───────────────────────────────────────────────────
+// Trivial starting values per the spec ("start with X/Y HP, flat numbers; tune
+// later"). Exported so tests and callers share one source of truth.
+
+/** The player starts sturdier than a basic enemy. */
+export const DEFAULT_PLAYER_STATS: Stats = {
+  strength: 10,
+  intelligence: 10,
+  defense: 5,
+  maxHp: 100,
+}
+
+/** A baseline trash mob; bosses override via makeEnemy's stats option. */
+export const DEFAULT_ENEMY_STATS: Stats = {
+  strength: 5,
+  intelligence: 0,
+  defense: 2,
+  maxHp: 30,
+}
+
+/** NPCs are non-combat by default; stats exist only to satisfy the contract. */
+export const DEFAULT_NPC_STATS: Stats = {
+  strength: 1,
+  intelligence: 1,
+  defense: 0,
+  maxHp: 10,
+}
+
+// ── size → stats ────────────────────────────────────────────────────
+/** How an entity's render SIZE scales its stats. A size-N enemy multiplies its HP + offensive/defensive
+ *  stats by N^SIZE_STAT_EXPONENT, at the default exponent 1 that's plain linear (a size-2 boss has ~2×
+ *  the HP and hits ~2× as hard). FLAG FOR TUNING: this is the one knob, raise the exponent (>1) for
+ *  super-linear boss scaling, or lower it (<1) to soften it. */
+export const SIZE_STAT_EXPONENT = 1
+
+/** Scale a stat block by an entity's render `size` (pure; returns a fresh block). size ≤ 1 → unchanged.
+ *  maxHp/strength/intelligence/defense grow with size so a bigger figure is genuinely tougher; dodge is
+ *  left alone (a hulking boss shouldn't also be evasive). */
+export function scaleStatsBySize(base: Stats, size: number): Stats {
+  const m = size > 1 ? size ** SIZE_STAT_EXPONENT : 1
+  if (m === 1) return { ...base }
+  return {
+    ...base,
+    maxHp: Math.round(base.maxHp * m),
+    strength: Math.round(base.strength * m),
+    intelligence: Math.round(base.intelligence * m),
+    defense: Math.round(base.defense * m),
+  }
+}
+
+// ── factories ───────────────────────────────────────────────────────
+
+/** Create the player/spawn entity. */
+export function makePlayer(id: string, col: number, row: number, name?: string): Entity {
+  return {
+    id,
+    kind: 'player',
+    col,
+    row,
+    name,
+    baseStats: { ...DEFAULT_PLAYER_STATS },
+    animations: seedCharacterAnimations(), // seed the walk/idle/run set as DATA so it shows + edits
+  }
+}
+
+export interface MakeEnemyOptions {
+  name?: string
+  /** Respawn delay (ms) after death; omit = derive from rarity, 0 = does not respawn. */
+  respawnMs?: number
+  /** Rarity tier; sets the default respawnMs (rarer = slower to come back). Default 'common'. */
+  rarity?: Rarity
+  /** Stat ARCHETYPE (grunt/brute/archer/…): seeds the full stat block + a real attack pattern.
+  /** Partial stat overrides merged over the creature's own block (or enemy defaults), e.g. bosses. */
+  stats?: Partial<Stats>
+  /** render + stat SCALE (default 1). A boss at size 2 draws twice as big and derives beefier stats
+   *  (see scaleStatsBySize), applied AFTER the archetype/stat overrides, so size multiplies the final block. */
+  size?: number
+}
+
+/** Default respawn delay for a regular (common) enemy (~20s) so kill-quests stay
+ *  farmable out of the box. Set respawnMs to 0 for a permanent (non-respawning) enemy. */
+export const DEFAULT_RESPAWN_MS = RESPAWN_MS_BY_RARITY.common
+
+/**
+ * Create an enemy of a given `enemyType` (the tag 'kill' objectives count).
+ * respawnMs defaults to the rarity's delay (common when unset) so dropped enemies
+ * respawn; pass an explicit respawnMs to override, or 0 for a permanent enemy.
+ *
+ * The creature's own stat block and attack pattern come from its TILE, resolved from the
+ * enemy type. A type whose tile carries no combat settings keeps the defaults (flat stats,
+ * no authored attack → the engine's single-melee fallback), so nothing regresses. An
+ * explicit `stats` override always wins.
+ */
+export function makeEnemy(
+  id: string,
+  col: number,
+  row: number,
+  enemyType: string,
+  options: MakeEnemyOptions = {},
+): Entity {
+  // THE CREATURE'S OWN NUMBERS, off its tile. There is no archetype to pass any more: the enemy TYPE is
+  // already here, and the backend resolves it to the tile whose settings carry the stat block. A type
+  // whose tile carries none falls to the default stats, exactly as an unrecognised type always did.
+  const profile = combatForEnemyType(enemyType)
+  const size = options.size ?? 1
+  // Size multiplies the FINAL stat block (defaults ← archetype ← explicit overrides), so a boss is just
+  // a normal enemy scaled up. Only stamp `size` on the entity when it's non-trivial (keeps saves clean).
+  const baseStats = scaleStatsBySize({ ...DEFAULT_ENEMY_STATS, ...profile?.stats, ...options.stats }, size)
+  return {
+    id,
+    kind: 'enemy',
+    col,
+    row,
+    name: options.name,
+    enemyType,
+    rarity: options.rarity,
+    respawnMs: options.respawnMs ?? respawnMsForRarity(options.rarity),
+    baseStats,
+    ...(size > 1 ? { size } : {}),
+    ...(profile ? { attack: profile.attack } : {}),
+  }
+}
+
+export interface MakeNpcOptions {
+  name?: string
+  /** The quest this NPC gives, if it's a quest giver (§10). */
+  questId?: string
+}
+
+/** Create an NPC; pass a questId to make it a quest giver. */
+export function makeNpc(id: string, col: number, row: number, options: MakeNpcOptions = {}): Entity {
+  return {
+    id,
+    kind: 'npc',
+    col,
+    row,
+    name: options.name,
+    questId: options.questId,
+    baseStats: { ...DEFAULT_NPC_STATS },
+    animations: seedCharacterAnimations(), // seed the walk/idle set as DATA so it shows + edits
+  }
+}
+
+// ── placement ───────────────────────────────────────────────────────
+
+/** Does (col,row) act as a logical block? Matches the engine's isBlocked shape. */
+export type CollisionFn = (col: number, row: number) => boolean
+
+function isInBounds(col: number, row: number, gridCols: number, gridRows: number): boolean {
+  if (col < 0 || row < 0) return false
+  if (col >= gridCols || row >= gridRows) return false
+  return true
+}
+
+function isOccupied(entities: readonly Entity[], col: number, row: number): boolean {
+  return entities.some(e => e.col === col && e.row === row)
+}
+
+/**
+ * Guard for placing an entity on a cell: must be in-bounds, not a blocked
+ * (collision) cell, and not already occupied by another entity.
+ */
+export function canPlaceEntity(
+  entities: readonly Entity[],
+  col: number,
+  row: number,
+  gridCols: number,
+  gridRows: number,
+  collision: CollisionFn,
+): boolean {
+  if (!isInBounds(col, row, gridCols, gridRows)) return false
+  if (collision(col, row)) return false
+  if (isOccupied(entities, col, row)) return false
+  return true
+}
+
+/** Immutably append an entity, returning a NEW list. */
+export function placeEntity(entities: readonly Entity[], entity: Entity): Entity[] {
+  return [...entities, entity]
+}
+
+/** Immutably remove the entity with `id`, returning a NEW list. */
+export function removeEntity(entities: readonly Entity[], id: string): Entity[] {
+  return entities.filter(e => e.id !== id)
+}
+
+/** The entity occupying (col,row), or null if the cell is empty. */
+export function entityAt(entities: readonly Entity[], col: number, row: number): Entity | null {
+  return entities.find(e => e.col === col && e.row === row) ?? null
+}
+
+/** Does the entity's multi-cell FOOTPRINT cover (col,row)? Footprints are bottom-anchored
+ *  vertically (extend upward) and centered horizontally, matching the renderer. Shared by
+ *  click-selection AND combat targeting so they agree on what a figure occupies. */
+export function entityCovers(entity: Entity, col: number, row: number): boolean {
+  const { w, h } = entityFootprint(entity)
+  const left = entity.col - Math.floor((w - 1) / 2)
+  const right = entity.col + Math.ceil((w - 1) / 2)
+  const top = entity.row - (h - 1)
+  return col >= left && col <= right && row >= top && row <= entity.row
+}
+
+/** The entity whose multi-cell FOOTPRINT covers (col,row), for click-selection, so
+ *  clicking any part of a 2-tall figure (not just its anchor cell) selects it.
+ *  Iterates last→first so the topmost drawn entity wins. */
+export function entityAtFootprint(entities: readonly Entity[], col: number, row: number): Entity | null {
+  for (let i = entities.length - 1; i >= 0; i--) {
+    if (entityCovers(entities[i], col, row)) return entities[i]
+  }
+  return null
+}
+
+/** Hit-test a CLICK to a unit, accounting for the standing BILLBOARD. In iso/2d a unit's figure is
+ *  drawn ABOVE its foot cell (it stands up), so a click on the figure lands on a cell 1-2 above it in
+ *  SCREEN space. Screen-up maps to `row−` in 2d and `col−,row−` in iso, so to find the unit we also
+ *  check cells TOWARD THE FEET (screen-down: +row in 2d, +col,+row in iso). Top view draws the unit ON
+ *  its cell, so only that cell is checked. The exact cell wins first. This is WHY selection must be
+ *  view-aware, the old cell-only test only ever worked in top view. */
+export function entityAtClick(
+  entities: readonly Entity[],
+  col: number,
+  row: number,
+  view: 'top' | '2d' | 'iso',
+  figCells = 2,
+): Entity | null {
+  const exact = entityAtFootprint(entities, col, row)
+  if (exact || view === 'top') return exact
+  const dc = view === 'iso' ? 1 : 0 // screen-down (toward the feet): iso = +col,+row; 2d = +row
+  for (let k = 1; k <= figCells; k++) {
+    // The figure stands `k` cells toward the feet (screen-down). A held weapon/shield sits ~1 cell to
+    // either side at the arm row, so also probe the flanking columns, clicking the SWORD (or the figure's
+    // edge) selects the unit, not the empty cell under it. Centre column first so the foot wins ties.
+    for (const dCol of [0, -1, 1]) {
+      const hit = entityAtFootprint(entities, col + dc * k + dCol, row + k)
+      if (hit) return hit
+    }
+  }
+  return null
+}
+
+/** Return the entities list with the PLAYER entity's cell overridden to `playerCell`. The player
+ *  SPRITE is drawn at its live play-loop position (playerRef), but the player ENTITY's col/row is
+ *  only written by spawn/load/place, the game loop never re-syncs it, so after the hero walks the
+ *  two diverge and click hit-testing misses the player. Feed this to entityAtClick so the player is
+ *  hit-tested where it is actually DRAWN. Others pass through unchanged. Pure. */
+export function withPlayerCell(entities: readonly Entity[], playerCell: { col: number; row: number }): Entity[] {
+  return entities.map(e => (e.kind === 'player' ? { ...e, col: playerCell.col, row: playerCell.row } : e))
+}
+
+/** The set of cells (`"col,row"`) occupied by entities' FULL footprints, for movement
+ *  collision, so the player can't walk through a monster and patrols collide with each
+ *  other. Anchoring matches `entityAtFootprint` (bottom-anchored, centered). `exclude`
+ *  skips entities (the player's own marker, dead enemies, or the entity currently
+ *  moving) so they don't block what they shouldn't. */
+export function entityOccupiedCells(
+  entities: readonly Entity[],
+  exclude?: (e: Entity) => boolean,
+): Set<string> {
+  const cells = new Set<string>()
+  for (const e of entities) {
+    if (exclude?.(e)) continue
+    const { w, h } = entityFootprint(e)
+    const left = e.col - Math.floor((w - 1) / 2)
+    const right = e.col + Math.ceil((w - 1) / 2)
+    const top = e.row - (h - 1)
+    for (let c = left; c <= right; c++) {
+      for (let r = top; r <= e.row; r++) cells.add(`${c},${r}`)
+    }
+  }
+  return cells
+}
+
+/** The cells that BLOCK MOVEMENT, only each entity's BASE ROW (where its feet stand), NOT the tall
+ *  billboard that `entityOccupiedCells`/`entityCovers` cover for click-selection + targeting. A 3-tall
+ *  goblin's collision is just its 1-2 feet cells, so you can walk right up beside it and pass around, *  the cells ABOVE its feet (all billboard, no body) are walkable. Fixes "stuck near an enemy". */
+export function entityCollisionCells(
+  entities: readonly Entity[],
+  exclude?: (e: Entity) => boolean,
+): Set<string> {
+  const cells = new Set<string>()
+  for (const e of entities) {
+    if (exclude?.(e)) continue
+    const { w } = entityFootprint(e)
+    const left = e.col - Math.floor((w - 1) / 2)
+    const right = e.col + Math.ceil((w - 1) / 2)
+    for (let c = left; c <= right; c++) cells.add(`${c},${e.row}`)
+  }
+  return cells
+}
+
+// ── respawn timing (pure; `now` passed in) ──────────────────────────
+
+/** The absolute time an enemy that died at `diedAt` will respawn. */
+export function nextRespawnAt(diedAt: number, respawnMs: number): number {
+  return diedAt + respawnMs
+}
+
+/**
+ * Has a dead enemy respawned by `now`? An enemy with no (or zero) respawn delay
+ * never respawns.
+ */
+export function isRespawned(diedAt: number, respawnMs: number | undefined, now: number): boolean {
+  if (!respawnMs) return false
+  return now >= nextRespawnAt(diedAt, respawnMs)
+}
+
+// ── queries ─────────────────────────────────────────────────────────
+
+/** All entities of a given kind. */
+export function byKind(entities: readonly Entity[], kind: EntityKind): Entity[] {
+  return entities.filter(e => e.kind === kind)
+}
+
+/** All enemies tagged with `enemyType` (used by 'kill' objectives). */
+export function enemiesOfType(entities: readonly Entity[], enemyType: string): Entity[] {
+  return entities.filter(e => e.kind === 'enemy' && e.enemyType === enemyType)
+}
+
+/** A short, unique-enough id for an entity minted in the editor session.
+ *  Moved out of the game-engine page (stage 5a). */
+export function mintEntityId(kind: EntityKind): string {
+  return `${kind}_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 7)}`
+}

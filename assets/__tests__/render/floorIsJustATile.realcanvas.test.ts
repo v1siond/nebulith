@@ -1,0 +1,159 @@
+/**
+ * THE FLOOR IS JUST A TILE, the RENDER half. There is no "floor stack lift" term in the iso renderer.
+ *
+ * The renderer lifts a tile by its stack level and NOTHING else (`isoStackLift`). Everything beneath it is
+ * already accounted for, because `stackTop` (cellStack) hands the tile a level of `level + own height` over
+ * the cell's tiles, the floor counted exactly like a wall. So:
+ *   • the ground is ONE block ("all tiles/blocks are height 1, GLOBAL, no exceptions"), so a wall painted on
+ *     grass rises by exactly that one block, no more, and never by a floor-shaped bonus term;
+ *   • RAISING that floor tile lifts the wall by exactly the floor's own height, with no floor-specific code;
+ *   • a bare cell and a floored cell differ by exactly the floor's height, and by nothing else.
+ * The old floor-only lift got the middle case WRONG (it clamped through `partialBlockScale`, so a 2-block
+ * floor lifted by only 1). Proved through the production `render()` path on a REAL @napi-rs/canvas in the
+ * EMOJI style, the one QA runs, placing tiles through the BRUSH path (pushTile), not hand-set levels.
+ */
+import { styleTiles } from '@/engine/tileset/styleTiles'
+import { installRealCanvas, type RealCanvasHarness } from '@/__tests__/helpers/realCanvas'
+import { installSeedTileset } from '@/__tests__/helpers/tilesetSeed'
+import { render, isoRecordedTileGeom, ISO_BLOCK_H_FRAC } from '@/engine/render/iso'
+import { IsometricGrid, type GridAsset } from '@/engine/IsometricGrid'
+import { pushTile } from '@/engine/cellStack'
+import { EMOJI_STYLE } from '@/game/artStyle'
+import type { PlayerState } from '@/game/runtime/player'
+import type { TileGeom } from '@/engine/render/tileHit'
+
+installSeedTileset()
+
+let H: RealCanvasHarness
+
+// Deterministic clamp-free camera (like isoInvertedPick): cellSize 100, isoScale 1 → tileW 71.
+const CELL = 100, W = 800, HGT = 600, ISO = 1
+const TILE_W = CELL * ISO * 0.71
+const UNIT = TILE_W * ISO_BLOCK_H_FRAC // one full block's on-screen height (px)
+const PCOL = 10, PROW = 10, ACOL = 12, AROW = 10
+const player = (): PlayerState => ({ x: PCOL * CELL, z: PROW * CELL, moving: false } as PlayerState)
+
+/** Any emoji tile that carries a baked image, a concrete standing block to paint over a floor. */
+/**
+ * An image-backed tile that is a STANDING BLOCK, which is what every test below actually needs.
+ *
+ * This used to take the first image-backed non-unit tile and hope. It happened to be one for a long time, then
+ * `bush` gained `stackAt: 0` (a ground plant draws a block tall and holds nothing up, ticket 2's follow-up) and
+ * the one-block-gap test started measuring a zero gap on a tile that is, correctly, not a surface. Say what the
+ * test needs instead of picking whatever sorts first.
+ */
+function anImageTileKey(): string {
+  const standing = Object.entries(styleTiles('emoji')).find(([, t]) =>
+    t.image && t.category !== 'units' && (t.settings as { stackAt?: number } | undefined)?.stackAt !== 0)
+  if (!standing) throw new Error('fixture has no image-backed non-unit emoji tile that stacks')
+  return standing[0]
+}
+
+const newGrid = (): IsometricGrid => new IsometricGrid({ cols: 30, rows: 30, cellSize: CELL, isoScale: ISO })
+
+/** Paint a standing 1-block tile through the BRUSH path, its level comes from the stacking rule, not from us. */
+const paintBlock = (grid: IsometricGrid): GridAsset => {
+  const key = anImageTileKey()
+  return pushTile(grid, ACOL, AROW, { source: 'asset', slug: key, type: key, tileId: `emoji:${key}`, art: [''], h: 1, color: '#c9c9c9' })
+}
+
+const renderIso = (grid: IsometricGrid): void => {
+  const ctx = H.makeCanvas(W, HGT).getContext('2d') as unknown as CanvasRenderingContext2D
+  render({ ctx, w: W, h: HGT, grid, player: player(), time: 0, camOffset: { x: 0, y: 0 }, entities: [], enemyCombat: new Map(), hitMarkers: [], now: 0, zoom: 1, attackAnims: [], connectors: [], quests: [], projectiles: [], dayNight: 'day', attackReach: 1, style: EMOJI_STYLE, clampCamera: false })
+}
+
+const cube = (g: TileGeom | null): Extract<TileGeom, { kind: 'cube' }> => {
+  if (!g || g.kind !== 'cube') throw new Error('expected a recorded cube tile')
+  return g
+}
+const avgY = (pts: { y: number }[]): number => pts.reduce((s, p) => s + p.y, 0) / pts.length
+const baseY = (g: TileGeom | null): number => avgY(cube(g).base) // base-diamond centre y (bottom of the tile)
+
+beforeAll(async () => {
+  H = installRealCanvas().harness
+  const srcs = new Set<string>()
+  for (const t of Object.values(styleTiles('emoji'))) if (t.image) srcs.add(t.image)
+  for (const s of srcs) H.registerSolid(s, '#00c800')
+  await H.warm([...srcs])
+})
+
+describe('iso: a tile is lifted by its stack level ONLY, no floor-shaped extra term', () => {
+  test('the ground lifts by its OWN height and nothing more, so a tile on FLAT ground is not lifted at all', () => {
+    const grid = newGrid()
+    grid.floorAt(ACOL, AROW)!.height = 1 // a one-block ground: the tile on it rides up exactly one
+    paintBlock(grid)
+    renderIso(grid)
+
+    const floor = isoRecordedTileGeom(ACOL, AROW, 0)
+    const wall = isoRecordedTileGeom(ACOL, AROW, 1)
+    // Screen Y grows downward, so "one block up" is -1 UNIT. Exactly one: the ground contributes its own
+    // height and nothing else. More than one would be the floor-shaped bonus term this whole file forbids.
+    expect(baseY(floor) - baseY(wall)).toBeCloseTo(UNIT, 1)
+
+    // And the FLAT case, which is what a generated map ships since T-140. A flat floor has no height to
+    // contribute, so the tile lands ON it at the same level: no lift at all. act_as_tile being default-TRUE
+    // used to fabricate one block here, which is what left buildings hanging clear of their own floor
+    // . Same file, same rule, applied to a height of 0.
+    const flatGrid = newGrid() // the default `grass` floor is height 0
+    const painted = paintBlock(flatGrid)
+    expect(painted.heightLevel ?? 0).toBe(0)
+  })
+
+  test('RAISE the floor tile → the tile on top rises by EXACTLY the floor\'s own height (2 blocks, not 1)', () => {
+    const grid = newGrid()
+    grid.floorAt(ACOL, AROW)!.height = 2 // the user makes this floor tile 2 blocks tall
+    paintBlock(grid)
+    renderIso(grid)
+
+    const floor = isoRecordedTileGeom(ACOL, AROW, 0)
+    const wall = isoRecordedTileGeom(ACOL, AROW, 1)
+    // Screen Y grows downward, so "2 blocks up" is −2 UNIT. The removed floor-only lift clamped a sub-block
+    // slab through partialBlockScale and would have lifted by 1 block here, this pins the honest 2.
+    expect(baseY(floor) - baseY(wall)).toBeCloseTo(2 * UNIT, 1)
+  })
+
+  test('a BARE cell and a FLAT-FLOORED cell draw the tile at the SAME height, because a flat floor adds nothing', () => {
+    const floored = newGrid() // default `grass` floor, height 0
+    paintBlock(floored)
+    renderIso(floored)
+    const withFloor = baseY(isoRecordedTileGeom(ACOL, AROW, 1)) // stack INDEX 1: the painted tile, not the floor
+
+    const bare = newGrid()
+    bare.removeFloor(ACOL, AROW)
+    paintBlock(bare)
+    renderIso(bare)
+    const withoutFloor = baseY(isoRecordedTileGeom(ACOL, AROW, 0)) // no floor, so the tile is stack index 0
+
+    // The only difference between the two cells is a floor of height ZERO, so the render may show NO
+    // difference. This is the test that catches a floor-shaped term: any gap here is a bonus the floor's own
+    // height does not account for, which is precisely the block act_as_tile used to invent.
+    expect(withoutFloor - withFloor).toBeCloseTo(0, 1)
+  })
+
+  test('a ONE-BLOCK floor and a bare cell differ by exactly that block, and by nothing else', () => {
+    const floored = newGrid()
+    floored.floorAt(ACOL, AROW)!.height = 1
+    paintBlock(floored)
+    renderIso(floored)
+    const withFloor = baseY(isoRecordedTileGeom(ACOL, AROW, 1))
+
+    const bare = newGrid()
+    bare.removeFloor(ACOL, AROW)
+    paintBlock(bare)
+    renderIso(bare)
+    const withoutFloor = baseY(isoRecordedTileGeom(ACOL, AROW, 0))
+
+    expect(withoutFloor - withFloor).toBeCloseTo(UNIT, 1)
+  })
+
+  test('stacked tiles keep a ONE-BLOCK gap, the stack is not stretched or squashed by anything', () => {
+    const grid = newGrid()
+    paintBlock(grid) // lands at level 0 (on the flat floor)
+    paintBlock(grid) // lands at level 1 (on the 1-block tile below)
+    renderIso(grid)
+
+    const lower = baseY(isoRecordedTileGeom(ACOL, AROW, 1)) // stack INDEX: the floor keeps slot 0
+    const upper = baseY(isoRecordedTileGeom(ACOL, AROW, 2))
+    expect(lower - upper).toBeCloseTo(UNIT, 1)
+  })
+})
