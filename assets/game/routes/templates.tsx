@@ -106,7 +106,7 @@ import { copyTiles, pasteTiles, type TileClip } from '@/game/editor/clipboard'
 import { entityKindForUnitTile, isCharacterTile, placementFor, tileSlug } from '@/game/editor/tilePlacement'
 import { clearGroundTile, placeGround, placeGroundTile, removeTopAsset, removeAssetAtLevel, stackAssetTile, replaceTileInPlace, visualChar } from '@/game/editor/tileBrush'
 import { ArtStyleControl } from '@/components/shell/ArtStyleControl'
-import { LevelMinimap } from '@/components/shell/LevelMinimap'
+import { LevelMapPane } from '@/components/shell/LevelMapPane'
 import { GuidesPanel } from '@/components/shell/GuidesPanel'
 import { MapPreview } from '@/components/shell/MapPreview'
 import { type PreviewContext } from '@/components/shell/PreviewThumb'
@@ -5429,49 +5429,26 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
           )}
           {/* The hybrid mode: the game keeps running underneath and the real HUD is draggable over it. */}
           {hudMode && <HudOverlay state={hudLayout} />}
-          {/* THE LEVEL MAP. Inside the canvas pane, so it insets against the level and not the page. */}
-          {isChromeVisible && !hudMode && levelMapOpen && (
-            <LevelMinimap
-              grid={gridRef.current}
-              player={playerRef.current}
-              entities={entities}
-              style={activeStyle}
-              camOffsetRef={camOffsetRef}
-              zoomPct={zoomPct}
-              mainCanvas={canvasRef.current}
-              onJumpTo={jumpToCell}
-              onHide={() => setLevelMapOpen(false)}
-              onMaximize={() => setLevelMapBig(true)}
-            />
-          )}
-          {/* THE MAP, BIG. The same component at panel size, one map, drawn by `renderTopView` either way, so the
-              big one cannot disagree with the corner one. Movable and resizable like every other panel, and
-              clicking it still jumps the view. */}
-          {isChromeVisible && !hudMode && levelMapBig && (
-            <FloatingPanel
-              title="This level"
-              accent="cyan"
-              onClose={() => setLevelMapBig(false)}
-              {...floatingProps('levelMap', { w: 620 })}
-            >
-              <LevelMinimap
-                big
-                grid={gridRef.current}
-                player={playerRef.current}
-                entities={entities}
-                style={activeStyle}
-                camOffsetRef={camOffsetRef}
-                zoomPct={zoomPct}
-                mainCanvas={canvasRef.current}
-                onJumpTo={jumpToCell}
-              />
-            </FloatingPanel>
-          )}
-          {isChromeVisible && !hudMode && !levelMapOpen && (
-            <button type="button" className="b sm mmshow" title="Show the map of this level" onClick={() => setLevelMapOpen(true)}>
-              ▦ Map
-            </button>
-          )}
+          {/* THE LEVEL MAP: the corner map, the same map big, and the button that brings it back. One
+              component, because they are one thing in three states. */}
+          <LevelMapPane
+            hidden={!isChromeVisible || hudMode}
+            open={levelMapOpen}
+            big={levelMapBig}
+            grid={gridRef.current}
+            player={playerRef.current}
+            entities={entities}
+            style={activeStyle}
+            camOffsetRef={camOffsetRef}
+            zoomPct={zoomPct}
+            mainCanvas={canvasRef.current}
+            onJumpTo={jumpToCell}
+            onOpen={() => setLevelMapOpen(true)}
+            onHide={() => setLevelMapOpen(false)}
+            onOpenBig={() => setLevelMapBig(true)}
+            onCloseBig={() => setLevelMapBig(false)}
+            panelProps={floatingProps('levelMap', { w: 620 })}
+          />
         </div>
 
         {/* TILESET LOADER GATE, the map is NEVER painted until the backend tileset installs (the RAF loop
