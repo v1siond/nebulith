@@ -45,7 +45,7 @@ nebulith/
       game/          runtime, editor state, combat, items
       components/    React components, editor chrome, modals
       lib/           API clients, codecs, persistence
-      routes/        the four page components, now plain routes
+      routes/        the page components, now plain routes
       assets/        ascii art frames
       levels/
     js/
@@ -98,6 +98,8 @@ run should not need node installed.
 | `/games` | The SPA, games gallery | **The iframe's entry point** |
 | `/games/:id` | The SPA, a game's editor | `?play=1` deep-links into play mode |
 | `/templates` | The SPA, the standalone builder | The fallback when a game cannot open |
+| `/sprite-generator`, `/sprites-test` | The SPA, the sprite authoring tools | Lazy-loaded chunks; most sessions never fetch them |
+| `/api/pixellab` | JSON | Holds the pixellab.ai key so the browser never does |
 | `/personal-projects/game-engine/*` | 301 to the matching short path | So the probe harness and any old link still resolve |
 | `/api/*` | JSON | Unchanged, now same-origin for the engine |
 | `/admin`, `/docs` | Phoenix | Unchanged |

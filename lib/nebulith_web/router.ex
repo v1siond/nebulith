@@ -56,6 +56,9 @@ defmodule NebulithWeb.Router do
     get "/games", EngineController, :app
     get "/games/:id", EngineController, :app
     get "/templates", EngineController, :app
+    # The sprite authoring tools. Same shell; the client router loads them on demand.
+    get "/sprite-generator", EngineController, :app
+    get "/sprites-test", EngineController, :app
   end
 
   # Where the engine used to live, when it was a route inside the CV site. Redirects, so old links and
@@ -98,6 +101,9 @@ defmodule NebulithWeb.Router do
     get "/generation_layers/:key", GenerationLayerController, :show
     put "/generation_layers/:key", GenerationLayerController, :update
     delete "/generation_layers/:key", GenerationLayerController, :delete
+    # The sprite generator's door to pixellab.ai. It is here rather than in the browser because the
+    # API key must not be. See NebulithWeb.PixellabController.
+    post "/pixellab", PixellabController, :create
     get "/ui", UiController, :index
     put "/ui", UiController, :update
     resources "/templates", TemplateController, except: [:new, :edit]

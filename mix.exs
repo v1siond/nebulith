@@ -65,6 +65,8 @@ defmodule Nebulith.MixProject do
       {:dns_cluster, "~> 0.2.0"},
       {:bandit, "~> 1.5"},
       {:cors_plug, "~> 3.0"},
+      # Talking OUT to pixellab.ai for the sprite generator. The only outbound HTTP this app makes.
+      {:req, "~> 0.5"},
       # Renders the repo's markdown docs into the /docs pages. Alexander, 2026-09-12: *"I'm fine with
       # rendering different markdowns as long as we have an index of multiple markdowns each one explaining
       # the docs for all sections of the system and api and how it works and how everything is architected"*.

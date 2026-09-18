@@ -7,6 +7,8 @@ export const ROUTES = {
   games: '/games',
   game: (id: string | number) => `/games/${id}`,
   templates: '/templates',
+  spriteGenerator: '/sprite-generator',
+  spritesTest: '/sprites-test',
 } as const
 
 /**
@@ -20,7 +22,7 @@ export const ROUTES = {
 export const cvUrl = (): string =>
   document.getElementById('game')?.dataset.cvUrl ?? 'http://localhost:3000'
 
-export type RouteName = 'games' | 'game' | 'templates'
+export type RouteName = 'games' | 'game' | 'templates' | 'spriteGenerator' | 'spritesTest'
 
 /**
  * Which page a path is, and what the path itself carries. `/games/42` yields `{ id: '42' }`, which
@@ -32,6 +34,8 @@ export type RouteName = 'games' | 'game' | 'templates'
 export const matchRoute = (pathname: string): { name: RouteName; params: Record<string, string> } => {
   const path = pathname.replace(/\/+$/, '')
   if (path === ROUTES.templates) return { name: 'templates', params: {} }
+  if (path === ROUTES.spriteGenerator) return { name: 'spriteGenerator', params: {} }
+  if (path === ROUTES.spritesTest) return { name: 'spritesTest', params: {} }
   const game = /^\/games\/([^/]+)$/.exec(path)
   if (game) return { name: 'game', params: { id: game[1] } }
   return { name: 'games', params: {} }

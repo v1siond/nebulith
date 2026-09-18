@@ -34,6 +34,10 @@ if cv_url = System.get_env("CV_URL") do
   config :nebulith, :cv_url, cv_url
 end
 
+# The sprite generator's pixellab.ai key. Server-side only, and never reaches the browser: the
+# generator posts to /api/pixellab and this app makes the outbound call.
+config :nebulith, :pixellab_api_key, System.get_env("PIXELLAB_API_KEY")
+
 if config_env() == :prod do
   database_url =
     System.get_env("DATABASE_URL") ||

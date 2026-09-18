@@ -42,6 +42,7 @@ Measured 2026-09-18: the image builds at **185 MB**, and the built engine bundle
 | `PHX_SERVER` | set by `bin/server` | Starts the HTTP server in a release | `true` |
 | `PORT` | auto | Railway sets it | `6328` locally |
 | `CV_URL` | recommended | Where "Back to CV" points, rendered onto the page at runtime | `https://alexanderpulido.com` |
+| `PIXELLAB_API_KEY` | for the sprite generator | Server-side key for pixellab.ai. Without it `/api/pixellab` 500s and the generator shows no balance; nothing else is affected | (secret) |
 | `POOL_SIZE` | optional | DB pool | `10` |
 | `ECTO_IPV6` | optional | Set `true` only if the DB is IPv6-only | unset |
 | `DNS_CLUSTER_QUERY` | optional | Clustering | unset |
@@ -69,6 +70,7 @@ change seeded content rather than schema. From the Railway shell:
 | Deploy never goes healthy, app looks fine in logs | `/health` got caught by `force_ssl` and returns 301. It is excluded in `config/prod.exs`; keep it that way |
 | Build fails at `mix assets.deploy`, cannot resolve `react` | `assets/package-lock.json` is not committed, so `npm ci` has nothing to install from |
 | Engine loads but every tile is a broken image | `cache_static_manifest` mismatch. `mix assets.deploy` must run in the image, which the Dockerfile does |
+| Sprite generator shows `$-.--` and every generate fails | `PIXELLAB_API_KEY` unset. It is server-side only and never reaches the browser |
 | CV site links to a dead engine | `NEXT_PUBLIC_ENGINE_URL` was unset when the CV was BUILT. It is baked at build time; rebuild the CV |
 | "Back to CV" goes to localhost | `CV_URL` unset on this service. Runtime variable, just set it and restart |
 | Long image builds | `phx.digest` hashes ~1,400 tile PNGs. If it becomes annoying, that is the lever to look at |
