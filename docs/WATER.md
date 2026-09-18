@@ -265,6 +265,34 @@ would border one cell of its footprint rather than all of them. Nothing in the c
 across more than one cell today, so it is recorded rather than solved.
 
 
+
+### Measured 2026-09-17: the current families hold the band, the legacy tiles do not
+
+| family | tiles | luminance min | max | spread |
+|---|---|---|---|---|
+| `water_smooth_river` | 36 | 211.6 | 225.6 | 14.0 |
+| `water_smooth_beach` | 36 | 197.9 | 211.9 | 14.1 |
+| `water_smooth_lake` | 36 | 180.5 | 211.9 | 31.4 |
+| `water_lined_river` | 36 | 235.4 | 240.6 | 5.1 |
+| `water_lined_beach` | 36 | 210.1 | 235.4 | 25.4 |
+| `water_lined_lake` | 36 | 198.5 | 235.4 | 37.0 |
+| **legacy** (`water`, `water_c`, `water_bend`, `water_deep`, `water_shallow`, `water_still`, `water_jet`) | **26** | **144.5** | **255.0** | **110.5** |
+
+So the rule holds where it was applied and fails where it was not. Each current family sits inside a band a
+rim can vary within; the legacy set spans 110 points, with `water_c` and `water_jet` blown out at pure 255,
+which is the defect `colour-tints-luminance-stays` names: the art carries the tone, so art at 255 and art at
+144 cannot read as one substance however they are tinted.
+
+There is also a stale `water_lined_<piece>` set with no KIND segment (`water_lined_c`, `water_lined_b` and the
+rest) still baked alongside the three kinded `water_lined_*` families, which is a rival spelling of the same
+thing (`TILE-DESIGN.md` 2.8).
+
+**Not fixed here.** Which legacy tiles are still placed by anything is a question for the label sweep, and
+deleting a baked tile that something still resolves is how a map ends up with holes in it. Recorded with the
+numbers so the next water pass starts from measurement rather than from scratch. It is the same 268-PNG
+surface T-PERF-3 counts from the other direction.
+
+
 ### Layer 6, light and shadow
 
 Out of scope for this doc beyond one rule: the water layers are RECEIVERS. A shadow falling across a river is the shadow layer's business and must land on the surface, not be baked into a water tile. See [`LIGHTING.md`](LIGHTING.md), and `SHADOWS.md` when it exists.
