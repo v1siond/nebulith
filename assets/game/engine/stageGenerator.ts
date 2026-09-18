@@ -4616,7 +4616,13 @@ function regionPoolBodies(ctx: ArchetypeContext, zoneAt: (GeneratorSubZone | und
     // only decides where inside its own patch the edge falls, which is what gives a lake a wobbling shore.
     const patch = shadeNoise(Math.floor(col / SWAMP_POOL_PATCH) * 1.9 + Math.floor(row / SWAMP_POOL_PATCH) * 2.7)
     const shore = shadeNoise(col * 0.73 + row * 1.31)
-    if (patch * 0.82 + shore * 0.18 > share * 2) return
+    // A BODY OF WATER NEVER FILLS ITS REGION EXACTLY, or its shape IS the region's shape.
+    //
+    // The score is 0..1 and the test was against `share * 2`, so any share from 0.5 up passes every cell and
+    // the water comes out as the region: for a band that is a RECTANGLE with right-angle steps, which is what
+    // a swamp's `open_water` (0.78) and its `sink` (0.5) were drawing. `WATER.md` §1 puts the whole weight on
+    // the shape, so the threshold is capped below 1 and the noise always gets to bite the edge.
+    if (patch * 0.82 + shore * 0.18 > Math.min(share * 2, WATER_FILL_CAP)) return
     candidate.add(`${col},${row}`)
   })
 
@@ -4723,6 +4729,10 @@ function layPoolFilm(ctx: ArchetypeContext, body: ReadonlySet<string>, pal: Gene
  * 129, 48, 20, 18, 16, 16, 12, 12 and down. That is a pepper of puddles and it came straight from scoring the
  * noise over a 2x2 patch. Five reads as a hollow full of standing water.
  */
+/** The most of a region any body of water may take. Short of 1 on purpose: at 1 the noise stops deciding
+ *  anything and the water's outline becomes the region's own straight border. */
+const WATER_FILL_CAP = 0.86
+
 const SWAMP_POOL_PATCH = 5
 /** Under this many cells it is not a pool, so it never becomes water at all. */
 const SWAMP_MIN_POOL = 6
