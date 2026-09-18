@@ -128,7 +128,8 @@ defmodule Nebulith.DataMigrations do
     Nebulith.DataMigration.ABeachGrowsDuneGrass,
     Nebulith.DataMigration.AVolcanoYouCanSee,
     Nebulith.DataMigration.EveryBiomeItsOwnRegions,
-    Nebulith.DataMigration.AnOakIsNotAnEncina
+    Nebulith.DataMigration.AnOakIsNotAnEncina,
+    Nebulith.DataMigration.TheRegionPickerOffersRealRegions
   ]
 
   @doc "Every registered data migration module, in run order."
