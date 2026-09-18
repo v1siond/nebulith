@@ -131,7 +131,15 @@ defmodule Nebulith.DataMigrations do
     Nebulith.DataMigration.AnOakIsNotAnEncina,
     Nebulith.DataMigration.TheRegionPickerOffersRealRegions,
     Nebulith.DataMigration.ABeachHasASea,
-    Nebulith.DataMigration.EveryRegionIsAPlace
+    Nebulith.DataMigration.EveryRegionIsAPlace,
+    Nebulith.DataMigration.ARegionsWaterIsTheMapsWater,
+    Nebulith.DataMigration.EachRegionIsItsOwnPlace,
+    Nebulith.DataMigration.ReliefOnlyWhereItIsTheJourney,
+    Nebulith.DataMigration.TheBloomsARegionLost,
+    Nebulith.DataMigration.TheSpeciesARegionLost,
+    Nebulith.DataMigration.AStreetIsTheOnlyPaintOnATown,
+    Nebulith.DataMigration.ARegionGrowsItsOwnTrees,
+    Nebulith.DataMigration.TheHeartAloneStandsOnItsPlatform
   ]
 
   @doc "Every registered data migration module, in run order."
