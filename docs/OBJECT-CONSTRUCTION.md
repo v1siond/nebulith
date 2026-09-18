@@ -809,6 +809,38 @@ deeper test."*
 **Nothing below is seeded.** These are proposals, rendered live through `.probe/objshot.mjs` so the picture is
 real, and each one ends in the exact cell list to seed once he approves.
 
+## 5.7 THE RUIN, a worked example of building with no new art (2026-09-18)
+
+The four-part ruin is the cheapest object this framework has produced, because none of it was authored: it is
+existing families composed. Worth recording as the pattern.
+
+**What was there:** one stamp used for every region of the ruins set, a stone platform with a pillar every two
+cells around its edge. His verdict on the render: rows of boxes, and *"none of the regions match none of the
+things in the map, one says halls or something, and there's nothing"*.
+
+**What it needed** was not a new asset. It needed the pieces that already exist to be arranged four different
+ways, because the ruin set names four different things:
+
+| part | the structure | the pieces |
+|---|---|---|
+| `heart` | roofless chamber, wall round the outline with a doorway | `wall_stone` family + `ancient_stone` floor + `rock` |
+| `courts` | colonnade, columns down two long sides of a paved court | `pillar` + `ancient_stone` + `rock` |
+| `terraces` | retaining wall along the lower edge, field behind | `wall_stone` family + `ancient_stone` |
+| `overgrown` | short broken wall runs, no floor | `wall_stone` family |
+
+**The three rules it turns on**, all already in this framework:
+
+1. **§2.3, a composition is a modular kit.** `wall_stone` is a nine-piece autotile family (tl/t/tr/l/c/r/bl/b/br)
+   and was already carrying every building on every map. Reaching for it costs nothing and it is approved by
+   use.
+2. **§2.4, add a FAMILY rather than a branch.** The wall picks its piece from `autotileLabel`, the same call
+   the water border and the tree masses make, so corners and ends are right without a single conditional.
+3. **Spacing is proportion.** A column every 2 cells is a wall with gaps; every 4 is a colonnade. One constant
+   was the difference between architecture and a crate picket.
+
+**The rule the doorway states:** a sealed rectangle of wall is a lump you walk around, and the platform exists
+to be walked INTO. Anything enclosing needs the way in cut deliberately, on the side the map is entered from.
+
 ## STATUS: ALL FOUR WERE REJECTED. 2026-09-14.
 
 His verdict on what is below, verbatim:

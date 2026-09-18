@@ -373,8 +373,24 @@ they gradually increase until you reach the actual ruins in many cases we might 
 
 `heart` -> `courts` -> `terraces` -> `overgrown` -> `forest`
 
-`stone` climbs toward the middle and the canopy opens, so the wood thins as the masonry takes over. The
-`heart` wants a real built thing, which is section 5's gap.
+`stone` climbs toward the middle and the canopy opens, so the wood thins as the masonry takes over.
+
+**And each part builds a different thing**, which is what closes the gap this section used to record as *"the
+`heart` wants a real built thing"*. One stamp was used for all four: a platform with a pillar every two cells
+round its edge, which at that spacing reads as a picket of crates and made a `courts` and an `overgrown` the
+same object at two densities.
+
+| region | what it builds | measured on one seed |
+|---|---|---|
+| `heart` | a roofless CHAMBER: wall around the outline, floor inside, and a doorway cut in the side you walk in from | 77 wall, 459 paved, 38 rubble |
+| `courts` | a COLONNADE: columns down the two long sides of a paved floor, well apart, some of them fallen | 29 wall, 7 columns, 205 paved |
+| `terraces` | the RETAINING WALL that makes a terrace a terrace, along its lower edge, field behind it | 43 wall, 311 paved |
+| `overgrown` | short broken runs of low wall and NO floor, so it reads as masonry in a wood rather than a building | 36 wall, no paving |
+
+No new art. `wall_stone` is already a nine-piece autotile family, the one the buildings are made of, and
+`pillar` and `rock` are approved props, so this is composition (`OBJECT-CONSTRUCTION.md` §2.3) rather than
+authoring. The doorway is not decoration: a sealed box is a lump you walk around, and the platform exists to
+be walked into.
 
 ### Mountain, `bands`, foot to summit
 
