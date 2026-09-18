@@ -406,6 +406,39 @@ Dune sea to the water, since the only gradient a desert has is how far you are f
 
 ---
 
+---
+
+## 4b. What each region measures today, with everything else pinned
+
+Taken with `.probe/region.mjs` (river none, bridge none, exits 2, pathways 2), varying only the region. Every
+row is from a read that passed the harness's own torn-read check.
+
+| biome | measured |
+|---|---|
+| **mountain** | relief climbs `foot` 0, `slope` 1, `treeline` 2, `crag` 3, `summit` 4. Each band in its own floor tone. Bare stone only on crag (29 cells) and summit (217) |
+| **volcanic** | the cone: `sheltered` 0, `ashfall` 1, `burnt` 2, `crater` 3. Floors darken `#594d46` to `#26201e` with the ash. Molten pools in 4 bodies, every one inside `lavaside` |
+| **ruins** | masonry grades `forest` 0, `overgrown` 8%, `terraces` 25%, `courts` 44%, `heart` 65%. `heart` and `courts` stand a level above the rest |
+| **beach** | sand pales toward the water, `#93a06a` inland to `#e8dcc0` at the shore. `dunes` ridge and `inland` raised a level. Tide pools in 3 bodies, all inside `shore` |
+| **desert** | `oasis` holds ONE body of 451 cells, 79% of the region. `erg` dunes stand a level up. Four bands, four tones |
+| **swamp** | wetness grades `margin` 0, `mire` 24%, `bog` 57%, `sink` 89%, `open_water` 90%, over five floor tones. The open water is ONE sheet across the wettest bands, which is what a swamp is |
+| **woodland** | `lakeside` carries a 290-cell lake wearing lake shore pieces, and every other region is dry |
+| **meadow** | `bank` carries its water in 2 bodies (24 and 75 cells), and every other region is dry |
+| **city** | six neighbourhoods in six tones, `upper` a level above the rest, and `park` measured at ZERO buildings against `lower`'s 34 |
+
+### What is NOT covered by these numbers
+
+- The **user's own verdict at :3000**, which is the only "done" for anything visual. Everything above is a
+  measurement, not an approval.
+- **Jungle** was not measured separately. It shares the woodland's mechanism and its `lakeside` already worked
+  before this pass, so it is inferred rather than shown.
+- **Town and village** regions are served and parse, and were not measured.
+- **Architecture per settlement kind.** *"vilages are practically indian settlements, even more different
+  architecture"*. A village still builds the same houses a city does, only fewer of them and in different
+  colours. Hut and tent compositions, market stalls and grave markers are new objects and sit behind the
+  `OBJECT-CONSTRUCTION.md` §4 approval gate.
+
+---
+
 ## 5. What is NOT built
 
 - **The border treeline floods whichever regions sit at the map edge, and on `bands` that is always the first
