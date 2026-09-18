@@ -51,7 +51,9 @@ describe('generator resolves palette + prop colours from zone data (zones.ts sin
     const zone: ZoneId = 'summer'
     const pal = cavePalette(zone)!
     const stage = generateStage({ zone, variant: 'cave', cols: 44, rows: 32 })
-    const rocks = colorsOf(stage.props, 'rock')
+    // A cave WALL is a `rock_face`, a face of stone. `rock` is the boulder lying on the ground, and the
+    // served role table pins that one to a picture of a loose stone, which is what a cavern wore.
+    const rocks = colorsOf(stage.props, 'rock_face')
     expect(rocks.size).toBeGreaterThan(0)
     rocks.forEach(c => expect(pal.wall).toContain(c))
   })
@@ -64,8 +66,9 @@ describe('generator resolves palette + prop colours from zone data (zones.ts sin
     colorsOf(stage.props, 'brazier').forEach(c => expect(c).toBe(propArt().brazier.color))
     charsOf(stage.props, 'brazier').forEach(ch => expect(ch).toBe(propArt().brazier.char))
 
-    // Arena walls tint from the shared rockShades() table.
-    const rocks = colorsOf(stage.props, 'rock')
+    // Arena walls tint from the shared rockShades() table. Its ring is a WALL of stone, not a circle of
+    // boulders, so it is a `rock_face` like the cavern's.
+    const rocks = colorsOf(stage.props, 'rock_face')
     expect(rocks.size).toBeGreaterThan(0)
     rocks.forEach(c => expect(rockShades()).toContain(c))
   })

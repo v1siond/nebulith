@@ -697,13 +697,26 @@ const makeMushroom = (col: number, row: number): StageProp => ({
   color: mushroomTones()[Math.abs(col * 3 + row * 5) % mushroomTones().length],
 })
 
-// One blocking cave WALL cell, the rock boundary + internal formations. Tonal per
-// season (pale ice-rock in winter, warm sandstone in desert, charred basalt in lava,
-// mossy grey otherwise) so a cavern reads by season the way the forest does.
-const makeCaveWall = (col: number, row: number, shades: readonly string[]): StageProp => ({
-  col, row, type: 'rock',
+/**
+ * A ROCK FACE: a blocking, full-height wall of natural stone. What closes a cavern, a boss arena, and the
+ * border of a place too bare to close with a wood.
+ *
+ * NOT A BOULDER. All three of those used `makeRock`, whose type is `rock`, and the served `constantRoleTile`
+ * table pins every `rock` prop to `emoji:boulder`. So a cave's entire boundary, every formation inside it and
+ * an arena's walls were drawn as rounded stones lying on the ground. A boulder is a thing you walk around; a
+ * rock face is a thing you cannot see through, and the difference is the whole reason a cave reads as a cave.
+ *
+ * It carries the `cliff_face` label and NO override, so it resolves through the ordinary label to image path
+ * rather than being pinned to a picture of something else. The temple already worked this way: its
+ * `temple_wall` type maps to the `wall` kind in `artStyle`, which is the pattern this follows.
+ *
+ * Tonal per season (pale ice-rock in winter, warm sandstone in desert, charred basalt in lava, mossy grey
+ * otherwise) so a cavern reads by season the way the forest does.
+ */
+const makeRockFace = (col: number, row: number, shades: readonly string[]): StageProp => ({
+  col, row, type: 'rock_face',
   char: Math.abs(col * 5 + row * 3) % 7 === 0 ? '▒' : '▓',
-  label: 'rock', // baked 'rock' tile (both styles), cave walls draw the image, not the '▓' glyph, under ascii
+  label: 'cliff_face',
   blocking: true,
   color: shades[Math.abs(col * 7 + row * 13) % shades.length],
 })
@@ -2661,7 +2674,9 @@ function sealMapEdge(ctx: ArchetypeContext): void {
     // A place with almost nothing growing in it still needs its border shut, so it is shut with what is
     // actually there. No new art: `rock` has been in the catalog all along.
     if (barelyGrows(ctx, col, row)) {
-      placeProp(ctx, makeRock(col, row))
+      // SHUT, not scattered. This closes the border of a place with almost nothing growing in it, which is a
+      // WALL of stone. `makeRock` drew it as a line of loose boulders along a mountain edge.
+      placeProp(ctx, makeRockFace(col, row, rockShades()))
       collision[row][col] = true
       ctx.pathwayCells.delete(`${col},${row}`)
       return
@@ -5940,10 +5955,11 @@ function placeMeadowOrnamentZone(ctx: ArchetypeContext, cc: number, cr: number, 
   }
 }
 
-/** A stone BRIDGE crossing the river at the TOP-RIGHT (#24), a 3-wide run of walkable 'bridge' tiles
- *  spanning the top-edge water column, with a cobble tone, linking the open meadow to the land strip beyond
- *  the river. Drawn AFTER repairFloorConnectivity so its walkable deck is never filled back to forest; clears
- *  any tree/prop on the deck. */
+/** A stone BRIDGE crossing the river at the TOP-RIGHT (#24): a deck spanning the top-edge water column in a
+ *  cobble tone, carrying a real bridge composition (recordBridgeSpan), linking the open meadow to the land
+ *  strip beyond the river. Drawn AFTER repairFloorConnectivity so its walkable deck is never filled back to
+ *  forest; clears any tree/prop on the deck. It used to lay a run of flat `bridge` TILES and this comment
+ *  outlived that, which is the single-tile-as-an-object mistake described in itself. */
 function placeMeadowBridge(ctx: ArchetypeContext, water: Set<string>): void {
   const { cols, rows } = ctx
   const bridgeCol = Math.floor(cols * 0.72) // top-right, over the top-edge river arm (#24)
@@ -6842,7 +6858,7 @@ const cavePhases: VariantPhases = {
     if (!pal || !ctx.caveEntrance) return
     if (ctx.routes) keepSpineOpen(ctx, ctx.routes, pal)
     reopenCaveEntrance(ctx, pal, ctx.caveEntrance)
-    sealStrandedFloor(ctx, (col, row) => makeCaveWall(col, row, pal.wall))
+    sealStrandedFloor(ctx, (col, row) => makeRockFace(col, row, pal.wall))
   },
 
   objects: ctx => {
@@ -6905,7 +6921,7 @@ function commitCaveWalls(ctx: ArchetypeContext, rock: boolean[][], pal: CavePale
   const { props, collision, cols, rows } = ctx
   forEachCell(cols, rows, (col, row) => {
     if (!rock[row][col]) return
-    props.push(makeCaveWall(col, row, pal.wall))
+    props.push(makeRockFace(col, row, pal.wall))
     collision[row][col] = true
   })
 }
@@ -7264,8 +7280,10 @@ function openEntranceCorridor(wall: boolean[][], arena: Rect, rows: number): voi
 function commitArenaWalls(ctx: ArchetypeContext, wall: boolean[][]): void {
   const { props, collision, cols, rows } = ctx
   forEachCell(cols, rows, (col, row) => {
+    // An arena's boundary is a WALL. It was `makeRock`, so it was drawn as a ring of boulders lying on the
+    // floor rather than as something you cannot get past, the same mistake the cave's walls carried.
     if (!wall[row][col]) return
-    props.push(makeRock(col, row))
+    props.push(makeRockFace(col, row, rockShades()))
     collision[row][col] = true
   })
 }

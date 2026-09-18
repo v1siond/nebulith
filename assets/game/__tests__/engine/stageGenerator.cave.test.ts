@@ -48,7 +48,9 @@ describe('generateStage, cave: floor is fully connected (flood-fill guarantee)',
 describe('generateStage, cave: rock walls are collision', () => {
   it('emits blocking rock-wall props whose cells are all blocked in the collision grid', () => {
     const stage = cave('autumn')
-    const rocks = stage.props.filter(p => p.type === 'rock')
+    // `rock_face`: a wall of stone, split from the `rock` boulder that the role table pins to a picture
+    // of a loose stone.
+    const rocks = stage.props.filter(p => p.type === 'rock_face')
     expect(rocks.length).toBeGreaterThan(50) // a real cavern boundary + formations
     expect(rocks.every(r => r.blocking === true)).toBe(true)
     expect(rocks.every(r => stage.collision[r.row][r.col] === true)).toBe(true)
@@ -70,7 +72,7 @@ describe('generateStage, cave: rock walls are collision', () => {
 
 describe('generateStage, cave: seasons yield DISTINCT palettes', () => {
   const rockColors = (zone: ZoneId): Set<string> =>
-    new Set(cave(zone).props.filter(p => p.type === 'rock').map(p => p.color))
+    new Set(cave(zone).props.filter(p => p.type === 'rock_face').map(p => p.color))
 
   it('gives ≥3 seasons non-overlapping rock-wall palettes', () => {
     const summer = rockColors('summer')

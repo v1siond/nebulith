@@ -133,6 +133,8 @@ describe('a cave that serves no pathways is the cave it always was', () => {
     expect(s.routes).toBeNull()
     const walkable = s.collision.flat().filter(c => !c).length
     expect(reach(s).size).toBe(walkable)
-    expect(s.props.filter(p => p.type === 'rock').length).toBeGreaterThan(50)
+    // A cave WALL is a `rock_face`, not a `rock`: the served role table pins every `rock` prop to a
+    // boulder picture, so a cavern's whole boundary used to be drawn as loose stones lying on the floor.
+    expect(s.props.filter(p => p.type === 'rock_face').length).toBeGreaterThan(50)
   })
 })

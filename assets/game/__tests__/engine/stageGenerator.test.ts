@@ -231,7 +231,8 @@ describe('generateStage, cave archetype (cellular automata)', () => {
   const stage = generateStage({ zone: 'autumn', variant: 'cave', cols: 40, rows: 30 })
 
   it('carves rock walls as blocking props', () => {
-    const rocks = stage.props.filter(p => p.type === 'rock')
+    // `rock_face`: a wall of stone. A `rock` is the boulder lying on the ground, a different thing.
+    const rocks = stage.props.filter(p => p.type === 'rock_face')
     expect(rocks.length).toBeGreaterThan(0)
     expect(rocks.every(r => r.blocking === true)).toBe(true)
   })

@@ -219,6 +219,48 @@ compositions. **Before judging an object, check that the generator can reach it.
 can stay broken indefinitely without anyone seeing it in place, which is most of why these were as bad as
 they were.
 
+## 1.3c THE QUESTION THAT CATCHES IT, 2026-09-18
+
+> *"THE ISSUE IS THAT YOU AREN'T EVALUATING 'WHAT IS THIS TILE FOR? WHAT IS THIS OBJECT FOR? DOES IT MAKE
+> SENSE TO PUT THIS HERE?' ... I'LL JUST USE WHATEVER TILE NAME MATCHES WHAT I WANT TO PUT WITHOUT REALLY
+> CONSIDERING THEIR CONTEXT IN THE APP OR THE SYSTEM."*
+
+The earlier audit asked a MECHANICAL question: is a label that only exists as a piece ever placed alone? It
+came back clean, and it was the wrong question. `town_entrance` sat a `lamp` at each foot, and `lamp` is the
+BULB of `lamp_post`. That IS a piece placed alone, and the audit missed it because it only swept the
+generator's placements, never the composition CELLS, which is where the bulb was.
+
+**The question is semantic, and it is asked of every placement:** does this tile MEAN the thing I am putting
+here? Three signals, each of which caught something real:
+
+| signal | what it caught |
+|---|---|
+| A tile named for a different object, picked because the word matched | `torii-gate`, a Shinto shrine gate, as a generic town arch |
+| A PIECE of a composition used as a whole thing | `lamp` (the bulb) as a lamp; `boulder` hung in the air as an arch |
+| One tile doing several STRUCTURAL jobs at once | `rock` as a boulder, a cave wall, an arena wall AND a sealed border |
+
+### The `rock` case, measured
+
+`constantRoleTile` (served, `zone_source.ex`) pins **every** prop of `type: 'rock'` to `emoji:boulder`. Four
+different jobs used that type:
+
+| where | what it is | correct? |
+|---|---|---|
+| meadow ornaments, ruin rubble | a loose stone on the ground | yes, that IS a boulder |
+| `makeCaveWall`, the cavern boundary and every formation in it | a WALL | no |
+| `commitArenaWalls`, the boss arena ring | a WALL | no |
+| `sealMapEdge` on a bare map | a WALL shutting the border | no |
+
+A boulder is a rounded stone you walk around. A wall is a face you cannot pass or see through. Three of the
+four were walls wearing a picture of the fourth.
+
+Fixed by SPLITTING the type rather than by adding another pin: `rock_face` carries the `cliff_face` label and
+NO override, so it resolves through the ordinary label to image path. The temple already worked this way, its
+`temple_wall` type maps to the `wall` kind in `artStyle`, so the pattern was already in the file.
+
+**And the pin is the smell.** An override exists to say "this prop wears THIS picture". Every time one covers
+more than one meaning, something is being drawn as something else.
+
 ## 1.4 The one sentence
 
 **The good objects are ASSEMBLED from pieces that each do one job and bring their own colour. The bridges are

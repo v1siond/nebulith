@@ -28,7 +28,7 @@ describe('Nebulith, full game flow: 0 → game-ready → quest complete', () => 
     // each archetype produced its signature content
     expect(temple.props.some(p => p.type === 'altar')).toBe(true) // the temple dungeon's boss chamber
     expect(temple.props.some(p => p.type === 'temple_wall')).toBe(true) // walled interior
-    expect(cave.props.some(p => p.type === 'rock')).toBe(true)
+    expect(cave.props.some(p => p.type === 'rock_face')).toBe(true) // its walls, which are faces of stone, not boulders
     expect(boss.props.some(p => p.type === 'boss')).toBe(true)
     // WATER, not the label 'water'. A river's cells wear their autotile piece now (`water_smooth_c`,
     // `water_smooth_tl`, ...), so an exact-match on one spelling asks a question the map stopped answering.

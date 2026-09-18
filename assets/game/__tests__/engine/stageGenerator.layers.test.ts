@@ -211,9 +211,13 @@ const BASELINE: Record<string, string> = {
   'forest|summer|30x24|42': '79e06cee',
   // Moved 2026-09-16, twice, from '94c7579b' then 'a2e09914'. A cave's water stopped wearing the depth bands and started wearing
   // its autotile pieces, so the ground digest changed on purpose. The lock is doing its job by noticing.
-  'cave|autumn|40x30|99': 'ebcc388a',
+  'cave|autumn|40x30|99': '224d4ef9',
   'temple|winter|36x30|5': 'c6258d72',
-  'boss-stage|winter|36x30|11': 'e081dcd4',
+  // Moved 2026-09-18 from 'e081dcd4', with the cave above from 'ebcc388a'. A cave's boundary and an arena's
+  // ring are WALLS, and both were built with `makeRock`, whose `rock` type the served role table pins to a
+  // boulder picture. They carry their own `rock_face` type and the `cliff_face` label now, so the props
+  // differ by type and label. Nothing moved on the map: same cells, same colours, same collision.
+  'boss-stage|winter|36x30|11': '82a2fecb',
 }
 
 const CASES: Array<{ key: string; opts: Parameters<typeof generateStage>[0]; seed: number }> = [

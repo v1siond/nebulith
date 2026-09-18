@@ -386,6 +386,9 @@ const TYPE_KIND: Readonly<Record<string, ElementKind>> = {
   // cave props, walls + rubble read as rock; crystals + mushrooms get their own tint; a water-edge
   // shore reads as sand so it doesn't leak to ASCII.
   cave_decor: 'rock', crystal: 'crystal', mushroom: 'mushroom', shore: 'sand',
+  // A ROCK FACE IS A WALL, not a boulder. A cavern's boundary, an arena's ring and the sealed border of a
+  // bare place all used the `rock` type, which the served role table pins to a boulder picture.
+  rock_face: 'wall',
   // temple props, walls read as wall; the colonnade/altar/torch/hazard/key get their own kinds
   // (a brazier reuses the torch flame); a placed door uses the door glyph.
   temple_wall: 'wall', pillar: 'pillar', altar: 'altar', torch: 'torch', brazier: 'torch',
