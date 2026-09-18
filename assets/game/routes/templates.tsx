@@ -93,7 +93,7 @@ import { nextWeather } from '@/engine/render/weather'
 import { findGenerator, findGeneratorForVariant, rollGridSize, type GeneratorBuildings, type GeneratorCatalog, type GeneratorDef, type GeneratorOptionValue, findGeneratorByKey } from '@/lib/generatorCatalog'
 import { clampMapSize, type MapSize } from '@/lib/mapSize'
 import { buildingSizeSource, composeBuilding, fetchBuildingTypes, installComposedBuildings, installPlannableBuildings, EMPTY_BUILDING_TYPES, type BuildingTypeCatalog } from '@/lib/buildingSizes'
-import { applyStageToGrid } from '@/game/editor/applyStage'
+import { applyStageToGrid, clearExitsOfPlants } from '@/game/editor/applyStage'
 import { makeRng } from '@/lib/math'
 import { RulesWorkspace } from '@/components/rulesWorkspace'
 import { connectionRows, questBlockedReason, questRows, triggerBlockedReason, triggerRows, type RulesTabId } from '@/game/editor/rulesWorkspace'
@@ -460,6 +460,8 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
   // after a stamp to nudge a React re-render (the canvas is live via the loop).
   const [buildingTool, setBuildingTool] = useState<BuildingTool>(null)
   const [buildingVersion, setBuildingVersion] = useState(0)
+  /** The gates of the map on the grid, so the exit invariant can be re-asserted whenever the map changes. */
+  const gatesRef = useRef<StageData['routes']>(null)
   const buildingToolRef = useRef<BuildingTool>(null)
   const genZoneRef = useRef<ZoneId>(genZone)
   const bumpBuildingVersion = useCallback(() => setBuildingVersion(v => v + 1), [])
@@ -1142,6 +1144,20 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
     </FloatingPanel>
   )
 
+
+  // NOTHING IS WRITTEN INTO THE END CELLS OF A PATHWAY, held as an INVARIANT rather than done once.
+  //
+  // Layer 3 records the exits and the generator will not anchor a tree in one (GENERATION-SPEC §5.1,
+  // PATHWAYS.md §4), and the stamp clears any composition that spilled into one. Measured from inside
+  // `applyStageToGrid`, the gate cells are clean when it returns, and measured again from the page they are
+  // not, so something lands in them after the stamp. Rather than keep guessing which pass and when, the rule
+  // is simply re-asserted every time the map changes: it is idempotent and touches a few dozen cells.
+  useEffect(() => {
+    const grid = gridRef.current
+    const routes = gatesRef.current
+    if (!grid || !routes) return
+    clearExitsOfPlants({ routes } as StageData, grid)
+  }, [buildingVersion])
 
   const railCounts = useMemo(() => {
     const groups = tilesForStyle(activeStyleId)
@@ -3787,6 +3803,7 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
     // so each gets a walk connector covering ALL of its cells, with the target left for him to pick. The cell
     // count follows the served pathway width because the gates do.
     if (stage.routes) setConnectors(exitConnectors(stage.routes.gates))
+    gatesRef.current = stage.routes
     // Keep the player on walkable ground (new trees/plots may sit where they stood); entities stay put.
     const here = livePlayerCell()
     movePlayerToValidSpawn(here.col, here.row)
@@ -4036,6 +4053,7 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
     // so each gets a walk connector covering ALL of its cells, with the target left for him to pick. The cell
     // count follows the served pathway width because the gates do.
     if (stage.routes) setConnectors(exitConnectors(stage.routes.gates))
+    gatesRef.current = stage.routes
     movePlayerToValidSpawn(stage.spawn.col, stage.spawn.row)
     const live = livePlayerCell()
     syncPlayerEntity(live.col, live.row, true) // fresh stage → player entity follows the spawn

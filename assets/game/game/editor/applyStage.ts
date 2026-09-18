@@ -13,6 +13,10 @@ import { generatedPropRender, stagePaint, type StageData } from '@/engine/stageG
 import { stagePropTileOverride } from '@/engine/zones'
 import { placeGround } from '@/game/editor/tileBrush'
 import { stampBuildingKind, stampComposition } from '@/game/runtime/composition'
+
+/** A plant's own tiles: trunk column, canopy mass, cactus segment, bush. What must never stand in an exit.
+ *  Matched on the LABEL, because that is what a stamped CELL carries. */
+const PLANT_TILE = /^(trunk_|leaf_|canopy|cactus_|bush)/
 import { type GeneratorBuildings } from '@/lib/generatorCatalog'
 
 /** How far the water's surface sits BELOW the bank it runs between. A rim, not a canyon: enough that you can
@@ -169,6 +173,18 @@ export function applyStageToGrid(
   // `baseLevel` is how a CROSSING states where it sits instead of resting on whatever is in its anchor cell:
   // every other composition passes none and stacks exactly as before.
   for (const c of stage.compositions ?? []) stampComposition(grid, c.kind, c.col, c.row, stage.zone, c.variant ?? 0, c.rotation ?? 0, { baseAt: c.baseLevel })
+  // NOTHING IS WRITTEN INTO THE END CELLS OF A PATHWAY, enforced HERE because here is where a composition
+  // becomes CELLS.
+  //
+  // Layer 3 records the exits and the generator refuses to ANCHOR a tree in one (GENERATION-SPEC §5.1,
+  // PATHWAYS.md §4). That is necessary and not sufficient: a tree is a multi-cell composition, so an anchor
+  // on a perfectly legal cell still stamps its trunk or canopy INTO a gate. Measured with the anchor guard
+  // in place: woodland 11, jungle 12, mountain 12, swamp 8 tiles sitting in exits.
+  //
+  // This changes no generation at all. The stage is byte-identical; the gate cells simply do not keep a
+  // plant. The cells come from the plan, so this is the served pathway width by construction.
+  clearExitsOfPlants(stage, grid)
+
   // MERGING THE GROUND into z-width runs is OFF, 2026-09-16, at his instruction:
   //
   //   "we probably should remove the tile optimization on water tiles, in fact, let's turn it off on all
@@ -188,4 +204,26 @@ export function applyStageToGrid(
   // once the basics are settled and there is a measured frame budget to judge it against.
   //
   // grid.compressGround()
+}
+
+/**
+ * NOTHING IS WRITTEN INTO THE END CELLS OF A PATHWAY.
+ *
+ * Layer 3 records the exits and the generator refuses to ANCHOR a tree in one (GENERATION-SPEC §5.1,
+ * PATHWAYS.md §4). Necessary, not sufficient: a tree is a multi-cell composition, so an anchor on a legal
+ * cell still stamps a trunk or a canopy INTO a gate.
+ *
+ * Exported because it has to run LAST. Called at the end of the stamp it is already clean, and measured
+ * again after the editor finished settling the map it was not, so the caller runs it once more when
+ * everything has landed. It is idempotent and costs one pass over a few dozen cells.
+ */
+export function clearExitsOfPlants(stage: StageData, grid: IsometricGrid): void {
+  const exits = new Set((stage.routes?.gates ?? []).flatMap(g => g.cells.map(c => `${c.col},${c.row}`)))
+  // The harness reads the gates from HERE, synchronously, for the build that is being stamped. Reading them
+  // off the editor's connector state instead compares this build's grid against the PREVIOUS build's gates,
+  // because that state is mirrored to its ref in an effect and lags a render. That is what made the same
+  // template measure 0 plants in its exits on one run and 22 on the next with no code change between them.
+  ;(globalThis as unknown as { __gateCells?: string[] }).__gateCells = [...exits]
+  if (exits.size === 0) return
+  grid.removeAssetsWhere(a => exits.has(`${a.col},${a.row}`) && PLANT_TILE.test(a.label ?? ''))
 }

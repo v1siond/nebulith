@@ -186,9 +186,15 @@ function genSeeded(opts: Parameters<typeof generateStage>[0], seed: number): Sta
 // because none of them is split yet. Any wider spread than this and the change had reached something it
 // should not have.
 const BASELINE: Record<string, string> = {
-  'town|autumn|40x40|1': 'b6b7674a',
-  'town|summer|50x40|7': 'c74a0a7d',
-  'city|summer|56x44|3': 'd7402cde',
+// RELOCKED 2026-09-18, the three SETTLEMENTS only. The pathways layer now records its exit cells in
+// `claimed` (GENERATION-SPEC §5.1: layer 3 owns where the exits are), and the settlement's nature pass reads
+// that set like every forest already did. A town's gate cells are not part of `layout.roads`, which is the
+// streets INSIDE the town, so a settlement used to plant in its own way out. Trees therefore move, hence the
+// digest. Only the settlements: the five non-settlement cases below are untouched, because the forests
+// already claimed their gate lanes.
+  'town|autumn|40x40|1': '95dc9ca9',
+  'town|summer|50x40|7': 'dcbb3e68',
+  'city|summer|56x44|3': 'b50a5251',
   // Moved 2026-09-18 from '4b8b2192'. Every region of every wilderness template states its own undergrowth
   // plant, density and trunk spacing now, so a forest's ground genuinely changed. Two dead fields woke up in
   // the same pass and are most of the difference: `nature.tallGrass` was served by every meadow and dropped

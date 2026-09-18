@@ -1067,6 +1067,10 @@ interface ArchetypeContext {
    * map showed ONE path in TWO materials. A layout that cuts a way says so here, and one pass surfaces them.
    */
   pathwayCells: Set<string>
+  /** THE END CELLS OF EACH PATHWAY: the exits. Recorded by layer 3 the moment the plan exists, and nothing
+   *  is written into one. It is the served pathway width by construction, because `gateOn` cuts the gate at
+   *  exactly that width. See PATHWAYS.md §4 and GENERATION-SPEC §5.1. */
+  exitCells: Set<string>
   /**
    * EVERY CELL THE WATER LAYER LAID, so the layers after it can go around what it left.
    *
@@ -1438,7 +1442,7 @@ export function generateStage(opts: GenerateOptions): StageData {
   for (const key of generationLayerKeys()) rngs[key] = layerRng(opts.seeds, key)
   for (const key of ENGINE_PASS_RNGS) rngs[key] ??= layerRng(opts.seeds, key)
   // Single-pass archetypes (forest/cave/temple/boss) read `ctx.rand`; the layout rng is their source.
-  const ctx: ArchetypeContext = { variant, zone, ground, collision, floorColors, elevation, buildings, props, trees, compositions, cols, rows, layout, options: opts.options, nature: opts.nature, settlement: opts.settlement, palette: opts.palette, subZones: opts.subZones, regionLayout: opts.regionLayout, formation: opts.formation, pathway: opts.pathway, treeMix: opts.treeMix, crossings: opts.crossings, entrance: opts.entrance, pathwayCells: new Set<string>(), water: new Set<string>(), pools: new Set<string>(), still: new Set<string>(), banks: new Set<string>(), claimed: new Set<string>(), decks: new Set<string>(), fords: new Set<string>(), wet: new Set<string>(), flow: new Map<string, number>(), waterDepth: new Map<string, number>(), molten: isMolten(liquidFor(opts)), buildingSizes: opts.buildingSizes, rand: rngs.layout }
+  const ctx: ArchetypeContext = { variant, zone, ground, collision, floorColors, elevation, buildings, props, trees, compositions, cols, rows, layout, options: opts.options, nature: opts.nature, settlement: opts.settlement, palette: opts.palette, subZones: opts.subZones, regionLayout: opts.regionLayout, formation: opts.formation, pathway: opts.pathway, treeMix: opts.treeMix, crossings: opts.crossings, entrance: opts.entrance, pathwayCells: new Set<string>(), exitCells: new Set<string>(), water: new Set<string>(), pools: new Set<string>(), still: new Set<string>(), banks: new Set<string>(), claimed: new Set<string>(), decks: new Set<string>(), fords: new Set<string>(), wet: new Set<string>(), flow: new Map<string, number>(), waterDepth: new Map<string, number>(), molten: isMolten(liquidFor(opts)), buildingSizes: opts.buildingSizes, rand: rngs.layout }
   runLayers(STAGE_LAYERS, ctx, rngs, opts.upTo)
 
   return {
@@ -1793,6 +1797,12 @@ function fillVillageNature(ctx: ArchetypeContext, layout: VillageLayout, natureM
     // walkable overhead, so only the trunk cell is checked.
     if (!treeColumnClearsPaving(ground, col, row)) continue
     if (layout.roads[row]?.[col] || nearBuilding.has(`${col},${row}`)) continue
+    // NOR ON GROUND LAYER 3 ALREADY SPOKE FOR, which is what `claimed` means (GENERATION-SPEC §5.1: the
+    // pathways layer owns where the exits are, the objects layer puts the trees). A settlement's GATE cells
+    // are not part of `layout.roads`: that grid is the streets INSIDE the town, a gate is the mouth at the
+    // border. So this asked every question except the one covering the exit, and a town planted in its own
+    // way out while every forest, which reads the same set, did not.
+    if (ctx.claimed.has(`${col},${row}`)) continue
     if (!treeFits(collision, col, row, cols, rows)) continue
     const sideDist = Math.min(col, cols - 1 - col) // distance from the LEFT/RIGHT edge
     const edgeDist = Math.min(sideDist, row, rows - 1 - row)
@@ -3350,6 +3360,24 @@ function planPathways(ctx: ArchetypeContext, rand: Rng): RoutePlan | null {
   if (!pathways) return null
   ctx.pathways = pathways
   ctx.routes = planRoutes(ctx.cols, ctx.rows, pathways, rand, pathwayWidth(ctx))
+  // THE PATHWAYS LAYER RECORDS ITS EXITS, AND NOTHING IS WRITTEN THERE.
+  //
+  // GENERATION-SPEC §5.1: layer 3 is the map's STRUCTURE and owns "where the exits are"; layer 4 puts the
+  // objects. `claimed` is how layer 3 tells layer 4 which ground is already spoken for, so the gate cells
+  // join it here, the moment the plan exists. Every layout inherits it, because every layout plans through
+  // this one function.
+  //
+  // It used to be done downstream by the two forest layouts folding their own gate lanes in, so a settlement
+  // never spoke for its gates at all and planted in its own way out.
+  //
+  // The cells are the gate's own, which `gateOn` cuts at exactly the served `pathwayWidth`, so a way 4 cells
+  // wide reserves 4 and a way 2 wide reserves 2, with no width stated here. PATHWAYS.md §4.
+  for (const gate of ctx.routes.gates) {
+    for (const cell of gate.cells) {
+      ctx.claimed.add(`${cell.col},${cell.row}`)
+      ctx.exitCells.add(`${cell.col},${cell.row}`)
+    }
+  }
   return ctx.routes
 }
 
@@ -6284,6 +6312,15 @@ export function plantTree(ctx: ArchetypeContext, tree: TreeAnchor): void {
   if (ctx.water.has(`${tree.col},${tree.row}`)) return
   if (isWaterGround(ctx.ground[tree.row][tree.col])) return
   if (ctx.wet.has(`${tree.col},${tree.row}`)) return
+  // NOTHING IS WRITTEN INTO THE END CELLS OF A PATHWAY.
+  //
+  // Layer 3 recorded them (GENERATION-SPEC §5.1 gives it "where the exits are"), and this is the COMMIT every
+  // one of the eleven placers passes through, which is the same reason the water rules live here rather than
+  // in each of them. `claimed` catches the passes that read it; this catches the ones that do not.
+  //
+  // Bounded to the gate's own cells, a couple of dozen on a 1,600 cell map, so it cannot thin a wood. A
+  // guard on the whole pathway CAN, and did: it emptied every map. PATHWAYS.md §4.
+  if (ctx.exitCells.has(`${tree.col},${tree.row}`)) return
   // A caller that already chose a colour keeps it; everything else is dressed here, so the rule lives at the
   // COMMIT rather than in eight separate placers.
   ctx.trees.push({ ...tree, leafColor: tree.leafColor ?? leafToneAt(ctx, tree) })

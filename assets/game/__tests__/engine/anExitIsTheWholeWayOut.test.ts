@@ -1,5 +1,7 @@
 import '@/__tests__/helpers/installTilesetSeed' // the generator reads all tile/composition data from the fixture
 import { generateStage, type NatureDensity } from '@/engine/stageGenerator'
+import { applyStageToGrid } from '@/game/editor/applyStage'
+import { IsometricGrid } from '@/engine/IsometricGrid'
 import { exitConnectors } from '@/game/editor/connectors'
 import { makeRng } from '@/lib/math'
 
@@ -18,14 +20,17 @@ import { makeRng } from '@/lib/math'
  */
 const NATURE: NatureDensity = { canopy: 0.434, groundCover: 0.2, flowers: 0.04 }
 
-const build = (width: number, seed: number) => {
+/** A plant's own tiles. What must never occupy an exit CELL, as opposed to be anchored in one. */
+const PLANT_TILE = /^(trunk_|leaf_|canopy|cactus_|bush)/
+
+const build = (width: number, seed: number, layout: 'woodland' | 'jungle' | 'meadow' = 'woodland') => {
   const orig = Math.random
   Math.random = makeRng(seed)
   try {
     return generateStage({
       zone: 'summer',
       variant: 'forest',
-      layout: 'woodland',
+      layout,
       cols: 60,
       rows: 40,
       nature: NATURE,
@@ -71,6 +76,37 @@ describe.each([[2], [3], [4]])('a pathway served %i cells wide', width => {
       expect(c.interaction).toBe('walk')
       // His to choose. An invented target is a wrong answer wearing the shape of a real one.
       expect(c.targetTemplateId).toBe('')
+    }
+  })
+})
+
+/**
+ * THE SAME RULE, THROUGH THE REAL STAMP.
+ *
+ * The case above checks no tree is ANCHORED in a gate. That is not the whole rule: a tree is a multi-cell
+ * composition, so an anchor on a legal cell can still stamp a trunk or a canopy INTO one. This builds the
+ * stage and runs the actual `applyStageToGrid`, then asks the grid, which is the only thing that can catch
+ * the spill.
+ */
+describe.each([['woodland'], ['jungle'], ['meadow']] as const)('%s exits keep no plant, through the real stamp', layout => {
+  test.each([[2], [3], [4]])('a pathway served %i cells wide', width => {
+    for (const seed of [1, 2, 3]) {
+      const stage = build(width, seed, layout)
+      if (!stage.routes) continue
+      const grid = new IsometricGrid(stage.cols, stage.rows)
+      applyStageToGrid(stage, grid)
+      const gate = new Set(stage.routes.gates.flatMap(g => g.cells.map(c => `${c.col},${c.row}`)))
+      const stuck = grid.assets.filter(a => gate.has(`${a.col},${a.row}`) && PLANT_TILE.test(a.label ?? ''))
+      expect(stuck.map(a => `${a.label}@${a.col},${a.row}`)).toEqual([])
+    }
+  })
+
+  test('and the wood still stands in the same build', () => {
+    for (const seed of [1, 2, 3]) {
+      const stage = build(3, seed, layout)
+      const grid = new IsometricGrid(stage.cols, stage.rows)
+      applyStageToGrid(stage, grid)
+      expect(grid.assets.filter(a => /^trunk_/.test(a.label ?? '')).length).toBeGreaterThan(0)
     }
   })
 })
