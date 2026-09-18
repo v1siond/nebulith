@@ -189,7 +189,14 @@ const BASELINE: Record<string, string> = {
   'town|autumn|40x40|1': 'b6b7674a',
   'town|summer|50x40|7': 'c74a0a7d',
   'city|summer|56x44|3': 'd7402cde',
-  'forest|summer|30x24|42': '4b8b2192',
+  // Moved 2026-09-18 from '4b8b2192'. Every region of every wilderness template states its own undergrowth
+  // plant, density and trunk spacing now, so a forest's ground genuinely changed. Two dead fields woke up in
+  // the same pass and are most of the difference: `nature.tallGrass` was served by every meadow and dropped
+  // by `parseNature`, so no meadow has ever grown a blade of it, and a meadow's trees and ornaments now read
+  // the region they stand in instead of only the distance to the map edge. The lock is doing its job by
+  // noticing, and only the forest case moved: the settlements, the cave, the temple and the boss stage are
+  // byte identical.
+  'forest|summer|30x24|42': '7b959463',
   // Moved 2026-09-16, twice, from '94c7579b' then 'a2e09914'. A cave's water stopped wearing the depth bands and started wearing
   // its autotile pieces, so the ground digest changed on purpose. The lock is doing its job by noticing.
   'cave|autumn|40x30|99': 'ebcc388a',

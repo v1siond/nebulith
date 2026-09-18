@@ -82,20 +82,23 @@ interface Profile {
   relief: number
   /** How much of it is BUILT. For a settlement this is the whole difference between a park and a terrace. */
   built: number
+  /** WHAT it is built of, as the buildings this neighbourhood actually stamps. A city's wealth tiers are told
+   *  apart by their architecture before anything else: stone under slate against timber under a flat roof. */
+  architecture: string
 }
 
 /** What each region of a built map actually came out as. */
 function profiles(stage: StageData): Map<string, Profile> {
   const regions = stage.regions
   if (!regions) return new Map()
-  const raw = new Map<string, { cells: number; trees: number; open: number; wet: number; rock: number; level: number; houses: number; plants: Map<string, number> }>()
+  const raw = new Map<string, { cells: number; trees: number; open: number; wet: number; rock: number; level: number; houses: number; plants: Map<string, number>; kinds: Map<string, number> }>()
   const at = (col: number, row: number): string | undefined => regions[row]?.[col]
 
   for (let row = 0; row < stage.rows; row++) {
     for (let col = 0; col < stage.cols; col++) {
       const key = at(col, row)
       if (!key) continue
-      const rec = raw.get(key) ?? { cells: 0, trees: 0, open: 0, wet: 0, rock: 0, level: 0, houses: 0, plants: new Map() }
+      const rec = raw.get(key) ?? { cells: 0, trees: 0, open: 0, wet: 0, rock: 0, level: 0, houses: 0, plants: new Map(), kinds: new Map<string, number>() }
       rec.cells += 1
       if (!stage.collision[row][col]) rec.open += 1
       const g = stage.ground[row][col]
@@ -103,6 +106,16 @@ function profiles(stage: StageData): Map<string, Profile> {
       if (g === 'ancient_stone') rec.rock += 1
       rec.level = Math.max(rec.level, stage.elevation?.[row]?.[col] ?? 0)
       raw.set(key, rec)
+    }
+  }
+  // WHAT EACH NEIGHBOURHOOD BUILDS, by the region the generator recorded on the building itself.
+  for (const b of stage.buildings ?? []) {
+    const rec = b.region && raw.get(b.region)
+    // The KIND is the footprint it stamps; the roof and the wall are what the neighbourhood is made OF, and
+    // between them they are the architecture a person sees from above.
+    if (rec) {
+      const built = [b.kind, b.roof, b.material].filter(Boolean).join('/')
+      rec.kinds.set(built, (rec.kinds.get(built) ?? 0) + 1)
     }
   }
   // EVERY CELL A BUILDING COVERS, by the region its own footprint sits in.
@@ -126,7 +139,10 @@ function profiles(stage: StageData): Map<string, Profile> {
     const key = at(prop.col, prop.row)
     const rec = key && raw.get(key)
     if (!rec || !prop.label) continue
-    rec.plants.set(prop.label, (rec.plants.get(prop.label) ?? 0) + 1)
+    // WHAT GROWS, not what lies about. A meadow scatters field stones over everything, and they outvoted the
+    // vegetation in the tally: two regions with different undergrowth both reported `rock` and read as the
+    // same place. A stone is not something growing at knee height.
+    if (!MINERAL.has(prop.label)) rec.plants.set(prop.label, (rec.plants.get(prop.label) ?? 0) + 1)
     if (/water/.test(prop.label)) rec.wet += 1
   }
 
@@ -142,6 +158,7 @@ function profiles(stage: StageData): Map<string, Profile> {
       stone: r.rock / r.cells,
       relief: r.level,
       built: r.houses / r.cells,
+      architecture: [...r.kinds].sort((a, b) => b[1] - a[1])[0]?.[0] ?? 'none',
     })
   }
   return out
@@ -157,8 +174,12 @@ function differences(a: Profile, b: Profile): string[] {
   if (Math.abs(a.stone - b.stone) >= 0.06) out.push(`stone ${a.stone.toFixed(2)} vs ${b.stone.toFixed(2)}`)
   if (a.relief !== b.relief) out.push(`relief ${a.relief} vs ${b.relief}`)
   if (Math.abs(a.built - b.built) >= 0.05) out.push(`built ${a.built.toFixed(2)} vs ${b.built.toFixed(2)}`)
+  if (a.architecture !== b.architecture) out.push(`builds ${a.architecture} vs ${b.architecture}`)
   return out
 }
+
+/** Scattered ornaments, which are not vegetation however many of them there are. */
+const MINERAL: ReadonlySet<string> = new Set(['rock', 'stone', 'ancient_stone', 'boulder', 'dirt', 'dirt_patch'])
 
 /** A region too small to measure says nothing either way, so it is not evidence of sameness. */
 const MEASURABLE = 40
@@ -181,7 +202,7 @@ describe.each(WITH_REGIONS)('$key', ({ category, config }) => {
     if (!mine || mine.cells < MEASURABLE) return
 
     const show = (p: Profile): string =>
-      `ground ${p.ground} canopy ${p.canopy.toFixed(2)} walk ${p.walkable.toFixed(2)} water ${p.water.toFixed(2)} stone ${p.stone.toFixed(2)} built ${p.built.toFixed(2)} relief ${p.relief}`
+      `ground ${p.ground} canopy ${p.canopy.toFixed(2)} walk ${p.walkable.toFixed(2)} water ${p.water.toFixed(2)} stone ${p.stone.toFixed(2)} built ${p.built.toFixed(2)} builds ${p.architecture} relief ${p.relief}`
 
     const same: string[] = []
     for (const [key, other] of seen) {

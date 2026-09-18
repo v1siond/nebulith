@@ -59,6 +59,11 @@ export interface GeneratorNature {
   flowers: number
   /** Share of cells carrying a tree. Only a woodland-style layout reads it. */
   canopy?: number
+  /** Share of a meadow's open floor carrying tall grass. */
+  tallGrass?: number
+  /** Any other NUMBER the backend serves for this map's nature. The named fields above are the ones the
+   *  engine reads today; this is what keeps a newly served one from being dropped before anything can. */
+  readonly [served: string]: number | undefined
 }
 
 /** The per-building material + colour roll: residential picks from the lists, civic buildings are fixed. */
@@ -564,9 +569,22 @@ function parseNature(v: unknown): GeneratorNature | undefined {
   const groundCover = num(v.groundCover)
   const flowers = num(v.flowers)
   if (groundCover === undefined || flowers === undefined) return undefined
-  // `canopy` is carried through when served and left off when not, never defaulted here.
-  const canopy = num(v.canopy)
-  return canopy === undefined ? { groundCover, flowers } : { groundCover, flowers, canopy }
+  // EVERY NUMBER THE BACKEND SERVES, not the three this file happens to name.
+  //
+  // It listed them by hand, so a served fourth was dropped here in silence with nothing failing to say so.
+  // Measured: every meadow template serves `nature.tallGrass`, and `scatterTallGrass` reads
+  // `ctx.nature?.tallGrass` and returns immediately when it is undefined. It always was. A meadow has never
+  // grown a single blade of the tall grass it asks for, and the pass that does it has been dead code.
+  //
+  // Same shape of defect as `parseSubZones` and `parseBuildings` before it, and the same fix: copy what
+  // arrives. `canopy` stays spelled out because a layout tells "served zero" from "not served at all".
+  const rest: Record<string, number> = {}
+  for (const [field, value] of Object.entries(v)) {
+    if (field === 'groundCover' || field === 'flowers') continue
+    const n = num(value)
+    if (n !== undefined) rest[field] = n
+  }
+  return { ...rest, groundCover, flowers } as GeneratorNature
 }
 
 function parseBuildings(v: unknown): GeneratorBuildings | undefined {

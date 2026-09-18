@@ -166,7 +166,7 @@
                   "lattice": 3,
                   "spacing": 5,
                   "understory": 0.3,
-                  "understoryTile": "tall_grass"
+                  "understoryTile": "clover"
                 },
                 "key": "glade",
                 "leafHue": 4,
@@ -1066,7 +1066,7 @@
                 "formation": {
                   "lattice": 4,
                   "spacing": 6,
-                  "understory": 0.25,
+                  "understory": 0.95,
                   "understoryTile": "tall_grass"
                 },
                 "key": "pasture",
@@ -1087,7 +1087,7 @@
                     "weight": 20
                   }
                 ],
-                "undergrowth": 0.25,
+                "undergrowth": 0.95,
                 "weight": 4
               },
               {
@@ -2943,7 +2943,7 @@
                 "leafValue": 0.09,
                 "level": 1,
                 "name": "The ruin itself",
-                "stone": 0.6,
+                "stone": 0.62,
                 "trees": [
                   {
                     "kind": "tree_stub",
@@ -2983,9 +2983,8 @@
                 "key": "courts",
                 "leafHue": 2,
                 "leafValue": 0.06,
-                "level": 1,
                 "name": "Fallen courts",
-                "stone": 0.42,
+                "stone": 0.26,
                 "trees": [
                   {
                     "kind": "tree_stub",
@@ -7510,16 +7509,16 @@
             "subZones": [
               {
                 "built": 1.0,
-                "canopy": 0.4,
+                "canopy": 0.25,
                 "formation": {
                   "lattice": 5,
                   "spacing": 4,
-                  "understory": 0.2,
-                  "understoryTile": "clover"
+                  "understory": 0.5,
+                  "understoryTile": "shrub"
                 },
                 "key": "centre",
                 "name": "Centre",
-                "undergrowth": 0.2,
+                "undergrowth": 0.5,
                 "weight": 2
               },
               {
@@ -7891,16 +7890,16 @@
             "subZones": [
               {
                 "built": 1.0,
-                "canopy": 0.4,
+                "canopy": 0.25,
                 "formation": {
                   "lattice": 5,
                   "spacing": 4,
-                  "understory": 0.2,
-                  "understoryTile": "clover"
+                  "understory": 0.5,
+                  "understoryTile": "shrub"
                 },
                 "key": "centre",
                 "name": "Centre",
-                "undergrowth": 0.2,
+                "undergrowth": 0.5,
                 "weight": 2
               },
               {
@@ -8273,16 +8272,16 @@
             "subZones": [
               {
                 "built": 1.0,
-                "canopy": 0.4,
+                "canopy": 0.25,
                 "formation": {
                   "lattice": 5,
                   "spacing": 4,
-                  "understory": 0.2,
-                  "understoryTile": "clover"
+                  "understory": 0.5,
+                  "understoryTile": "shrub"
                 },
                 "key": "centre",
                 "name": "Centre",
-                "undergrowth": 0.2,
+                "undergrowth": 0.5,
                 "weight": 2
               },
               {
@@ -8636,16 +8635,16 @@
             "subZones": [
               {
                 "built": 1.0,
-                "canopy": 0.4,
+                "canopy": 0.25,
                 "formation": {
                   "lattice": 5,
                   "spacing": 4,
-                  "understory": 0.2,
-                  "understoryTile": "clover"
+                  "understory": 0.5,
+                  "understoryTile": "shrub"
                 },
                 "key": "centre",
                 "name": "Centre",
-                "undergrowth": 0.2,
+                "undergrowth": 0.5,
                 "weight": 2
               },
               {
@@ -9017,16 +9016,16 @@
             "subZones": [
               {
                 "built": 1.0,
-                "canopy": 0.4,
+                "canopy": 0.25,
                 "formation": {
                   "lattice": 5,
                   "spacing": 4,
-                  "understory": 0.2,
-                  "understoryTile": "clover"
+                  "understory": 0.5,
+                  "understoryTile": "shrub"
                 },
                 "key": "centre",
                 "name": "Centre",
-                "undergrowth": 0.2,
+                "undergrowth": 0.5,
                 "weight": 2
               },
               {
@@ -9395,16 +9394,16 @@
             "subZones": [
               {
                 "built": 1.0,
-                "canopy": 0.4,
+                "canopy": 0.25,
                 "formation": {
                   "lattice": 5,
                   "spacing": 4,
-                  "understory": 0.2,
-                  "understoryTile": "clover"
+                  "understory": 0.5,
+                  "understoryTile": "shrub"
                 },
                 "key": "centre",
                 "name": "Centre",
-                "undergrowth": 0.2,
+                "undergrowth": 0.5,
                 "weight": 2
               },
               {
@@ -9772,16 +9771,16 @@
             "subZones": [
               {
                 "built": 1.0,
-                "canopy": 0.4,
+                "canopy": 0.25,
                 "formation": {
                   "lattice": 5,
                   "spacing": 4,
-                  "understory": 0.2,
-                  "understoryTile": "clover"
+                  "understory": 0.5,
+                  "understoryTile": "shrub"
                 },
                 "key": "centre",
                 "name": "Centre",
-                "undergrowth": 0.2,
+                "undergrowth": 0.5,
                 "weight": 2
               },
               {
@@ -10150,16 +10149,16 @@
             "subZones": [
               {
                 "built": 1.0,
-                "canopy": 0.4,
+                "canopy": 0.25,
                 "formation": {
                   "lattice": 5,
                   "spacing": 4,
-                  "understory": 0.2,
-                  "understoryTile": "clover"
+                  "understory": 0.5,
+                  "understoryTile": "shrub"
                 },
                 "key": "centre",
                 "name": "Centre",
-                "undergrowth": 0.2,
+                "undergrowth": 0.5,
                 "weight": 2
               },
               {
@@ -10535,16 +10534,16 @@
             "subZones": [
               {
                 "built": 1.0,
-                "canopy": 0.4,
+                "canopy": 0.25,
                 "formation": {
                   "lattice": 5,
                   "spacing": 4,
-                  "understory": 0.2,
-                  "understoryTile": "clover"
+                  "understory": 0.5,
+                  "understoryTile": "shrub"
                 },
                 "key": "centre",
                 "name": "Centre",
-                "undergrowth": 0.2,
+                "undergrowth": 0.5,
                 "weight": 2
               },
               {

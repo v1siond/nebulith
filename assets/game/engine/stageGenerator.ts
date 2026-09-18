@@ -166,6 +166,20 @@ export interface PlacedBuilding {
    *  replacement for the retired `facade: ComposedBuilding`. applyStageToGrid stamps it via
    *  stampBuildingComposition, rotated to `facing`. */
   kind: string
+  /**
+   * THE NEIGHBOURHOOD THIS ONE STANDS IN, when the map has neighbourhoods.
+   *
+   * A city's `upper` is stone under slate and its `lower` is timber under a flat roof, and that is served per
+   * region. It was resolved at STAMP time by looking the region up again from the cell, so the stage itself
+   * carried no record of it: nothing downstream could tell two neighbourhoods apart, and neither could a
+   * test. The generator decides it, so the generator writes it.
+   */
+  region?: string
+  /** The ROOF this neighbourhood builds under, where it states one. The most visible half of "different
+   *  architecture": a gable, a slate pitch and a flat deck do not read alike from above. */
+  roof?: string
+  /** And what its WALLS are made of. */
+  material?: string
 }
 
 /** A TREE anchor, the trunk-base cell + which composition (tree / tree_dead) + its canopy shade. The
@@ -557,8 +571,17 @@ function scatterTallGrass(ctx: ArchetypeContext): void {
     if (collision[row][col] || isWaterGround(ground[row][col])) return
     if (isBuiltFloor(ground[row][col]) || isRoadGround(ground[row][col])) return // keep paving and roads clear
     if (occupied.has(`${col},${row}`)) return
-    if (shadeNoise(Math.floor(col / TALL_GRASS_PATCH) * 2.3 + Math.floor(row / TALL_GRASS_PATCH) * 3.7) > share) return
-    placeProp(ctx, makePlant(ctx, col, row, 'tall_grass'))
+    // THE REGION'S OWN SHARE OF IT, AND ITS OWN PLANT.
+    //
+    // This grew `tall_grass` at one density over the whole map, so a meadow's five regions had the same thing
+    // underfoot however they differed above it: measured, its `pasture`, its `hedgerow` and its `orchard` all
+    // came out reading as one place. The meadow is the only builder that never planted a region's understory,
+    // and both of the things that make one are served per region already.
+    const zone = ctx.zoneAt?.[row]?.[col]
+    const plant = zone?.formation?.understoryTile ?? 'tall_grass'
+    const density = share * (zone?.undergrowth ?? 1) * (zone?.formation?.understory ?? 1)
+    if (shadeNoise(Math.floor(col / TALL_GRASS_PATCH) * 2.3 + Math.floor(row / TALL_GRASS_PATCH) * 3.7) > density) return
+    placeProp(ctx, makePlant(ctx, col, row, plant))
   })
 }
 
@@ -2128,7 +2151,13 @@ function placeBuilding(
   }
   // `row` = the rect's BOTTOM row; `length`/`height` = the rect's grid span (cols×rows), so the nature
   // math + the load-time stamp read the real small footprint (and its TOP-LEFT) regardless of facing.
-  return { type: plot.type, col: rect.col, row: rect.row + rect.h - 1, length: rect.w, height: rect.h, depth: plot.depth, facing: plot.facing, doorCells: doors, kind }
+  const zone = ctx.zoneAt?.[Math.floor(rect.row + rect.h / 2)]?.[Math.floor(rect.col + rect.w / 2)]
+  const built = zone?.buildings
+  return {
+    type: plot.type, col: rect.col, row: rect.row + rect.h - 1, length: rect.w, height: rect.h,
+    depth: plot.depth, facing: plot.facing, doorCells: doors, kind,
+    region: zone?.key, roof: built?.roof, material: built?.materials?.[0],
+  }
 }
 
 // ── forest archetype (≈ Viridian Forest, per docs/ALGORITHMS.md): a fully-
@@ -5475,6 +5504,10 @@ function paintMeadowRiver(ctx: ArchetypeContext): Set<string> {
  *  right edges, where the river variant leaves a thin strip) plus a few near the bottom corners. The trees
  *  are BEYOND the river, framing the open meadow, NOT a dense wall ringing it (the #22 mistake). Blue-noise
  *  spaced; never in the river. For the no-river `meadow` this same band gives the loose treeline of #14. */
+/** A meadow region this wooded stops being framing and becomes a stand of its own, so it grows in the middle
+ *  of the map as well as round the rim. An orchard and a hedgerow are both above it; a pasture is not. */
+const MEADOW_WOODED_REGION = 0.55
+
 function scatterFramingTrees(ctx: ArchetypeContext, water: Set<string>): void {
   const { cols, rows, collision } = ctx
   const placed: Cell[] = []
@@ -5489,9 +5522,23 @@ function scatterFramingTrees(ctx: ArchetypeContext, water: Set<string>): void {
     const dBottom = rows - 1 - row
     const d3 = Math.min(dTop, dLeft, dRight) // nearest of the three FRAMED edges
     const bottomCorner = dBottom <= 3 && Math.min(dLeft, dRight) <= 6
-    if (d3 > MEADOW_OUTER_BAND + 2 && !bottomCorner) continue // trees only frame the edges; the centre stays open
-    if (ctx.rand() > (bottomCorner ? 0.3 : 0.42)) continue
-    if (placed.some(p => Math.abs(p.col - col) < 2 && Math.abs(p.row - row) < 2)) continue
+    // THE REGION DECIDES HOW WOODED IT IS, and where it is wooded enough the trees leave the frame.
+    //
+    // This placed by POSITION only: a band round three edges, and the centre kept clear whatever grew there.
+    // So a meadow's `orchard` at canopy 0.9 and its `pasture` at 0.1 came out with the same trees, and its
+    // five regions measured as one place. A region that states no canopy is framed exactly as before.
+    const green = ctx.zoneAt?.[row]?.[col]?.canopy
+    const framed = d3 <= MEADOW_OUTER_BAND + 2 || bottomCorner
+    if (!framed && (green ?? 0) < MEADOW_WOODED_REGION) continue // the open centre stays open, unless a region is a wood
+    if (ctx.rand() > (bottomCorner ? 0.3 : 0.42) * (green ?? 1)) continue
+    // HOW FAR APART THIS REGION PLANTS THEM, which is the knob that actually decides a meadow's density.
+    //
+    // A fixed spacing of 2 saturates: past a certain probability every extra attempt is refused by the gap
+    // rule, so a region at canopy 0.1 and one at 0.9 came out with the same trees (measured 0.21 against
+    // 0.24). `spacing` is served per region and means exactly this, and it is what makes an ORCHARD read as
+    // planted rows and a PASTURE as a field with the odd tree in it.
+    const apart = ctx.zoneAt?.[row]?.[col]?.formation?.spacing ?? 2
+    if (placed.some(p => Math.abs(p.col - col) < apart && Math.abs(p.row - row) < apart)) continue
     stampMeadowClump(ctx, col, row, water, bottomCorner)
     placed.push({ col, row })
   }
@@ -5623,6 +5670,11 @@ function scatterMeadowOrnaments(ctx: ArchetypeContext, water: Set<string>): void
       if (ctx.rand() < 0.5) continue // mostly OPEN, leave wide gaps between the few tended plots (#24)
       const cc = clamp(gx + randIntWith(ctx.rand, 0, step - 3), 1, cols - 2)
       const cr = clamp(gy + randIntWith(ctx.rand, 0, step - 3), 1, rows - 2)
+      // AND NOT IN A MOWN ONE. An orchard's floor is kept clear under the trees and a pasture's is not, which
+      // is the difference between the two words. This scattered the same tufts and stones over both, and they
+      // outnumbered the grass enough to decide what each region reads as: measured, a pasture and an orchard
+      // both came out as the same ground.
+      if (ctx.rand() > (ctx.zoneAt?.[cr]?.[cc]?.undergrowth ?? 1)) continue
       placeMeadowOrnamentZone(ctx, cc, cr, pickOrnamentKind(ctx.rand()), water)
     }
   }
