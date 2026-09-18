@@ -402,8 +402,6 @@ export interface GenerateOptions {
   treeMix?: readonly GeneratorTreeWeight[]
   /** What a river is crossed on, by kind (`config.crossings`), picked by the `bridge` option. */
   crossings?: Readonly<Record<string, GeneratorCrossing>>
-  /** The composition this template's gates wear, served on its generator config. */
-  entrance?: string
   /**
    * RUN THE SYSTEM ONLY UP TO THIS LAYER, by name. The UI's "layout" choice, and the preview behind it.
    *
@@ -1113,8 +1111,6 @@ interface ArchetypeContext {
   treeMix?: readonly GeneratorTreeWeight[]
   /** What a river is crossed on, by kind (`config.crossings`), picked by the `bridge` option. */
   crossings?: Readonly<Record<string, GeneratorCrossing>>
-  /** The composition this template's gates wear, served on its generator config. */
-  entrance?: string
   /** Where footprints come from, see `GenerateOptions.buildingSizes`. */
   buildingSizes?: BuildingSizes
   /** The user-steered shape of this kind of place, or undefined for a plain generate (placeForest then
@@ -1395,7 +1391,6 @@ const STAGE_LAYERS: ReadonlyArray<StageLayer<ArchetypeContext, LayerRngs>> = [
       keepPathwaysWalkable(ctx) // nothing placed above may wall a gate in behind it
       clearPathSightlines(ctx) // and nothing that grew is left standing in a way or in front of one
       layPathways(ctx) // the surface a way wears, what lies on it and what stands beside it
-      stampEntrances(ctx) // and the way out looks like one, on the surface the way actually wears
     },
   },
 
@@ -1442,7 +1437,7 @@ export function generateStage(opts: GenerateOptions): StageData {
   for (const key of generationLayerKeys()) rngs[key] = layerRng(opts.seeds, key)
   for (const key of ENGINE_PASS_RNGS) rngs[key] ??= layerRng(opts.seeds, key)
   // Single-pass archetypes (forest/cave/temple/boss) read `ctx.rand`; the layout rng is their source.
-  const ctx: ArchetypeContext = { variant, zone, ground, collision, floorColors, elevation, buildings, props, trees, compositions, cols, rows, layout, options: opts.options, nature: opts.nature, settlement: opts.settlement, palette: opts.palette, subZones: opts.subZones, regionLayout: opts.regionLayout, formation: opts.formation, pathway: opts.pathway, treeMix: opts.treeMix, crossings: opts.crossings, entrance: opts.entrance, pathwayCells: new Set<string>(), exitCells: new Set<string>(), water: new Set<string>(), pools: new Set<string>(), still: new Set<string>(), banks: new Set<string>(), claimed: new Set<string>(), decks: new Set<string>(), fords: new Set<string>(), wet: new Set<string>(), flow: new Map<string, number>(), waterDepth: new Map<string, number>(), molten: isMolten(liquidFor(opts)), buildingSizes: opts.buildingSizes, rand: rngs.layout }
+  const ctx: ArchetypeContext = { variant, zone, ground, collision, floorColors, elevation, buildings, props, trees, compositions, cols, rows, layout, options: opts.options, nature: opts.nature, settlement: opts.settlement, palette: opts.palette, subZones: opts.subZones, regionLayout: opts.regionLayout, formation: opts.formation, pathway: opts.pathway, treeMix: opts.treeMix, crossings: opts.crossings, pathwayCells: new Set<string>(), exitCells: new Set<string>(), water: new Set<string>(), pools: new Set<string>(), still: new Set<string>(), banks: new Set<string>(), claimed: new Set<string>(), decks: new Set<string>(), fords: new Set<string>(), wet: new Set<string>(), flow: new Map<string, number>(), waterDepth: new Map<string, number>(), molten: isMolten(liquidFor(opts)), buildingSizes: opts.buildingSizes, rand: rngs.layout }
   runLayers(STAGE_LAYERS, ctx, rngs, opts.upTo)
 
   return {
@@ -2684,70 +2679,6 @@ function sealMapEdge(ctx: ArchetypeContext): void {
   })
 }
 
-/** A gate's side turned into the quarter-turns its entrance is stamped at. Authored facing SOUTH: three cells
- *  along +dx with the feet one step inward at +dy, which is what a south gate wants unturned. */
-const ENTRANCE_TURN: Readonly<Record<Side, number>> = { south: 0, west: 1, north: 2, east: 3 }
-
-/**
- * AN EXIT THAT LOOKS LIKE A WAY SOMEWHERE ELSE.
- *
- * *"we need a better visual indicator that 'going through this pathway goes to somewhere else', like a whuite
- * or dark light right in the exit cells … a forest entrance, a cave entrance, a town/city entrance, a park
- * entrance"*, with a reference picture to model against.
- *
- * Each entrance is three cells wide, which is the gate width, so one covers its gate and nothing else: two
- * uprights that block, a span over the middle, and a walkable mouth under it carrying a dark light. The
- * composition is DATA (`forest_entrance` and its three siblings, seeded in nebulith); all this does is choose
- * one and put it where the way leaves.
- *
- * Runs after `gates`, so it dresses an opening that already exists rather than making one.
- */
-function stampEntrances(ctx: ArchetypeContext): void {
-  const plan = ctx.routes
-  if (!plan) return
-  // WHICH ENTRANCE, straight from the generator that is running. It was a variant -> composition table in
-  // this file, which is the frontend deciding something the backend owns; a template names its entrance on
-  // its own config now, beside its crossings and its trees. Nothing served → a bare opening.
-  const kind = ctx.entrance
-  if (!kind) return
-  for (const gate of plan.gates) {
-    const middle = gate.cells[Math.floor(gate.cells.length / 2)]
-    if (!middle || !inBounds(middle.col, middle.row, ctx.cols, ctx.rows)) continue
-    clearForEntrance(ctx, gate)
-    const rotation = ENTRANCE_TURN[gate.side]
-    const at = entranceAnchor(kind, middle, rotation)
-    ctx.compositions.push({ kind, col: at.col, row: at.row, variant: 0, rotation })
-  }
-}
-
-/**
- * WHERE AN ENTRANCE IS ANCHORED SO ITS MOUTH LANDS ON THE MIDDLE OF THE PATHWAY.
- *
- * *"please make sure the proposal is located in the actual cetner of the pathway"* (2026-09-14).
- *
- * A composition's anchor is its TOP-LEFT, not its middle, and this used to place the anchor ON the gate's
- * middle cell. A 3-wide entrance therefore started at the middle and ran off one cell past the pathway, so it
- * sat a cell to the side of the way out on every gate. The old comment said it was "authored around its own
- * middle cell", which is what a composition anchor is not.
- *
- * The cell that must land on the middle of the pathway is the MOUTH: the middle of the authored front edge,
- * `(floor((w-1)/2), 0)` south-facing. Rotating that offset and subtracting it puts the mouth on the gate
- * whichever side the gate is on, because the same turn is applied to the cells themselves.
- *
- * No footprint loaded means no size to reason about, so the anchor stays where it was rather than inventing
- * one, the same rule the settlement planner follows for a building with no served size.
- */
-function entranceAnchor(kind: string, middle: RouteCell, rotation: number): RouteCell {
-  const foot = compositionFootprint(kind)
-  if (!foot) return middle
-  // THE MOUTH IS THE MIDDLE OF THE FRONT EDGE, and the front edge is the one that MEETS THE BORDER: authored
-  // south-facing that is the largest `dy`, nearest the viewer. Taking `dy = 0` put the object's BACK on the
-  // border and grew it outward, so a south gate at row 39 of 40 got rows 39 to 43 and four of its five rows
-  // fell off the map. A 2-deep entrance lost one row and nobody saw it; a 5-deep one is almost entirely gone.
-  const mouth = rotateFootprintOffset(Math.floor((foot.w - 1) / 2), foot.h - 1, foot.w, foot.h, rotation)
-  return { col: middle.col - mouth.dx, row: middle.row - mouth.dy }
-}
-
 /**
  * A WAY STAYS WALKABLE. Nothing may be built across a road.
  *
@@ -2797,36 +2728,6 @@ function keepPathwaysWalkable(ctx: ArchetypeContext): void {
       collision[row][col] = false
       grew = true
     }
-  }
-}
-
-/**
- * CLEAR THE GROUND AN ENTRANCE IS ABOUT TO STAND ON.
- *
- * The canopy fills its density before the pathways are cut, and the treeline plants the border after, so by the
- * time an entrance is placed there can already be a tree on the very cell its upright wants. Measured on the
- * first render: an `oak-tree` upright and a whole `tree_round` composition in the same cell, which is why the
- * frame did not read as a frame.
- *
- * A structure owns the cells it stands on. This takes them.
- */
-function clearForEntrance(ctx: ArchetypeContext, gate: Gate): void {
-  const taken = new Set(gate.cells.map(c => `${c.col},${c.row}`))
-  taken.add(`${gate.inside.col},${gate.inside.row}`)
-  const kept = ctx.trees.filter(t => !taken.has(`${t.col},${t.row}`))
-  if (kept.length !== ctx.trees.length) {
-    ctx.trees.length = 0
-    for (const tree of kept) plantTree(ctx, tree)
-  }
-  // …and whatever else was stamped there, so an upright is not sharing its cell with a trunk.
-  const keptComps = ctx.compositions.filter(c => !taken.has(`${c.col},${c.row}`))
-  if (keptComps.length !== ctx.compositions.length) {
-    ctx.compositions.length = 0
-    ctx.compositions.push(...keptComps)
-  }
-  for (const key of taken) {
-    const { col, row } = toCell(key)
-    if (inBounds(col, row, ctx.cols, ctx.rows)) ctx.collision[row][col] = false
   }
 }
 
@@ -3056,6 +2957,11 @@ function wearTheWay(ctx: ArchetypeContext, cells: ReadonlySet<string>, tone: str
     // A KERB IS A KERB. `edge` 0 is a way somebody laid an edge to, so the field does not come into it and
     // there is no verge to draw: a city street's boundary is the cell edge, which is exactly right for it.
     if ((ctx.pathway?.edge ?? 0) <= 0) continue
+    // AND NEVER IN THE MOUTH. An exit cell is the way LEAVING, so the field does not come over it: the only
+    // thing beside a gate cell is the border the map is sealed with, and taking that as "the field" drew a
+    // tongue of grass across the way out. Nothing is written into the end cells of a pathway, verge art
+    // included. PATHWAYS.md §4.
+    if (ctx.exitCells.has(key)) continue
     const field = fieldBeside(ctx, cells, col, row)
     if (!field) continue
     // A VERGE THE COLOUR OF THE PATH IS NOT A VERGE. The way is painted by several passes (the layout's own
@@ -3839,8 +3745,8 @@ const junglePhases: VariantPhases = {
 //   2. THE DRESSING IS THE LAYOUT'S. A meadow way out is cobble between flower beds under lamps; a forest way
 //      out is its own trail between flanking trunks. Same lane, the template's own materials.
 
-/** How wide a way out reads and how far it reaches in. */
-const GATEWAY_HALF = 2
+/** How far a way out reaches in. There is no half-width beside it on purpose: a way is as wide as the gate
+ *  it runs out of, and the gate is cut at the SERVED width. PATHWAYS.md §3. */
 const GATEWAY_RUN = 11
 
 /** Which way a lane runs in from each edge, and which way it measures its width. */
@@ -3868,24 +3774,27 @@ function flankingTrees(ctx: ArchetypeContext, col: number, row: number, depth: n
   stampTree(ctx, col, row)
 }
 
-/** One way out: where it meets the edge, what it is paved with, and what stands beside it. */
+/** One way out: the border cells it opens on, what it is paved with, and what stands beside it. */
 interface Gateway {
   side: Side
-  /** The cell just inside the map. Only its along-the-edge coordinate is used. */
-  inside: Cell
+  /**
+   * THE GATE'S OWN CELLS, in order along the edge. This is the way's width, and it is the only one.
+   *
+   * It used to be `inside`, one cell, from which the lane rebuilt its own width off a `GATEWAY_HALF` of 2,
+   * so every way out was painted 5 cells across whatever the template served. An exit then had TWO widths:
+   * the structure's (`gateOn` cuts exactly `pathwayWidth`) and the dressing's constant 5. Everything that
+   * guards an exit, the claim, `sealMapEdge`'s spare list, the connectors, works off the structure's, so on
+   * a served 3 the two outermost paved cells were unguarded ground in plain sight and the border treeline
+   * planted straight into them: the reported `[tree][ ][ ][ ][tree]`.
+   *
+   * Taking the cells themselves rather than a width means nothing here can disagree with the plan.
+   * PATHWAYS.md §3.
+   */
+  cells: readonly Cell[]
   /** The floor label the lane is laid in, and the tone it wears. Both the layout's own. */
   ground: string
   paving: string | undefined
   flank: GatewayFlank
-}
-
-/** Where a gateway's lane meets the map edge. */
-function gatewayMouth(ctx: ArchetypeContext, gate: Gateway): Cell {
-  const { cols, rows } = ctx
-  if (gate.side === 'south') return { col: gate.inside.col, row: rows - 1 }
-  if (gate.side === 'north') return { col: gate.inside.col, row: 0 }
-  if (gate.side === 'west') return { col: 0, row: gate.inside.row }
-  return { col: cols - 1, row: gate.inside.row }
 }
 
 /**
@@ -3898,16 +3807,29 @@ function gatewayMouth(ctx: ArchetypeContext, gate: Gateway): Cell {
 function paintGateway(ctx: ArchetypeContext, gate: Gateway, water: ReadonlySet<string>, routes: Set<string>): void {
   const { cols, rows, ground, collision, floorColors } = ctx
   const { inward, across } = GATEWAY_STEPS[gate.side]
-  const mouth = gatewayMouth(ctx, gate)
-  const at = (depth: number, w: number): Cell => ({
-    col: mouth.col + inward[0] * depth + across[0] * w,
-    row: mouth.row + inward[1] * depth + across[1] * w,
+  // THE MOUTH IS THE GATE. Every lane cell is one of the gate's own cells carried `depth` steps inward, so
+  // the way the map DRAWS is cell-for-cell the way the map PLANNED, and the claim that protects the plan
+  // protects every cell you can see. PATHWAYS.md §3.
+  const mouths = gate.cells
+  if (mouths.length === 0) return
+  const at = (depth: number, mouth: Cell): Cell => ({
+    col: mouth.col + inward[0] * depth,
+    row: mouth.row + inward[1] * depth,
   })
+  // What stands BESIDE the way: the two cells just outside the outermost lanes, one on each hand. Taken off
+  // the gate's ends rather than off a half-width, so a 2-wide way is flanked one cell out and a 4-wide way
+  // is flanked one cell out, instead of both being flanked three cells from a centre they do not share.
+  const first = mouths[0]
+  const last = mouths[mouths.length - 1]
+  const sides: Cell[] = [
+    { col: first.col - across[0], row: first.row - across[1] },
+    { col: last.col + across[0], row: last.row + across[1] },
+  ]
 
   const lane = new Set<string>()
   for (let depth = 0; depth < GATEWAY_RUN; depth++) {
-    for (let w = -GATEWAY_HALF; w <= GATEWAY_HALF; w++) {
-      const { col, row } = at(depth, w)
+    for (const mouth of mouths) {
+      const { col, row } = at(depth, mouth)
       if (!inBounds(col, row, cols, rows) || water.has(`${col},${row}`)) continue
       lane.add(`${col},${row}`)
     }
@@ -3915,8 +3837,8 @@ function paintGateway(ctx: ArchetypeContext, gate: Gateway, water: ReadonlySet<s
   clearMeadowCells(ctx, lane)
 
   for (let depth = 0; depth < GATEWAY_RUN; depth++) {
-    for (let w = -GATEWAY_HALF; w <= GATEWAY_HALF; w++) {
-      const { col, row } = at(depth, w)
+    for (const mouth of mouths) {
+      const { col, row } = at(depth, mouth)
       if (!lane.has(`${col},${row}`) || collision[row][col]) continue
       ground[row][col] = gate.ground
       // NO PAVING TONE, NO REPAINT. Writing `undefined` here CLEARED the colour the trail pass had already
@@ -3929,8 +3851,8 @@ function paintGateway(ctx: ArchetypeContext, gate: Gateway, water: ReadonlySet<s
       if (gate.paving) floorColors[row][col] = gate.paving
       routes.add(`${col},${row}`)
     }
-    for (const w of [-GATEWAY_HALF - 1, GATEWAY_HALF + 1]) {
-      const { col, row } = at(depth, w)
+    for (const side of sides) {
+      const { col, row } = at(depth, side)
       if (!inBounds(col, row, cols, rows) || water.has(`${col},${row}`)) continue
       gate.flank(ctx, col, row, depth)
     }
@@ -3944,10 +3866,10 @@ function paintGateways(
   plan: RoutePlan | null | undefined,
   water: ReadonlySet<string>,
   routes: Set<string>,
-  dress: Omit<Gateway, 'side' | 'inside'>,
+  dress: Omit<Gateway, 'side' | 'cells'>,
 ): void {
   if (!plan) return
-  for (const gate of plan.gates) paintGateway(ctx, { ...dress, side: gate.side, inside: gate.inside }, water, routes)
+  for (const gate of plan.gates) paintGateway(ctx, { ...dress, side: gate.side, cells: gate.cells }, water, routes)
 }
 
 /** Paint a route network in a served tone, so a way through is something you can SEE rather than merely walk.
@@ -5501,7 +5423,6 @@ const MEADOW_PATCH = 7            // coarse garden-PATCH size, a tended-field pa
 const MEADOW_RIVER_INSET = 5      // river-channel centreline inset from the 3 active edges (top / left / right)
 const MEADOW_RIVER_HALF = 1.9     // channel half-width → a ~4-wide winding river (organic, wobbled per position)
 const MEADOW_OUTER_BAND = 4       // outer LAND strip depth beyond the river where the sparse framing trees clump
-const MEADOW_ENTRANCE_HALF = 2    // entrance lane half-width → a 5-wide cobble way (matches PATH_WIDTH)
 const MEADOW_ENTRANCE_RUN = 11    // how far the cobble path + flower beds reach in from the near edge
 const MEADOW_ENTRANCE_FRAC = 0.30 // the single entrance sits left-of-centre on the near (bottom) edge (#24)
 const MEADOW_MAX_POCKET = 12      // repair fills only floor pockets ≤ this; the larger land strip beyond the river is kept
@@ -5863,12 +5784,22 @@ function paintMeadowGateways(ctx: ArchetypeContext, plan: RoutePlan, water: Read
   paintGateways(ctx, plan, water, routes, { ground: 'meadow', paving: wayTone(ctx) ?? pal.cobble, flank: bedsAndLamps })
 }
 
+/**
+ * The meadow's one way out when it planned no routes, cut here the way `gateOn` cuts a planned one: the
+ * SERVED width, centred, on the near edge. It used to hand `paintGateway` a single cell and let it spread
+ * itself 5 wide off a constant, which is the second width PATHWAYS.md §3 forbids.
+ */
 function paintMeadowEntrance(ctx: ArchetypeContext, water: Set<string>, routes: Set<string>, fromTop = false, frac = MEADOW_ENTRANCE_FRAC): void {
   const pal = MEADOW_PALETTES[ctx.zone] ?? MEADOW_PALETTES.summer
-  const col = clamp(Math.floor(ctx.cols * frac), GATEWAY_HALF + 1, ctx.cols - GATEWAY_HALF - 2)
+  const width = pathwayWidth(ctx)
+  const half = Math.floor(width / 2)
+  const centre = clamp(Math.floor(ctx.cols * frac), half + 1, ctx.cols - (width - half) - 1)
+  const row = fromTop ? 0 : ctx.rows - 1
+  const cells: Cell[] = []
+  for (let k = -half; k < width - half; k++) cells.push({ col: centre + k, row })
   paintGateway(ctx, {
     side: fromTop ? 'north' : 'south',
-    inside: { col, row: fromTop ? 0 : ctx.rows - 1 },
+    cells,
     ground: 'meadow',
     paving: wayTone(ctx) ?? pal.cobble,
     flank: bedsAndLamps,
@@ -6307,11 +6238,16 @@ function treeFits(collision: boolean[][], baseCol: number, baseRow: number, cols
  * layer records its cells before some passes have painted them, and a ford carries a route label over water
  * it never stopped owning.
  */
-export function plantTree(ctx: ArchetypeContext, tree: TreeAnchor): void {
-  if (!inBounds(tree.col, tree.row, ctx.cols, ctx.rows)) return
-  if (ctx.water.has(`${tree.col},${tree.row}`)) return
-  if (isWaterGround(ctx.ground[tree.row][tree.col])) return
-  if (ctx.wet.has(`${tree.col},${tree.row}`)) return
+export function plantTree(ctx: ArchetypeContext, tree: TreeAnchor): boolean {
+  if (!inBounds(tree.col, tree.row, ctx.cols, ctx.rows)) return false
+  if (ctx.water.has(`${tree.col},${tree.row}`)) return false
+  if (isWaterGround(ctx.ground[tree.row][tree.col])) return false
+  if (ctx.wet.has(`${tree.col},${tree.row}`)) return false
+  // NOTHING GROWS ON A CROSSING. A deck is the way over the water, landings included: the band reaches a cell
+  // of bank at each end on purpose so it has something to stand on, and those cells are dry, so every rule
+  // above lets a trunk through onto one. `canPlantBloom` has consulted `ctx.decks` for exactly this reason;
+  // trees never did, and a flanking trunk came down on a bridge's landing and shut the bridge.
+  if (ctx.decks.has(`${tree.col},${tree.row}`)) return false
   // NOTHING IS WRITTEN INTO THE END CELLS OF A PATHWAY.
   //
   // Layer 3 recorded them (GENERATION-SPEC §5.1 gives it "where the exits are"), and this is the COMMIT every
@@ -6320,10 +6256,11 @@ export function plantTree(ctx: ArchetypeContext, tree: TreeAnchor): void {
   //
   // Bounded to the gate's own cells, a couple of dozen on a 1,600 cell map, so it cannot thin a wood. A
   // guard on the whole pathway CAN, and did: it emptied every map. PATHWAYS.md §4.
-  if (ctx.exitCells.has(`${tree.col},${tree.row}`)) return
+  if (ctx.exitCells.has(`${tree.col},${tree.row}`)) return false
   // A caller that already chose a colour keeps it; everything else is dressed here, so the rule lives at the
   // COMMIT rather than in eight separate placers.
   ctx.trees.push({ ...tree, leafColor: tree.leafColor ?? leafToneAt(ctx, tree) })
+  return true
 }
 
 /**
@@ -6369,7 +6306,10 @@ function stampTree(ctx: ArchetypeContext, baseCol: number, baseRow: number, dead
   if (standsOnPathway(ctx, baseCol, baseRow)) return // and no tree in a road
   const variant = randIntWith(ctx.rand, 0, canopyCount(styleCatalog('ascii'), zone) - 1) // this tree's canopy tone (green…pink)
   const kind = dead ? 'tree_dead' : pickLivingTree(ctx.rand(), speciesAt(ctx, baseCol, baseRow)) // random shape variant (standard/tall/small/round/bush)
-  plantTree(ctx, { col: baseCol, row: baseRow, kind, variant })
+  // ONLY A TREE THAT WAS ACTUALLY PLANTED BLOCKS. The commit refuses a cell for several reasons (water, a
+  // wet cell, a crossing, the end cells of a way) and this blocked the cell regardless, so a refusal left an
+  // impassable square with nothing standing in it.
+  if (!plantTree(ctx, { col: baseCol, row: baseRow, kind, variant })) return
   if (inBounds(baseCol, baseRow, cols, rows)) collision[baseRow][baseCol] = true // only the trunk cell blocks
 }
 

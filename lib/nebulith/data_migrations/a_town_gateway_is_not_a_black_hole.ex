@@ -10,13 +10,15 @@ defmodule Nebulith.DataMigration.ATownGatewayIsNotABlackHole do
   setting, so on a day map all it ever contributed was the black.
 
   The cave keeps its mouth, by asking for it.
+
+  The entrances this used to re-seed alongside the approved ones are gone (`TheRejectedEntrancesAreGone`), so
+  only the approved pass is left here.
   """
   require Logger
 
   alias Nebulith.Catalog.TileSource
 
   def run do
-    TileSource.seed_entrances()
     TileSource.seed_approved_entrances()
 
     Logger.info("[data_migrate] the dark mouth under an arch is opt-in")

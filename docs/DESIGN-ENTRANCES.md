@@ -1,5 +1,27 @@
 # THE DESIGN: an exit that looks like a way somewhere else
 
+> **RETIRED, 2026-09-18. No template stamps an entrance any more, and the four objects this document
+> designed have been deleted from the catalogue.** Kept because it records what was asked for, what was
+> built, and the two reasons it was rejected. Read [`PATHWAYS.md`](PATHWAYS.md) for what an exit is now, and
+> [`OBJECT-CONSTRUCTION.md`](OBJECT-CONSTRUCTION.md) for the rule that the second reason turned into.
+>
+> **Reason one: it was made of tiles doing jobs they are not for.** `town_entrance` and `park_entrance` sat a
+> `lamp` at each foot, and `lamp` is not a lamp: it is the BULB cell of the two-cell `lamp_post`, whose post
+> is scaled 7 high with the bulb posed on top of it. Alone it is a yellow blob lying on the paving, which is
+> what a town's way out was flanked by. Their span was a `torii-gate`, a Shinto shrine gate, picked because
+> the label said "gate". `forest_entrance` hung a `boulder` in the air as its arch. *"stop using tiles wrong.
+> tiles are just like lego pieces, they're not meant to be used as standalone things"*, and then, of these:
+> *"I REQUESTED TO REMOVE AND TO STOP USING THIS ... EXIT YOU DID BEFORE ... I DON'T WANT TO SEE IT ANYWHERE,
+> NOR IN ANY TEMPLATE"*.
+>
+> **Reason two: it was a second width.** Every one was authored at a fixed 3 cells because the path width was
+> the constant 3 when they were drawn. The width is served per template now, 2, 3 or 4, so a fixed-width
+> object on a gate is `PATHWAYS.md` §2 inverted: the art deciding the structure.
+>
+> `temple_entrance`, `cave_entrance_cube` and `cave_entrance_rounded` are NOT these. They are the approved
+> rebuild, they are built from real mass and proportion rather than billboard tricks, and they stay in the
+> objects palette to place by hand. Nothing stamps them automatically.
+
 The thing to model against, and the thing to compare the render to afterwards. Written before any code, per his
 rule: *"always use something to model against and validate visually against it, then report completion when
 you're confident they're the same or really similar"*.

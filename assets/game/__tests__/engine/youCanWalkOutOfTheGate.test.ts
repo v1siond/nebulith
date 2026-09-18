@@ -36,7 +36,6 @@ function build(layout: string, seed: number): StageData {
       options: { exits: '2', pathways: '2' },
       nature: config?.nature, palette: config?.palette, formation: config?.formation,
       treeMix: config?.trees, subZones: config?.subZones, crossings: config?.crossings,
-      entrance: config?.entrance,
     })
   } finally { Math.random = orig }
 }
@@ -83,10 +82,19 @@ describe.each(FORESTS)('%s', layout => {
     const s = build(layout, seed)
     // The six tiles that object dropped on a gate. A wood grows trees and mushrooms all over, so this checks
     // the gate CELLS specifically, which is where they were standing.
+    //
+    // THE RIVER IS NOT A THING SOMEBODY PUT THERE. A creek that runs off the map can leave through the same
+    // cells a gate was cut in, and the water layer paints its film over them. That film is the terrain, it is
+    // flat and it blocks nothing, and `sealMapEdge` already states that a river mouth is not a way out. The
+    // subject here is an OBJECT dropped on a gate, so the water is named and skipped rather than counted as
+    // one. Whether you can walk out of such a gate is the sibling case above, which walks the map.
     const gateCells = new Set((s.routes?.gates ?? []).flatMap(g => g.cells.map(c => `${c.col},${c.row}`)))
+    const laidByTheWater = (label: string | undefined): boolean => (label ?? '').includes('water')
     const onGate = [
       ...s.trees.filter(t => gateCells.has(`${t.col},${t.row}`)).map(t => `tree ${t.col},${t.row}`),
-      ...s.props.filter(p => gateCells.has(`${p.col},${p.row}`)).map(p => `${p.type} ${p.col},${p.row}`),
+      ...s.props
+        .filter(p => gateCells.has(`${p.col},${p.row}`) && !laidByTheWater(p.label))
+        .map(p => `${p.type} ${p.label ?? ''} ${p.col},${p.row}`),
     ]
     expect(onGate).toEqual([])
   })

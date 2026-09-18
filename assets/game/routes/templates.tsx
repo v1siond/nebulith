@@ -3783,7 +3783,6 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
       // WHICH species grow here, every forest used to roll one shared table.
       treeMix: generator.config.trees,
       crossings: generator.config.crossings,
-      entrance: generator.config.entrance,
       settlement: generator.config.settlement,
       buildingSizes: buildingSizeSource(buildingTypesRef.current),
     })
@@ -4030,7 +4029,6 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
       // WHICH species grow here, every forest used to roll one shared table.
       treeMix: generator.config.trees,
       crossings: generator.config.crossings,
-      entrance: generator.config.entrance,
       // The served settlement tuning, `houseWidths` is the plot-size weighting the town rolls from. Parsed
       // since T-113 and never read until now, exactly like `nature.groundCover`.
       settlement: generator.config.settlement,

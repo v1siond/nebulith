@@ -317,9 +317,6 @@ export interface GeneratorConfig {
   trees?: readonly GeneratorTreeWeight[]
   /** What a river is crossed on, by kind. Absent → the classic bridge deck. */
   crossings?: Readonly<Record<string, GeneratorCrossing>>
-  /** The composition a gate wears: `forest_entrance`, `cave_entrance`, … A template chooses its entrance the
-   *  same way it chooses its bridge. Absent → a bare opening, which is the honest default. */
-  entrance?: string
   /** The heading each option GROUP shows, keyed by the group name its options carry. Served so the panel
    *  spells no heading of its own; absent → the options render ungrouped, exactly as they did. */
   optionGroups?: Readonly<Record<string, string>>
@@ -695,7 +692,6 @@ function parseConfig(v: unknown): GeneratorConfig {
   const pathway = parsePathway(v.pathway)
   const trees = parseTreeMix(v.trees)
   const crossings = parseCrossings(v.crossings)
-  const entrance = typeof v.entrance === 'string' && v.entrance !== '' ? v.entrance : undefined
   // SERVED, so it has to be READ. This parser is a whitelist, and a key it does not name is dropped on the
   // floor: that is the served-and-ignored defect this file has produced more than once (the palette's `leaf`,
   // a woodland's regions). `regionLayout` says whether a set is a scatter, rings or bands (`REGIONS.md` §2).
@@ -716,7 +712,6 @@ function parseConfig(v: unknown): GeneratorConfig {
   if (pathway) out.pathway = pathway
   if (trees) out.trees = trees
   if (crossings) out.crossings = crossings
-  if (entrance) out.entrance = entrance
   return out
 }
 

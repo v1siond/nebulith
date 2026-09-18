@@ -553,15 +553,15 @@
                 "floor": "#3e4f30",
                 "flowers": [
                   {
-                    "char": "\u273f",
+                    "char": "✿",
                     "color": "#c2513f"
                   },
                   {
-                    "char": "\u273e",
+                    "char": "✾",
                     "color": "#8d5fa8"
                   },
                   {
-                    "char": "\u274b",
+                    "char": "❋",
                     "color": "#c9b063"
                   }
                 ],
@@ -601,15 +601,15 @@
                 "floor": "#262e1c",
                 "flowers": [
                   {
-                    "char": "\u273f",
+                    "char": "✿",
                     "color": "#c2513f"
                   },
                   {
-                    "char": "\u273e",
+                    "char": "✾",
                     "color": "#8d5fa8"
                   },
                   {
-                    "char": "\u274b",
+                    "char": "❋",
                     "color": "#c9b063"
                   }
                 ],
@@ -649,15 +649,15 @@
                 "floor": "#475c37",
                 "flowers": [
                   {
-                    "char": "\u273f",
+                    "char": "✿",
                     "color": "#c2513f"
                   },
                   {
-                    "char": "\u273e",
+                    "char": "✾",
                     "color": "#8d5fa8"
                   },
                   {
-                    "char": "\u274b",
+                    "char": "❋",
                     "color": "#c9b063"
                   }
                 ],
@@ -697,15 +697,15 @@
                 "floor": "#2e3822",
                 "flowers": [
                   {
-                    "char": "\u273f",
+                    "char": "✿",
                     "color": "#c2513f"
                   },
                   {
-                    "char": "\u273e",
+                    "char": "✾",
                     "color": "#8d5fa8"
                   },
                   {
-                    "char": "\u274b",
+                    "char": "❋",
                     "color": "#c9b063"
                   }
                 ],
@@ -741,15 +741,15 @@
                 "floor": "#3c472b",
                 "flowers": [
                   {
-                    "char": "\u273f",
+                    "char": "✿",
                     "color": "#c2513f"
                   },
                   {
-                    "char": "\u273e",
+                    "char": "✾",
                     "color": "#8d5fa8"
                   },
                   {
-                    "char": "\u274b",
+                    "char": "❋",
                     "color": "#c9b063"
                   }
                 ],
@@ -1487,15 +1487,15 @@
                 "floor": "#4a5638",
                 "flowers": [
                   {
-                    "char": "\u273e",
+                    "char": "✾",
                     "color": "#7b5fa8"
                   },
                   {
-                    "char": "\u274b",
+                    "char": "❋",
                     "color": "#4f8f7a"
                   },
                   {
-                    "char": "\u273f",
+                    "char": "✿",
                     "color": "#b89a3c"
                   }
                 ],
@@ -1532,15 +1532,15 @@
                 "floor": "#414d33",
                 "flowers": [
                   {
-                    "char": "\u273e",
+                    "char": "✾",
                     "color": "#7b5fa8"
                   },
                   {
-                    "char": "\u274b",
+                    "char": "❋",
                     "color": "#4f8f7a"
                   },
                   {
-                    "char": "\u273f",
+                    "char": "✿",
                     "color": "#b89a3c"
                   }
                 ],
@@ -1581,15 +1581,15 @@
                 "floor": "#39442c",
                 "flowers": [
                   {
-                    "char": "\u273e",
+                    "char": "✾",
                     "color": "#7b5fa8"
                   },
                   {
-                    "char": "\u274b",
+                    "char": "❋",
                     "color": "#4f8f7a"
                   },
                   {
-                    "char": "\u273f",
+                    "char": "✿",
                     "color": "#b89a3c"
                   }
                 ],
@@ -1626,15 +1626,15 @@
                 "floor": "#333d28",
                 "flowers": [
                   {
-                    "char": "\u273e",
+                    "char": "✾",
                     "color": "#7b5fa8"
                   },
                   {
-                    "char": "\u274b",
+                    "char": "❋",
                     "color": "#4f8f7a"
                   },
                   {
-                    "char": "\u273f",
+                    "char": "✿",
                     "color": "#b89a3c"
                   }
                 ],
@@ -1671,15 +1671,15 @@
                 "floor": "#2d3624",
                 "flowers": [
                   {
-                    "char": "\u273e",
+                    "char": "✾",
                     "color": "#7b5fa8"
                   },
                   {
-                    "char": "\u274b",
+                    "char": "❋",
                     "color": "#4f8f7a"
                   },
                   {
-                    "char": "\u273f",
+                    "char": "✿",
                     "color": "#b89a3c"
                   }
                 ],
@@ -2407,15 +2407,15 @@
                 "floor": "#e8dcc0",
                 "flowers": [
                   {
-                    "char": "\u273f",
+                    "char": "✿",
                     "color": "#e2739b"
                   },
                   {
-                    "char": "\u274b",
+                    "char": "❋",
                     "color": "#6aa9c4"
                   },
                   {
-                    "char": "\u273e",
+                    "char": "✾",
                     "color": "#e0c877"
                   }
                 ],
@@ -2451,15 +2451,15 @@
                 "floor": "#dfd0a8",
                 "flowers": [
                   {
-                    "char": "\u273f",
+                    "char": "✿",
                     "color": "#e2739b"
                   },
                   {
-                    "char": "\u274b",
+                    "char": "❋",
                     "color": "#6aa9c4"
                   },
                   {
-                    "char": "\u273e",
+                    "char": "✾",
                     "color": "#e0c877"
                   }
                 ],
@@ -2496,15 +2496,15 @@
                 "floor": "#cdbf95",
                 "flowers": [
                   {
-                    "char": "\u273f",
+                    "char": "✿",
                     "color": "#e2739b"
                   },
                   {
-                    "char": "\u274b",
+                    "char": "❋",
                     "color": "#6aa9c4"
                   },
                   {
-                    "char": "\u273e",
+                    "char": "✾",
                     "color": "#e0c877"
                   }
                 ],
@@ -2540,15 +2540,15 @@
                 "floor": "#b9ad86",
                 "flowers": [
                   {
-                    "char": "\u273f",
+                    "char": "✿",
                     "color": "#e2739b"
                   },
                   {
-                    "char": "\u274b",
+                    "char": "❋",
                     "color": "#6aa9c4"
                   },
                   {
-                    "char": "\u273e",
+                    "char": "✾",
                     "color": "#e0c877"
                   }
                 ],
@@ -2588,15 +2588,15 @@
                 "floor": "#93a06a",
                 "flowers": [
                   {
-                    "char": "\u273f",
+                    "char": "✿",
                     "color": "#e2739b"
                   },
                   {
-                    "char": "\u274b",
+                    "char": "❋",
                     "color": "#6aa9c4"
                   },
                   {
-                    "char": "\u273e",
+                    "char": "✾",
                     "color": "#e0c877"
                   }
                 ],
@@ -2920,15 +2920,15 @@
                 "floor": "#7a7a6a",
                 "flowers": [
                   {
-                    "char": "\u273f",
+                    "char": "✿",
                     "color": "#c2513f"
                   },
                   {
-                    "char": "\u273e",
+                    "char": "✾",
                     "color": "#8d5fa8"
                   },
                   {
-                    "char": "\u274b",
+                    "char": "❋",
                     "color": "#c9b063"
                   }
                 ],
@@ -2962,15 +2962,15 @@
                 "floor": "#6f7360",
                 "flowers": [
                   {
-                    "char": "\u273f",
+                    "char": "✿",
                     "color": "#c2513f"
                   },
                   {
-                    "char": "\u273e",
+                    "char": "✾",
                     "color": "#8d5fa8"
                   },
                   {
-                    "char": "\u274b",
+                    "char": "❋",
                     "color": "#c9b063"
                   }
                 ],
@@ -3007,15 +3007,15 @@
                 "floor": "#666d52",
                 "flowers": [
                   {
-                    "char": "\u273f",
+                    "char": "✿",
                     "color": "#c2513f"
                   },
                   {
-                    "char": "\u273e",
+                    "char": "✾",
                     "color": "#8d5fa8"
                   },
                   {
-                    "char": "\u274b",
+                    "char": "❋",
                     "color": "#c9b063"
                   }
                 ],
@@ -3052,15 +3052,15 @@
                 "floor": "#5c6746",
                 "flowers": [
                   {
-                    "char": "\u273f",
+                    "char": "✿",
                     "color": "#c2513f"
                   },
                   {
-                    "char": "\u273e",
+                    "char": "✾",
                     "color": "#8d5fa8"
                   },
                   {
-                    "char": "\u274b",
+                    "char": "❋",
                     "color": "#c9b063"
                   }
                 ],
@@ -3101,15 +3101,15 @@
                 "floor": "#4f5c3c",
                 "flowers": [
                   {
-                    "char": "\u273f",
+                    "char": "✿",
                     "color": "#c2513f"
                   },
                   {
-                    "char": "\u273e",
+                    "char": "✾",
                     "color": "#8d5fa8"
                   },
                   {
-                    "char": "\u274b",
+                    "char": "❋",
                     "color": "#c9b063"
                   }
                 ],
@@ -3424,15 +3424,15 @@
                 "floor": "#d9b98a",
                 "flowers": [
                   {
-                    "char": "\u273f",
+                    "char": "✿",
                     "color": "#e2739b"
                   },
                   {
-                    "char": "\u274b",
+                    "char": "❋",
                     "color": "#6aa9c4"
                   },
                   {
-                    "char": "\u273e",
+                    "char": "✾",
                     "color": "#e0c877"
                   }
                 ],
@@ -3465,15 +3465,15 @@
                 "floor": "#b39469",
                 "flowers": [
                   {
-                    "char": "\u273f",
+                    "char": "✿",
                     "color": "#e2739b"
                   },
                   {
-                    "char": "\u274b",
+                    "char": "❋",
                     "color": "#6aa9c4"
                   },
                   {
-                    "char": "\u273e",
+                    "char": "✾",
                     "color": "#e0c877"
                   }
                 ],
@@ -3509,15 +3509,15 @@
                 "floor": "#a08a63",
                 "flowers": [
                   {
-                    "char": "\u273f",
+                    "char": "✿",
                     "color": "#e2739b"
                   },
                   {
-                    "char": "\u274b",
+                    "char": "❋",
                     "color": "#6aa9c4"
                   },
                   {
-                    "char": "\u273e",
+                    "char": "✾",
                     "color": "#e0c877"
                   }
                 ],
@@ -3553,15 +3553,15 @@
                 "floor": "#6f7a4a",
                 "flowers": [
                   {
-                    "char": "\u273f",
+                    "char": "✿",
                     "color": "#e2739b"
                   },
                   {
-                    "char": "\u274b",
+                    "char": "❋",
                     "color": "#6aa9c4"
                   },
                   {
-                    "char": "\u273e",
+                    "char": "✾",
                     "color": "#e0c877"
                   }
                 ],
@@ -4243,7 +4243,6 @@
                 "#9c7c4e"
               ]
             },
-            "entrance": "town_entrance",
             "grid": {
               "cellSize": 16,
               "cols": {
@@ -4589,7 +4588,6 @@
                 "#c0a375"
               ]
             },
-            "entrance": "town_entrance",
             "grid": {
               "cellSize": 16,
               "cols": {
@@ -4935,7 +4933,6 @@
                 "#c9a66b"
               ]
             },
-            "entrance": "town_entrance",
             "grid": {
               "cellSize": 16,
               "cols": {
@@ -5281,7 +5278,6 @@
                 "#c0a375"
               ]
             },
-            "entrance": "town_entrance",
             "grid": {
               "cellSize": 16,
               "cols": {
@@ -5613,7 +5609,6 @@
                 "#767168"
               ]
             },
-            "entrance": "town_entrance",
             "grid": {
               "cellSize": 16,
               "cols": {
@@ -5974,7 +5969,6 @@
                 "#f0e7d0"
               ]
             },
-            "entrance": "town_entrance",
             "grid": {
               "cellSize": 16,
               "cols": {
@@ -6320,7 +6314,6 @@
                 "#9c9080"
               ]
             },
-            "entrance": "town_entrance",
             "grid": {
               "cellSize": 16,
               "cols": {
@@ -6674,7 +6667,6 @@
                 "#f0e7d0"
               ]
             },
-            "entrance": "town_entrance",
             "grid": {
               "cellSize": 16,
               "cols": {
@@ -7013,7 +7005,6 @@
                 "#767168"
               ]
             },
-            "entrance": "town_entrance",
             "grid": {
               "cellSize": 16,
               "cols": {
@@ -7382,7 +7373,6 @@
                 "#d8c79a"
               ]
             },
-            "entrance": "town_entrance",
             "grid": {
               "cellSize": 16,
               "cols": {
@@ -7763,7 +7753,6 @@
                 "#c0a375"
               ]
             },
-            "entrance": "town_entrance",
             "grid": {
               "cellSize": 16,
               "cols": {
@@ -8145,7 +8134,6 @@
                 "#c9a66b"
               ]
             },
-            "entrance": "town_entrance",
             "grid": {
               "cellSize": 16,
               "cols": {
@@ -8526,7 +8514,6 @@
                 "#c0a375"
               ]
             },
-            "entrance": "town_entrance",
             "grid": {
               "cellSize": 16,
               "cols": {
@@ -8886,7 +8873,6 @@
                 "#767168"
               ]
             },
-            "entrance": "town_entrance",
             "grid": {
               "cellSize": 16,
               "cols": {
@@ -9271,7 +9257,6 @@
                 "#f0e7d0"
               ]
             },
-            "entrance": "town_entrance",
             "grid": {
               "cellSize": 16,
               "cols": {
@@ -9648,7 +9633,6 @@
                 "#9c9080"
               ]
             },
-            "entrance": "town_entrance",
             "grid": {
               "cellSize": 16,
               "cols": {
@@ -10026,7 +10010,6 @@
                 "#f0e7d0"
               ]
             },
-            "entrance": "town_entrance",
             "grid": {
               "cellSize": 16,
               "cols": {
@@ -10400,7 +10383,6 @@
                 "#767168"
               ]
             },
-            "entrance": "town_entrance",
             "grid": {
               "cellSize": 16,
               "cols": {
@@ -10796,7 +10778,6 @@
                 "#bcc3c9"
               ]
             },
-            "entrance": "town_entrance",
             "grid": {
               "cellSize": 16,
               "cols": {
@@ -11389,7 +11370,6 @@
                 "#c0a375"
               ]
             },
-            "entrance": "town_entrance",
             "grid": {
               "cellSize": 16,
               "cols": {
@@ -11934,7 +11914,6 @@
                 "#c9a66b"
               ]
             },
-            "entrance": "town_entrance",
             "grid": {
               "cellSize": 16,
               "cols": {
@@ -12491,7 +12470,6 @@
                 "#c0a375"
               ]
             },
-            "entrance": "town_entrance",
             "grid": {
               "cellSize": 16,
               "cols": {
@@ -13020,7 +12998,6 @@
                 "#767168"
               ]
             },
-            "entrance": "town_entrance",
             "grid": {
               "cellSize": 16,
               "cols": {
@@ -13536,7 +13513,6 @@
                 "#f0e7d0"
               ]
             },
-            "entrance": "town_entrance",
             "grid": {
               "cellSize": 16,
               "cols": {
@@ -14081,7 +14057,6 @@
                 "#9c9080"
               ]
             },
-            "entrance": "town_entrance",
             "grid": {
               "cellSize": 16,
               "cols": {
@@ -14614,7 +14589,6 @@
                 "#f0e7d0"
               ]
             },
-            "entrance": "town_entrance",
             "grid": {
               "cellSize": 16,
               "cols": {
@@ -15148,7 +15122,6 @@
                 "#767168"
               ]
             },
-            "entrance": "town_entrance",
             "grid": {
               "cellSize": 16,
               "cols": {
@@ -15675,7 +15648,6 @@
                 "#bcc3c9"
               ]
             },
-            "entrance": "town_entrance",
             "grid": {
               "cellSize": 16,
               "cols": {
@@ -16136,7 +16108,6 @@
                 "#9e4b3b"
               ]
             },
-            "entrance": "town_entrance",
             "grid": {
               "cellSize": 16,
               "cols": {
@@ -16591,7 +16562,6 @@
           "name": "Cave",
           "position": 0,
           "config": {
-            "entrance": "cave_entrance",
             "grid": {
               "cellSize": 16,
               "cols": {
@@ -16697,7 +16667,6 @@
           "name": "Temple",
           "position": 0,
           "config": {
-            "entrance": "cave_entrance",
             "grid": {
               "cellSize": 16,
               "cols": {

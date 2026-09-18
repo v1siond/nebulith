@@ -202,7 +202,13 @@ const BASELINE: Record<string, string> = {
   // the region they stand in instead of only the distance to the map edge. The lock is doing its job by
   // noticing, and only the forest case moved: the settlements, the cave, the temple and the boss stage are
   // byte identical.
-  'forest|summer|30x24|42': '7b959463',
+  // Moved 2026-09-18 again from '7b959463'. A way out is now exactly the SERVED pathway width and it reaches
+  // the border only at its gate. Two separate things used to make it wider: the gateway painter spread its own
+  // lane off a constant half-width of 2 (so every way out was drawn 5 cells across whatever the template
+  // served), and `planRoutes` paints a square brush, so a corridor running along the line one cell inside the
+  // border published that border line for its whole length. Both are fixed, so a forest's gateway cells, its
+  // flanking trunks and its treeline all sit differently. The other seven cases are byte identical.
+  'forest|summer|30x24|42': '79e06cee',
   // Moved 2026-09-16, twice, from '94c7579b' then 'a2e09914'. A cave's water stopped wearing the depth bands and started wearing
   // its autotile pieces, so the ground digest changed on purpose. The lock is doing its job by noticing.
   'cave|autumn|40x30|99': 'ebcc388a',

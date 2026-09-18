@@ -1,24 +1,22 @@
 defmodule Nebulith.DataMigration.SeedEntrances do
   @moduledoc """
-  The four entrances: forest, cave, town and park.
+  RETIRED. This pass seeded the first four entrances: forest, cave, town and park.
 
-  A pathway that leads somewhere else needs to say so, so each one is modelled against the reference
-  picture: three cells wide, which is the gate width, with two uprights, a span over the middle and a dark
-  mouth under it.
+  They were built by bending single tiles into parts they were never for. A `torii-gate`, a Japanese shrine
+  gate, stood in as a generic town arch because the name said "gate". A `boulder` hung in the air as the span
+  of a forest one. Worst of the four, the `lamp` at each foot of the town gateway is the BULB of `lamp_post`,
+  one cell of a two-cell object, so a town's way out was flanked by two bulbs lying on the paving with no post
+  under them.
 
-  Each carries a category so it lands in the objects palette and can be dropped on a map like any other
-  object, rather than only being stamped by a generator.
-
-  Composition-only, so tile rows and the poses tuned by hand in the editor are untouched.
+  `seed_approved_entrances` replaced them with objects built from real mass and proportion, and the rejected
+  four were left seeded and still named by every settlement and cave template. `TheRejectedEntrancesAreGone`
+  deletes them. This pass stays registered so the ledger keeps its order and a database that already ran it
+  still reconciles; it does nothing, because the rows it used to write are rows we now delete.
   """
   require Logger
 
-  alias Nebulith.Catalog.TileSource
-
   def run do
-    TileSource.seed_entrances()
-
-    Logger.info("[data_migrate] entrances seeded (forest, cave, town, park)")
+    Logger.info("[data_migrate] entrances: retired, see TheRejectedEntrancesAreGone")
     :ok
   end
 end

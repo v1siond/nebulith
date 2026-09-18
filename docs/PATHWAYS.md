@@ -5,7 +5,8 @@ The way through a map: what one is, how wide, where it leaves, and what may stan
 The model was implemented six times under six names before it was collapsed into one, and it has lived in
 code comments and a ticket row ever since. This is that model, written down. Read
 [`GENERATION-SPEC.md`](GENERATION-SPEC.md) §5 first for where the pathway layer sits in the build order, and
-[`DESIGN-ENTRANCES.md`](DESIGN-ENTRANCES.md) for what an exit LOOKS like.
+[`DESIGN-ENTRANCES.md`](DESIGN-ENTRANCES.md) for the history of what an exit was once dressed with, and why
+it is not dressed with anything now.
 
 ---
 
@@ -40,10 +41,11 @@ band is carved where the map wants width, and connectivity holds by construction
 |---|---|
 | where the ways run, and how wide | which tile the way is surfaced with, and in what colour |
 | which cells are a way, which are a section for objects | what lies ON it and what stands BESIDE it |
-| where the exits are and how many | which entrance composition an exit wears |
+| where the exits are and how many | what the way out is surfaced with, and what flanks it |
 
-**The width is structure. The entrance art is look.** An entrance composition must never decide how wide a
-gate is. That exact inversion is the bug this document was written after: the four entrances were authored
+**The width is structure, and it is decided ONCE.** Nothing downstream may re-derive it. A painter that
+rebuilds a way's width from a constant of its own has invented a second width, and every guard in the system
+is attached to the first one. That exact inversion is the bug this document was written after: the four entrances were authored
 3 cells wide because `WOODLAND.pathWidth` was the constant 3, and `DESIGN-ENTRANCES.md` recorded the number
 as a fact. When width became served per template, 9 generators started serving 2 and the 5 CITIES started
 serving 4, and the gate art went on covering 3. A city's fourth cell was ordinary ground, so the scatter
@@ -59,12 +61,36 @@ Everything that cuts, clears, claims or dresses a way reads that one function. N
 - the route planner, for how wide it plans
 - the route cutter, for how wide it carves
 - `gateOn`, which cuts a gate at **exactly** `width` cells
-- `gateLaneHalf`, the mouth at the border, half the width so the lane always covers the gate
+- the gateway painter, which takes the gate's OWN CELLS rather than a width at all
 - the water keep-out margin, `ceil(width / 2) + 1`
 
 A literal width anywhere else is a bug in waiting. The five call sites that once held `WOODLAND.pathWidth`
 are why a rainforest machete trail, a clifftop path and a four-lane seafront street were all three cells
 across with nothing but a colour between them.
+
+### A painter takes CELLS, never a width
+
+The gateway painter used to take one cell and spread its own lane `GATEWAY_HALF = 2` either side of it, so
+**every way out on every template was drawn 5 cells across**, whatever was served. The gate itself was cut at
+the served width, so a served 3 gave a 5-cell paved opening around a 3-cell gate, and the two extra cells
+were ordinary unguarded ground in plain sight. `sealMapEdge` then walled the border with trees, sparing the
+gate and planting in the two beside it. Reported as:
+
+    [tree][    ][    ][    ][tree]      five cells, and two of them hold a tree
+
+The fix is not a second constant to keep in step. A painter is handed `gate.cells` and carries them inward,
+so the way it draws is cell for cell the way the plan cut, and the flank stands one cell outside the gate's
+own ends. There is then nothing left that CAN disagree.
+
+### The plan seals its own border
+
+The corridor cutter paints a `width × width` SQUARE around every point it walks through. A leg that runs
+ALONG the line one cell inside the border therefore paints the border line for its whole length, so the plan
+published border cells that were never a gate: measured on a meadow, a 3-cell south gate came with FIVE
+border cells of route, the two extra ones paved and planted on.
+
+`planRoutes` strips them before it returns (`sealTheBorder`). The border opens at the gates and nowhere else,
+and the layer that cuts the ways is the one that has to say so.
 
 ## 4. The exit contract
 
@@ -81,6 +107,13 @@ An exit is the one place on a map whose meaning is "somewhere else". Four rules,
 4. **An exit arrives wired.** Each gate is born with a walk connector covering all of its cells and no
    target, because the target is the one thing that cannot be inferred. `exitConnectors` builds them from
    the plan's own gates, so the cell count follows the served width by construction.
+5. **NOTHING is written into a gate cell, art included.** Not a plant, not a prop, and not the way's own
+   verge: `wearTheWay` draws a tongue of the field over the boundary where a way meets the grass, and at a
+   gate the only thing beside the way is the sealed border, so it drew grass across the way out. A gate cell
+   carries the way's surface and nothing else.
+6. **An exit wears NO composition.** Four entrance objects used to be stamped on the gates
+   (`DESIGN-ENTRANCES.md`). They are gone. Each was authored at a fixed 3 cells, which is a second width by
+   another name, and each was assembled out of tiles doing jobs they are not for.
 
 ## 5. What may stand beside a way
 
@@ -97,7 +130,8 @@ cells a clearing carved. It means **do not plant here**. Read it, never re-deriv
 
 Before calling any pathway or exit change done:
 
-1. `grep` for a literal path width. Every one must be `pathwayWidth(ctx)` or derived from it.
+1. `grep` for a literal path width, `HALF` constants included. Every one must be `pathwayWidth(ctx)`, derived
+   from it, or better still replaced by the gate's own cells.
 2. Generate at all three served widths, 2, 3 and 4, and assert `cells per exit === served width` for each.
 3. Assert **zero** plants on any gate cell, for a wilderness, a village, a town and a city. Cities are the
    case that breaks: they are the only width-4 templates and they use the settlement layout, not the forest one.
@@ -106,3 +140,10 @@ Before calling any pathway or exit change done:
 5. Every exit has a connector, with as many cells as the gate.
 6. Read the exit cells from `__exits()`, never by guessing at the border. A border scan on `blocking` reports
    40-cell "mouths", because what closes a forest border is trees, not collision.
+7. Measure the DRAWN opening, not a set the defect can edit. `pathwayCells` is the wrong witness: `sealMapEdge`
+   DELETES a border cell from it at the moment it plants a tree there, so a test asking that set passes on the
+   broken map. Ask the ground and the floor colour, which is what is actually on screen.
+8. Serve `options.pathways` or `options.exits` in every test that measures an exit. `resolvePathways` returns
+   null without them, so a build that omits them plans NO routes, and every case guarded by `if (!routes)`
+   passes having asserted nothing. That is how 24 green cases sat on top of a broken exit.
+9. Run the new check against the OLD code before believing it. A gate that cannot fail is not a gate.

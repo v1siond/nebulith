@@ -257,7 +257,30 @@ export function planRoutes(cols: number, rows: number, pathways: Pathways, rand:
     deadEnds.push(stop)
     run(hub, stop, width, cols, rows, rand, cells, spine)
   }
+  sealTheBorder(cells, gates, cols, rows)
   return { entrance: gates[0], gates, deadEnds, hub, cells, spine }
+}
+
+/**
+ * THE BORDER OPENS AT THE GATES AND NOWHERE ELSE, said by the layer that cuts the ways.
+ *
+ * `leg` paints a `width × width` SQUARE around each point it walks through, which is what gives a corridor its
+ * width. A leg that runs ALONG the line one cell inside the border therefore paints the border line too, for
+ * its whole length: measured on a meadow, a 3-cell south gate published FIVE cells of route on the border row,
+ * and the two extra ones were paved, planted on by the treeline, and left looking like part of the way out.
+ * That is the `[tree][ ][ ][ ][tree]` opening, and it starts here rather than in any of the painters.
+ *
+ * `sealMapEdge` already says this rule for the objects layer ("the route network is spared, but on the ring
+ * only the gates"). It belongs in the plan as well, because a border cell nobody may walk out of is not part
+ * of a way. PATHWAYS.md §4.
+ */
+function sealTheBorder(cells: Set<string>, gates: readonly Gate[], cols: number, rows: number): void {
+  const mouths = new Set(gates.flatMap(gate => gate.cells.map(c => `${c.col},${c.row}`)))
+  for (const key of [...cells]) {
+    if (mouths.has(key)) continue
+    const [col, row] = key.split(',').map(Number)
+    if (col === 0 || row === 0 || col === cols - 1 || row === rows - 1) cells.delete(key)
+  }
 }
 
 /** A copy in random order. Which axis a road takes should vary between maps, nothing more. */

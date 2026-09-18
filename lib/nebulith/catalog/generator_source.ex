@@ -1295,7 +1295,6 @@ defmodule Nebulith.Catalog.GeneratorSource do
       "grid" => kind.grid,
       "settlement" => Map.merge(tuning, env.settlement_overrides),
       "nature" => env.settlement_nature,
-      "entrance" => "town_entrance",
       "units" => townsfolk(settlement_folk(env, kind)),
       "buildings" => Map.merge(@building_palette, Map.merge(kind.buildings, env.buildings))
     }
@@ -1349,13 +1348,13 @@ defmodule Nebulith.Catalog.GeneratorSource do
       %{
         category: "cave", key: "cave_default", name: "Cave", variant: "cave", position: 0,
         description: "A cavern floor: bats, spiders and skeletons instead of townsfolk.",
-        config: %{"grid" => @small_grid, "units" => enemies(~w(bat spider skeleton)), "entrance" => "cave_entrance"},
+        config: %{"grid" => @small_grid, "units" => enemies(~w(bat spider skeleton))},
         options: @way_options
       },
       %{
         category: "temple", key: "temple_default", name: "Temple", variant: "temple", position: 0,
         description: "A temple dungeon: skeletons, guardians and wraiths.",
-        config: %{"grid" => @small_grid, "units" => enemies(~w(skeleton guardian wraith)), "entrance" => "cave_entrance"},
+        config: %{"grid" => @small_grid, "units" => enemies(~w(skeleton guardian wraith))},
         options: @way_options
       }
     ]
