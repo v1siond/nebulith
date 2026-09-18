@@ -72,8 +72,22 @@ const waterCells = (s: Stage): Array<[number, number]> => {
   return out
 }
 
+/**
+ * THE CHANNEL, which is what this file is about. A map carries TWO kinds of water: the channel the river
+ * option carves, and whatever standing water a region states for itself, a bog's pools or a `lakeside`'s
+ * lake. Every assertion here is about the channel, and asking the ground alone cannot tell them apart,
+ * because both are water.
+ *
+ * This is the same distinction the header already draws, one step further along: it used to be enough to say
+ * a pool is not a channel, because a pool laid no water ground. A lake does. `stage.standing` is the
+ * generator's own answer to which cells are a region's, so the test asks it rather than inferring it from a
+ * tile name or, as two of these assertions did, from the swamp's floor COLOUR.
+ */
+const channelCells = (s: Stage): Array<[number, number]> =>
+  waterCells(s).filter(([c, r]) => !s.standing?.has(`${c},${r}`))
+
 const edges = (s: Stage) => {
-  const w = waterCells(s)
+  const w = channelCells(s)
   return {
     top: w.some(([, r]) => r === 0),
     bottom: w.some(([, r]) => r === s.rows - 1),
@@ -142,12 +156,20 @@ const deckCells = (s: Stage) => {
 }
 
 describe('no river means no river', () => {
-  it.each(['woodland', 'meadow'] as const)('a %s with the river set to none has no water at all', layout => {
-    expect(waterCells(grow(layout, 'none'))).toHaveLength(0)
+  // *"sometimes I select 'no river' and still get one"*. What that asks for is no CHANNEL, and this used to be
+  // able to say "no water at all" because the channel was the only water a map could have. It is not any
+  // more: a region states its own, and a `lakeside` with no lake in it is the other half of the same
+  // complaint. So the contract is stated for what it actually defends, and it is stricter than it was, since
+  // a channel of one cell would now fail it where a lake of two hundred correctly does not.
+  it.each(['woodland', 'meadow'] as const)('a %s with the river set to none has no channel', layout => {
+    const s = grow(layout, 'none')
+    expect(channelCells(s)).toHaveLength(0)
+    expect(s.decks?.size ?? 0).toBe(0)
+    expect(s.fords?.size ?? 0).toBe(0)
   })
 
   it('a jungle still has its creek, the option says what KIND of water, not whether a jungle has any', () => {
-    expect(waterCells(grow('jungle', 'none')).length).toBeGreaterThan(0)
+    expect(channelCells(grow('jungle', 'none')).length).toBeGreaterThan(0)
   })
 })
 
@@ -182,7 +204,7 @@ describe('around, runs round the map and leaves the way in open', () => {
     // Its wobble can brush the map edge, the old meadow river always could, so the signature is WHICH sides
     // it follows, not that it never touches an edge.
     const s = grow('woodland', 'around')
-    const w = waterCells(s)
+    const w = channelCells(s)
     const band = 8
     expect(w.some(([, r]) => r < band)).toBe(true)
     expect(w.some(([c]) => c < band)).toBe(true)
@@ -226,7 +248,7 @@ describe('random, one of the courses, and more than one across seeds', () => {
   it('every random map has a river and is one place', () => {
     for (let seed = 1; seed <= 8; seed++) {
       const s = grow('woodland', 'random', seed)
-      expect(waterCells(s).length).toBeGreaterThan(0)
+      expect(channelCells(s).length).toBeGreaterThan(0)
       expect({ seed, regions: regionSizes(s).length }).toEqual({ seed, regions: 1 })
     }
   })
@@ -243,7 +265,7 @@ describe('water by depth: wade the shallows, the rest blocks', () => {
       // THE CHANNEL ONLY. A jungle also carries swamp pools, and a pool at ground level is walkable on purpose
       // now, so counting it here measured the wrong thing. Pools are the cells wearing the served swamp tone.
       const pal = findGenerator(CATALOG, 'wilderness', layout)!.config.palette
-      const channel = waterCells(s).filter(([c, r]) => !(pal?.swamp && s.floorColors[r][c] === pal.swamp))
+      const channel = channelCells(s)
       // DEPTH COMES FROM THE DEPTH MAP, not from the label. The generator stopped writing `water_shallow` /
       // `water_deep` over the channel when water became terrain with a border, so asking the label which cells
       // are shallow now answers "none of them" and this test passed vacuously in the wrong direction. The
@@ -269,7 +291,7 @@ describe('water by depth: wade the shallows, the rest blocks', () => {
       // you wade it. That is the whole point of a ford, and it is what "the crossing is the way over" means
       // here. This case was written before fords existed and asserted the rule without the exception.
       const crossed = (c: number, r: number) => (s.decks?.has(`${c},${r}`) ?? false) || (s.fords?.has(`${c},${r}`) ?? false)
-      const open = waterCells(s).filter(([c, r]) => !s.collision[r][c] && !crossed(c, r))
+      const open = channelCells(s).filter(([c, r]) => !s.collision[r][c] && !crossed(c, r))
       expect({ layout, open: open.length }).toEqual({ layout, open: 0 })
     }
   })
@@ -278,7 +300,7 @@ describe('water by depth: wade the shallows, the rest blocks', () => {
     const s = grow('woodland', 'divides', 2)
     // The river is shallow at its edge and deep in its middle, asked of the DEPTH rather than of three label
     // spellings that no longer exist. A wide river has to show both.
-    const depths = waterCells(s).map(([c, r]) => s.waterDepth?.get(`${c},${r}`) ?? 0)
+    const depths = channelCells(s).map(([c, r]) => s.waterDepth?.get(`${c},${r}`) ?? 0)
     expect(Math.min(...depths)).toBe(1)
     expect(Math.max(...depths)).toBeGreaterThanOrEqual(3)
     // wading the edges does not get you across. The middle still blocks, so the one crossing is still THE way
@@ -305,7 +327,7 @@ describe('water by depth: wade the shallows, the rest blocks', () => {
   it('paints the WHOLE channel one served tone, whatever the band', () => {
     const pal = findGenerator(CATALOG, 'wilderness', 'woodland')!.config.palette!
     const s = grow('woodland', 'divides', 2)
-    const channel = waterCells(s).filter(([c, r]) => !(pal.swamp && s.floorColors[r][c] === pal.swamp))
+    const channel = channelCells(s)
     expect([...new Set(channel.map(([c, r]) => s.floorColors[r][c]))]).toEqual([pal.water])
     expect(new Set(channel.map(([c, r]) => s.ground[r][c])).size).toBeGreaterThan(1)
   })
@@ -356,7 +378,7 @@ describe('water by depth: wade the shallows, the rest blocks', () => {
     // The whole course freezes: no cell is left as OPEN water. `waterCells` asks what the ground IS now, and
     // frozen water IS water, so the question has to be asked precisely rather than relying on a name list that
     // happened to omit `frozen_water`.
-    const open = waterCells(s).filter(([c, r]) => s.ground[r][c] !== 'frozen_water')
+    const open = channelCells(s).filter(([c, r]) => s.ground[r][c] !== 'frozen_water')
     expect(open).toEqual([])
     expect(ice.every(([c, r]) => !s.collision[r][c])).toBe(true)
   })
@@ -364,7 +386,7 @@ describe('water by depth: wade the shallows, the rest blocks', () => {
   it('and a SUMMER river still blocks past its shallows, so the season is the only difference', () => {
     const s = grow('woodland', 'divides', 5)
     // DEEP comes from the depth map, not from a label spelling the generator no longer writes.
-    const deep = waterCells(s).filter(([c, r]) => (s.waterDepth?.get(`${c},${r}`) ?? 0) >= 3)
+    const deep = channelCells(s).filter(([c, r]) => (s.waterDepth?.get(`${c},${r}`) ?? 0) >= 3)
     expect(deep.length).toBeGreaterThan(0)
     expect(deep.every(([c, r]) => s.collision[r][c])).toBe(true)
   })

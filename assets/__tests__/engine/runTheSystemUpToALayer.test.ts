@@ -54,7 +54,10 @@ describe('an empty map with its river', () => {
     const s = build('forest_woodland', 'water')
     expect(waterCells(s)).toBeGreaterThan(0)
     expect(s.trees).toHaveLength(0)
-    expect(s.props).toHaveLength(0)
+    // NOTHING PLANTED AND NOTHING DRESSED, which is what stopping after the water means. The water's OWN
+    // output is not dressing: a region that states standing water lays a film over its floor in this very
+    // layer, so demanding zero props would demand that the water layer not finish its own job.
+    expect(s.props.filter(p => p.label !== 'water_still')).toHaveLength(0)
   })
 
   it('and the layers past the stop are reported as not run, so the readout still accounts for all of them', () => {

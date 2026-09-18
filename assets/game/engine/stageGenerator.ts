@@ -286,6 +286,20 @@ export interface StageData {
    */
   fords?: ReadonlySet<string>
   /**
+   * A REGION'S OWN STANDING WATER: its puddles, its pools and its lakes.
+   *
+   * A map has two kinds of water now and they are not interchangeable. The CHANNEL is cut below the walking
+   * floor, it flows, it is bridged, it stands its banks above itself and the treeline closes over where it
+   * leaves the map. A region's water does none of that: it is a lake in a `lakeside` or a pool in a bog, and
+   * it sits where the region says it sits.
+   *
+   * Nothing downstream could tell them apart, because both are water GROUND, so anything asking "is this
+   * water" got one answer for two different things. Publishing it is what lets a caller ask the difference
+   * instead of guessing it from a tile name. Undefined when a map has none, so nothing changes for one
+   * without.
+   */
+  standing?: ReadonlySet<string>
+  /**
    * HOW DEEP THE WATER IS, per cell: 1 where it touches a bank, higher further from one.
    *
    * It used to be readable off the ground LABEL, because the depth pass wrote `water_shallow` / `water` /
@@ -1421,6 +1435,7 @@ export function generateStage(opts: GenerateOptions): StageData {
     decks: ctx.decks.size === 0 ? undefined : ctx.decks,
     waterDepth: ctx.waterDepth.size === 0 ? undefined : ctx.waterDepth,
     fords: ctx.fords.size === 0 ? undefined : ctx.fords,
+    standing: ctx.pools.size === 0 ? undefined : ctx.pools,
     pathways: ctx.pathwayCells.size === 0 ? undefined : ctx.pathwayCells,
   }
 }
@@ -1463,8 +1478,7 @@ function settlementPhases(settlement: Settlement): VariantPhases {
     //
     // A village and a town serve none, so they take the same single call and are unmoved.
     terrain: ctx => {
-      ctx.zones = leadRegion(ctx, ctx.subZones)
-      ctx.zoneAt = partitionSubZones(ctx, ctx.zones)
+      shapeRegions(ctx)
     },
 
     water: carveMapWater,
@@ -1681,6 +1695,7 @@ export function buildingsPass(ctx: ArchetypeContext, layout: VillageLayout): voi
     // in a city standing in the channel. It read as fine for a while only because the PLAZA was paving over
     // the river first, so by the time anything asked, those cells were no longer water.
     if (!rectOnLand(ctx, rect)) continue
+    if (!plotIsBuilt(ctx, rect)) continue
     buildings.push(placeBuilding(ctx, plot, rect, kind))
   }
 }
@@ -1872,6 +1887,24 @@ interface FootRect {
 /** The oriented GROUND footprint rect for a plot: south/north run length×depth (cols×rows); east/west
  *  swap to depth×length. `plot.col`/`plot.row` are the rect's top-left. Mirrors villageLayout's
  *  `footprint`, so the stamp lands exactly on the small road-free plot the planner reserved. */
+/**
+ * DOES THIS PLOT GET A BUILDING, which is the one thing that separates a park from a terrace.
+ *
+ * A settlement's regions were neighbourhoods in name only: this pass walked the planner's plots and built
+ * every single one, so `upper` / `middle` / `lower` could differ in wall material and in nothing else. A city
+ * has parks, a market square, a green and a graveyard, and every one of those is defined by the ground NOT
+ * being built on. No region could say so, so none of them could exist.
+ *
+ * `built` is that share, read at the plot's own centre so a plot belongs to one neighbourhood rather than
+ * being split between two. A region that states none is fully built, which is what every settlement does
+ * today, so nothing that exists moves until the backend serves a number.
+ */
+function plotIsBuilt(ctx: ArchetypeContext, rect: FootRect): boolean {
+  const share = ctx.zoneAt?.[Math.floor(rect.row + rect.h / 2)]?.[Math.floor(rect.col + rect.w / 2)]?.built
+  if (share === undefined) return true
+  return ctx.rand() < share
+}
+
 function footprintRect(plot: Plot): FootRect {
   const horizontal = plot.facing === 'south' || plot.facing === 'north'
   return { col: plot.col, row: plot.row, w: horizontal ? plot.length : plot.depth, h: horizontal ? plot.depth : plot.length }
@@ -3328,13 +3361,7 @@ const woodlandPhases: VariantPhases = {
     // parsed and dropped: served-and-ignored, the exact defect that keeps turning up. Both forest layouts
     // share the one mechanism, and `subZoneCanopyField` runs `woodlandCanopyField` once per region, so a map
     // with no regions takes the same single call it always did.
-    ctx.zones = leadRegion(ctx, ctx.subZones)
-    ctx.zoneAt = partitionSubZones(ctx, ctx.zones)
-    paintSubZoneFloors(ctx, ctx.zoneAt)
-
-    // RELIEF: a region may stand ABOVE the rest of the map. A region that states no level is flat, so every
-    // existing template is unmoved.
-    raiseRegions(ctx, ctx.zoneAt)
+    shapeRegions(ctx)
   },
 
   // THE RIVER, carved before anything is planted OR drawn, so its cells are already spoken for. It joins
@@ -3342,11 +3369,13 @@ const woodlandPhases: VariantPhases = {
   // tree cannot go.
   water: ctx => {
     const course = riverCourse(ctx, 'around')
-    if (!course) return
-    for (const key of carveRiver(ctx, course, ctx.palette)) {
+    for (const key of course ? carveRiver(ctx, course, ctx.palette) : []) {
       ctx.water.add(key)
       ctx.claimed.add(key)
     }
+    // AND THE REGIONS' OWN WATER. A `lakeside` asks for 22% standing water and this builder had no pool pass,
+    // so the one region on the map named after a lake was the one place with no water in it.
+    floodRegionPools(ctx, ctx.palette)
   },
 
   pathways: ctx => {
@@ -3477,7 +3506,10 @@ const woodlandPhases: VariantPhases = {
       flank: flankingTrees,
     })
 
-    settleWaterDepth(ctx, molten(ctx, ctx.palette)) // the water settles by depth, last
+    // THE STONE a region asks for, after the planting so a trunk is never inside a wall.
+    strewRegionRuins(ctx)
+
+    settleWaterDepth(ctx, molten(ctx, ctx.palette), ctx.pools) // the water settles by depth, last
   },
 }
 
@@ -3569,11 +3601,7 @@ const junglePhases: VariantPhases = {
 
     // THE REGIONS. A jungle is not one uniform density, it is several kinds of ground you walk between: open
     // canopy, dense growth, swamp, ruins. The region the person picked LEADS the map.
-    ctx.zones = leadRegion(ctx, ctx.subZones)
-    ctx.zoneAt = partitionSubZones(ctx, ctx.zones)
-    paintSubZoneFloors(ctx, ctx.zoneAt)
-    // ONE mechanism for both forests: a jungle plateau is the same idea as a wooded ridge.
-    raiseRegions(ctx, ctx.zoneAt)
+    shapeRegions(ctx)
   },
 
   water: ctx => {
@@ -3589,12 +3617,9 @@ const junglePhases: VariantPhases = {
       : carveJungleCreek(ctx, pal, false)
     for (const key of channel) ctx.water.add(key)
 
-    // SWAMP POOLS, standing water where a swamp region says so. They join the same water set the creek is in,
-    // so every later pass treats a pool exactly as it treats the channel.
-    for (const key of floodSwampPools(ctx, ctx.zoneAt!, pal)) {
-      ctx.pools.add(key)
-      ctx.water.add(key)
-    }
+    // THE REGIONS' OWN WATER, standing where a region says so. After the channel, so a pool never lands on
+    // top of one.
+    floodRegionPools(ctx, pal)
     for (const key of jungleBanks(ctx, ctx.water, pal)) {
       ctx.banks.add(key)
       ctx.claimed.add(key) // a bank is walkable ground the water left, so nothing plants on it
@@ -3684,7 +3709,7 @@ const junglePhases: VariantPhases = {
 
     // RUINS where a ruins region says so: a stone platform with columns on it. The planned routes are kept
     // out explicitly, which used to be done by skipping all of `claimed` and cost every ruin in the clearings.
-    raiseRuins(ctx, zoneAt, ctx.water, ctx.routes?.cells ?? new Set<string>())
+    strewRegionRuins(ctx)
 
     // EMERGENTS, the few giants standing clear above the canopy.
     plantEmergents(ctx, ctx.claimed, ctx.water)
@@ -4364,6 +4389,82 @@ function pickWeighted(zones: readonly GeneratorSubZone[], roll: number): Generat
   return zones[zones.length - 1]
 }
 
+/**
+ * EVERY MAP-DESIGN PROPERTY A REGION STATES, applied in one call, for whichever layout is running.
+ *
+ * A region is a TEMPLATE for a piece of map, not a set of tree weights. The fields that shape the ground
+ * (`floor`, `level`) were applied by the woodland and the jungle and by nobody else, `pools` by the jungle
+ * alone and `stone` by the jungle alone, so which of a region's own properties survived depended entirely
+ * on which builder the generator happened to name. Measured on what the backend serves today: the
+ * woodland's `lakeside` asks for 22% standing water and the meadow's `bank` for 12%, and neither builder
+ * has a pool pass, so a lakeside has no lake.
+ *
+ * That is a whole class of served-and-ignored, and the fix is to stop spreading the reader across builders.
+ * A layout decides how a map is COMPOSED (trees as the field vs clearings as the field); it does not get to
+ * decide which of a region's stated properties exist. Three calls, one per phase, and a new region field is
+ * added in one place and works everywhere.
+ */
+function shapeRegions(ctx: ArchetypeContext): void {
+  ctx.zones = leadRegion(ctx, ctx.subZones)
+  ctx.zoneAt = partitionSubZones(ctx, ctx.zones)
+  paintSubZoneFloors(ctx, ctx.zoneAt)
+  raiseRegions(ctx, ctx.zoneAt)
+}
+
+/**
+ * The standing water a region asks for, in the water phase.
+ *
+ * A PUDDLE AND A LAKE ARE THE SAME THING AT DIFFERENT SIZES, which is `WATER.md` §1 exactly: *"a river, a
+ * lake and a beach are the same thing, a set of cells painted with a water tile, and what makes each of them
+ * read as what it is comes from the SHAPE that is painted plus a border around its edge"*. This pass only
+ * ever laid the puddle: a translucent film over the floor, correct for a swamp hollow and wrong for
+ * everything else, so the one region on a woodland map named `lakeside` got wet grass instead of a lake.
+ *
+ * So the body decides. Under `REGION_LAKE_MIN` it is a hollow full of standing water and keeps the film it
+ * always had, which leaves every swamp exactly as approved. At or over it, it is a BODY of water: real water
+ * ground, which `borderTheWater` then finds on its own and edges with the same shore pieces the river wears,
+ * and `classifyBody` reads as a lake or, when it runs along a map edge, as a sea.
+ */
+function floodRegionPools(ctx: ArchetypeContext, pal: GeneratorPalette | undefined): void {
+  if (!ctx.zoneAt) return
+  for (const body of regionPoolBodies(ctx, ctx.zoneAt)) {
+    if (body.size >= REGION_LAKE_MIN) { fillRegionLake(ctx, body); continue }
+    layPoolFilm(ctx, body, pal)
+  }
+}
+
+/** A body of standing water this big is a LAKE and gets a shore, not a film. Below it, a hollow with water
+ *  in it. Six cells is already a pool (`SWAMP_MIN_POOL`); this is the size at which one stops reading as wet
+ *  ground you walk through and starts reading as water you walk around. */
+const REGION_LAKE_MIN = 24
+
+/** Real water, so every pass that already knows what water is treats it as such: the border pass edges it,
+ *  the depth pass settles it, and nothing plants in it. */
+function fillRegionLake(ctx: ArchetypeContext, body: ReadonlySet<string>): void {
+  for (const key of body) {
+    const { col, row } = toCell(key)
+    ctx.ground[row][col] = 'water'
+    ctx.claimed.add(key)
+    // NOT `ctx.water`. That set is the CHANNEL, by the behaviour of everything that reads it: the bridge pass
+    // tries to span it, the flow walk wants it to be one connected run, the bank pass stands ground above it
+    // and the treeline closes over where it leaves the map. Handing a lake to all of that asked a bridge to
+    // cross a pond and asked one river to be two. The lake is still water where it matters, because the
+    // border pass, the depth pass and every planting pass ask what the GROUND is, and the ground here is
+    // water.
+    // STANDING WATER, which is what `settleWaterDepth` means by its `pools` set: *"Only the CHANNEL gets one:
+    // a pool is standing water and standing water has no current"*. Left out of it, the depth pass walked a
+    // flow field across the lake and handed every cell a heading, so `classifyBody` read a current and the
+    // lake wore the river's white-water rim instead of a lake's dark one.
+    ctx.pools.add(key)
+  }
+}
+
+/** The fallen masonry a region asks for, in the objects phase, keeping off the route network. */
+function strewRegionRuins(ctx: ArchetypeContext): void {
+  if (!ctx.zoneAt) return
+  raiseRuins(ctx, ctx.zoneAt, ctx.water, ctx.routes?.cells ?? new Set<string>())
+}
+
 /** Paint each region's own floor tone, so the border between open canopy and dense growth is visible from
  *  above. A region that states no floor colour keeps whatever the base floor pass gave it. */
 function paintSubZoneFloors(ctx: ArchetypeContext, zoneAt: (GeneratorSubZone | undefined)[][]): void {
@@ -4373,10 +4474,10 @@ function paintSubZoneFloors(ctx: ArchetypeContext, zoneAt: (GeneratorSubZone | u
   })
 }
 
-/** SWAMP POOLS, standing water in a swamp region. Not a channel: pools sit in hollows, so they are blobs
- *  scored off the same coherent noise the canopy uses rather than scattered per cell. */
-function floodSwampPools(ctx: ArchetypeContext, zoneAt: (GeneratorSubZone | undefined)[][], pal: GeneratorPalette | undefined): Set<string> {
-  const { cols, rows, ground, collision, floorColors } = ctx
+/** WHERE A REGION'S STANDING WATER LIES, as separate bodies. Not a channel: it sits in hollows, so it is
+ *  blobs scored off the same coherent noise the canopy uses rather than scattered per cell. */
+function regionPoolBodies(ctx: ArchetypeContext, zoneAt: (GeneratorSubZone | undefined)[][]): Array<Set<string>> {
+  const { cols, rows, ground } = ctx
 
   // 1 · WHERE the water stands. Coherent noise on a COARSE patch, so a pool comes out as a sheet.
   const candidate = new Set<string>()
@@ -4397,16 +4498,22 @@ function floodSwampPools(ctx: ArchetypeContext, zoneAt: (GeneratorSubZone | unde
 
   // 2 · Only the real BODIES of it. A puddle of one or two cells reads as wet dirt, not as water you have to
   //     go around, and it is what made the map hard to read.
-  const pools = new Set<string>()
-  for (const body of bodiesOf(candidate)) {
-    if (body.size < SWAMP_MIN_POOL) continue
-    for (const key of body) pools.add(key)
-  }
+  return bodiesOf(candidate).filter(body => body.size >= SWAMP_MIN_POOL)
+}
 
-  // 3 · Lay it. The share the backend serves is untouched: the same noise at the same threshold, measured over
-  //     a coarser patch, so a swamp is as wet as it was and simply legible.
-  for (const key of pools) {
+/** A HOLLOW FULL OF STANDING WATER: a translucent film laid over the floor, which keeps walking as floor. The
+ *  share the backend serves is untouched, so a swamp is as wet as it was. */
+function layPoolFilm(ctx: ArchetypeContext, body: ReadonlySet<string>, pal: GeneratorPalette | undefined): void {
+  const { collision, floorColors } = ctx
+  for (const key of body) {
     const { col, row } = toCell(key)
+    // `ctx.pools`, and NOT `ctx.water`, for the same reason a lake is kept out of it: that set is the channel.
+    // The jungle used to put its films in there and it was harmless while the jungle was the only layout with
+    // any, because its creek was carved first and dwarfed them. It is not harmless now that every layout has
+    // them: measured on a woodland asked for a WOODEN bridge, the crossing pass was handed the films along
+    // with the channel and laid a dirt ford instead. What keeps a plant out of a puddle is `ctx.wet`, which
+    // is set below, and that has always been the field for it.
+    ctx.pools.add(key)
     // A PUDDLE IS FLUSH WITH THE FLOOR; a channel surface is not.
     //
     // Measured before changing anything: a pool ALREADY sits at elevation 0, is ALREADY walkable (149 of 149
@@ -4429,7 +4536,10 @@ function floodSwampPools(ctx: ArchetypeContext, zoneAt: (GeneratorSubZone | unde
     // planting passes still keep out, which they used to learn from the ground label.
     ctx.wet.add(key)
     const film = resolveTile(styleCatalog('ascii'), ctx.zone, 'water_still')
-    ctx.props.push({ col, row, type: 'ground_decor', char: film.char, label: 'water_still', blocking: false, color: pal?.swamp ?? pal?.water ?? film.color })
+    // `grows: false` for the same reason the ford's film carries it: standing water is not something GROWING
+    // on the ground, it is water lying on it, and every sweep that clears a way of vegetation reads that flag.
+    // Without it a puddle on a path counted as undergrowth on the path.
+    ctx.props.push({ col, row, type: 'ground_decor', char: film.char, label: 'water_still', blocking: false, grows: false, color: pal?.swamp ?? pal?.water ?? film.color })
     // NO COLLISION. and
     // earlier:
     //
@@ -4449,7 +4559,6 @@ function floodSwampPools(ctx: ArchetypeContext, zoneAt: (GeneratorSubZone | unde
     // Nothing replaces this. Leaving the ground its own colour is not a fallback, it is the absence of an
     // override that should never have been written.
   }
-  return pools
 }
 
 /**
@@ -5183,16 +5292,18 @@ function meadowPhases(twoPathways: boolean): VariantPhases {
       // rendered FOUR, which is the exact inverse of what its own reference says it is: *"more mix of colors,
       // due to flowers, they even have trees that are orange, pink, more varied"*.
       //
-      // The FLOOR is deliberately not part of this. `paintSubZoneFloors` would paint over the gradient above,
-      // and that gradient is the meadow's approved look, so the regions reach its planting and nothing else.
-      ctx.zones = leadRegion(ctx, ctx.subZones)
-      ctx.zoneAt = partitionSubZones(ctx, ctx.zones)
+      // The gradient above survives a region that states no tone of its own, which every meadow region does
+      // today, so nothing here paints over the approved look. A region that DOES state one means to.
+      shapeRegions(ctx)
     },
 
     water: ctx => {
+      const pal = meadowWater(ctx)
       const course = riverCourse(ctx, 'around')
-      if (!course) return
-      for (const key of carveRiver(ctx, course, meadowWater(ctx))) ctx.water.add(key)
+      for (const key of course ? carveRiver(ctx, course, pal) : []) ctx.water.add(key)
+      // A `bank` region asks for 12% standing water and this builder had no pool pass, so a bank banked
+      // nothing.
+      floodRegionPools(ctx, pal)
     },
 
     pathways: ctx => {
@@ -5227,7 +5338,8 @@ function meadowPhases(twoPathways: boolean): VariantPhases {
       // it'll still happen at the end of the process and can be the start of the objects phase"*. After the
       // repair, so the deck is never filled back in.
       if (course) bridgeRiver(ctx, ctx.water, ctx.pathwayCells, course, meadowWater(ctx))
-      settleWaterDepth(ctx, molten(ctx, meadowWater(ctx))) // last, once the bridge is down
+      strewRegionRuins(ctx) // the stone a region asks for, after the planting
+      settleWaterDepth(ctx, molten(ctx, meadowWater(ctx)), ctx.pools) // last, once the bridge is down
     },
   }
 }

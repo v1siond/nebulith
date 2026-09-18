@@ -39,7 +39,10 @@ describe('the river is cut below the walking floor', () => {
   it.each(['through', 'divides', 'around'])('%s: every water cell is inside the channel', course => {
     const s = build({ river: course, depth: '1' })
     const dug = dugCells(s)
-    const water = cellsWhere(s, t => t.includes('water'))
+    // THE CHANNEL, not every wet cell. A region's own standing water is water too and is deliberately NOT cut:
+    // a lake sits on the ground rather than in a bed, so including it here would assert that a lake is a
+    // river. `stage.standing` is the generator's record of which cells a region laid.
+    const water = cellsWhere(s, t => t.includes('water')).filter(k => !s.standing?.has(k))
 
     expect(water.length).toBeGreaterThan(0)
     expect(dug.size).toBeGreaterThan(0)

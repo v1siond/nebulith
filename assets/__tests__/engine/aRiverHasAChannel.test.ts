@@ -58,10 +58,24 @@ function build(key: string, river: string, seed = 4): StageData {
 const isWater = (g: string) => /water/.test(g)
 const elevationAt = (s: StageData, col: number, row: number) => s.elevation?.[row]?.[col] ?? 0
 
+/**
+ * THE CHANNEL's cells, which is what this file asserts about: cut below its banks, flowing as one body, with
+ * the ground beside it standing above it.
+ *
+ * A map carries two kinds of water. The channel is the one the river option carves; the other is whatever
+ * standing water a REGION states for itself, a bog's pools or a `lakeside`'s lake, and none of the three
+ * properties above is true of it: a lake is not cut, does not flow and has no raised bank. Asking the ground
+ * cannot separate them, because both are water, so this asks `stage.standing`, which is the generator's own
+ * record of which cells belong to a region.
+ */
 function waterCells(s: StageData): Array<{ col: number; row: number }> {
   const out: Array<{ col: number; row: number }> = []
   for (let row = 0; row < s.rows; row++) {
-    for (let col = 0; col < s.cols; col++) if (isWater(s.ground[row][col])) out.push({ col, row })
+    for (let col = 0; col < s.cols; col++) {
+      if (!isWater(s.ground[row][col])) continue
+      if (s.standing?.has(`${col},${row}`)) continue
+      out.push({ col, row })
+    }
   }
   return out
 }

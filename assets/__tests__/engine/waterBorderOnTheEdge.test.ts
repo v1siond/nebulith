@@ -41,6 +41,20 @@ const waterOf = (s: StageData): Set<string> => {
   return cells
 }
 
+/**
+ * THE CHANNEL: every wet cell that is not a region's own standing water.
+ *
+ * The two tests below are about the RIVER, one body flowing with a real middle to it, and a map now carries
+ * a second kind of water that is neither: a `lakeside`'s lake or a bog's pools, which are separate bodies by
+ * definition and would fail the first test for being exactly what they are. The third test is about the
+ * BORDER, which is true of any body of water, so it keeps asking about all of it.
+ */
+const channelOf = (s: StageData): Set<string> => {
+  const cells = waterOf(s)
+  for (const key of s.standing ?? []) cells.delete(key)
+  return cells
+}
+
 /** A solid rectangle of water, the simplest body with a real interior. */
 const block = (w: number, h: number): Set<string> => {
   const cells = new Set<string>()
@@ -149,7 +163,7 @@ describe('a generated river is one river, and it has a middle', () => {
     const broken: string[] = []
     for (const layout of LAYOUTS) {
       for (const seed of SEEDS) {
-        const bodies = waterBodies(waterOf(grow(layout, seed)))
+        const bodies = waterBodies(channelOf(grow(layout, seed)))
         if (bodies.length > 1) broken.push(`${layout} seed ${seed}: ${bodies.length} bodies`)
       }
     }
@@ -161,7 +175,7 @@ describe('a generated river is one river, and it has a middle', () => {
     for (const layout of LAYOUTS) {
       for (const seed of SEEDS) {
         const s = grow(layout, seed)
-        const cells = waterOf(s)
+        const cells = channelOf(s)
         let centre = 0
         for (const key of cells) {
           const [col, row] = key.split(',').map(Number)

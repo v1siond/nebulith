@@ -256,6 +256,14 @@ export interface GeneratorSubZone {
   /** the share of the region carrying fallen masonry (ruins) */
   stone?: number
   /**
+   * The share of this region's PLOTS that carry a building, where the region is part of a settlement.
+   *
+   * A park, a market square, a green and a graveyard are all defined by open ground inside a built-up place,
+   * and nothing could say so: every plot the planner laid got a house whatever neighbourhood it stood in.
+   * Absent means fully built, which is what a settlement did before anyone could ask for less.
+   */
+  built?: number
+  /**
    * This region's own ELEVATION in levels: 0 the walking floor, positive standing above it. The step between
    * two regions is a cliff.
    */
