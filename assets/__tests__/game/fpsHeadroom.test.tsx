@@ -11,7 +11,7 @@
  */
 import { render, screen, renderHook, act } from '@testing-library/react'
 import { FpsReadout, LiveFpsReadout } from '@/components/game/editorChrome'
-import { headroomFps, useRenderMs } from '@/components/useFps'
+import { headroomFps, useRenderMs } from '@/components/game/useFps'
 
 describe('useRenderMs, samples the ACTIVE view\'s render-cost probe', () => {
   beforeEach(() => { jest.useFakeTimers() })

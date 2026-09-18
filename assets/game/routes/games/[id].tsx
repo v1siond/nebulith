@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/router'
-import { useToast } from '@/components/Toast'
+import { useToast } from '@/components/game/Toast'
 import { getGame, type Game } from '@/lib/api'
 import TemplateEditor, { type EditorGameContext } from '../templates'
 

@@ -14,8 +14,8 @@
 import { setTilePose, styleCatalog, styleTile, styleTiles } from '@/engine/tileset/styleTiles'
 import Head from 'next/head'
 import Link from 'next/link'
-import { useToast } from '@/components/Toast'
-import { ErrorBoundary } from '@/components/ErrorBoundary'
+import { useToast } from '@/components/game/Toast'
+import { ErrorBoundary } from '@/components/game/ErrorBoundary'
 import { isApiError } from '@/lib/apiError'
 
 import { type GridAsset, IsometricGrid, FLOOR_TYPE, DEFAULT_FLOOR_SLUG, DEFAULT_SLAB_BLOCKS } from '@/engine/IsometricGrid'
