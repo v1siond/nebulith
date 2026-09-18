@@ -2502,6 +2502,15 @@ function carveMapWater(ctx: ArchetypeContext): void {
  *
  * A generator that serves no pathways plans no routes, and its map is left exactly as it was.
  */
+/** Does anything grow at this cell? A region states its own canopy, so a place that grows almost nothing says
+ *  so in its own data and the border seal reads it rather than a list of biome names being kept in sync. */
+const BARE_CANOPY = 0.1
+
+function barelyGrows(ctx: ArchetypeContext, col: number, row: number): boolean {
+  const canopy = ctx.zoneAt?.[row]?.[col]?.canopy
+  return canopy !== undefined && canopy < BARE_CANOPY
+}
+
 function sealMapEdge(ctx: ArchetypeContext): void {
   const plan = ctx.routes
   if (!plan) return
@@ -2539,6 +2548,22 @@ function sealMapEdge(ctx: ArchetypeContext): void {
     // The band closes over it, which is what a wooded bank looks like anyway.
     const wet = isWaterGround(ctx.ground[row][col]) || ctx.wet.has(`${col},${row}`)
     if (collision[row][col] && !wet) return          // something already stands here, and it is not the river
+    // A BARE PLACE IS WALLED WITH ROCK, not with a wood.
+    //
+    // The border is shut with whatever grows there, which is right in a wood and absurd at the top of a
+    // mountain: on an ordered region set the map's edge IS the first and last region, so a summit served
+    // `canopy: 0.02` had the whole northern ring planted and came out the DENSEST region on the map, 72 trees
+    // per 100 cells against the foot's 14.5. That is the exact inverse of the rule its own reference states,
+    // *"the higher you get to the mountain the less vegetation there is"*.
+    //
+    // A place with almost nothing growing in it still needs its border shut, so it is shut with what is
+    // actually there. No new art: `rock` has been in the catalog all along.
+    if (barelyGrows(ctx, col, row)) {
+      placeProp(ctx, makeRock(col, row))
+      collision[row][col] = true
+      ctx.pathwayCells.delete(`${col},${row}`)
+      return
+    }
     plantTree(ctx, { col, row, kind: pickLivingTree(ctx.rand(), speciesAt(ctx, col, row)), variant: massVariant(col, row) })
     collision[row][col] = true
     // AND A CELL THE WOOD CLOSED IS NO LONGER A WAY. Only a ring cell reaches here, since everything else the
