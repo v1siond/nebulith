@@ -86,6 +86,36 @@ the generator was never at fault.
 
 ---
 
+### 0b.3 One test per region, and it is the gate
+
+*"AND WE SHOULD HAVE SPECIFIC TEST FOR EACH SINGLE ONE, JUNGLE x, JUNGLE y, ETC ... THE SAME WITH ALL
+VARIATIONS ALL TEMPLATE GENERATORS, INCLUDING VILLAGES, TOWNS, CITIES AND OF COURSE ALL WIDLERNESS"*
+
+`src/__tests__/engine/everyRegionIsItsOwnPlace.test.ts`. One named test per region of every generator that
+serves them, 191 of them today. Each builds a map with everything but the region pinned (§0b) and asks the
+only question that matters: **is this place tellable apart from every other place in its own set?**
+
+A region passes against a sibling when the two differ on at least one axis a person can see:
+
+| axis | threshold | what it catches |
+|---|---|---|
+| ground | the dominant PLANT differs | two regions running the same plant at two densities, which is one place twice |
+| canopy | 0.05 trees per cell | a wood against a clearing |
+| walkable | 0.12 | a thicket against open ground |
+| water | 0.06 | a lakeside against a dry wood |
+| stone | 0.06 | a ruin's heart against its forest |
+| built | 0.05 | a park against a terrace |
+| architecture | the roof and wall differ | a city's wealth tiers |
+| relief | any step | a climb |
+
+Scattered ornaments (`rock`, `dirt`) are NOT vegetation, however many of them there are: a meadow's field
+stones outvoted the grass in the tally and made two different regions both read as `rock`.
+
+It went 43 → 191 as the five dead fields in §3.6 were woken up, and every one of those was found by this test
+rather than by looking at a map.
+
+---
+
 ## 1. The law
 
 **A region is a PLACE YOU MOVE THROUGH, not a patch of different colour.**
@@ -278,6 +308,48 @@ need:
   CONTAINS a built thing.
 
 Both are listed in section 5 as not built. Nothing here should pretend otherwise.
+
+### 3.5 A region is told apart by what grows at knee height, not by a density
+
+*"LIKE WHAT'S THE DIFFERENCE BETWEEN A THIKET JUNGLE AND A DENSE JUNGLE?? I'LL ANSWER, NOTHING, THERE'S NOT A
+SINGLE THING THAT'S REALLY DIFFERENT."* (2026-09-18)
+
+The jungle answered it in one line: all five of its regions served `formation.understoryTile: null`, so the
+ground layer was the SAME PLANT in all five and the only thing separating them was how much of it there was.
+**Two regions that differ by a density are two settings of one place.**
+
+So each region states its own plant, its own amount of it, its own trunk spacing and a species mix that agrees
+with all three. The pair he asked about:
+
+| | canopy | understory | plant | spacing | species |
+|---|---|---|---|---|---|
+| `deep` | 1.3 | 0.2 | `clover` | 0 | `tree_giant` 45 |
+| `thicket` | 0.15 | 2.0 | `thicket` | 2 | bush only |
+
+A deep jungle is giant trunks over an OPEN dark floor, which is what a rainforest floor actually is. A thicket
+has no big trees at all and a wall of bush at knee height. They were 1.15/1.2 against 0.5/1.45 before.
+
+**The blocking `thicket` plant belongs to the JUNGLE and to nothing else.** `forest_woodland`, `forest_meadow`
+and `forest_mountain` are each asserted to grow zero of it, because a wood full of invisible walls was the
+original complaint. Everywhere else the densest region is `shrub` at a high understory: thick to look at, and
+still walkable.
+
+### 3.6 Every builder reads every field, and five of them did not
+
+The same defect as §3.1, one layer down. Found by the per-region test in §0b.3, each one a field the backend
+already served that nothing read:
+
+| builder | what it ignored |
+|---|---|
+| `parseNature` | **`nature.tallGrass`**, served by every meadow and dropped by the parser's whitelist. `scatterTallGrass` returns on its first line without it, so no meadow has ever grown a blade of the tall grass it asks for |
+| settlement nature | planted trees, ground cover and blooms by distance to the map edge alone, so a city's park and its market grew the same things |
+| settlement objects | never read a region's `stone`, so a graveyard measured as a second park |
+| meadow objects | never planted a region's understory at all, and its trees and ornaments ignored regions too |
+| `placeBuilding` | recorded nothing about the neighbourhood a building stands in, so the architecture a city serves per tier could not be told apart downstream |
+
+A parser that lists its fields by hand is the recurring shape here: `parseSubZones`, `parseBuildings` and now
+`parseNature` have each silently dropped a served field. Copy what arrives; name only what needs a
+served-zero distinguished from not-served.
 
 ---
 
