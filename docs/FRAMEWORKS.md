@@ -57,6 +57,7 @@ When reading a source, write down both. The second half is usually the more valu
 | Effects on a tile: textures, animation, physics | [`TILE-EFFECTS.md`](TILE-EFFECTS.md) | Written 2026-09-16, nothing built. The design for what water uncovered. |
 | Building an object out of tiles | [`OBJECT-CONSTRUCTION.md`](OBJECT-CONSTRUCTION.md) | Written, complete. Reference-first process, engine facts, six patterns, checklist. |
 | Trees: species, form, what a forest is made of | [`TREES.md`](TREES.md) | Written 2026-09-16. A species-crown attempt was built and REVERTED the same day: §2 records why, and its constraints bind any retry. |
+| How anything is tested | [`TESTING.md`](TESTING.md) | Written 2026-09-18. TWO layers, both mandatory: Elixir unit tests for the backend, Playwright click-through for the frontend. Jest is OUT. §3 what you assert when the view is a canvas, §4 what makes a test real (it must fail on the old code). |
 | Ways through a map, their width and their exits | [`PATHWAYS.md`](PATHWAYS.md) | Written 2026-09-18. A pathway is a STRETCH with 1 or 2 exits. §3 the served width and everything that must ask it, §4 the exit contract, §6 the gate. Written after an entrance authored 3 cells wide left a city's 4-wide exit with a tree in it. |
 | Map entrances | [`DESIGN-ENTRANCES.md`](DESIGN-ENTRANCES.md) | Written |
 | Water, rivers, pools, the sea | [`WATER.md`](WATER.md) | Written 2026-09-16 from his two sources. Build order is stated, most of it is not built. |
