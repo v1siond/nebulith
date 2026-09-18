@@ -139,6 +139,7 @@ defmodule Nebulith.DataMigrations do
     Nebulith.DataMigration.TheSpeciesARegionLost,
     Nebulith.DataMigration.AStreetIsTheOnlyPaintOnATown,
     Nebulith.DataMigration.ARegionGrowsItsOwnTrees,
+    Nebulith.DataMigration.TheDesertKeepsItsCacti,
     Nebulith.DataMigration.TheHeartAloneStandsOnItsPlatform
   ]
 
