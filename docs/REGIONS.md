@@ -15,6 +15,35 @@ And the general form of it, in the same message:
 `TERRAIN.md` covers what colour a region's ground is. `GENERATION-SPEC.md` says a region is an element inside
 the terrain layer. Neither says what regions a biome HAS or how they sit on the map, so this does.
 
+
+## 0b. HOW REGION WORK IS TESTED, and it is not optional
+
+*"you're testing wrong, you are testing in complete random mode, that's why it fails ... you must setup the
+map to not add extra stuff when you test the regions, no river, no bridge, set a specific number of pathways,
+specific exits and validate the exits, the pathways and the overall design actually works and looks like the
+region it says it should look like"* (2026-09-17).
+
+A region measured on a map that ALSO rolled a river, a bridge and a random number of exits tells you nothing
+about the region: the randomness moves more than the region does, and it reads as the region working. That is
+exactly how a full day of region work came to be reported as done while every region still looked identical.
+
+**`.probe/region.mjs` is the gate.** It pins every other choice and varies only the region:
+
+```bash
+PRESET=Beach RIVER=shore REGIONS=shore SHOT=1 node .probe/region.mjs
+PRESET=Woodland REGIONS=edge,deep,glade,thicket,lakeside node .probe/region.mjs
+```
+
+It reports, per region, the cells, the water, the way cells and the ground, and `SHOT=1` renders it.
+
+**A percentage is not evidence.** Reporting that picking `summit` took the summit from 8 per cent of the map
+to 29 proves only that the weighting moved. It says nothing about whether the place IS what it is called, and
+that is the only question. The evidence is what the region CONTAINS, and then the picture.
+
+The first run of this harness, on a beach with everything pinned off, said it plainly: five regions, all
+`meadow`, zero water, zero way cells, differing only in how many cells each claimed.
+
+
 ---
 
 ## 1. The law
