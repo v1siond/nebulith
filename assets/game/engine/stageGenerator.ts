@@ -39,7 +39,7 @@ import {
 } from './zones'
 // Re-exported so the generator keeps its public tree-shape type (backend palette data now owns it).
 export type { LivingTreeKind } from './zones'
-import { autotilePosition, type CellLabel } from './cellLabels'
+import { autotileLabel, autotilePosition, type CellLabel, type MassFamily } from './cellLabels'
 import { resolveTile, resolveComposition, canopyCount, canopyShade, pickGroundDecor, type TileDisplay } from './tileset/tileset'
 import { foliageColor } from './foliageColor'
 import { groundKind } from '@/game/artStyle'
@@ -4759,7 +4759,10 @@ const RUIN_PATCH = 5
 export const RUIN_MIN_SITE = 6
 /** A column every other cell around the edge. REGULAR spacing is the whole difference between masonry and a
  *  pile of stones: nature does not put uprights at a fixed interval. */
-const RUIN_COLUMN_STEP = 2
+const RUIN_COLUMN_STEP = 4
+
+/** How many of a colonnade's columns have come down, as rubble on the floor instead. */
+const RUIN_FALLEN = 0.3
 /** Share of a platform's interior carrying a fallen block. */
 const RUIN_RUBBLE = 0.14
 
@@ -4798,7 +4801,11 @@ function raiseRuins(
   // 2 · Only the real BODIES of it. One cell of stone is a rock; a building has a footprint.
   for (const body of bodiesOf(candidate)) {
     if (body.size < RUIN_MIN_SITE) continue
-    stampRuin(ctx, body, keepOut)
+    // WHICH PART OF THE RUIN THIS IS. Read at the body's own centre, so one site is one building rather than
+    // a chamber that turns into a colonnade halfway across.
+    const mid = toCell([...body][Math.floor(body.size / 2)])
+    const region = zoneAt[mid.row]?.[mid.col]?.key ?? ''
+    ;(RUIN_BUILD[region] ?? stampRuin)(ctx, body, keepOut)
   }
 }
 
@@ -4809,31 +4816,166 @@ function raiseRuins(
  * leave a tree standing on walkable ground. The platform is laid only where nothing stands, and `placeProp`
  * refuses an occupied or watery cell on its own.
  */
-function stampRuin(ctx: ArchetypeContext, body: ReadonlySet<string>, keepOut: ReadonlySet<string>): void {
-  const { ground, collision } = ctx
+/**
+ * A RUIN IS A BUILT THING, and which built thing depends on which part of the ruin you are standing in.
+ *
+ * *"a forest with ruins is like machu pichu, like you should have sections where some parts of ruin show and
+ * they gradually increase until you reach the actual ruins"*, and `REGIONS.md` §4 already recorded what was
+ * missing: *"the `heart` wants a real built thing"*.
+ *
+ * What stood here was ONE stamp used in all four regions: a stone platform with a pillar every two cells
+ * around its edge. At that spacing the columns read as a picket of crates rather than as architecture, and
+ * because every region got the same one, a `courts` and an `overgrown` were the same object at two densities.
+ *
+ * NO NEW ART. `wall_stone` is a full nine-piece autotile family already, the one the buildings are made of,
+ * and `pillar` and `rock` are approved props. This composes them, which is what `OBJECT-CONSTRUCTION.md` §2.3
+ * means by a composition being a modular kit, and §2.4 by adding a FAMILY rather than branching.
+ *
+ *   heart      the thing itself: a roofless chamber, walls round its outline with a doorway left in one side
+ *   courts     a colonnade: two rows of columns down the long axis of a paved floor, some of them fallen
+ *   terraces   the retaining walls that make a terrace a terrace, along its lower edge
+ *   overgrown  what is left further out: short broken runs of low wall, and no floor
+ */
+const RUIN_WALL: MassFamily<string> = {
+  topLeft: 'wall_stone_tl', top: 'wall_stone_t', topRight: 'wall_stone_tr',
+  edgeLeft: 'wall_stone_l', interior: 'wall_stone_c', edgeRight: 'wall_stone_r',
+  bottomLeft: 'wall_stone_bl', bottom: 'wall_stone_b', bottomRight: 'wall_stone_br',
+}
 
-  // the platform: walkable stone, so a ruin is somewhere you go INTO rather than around
+/** One cell of standing stone, wearing the piece its neighbours ask for. Blocking, like any wall. */
+function makeRuinWall(ctx: ArchetypeContext, col: number, row: number, wall: ReadonlySet<string>): StageProp {
+  const label = autotileLabel(RUIN_WALL, (c, r) => wall.has(`${c},${r}`), col, row)
+  const tile = resolveTile(styleCatalog('ascii'), ctx.zone, label)
+  return { col, row, type: 'ruin_wall', char: tile.char, label, blocking: true, color: tile.color }
+}
+
+/** The floor a ruin stands on: walkable stone, so a ruin is somewhere you go INTO rather than around. */
+function pave(ctx: ArchetypeContext, body: ReadonlySet<string>, keepOut: ReadonlySet<string>): void {
   for (const key of body) {
     const { col, row } = toCell(key)
-    if (keepOut.has(key) || collision[row][col]) continue
-    ground[row][col] = RUIN_FLOOR
+    if (keepOut.has(key) || ctx.collision[row][col]) continue
+    ctx.ground[row][col] = RUIN_FLOOR
   }
+}
 
-  // the columns, on the platform's EDGE at a fixed step
+/** What has fallen off the walls, scattered over the floor. */
+function strewRubble(ctx: ArchetypeContext, body: ReadonlySet<string>, keepOut: ReadonlySet<string>): void {
   for (const key of body) {
     const { col, row } = toCell(key)
-    if (keepOut.has(key)) continue
-    if (!ORTHO.some(([dc, dr]) => !body.has(`${col + dc},${row + dr}`))) continue
-    if ((col + row) % RUIN_COLUMN_STEP !== 0) continue
-    placeProp(ctx, makePillar(col, row))
-  }
-
-  // and what has fallen off them
-  for (const key of body) {
-    const { col, row } = toCell(key)
-    if (keepOut.has(key) || collision[row][col]) continue
+    if (keepOut.has(key) || ctx.collision[row][col]) continue
     if (ctx.rand() < RUIN_RUBBLE) placeProp(ctx, makeRock(col, row))
   }
+}
+
+/** The cells of a body that lie on its edge, which is where a wall runs. */
+function outlineOf(body: ReadonlySet<string>): Set<string> {
+  const edge = new Set<string>()
+  for (const key of body) {
+    const { col, row } = toCell(key)
+    if (ORTHO.some(([dc, dr]) => !body.has(`${col + dc},${row + dr}`))) edge.add(key)
+  }
+  return edge
+}
+
+/**
+ * THE HEART: a roofless chamber. Wall around the outline, floor inside, and a DOORWAY.
+ *
+ * The doorway is not decoration: a sealed box is a lump you walk around, and the whole point of the platform
+ * is that you go in. It is cut two cells wide on the side nearest the map's south, which is the way in
+ * (`DESIGN-ENTRANCES.md`), so you meet the opening rather than the back wall.
+ */
+function stampChamber(ctx: ArchetypeContext, body: ReadonlySet<string>, keepOut: ReadonlySet<string>): void {
+  const wall = outlineOf(body)
+  const cells = [...wall].map(toCell)
+  const front = Math.max(...cells.map(c => c.row))
+  const onFront = cells.filter(c => c.row === front).sort((a, b) => a.col - b.col)
+  const door = onFront.slice(Math.max(0, Math.floor(onFront.length / 2) - 1), Math.floor(onFront.length / 2) + 1)
+  for (const d of door) wall.delete(`${d.col},${d.row}`)
+
+  pave(ctx, body, keepOut)
+  for (const key of wall) {
+    const { col, row } = toCell(key)
+    if (keepOut.has(key)) continue
+    placeProp(ctx, makeRuinWall(ctx, col, row, wall))
+  }
+  strewRubble(ctx, new Set([...body].filter(k => !wall.has(k))), keepOut)
+}
+
+/**
+ * THE COURTS: a colonnade. Columns down the two long sides of a paved floor, well apart, and a gap where one
+ * has come down. Open in the middle, which is what makes it a court rather than a room.
+ */
+function stampColonnade(ctx: ArchetypeContext, body: ReadonlySet<string>, keepOut: ReadonlySet<string>): void {
+  pave(ctx, body, keepOut)
+  const cells = [...body].map(toCell)
+  const minCol = Math.min(...cells.map(c => c.col))
+  const maxCol = Math.max(...cells.map(c => c.col))
+  for (const key of body) {
+    const { col, row } = toCell(key)
+    if (keepOut.has(key) || ctx.collision[row][col]) continue
+    // The two colonnades, and only every fourth cell along them: a column every two cells is a wall.
+    if (col !== minCol && col !== maxCol) continue
+    if (row % RUIN_COLUMN_STEP !== 0) continue
+    if (ctx.rand() < RUIN_FALLEN) { placeProp(ctx, makeRock(col, row)); continue } // this one came down
+    placeProp(ctx, makePillar(col, row))
+  }
+  strewRubble(ctx, body, keepOut)
+}
+
+/**
+ * THE TERRACES: the retaining wall that holds a step of ground up, along its LOWER edge only, with the floor
+ * behind it. A terrace read from the front is a wall; from above it is a field.
+ */
+function stampTerrace(ctx: ArchetypeContext, body: ReadonlySet<string>, keepOut: ReadonlySet<string>): void {
+  pave(ctx, body, keepOut)
+  const cells = [...body].map(toCell)
+  const front = Math.max(...cells.map(c => c.row))
+  const wall = new Set(cells.filter(c => c.row === front).map(c => `${c.col},${c.row}`))
+  for (const key of wall) {
+    const { col, row } = toCell(key)
+    if (keepOut.has(key)) continue
+    placeProp(ctx, makeRuinWall(ctx, col, row, wall))
+  }
+}
+
+/**
+ * OVERGROWN: what is left where the wood has taken it back. Short broken runs of wall, no floor under them,
+ * so this reads as masonry IN a forest rather than as a building.
+ */
+function stampBrokenWall(ctx: ArchetypeContext, body: ReadonlySet<string>, keepOut: ReadonlySet<string>): void {
+  const wall = new Set<string>()
+  for (const key of outlineOf(body)) {
+    const { col, row } = toCell(key)
+    if (keepOut.has(key) || ctx.collision[row][col]) continue
+    // Broken: roughly half of the run is missing, in stretches rather than per cell, so what stands reads as
+    // a wall with gaps in it and not as a dotted line.
+    if (shadeNoise(Math.floor(col / 3) * 1.7 + Math.floor(row / 3) * 2.9) > 0.5) continue
+    wall.add(key)
+  }
+  for (const key of wall) {
+    const { col, row } = toCell(key)
+    placeProp(ctx, makeRuinWall(ctx, col, row, wall))
+  }
+}
+
+/** Which structure each region of a ruin builds. A region the table does not name keeps the plain platform,
+ *  so any other template that serves `stone` is unmoved. */
+const RUIN_BUILD: Readonly<Record<string, (ctx: ArchetypeContext, body: ReadonlySet<string>, keepOut: ReadonlySet<string>) => void>> = {
+  heart: stampChamber,
+  courts: stampColonnade,
+  terraces: stampTerrace,
+  overgrown: stampBrokenWall,
+}
+
+/** The plain platform, for a template that serves `stone` without naming which part of a ruin it is. */
+function stampRuin(ctx: ArchetypeContext, body: ReadonlySet<string>, keepOut: ReadonlySet<string>): void {
+  pave(ctx, body, keepOut)
+  for (const key of outlineOf(body)) {
+    const { col, row } = toCell(key)
+    if (keepOut.has(key) || (col + row) % RUIN_COLUMN_STEP !== 0) continue
+    placeProp(ctx, makePillar(col, row))
+  }
+  strewRubble(ctx, body, keepOut)
 }
 
 /** The shaded floor, mottled over coarse patches. Two tones from the served palette so it reads as litter and
