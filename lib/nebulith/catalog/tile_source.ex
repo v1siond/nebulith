@@ -109,6 +109,7 @@ defmodule Nebulith.Catalog.TileSource do
     seed_building_tiles(ascii_id, emoji_id)
     seed_extra_tiles(ascii_id, emoji_id)
     seed_prop_tiles(ascii_id, emoji_id)
+    seed_cactus_tiles(ascii_id, emoji_id)
     seed_emoji_tiles(emoji, emoji_id)
     seed_meadow_tiles(ascii_id, emoji_id)
     seed_floor_tiles(ascii_id, emoji_id)
@@ -541,12 +542,60 @@ defmodule Nebulith.Catalog.TileSource do
     ascii_id = ensure_tileset("ascii", "ASCII").id
     emoji_id = ensure_tileset("emoji", "Emoji").id
     seed_prop_tiles(ascii_id, emoji_id)
+    seed_cactus_tiles(ascii_id, emoji_id)
     IO.puts("seeded light-post base + roof_top parity twin (ascii + emoji)")
     :ok
   end
 
   # The light-post BASE colour (dark iron), zone-independent, like the other structural piece tiles.
   @post_color "#43474d"
+
+  # THE CACTUS SEGMENTS, in the SEED rather than only in a data migration.
+  #
+  # `seed_compositions` seeds the cactus compositions, and those reference these six pieces, so a FRESH
+  # database had compositions pointing at tiles that did not exist. `ACactusIsAnObject` authors them, but a
+  # migration evolves a catalog; it cannot be what makes the base catalog whole. SeedDriftTest is the test
+  # that caught it: "every tile a served composition references EXISTS in BOTH the ascii and emoji tilesets".
+  #
+  # A succulent is green in every season it lives through, so the per-zone map is one colour repeated, and it
+  # is NOT tagged `foliage`: that hands a plant the biome tint, and in a desert the biome tint is ochre, which
+  # turns a cactus tan. A cactus is the one thing out there that stays green.
+  #
+  # One block tall each, not a flat slab: a height-0 cell occupies no block and the stacked segments then sit
+  # apart with a visible gap between them.
+  @cactus_green "#5f9e4a"
+  @cactus_segments [
+    {"cactus_stem", "ǂ", "🌵", "Cactus stem"},
+    {"cactus_crown", "Ω", "🌵", "Cactus crown"},
+    {"cactus_arm_l", "Γ", "🌵", "Cactus arm, left"},
+    {"cactus_arm_r", "Ꞁ", "🌵", "Cactus arm, right"},
+    {"cactus_barrel", "◍", "🌵", "Barrel cactus"},
+    {"cactus_pad", "❋", "🌵", "Cactus pad"}
+  ]
+
+  defp seed_cactus_tiles(ascii_id, emoji_id) do
+    for {label, glyph, emoji, title} <- @cactus_segments,
+        {tileset_id, key} <- [{ascii_id, "ascii"}, {emoji_id, "emoji"}] do
+      {:ok, _} =
+        Catalog.upsert_tile(%{
+          tileset_id: tileset_id,
+          label: label,
+          glyph: glyph,
+          emoji: emoji,
+          blocking: true,
+          height: 1.0,
+          category: "nature",
+          title: title,
+          image_url: "/tiles/#{key}/#{label}.png",
+          settings: %{
+            "color" => @cactus_green,
+            "colors" => Map.new(@all_zones, &{&1, @cactus_green})
+          }
+        })
+    end
+
+    :ok
+  end
 
   defp seed_prop_tiles(ascii_id, emoji_id) do
     # `post`, the light-post base pole. Blocks (you can't walk through the pole). Baked in BOTH styles.
@@ -2205,6 +2254,7 @@ defmodule Nebulith.Catalog.TileSource do
     seed_building_tiles(ascii_id, emoji_id)
     seed_extra_tiles(ascii_id, emoji_id)
     seed_prop_tiles(ascii_id, emoji_id)
+    seed_cactus_tiles(ascii_id, emoji_id)
     seed_autotile_pieces(ascii_id, emoji_id)
     seed_tree_pieces(ascii_id, emoji_id, palettes)
     seed_tree_leaves(emoji_id, palettes)
