@@ -518,7 +518,10 @@ function speciesAt(ctx: ArchetypeContext, col: number, row: number): readonly Ge
  */
 const makePlant = (ctx: ArchetypeContext, col: number, row: number, label: string): StageProp => {
   const tile = resolveTile(styleCatalog('ascii'), ctx.zone, label)
-  return { col, row, type: label, char: tile.char, label, blocking: !tile.walkable, color: undergrowthTone(ctx, col, row, tile) ?? tile.color }
+  // A PLANT GROWS. It left `grows` unset, so the flag that every way-clearing sweep reads was undefined on the
+  // undergrowth: a thicket or a tuft of grass was neither something growing (to be swept off a path) nor
+  // something deliberately not growing (like the film on a ford). The flowers beside it have always said true.
+  return { col, row, type: label, char: tile.char, label, blocking: !tile.walkable, grows: true, color: undergrowthTone(ctx, col, row, tile) ?? tile.color }
 }
 
 /**
@@ -3567,6 +3570,7 @@ const woodlandPhases: VariantPhases = {
     // THE STONE a region asks for, after the planting so a trunk is never inside a wall.
     strewRegionRuins(ctx)
 
+    dropDrownedFilms(ctx) // a puddle under a trunk is not a puddle
     settleWaterDepth(ctx, molten(ctx, ctx.palette), ctx.pools, ctx.still) // the water settles by depth, last
   },
 }
@@ -3793,6 +3797,7 @@ const junglePhases: VariantPhases = {
       flank: flankingTrees,
     })
 
+    dropDrownedFilms(ctx) // a puddle under a trunk is not a puddle
     settleWaterDepth(ctx, molten(ctx, pal), ctx.pools, ctx.still) // the creek settles by depth; the pools stay blocking
   },
 }
@@ -4489,8 +4494,15 @@ function floodRegionPools(ctx: ArchetypeContext, pal: GeneratorPalette | undefin
     // A BODY GOES THROUGH THE WATER LAYER, exactly as the sea does, so it is cut, tinted, edged, depth-banded
     // and classified by the one set of passes that already do all of that. A PUDDLE keeps the film it has
     // always had: it is water lying on dry ground rather than a body you go around.
-    if (body.size >= REGION_LAKE_MIN) {
-      for (const key of carveBody(ctx, pal, body)) { ctx.water.add(key); ctx.still.add(key) }
+    // A LAKE STOPS SHORT OF THE RIVER, it is not cancelled by it. Judging the whole body meant one cell near
+    // the channel demoted all of it, and on a swamp with a river running through it that was every body on the
+    // map: measured, nothing grew anywhere in it. So the margin is trimmed off and stays marshy, and whatever
+    // is left of the body is carved if it is still big enough to be a lake.
+    const open = awayFromTheRiver(ctx, body)
+    if (open.size >= REGION_LAKE_MIN) {
+      for (const key of carveBody(ctx, pal, open)) { ctx.water.add(key); ctx.still.add(key) }
+      const margin = new Set([...body].filter(key => !open.has(key)))
+      if (margin.size > 0) layPoolFilm(ctx, margin, pal)
       continue
     }
     layPoolFilm(ctx, body, pal)
@@ -4507,6 +4519,29 @@ function floodRegionPools(ctx: ArchetypeContext, pal: GeneratorPalette | undefin
  * body of well over a hundred, so the two separate cleanly.
  */
 const REGION_LAKE_MIN = 60
+
+/** How far a LAKE keeps off the map's own watercourse, in cells. A puddle beside a creek is a swamp and is
+ *  exactly right; a lake that close pinches the ground between the two into fragments, and the connectivity
+ *  pass answers a fragment by logging across the RIVER. Measured on an `around` course, which hugs three
+ *  edges: three crossings where its whole definition is one. */
+const RIVER_ELBOW_ROOM = 3
+
+/** The part of a body that is far enough from the map's watercourse to be carved as a lake. The rest is the
+ *  marshy margin between the two, which stays a film. */
+function awayFromTheRiver(ctx: ArchetypeContext, body: ReadonlySet<string>): Set<string> {
+  const out = new Set<string>()
+  for (const key of body) {
+    const { col, row } = toCell(key)
+    let crowded = false
+    for (let dr = -RIVER_ELBOW_ROOM; dr <= RIVER_ELBOW_ROOM && !crowded; dr++) {
+      for (let dc = -RIVER_ELBOW_ROOM; dc <= RIVER_ELBOW_ROOM; dc++) {
+        if (isWaterGround(ctx.ground[row + dr]?.[col + dc])) { crowded = true; break }
+      }
+    }
+    if (!crowded) out.add(key)
+  }
+  return out
+}
 
 /** The fallen masonry a region asks for, in the objects phase, keeping off the route network. */
 function strewRegionRuins(ctx: ArchetypeContext): void {
@@ -4565,7 +4600,6 @@ function regionPoolBodies(ctx: ArchetypeContext, zoneAt: (GeneratorSubZone | und
     // This is one of the pathways it was: the
     // tone said puddle and the collision said channel. A pool is standing water in a hollow, so it takes only
     // cells the channel has not already claimed, and swamp tone now means exactly one thing.
-    if (isWaterGround(ground[row][col])) return
     // NOT ON THE WAY IN. The route network is planned before a drop of water is laid (`pathways:plan` runs
     // ahead of `water`, on purpose), so a body can be kept off it rather than having to be bridged after the
     // fact. Without this a lake big enough to block could land across the only way to a stop and cut the map
@@ -4591,12 +4625,40 @@ function regionPoolBodies(ctx: ArchetypeContext, zoneAt: (GeneratorSubZone | und
   return bodiesOf(candidate).filter(body => body.size >= SWAMP_MIN_POOL)
 }
 
+/**
+ * A PUDDLE UNDER A TRUNK IS NOT A PUDDLE.
+ *
+ * The films are laid in the WATER layer and the trees are planted in OBJECTS after it, so a trunk can land on
+ * a cell that already carries one. The cell then blocks while holding nothing but a film, which reads to
+ * anything asking as "blocked by a flag rather than by what stands in it", and it is invisible anyway with a
+ * tree standing on it. Run last, once everything that blocks has been placed.
+ */
+function dropDrownedFilms(ctx: ArchetypeContext): void {
+  const kept: StageProp[] = []
+  for (const prop of ctx.props) {
+    if (prop.label === 'water_still' && ctx.collision[prop.row]?.[prop.col]) {
+      const key = `${prop.col},${prop.row}`
+      ctx.pools.delete(key)
+      ctx.still.delete(key)
+      ctx.wet.delete(key)
+      continue
+    }
+    kept.push(prop)
+  }
+  ctx.props.length = 0
+  ctx.props.push(...kept)
+}
+
 /** A HOLLOW FULL OF STANDING WATER: a translucent film laid over the floor, which keeps walking as floor. The
  *  share the backend serves is untouched, so a swamp is as wet as it was. */
 function layPoolFilm(ctx: ArchetypeContext, body: ReadonlySet<string>, pal: GeneratorPalette | undefined): void {
   const { collision, floorColors } = ctx
   for (const key of body) {
     const { col, row } = toCell(key)
+    // NOT UNDER SOMETHING SOLID. A puddle is water lying on open ground you can walk through, so a cell that
+    // is already blocked does not get one: leaving it there produced a cell that was blocked and held nothing
+    // but a film, which is the "blocked by a flag rather than by what stands in it" defect exactly.
+    if (collision[row][col]) continue
     // `ctx.pools`, and NOT `ctx.water`, for the same reason a lake is kept out of it: that set is the channel.
     // The jungle used to put its films in there and it was harmless while the jungle was the only layout with
     // any, because its creek was carved first and dwarfed them. It is not harmless now that every layout has
@@ -5430,6 +5492,7 @@ function meadowPhases(twoPathways: boolean): VariantPhases {
       // repair, so the deck is never filled back in.
       if (course) bridgeRiver(ctx, flowingWater(ctx), ctx.pathwayCells, course, meadowWater(ctx))
       strewRegionRuins(ctx) // the stone a region asks for, after the planting
+      dropDrownedFilms(ctx) // a puddle under a trunk is not a puddle
       settleWaterDepth(ctx, molten(ctx, meadowWater(ctx)), ctx.pools, ctx.still) // last, once the bridge is down
     },
   }

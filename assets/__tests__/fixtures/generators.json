@@ -232,7 +232,7 @@
                 "leafHue": -6,
                 "leafValue": 0.02,
                 "name": "Lakeside",
-                "pools": 0.16,
+                "pools": 0.22,
                 "trees": [
                   {
                     "kind": "tree_broadleaf",
@@ -763,7 +763,7 @@
                 "leafHue": -6,
                 "leafValue": 0.02,
                 "name": "Lakeside",
-                "pools": 0.16,
+                "pools": 0.22,
                 "trees": [
                   {
                     "kind": "tree_cypress",
@@ -1160,7 +1160,7 @@
                 "leafHue": -5,
                 "leafValue": -0.02,
                 "name": "River bank",
-                "pools": 0.14,
+                "pools": 0.22,
                 "trees": [
                   {
                     "kind": "tree_willow",
@@ -3995,7 +3995,7 @@
                 "leafHue": -6,
                 "leafValue": 0.02,
                 "name": "Lava lake shore",
-                "pools": 0.16,
+                "pools": 0.21,
                 "trees": [
                   {
                     "kind": "tree_dead",
