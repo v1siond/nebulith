@@ -58,6 +58,7 @@ import { ASCII_STYLE, assetKind, entityKind, entityStyleOverride, genderize, gro
 import { cellStackTop } from '@/engine/cellStack'
 import { useRouter } from '@/lib/router'
 import { ROUTES } from '@/lib/routes'
+import { readStored, writeStored } from '@/lib/storage'
 import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from 'react'
 import { render, render2D, renderTopView, clampCameraAxis, entityMotion, ENEMY_MOVE_MS, isDebugMode, setDebugMode, isShowCollisions, setShowCollisions as setCollisionsFlag, cellCaptionMap, pickIsoTilesAt, pickTwoDTilesAt, renderedTilesInRect, renderedTwoDTilesInRect, isoRecordedGeom, twoDRecordedGeom, nextPickIndex, ISO_BLOCK_H_FRAC, depthCells, tileGeomPolygon, tileGeomCentroid, tileHandlePoints, handleAtPoint, dragOutwardPx, scaleFromDrag, depthFromDrag, drawTileHandles, polyBBox, HANDLE_HIT_RADIUS, type TileHandle, type HandleId, type CompositionGhost, type DepthDir } from '@/engine/render'
 import { isoWorldCellToScreen, setIsoCameraFacing, setIsoCameraTurn, isoCameraTurn } from '@/engine/render/iso'
@@ -721,10 +722,10 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
 
   // Load view state from localStorage on mount
   useEffect(() => {
-    const savedDebug = localStorage.getItem('village-debug') === 'true'
-    const savedTopView = localStorage.getItem('village-topview') === 'true'
-    const savedZoom = parseFloat(localStorage.getItem('village-topview-zoom') || '1.0')
-    const savedCollisions = localStorage.getItem('village-show-collisions') === 'true'
+    const savedDebug = readStored('village-debug') === 'true'
+    const savedTopView = readStored('village-topview') === 'true'
+    const savedZoom = parseFloat(readStored('village-topview-zoom') || '1.0')
+    const savedCollisions = readStored('village-show-collisions') === 'true'
     setDebugMode(savedDebug)
     setCollisionsFlag(savedCollisions)
     topViewMode = savedTopView
@@ -737,10 +738,10 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
 
   // Save view state to localStorage when it changes
   useEffect(() => {
-    localStorage.setItem('village-debug', showDebug.toString())
-    localStorage.setItem('village-show-collisions', showCollisions.toString())
-    localStorage.setItem('village-topview', showTopView.toString())
-    localStorage.setItem('village-topview-zoom', topViewZoom.toString())
+    writeStored('village-debug', showDebug.toString())
+    writeStored('village-show-collisions', showCollisions.toString())
+    writeStored('village-topview', showTopView.toString())
+    writeStored('village-topview-zoom', topViewZoom.toString())
     zoomRef.current = topViewZoom
   }, [showDebug, showCollisions, showTopView, topViewZoom])
 

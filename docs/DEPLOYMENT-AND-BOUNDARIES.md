@@ -149,6 +149,17 @@ drains into the API. Games, templates and levels live in Postgres.
 remembered toggle. State belongs in the database, reached through the API. Every read must tolerate
 an empty result and every write must tolerate a throw.
 
+**Every access goes through `game/lib/storage.ts`.** Not a try/catch at each call site: one module
+owns it, and it says once in the console that this browser gave it nothing rather than swallowing
+ten failures silently.
+
+This is not theoretical. Measured 2026-09-18 with every storage accessor throwing, which is what
+Safari does to a third-party frame: the engine did not mount at all, blank page, because the editor
+read four view toggles unguarded during mount. Chrome's default is *partitioned* storage, which still
+works, so the plain iframe check passed and hid it. `game/__tests__/lib/storageSurvivesABlockedFrame.test.ts`
+keeps it fixed. Verified after the fix: the editor mounts, generates a desert and draws it at 24 FPS
+with storage fully blocked.
+
 ---
 
 ## 7. `frame-ancestors *` and CORS `*`, and what they cost
@@ -194,9 +205,14 @@ is a demo, not an attack.
 
 Run this before calling any change to the boundary done.
 
-1. `grep` the CV tree for imports of `engine`, `game`, `components/game` or the engine `lib` files. Zero hits.
-2. `grep` the engine tree for imports of any CV component. Zero hits.
-3. `grep` both trees for a hardcoded `localhost:` or a hardcoded production origin outside the two URL constants. Zero hits.
+1. `grep -rn "@/engine/\|@/game/\|@/components/game/\|lib/nebulithApi" game-website/src`. Zero hits.
+2. `ls nebulith/assets/game/components/` contains Toast, ErrorBoundary and useFps. The engine owns its
+   copies; an `@/components/Toast` import inside the engine resolves to `assets/game/components/` and is
+   correct. What must be zero is a CV-only module there: `themes/`, `contexts/`, `cv-data`.
+3. `grep -rn "localhost:[0-9]" nebulith/assets/game --include=*.ts --include=*.tsx` outside
+   `game/lib/routes.ts` and the suite. Zero hits. On the CV side the only origin constants are
+   `src/lib/engineUrl.ts` and `src/lib/cvApi.ts`; his own email and profile links are not origins and
+   do not count.
 4. `npm test` in `assets/` matches the recorded baseline exactly, failure for failure.
 5. `npx tsc --noEmit` in `assets/` is clean. The 40 pre-existing errors were all CV theme files and do not come along.
 6. `mix test` matches its recorded baseline.
@@ -205,7 +221,8 @@ Run this before calling any change to the boundary done.
 9. Load the CV's `/personal-projects/game-engine`. The frame fills the viewport and the same map generates inside it.
 10. Check the response headers on `/games`: `frame-ancestors *`. Check them on `/admin`: `frame-ancestors 'self'`.
 11. Load an old `/personal-projects/game-engine/games` URL against Phoenix. It redirects rather than 404s.
-12. Clear site data, reload the frame, confirm the engine still boots with empty storage.
+12. Block storage entirely (not just clear it: make the accessor throw, as Safari does to a third-party
+    frame) and confirm the engine mounts, generates and draws. `.probe` can do this with an init script.
 
 Items that cannot be checked headlessly, and therefore are not "done" until confirmed in a real
 browser: 8, 9 and 12 at the visual level, and the frame's sizing on a phone.

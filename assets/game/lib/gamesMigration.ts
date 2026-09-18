@@ -14,6 +14,7 @@
  */
 
 /** The key the retired store wrote. Kept here because this module is now its only reader. */
+import { clearStored, readStored } from './storage'
 export const GAMES_STORAGE_KEY = 'nebulith:games'
 
 /** The shape the old store persisted. Anything else in the key is not a game. */
@@ -88,8 +89,8 @@ export function browserImportDeps(
 ): ImportDeps | null {
   if (typeof window === 'undefined') return null
   return {
-    read: () => window.localStorage.getItem(GAMES_STORAGE_KEY),
+    read: () => readStored(GAMES_STORAGE_KEY),
     createGame,
-    clear: () => window.localStorage.removeItem(GAMES_STORAGE_KEY),
+    clear: () => clearStored(GAMES_STORAGE_KEY),
   }
 }
