@@ -16,8 +16,8 @@ import { tileFrames } from '@/engine/tilePreview'
 import { TilePicture } from './shell/Previews'
 import { type Armor, type ConsumableEffect, type Entity, EQUIP_SLOTS, type EquipSlot, type Inventory, type Item, type Loadout, type ObjectiveKind, type Quest, type Stats, type TalentPath, type Weapon } from '@/game/types'
 import { weaponReach } from '@/game/weapons'
-import { Card } from '@/components/game/controls'
-import { QuestObjectives } from '@/components/game/hud'
+import { Card } from '@/components/controls'
+import { QuestObjectives } from '@/components/hud'
 
 // ── Quest authoring card (editor sidebar) ────────────────────────────
 

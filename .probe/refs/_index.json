@@ -1,0 +1,774 @@
+{
+ "urls": [
+  {
+   "file": "fcd2272a-c54f-4f9d-b85c-d1243a79cfdb.jsonl",
+   "line": 2027,
+   "url": "http://localhost:6328/games/:id",
+   "label": "DEEPLY, I want to make a full feature list, then categorize that list logically by context, then use that categorized list to figure out a"
+  },
+  {
+   "file": "672c7ee8-a9a5-41dd-87fe-2e500966ae29.jsonl",
+   "line": 3196,
+   "url": "http://localhost:6328/api/generators`",
+   "label": "\u2192 5 categories / 6 generators. Captured verbatim as `src/__tests__/fixtures/generators.json` (the repo's existing fixture convention) and a"
+  },
+  {
+   "file": "672c7ee8-a9a5-41dd-87fe-2e500966ae29.jsonl",
+   "line": 10795,
+   "url": "http://localhost:6328/games/97829bd2-78fa-4d8f-94aa-8d0cea5f8ffb",
+   "label": "\""
+  },
+  {
+   "file": "672c7ee8-a9a5-41dd-87fe-2e500966ae29.jsonl",
+   "line": 11487,
+   "url": "http://localhost:8899/",
+   "label": "that pure griberish useless text without any substance"
+  },
+  {
+   "file": "beedf1c6-3134-4b89-b41a-0746ebb68ccd.jsonl",
+   "line": 1942,
+   "url": "https://media.craiyon.com/2025-04-08/JtA7bmugS0-SvfeEMzp3eg.webp",
+   "label": "for example look at this isomtric rpg example, all tiles have clear definition, draw, everything looks clear, compare that with this [Image"
+  },
+  {
+   "file": "beedf1c6-3134-4b89-b41a-0746ebb68ccd.jsonl",
+   "line": 6766,
+   "url": "https://static.vecteezy.com/system/resources/thumbnails/073/164/866/small/isometric-hill-with-river-waterfall-and-pine-forest-suitable-for-asset-nature-vector.jpg",
+   "label": ""
+  },
+  {
+   "file": "beedf1c6-3134-4b89-b41a-0746ebb68ccd.jsonl",
+   "line": 6766,
+   "url": "https://static.vecteezy.com/system/resources/thumbnails/025/339/328/small/isometric-park-or-forest-vector.jpg",
+   "label": ""
+  },
+  {
+   "file": "beedf1c6-3134-4b89-b41a-0746ebb68ccd.jsonl",
+   "line": 6766,
+   "url": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSkpjpw1Ccsn95qfKT6kYp8AsAQxEF9bjoEBAiKUysXJYb6NBEljEVBMvQ&s=10",
+   "label": ""
+  },
+  {
+   "file": "beedf1c6-3134-4b89-b41a-0746ebb68ccd.jsonl",
+   "line": 7914,
+   "url": "http://www.w3.org/2000/svg\\",
+   "label": "\" viewBox=\\\"0 0 128 128\\\"><rect width=\\\"128\\\" height=\\\"128\\\" fill=\\\"#3f8fc9\\\"/><g fill=\\\"none\\\" st"
+  },
+  {
+   "file": "beedf1c6-3134-4b89-b41a-0746ebb68ccd.jsonl",
+   "line": 20707,
+   "url": "https://img.magnific.com/free-vector/bridges-details-isometric-elements-collection-with-modern-metallic-constructions-ancient-wooden-stone-viaducts-spans-isolated-vector-illustration_1284-30093.jpg?semt=ais_hybrid&w=740&q=80",
+   "label": ""
+  },
+  {
+   "file": "beedf1c6-3134-4b89-b41a-0746ebb68ccd.jsonl",
+   "line": 20707,
+   "url": "https://media.istockphoto.com/id/1723579707/vector/isometric-river-roads-canal-bridges-tower-engineering-modern-water-highway-and-landmark.jpg?s=612x612&w=0&k=20&c=EOim6r5MAUg2pB-TAtVYRO34Qjj7rZHNGh5Azf1MK00=",
+   "label": ""
+  },
+  {
+   "file": "beedf1c6-3134-4b89-b41a-0746ebb68ccd.jsonl",
+   "line": 20707,
+   "url": "https://media.istockphoto.com/id/683004652/vector/bridge-set-icons.jpg?s=612x612&w=0&k=20&c=yOsru2poiwLxOIT40hoLNpwSyTMkVooXs2U-71xno30=",
+   "label": ""
+  },
+  {
+   "file": "beedf1c6-3134-4b89-b41a-0746ebb68ccd.jsonl",
+   "line": 20707,
+   "url": "https://thumbs.dreamstime.com/b/illustration-shows-cave-entrance-surrounded-lush-vegetation-rocky-terrain-dark-create-mysterious-adventurous-397889678.jpg",
+   "label": ""
+  },
+  {
+   "file": "beedf1c6-3134-4b89-b41a-0746ebb68ccd.jsonl",
+   "line": 20707,
+   "url": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQANtDP7302QpHoHBaHaIj9hkqHkWLHZdD7DeDHi21bQS9oADwJ6htVJx9t&s=10",
+   "label": ""
+  },
+  {
+   "file": "beedf1c6-3134-4b89-b41a-0746ebb68ccd.jsonl",
+   "line": 20707,
+   "url": "https://thumbs.dreamstime.com/b/isometric-pixel-art-landscape-river-rocks-glowing-portal-tree-digital-green-environment-serene-features-winding-387810876.jpg",
+   "label": ""
+  },
+  {
+   "file": "beedf1c6-3134-4b89-b41a-0746ebb68ccd.jsonl",
+   "line": 20707,
+   "url": "https://image.cdn2.seaart.me/2025-08-10/d2bsiode878c73apibdg/7506483bec52b2d911e98ec282b38f97_high.webp",
+   "label": ""
+  },
+  {
+   "file": "beedf1c6-3134-4b89-b41a-0746ebb68ccd.jsonl",
+   "line": 20707,
+   "url": "https://i.redd.it/z5x9szk30xt61.jpg",
+   "label": ""
+  },
+  {
+   "file": "beedf1c6-3134-4b89-b41a-0746ebb68ccd.jsonl",
+   "line": 20707,
+   "url": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTGR8UyGj-sGu2-Irn9Vc1r0_YBmnwUQx0qKpQWGrgK5T1c9Kz7aspI9eM&s=10",
+   "label": ""
+  },
+  {
+   "file": "beedf1c6-3134-4b89-b41a-0746ebb68ccd.jsonl",
+   "line": 23138,
+   "url": "https://art.ngfiles.com/images/1168000/1168374_iviqrr_isometric-forest.png?f1581251647",
+   "label": ""
+  },
+  {
+   "file": "beedf1c6-3134-4b89-b41a-0746ebb68ccd.jsonl",
+   "line": 24074,
+   "url": "https://media.istockphoto.com/id/2207412058/vector/isometric-summer-beach-town-vector-illustration.jpg?s=612x612&w=0&k=20&c=E5bCEB-0O7re5U24r9Bbwz2QjU5H-LH_JeHmhSdEzMw=",
+   "label": "-> street on beach city"
+  },
+  {
+   "file": "beedf1c6-3134-4b89-b41a-0746ebb68ccd.jsonl",
+   "line": 24074,
+   "url": "https://static.vecteezy.com/system/resources/previews/051/331/589/non_2x/isometric-forest-path-illustration-with-trees-greenery-and-winding-dirt-trail-ideal-for-nature-landscape-or-adventure-designs-png.png",
+   "label": "-> pathway from rocky terrain, rocky rustic pathway"
+  },
+  {
+   "file": "beedf1c6-3134-4b89-b41a-0746ebb68ccd.jsonl",
+   "line": 24074,
+   "url": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTFrJ7SUy2dYUiHycTE19t79KnrRdGhCmjQN-HkQZEiIPSGqzHbFb3BJXs&s=10",
+   "label": "-> regular woodland/mountain forest pathway"
+  },
+  {
+   "file": "beedf1c6-3134-4b89-b41a-0746ebb68ccd.jsonl",
+   "line": 24074,
+   "url": "https://thumbs.dreamstime.com/b/isometric-park-scene-bench-path-trees-illustration-features-winding-tall-relaxing-atmosphere-ideal-website-402784705.jpg",
+   "label": "-> regular meadow pathway"
+  },
+  {
+   "file": "beedf1c6-3134-4b89-b41a-0746ebb68ccd.jsonl",
+   "line": 24074,
+   "url": "https://thumbs.dreamstime.com/b/explore-enchanting-forest-trail-map-isometric-style-focus-adventure-nature-exploration-winding-pathways-392225330.jpg",
+   "label": "-> pathways alongside river"
+  },
+  {
+   "file": "beedf1c6-3134-4b89-b41a-0746ebb68ccd.jsonl",
+   "line": 24074,
+   "url": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSszx_bUR9hBJO90aHJzWz9IX-aEMLzX_tq_TqchWZP7qO8hCUbjjoshFU&s=10",
+   "label": "-> swamp pathway with wood bridges and platform zones to reach cave, this is a comnbination of everything we need from ticket 1"
+  },
+  {
+   "file": "beedf1c6-3134-4b89-b41a-0746ebb68ccd.jsonl",
+   "line": 24074,
+   "url": "https://cdnb.artstation.com/p/assets/images/images/063/960/055/large/heyra-vieira-swamp-map-reddit.jpg?1686765217",
+   "label": "-> another swamp pathway, this time more straight forward, less platforming"
+  },
+  {
+   "file": "beedf1c6-3134-4b89-b41a-0746ebb68ccd.jsonl",
+   "line": 24074,
+   "url": "https://market-resized.envatousercontent.com/previews/files/484133308/ImagePreview.jpg?w=590&h=590&cf_fit=crop&crop=top&format=auto&q=85&s=c8dd305bd97c5409ed07e8e8543601eccd8355e0d840704e0050a6c6932fcdd4",
+   "label": "-> platformer swamp island"
+  }
+ ],
+ "pasted": [
+  {
+   "file": "fcd2272a-c54f-4f9d-b85c-d1243a79cfdb.jsonl",
+   "line": 553,
+   "path": "/home/visiond/projects/game-engine/game-website/.probe/refs/_raw/pasted_8a9da43942e7.png",
+   "context": "I didn't ask you to check transcript, I asked you to check the history of prompts from last claude session. And all associated and related claude workspace fold"
+  },
+  {
+   "file": "fcd2272a-c54f-4f9d-b85c-d1243a79cfdb.jsonl",
+   "line": 553,
+   "path": "/home/visiond/projects/game-engine/game-website/.probe/refs/_raw/pasted_0beceefaec3c.png",
+   "context": "I didn't ask you to check transcript, I asked you to check the history of prompts from last claude session. And all associated and related claude workspace fold"
+  },
+  {
+   "file": "fcd2272a-c54f-4f9d-b85c-d1243a79cfdb.jsonl",
+   "line": 1590,
+   "path": "/home/visiond/projects/game-engine/game-website/.probe/refs/_raw/pasted_6ae90472d527.png",
+   "context": "[Image #5] -> I can't navigate inside the house, also, I should be able to see transaprent from a certain  distance of the house, for example, would I know that"
+  },
+  {
+   "file": "fcd2272a-c54f-4f9d-b85c-d1243a79cfdb.jsonl",
+   "line": 1590,
+   "path": "/home/visiond/projects/game-engine/game-website/.probe/refs/_raw/pasted_61369c6662d9.png",
+   "context": "[Image #5] -> I can't navigate inside the house, also, I should be able to see transaprent from a certain  distance of the house, for example, would I know that"
+  },
+  {
+   "file": "fcd2272a-c54f-4f9d-b85c-d1243a79cfdb.jsonl",
+   "line": 1590,
+   "path": "/home/visiond/projects/game-engine/game-website/.probe/refs/_raw/pasted_0885cfe57f08.png",
+   "context": "[Image #5] -> I can't navigate inside the house, also, I should be able to see transaprent from a certain  distance of the house, for example, would I know that"
+  },
+  {
+   "file": "fcd2272a-c54f-4f9d-b85c-d1243a79cfdb.jsonl",
+   "line": 2344,
+   "path": "/home/visiond/projects/game-engine/game-website/.probe/refs/_raw/pasted_a3928d585042.png",
+   "context": "\"T-118 (still blocked) \u2014 not what either of us guessed. I scanned every blocked cell in a whole generated map: zero cells block without a real tile in them. So"
+  },
+  {
+   "file": "672c7ee8-a9a5-41dd-87fe-2e500966ae29.jsonl",
+   "line": 1804,
+   "path": "/home/visiond/projects/game-engine/game-website/.probe/refs/_raw/pasted_a7458b9029aa.png",
+   "context": "tickness works greatm the main issue now is z-width it's not, I have 0, but its behaving as if value was 1, and I thought, you know what that kind of makes sens"
+  },
+  {
+   "file": "672c7ee8-a9a5-41dd-87fe-2e500966ae29.jsonl",
+   "line": 2276,
+   "path": "/home/visiond/projects/game-engine/game-website/.probe/refs/_raw/pasted_012d1a088ea9.png",
+   "context": "I pefer thickness UI to work like z-width UI [Image #4], plus, the direction should match and be aligned with the current cammera rotation, I rotated and the di"
+  },
+  {
+   "file": "672c7ee8-a9a5-41dd-87fe-2e500966ae29.jsonl",
+   "line": 2441,
+   "path": "/home/visiond/projects/game-engine/game-website/.probe/refs/_raw/pasted_dab6fd240e33.png",
+   "context": "also, there's two extra issues  [Image #5] -> collissions don't match structures ASCII art style is SIGNIFICANTLY slower than emoji style, which lead me to beli"
+  },
+  {
+   "file": "672c7ee8-a9a5-41dd-87fe-2e500966ae29.jsonl",
+   "line": 8640,
+   "path": "/home/visiond/projects/game-engine/game-website/.probe/refs/_raw/pasted_7662325333c6.png",
+   "context": "style is a separate group, which list all available art styles, IE: tileset art style  we should improve it's naming.  Also, make sure the UI UX is awesome, and"
+  },
+  {
+   "file": "672c7ee8-a9a5-41dd-87fe-2e500966ae29.jsonl",
+   "line": 8651,
+   "path": "/home/visiond/projects/game-engine/game-website/.probe/refs/_raw/pasted_7a634998a2ba.png",
+   "context": "style is a separate group, which list all available art styles, IE: tileset art style  we should improve it's naming.  Also, make sure the UI UX is awesome, and"
+  },
+  {
+   "file": "672c7ee8-a9a5-41dd-87fe-2e500966ae29.jsonl",
+   "line": 9800,
+   "path": "/home/visiond/projects/game-engine/game-website/.probe/refs/_raw/pasted_b34c30fb8e4e.png",
+   "context": "after the latest ascii changes, all unit tiles are wrong [Image #7]    human like units should look like the user player, animals, and other units are also comp"
+  },
+  {
+   "file": "672c7ee8-a9a5-41dd-87fe-2e500966ae29.jsonl",
+   "line": 11487,
+   "path": "/home/visiond/projects/game-engine/game-website/.probe/refs/_raw/pasted_b8e951ad8af6.png",
+   "context": "[Image #14] -> these 4 options combined are weird... what'0s the logical reason to group them?? like what's our framework to categorize\u00bf  the genralv iew still"
+  },
+  {
+   "file": "672c7ee8-a9a5-41dd-87fe-2e500966ae29.jsonl",
+   "line": 14901,
+   "path": "/home/visiond/projects/game-engine/game-website/.probe/refs/_raw/pasted_a9909a22ea21.png",
+   "context": "[Image #18]  we don't need the right panel if there's nothing selected  additionally, all sidebards and panels should be collapsable"
+  },
+  {
+   "file": "672c7ee8-a9a5-41dd-87fe-2e500966ae29.jsonl",
+   "line": 15919,
+   "path": "/home/visiond/projects/game-engine/game-website/.probe/refs/_raw/pasted_a369cdf69592.png",
+   "context": "we need overflow scroll on the z z-panel  I clicked build this world and it randomized the values Is elected on step 4 how big...  I don't like the UX and UI of"
+  },
+  {
+   "file": "672c7ee8-a9a5-41dd-87fe-2e500966ae29.jsonl",
+   "line": 24526,
+   "path": "/home/visiond/projects/game-engine/game-website/.probe/refs/_raw/pasted_5130de5ca200.png",
+   "context": "let's turn it on first, we're definitely optimizing tiles in a few places, like the buildings, we need to recover code that was doing that for roads and grass f"
+  },
+  {
+   "file": "dc20278f-5a73-4e56-82db-5f3a7a6da6b2.jsonl",
+   "line": 3705,
+   "path": "/home/visiond/projects/game-engine/game-website/.probe/refs/_raw/pasted_a1fceac8adc8.png",
+   "context": "[Image #30] -> drawing issue base doesn't match buildings"
+  },
+  {
+   "file": "87cf5edf-c58c-4b89-8f83-6ede34809bad.jsonl",
+   "line": 1872,
+   "path": "/home/visiond/projects/game-engine/game-website/.probe/refs/_raw/pasted_8e454dde618a.jpeg",
+   "context": "On the jungle, we need to have more variance of trees, like we're using the same for all forest variations, but that's not good, existing trees serves as a grea"
+  },
+  {
+   "file": "87cf5edf-c58c-4b89-8f83-6ede34809bad.jsonl",
+   "line": 1872,
+   "path": "/home/visiond/projects/game-engine/game-website/.probe/refs/_raw/pasted_8a1c64035557.jpeg",
+   "context": "On the jungle, we need to have more variance of trees, like we're using the same for all forest variations, but that's not good, existing trees serves as a grea"
+  },
+  {
+   "file": "87cf5edf-c58c-4b89-8f83-6ede34809bad.jsonl",
+   "line": 1872,
+   "path": "/home/visiond/projects/game-engine/game-website/.probe/refs/_raw/pasted_e38f5c29eea3.png",
+   "context": "On the jungle, we need to have more variance of trees, like we're using the same for all forest variations, but that's not good, existing trees serves as a grea"
+  },
+  {
+   "file": "87cf5edf-c58c-4b89-8f83-6ede34809bad.jsonl",
+   "line": 1872,
+   "path": "/home/visiond/projects/game-engine/game-website/.probe/refs/_raw/pasted_4ffbb59aae62.jpeg",
+   "context": "On the jungle, we need to have more variance of trees, like we're using the same for all forest variations, but that's not good, existing trees serves as a grea"
+  },
+  {
+   "file": "87cf5edf-c58c-4b89-8f83-6ede34809bad.jsonl",
+   "line": 1872,
+   "path": "/home/visiond/projects/game-engine/game-website/.probe/refs/_raw/pasted_61eeec0d844b.jpeg",
+   "context": "On the jungle, we need to have more variance of trees, like we're using the same for all forest variations, but that's not good, existing trees serves as a grea"
+  },
+  {
+   "file": "87cf5edf-c58c-4b89-8f83-6ede34809bad.jsonl",
+   "line": 1872,
+   "path": "/home/visiond/projects/game-engine/game-website/.probe/refs/_raw/pasted_4771291c80e0.jpeg",
+   "context": "On the jungle, we need to have more variance of trees, like we're using the same for all forest variations, but that's not good, existing trees serves as a grea"
+  },
+  {
+   "file": "87cf5edf-c58c-4b89-8f83-6ede34809bad.jsonl",
+   "line": 6097,
+   "path": "/home/visiond/projects/game-engine/game-website/.probe/refs/_raw/pasted_e8e4244dc989.jpeg",
+   "context": "the footsprints from forests are much much better, but there's still issues with the pathways  specifically, I expect maps to have an entrance and exit, sometim"
+  },
+  {
+   "file": "87cf5edf-c58c-4b89-8f83-6ede34809bad.jsonl",
+   "line": 8956,
+   "path": "/home/visiond/projects/game-engine/game-website/.probe/refs/_raw/pasted_87ed4aa396e2.jpeg",
+   "context": "we need to optimize the usage of elements, we're for example, using individual water tiles istead of optimized tiles with z-width...  also, looks like the exit"
+  },
+  {
+   "file": "87cf5edf-c58c-4b89-8f83-6ede34809bad.jsonl",
+   "line": 11536,
+   "path": "/home/visiond/projects/game-engine/game-website/.probe/refs/_raw/pasted_e7492e8dd2b1.jpeg",
+   "context": "please, post the tickets here in the chat, I want to know what's open, what are you working on, what's pending, what's done, etc...  then I want to remove anyth"
+  },
+  {
+   "file": "87cf5edf-c58c-4b89-8f83-6ede34809bad.jsonl",
+   "line": 11536,
+   "path": "/home/visiond/projects/game-engine/game-website/.probe/refs/_raw/pasted_6de2662f94ff.png",
+   "context": "please, post the tickets here in the chat, I want to know what's open, what are you working on, what's pending, what's done, etc...  then I want to remove anyth"
+  },
+  {
+   "file": "87cf5edf-c58c-4b89-8f83-6ede34809bad.jsonl",
+   "line": 11536,
+   "path": "/home/visiond/projects/game-engine/game-website/.probe/refs/_raw/pasted_d27616e6db67.jpeg",
+   "context": "please, post the tickets here in the chat, I want to know what's open, what are you working on, what's pending, what's done, etc...  then I want to remove anyth"
+  },
+  {
+   "file": "87cf5edf-c58c-4b89-8f83-6ede34809bad.jsonl",
+   "line": 11536,
+   "path": "/home/visiond/projects/game-engine/game-website/.probe/refs/_raw/pasted_9dc538c0c2fb.jpeg",
+   "context": "please, post the tickets here in the chat, I want to know what's open, what are you working on, what's pending, what's done, etc...  then I want to remove anyth"
+  },
+  {
+   "file": "87cf5edf-c58c-4b89-8f83-6ede34809bad.jsonl",
+   "line": 13776,
+   "path": "/home/visiond/projects/game-engine/game-website/.probe/refs/_raw/pasted_5701e61c4a14.png",
+   "context": ""
+  },
+  {
+   "file": "87cf5edf-c58c-4b89-8f83-6ede34809bad.jsonl",
+   "line": 17459,
+   "path": "/home/visiond/projects/game-engine/game-website/.probe/refs/_raw/pasted_a5a22cf5148d.png",
+   "context": "Water is MUCH better, but still needs works  [Image #54] -> still inconsistent usage of tiles animation is bad too  [Image #55] -> the bridge, while functional,"
+  },
+  {
+   "file": "87cf5edf-c58c-4b89-8f83-6ede34809bad.jsonl",
+   "line": 17459,
+   "path": "/home/visiond/projects/game-engine/game-website/.probe/refs/_raw/pasted_755d5f7db35f.png",
+   "context": "Water is MUCH better, but still needs works  [Image #54] -> still inconsistent usage of tiles animation is bad too  [Image #55] -> the bridge, while functional,"
+  },
+  {
+   "file": "87cf5edf-c58c-4b89-8f83-6ede34809bad.jsonl",
+   "line": 17471,
+   "path": "/home/visiond/projects/game-engine/game-website/.probe/refs/_raw/pasted_93ab980e609e.png",
+   "context": "Water is MUCH better, but still needs works  [Image #54] -> still inconsistent usage of tiles animation is bad too  [Image #56]  [Image #55] -> the bridge, whil"
+  },
+  {
+   "file": "87cf5edf-c58c-4b89-8f83-6ede34809bad.jsonl",
+   "line": 18960,
+   "path": "/home/visiond/projects/game-engine/game-website/.probe/refs/_raw/pasted_9b8d392304fc.png",
+   "context": "one earth family everywhere, and fix the tree art  [Image #65] -> This is the first thing I need fixed, it's messing with my eyes.  please make sure the default"
+  },
+  {
+   "file": "87cf5edf-c58c-4b89-8f83-6ede34809bad.jsonl",
+   "line": 20309,
+   "path": "/home/visiond/projects/game-engine/game-website/.probe/refs/_raw/pasted_71fd01cbbeef.png",
+   "context": "there's a bunch of things  1.- [Image #66] water is still inconsistent and animation is wrong, animation should go in the direction of the channel south, but it"
+  },
+  {
+   "file": "87cf5edf-c58c-4b89-8f83-6ede34809bad.jsonl",
+   "line": 20309,
+   "path": "/home/visiond/projects/game-engine/game-website/.probe/refs/_raw/pasted_c024f01f6aba.png",
+   "context": "there's a bunch of things  1.- [Image #66] water is still inconsistent and animation is wrong, animation should go in the direction of the channel south, but it"
+  },
+  {
+   "file": "87cf5edf-c58c-4b89-8f83-6ede34809bad.jsonl",
+   "line": 21488,
+   "path": "/home/visiond/projects/game-engine/game-website/.probe/refs/_raw/pasted_caf46d7f4b31.png",
+   "context": "do 1-3   also, continue working in the tickets  starting with water animation and consistency [Image #68]  and please remove those fucking flowers, the main iss"
+  },
+  {
+   "file": "87cf5edf-c58c-4b89-8f83-6ede34809bad.jsonl",
+   "line": 21488,
+   "path": "/home/visiond/projects/game-engine/game-website/.probe/refs/_raw/pasted_65fd0aa5d828.png",
+   "context": "do 1-3   also, continue working in the tickets  starting with water animation and consistency [Image #68]  and please remove those fucking flowers, the main iss"
+  },
+  {
+   "file": "87cf5edf-c58c-4b89-8f83-6ede34809bad.jsonl",
+   "line": 21704,
+   "path": "/home/visiond/projects/game-engine/game-website/.probe/refs/_raw/pasted_35ef6ae6a9a5.png",
+   "context": "132 is hald done, we have the bridges, but not a single one looks good, in fact, they don't even look like bridges, I'm sure you didn't analyzed them visually."
+  },
+  {
+   "file": "4d8f8ad7-ab50-4e27-9c0f-4ab4fa552bf0.jsonl",
+   "line": 1521,
+   "path": "/home/visiond/projects/game-engine/game-website/.probe/refs/_raw/pasted_e2edf4d20a9c.png",
+   "context": "[Image #2] there's no buildings in towns now"
+  },
+  {
+   "file": "4d8f8ad7-ab50-4e27-9c0f-4ab4fa552bf0.jsonl",
+   "line": 2332,
+   "path": "/home/visiond/projects/game-engine/game-website/.probe/refs/_raw/pasted_442f961ac0aa.png",
+   "context": "lso, there's a few issues with the HUD builder, for example, the bar is weird, it doesn't allow me toa dd new bars easily, when I tried to use the crner to grow"
+  },
+  {
+   "file": "4d8f8ad7-ab50-4e27-9c0f-4ab4fa552bf0.jsonl",
+   "line": 3015,
+   "path": "/home/visiond/projects/game-engine/game-website/.probe/refs/_raw/pasted_7f188b904527.png",
+   "context": "\"New enemy_archetypes and game_rules tables, GET /api/combat, seeded from the exact values shipping today so behaviour is unchanged, 7 backend tests. The fronte"
+  },
+  {
+   "file": "4d8f8ad7-ab50-4e27-9c0f-4ab4fa552bf0.jsonl",
+   "line": 3015,
+   "path": "/home/visiond/projects/game-engine/game-website/.probe/refs/_raw/pasted_ce6df41d1a96.png",
+   "context": "\"New enemy_archetypes and game_rules tables, GET /api/combat, seeded from the exact values shipping today so behaviour is unchanged, 7 backend tests. The fronte"
+  },
+  {
+   "file": "beedf1c6-3134-4b89-b41a-0746ebb68ccd.jsonl",
+   "line": 1942,
+   "path": "/home/visiond/projects/game-engine/game-website/.probe/refs/_raw/pasted_c9390df7a2a1.png",
+   "context": "[Image #2] -> we also have to deal again with the bug we were fighting with before  the visibility index issue, the floor is height 0, but it's showing on top o"
+  },
+  {
+   "file": "beedf1c6-3134-4b89-b41a-0746ebb68ccd.jsonl",
+   "line": 1942,
+   "path": "/home/visiond/projects/game-engine/game-website/.probe/refs/_raw/pasted_f94cf4e64142.png",
+   "context": "[Image #2] -> we also have to deal again with the bug we were fighting with before  the visibility index issue, the floor is height 0, but it's showing on top o"
+  },
+  {
+   "file": "beedf1c6-3134-4b89-b41a-0746ebb68ccd.jsonl",
+   "line": 1942,
+   "path": "/home/visiond/projects/game-engine/game-website/.probe/refs/_raw/pasted_267024462479.png",
+   "context": "[Image #2] -> we also have to deal again with the bug we were fighting with before  the visibility index issue, the floor is height 0, but it's showing on top o"
+  },
+  {
+   "file": "beedf1c6-3134-4b89-b41a-0746ebb68ccd.jsonl",
+   "line": 2026,
+   "path": "/home/visiond/projects/game-engine/game-website/.probe/refs/_raw/pasted_88749ea94c2d.png",
+   "context": "[Image #6] -> mountain forest IS SUPER WEIRD; what is this??  I guess you tried to make elevated zones and failed or left midway through  let's finish wave 1 th"
+  },
+  {
+   "file": "beedf1c6-3134-4b89-b41a-0746ebb68ccd.jsonl",
+   "line": 2588,
+   "path": "/home/visiond/projects/game-engine/game-website/.probe/refs/_raw/pasted_dd639b37a4da.png",
+   "context": "27: [Image #7] I still see the white flowers that don't belong whatsoever in the swamp. Plus the green waster is using the same tile as the river water, which i"
+  },
+  {
+   "file": "beedf1c6-3134-4b89-b41a-0746ebb68ccd.jsonl",
+   "line": 2588,
+   "path": "/home/visiond/projects/game-engine/game-website/.probe/refs/_raw/pasted_a2498df84d55.jpeg",
+   "context": "27: [Image #7] I still see the white flowers that don't belong whatsoever in the swamp. Plus the green waster is using the same tile as the river water, which i"
+  },
+  {
+   "file": "beedf1c6-3134-4b89-b41a-0746ebb68ccd.jsonl",
+   "line": 2588,
+   "path": "/home/visiond/projects/game-engine/game-website/.probe/refs/_raw/pasted_09c1e9f76b69.png",
+   "context": "27: [Image #7] I still see the white flowers that don't belong whatsoever in the swamp. Plus the green waster is using the same tile as the river water, which i"
+  },
+  {
+   "file": "beedf1c6-3134-4b89-b41a-0746ebb68ccd.jsonl",
+   "line": 2588,
+   "path": "/home/visiond/projects/game-engine/game-website/.probe/refs/_raw/pasted_ba0b00bf772f.png",
+   "context": "27: [Image #7] I still see the white flowers that don't belong whatsoever in the swamp. Plus the green waster is using the same tile as the river water, which i"
+  },
+  {
+   "file": "beedf1c6-3134-4b89-b41a-0746ebb68ccd.jsonl",
+   "line": 2588,
+   "path": "/home/visiond/projects/game-engine/game-website/.probe/refs/_raw/pasted_432f5b8e5c02.png",
+   "context": "27: [Image #7] I still see the white flowers that don't belong whatsoever in the swamp. Plus the green waster is using the same tile as the river water, which i"
+  },
+  {
+   "file": "beedf1c6-3134-4b89-b41a-0746ebb68ccd.jsonl",
+   "line": 2790,
+   "path": "/home/visiond/projects/game-engine/game-website/.probe/refs/_raw/pasted_d614772c847f.png",
+   "context": "\"28, tropical species. Reweighting tree_palm was not enough and you are right. A coconut palm and a banana are art that does not exist in either style. That is"
+  },
+  {
+   "file": "beedf1c6-3134-4b89-b41a-0746ebb68ccd.jsonl",
+   "line": 3031,
+   "path": "/home/visiond/projects/game-engine/game-website/.probe/refs/_raw/pasted_6129b7b2e763.png",
+   "context": "[Image #13] -> on swamp the flowers that were white now are like brownish grenish, I didn't want to recolor them, i wanted to remove them, becuase they don't ma"
+  },
+  {
+   "file": "beedf1c6-3134-4b89-b41a-0746ebb68ccd.jsonl",
+   "line": 3031,
+   "path": "/home/visiond/projects/game-engine/game-website/.probe/refs/_raw/pasted_346f8e2d0032.png",
+   "context": "[Image #13] -> on swamp the flowers that were white now are like brownish grenish, I didn't want to recolor them, i wanted to remove them, becuase they don't ma"
+  },
+  {
+   "file": "beedf1c6-3134-4b89-b41a-0746ebb68ccd.jsonl",
+   "line": 4280,
+   "path": "/home/visiond/projects/game-engine/game-website/.probe/refs/_raw/pasted_3c86b4a32703.jpeg",
+   "context": "why are we doing water svg?? we  shouild use the backend pngs, if anything is new it should be backend tiles, we should build water with regular tileset animati"
+  },
+  {
+   "file": "beedf1c6-3134-4b89-b41a-0746ebb68ccd.jsonl",
+   "line": 4280,
+   "path": "/home/visiond/projects/game-engine/game-website/.probe/refs/_raw/pasted_6b7eef524551.png",
+   "context": "why are we doing water svg?? we  shouild use the backend pngs, if anything is new it should be backend tiles, we should build water with regular tileset animati"
+  },
+  {
+   "file": "beedf1c6-3134-4b89-b41a-0746ebb68ccd.jsonl",
+   "line": 4280,
+   "path": "/home/visiond/projects/game-engine/game-website/.probe/refs/_raw/pasted_2d24e735081a.png",
+   "context": "why are we doing water svg?? we  shouild use the backend pngs, if anything is new it should be backend tiles, we should build water with regular tileset animati"
+  },
+  {
+   "file": "beedf1c6-3134-4b89-b41a-0746ebb68ccd.jsonl",
+   "line": 5882,
+   "path": "/home/visiond/projects/game-engine/game-website/.probe/refs/_raw/pasted_8f4ae75ce49c.png",
+   "context": "finish the pending work until 17 is done  and ensure any new object is added to the objects/compositions list  for example, we can have water puddles, etc  also"
+  },
+  {
+   "file": "beedf1c6-3134-4b89-b41a-0746ebb68ccd.jsonl",
+   "line": 5882,
+   "path": "/home/visiond/projects/game-engine/game-website/.probe/refs/_raw/pasted_12944fbb9843.jpeg",
+   "context": "finish the pending work until 17 is done  and ensure any new object is added to the objects/compositions list  for example, we can have water puddles, etc  also"
+  },
+  {
+   "file": "beedf1c6-3134-4b89-b41a-0746ebb68ccd.jsonl",
+   "line": 5882,
+   "path": "/home/visiond/projects/game-engine/game-website/.probe/refs/_raw/pasted_68d02c16c771.png",
+   "context": "finish the pending work until 17 is done  and ensure any new object is added to the objects/compositions list  for example, we can have water puddles, etc  also"
+  },
+  {
+   "file": "beedf1c6-3134-4b89-b41a-0746ebb68ccd.jsonl",
+   "line": 5882,
+   "path": "/home/visiond/projects/game-engine/game-website/.probe/refs/_raw/pasted_4bdd9e4dfd21.png",
+   "context": "finish the pending work until 17 is done  and ensure any new object is added to the objects/compositions list  for example, we can have water puddles, etc  also"
+  },
+  {
+   "file": "beedf1c6-3134-4b89-b41a-0746ebb68ccd.jsonl",
+   "line": 6766,
+   "path": "/home/visiond/projects/game-engine/game-website/.probe/refs/_raw/pasted_2fd818d0b899.png",
+   "context": "keep going down the list in order  Also  [Image #22] -> make sure to tackle the bridges size, look at the image, bridge wood zone is almost as long and big as t"
+  },
+  {
+   "file": "beedf1c6-3134-4b89-b41a-0746ebb68ccd.jsonl",
+   "line": 6766,
+   "path": "/home/visiond/projects/game-engine/game-website/.probe/refs/_raw/pasted_6447eef2277e.png",
+   "context": "keep going down the list in order  Also  [Image #22] -> make sure to tackle the bridges size, look at the image, bridge wood zone is almost as long and big as t"
+  },
+  {
+   "file": "beedf1c6-3134-4b89-b41a-0746ebb68ccd.jsonl",
+   "line": 6766,
+   "path": "/home/visiond/projects/game-engine/game-website/.probe/refs/_raw/pasted_2c608701fbd1.jpeg",
+   "context": "keep going down the list in order  Also  [Image #22] -> make sure to tackle the bridges size, look at the image, bridge wood zone is almost as long and big as t"
+  },
+  {
+   "file": "beedf1c6-3134-4b89-b41a-0746ebb68ccd.jsonl",
+   "line": 6766,
+   "path": "/home/visiond/projects/game-engine/game-website/.probe/refs/_raw/pasted_8fdf9598f78f.jpeg",
+   "context": "keep going down the list in order  Also  [Image #22] -> make sure to tackle the bridges size, look at the image, bridge wood zone is almost as long and big as t"
+  },
+  {
+   "file": "beedf1c6-3134-4b89-b41a-0746ebb68ccd.jsonl",
+   "line": 8331,
+   "path": "/home/visiond/projects/game-engine/game-website/.probe/refs/_raw/pasted_4f379e2f7bd2.png",
+   "context": "[Image #32] -> this is just terrible, please when validating, validate the whole fucking logic of the view, not just a specific part, look at that fucking image"
+  },
+  {
+   "file": "beedf1c6-3134-4b89-b41a-0746ebb68ccd.jsonl",
+   "line": 8665,
+   "path": "/home/visiond/projects/game-engine/game-website/.probe/refs/_raw/pasted_b24b7a570048.png",
+   "context": "[Image #33] -> remove thsoe fucking entrances, we already had good ones in meadow, in fact all you needed was to match exit according to given zone  like an exi"
+  },
+  {
+   "file": "beedf1c6-3134-4b89-b41a-0746ebb68ccd.jsonl",
+   "line": 8676,
+   "path": "/home/visiond/projects/game-engine/game-website/.probe/refs/_raw/pasted_71b1204b968e.png",
+   "context": "[Image #33] -> remove thsoe fucking entrances, we already had good ones in meadow, in fact all you needed was to match exit according to given zone  like an exi"
+  },
+  {
+   "file": "beedf1c6-3134-4b89-b41a-0746ebb68ccd.jsonl",
+   "line": 8676,
+   "path": "/home/visiond/projects/game-engine/game-website/.probe/refs/_raw/pasted_51c2a30003f4.png",
+   "context": "[Image #33] -> remove thsoe fucking entrances, we already had good ones in meadow, in fact all you needed was to match exit according to given zone  like an exi"
+  },
+  {
+   "file": "beedf1c6-3134-4b89-b41a-0746ebb68ccd.jsonl",
+   "line": 11773,
+   "path": "/home/visiond/projects/game-engine/game-website/.probe/refs/_raw/pasted_4d0478ebc192.png",
+   "context": "[Image #38] -> bridge is wrong, first of all, the tile on the side wasn't correctly  I figured out the bug  it's a rendering or drawing issue related to thickn"
+  },
+  {
+   "file": "beedf1c6-3134-4b89-b41a-0746ebb68ccd.jsonl",
+   "line": 11773,
+   "path": "/home/visiond/projects/game-engine/game-website/.probe/refs/_raw/pasted_59bf35c7a7d9.png",
+   "context": "[Image #38] -> bridge is wrong, first of all, the tile on the side wasn't correctly  I figured out the bug  it's a rendering or drawing issue related to thickn"
+  },
+  {
+   "file": "beedf1c6-3134-4b89-b41a-0746ebb68ccd.jsonl",
+   "line": 11773,
+   "path": "/home/visiond/projects/game-engine/game-website/.probe/refs/_raw/pasted_c2a5d130b6fa.png",
+   "context": "[Image #38] -> bridge is wrong, first of all, the tile on the side wasn't correctly  I figured out the bug  it's a rendering or drawing issue related to thickn"
+  },
+  {
+   "file": "beedf1c6-3134-4b89-b41a-0746ebb68ccd.jsonl",
+   "line": 11773,
+   "path": "/home/visiond/projects/game-engine/game-website/.probe/refs/_raw/pasted_3e363ba3a7aa.png",
+   "context": "[Image #38] -> bridge is wrong, first of all, the tile on the side wasn't correctly  I figured out the bug  it's a rendering or drawing issue related to thickn"
+  },
+  {
+   "file": "beedf1c6-3134-4b89-b41a-0746ebb68ccd.jsonl",
+   "line": 11773,
+   "path": "/home/visiond/projects/game-engine/game-website/.probe/refs/_raw/pasted_3863e175883e.png",
+   "context": "[Image #38] -> bridge is wrong, first of all, the tile on the side wasn't correctly  I figured out the bug  it's a rendering or drawing issue related to thickn"
+  },
+  {
+   "file": "beedf1c6-3134-4b89-b41a-0746ebb68ccd.jsonl",
+   "line": 12420,
+   "path": "/home/visiond/projects/game-engine/game-website/.probe/refs/_raw/pasted_b67c378fe64a.png",
+   "context": "[Image #46] -> there's still situations where these dark blue sections show up, I dn't want to see them.  also we need to make sure the risk of the rivers has c"
+  },
+  {
+   "file": "beedf1c6-3134-4b89-b41a-0746ebb68ccd.jsonl",
+   "line": 12420,
+   "path": "/home/visiond/projects/game-engine/game-website/.probe/refs/_raw/pasted_38be79ee8e23.png",
+   "context": "[Image #46] -> there's still situations where these dark blue sections show up, I dn't want to see them.  also we need to make sure the risk of the rivers has c"
+  },
+  {
+   "file": "beedf1c6-3134-4b89-b41a-0746ebb68ccd.jsonl",
+   "line": 12420,
+   "path": "/home/visiond/projects/game-engine/game-website/.probe/refs/_raw/pasted_710053f3fd5c.png",
+   "context": "[Image #46] -> there's still situations where these dark blue sections show up, I dn't want to see them.  also we need to make sure the risk of the rivers has c"
+  },
+  {
+   "file": "beedf1c6-3134-4b89-b41a-0746ebb68ccd.jsonl",
+   "line": 12420,
+   "path": "/home/visiond/projects/game-engine/game-website/.probe/refs/_raw/pasted_b9b5f6fcefe9.png",
+   "context": "[Image #46] -> there's still situations where these dark blue sections show up, I dn't want to see them.  also we need to make sure the risk of the rivers has c"
+  },
+  {
+   "file": "beedf1c6-3134-4b89-b41a-0746ebb68ccd.jsonl",
+   "line": 12791,
+   "path": "/home/visiond/projects/game-engine/game-website/.probe/refs/_raw/pasted_4b1e9fc9b663.png",
+   "context": "\"On the thickness direction: I checked rather than took it, and the authored directions are right. Measured on the live map, the rail at the low column hugs its"
+  },
+  {
+   "file": "beedf1c6-3134-4b89-b41a-0746ebb68ccd.jsonl",
+   "line": 12791,
+   "path": "/home/visiond/projects/game-engine/game-website/.probe/refs/_raw/pasted_6816c1424aba.png",
+   "context": "\"On the thickness direction: I checked rather than took it, and the authored directions are right. Measured on the live map, the rail at the low column hugs its"
+  },
+  {
+   "file": "beedf1c6-3134-4b89-b41a-0746ebb68ccd.jsonl",
+   "line": 12791,
+   "path": "/home/visiond/projects/game-engine/game-website/.probe/refs/_raw/pasted_4c6fd36a9c8a.png",
+   "context": "\"On the thickness direction: I checked rather than took it, and the authored directions are right. Measured on the live map, the rail at the low column hugs its"
+  },
+  {
+   "file": "beedf1c6-3134-4b89-b41a-0746ebb68ccd.jsonl",
+   "line": 12791,
+   "path": "/home/visiond/projects/game-engine/game-website/.probe/refs/_raw/pasted_b7b6e8d60d15.png",
+   "context": "\"On the thickness direction: I checked rather than took it, and the authored directions are right. Measured on the live map, the rail at the low column hugs its"
+  },
+  {
+   "file": "beedf1c6-3134-4b89-b41a-0746ebb68ccd.jsonl",
+   "line": 13127,
+   "path": "/home/visiond/projects/game-engine/game-website/.probe/refs/_raw/pasted_4cd04e1abb8d.png",
+   "context": "[Image #56] bugs still present, fuckign evaluate the images with playwright visually and ensure things are actually fixed before sending report fore review"
+  },
+  {
+   "file": "beedf1c6-3134-4b89-b41a-0746ebb68ccd.jsonl",
+   "line": 13495,
+   "path": "/home/visiond/projects/game-engine/game-website/.probe/refs/_raw/pasted_a4264bce7ac6.png",
+   "context": "\"It is the canvas showing through, and it only happens on a rotated map. Every check I ran was at the default angle, and you were screenshotting a turned one.\""
+  },
+  {
+   "file": "beedf1c6-3134-4b89-b41a-0746ebb68ccd.jsonl",
+   "line": 13827,
+   "path": "/home/visiond/projects/game-engine/game-website/.probe/refs/_raw/pasted_324e67dbd55a.png",
+   "context": "[Image #59] -> still happening.  You should generate many examples of many different types of forest and different types of rivers, doing on of is not good enou"
+  },
+  {
+   "file": "beedf1c6-3134-4b89-b41a-0746ebb68ccd.jsonl",
+   "line": 22297,
+   "path": "/home/visiond/projects/game-engine/game-website/.probe/refs/_raw/pasted_efe6af65bf44.png",
+   "context": "first of all, changing the color on trees was cool, we should use those different colors more often in forest generators outside of exit/entrances  \"\\\\\\\\wsl\"'$'"
+  },
+  {
+   "file": "beedf1c6-3134-4b89-b41a-0746ebb68ccd.jsonl",
+   "line": 22420,
+   "path": "/home/visiond/projects/game-engine/game-website/.probe/refs/_raw/pasted_6a505ac36753.png",
+   "context": "no, bro, what are you doing, you're NOT using the framework of objects.  all we want is to obscure the WAY of the pathway,  \"\\\\\\\\wsl\"'$'\"\\\\Ubuntu\\\\home\\\\visiond"
+  },
+  {
+   "file": "beedf1c6-3134-4b89-b41a-0746ebb68ccd.jsonl",
+   "line": 23149,
+   "path": "/home/visiond/projects/game-engine/game-website/.probe/refs/_raw/pasted_922ca3674bc8.jpeg",
+   "context": "[Image #73] -> here's how an actuall good dense forest entrance looks like... [Image #74] -> treasure in forest at the end of dirt+rock pathway [Image #75] -> m"
+  },
+  {
+   "file": "beedf1c6-3134-4b89-b41a-0746ebb68ccd.jsonl",
+   "line": 23149,
+   "path": "/home/visiond/projects/game-engine/game-website/.probe/refs/_raw/pasted_5b62f80b663e.jpeg",
+   "context": "[Image #73] -> here's how an actuall good dense forest entrance looks like... [Image #74] -> treasure in forest at the end of dirt+rock pathway [Image #75] -> m"
+  },
+  {
+   "file": "beedf1c6-3134-4b89-b41a-0746ebb68ccd.jsonl",
+   "line": 23149,
+   "path": "/home/visiond/projects/game-engine/game-website/.probe/refs/_raw/pasted_f4d38645d522.jpeg",
+   "context": "[Image #73] -> here's how an actuall good dense forest entrance looks like... [Image #74] -> treasure in forest at the end of dirt+rock pathway [Image #75] -> m"
+  },
+  {
+   "file": "beedf1c6-3134-4b89-b41a-0746ebb68ccd.jsonl",
+   "line": 23149,
+   "path": "/home/visiond/projects/game-engine/game-website/.probe/refs/_raw/pasted_e77fac8b8433.jpeg",
+   "context": "[Image #73] -> here's how an actuall good dense forest entrance looks like... [Image #74] -> treasure in forest at the end of dirt+rock pathway [Image #75] -> m"
+  },
+  {
+   "file": "beedf1c6-3134-4b89-b41a-0746ebb68ccd.jsonl",
+   "line": 23436,
+   "path": "/home/visiond/projects/game-engine/game-website/.probe/refs/_raw/pasted_99c332061998.png",
+   "context": "discard this, it sucks.  I'm really confused as to why this is costing you so much, we already have working treesa and we now we can stack things on cells and w"
+  },
+  {
+   "file": "beedf1c6-3134-4b89-b41a-0746ebb68ccd.jsonl",
+   "line": 23536,
+   "path": "/home/visiond/projects/game-engine/game-website/.probe/refs/_raw/pasted_b7132f900cec.png",
+   "context": "meadow is not good yet  [Image #78], we have trees in the pathway, we shouldn't have any trees in the pathway, just in grass or dirt zones, same with flowers  w"
+  },
+  {
+   "file": "beedf1c6-3134-4b89-b41a-0746ebb68ccd.jsonl",
+   "line": 23679,
+   "path": "/home/visiond/projects/game-engine/game-website/.probe/refs/_raw/pasted_effae959caa9.png",
+   "context": "[Image #79] -> meadow not fixed, the pathway width is determined by the lamb posts, we're still putting trees in the pathway when I haven't specifically request"
+  },
+  {
+   "file": "beedf1c6-3134-4b89-b41a-0746ebb68ccd.jsonl",
+   "line": 23777,
+   "path": "/home/visiond/projects/game-engine/game-website/.probe/refs/_raw/pasted_ade12d24c796.png",
+   "context": "[Image #81] -> range still not working as expected, plus it looks like it's fake, like it only hides stuff that it's there, instead of actually conditionally re"
+  },
+  {
+   "file": "beedf1c6-3134-4b89-b41a-0746ebb68ccd.jsonl",
+   "line": 23889,
+   "path": "/home/visiond/projects/game-engine/game-website/.probe/refs/_raw/pasted_6f2af673ff7c.png",
+   "context": "range is 100% not done [Image #82]"
+  },
+  {
+   "file": "beedf1c6-3134-4b89-b41a-0746ebb68ccd.jsonl",
+   "line": 24074,
+   "path": "/home/visiond/projects/game-engine/game-website/.probe/refs/_raw/pasted_6b3004d3a8dd.png",
+   "context": "we need to reduce trees density by 30% on all jungle templates variants too  \"A crossing joined to the paths\"  what does even mean???? I don't know why we have"
+  },
+  {
+   "file": "beedf1c6-3134-4b89-b41a-0746ebb68ccd.jsonl",
+   "line": 29514,
+   "path": "/home/visiond/projects/game-engine/game-website/.probe/refs/_raw/pasted_f721a2b5dbec.png",
+   "context": "now we have a duplicated function in UI \"build up to\", and below we have \"layers\" which is the same thing  also, stop using deumb retarted laberls like \"build u"
+  },
+  {
+   "file": "beedf1c6-3134-4b89-b41a-0746ebb68ccd.jsonl",
+   "line": 29514,
+   "path": "/home/visiond/projects/game-engine/game-website/.probe/refs/_raw/pasted_09c72ed37dd3.png",
+   "context": "now we have a duplicated function in UI \"build up to\", and below we have \"layers\" which is the same thing  also, stop using deumb retarted laberls like \"build u"
+  },
+  {
+   "file": "beedf1c6-3134-4b89-b41a-0746ebb68ccd.jsonl",
+   "line": 29514,
+   "path": "/home/visiond/projects/game-engine/game-website/.probe/refs/_raw/pasted_d71bec10a489.png",
+   "context": "now we have a duplicated function in UI \"build up to\", and below we have \"layers\" which is the same thing  also, stop using deumb retarted laberls like \"build u"
+  }
+ ]
+}

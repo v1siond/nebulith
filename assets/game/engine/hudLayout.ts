@@ -8,7 +8,7 @@
  * screen and the middle of the map on every other. The product's own HUD is already written this way, as
  * frozen Tailwind literals like `fixed bottom-4 left-4`, so this is that model made editable.
  */
-import { HUD_ANCHORS, type HudAnchor, type HudLayout, type HudPlacement } from '@/components/game/shell/playerUi.data'
+import { HUD_ANCHORS, type HudAnchor, type HudLayout, type HudPlacement } from '@/components/shell/playerUi.data'
 
 /** A resolved rectangle on the stage, in game pixels. */
 export interface HudRect {

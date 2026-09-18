@@ -1,0 +1,11 @@
+node_modules/
+# Screenshot and dump OUTPUT. The scripts themselves are tracked: a harness the rules say to run
+# before claiming a visual fix has to survive a clone, and a bare `*` here is why it did not.
+*.png
+*.jpg
+*.jpeg
+*.webp
+*.bin
+*.img
+*.txt
+*.tsv

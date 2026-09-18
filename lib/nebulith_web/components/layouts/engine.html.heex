@@ -1,0 +1,16 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Nebulith</title>
+    <%!-- The engine's own stylesheet and bundle. Deliberately NOT app.css/app.js: those carry
+          daisyUI and the LiveView socket, neither of which belongs in a canvas engine. --%>
+    <link phx-track-static rel="stylesheet" href={~p"/assets/css/game.css"} />
+    <script defer phx-track-static type="module" src={~p"/assets/js/game/game.js"}>
+    </script>
+  </head>
+  <body class="m-0 bg-gray-900">
+    {@inner_content}
+  </body>
+</html>

@@ -14,7 +14,7 @@ import { availableStyles, CATEGORY_LABELS, TILE_CATEGORIES, type TileCategory, t
 import { DEFAULT_ACTION_PARAMS, makeTrigger, type Trigger, type TriggerActionType, type TriggerEvent } from '@/game/runtime/trigger'
 import { catalogZones, categoryLayouts, choicesForSize, findCategory, findGenerator, type GeneratorCatalog, type GeneratorOptionValue, optionIsOn, optionOffValue, optionSections, trimmedBySize, type GeneratorDef } from '@/lib/generatorCatalog'
 import { CELL_SIZE_MIN, atLeast, cellCount, mapSizeProblem, mapSizeValid, type MapSize } from '@/lib/mapSize'
-import { PreviewThumb, type PreviewContext } from '@/components/game/shell/PreviewThumb'
+import { PreviewThumb, type PreviewContext } from '@/components/shell/PreviewThumb'
 import { subjectFor } from '@/engine/preview/previewScene'
 import type { PeekReason } from './previewOpening'
 import { SHOW_2D_VIEW, EDITOR_BANDS, EDITOR_RAIL, type RailEntry, type RailId, type EditorMode, generatorLayers, SEASON_BTN, SEASON_BTN_ACTIVE, SELECT_CLS, INPUT_CLS } from './editorConfig'

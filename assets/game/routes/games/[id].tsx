@@ -1,11 +1,12 @@
 import { useEffect, useState } from 'react'
-import { useRouter } from 'next/router'
-import { useToast } from '@/components/game/Toast'
+import { useRouter } from '@/lib/router'
+import { ROUTES } from '@/lib/routes'
+import { useToast } from '@/components/Toast'
 import { getGame, type Game } from '@/lib/api'
 import TemplateEditor, { type EditorGameContext } from '../templates'
 
 /** The standalone builder route, the "default builder" we fall back to when a game can't be opened. */
-const DEFAULT_BUILDER_ROUTE = '/personal-projects/game-engine/templates'
+const DEFAULT_BUILDER_ROUTE = ROUTES.templates
 
 /**
  * GAME show, the same editor as before, scoped to a game. We load the game, then render the editor

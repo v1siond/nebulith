@@ -1,0 +1,11 @@
+import { chromium } from 'playwright'
+const b = await chromium.launch()
+const p = await b.newPage({ viewport: { width: 1400, height: 900 } })
+await p.goto('http://localhost:6328/templates', { waitUntil: 'networkidle' })
+await p.waitForTimeout(3000)
+await p.getByRole('button', { name: new RegExp('^' + (process.env.PRESET || 'Desert')) }).first().click()
+await p.waitForTimeout(500)
+await p.getByRole('button', { name: /Build this world/ }).click(); await p.waitForTimeout(4000)
+const rows = await p.evaluate(() => globalThis.__tileTones?.(8))
+for (const r of rows || []) console.log(`${r.label.padEnd(18)} n=${String(r.total).padStart(4)}  ${r.colors.map(c => `${c[0]}x${c[1]}`).join('  ')}`)
+await b.close()

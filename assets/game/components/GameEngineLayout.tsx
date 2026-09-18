@@ -1,5 +1,6 @@
-import Head from 'next/head'
-import Link from 'next/link'
+import Head from '@/lib/router'
+import { Link } from '@/lib/router'
+import { ROUTES, cvUrl } from '@/lib/routes'
 import type { ReactNode } from 'react'
 
 /**
@@ -41,10 +42,16 @@ export function GameEngineLayout({
               <p className="text-gray-400">ASCII tile-based game engine</p>
             </div>
             <div className="flex items-center gap-2">
-              {tab('/personal-projects/game-engine/games', '🎮 Games', 'games')}
-              <Link href="/" className="px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded text-sm">
+              {tab(ROUTES.games, '🎮 Games', 'games')}
+              {/* The CV is a different origin, and this may be running inside its iframe, so the
+                  link leaves the frame rather than loading the CV inside itself. */}
+              <a
+                href={cvUrl()}
+                target="_top"
+                className="px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded text-sm"
+              >
                 Back to CV
-              </Link>
+              </a>
             </div>
           </div>
 
@@ -55,7 +62,7 @@ export function GameEngineLayout({
             <p>Built with ASCII tiles • Elixir + PostgreSQL</p>
             <p className="mt-1">
               <a
-                href="https://github.com/yourusername/game-engine"
+                href="https://github.com/v1siond/nebulith"
                 className="text-blue-400 hover:underline"
                 target="_blank"
                 rel="noopener noreferrer"

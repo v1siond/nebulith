@@ -10,9 +10,9 @@ import { rewardSummary } from '@/game/runtime/quest'
 import { isAttackable } from '@/game/runtime/capabilities'
 import { type AttackMode, type AttackPattern, type AttackPatternMode, type DialogKind, type DialogSituation, type EnemyAttack, type Entity, type EntityKind, type Quest, type QuestState, type UnitDialog } from '@/game/types'
 import { DIALOG_KIND_LABEL, DIALOG_SITUATIONS, QUEST_STATE_LABEL, newDialog } from '@/game/runtime/dialog'
-import { QuestObjectives } from '@/components/game/hud'
-import { TileControls, type TileControlModel } from '@/components/game/editorChrome'
-import { SwapTilePanel } from '@/components/game/shell/SwapTilePanel'
+import { QuestObjectives } from '@/components/hud'
+import { TileControls, type TileControlModel } from '@/components/editorChrome'
+import { SwapTilePanel } from '@/components/shell/SwapTilePanel'
 import type { TileDef } from '@/game/artStyle'
 
 /** Right-sidebar inspector for a clicked entity: edit its name / enemy-type, toggle

@@ -37,7 +37,7 @@ export function CombatBar({ label, value, cap, fillClass }: CombatBarProps) {
   return (
     <div className="flex items-center gap-2">
       <span className="w-12 shrink-0 text-[10px] uppercase tracking-wide text-gray-300">{label}</span>
-      <div className="relative h-3 flex-1 overflow-hidden rounded-sm bg-black/70 ring-1 ring-white/10">
+      <div className="relative h-3 flex-1 overflow-hidden rounded-xs bg-black/70 ring-1 ring-white/10">
         <div className={`h-full w-[var(--fill)] ${fillClass} transition-[width] duration-150`} style={fillVar} />
       </div>
       <span className="w-14 shrink-0 text-right text-[10px] tabular-nums text-gray-300">

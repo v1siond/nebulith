@@ -1,0 +1,9 @@
+{
+  "name": "nebulith-probe",
+  "private": true,
+  "type": "module",
+  "description": "The render-and-look harness. Drives a real browser against the running app so a visual claim has evidence behind it. Its own deps because ESM resolves from the script directory, not NODE_PATH; the version is PINNED to match priv/tilegen so both reuse one cached browser download.",
+  "dependencies": {
+    "playwright": "1.61.1"
+  }
+}

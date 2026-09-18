@@ -64,8 +64,10 @@ interface ApiTileset {
 // re-fetching. Populated by loadTilesetsFromBackend; empty until the first successful load.
 const tilesetIdByKey = new Map<string, number | string>()
 
-// The backend's origin (no /api suffix), every tile's image_url is a root-relative path the API
-// returns, so it needs absolutizing against the SAME host the tileset itself was fetched from.
+// The backend's origin (no /api suffix). Every tile's image_url is a root-relative path the API
+// returns, and it has to resolve against the host the tileset was fetched from. That host serves this
+// page too now, so ORIGIN is empty and the path passes through unchanged; the prefix stays because a
+// fully-qualified NEBULITH_API (a split deployment, a probe pointed elsewhere) must still work.
 const ORIGIN = NEBULITH_API.replace(/\/api\/?$/, '')
 const abs = (u: string | null | undefined): string | undefined => (u ? (u.startsWith('http') ? u : ORIGIN + u) : undefined)
 

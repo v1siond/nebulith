@@ -1,0 +1,196 @@
+/**
+ * ONE unified right-sidebar card, the user's ask: "one single right sidebar, I want the same we use for
+ * tiles, with the extra unit options added … the unit data can be merged in to the general tile card …
+ * the animation section from unit would be removed, and it'll work with the button … movement pattern is
+ * dead code … triggers should be a button inside the tile/unit card that shows a modal."
+ *
+ * A selected UNIT renders the SAME PropertiesPanel card a tile uses, with the unit's data folded IN via
+ * `unitSection`, NOT a second parallel unit sidebar. We drive the REAL components and assert:
+ *   • the unit extras (identity/attacks) live on the SAME card as the tile summary,
+ *   • the cell-collision row is HIDDEN for a unit (a unit isn't a cell),
+ *   • the animation SECTION is gone, it's a BUTTON now (opens the animation modal),
+ *   • Triggers is a BUTTON that opens the triggers modal (with a count badge),
+ *   • the movement-pattern section + waypoint plumbing are removed (dead code).
+ */
+import { readFileSync } from 'fs'
+import { resolve } from 'path'
+import { render, screen, fireEvent } from '@testing-library/react'
+import { PropertiesPanel, type TileControlModel } from '@/components/editorChrome'
+import * as modals from '@/components/modals'
+import { UnitSettingsSection, type UnitControlModel } from '@/components/modals'
+import { type Entity } from '@/game/types'
+
+const TEMPLATES_SRC = resolve(__dirname, '../../routes/templates.tsx')
+
+/** A unit's shared tile model, the SAME shape a tile feeds PropertiesPanel, with onOpenAnimator wired
+ *  (the "✦ Animate…" button) and NO asset-only writers (so those rows stay out for a unit). */
+const unitTile = (over: Partial<TileControlModel> = {}): TileControlModel => ({
+  key: 'unit-u1',
+  label: 'Goblin',
+  dims: { width: 1, height: 1, depth: 1, zoom: 1 },
+  color: '#33d6ff',
+  colorFallback: '#ffffff',
+  onDim: jest.fn(),
+  onColor: jest.fn(),
+  onClearColor: jest.fn(),
+  override: null,
+  styleName: 'Emoji',
+  onOpenLibrary: jest.fn(),
+  pose: {},
+  onPose: jest.fn(),
+  onPoseReset: jest.fn(),
+  onOpenAnimator: jest.fn(),
+  ...over,
+})
+
+const entity = (over: Partial<Entity> = {}): Entity => ({
+  id: 'u1',
+  kind: 'enemy',
+  col: 1,
+  row: 1,
+  name: 'Goblin',
+  baseStats: { strength: 3, intelligence: 1, defense: 2, maxHp: 20, dodge: 0 },
+  ...over,
+})
+
+const unitModel = (over: Partial<UnitControlModel> = {}): UnitControlModel => ({
+  entity: entity(),
+  onPatch: jest.fn(),
+  onSize: jest.fn(),
+  onOpenAttacks: jest.fn(),
+  ...over,
+})
+
+function renderUnitCard(props: Partial<React.ComponentProps<typeof PropertiesPanel>> = {}, unit = unitModel()) {
+  return render(
+    <PropertiesPanel
+      collision={null}
+      onCollision={jest.fn()}
+      tile={unitTile()}
+      level={1}
+      levelCount={1}
+      onLevel={jest.fn()}
+      sectionOpen={() => true}
+      onToggleSection={jest.fn()}
+      onOpenTriggers={jest.fn()}
+      triggerCount={0}
+      unitSection={<UnitSettingsSection unit={unit} />}
+      {...props}
+    />,
+  )
+}
+
+describe('a unit uses the SAME card as a tile (no separate unit sidebar)', () => {
+  it('folds the unit extras INTO the one card, alongside the shared tile summary', () => {
+    renderUnitCard()
+    // the tile summary a tile gets… the identity row reads "Character" for a unit and holds the real
+    // character window (figure + name + size + stats) rather than one button that opens the library.
+    expect(screen.getByRole('button', { name: 'Character' })).toBeInTheDocument()
+    // The settings are ON the card now, as named sections. The old "Edit settings…" button opened one flat
+    // wall of controls, which is exactly what §3.10 broke up, so the sections ARE the assertion.
+    expect(screen.queryByRole('button', { name: /Edit settings/i })).toBeNull()
+    for (const name of ['Appearance', 'Size & position', 'Behaviour']) {
+      expect(screen.getByRole('button', { name })).toBeInTheDocument()
+    }
+    expect(screen.getByLabelText('Goblin colour')).toBeInTheDocument()
+    // …and the unit-only extras on the SAME card. The name moved into the Character window with the stats
+    // and the figure, so what stays on the card is the enemy's way out to its attack editor.
+    expect(screen.getByRole('button', { name: /Attacks/i })).toBeInTheDocument()
+  })
+
+  // Updated with the unified-card work: there is now ONE collision control for everything, for a unit the
+  // card's Blocked/Walkable toggle IS its "blocks movement" (the standalone checkbox is gone). Only the
+  // ", cell, " section LABEL stays cell-specific, because a unit isn't a cell.
+  it('SHOWS the ONE collision row for a unit (it serves the unit\'s blocks-movement)', () => {
+    renderUnitCard()
+    expect(screen.getByRole('button', { name: 'Blocked' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Walkable' })).toBeInTheDocument()
+    expect(screen.queryByLabelText('Blocks movement')).toBeNull() // no second, unit-only control
+    expect(screen.queryByText(', cell, ')).toBeNull()
+  })
+
+  it('a plain TILE card (no unitSection) still shows the collision row + no unit extras', () => {
+    render(
+      <PropertiesPanel collision={false} onCollision={jest.fn()} tile={unitTile({ label: 'grass' })} level={1} levelCount={1} onLevel={jest.fn()} sectionOpen={() => true} onToggleSection={jest.fn()} />,
+    )
+    expect(screen.getByRole('button', { name: 'Blocked' })).toBeInTheDocument()
+    expect(screen.queryByLabelText('Entity name')).toBeNull()
+  })
+})
+
+describe('the unit ANIMATION section is gone, it is a button now', () => {
+  it('the Animation ROW opens the editor on the first click, with no inline frame authoring', () => {
+    const onOpenAnimator = jest.fn()
+    renderUnitCard({ tile: unitTile({ onOpenAnimator }) })
+    // the removed section's inline authoring must NOT be on the card
+    expect(screen.queryByText(/See more/i)).toBeNull()
+    expect(screen.queryByRole('button', { name: /Add animation/i })).toBeNull()
+    // the ROW fires the opener, there is no "✦ Animate…" button inside a panel any more
+    fireEvent.click(screen.getByRole('button', { name: 'Animation' }))
+    expect(onOpenAnimator).toHaveBeenCalledTimes(1)
+  })
+})
+
+// "Triggers" is called RULES in the UI now, the last of the stale trigger language. The DATA keeps its
+// name (the `Trigger` type, the handler `onOpenTriggers`), which is why the seams below still read that way.
+describe('Rules is a BUTTON that opens the rules modal', () => {
+  it('renders a Rules ROW with a count badge and fires onOpenTriggers on the first click', () => {
+    const onOpenTriggers = jest.fn()
+    renderUnitCard({ onOpenTriggers, triggerCount: 2 })
+    const btn = screen.getByRole('button', { name: 'Rules' })
+    expect(btn).toHaveTextContent('2') // the count rides the row as its badge
+    fireEvent.click(btn)
+    expect(onOpenTriggers).toHaveBeenCalledTimes(1)
+  })
+
+  it('a CELL card gets the same Rules row (enter/interact rules)', () => {
+    const onOpenTriggers = jest.fn()
+    render(
+      <PropertiesPanel collision={false} onCollision={jest.fn()} tile={unitTile({ label: 'grass' })} level={1} levelCount={1} onLevel={jest.fn()} sectionOpen={() => true} onToggleSection={jest.fn()} onOpenTriggers={onOpenTriggers} />,
+    )
+    fireEvent.click(screen.getByRole('button', { name: 'Rules' }))
+    expect(onOpenTriggers).toHaveBeenCalledTimes(1)
+  })
+})
+
+describe('UnitSettingsSection, identity rows + role-specific entry buttons', () => {
+  // The FIGURE variant row was removed with the unified-card work: a unit is a tile, so its art is swapped
+  // with the card's regular "Replace tile" button. Size stays as a row (see unitTileCardParity.test.tsx).
+  it('drops the figure-variant row and wires the enemy attacks button', () => {
+    // Size moved to the Character window with the name and the stats, see unitSettingsPanel.test.tsx.
+    const onOpenAttacks = jest.fn()
+    render(<UnitSettingsSection unit={unitModel({ onOpenAttacks })} />)
+    expect(screen.queryByRole('button', { name: 'female' })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'neutral' })).toBeNull()
+    fireEvent.click(screen.getByRole('button', { name: /Attacks/i }))
+    expect(onOpenAttacks).toHaveBeenCalledTimes(1)
+  })
+
+  it('a player gets inventory (not attacks/quests)', () => {
+    const onOpenInventory = jest.fn()
+    render(<UnitSettingsSection unit={{ entity: entity({ kind: 'player', name: 'Hero' }), onPatch: jest.fn(), onOpenInventory }} />)
+    expect(screen.getByRole('button', { name: /Inventory/i })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /Attacks/i })).toBeNull()
+    expect(screen.queryByRole('button', { name: /Quests/i })).toBeNull()
+    fireEvent.click(screen.getByRole('button', { name: /Inventory/i }))
+    expect(onOpenInventory).toHaveBeenCalledTimes(1)
+  })
+})
+
+describe('movement pattern is removed (dead code)', () => {
+  it('modals no longer exports EntityMovementBody', () => {
+    expect((modals as Record<string, unknown>).EntityMovementBody).toBeUndefined()
+  })
+
+  it('the templates page drops the movement section, waypoint plumbing, and the trigger expando', () => {
+    const src = readFileSync(TEMPLATES_SRC, 'utf8')
+    expect(src).not.toContain('EntityMovementBody')
+    expect(src).not.toContain('title="Movement pattern"')
+    expect(src).not.toContain('waypointMode')
+    expect(src).not.toContain('appendWaypoint')
+    expect(src).not.toContain('title="Trigger"') // the inline expando is gone; triggers open a modal
+    // the new wiring IS present
+    expect(src).toContain('onOpenTriggers')
+    expect(src).toContain('floatingProps')
+  })
+})

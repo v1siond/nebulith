@@ -511,7 +511,7 @@ function TileAnimationPreview({ animations }: { animations: readonly TileAnim[] 
   return (
     <div className="relative h-24 overflow-hidden rounded border border-white/10 bg-gradient-to-b from-slate-800 to-slate-900" aria-label="Animation preview" role="img">
       <span className="absolute left-1 top-1 text-[8px] uppercase tracking-wide text-gray-500">preview</span>
-      <div className="absolute left-1/2 top-1/2 h-6 w-6 -translate-x-1/2 -translate-y-1/2 rounded-sm"
+      <div className="absolute left-1/2 top-1/2 h-6 w-6 -translate-x-1/2 -translate-y-1/2 rounded-xs"
         style={{
           background: color,
           opacity,

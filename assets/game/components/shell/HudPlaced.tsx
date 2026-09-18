@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react'
 
 import { hudStyle } from '@/engine/hudLayout'
-import type { HudPlacement } from '@/components/game/shell/playerUi.data'
+import type { HudPlacement } from '@/components/shell/playerUi.data'
 import { layoutFor } from '@/game/uiProfile'
 
 /**

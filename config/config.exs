@@ -27,6 +27,10 @@ config :phoenix_live_view,
   # the attribute set on all root tags. Used for Phoenix.LiveView.ColocatedCSS.
   root_tag_attribute: "phx-r"
 
+# Where the CV site lives. The engine's "Back to CV" link is rendered from this, so neither origin is
+# compiled into the bundle. config/runtime.exs reads CV_URL in production; this is the dev default.
+config :nebulith, :cv_url, "http://localhost:3000"
+
 # Configure esbuild (the version is required)
 config :esbuild,
   version: "0.25.4",
@@ -35,6 +39,17 @@ config :esbuild,
       ~w(js/app.js --bundle --target=es2022 --outdir=../priv/static/assets/js --external:/fonts/* --external:/images/* --alias:@=.),
     cd: Path.expand("../assets", __DIR__),
     env: %{"NODE_PATH" => [Path.expand("../deps", __DIR__), Mix.Project.build_path()]}
+  ],
+  # The ENGINE bundle. Code-split on purpose: the editor is a large tree and one blob would block
+  # the gallery on the whole thing. `--alias:@=./game` is the same `@/` the source and the suite use.
+  # NODE_ENV has to be defined or React's own `process.env.NODE_ENV` reads crash in the browser;
+  # config/dev.exs overrides this profile so development gets React's dev build and its warnings.
+  game: [
+    args:
+      ~w(js/game.tsx --bundle --splitting --format=esm --target=es2022 --outdir=../priv/static/assets/js/game --alias:@=./game) ++
+        [~s(--define:process.env.NODE_ENV="production")],
+    cd: Path.expand("../assets", __DIR__),
+    env: %{"NODE_PATH" => [Path.expand("../assets/node_modules", __DIR__)]}
   ]
 
 # Configure tailwind (the version is required)
@@ -44,6 +59,16 @@ config :tailwind,
     args: ~w(
       --input=assets/css/app.css
       --output=priv/static/assets/css/app.css
+    ),
+    cd: Path.expand("..", __DIR__),
+    env: %{"NODE_PATH" => [Path.expand("../deps", __DIR__), Mix.Project.build_path()]}
+  ],
+  # The ENGINE's stylesheet, built separately from app.css so the editor never inherits daisyUI's
+  # base styles and the admin pages never inherit the editor's.
+  game: [
+    args: ~w(
+      --input=assets/css/game.css
+      --output=priv/static/assets/css/game.css
     ),
     cd: Path.expand("..", __DIR__),
     env: %{"NODE_PATH" => [Path.expand("../deps", __DIR__), Mix.Project.build_path()]}

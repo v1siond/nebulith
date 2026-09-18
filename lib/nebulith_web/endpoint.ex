@@ -27,7 +27,11 @@ defmodule NebulithWeb.Endpoint do
   # minimap, for cached preset thumbnails, and for any in-browser pixel test.
   #
   # The frontend's half of this is `crossOrigin = 'anonymous'` on the tile images; both halves are required.
-  plug CORSPlug, origin: [~r/^http:\/\/localhost:\d+$/]
+  #
+  # Open to any origin on purpose: the engine is meant to be embeddable, so a page on any host can
+  # frame it and its bundle can read this API. Nothing here is authenticated, and /admin is Basic auth
+  # over a browser navigation rather than an XHR, so a wildcard costs nothing it was protecting.
+  plug CORSPlug, origin: "*"
 
   # Serve at "/" the static files from "priv/static" directory.
   #

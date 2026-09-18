@@ -14,6 +14,22 @@ defmodule NebulithWeb.Router do
     plug :accepts, ["json"]
   end
 
+  # The ENGINE. No session and no CSRF: the shell is a plain GET and the application talks to /api,
+  # which carries neither. That also means nothing here depends on a cookie, which is what lets the
+  # engine work inside a cross-origin iframe at all (a third-party cookie is blocked or partitioned).
+  #
+  # `frame-ancestors *` replaces Phoenix's default `frame-ancestors 'self'`, which is the ONLY thing
+  # that stops another site from embedding this. Deliberately open: embedding the engine is the point.
+  # See docs/DEPLOYMENT-AND-BOUNDARIES.md §7 for what that costs. Every other browser route keeps the
+  # default, so /admin stays un-embeddable.
+  pipeline :engine do
+    plug :accepts, ["html"]
+    plug :put_root_layout, html: {NebulithWeb.Layouts, :engine}
+    plug :put_secure_browser_headers, %{
+      "content-security-policy" => "base-uri 'self'; frame-ancestors *;"
+    }
+  end
+
   pipeline :admin do
     plug NebulithWeb.AdminAuth
   end
@@ -22,6 +38,24 @@ defmodule NebulithWeb.Router do
     pipe_through :browser
 
     get "/", PageController, :home
+  end
+
+  # Every engine path serves the same shell; the client router reads the path. Listing them rather than
+  # globbing keeps an unknown path a 404 instead of a silently empty gallery.
+  scope "/", NebulithWeb do
+    pipe_through :engine
+
+    get "/games", EngineController, :app
+    get "/games/:id", EngineController, :app
+    get "/templates", EngineController, :app
+  end
+
+  # Where the engine used to live, when it was a route inside the CV site. Redirects, so old links and
+  # the probe harness resolve instead of 404ing.
+  scope "/personal-projects/game-engine", NebulithWeb do
+    pipe_through :engine
+
+    get "/*rest", EngineController, :legacy
   end
 
   scope "/admin", NebulithWeb do

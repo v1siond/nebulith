@@ -1,0 +1,10 @@
+import { chromium } from 'playwright'
+const b = await chromium.launch()
+const p = await b.newPage({ viewport: { width: 1500, height: 950 } })
+await p.goto('http://localhost:6328/templates', { waitUntil: 'networkidle' })
+await p.waitForTimeout(3200)
+const txt = await p.evaluate(() => [...document.querySelectorAll('button')].map(b => (b.textContent||'').trim()).filter(Boolean).slice(0, 60))
+console.log('BUTTONS:', JSON.stringify(txt, null, 0))
+const sels = await p.evaluate(() => [...document.querySelectorAll('select')].map(s => [...s.options].map(o => o.text).slice(0,10)))
+console.log('SELECTS:', JSON.stringify(sels))
+await b.close()

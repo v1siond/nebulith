@@ -28,6 +28,12 @@ end
 config :nebulith, NebulithWeb.Endpoint,
   http: [port: String.to_integer(System.get_env("PORT") || "6328")]
 
+# The CV site's public origin, used for the engine's "Back to CV" link. Read at RUNTIME so the same
+# built image works wherever it is deployed.
+if cv_url = System.get_env("CV_URL") do
+  config :nebulith, :cv_url, cv_url
+end
+
 if config_env() == :prod do
   database_url =
     System.get_env("DATABASE_URL") ||

@@ -1,0 +1,29 @@
+/* The ENGINE's stylesheet, deliberately separate from app.css.
+   app.css carries daisyUI for the admin and docs pages; the engine draws its own chrome and must not
+   inherit a component library's base styles, so the two Tailwind builds stay apart. */
+@import "tailwindcss" source(none);
+
+@source "../game";
+@source "../js/game.tsx";
+@source "../../lib/nebulith_web/controllers/game_html";
+
+/* The editor shell. Every rule is scoped under `.neb`. Queued for conversion to utilities. */
+@import "./editor.css";
+
+/* The toast slide-in. It used to ride along in the Toast component as a styled-jsx block, which only
+   worked because Next compiled it; there is no Next here, and a keyframes is global anyway, so it
+   belongs in the stylesheet rather than being re-rendered with the provider. */
+@keyframes slide-in {
+  from {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+.animate-slide-in {
+  animation: slide-in 0.2s ease-out;
+}

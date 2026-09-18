@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 
-import { NumberField } from '@/components/game/gridPanel'
+import { NumberField } from '@/components/gridPanel'
 import { type UiBar, type UiBarSlot, saveBars, uiActions, uiProfile } from '@/game/uiProfile'
 
 /**

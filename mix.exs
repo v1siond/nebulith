@@ -85,10 +85,18 @@ defmodule Nebulith.MixProject do
       "ecto.reset": ["ecto.drop", "ecto.setup"],
       test: ["ecto.create --quiet", "ecto.migrate --quiet", "test"],
       "assets.setup": ["tailwind.install --if-missing", "esbuild.install --if-missing"],
-      "assets.build": ["compile", "tailwind nebulith", "esbuild nebulith"],
+      "assets.build": [
+        "compile",
+        "tailwind nebulith",
+        "tailwind game",
+        "esbuild nebulith",
+        "esbuild game"
+      ],
       "assets.deploy": [
         "tailwind nebulith --minify",
+        "tailwind game --minify",
         "esbuild nebulith --minify",
+        "esbuild game --minify",
         "phx.digest"
       ],
       precommit: ["compile --warnings-as-errors", "deps.unlock --unused", "format", "test"]

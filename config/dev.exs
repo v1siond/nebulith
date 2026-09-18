@@ -29,7 +29,20 @@ config :nebulith, NebulithWeb.Endpoint,
   secret_key_base: "peFTwd2SkY/yoW8jo/SAKhv4C9w9Iy7b+l9vu8AHptWkBARm4r9dbSs7qqOCNawn",
   watchers: [
     esbuild: {Esbuild, :install_and_run, [:nebulith, ~w(--sourcemap=inline --watch)]},
-    tailwind: {Tailwind, :install_and_run, [:nebulith, ~w(--watch)]}
+    esbuild_game: {Esbuild, :install_and_run, [:game, ~w(--sourcemap=inline --watch)]},
+    tailwind: {Tailwind, :install_and_run, [:nebulith, ~w(--watch)]},
+    tailwind_game: {Tailwind, :install_and_run, [:game, ~w(--watch)]}
+  ]
+
+# The engine bundle in development: React's dev build, so its warnings still fire while the editor
+# is being worked on. Everything else about the profile comes from config/config.exs.
+config :esbuild,
+  game: [
+    args:
+      ~w(js/game.tsx --bundle --splitting --format=esm --target=es2022 --outdir=../priv/static/assets/js/game --alias:@=./game) ++
+        [~s(--define:process.env.NODE_ENV="development")],
+    cd: Path.expand("../assets", __DIR__),
+    env: %{"NODE_PATH" => [Path.expand("../assets/node_modules", __DIR__)]}
   ]
 
 # ## SSL Support

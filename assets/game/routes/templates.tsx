@@ -12,10 +12,10 @@
  * - DEBUG: Isometric + collision overlay, asset labels
  */
 import { setTilePose, styleCatalog, styleTile, styleTiles } from '@/engine/tileset/styleTiles'
-import Head from 'next/head'
-import Link from 'next/link'
-import { useToast } from '@/components/game/Toast'
-import { ErrorBoundary } from '@/components/game/ErrorBoundary'
+import Head from '@/lib/router'
+import { Link } from '@/lib/router'
+import { useToast } from '@/components/Toast'
+import { ErrorBoundary } from '@/components/ErrorBoundary'
 import { isApiError } from '@/lib/apiError'
 
 import { type GridAsset, IsometricGrid, FLOOR_TYPE, DEFAULT_FLOOR_SLUG, DEFAULT_SLAB_BLOCKS } from '@/engine/IsometricGrid'
@@ -56,7 +56,8 @@ import { type CellTriggerGroup, ENTITY_GLYPH, cellTriggersFromAssets, cellTrigge
 import { type Trigger, type TriggerEffect, fireTriggers } from '@/game/runtime/trigger'
 import { ASCII_STYLE, assetKind, entityKind, entityStyleOverride, genderize, groundKind, resolveVisual, styleById, TILE_CATEGORIES, tilesForStyle, type Style, type TileCategory, type TileDef, type Visual, visualForTileId } from '@/game/artStyle'
 import { cellStackTop } from '@/engine/cellStack'
-import { useRouter } from 'next/router'
+import { useRouter } from '@/lib/router'
+import { ROUTES } from '@/lib/routes'
 import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from 'react'
 import { render, render2D, renderTopView, clampCameraAxis, entityMotion, ENEMY_MOVE_MS, isDebugMode, setDebugMode, isShowCollisions, setShowCollisions as setCollisionsFlag, cellCaptionMap, pickIsoTilesAt, pickTwoDTilesAt, renderedTilesInRect, renderedTwoDTilesInRect, isoRecordedGeom, twoDRecordedGeom, nextPickIndex, ISO_BLOCK_H_FRAC, depthCells, tileGeomPolygon, tileGeomCentroid, tileHandlePoints, handleAtPoint, dragOutwardPx, scaleFromDrag, depthFromDrag, drawTileHandles, polyBBox, HANDLE_HIT_RADIUS, type TileHandle, type HandleId, type CompositionGhost, type DepthDir } from '@/engine/render'
 import { isoWorldCellToScreen, setIsoCameraFacing, setIsoCameraTurn, isoCameraTurn } from '@/engine/render/iso'
@@ -73,29 +74,29 @@ import { seedCharacterAnimations, needsAnimationReseed, entityAnimationsFromUnit
 import { stampBuildingKind, stampComposition } from '@/game/runtime/composition'
 import { type Cursor, type JumpState, JUMP_MS, JUMP_PEAK_PX, advanceEnemyMovement, beginJump, tickCannons } from '@/game/runtime/movement'
 import { playSwoosh } from '@/game/runtime/audio'
-import { Card, EntityToolButton, ViewButton } from '@/components/game/controls'
-import { CameraRotateButton, PlayerRangeControl, normalizePlayerViewRange, panKeepingCenter } from '@/components/game/cameraControls'
-import { AbilityBar, CombatHud, QuestHud } from '@/components/game/hud'
-import { EquipmentPanel, QuestAuthoringCard, QuestLogPanel } from '@/components/game/panels'
-import { buildUnitModel, CharacterWindow, ConnectorsPanelBody, EntityAttackBody, FloatingPanel, Modal, QuestGiveBody, UnitSettingsSection } from '@/components/game/modals'
-import { FlowViewOverlay, GamesViewOverlay } from '@/components/game/games'
-import { type BuildingTool, type EditorMode, type EntityTool, type RailEntry, type RailId, EDITOR_RAIL_STARTERS, RAIL_BY_MODE } from '@/components/game/editorConfig'
-import { CanvasModeChip, HelpButton, HelpSheet } from '@/components/game/editorHelp'
-import { canvasFullBleed, canvasOverlayVisible, chromeRestoreVisible, chromeVisible } from '@/components/game/chromeVisibility'
-import { useConfirm, usePrompt } from '@/components/game/useConfirm'
-import { LevelStepper } from '@/components/game/levelStepper'
-import { GameMenu } from '@/components/game/gameMenu'
+import { Card, EntityToolButton, ViewButton } from '@/components/controls'
+import { CameraRotateButton, PlayerRangeControl, normalizePlayerViewRange, panKeepingCenter } from '@/components/cameraControls'
+import { AbilityBar, CombatHud, QuestHud } from '@/components/hud'
+import { EquipmentPanel, QuestAuthoringCard, QuestLogPanel } from '@/components/panels'
+import { buildUnitModel, CharacterWindow, ConnectorsPanelBody, EntityAttackBody, FloatingPanel, Modal, QuestGiveBody, UnitSettingsSection } from '@/components/modals'
+import { FlowViewOverlay, GamesViewOverlay } from '@/components/games'
+import { type BuildingTool, type EditorMode, type EntityTool, type RailEntry, type RailId, EDITOR_RAIL_STARTERS, RAIL_BY_MODE } from '@/components/editorConfig'
+import { CanvasModeChip, HelpButton, HelpSheet } from '@/components/editorHelp'
+import { canvasFullBleed, canvasOverlayVisible, chromeRestoreVisible, chromeVisible } from '@/components/chromeVisibility'
+import { useConfirm, usePrompt } from '@/components/useConfirm'
+import { LevelStepper } from '@/components/levelStepper'
+import { GameMenu } from '@/components/gameMenu'
 import { describeSaveState } from '@/game/editor/saveState'
-import { useDayNight, useWeather, useFloatingPanels, useGeneratorCatalog, useGenerationLayers, useInspectorSections, useIsMobile, usePlayerViewRange, useSaveState } from '@/components/game/editorHooks'
+import { useDayNight, useWeather, useFloatingPanels, useGeneratorCatalog, useGenerationLayers, useInspectorSections, useIsMobile, usePlayerViewRange, useSaveState } from '@/components/editorHooks'
 import { nextWeather } from '@/engine/render/weather'
 import { findGenerator, findGeneratorForVariant, rollGridSize, type GeneratorBuildings, type GeneratorCatalog, type GeneratorDef, type GeneratorOptionValue, findGeneratorByKey } from '@/lib/generatorCatalog'
 import { clampMapSize, type MapSize } from '@/lib/mapSize'
 import { buildingSizeSource, composeBuilding, fetchBuildingTypes, installComposedBuildings, installPlannableBuildings, EMPTY_BUILDING_TYPES, type BuildingTypeCatalog } from '@/lib/buildingSizes'
 import { applyStageToGrid } from '@/game/editor/applyStage'
 import { makeRng } from '@/lib/math'
-import { RulesWorkspace } from '@/components/game/rulesWorkspace'
+import { RulesWorkspace } from '@/components/rulesWorkspace'
 import { connectionRows, questBlockedReason, questRows, triggerBlockedReason, triggerRows, type RulesTabId } from '@/game/editor/rulesWorkspace'
-import { CompositionPalette, Dropdown, UnitPlacementBody, LiveFpsReadout, GenerateControls, PoseControls, PropertiesPanel, type TileControlModel, SelectionHeader, StylePicker, TileAnimationEditor, TileLibraryBody, TilePalette, ToolRail, TriggerEditor, UnitPicker, WEAPON_KINDS, ViewBar } from '@/components/game/editorChrome'
+import { CompositionPalette, Dropdown, UnitPlacementBody, LiveFpsReadout, GenerateControls, PoseControls, PropertiesPanel, type TileControlModel, SelectionHeader, StylePicker, TileAnimationEditor, TileLibraryBody, TilePalette, ToolRail, TriggerEditor, UnitPicker, WEAPON_KINDS, ViewBar } from '@/components/editorChrome'
 import type { Animation as TileAnim } from '@/engine/animation/tileAnimation'
 import { commonValue, commonBool, cellsFromKeys, removeSelectedBlock, resolveSelectionTargets } from '@/game/editor/selectionEdit'
 import { editMap } from '@/game/editor/mapEdit'
@@ -103,24 +104,24 @@ import { applyRectSelection, applyCellSelection, blockKeyForPick } from '@/game/
 import { copyTiles, pasteTiles, type TileClip } from '@/game/editor/clipboard'
 import { entityKindForUnitTile, isCharacterTile, placementFor, tileSlug } from '@/game/editor/tilePlacement'
 import { clearGroundTile, placeGround, placeGroundTile, removeTopAsset, removeAssetAtLevel, stackAssetTile, replaceTileInPlace, visualChar } from '@/game/editor/tileBrush'
-import { ArtStyleControl } from '@/components/game/shell/ArtStyleControl'
-import { LevelMinimap } from '@/components/game/shell/LevelMinimap'
-import { GuidesPanel } from '@/components/game/shell/GuidesPanel'
-import { MapPreview } from '@/components/game/shell/MapPreview'
-import { type PreviewContext } from '@/components/game/shell/PreviewThumb'
-import { type SectionPresenter } from '@/components/game/editorInspector'
+import { ArtStyleControl } from '@/components/shell/ArtStyleControl'
+import { LevelMinimap } from '@/components/shell/LevelMinimap'
+import { GuidesPanel } from '@/components/shell/GuidesPanel'
+import { MapPreview } from '@/components/shell/MapPreview'
+import { type PreviewContext } from '@/components/shell/PreviewThumb'
+import { type SectionPresenter } from '@/components/editorInspector'
 import { type InspectorSectionId } from '@/game/editor/inspectorSections'
 import { subjectFor } from '@/engine/preview/previewScene'
 import { loadZones, zones } from '@/engine/zoneCatalog'
 import { loadCombatCatalog } from '@/game/combatCatalog'
 import { loadUiProfile } from '@/game/uiProfile'
-import { HudPlaced } from '@/components/game/shell/HudPlaced'
-import { PlayerStatsPanel } from '@/components/game/panels'
-import { CharacterPanel } from '@/components/game/shell/CharacterPanel'
-import { SwapTilePanel } from '@/components/game/shell/SwapTilePanel'
-import { NO_ZONES_SHUT, ZoneCollapse, zoneClasses, type EditorZoneId, type EditorZoneShut } from '@/components/game/shell/ZoneCollapse'
-import { HudOverlay, PlayerUiPanel, useHudLayout } from '@/components/game/shell/PlayerUiPanel'
-import { armedSubject, shouldOpenPreview, shouldOpenPreviewOnPeek } from '@/components/game/previewOpening'
+import { HudPlaced } from '@/components/shell/HudPlaced'
+import { PlayerStatsPanel } from '@/components/panels'
+import { CharacterPanel } from '@/components/shell/CharacterPanel'
+import { SwapTilePanel } from '@/components/shell/SwapTilePanel'
+import { NO_ZONES_SHUT, ZoneCollapse, zoneClasses, type EditorZoneId, type EditorZoneShut } from '@/components/shell/ZoneCollapse'
+import { HudOverlay, PlayerUiPanel, useHudLayout } from '@/components/shell/PlayerUiPanel'
+import { armedSubject, shouldOpenPreview, shouldOpenPreviewOnPeek } from '@/components/previewOpening'
 import { connectorEditFromSelection } from '@/game/editor/connectors'
 import { useEditorHistory } from '@/game/editor/useEditorHistory'
 import { spawnInMainArea } from '@/game/runtime/spawn'
@@ -5097,7 +5098,7 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
     try {
       const { templates } = await listTemplates({ limit: 50 })
       if (templates.length === 0) {
-        router.replace('/personal-projects/game-engine') // nothing saved yet → gallery
+        router.replace(ROUTES.games) // nothing saved yet → gallery
         return null
       }
       const mostRecent = [...templates].sort(
@@ -5107,7 +5108,7 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
       return mostRecent.id // caller reflects it in the URL (replace, no history entry)
     } catch (error) {
       console.error('Failed to load last saved template:', error)
-      router.replace('/personal-projects/game-engine')
+      router.replace(ROUTES.games)
       return null
     }
   }
@@ -5676,7 +5677,7 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
             onManageLevels={() => { setManageGameId(gameContext?.gameId ?? null); setShowGamesView(true) }}
             onFlow={toggleFlowView}
             onExport={exportLayers}
-            onAllGames={() => router.push('/personal-projects/game-engine/games')}
+            onAllGames={() => router.push(ROUTES.games)}
           />
           {/* §4.4 / §3.2 (P0): the game's OWN levels. They were loaded into state and never rendered, no
               name, no list, no "level 2 of 5", so from inside the editor a game's levels were invisible.
@@ -5817,8 +5818,8 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
                 {!gameContext && <button onClick={() => { openGamesView(); close() }} className="block w-full rounded bg-indigo-700 px-2 py-1.5 text-left font-bold hover:bg-indigo-600">Games</button>}
                 {!gameContext && <button onClick={() => { exportLayers(); close() }} className="block w-full rounded bg-orange-700 px-2 py-1.5 text-left font-bold hover:bg-orange-600">Export</button>}
                 {/* Every exit goes through `leaveTo`, which asks before discarding unsaved work (§3.15). */}
-                <button onClick={() => { close(); void leaveTo('/personal-projects/game-engine') }} className="block w-full rounded bg-gray-700 px-2 py-1.5 text-left hover:bg-gray-600">← Templates</button>
-                <button onClick={() => { close(); void leaveTo('/personal-projects/game-engine/templates?new=1') }} className="block w-full rounded bg-gray-700 px-2 py-1.5 text-left hover:bg-gray-600">＋ New template</button>
+                <button onClick={() => { close(); void leaveTo(ROUTES.games) }} className="block w-full rounded bg-gray-700 px-2 py-1.5 text-left hover:bg-gray-600">← Templates</button>
+                <button onClick={() => { close(); void leaveTo(`${ROUTES.templates}?new=1`) }} className="block w-full rounded bg-gray-700 px-2 py-1.5 text-left hover:bg-gray-600">＋ New template</button>
                 <button onClick={() => { close(); void leaveTo('/') }} className="block w-full rounded bg-gray-700 px-2 py-1.5 text-left hover:bg-gray-600">CV / Portfolio</button>
               </div>
             )}

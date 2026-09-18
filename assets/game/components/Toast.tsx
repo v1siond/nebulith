@@ -60,15 +60,6 @@ export function ToastProvider({ children }: { children: ReactNode }) {
           </div>
         ))}
       </div>
-      <style jsx global>{`
-        @keyframes slide-in {
-          from { transform: translateX(100%); opacity: 0; }
-          to { transform: translateX(0); opacity: 1; }
-        }
-        .animate-slide-in {
-          animation: slide-in 0.2s ease-out;
-        }
-      `}</style>
     </ToastContext.Provider>
   )
 }
