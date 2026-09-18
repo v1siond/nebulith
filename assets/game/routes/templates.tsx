@@ -124,13 +124,11 @@ import { NO_ZONES_SHUT, ZoneCollapse, zoneClasses, type EditorZoneId, type Edito
 import { HudOverlay, PlayerUiPanel, useHudLayout } from '@/components/shell/PlayerUiPanel'
 import { armedSubject, shouldOpenPreview, shouldOpenPreviewOnPeek } from '@/components/previewOpening'
 import { connectorEditFromSelection, exitConnectors } from '@/game/editor/connectors'
+import { isFlatView, isFlowView, isTopView, rendererView, rendererViewLong } from '@/game/editor/viewMode'
+import { useViewMode } from '@/game/editor/useViewMode'
 import { useEditorHistory } from '@/game/editor/useEditorHistory'
 import { spawnInMainArea } from '@/game/runtime/spawn'
 
-
-// View mode states (global for game loop access)
-let topViewMode = false
-let flowViewMode = false
 
 // Template limits
 const MAX_TEMPLATES_PROD = 1
@@ -176,8 +174,6 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
   const gridRef = useRef<IsometricGrid | null>(null)
   const [showDebug, setShowDebug] = useState(false)
   const [showCollisions, setShowCollisions] = useState(false) // lighter overlay: tint blocked cells only
-  const [showTopView, setShowTopView] = useState(false)
-  const [showFlowView, setShowFlowView] = useState(false)
   // GAMES view, a full overlay (like Flow) listing playable flows + a game editor.
   const [showGamesView, setShowGamesView] = useState(false)
   /** Which game the levels overlay opens ON. Null = the plain list (reached from "All games…"). */
@@ -285,8 +281,6 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
   const [isLoading, setIsLoading] = useState(false)
   const [showTemplateList, setShowTemplateList] = useState(false)
 
-  // Template view type (isometric or 2d)
-  const [viewType, setViewType] = useState<'isometric' | '2d'>('isometric')
 
   // ISO CAMERA FACING (#75), which of the map's 4 corners the camera looks from, quarter-turns CW.
   // / "4 corners, 4 rotation options, all faces of the map are visible". React owns it (the nav button reads it, the
@@ -335,7 +329,19 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
   })
   const connectorsRef = useRef<Connector[]>([])
   const connectorModeRef = useRef(false)
-  const viewTypeRef = useRef<'isometric' | '2d'>('isometric')
+
+  // WHICH VIEW, as one value. `CODING-STANDARDS.md` §2: this used to be `viewType` + `showTopView` +
+  // `showFlowView` in state and `topViewMode` + `flowViewMode` as module-level globals, five values for one
+  // fact, written in step by hand at six call sites. Leaving an authoring view also drops connector
+  // authoring, which must never bleed into play (an armed connector freezes triggers and combat).
+  const view = useViewMode(useCallback(() => {
+    connectorModeRef.current = false
+    setConnectorMode(false)
+    setConnectorPanelOpen(false)
+    setEditingConnector(null)
+  }, []))
+  const viewMode = view.mode
+  const viewModeRef = view.modeRef
 
   // ── Unified triggers (stage E) ──────────────────────────────────────
   // "When [event] → do [action]." Cell triggers (enter / interact) live here,
@@ -602,10 +608,6 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
     setPlayerHud(playerHudFrom(DEFAULT_PLAYER_STATS, playerWeaponRef.current, playerCombatRef.current))
   }, [])
 
-  // Keep viewType ref in sync
-  useEffect(() => {
-    viewTypeRef.current = viewType
-  }, [viewType])
 
   // Keep the camera facing in sync with BOTH consumers: the RAF loop's ref and the engine's module seam, so
   // `window.__cameraFacing()` and a param-less render() report the facing the UI is actually showing.
@@ -725,80 +727,41 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
   // Load view state from localStorage on mount
   useEffect(() => {
     const savedDebug = readStored('village-debug') === 'true'
-    const savedTopView = readStored('village-topview') === 'true'
     const savedZoom = parseFloat(readStored('village-topview-zoom') || '1.0')
     const savedCollisions = readStored('village-show-collisions') === 'true'
     setDebugMode(savedDebug)
     setCollisionsFlag(savedCollisions)
-    topViewMode = savedTopView
     zoomRef.current = savedZoom
     setShowDebug(savedDebug)
     setShowCollisions(savedCollisions)
-    setShowTopView(savedTopView)
     setTopViewZoom(savedZoom)
   }, [])
 
-  // Save view state to localStorage when it changes
+  // Save the overlay preferences. The VIEW is not here: `useViewMode` reads and writes its own key, so the
+  // one value that says which view this is has one owner.
   useEffect(() => {
     writeStored('village-debug', showDebug.toString())
     writeStored('village-show-collisions', showCollisions.toString())
-    writeStored('village-topview', showTopView.toString())
     writeStored('village-topview-zoom', topViewZoom.toString())
     zoomRef.current = topViewZoom
-  }, [showDebug, showCollisions, showTopView, topViewZoom])
+  }, [showDebug, showCollisions, topViewZoom])
 
   // ── View controls ────────────────────────────────────────────────
-  // The game loop + renderers read the module-level view globals directly, while
-  // the UI mirrors them in React state. These helpers keep both in sync in ONE
-  // place so the JSX never reaches into the globals inline (the old desync smell).
-  // `debugMode` stays an independent overlay that can ride on iso/top.
-  const showPlayView = () => {
-    topViewMode = false
-    flowViewMode = false
-    setShowTopView(false)
-    setShowFlowView(false)
-    // Entering a play view (iso/2d) exits connector authoring, authoring must never
-    // bleed into play and silently freeze triggers/combat (the dead walk-in bug).
-    connectorModeRef.current = false
-    setConnectorMode(false)
-    setConnectorPanelOpen(false)
-    setEditingConnector(null)
-  }
-  const selectIsoView = () => {
-    setViewType('isometric')
-    showPlayView()
-  }
-  const select2DView = () => {
-    setViewType('2d')
-    showPlayView()
-  }
-  const selectTopView = () => {
-    topViewMode = true
-    flowViewMode = false
-    setShowTopView(true)
-    setShowFlowView(false)
-  }
-  const toggleFlowView = () => {
-    const next = !flowViewMode
-    flowViewMode = next
-    setShowFlowView(next)
-    if (!next) return
-    topViewMode = false
-    setShowTopView(false)
-  }
-  // Enter the clean PLAY VIEW. Top/flow aren't playable, so drop into iso; otherwise
-  // keep the user's iso/2d choice. showPlayView() also clears connector authoring so
-  // walk-in connectors + combat fire freely (the dead walk-in bug guard).
+  // One value, one owner. These are the toolbar's names for the hook's transitions; the hook drops connector
+  // authoring on the way into a playable view. `debugMode` stays an independent overlay that rides on any view.
+  const selectIsoView = view.selectIso
+  const select2DView = view.select2D
+  const selectTopView = view.selectTop
+  const toggleFlowView = view.toggleFlowView
+  // Enter the clean PLAY VIEW. Top and flow are not playable, so they drop to iso; a playable view is kept.
   const enterPlayMode = () => {
-    if (showTopView || showFlowView) selectIsoView()
-    else showPlayView()
+    view.enterPlayView()
     setPlayMode(true)
   }
   const exitPlayMode = () => setPlayMode(false)
   // GAMES view, open the overlay (closing flow first; they're mutually exclusive).
   const openGamesView = () => {
-    flowViewMode = false
-    setShowFlowView(false)
+    view.closeFlowView()
     setShowGamesView(true)
   }
   // Play a game LEVEL: close the Games overlay, load that template, drop into the play
@@ -817,9 +780,9 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
     setShowCollisions(c => !c)
   }
 
-  // Derived: which view is active (for highlighting the view buttons)
-  const activeView: 'iso' | '2d' | 'top' | 'flow' =
-    showFlowView ? 'flow' : showTopView ? 'top' : viewType === '2d' ? '2d' : 'iso'
+  // Which view is active, for highlighting the view buttons. It used to be derived by folding four values
+  // back into one; it IS the one value.
+  const activeView = viewMode
 
   /**
    * Navigate AWAY from the editor, asking first if that would lose work (§3.15: "`+ New template` /
@@ -871,7 +834,7 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
   // §5.2's prerequisite for the Week-2 bar split: ONE answer to "is the editor chrome on screen".
   // It was asked in six places in three shapes; splitting the top bar into a PROJECT bar and a VIEW bar
   // doubles the regions that must agree, and a condition copied seven times is one that will drift.
-  const chrome = { showSidebars, playMode, showGamesView, showFlowView }
+  const chrome = { showSidebars, playMode, showGamesView, showFlowView: isFlowView(viewMode) }
   const isChromeVisible = chromeVisible(chrome)
   const isCanvasOverlayVisible = canvasOverlayVisible(chrome)
 
@@ -1200,9 +1163,9 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
   // Flow view is a full-screen graph, flag it on <body> so the global FPS overlay (rendered
   // outside this tree in _app) can hide itself instead of sitting on top of the flow.
   useEffect(() => {
-    document.body.classList.toggle('flow-view-active', showFlowView)
+    document.body.classList.toggle('flow-view-active', isFlowView(viewMode))
     return () => document.body.classList.remove('flow-view-active')
-  }, [showFlowView])
+  }, [viewMode])
 
   // The game-engine page fills all four screen corners with its own HUD/nav, so flag it on <body>
   // and pull the global FPS overlay (mounted in _app, top-right) out of the top nav zone via CSS, // it was overlapping the "More" button. Removed on unmount so other pages keep the default corner.
@@ -1389,14 +1352,14 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
     let col: number
     let row: number
 
-    if (topViewMode) {
+    if (isTopView(viewModeRef.current)) {
       // Match renderTopView EXACTLY, INCLUDING the #38 camera CLAMP (clampCameraAxis on the focus), // otherwise clicks land on the wrong cell near the grid edges. Mirrors lines ~11047/11057.
       const tileSize = 16 * zoomRef.current
       const fCol = clampCameraAxis(px / cs - cam.x / tileSize, canvas.width / tileSize / 2, grid.cols)
       const fRow = clampCameraAxis(pz / cs - cam.y / tileSize, canvas.height / tileSize / 2, grid.rows)
       col = Math.floor((x - (canvas.width / 2 - fCol * tileSize)) / tileSize)
       row = Math.floor((y - (canvas.height / 2 - fRow * tileSize)) / tileSize)
-    } else if (viewTypeRef.current === '2d') {
+    } else if (viewModeRef.current === '2d') {
       // Match render2D's clamped camera (baseTileSize 24).
       const tileW = 24 * zoomRef.current
       const camCol = clampCameraAxis(px / cs - cam.x / tileW, canvas.width / tileW / 2, grid.cols)
@@ -1428,13 +1391,13 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
   const renderedTilesUnder = (clientX: number, clientY: number) => {
     const canvas = canvasRef.current
     if (!canvas) return null
-    if (topViewMode) return null
+    if (isTopView(viewModeRef.current)) return null
     const rect = canvas.getBoundingClientRect()
     const scaleX = rect.width ? canvas.width / rect.width : 1
     const scaleY = rect.height ? canvas.height / rect.height : 1
     const x = (clientX - rect.left) * scaleX
     const y = (clientY - rect.top) * scaleY
-    const tiles = viewTypeRef.current === '2d' ? pickTwoDTilesAt(x, y) : pickIsoTilesAt(x, y) // topmost (front) first
+    const tiles = viewModeRef.current === '2d' ? pickTwoDTilesAt(x, y) : pickIsoTilesAt(x, y) // topmost (front) first
     return { tiles, x, y }
   }
 
@@ -1513,13 +1476,13 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
     const cc = col + 0.5
     const rr = row + 0.5
 
-    if (topViewMode) {
+    if (isTopView(viewModeRef.current)) {
       const tileSize = 16 * zoomRef.current
       const fCol = clampCameraAxis(px / cs - cam.x / tileSize, canvas.width / tileSize / 2, grid.cols)
       const fRow = clampCameraAxis(pz / cs - cam.y / tileSize, canvas.height / tileSize / 2, grid.rows)
       return { x: cc * tileSize + (canvas.width / 2 - fCol * tileSize), y: rr * tileSize + (canvas.height / 2 - fRow * tileSize) }
     }
-    if (viewTypeRef.current === '2d') {
+    if (viewModeRef.current === '2d') {
       const tileW = 24 * zoomRef.current
       const camCol = clampCameraAxis(px / cs - cam.x / tileW, canvas.width / tileW / 2, grid.cols)
       const camRow = clampCameraAxis(pz / cs - cam.y / tileW, canvas.height / tileW / 2, grid.rows)
@@ -1565,7 +1528,7 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
     const x1 = (curX - rect.left) * scaleX, y1 = (curY - rect.top) * scaleY
     const minX = Math.min(x0, x1), maxX = Math.max(x0, x1)
     const minY = Math.min(y0, y1), maxY = Math.max(y0, y1)
-    const iso = viewTypeRef.current !== '2d' // top view never reaches here
+    const iso = viewModeRef.current !== '2d' // top view never reaches here
     const keys = new Set<string>()
     const blockedCells = new Set<string>() // "col,row" of cells that already contributed a TILE key → skip their bare-cell fallback
     for (const t of iso ? renderedTilesInRect(x0, y0, x1, y1) : renderedTwoDTilesInRect(x0, y0, x1, y1)) {
@@ -1707,7 +1670,7 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
     // uses (withPlayerCell so the walked hero is hittable), and stash its id in a REF. The RAF loop reads
     // it to draw a dim white hover reticle. A ref (not state) so a mousemove never triggers a React render.
     const hoverCell = screenToCell(e.clientX, e.clientY)
-    const hoverView = topViewMode ? 'top' : viewTypeRef.current === '2d' ? '2d' : 'iso'
+    const hoverView = rendererView(viewModeRef.current)
     hoveredEntityIdRef.current = hoverCell
       ? (entityAtClick(withPlayerCell(entitiesRef.current, livePlayerCell()), hoverCell.col, hoverCell.row, hoverView)?.id ?? null)
       : null
@@ -1747,7 +1710,7 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
     if (!isSelecting || !selectionStart) return // drag-select (shift+drag in every view)
     // TOP view has no per-tile registry and no iso projection offset, so keep the flat cell-rectangle path
     // there (screenToCell corners → rectangle), unchanged, and correct since top view has no offset.
-    if (topViewMode) {
+    if (isTopView(viewModeRef.current)) {
       const cell = screenToCell(e.clientX, e.clientY)
       if (!cell) return
       setSelectedCells(applyRectSelection(selectionBaseRef.current, selectionStart, cell, additiveSelectRef.current))
@@ -2466,7 +2429,7 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
   // and only in the iso + 2D play views (top view has no recorded silhouette). null → no handles.
   const resizeHandleTarget = (): { col: number; row: number; i: number; asset: GridAsset; heightLevel: number } | null => {
     const grid = gridRef.current
-    if (!grid || topViewMode) return null
+    if (!grid || isTopView(viewModeRef.current)) return null
     const firstKey = selectedCellsRef.current.values().next().value as string | undefined
     if (!firstKey) return null
     const [col, row] = firstKey.split(',').map(Number)
@@ -2485,7 +2448,7 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
   const selectedTileHandles = (): { handles: TileHandle[]; poly: ReturnType<typeof tileGeomPolygon> } | null => {
     const target = resizeHandleTarget()
     if (!target) return null
-    const iso = viewTypeRef.current !== '2d'
+    const iso = viewModeRef.current !== '2d'
     const geom = iso ? isoRecordedGeom(target.col, target.row, target.heightLevel) : twoDRecordedGeom(target.col, target.row, target.heightLevel)
     if (!geom) return null
     const poly = tileGeomPolygon(geom)
@@ -2687,10 +2650,10 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
       return r ? { col: r.col, row: r.row, stackIndex: r.stackIndex ?? null, source: r.source ?? null } : null
     }
     win.__cellScreen = (col: number, row: number, level = 0) => {
-      if (!topViewMode && viewTypeRef.current !== '2d') return win.__isoBlockScreen!(col, row, level) // iso
+      if (viewModeRef.current === 'iso') return win.__isoBlockScreen!(col, row, level) // iso
       const base = cellToScreen(col, row)
       if (!base) return null
-      if (viewTypeRef.current === '2d') return { x: base.x, y: base.y - level * (24 * zoomRef.current * 0.9) } // lift onto the stacked tile body
+      if (viewModeRef.current === '2d') return { x: base.x, y: base.y - level * (24 * zoomRef.current * 0.9) } // lift onto the stacked tile body
       return base
     }
     // The EXACT screen centre (client coords) of the tile RENDERED at (col,row,level) this frame, the centroid
@@ -2698,8 +2661,8 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
     // its transform. null when the tile wasn't drawn (off-screen / wrong view).
     win.__tileCentroid = (col: number, row: number, level = 0) => {
       const canvas = canvasRef.current
-      if (!canvas || topViewMode) return null
-      const geom = viewTypeRef.current === '2d' ? twoDRecordedGeom(col, row, level) : isoRecordedGeom(col, row, level)
+      if (!canvas || isTopView(viewModeRef.current)) return null
+      const geom = viewModeRef.current === '2d' ? twoDRecordedGeom(col, row, level) : isoRecordedGeom(col, row, level)
       if (!geom) return null
       const { x: cx, y: cy } = tileGeomCentroid(geom) // the SAME centre the lamp-glow anchor uses (one source of truth)
       const rect = canvas.getBoundingClientRect()
@@ -2712,7 +2675,7 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
     // (a UNIT, or an image-less glyph) or a directional-depth box. `extrudePx` = the cube's on-screen extruded
     // height (base-back.y − top-back.y): tiny for a flat SLAB, large for a tall block. null when not drawn.
     win.__recordedGeom = (col: number, row: number, level = 0) => {
-      const geom = viewTypeRef.current === '2d' ? twoDRecordedGeom(col, row, level) : isoRecordedGeom(col, row, level)
+      const geom = viewModeRef.current === '2d' ? twoDRecordedGeom(col, row, level) : isoRecordedGeom(col, row, level)
       if (!geom) return null
       const extrudePx = geom.kind === 'cube' ? geom.base[1].y - geom.top[1].y : null
       const poly = tileGeomPolygon(geom)
@@ -2725,8 +2688,8 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
     // validation drag grab a handle dead-on and prove the drag→size mapping. null when the tile isn't drawn.
     win.__tileHandles = (col: number, row: number, level = 0) => {
       const canvas = canvasRef.current
-      if (!canvas || topViewMode) return null
-      const iso = viewTypeRef.current !== '2d'
+      if (!canvas || isTopView(viewModeRef.current)) return null
+      const iso = viewModeRef.current !== '2d'
       const geom = iso ? isoRecordedGeom(col, row, level) : twoDRecordedGeom(col, row, level)
       if (!geom) return null
       const rect = canvas.getBoundingClientRect()
@@ -3352,7 +3315,7 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
     const grid = gridRef.current
     const canvas = canvasRef.current
     if (!grid || !canvas) return null
-    const view = topViewMode ? 'top' : viewTypeRef.current === '2d' ? '2d' : 'isometric'
+    const view = rendererViewLong(viewModeRef.current)
     const pos = questAnchorScreenPos({
       view,
       cellSize: grid.cellSize,
@@ -4199,7 +4162,7 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
         name: templateName || 'Untitled',
         cols,
         rows,
-        viewType,
+        viewType: viewMode,
         exportedAt: new Date().toISOString(),
         version: '1.0',
       },
@@ -4416,7 +4379,7 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
       const delta = e.deltaY > 0 ? -0.1 : 0.1
       // Top + 2D share one zoom; the isometric view has its own (scales the
       // iso projection in render()). Both clamped to a sane range.
-      if (topViewMode || viewTypeRef.current === '2d') {
+      if (isFlatView(viewModeRef.current)) {
         setTopViewZoom(z => Math.max(0.5, Math.min(4.0, z + delta)))
       } else {
         isoZoomRef.current = Math.max(0.5, Math.min(4.0, isoZoomRef.current + delta))
@@ -4454,7 +4417,7 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
         return
       }
 
-      const use2DMovement = topViewMode || viewTypeRef.current === '2d'
+      const use2DMovement = isFlatView(viewModeRef.current)
       const jump = jumpRef.current
 
       // Face the direction currently held BEFORE the jump trigger, so a standing
@@ -4734,11 +4697,11 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
       const punch = punchTile(poseStyleNow)
       player.punchGlyph = punch.glyph
       player.punchPose = punch.pose
-      if (flowViewMode) {
+      if (isFlowView(viewModeRef.current)) {
         // Flow view is handled by React overlay, just clear canvas
         ctx.fillStyle = '#0a0a12'
         ctx.fillRect(0, 0, canvas.width, canvas.height)
-      } else if (topViewMode) {
+      } else if (isTopView(viewModeRef.current)) {
         renderTopView({
           ctx, w: canvas.width, h: canvas.height, grid, player,
           zoom: zoomRef.current,
@@ -4757,7 +4720,7 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
           hoveredCell: hoveredCellRef.current,
           ghost: ghostRef.current, // armed-composition placement shadow (top-down footprint)
         })
-      } else if (viewTypeRef.current === '2d') {
+      } else if (viewModeRef.current === '2d') {
         render2D({
           ctx, w: canvas.width, h: canvas.height, grid, player, time,
           zoom: zoomRef.current,
@@ -5431,7 +5394,7 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
             onMouseUp={handleCanvasMouseUp}
             onMouseLeave={() => { hoveredEntityIdRef.current = null; hoveredCellRef.current = null; ghostRef.current = null; handleCanvasMouseUp() }}
             onContextMenu={handleContextMenu}
-            style={{ cursor: isPanning ? 'grabbing' : topViewMode ? 'default' : 'grab' }}
+            style={{ cursor: isPanning ? 'grabbing' : isTopView(viewMode) ? 'default' : 'grab' }}
           />
           {/* WORKING, over the map. Building a 40x40 with regions, relief and a settlement takes about three
               seconds, and until now the only sign was a label on a button in another column. */}
@@ -5591,19 +5554,19 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
 
         {/* Quest tracker, active quest title + kill progress. Same play-view gate
             as the combat HUD. Renders nothing when no quest is active. */}
-        {!showFlowView && !showTopView && (
+        {!isFlowView(viewMode) && !isTopView(viewMode) && (
           <QuestHud quest={activeQuest(quests)} />
         )}
 
         {/* Combat HUD (HP / rage / mana + F attack · G special), always shown in the
             clean PLAY VIEW so vitals stay visible while playing. */}
-        {playMode && !showFlowView && (
+        {playMode && !isFlowView(viewMode) && (
           <CombatHud hud={playerHud} />
         )}
 
         {/* Ability action bar (keys 1-4 + cooldown sweep), shows the live player loadout, same
             play-view gate as the vitals HUD. */}
-        {playMode && !showFlowView && (
+        {playMode && !isFlowView(viewMode) && (
           <AbilityBar loadout={abilityLoadouts['__player__'] ?? defaultAbilityLoadout()} lastUsedRef={abilityLastUsedRef} />
         )}
 
@@ -5652,14 +5615,13 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
             `currentTemplateId`, so on a game with no saved levels clicking Flow drew a black rectangle
             with no explanation of whether it was broken, loading or simply empty. The overlay now owns
             that empty state and says what to do next. */}
-        {showFlowView && (
+        {isFlowView(viewMode) && (
           <FlowViewOverlay
             currentTemplate={currentTemplateId ? { id: currentTemplateId, name: templateName } : null}
             connectors={connectors}
             allTemplates={savedTemplates}
             onSelectTemplate={(id) => {
-              flowViewMode = false
-              setShowFlowView(false)
+              view.closeFlowView()
               openTemplate(id) // through the URL so the address bar updates + Back/Forward works
             }}
           />
@@ -5879,7 +5841,7 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
             ⨯ Exit Game
           </button>
         )}
-        {playMode && <LiveFpsReadout variant="floating" probe={viewType === '2d' ? '__2dRenderMs' : '__isoRenderMs'} />}
+        {playMode && <LiveFpsReadout variant="floating" probe={viewMode === '2d' ? '__2dRenderMs' : '__isoRenderMs'} />}
 
         {/* LEFT, tool-rail: the editor modes (Select / Paint / Unit / Building / Connector) */}
         {isChromeVisible && (
@@ -6620,7 +6582,7 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
         )}
 
         {/* Debug Legend, only when sidebars are hidden, so it isn't redundant */}
-        {showDebug && !showSidebars && !showFlowView && (
+        {showDebug && !showSidebars && !isFlowView(viewMode) && (
           <div className="fixed bottom-4 left-4 z-20 rounded bg-black/90 p-3 font-mono text-xs text-white">
             <h3 className="mb-1 font-bold text-red-400">DEBUG</h3>
             <p><span className="text-red-400">■</span> Blocked</p>
