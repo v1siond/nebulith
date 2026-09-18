@@ -100,16 +100,27 @@ export function waterSetOf(label: string | undefined): WaterSet | null {
  * already draws between a channel and a pool. Nothing new is invented here.
  */
 export function classifyBody(cells: Cells, flow: ReadonlyMap<string, number>, cols: number, rows: number): WaterKind {
-  let onEdge = 0
+  // HOW MUCH OF ONE MAP EDGE this body covers, which is the question that separates a shore from a river.
+  //
+  // This used to ask what share of the BODY sat on an edge, and that measure defeats itself: a sea twelve
+  // cells deep along a forty wide map has forty edge cells out of four hundred and fifty, so the deeper the
+  // sea the less it looks like one. Measured on the first shore ever painted, it classified as a river and
+  // wore the river's rim. The doc's own words were right and the arithmetic did not match them: *"A river
+  // crosses the map, so it touches the edge at its two ends and no more. A shore runs ALONG an edge."*
+  //
+  // So it asks about the EDGE rather than about the body: a river crosses it at a point, a sea covers it.
+  const side = [0, 0, 0, 0] // north, south, west, east
   let flowing = 0
   for (const cell of cells) {
     const [col, row] = cell.split(',').map(Number)
-    if (col === 0 || row === 0 || col === cols - 1 || row === rows - 1) onEdge += 1
+    if (row === 0) side[0] += 1
+    if (row === rows - 1) side[1] += 1
+    if (col === 0) side[2] += 1
+    if (col === cols - 1) side[3] += 1
     if (flow.has(cell)) flowing += 1
   }
-  // A river crosses the map, so it touches the edge at its two ends and no more. A shore runs ALONG an edge,
-  // so a large share of it is edge cells. The threshold is what separates the two shapes.
-  if (onEdge >= Math.max(6, cells.size * 0.25)) return 'beach'
+  const covered = Math.max(side[0] / cols, side[1] / cols, side[2] / rows, side[3] / rows)
+  if (covered >= 0.5) return 'beach'
   if (flowing > 0) return 'river'
   return 'lake'
 }

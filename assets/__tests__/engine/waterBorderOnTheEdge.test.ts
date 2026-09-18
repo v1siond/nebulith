@@ -10,7 +10,7 @@
  * a body, every INTERIOR cell must get the centre piece and only cells touching non-water may get an edge.
  */
 import '@/__tests__/helpers/installTilesetSeed'
-import { waterPieces, waterEdges, waterBodies } from '@/engine/waterBody'
+import { waterPieces, waterEdges, waterBodies, classifyBody } from '@/engine/waterBody'
 import { generateStage, type StageData } from '@/engine/stageGenerator'
 import { isWaterGround } from '@/engine/riverNetwork'
 import { findGenerator, parseGeneratorCatalog } from '@/lib/generatorCatalog'
@@ -254,5 +254,39 @@ describe('water borders whatever stands in it', () => {
     const withOpen = waterPieces(cells, 'smooth', 'river', new Set(cells))
     const plain = waterPieces(cells)
     for (const [key, label] of plain) expect(withOpen.get(key)).toBe(label)
+  })
+})
+
+/**
+ * A SEA IS A SEA, however deep it is.
+ *
+ * `classifyBody` decides which rim a body wears, and it used to ask what share of the BODY sat on a map edge.
+ * That measure defeats itself: the deeper a sea, the smaller that share, so the first shore ever painted came
+ * out classified as a river and wore the river's rim. The question is about the EDGE, not the body.
+ */
+describe('a body knows what kind of water it is', () => {
+  const noFlow = new Map<string, number>()
+  /** A band `deep` rows tall along the south edge of a 40x40 map: a sea. */
+  const sea = (deep: number): Set<string> => {
+    const cells = new Set<string>()
+    for (let r = 40 - deep; r < 40; r++) for (let c = 0; c < 40; c++) cells.add(`${c},${r}`)
+    return cells
+  }
+
+  it.each([2, 6, 12, 20])('a sea %i cells deep is still a BEACH', deep => {
+    expect(classifyBody(sea(deep), noFlow, 40, 40)).toBe('beach')
+  })
+
+  it('a river crossing the map is not a beach, however long it is', () => {
+    const river = new Set<string>()
+    for (let r = 0; r < 40; r++) for (let c = 18; c < 22; c++) river.add(`${c},${r}`)
+    const flow = new Map([...river].map(k => [k, 1]))
+    expect(classifyBody(river, flow, 40, 40)).toBe('river')
+  })
+
+  it('still water that touches no edge is a lake', () => {
+    const lake = new Set<string>()
+    for (let r = 14; r < 26; r++) for (let c = 14; c < 26; c++) lake.add(`${c},${r}`)
+    expect(classifyBody(lake, noFlow, 40, 40)).toBe('lake')
   })
 })

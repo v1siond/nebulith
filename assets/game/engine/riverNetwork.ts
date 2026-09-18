@@ -368,8 +368,19 @@ export interface RiverCarve extends RiverCut {
 }
 
 /** The three courses a river can take across a map. */
-export type RiverCourse = 'through' | 'divides' | 'around'
-export const RIVER_COURSES: readonly RiverCourse[] = ['through', 'divides', 'around']
+export type RiverCourse = 'through' | 'divides' | 'around' | 'shore'
+
+/**
+ * THE SHAPES WATER CAN BE PAINTED IN. `WATER.md` §1: *"a river, a lake and a beach are the same thing, a set
+ * of cells painted with a water tile ... They differ in the SHAPE that is painted, nothing else."*
+ *
+ * `shore` is the one that was missing, and it is why a beach had no beach. His words:
+ * *"WE ALREADY HAVE WATER AND WE SHOULD HAVE LAKE, RIVER AND OTHER TYPES, SO WHY IT'S HARD TO ADD A BEACH
+ * WHICH IS BASICALLY A LAKE WITH CURRENT???"*. Everything else was already here: `WaterKind` carries `beach`,
+ * both piece families are baked for it, and `classifyBody` already answers "beach" for a body that runs along
+ * a map edge. Nothing painted that body.
+ */
+export const RIVER_COURSES: readonly RiverCourse[] = ['through', 'divides', 'around', 'shore']
 
 /** The pure half of `riverCourse`, exported so "random" can be tested as a DISTRIBUTION rather than guessed
  *  from what a map happens to look like. */
@@ -394,6 +405,40 @@ export function waterBand(depth: number): WaterBand {
   return WATER_BANDS.open
 }
 
+
+/**
+ * THE SEA, along one edge of the map.
+ *
+ * A beach is open water that runs off the map, so the shape is a band down one side with a wandering inner
+ * edge, not a channel. The band is deep where it leaves the map and eats into the land in bays, which is what
+ * makes a coastline read as a coastline rather than as a straight blue stripe.
+ *
+ * `classifyBody` then answers `beach` for it on its own, because it measures how much of a body lies on the
+ * map edge, so the border pass picks the beach pieces with no branch anywhere: the bright wave rim meeting
+ * the land. That is the whole reason this is a SHAPE and not a new subsystem.
+ *
+ * The side is the map's SOUTH by default, the edge you walk in from, so the sea is in front of you.
+ */
+export function carveShore(ctx: RiverCarve, pal: GeneratorPalette | undefined, share = 0.3): Set<string> {
+  const { cols, rows, ground, collision, floorColors } = ctx
+  const water = new Set<string>()
+  const mean = Math.max(2, Math.round(rows * share))
+  const phase = ctx.rand() * Math.PI * 2
+  const phase2 = ctx.rand() * Math.PI * 2
+  for (let col = 0; col < cols; col++) {
+    // Two sine terms so the coast has bays and headlands rather than one regular scallop.
+    const bay = mean + Math.sin(col * 0.11 + phase) * (mean * 0.38) + Math.sin(col * 0.29 + phase2) * (mean * 0.16)
+    const from = Math.max(0, rows - Math.round(bay))
+    for (let row = from; row < rows; row++) {
+      ground[row][col] = 'water'
+      collision[row][col] = true
+      if (pal?.water) floorColors[row][col] = pal.water
+      water.add(`${col},${row}`)
+    }
+  }
+  digChannel(ctx, water)
+  return water
+}
 
 /** A watercourse running edge to edge through the map, the jungle's creek, and the `through` and `divides`
  *  rivers. The draw order is unchanged when nothing is forced, so the jungle's creek is byte-identical. */

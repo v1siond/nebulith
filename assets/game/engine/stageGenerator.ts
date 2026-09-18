@@ -65,7 +65,7 @@ import { generationLayerKeys } from '@/engine/generate/generationLayers'
 import { isTileCategory, TILE_CATEGORY } from '@/engine/tileset/tileCategory'
 import { planRoutes, resolvePathways, type Gate, type RouteCell, type RoutePlan, type Side, type Pathways } from '@/engine/pathNetwork'
 import {
-  carveChannel, channelDepth, crossingRefused, crossingStyle, deckRoutes, digChannel, flowField, isWaterGround, layDeck, recordBridgeSpan, wadeCrossing, WATER_BANDS,
+  carveChannel, carveShore, channelDepth, crossingRefused, crossingStyle, deckRoutes, digChannel, flowField, isWaterGround, layDeck, recordBridgeSpan, wadeCrossing, WATER_BANDS,
   narrowestLine, narrowPathwaysToCrossings, resolveRiverCourse, CROSSING_ROWS, settleWaterDepth, strewRiverRocks, wadeableShallows, waterBand, waterReach,
   FLOW_STEPS, type RiverCourse,
 } from '@/engine/riverNetwork'
@@ -2157,6 +2157,9 @@ function carveRiver(ctx: ArchetypeContext, course: RiverCourse, pal: GeneratorPa
     digChannel(ctx, water) // the one course that does not come through carveChannel
     return water
   }
+  // THE SEA, which is a shape and not a subsystem: `classifyBody` reads it as a beach on its own because it
+  // runs along the map edge, so the border pass picks the beach pieces with no branch anywhere.
+  if (course === 'shore') return carveShore(ctx, pal)
   // `divides` is wide and nearly straight across the middle, so it reads as a barrier; `through` meanders.
   const water = course === 'divides'
     ? carveChannel(ctx, pal, { half: 2.3, swing: 0.05, horizontal: true })

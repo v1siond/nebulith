@@ -18,7 +18,7 @@ import '@/__tests__/helpers/installTilesetSeed'
 import { FLAT_FLOOR, generateStage } from '@/engine/stageGenerator'
 // THE RIVER OWNS ITS OWN VOCABULARY NOW: the course resolver moved to `riverNetwork` with the rest of
 // the channel, so the test asks the module that answers rather than the file it used to live in.
-import { resolveCrossing, resolveRiverCourse } from '@/engine/riverNetwork'
+import { resolveCrossing, resolveRiverCourse, RIVER_COURSES } from '@/engine/riverNetwork'
 import { groundTileColor } from '@/engine/tileset/groundColor'
 import { findGenerator, parseGeneratorCatalog, type GeneratorCrossing, type GeneratorOptionValue } from '@/lib/generatorCatalog'
 import { makeRng } from '@/lib/math'
@@ -205,10 +205,13 @@ describe('around, runs round the map and leaves the way in open', () => {
 describe('random, one of the courses, and more than one across seeds', () => {
   // Tested as a DISTRIBUTION through the resolver, not guessed from what a map happens to look like: two
   // different "through" maps also look different, so comparing pictures cannot prove the course varied.
-  it('resolves to each of the three courses over enough rolls', () => {
+  // DERIVED FROM THE LIST, not from a count typed out here. This named the three courses that existed and
+  // broke the day a fourth was added (`shore`, the sea a beach needs), which is the test failing for the one
+  // reason it should not: the thing it defends, that `random` reaches every course, was still true.
+  it('resolves to EVERY course there is, over enough rolls', () => {
     const rand = makeRng(11)
-    const seen = new Set(Array.from({ length: 40 }, () => resolveRiverCourse('random', 'around', rand)))
-    expect([...seen].sort()).toEqual(['around', 'divides', 'through'])
+    const seen = new Set(Array.from({ length: 200 }, () => resolveRiverCourse('random', 'around', rand)))
+    expect([...seen].sort()).toEqual([...RIVER_COURSES].sort())
   })
 
   it('named courses resolve to themselves, none and junk to nothing, an old true to the layout\'s own', () => {
