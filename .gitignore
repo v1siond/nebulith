@@ -50,3 +50,6 @@ docs/references/**/*.jpg
 docs/references/**/*.jpeg
 docs/references/**/*.png
 docs/references/**/*.webp
+
+# TypeScript incremental build cache, regenerated on every typecheck.
+assets/tsconfig.tsbuildinfo
