@@ -463,7 +463,7 @@ function ZIndexRow({ zIndex, onZIndex }: { zIndex: number | null; onZIndex: (val
  *  visible faces (the default); "single" shows ONE centered tile INSIDE the block volume (a single water
  *  droplet floating in the block, the fountain case). A two-button toggle mirroring the collision toggle.
  *  Asset tiles only. */
-function DisplayModeRow({ display, onDisplay }: { display: TileDisplay | null; onDisplay: (mode: TileDisplay) => void }) {
+function DisplayModeRow({ display, onDisplay }: { display: TileDisplay | null | undefined; onDisplay: (mode: TileDisplay) => void }) {
   return (
     <label className="flex items-center gap-2" title="Faces, paint the art on ALL faces of the block, or show ONE upright tile inside it">
       <span className="w-14 shrink-0 text-[10px] text-gray-400">Faces</span>
@@ -477,7 +477,7 @@ function DisplayModeRow({ display, onDisplay }: { display: TileDisplay | null; o
 /** SHAPE, the SOLID the tile's block renders as: "Square" (the default cube) or "Circle" (a shaded ball). A
  *  two-button toggle mirroring the Display toggle. Asset tiles only. Designed to grow (Oval, …), add a button
  *  + a render drawer, no new branch. */
-function ShapeModeRow({ shape, onShape }: { shape: TileShape | null; onShape: (shape: TileShape) => void }) {
+function ShapeModeRow({ shape, onShape }: { shape: TileShape | null | undefined; onShape: (shape: TileShape) => void }) {
   return (
     <label className="flex items-center gap-2" title="Corners, square gives a cube, round gives a ball">
       <span className="w-14 shrink-0 text-[10px] text-gray-400">Corners</span>
@@ -490,7 +490,7 @@ function ShapeModeRow({ shape, onShape }: { shape: TileShape | null; onShape: (s
 
 /** TRANSPARENT, hide the block SHELL so only the tile's content shows (a flower billboard with no coloured
  *  block around it). A two-button toggle mirroring Display/Shape. Asset tiles only. */
-function TransparentRow({ transparent, onTransparent }: { transparent: boolean | null; onTransparent: (on: boolean) => void }) {
+function TransparentRow({ transparent, onTransparent }: { transparent: boolean | null | undefined; onTransparent: (on: boolean) => void }) {
   return (
     <label className="flex items-center gap-2" title="Solid, draw the block shell, or see through it so only the tile's own art shows (a flower, not a flower in a box)">
       <span className="w-14 shrink-0 text-[10px] text-gray-400">Solid</span>
@@ -504,7 +504,7 @@ function TransparentRow({ transparent, onTransparent }: { transparent: boolean |
 /** ACT AS TILE, does content stacked on this cell rest ON TOP of the block (the cell behaves as if a tile is
  *  already inside it, a road/floor you walk over) or land INSIDE it at level 0? A two-button toggle mirroring
  *  Block/Display/Shape. Default ON (true). Asset tiles only. */
-function ActAsTileRow({ actAsTile, onActAsTile }: { actAsTile: boolean | null; onActAsTile: (on: boolean) => void }) {
+function ActAsTileRow({ actAsTile, onActAsTile }: { actAsTile: boolean | null | undefined; onActAsTile: (on: boolean) => void }) {
   return (
     <label className="flex items-center gap-2" title="Walk over it, Yes: the next thing placed here rests ON TOP (a road, a floor you walk over); No: it lands INSIDE this block at level 0">
       <span className="w-14 shrink-0 text-[10px] text-gray-400">
@@ -596,11 +596,11 @@ export function LooksControls({ tile }: { tile: TileControlModel }) {
         {tile.onClearColor && <button onClick={tile.onClearColor} className="ml-auto rounded bg-gray-700 px-2 py-0.5 text-[9px] hover:bg-gray-600" title="Reset to the tile's own colour">↺ reset</button>}
       </div>
       {/* Display mode: paint the tile on ALL faces, or ONE tile inside the block. Asset tiles only. */}
-      {tile.onDisplay && <DisplayModeRow display={tile.display ?? 'all-faces'} onDisplay={tile.onDisplay} />}
+      {tile.onDisplay && <DisplayModeRow display={tile.display} onDisplay={tile.onDisplay} />}
       {/* Block: solid shell, or transparent so only the tile content (e.g. the flower) shows. Asset tiles only. */}
-      {tile.onTransparent && <TransparentRow transparent={tile.transparent ?? false} onTransparent={tile.onTransparent} />}
+      {tile.onTransparent && <TransparentRow transparent={tile.transparent} onTransparent={tile.onTransparent} />}
       {/* Shape: render the tile's block as a cube (square) or a ball (circle). Asset tiles only. */}
-      {tile.onShape && <ShapeModeRow shape={tile.shape ?? 'square'} onShape={tile.onShape} />}
+      {tile.onShape && <ShapeModeRow shape={tile.shape} onShape={tile.onShape} />}
       {/* Light: cast a warm ground glow pool at night, with intensity/distance/colour + on-off. Asset tiles only. */}
       {tile.onLight && <LightControls light={tile.light} onLight={tile.onLight} />}
     </div>
@@ -680,7 +680,7 @@ export function SizeAndPositionControls({ tile }: { tile: TileControlModel }) {
  */
 export function BehaviourControls({ tile }: { tile: TileControlModel }) {
   if (!tile.onActAsTile) return null
-  return <ActAsTileRow actAsTile={tile.actAsTile ?? true} onActAsTile={tile.onActAsTile} />
+  return <ActAsTileRow actAsTile={tile.actAsTile} onActAsTile={tile.onActAsTile} />
 }
 
 /** The SETTINGS body for the SELECTED tile, §4.7's three groups, in order. This is what the "Edit

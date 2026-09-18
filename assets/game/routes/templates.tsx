@@ -55,7 +55,7 @@ import { foldUnitData, splitUnitData } from '@/lib/unitDataPersistence'
 import { type CellTriggerGroup, ENTITY_GLYPH, cellTriggersFromAssets, cellTriggersToAssets, entitiesFromAssets, entitiesToAssets, isEntityAsset, isQuestAsset, isStyleAsset, isTriggerAsset, questsFromAssets, questsToAssets, styleFromAssets, styleToAssets, triggersAtCell } from '@/lib/gridCodec'
 import { type Trigger, type TriggerEffect, fireTriggers } from '@/game/runtime/trigger'
 import { ASCII_STYLE, assetKind, entityKind, entityStyleOverride, genderize, groundKind, resolveVisual, styleById, TILE_CATEGORIES, tilesForStyle, type Style, type TileCategory, type TileDef, type Visual, visualForTileId } from '@/game/artStyle'
-import { cellStackTop } from '@/engine/cellStack'
+import { assetSetting, cellStackTop } from '@/engine/cellStack'
 import { useRouter } from '@/lib/router'
 import { ROUTES } from '@/lib/routes'
 import { readStored, writeStored } from '@/lib/storage'
@@ -2360,24 +2360,26 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
   const setAssetZIndex = (i: number, v: number) =>
     applyToSelectedTiles(i, (a) => { a.zIndex = Math.round(v) })
   // PER-ASSET "display" mode (all-faces / single), how the tile is painted on its block. Written into THIS
-  // placed tile's `settings` (persists with the map via the full-asset serialize) alongside the generic
-  // fade/cutaway keys; the render reads asset.settings.display. 'all-faces' clears the key so a reset stays
-  // byte-identical to a tile that never opted in.
+  // placed tile's `settings` (persists with the map via the full-asset serialize); the render reads it back
+  // through `assetSetting`, which is this instance FIRST and then the served tile.
+  //
+  // IT WRITES THE CHOSEN VALUE, ALWAYS. It used to clear the key for 'all-faces', on the theory that absent
+  // meant default. It does not: absent means "ask the tile", and the tile may well say 'single'. So picking
+  // All on a rock served as 'single' deleted the override, the read fell back to 'single', and the button
+  // appeared to do nothing. A setting is stated, never implied by its own absence.
   const setAssetDisplay = (i: number, mode: TileDisplay) =>
     applyToSelectedTiles(i, (a) => {
-      const rest = { ...(a.settings ?? {}) }
-      if (mode === 'single') a.settings = { ...rest, display: 'single' }
-      else { delete rest.display; a.settings = rest }
+      a.settings = { ...(a.settings ?? {}), display: mode }
     })
   // PER-ASSET "transparent" block, drop the block SHELL so only the tile's content shows (with display:single,
   // just the centered billboard, in its own colour): "style the flower without colouring the whole block".
   // Written to THIS placed tile's `settings` (persists via the full-asset serialize); off clears the key so a
   // reset stays byte-identical to a tile that never opted in.
+  // Writes the chosen value, for the same reason Display does: clearing the key means "ask the tile", and
+  // the tile can say true, so Solid could not turn a see-through tile solid.
   const setAssetTransparent = (i: number, on: boolean) =>
     applyToSelectedTiles(i, (a) => {
-      const rest = { ...(a.settings ?? {}) }
-      if (on) a.settings = { ...rest, transparent: true }
-      else { delete rest.transparent; a.settings = rest }
+      a.settings = { ...(a.settings ?? {}), transparent: on }
     })
   // PER-CELL "act as tile", the cell behaves as if a tile were already inside it, so content stacks ON TOP of
   // this block instead of inside at level 0 (a walk-over floor/road). A STACK operation (setCellActAsTile) like
@@ -2387,7 +2389,6 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
     applyToSelectedTileSlots(i, (grid, col, row, index) => setCellActAsTile(grid, col, row, index, on))
   // PER-ASSET render SHAPE ('square' cube / 'circle' ball), written to THIS placed tile (persists with the map
   // via the full-asset serialize, like scaleX/pose). The render dispatches on asset.shape in every view.
-  // 'square' clears the field so a reset stays byte-identical to a tile that never opted in (like Display).
   // THICKNESS REACH: how far the i-th tile extends toward ONE world direction inside its own cell, the same
   // question the Footprint asks, in the smaller unit. `dir` arrives already converted from the arrow the user
   // clicked (screen) to the world axis it means, so the stored value survives camera rotation. A full reach
@@ -2400,10 +2401,10 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
       if (Object.keys(next).length === 0) delete a.thickness
       else a.thickness = next
     })
+  // States the shape rather than clearing it for 'square', so Square can undo a Round, whatever the tile says.
   const setAssetShape = (i: number, shape: TileShape) =>
     applyToSelectedTiles(i, (a) => {
-      if (shape === 'square') delete a.shape
-      else a.shape = shape
+      a.shape = shape
     })
   // PER-ASSET LIGHT setting (intensity/distance/colour/on), the warm night ground GLOW POOL this tile casts,
   // written to THIS placed tile (persists with the map via the full-asset serialize, like shape). Fans out to
@@ -2834,8 +2835,7 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
       if (!g) return null
       const a = g.getAssetsAtCell(col, row).at(-1) // topmost stacked asset at the cell
       if (!a) return null
-      if (shape === 'square') delete a.shape
-      else a.shape = shape
+      a.shape = shape
       bumpBuildingVersion()
       return { col, row, shape }
     }
@@ -2846,9 +2846,7 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
       if (!g) return null
       const a = g.getAssetsAtCell(col, row).at(-1)
       if (!a) return null
-      const rest = { ...(a.settings ?? {}) }
-      if (mode === 'single') a.settings = { ...rest, display: 'single' }
-      else { delete rest.display; a.settings = Object.keys(rest).length ? rest : undefined }
+      a.settings = { ...(a.settings ?? {}), display: mode }
       bumpBuildingVersion()
       return { col, row, mode }
     }
@@ -3885,7 +3883,8 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
       if (!a) continue
       const color = rerollTileColor(a, zone, rand)
       if (color) a.color = color
-      if (rand() < 0.5) { if (a.shape === 'circle') delete a.shape; else a.shape = 'circle' }
+      // States the shape either way. Deleting it meant "ask the tile", which is not the same as square.
+      if (rand() < 0.5) a.shape = a.shape === 'circle' ? 'square' : 'circle'
     }
     bumpBuildingVersion()
   }
@@ -6421,13 +6420,30 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
                             onZPosDir: posable ? (dir => setAssetZDir(i, dir)) : undefined,
                             zIndex: adim(i, a => a.zIndex ?? 0),
                             onZIndex: posable ? (v => setAssetZIndex(i, v)) : undefined,
-                            display: commonValue(cells.map(({ col, row }) => (stackedAssetsAt(grid, col, row)[i]?.settings?.display ?? 'all-faces') as TileDisplay)),
+                            // THE PANEL READS THE DATA, exactly as the renderer does: `assetSetting` is
+                            // per-instance first, then the SERVED tile's own settings. No fallback literal:
+                            // every tile STATES these now (ASettingIsStatedNotGuessed), so a missing value is
+                            // a data gap to see, not something for this to invent. Reading the instance alone
+                            // and `??`-ing 'all-faces' is what reported "All" for a rock served as 'single'.
+                            display: commonValue(cells.map(({ col, row }) => {
+                              const a = stackedAssetsAt(grid, col, row)[i]
+                              return (a ? assetSetting<TileDisplay>(a, 'display') : undefined) as TileDisplay
+                            })),
                             onDisplay: posable ? (mode => setAssetDisplay(i, mode)) : undefined,
-                            transparent: commonValue(cells.map(({ col, row }) => stackedAssetsAt(grid, col, row)[i]?.settings?.transparent ?? false)),
+                            transparent: commonValue(cells.map(({ col, row }) => {
+                              const a = stackedAssetsAt(grid, col, row)[i]
+                              return a ? assetSetting<boolean>(a, 'transparent') : undefined
+                            })),
                             onTransparent: posable ? (on => setAssetTransparent(i, on)) : undefined,
-                            shape: commonValue(cells.map(({ col, row }) => (stackedAssetsAt(grid, col, row)[i]?.shape ?? 'square') as TileShape)),
+                            shape: commonValue(cells.map(({ col, row }) => {
+                              const a = stackedAssetsAt(grid, col, row)[i]
+                              return (a?.shape ?? (a ? assetSetting<TileShape>(a, 'shape') : undefined)) as TileShape
+                            })),
                             onShape: posable ? (shape => setAssetShape(i, shape)) : undefined,
-                            actAsTile: commonValue(cells.map(({ col, row }) => stackedAssetsAt(grid, col, row)[i]?.settings?.actAsTile ?? true)),
+                            actAsTile: commonValue(cells.map(({ col, row }) => {
+                              const a = stackedAssetsAt(grid, col, row)[i]
+                              return a ? assetSetting<boolean>(a, 'actAsTile') : undefined
+                            })),
                             onActAsTile: posable ? (on => setAssetActAsTile(i, on)) : undefined,
                             light: a0?.light,
                             onLight: posable ? (l => setAssetLight(i, l)) : undefined,
