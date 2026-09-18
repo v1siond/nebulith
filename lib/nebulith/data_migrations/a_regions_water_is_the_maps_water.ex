@@ -35,11 +35,11 @@ defmodule Nebulith.DataMigration.ARegionsWaterIsTheMapsWater do
 
   # {generator, region} => the new pool share. Halved, because the share wets twice what it reads as.
   @shares %{
-    "forest_woodland" => %{"lakeside" => %{"pools" => 0.16}},
-    "forest_jungle" => %{"lakeside" => %{"pools" => 0.16}},
-    "forest_meadow" => %{"bank" => %{"pools" => 0.14}},
+    "forest_woodland" => %{"lakeside" => %{"pools" => 0.22}},
+    "forest_jungle" => %{"lakeside" => %{"pools" => 0.22}},
+    "forest_meadow" => %{"bank" => %{"pools" => 0.22}},
     "forest_desert" => %{"oasis" => %{"pools" => 0.22}},
-    "forest_volcanic" => %{"lavaside" => %{"pools" => 0.16}}
+    "forest_volcanic" => %{"lavaside" => %{"pools" => 0.21}}
   }
 
   # {generator, region} => the fields that should never have been served for it.

@@ -71,6 +71,7 @@ When reading a source, write down both. The second half is usually the more valu
 | The editor, editing a cell | [`EDITOR-INTERACTION-SPEC.md`](EDITOR-INTERACTION-SPEC.md) | Written |
 | The editor, choosing what a map contains | [`EDITOR-UX.md`](EDITOR-UX.md) | Written 2026-09-16. Elements are optional over a working default, groups and limits are served, a preview is fed the build's own options. |
 | The maths: lerp, trig, vectors, dot product, matrices | [`MATH-FOUNDATIONS.md`](MATH-FOUNDATIONS.md) | Written 2026-09-16 from his source. Formulas plus where each lands here. §1.2 colour-space blending binds the tree work. |
+| Polygon and vector shapes, the maths behind them | [`POLYGONS.md`](POLYGONS.md) | Written 2026-09-18 from his source. `x/z, y/z` projection, vertices + face loops, rotation. Nothing built; it is the model the polygon ticket starts from. |
 | Writing code here | [`CODING-STANDARDS.md`](CODING-STANDARDS.md) | Written |
 | Reference art and its licences | [`references/SOURCES.md`](references/SOURCES.md) | Written |
 
