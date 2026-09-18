@@ -84,14 +84,17 @@
             },
             "subZones": [
               {
-                "canopy": 0.75,
-                "floor": "#7d8a55",
+                "canopy": 0.7,
+                "floor": "#788c51",
                 "formation": {
                   "lattice": 9,
                   "spacing": 3,
-                  "understory": 0.5
+                  "understory": 0.9,
+                  "understoryTile": "shrub"
                 },
                 "key": "edge",
+                "leafHue": 2,
+                "leafValue": 0.05,
                 "name": "Edge of the wood",
                 "trees": [
                   {
@@ -105,20 +108,31 @@
                   {
                     "kind": "bush_round",
                     "weight": 15
+                  },
+                  {
+                    "kind": "tree_oak",
+                    "weight": 16
+                  },
+                  {
+                    "kind": "tree_cherry",
+                    "weight": 12
                   }
                 ],
-                "undergrowth": 0.7,
+                "undergrowth": 0.9,
                 "weight": 3
               },
               {
-                "canopy": 1.15,
-                "floor": "#5c6e3d",
+                "canopy": 1.25,
+                "floor": "#606b3e",
                 "formation": {
-                  "lattice": 13,
-                  "spacing": 0,
-                  "understory": 1.1
+                  "lattice": 14,
+                  "spacing": 1,
+                  "understory": 0.2,
+                  "understoryTile": "clover"
                 },
                 "key": "deep",
+                "leafHue": -4,
+                "leafValue": -0.08,
                 "name": "Deep wood",
                 "trees": [
                   {
@@ -136,47 +150,57 @@
                   {
                     "kind": "tree_sapling",
                     "weight": 20
+                  },
+                  {
+                    "kind": "tree_oak",
+                    "weight": 20
                   }
                 ],
-                "undergrowth": 1.2,
+                "undergrowth": 0.25,
                 "weight": 3
               },
               {
-                "canopy": 0.12,
-                "floor": "#8b9a5a",
+                "canopy": 0.1,
+                "floor": "#819959",
                 "formation": {
                   "lattice": 3,
                   "spacing": 5,
-                  "understory": 0.3
+                  "understory": 0.3,
+                  "understoryTile": "tall_grass"
                 },
                 "key": "glade",
+                "leafHue": 4,
+                "leafValue": 0.1,
                 "name": "Glade",
                 "trees": [
                   {
-                    "kind": "tree_gnarled",
-                    "weight": 60
-                  },
-                  {
-                    "kind": "tree_round",
-                    "weight": 25
+                    "kind": "tree_sapling",
+                    "weight": 45
                   },
                   {
                     "kind": "bush_round",
-                    "weight": 15
+                    "weight": 30
+                  },
+                  {
+                    "kind": "tree_cherry",
+                    "weight": 25
                   }
                 ],
-                "undergrowth": 0.4,
+                "undergrowth": 0.3,
                 "weight": 2
               },
               {
-                "canopy": 0.5,
-                "floor": "#66753f",
+                "canopy": 0.2,
+                "floor": "#687544",
                 "formation": {
                   "lattice": 7,
                   "spacing": 2,
-                  "understory": 1.35
+                  "understory": 2.0,
+                  "understoryTile": "shrub"
                 },
                 "key": "thicket",
+                "leafHue": -2,
+                "leafValue": -0.04,
                 "name": "Thicket",
                 "trees": [
                   {
@@ -192,20 +216,23 @@
                     "weight": 25
                   }
                 ],
-                "undergrowth": 1.45,
+                "undergrowth": 2.0,
                 "weight": 2
               },
               {
-                "canopy": 0.85,
-                "floor": "#5a6b48",
+                "canopy": 0.8,
+                "floor": "#79844d",
                 "formation": {
                   "lattice": 5,
                   "spacing": 3,
-                  "understory": 0.7
+                  "understory": 0.6,
+                  "understoryTile": "tall_grass"
                 },
                 "key": "lakeside",
+                "leafHue": -6,
+                "leafValue": 0.02,
                 "name": "Lakeside",
-                "pools": 0.22,
+                "pools": 0.16,
                 "trees": [
                   {
                     "kind": "tree_broadleaf",
@@ -218,9 +245,13 @@
                   {
                     "kind": "bush_round",
                     "weight": 25
+                  },
+                  {
+                    "kind": "tree_willow",
+                    "weight": 26
                   }
                 ],
-                "undergrowth": 1.1,
+                "undergrowth": 0.6,
                 "weight": 2
               }
             ],
@@ -518,8 +549,8 @@
             },
             "subZones": [
               {
-                "canopy": 0.75,
-                "floor": "#3f5f33",
+                "canopy": 0.6,
+                "floor": "#3e4f30",
                 "flowers": [
                   {
                     "char": "\u273f",
@@ -537,9 +568,12 @@
                 "formation": {
                   "lattice": 9,
                   "spacing": 3,
-                  "understory": 0.5
+                  "understory": 0.8,
+                  "understoryTile": "shrub"
                 },
                 "key": "edge",
+                "leafHue": 2,
+                "leafValue": 0.05,
                 "name": "Edge of the wood",
                 "trees": [
                   {
@@ -559,12 +593,12 @@
                     "weight": 20
                   }
                 ],
-                "undergrowth": 0.7,
+                "undergrowth": 0.8,
                 "weight": 3
               },
               {
-                "canopy": 1.15,
-                "floor": "#24381f",
+                "canopy": 1.3,
+                "floor": "#262e1c",
                 "flowers": [
                   {
                     "char": "\u273f",
@@ -580,16 +614,19 @@
                   }
                 ],
                 "formation": {
-                  "lattice": 13,
+                  "lattice": 15,
                   "spacing": 0,
-                  "understory": 1.1
+                  "understory": 0.2,
+                  "understoryTile": "clover"
                 },
                 "key": "deep",
+                "leafHue": -4,
+                "leafValue": -0.08,
                 "name": "Deep wood",
                 "trees": [
                   {
                     "kind": "tree_giant",
-                    "weight": 25
+                    "weight": 45
                   },
                   {
                     "kind": "tree_big",
@@ -597,19 +634,19 @@
                   },
                   {
                     "kind": "bush",
-                    "weight": 25
+                    "weight": 15
                   },
                   {
                     "kind": "tree_round",
-                    "weight": 25
+                    "weight": 15
                   }
                 ],
-                "undergrowth": 1.2,
+                "undergrowth": 0.25,
                 "weight": 3
               },
               {
-                "canopy": 0.12,
-                "floor": "#4c6b38",
+                "canopy": 0.08,
+                "floor": "#475c37",
                 "flowers": [
                   {
                     "char": "\u273f",
@@ -627,9 +664,12 @@
                 "formation": {
                   "lattice": 3,
                   "spacing": 5,
-                  "understory": 0.3
+                  "understory": 0.35,
+                  "understoryTile": "tall_grass"
                 },
                 "key": "glade",
+                "leafHue": 4,
+                "leafValue": 0.1,
                 "name": "Glade",
                 "trees": [
                   {
@@ -649,12 +689,12 @@
                     "weight": 20
                   }
                 ],
-                "undergrowth": 0.4,
+                "undergrowth": 0.35,
                 "weight": 2
               },
               {
-                "canopy": 0.5,
-                "floor": "#2c4526",
+                "canopy": 0.15,
+                "floor": "#2e3822",
                 "flowers": [
                   {
                     "char": "\u273f",
@@ -672,9 +712,12 @@
                 "formation": {
                   "lattice": 7,
                   "spacing": 2,
-                  "understory": 1.35
+                  "understory": 2.0,
+                  "understoryTile": "thicket"
                 },
                 "key": "thicket",
+                "leafHue": -2,
+                "leafValue": -0.04,
                 "name": "Thicket",
                 "trees": [
                   {
@@ -690,12 +733,12 @@
                     "weight": 20
                   }
                 ],
-                "undergrowth": 1.45,
+                "undergrowth": 2.0,
                 "weight": 2
               },
               {
                 "canopy": 0.85,
-                "floor": "#3b4a2e",
+                "floor": "#3c472b",
                 "flowers": [
                   {
                     "char": "\u273f",
@@ -713,11 +756,14 @@
                 "formation": {
                   "lattice": 5,
                   "spacing": 3,
-                  "understory": 0.7
+                  "understory": 0.7,
+                  "understoryTile": "tall_grass"
                 },
                 "key": "lakeside",
+                "leafHue": -6,
+                "leafValue": 0.02,
                 "name": "Lakeside",
-                "pools": 0.22,
+                "pools": 0.16,
                 "trees": [
                   {
                     "kind": "tree_cypress",
@@ -732,7 +778,7 @@
                     "weight": 15
                   }
                 ],
-                "undergrowth": 1.1,
+                "undergrowth": 0.7,
                 "weight": 2
               }
             ],
@@ -1016,72 +1062,78 @@
             },
             "subZones": [
               {
-                "canopy": 0.75,
-                "floor": "#7f9050",
+                "canopy": 0.1,
                 "formation": {
-                  "lattice": 9,
-                  "spacing": 3,
-                  "understory": 0.5
+                  "lattice": 4,
+                  "spacing": 6,
+                  "understory": 0.25,
+                  "understoryTile": "tall_grass"
                 },
-                "key": "edge",
-                "name": "Edge of the wood",
+                "key": "pasture",
+                "leafHue": 2,
+                "leafValue": 0.05,
+                "name": "Pasture",
                 "trees": [
                   {
-                    "kind": "tree_gnarled",
-                    "weight": 60
-                  },
-                  {
-                    "kind": "tree_round",
-                    "weight": 25
+                    "kind": "tree_big",
+                    "weight": 45
                   },
                   {
                     "kind": "bush_round",
-                    "weight": 15
+                    "weight": 35
+                  },
+                  {
+                    "kind": "tree_round",
+                    "weight": 20
                   }
                 ],
-                "undergrowth": 0.7,
-                "weight": 3
+                "undergrowth": 0.25,
+                "weight": 4
               },
               {
-                "canopy": 1.15,
-                "floor": "#6b7d45",
+                "canopy": 0.6,
                 "formation": {
-                  "lattice": 13,
-                  "spacing": 0,
-                  "understory": 1.1
+                  "lattice": 11,
+                  "spacing": 1,
+                  "understory": 1.6,
+                  "understoryTile": "shrub"
                 },
-                "key": "deep",
-                "name": "Deep wood",
+                "key": "hedgerow",
+                "leafHue": -3,
+                "leafValue": -0.05,
+                "name": "Hedgerow",
                 "trees": [
                   {
-                    "kind": "tree_broadleaf",
+                    "kind": "tree_gnarled",
                     "weight": 40
                   },
                   {
-                    "kind": "tree_round",
-                    "weight": 30
+                    "kind": "bush_round",
+                    "weight": 35
                   },
                   {
-                    "kind": "tree_big",
-                    "weight": 30
+                    "kind": "bush",
+                    "weight": 25
                   }
                 ],
-                "undergrowth": 1.2,
+                "undergrowth": 1.6,
                 "weight": 3
               },
               {
-                "canopy": 0.12,
-                "floor": "#93a463",
+                "canopy": 0.9,
                 "formation": {
-                  "lattice": 3,
-                  "spacing": 5,
-                  "understory": 0.3
+                  "lattice": 7,
+                  "spacing": 4,
+                  "understory": 0.2,
+                  "understoryTile": "clover"
                 },
-                "key": "glade",
-                "name": "Glade",
+                "key": "orchard",
+                "leafHue": 1,
+                "leafValue": 0.02,
+                "name": "Orchard",
                 "trees": [
                   {
-                    "kind": "tree_gnarled",
+                    "kind": "tree_cherry",
                     "weight": 60
                   },
                   {
@@ -1089,67 +1141,67 @@
                     "weight": 25
                   },
                   {
-                    "kind": "bush_round",
+                    "kind": "tree_big",
                     "weight": 15
                   }
                 ],
-                "undergrowth": 0.4,
+                "undergrowth": 0.2,
                 "weight": 2
               },
               {
                 "canopy": 0.5,
-                "floor": "#77894c",
                 "formation": {
-                  "lattice": 7,
+                  "lattice": 6,
                   "spacing": 2,
-                  "understory": 1.35
+                  "understory": 1.0,
+                  "understoryTile": "tall_grass"
                 },
-                "key": "thicket",
-                "name": "Thicket",
+                "key": "bank",
+                "leafHue": -5,
+                "leafValue": -0.02,
+                "name": "River bank",
+                "pools": 0.14,
                 "trees": [
                   {
-                    "kind": "bush_round",
-                    "weight": 50
+                    "kind": "tree_willow",
+                    "weight": 55
                   },
                   {
-                    "kind": "bush",
+                    "kind": "tree_broadleaf",
                     "weight": 30
                   },
                   {
-                    "kind": "tree_sapling",
-                    "weight": 20
+                    "kind": "bush",
+                    "weight": 15
                   }
                 ],
-                "undergrowth": 1.45,
+                "undergrowth": 1.0,
                 "weight": 2
               },
               {
-                "canopy": 0.85,
-                "floor": "#6f8352",
+                "canopy": 0.03,
                 "formation": {
-                  "lattice": 5,
-                  "spacing": 3,
-                  "understory": 0.7
+                  "lattice": 3,
+                  "spacing": 7,
+                  "understory": 0.15,
+                  "understoryTile": "clover"
                 },
-                "key": "lakeside",
-                "name": "Lakeside",
-                "pools": 0.22,
+                "key": "common",
+                "leafHue": 3,
+                "leafValue": 0.08,
+                "name": "Open common",
                 "trees": [
                   {
-                    "kind": "tree_broadleaf",
-                    "weight": 40
-                  },
-                  {
-                    "kind": "tree_round",
-                    "weight": 35
-                  },
-                  {
                     "kind": "bush_round",
-                    "weight": 25
+                    "weight": 60
+                  },
+                  {
+                    "kind": "tree_sapling",
+                    "weight": 40
                   }
                 ],
-                "undergrowth": 1.1,
-                "weight": 2
+                "undergrowth": 0.15,
+                "weight": 3
               }
             ],
             "trees": [
@@ -1178,7 +1230,8 @@
               "enemies": 0,
               "enemyTypes": [],
               "townsfolk": 5
-            }
+            },
+            "regionLayout": "scatter"
           },
           "options": [
             {
@@ -1430,8 +1483,8 @@
             },
             "subZones": [
               {
-                "canopy": 0.75,
-                "floor": "#3d5233",
+                "canopy": 0.9,
+                "floor": "#4a5638",
                 "flowers": [
                   {
                     "char": "\u273e",
@@ -1447,12 +1500,16 @@
                   }
                 ],
                 "formation": {
-                  "lattice": 9,
+                  "lattice": 8,
                   "spacing": 3,
-                  "understory": 0.5
+                  "understory": 0.9,
+                  "understoryTile": "shrub"
                 },
-                "key": "edge",
-                "name": "Edge of the wood",
+                "key": "margin",
+                "leafHue": 2,
+                "leafValue": 0.04,
+                "name": "Drying margin",
+                "pools": 0.02,
                 "trees": [
                   {
                     "kind": "tree_cypress",
@@ -1467,12 +1524,12 @@
                     "weight": 30
                   }
                 ],
-                "undergrowth": 0.7,
+                "undergrowth": 0.9,
                 "weight": 3
               },
               {
-                "canopy": 1.15,
-                "floor": "#2a3a24",
+                "canopy": 0.85,
+                "floor": "#414d33",
                 "flowers": [
                   {
                     "char": "\u273e",
@@ -1488,12 +1545,16 @@
                   }
                 ],
                 "formation": {
-                  "lattice": 13,
-                  "spacing": 0,
-                  "understory": 1.1
+                  "lattice": 7,
+                  "spacing": 2,
+                  "understory": 1.3,
+                  "understoryTile": "tall_grass"
                 },
-                "key": "deep",
-                "name": "Deep wood",
+                "key": "mire",
+                "leafHue": -1,
+                "leafValue": -0.01,
+                "name": "Mire",
+                "pools": 0.14,
                 "trees": [
                   {
                     "kind": "tree_cypress",
@@ -1512,12 +1573,12 @@
                     "weight": 15
                   }
                 ],
-                "undergrowth": 1.2,
+                "undergrowth": 1.3,
                 "weight": 3
               },
               {
-                "canopy": 0.12,
-                "floor": "#4a5c37",
+                "canopy": 0.7,
+                "floor": "#39442c",
                 "flowers": [
                   {
                     "char": "\u273e",
@@ -1533,73 +1594,36 @@
                   }
                 ],
                 "formation": {
-                  "lattice": 3,
-                  "spacing": 5,
-                  "understory": 0.3
+                  "lattice": 6,
+                  "spacing": 2,
+                  "understory": 0.8,
+                  "understoryTile": "tall_grass"
                 },
-                "key": "glade",
-                "name": "Glade",
+                "key": "bog",
+                "leafHue": -4,
+                "leafValue": -0.06,
+                "name": "Bog",
+                "pools": 0.3,
                 "trees": [
                   {
                     "kind": "tree_cypress",
-                    "weight": 40
+                    "weight": 55
                   },
                   {
                     "kind": "tree_mangrove",
-                    "weight": 30
+                    "weight": 25
                   },
                   {
                     "kind": "bush_round",
-                    "weight": 30
-                  }
-                ],
-                "undergrowth": 0.4,
-                "weight": 2
-              },
-              {
-                "canopy": 0.5,
-                "floor": "#33472b",
-                "flowers": [
-                  {
-                    "char": "\u273e",
-                    "color": "#7b5fa8"
-                  },
-                  {
-                    "char": "\u274b",
-                    "color": "#4f8f7a"
-                  },
-                  {
-                    "char": "\u273f",
-                    "color": "#b89a3c"
-                  }
-                ],
-                "formation": {
-                  "lattice": 7,
-                  "spacing": 2,
-                  "understory": 1.35
-                },
-                "key": "thicket",
-                "name": "Thicket",
-                "trees": [
-                  {
-                    "kind": "bush",
-                    "weight": 45
-                  },
-                  {
-                    "kind": "bush_round",
-                    "weight": 35
-                  },
-                  {
-                    "kind": "tree_sapling",
                     "weight": 20
                   }
                 ],
-                "undergrowth": 1.45,
-                "weight": 2
+                "undergrowth": 0.8,
+                "weight": 3
               },
               {
-                "canopy": 0.85,
-                "floor": "#35462c",
+                "canopy": 0.35,
+                "floor": "#333d28",
                 "flowers": [
                   {
                     "char": "\u273e",
@@ -1616,12 +1640,15 @@
                 ],
                 "formation": {
                   "lattice": 5,
-                  "spacing": 3,
-                  "understory": 0.7
+                  "spacing": 4,
+                  "understory": 0.3,
+                  "understoryTile": "tall_grass"
                 },
-                "key": "lakeside",
-                "name": "Lakeside",
-                "pools": 0.22,
+                "key": "sink",
+                "leafHue": -6,
+                "leafValue": -0.09,
+                "name": "Sink",
+                "pools": 0.5,
                 "trees": [
                   {
                     "kind": "tree_cypress",
@@ -1636,8 +1663,53 @@
                     "weight": 15
                   }
                 ],
-                "undergrowth": 1.1,
+                "undergrowth": 0.3,
                 "weight": 2
+              },
+              {
+                "canopy": 0.08,
+                "floor": "#2d3624",
+                "flowers": [
+                  {
+                    "char": "\u273e",
+                    "color": "#7b5fa8"
+                  },
+                  {
+                    "char": "\u274b",
+                    "color": "#4f8f7a"
+                  },
+                  {
+                    "char": "\u273f",
+                    "color": "#b89a3c"
+                  }
+                ],
+                "formation": {
+                  "lattice": 4,
+                  "spacing": 6,
+                  "understory": 0.2,
+                  "understoryTile": "tall_grass"
+                },
+                "key": "open_water",
+                "leafHue": -8,
+                "leafValue": -0.1,
+                "name": "Open water",
+                "pools": 0.78,
+                "trees": [
+                  {
+                    "kind": "tree_cypress",
+                    "weight": 70
+                  },
+                  {
+                    "kind": "tree_mangrove",
+                    "weight": 20
+                  },
+                  {
+                    "kind": "bush_round",
+                    "weight": 10
+                  }
+                ],
+                "undergrowth": 0.2,
+                "weight": 1
               }
             ],
             "trees": [
@@ -1662,7 +1734,8 @@
               "enemies": 0,
               "enemyTypes": [],
               "townsfolk": 2
-            }
+            },
+            "regionLayout": "bands"
           },
           "options": [
             {
@@ -1916,141 +1989,143 @@
             },
             "subZones": [
               {
-                "canopy": 0.75,
-                "floor": "#6b7a4e",
+                "canopy": 1.1,
+                "floor": "#5f6b4a",
                 "formation": {
-                  "lattice": 9,
-                  "spacing": 3,
-                  "understory": 0.5
+                  "lattice": 12,
+                  "spacing": 1,
+                  "understory": 1.0,
+                  "understoryTile": "shrub"
                 },
-                "key": "edge",
-                "level": 2,
-                "name": "Edge of the wood",
-                "trees": [
-                  {
-                    "kind": "tree_stub",
-                    "weight": 55
-                  },
-                  {
-                    "kind": "tree_conifer",
-                    "weight": 45
-                  }
-                ],
-                "undergrowth": 0.7,
-                "weight": 3
-              },
-              {
-                "canopy": 1.15,
-                "floor": "#47603a",
-                "formation": {
-                  "lattice": 13,
-                  "spacing": 0,
-                  "understory": 1.1
-                },
-                "key": "deep",
+                "key": "foot",
+                "leafHue": -3,
+                "leafValue": -0.06,
                 "level": 0,
-                "name": "Deep wood",
+                "name": "Mountain foot",
                 "trees": [
                   {
                     "kind": "tree_conifer",
-                    "weight": 65
-                  },
-                  {
-                    "kind": "tree_tall",
-                    "weight": 20
-                  },
-                  {
-                    "kind": "tree_stub",
-                    "weight": 15
-                  }
-                ],
-                "undergrowth": 1.2,
-                "weight": 3
-              },
-              {
-                "canopy": 0.12,
-                "floor": "#8a8d76",
-                "formation": {
-                  "lattice": 3,
-                  "spacing": 5,
-                  "understory": 0.3
-                },
-                "key": "glade",
-                "level": 3,
-                "name": "Glade",
-                "trees": [
-                  {
-                    "kind": "tree_stub",
                     "weight": 55
-                  },
-                  {
-                    "kind": "tree_conifer",
-                    "weight": 45
-                  }
-                ],
-                "undergrowth": 0.4,
-                "weight": 2
-              },
-              {
-                "canopy": 0.5,
-                "floor": "#5f7047",
-                "formation": {
-                  "lattice": 7,
-                  "spacing": 2,
-                  "understory": 1.35
-                },
-                "key": "thicket",
-                "level": 2,
-                "name": "Thicket",
-                "trees": [
-                  {
-                    "kind": "tree_stub",
-                    "weight": 50
-                  },
-                  {
-                    "kind": "bush",
-                    "weight": 30
-                  },
-                  {
-                    "kind": "tree_sapling",
-                    "weight": 20
-                  }
-                ],
-                "undergrowth": 1.45,
-                "weight": 2
-              },
-              {
-                "canopy": 0.85,
-                "floor": "#52664a",
-                "formation": {
-                  "lattice": 5,
-                  "spacing": 3,
-                  "understory": 0.7
-                },
-                "key": "lakeside",
-                "level": 0,
-                "name": "Lakeside",
-                "pools": 0.22,
-                "trees": [
-                  {
-                    "kind": "tree_conifer",
-                    "weight": 45
-                  },
-                  {
-                    "kind": "tree_tall",
-                    "weight": 25
                   },
                   {
                     "kind": "tree_broadleaf",
+                    "weight": 25
+                  },
+                  {
+                    "kind": "tree_stub",
+                    "weight": 20
+                  }
+                ],
+                "undergrowth": 1.0,
+                "weight": 4
+              },
+              {
+                "canopy": 0.85,
+                "floor": "#6b6f55",
+                "formation": {
+                  "lattice": 9,
+                  "spacing": 2,
+                  "understory": 0.6,
+                  "understoryTile": "shrub"
+                },
+                "key": "slope",
+                "leafHue": -1,
+                "leafValue": -0.02,
+                "level": 1,
+                "name": "Wooded slope",
+                "trees": [
+                  {
+                    "kind": "tree_conifer",
+                    "weight": 70
+                  },
+                  {
+                    "kind": "tree_tall",
                     "weight": 20
                   },
                   {
-                    "kind": "tree_sapling",
+                    "kind": "tree_stub",
                     "weight": 10
                   }
                 ],
-                "undergrowth": 1.1,
+                "undergrowth": 0.6,
+                "weight": 3
+              },
+              {
+                "canopy": 0.45,
+                "floor": "#7a7a68",
+                "formation": {
+                  "lattice": 6,
+                  "spacing": 5,
+                  "understory": 0.3,
+                  "understoryTile": "shrub"
+                },
+                "key": "treeline",
+                "leafHue": 1,
+                "leafValue": 0.04,
+                "level": 2,
+                "name": "Treeline",
+                "trees": [
+                  {
+                    "kind": "tree_conifer",
+                    "weight": 55
+                  },
+                  {
+                    "kind": "tree_stub",
+                    "weight": 45
+                  }
+                ],
+                "undergrowth": 0.3,
+                "weight": 3
+              },
+              {
+                "canopy": 0.1,
+                "floor": "#8b8b84",
+                "formation": {
+                  "lattice": 4,
+                  "spacing": 7,
+                  "understory": 0.2,
+                  "understoryTile": "clover"
+                },
+                "key": "crag",
+                "leafHue": 3,
+                "leafValue": 0.08,
+                "level": 3,
+                "name": "Crag",
+                "trees": [
+                  {
+                    "kind": "tree_stub",
+                    "weight": 60
+                  },
+                  {
+                    "kind": "tree_sapling",
+                    "weight": 40
+                  }
+                ],
+                "undergrowth": 0.2,
                 "weight": 2
+              },
+              {
+                "canopy": 0.05,
+                "floor": "#b9bcc2",
+                "formation": {
+                  "lattice": 3,
+                  "spacing": 8,
+                  "understory": 0.16,
+                  "understoryTile": "clover"
+                },
+                "key": "summit",
+                "leafHue": 5,
+                "leafValue": 0.1,
+                "level": 4,
+                "name": "Summit",
+                "trees": [
+                  {
+                    "kind": "tree_sapling",
+                    "weight": 100
+                  }
+                ],
+                "undergrowth": 0.16,
+                "weight": 1
               }
             ],
             "trees": [
@@ -2071,7 +2146,8 @@
               "enemies": 0,
               "enemyTypes": [],
               "townsfolk": 3
-            }
+            },
+            "regionLayout": "bands"
           },
           "options": [
             {
@@ -2327,98 +2403,8 @@
             },
             "subZones": [
               {
-                "canopy": 0.75,
-                "floor": "#8c9a5b",
-                "flowers": [
-                  {
-                    "char": "\u273f",
-                    "color": "#e2739b"
-                  },
-                  {
-                    "char": "\u274b",
-                    "color": "#6aa9c4"
-                  },
-                  {
-                    "char": "\u273e",
-                    "color": "#e0c877"
-                  }
-                ],
-                "formation": {
-                  "lattice": 9,
-                  "spacing": 3,
-                  "understory": 0.5
-                },
-                "key": "edge",
-                "name": "Edge of the wood",
-                "trees": [
-                  {
-                    "kind": "tree_coconut",
-                    "weight": 35
-                  },
-                  {
-                    "kind": "tree_palm",
-                    "weight": 25
-                  },
-                  {
-                    "kind": "tree_banana",
-                    "weight": 25
-                  },
-                  {
-                    "kind": "bush_round",
-                    "weight": 15
-                  }
-                ],
-                "undergrowth": 0.7,
-                "weight": 3
-              },
-              {
-                "canopy": 1.15,
-                "floor": "#6b7a45",
-                "flowers": [
-                  {
-                    "char": "\u273f",
-                    "color": "#e2739b"
-                  },
-                  {
-                    "char": "\u274b",
-                    "color": "#6aa9c4"
-                  },
-                  {
-                    "char": "\u273e",
-                    "color": "#e0c877"
-                  }
-                ],
-                "formation": {
-                  "lattice": 13,
-                  "spacing": 0,
-                  "understory": 1.1
-                },
-                "key": "deep",
-                "name": "Deep wood",
-                "trees": [
-                  {
-                    "kind": "tree_banana",
-                    "weight": 30
-                  },
-                  {
-                    "kind": "tree_coconut",
-                    "weight": 25
-                  },
-                  {
-                    "kind": "tree_mangrove",
-                    "weight": 25
-                  },
-                  {
-                    "kind": "bush",
-                    "weight": 20
-                  }
-                ],
-                "undergrowth": 1.2,
-                "weight": 3
-              },
-              {
-                "canopy": 0.12,
-                "floor": "#9aa768",
+                "canopy": 0.05,
+                "floor": "#e8dcc0",
                 "flowers": [
                   {
                     "char": "\u273f",
@@ -2435,11 +2421,196 @@
                 ],
                 "formation": {
                   "lattice": 3,
-                  "spacing": 5,
-                  "understory": 0.3
+                  "spacing": 8,
+                  "understory": 0.18,
+                  "understoryTile": "dune_grass_seed"
                 },
-                "key": "glade",
-                "name": "Glade",
+                "key": "shore",
+                "leafHue": 6,
+                "leafValue": 0.1,
+                "name": "Shore",
+                "trees": [
+                  {
+                    "kind": "tree_mangrove",
+                    "weight": 60
+                  },
+                  {
+                    "kind": "tree_palm",
+                    "weight": 25
+                  },
+                  {
+                    "kind": "bush_round",
+                    "weight": 15
+                  }
+                ],
+                "undergrowth": 0.18,
+                "weight": 3
+              },
+              {
+                "canopy": 0.15,
+                "floor": "#dfd0a8",
+                "flowers": [
+                  {
+                    "char": "\u273f",
+                    "color": "#e2739b"
+                  },
+                  {
+                    "char": "\u274b",
+                    "color": "#6aa9c4"
+                  },
+                  {
+                    "char": "\u273e",
+                    "color": "#e0c877"
+                  }
+                ],
+                "formation": {
+                  "lattice": 6,
+                  "spacing": 5,
+                  "understory": 0.9,
+                  "understoryTile": "dune_grass"
+                },
+                "key": "dunes",
+                "leafHue": 4,
+                "leafValue": 0.08,
+                "level": 1,
+                "name": "Dunes",
+                "trees": [
+                  {
+                    "kind": "bush_round",
+                    "weight": 55
+                  },
+                  {
+                    "kind": "tree_palm",
+                    "weight": 25
+                  },
+                  {
+                    "kind": "bush",
+                    "weight": 20
+                  }
+                ],
+                "undergrowth": 0.9,
+                "weight": 3
+              },
+              {
+                "canopy": 0.6,
+                "floor": "#cdbf95",
+                "flowers": [
+                  {
+                    "char": "\u273f",
+                    "color": "#e2739b"
+                  },
+                  {
+                    "char": "\u274b",
+                    "color": "#6aa9c4"
+                  },
+                  {
+                    "char": "\u273e",
+                    "color": "#e0c877"
+                  }
+                ],
+                "formation": {
+                  "lattice": 7,
+                  "spacing": 4,
+                  "understory": 0.2,
+                  "understoryTile": "dune_grass_young"
+                },
+                "key": "palms",
+                "leafHue": 1,
+                "leafValue": 0.03,
+                "name": "Palm line",
+                "trees": [
+                  {
+                    "kind": "tree_coconut",
+                    "weight": 40
+                  },
+                  {
+                    "kind": "tree_palm",
+                    "weight": 35
+                  },
+                  {
+                    "kind": "tree_banana",
+                    "weight": 25
+                  }
+                ],
+                "undergrowth": 0.2,
+                "weight": 3
+              },
+              {
+                "canopy": 0.9,
+                "floor": "#b9ad86",
+                "flowers": [
+                  {
+                    "char": "\u273f",
+                    "color": "#e2739b"
+                  },
+                  {
+                    "char": "\u274b",
+                    "color": "#6aa9c4"
+                  },
+                  {
+                    "char": "\u273e",
+                    "color": "#e0c877"
+                  }
+                ],
+                "formation": {
+                  "lattice": 9,
+                  "spacing": 2,
+                  "understory": 1.1,
+                  "understoryTile": "shrub"
+                },
+                "key": "backshore",
+                "leafHue": -2,
+                "leafValue": -0.04,
+                "name": "Backshore",
+                "trees": [
+                  {
+                    "kind": "tree_banana",
+                    "weight": 30
+                  },
+                  {
+                    "kind": "tree_coconut",
+                    "weight": 25
+                  },
+                  {
+                    "kind": "tree_mangrove",
+                    "weight": 25
+                  },
+                  {
+                    "kind": "bush",
+                    "weight": 20
+                  }
+                ],
+                "undergrowth": 1.1,
+                "weight": 3
+              },
+              {
+                "canopy": 1.2,
+                "floor": "#93a06a",
+                "flowers": [
+                  {
+                    "char": "\u273f",
+                    "color": "#e2739b"
+                  },
+                  {
+                    "char": "\u274b",
+                    "color": "#6aa9c4"
+                  },
+                  {
+                    "char": "\u273e",
+                    "color": "#e0c877"
+                  }
+                ],
+                "formation": {
+                  "lattice": 12,
+                  "spacing": 1,
+                  "understory": 0.9,
+                  "understoryTile": "shrub"
+                },
+                "key": "inland",
+                "leafHue": -4,
+                "leafValue": -0.08,
+                "level": 1,
+                "name": "Inland jungle",
                 "trees": [
                   {
                     "kind": "tree_coconut",
@@ -2458,90 +2629,7 @@
                     "weight": 15
                   }
                 ],
-                "undergrowth": 0.4,
-                "weight": 2
-              },
-              {
-                "canopy": 0.5,
-                "floor": "#7c8a4e",
-                "flowers": [
-                  {
-                    "char": "\u273f",
-                    "color": "#e2739b"
-                  },
-                  {
-                    "char": "\u274b",
-                    "color": "#6aa9c4"
-                  },
-                  {
-                    "char": "\u273e",
-                    "color": "#e0c877"
-                  }
-                ],
-                "formation": {
-                  "lattice": 7,
-                  "spacing": 2,
-                  "understory": 1.35
-                },
-                "key": "thicket",
-                "name": "Thicket",
-                "trees": [
-                  {
-                    "kind": "bush_round",
-                    "weight": 50
-                  },
-                  {
-                    "kind": "bush",
-                    "weight": 30
-                  },
-                  {
-                    "kind": "tree_sapling",
-                    "weight": 20
-                  }
-                ],
-                "undergrowth": 1.45,
-                "weight": 2
-              },
-              {
-                "canopy": 0.85,
-                "floor": "#b8a978",
-                "flowers": [
-                  {
-                    "char": "\u273f",
-                    "color": "#e2739b"
-                  },
-                  {
-                    "char": "\u274b",
-                    "color": "#6aa9c4"
-                  },
-                  {
-                    "char": "\u273e",
-                    "color": "#e0c877"
-                  }
-                ],
-                "formation": {
-                  "lattice": 5,
-                  "spacing": 3,
-                  "understory": 0.7
-                },
-                "key": "lakeside",
-                "name": "Lakeside",
-                "pools": 0.22,
-                "trees": [
-                  {
-                    "kind": "tree_mangrove",
-                    "weight": 60
-                  },
-                  {
-                    "kind": "tree_palm",
-                    "weight": 25
-                  },
-                  {
-                    "kind": "bush_round",
-                    "weight": 15
-                  }
-                ],
-                "undergrowth": 1.1,
+                "undergrowth": 0.9,
                 "weight": 2
               }
             ],
@@ -2571,7 +2659,8 @@
               "enemies": 0,
               "enemyTypes": [],
               "townsfolk": 3
-            }
+            },
+            "regionLayout": "bands"
           },
           "options": [
             {
@@ -2827,8 +2916,8 @@
             },
             "subZones": [
               {
-                "canopy": 0.75,
-                "floor": "#4a4a3c",
+                "canopy": 0.08,
+                "floor": "#7a7a6a",
                 "flowers": [
                   {
                     "char": "\u273f",
@@ -2844,79 +2933,33 @@
                   }
                 ],
                 "formation": {
-                  "lattice": 9,
-                  "spacing": 3,
-                  "understory": 0.5
+                  "lattice": 4,
+                  "spacing": 7,
+                  "understory": 0.2,
+                  "understoryTile": "clover"
                 },
-                "key": "edge",
-                "name": "Edge of the wood",
-                "stone": 0.16,
+                "key": "heart",
+                "leafHue": 3,
+                "leafValue": 0.09,
+                "level": 1,
+                "name": "The ruin itself",
+                "stone": 0.6,
                 "trees": [
                   {
                     "kind": "tree_stub",
-                    "weight": 40
-                  },
-                  {
-                    "kind": "tree_round",
-                    "weight": 30
-                  },
-                  {
-                    "kind": "bush_round",
-                    "weight": 30
-                  }
-                ],
-                "undergrowth": 0.7,
-                "weight": 3
-              },
-              {
-                "canopy": 1.15,
-                "floor": "#3a3c30",
-                "flowers": [
-                  {
-                    "char": "\u273f",
-                    "color": "#c2513f"
-                  },
-                  {
-                    "char": "\u273e",
-                    "color": "#8d5fa8"
-                  },
-                  {
-                    "char": "\u274b",
-                    "color": "#c9b063"
-                  }
-                ],
-                "formation": {
-                  "lattice": 13,
-                  "spacing": 0,
-                  "understory": 1.1
-                },
-                "key": "deep",
-                "name": "Deep wood",
-                "stone": 0.16,
-                "trees": [
-                  {
-                    "kind": "tree_round",
-                    "weight": 30
-                  },
-                  {
-                    "kind": "bush",
-                    "weight": 30
-                  },
-                  {
-                    "kind": "tree_stub",
-                    "weight": 20
+                    "weight": 60
                   },
                   {
                     "kind": "tree_sapling",
-                    "weight": 20
+                    "weight": 40
                   }
                 ],
-                "undergrowth": 1.2,
-                "weight": 3
+                "undergrowth": 0.2,
+                "weight": 1
               },
               {
-                "canopy": 0.12,
-                "floor": "#5d5c4a",
+                "canopy": 0.2,
+                "floor": "#6f7360",
                 "flowers": [
                   {
                     "char": "\u273f",
@@ -2932,13 +2975,17 @@
                   }
                 ],
                 "formation": {
-                  "lattice": 3,
+                  "lattice": 6,
                   "spacing": 5,
-                  "understory": 0.3
+                  "understory": 0.5,
+                  "understoryTile": "clover"
                 },
-                "key": "glade",
-                "name": "Glade",
-                "stone": 0.16,
+                "key": "courts",
+                "leafHue": 2,
+                "leafValue": 0.06,
+                "level": 1,
+                "name": "Fallen courts",
+                "stone": 0.42,
                 "trees": [
                   {
                     "kind": "tree_stub",
@@ -2953,12 +3000,12 @@
                     "weight": 30
                   }
                 ],
-                "undergrowth": 0.4,
+                "undergrowth": 0.5,
                 "weight": 2
               },
               {
                 "canopy": 0.5,
-                "floor": "#414433",
+                "floor": "#666d52",
                 "flowers": [
                   {
                     "char": "\u273f",
@@ -2974,56 +3021,16 @@
                   }
                 ],
                 "formation": {
-                  "lattice": 7,
-                  "spacing": 2,
-                  "understory": 1.35
-                },
-                "key": "thicket",
-                "name": "Thicket",
-                "stone": 0.16,
-                "trees": [
-                  {
-                    "kind": "bush",
-                    "weight": 45
-                  },
-                  {
-                    "kind": "tree_sapling",
-                    "weight": 30
-                  },
-                  {
-                    "kind": "bush_round",
-                    "weight": 25
-                  }
-                ],
-                "undergrowth": 1.45,
-                "weight": 2
-              },
-              {
-                "canopy": 0.85,
-                "floor": "#46503a",
-                "flowers": [
-                  {
-                    "char": "\u273f",
-                    "color": "#c2513f"
-                  },
-                  {
-                    "char": "\u273e",
-                    "color": "#8d5fa8"
-                  },
-                  {
-                    "char": "\u274b",
-                    "color": "#c9b063"
-                  }
-                ],
-                "formation": {
-                  "lattice": 5,
+                  "lattice": 8,
                   "spacing": 3,
-                  "understory": 0.7
+                  "understory": 0.8,
+                  "understoryTile": "tall_grass"
                 },
-                "key": "lakeside",
-                "name": "Lakeside",
-                "pools": 0.22,
-                "stone": 0.16,
+                "key": "terraces",
+                "leafHue": 0,
+                "leafValue": 0.01,
+                "name": "Terraces",
+                "stone": 0.24,
                 "trees": [
                   {
                     "kind": "tree_round",
@@ -3038,8 +3045,101 @@
                     "weight": 25
                   }
                 ],
-                "undergrowth": 1.1,
-                "weight": 2
+                "undergrowth": 0.8,
+                "weight": 3
+              },
+              {
+                "canopy": 1.0,
+                "floor": "#5c6746",
+                "flowers": [
+                  {
+                    "char": "\u273f",
+                    "color": "#c2513f"
+                  },
+                  {
+                    "char": "\u273e",
+                    "color": "#8d5fa8"
+                  },
+                  {
+                    "char": "\u274b",
+                    "color": "#c9b063"
+                  }
+                ],
+                "formation": {
+                  "lattice": 11,
+                  "spacing": 1,
+                  "understory": 1.4,
+                  "understoryTile": "shrub"
+                },
+                "key": "overgrown",
+                "leafHue": -3,
+                "leafValue": -0.05,
+                "name": "Overgrown walls",
+                "stone": 0.1,
+                "trees": [
+                  {
+                    "kind": "tree_round",
+                    "weight": 30
+                  },
+                  {
+                    "kind": "bush",
+                    "weight": 30
+                  },
+                  {
+                    "kind": "tree_stub",
+                    "weight": 20
+                  },
+                  {
+                    "kind": "tree_sapling",
+                    "weight": 20
+                  }
+                ],
+                "undergrowth": 1.4,
+                "weight": 3
+              },
+              {
+                "canopy": 1.2,
+                "floor": "#4f5c3c",
+                "flowers": [
+                  {
+                    "char": "\u273f",
+                    "color": "#c2513f"
+                  },
+                  {
+                    "char": "\u273e",
+                    "color": "#8d5fa8"
+                  },
+                  {
+                    "char": "\u274b",
+                    "color": "#c9b063"
+                  }
+                ],
+                "formation": {
+                  "lattice": 12,
+                  "spacing": 2,
+                  "understory": 0.9,
+                  "understoryTile": "shrub"
+                },
+                "key": "forest",
+                "leafHue": -4,
+                "leafValue": -0.08,
+                "name": "Forest around it",
+                "trees": [
+                  {
+                    "kind": "tree_stub",
+                    "weight": 40
+                  },
+                  {
+                    "kind": "tree_round",
+                    "weight": 30
+                  },
+                  {
+                    "kind": "bush_round",
+                    "weight": 30
+                  }
+                ],
+                "undergrowth": 0.9,
+                "weight": 3
               }
             ],
             "trees": [
@@ -3064,7 +3164,8 @@
               "enemies": 0,
               "enemyTypes": [],
               "townsfolk": 2
-            }
+            },
+            "regionLayout": "rings"
           },
           "options": [
             {
@@ -3320,98 +3421,8 @@
             },
             "subZones": [
               {
-                "canopy": 0.75,
-                "floor": "#8c9a5b",
-                "flowers": [
-                  {
-                    "char": "\u273f",
-                    "color": "#e2739b"
-                  },
-                  {
-                    "char": "\u274b",
-                    "color": "#6aa9c4"
-                  },
-                  {
-                    "char": "\u273e",
-                    "color": "#e0c877"
-                  }
-                ],
-                "formation": {
-                  "lattice": 9,
-                  "spacing": 3,
-                  "understory": 0.5
-                },
-                "key": "edge",
-                "name": "Edge of the wood",
-                "trees": [
-                  {
-                    "kind": "tree_coconut",
-                    "weight": 35
-                  },
-                  {
-                    "kind": "tree_palm",
-                    "weight": 25
-                  },
-                  {
-                    "kind": "tree_banana",
-                    "weight": 25
-                  },
-                  {
-                    "kind": "bush_round",
-                    "weight": 15
-                  }
-                ],
-                "undergrowth": 0.7,
-                "weight": 3
-              },
-              {
-                "canopy": 1.15,
-                "floor": "#6b7a45",
-                "flowers": [
-                  {
-                    "char": "\u273f",
-                    "color": "#e2739b"
-                  },
-                  {
-                    "char": "\u274b",
-                    "color": "#6aa9c4"
-                  },
-                  {
-                    "char": "\u273e",
-                    "color": "#e0c877"
-                  }
-                ],
-                "formation": {
-                  "lattice": 13,
-                  "spacing": 0,
-                  "understory": 1.1
-                },
-                "key": "deep",
-                "name": "Deep wood",
-                "trees": [
-                  {
-                    "kind": "tree_banana",
-                    "weight": 30
-                  },
-                  {
-                    "kind": "tree_coconut",
-                    "weight": 25
-                  },
-                  {
-                    "kind": "tree_mangrove",
-                    "weight": 25
-                  },
-                  {
-                    "kind": "bush",
-                    "weight": 20
-                  }
-                ],
-                "undergrowth": 1.2,
-                "weight": 3
-              },
-              {
-                "canopy": 0.12,
-                "floor": "#9aa768",
+                "canopy": 0.04,
+                "floor": "#d9b98a",
                 "flowers": [
                   {
                     "char": "\u273f",
@@ -3428,35 +3439,75 @@
                 ],
                 "formation": {
                   "lattice": 3,
-                  "spacing": 5,
-                  "understory": 0.3
+                  "spacing": 9,
+                  "understory": 0.16,
+                  "understoryTile": "dune_grass_seed"
                 },
-                "key": "glade",
-                "name": "Glade",
+                "key": "erg",
+                "leafHue": 4,
+                "leafValue": 0.1,
+                "level": 1,
+                "name": "Dune sea",
                 "trees": [
                   {
-                    "kind": "tree_coconut",
-                    "weight": 35
-                  },
-                  {
-                    "kind": "tree_palm",
-                    "weight": 25
-                  },
-                  {
-                    "kind": "tree_banana",
-                    "weight": 25
-                  },
-                  {
                     "kind": "bush_round",
-                    "weight": 15
+                    "weight": 60
+                  },
+                  {
+                    "kind": "tree_sapling",
+                    "weight": 40
                   }
                 ],
-                "undergrowth": 0.4,
-                "weight": 2
+                "undergrowth": 0.16,
+                "weight": 4
               },
               {
-                "canopy": 0.5,
-                "floor": "#7c8a4e",
+                "canopy": 0.08,
+                "floor": "#b39469",
+                "flowers": [
+                  {
+                    "char": "\u273f",
+                    "color": "#e2739b"
+                  },
+                  {
+                    "char": "\u274b",
+                    "color": "#6aa9c4"
+                  },
+                  {
+                    "char": "\u273e",
+                    "color": "#e0c877"
+                  }
+                ],
+                "formation": {
+                  "lattice": 4,
+                  "spacing": 7,
+                  "understory": 0.22,
+                  "understoryTile": "shrub"
+                },
+                "key": "hardpan",
+                "leafHue": 2,
+                "leafValue": 0.07,
+                "name": "Hardpan",
+                "trees": [
+                  {
+                    "kind": "bush_round",
+                    "weight": 50
+                  },
+                  {
+                    "kind": "bush",
+                    "weight": 30
+                  },
+                  {
+                    "kind": "tree_sapling",
+                    "weight": 20
+                  }
+                ],
+                "undergrowth": 0.22,
+                "weight": 3
+              },
+              {
+                "canopy": 0.25,
+                "floor": "#a08a63",
                 "flowers": [
                   {
                     "char": "\u273f",
@@ -3473,31 +3524,34 @@
                 ],
                 "formation": {
                   "lattice": 7,
-                  "spacing": 2,
-                  "understory": 1.35
+                  "spacing": 3,
+                  "understory": 0.7,
+                  "understoryTile": "tall_grass"
                 },
-                "key": "thicket",
-                "name": "Thicket",
+                "key": "wadi",
+                "leafHue": -1,
+                "leafValue": 0.0,
+                "name": "Wadi",
                 "trees": [
                   {
-                    "kind": "bush_round",
-                    "weight": 50
+                    "kind": "tree_palm",
+                    "weight": 40
+                  },
+                  {
+                    "kind": "tree_banana",
+                    "weight": 30
                   },
                   {
                     "kind": "bush",
                     "weight": 30
-                  },
-                  {
-                    "kind": "tree_sapling",
-                    "weight": 20
                   }
                 ],
-                "undergrowth": 1.45,
+                "undergrowth": 0.7,
                 "weight": 2
               },
               {
-                "canopy": 0.85,
-                "floor": "#b8a978",
+                "canopy": 0.8,
+                "floor": "#6f7a4a",
                 "flowers": [
                   {
                     "char": "\u273f",
@@ -3513,29 +3567,32 @@
                   }
                 ],
                 "formation": {
-                  "lattice": 5,
-                  "spacing": 3,
-                  "understory": 0.7
+                  "lattice": 6,
+                  "spacing": 2,
+                  "understory": 0.5,
+                  "understoryTile": "tall_grass"
                 },
-                "key": "lakeside",
-                "name": "Lakeside",
+                "key": "oasis",
+                "leafHue": -5,
+                "leafValue": -0.05,
+                "name": "Oasis",
                 "pools": 0.22,
                 "trees": [
                   {
-                    "kind": "tree_mangrove",
-                    "weight": 60
+                    "kind": "tree_coconut",
+                    "weight": 40
                   },
                   {
                     "kind": "tree_palm",
-                    "weight": 25
+                    "weight": 35
                   },
                   {
-                    "kind": "bush_round",
-                    "weight": 15
+                    "kind": "tree_banana",
+                    "weight": 25
                   }
                 ],
-                "undergrowth": 1.1,
-                "weight": 2
+                "undergrowth": 0.5,
+                "weight": 1
               }
             ],
             "trees": [
@@ -3560,7 +3617,8 @@
               "enemies": 0,
               "enemyTypes": [],
               "townsfolk": 2
-            }
+            },
+            "regionLayout": "bands"
           },
           "options": [
             {
@@ -3814,140 +3872,146 @@
             },
             "subZones": [
               {
-                "canopy": 0.75,
-                "floor": "#6b7a4e",
+                "canopy": 0.06,
+                "floor": "#26201e",
                 "formation": {
-                  "lattice": 9,
-                  "spacing": 3,
-                  "understory": 0.5
+                  "lattice": 3,
+                  "spacing": 8,
+                  "understory": 0.18,
+                  "understoryTile": "clover"
                 },
-                "key": "edge",
-                "level": 2,
-                "name": "Edge of the wood",
+                "key": "crater",
+                "leafHue": -6,
+                "leafValue": -0.14,
+                "level": 3,
+                "name": "Crater rim",
+                "stone": 0.22,
                 "trees": [
                   {
-                    "kind": "tree_stub",
-                    "weight": 55
-                  },
-                  {
-                    "kind": "tree_conifer",
-                    "weight": 45
+                    "kind": "tree_dead",
+                    "weight": 100
                   }
                 ],
-                "undergrowth": 0.7,
-                "weight": 3
+                "undergrowth": 0.18,
+                "weight": 1
               },
               {
-                "canopy": 1.15,
-                "floor": "#47603a",
+                "canopy": 0.4,
+                "floor": "#312926",
                 "formation": {
-                  "lattice": 13,
-                  "spacing": 0,
-                  "understory": 1.1
+                  "lattice": 6,
+                  "spacing": 4,
+                  "understory": 0.15,
+                  "understoryTile": "shrub"
                 },
-                "key": "deep",
-                "level": 0,
-                "name": "Deep wood",
+                "key": "burnt",
+                "leafHue": -4,
+                "leafValue": -0.1,
+                "level": 2,
+                "name": "Burnt slope",
                 "trees": [
                   {
-                    "kind": "tree_conifer",
-                    "weight": 65
-                  },
-                  {
-                    "kind": "tree_tall",
-                    "weight": 20
+                    "kind": "tree_dead",
+                    "weight": 85
                   },
                   {
                     "kind": "tree_stub",
                     "weight": 15
                   }
                 ],
-                "undergrowth": 1.2,
+                "undergrowth": 0.15,
+                "weight": 2
+              },
+              {
+                "canopy": 0.7,
+                "floor": "#403632",
+                "formation": {
+                  "lattice": 8,
+                  "spacing": 3,
+                  "understory": 0.5,
+                  "understoryTile": "shrub"
+                },
+                "key": "ashfall",
+                "leafHue": -2,
+                "leafValue": -0.04,
+                "level": 1,
+                "name": "Ash fall",
+                "trees": [
+                  {
+                    "kind": "tree_dead",
+                    "weight": 45
+                  },
+                  {
+                    "kind": "tree_conifer",
+                    "weight": 38
+                  },
+                  {
+                    "kind": "tree_stub",
+                    "weight": 17
+                  }
+                ],
+                "undergrowth": 0.5,
                 "weight": 3
               },
               {
-                "canopy": 0.12,
-                "floor": "#8a8d76",
+                "canopy": 1.2,
+                "floor": "#594d46",
                 "formation": {
-                  "lattice": 3,
-                  "spacing": 5,
-                  "understory": 0.3
+                  "lattice": 12,
+                  "spacing": 1,
+                  "understory": 1.0,
+                  "understoryTile": "shrub"
                 },
-                "key": "glade",
-                "level": 3,
-                "name": "Glade",
-                "trees": [
-                  {
-                    "kind": "tree_stub",
-                    "weight": 55
-                  },
-                  {
-                    "kind": "tree_conifer",
-                    "weight": 45
-                  }
-                ],
-                "undergrowth": 0.4,
-                "weight": 2
-              },
-              {
-                "canopy": 0.5,
-                "floor": "#5f7047",
-                "formation": {
-                  "lattice": 7,
-                  "spacing": 2,
-                  "understory": 1.35
-                },
-                "key": "thicket",
-                "level": 2,
-                "name": "Thicket",
-                "trees": [
-                  {
-                    "kind": "tree_stub",
-                    "weight": 50
-                  },
-                  {
-                    "kind": "bush",
-                    "weight": 30
-                  },
-                  {
-                    "kind": "tree_sapling",
-                    "weight": 20
-                  }
-                ],
-                "undergrowth": 1.45,
-                "weight": 2
-              },
-              {
-                "canopy": 0.85,
-                "floor": "#52664a",
-                "formation": {
-                  "lattice": 5,
-                  "spacing": 3,
-                  "understory": 0.7
-                },
-                "key": "lakeside",
-                "level": 0,
-                "name": "Lakeside",
-                "pools": 0.22,
+                "key": "sheltered",
+                "leafHue": 3,
+                "leafValue": 0.06,
+                "name": "Sheltered wood",
                 "trees": [
                   {
                     "kind": "tree_conifer",
-                    "weight": 45
+                    "weight": 60
                   },
                   {
                     "kind": "tree_tall",
                     "weight": 25
                   },
                   {
-                    "kind": "tree_broadleaf",
-                    "weight": 20
-                  },
-                  {
-                    "kind": "tree_sapling",
-                    "weight": 10
+                    "kind": "tree_stub",
+                    "weight": 15
                   }
                 ],
-                "undergrowth": 1.1,
+                "undergrowth": 1.0,
+                "weight": 4
+              },
+              {
+                "canopy": 0.5,
+                "floor": "#4f423e",
+                "formation": {
+                  "lattice": 6,
+                  "spacing": 4,
+                  "understory": 0.3,
+                  "understoryTile": "shrub"
+                },
+                "key": "lavaside",
+                "leafHue": -6,
+                "leafValue": 0.02,
+                "name": "Lava lake shore",
+                "pools": 0.16,
+                "trees": [
+                  {
+                    "kind": "tree_dead",
+                    "weight": 40
+                  },
+                  {
+                    "kind": "tree_conifer",
+                    "weight": 40
+                  },
+                  {
+                    "kind": "tree_stub",
+                    "weight": 20
+                  }
+                ],
+                "undergrowth": 0.3,
                 "weight": 2
               }
             ],
@@ -3969,7 +4033,8 @@
               "enemies": 0,
               "enemyTypes": [],
               "townsfolk": 2
-            }
+            },
+            "regionLayout": "rings"
           },
           "options": [
             {
@@ -4281,7 +4346,65 @@
               "enemies": 0,
               "enemyTypes": [],
               "townsfolk": 6
-            }
+            },
+            "subZones": [
+              {
+                "built": 1.0,
+                "canopy": 0.5,
+                "formation": {
+                  "lattice": 6,
+                  "spacing": 3,
+                  "understory": 0.3,
+                  "understoryTile": "shrub"
+                },
+                "key": "huts",
+                "name": "Huts",
+                "undergrowth": 0.3,
+                "weight": 4
+              },
+              {
+                "built": 0.0,
+                "canopy": 0.9,
+                "formation": {
+                  "lattice": 7,
+                  "spacing": 3,
+                  "understory": 0.7,
+                  "understoryTile": "tall_grass"
+                },
+                "key": "commons",
+                "name": "Commons",
+                "undergrowth": 0.7,
+                "weight": 2
+              },
+              {
+                "built": 0.25,
+                "canopy": 0.3,
+                "formation": {
+                  "lattice": 5,
+                  "spacing": 4,
+                  "understory": 0.9,
+                  "understoryTile": "clover"
+                },
+                "key": "plots",
+                "name": "Garden plots",
+                "undergrowth": 0.9,
+                "weight": 2
+              },
+              {
+                "built": 0.45,
+                "canopy": 1.2,
+                "formation": {
+                  "lattice": 10,
+                  "spacing": 2,
+                  "understory": 1.0,
+                  "understoryTile": "shrub"
+                },
+                "key": "edge",
+                "name": "Edge",
+                "undergrowth": 1.0,
+                "weight": 2
+              }
+            ]
           },
           "options": [
             {
@@ -4569,7 +4692,65 @@
               "enemies": 0,
               "enemyTypes": [],
               "townsfolk": 6
-            }
+            },
+            "subZones": [
+              {
+                "built": 1.0,
+                "canopy": 0.5,
+                "formation": {
+                  "lattice": 6,
+                  "spacing": 3,
+                  "understory": 0.3,
+                  "understoryTile": "shrub"
+                },
+                "key": "huts",
+                "name": "Huts",
+                "undergrowth": 0.3,
+                "weight": 4
+              },
+              {
+                "built": 0.0,
+                "canopy": 0.9,
+                "formation": {
+                  "lattice": 7,
+                  "spacing": 3,
+                  "understory": 0.7,
+                  "understoryTile": "tall_grass"
+                },
+                "key": "commons",
+                "name": "Commons",
+                "undergrowth": 0.7,
+                "weight": 2
+              },
+              {
+                "built": 0.25,
+                "canopy": 0.3,
+                "formation": {
+                  "lattice": 5,
+                  "spacing": 4,
+                  "understory": 0.9,
+                  "understoryTile": "clover"
+                },
+                "key": "plots",
+                "name": "Garden plots",
+                "undergrowth": 0.9,
+                "weight": 2
+              },
+              {
+                "built": 0.45,
+                "canopy": 1.2,
+                "formation": {
+                  "lattice": 10,
+                  "spacing": 2,
+                  "understory": 1.0,
+                  "understoryTile": "shrub"
+                },
+                "key": "edge",
+                "name": "Edge",
+                "undergrowth": 1.0,
+                "weight": 2
+              }
+            ]
           },
           "options": [
             {
@@ -4857,7 +5038,65 @@
               "enemies": 0,
               "enemyTypes": [],
               "townsfolk": 6
-            }
+            },
+            "subZones": [
+              {
+                "built": 1.0,
+                "canopy": 0.5,
+                "formation": {
+                  "lattice": 6,
+                  "spacing": 3,
+                  "understory": 0.3,
+                  "understoryTile": "shrub"
+                },
+                "key": "huts",
+                "name": "Huts",
+                "undergrowth": 0.3,
+                "weight": 4
+              },
+              {
+                "built": 0.0,
+                "canopy": 0.9,
+                "formation": {
+                  "lattice": 7,
+                  "spacing": 3,
+                  "understory": 0.7,
+                  "understoryTile": "tall_grass"
+                },
+                "key": "commons",
+                "name": "Commons",
+                "undergrowth": 0.7,
+                "weight": 2
+              },
+              {
+                "built": 0.25,
+                "canopy": 0.3,
+                "formation": {
+                  "lattice": 5,
+                  "spacing": 4,
+                  "understory": 0.9,
+                  "understoryTile": "clover"
+                },
+                "key": "plots",
+                "name": "Garden plots",
+                "undergrowth": 0.9,
+                "weight": 2
+              },
+              {
+                "built": 0.45,
+                "canopy": 1.2,
+                "formation": {
+                  "lattice": 10,
+                  "spacing": 2,
+                  "understory": 1.0,
+                  "understoryTile": "shrub"
+                },
+                "key": "edge",
+                "name": "Edge",
+                "undergrowth": 1.0,
+                "weight": 2
+              }
+            ]
           },
           "options": [
             {
@@ -5134,7 +5373,65 @@
               "enemies": 0,
               "enemyTypes": [],
               "townsfolk": 6
-            }
+            },
+            "subZones": [
+              {
+                "built": 1.0,
+                "canopy": 0.5,
+                "formation": {
+                  "lattice": 6,
+                  "spacing": 3,
+                  "understory": 0.3,
+                  "understoryTile": "shrub"
+                },
+                "key": "huts",
+                "name": "Huts",
+                "undergrowth": 0.3,
+                "weight": 4
+              },
+              {
+                "built": 0.0,
+                "canopy": 0.9,
+                "formation": {
+                  "lattice": 7,
+                  "spacing": 3,
+                  "understory": 0.7,
+                  "understoryTile": "tall_grass"
+                },
+                "key": "commons",
+                "name": "Commons",
+                "undergrowth": 0.7,
+                "weight": 2
+              },
+              {
+                "built": 0.25,
+                "canopy": 0.3,
+                "formation": {
+                  "lattice": 5,
+                  "spacing": 4,
+                  "understory": 0.9,
+                  "understoryTile": "clover"
+                },
+                "key": "plots",
+                "name": "Garden plots",
+                "undergrowth": 0.9,
+                "weight": 2
+              },
+              {
+                "built": 0.45,
+                "canopy": 1.2,
+                "formation": {
+                  "lattice": 10,
+                  "spacing": 2,
+                  "understory": 1.0,
+                  "understoryTile": "shrub"
+                },
+                "key": "edge",
+                "name": "Edge",
+                "undergrowth": 1.0,
+                "weight": 2
+              }
+            ]
           },
           "options": [
             {
@@ -5433,7 +5730,65 @@
               "enemies": 0,
               "enemyTypes": [],
               "townsfolk": 6
-            }
+            },
+            "subZones": [
+              {
+                "built": 1.0,
+                "canopy": 0.5,
+                "formation": {
+                  "lattice": 6,
+                  "spacing": 3,
+                  "understory": 0.3,
+                  "understoryTile": "shrub"
+                },
+                "key": "huts",
+                "name": "Huts",
+                "undergrowth": 0.3,
+                "weight": 4
+              },
+              {
+                "built": 0.0,
+                "canopy": 0.9,
+                "formation": {
+                  "lattice": 7,
+                  "spacing": 3,
+                  "understory": 0.7,
+                  "understoryTile": "tall_grass"
+                },
+                "key": "commons",
+                "name": "Commons",
+                "undergrowth": 0.7,
+                "weight": 2
+              },
+              {
+                "built": 0.25,
+                "canopy": 0.3,
+                "formation": {
+                  "lattice": 5,
+                  "spacing": 4,
+                  "understory": 0.9,
+                  "understoryTile": "clover"
+                },
+                "key": "plots",
+                "name": "Garden plots",
+                "undergrowth": 0.9,
+                "weight": 2
+              },
+              {
+                "built": 0.45,
+                "canopy": 1.2,
+                "formation": {
+                  "lattice": 10,
+                  "spacing": 2,
+                  "understory": 1.0,
+                  "understoryTile": "shrub"
+                },
+                "key": "edge",
+                "name": "Edge",
+                "undergrowth": 1.0,
+                "weight": 2
+              }
+            ]
           },
           "options": [
             {
@@ -5722,7 +6077,65 @@
               "enemies": 0,
               "enemyTypes": [],
               "townsfolk": 6
-            }
+            },
+            "subZones": [
+              {
+                "built": 1.0,
+                "canopy": 0.5,
+                "formation": {
+                  "lattice": 6,
+                  "spacing": 3,
+                  "understory": 0.3,
+                  "understoryTile": "shrub"
+                },
+                "key": "huts",
+                "name": "Huts",
+                "undergrowth": 0.3,
+                "weight": 4
+              },
+              {
+                "built": 0.0,
+                "canopy": 0.9,
+                "formation": {
+                  "lattice": 7,
+                  "spacing": 3,
+                  "understory": 0.7,
+                  "understoryTile": "tall_grass"
+                },
+                "key": "commons",
+                "name": "Commons",
+                "undergrowth": 0.7,
+                "weight": 2
+              },
+              {
+                "built": 0.25,
+                "canopy": 0.3,
+                "formation": {
+                  "lattice": 5,
+                  "spacing": 4,
+                  "understory": 0.9,
+                  "understoryTile": "clover"
+                },
+                "key": "plots",
+                "name": "Garden plots",
+                "undergrowth": 0.9,
+                "weight": 2
+              },
+              {
+                "built": 0.45,
+                "canopy": 1.2,
+                "formation": {
+                  "lattice": 10,
+                  "spacing": 2,
+                  "understory": 1.0,
+                  "understoryTile": "shrub"
+                },
+                "key": "edge",
+                "name": "Edge",
+                "undergrowth": 1.0,
+                "weight": 2
+              }
+            ]
           },
           "options": [
             {
@@ -6017,7 +6430,65 @@
               "enemies": 0,
               "enemyTypes": [],
               "townsfolk": 6
-            }
+            },
+            "subZones": [
+              {
+                "built": 1.0,
+                "canopy": 0.5,
+                "formation": {
+                  "lattice": 6,
+                  "spacing": 3,
+                  "understory": 0.3,
+                  "understoryTile": "shrub"
+                },
+                "key": "huts",
+                "name": "Huts",
+                "undergrowth": 0.3,
+                "weight": 4
+              },
+              {
+                "built": 0.0,
+                "canopy": 0.9,
+                "formation": {
+                  "lattice": 7,
+                  "spacing": 3,
+                  "understory": 0.7,
+                  "understoryTile": "tall_grass"
+                },
+                "key": "commons",
+                "name": "Commons",
+                "undergrowth": 0.7,
+                "weight": 2
+              },
+              {
+                "built": 0.25,
+                "canopy": 0.3,
+                "formation": {
+                  "lattice": 5,
+                  "spacing": 4,
+                  "understory": 0.9,
+                  "understoryTile": "clover"
+                },
+                "key": "plots",
+                "name": "Garden plots",
+                "undergrowth": 0.9,
+                "weight": 2
+              },
+              {
+                "built": 0.45,
+                "canopy": 1.2,
+                "formation": {
+                  "lattice": 10,
+                  "spacing": 2,
+                  "understory": 1.0,
+                  "understoryTile": "shrub"
+                },
+                "key": "edge",
+                "name": "Edge",
+                "undergrowth": 1.0,
+                "weight": 2
+              }
+            ]
           },
           "options": [
             {
@@ -6302,7 +6773,65 @@
               "enemies": 0,
               "enemyTypes": [],
               "townsfolk": 6
-            }
+            },
+            "subZones": [
+              {
+                "built": 1.0,
+                "canopy": 0.5,
+                "formation": {
+                  "lattice": 6,
+                  "spacing": 3,
+                  "understory": 0.3,
+                  "understoryTile": "shrub"
+                },
+                "key": "huts",
+                "name": "Huts",
+                "undergrowth": 0.3,
+                "weight": 4
+              },
+              {
+                "built": 0.0,
+                "canopy": 0.9,
+                "formation": {
+                  "lattice": 7,
+                  "spacing": 3,
+                  "understory": 0.7,
+                  "understoryTile": "tall_grass"
+                },
+                "key": "commons",
+                "name": "Commons",
+                "undergrowth": 0.7,
+                "weight": 2
+              },
+              {
+                "built": 0.25,
+                "canopy": 0.3,
+                "formation": {
+                  "lattice": 5,
+                  "spacing": 4,
+                  "understory": 0.9,
+                  "understoryTile": "clover"
+                },
+                "key": "plots",
+                "name": "Garden plots",
+                "undergrowth": 0.9,
+                "weight": 2
+              },
+              {
+                "built": 0.45,
+                "canopy": 1.2,
+                "formation": {
+                  "lattice": 10,
+                  "spacing": 2,
+                  "understory": 1.0,
+                  "understoryTile": "shrub"
+                },
+                "key": "edge",
+                "name": "Edge",
+                "undergrowth": 1.0,
+                "weight": 2
+              }
+            ]
           },
           "options": [
             {
@@ -6601,7 +7130,65 @@
               "enemies": 0,
               "enemyTypes": [],
               "townsfolk": 6
-            }
+            },
+            "subZones": [
+              {
+                "built": 1.0,
+                "canopy": 0.5,
+                "formation": {
+                  "lattice": 6,
+                  "spacing": 3,
+                  "understory": 0.3,
+                  "understoryTile": "shrub"
+                },
+                "key": "huts",
+                "name": "Huts",
+                "undergrowth": 0.3,
+                "weight": 4
+              },
+              {
+                "built": 0.0,
+                "canopy": 0.9,
+                "formation": {
+                  "lattice": 7,
+                  "spacing": 3,
+                  "understory": 0.7,
+                  "understoryTile": "tall_grass"
+                },
+                "key": "commons",
+                "name": "Commons",
+                "undergrowth": 0.7,
+                "weight": 2
+              },
+              {
+                "built": 0.25,
+                "canopy": 0.3,
+                "formation": {
+                  "lattice": 5,
+                  "spacing": 4,
+                  "understory": 0.9,
+                  "understoryTile": "clover"
+                },
+                "key": "plots",
+                "name": "Garden plots",
+                "undergrowth": 0.9,
+                "weight": 2
+              },
+              {
+                "built": 0.45,
+                "canopy": 1.2,
+                "formation": {
+                  "lattice": 10,
+                  "spacing": 2,
+                  "understory": 1.0,
+                  "understoryTile": "shrub"
+                },
+                "key": "edge",
+                "name": "Edge",
+                "undergrowth": 1.0,
+                "weight": 2
+              }
+            ]
           },
           "options": [
             {
@@ -6919,7 +7506,79 @@
               "enemies": 0,
               "enemyTypes": [],
               "townsfolk": 8
-            }
+            },
+            "subZones": [
+              {
+                "built": 1.0,
+                "canopy": 0.4,
+                "formation": {
+                  "lattice": 5,
+                  "spacing": 4,
+                  "understory": 0.2,
+                  "understoryTile": "clover"
+                },
+                "key": "centre",
+                "name": "Centre",
+                "undergrowth": 0.2,
+                "weight": 2
+              },
+              {
+                "built": 0.9,
+                "canopy": 0.7,
+                "formation": {
+                  "lattice": 6,
+                  "spacing": 3,
+                  "understory": 0.4,
+                  "understoryTile": "shrub"
+                },
+                "key": "lanes",
+                "name": "Lanes",
+                "undergrowth": 0.4,
+                "weight": 3
+              },
+              {
+                "built": 0.0,
+                "canopy": 1.3,
+                "formation": {
+                  "lattice": 8,
+                  "spacing": 2,
+                  "understory": 0.9,
+                  "understoryTile": "tall_grass"
+                },
+                "key": "green",
+                "name": "Green",
+                "undergrowth": 0.9,
+                "weight": 2
+              },
+              {
+                "built": 0.15,
+                "canopy": 0.1,
+                "formation": {
+                  "lattice": 3,
+                  "spacing": 6,
+                  "understory": 0.18,
+                  "understoryTile": "clover"
+                },
+                "key": "market",
+                "name": "Market",
+                "undergrowth": 0.18,
+                "weight": 1
+              },
+              {
+                "built": 0.5,
+                "canopy": 1.1,
+                "formation": {
+                  "lattice": 9,
+                  "spacing": 2,
+                  "understory": 0.8,
+                  "understoryTile": "shrub"
+                },
+                "key": "outskirts",
+                "name": "Outskirts",
+                "undergrowth": 0.8,
+                "weight": 2
+              }
+            ]
           },
           "options": [
             {
@@ -7228,7 +7887,79 @@
               "enemies": 0,
               "enemyTypes": [],
               "townsfolk": 8
-            }
+            },
+            "subZones": [
+              {
+                "built": 1.0,
+                "canopy": 0.4,
+                "formation": {
+                  "lattice": 5,
+                  "spacing": 4,
+                  "understory": 0.2,
+                  "understoryTile": "clover"
+                },
+                "key": "centre",
+                "name": "Centre",
+                "undergrowth": 0.2,
+                "weight": 2
+              },
+              {
+                "built": 0.9,
+                "canopy": 0.7,
+                "formation": {
+                  "lattice": 6,
+                  "spacing": 3,
+                  "understory": 0.4,
+                  "understoryTile": "shrub"
+                },
+                "key": "lanes",
+                "name": "Lanes",
+                "undergrowth": 0.4,
+                "weight": 3
+              },
+              {
+                "built": 0.0,
+                "canopy": 1.3,
+                "formation": {
+                  "lattice": 8,
+                  "spacing": 2,
+                  "understory": 0.9,
+                  "understoryTile": "tall_grass"
+                },
+                "key": "green",
+                "name": "Green",
+                "undergrowth": 0.9,
+                "weight": 2
+              },
+              {
+                "built": 0.15,
+                "canopy": 0.1,
+                "formation": {
+                  "lattice": 3,
+                  "spacing": 6,
+                  "understory": 0.18,
+                  "understoryTile": "clover"
+                },
+                "key": "market",
+                "name": "Market",
+                "undergrowth": 0.18,
+                "weight": 1
+              },
+              {
+                "built": 0.5,
+                "canopy": 1.1,
+                "formation": {
+                  "lattice": 9,
+                  "spacing": 2,
+                  "understory": 0.8,
+                  "understoryTile": "shrub"
+                },
+                "key": "outskirts",
+                "name": "Outskirts",
+                "undergrowth": 0.8,
+                "weight": 2
+              }
+            ]
           },
           "options": [
             {
@@ -7538,7 +8269,79 @@
               "enemies": 0,
               "enemyTypes": [],
               "townsfolk": 8
-            }
+            },
+            "subZones": [
+              {
+                "built": 1.0,
+                "canopy": 0.4,
+                "formation": {
+                  "lattice": 5,
+                  "spacing": 4,
+                  "understory": 0.2,
+                  "understoryTile": "clover"
+                },
+                "key": "centre",
+                "name": "Centre",
+                "undergrowth": 0.2,
+                "weight": 2
+              },
+              {
+                "built": 0.9,
+                "canopy": 0.7,
+                "formation": {
+                  "lattice": 6,
+                  "spacing": 3,
+                  "understory": 0.4,
+                  "understoryTile": "shrub"
+                },
+                "key": "lanes",
+                "name": "Lanes",
+                "undergrowth": 0.4,
+                "weight": 3
+              },
+              {
+                "built": 0.0,
+                "canopy": 1.3,
+                "formation": {
+                  "lattice": 8,
+                  "spacing": 2,
+                  "understory": 0.9,
+                  "understoryTile": "tall_grass"
+                },
+                "key": "green",
+                "name": "Green",
+                "undergrowth": 0.9,
+                "weight": 2
+              },
+              {
+                "built": 0.15,
+                "canopy": 0.1,
+                "formation": {
+                  "lattice": 3,
+                  "spacing": 6,
+                  "understory": 0.18,
+                  "understoryTile": "clover"
+                },
+                "key": "market",
+                "name": "Market",
+                "undergrowth": 0.18,
+                "weight": 1
+              },
+              {
+                "built": 0.5,
+                "canopy": 1.1,
+                "formation": {
+                  "lattice": 9,
+                  "spacing": 2,
+                  "understory": 0.8,
+                  "understoryTile": "shrub"
+                },
+                "key": "outskirts",
+                "name": "Outskirts",
+                "undergrowth": 0.8,
+                "weight": 2
+              }
+            ]
           },
           "options": [
             {
@@ -7829,7 +8632,79 @@
               "enemies": 0,
               "enemyTypes": [],
               "townsfolk": 8
-            }
+            },
+            "subZones": [
+              {
+                "built": 1.0,
+                "canopy": 0.4,
+                "formation": {
+                  "lattice": 5,
+                  "spacing": 4,
+                  "understory": 0.2,
+                  "understoryTile": "clover"
+                },
+                "key": "centre",
+                "name": "Centre",
+                "undergrowth": 0.2,
+                "weight": 2
+              },
+              {
+                "built": 0.9,
+                "canopy": 0.7,
+                "formation": {
+                  "lattice": 6,
+                  "spacing": 3,
+                  "understory": 0.4,
+                  "understoryTile": "shrub"
+                },
+                "key": "lanes",
+                "name": "Lanes",
+                "undergrowth": 0.4,
+                "weight": 3
+              },
+              {
+                "built": 0.0,
+                "canopy": 1.3,
+                "formation": {
+                  "lattice": 8,
+                  "spacing": 2,
+                  "understory": 0.9,
+                  "understoryTile": "tall_grass"
+                },
+                "key": "green",
+                "name": "Green",
+                "undergrowth": 0.9,
+                "weight": 2
+              },
+              {
+                "built": 0.15,
+                "canopy": 0.1,
+                "formation": {
+                  "lattice": 3,
+                  "spacing": 6,
+                  "understory": 0.18,
+                  "understoryTile": "clover"
+                },
+                "key": "market",
+                "name": "Market",
+                "undergrowth": 0.18,
+                "weight": 1
+              },
+              {
+                "built": 0.5,
+                "canopy": 1.1,
+                "formation": {
+                  "lattice": 9,
+                  "spacing": 2,
+                  "understory": 0.8,
+                  "understoryTile": "shrub"
+                },
+                "key": "outskirts",
+                "name": "Outskirts",
+                "undergrowth": 0.8,
+                "weight": 2
+              }
+            ]
           },
           "options": [
             {
@@ -8138,7 +9013,79 @@
               "enemies": 0,
               "enemyTypes": [],
               "townsfolk": 8
-            }
+            },
+            "subZones": [
+              {
+                "built": 1.0,
+                "canopy": 0.4,
+                "formation": {
+                  "lattice": 5,
+                  "spacing": 4,
+                  "understory": 0.2,
+                  "understoryTile": "clover"
+                },
+                "key": "centre",
+                "name": "Centre",
+                "undergrowth": 0.2,
+                "weight": 2
+              },
+              {
+                "built": 0.9,
+                "canopy": 0.7,
+                "formation": {
+                  "lattice": 6,
+                  "spacing": 3,
+                  "understory": 0.4,
+                  "understoryTile": "shrub"
+                },
+                "key": "lanes",
+                "name": "Lanes",
+                "undergrowth": 0.4,
+                "weight": 3
+              },
+              {
+                "built": 0.0,
+                "canopy": 1.3,
+                "formation": {
+                  "lattice": 8,
+                  "spacing": 2,
+                  "understory": 0.9,
+                  "understoryTile": "tall_grass"
+                },
+                "key": "green",
+                "name": "Green",
+                "undergrowth": 0.9,
+                "weight": 2
+              },
+              {
+                "built": 0.15,
+                "canopy": 0.1,
+                "formation": {
+                  "lattice": 3,
+                  "spacing": 6,
+                  "understory": 0.18,
+                  "understoryTile": "clover"
+                },
+                "key": "market",
+                "name": "Market",
+                "undergrowth": 0.18,
+                "weight": 1
+              },
+              {
+                "built": 0.5,
+                "canopy": 1.1,
+                "formation": {
+                  "lattice": 9,
+                  "spacing": 2,
+                  "understory": 0.8,
+                  "understoryTile": "shrub"
+                },
+                "key": "outskirts",
+                "name": "Outskirts",
+                "undergrowth": 0.8,
+                "weight": 2
+              }
+            ]
           },
           "options": [
             {
@@ -8444,7 +9391,79 @@
               "enemies": 0,
               "enemyTypes": [],
               "townsfolk": 8
-            }
+            },
+            "subZones": [
+              {
+                "built": 1.0,
+                "canopy": 0.4,
+                "formation": {
+                  "lattice": 5,
+                  "spacing": 4,
+                  "understory": 0.2,
+                  "understoryTile": "clover"
+                },
+                "key": "centre",
+                "name": "Centre",
+                "undergrowth": 0.2,
+                "weight": 2
+              },
+              {
+                "built": 0.9,
+                "canopy": 0.7,
+                "formation": {
+                  "lattice": 6,
+                  "spacing": 3,
+                  "understory": 0.4,
+                  "understoryTile": "shrub"
+                },
+                "key": "lanes",
+                "name": "Lanes",
+                "undergrowth": 0.4,
+                "weight": 3
+              },
+              {
+                "built": 0.0,
+                "canopy": 1.3,
+                "formation": {
+                  "lattice": 8,
+                  "spacing": 2,
+                  "understory": 0.9,
+                  "understoryTile": "tall_grass"
+                },
+                "key": "green",
+                "name": "Green",
+                "undergrowth": 0.9,
+                "weight": 2
+              },
+              {
+                "built": 0.15,
+                "canopy": 0.1,
+                "formation": {
+                  "lattice": 3,
+                  "spacing": 6,
+                  "understory": 0.18,
+                  "understoryTile": "clover"
+                },
+                "key": "market",
+                "name": "Market",
+                "undergrowth": 0.18,
+                "weight": 1
+              },
+              {
+                "built": 0.5,
+                "canopy": 1.1,
+                "formation": {
+                  "lattice": 9,
+                  "spacing": 2,
+                  "understory": 0.8,
+                  "understoryTile": "shrub"
+                },
+                "key": "outskirts",
+                "name": "Outskirts",
+                "undergrowth": 0.8,
+                "weight": 2
+              }
+            ]
           },
           "options": [
             {
@@ -8749,7 +9768,79 @@
               "enemies": 0,
               "enemyTypes": [],
               "townsfolk": 8
-            }
+            },
+            "subZones": [
+              {
+                "built": 1.0,
+                "canopy": 0.4,
+                "formation": {
+                  "lattice": 5,
+                  "spacing": 4,
+                  "understory": 0.2,
+                  "understoryTile": "clover"
+                },
+                "key": "centre",
+                "name": "Centre",
+                "undergrowth": 0.2,
+                "weight": 2
+              },
+              {
+                "built": 0.9,
+                "canopy": 0.7,
+                "formation": {
+                  "lattice": 6,
+                  "spacing": 3,
+                  "understory": 0.4,
+                  "understoryTile": "shrub"
+                },
+                "key": "lanes",
+                "name": "Lanes",
+                "undergrowth": 0.4,
+                "weight": 3
+              },
+              {
+                "built": 0.0,
+                "canopy": 1.3,
+                "formation": {
+                  "lattice": 8,
+                  "spacing": 2,
+                  "understory": 0.9,
+                  "understoryTile": "tall_grass"
+                },
+                "key": "green",
+                "name": "Green",
+                "undergrowth": 0.9,
+                "weight": 2
+              },
+              {
+                "built": 0.15,
+                "canopy": 0.1,
+                "formation": {
+                  "lattice": 3,
+                  "spacing": 6,
+                  "understory": 0.18,
+                  "understoryTile": "clover"
+                },
+                "key": "market",
+                "name": "Market",
+                "undergrowth": 0.18,
+                "weight": 1
+              },
+              {
+                "built": 0.5,
+                "canopy": 1.1,
+                "formation": {
+                  "lattice": 9,
+                  "spacing": 2,
+                  "understory": 0.8,
+                  "understoryTile": "shrub"
+                },
+                "key": "outskirts",
+                "name": "Outskirts",
+                "undergrowth": 0.8,
+                "weight": 2
+              }
+            ]
           },
           "options": [
             {
@@ -9055,7 +10146,79 @@
               "enemies": 0,
               "enemyTypes": [],
               "townsfolk": 8
-            }
+            },
+            "subZones": [
+              {
+                "built": 1.0,
+                "canopy": 0.4,
+                "formation": {
+                  "lattice": 5,
+                  "spacing": 4,
+                  "understory": 0.2,
+                  "understoryTile": "clover"
+                },
+                "key": "centre",
+                "name": "Centre",
+                "undergrowth": 0.2,
+                "weight": 2
+              },
+              {
+                "built": 0.9,
+                "canopy": 0.7,
+                "formation": {
+                  "lattice": 6,
+                  "spacing": 3,
+                  "understory": 0.4,
+                  "understoryTile": "shrub"
+                },
+                "key": "lanes",
+                "name": "Lanes",
+                "undergrowth": 0.4,
+                "weight": 3
+              },
+              {
+                "built": 0.0,
+                "canopy": 1.3,
+                "formation": {
+                  "lattice": 8,
+                  "spacing": 2,
+                  "understory": 0.9,
+                  "understoryTile": "tall_grass"
+                },
+                "key": "green",
+                "name": "Green",
+                "undergrowth": 0.9,
+                "weight": 2
+              },
+              {
+                "built": 0.15,
+                "canopy": 0.1,
+                "formation": {
+                  "lattice": 3,
+                  "spacing": 6,
+                  "understory": 0.18,
+                  "understoryTile": "clover"
+                },
+                "key": "market",
+                "name": "Market",
+                "undergrowth": 0.18,
+                "weight": 1
+              },
+              {
+                "built": 0.5,
+                "canopy": 1.1,
+                "formation": {
+                  "lattice": 9,
+                  "spacing": 2,
+                  "understory": 0.8,
+                  "understoryTile": "shrub"
+                },
+                "key": "outskirts",
+                "name": "Outskirts",
+                "undergrowth": 0.8,
+                "weight": 2
+              }
+            ]
           },
           "options": [
             {
@@ -9368,7 +10531,79 @@
               "enemies": 0,
               "enemyTypes": [],
               "townsfolk": 8
-            }
+            },
+            "subZones": [
+              {
+                "built": 1.0,
+                "canopy": 0.4,
+                "formation": {
+                  "lattice": 5,
+                  "spacing": 4,
+                  "understory": 0.2,
+                  "understoryTile": "clover"
+                },
+                "key": "centre",
+                "name": "Centre",
+                "undergrowth": 0.2,
+                "weight": 2
+              },
+              {
+                "built": 0.9,
+                "canopy": 0.7,
+                "formation": {
+                  "lattice": 6,
+                  "spacing": 3,
+                  "understory": 0.4,
+                  "understoryTile": "shrub"
+                },
+                "key": "lanes",
+                "name": "Lanes",
+                "undergrowth": 0.4,
+                "weight": 3
+              },
+              {
+                "built": 0.0,
+                "canopy": 1.3,
+                "formation": {
+                  "lattice": 8,
+                  "spacing": 2,
+                  "understory": 0.9,
+                  "understoryTile": "tall_grass"
+                },
+                "key": "green",
+                "name": "Green",
+                "undergrowth": 0.9,
+                "weight": 2
+              },
+              {
+                "built": 0.15,
+                "canopy": 0.1,
+                "formation": {
+                  "lattice": 3,
+                  "spacing": 6,
+                  "understory": 0.18,
+                  "understoryTile": "clover"
+                },
+                "key": "market",
+                "name": "Market",
+                "undergrowth": 0.18,
+                "weight": 1
+              },
+              {
+                "built": 0.5,
+                "canopy": 1.1,
+                "formation": {
+                  "lattice": 9,
+                  "spacing": 2,
+                  "understory": 0.8,
+                  "understoryTile": "shrub"
+                },
+                "key": "outskirts",
+                "name": "Outskirts",
+                "undergrowth": 0.8,
+                "weight": 2
+              }
+            ]
           },
           "options": [
             {
@@ -9696,8 +10931,59 @@
                     "#ded3b4"
                   ]
                 },
+                "built": 1.0,
+                "canopy": 1.0,
+                "formation": {
+                  "lattice": 6,
+                  "spacing": 3,
+                  "understory": 0.4,
+                  "understoryTile": "clover"
+                },
                 "key": "upper",
                 "name": "Upper class neighbourhood",
+                "trees": [
+                  {
+                    "kind": "tree_column",
+                    "weight": 30
+                  },
+                  {
+                    "kind": "tree",
+                    "weight": 22
+                  },
+                  {
+                    "kind": "tree_tall",
+                    "weight": 18
+                  },
+                  {
+                    "kind": "tree_round",
+                    "weight": 12
+                  },
+                  {
+                    "kind": "tree_conifer",
+                    "weight": 10
+                  },
+                  {
+                    "kind": "tree_stub",
+                    "weight": 8
+                  },
+                  {
+                    "kind": "bush",
+                    "weight": 6
+                  },
+                  {
+                    "kind": "tree_sapling",
+                    "weight": 4
+                  },
+                  {
+                    "kind": "tree_oak",
+                    "weight": 22
+                  },
+                  {
+                    "kind": "tree_cherry",
+                    "weight": 10
+                  }
+                ],
+                "undergrowth": 0.4,
                 "weight": 1
               },
               {
@@ -9718,8 +11004,59 @@
                     "#bcc3c9"
                   ]
                 },
+                "built": 1.0,
+                "canopy": 0.75,
+                "formation": {
+                  "lattice": 6,
+                  "spacing": 3,
+                  "understory": 0.3,
+                  "understoryTile": "clover"
+                },
                 "key": "middle",
                 "name": "Middle class neighbourhood",
+                "trees": [
+                  {
+                    "kind": "tree_column",
+                    "weight": 30
+                  },
+                  {
+                    "kind": "tree",
+                    "weight": 22
+                  },
+                  {
+                    "kind": "tree_tall",
+                    "weight": 18
+                  },
+                  {
+                    "kind": "tree_round",
+                    "weight": 12
+                  },
+                  {
+                    "kind": "tree_conifer",
+                    "weight": 10
+                  },
+                  {
+                    "kind": "tree_stub",
+                    "weight": 8
+                  },
+                  {
+                    "kind": "bush",
+                    "weight": 6
+                  },
+                  {
+                    "kind": "tree_sapling",
+                    "weight": 4
+                  },
+                  {
+                    "kind": "tree_oak",
+                    "weight": 22
+                  },
+                  {
+                    "kind": "tree_cherry",
+                    "weight": 10
+                  }
+                ],
+                "undergrowth": 0.3,
                 "weight": 3
               },
               {
@@ -9740,9 +11077,103 @@
                     "#9e4b3b"
                   ]
                 },
+                "built": 1.0,
+                "canopy": 0.5,
+                "formation": {
+                  "lattice": 6,
+                  "spacing": 3,
+                  "understory": 0.2,
+                  "understoryTile": "shrub"
+                },
                 "key": "lower",
                 "name": "Lower class neighbourhood",
+                "trees": [
+                  {
+                    "kind": "tree_column",
+                    "weight": 30
+                  },
+                  {
+                    "kind": "tree",
+                    "weight": 22
+                  },
+                  {
+                    "kind": "tree_tall",
+                    "weight": 18
+                  },
+                  {
+                    "kind": "tree_round",
+                    "weight": 12
+                  },
+                  {
+                    "kind": "tree_conifer",
+                    "weight": 10
+                  },
+                  {
+                    "kind": "tree_stub",
+                    "weight": 8
+                  },
+                  {
+                    "kind": "bush",
+                    "weight": 6
+                  },
+                  {
+                    "kind": "tree_sapling",
+                    "weight": 4
+                  },
+                  {
+                    "kind": "tree_oak",
+                    "weight": 22
+                  },
+                  {
+                    "kind": "tree_cherry",
+                    "weight": 10
+                  }
+                ],
+                "undergrowth": 0.2,
                 "weight": 2
+              },
+              {
+                "built": 0.0,
+                "canopy": 1.4,
+                "formation": {
+                  "lattice": 8,
+                  "spacing": 2,
+                  "understory": 0.9,
+                  "understoryTile": "tall_grass"
+                },
+                "key": "park",
+                "name": "Park",
+                "undergrowth": 0.9,
+                "weight": 1
+              },
+              {
+                "built": 0.12,
+                "canopy": 0.1,
+                "formation": {
+                  "lattice": 3,
+                  "spacing": 6,
+                  "understory": 0.18,
+                  "understoryTile": "clover"
+                },
+                "key": "market",
+                "name": "Market",
+                "undergrowth": 0.18,
+                "weight": 1
+              },
+              {
+                "built": 0.04,
+                "canopy": 0.5,
+                "formation": {
+                  "lattice": 5,
+                  "spacing": 4,
+                  "understory": 0.4,
+                  "understoryTile": "tall_grass"
+                },
+                "key": "graveyard",
+                "name": "Graveyard",
+                "stone": 0.3,
+                "undergrowth": 0.4,
+                "weight": 1
               }
             ],
             "units": {
@@ -10093,8 +11524,43 @@
                     "#ded3b4"
                   ]
                 },
+                "built": 1.0,
+                "canopy": 1.0,
+                "formation": {
+                  "lattice": 6,
+                  "spacing": 3,
+                  "understory": 0.4,
+                  "understoryTile": "clover"
+                },
                 "key": "upper",
                 "name": "Upper class neighbourhood",
+                "trees": [
+                  {
+                    "kind": "tree_round",
+                    "weight": 22
+                  },
+                  {
+                    "kind": "tree_big",
+                    "weight": 20
+                  },
+                  {
+                    "kind": "bush_round",
+                    "weight": 16
+                  },
+                  {
+                    "kind": "tree_giant",
+                    "weight": 14
+                  },
+                  {
+                    "kind": "tree_palm",
+                    "weight": 14
+                  },
+                  {
+                    "kind": "bush",
+                    "weight": 14
+                  }
+                ],
+                "undergrowth": 0.4,
                 "weight": 1
               },
               {
@@ -10115,8 +11581,43 @@
                     "#bcc3c9"
                   ]
                 },
+                "built": 1.0,
+                "canopy": 0.75,
+                "formation": {
+                  "lattice": 6,
+                  "spacing": 3,
+                  "understory": 0.3,
+                  "understoryTile": "clover"
+                },
                 "key": "middle",
                 "name": "Middle class neighbourhood",
+                "trees": [
+                  {
+                    "kind": "tree_round",
+                    "weight": 22
+                  },
+                  {
+                    "kind": "tree_big",
+                    "weight": 20
+                  },
+                  {
+                    "kind": "bush_round",
+                    "weight": 16
+                  },
+                  {
+                    "kind": "tree_giant",
+                    "weight": 14
+                  },
+                  {
+                    "kind": "tree_palm",
+                    "weight": 14
+                  },
+                  {
+                    "kind": "bush",
+                    "weight": 14
+                  }
+                ],
+                "undergrowth": 0.3,
                 "weight": 3
               },
               {
@@ -10137,9 +11638,87 @@
                     "#9e4b3b"
                   ]
                 },
+                "built": 1.0,
+                "canopy": 0.5,
+                "formation": {
+                  "lattice": 6,
+                  "spacing": 3,
+                  "understory": 0.2,
+                  "understoryTile": "shrub"
+                },
                 "key": "lower",
                 "name": "Lower class neighbourhood",
+                "trees": [
+                  {
+                    "kind": "tree_round",
+                    "weight": 22
+                  },
+                  {
+                    "kind": "tree_big",
+                    "weight": 20
+                  },
+                  {
+                    "kind": "bush_round",
+                    "weight": 16
+                  },
+                  {
+                    "kind": "tree_giant",
+                    "weight": 14
+                  },
+                  {
+                    "kind": "tree_palm",
+                    "weight": 14
+                  },
+                  {
+                    "kind": "bush",
+                    "weight": 14
+                  }
+                ],
+                "undergrowth": 0.2,
                 "weight": 2
+              },
+              {
+                "built": 0.0,
+                "canopy": 1.4,
+                "formation": {
+                  "lattice": 8,
+                  "spacing": 2,
+                  "understory": 0.9,
+                  "understoryTile": "tall_grass"
+                },
+                "key": "park",
+                "name": "Park",
+                "undergrowth": 0.9,
+                "weight": 1
+              },
+              {
+                "built": 0.12,
+                "canopy": 0.1,
+                "formation": {
+                  "lattice": 3,
+                  "spacing": 6,
+                  "understory": 0.18,
+                  "understoryTile": "clover"
+                },
+                "key": "market",
+                "name": "Market",
+                "undergrowth": 0.18,
+                "weight": 1
+              },
+              {
+                "built": 0.04,
+                "canopy": 0.5,
+                "formation": {
+                  "lattice": 5,
+                  "spacing": 4,
+                  "understory": 0.4,
+                  "understoryTile": "tall_grass"
+                },
+                "key": "graveyard",
+                "name": "Graveyard",
+                "stone": 0.3,
+                "undergrowth": 0.4,
+                "weight": 1
               }
             ],
             "units": {
@@ -10490,8 +12069,47 @@
                     "#ded3b4"
                   ]
                 },
+                "built": 1.0,
+                "canopy": 1.0,
+                "formation": {
+                  "lattice": 6,
+                  "spacing": 3,
+                  "understory": 0.4,
+                  "understoryTile": "clover"
+                },
                 "key": "upper",
                 "name": "Upper class neighbourhood",
+                "trees": [
+                  {
+                    "kind": "tree_gnarled",
+                    "weight": 38
+                  },
+                  {
+                    "kind": "tree_broadleaf",
+                    "weight": 22
+                  },
+                  {
+                    "kind": "tree_round",
+                    "weight": 20
+                  },
+                  {
+                    "kind": "tree_big",
+                    "weight": 10
+                  },
+                  {
+                    "kind": "bush_round",
+                    "weight": 10
+                  },
+                  {
+                    "kind": "tree_cherry",
+                    "weight": 16
+                  },
+                  {
+                    "kind": "tree_oak",
+                    "weight": 14
+                  }
+                ],
+                "undergrowth": 0.4,
                 "weight": 1
               },
               {
@@ -10512,8 +12130,47 @@
                     "#bcc3c9"
                   ]
                 },
+                "built": 1.0,
+                "canopy": 0.75,
+                "formation": {
+                  "lattice": 6,
+                  "spacing": 3,
+                  "understory": 0.3,
+                  "understoryTile": "clover"
+                },
                 "key": "middle",
                 "name": "Middle class neighbourhood",
+                "trees": [
+                  {
+                    "kind": "tree_gnarled",
+                    "weight": 38
+                  },
+                  {
+                    "kind": "tree_broadleaf",
+                    "weight": 22
+                  },
+                  {
+                    "kind": "tree_round",
+                    "weight": 20
+                  },
+                  {
+                    "kind": "tree_big",
+                    "weight": 10
+                  },
+                  {
+                    "kind": "bush_round",
+                    "weight": 10
+                  },
+                  {
+                    "kind": "tree_cherry",
+                    "weight": 16
+                  },
+                  {
+                    "kind": "tree_oak",
+                    "weight": 14
+                  }
+                ],
+                "undergrowth": 0.3,
                 "weight": 3
               },
               {
@@ -10534,9 +12191,91 @@
                     "#9e4b3b"
                   ]
                 },
+                "built": 1.0,
+                "canopy": 0.5,
+                "formation": {
+                  "lattice": 6,
+                  "spacing": 3,
+                  "understory": 0.2,
+                  "understoryTile": "shrub"
+                },
                 "key": "lower",
                 "name": "Lower class neighbourhood",
+                "trees": [
+                  {
+                    "kind": "tree_gnarled",
+                    "weight": 38
+                  },
+                  {
+                    "kind": "tree_broadleaf",
+                    "weight": 22
+                  },
+                  {
+                    "kind": "tree_round",
+                    "weight": 20
+                  },
+                  {
+                    "kind": "tree_big",
+                    "weight": 10
+                  },
+                  {
+                    "kind": "bush_round",
+                    "weight": 10
+                  },
+                  {
+                    "kind": "tree_cherry",
+                    "weight": 16
+                  },
+                  {
+                    "kind": "tree_oak",
+                    "weight": 14
+                  }
+                ],
+                "undergrowth": 0.2,
                 "weight": 2
+              },
+              {
+                "built": 0.0,
+                "canopy": 1.4,
+                "formation": {
+                  "lattice": 8,
+                  "spacing": 2,
+                  "understory": 0.9,
+                  "understoryTile": "tall_grass"
+                },
+                "key": "park",
+                "name": "Park",
+                "undergrowth": 0.9,
+                "weight": 1
+              },
+              {
+                "built": 0.12,
+                "canopy": 0.1,
+                "formation": {
+                  "lattice": 3,
+                  "spacing": 6,
+                  "understory": 0.18,
+                  "understoryTile": "clover"
+                },
+                "key": "market",
+                "name": "Market",
+                "undergrowth": 0.18,
+                "weight": 1
+              },
+              {
+                "built": 0.04,
+                "canopy": 0.5,
+                "formation": {
+                  "lattice": 5,
+                  "spacing": 4,
+                  "understory": 0.4,
+                  "understoryTile": "tall_grass"
+                },
+                "key": "graveyard",
+                "name": "Graveyard",
+                "stone": 0.3,
+                "undergrowth": 0.4,
+                "weight": 1
               }
             ],
             "units": {
@@ -10886,8 +12625,39 @@
                     "#ded3b4"
                   ]
                 },
+                "built": 1.0,
+                "canopy": 1.0,
+                "formation": {
+                  "lattice": 6,
+                  "spacing": 3,
+                  "understory": 0.4,
+                  "understoryTile": "clover"
+                },
                 "key": "upper",
                 "name": "Upper class neighbourhood",
+                "trees": [
+                  {
+                    "kind": "tree_cypress",
+                    "weight": 45
+                  },
+                  {
+                    "kind": "tree_mangrove",
+                    "weight": 25
+                  },
+                  {
+                    "kind": "bush_round",
+                    "weight": 18
+                  },
+                  {
+                    "kind": "tree_round",
+                    "weight": 12
+                  },
+                  {
+                    "kind": "tree_willow",
+                    "weight": 18
+                  }
+                ],
+                "undergrowth": 0.4,
                 "weight": 1
               },
               {
@@ -10908,8 +12678,39 @@
                     "#bcc3c9"
                   ]
                 },
+                "built": 1.0,
+                "canopy": 0.75,
+                "formation": {
+                  "lattice": 6,
+                  "spacing": 3,
+                  "understory": 0.3,
+                  "understoryTile": "clover"
+                },
                 "key": "middle",
                 "name": "Middle class neighbourhood",
+                "trees": [
+                  {
+                    "kind": "tree_cypress",
+                    "weight": 45
+                  },
+                  {
+                    "kind": "tree_mangrove",
+                    "weight": 25
+                  },
+                  {
+                    "kind": "bush_round",
+                    "weight": 18
+                  },
+                  {
+                    "kind": "tree_round",
+                    "weight": 12
+                  },
+                  {
+                    "kind": "tree_willow",
+                    "weight": 18
+                  }
+                ],
+                "undergrowth": 0.3,
                 "weight": 3
               },
               {
@@ -10930,9 +12731,83 @@
                     "#9e4b3b"
                   ]
                 },
+                "built": 1.0,
+                "canopy": 0.5,
+                "formation": {
+                  "lattice": 6,
+                  "spacing": 3,
+                  "understory": 0.2,
+                  "understoryTile": "shrub"
+                },
                 "key": "lower",
                 "name": "Lower class neighbourhood",
+                "trees": [
+                  {
+                    "kind": "tree_cypress",
+                    "weight": 45
+                  },
+                  {
+                    "kind": "tree_mangrove",
+                    "weight": 25
+                  },
+                  {
+                    "kind": "bush_round",
+                    "weight": 18
+                  },
+                  {
+                    "kind": "tree_round",
+                    "weight": 12
+                  },
+                  {
+                    "kind": "tree_willow",
+                    "weight": 18
+                  }
+                ],
+                "undergrowth": 0.2,
                 "weight": 2
+              },
+              {
+                "built": 0.0,
+                "canopy": 1.4,
+                "formation": {
+                  "lattice": 8,
+                  "spacing": 2,
+                  "understory": 0.9,
+                  "understoryTile": "tall_grass"
+                },
+                "key": "park",
+                "name": "Park",
+                "undergrowth": 0.9,
+                "weight": 1
+              },
+              {
+                "built": 0.12,
+                "canopy": 0.1,
+                "formation": {
+                  "lattice": 3,
+                  "spacing": 6,
+                  "understory": 0.18,
+                  "understoryTile": "clover"
+                },
+                "key": "market",
+                "name": "Market",
+                "undergrowth": 0.18,
+                "weight": 1
+              },
+              {
+                "built": 0.04,
+                "canopy": 0.5,
+                "formation": {
+                  "lattice": 5,
+                  "spacing": 4,
+                  "understory": 0.4,
+                  "understoryTile": "tall_grass"
+                },
+                "key": "graveyard",
+                "name": "Graveyard",
+                "stone": 0.3,
+                "undergrowth": 0.4,
+                "weight": 1
               }
             ],
             "units": {
@@ -11286,8 +13161,31 @@
                     "#ded3b4"
                   ]
                 },
+                "built": 1.0,
+                "canopy": 1.0,
+                "formation": {
+                  "lattice": 6,
+                  "spacing": 3,
+                  "understory": 0.4,
+                  "understoryTile": "clover"
+                },
                 "key": "upper",
                 "name": "Upper class neighbourhood",
+                "trees": [
+                  {
+                    "kind": "tree_conifer",
+                    "weight": 70
+                  },
+                  {
+                    "kind": "tree_tall",
+                    "weight": 15
+                  },
+                  {
+                    "kind": "tree_stub",
+                    "weight": 15
+                  }
+                ],
+                "undergrowth": 0.4,
                 "weight": 1
               },
               {
@@ -11308,8 +13206,31 @@
                     "#bcc3c9"
                   ]
                 },
+                "built": 1.0,
+                "canopy": 0.75,
+                "formation": {
+                  "lattice": 6,
+                  "spacing": 3,
+                  "understory": 0.3,
+                  "understoryTile": "clover"
+                },
                 "key": "middle",
                 "name": "Middle class neighbourhood",
+                "trees": [
+                  {
+                    "kind": "tree_conifer",
+                    "weight": 70
+                  },
+                  {
+                    "kind": "tree_tall",
+                    "weight": 15
+                  },
+                  {
+                    "kind": "tree_stub",
+                    "weight": 15
+                  }
+                ],
+                "undergrowth": 0.3,
                 "weight": 3
               },
               {
@@ -11330,9 +13251,75 @@
                     "#9e4b3b"
                   ]
                 },
+                "built": 1.0,
+                "canopy": 0.5,
+                "formation": {
+                  "lattice": 6,
+                  "spacing": 3,
+                  "understory": 0.2,
+                  "understoryTile": "shrub"
+                },
                 "key": "lower",
                 "name": "Lower class neighbourhood",
+                "trees": [
+                  {
+                    "kind": "tree_conifer",
+                    "weight": 70
+                  },
+                  {
+                    "kind": "tree_tall",
+                    "weight": 15
+                  },
+                  {
+                    "kind": "tree_stub",
+                    "weight": 15
+                  }
+                ],
+                "undergrowth": 0.2,
                 "weight": 2
+              },
+              {
+                "built": 0.0,
+                "canopy": 1.4,
+                "formation": {
+                  "lattice": 8,
+                  "spacing": 2,
+                  "understory": 0.9,
+                  "understoryTile": "tall_grass"
+                },
+                "key": "park",
+                "name": "Park",
+                "undergrowth": 0.9,
+                "weight": 1
+              },
+              {
+                "built": 0.12,
+                "canopy": 0.1,
+                "formation": {
+                  "lattice": 3,
+                  "spacing": 6,
+                  "understory": 0.18,
+                  "understoryTile": "clover"
+                },
+                "key": "market",
+                "name": "Market",
+                "undergrowth": 0.18,
+                "weight": 1
+              },
+              {
+                "built": 0.04,
+                "canopy": 0.5,
+                "formation": {
+                  "lattice": 5,
+                  "spacing": 4,
+                  "understory": 0.4,
+                  "understoryTile": "tall_grass"
+                },
+                "key": "graveyard",
+                "name": "Graveyard",
+                "stone": 0.3,
+                "undergrowth": 0.4,
+                "weight": 1
               }
             ],
             "units": {
@@ -11684,8 +13671,43 @@
                     "#ded3b4"
                   ]
                 },
+                "built": 1.0,
+                "canopy": 1.0,
+                "formation": {
+                  "lattice": 6,
+                  "spacing": 3,
+                  "understory": 0.4,
+                  "understoryTile": "clover"
+                },
                 "key": "upper",
                 "name": "Upper class neighbourhood",
+                "trees": [
+                  {
+                    "kind": "tree_coconut",
+                    "weight": 30
+                  },
+                  {
+                    "kind": "tree_palm",
+                    "weight": 25
+                  },
+                  {
+                    "kind": "tree_banana",
+                    "weight": 20
+                  },
+                  {
+                    "kind": "tree_mangrove",
+                    "weight": 15
+                  },
+                  {
+                    "kind": "bush_round",
+                    "weight": 10
+                  },
+                  {
+                    "kind": "tree_encina",
+                    "weight": 14
+                  }
+                ],
+                "undergrowth": 0.4,
                 "weight": 1
               },
               {
@@ -11706,8 +13728,43 @@
                     "#bcc3c9"
                   ]
                 },
+                "built": 1.0,
+                "canopy": 0.75,
+                "formation": {
+                  "lattice": 6,
+                  "spacing": 3,
+                  "understory": 0.3,
+                  "understoryTile": "clover"
+                },
                 "key": "middle",
                 "name": "Middle class neighbourhood",
+                "trees": [
+                  {
+                    "kind": "tree_coconut",
+                    "weight": 30
+                  },
+                  {
+                    "kind": "tree_palm",
+                    "weight": 25
+                  },
+                  {
+                    "kind": "tree_banana",
+                    "weight": 20
+                  },
+                  {
+                    "kind": "tree_mangrove",
+                    "weight": 15
+                  },
+                  {
+                    "kind": "bush_round",
+                    "weight": 10
+                  },
+                  {
+                    "kind": "tree_encina",
+                    "weight": 14
+                  }
+                ],
+                "undergrowth": 0.3,
                 "weight": 3
               },
               {
@@ -11728,9 +13785,87 @@
                     "#9e4b3b"
                   ]
                 },
+                "built": 1.0,
+                "canopy": 0.5,
+                "formation": {
+                  "lattice": 6,
+                  "spacing": 3,
+                  "understory": 0.2,
+                  "understoryTile": "shrub"
+                },
                 "key": "lower",
                 "name": "Lower class neighbourhood",
+                "trees": [
+                  {
+                    "kind": "tree_coconut",
+                    "weight": 30
+                  },
+                  {
+                    "kind": "tree_palm",
+                    "weight": 25
+                  },
+                  {
+                    "kind": "tree_banana",
+                    "weight": 20
+                  },
+                  {
+                    "kind": "tree_mangrove",
+                    "weight": 15
+                  },
+                  {
+                    "kind": "bush_round",
+                    "weight": 10
+                  },
+                  {
+                    "kind": "tree_encina",
+                    "weight": 14
+                  }
+                ],
+                "undergrowth": 0.2,
                 "weight": 2
+              },
+              {
+                "built": 0.0,
+                "canopy": 1.4,
+                "formation": {
+                  "lattice": 8,
+                  "spacing": 2,
+                  "understory": 0.9,
+                  "understoryTile": "tall_grass"
+                },
+                "key": "park",
+                "name": "Park",
+                "undergrowth": 0.9,
+                "weight": 1
+              },
+              {
+                "built": 0.12,
+                "canopy": 0.1,
+                "formation": {
+                  "lattice": 3,
+                  "spacing": 6,
+                  "understory": 0.18,
+                  "understoryTile": "clover"
+                },
+                "key": "market",
+                "name": "Market",
+                "undergrowth": 0.18,
+                "weight": 1
+              },
+              {
+                "built": 0.04,
+                "canopy": 0.5,
+                "formation": {
+                  "lattice": 5,
+                  "spacing": 4,
+                  "understory": 0.4,
+                  "understoryTile": "tall_grass"
+                },
+                "key": "graveyard",
+                "name": "Graveyard",
+                "stone": 0.3,
+                "undergrowth": 0.4,
+                "weight": 1
               }
             ],
             "units": {
@@ -12080,8 +14215,39 @@
                     "#ded3b4"
                   ]
                 },
+                "built": 1.0,
+                "canopy": 1.0,
+                "formation": {
+                  "lattice": 6,
+                  "spacing": 3,
+                  "understory": 0.4,
+                  "understoryTile": "clover"
+                },
                 "key": "upper",
                 "name": "Upper class neighbourhood",
+                "trees": [
+                  {
+                    "kind": "tree_round",
+                    "weight": 30
+                  },
+                  {
+                    "kind": "bush",
+                    "weight": 30
+                  },
+                  {
+                    "kind": "tree_stub",
+                    "weight": 20
+                  },
+                  {
+                    "kind": "tree_sapling",
+                    "weight": 20
+                  },
+                  {
+                    "kind": "tree_oak",
+                    "weight": 18
+                  }
+                ],
+                "undergrowth": 0.4,
                 "weight": 1
               },
               {
@@ -12102,8 +14268,39 @@
                     "#bcc3c9"
                   ]
                 },
+                "built": 1.0,
+                "canopy": 0.75,
+                "formation": {
+                  "lattice": 6,
+                  "spacing": 3,
+                  "understory": 0.3,
+                  "understoryTile": "clover"
+                },
                 "key": "middle",
                 "name": "Middle class neighbourhood",
+                "trees": [
+                  {
+                    "kind": "tree_round",
+                    "weight": 30
+                  },
+                  {
+                    "kind": "bush",
+                    "weight": 30
+                  },
+                  {
+                    "kind": "tree_stub",
+                    "weight": 20
+                  },
+                  {
+                    "kind": "tree_sapling",
+                    "weight": 20
+                  },
+                  {
+                    "kind": "tree_oak",
+                    "weight": 18
+                  }
+                ],
+                "undergrowth": 0.3,
                 "weight": 3
               },
               {
@@ -12124,9 +14321,83 @@
                     "#9e4b3b"
                   ]
                 },
+                "built": 1.0,
+                "canopy": 0.5,
+                "formation": {
+                  "lattice": 6,
+                  "spacing": 3,
+                  "understory": 0.2,
+                  "understoryTile": "shrub"
+                },
                 "key": "lower",
                 "name": "Lower class neighbourhood",
+                "trees": [
+                  {
+                    "kind": "tree_round",
+                    "weight": 30
+                  },
+                  {
+                    "kind": "bush",
+                    "weight": 30
+                  },
+                  {
+                    "kind": "tree_stub",
+                    "weight": 20
+                  },
+                  {
+                    "kind": "tree_sapling",
+                    "weight": 20
+                  },
+                  {
+                    "kind": "tree_oak",
+                    "weight": 18
+                  }
+                ],
+                "undergrowth": 0.2,
                 "weight": 2
+              },
+              {
+                "built": 0.0,
+                "canopy": 1.4,
+                "formation": {
+                  "lattice": 8,
+                  "spacing": 2,
+                  "understory": 0.9,
+                  "understoryTile": "tall_grass"
+                },
+                "key": "park",
+                "name": "Park",
+                "undergrowth": 0.9,
+                "weight": 1
+              },
+              {
+                "built": 0.12,
+                "canopy": 0.1,
+                "formation": {
+                  "lattice": 3,
+                  "spacing": 6,
+                  "understory": 0.18,
+                  "understoryTile": "clover"
+                },
+                "key": "market",
+                "name": "Market",
+                "undergrowth": 0.18,
+                "weight": 1
+              },
+              {
+                "built": 0.04,
+                "canopy": 0.5,
+                "formation": {
+                  "lattice": 5,
+                  "spacing": 4,
+                  "understory": 0.4,
+                  "understoryTile": "tall_grass"
+                },
+                "key": "graveyard",
+                "name": "Graveyard",
+                "stone": 0.3,
+                "undergrowth": 0.4,
+                "weight": 1
               }
             ],
             "units": {
@@ -12470,8 +14741,43 @@
                     "#ded3b4"
                   ]
                 },
+                "built": 1.0,
+                "canopy": 1.0,
+                "formation": {
+                  "lattice": 6,
+                  "spacing": 3,
+                  "understory": 0.4,
+                  "understoryTile": "clover"
+                },
                 "key": "upper",
                 "name": "Upper class neighbourhood",
+                "trees": [
+                  {
+                    "kind": "tree_gnarled",
+                    "weight": 20
+                  },
+                  {
+                    "kind": "cactus_saguaro",
+                    "weight": 20
+                  },
+                  {
+                    "kind": "tree_stub",
+                    "weight": 18
+                  },
+                  {
+                    "kind": "cactus_prickly",
+                    "weight": 16
+                  },
+                  {
+                    "kind": "tree_encina",
+                    "weight": 14
+                  },
+                  {
+                    "kind": "tree_dead",
+                    "weight": 12
+                  }
+                ],
+                "undergrowth": 0.4,
                 "weight": 1
               },
               {
@@ -12492,8 +14798,43 @@
                     "#bcc3c9"
                   ]
                 },
+                "built": 1.0,
+                "canopy": 0.75,
+                "formation": {
+                  "lattice": 6,
+                  "spacing": 3,
+                  "understory": 0.3,
+                  "understoryTile": "clover"
+                },
                 "key": "middle",
                 "name": "Middle class neighbourhood",
+                "trees": [
+                  {
+                    "kind": "tree_gnarled",
+                    "weight": 20
+                  },
+                  {
+                    "kind": "cactus_saguaro",
+                    "weight": 20
+                  },
+                  {
+                    "kind": "tree_stub",
+                    "weight": 18
+                  },
+                  {
+                    "kind": "cactus_prickly",
+                    "weight": 16
+                  },
+                  {
+                    "kind": "tree_encina",
+                    "weight": 14
+                  },
+                  {
+                    "kind": "tree_dead",
+                    "weight": 12
+                  }
+                ],
+                "undergrowth": 0.3,
                 "weight": 3
               },
               {
@@ -12514,9 +14855,87 @@
                     "#9e4b3b"
                   ]
                 },
+                "built": 1.0,
+                "canopy": 0.5,
+                "formation": {
+                  "lattice": 6,
+                  "spacing": 3,
+                  "understory": 0.2,
+                  "understoryTile": "shrub"
+                },
                 "key": "lower",
                 "name": "Lower class neighbourhood",
+                "trees": [
+                  {
+                    "kind": "tree_gnarled",
+                    "weight": 20
+                  },
+                  {
+                    "kind": "cactus_saguaro",
+                    "weight": 20
+                  },
+                  {
+                    "kind": "tree_stub",
+                    "weight": 18
+                  },
+                  {
+                    "kind": "cactus_prickly",
+                    "weight": 16
+                  },
+                  {
+                    "kind": "tree_encina",
+                    "weight": 14
+                  },
+                  {
+                    "kind": "tree_dead",
+                    "weight": 12
+                  }
+                ],
+                "undergrowth": 0.2,
                 "weight": 2
+              },
+              {
+                "built": 0.0,
+                "canopy": 1.4,
+                "formation": {
+                  "lattice": 8,
+                  "spacing": 2,
+                  "understory": 0.9,
+                  "understoryTile": "tall_grass"
+                },
+                "key": "park",
+                "name": "Park",
+                "undergrowth": 0.9,
+                "weight": 1
+              },
+              {
+                "built": 0.12,
+                "canopy": 0.1,
+                "formation": {
+                  "lattice": 3,
+                  "spacing": 6,
+                  "understory": 0.18,
+                  "understoryTile": "clover"
+                },
+                "key": "market",
+                "name": "Market",
+                "undergrowth": 0.18,
+                "weight": 1
+              },
+              {
+                "built": 0.04,
+                "canopy": 0.5,
+                "formation": {
+                  "lattice": 5,
+                  "spacing": 4,
+                  "understory": 0.4,
+                  "understoryTile": "tall_grass"
+                },
+                "key": "graveyard",
+                "name": "Graveyard",
+                "stone": 0.3,
+                "undergrowth": 0.4,
+                "weight": 1
               }
             ],
             "units": {
@@ -12870,8 +15289,35 @@
                     "#ded3b4"
                   ]
                 },
+                "built": 1.0,
+                "canopy": 1.0,
+                "formation": {
+                  "lattice": 6,
+                  "spacing": 3,
+                  "understory": 0.4,
+                  "understoryTile": "clover"
+                },
                 "key": "upper",
                 "name": "Upper class neighbourhood",
+                "trees": [
+                  {
+                    "kind": "tree_conifer",
+                    "weight": 55
+                  },
+                  {
+                    "kind": "tree_dead",
+                    "weight": 20
+                  },
+                  {
+                    "kind": "tree_tall",
+                    "weight": 15
+                  },
+                  {
+                    "kind": "tree_stub",
+                    "weight": 10
+                  }
+                ],
+                "undergrowth": 0.4,
                 "weight": 1
               },
               {
@@ -12892,8 +15338,35 @@
                     "#bcc3c9"
                   ]
                 },
+                "built": 1.0,
+                "canopy": 0.75,
+                "formation": {
+                  "lattice": 6,
+                  "spacing": 3,
+                  "understory": 0.3,
+                  "understoryTile": "clover"
+                },
                 "key": "middle",
                 "name": "Middle class neighbourhood",
+                "trees": [
+                  {
+                    "kind": "tree_conifer",
+                    "weight": 55
+                  },
+                  {
+                    "kind": "tree_dead",
+                    "weight": 20
+                  },
+                  {
+                    "kind": "tree_tall",
+                    "weight": 15
+                  },
+                  {
+                    "kind": "tree_stub",
+                    "weight": 10
+                  }
+                ],
+                "undergrowth": 0.3,
                 "weight": 3
               },
               {
@@ -12914,9 +15387,79 @@
                     "#9e4b3b"
                   ]
                 },
+                "built": 1.0,
+                "canopy": 0.5,
+                "formation": {
+                  "lattice": 6,
+                  "spacing": 3,
+                  "understory": 0.2,
+                  "understoryTile": "shrub"
+                },
                 "key": "lower",
                 "name": "Lower class neighbourhood",
+                "trees": [
+                  {
+                    "kind": "tree_conifer",
+                    "weight": 55
+                  },
+                  {
+                    "kind": "tree_dead",
+                    "weight": 20
+                  },
+                  {
+                    "kind": "tree_tall",
+                    "weight": 15
+                  },
+                  {
+                    "kind": "tree_stub",
+                    "weight": 10
+                  }
+                ],
+                "undergrowth": 0.2,
                 "weight": 2
+              },
+              {
+                "built": 0.0,
+                "canopy": 1.4,
+                "formation": {
+                  "lattice": 8,
+                  "spacing": 2,
+                  "understory": 0.9,
+                  "understoryTile": "tall_grass"
+                },
+                "key": "park",
+                "name": "Park",
+                "undergrowth": 0.9,
+                "weight": 1
+              },
+              {
+                "built": 0.12,
+                "canopy": 0.1,
+                "formation": {
+                  "lattice": 3,
+                  "spacing": 6,
+                  "understory": 0.18,
+                  "understoryTile": "clover"
+                },
+                "key": "market",
+                "name": "Market",
+                "undergrowth": 0.18,
+                "weight": 1
+              },
+              {
+                "built": 0.04,
+                "canopy": 0.5,
+                "formation": {
+                  "lattice": 5,
+                  "spacing": 4,
+                  "understory": 0.4,
+                  "understoryTile": "tall_grass"
+                },
+                "key": "graveyard",
+                "name": "Graveyard",
+                "stone": 0.3,
+                "undergrowth": 0.4,
+                "weight": 1
               }
             ],
             "units": {
@@ -13260,8 +15803,17 @@
                     "#ded3b4"
                   ]
                 },
+                "built": 1.0,
+                "canopy": 1.0,
+                "formation": {
+                  "lattice": 6,
+                  "spacing": 3,
+                  "understory": 0.4,
+                  "understoryTile": "clover"
+                },
                 "key": "upper",
                 "name": "Upper class neighbourhood",
+                "undergrowth": 0.4,
                 "weight": 1
               },
               {
@@ -13282,8 +15834,17 @@
                     "#bcc3c9"
                   ]
                 },
+                "built": 1.0,
+                "canopy": 0.75,
+                "formation": {
+                  "lattice": 6,
+                  "spacing": 3,
+                  "understory": 0.3,
+                  "understoryTile": "clover"
+                },
                 "key": "middle",
                 "name": "Middle class neighbourhood",
+                "undergrowth": 0.3,
                 "weight": 3
               },
               {
@@ -13304,9 +15865,61 @@
                     "#9e4b3b"
                   ]
                 },
+                "built": 1.0,
+                "canopy": 0.5,
+                "formation": {
+                  "lattice": 6,
+                  "spacing": 3,
+                  "understory": 0.2,
+                  "understoryTile": "shrub"
+                },
                 "key": "lower",
                 "name": "Lower class neighbourhood",
+                "undergrowth": 0.2,
                 "weight": 2
+              },
+              {
+                "built": 0.0,
+                "canopy": 1.4,
+                "formation": {
+                  "lattice": 8,
+                  "spacing": 2,
+                  "understory": 0.9,
+                  "understoryTile": "tall_grass"
+                },
+                "key": "park",
+                "name": "Park",
+                "undergrowth": 0.9,
+                "weight": 1
+              },
+              {
+                "built": 0.12,
+                "canopy": 0.1,
+                "formation": {
+                  "lattice": 3,
+                  "spacing": 6,
+                  "understory": 0.18,
+                  "understoryTile": "clover"
+                },
+                "key": "market",
+                "name": "Market",
+                "undergrowth": 0.18,
+                "weight": 1
+              },
+              {
+                "built": 0.04,
+                "canopy": 0.5,
+                "formation": {
+                  "lattice": 5,
+                  "spacing": 4,
+                  "understory": 0.4,
+                  "understoryTile": "tall_grass"
+                },
+                "key": "graveyard",
+                "name": "Graveyard",
+                "stone": 0.3,
+                "undergrowth": 0.4,
+                "weight": 1
               }
             ],
             "units": {
@@ -13657,8 +16270,17 @@
                     "#ded3b4"
                   ]
                 },
+                "built": 1.0,
+                "canopy": 1.0,
+                "formation": {
+                  "lattice": 6,
+                  "spacing": 3,
+                  "understory": 0.4,
+                  "understoryTile": "clover"
+                },
                 "key": "upper",
                 "name": "Upper class neighbourhood",
+                "undergrowth": 0.4,
                 "weight": 1
               },
               {
@@ -13679,8 +16301,17 @@
                     "#bcc3c9"
                   ]
                 },
+                "built": 1.0,
+                "canopy": 0.75,
+                "formation": {
+                  "lattice": 6,
+                  "spacing": 3,
+                  "understory": 0.3,
+                  "understoryTile": "clover"
+                },
                 "key": "middle",
                 "name": "Middle class neighbourhood",
+                "undergrowth": 0.3,
                 "weight": 3
               },
               {
@@ -13701,9 +16332,61 @@
                     "#9e4b3b"
                   ]
                 },
+                "built": 1.0,
+                "canopy": 0.5,
+                "formation": {
+                  "lattice": 6,
+                  "spacing": 3,
+                  "understory": 0.2,
+                  "understoryTile": "shrub"
+                },
                 "key": "lower",
                 "name": "Lower class neighbourhood",
+                "undergrowth": 0.2,
                 "weight": 2
+              },
+              {
+                "built": 0.0,
+                "canopy": 1.4,
+                "formation": {
+                  "lattice": 8,
+                  "spacing": 2,
+                  "understory": 0.9,
+                  "understoryTile": "tall_grass"
+                },
+                "key": "park",
+                "name": "Park",
+                "undergrowth": 0.9,
+                "weight": 1
+              },
+              {
+                "built": 0.12,
+                "canopy": 0.1,
+                "formation": {
+                  "lattice": 3,
+                  "spacing": 6,
+                  "understory": 0.18,
+                  "understoryTile": "clover"
+                },
+                "key": "market",
+                "name": "Market",
+                "undergrowth": 0.18,
+                "weight": 1
+              },
+              {
+                "built": 0.04,
+                "canopy": 0.5,
+                "formation": {
+                  "lattice": 5,
+                  "spacing": 4,
+                  "understory": 0.4,
+                  "understoryTile": "tall_grass"
+                },
+                "key": "graveyard",
+                "name": "Graveyard",
+                "stone": 0.3,
+                "undergrowth": 0.4,
+                "weight": 1
               }
             ],
             "units": {

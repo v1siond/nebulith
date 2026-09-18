@@ -440,6 +440,40 @@ export function carveShore(ctx: RiverCarve, pal: GeneratorPalette | undefined, s
   return water
 }
 
+/**
+ * A LAKE, or a pool, or any other standing body: the same water as the sea and the river, in a shape somebody
+ * else chose.
+ *
+ * His correction, 2026-09-18: *"IF WE ALREADY HAVE A LAYER, USE IT, EXPAND IT, YOU DID WITH BEACH, WITH THE
+ * FUCK YOU DIDN'T THE SAME PROCESS WITH LAKES???? OR ANY OTHER WATER TYPE FOR THAT MATTER"*.
+ *
+ * He is right and the first attempt is the counter-example: it painted a region's water in its own private
+ * loop, which meant its own colour (it took `palette.swamp`, so a beach's water came out swamp green), its
+ * own elevation (flat, so a walkable floor wore water) and its own everything. Every one of those was already
+ * solved here, once, for the sea.
+ *
+ * So this is `carveShore` with the shape taken as an argument instead of computed, and that is the whole
+ * difference between a sea and a lake. `WATER.md` §1: *"a river, a lake and a beach are the same thing ...
+ * They differ in the SHAPE that is painted, nothing else."* Downstream nothing knows or cares which one it
+ * is: `classifyBody` answers `lake` for a body that touches no edge and carries no flow, the border pass
+ * picks the lake rim from that, `settleWaterDepth` gives it a wadeable edge and a deep middle, and the tint
+ * is the map's own `palette.water`.
+ */
+export function carveBody(ctx: RiverCarve, pal: GeneratorPalette | undefined, cells: ReadonlySet<string>): Set<string> {
+  const { cols, rows, ground, collision, floorColors } = ctx
+  const water = new Set<string>()
+  for (const key of cells) {
+    const [col, row] = key.split(',').map(Number)
+    if (!inBounds(col, row, cols, rows)) continue
+    ground[row][col] = 'water'
+    collision[row][col] = true
+    if (pal?.water) floorColors[row][col] = pal.water
+    water.add(key)
+  }
+  digChannel(ctx, water)
+  return water
+}
+
 /** A watercourse running edge to edge through the map, the jungle's creek, and the `through` and `divides`
  *  rivers. The draw order is unchanged when nothing is forced, so the jungle's creek is byte-identical. */
 // TRIED, MEASURED, AND NOT KEPT: turning the channel to CROSS the planned pathways.
@@ -1170,9 +1204,24 @@ export function bendCells(flow: ReadonlyMap<string, number>, water: ReadonlySet<
  * water, so none of that logic changes, and the shallows are only ever hung off ground you could already reach
  * (`wadeableShallows`), so no map comes out more or less connected than it went in.
  */
-export function settleWaterDepth(ctx: RiverSurface, pal: GeneratorPalette | undefined, pools: ReadonlySet<string> = new Set()): void {
+export function settleWaterDepth(
+  ctx: RiverSurface,
+  pal: GeneratorPalette | undefined,
+  puddles: ReadonlySet<string> = new Set(),
+  still: ReadonlySet<string> = puddles,
+): void {
   const { ground, collision, floorColors } = ctx
-  const depth = waterDepth(ctx, pools)
+  // A PUDDLE AND A STILL BODY ARE DIFFERENT THINGS, and one set was answering for both.
+  //
+  // A puddle is a film lying ON dry ground: it has no depth, and it wears the swamp's green because it is
+  // shallow water stained by what grows in it. A LAKE is a body cut into the map exactly as the sea is, so it
+  // has a wadeable rim, a deep middle and the map's own `palette.water`. What the two share is that neither
+  // one FLOWS.
+  //
+  // So depth skips only the films (`ctx.wet` is precisely the cells carrying one) and the flow walk skips
+  // everything still. Handing one set to both questions is what painted a beach's lake swamp green and left
+  // it flat enough to walk over.
+  const depth = waterDepth(ctx, puddles)
   // PUBLISH IT. The label no longer says how deep a cell is, so this map is the only record of it. Written
   // before the loop below so a caller reading `waterDepth` sees the same numbers this pass acted on.
   for (const [key, d] of depth) ctx.waterDepth?.set(key, d)
@@ -1181,7 +1230,7 @@ export function settleWaterDepth(ctx: RiverSurface, pal: GeneratorPalette | unde
   // and standing water has no current, which is the own distinction.
   const channel = new Set<string>()
   forEachCell(ctx.cols, ctx.rows, (col, row) => {
-    if (isWaterGround(ground[row][col]) && !pools.has(`${col},${row}`)) channel.add(`${col},${row}`)
+    if (isWaterGround(ground[row][col]) && !still.has(`${col},${row}`)) channel.add(`${col},${row}`)
   })
 
   // THE RIVER RUNS UNDER THE BRIDGE, so the flow walk is given the deck cells too.
@@ -1254,7 +1303,7 @@ export function settleWaterDepth(ctx: RiverSurface, pal: GeneratorPalette | unde
   // walkable with no bridge anywhere near them, and every one was a pool. The channel was already blocked, so
   // this was the half the molten rule had not reached.
   if (ctx.molten) {
-    for (const key of pools) {
+    for (const key of still) {
       const { col, row } = toCell(key)
       if (isWaterGround(ground[row]?.[col])) collision[row][col] = true
     }
@@ -1269,7 +1318,7 @@ export function settleWaterDepth(ctx: RiverSurface, pal: GeneratorPalette | unde
   // crosses on.
   strewRiverRocks(ctx, channel)
   if (!pal?.swamp) return
-  for (const key of pools) {
+  for (const key of puddles) {
     const { col, row } = toCell(key)
     // WATER-GROUND, not one spelling of it. This tested `=== 'water'` and silently stopped applying the swamp
     // tone the moment a pool started laying `water_shallow` (its flush height), so every pool came out wearing

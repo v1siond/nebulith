@@ -65,7 +65,7 @@ import { generationLayerKeys } from '@/engine/generate/generationLayers'
 import { isTileCategory, TILE_CATEGORY } from '@/engine/tileset/tileCategory'
 import { planRoutes, resolvePathways, type Gate, type RouteCell, type RoutePlan, type Side, type Pathways } from '@/engine/pathNetwork'
 import {
-  carveChannel, carveShore, channelDepth, crossingRefused, crossingStyle, deckRoutes, digChannel, flowField, isWaterGround, layDeck, recordBridgeSpan, wadeCrossing, WATER_BANDS,
+  carveBody, carveChannel, carveShore, channelDepth, crossingRefused, crossingStyle, deckRoutes, digChannel, flowField, isWaterGround, layDeck, recordBridgeSpan, wadeCrossing, WATER_BANDS,
   narrowestLine, narrowPathwaysToCrossings, resolveRiverCourse, CROSSING_ROWS, settleWaterDepth, strewRiverRocks, wadeableShallows, waterBand, waterReach,
   FLOW_STEPS, type RiverCourse,
 } from '@/engine/riverNetwork'
@@ -723,7 +723,18 @@ function scatterGroundCover(ctx: ArchetypeContext, density = 0.18, layout?: Vill
     if (isWaterGround(ground[row][col])) return // land-only: no ground cover in water
     if (isBuiltFloor(ground[row][col]) || isRoadGround(ground[row][col]) || layout?.roads[row]?.[col]) return // keep paved floors + ROADS clean (roads are colour-only now → layout.roads)
     if (occupied.has(`${col},${row}`)) return // don't cover trees / buildings / decor
-    if (ctx.rand() > density) return // breathing room
+    // THE REGION'S OWN SHARE OF IT. A flat density made a market square as grassy as a park, which is half of
+    // why a settlement's neighbourhoods were one place under six names. `undergrowth` multiplies, so a region
+    // that states none is untouched.
+    if (ctx.rand() > density * (ctx.zoneAt?.[row]?.[col]?.undergrowth ?? 1)) return // breathing room
+    // AND THE PLANT THE REGION NAMES, when it names one.
+    //
+    // This grew the zone's one generic decor everywhere, so a village's commons, its garden plots and its
+    // wooded edge all came out as the same tuft of the same thing: measured, all three read as `flower` at
+    // the same density, which is three names for one place. The forests already plant a region's own
+    // `understoryTile` and a settlement is the only builder that did not.
+    const plant = ctx.zoneAt?.[row]?.[col]?.formation?.understoryTile
+    if (plant) { placeProp(ctx, makePlant(ctx, col, row, plant)); return }
     const prop = makeGroundDecor(zone, col, row)
     if (prop) placeProp(ctx, prop) // no decor tile for this zone (tileset not loaded) → leave the cell bare
   })
@@ -743,7 +754,8 @@ function scatterFlowers(ctx: ArchetypeContext, density: number, layout?: Village
     if (isWaterGround(ground[row][col])) return // land-only: no blooms in water
     if (isBuiltFloor(ground[row][col]) || isRoadGround(ground[row][col]) || layout?.roads[row]?.[col]) return // keep streets/paved clean (roads are colour-only now → layout.roads)
     if (occupied.has(`${col},${row}`)) return // don't cover trees / buildings / decor
-    if (ctx.rand() > density) return
+    // Blooms follow the neighbourhood too: a graveyard and a green are not a market square.
+    if (ctx.rand() > density * (ctx.zoneAt?.[row]?.[col]?.undergrowth ?? 1)) return
     placeProp(ctx, makeFlower(ctx.rand, zone, col, row)) // seeded pick → the nature layer stays reproducible per-seed
   })
 }
@@ -1054,6 +1066,9 @@ interface ArchetypeContext {
   zones?: readonly GeneratorSubZone[]
   /** Standing water a swamp region flooded, kept apart from the channel because it settles differently. */
   pools: Set<string>
+  /** Water with no CURRENT: every puddle, and every still body a region asked for. The flow walk skips it, so
+   *  a lake is read as a lake rather than as a river that happens to be wide. */
+  still: Set<string>
   /** The walkable bank the water layer left along its edge, which the pathways layer routes to. */
   banks: Set<string>
   /** A settlement's street and plot plan, made by its pathways phase and built on by its objects phase. */
@@ -1397,7 +1412,7 @@ export function generateStage(opts: GenerateOptions): StageData {
   for (const key of generationLayerKeys()) rngs[key] = layerRng(opts.seeds, key)
   for (const key of ENGINE_PASS_RNGS) rngs[key] ??= layerRng(opts.seeds, key)
   // Single-pass archetypes (forest/cave/temple/boss) read `ctx.rand`; the layout rng is their source.
-  const ctx: ArchetypeContext = { variant, zone, ground, collision, floorColors, elevation, buildings, props, trees, compositions, cols, rows, layout, options: opts.options, nature: opts.nature, settlement: opts.settlement, palette: opts.palette, subZones: opts.subZones, regionLayout: opts.regionLayout, formation: opts.formation, pathway: opts.pathway, treeMix: opts.treeMix, crossings: opts.crossings, entrance: opts.entrance, pathwayCells: new Set<string>(), water: new Set<string>(), pools: new Set<string>(), banks: new Set<string>(), claimed: new Set<string>(), decks: new Set<string>(), fords: new Set<string>(), wet: new Set<string>(), flow: new Map<string, number>(), waterDepth: new Map<string, number>(), molten: isMolten(liquidFor(opts)), buildingSizes: opts.buildingSizes, rand: rngs.layout }
+  const ctx: ArchetypeContext = { variant, zone, ground, collision, floorColors, elevation, buildings, props, trees, compositions, cols, rows, layout, options: opts.options, nature: opts.nature, settlement: opts.settlement, palette: opts.palette, subZones: opts.subZones, regionLayout: opts.regionLayout, formation: opts.formation, pathway: opts.pathway, treeMix: opts.treeMix, crossings: opts.crossings, entrance: opts.entrance, pathwayCells: new Set<string>(), water: new Set<string>(), pools: new Set<string>(), still: new Set<string>(), banks: new Set<string>(), claimed: new Set<string>(), decks: new Set<string>(), fords: new Set<string>(), wet: new Set<string>(), flow: new Map<string, number>(), waterDepth: new Map<string, number>(), molten: isMolten(liquidFor(opts)), buildingSizes: opts.buildingSizes, rand: rngs.layout }
   runLayers(STAGE_LAYERS, ctx, rngs, opts.upTo)
 
   return {
@@ -1435,7 +1450,7 @@ export function generateStage(opts: GenerateOptions): StageData {
     decks: ctx.decks.size === 0 ? undefined : ctx.decks,
     waterDepth: ctx.waterDepth.size === 0 ? undefined : ctx.waterDepth,
     fords: ctx.fords.size === 0 ? undefined : ctx.fords,
-    standing: ctx.pools.size === 0 ? undefined : ctx.pools,
+    standing: ctx.still.size === 0 ? undefined : ctx.still,
     pathways: ctx.pathwayCells.size === 0 ? undefined : ctx.pathwayCells,
   }
 }
@@ -1493,13 +1508,17 @@ function settlementPhases(settlement: Settlement): VariantPhases {
       buildingsPass(withRand(ctx, rngs.buildings), layout)
       decorPass(withRand(ctx, rngs.decor), layout)
       naturePass(withRand(ctx, rngs.nature), layout, settlement)
+      // THE STONE A NEIGHBOURHOOD ASKS FOR. A graveyard is open ground inside a town like a park is, and with
+      // no stone in it the two measured as the same place: same greenery, same nothing built. `stone` was
+      // served for it and only the forest builders ever read one.
+      strewRegionRuins(ctx)
       // AND GET ACROSS IT. A bridge is an object, and it is the first thing the objects phase owes the
       // pathways: *"if you want to put actual tiles or objects specifically related to pathways, like a
       // bridge to go over a river for example ... it'll still happen at the end of the process and can be the
       // start of the objects phase"*.
       const course = riverCourse(ctx, 'through')
       if (!course || ctx.water.size === 0) return
-      bridgeRiver(ctx, ctx.water, ctx.pathwayCells, course, waterPalette(ctx))
+      bridgeRiver(ctx, flowingWater(ctx), ctx.pathwayCells, course, waterPalette(ctx))
 
       // AND THE TOWN IS ONE PLACE. A settlement had NO connectivity repair at all, which was harmless while it
       // had no water: measured the moment the river was wired, a 50x50 town came out in up to four pieces with
@@ -1753,7 +1772,17 @@ function fillVillageNature(ctx: ArchetypeContext, layout: VillageLayout, natureM
     const edgeDist = Math.min(sideDist, row, rows - 1 - row)
     // Denser toward the SIDES, the village sits in a clearing framed by forest left & right, but
     // the INTERIOR stays leafy too (a Pokémon-style town nestled in trees, not bare lots).
-    const p = (sideDist < 5 ? 0.82 : edgeDist < 4 ? 0.66 : edgeDist < 9 ? 0.52 : 0.36) * natureMult
+    // …AND THE NEIGHBOURHOOD IT FALLS IN.
+    //
+    // This pass read the distance to the edge and nothing else, so a settlement's regions were told apart by
+    // their walls and by nothing a person can see between the walls: a `park` serving canopy 1.4 and a
+    // `market` serving 0.1 grew exactly the same trees. Measured, a city's park came out indistinguishable
+    // from its lower quarter, its market and its middle.
+    //
+    // `canopy` MULTIPLIES the base density, which is what that field means in every other builder, so a
+    // region that states none leaves this pass exactly as it was.
+    const green = ctx.zoneAt?.[row]?.[col]?.canopy ?? 1
+    const p = (sideDist < 5 ? 0.82 : edgeDist < 4 ? 0.66 : edgeDist < 9 ? 0.52 : 0.36) * natureMult * green
     if (ctx.rand() > p) continue
     if (placed.some(t => Math.abs(t.col - col) < minDist && Math.abs(t.row - row) < minDist)) continue
     stampTree(ctx, col, row, ctx.rand() < DEAD_TREE_CHANCE[ctx.zone])
@@ -3449,7 +3478,7 @@ const woodlandPhases: VariantPhases = {
 
     // AND PLANK IT where the river runs across it. After the paving, never before: the paving skips water, so
     // a deck laid first would be paved straight back over.
-    if (ctx.routes) deckRoutes(ctx, ctx.routes, ctx.water, wayTone(ctx), ctx.pathwayCells)
+    if (ctx.routes) deckRoutes(ctx, ctx.routes, flowingWater(ctx), wayTone(ctx), ctx.pathwayCells)
   },
 
   objects: ctx => {
@@ -3491,7 +3520,7 @@ const woodlandPhases: VariantPhases = {
     // THE CROSSING. A river you cannot cross splits the forest in two, and the deck is laid after the
     // planting so nothing puts a trunk back on it. The trails are this layout's path network, so a joined
     // crossing lands on one of them rather than in the middle of the trees.
-    if (course) bridgeRiver(ctx, ctx.water, ctx.pathwayCells, course, ctx.palette)
+    if (course) bridgeRiver(ctx, flowingWater(ctx), ctx.pathwayCells, course, ctx.palette)
 
     // ONE PLACE, cutting tracks through the brush to anything the undergrowth walled off. AFTER the bridge,
     // and that order is a fix rather than a preference: run before it, the join saw the far bank as a stray
@@ -3509,7 +3538,7 @@ const woodlandPhases: VariantPhases = {
     // THE STONE a region asks for, after the planting so a trunk is never inside a wall.
     strewRegionRuins(ctx)
 
-    settleWaterDepth(ctx, molten(ctx, ctx.palette), ctx.pools) // the water settles by depth, last
+    settleWaterDepth(ctx, molten(ctx, ctx.palette), ctx.pools, ctx.still) // the water settles by depth, last
   },
 }
 
@@ -3679,7 +3708,7 @@ const junglePhases: VariantPhases = {
     // THE GATE LANES AND THE STOPS ARE WHAT THE NETWORK PROMISES. A lane is the way OUT and a stop is where a
     // path ends on purpose, so neither is ever the spare crossing: dropping one left a gate you could stand on
     // and could not walk to, and a stop the planner had put in the river.
-    deckRoutes(ctx, ctx.routes, ctx.water, wayTone(ctx), ctx.pathwayCells, promisedCells(ctx.routes, gateLanes))
+    deckRoutes(ctx, ctx.routes, flowingWater(ctx), wayTone(ctx), ctx.pathwayCells, promisedCells(ctx.routes, gateLanes))
   },
 
   objects: ctx => {
@@ -3719,7 +3748,7 @@ const junglePhases: VariantPhases = {
     // The crossings are FALLEN LOGS rather than a stone bridge, because a jungle has no masonry and the thing
     // you actually cross a creek on is a tree that came down over it.
     const course = riverCourse(ctx, 'through')
-    if (course) bridgeRiver(ctx, ctx.water, ctx.claimed, course, pal)
+    if (course) bridgeRiver(ctx, flowingWater(ctx), ctx.claimed, course, pal)
     else fellLogsAcross(ctx, ctx.water, pal)
 
     // KEEP IT ONE PLACE by CUTTING TO the strays rather than carpeting them. The undergrowth blocks half the
@@ -3735,7 +3764,7 @@ const junglePhases: VariantPhases = {
       flank: flankingTrees,
     })
 
-    settleWaterDepth(ctx, molten(ctx, pal), ctx.pools) // the creek settles by depth; the pools stay blocking
+    settleWaterDepth(ctx, molten(ctx, pal), ctx.pools, ctx.still) // the creek settles by depth; the pools stay blocking
   },
 }
 
@@ -4428,36 +4457,27 @@ function shapeRegions(ctx: ArchetypeContext): void {
 function floodRegionPools(ctx: ArchetypeContext, pal: GeneratorPalette | undefined): void {
   if (!ctx.zoneAt) return
   for (const body of regionPoolBodies(ctx, ctx.zoneAt)) {
-    if (body.size >= REGION_LAKE_MIN) { fillRegionLake(ctx, body); continue }
+    // A BODY GOES THROUGH THE WATER LAYER, exactly as the sea does, so it is cut, tinted, edged, depth-banded
+    // and classified by the one set of passes that already do all of that. A PUDDLE keeps the film it has
+    // always had: it is water lying on dry ground rather than a body you go around.
+    if (body.size >= REGION_LAKE_MIN) {
+      for (const key of carveBody(ctx, pal, body)) { ctx.water.add(key); ctx.still.add(key) }
+      continue
+    }
     layPoolFilm(ctx, body, pal)
   }
 }
 
-/** A body of standing water this big is a LAKE and gets a shore, not a film. Below it, a hollow with water
- *  in it. Six cells is already a pool (`SWAMP_MIN_POOL`); this is the size at which one stops reading as wet
- *  ground you walk through and starts reading as water you walk around. */
-const REGION_LAKE_MIN = 24
-
-/** Real water, so every pass that already knows what water is treats it as such: the border pass edges it,
- *  the depth pass settles it, and nothing plants in it. */
-function fillRegionLake(ctx: ArchetypeContext, body: ReadonlySet<string>): void {
-  for (const key of body) {
-    const { col, row } = toCell(key)
-    ctx.ground[row][col] = 'water'
-    ctx.claimed.add(key)
-    // NOT `ctx.water`. That set is the CHANNEL, by the behaviour of everything that reads it: the bridge pass
-    // tries to span it, the flow walk wants it to be one connected run, the bank pass stands ground above it
-    // and the treeline closes over where it leaves the map. Handing a lake to all of that asked a bridge to
-    // cross a pond and asked one river to be two. The lake is still water where it matters, because the
-    // border pass, the depth pass and every planting pass ask what the GROUND is, and the ground here is
-    // water.
-    // STANDING WATER, which is what `settleWaterDepth` means by its `pools` set: *"Only the CHANNEL gets one:
-    // a pool is standing water and standing water has no current"*. Left out of it, the depth pass walked a
-    // flow field across the lake and handed every cell a heading, so `classifyBody` read a current and the
-    // lake wore the river's white-water rim instead of a lake's dark one.
-    ctx.pools.add(key)
-  }
-}
+/**
+ * A body of standing water this big is a LAKE, cut into the map like the sea. Below it, a hollow with water
+ * standing in it, which keeps the film it has always had.
+ *
+ * Sixty, not twenty-four. A swamp's pools come out in bodies of roughly twenty-five to fifty, and at the
+ * lower number they were being promoted to lakes: measured, a swamp jungle dropped from over twenty puddles
+ * to eighteen, which is the swamp losing the look it was approved with. A `lakeside`'s water lands in one
+ * body of well over a hundred, so the two separate cleanly.
+ */
+const REGION_LAKE_MIN = 60
 
 /** The fallen masonry a region asks for, in the objects phase, keeping off the route network. */
 function strewRegionRuins(ctx: ArchetypeContext): void {
@@ -4472,6 +4492,31 @@ function paintSubZoneFloors(ctx: ArchetypeContext, zoneAt: (GeneratorSubZone | u
     const tone = zoneAt[row][col]?.floor
     if (tone) ctx.floorColors[row][col] = tone
   })
+}
+
+/**
+ * THE WATER A CROSSING IS FOR: the channel, which is every wet cell that is not standing.
+ *
+ * You ford a river because it is shallow here and you have to get to the other side. You do not ford a LAKE:
+ * there is no other side, you walk around it. Handing the whole of `ctx.water` to the crossing passes had
+ * them plank a way across a region's pond, so a map asked for NO RIVER came back with thirteen ford cells in
+ * it, and a `divides` river came back with two crossings where its whole definition is one.
+ */
+const flowingWater = (ctx: ArchetypeContext): Set<string> => {
+  const out = new Set<string>()
+  for (const key of ctx.water) if (!ctx.still.has(key)) out.add(key)
+  return out
+}
+
+/** Is this cell on the planned way, or close enough to it that the way's own width will reach it. */
+function nearRoute(ctx: ArchetypeContext, col: number, row: number): boolean {
+  const cells = ctx.routes?.cells
+  if (!cells) return false
+  const reach = Math.ceil(pathwayWidth(ctx) / 2) + 1
+  for (let dr = -reach; dr <= reach; dr++) {
+    for (let dc = -reach; dc <= reach; dc++) if (cells.has(`${col + dc},${row + dr}`)) return true
+  }
+  return false
 }
 
 /** WHERE A REGION'S STANDING WATER LIES, as separate bodies. Not a channel: it sits in hollows, so it is
@@ -4492,7 +4537,23 @@ function regionPoolBodies(ctx: ArchetypeContext, zoneAt: (GeneratorSubZone | und
     // tone said puddle and the collision said channel. A pool is standing water in a hollow, so it takes only
     // cells the channel has not already claimed, and swamp tone now means exactly one thing.
     if (isWaterGround(ground[row][col])) return
-    if (shadeNoise(Math.floor(col / SWAMP_POOL_PATCH) * 1.9 + Math.floor(row / SWAMP_POOL_PATCH) * 2.7) > share * 2) return
+    // NOT ON THE WAY IN. The route network is planned before a drop of water is laid (`pathways:plan` runs
+    // ahead of `water`, on purpose), so a body can be kept off it rather than having to be bridged after the
+    // fact. Without this a lake big enough to block could land across the only way to a stop and cut the map
+    // in two, which is what a river gets a crossing for and a lake has no business doing.
+    // …WITH A MARGIN. The plan's centreline is not the width of the way: the network is cut `pathwayWidth`
+    // cells across, so water touching the line's neighbour still lands ON the way and gets forded. Measured
+    // on a woodland asked for NO river: thirteen ford cells, all of them where a lake met the widened track.
+    if (nearRoute(ctx, col, row)) return
+    // THE PATCH DECIDES WHERE, A FINER NOISE DECIDES THE SHORE.
+    //
+    // Scoring the patch alone puts every boundary on a 5-cell step, so a body comes out as a RECTANGLE: a
+    // beach's pool read as a painted teal box on the sand. The coarse term still carries almost all the
+    // weight, so water stays in coherent sheets rather than breaking into a pepper of puddles; the fine term
+    // only decides where inside its own patch the edge falls, which is what gives a lake a wobbling shore.
+    const patch = shadeNoise(Math.floor(col / SWAMP_POOL_PATCH) * 1.9 + Math.floor(row / SWAMP_POOL_PATCH) * 2.7)
+    const shore = shadeNoise(col * 0.73 + row * 1.31)
+    if (patch * 0.82 + shore * 0.18 > share * 2) return
     candidate.add(`${col},${row}`)
   })
 
@@ -4514,6 +4575,7 @@ function layPoolFilm(ctx: ArchetypeContext, body: ReadonlySet<string>, pal: Gene
     // with the channel and laid a dirt ford instead. What keeps a plant out of a puddle is `ctx.wet`, which
     // is set below, and that has always been the field for it.
     ctx.pools.add(key)
+    ctx.still.add(key)
     // A PUDDLE IS FLUSH WITH THE FLOOR; a channel surface is not.
     //
     // Measured before changing anything: a pool ALREADY sits at elevation 0, is ALREADY walkable (149 of 149
@@ -5337,9 +5399,9 @@ function meadowPhases(twoPathways: boolean): VariantPhases {
       // put actual tiles or objects specifically related to pathways, like a bridge to go over a river ...
       // it'll still happen at the end of the process and can be the start of the objects phase"*. After the
       // repair, so the deck is never filled back in.
-      if (course) bridgeRiver(ctx, ctx.water, ctx.pathwayCells, course, meadowWater(ctx))
+      if (course) bridgeRiver(ctx, flowingWater(ctx), ctx.pathwayCells, course, meadowWater(ctx))
       strewRegionRuins(ctx) // the stone a region asks for, after the planting
-      settleWaterDepth(ctx, molten(ctx, meadowWater(ctx)), ctx.pools) // last, once the bridge is down
+      settleWaterDepth(ctx, molten(ctx, meadowWater(ctx)), ctx.pools, ctx.still) // last, once the bridge is down
     },
   }
 }

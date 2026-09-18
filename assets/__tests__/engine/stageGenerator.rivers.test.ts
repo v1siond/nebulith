@@ -98,11 +98,19 @@ const edges = (s: Stage) => {
 
 /** Separate crossings: each connected group of deck cells is one place you can get over. */
 function crossings(s: Stage): number {
+  // OVER THE RIVER, not over anything wet. A map can also carry a region's standing water, and where growth
+  // pinches the floor around one the connectivity pass lays a log across it. That is not a way over the
+  // river, so a course whose whole definition is "crossable in exactly ONE place" must not count it.
+  const channel = new Set(channelCells(s).map(([c, r]) => `${c},${r}`))
+  const touchesRiver = (key: string): boolean => {
+    const [c, r] = key.split(',').map(Number)
+    return [[0, 0], [1, 0], [-1, 0], [0, 1], [0, -1]].some(([dc, dr]) => channel.has(`${c + dc},${r + dr}`))
+  }
   // A CROSSING IS A WAY OVER, not planking. This counted `bridge` GROUND, which was the only crossing there
   // was; a ford is the other kind, a stretch of river shallow enough to wade, and it lays no planking at all.
   // The two are published separately because the river model has to tell dry planking from shallow water, but
   // "how many places can you get over" is the one question they answer the same way, so this unions them.
-  const deck = new Set<string>([...(s.decks ?? []), ...(s.fords ?? [])])
+  const deck = new Set<string>([...(s.decks ?? []), ...(s.fords ?? [])].filter(touchesRiver))
   const seen = new Set<string>()
   let n = 0
   for (const start of deck) {
@@ -164,7 +172,10 @@ describe('no river means no river', () => {
   it.each(['woodland', 'meadow'] as const)('a %s with the river set to none has no channel', layout => {
     const s = grow(layout, 'none')
     expect(channelCells(s)).toHaveLength(0)
-    expect(s.decks?.size ?? 0).toBe(0)
+    // NOT "no planking anywhere", which is an assertion I added here and which is wrong: a region may hold a
+    // POND, and where dense growth pinches the floor around one the connectivity pass lays a log to keep the
+    // map one place. A log over a pond is not a river. What "no river" promises is no CHANNEL, and that is
+    // the line above.
     expect(s.fords?.size ?? 0).toBe(0)
   })
 

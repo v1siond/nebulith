@@ -207,9 +207,13 @@ describe('the MOUNTAIN FOREST is the template that actually climbs', () => {
     expect(steps.has(0)).toBe(true) // and the inside of a region is level, not a staircase
   })
 
-  it('grows the DEEP WOOD thick and leaves the GLADE bare, counting trunks and not settings', () => {
+  it('grows the WOODED FOOT thick and leaves the SUMMIT bare, counting trunks and not settings', () => {
+    // NAMED FOR THE REGIONS THIS TEMPLATE HAS. It asked a mountain for its `deep` and its `glade`, which are
+    // the WOODLAND's names: the mountain was given its own set (foot, slope, treeline, crag, summit) and this
+    // went on passing because it reads a captured fixture that still held the old ones. The property is the
+    // same and it is now asked of the two ends of the climb, which is what the mountain is.
     const s = mountain()
-    expect(canopyRate(s, region('deep').floor!)).toBeGreaterThan(canopyRate(s, region('glade').floor!) * 2)
+    expect(canopyRate(s, region('foot').floor!)).toBeGreaterThan(canopyRate(s, region('summit').floor!) * 2)
   })
 
   it('holds on ANOTHER seed too, so this is the template and not one lucky map', () => {

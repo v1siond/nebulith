@@ -84,8 +84,12 @@ describe('a beach grows coastal things', () => {
   })
 
   it('the coast keeps its WATER species, which is what he meant by water nature', () => {
-    expect(species('forest_beach', 'deep')).toContain('tree_mangrove')
-    expect(species('forest_swamp', 'glade')).toContain('tree_mangrove')
+    // NAMED FOR THE REGIONS THAT EXIST. This asked a beach for its `deep` and a swamp for its `glade`, which
+    // are the WOODLAND's region names: both sets were replaced when each biome got its own, and the case went
+    // on passing because it reads a captured fixture that still held the old ones. The property is unchanged,
+    // it is asked of the region that actually stands in the water now.
+    expect(species('forest_beach', 'shore')).toContain('tree_mangrove')
+    expect(species('forest_swamp', 'open_water')).toContain('tree_mangrove')
   })
 
   it('each tropical species is BROWSEABLE, so it shows in the objects list', () => {
@@ -130,8 +134,10 @@ describe('NO tropical row anywhere falls through to the season', () => {
 
   it('the SPECIES still differ per row, so shared blooms did not flatten them', () => {
     // The blooms are shared; the trees are not. The beach is palms, the swamp is cypress, the jungle is the giant.
-    expect(species('forest_beach', 'glade')).toContain('tree_palm')
-    expect(species('forest_swamp', 'glade')).toContain('tree_cypress')
+    // The regions each of these templates actually serves: a beach's palm stand and a swamp's mire, not the
+    // woodland's `glade` both of them were asked for before every biome got its own set.
+    expect(species('forest_beach', 'palms')).toContain('tree_palm')
+    expect(species('forest_swamp', 'mire')).toContain('tree_cypress')
     expect(species('forest_jungle', 'deep')).toContain('tree_giant')
   })
 })
