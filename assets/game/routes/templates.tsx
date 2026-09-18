@@ -123,7 +123,7 @@ import { SwapTilePanel } from '@/components/shell/SwapTilePanel'
 import { NO_ZONES_SHUT, ZoneCollapse, zoneClasses, type EditorZoneId, type EditorZoneShut } from '@/components/shell/ZoneCollapse'
 import { HudOverlay, PlayerUiPanel, useHudLayout } from '@/components/shell/PlayerUiPanel'
 import { armedSubject, shouldOpenPreview, shouldOpenPreviewOnPeek } from '@/components/previewOpening'
-import { connectorEditFromSelection } from '@/game/editor/connectors'
+import { connectorEditFromSelection, exitConnectors } from '@/game/editor/connectors'
 import { useEditorHistory } from '@/game/editor/useEditorHistory'
 import { spawnInMainArea } from '@/game/runtime/spawn'
 
@@ -2591,6 +2591,9 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
       __setShape?: (col: number, row: number, shape: TileShape) => { col: number; row: number; shape: TileShape } | null
       __setDisplay?: (col: number, row: number, mode: TileDisplay) => { col: number; row: number; mode: TileDisplay } | null
       __setLight?: (col: number, row: number, light: AssetLight | null) => { col: number; row: number; light: AssetLight | null } | null
+      /** Every exit the generate seeded, with ALL of its cells, so the harness can check an exit is the
+       *  served pathway width and that nothing stands in it. */
+      __exits?: () => { cells: { col: number; row: number }[] }[]
       __pickTileAt?: (clientX: number, clientY: number) => { col: number; row: number; stackIndex: number | null; source: string | null } | null
       __cellScreen?: (col: number, row: number, level?: number) => { x: number; y: number } | null
       __tileCentroid?: (col: number, row: number, level?: number) => { x: number; y: number } | null
@@ -2850,6 +2853,10 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
       bumpBuildingVersion()
       return { col, row, mode }
     }
+    // THE EXITS, as the map actually carries them: every connector the generate seeded, with all of its
+    // cells. The harness reads this to check an exit is the served pathway width and that nothing stands in
+    // it, which is a question about the gate's own cells and cannot be answered by guessing at the border.
+    win.__exits = () => connectorsRef.current.map(c => ({ cells: c.cells.map(({ col, row }) => ({ col, row })) }))
     // Per-instance LIGHT validation seam (sibling of __setShape): set/clear the topmost asset's night glow
     // pool light so a headless render can prove distance/intensity drive the pool. Mirrors setAssetLight.
     win.__setLight = (col: number, row: number, light: AssetLight | null) => {
@@ -3776,6 +3783,10 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
     lastRegionsRef.current = stage.regions
     applyStageToGrid(stage, grid, buildingSaltRef.current, generator.config.buildings,
       Object.fromEntries((generator.config.subZones ?? []).map(z => [z.key, z])))
+    // EVERY EXIT ARRIVES WIRED. A generated map's gates are the one place whose meaning is "somewhere else",
+    // so each gets a walk connector covering ALL of its cells, with the target left for him to pick. The cell
+    // count follows the served pathway width because the gates do.
+    if (stage.routes) setConnectors(exitConnectors(stage.routes.gates))
     // Keep the player on walkable ground (new trees/plots may sit where they stood); entities stay put.
     const here = livePlayerCell()
     movePlayerToValidSpawn(here.col, here.row)
@@ -4021,6 +4032,10 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
     lastRegionsRef.current = stage.regions
     applyStageToGrid(stage, grid, buildingSaltRef.current, generator.config.buildings,
       Object.fromEntries((generator.config.subZones ?? []).map(z => [z.key, z])))
+    // EVERY EXIT ARRIVES WIRED. A generated map's gates are the one place whose meaning is "somewhere else",
+    // so each gets a walk connector covering ALL of its cells, with the target left for him to pick. The cell
+    // count follows the served pathway width because the gates do.
+    if (stage.routes) setConnectors(exitConnectors(stage.routes.gates))
     movePlayerToValidSpawn(stage.spawn.col, stage.spawn.row)
     const live = livePlayerCell()
     syncPlayerEntity(live.col, live.row, true) // fresh stage → player entity follows the spawn

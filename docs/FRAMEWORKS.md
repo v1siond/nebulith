@@ -57,6 +57,7 @@ When reading a source, write down both. The second half is usually the more valu
 | Effects on a tile: textures, animation, physics | [`TILE-EFFECTS.md`](TILE-EFFECTS.md) | Written 2026-09-16, nothing built. The design for what water uncovered. |
 | Building an object out of tiles | [`OBJECT-CONSTRUCTION.md`](OBJECT-CONSTRUCTION.md) | Written, complete. Reference-first process, engine facts, six patterns, checklist. |
 | Trees: species, form, what a forest is made of | [`TREES.md`](TREES.md) | Written 2026-09-16. A species-crown attempt was built and REVERTED the same day: §2 records why, and its constraints bind any retry. |
+| Ways through a map, their width and their exits | [`PATHWAYS.md`](PATHWAYS.md) | Written 2026-09-18. A pathway is a STRETCH with 1 or 2 exits. §3 the served width and everything that must ask it, §4 the exit contract, §6 the gate. Written after an entrance authored 3 cells wide left a city's 4-wide exit with a tree in it. |
 | Map entrances | [`DESIGN-ENTRANCES.md`](DESIGN-ENTRANCES.md) | Written |
 | Water, rivers, pools, the sea | [`WATER.md`](WATER.md) | Written 2026-09-16 from his two sources. Build order is stated, most of it is not built. |
 | What regions a biome has, and how you move through them | [`REGIONS.md`](REGIONS.md) | Written 2026-09-17. A region set belongs to its BIOME and is ORDERED; the scatter partition is why a volcano felt like a wood. |
@@ -84,7 +85,6 @@ These have no framework. Each one is currently decided by whoever touches it las
 
 | Missing framework | What it has to settle | Why it hurts now |
 |---|---|---|
-| **`PATHWAYS.md`** | A pathway is a stretch with 1 or 2 exits. The five served things (surface, width, edge, scatter, lining), the ten kinds, how a settlement's streets derive from it, how a way meets water. | Implemented six times under six names before it was collapsed. The model lives in code comments and a ticket row, nowhere readable. |
 | **`COLOUR-AND-PALETTE.md`** | A colour setting moves the hue and never the tone. Which palette a template serves, what reads as lit and what reads as material, the path-lighter-than-field law measured off references. | The path was darker than the field by 24.5 luminance across every template, against references where it is lighter by 35 to 128. |
 | **`SHADOWS.md`** | What casts, what receives, how a stack of blocks shadows itself, how shadow interacts with water and with night light. | Named as a layer in the stack, nothing behind the name. |
 | **`PERFORMANCE.md`** | The frame budget, what is allowed per frame, how a new layer proves it can afford itself. | FPS fell from about 20 to 17 with boundary overlays and there is no stated budget to judge that against. |
