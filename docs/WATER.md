@@ -115,6 +115,48 @@ Two rules follow, and they are the whole of what makes lava lava:
 
 Both halves of that behaviour were found by measuring rather than reasoning: a first pass left 23 lava cells walkable, and every one was a pool, because the depth pass walks the channel only and a pool at ground level is walkable on purpose.
 
+---
+
+## 1b. The rim is drawn IN the art, and how dark it may be
+
+His rule, from the start: *"a [river] should have white borders due to the current, lake should be more darker
+because it doesn't have current, and beach should be a mix, to simulate the effect of beach waves getting to
+the sand"*. The rim tone therefore lives in the TILE, not in a colour setting, because one setting cannot make
+a rim both lighter and darker than its own body.
+
+**And there is an upper bound on the darkness, which the lake broke.** 2026-09-18, on a map of open water:
+*"water is above floor level in comparison with the rest of terrain"*.
+
+It was not. Measured four independent ways, water and land were flush: stage elevation 0 for both, grid height
+0 for both, the floor asset's own height unset on both, and every water autotile piece seeded at `height: 0.0`
+exactly like `meadow` and `floor`. What stood up was the ART. The lake's edge pieces carried
+
+```
+<path d="M0 13 H128" stroke="#4e4e4e" stroke-width="15" opacity="1.0"/>
+```
+
+a SOLID near-black bar, 15 of 128 pixels, at full opacity, with nothing to break it up. On an iso diamond a
+band like that reads as a vertical face, so a lake looked like a raised slab and an island inside one looked
+like a pit with walls.
+
+Measured against the water field's own luminance (220.1), before and after:
+
+| kind | rim | before | after | what it is |
+|---|---|---|---|---|
+| river | `#ffffff` w15 | **+34.4** | +34.4 | the current throwing up white water |
+| beach | `#6a6a6a` w16 + a white line at w8 | **-36.1** | -36.1 | a wave reaching sand, both at once |
+| lake  | `#4e4e4e` w15 op1.0 → `#545454` w12 op0.85 | **-69.5** | **-42.5** | still water going deep at the edge |
+
+The lake is still the darkest of the three, which is what he asked for. What changed is that it is no longer
+*twice* the beach's drop, opaque, and thick enough to read as masonry.
+
+**The law:** a rim states the KIND of edge, and it may not state a HEIGHT. If an edge band reads as a wall
+face, it is too dark, too wide or too opaque, whatever the tile's `height` field says. Keep a rim's drop
+inside roughly 45 luminance of its own field, and give a dark one something to break it up.
+
+Baked with `node priv/tilegen/bake.mjs --only=<labels>` from `priv/tilegen/tiles.json`, which is where the
+shape of every water piece lives.
+
 ## 2. The stack, bottom to top
 
 Drawn in this order. Each row states what it is, and what it is in THIS engine.
