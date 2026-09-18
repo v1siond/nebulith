@@ -35,3 +35,18 @@ nebulith-*.tar
 npm-debug.log
 /assets/node_modules/
 
+
+# `mix assets.deploy` runs phx.digest, which writes a hash-named COPY and a .gz of EVERY static file
+# right next to the original. Only /priv/static/assets was ignored, so running a production asset
+# build locally used to drop ~1,400 digested tile PNGs into the working tree.
+/priv/static/**/*.gz
+/priv/static/**/*-????????????????????????????????.*
+
+# Licensed stock REFERENCE art. The sources and the licence terms are recorded in
+# docs/references/SOURCES.md, which IS tracked; the files themselves are not ours to redistribute,
+# so they stay local. game-website had this rule and nebulith did not, which is how eight of them
+# reached a commit here.
+docs/references/**/*.jpg
+docs/references/**/*.jpeg
+docs/references/**/*.png
+docs/references/**/*.webp

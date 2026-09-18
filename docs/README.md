@@ -1,8 +1,12 @@
 # Nebulith docs — index
 
-The canonical spec set for the Nebulith game engine. The `game-website` frontend repo mirrors the
-model docs; **these are the source of truth**. Working rule: **check docs → understand → do the work**,
-and update the relevant doc in the same change that alters the model or a feature.
+The spec set for the Nebulith game engine, and the only copy. The engine used to live in the
+`game-website` repo and these docs were mirrored there; that mirror is gone, because it had drifted in
+ways nobody could see (its `GENERATION-SPEC.md` was missing the entire layer-model section that
+`FRAMEWORKS.md` points at). One copy, in the repo that owns the code.
+
+Working rule: **check docs → understand → do the work**, and update the relevant doc in the same
+change that alters the model or a feature.
 
 Working rule: **open [`FRAMEWORKS.md`](FRAMEWORKS.md) first**, follow the framework it names for
 whatever is being worked on, and if there is no framework for it, research and write one before starting.

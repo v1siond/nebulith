@@ -20,34 +20,56 @@ defmodule Nebulith.Docs do
   """
 
   @sections %{
+    # Read first. The index of frameworks is the entry point to everything else.
+    "FRAMEWORKS" => :frameworks,
+    "README" => :frameworks,
+    "VISION" => :frameworks,
+    "CODING-STANDARDS" => :frameworks,
     "API" => :api,
     "ARCHITECTURE" => :architecture,
     "ENGINE-ARCHITECTURE" => :architecture,
     "NEBULITH-SOURCE-OF-TRUTH" => :architecture,
     "TILE-BACKEND-MIGRATION" => :architecture,
+    "DEPLOY" => :deployment,
+    "DEPLOYMENT-AND-BOUNDARIES" => :deployment,
+    "LIVEVIEW-MIGRATION-PLAN" => :deployment,
     "MAP-MODEL" => :model,
     "TILE-VOCABULARY-CONTRACT" => :model,
     "TILESET-AUTHORING" => :model,
+    "HITBOXES-AND-ELEVATION" => :model,
+    "MATH-FOUNDATIONS" => :model,
+    "POLYGONS" => :model,
     "GENERATION-SPEC" => :generation,
     "ALGORITHMS" => :generation,
+    "REGIONS" => :generation,
+    "TERRAIN" => :generation,
+    "WATER" => :generation,
+    "DESIGN-ENTRANCES" => :generation,
+    "TILE-DESIGN" => :art,
+    "TILE-EFFECTS" => :art,
+    "OBJECT-CONSTRUCTION" => :art,
+    "TREES" => :art,
     "EDITOR-INTERACTION-SPEC" => :editor,
+    "EDITOR-UX" => :editor,
     "TRIGGERS-SPEC" => :editor,
     "COMBAT-AND-SYSTEMS-SPEC" => :systems,
     "ANIMATION-SYSTEM" => :systems,
     "LIGHTING" => :systems,
     "RENDER-AND-CAMERA" => :systems,
     "FEATURES" => :project,
-    "GAPS-AND-ROADMAP" => :project,
-    "README" => :project
+    "GAPS-AND-ROADMAP" => :project
   }
 
   @section_titles [
-    api: "API reference",
+    frameworks: "Start here",
     architecture: "Architecture",
     model: "The map model",
     generation: "Generation",
+    art: "Tile and object art",
     editor: "The editor",
     systems: "Systems",
+    deployment: "Deployment",
+    api: "API reference",
     project: "Project",
     other: "Other documents"
   ]

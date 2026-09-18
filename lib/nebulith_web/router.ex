@@ -40,6 +40,14 @@ defmodule NebulithWeb.Router do
     get "/", PageController, :home
   end
 
+  # The platform's liveness check. Its own pipeline: no session, no layout, no secure headers to
+  # negotiate, and excluded from force_ssl in prod so the internal HTTP probe is not redirected.
+  scope "/", NebulithWeb do
+    pipe_through :api
+
+    get "/health", HealthController, :show
+  end
+
   # Every engine path serves the same shell; the client router reads the path. Listing them rather than
   # globbing keeps an unknown path a 404 instead of a silently empty gallery.
   scope "/", NebulithWeb do

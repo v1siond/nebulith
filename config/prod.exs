@@ -14,7 +14,9 @@ config :nebulith, NebulithWeb.Endpoint,
   force_ssl: [
     rewrite_on: [:x_forwarded_proto],
     exclude: [
-      # paths: ["/health"],
+      # The platform probes this over plain HTTP from inside its own network. A 301 to https reads
+      # as a failed deploy and the container never goes live.
+      paths: ["/health"],
       hosts: ["localhost", "127.0.0.1"]
     ]
   ]

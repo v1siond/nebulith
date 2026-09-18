@@ -72,12 +72,21 @@ receives" principle from [`../README.md`](../README.md).
 > (`nebulith/lib/nebulith/catalog/generator_source.ex` → `generator_categories` / `generators`; client +
 > selectors in `game-website/src/lib/generatorCatalog.ts`; T-113).
 >
-> The shipped catalog: seasons `spring · summer · autumn · winter · desert`, categories
-> `forest · town · city · cave · temple`, and `forest` carries two layouts (`meadow`, `meadow_river`).
+> The shipped catalog, read off the live API 2026-09-12: seasons `spring · summer · autumn · winter ·
+> desert`, and FOUR categories, `forest · settlement · cave · temple`. Town and city merged into one
+> `settlement` category (they are two presets of one kind of place, his *"City and town options are the same,
+> it'd put them in a single category"*), and `forest` carries three layouts (`woodland`, `jungle`, `meadow`);
+> `meadow_river` is gone, a river is an OPTION now. The catalog is a TREE: 24 generator rows, each a kind with
+> its variations underneath (`generators.parent_id`, merged by `generator_tree/1`).
+>
 > Each generator's `config` carries its own grid range (`cols`/`rows` min-max, `cellSize`, `isoScale`),
-> `units` (`townsfolk` / `enemies` / `enemyTypes`), and — for a settlement — `nature`, `settlement`
-> tuning and the `buildings` material + colour palette. The zone PALETTES are still frontend
-> (`src/engine/zones.ts`, §3.14b Tier-1 #4, not yet migrated).
+> `units` (`townsfolk` / `enemies` / `enemyTypes`), and, for a settlement, `nature`, `settlement` tuning and
+> the `buildings` material + colour palette.
+>
+> The zone PALETTES are MIGRATED (this sentence used to say they were not). They come from `GET /api/zones`
+> plus the season-independent tables in `game_rules`; `src/engine/zones.ts` is now a set of READERS over that
+> catalog, and the 302 lines of authored values are gone. A season the backend does not serve has no palette,
+> and a caller with no palette plants nothing.
 >
 > The frontend holds **no** list of seasons, map types or layouts: the four tables that used to
 > (`editorConfig.ts` `STAGE_ZONES` / `STAGE_VARIANTS` / `STAGE_VARIANT_LABELS` / `VARIANT_LAYOUTS`) were
@@ -88,8 +97,21 @@ receives" principle from [`../README.md`](../README.md).
 >
 > **Still frontend, deliberately:** the five generator LAYERS (`GENERATOR_LAYERS`, `editorConfig.ts`) are
 > engine PASSES (`stageGenerator.ts` `LAYER_IDS`), not generator records, and `/api/generators` serves no
-> layer list. **Not yet migrated:** the settlement tuning + nature densities still live as constants in
-> `engine/villageLayout.ts` and `engine/stageGenerator.ts` even though the catalog already serves them.
+> layer list.
+>
+> **Not yet migrated, measured 2026-09-12 rather than assumed.** The settlement tuning constants in
+> `engine/villageLayout.ts` are fine: every one resolves `served ?? CONSTANT`, so they are documented defaults
+> and the served value always wins. Three siblings are NOT fine, because they shadow served data outright and
+> the served value can never take effect:
+>
+> - `NATURE_MULT` (`stageGenerator.ts:913`) against the served `settlement.natureMultiplier`, which the backend
+>   carries on EIGHT rows (town 1.3, city 0.5, town_small 1.8, town_forest 2.4, town_swamp 2.0, and more).
+> - the `naturePass` literals `scatterGroundCover(ctx, 0.12)` / `scatterFlowers(ctx, 0.06)`
+>   (`stageGenerator.ts:1005-1006`) against the served `nature` block that is already in scope. Its sibling
+>   `tallGrass` IS read from the served block, which is what proves the wiring exists and these two bypass it.
+> - the save path's `isoScale: 1.4` (`stageGenerator.ts:4907`) against a served `2.5`.
+>
+> The wider audit of frontend-held data lives in the workspace board, section B2.
 
 Replace today's ~30 messy presets (many dead cultural themes) with a small, manageable matrix:
 - **Zone** = elemental theme → palette + prop set. MVP: **lava** and **frozen** ONLY.
@@ -152,58 +174,155 @@ Depends on a usable editor (the UI rebuild) to author/preview, and feeds the AI 
 
 ---
 
-## 5. Layer-pass architecture (the macro/micro randomize foundation) — SHIPPED 2026-07
+## 5. THE LAYERS
 
-The stage generator is built from independent, **seedable LAYER passes** rather than one monolithic
-pass, so the user can randomize the whole map OR just one layer ("randomize the map… only trees…
-only buildings… just the MAP which contains the distribution of things without actual structures").
-This is the foundation for the editor's scoped **Generate ▾** randomize (macro) and the selection
-re-roll (micro).
+A LAYER IS A SET OF THINGS IN A GIVEN CONTEXT. It is a subsystem, not a function, not a pass, not a call site:
+*"a layer IS NOT a function or a method used in the engine, is the overal system that generates something"*.
 
-### 5.1 The layers (`stageGenerator.ts` `LayerId` / `LAYER_IDS`)
+The context here is A LEVEL BEING COMPLETE. That is wider than the map generator, and the two must not be
+conflated: *"A LAYER DOESN'T NECESSARILLY RUNS IN THE GENERATOR, IS JUST A THING IN THE CONTEXT OF THE LEVEL
+COMPLETION"*. Units are a layer of elements even though the generator does not scatter them.
 
-| Layer | Pass | What it owns |
-|-------|------|--------------|
-| **layout** | `layoutPass(ctx, settlement) → VillageLayout` | terrain/ground distribution + roads + plots + plaza — the "map without structures nor nature" |
-| **buildings** | `buildingsPass(ctx, layout)` | one typed composition stamped per plot (kind is a plot decision; appearance variety is rolled at load) |
-| **nature** | `naturePass(ctx, layout, settlement)` | trees / bushes / flowers / ground cover |
-| **decor** | `decorPass(ctx, layout)` | plaza centrepiece (well/fountain) + street lamps |
-| **units** | *(editor)* | enemy/npc scatter — owned by the editor's entity store, not the generator |
+### 5.1 The layers, in order
 
-### 5.2 Seeding contract (`makeRng`, `GenerateOptions.seeds`)
+| # | layer | what it is | group |
+|---|---|---|---|
+| 1 | **grid + terrain** | the grid (size, cell, rows) and the terrain built on it, by zone / region / season, which determines what objects will be added and the type of floor | layout |
+| 2 | **water** | blocks pathways | layout |
+| 3 | **pathways** | the map's STRUCTURE. Adapts to the space water left on the grid. What is a pathway, what is a section to put objects in, where the exits are, how the pathway is drawn | layout |
+| 4 | **objects** | where the generator enters into play. Tile compositions: buildings, nature, decor. Houses, fountains, trees. The LOOK of the pathway and of the exits is picked here too. Content AND ordering differ per zone: a jungle's objects are not a town's | objects |
+| 5 | **units** | the creatures and townsfolk. Depends on everything above | |
+| 6 | **fog** | to optimize, handle distance. NOT IMPLEMENTED | |
+| 7 | **lightning** | affects all elements. NOT IMPLEMENTED | |
+| 8 | **shadow** | depends on lightning and on positioned elements. NOT IMPLEMENTED | |
+| 9 | **post processing / optimization** | NOT IMPLEMENTED | |
 
-- Every stochastic helper draws from **`ctx.rand`** (a `Rng = () => number`), never `Math.random`
-  directly, so a pass is **pure given its rng**.
-- `generateStage({ …, seeds })` takes an optional **per-layer seed**. A layer with a seed draws from
-  a reproducible `makeRng(seed)` (mulberry32) stream; a layer left out draws from the global
-  `Math.random`. **Omitting `seeds` entirely reproduces the pre-split generator byte-for-byte** — the
-  behaviour-preservation guarantee (locked by `stageGenerator.layers.test.ts`'s seeded digest
-  baselines).
-- **Re-roll one layer** = change only that layer's seed and regenerate: the other layers, fed the same
-  seeds, reproduce identically, so only the re-rolled layer changes.
+`layout` is the name for 1 to 3 together: *"layout refers to the underlying subsystem already mentioned (grid,
+terrain, water, pathways), it groups them under it, we can name it differently, but basically those are the
+'main' layers"*. `buildings` / `nature` / `decor` are the objects layer seen closer up.
 
-### 5.3 Order is load-bearing
+**EVERY TEMPLATE RUNS THE SAME LAYERS.** A template does not own a pipeline. It varies by the DATA it feeds
+them, and today only `objects` differs: *"basically the only layer that changes (sat the moment) is the objects
+layer, in the future the light, fog and shadow will also change, because they depend on the base objects
+layout"*.
 
-`placeSettlement` composes the passes **layout → buildings → decor → nature** (the same order the
-generator always ran): layout carves roads before buildings reserve plots, and **decor paves the
-plaza before nature plants** so no tree lands on the square. The `LayerId` list orders layout,
-buildings, nature, decor, units for the *menu*; the settlement *executes* decor before nature.
+### 5.2 Structure is pathways, LOOK is objects
 
-### 5.4 Honest scope (what has real generator randomness)
+The line between layers 3 and 4 is structure against appearance, and it is easy to put on the wrong side:
 
-Only **layout** and **nature** carry stochastic generator RNG today. **buildings** are
-deterministic from the layout (a building's kind comes from its plot; the plaza variant from
-settlement size) — their visible re-roll is an **appearance** re-roll (material / roof / wall colour)
-performed at load in the editor's `applyStageToGrid`, not new generator geometry. **decor** is
-deterministic in its GEOMETRY (the plaza centrepiece + the lamp POSITIONS come from the layout), but
-it does carry ONE small stochastic pick from the **decor** rng: `markFailingLamps` flips a tiny random
-subset of the placed lamps (usually 1, sometimes 2, occasionally 0) to the flickering
-`lamp_post_failing` variant, so a decor re-roll re-picks WHICH lamps flicker while the rest stay steady
-(see `LIGHTING.md` §4 — "only 1 or 2 lamps flicker"). **units** are an editor entity concern. The non-settlement archetypes (forest / cave / temple / boss) remain
-single whole-map generators reading `ctx.rand` (seeded via the layout rng); they are not decomposed
-into these layers.
+*"pathways doesn't necessarilly determines the LOOK of the pathway, that's usually done in the objects aprt,
+where floor is actually painted with tiles specific to each map/region, etc. What the pathways determine is the
+map structure, what is a pathway, what is a section to put objects, what are the exits, how's the pathway draw,
+etc. then on the objects phase we can pick the type of pathway, type of exit, etc"*.
 
-### 5.5 Forest = the MEADOW layouts (rebuilt 2026-07-25 to match #24 / #14)
+| pathways (layer 3) decides | objects (layer 4) decides |
+|---|---|
+| where the ways run and how they are drawn | which tile the way is surfaced with, and in what colour |
+| how wide a way is | what lies ON it and what stands BESIDE it |
+| which cells are a way and which are a section for objects | which entrance composition an exit wears |
+| where the exits are and how many | what an exit looks like |
+
+So a template's served pathway block is two things wearing one name, and they belong to different layers: the
+width and the shape of the way are structure, the surface, its tone, the marking, the scatter and the lining
+are look.
+
+**The way's COLOUR belongs to the pathway kind, and to nothing else.** It lived in two places, the kind's
+`surface` and the template's `palette.trail`, and the palette won every disagreement. So a mountain forest
+asked for a gravel track and its inherited woodland palette painted the gravel brown, a swamp asked for a
+boardwalk and the jungle palette painted the planks dirt, and a meadow, whose palette states no trail at all,
+fell through to the raw tile and came out with a park path 45 points of luminance DARKER than its own lawn.
+Every one of those is a template stating what its way is made of and losing to something it inherited. The
+kind carries `tone` now and the palettes carry no trail, so there is one answer. A palette owns the ground,
+the water and the shore; the pathway owns the way.
+
+**A pathway is served WHOLE.** A subtype that names a different kind gets that kind and nothing of the one it
+replaced. Merged key by key, a medieval city swapped asphalt for cobbles and went on inheriting the asphalt's
+white centre line.
+
+**Anything added is a TILE or an OBJECT.** *"anything added should be part of tiles and/or objects"*. No layer
+invents a drawing primitive of its own.
+
+**The exits and pathways chosen need a PREVIEW**: *"we should also have preview for the exits and pathways
+selected"*. It shows the structure layer 3 produced before the objects layer dresses it, which is the same
+thing as the layout filter stopping at layer 3.
+
+### 5.3 What is NOT a layer
+
+- **Region** and **elevation** are elements used INSIDE the terrain layer. *"region is not a layer, elevation
+  is not a layer either"*.
+- **Anything that is a step inside a layer.** Sealing the border, cutting the gates, keeping a way walkable and
+  clearing what stands in it are all PATHWAYS. Flattening floors and blending transitions are TERRAIN. Stamping
+  an entrance is OBJECTS. None of them is a layer, and each one that was given its own entry split logic that
+  then only ever changed in one context: *"every time I've requested something, you've added a new thing that
+  alñready existed and segmented logic into many code sections, then when one is changed, it only changes on a
+  specific context instead of globally, hence why all your fixes suck and none was ever implemented as expected
+  or only worked in a single map and not all"*.
+
+### 5.4 Inputs are parameters ON a layer
+
+Every input on the generator UI is a parameter of one layer: *"THE INPUTS ARE WHAT DEFINE THE PARAMETERS OF THE
+FIRST LAYER, IN FACT EVERY INPUT FROM THE GENERATOR UI DOES EXACTLY THE SAME, IS A PARAMETER IN A GIVEN LAYER OF
+THE SYSTEM"*. Size, cell and rows are parameters of layer 1. The river course is a parameter of layer 2. Exits
+and pathway count are parameters of layer 3. The tree mix and the pathway surface are parameters of layer 4.
+
+The UI's "layout" choice is ALSO a parameter, and it is a FILTER: *"LAYOUT IN THE UI JUST REFERS TO I WANT TO
+ONLY EXECUTE THE SYSTEM UP TO THIS SPECIFIC LAYER. IE: ONLY GIVE ME AN EMPTY MAP WITH ALL PATHWAYS, GIVE AN
+EMPTY MAP WITH A RIVER, GIVE THE FULL MAP, ETC"*. So the generator runs layers 1..N where N is what was asked
+for.
+
+### 5.5 Where the layers live
+
+The layer LIST is backend data (`/api/generation_layers`): key, label, hint, position, seedable. The engine
+binds a pass to each key and runs them in the served order, so adding fog is a row in the backend rather than a
+release in this repo. A served layer the engine has no pass for does not run; a pass whose layer is not served
+does not run either.
+
+Seeding is per layer (`makeRng`, `GenerateOptions.seeds`), so re-rolling one layer changes only that layer:
+every other layer, fed the same seed, reproduces identically.
+
+### 5.6 How the code is built to it
+
+**A VARIANT DECLARES PHASES, IT DOES NOT OWN A PIPELINE.** Every variant states `terrain`, `water`,
+`pathways` and `objects`, and the layers call them. What a variant does not do it does not declare, rather
+than the engine leaving a call out.
+
+```ts
+interface VariantPhases {
+  terrain:   (ctx, rngs) => void   // the grid's ground, by zone, region and season
+  water?:    (ctx, rngs) => void   // laid BEFORE the pathways, because it is what they go around
+  pathways?: (ctx, rngs) => void   // the map's STRUCTURE
+  objects?:  (ctx, rngs) => void   // everything placed, and the LOOK of the pathways and the exits
+}
+```
+
+All eight went across: woodland, jungle, meadow, town, city, cave, temple, boss stage. Before this they were
+eight private call sequences inside one 5,000-line file, and `terrain` was three layers behind one name.
+
+**FREE SPACE IS A REAL THING, `ctx.claimed`.** *"objects are put in the free spaces that the map has after
+pathways and river has run"*. Water, the pathways, the gate mouths and a wood's clearings all claim ground
+before anything is placed, so the objects layer chooses from what is left rather than choosing anywhere and
+being corrected afterwards. That replaced a SWEEP, which only works while the planting happens before the
+pathways exist.
+
+**TWO ENTRIES ARE NOT LAYERS AND ARE NAMED FOR WHY.** The PLAN is made ahead of terrain because a cave's
+tunnels and a temple's corridors ARE its pathways and its rock is carved out of them; nothing outdoors reads
+it during terrain. `terrain:finish` is the terrain layer's last word, because a shoreline cannot be blended
+before the thing it borders exists.
+
+**What the migration fixed on the way, each measured:**
+
+| | before | after |
+|---|---|---|
+| a town with a river | severed, 1 to 3 buildings in the water | 113 to 203 water cells, 24 to 60 deck cells, none in the water, one piece |
+| a woodland's served `palette.floor` | read by nothing | painted, and its path is now lighter than its ground |
+| a path against its ground | jungle path darker than the field (79.1 vs 85.0) | lighter, as all nine references are |
+| the border treeline | ran in pathways, and the floor repair cut back out through it | runs in objects, six holes closed |
+| a pathway's own network | the sweep cleared 170 of the 487 cells a woodland cuts | all of them, by construction |
+| floor painters | 7, one per variant | 1, `paintFloor(data)` |
+| stranded-pocket sealers | 3 | 2 policies, interior and outdoors |
+| the `ways` name | 135 uses across 43 files | gone; it is `pathways` |
+
+### 5.7 Forest = the MEADOW layouts (rebuilt 2026-07-25 to match #24 / #14)
 
 The forest variant builds one of three **meadow** layouts (references #14 = meadow, #24 = meadow + river, #26 =
 meadow + two ways); the earlier `passages` / `open` / `lake` generators were **retired**. A `ForestLayout` is

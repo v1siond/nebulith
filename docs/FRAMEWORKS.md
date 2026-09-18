@@ -73,6 +73,7 @@ When reading a source, write down both. The second half is usually the more valu
 | The maths: lerp, trig, vectors, dot product, matrices | [`MATH-FOUNDATIONS.md`](MATH-FOUNDATIONS.md) | Written 2026-09-16 from his source. Formulas plus where each lands here. §1.2 colour-space blending binds the tree work. |
 | Polygon and vector shapes, the maths behind them | [`POLYGONS.md`](POLYGONS.md) | Written 2026-09-18 from his source. `x/z, y/z` projection, vertices + face loops, rotation. Nothing built; it is the model the polygon ticket starts from. |
 | Where the apps live, how they deploy, what may cross | [`DEPLOYMENT-AND-BOUNDARIES.md`](DEPLOYMENT-AND-BOUNDARIES.md) | Written 2026-09-18 for the nebulith split. The engine is a React SPA that Phoenix bundles and serves; game-website is the CV only. §5 is the iframe contract, §7 is what `frame-ancestors *` costs, §9 is the gate. |
+| Shipping it: the image, the platform, the variables | [`DEPLOY.md`](DEPLOY.md) | Written 2026-09-18. One service, one database, Phoenix serves everything. §5 is what breaks first. The image and the release were built and booted, not just written. |
 | Moving the engine to LiveView, later | [`LIVEVIEW-MIGRATION-PLAN.md`](LIVEVIEW-MIGRATION-PLAN.md) | Written 2026-09-18. Deferred on purpose: the canvas loop stays JS whatever the shell is. Read before anyone proposes it again. |
 | Writing code here | [`CODING-STANDARDS.md`](CODING-STANDARDS.md) | Written |
 | Reference art and its licences | [`references/SOURCES.md`](references/SOURCES.md) | Written |
