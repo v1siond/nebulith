@@ -43,6 +43,46 @@ that is the only question. The evidence is what the region CONTAINS, and then th
 The first run of this harness, on a beach with everything pinned off, said it plainly: five regions, all
 `meadow`, zero water, zero way cells, differing only in how many cells each claimed.
 
+### 0b.1 Measure the BODY, not the share
+
+A share per region cannot tell a region that owns its lake from one that merely has a neighbour's lake
+spilling over the line. A BODY can: the harness reports every connected body of water and which regions its
+cells fall in, and **one region per body is the pass mark**. A body listed as `50@bank` is that region's own
+water; a body listed as `50@bank+glade` is a defect, and the harness says so on its own line.
+
+### 0b.2 The instrument lies before the code does
+
+Three separate readings in one session were the HARNESS being wrong, not the generator, and each one looked
+exactly like a real defect:
+
+1. **It could not see a pool.** It counted `groundSlugs()` only, and a region's standing water is a
+   `water_still` prop stacked OVER the floor, so a `lakeside` carrying 113 cells of standing water reported
+   zero. It now counts both, and reports them apart as `channel` and `standing`.
+2. **It measured across a build.** A fixed `waitForTimeout` after clicking Build sometimes read the grid from
+   one map and the region map from the next, which put a lake's cells under a neighbouring region's name. It
+   now waits for the working overlay (`[role="status"]`) to appear and then detach, both for the page's own
+   first build and for each build it asks for. Waiting only for `detached` is not enough: an element that does
+   not exist yet is already detached.
+3. **It read tree height as relief.** `top` took the max `heightLevel` over the cell's whole stack, so a flat
+   wood reported relief 3.3. It reads the floor's own level now, through `grid.getHeight`, which is where
+   `applyStageToGrid` puts a region's `level`.
+4. **It read the new build's regions against the previous build's ground.** The page stores its region map
+   BEFORE it applies the stage to the grid, so a wait that only asks "has the map stopped changing" returns
+   instantly while the new build has not begun applying. Measured on a mountain: the regions were the ordered
+   bands the template serves and the ground was the scatter of a preview built earlier, which reads exactly
+   like a generator painting a region's floor and relief in the wrong place. Cross-checking tone against
+   relief is what caught it, because the two disagreed with the region map in the SAME 1240 cells and agreed
+   with each other, which no generator bug produces. The wait now captures `grid.groundVersion` before the
+   click, waits for it to CHANGE, and only then waits for it to settle.
+
+With all four fixed, the same mountain reports what it should: five bands, each in its own floor tone, relief
+climbing 0 to 4 from foot to summit, and bare stone only on the crag and the summit.
+
+Before believing a measurement that says a region leaks, cross-check it against something the map paints for
+its own reasons. Each region's `floor` tone is the honest independent witness: reading the painted floor
+colour back and comparing it to the published region map agreed on 1080 of 1080 cells, which is what proved
+the generator was never at fault.
+
 
 ---
 
@@ -156,7 +196,76 @@ Both keep the border wobble the scatter has, or the rings read as drawn with a c
 ## 3. What a region may state
 
 Already served and read: `weight`, `canopy`, `undergrowth`, `floor`, `leafHue`, `leafValue`, `pools`, `stone`,
-`level`, `formation` (lattice, spacing, understory, understoryTile), `trees`, `flowers`, `buildings`.
+`level`, `built`, `formation` (lattice, spacing, understory, understoryTile), `trees`, `flowers`, `buildings`.
+
+### 3.1 Every layout reads every field, and it did not used to
+
+This was the largest single reason a region did not look like itself, and it was invisible because nothing
+failed. The fields that shape the GROUND were read by whichever builder happened to be running:
+
+| field | woodland | jungle | meadow | settlement |
+|---|---|---|---|---|
+| `floor` | yes | yes | no | no |
+| `level` | yes | yes | no | no |
+| `pools` | **no** | yes | **no** | no |
+| `stone` | **no** | yes | **no** | no |
+
+So the woodland's `lakeside` asked for 22% standing water and the meadow's `bank` for 12%, and neither builder
+had a pool pass. The one region on the map named after a lake was the one place guaranteed to have no water in
+it. The data had been right the whole time.
+
+A layout decides how a map is COMPOSED (a woodland carves clearings out of trees, a jungle carves light gaps,
+a meadow plants trees into open field). It does not get to decide which of a region's stated properties exist.
+Three shared calls, one per phase, and a new region field works everywhere at once:
+
+- `shapeRegions(ctx)` in **terrain**: partition, then `floor` and `level`
+- `floodRegionPools(ctx, pal)` in **water**: `pools`, after the channel so a pool never lands on one
+- `strewRegionRuins(ctx)` in **objects**: `stone`, after the planting so a trunk is never inside a wall
+
+### 3.2 A pool, a lake and a sea are one field at three sizes
+
+`WATER.md` §1 says a river, a lake and a beach are the same thing and differ only in the shape painted. The
+pool pass only ever laid the PUDDLE: a translucent film over the floor, which is correct for a swamp hollow
+and wrong for everything else.
+
+The body decides, and the thresholds are the whole of it:
+
+| body size | what it becomes |
+|---|---|
+| under 6 cells | nothing. Wet dirt does not read as water |
+| 6 to 23 cells | a FILM over the floor. Flush, walkable, the swamp hollow, unchanged |
+| 24 cells or more | real water ground. `borderTheWater` finds it and edges it, `classifyBody` reads it as a LAKE, or as a SEA where it runs along a map edge |
+
+A region lake is added to `ctx.pools`, which is what `settleWaterDepth` means by standing water: *"Only the
+CHANNEL gets one: a pool is standing water and standing water has no current."* Left out of that set, the
+depth pass walks a flow field across the lake, hands every cell a heading, and `classifyBody` reads a current,
+so the lake wears the river's white-water rim instead of a lake's dark one. Measured: exactly that, until the
+lake was declared standing.
+
+### 3.3 What a served share actually means
+
+`pools` is scored as `shadeNoise(patch) > share * 2`, and `shadeNoise` is uniform 0..1. So the share is not a
+percentage of cells, it is HALF of one:
+
+| served `pools` | roughly how much of the region is wet |
+|---|---|
+| 0.08 | 16%, tide pools and puddles |
+| 0.25 | 50% |
+| 0.32 | 64%, enough to make one body rather than a pepper of films |
+| 0.5 and up | all of it |
+
+A share under about 0.3 tends to break into films instead of making a lake, which is why `oasis` at 0.18 was
+an oasis with no water you could see from across the map.
+
+### 3.4 `built`, and why a city had no parks
+
+`built` is the share of a settlement region's PLOTS that carry a building. `buildingsPass` walked the
+planner's plots and built every one, so `upper` / `middle` / `lower` could differ in wall material and in
+nothing else: three names for one thing. A park, a market square, a green and a graveyard are ALL defined by
+open ground inside a built-up place, and no region could say so, so none of them could exist.
+
+A region that states no `built` is fully built, which is what every settlement did before, so nothing that
+existed moves until the backend serves a number.
 
 That is most of *"different layout, different everything"* already. What is NOT served, and what his examples
 need:

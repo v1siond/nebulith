@@ -86,6 +86,71 @@ These have no framework. Each one is currently decided by whoever touches it las
 | **`PERFORMANCE.md`** | The frame budget, what is allowed per frame, how a new layer proves it can afford itself. | FPS fell from about 20 to 17 with boundary overlays and there is no stated budget to judge that against. |
 | **`UNITS-AND-CHARACTERS.md`** | How a unit is authored as a grid of art frames, its facings, its animation set. | A unit is a grid of chars baked to a PNG, written down only in memory. |
 
+## How a design gets written down here
+
+Source: Stone Librande (creative director, EA Maxis), *"One Page Design Philosophy"*, GDC, 52 min.
+<https://www.youtube.com/watch?v=E9_wLks1kAg>. Shared 2026-09-17 as *"Super important documentation for game
+development"*. Transcript pulled and read; timestamps below are from it.
+
+The talk is about the FORM a design document takes, which is what this index governs, so it belongs here
+rather than in any one framework.
+
+### What he measured about the long-form design doc
+
+A design bible is 30 to 100+ pages of mostly text, written from a template, printed and handed out
+([02:11], [04:17]). His verdict on the pros is real and worth keeping: it is the definitive source, it is
+thorough, and *"the act of writing that document is the act of designing"*, because a sentence forces a
+decision you were carrying vaguely in your head ([06:04]-[06:30]). He still writes them, for himself.
+
+The cons are what kill it as a TEAM artifact: it does not scale, and the flow is one-way. He describes
+studios where *"programmers ... I've never even saw our designers ... I see their design documents but I never
+see them"* ([02:57]-[03:06]). A document nobody reads is not communication.
+
+### The one-page design
+
+One page, one subject, and it is a PICTURE, not a wall of text. His explicit warning is against the obvious
+shortcut: *"what you don't want to do is take that design bible ... and just blow it up on a poster"*
+([24:04]-[24:17]).
+
+The construction he names:
+
+- lots of white space
+- one main illustration in the middle to draw the reader in
+- callouts, notes and bullets arranged around it ([24:19]-[24:27])
+- built in a VECTOR tool, so elements rotate, scale and move while you think, and it prints at printer
+  resolution rather than at document resolution ([24:32]-[25:24])
+- if you have never made one, start with a FLOWCHART of the core loop ([26:20]-[26:27])
+
+The reader chooses their own depth: the headline reads from across the room, and the detail rewards someone
+who walks up to it ([26:04]-[26:14]).
+
+### Why it beats a wiki
+
+A wiki *"is notorious for chopping up your design and breaking connections between things, other than a
+hyperlink, which is not really a real connection"* ([46:57]-[47:06]). A single page keeps the RELATIONSHIPS
+visible, and drawing the arrows is itself how you find them: *"oh, that has that effect on this other thing,
+oh I see it now"* ([46:47]-[46:56]).
+
+### The cost, stated honestly
+
+It is subtractive work. An audience member put it back to him as *"you're getting this comprehensive picture
+of the design and then you're compressing it"*, and he agreed: you must decide what to leave OUT
+([51:07]-[51:34]). It is slow. *"Is it hard? Oh yeah, it's really hard ... but what are you getting paid
+for"* ([47:41]-[47:50]). A page can be a week's work on its own, iterated in meetings in black and white
+until people get it, and only printed for the wall once it is settled ([49:43]-[50:05]).
+
+### What this binds here
+
+1. A framework in the table above stays the long form: it is the thorough source, and writing it is how the
+   design gets decided. That is the pro he names and it is why these files exist.
+2. Anything meant to be READ BY SOMEBODY ELSE, a proposal, a region set, a layer order, a comparison against
+   a reference, gets a ONE-PAGE form beside the prose: one picture, callouts around it, no wall of text.
+3. For a FAMILY of things, that one page is the render-all sheet the protocol already demands. The region
+   sheet (`.probe/regionsheet.mjs` plus `.probe/regiondiagram.py`) is exactly this artifact, and the talk is
+   why it is worth the build: the sheet is the design, the prose is the backup.
+4. Draw the CONNECTIONS. If a change touches two layers, the page shows the arrow between them; splitting it
+   across two sections is the wiki failure he names.
+
 ## Precedence
 
 `nebulith/docs/` is canonical and wins on conflict. This repo's copies map the same model onto the frontend. Change both in the same commit.
