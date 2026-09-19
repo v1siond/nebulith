@@ -141,13 +141,13 @@ deleted. Prove a cache's hit rate matters before keeping it.
 
 ## 5. The harness
 
-- `assets/e2e/perf.mjs` — the worst case, warmed up, sampled, printing zoom and tile size so the run proves
+- `assets/e2e/perf.mjs`, the worst case, warmed up, sampled, printing zoom and tile size so the run proves
   its own setup. `node e2e/perf.mjs "Woodland city" city 100 60 3`
-- `assets/e2e/bigprofile.mjs` — the same scene under the CPU profiler, top 25 by self time.
-- `assets/e2e/fractionalBlits.mjs` — whole-pixel vs fractional blits, with the top offenders by stack. The
+- `assets/e2e/bigprofile.mjs`, the same scene under the CPU profiler, top 25 by self time.
+- `assets/e2e/fractionalBlits.mjs`, whole-pixel vs fractional blits, with the top offenders by stack. The
   check for §4.1.
-- `assets/e2e/drawcalls.mjs`, `cull.mjs` — per-canvas op counts and what each cull threw away.
-- `assets/e2e/bigmap.mjs` — the worst case with per-canvas op counts, no warm-up (prefer `perf.mjs`).
+- `assets/e2e/drawcalls.mjs` and `cull.mjs`, per-canvas op counts and what each cull threw away.
+- `assets/e2e/bigmap.mjs`, the worst case with per-canvas op counts, no warm-up (prefer `perf.mjs`).
 
 ## 6. How a new layer proves it can afford itself
 
