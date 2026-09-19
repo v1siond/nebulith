@@ -1308,17 +1308,17 @@ defmodule Nebulith.Catalog.GeneratorSource do
       %{key: "town", name: "Town", position: 2,
         description: "A decent size settlement with defined areas and better architecture, and nothing tall."},
       %{key: "city", name: "City", position: 3,
-        description: "A large settlement of many zones, modern architecture and towers."},
-      %{key: "cave", name: "Cave", position: 4, description: "A seasonal cavern with enemies instead of townsfolk."},
-      %{key: "temple", name: "Temple", position: 5, description: "A seasonal temple dungeon."}
+        description: "A large settlement of many zones, modern architecture and towers."}
+      # No cave, no temple. Both are removed to be designed again from scratch, the way the towns and the
+      # forests were: *"WE CAN REMOVE BOTH BECAUSE THEY SUCK AND WE HAVE TO REDO THE DESIGN FROM SCRATCH"*.
     ]
   end
 
   @doc """
   The generators to seed, keyed to their category.
 
-  Four of the six categories are the SAME environment list, so they are generated as a cross product
-  rather than written out. Nothing here is a hand-copied row.
+  All FOUR categories are the SAME environment list, so they are generated as a cross product rather than
+  written out. Nothing here is a hand-copied row.
   """
   def generators do
     wild = for {env, i} <- Enum.with_index(Enum.filter(environments(), & &1.wild)), do: wilderness_row(env, i)
@@ -1328,25 +1328,9 @@ defmodule Nebulith.Catalog.GeneratorSource do
           {env, i} <- Enum.with_index(Enum.filter(environments(), &(kind.key in &1.kinds))),
           do: settlement_row(kind, env, i)
 
-    wild ++ settlements ++ dungeons()
+    wild ++ settlements
   end
 
-  defp dungeons do
-    [
-      %{
-        category: "cave", key: "cave_default", name: "Cave", variant: "cave", position: 0,
-        description: "A cavern floor: bats, spiders and skeletons instead of townsfolk.",
-        config: %{"grid" => @small_grid, "units" => enemies(~w(bat spider skeleton))},
-        options: @way_options
-      },
-      %{
-        category: "temple", key: "temple_default", name: "Temple", variant: "temple", position: 0,
-        description: "A temple dungeon: skeletons, guardians and wraiths.",
-        config: %{"grid" => @small_grid, "units" => enemies(~w(skeleton guardian wraith))},
-        options: @way_options
-      }
-    ]
-  end
 
   @doc """
   Upsert every category + generator. Idempotent by `key`, so a re-run refreshes the seeded values
@@ -1475,63 +1459,5 @@ defmodule Nebulith.Catalog.GeneratorSource do
   end
 
   defp townsfolk(count), do: %{"townsfolk" => count, "enemies" => 0, "enemyTypes" => []}
-  defp enemies(types), do: %{"townsfolk" => 0, "enemies" => 10, "enemyTypes" => types}
-  @doc """
-  THE GENERATION LAYERS: the model, as rows.
-
-  A layer is a set of things in a given context, and the context is A LEVEL BEING COMPLETE, which is wider
-  than the map generator: a layer does not necessarily run in the generator, it is a thing in the context of
-  the level being finished. Units are a layer even though the generator does not scatter them.
-
-  The order: grid (size, cell, rows) > terrain (by zone, region and season, which decides what objects will
-  be added and what the floor is) > water (which blocks pathways) > pathways (which adapt to the space the
-  water left) > objects (where the generator enters into play) > fog (distance, and optimizing for it) >
-  lightning (which affects every element) > shadow (which depends on the light and on where things ended up
-  standing) > post processing and optimization.
-
-  GRID AND TERRAIN ARE ONE LAYER, and the inputs are its parameters rather than a layer of their own: every
-  input on the generator UI does the same thing, it sets a parameter in a given layer of the system.
-
-  `group` is the name for a run of layers. `layout` is terrain, water and pathways together; `objects` is
-  buildings, nature and decor. Both used to be served as if they were layers themselves, which is exactly what
-  let a SECOND pathways layer be added beside the first without anything noticing.
-
-  PATHWAYS IS STRUCTURE, NOT LOOK: what the pathways decide is the map's structure, which cells are a way,
-  which are a section to put objects in, where the exits are and how a way is drawn. The objects phase then
-  picks the KIND of way and the kind of exit. Which tile a way is surfaced with, and what lines it, belong to
-  objects.
-
-  `seedable: false` is the honest half: a layer nothing re-rolls yet gets no button rather than one that does
-  nothing.
-  """
-  def seed_generation_layers do
-    layers = [
-      %{key: "terrain", label: "Terrain", position: 10, group: "layout", seedable: true,
-        hint: "the grid and the ground on it, by zone, region and season. decides the floor and what may grow"},
-      %{key: "water", label: "Water", position: 20, group: "layout", seedable: true,
-        hint: "rivers, pools and shallows. water is laid before the paths, because it is what they go around"},
-      %{key: "pathways", label: "Pathways", position: 30, group: "layout", seedable: true,
-        hint: "the map's structure: where the ways run, where the exits are, and which ground is left to build on"},
-      %{key: "buildings", label: "Buildings", position: 40, group: "objects", seedable: true,
-        hint: "the structures, re-rolled in place"},
-      %{key: "nature", label: "Nature", position: 50, group: "objects", seedable: true,
-        hint: "the trees, plants and greenery"},
-      %{key: "decor", label: "Decor", position: 60, group: "objects", seedable: true,
-        hint: "the dressing: what surfaces a way, what lines it, plazas, lamps and fountains"},
-      %{key: "units", label: "Units", position: 70, seedable: true,
-        hint: "the creatures and townsfolk. they depend on everything above them"},
-      %{key: "fog", label: "Fog", position: 80, seedable: false,
-        hint: "distance and what it hides. not built yet"},
-      %{key: "lightning", label: "Lightning", position: 90, seedable: false,
-        hint: "the light, which affects every element on the map. not built yet"},
-      %{key: "shadow", label: "Shadow", position: 100, seedable: false,
-        hint: "cast from the light and from where things ended up standing. not built yet"},
-      %{key: "post_processing", label: "Post processing", position: 110, seedable: false,
-        hint: "the final pass over the finished frame. not built yet"}
-    ]
-
-    for attrs <- layers, do: {:ok, _} = Nebulith.Catalog.upsert_generation_layer(attrs)
-    :ok
-  end
 
 end
