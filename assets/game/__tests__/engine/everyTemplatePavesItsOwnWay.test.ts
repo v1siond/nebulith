@@ -353,16 +353,16 @@ describe('the white lines in the middle', () => {
     const marking = pathwayOf('city_futuristic')?.marking
     expect({ serves: typeof marking?.color }).toEqual({ serves: 'string' })
     const s = build('city_futuristic', 4)
-    let painted = 0, offTheWay = 0
-    for (let row = 0; row < s.rows; row++) {
-      for (let col = 0; col < s.cols; col++) {
-        if (s.floorColors[row][col] !== marking!.color) continue
-        painted++
-        if (!s.pathways?.has(`${col},${row}`)) offTheWay++
-      }
-    }
+    // MEASURED ON THE TILE, not on the cell's colour. The marking used to be a colour written onto the middle
+    // cell, which is why it drew as *"big squares instead of actual street lines"*; it is a flat decor tile
+    // now (TILE-DESIGN.md §2.3), so the dash is a prop and that is what says it is there.
+    const dashes = (s.props ?? []).filter(p => String(p.label ?? '').startsWith('road_marking_'))
+    const offTheWay = dashes.filter(p => !s.pathways?.has(`${p.col},${p.row}`)).length
     // Every dash is ON a street, and there are enough of them to read as a line.
-    expect({ painted: painted > 8, offTheWay }).toEqual({ painted: true, offTheWay: 0 })
+    expect({ painted: dashes.length > 8, offTheWay }).toEqual({ painted: true, offTheWay: 0 })
+    // …and it carries the served colour, which is the half that was right before: the tile's white body is
+    // tinted by it rather than the cell being filled with it.
+    expect(dashes.every(p => p.color === marking!.color)).toBe(true)
   })
 
   it('a medieval city has none: its cobbles are not a carriageway', () => {
@@ -370,9 +370,7 @@ describe('the white lines in the middle', () => {
     // swapped the asphalt for cobbles and went on inheriting the asphalt's centre line.
     expect(pathwayOf('city_medieval')?.marking).toBeUndefined()
     const s = build('city_medieval', 4)
-    let white = 0
-    for (let row = 0; row < s.rows; row++) for (let col = 0; col < s.cols; col++) if (s.floorColors[row][col] === '#eae7db') white++
-    expect(white).toBe(0)
+    expect((s.props ?? []).filter(p => String(p.label ?? '').startsWith('road_marking_')).length).toBe(0)
   })
 
   it('and no forest or town has them either', () => {

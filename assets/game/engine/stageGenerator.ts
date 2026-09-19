@@ -3171,7 +3171,22 @@ function markAcross(ctx: ArchetypeContext, lane: ReadonlySet<string>, tone: stri
       if (run < 2 || run > span) continue // a single cell has no middle; a wide one is a junction
       if (along % every !== 0) continue   // the dash rhythm along the street
       const { col, row } = toCell(key(along, from + ((run - 1) >> 1)))
-      ctx.floorColors[row][col] = tone
+      // A LINE IS DRAWN, NOT PAINTED. This set the CELL's colour, and a colour fills the whole cell, so the
+      // marking could only ever come out as *"big squares instead of actual street lines"*. TILE-DESIGN.md
+      // §2.3 already records the same lesson for the dirt path: a colour change alone draws a staircase,
+      // because the shape it needs only exists INSIDE the art.
+      //
+      // So the dash is a flat decor TILE stacked on the road, exactly like the puddle's film, and the served
+      // colour tints its white body (TILE-DESIGN.md §1). The axis picks which of the two pieces is laid: a
+      // street read edge-on down the columns runs along +row, and the mirror for the other pass.
+      const label = axis === 'down' ? 'road_marking_along_row' : 'road_marking_along_col'
+      const art = resolveTile(styleCatalog('ascii'), ctx.zone, label)
+      ctx.props.push({
+        col, row, type: 'ground_decor', char: art.char, label,
+        blocking: false, grows: false, color: tone,
+        // Flat on the road it lies on, the same stack the ford and the puddle films state.
+        settings: { stackAt: 0 },
+      })
     }
   }
 }

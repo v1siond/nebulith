@@ -919,6 +919,42 @@ defmodule Nebulith.Catalog.TileSource do
 
   Safe and idempotent (upsert by [tileset_id, label]), so it runs on the shared dev DB without a full reseed.
   """
+  @doc """
+  THE ROAD MARKING, as two pieces of ART rather than a painted cell.
+
+  *"the 'lines' are big squares instead of actual street lines"*. The marking was a COLOUR the generator
+  wrote onto the middle cell of a carriageway, and a colour fills the cell it is written into, so the only
+  shape it could ever make was a square. `TILE-DESIGN.md` §2.3 records the same lesson from the dirt path:
+  the shape a line needs exists INSIDE the art, and a colour change alone cannot draw it.
+
+  Two pieces because a street has a direction: `_along_row` for one that runs down the map and `_along_col`
+  for the one that runs across it, which is the axis the generator already measures when it finds the middle.
+
+  Flat decor, so height 0 and non-blocking: it is paint lying on the road, not something standing on it. The
+  body is drawn white so the served marking colour tints it, which is `TILE-DESIGN.md` §1.
+  """
+  def seed_road_markings do
+    ascii_id = ensure_tileset("ascii", "ASCII").id
+    emoji_id = ensure_tileset("emoji", "Emoji").id
+
+    for {label, glyph} <- [{"road_marking_along_row", "|"}, {"road_marking_along_col", "-"}] do
+      common = %{label: label, blocking: false, height: 0.0, category: "roads"}
+
+      {:ok, _} =
+        common
+        |> Map.merge(%{tileset_id: ascii_id, glyph: glyph, image_url: "/tiles/ascii/#{label}.png"})
+        |> Catalog.upsert_tile()
+
+      {:ok, _} =
+        common
+        |> Map.merge(%{tileset_id: emoji_id, emoji: glyph, image_url: "/tiles/emoji/#{label}.png"})
+        |> Catalog.upsert_tile()
+    end
+
+    IO.puts("seeded 2 road marking pieces (ascii + emoji)")
+    :ok
+  end
+
   def seed_path_pieces do
     ascii_id = ensure_tileset("ascii", "ASCII").id
     emoji_id = ensure_tileset("emoji", "Emoji").id
