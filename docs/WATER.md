@@ -486,6 +486,21 @@ So the rule moved to where it persists:
   solid". `applyStage` writes it wherever the generator's array says a water cell is passable, which is every
   bridge deck, ford and ice cell. Without it the tile's box would seal every crossing on the map.
 
+### Flush water lies flat; cut water stands proud
+
+The tile's 0.4 exists so a CUT channel shows its edge against the bank it runs below. A body that was never
+cut sits at the level of the ground around it, and that same 0.4 turns it into a slab standing ON the floor,
+which reads as a basin. *"we should increase water elevation of everything EXCEPT the pools/puddles, which
+are ALWAYS 0"*.
+
+`layPoolFilm` already says why one label cannot do both, so the CELL states its own height and the tile keeps
+the channel's: `applyStage` writes `height: 0` on any water floor with no higher ground beside it. Cut is
+measured from the elevation rather than assumed, which is exactly what `levelTheWater` does to a zone and
+does not do to a pool.
+
+A pool proper is unaffected: it is the film model already (the floor stays floor, `water_still` lies over it
+at `stackAt: 0`, translucent), which is the "terrain visible below" half of the same instruction.
+
 ### Three things that are NOT real water
 
 - `water_still` is the FILM a ford, a pool and a swamp puddle lay over ground that stays ground. It never

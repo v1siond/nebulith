@@ -114,6 +114,18 @@ An exit is the one place on a map whose meaning is "somewhere else". Four rules,
 6. **An exit wears NO composition.** Four entrance objects used to be stamped on the gates
    (`DESIGN-ENTRANCES.md`). They are gone. Each was authored at a fixed 3 cells, which is a second width by
    another name, and each was assembled out of tiles doing jobs they are not for.
+7. **An exit you cannot walk to is not an exit.** *"the geneartor added an impossible exit in the town map,
+   blocked by river, without any real pathway, exits are only part of a real pathway"*. Rules 1 to 6 are all
+   about the gate CELLS and none of them asks the only question a person walking cares about, which is
+   whether the gate joins the rest of the map. Water is what breaks it, and the generator already knew: the
+   note on the general water layer records *"the river SEVERED it, three exits asked for came back as two
+   reachable sides"*. `dropStrandedExits` measures every gate against the map's largest walkable region and
+   removes the ones that reach nothing, gate and connector together.
+
+   **Dropped, not bridged.** The crossings pass has already put its spans where the ways cross water, so a
+   second one built to rescue a gate would stand in water nothing asked to cross. And the region has to be
+   the LARGEST one, not merely "somewhere walkable": a gate opening onto a sealed pocket of three cells is as
+   impossible as one on the far bank, and one measure catches both.
 
 ## 5. What may stand beside a way
 
@@ -138,6 +150,8 @@ Before calling any pathway or exit change done:
 4. Assert the forest is still alive in the same run. A guard that empties the map reports a perfect zero for
    every "is anything in the way" question, and that reads exactly like success.
 5. Every exit has a connector, with as many cells as the gate.
+5b. Every exit is reachable: its cells are in the map's largest walkable region (rule 7). A map generated
+   with a river across it is the case that catches this, and a count of exits alone will not.
 6. Read the exit cells from `__exits()`, never by guessing at the border. A border scan on `blocking` reports
    40-cell "mouths", because what closes a forest border is trees, not collision.
 7. Measure the DRAWN opening, not a set the defect can edit. `pathwayCells` is the wrong witness: `sealMapEdge`

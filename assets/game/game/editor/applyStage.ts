@@ -121,6 +121,33 @@ export function applyStageToGrid(
       floor.settings = { ...floor.settings, collision: [] }
     }
   }
+  // …AND WATER THAT IS FLUSH WITH THE GROUND LIES FLAT ON IT.
+  //
+  // *"we should increase water elevation of everything EXCEPT the pools/puddles, which are ALWAYS 0"*.
+  //
+  // The tile stands 0.4 proud so a CUT channel shows its edge against the bank it runs below. A body that was
+  // never cut sits at the level of the ground around it, so that same 0.4 makes it a slab standing ON the
+  // floor, which is the basin look he has rejected twice. One label cannot be both, which `layPoolFilm` says
+  // in as many words, so the cell states its own height and the tile keeps the channel's.
+  //
+  // CUT IS MEASURED, not assumed: a cell is cut when the ground beside it stands higher, which is exactly
+  // what `levelTheWater` does to a zone and does not do to a pool.
+  const higherNeighbour = (c: number, r: number): boolean => {
+    const here = stage.elevation?.[r]?.[c] ?? 0
+    for (const [dc, dr] of [[1, 0], [-1, 0], [0, 1], [0, -1]] as const) {
+      const there = stage.elevation?.[r + dr]?.[c + dc]
+      if (there !== undefined && there > here) return true
+    }
+    return false
+  }
+  for (let r = 0; r < grid.rows; r++) {
+    for (let c = 0; c < grid.cols; c++) {
+      const floor = grid.floorAt(c, r)
+      if (!floor || !isWaterGround(floor.tileKey)) continue
+      if (higherNeighbour(c, r)) continue // a cut channel, which is what the tile's own height is for
+      floor.height = 0
+    }
+  }
   // AND NOTHING IS SOLID WITH NOTHING IN IT.
   //
   // The assets ARE the collision data, which is the model `deserializeToGrid` already works to: a saved map

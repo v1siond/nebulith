@@ -1373,6 +1373,7 @@ const STAGE_LAYERS: ReadonlyArray<StageLayer<ArchetypeContext, LayerRngs>> = [
       sealMapEdge(ctx)
       openGates(ctx) // and the exits are cut through it, so they get the last word on the border
       keepPathwaysWalkable(ctx) // nothing placed above may wall a gate in behind it
+      dropStrandedExits(ctx) // …and an exit nothing can reach is not an exit
       clearPathSightlines(ctx) // and nothing that grew is left standing in a way or in front of one
       layPathways(ctx) // the surface a way wears, what lies on it and what stands beside it
     },
@@ -2683,6 +2684,58 @@ function sealMapEdge(ctx: ArchetypeContext): void {
  * border. Water is left alone: a river crossing a way is what a bridge is for, and drying the river to make a
  * road would be the wrong fix.
  */
+/**
+ * AN EXIT YOU CANNOT WALK TO IS NOT AN EXIT.
+ *
+ * *"the geneartor added an impossible exit in the town map, blocked by river, without any real pathway,
+ * exits are only part of a real pathway"*. PATHWAYS.md §4 rule 7.
+ *
+ * Every other rule in that contract is about the gate CELLS: their width, that nothing stands in them, that
+ * they arrive wired. None of them asks the only question that matters to somebody walking, which is whether
+ * the gate joins the rest of the map. Water is what breaks it, and the generator already knew: the note on
+ * the general water layer records "the river SEVERED it, three exits asked for came back as two reachable
+ * sides". A gate on the far bank is a way out of a place you were never in.
+ *
+ * So the exits are measured against the walkable body of the map, and one that reaches nothing is dropped,
+ * gate, connector and all. Dropping it is right rather than bridging to it: the crossings pass has already
+ * run and put its bridges where the ways cross water, and a second span built here to rescue a gate would be
+ * a bridge to nowhere, standing in water that nothing asked to cross.
+ *
+ * The LARGEST walkable region is the map, not merely "somewhere walkable": a gate opening onto a sealed
+ * pocket of three cells is as impossible as one in the river, and this catches both with one measure.
+ */
+function dropStrandedExits(ctx: ArchetypeContext): void {
+  const plan = ctx.routes
+  if (!plan || plan.gates.length === 0) return
+  const { collision, cols, rows } = ctx
+
+  const walkable = (col: number, row: number): boolean =>
+    inBounds(col, row, cols, rows) && !collision[row][col]
+
+  // The map's own body: the biggest thing you can walk around in.
+  const seen = new Set<string>()
+  let body = new Set<string>()
+  forEachCell(cols, rows, (col, row) => {
+    if (!walkable(col, row) || seen.has(`${col},${row}`)) return
+    const region = flood(walkable, col, row, seen)
+    if (region.size > body.size) body = region
+  })
+  if (body.size === 0) return // nothing is walkable at all, which is a different fault than this one
+
+  const reaches = (gate: { cells: readonly Cell[] }): boolean =>
+    gate.cells.some(c => body.has(`${c.col},${c.row}`))
+
+  const kept = plan.gates.filter(reaches)
+  if (kept.length === plan.gates.length) return // every exit is reachable, which is the ordinary case
+
+  // The entrance is `gates[0]` and the rest of the engine reads it, so it follows the survivors. A map whose
+  // every gate was stranded keeps them: removing all of them leaves a sealed box, and the honest report of
+  // that is a map with unreachable exits rather than one with none.
+  if (kept.length === 0) return
+  plan.gates = kept
+  plan.entrance = kept[0]
+}
+
 function keepPathwaysWalkable(ctx: ArchetypeContext): void {
   const plan = ctx.routes
   if (!plan) return
