@@ -3279,9 +3279,26 @@ defmodule Nebulith.Catalog.TileSource do
   # top for any height, never floating or buried. DIMENSION-SANITY GUARD: the trunk's effective width AND its zoom
   # must be strictly SMALLER than the
   # leaves', a violating variant RAISES at build time, so no unbelievable tree can ship.
+  # HOW THICK A TRUNK IS, AS A SHARE OF ITS OWN CROWN.
+  #
+  # *"we have a bunch of trees with trunks that are almost as thick as the leaf section, which is bad, trunks
+  # should not be like that, reduce thicknes and improve proportions of ALL trees that have trunk"*.
+  #
+  # The number is not invented, it is read off the trees in this very catalog that were never complained
+  # about: coconut 0.19, willow 0.23, palm 0.24, cherry 0.25. The ones that look wrong sit far above them,
+  # measured on the live catalog: cypress 0.80, stub and small 0.53, mangrove 0.49, and `tree` itself, the
+  # commonest of all, 0.44.
+  #
+  # So it is one rule for every tree rather than twenty-one hand-tuned numbers, which is also what stops the
+  # next variant arriving thick.
+  @trunk_to_crown 0.26
+
   defp tree_comp(opts) do
-    trunk_w = Map.get(opts, :trunk_w, 1.0)
     leaf_w = Map.get(opts, :leaf_w, 1.0)
+    # DERIVED, not stated. `trunk_w` scales the trunk's own tile; what has to hold is the drawn WIDTH against
+    # the drawn crown, and only this has both numbers. A variant may still ask for a thinner one.
+    crown = opts.leaf_zoom * leaf_w
+    trunk_w = min(Map.get(opts, :trunk_w, 1.0), crown * @trunk_to_crown / opts.trunk_zoom)
     assert_tree_dimensions!(trunk_w, leaf_w, opts)
     leaf_level = round(opts.trunk_h * opts.trunk_zoom)
 
@@ -3344,10 +3361,14 @@ defmodule Nebulith.Catalog.TileSource do
     trunk_eff_w = trunk_w * opts.trunk_zoom
     leaf_eff_w = leaf_w * opts.leaf_zoom
 
-    unless opts.trunk_zoom < opts.leaf_zoom and trunk_eff_w < leaf_eff_w do
+    # THINNER IS NOT ENOUGH. This asked only that the trunk be narrower than the crown, which a trunk at 80%
+    # of it satisfies, and `tree_cypress` was exactly that. The share is the thing that reads as a tree, so
+    # the share is what is checked.
+    unless opts.trunk_zoom < opts.leaf_zoom and trunk_eff_w <= leaf_eff_w * @trunk_to_crown + 0.0001 do
       raise ArgumentError,
-            "tree #{inspect(opts)} violates dimension sanity: the trunk must be thinner AND less zoomed than " <>
-              "the leaves (trunk_eff_w=#{trunk_eff_w} vs leaf_eff_w=#{leaf_eff_w}, trunk_zoom=#{opts.trunk_zoom} vs leaf_zoom=#{opts.leaf_zoom})"
+            "tree #{inspect(opts)} has too thick a trunk: #{Float.round(trunk_eff_w / leaf_eff_w, 3)} of its " <>
+              "crown, and a trunk may be at most #{@trunk_to_crown} (trunk_eff_w=#{trunk_eff_w}, " <>
+              "leaf_eff_w=#{leaf_eff_w})"
     end
 
     :ok

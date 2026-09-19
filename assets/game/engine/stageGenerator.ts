@@ -118,6 +118,9 @@ export interface StageProp {
   /** generator-marked tree-base cell → always casts a ground shadow (even when another
    *  tree sits directly below it). */
   baseShadow?: boolean
+  /** Per-cell tile settings this prop STATES rather than leaving to a default further down (a puddle's
+   *  `stackAt: 0`, say). Rides onto the placed asset, the same path a composition cell's settings take. */
+  settings?: Record<string, unknown>
   /**
    * THIS PROP GREW HERE, so a pass that clears a pathway may pull it out.
    *
@@ -2513,9 +2516,18 @@ function borderTheWater(ctx: ArchetypeContext): void {
  * way, and the water does not break around it. `strewRiverRocks` marks its boulders blocking, which is the
  * same fact that stops you walking through them.
  *
- * KNOWN LIMIT: a composition is counted at its ANCHOR cell only, so a multi-cell structure standing in water
- * borders one cell of its footprint rather than all of them. Nothing in the catalog stands in water across
- * more than one cell today, so this is recorded rather than solved.
+ * A COMPOSITION COUNTS AT ITS ANCHOR CELL ONLY, and that is a measured decision rather than a shrug.
+ *
+ * Closing it, so that every cell of a composition's footprint counted, made the picture markedly WORSE:
+ * unbordered went from 2, 9, 0, 10 across four regenerations to 19, 27, 15, and the `tl` piece jumped from
+ * about 14 to about 40. `tl` is what the nine-slice falls back to for a cell open on three or four sides, so
+ * that number is the symptom: a bridge's 4-wide band cut the river in half and left the cells beside it open
+ * on three sides each, which the family cannot express.
+ *
+ * Exempting the SPANNED cells (`ctx.decks`) recovered some of it, to 10, 22, 17, 14, and still lost to the
+ * anchor-only rule. So the anchor stays. The honest reading is that a thing standing in water is a BOULDER
+ * sized thing, and the pass is tuned for that; a wider structure needs the border drawn per SIDE rather than
+ * one piece per cell, which is the same conclusion the three-open-sides count keeps pointing at.
  */
 function openWater(ctx: ArchetypeContext, body: ReadonlySet<string>): Set<string> {
   const open = new Set(body)
@@ -2524,6 +2536,7 @@ function openWater(ctx: ArchetypeContext, body: ReadonlySet<string>): Set<string
   for (const tree of ctx.trees) open.delete(`${tree.col},${tree.row}`)
   return open
 }
+
 
 /** Which LIQUID this map is filled with, served like every other look. Unserved falls back to the default
  *  rather than to a guess, and an unknown name falls back too rather than painting labels that resolve to
@@ -4621,7 +4634,8 @@ function layPoolFilm(ctx: ArchetypeContext, body: ReadonlySet<string>, pal: Gene
     // `grows: false` for the same reason the ford's film carries it: standing water is not something GROWING
     // on the ground, it is water lying on it, and every sweep that clears a way of vegetation reads that flag.
     // Without it a puddle on a path counted as undergrowth on the path.
-    ctx.props.push({ col, row, type: 'ground_decor', char: film.char, label: 'water_still', blocking: false, grows: false, color: pal?.swamp ?? pal?.water ?? film.color })
+    // Stated, not defaulted: a puddle's stack is 0, see the ford's film for why it is written here.
+    ctx.props.push({ col, row, type: 'ground_decor', char: film.char, label: 'water_still', blocking: false, grows: false, color: pal?.swamp ?? pal?.water ?? film.color, settings: { stackAt: 0 } })
     // NO COLLISION. and
     // earlier:
     //
@@ -7327,7 +7341,7 @@ function firstWalkable(collision: boolean[][], cols: number, rows: number): Cell
 // ── visual mapping (shared by the template mapper + the live-grid applier) ──
 export interface StagePaint {
   ground: { col: number; row: number; type: string; color?: string }[]
-  assets: { col: number; row: number; char: string; type: string; color: string; blocking: boolean; label?: string; baseShadow?: boolean; buildingType?: string; edge?: BuildingEdge; footprint?: number; height?: number }[]
+  assets: { col: number; row: number; char: string; type: string; color: string; blocking: boolean; label?: string; baseShadow?: boolean; buildingType?: string; edge?: BuildingEdge; footprint?: number; height?: number; settings?: Record<string, unknown> }[]
 }
 
 export function stagePaint(stage: StageData): StagePaint {
@@ -7335,7 +7349,10 @@ export function stagePaint(stage: StageData): StagePaint {
   const assets: StagePaint['assets'] = []
   stage.buildings.forEach(b => paintBuildingGround(b, ground))
   stage.props.forEach(p =>
-    assets.push({ col: p.col, row: p.row, char: p.char, type: p.type, color: p.color, blocking: p.blocking, label: p.label, baseShadow: p.baseShadow, buildingType: p.buildingType, edge: p.edge, footprint: p.footprint, height: p.height }),
+    // EVERY FIELD, BY HAND, WHICH IS THE TRAP. This copier is a whitelist: a field a prop states and this
+    // line does not name is dropped on the floor, silently. `settings` is how a placer states a per-cell fact
+    // (a puddle's `stackAt: 0`) rather than leaning on a default further down.
+    assets.push({ col: p.col, row: p.row, char: p.char, type: p.type, color: p.color, blocking: p.blocking, label: p.label, baseShadow: p.baseShadow, buildingType: p.buildingType, edge: p.edge, footprint: p.footprint, height: p.height, settings: p.settings }),
   )
   return { ground, assets }
 }

@@ -882,6 +882,12 @@ export function wadeCrossing(ctx: RiverDeck, wet: ReadonlySet<string>, tone: str
     ctx.props.push({
       col, row, type: 'ground_decor', char: film.char, label: FILM,
       blocking: false, grows: false, color: film.color,
+      // THE PUDDLE STATES ITS OWN STACK. *"all puddle of water tiles/cells should have the ystack on 0
+      // instead of 1"*. `water_still` serves `stackAt: 0`, so the resolved answer was already 0, but the
+      // PLACED cell said nothing and the inspector therefore showed the engine's default of 1. His standing
+      // rule is that a generator states the setting rather than leaning on a default further down, so the
+      // film carries it.
+      settings: { stackAt: 0 },
     })
     ctx.fords.add(key)
   }
@@ -1050,6 +1056,9 @@ export interface RiverProp {
   blocking: boolean
   color: string
   label?: string
+  /** Per-cell tile settings this prop STATES rather than leaving to a default further down (a puddle's
+   *  `stackAt: 0`, say). Rides onto the placed asset, the same path a composition cell's settings take. */
+  settings?: Record<string, unknown>
   /** False for anything that is not VEGETATION, so the sweeps that clear a way of growth leave it alone. */
   grows?: boolean
 }
