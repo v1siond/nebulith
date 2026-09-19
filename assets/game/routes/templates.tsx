@@ -139,6 +139,11 @@ const MAX_TEMPLATES_PROD = 1
  *  cooldowns. */
 const ATTACK_LOOP_MS = 500
 
+/** How often React is told the entity list moved. The LOOP tracks it exactly in a ref every tick; this is
+ *  only how often the sidebar list and the selected-entity panel catch up, and neither has anything new to
+ *  say between two steps. Committing every step re-rendered the whole editor at enemy-movement rate. */
+const ENTITY_COMMIT_MS = 250
+
 /** Stable empty list passed to the renderers when entities are hidden (avoids per-frame alloc). */
 const EMPTY_ENTITIES: Entity[] = []
 
@@ -575,6 +580,8 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
   // Per-enemy patrol cursors + the last time enemies advanced (movement tick).
   const movementCursorRef = useRef<Map<string, Cursor>>(new Map())
   const lastEnemyMoveRef = useRef(0)
+  /** When React last heard about the entity list. The loop's own copy is `entitiesRef`, updated every tick. */
+  const lastEntityCommitRef = useRef(0)
   const cannonFireRef = useRef<Map<string, number>>(new Map()) // per-cannon last-fired time
   const hitMarkersRef = useRef<HitMarker[]>([])
   const attackAnimsRef = useRef<AttackAnim[]>([])
@@ -4687,7 +4694,21 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
               }
             }
             entitiesRef.current = movedEntities as Entity[]
-            setEntities(movedEntities as Entity[])
+            // THE REF IS THE TRUTH, and the panels catch up at a human rate.
+            //
+            // Every renderer reads `entitiesRef.current`, so the canvas is already exact this frame. This
+            // `setEntities` re-rendered the WHOLE editor, a seven thousand line component with ninety odd
+            // pieces of state, every time any enemy took a step. In a populated town that is most frames,
+            // which is the editor being slow for reasons that have nothing to do with drawing.
+            //
+            // React only needs it for the sidebar list and the selected-entity panel, and neither of those
+            // says anything new between two steps. The HP bars people watch are drawn on the CANVAS from the
+            // ref, not from this. So the commit is coalesced: the ref updates every tick, React hears about
+            // it a few times a second.
+            if (time - lastEntityCommitRef.current > ENTITY_COMMIT_MS) {
+              lastEntityCommitRef.current = time
+              setEntities(movedEntities as Entity[])
+            }
           }
         }
       }

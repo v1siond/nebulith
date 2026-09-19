@@ -301,61 +301,30 @@ export interface RiverCut extends RiverBounds {
 }
 
 /**
- * A BODY OF WATER HAS ONE SURFACE.
+ * WATER LIES AT ZERO.
  *
- * This used to cut a channel: every bed cell dropped `depth` below whatever it stood on. Two things were
- * wrong with that, and they are the same thing seen twice.
+ * *"just make the water height 0 for now and ensure the borders are correctly positioned towards the
+ * terrain... We'll recover the channel logic if it makes [sense]"*.
  *
- * WATER IS TERRAIN, and `WATER.md` §1 is his own correction saying so: *"we don't need a river channel layer
- * whatsoever ... water is just terrain, floor tiles ... I think we can remove the river channel logic
- * entirely, and just paint rivers, lakes, beaches using regular water tiles"*. The edge pass that replaced it
- * is already in: every water cell wears an autotile piece (`water_smooth_river_c`, `_tl`, and the rest), which
- * is what tells the eye where the water stops. It does not need a hole to sit in.
+ * This was `digChannel`, which cut every bed cell `depth` below whatever it stood on. Then it was a pass that
+ * levelled each connected body to the LOWEST ground it covered, which was me generalising a narrow report
+ * into every template and making the whole thing worse: a body that touched one low cell dragged its entire
+ * surface down with it, and on a beach that is half the map.
  *
- * AND A CUT RELATIVE TO THE GROUND IS NOT A SURFACE. Subtracting a constant from each cell keeps whatever
- * unevenness the terrain had, so one river came out at several heights at once. Measured across all 40
- * generators: a woodland river held 183 cells at -1 and 11 at 0, a BEACH held 174 at -1 and 158 at 0, and a
- * mountain river spread over four levels. Each step reads as a separate pool, which is exactly the report:
- * *"WE'RE USING RIVERS AND BEACH WATER LIKE POOLS/PODDLES AND THAT DOESN'T WORK"*.
+ * It is the literal instruction now. A water cell sits at elevation 0, the same plane the floor is on, and
+ * the tile itself is flat (height 0, `WaterLiesFlat`), so the water is the floor rather than a slab over it
+ * or a trench under it. The BORDER is what says where the water stops, which is the autotile edge pass that
+ * already runs (`water_smooth_river_tl` and its eight siblings).
  *
- * So each CONNECTED body is levelled to one elevation, and that elevation is the LOWEST ground the body
- * covers, so water never stands proud of its own bank. Flat maps come out perfectly flat, which is every
- * template that states no relief; a body crossing a slope settles to the bottom of it, the way water does.
- *
- * Collision is NOT touched here, it is set from `wadeable` further down. It never came from the carve.
+ * The channel may come back. When it does it belongs here, as one decision, not spread across a carve, a
+ * ford's add-back and a wade guard the way it was.
  */
 export function levelTheWater(cut: RiverCut, water: ReadonlySet<string>): void {
-  const seen = new Set<string>()
-  for (const start of water) {
-    if (seen.has(start)) continue
-    // One connected body, and the lowest ground under it.
-    const body: string[] = []
-    const stack = [start]
-    seen.add(start)
-    let floor = Infinity
-    while (stack.length > 0) {
-      const key = stack.pop()!
-      const { col, row } = toCell(key)
-      if (!inBounds(col, row, cut.cols, cut.rows)) continue
-      body.push(key)
-      floor = Math.min(floor, cut.elevation[row][col])
-      for (const [dc, dr] of ORTHOGONAL) {
-        const next = `${col + dc},${row + dr}`
-        if (seen.has(next) || !water.has(next)) continue
-        seen.add(next)
-        stack.push(next)
-      }
-    }
-    if (!Number.isFinite(floor)) continue
-    for (const key of body) {
-      const { col, row } = toCell(key)
-      if (inBounds(col, row, cut.cols, cut.rows)) cut.elevation[row][col] = floor
-    }
+  for (const key of water) {
+    const { col, row } = toCell(key)
+    if (inBounds(col, row, cut.cols, cut.rows)) cut.elevation[row][col] = 0
   }
 }
-
-/** The four neighbours a body of water is connected through. Diagonals do not join two pools. */
-const ORTHOGONAL: ReadonlyArray<readonly [number, number]> = [[1, 0], [-1, 0], [0, 1], [0, -1]]
 
 // A band decides the LABEL and whether you can wade it. It used to decide a COLOUR too, which is what put
 // three blues in one river; the surface takes one served tone now (see the depth pass).

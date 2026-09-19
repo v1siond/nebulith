@@ -1749,9 +1749,11 @@ defmodule Nebulith.Catalog.TileSource do
         emoji: "🟦",
         color_role: nil,
         blocking: false,
-        # A SURFACE, not a block. See the moduledoc above: one elevation level drops 0.4 and one block of tile
-        # height rises 0.639, so 1.0 in a 1-deep channel floated the water 0.239 above its own bank.
-        height: 0.5,
+        # FLAT, like the grass beside it. This was 0.5, and the arithmetic behind that number assumed a
+        # CHANNEL: one elevation level drops 0.4 and one block of tile height rises 0.639, so half a block in a
+        # one-deep cut put the surface just under the bank rim. There is no cut any more, so 0.5 simply stands
+        # the water half a block above the floor, which is what was reported on the town.
+        height: 0.0,
         category: "terrain",
         title: "Water",
         # Its OWN picture, drawn art baked from `tiles.json`. This used to write `/tiles/emoji/baked/water.png`
@@ -1771,7 +1773,7 @@ defmodule Nebulith.Catalog.TileSource do
         blocking: false,
         # Kept equal to the emoji row on purpose: height is a fact about the LABEL, not the picture, and
         # `normalize_tile_heights/0` would overwrite a disagreement here from the emoji authority anyway.
-        height: 0.5,
+        height: 0.0,
         category: "terrain",
         title: "Water",
         image_url: "/tiles/ascii/water.png",

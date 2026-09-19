@@ -61,7 +61,7 @@ describe('meadow layouts, structural match to #14 / #24', () => {
     }
   })
 
-  it('opens a SINGLE cobble entrance on the near (bottom-left) edge, lit by lamp posts', () => {
+  it('opens a SINGLE cobble entrance on the near (bottom-left) edge', () => {
     for (const water of ['dry', 'river'] as const) {
       const s = gen(water)
       // the near (bottom) edge is OPEN, a wide walkable span (the entrance / open front), never sealed by a ring
@@ -70,8 +70,9 @@ describe('meadow layouts, structural match to #14 / #24', () => {
       for (let c = 0; c < s.cols; c++) if (!s.collision[bottom][c]) open++
       expect(open).toBeGreaterThan(s.cols * 0.4)
       expect(walkableRuns(s.collision, bottom)).toBeGreaterThanOrEqual(1)
-      // the entrance is lit by a couple of lamp-post compositions
-      expect(s.compositions.filter(c => c.kind === 'lamp_post' || c.kind === 'lamp_post_failing').length).toBeGreaterThanOrEqual(2)
+      // NOT "lit by lamp posts" any more: the lamps are gone with the rest of the bulbs, because a stamped
+      // bulb reaches the grid without its cell settings and draws as a cube at ground level. What this case
+      // is actually about is the entrance being OPEN, which is asserted above.
     }
   })
 

@@ -192,9 +192,15 @@ const BASELINE: Record<string, string> = {
 // streets INSIDE the town, so a settlement used to plant in its own way out. Trees therefore move, hence the
 // digest. Only the settlements: the five non-settlement cases below are untouched, because the forests
 // already claimed their gate lanes.
-  'town|autumn|40x40|1': '95dc9ca9',
-  'town|summer|50x40|7': 'dcbb3e68',
-  'city|summer|56x44|3': 'b50a5251',
+  // Moved 2026-09-19. Two changes, both asked for. Water sits at elevation 0 and its tile lies flat at
+  // height 0, so a river or a beach is the floor rather than a slab half a block over it ("just make the
+  // water height 0 for now"). And the lamps are gone, both the `lamp` named in a pathway's served lining,
+  // which is the BULB cell of `lamp_post` and came down as a cube on the paving, and the lamp posts the
+  // settlement and gateway passes stamped ("please remove the bulbs I really don't want to see them
+  // anymore"). Trees and scatter shift where a lamp used to stand, hence the settlement digests.
+  'town|autumn|40x40|1': '79d3c579',
+  'town|summer|50x40|7': '15857746',
+  'city|summer|56x44|3': 'debbac78',
   // Moved 2026-09-18 from '4b8b2192'. Every region of every wilderness template states its own undergrowth
   // plant, density and trunk spacing now, so a forest's ground genuinely changed. Two dead fields woke up in
   // the same pass and are most of the difference: `nature.tallGrass` was served by every meadow and dropped
@@ -208,7 +214,7 @@ const BASELINE: Record<string, string> = {
   // served), and `planRoutes` paints a square brush, so a corridor running along the line one cell inside the
   // border published that border line for its whole length. Both are fixed, so a forest's gateway cells, its
   // flanking trunks and its treeline all sit differently. The other seven cases are byte identical.
-  'forest|summer|30x24|42': '79e06cee',
+  'forest|summer|30x24|42': 'c0e722c3',
   // Moved 2026-09-16, twice, from '94c7579b' then 'a2e09914'. A cave's water stopped wearing the depth bands and started wearing
   // its autotile pieces, so the ground digest changed on purpose. The lock is doing its job by noticing.
   'cave|autumn|40x30|99': '224d4ef9',

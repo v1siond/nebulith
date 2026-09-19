@@ -347,7 +347,9 @@ Out of scope for this doc beyond one rule: the water layers are RECEIVERS. A sha
 |---|---|
 | Water phase in the pipeline | Declared and running before pathways, for woodland, jungle, meadow, cave and settlement. Temple and boss stage have no water. |
 | Water as a film over ground | Only for fords and swamp pools. The water tile still IS the ground for open water. |
-| The channel | **GONE, 2026-09-19.** `digChannel` is `levelTheWater`: each connected body is set to the LOWEST ground it covers, so a body has one surface and never stands proud of its own bank. The `depth` option is deleted from the catalog (`ABodyOfWaterIsLevel`). |
+| The channel | **GONE, 2026-09-19.** The `depth` option is deleted from the catalog (`ABodyOfWaterIsLevel`). |
+| Where water sits | **Elevation 0, and the tile lies FLAT at height 0** (`WaterLiesFlat`). Not a carve, not "the lowest ground the body covers": zero. *"just make the water height 0 for now and ensure the borders are correctly positioned towards the terrain"*. |
+| The `height` COLUMN | Water's height is a top-level column on the tile row, NOT a key in `settings`. It reads as absent if you only inspect settings, which is how `water` sat at 0.5 unnoticed while `grass` was 0.0. `water_still` stays 0.05 (the ford and puddle film). `water_c` and `water_jet` stay 1.0: those are the FOUNTAIN's basin and jets, object pieces rather than terrain, and they are why a town square's fountain draws as a tall blue box. |
 | Depth map | `waterDepth()` exists and is correct, including the ford and bridge exceptions. |
 | Depth to colour | Not done. Three banded labels instead. |
 | Caustics | Nothing |
@@ -363,6 +365,10 @@ Out of scope for this doc beyond one rule: the water layers are RECEIVERS. A sha
 Each step is finished when it is judged at :3000, not when it renders in a probe.
 
 1. **Water becomes a film over the real ground**, matching the ford. Acceptance: deleting the water layer leaves a complete map with no holes, and nothing anywhere asks whether a ground label contains "water" to decide what a cell is. *The CHANNEL half of this is done (2026-09-19): no cut, one surface per body. The film half is not: an open water cell's ground label is still the water tile.*
+
+   **Levelling a body to its lowest cell was WRONG and was reverted the same day.** It generalised a narrow
+   report ("the town had water over the floor level at height .5") into every template: a body that touched
+   one low cell dragged its whole surface down, and on a beach the water is half the map. Water sits at 0.
 
    **Why the cut had to go, measured.** The option defaulted to "1" with no way to turn it off, so every river
    on every template was cut. A cut subtracts a constant per cell, which KEEPS the ground's unevenness, so one

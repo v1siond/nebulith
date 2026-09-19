@@ -484,13 +484,16 @@ defmodule Nebulith.Catalog.GeneratorSource do
     "village_lane" => %{
       "surface" => "path_stone", "tone" => "#ccbbaa", "width" => 3, "edge" => 0.15,
       "scatter" => [],
-      "lining" => [%{"tile" => "lamp", "rate" => 0.1}, %{"tile" => "flower", "rate" => 0.07}]
+      # No `lamp`: that name is the BULB cell of `lamp_post`, not an object, so it came down as a yellow
+      # cube lying on the paving. See `NoMoreBulbs`.
+      "lining" => [%{"tile" => "flower", "rate" => 0.07}]
     },
     # Cobbles between the houses of an older town, worn at the sides, lamps along them.
     "cobbled_lane" => %{
       "surface" => "cobblestone", "tone" => "#b9b2a3", "width" => 3, "edge" => 0.12,
       "scatter" => [],
-      "lining" => [%{"tile" => "lamp", "rate" => 0.12}]
+      # No `lamp`, see `NoMoreBulbs`.
+      "lining" => []
     },
     # A CITY STREET, which is what the beach town reference actually shows: four lanes of asphalt with a kerb
     # you could rule, a lamp post rhythm down both sides, and nothing lying on it because a road is swept.
@@ -505,7 +508,8 @@ defmodule Nebulith.Catalog.GeneratorSource do
       "surface" => "road", "tone" => "#3d3d44", "width" => 4, "edge" => 0.0,
       "marking" => %{"color" => "#eae7db", "every" => 3},
       "scatter" => [],
-      "lining" => [%{"tile" => "lamp", "rate" => 0.14}, %{"tile" => "shrub", "rate" => 0.06}]
+      # No `lamp`, see `NoMoreBulbs`.
+      "lining" => [%{"tile" => "shrub", "rate" => 0.06}]
     },
     # Sandy tracks through a beach town: the same dirt as the clifftop path, widened because carts use it,
     # still nobody laying anything.
