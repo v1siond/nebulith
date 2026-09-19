@@ -465,10 +465,18 @@ const massVariant = (col: number, row: number): number =>
  *  scatter, a position hash for the coherent forest mass. This is the randomization the ticket asks for:
  *  a stand shows standard / tall / small / round trees + bushes instead of one repeated shape. Pure +
  *  injectable (tests pass explicit rolls to prove the full spread). */
-export function pickLivingTree(rand: number, mix?: readonly GeneratorTreeWeight[]): LivingTreeKind {
+export function pickLivingTree(rand: number, mix?: readonly GeneratorTreeWeight[]): LivingTreeKind | null {
   // A template's OWN species first., every forest rolled this one global table, so a jungle grew what a meadow grew.
   // No served mix → the global table, which is exactly the old behaviour.
   const table = mix && mix.length > 0 ? mix : livingTreeVariants()
+  // NO SPECIES IS AN ANSWER, not a crash. `livingTreeVariants` reads the SERVED tree table, so it is empty
+  // until the catalog arrives, and this ended on `table[0].kind` and threw "Cannot read properties of
+  // undefined". That took the whole editor down through its error boundary, which shows a tidy "reload to try
+  // again" and says nothing: from outside it looks like a page with no buttons on it.
+  //
+  // Returning null rather than inventing a species is the rule for a data gap (MAP-MODEL §8): a planter with
+  // nothing to plant plants nothing, the same shape `plantTree` already uses when it refuses a cell.
+  if (table.length === 0) return null
   const total = table.reduce((sum, v) => sum + v.weight, 0)
   let roll = rand * total
   for (const v of table) {
@@ -2649,7 +2657,8 @@ function sealMapEdge(ctx: ArchetypeContext): void {
       ctx.pathwayCells.delete(`${col},${row}`)
       return
     }
-    plantTree(ctx, { col, row, kind: pickLivingTree(ctx.rand(), speciesAt(ctx, col, row)), variant: massVariant(col, row) })
+    const kind = pickLivingTree(ctx.rand(), speciesAt(ctx, col, row))
+    if (kind) plantTree(ctx, { col, row, kind, variant: massVariant(col, row) })
     collision[row][col] = true
     // AND A CELL THE WOOD CLOSED IS NO LONGER A WAY. Only a ring cell reaches here, since everything else the
     // map publishes as a way is spared above, and a ring cell with no gate on it is a place the border stays
@@ -3447,7 +3456,8 @@ const woodlandPhases: VariantPhases = {
       : woodlandCanopyField(ctx, ctx.claimed, canopy, ctx.formation)
     for (const { col, row } of field) {
       if (standsOnPathway(ctx, col, row)) continue // the ways are drawn by now, and nothing grows in one
-      const kind: LivingTreeKind | 'tree_dead' = ctx.rand() < 0.06 ? 'tree_dead' : pickLivingTree(ctx.rand(), speciesAt(ctx, col, row))
+      const kind: LivingTreeKind | 'tree_dead' | null = ctx.rand() < 0.06 ? 'tree_dead' : pickLivingTree(ctx.rand(), speciesAt(ctx, col, row))
+      if (!kind) continue // no species served yet, so there is nothing to plant here
       plantTree(ctx, { col, row, kind, variant: massVariant(col, row) })
       collision[row][col] = true // the trunk blocks; the canopy is walkable overhead, as everywhere else
     }
@@ -3677,7 +3687,8 @@ const junglePhases: VariantPhases = {
       : woodlandCanopyField(ctx, ctx.claimed, canopy, ctx.formation)
     for (const { col, row } of field) {
       if (standsOnPathway(ctx, col, row)) continue
-      const kind: LivingTreeKind | 'tree_dead' = ctx.rand() < 0.04 ? 'tree_dead' : pickLivingTree(ctx.rand(), speciesAt(ctx, col, row))
+      const kind: LivingTreeKind | 'tree_dead' | null = ctx.rand() < 0.04 ? 'tree_dead' : pickLivingTree(ctx.rand(), speciesAt(ctx, col, row))
+      if (!kind) continue // no species served yet, so there is nothing to plant here
       plantTree(ctx, { col, row, kind, variant: massVariant(col, row) })
       collision[row][col] = true
     }
@@ -5723,7 +5734,8 @@ function stampMeadowTree(ctx: ArchetypeContext, col: number, row: number, tall: 
   const variant = randIntWith(ctx.rand, 0, canopyCount(styleCatalog('ascii'), zone) - 1)
   // The green/verdant reference meadows show NO bare snags, only a HARSH season sprinkles a little dead wood.
   const dead = HARSH_ZONES.has(zone) && ctx.rand() < DEAD_TREE_CHANCE[zone] * 0.4
-  const kind: LivingTreeKind | 'tree_dead' = dead ? 'tree_dead' : tall ? 'tree_tall' : pickLivingTree(ctx.rand(), speciesAt(ctx, col, row))
+  const kind: LivingTreeKind | 'tree_dead' | null = dead ? 'tree_dead' : tall ? 'tree_tall' : pickLivingTree(ctx.rand(), speciesAt(ctx, col, row))
+  if (!kind) return // no species served yet, so there is nothing to plant here
   // ONLY IF IT ACTUALLY GREW. `plantTree` refuses water, a wet cell and a deck, and this blocked the cell
   // whatever it answered, which left a solid cell holding nothing. That is a fact no saved map can carry: the
   // collision layer is not a column, it is rebuilt from the assets, and there is no asset here to rebuild it
@@ -6143,7 +6155,9 @@ function repairFloorConnectivity(ctx: ArchetypeContext, maxPocket = Infinity): v
     region.forEach(key => {
       const { col, row } = toCell(key)
       collision[row][col] = true
-      anchors.push({ col, row, kind: pickLivingTree(shadeNoise(col * 17 + row * 43), speciesAt(ctx, col, row)), variant: massVariant(col, row) % canopyCount(styleCatalog('ascii'), zone) }) // tiny dead pocket → forest fills it
+      const kind = pickLivingTree(shadeNoise(col * 17 + row * 43), speciesAt(ctx, col, row))
+      if (!kind) return // no species served yet, so there is nothing to plant here
+      anchors.push({ col, row, kind, variant: massVariant(col, row) % canopyCount(styleCatalog('ascii'), zone) }) // tiny dead pocket → forest fills it
     })
   }
 }
@@ -6310,6 +6324,7 @@ function stampTree(ctx: ArchetypeContext, baseCol: number, baseRow: number, dead
   if (standsOnPathway(ctx, baseCol, baseRow)) return // and no tree in a road
   const variant = randIntWith(ctx.rand, 0, canopyCount(styleCatalog('ascii'), zone) - 1) // this tree's canopy tone (green…pink)
   const kind = dead ? 'tree_dead' : pickLivingTree(ctx.rand(), speciesAt(ctx, baseCol, baseRow)) // random shape variant (standard/tall/small/round/bush)
+  if (!kind) return // no species served yet, so there is nothing to plant here
   // ONLY A TREE THAT WAS ACTUALLY PLANTED BLOCKS. The commit refuses a cell for several reasons (water, a
   // wet cell, a crossing, the end cells of a way) and this blocked the cell regardless, so a refusal left an
   // impassable square with nothing standing in it.

@@ -33,14 +33,36 @@ defmodule Nebulith.E2E.WaterCollisionTest do
   setup do
     Nebulith.Catalog.TileSource.seed()
     Nebulith.Catalog.GeneratorSource.seed()
-    :ok
+    Nebulith.Catalog.ZoneSource.seed()
+
+    # …AND A MAP TO OPEN. The editor restores the last saved template and bounces to the gallery when there
+    # is none (`loadMostRecentTemplate`: "nothing saved yet -> gallery"), so on an empty database /templates
+    # never renders the editor at all. The old Node harness never hit this because it drove the DEV database,
+    # which had a saved map in it, which is the same reason it could destroy one.
+    %{id: id} = scratch_template()
+    %{template_id: id}
+  end
+
+  defp scratch_template do
+    id = Ecto.UUID.generate()
+    now = NaiveDateTime.utc_now() |> NaiveDateTime.truncate(:second)
+    ground = List.duplicate(List.duplicate("grass", @cols), @rows)
+    height = List.duplicate(List.duplicate(0, @cols), @rows)
+
+    Nebulith.Repo.query!(
+      ~s{INSERT INTO "Template" (id, name, cols, rows, "cellSize", "isoScale", "groundData", "heightData", "assetsData", connectors, entities, quests, "createdAt", "updatedAt", "slabBlocks") } <>
+        ~s{VALUES ($1, $2, $3, $4, 16, 2.5, $5::text::jsonb, $6::text::jsonb, '[]'::jsonb, '[]'::jsonb, '[]'::jsonb, '[]'::jsonb, $7, $7, 1)},
+      [id, "e2e water collision", @cols, @rows, Jason.encode!(ground), Jason.encode!(height), now]
+    )
+
+    %{id: id}
   end
 
   describe "collision survives a save" do
-    test "a reloaded map stops you where the built one did", %{conn: conn} do
+    test "a reloaded map stops you where the built one did", %{conn: conn, template_id: template_id} do
       session =
         conn
-        |> visit("/templates")
+        |> visit("/templates?id=" <> template_id)
         |> wait_for_editor()
         |> build_world()
 
@@ -79,7 +101,15 @@ defmodule Nebulith.E2E.WaterCollisionTest do
     # …AND THE GENERATOR CATALOG, which is fetched. Its arrival re-renders the panel, so interacting before it
     # lands detaches the very input being typed into: *"element was detached from the DOM, retrying"*. The seam
     # exists for this, and its own note says a generate with no catalog plants nothing by design.
-    wait_until(session, &truthy?(&1, "window.__generatorsReady && window.__generatorsReady()"), "the generator catalog")
+    session =
+      wait_until(session, &truthy?(&1, "window.__generatorsReady && window.__generatorsReady()"), "the generator catalog")
+
+    # …AND THE TILESET LOADER TO LIFT. The editor holds a full-screen overlay until the backend style is
+    # installed, so that everything the canvas draws comes from the DB and no default tile can flash first.
+    # It covers the panel too, so a click lands on the overlay rather than on the preset under it, which
+    # Playwright reports as "intercepts pointer events" and retries until it gives up.
+
+    wait_until(session, &truthy?(&1, "!document.querySelector('.fixed.inset-0.z-\\\\[60\\\\]')"), "the tileset loader to lift")
   end
 
   # THE VALUE, not the session. `PhoenixTest.Playwright.evaluate/2` returns the CONN so it can be piped, so
@@ -94,13 +124,47 @@ defmodule Nebulith.E2E.WaterCollisionTest do
 
   defp truthy?(session, expression), do: js(session, expression) == true
 
+  defp button_label(session, needle) do
+    js(session, """
+    (() => {
+      const b = [...document.querySelectorAll('button')]
+        .find(b => (b.innerText || '').replace(/\\s+/g, ' ').includes('#{needle}'))
+      return b ? b.innerText.replace(/\\s+/g, ' ').trim() : null
+    })()
+    """)
+  end
+
+  defp category_label(session, key) do
+    js(session, """
+    (() => {
+      const sel = document.querySelector('select[aria-label="Kind of place"]')
+      if (!sel) return null
+      const opt = [...sel.options].find(o => o.value === '#{key}')
+      return opt ? opt.text : null
+    })()
+    """)
+  end
+
   defp build_world(session) do
     # The editor already opens at 40x40, which is the size this test wants, so it is left alone: typing into
     # those fields re-renders the panel and detaches the input mid-fill.
+    # THE OPTION'S REAL LABEL, read from the page. It is rendered as `name (shapes)`, so it says "City (11)"
+    # today and something else the moment a generator is added or removed. The KEY is the stable thing, so the
+    # label is looked up from it rather than written down here.
+    session = select(session, category_label(session, "city"), from: "Kind of place")
+
+    # EXACT LABELS, READ FROM THE PAGE. A preset button carries its description inside it, so a loose match on
+    # "Woodland city" resolves to the two divs nested in it rather than the button, and every action button
+    # wears an icon ("⚡ Build this world"). Both are the page's business, not this test's, so the full label
+    # is looked up by the words a person would recognise and then clicked exactly.
     session
-    |> select("City", from: "Kind of place")
-    |> click_button("Woodland city")
-    |> click_button("Build this world")
+    # A PRESET THAT ALWAYS HAS WATER. The river OPTIONS live in the preview panel, which is a separate piece
+    # of UI to open and drive; a beach city carries its sea by definition, which is the water this test is
+    # about. `built.water > 0` below is the guard that says out loud when a run proved nothing.
+    |> click_button(nil, "Swamp city", exact: false)
+    # A RIVER, or there is no water to walk into. The preset alone builds a dry map, which would pass every
+    # assertion below having proved nothing (`built.water > 0` is the guard that says so out loud).
+    |> click_button(nil, "Build this world", exact: false)
     |> wait_until(fn s -> audit(s).total > 0 end, "the world to finish building")
   end
 

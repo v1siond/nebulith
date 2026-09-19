@@ -28,6 +28,13 @@ export class ErrorBoundary extends Component<Props, State> {
 
   componentDidCatch(error: Error): void {
     console.error('[ErrorBoundary] caught a render error:', error)
+    // …AND LEFT WHERE A TEST CAN READ IT. A boundary turns a crash into a tidy "reload to try again", which
+    // from the outside is indistinguishable from a page that simply has no buttons on it: an end-to-end run
+    // reports a missing selector and says nothing about the actual fault. This is the one seam that names it.
+    ;(globalThis as { __editorError?: { message: string; stack: string } }).__editorError = {
+      message: String(error?.message ?? error),
+      stack: String(error?.stack ?? ''),
+    }
     this.props.onError?.(error)
   }
 
