@@ -34,7 +34,7 @@ const project = (col: number, row: number) => ({ x: (col - row) * 16, y: (col + 
 
 function skirtFills(range?: { col: number; row: number; cells: number }): number {
   const { ctx, fills } = countingCtx()
-  drawGridSkirt(ctx, grid(), project, 16, 8, 20, 20, 44, 12, 0, range)
+  drawGridSkirt(ctx, grid(), project, 16, 8, 20, 20, 44, 12, 0, 0, 0, range)
   return fills()
 }
 

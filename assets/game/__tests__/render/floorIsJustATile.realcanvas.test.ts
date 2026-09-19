@@ -15,7 +15,7 @@
 import { styleTiles } from '@/engine/tileset/styleTiles'
 import { installRealCanvas, type RealCanvasHarness } from '@/__tests__/helpers/realCanvas'
 import { installSeedTileset } from '@/__tests__/helpers/tilesetSeed'
-import { render, isoRecordedTileGeom, ISO_BLOCK_H_FRAC } from '@/engine/render/iso'
+import { render, isoRecordedTileGeom, isoStackLift } from '@/engine/render/iso'
 import { IsometricGrid, type GridAsset } from '@/engine/IsometricGrid'
 import { pushTile } from '@/engine/cellStack'
 import { EMOJI_STYLE } from '@/game/artStyle'
@@ -29,7 +29,12 @@ let H: RealCanvasHarness
 // Deterministic clamp-free camera (like isoInvertedPick): cellSize 100, isoScale 1 → tileW 71.
 const CELL = 100, W = 800, HGT = 600, ISO = 1
 const TILE_W = CELL * ISO * 0.71
-const UNIT = TILE_W * ISO_BLOCK_H_FRAC // one full block's on-screen height (px)
+// One full block's on-screen height, ASKED OF THE RENDERER rather than recomputed. The lift is rounded per
+// level now, so a stacked tile lands on the same whole-pixel lattice its cell sits on
+// (docs/PERFORMANCE.md §4.1), and this read `TILE_W * ISO_BLOCK_H_FRAC` directly: 63.9 against a render that
+// lifts by 64. What these tests are about is that the lift is the stack level and nothing else, which is
+// exactly what `isoStackLift` answers, so they now compare against it and survive the next change to it.
+const UNIT = isoStackLift(TILE_W, 1) // one full block's on-screen height (px)
 const PCOL = 10, PROW = 10, ACOL = 12, AROW = 10
 const player = (): PlayerState => ({ x: PCOL * CELL, z: PROW * CELL, moving: false } as PlayerState)
 

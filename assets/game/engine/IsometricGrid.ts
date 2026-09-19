@@ -382,6 +382,22 @@ export class IsometricGrid {
     return out
   }
 
+  private _maxHeight = 0
+  private _maxHeightVer = -1
+  /** The tallest ground elevation on the map, memoized against groundVersion. It bounds how far ABOVE its own
+   *  cell any part of the map body can be drawn, which is what lets the skirt decide a cell is off screen
+   *  without first doing the neighbour lookups that would tell it what to draw. */
+  maxGroundHeight(): number {
+    if (this._maxHeightVer === this.groundVersion) return this._maxHeight
+    let top = 0
+    for (let r = 0; r < this.rows; r++) {
+      for (let c = 0; c < this.cols; c++) if (this.height[r][c] > top) top = this.height[r][c]
+    }
+    this._maxHeight = top
+    this._maxHeightVer = this.groundVersion
+    return top
+  }
+
   // Convert grid position to world position
   gridToWorld(col: number, row: number): { x: number; z: number } {
     return {

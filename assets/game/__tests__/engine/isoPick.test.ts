@@ -80,7 +80,11 @@ describe('pickIsoBlock, a click on a raised block selects THAT block', () => {
   test('lift matches the render constant (a level-1 block sits one cube above the flat cell)', () => {
     const flat = centre(block(3, 3, 0))
     const lifted = centre(block(3, 3, 1))
-    expect(flat.y - lifted.y).toBeCloseTo(tileW * ISO_BLOCK_H_FRAC)
+    // ASK THE RENDER'S OWN FUNCTION, not the raw product. The lift is rounded per level now, so that a
+    // stacked block lands on the same whole-pixel lattice its cell sits on (docs/PERFORMANCE.md §4.1), and
+    // this read `tileW * ISO_BLOCK_H_FRAC` directly: 63.9 where the render lifts by 64. Comparing the picker
+    // against the renderer's constant is what the test is named for, and it survives the next change to it.
+    expect(flat.y - lifted.y).toBeCloseTo(isoStackLift(tileW, 1))
   })
 
   // The picker takes ONE code path over a uniform block list, it never branches on what a block IS. A

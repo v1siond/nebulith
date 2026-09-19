@@ -67,6 +67,7 @@ When reading a source, write down both. The second half is usually the more valu
 | Picking a generator algorithm | [`ALGORITHMS.md`](ALGORITHMS.md) | Written |
 | Hitboxes and elevation | [`HITBOXES-AND-ELEVATION.md`](HITBOXES-AND-ELEVATION.md) | Spec written, nothing built. §4.11 settles terrain height: `perlin(x, z)` plus a served height profile. |
 | Drawing, the camera, the four facings | [`RENDER-AND-CAMERA.md`](RENDER-AND-CAMERA.md) | Written |
+| The frame budget, measuring it, what a layer may spend | [`PERFORMANCE.md`](PERFORMANCE.md) | Written |
 | Animating anything | [`ANIMATION-SYSTEM.md`](ANIMATION-SYSTEM.md) | Written |
 | Night light and glow | [`LIGHTING.md`](LIGHTING.md) | Written, narrow. Covers the night ground glow only, not daylight, not water light. |
 | Combat, triggers | [`COMBAT-AND-SYSTEMS-SPEC.md`](COMBAT-AND-SYSTEMS-SPEC.md), [`TRIGGERS-SPEC.md`](TRIGGERS-SPEC.md) | Written |
@@ -88,7 +89,7 @@ These have no framework. Each one is currently decided by whoever touches it las
 |---|---|---|
 | **`COLOUR-AND-PALETTE.md`** | A colour setting moves the hue and never the tone. Which palette a template serves, what reads as lit and what reads as material, the path-lighter-than-field law measured off references. | The path was darker than the field by 24.5 luminance across every template, against references where it is lighter by 35 to 128. |
 | **`SHADOWS.md`** | What casts, what receives, how a stack of blocks shadows itself, how shadow interacts with water and with night light. | Named as a layer in the stack, nothing behind the name. |
-| **`PERFORMANCE.md`** | The frame budget, what is allowed per frame, how a new layer proves it can afford itself. | FPS fell from about 20 to 17 with boundary overlays and there is no stated budget to judge that against. |
+
 | **`UNITS-AND-CHARACTERS.md`** | How a unit is authored as a grid of art frames, its facings, its animation set. | A unit is a grid of chars baked to a PNG, written down only in memory. |
 
 ## How a design gets written down here

@@ -270,6 +270,30 @@ export interface IsoFlatCamera {
   fr: number
 }
 
+/**
+ * THE PROJECTION'S LATTICE, in whole pixels, derived once.
+ *
+ * Stepping one column moves the screen point by exactly `tileW` and one row by exactly `tileH`, so these two
+ * numbers ARE the grid. They are rounded because a 1:1 `drawImage` onto whole pixels is a straight copy while
+ * a fractional destination resamples every pixel, which measured as a third of the frame (docs/PERFORMANCE.md
+ * §4.1). The camera's own contribution is rounded ONCE into the origin, which is what leaves the per-cell part
+ * whole: a cell's offset from any other cell is an integer multiple of the lattice.
+ *
+ * ONE DEFINITION, because the render and the click both project. Snapping only the render moved the pixels
+ * off the unsnapped projection by ~0.2px per cell, which is invisible next to the hero and about ten pixels
+ * out at the far corner of a 100-wide map, and the selection outline is drawn from the other one.
+ */
+export function isoLattice(cam: IsoFlatCamera): { tileW: number; tileH: number; originX: number; originY: number } {
+  const tileW = Math.max(1, Math.round(cam.cellSize * cam.isoScale * 0.71))
+  const tileH = Math.max(1, Math.round(cam.cellSize * cam.isoScale * 0.36))
+  return {
+    tileW,
+    tileH,
+    originX: Math.round(cam.w / 2 - (cam.fc - cam.fr) * tileW),
+    originY: Math.round(cam.h / 2 - (cam.fc + cam.fr) * tileH),
+  }
+}
+
 /** WORLD cell → the screen point the render draws its diamond CENTRE at, the forward flat projection, kept
  *  here (not re-derived per call site) so a click, the selection outline and the pixels can't drift apart. */
 export function isoWorldCellToScreen(
@@ -281,9 +305,8 @@ export function isoWorldCellToScreen(
   turn: number,
 ): { x: number; y: number } {
   const v = turn === 0 ? { col, row } : orientCellTurn(col, row, cols, rows, turn)
-  const wx = (v.col - cam.fc) * cam.cellSize
-  const wz = (v.row - cam.fr) * cam.cellSize
-  return { x: cam.w / 2 + (wx - wz) * cam.isoScale * 0.71, y: cam.h / 2 + (wx + wz) * cam.isoScale * 0.36 }
+  const { tileW, tileH, originX, originY } = isoLattice(cam)
+  return { x: originX + (v.col - v.row) * tileW, y: originY + (v.col + v.row) * tileH }
 }
 
 /** Screen (canvas-internal px) → the WORLD cell under it, the EXACT inverse of isoWorldCellToScreen: invert
@@ -302,10 +325,13 @@ export function isoScreenToWorldCell(
   rows: number,
   turn: number,
 ): { col: number; row: number } {
-  const a = (x - cam.w / 2) / (cam.isoScale * 0.71)
-  const b = (y - cam.h / 2) / (cam.isoScale * 0.36)
-  const viewCol = (a + b) / 2 / cam.cellSize + cam.fc
-  const viewRow = (b - a) / 2 / cam.cellSize + cam.fr
+  // The EXACT inverse of the snapped forward projection above. Inverting the unrounded formula instead would
+  // put a click a fraction of a cell off, growing with distance from the camera, and land on the neighbour.
+  const { tileW, tileH, originX, originY } = isoLattice(cam)
+  const a = (x - originX) / tileW
+  const b = (y - originY) / tileH
+  const viewCol = (a + b) / 2
+  const viewRow = (b - a) / 2
   if (Number.isInteger(turn)) return deorientCellTurn(Math.floor(viewCol), Math.floor(viewRow), cols, rows, turn)
   const world = deorientCellTurn(viewCol, viewRow, cols, rows, turn)
   return { col: Math.floor(world.col), row: Math.floor(world.row) }
@@ -506,20 +532,23 @@ export function render(params: IsoRenderParams) {
   const camX = fc * cellSize
   const camZ = fr * cellSize
 
-  // Tile dimensions - slightly overlapping to eliminate gaps
-  const tileW = cellSize * isoScale * 0.71  // Half-width of diamond
-  const tileH = cellSize * isoScale * 0.36  // Half-height of diamond
-  const heightStep = cellSize * isoScale * 0.4  // Height per elevation level
+  // The diamond's half-width and half-height, and the camera's rounded origin: the whole projection, in whole
+  // pixels, from the ONE definition the click and the selection outline also use (`isoLattice`).
+  //
+  // SNAP THE LATTICE, NOT EACH TILE. Rounding each tile's own destination buys the same fast blit, but
+  // adjacent tiles then cross their rounding boundaries at different moments as the camera pans, so the seam
+  // between two cells opens and closes by a pixel and the ground shimmers while you walk. Rounding the
+  // lattice constants keeps every relative distance exact, so nothing moves relative to anything else.
+  const { tileW, tileH, originX, originY } = isoLattice({ w, h, cellSize, isoScale, fc, fr })
+  const heightStep = Math.max(1, Math.round(cellSize * isoScale * 0.4))  // Height per elevation level
 
   // The FIXED iso projection of a VIEW-frame coord (center of diamond tile), unchanged by rotation.
-  const viewToScreen = (col: number, row: number) => {
-    const wx = col * cellSize - camX
-    const wz = row * cellSize - camZ
-    return {
-      x: w / 2 + (wx - wz) * isoScale * 0.71,
-      y: h / 2 + (wx + wz) * isoScale * 0.36
-    }
-  }
+  // A tile asks with WHOLE col/row and lands on a whole pixel; the hero asks with a fractional one and keeps
+  // moving smoothly, which is the half of this that must NOT be snapped.
+  const viewToScreen = (col: number, row: number) => ({
+    x: originX + (col - row) * tileW,
+    y: originY + (col + row) * tileH,
+  })
   // Convert WORLD to screen. A rotated camera turns the world coord into the view frame first, that ONE hook
   // is the whole rotation: every caller below (assets, units, connectors, ghosts, debug, lamp glows) keeps
   // passing WORLD coords and lands in the right place. Turn 0 skips the turn, so the frame is untouched; a
@@ -572,7 +601,7 @@ export function render(params: IsoRenderParams) {
   const skirtRange = typeof playerViewRange === 'number' && playerViewRange > 0
     ? { col: player.x / cellSize, row: player.z / cellSize, cells: playerViewRange }
     : undefined
-  drawGridSkirt(ctx, grid, toScreen, tileW, tileH, Math.floor(camCell.col), Math.floor(camCell.row), halfSpan, heightStep, facing, skirtRange)
+  drawGridSkirt(ctx, grid, toScreen, tileW, tileH, Math.floor(camCell.col), Math.floor(camCell.row), halfSpan, heightStep, facing, w, h, skirtRange)
 
   const rectAssets = grid.getVisibleAssets(
     Math.floor(camCell.col),
@@ -1483,8 +1512,10 @@ export function fillIsoFaceWithTile(
   // four corners are covered and only what the texture SHOWS rotates. This is how a river's current follows
   // its channel with ONE baked frame set instead of four (see turnFaceTexture's note). 0 → byte-identical.
   const t = tv.turns ? turnFaceTexture(origin, eA, eB, tv.turns) : { origin, eA, eB }
-  ctx.save()
-  ctx.transform(t.eA.x / S, t.eA.y / S, t.eB.x / S, t.eB.y / S, t.origin.x, t.origin.y)
+  // THE SHEAR ITSELF. Each branch below sets up its own state, so the face that needs no clip does not pay
+  // for one, and a tile with neither an image nor a glyph pushes nothing at all.
+  const shear = (into: CanvasRenderingContext2D, ox: number, oy: number) =>
+    into.transform(t.eA.x / S, t.eA.y / S, t.eB.x / S, t.eB.y / S, ox, oy)
   // Image tile if its raster is ready; otherwise fall back to the glyph so the face is NEVER blank. This is
   // NO LONGER a pre-load placeholder, the loader gate decodes every baked image before the first frame
   // (tilesetLoader → preloadTileImages), so on a fresh load this always takes the image path; the glyph only
@@ -1499,8 +1530,15 @@ export function fillIsoFaceWithTile(
     const sy = tv.image!.sy ?? 0
     const sw = tv.image!.sw ?? img.naturalWidth
     const sh = tv.image!.sh ?? img.naturalHeight
+    ctx.save()
+    shear(ctx, t.origin.x, t.origin.y)
     for (let j = 0; j < rows; j++) for (let i = 0; i < cols; i++) ctx.drawImage(drawSrc, sx, sy, sw, sh, i * cw, j * ch, cw, ch)
-  } else if (tv.char) {
+    ctx.restore()
+    return
+  }
+  if (tv.char) {
+    ctx.save()
+    shear(ctx, t.origin.x, t.origin.y)
     ctx.beginPath()
     ctx.rect(0, 0, S, S)
     ctx.clip()
@@ -1516,8 +1554,8 @@ export function fillIsoFaceWithTile(
       ctx.font = `${Math.min(cw, ch) * 1.16}px ${ASCII_FONT}` // slight overfill; the clip trims the excess
       for (let j = 0; j < rows; j++) for (let i = 0; i < cols; i++) ctx.fillText(tv.char, (i + 0.5) * cw, (j + 0.5) * ch)
     }
+    ctx.restore()
   }
-  ctx.restore()
 }
 
 
@@ -1565,6 +1603,18 @@ export function drawGridSkirt(
    *  step and the real ones were left open to the background. */
   facing: Orientation = 0,
   /**
+   * THE CANVAS, so a cell that cannot put a pixel on it is skipped before it is measured.
+   *
+   * The loop walks the camera's SQUARE window, which on a map smaller than that square is the whole map, so
+   * every cell paid for its neighbour lookups every frame whether or not it was anywhere near the screen.
+   * Measured on a 100x60 city at maximum zoom out: 6,000 cells walked per frame, about 2,300 of them on
+   * screen, and only the map's rim and its cliffs drawing anything at all.
+   *
+   * Omitted (0) means no screen cull, which is what every existing caller and test gets.
+   */
+  canvasW = 0,
+  canvasH = 0,
+  /**
    * THE PLAYER RANGE, when one is on. The skirt is the map's BODY: the earth slab under the ground and the
    * walls at its edges. It was drawn for every cell in the camera window and never asked about the range, so
    * with the range on the elements vanished and the whole map body stayed, which is exactly what he saw:
@@ -1602,6 +1652,23 @@ export function drawGridSkirt(
   const c1 = Math.min(grid.cols - 1, camCol + halfSpan)
   const r0 = Math.max(0, camRow - halfSpan)
   const r1 = Math.min(grid.rows - 1, camRow + halfSpan)
+
+  /**
+   * Can this cell put a pixel on the canvas?
+   *
+   * The reach is DERIVED, not guessed. Sideways a cell never draws past its own diamond, so `tileW` is the
+   * exact margin. Upward it can be lifted by its elevation, at most the map's tallest (`maxGroundHeight`),
+   * and downward its walls hang by the slab plus the deepest cliff, which cannot exceed that same tallest
+   * elevation. So the vertical margins bound every face the loop below can draw.
+   */
+  const reachUp = grid.maxGroundHeight() * heightStep + tileH
+  const reachDown = slabDrop + grid.maxGroundHeight() * heightStep + tileH
+  const offCanvas = (col: number, row: number): boolean => {
+    if (canvasW <= 0 || canvasH <= 0) return false // no canvas given → no cull, exactly as before
+    const p = toScreen(col, row)
+    if (p.x < -tileW || p.x > canvasW + tileW) return true
+    return p.y + reachDown < 0 || p.y - reachUp > canvasH
+  }
 
   const wall = (p: { x: number; y: number }, side: 'left' | 'right', color: string, drop: number): void => {
     // The two front faces of the cell's diamond, dropped by the slab thickness. LEFT is the L→B edge
@@ -1645,6 +1712,7 @@ export function drawGridSkirt(
       // Outside the player's range the map body is not drawn at all, so what is beyond it is genuinely absent
       // rather than covered over.
       if (range && Math.hypot(col - range.col, row - range.row) > range.cells) continue
+      if (offCanvas(col, row)) continue // cannot reach the screen: skip before the neighbour lookups
       const floor = grid.floorAt(col, row)
       if (!floor) continue // no ground here → nothing to hold up
       // ONLY THE MAP'S OUTER EDGE. This first asked "is the neighbouring FLOOR missing", which fired all over
@@ -1717,7 +1785,9 @@ export const ISO_BLOCK_H_FRAC = 0.9
  *  new brush stacks assets on a cell with heightLevel 0,1,2,… so the render lifts each entry by this, *  a 3-tall stack reads as 3 items climbing. heightLevel absent/0 (every generated/existing asset) → 0,
  *  so this is a pure no-op for non-stacked maps. Matches topdown.ts's 2D `heightLevel * tileH * 0.9`. */
 export function isoStackLift(tileW: number, heightLevel: number | undefined): number {
-  return (heightLevel ?? 0) * tileW * ISO_BLOCK_H_FRAC
+  // Rounded PER LEVEL, so a stacked tile stays on the same whole-pixel lattice its cell sits on (see the
+  // note by tileW). Rounding the total instead would put level 3 a fraction off level 1.
+  return (heightLevel ?? 0) * Math.round(tileW * ISO_BLOCK_H_FRAC)
 }
 
 /** An asset's rendered RISE in blocks, `resolveTileHeight × scaleY`, resolved by the asset's KIND the SAME way
@@ -1932,9 +2002,11 @@ export function pickIsoBlocksAll(
   cam: IsoPickCamera,
 ): IsoPickResult[] {
   const { w, h, cellSize, isoScale, camX, camZ } = cam
-  const tileW = cellSize * isoScale * 0.71
-  const tileH = cellSize * isoScale * 0.36
-  const heightStep = cellSize * isoScale * 0.4
+  // THE SAME LATTICE THE RENDER DRAWS ON. This re-derived the projection unrounded, and the render's is
+  // snapped to whole pixels, so the two drifted by a fraction of a pixel per cell: nothing next to the hero,
+  // and enough at the far corner of a wide map to hit-test the neighbouring block.
+  const { tileW, tileH, originX, originY } = isoLattice({ w, h, cellSize, isoScale, fc: camX / cellSize, fr: camZ / cellSize })
+  const heightStep = Math.max(1, Math.round(cellSize * isoScale * 0.4))
   if (tileW <= 0 || tileH <= 0) return []
   // Nearest-camera-first = the reverse of render's back-to-front sort (isoDepthCompare): a higher (col+row)
   // is drawn later / on top, then a higher level within the same cell. Collect hits IN that order, so the
@@ -1951,10 +2023,8 @@ export function pickIsoBlocksAll(
     })
   const hits: IsoPickResult[] = []
   for (const b of ordered) {
-    const wx = b.col * cellSize - camX
-    const wz = b.row * cellSize - camZ
-    const px = w / 2 + (wx - wz) * isoScale * 0.71
-    const py = h / 2 + (wx + wz) * isoScale * 0.36
+    const px = originX + (b.col - b.row) * tileW
+    const py = originY + (b.col + b.row) * tileH
     // isoBlockFaces: `center` is the block's BASE diamond and the cube extrudes UP. So hit-test the whole
     // visible cube UPWARD from the base: the TOP CAP diamond (at yTop), OR the two FRONT wall faces running
     // from the base (yBase, bottom) up to the top (yTop).
@@ -2145,8 +2215,10 @@ function cubeBlockSprite(dv: DrawVisual, tileW: number, tileH: number, blockH: n
   const hit = _cubeSpriteCache.get(key)
   if (hit !== undefined) return hit
   const m = 1 // 1px margin so edge anti-aliasing never clips
-  const ox = tileW + m // local centre-x
-  const oy = blockH + tileH + m // local centre-y: room above for the block top diamond, below for the base
+  // WHOLE PIXELS, for the same reason the lattice is (see tileW): the blit lands at `centre - anchor`, so a
+  // fractional anchor puts an on-lattice cell back onto a fractional destination and costs the resample.
+  const ox = Math.round(tileW) + m // local centre-x
+  const oy = Math.round(blockH) + Math.round(tileH) + m // local centre-y: room above for the block top diamond, below for the base
   const cv = document.createElement('canvas')
   cv.width = Math.ceil(2 * tileW + 2 * m)
   cv.height = Math.ceil(blockH + 2 * tileH + 2 * m)
@@ -2524,11 +2596,15 @@ export function drawIsoAssetAscii(
   const labelImage = asset.label ? styleTileImage(asset.label, style) : undefined
   if (asset.label && ((asset.height ?? 0) >= 1 || labelImage)) {
     const zoom = asset.scale ?? 1
-    const bw = tileW * (asset.scaleX ?? 1) * zoom       // Width , diamond half-width
+    // WHOLE PIXELS, the block's half-dimensions. Its faces are drawn at `centre ± bw/bd/bh`, and the centre
+    // is already on the whole-pixel lattice (see tileW), so a fractional dimension is what would put the
+    // corners back off-pixel and cost the resample on every face. Measured: with the lattice snapped but
+    // these left fractional, 18% of the frame's blits still landed off-pixel, all of them block faces.
+    const bw = Math.max(1, Math.round(tileW * (asset.scaleX ?? 1) * zoom))       // Width , diamond half-width
     // THICKNESS: with a `thicknessDir` the shrink happens along a WORLD axis inside the shape drawer, so the
     // screen half-height stays FULL here, applying scaleZ in both places would thin a door twice. Without a
     // direction, `scaleZ` keeps its historical screen-axis meaning.
-    const bd = tileH * (assetThickness(asset) ? 1 : (asset.scaleZ ?? 1)) * zoom
+    const bd = Math.max(1, Math.round(tileH * (assetThickness(asset) ? 1 : (asset.scaleZ ?? 1)) * zoom))
     // Height, the tile's OWN DB block-height turned into pixels: partialBlockScale draws a sub-block cell as a
     // partial slab and a standing cell as a full block, × the per-instance Height multiplier (scaleY).
     //
@@ -2684,11 +2760,15 @@ export function drawIsoAssetAscii(
     // deepens it, Height (scaleY) stretches it up, and Zoom (scale) multiplies every axis. This is what makes a
     // tile able to SPAN MANY BLOCKS (a 1×2 wall, a wide roof) instead of only growing taller.
     const zoom = asset.scale ?? 1
-    const bw = tileW * (asset.scaleX ?? 1) * zoom       // Width , diamond half-width
+    // WHOLE PIXELS, the block's half-dimensions. Its faces are drawn at `centre ± bw/bd/bh`, and the centre
+    // is already on the whole-pixel lattice (see tileW), so a fractional dimension is what would put the
+    // corners back off-pixel and cost the resample on every face. Measured: with the lattice snapped but
+    // these left fractional, 18% of the frame's blits still landed off-pixel, all of them block faces.
+    const bw = Math.max(1, Math.round(tileW * (asset.scaleX ?? 1) * zoom))       // Width , diamond half-width
     // Depth, diamond half-height (into-screen axis). A tile that states a world-axis THICKNESS is thinned by
     // its quad instead, so applying scaleZ here as well would thin it twice, and a z-width sweep would step
     // by a squashed cell rather than a whole one. Its sibling above already guarded this; this one did not.
-    const bd = tileH * (assetThickness(asset) ? 1 : (asset.scaleZ ?? 1)) * zoom
+    const bd = Math.max(1, Math.round(tileH * (assetThickness(asset) ? 1 : (asset.scaleZ ?? 1)) * zoom))
     // Height, the tile's OWN DB block-height as pixels: partialBlockScale draws a sub-block (flat 0.1) tile as a
     // thin partial slab and a standing tile as a full block, × the per-instance Height multiplier (scaleY). The
     // height VALUE is DATA (from the DB, read into `blocks`); nothing invented.

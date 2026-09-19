@@ -121,6 +121,20 @@ export function playerHudFrom(baseStats: Stats, weapon: Weapon, state: CombatSta
   }
 }
 
+/**
+ * Would these two HUDs draw the same bars?
+ *
+ * A HUD is six numbers, so this is exact rather than a heuristic. It exists because `playerHudFrom` builds a
+ * FRESH object every call, which is never `===` the last one, so committing its result on a timer re-rendered
+ * the whole editor ten times a second whether or not a single bar had moved.
+ */
+export function samePlayerHud(a: PlayerHud | null, b: PlayerHud): boolean {
+  if (!a) return false
+  return a.hp === b.hp && a.maxHp === b.maxHp
+    && a.rage === b.rage && a.rageCap === b.rageCap
+    && a.mana === b.mana && a.manaCap === b.manaCap
+}
+
 /** Inputs the per-frame combat step reads/owns. Keeps the loop call site flat. */
 export interface CombatStepInput {
   player: PlayerState
