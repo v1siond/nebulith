@@ -65,7 +65,7 @@ import { generationLayerKeys } from '@/engine/generate/generationLayers'
 import { isTileCategory, TILE_CATEGORY } from '@/engine/tileset/tileCategory'
 import { planRoutes, resolvePathways, type Gate, type RouteCell, type RoutePlan, type Side, type Pathways } from '@/engine/pathNetwork'
 import {
-  carveBody, carveChannel, carveShore, channelDepth, crossingRefused, crossingStyle, deckRoutes, digChannel, flowField, isWaterGround, layDeck, recordBridgeSpan, wadeCrossing, WATER_BANDS,
+  carveBody, carveChannel, carveShore, crossingRefused, crossingStyle, deckRoutes, levelTheWater, flowField, isWaterGround, layDeck, recordBridgeSpan, wadeCrossing, WATER_BANDS,
   narrowestLine, narrowPathwaysToCrossings, resolveRiverCourse, CROSSING_ROWS, settleWaterDepth, strewRiverRocks, wadeableShallows, waterBand, waterReach,
   FLOW_STEPS, type RiverCourse,
 } from '@/engine/riverNetwork'
@@ -2266,7 +2266,7 @@ function carveRiver(ctx: ArchetypeContext, course: RiverCourse, pal: GeneratorPa
     // this used to pass it through `varyIntensity(…, 0.44)`, which is not a no-op (it darkens ~4%), so a
     // perimeter river came out a slightly different blue from a carved one. One water colour, everywhere.
     if (pal?.water) for (const key of water) { const { col, row } = toCell(key); ctx.floorColors[row][col] = pal.water }
-    digChannel(ctx, water) // the one course that does not come through carveChannel
+    levelTheWater(ctx, water) // the one course that does not come through carveChannel
     return water
   }
   // THE SEA, which is a shape and not a subsystem: `classifyBody` reads it as a beach on its own because it
@@ -4194,7 +4194,7 @@ function fellLogsAcross(ctx: ArchetypeContext, water: Set<string>, pal: Generato
     // `layDeck`, which swaps the cell's ground for `bridge` and paints it the way's tone, so every ford came
     // out as a dirt coloured plank rectangle lying across the water.
     //
-    // So the water STAYS. It is raised back flush with its banks, undoing exactly the cut `digChannel` made,
+    // So the water STAYS. It is raised back flush with its banks, undoing exactly the cut `levelTheWater` made,
     // so there is no rim to climb into or out of, and it stops blocking. The shallow tile is what the river
     // already uses at its own edges, so a ford reads as a continuation of the water rather than as a thing
     // built on it.
@@ -4667,7 +4667,7 @@ function layPoolFilm(ctx: ArchetypeContext, body: ReadonlySet<string>, pal: Gene
     // NO COLLISION. and
     // earlier:
     //
-    // A pool is not a channel. `carveChannel` cuts its bed BELOW the walking floor and `digChannel` writes that
+    // A pool is not a channel. `carveChannel` cuts its bed BELOW the walking floor and `levelTheWater` writes that
     // elevation, which is what makes a river something you go around. A pool sits AT ground level, so the map
     // said walkable and the collision grid said otherwise. The river keeps its bands (see settleWaterDepth);
     // this stamps a wet floor and nothing more.

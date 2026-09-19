@@ -142,7 +142,8 @@ defmodule Nebulith.DataMigrations do
     Nebulith.DataMigration.TheDesertKeepsItsCacti,
     Nebulith.DataMigration.ASettingIsStatedNotGuessed,
     Nebulith.DataMigration.TheHeartAloneStandsOnItsPlatform,
-    Nebulith.DataMigration.TheRejectedEntrancesAreGone
+    Nebulith.DataMigration.TheRejectedEntrancesAreGone,
+    Nebulith.DataMigration.ABodyOfWaterIsLevel
   ]
 
   @doc "Every registered data migration module, in run order."

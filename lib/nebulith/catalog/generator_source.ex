@@ -60,22 +60,6 @@ defmodule Nebulith.Catalog.GeneratorSource do
       ]
     },
 
-    # HOW DEEP the channel is cut. and
-    #
-    # So the depth is a served number, not a constant the generator picks. `flat` keeps the old behaviour
-    # exactly, which is a river painted on the walking plane, so nothing changes for a map that does not ask.
-    %{
-      "key" => "depth",
-      "label" => "How deep the channel is cut",
-      "type" => "choice",
-      "default" => "1",
-      "requires" => "river",
-      # No "flat" key: a gated choice already takes "none" when its dependency is off, and that IS not cut.
-      "choices" => [
-        %{"key" => "1", "label" => "One block down"},
-        %{"key" => "2", "label" => "Two blocks down"}
-      ]
-    },
     # WHAT the river is crossed on. bridges" that we use on rivers, we must have multiple variations too / it can be a
     # simple dirt path, it can be an actual bridge, which again, are multiple variations"*. Each key is a row of
     # @crossings, which says the tile it lays.

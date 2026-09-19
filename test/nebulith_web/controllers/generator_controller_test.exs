@@ -66,7 +66,8 @@ defmodule NebulithWeb.GeneratorControllerTest do
       # `crossing` was a toggle in this list and is gone: "A crossing joined to the paths" said nothing about
       # what it decided. A river that cuts a path always gets a crossing now, so there was nothing left for it
       # to decide. `bridge` stays, because WHICH crossing is a real choice.
-      assert Enum.map(woodland["options"], & &1["key"]) == ~w(exits pathways region river depth bridge)
+      # No `depth`: there is no channel to cut, so the option that said how deep is gone (ABodyOfWaterIsLevel).
+      assert Enum.map(woodland["options"], & &1["key"]) == ~w(exits pathways region river bridge)
 
       assert Enum.drop(woodland["options"], 3) == [
                %{
@@ -80,20 +81,6 @@ defmodule NebulithWeb.GeneratorControllerTest do
                    %{"key" => "through", "label" => "Winds through (easy to cross)"},
                    %{"key" => "divides", "label" => "Divides the map in two"},
                    %{"key" => "around", "label" => "Around the edge"}
-                 ]
-               },
-               # HOW DEEP the channel is cut, and it rides the wire like the rest.
-               # `flat` is the old
-               # behaviour, a river painted on the walking plane.
-               %{
-                 "key" => "depth",
-                 "label" => "How deep the channel is cut",
-                 "type" => "choice",
-                 "default" => "1",
-                 "requires" => "river",
-                 "choices" => [
-                   %{"key" => "1", "label" => "One block down"},
-                   %{"key" => "2", "label" => "Two blocks down"}
                  ]
                },
                %{

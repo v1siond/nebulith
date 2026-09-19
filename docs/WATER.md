@@ -346,7 +346,8 @@ Out of scope for this doc beyond one rule: the water layers are RECEIVERS. A sha
 | Piece | State |
 |---|---|
 | Water phase in the pipeline | Declared and running before pathways, for woodland, jungle, meadow, cave and settlement. Temple and boss stage have no water. |
-| Water as a film over ground | Only for fords and swamp pools. The channel still overwrites `ground`. |
+| Water as a film over ground | Only for fords and swamp pools. The water tile still IS the ground for open water. |
+| The channel | **GONE, 2026-09-19.** `digChannel` is `levelTheWater`: each connected body is set to the LOWEST ground it covers, so a body has one surface and never stands proud of its own bank. The `depth` option is deleted from the catalog (`ABodyOfWaterIsLevel`). |
 | Depth map | `waterDepth()` exists and is correct, including the ford and bridge exceptions. |
 | Depth to colour | Not done. Three banded labels instead. |
 | Caustics | Nothing |
@@ -361,7 +362,14 @@ Out of scope for this doc beyond one rule: the water layers are RECEIVERS. A sha
 
 Each step is finished when it is judged at :3000, not when it renders in a probe.
 
-1. **Water becomes a film over the real ground**, channel included, matching the ford. Acceptance: deleting the water layer leaves a complete map with no holes, and nothing anywhere asks whether a ground label contains "water" to decide what a cell is.
+1. **Water becomes a film over the real ground**, matching the ford. Acceptance: deleting the water layer leaves a complete map with no holes, and nothing anywhere asks whether a ground label contains "water" to decide what a cell is. *The CHANNEL half of this is done (2026-09-19): no cut, one surface per body. The film half is not: an open water cell's ground label is still the water tile.*
+
+   **Why the cut had to go, measured.** The option defaulted to "1" with no way to turn it off, so every river
+   on every template was cut. A cut subtracts a constant per cell, which KEEPS the ground's unevenness, so one
+   body came out at several heights at once. Across all 40 generators: woodland 183 cells at -1 and 11 at 0;
+   BEACH 174 at -1 and 158 at 0; mountain spread over four levels. Each step reads as its own pool, which is
+   the report: *"WE'RE USING RIVERS AND BEACH WATER LIKE POOLS/PODDLES"*. After: every generator and every
+   zone, 176 combinations, one elevation per body and nothing proud of its bank.
 2. **Depth drives colour** on one water material. Acceptance: the whole river measures inside one luminance band, and shallow to deep reads as a gradient rather than three stripes.
 3. **Caustics on the bed**, attenuated by the same depth map. Acceptance: visible in the shallows, gone in the deep.
 4. **The 16 frame surface**, staggered and palette reduced. Acceptance: no directional drift at any of the four facings.
@@ -400,7 +408,8 @@ Before calling any water work done:
 - [ ] Surface animation shows no direction at any of the four facings
 - [ ] Reflections clipped to water and wobbling with the surface
 - [ ] Shoreline animates non-linearly and carries foam and a wet edge
-- [ ] Every body is ONE connected body, and a channel has interior cells to be the middle of
+- [ ] Every body is ONE connected body, at ONE elevation, and never above the ground beside it
+- [ ] Sweep EVERY generator crossed with EVERY zone, not one template. 40 generators, 176 combinations
 - [ ] Each border piece's rim faces the bank its label names, at ALL FOUR camera facings
 - [ ] Anything standing IN the water has the water bordered around it, not just the outer bank
 - [ ] Nothing branches on a tile label containing the word "water"

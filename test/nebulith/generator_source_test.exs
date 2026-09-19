@@ -131,7 +131,7 @@ defmodule Nebulith.GeneratorSourceTest do
       for g <- cats["wilderness"].generators do
         # Every wild environment offers the same region picker now, so every one of them offers the same
         # list: the ways, the region to lead with, and the river.
-        assert Enum.map(g.options, & &1["key"]) == ~w(exits pathways region river depth bridge),
+        assert Enum.map(g.options, & &1["key"]) == ~w(exits pathways region river bridge),
                "#{g.key} offers #{inspect(Enum.map(g.options, & &1["key"]))}"
 
         [river, kind] = Enum.filter(g.options, &(&1["key"] in ~w(river bridge)))
@@ -141,12 +141,9 @@ defmodule Nebulith.GeneratorSourceTest do
         expected = if g.key == "forest_beach", do: "around", else: "none"
         assert river["default"] == expected, "#{g.key} starts with river #{river["default"]}"
 
-        # HOW DEEP the channel is cut is served, not chosen by the generator. It hangs off the river like
-        # the crossing does, so it greys out when there is no river to cut.
-        depth = Enum.find(g.options, &(&1["key"] == "depth"))
-        assert depth["requires"] == "river", "#{g.key} offers a depth with no river"
-        assert depth["default"] == "1"
-        assert Enum.map(depth["choices"], & &1["key"]) == ~w(1 2)
+        # NO DEPTH OPTION. There is no channel to cut: a body of water sits at the level of the ground it
+        # covers (WATER.md §1, his correction of 2026-09-16), so nothing asks how deep to dig.
+        refute Enum.any?(g.options, &(&1["key"] == "depth")), "#{g.key} still offers a channel depth"
       end
     end
 

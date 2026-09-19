@@ -291,21 +291,13 @@ describe('water by depth: wade the shallows, the rest blocks', () => {
     }
   })
 
-  it('a channel CUT below its bank blocks everywhere, shallow edge included', () => {
-    // You would have to climb down the rim to get in, so there is nothing to wade: the crossing is the way
-    // over. Where the river is flush with its bank (no cut) the shallow edge stays walkable, which the case
-    // above covers.
-    for (const layout of ['woodland', 'meadow', 'jungle'] as const) {
-      const s = grow(layout, 'divides', 3, { depth: '1' })
-      // EXCEPT THE CROSSING, the same exception the case above already makes. A ford is not an oversight in a
-      // cut channel: `wadeCrossing` adds the cut back to its cells, so a ford sits flush with its banks and
-      // you wade it. That is the whole point of a ford, and it is what "the crossing is the way over" means
-      // here. This case was written before fords existed and asserted the rule without the exception.
-      const crossed = (c: number, r: number) => (s.decks?.has(`${c},${r}`) ?? false) || (s.fords?.has(`${c},${r}`) ?? false)
-      const open = channelCells(s).filter(([c, r]) => !s.collision[r][c] && !crossed(c, r))
-      expect({ layout, open: open.length }).toEqual({ layout, open: 0 })
-    }
-  })
+  // REMOVED 2026-09-19: "a channel CUT below its bank blocks everywhere, shallow edge included".
+  //
+  // There is no cut. A body of water sits at the level of the ground it covers, which is his own correction
+  // of 2026-09-16 recorded in `WATER.md` §1: *"we don't need a river channel layer whatsoever ... water is
+  // just terrain, floor tiles"*. This case asserted the opposite, that a one block rim makes the shallow edge
+  // unwalkable, and with the rim gone the shallow edge is wadeable, which is what the case above this one
+  // already says and what `settleWaterDepth` has always decided from `wadeable`.
 
   it('a wide river is shallow at the edge and deep in the middle, and still divides the map', () => {
     const s = grow('woodland', 'divides', 2)

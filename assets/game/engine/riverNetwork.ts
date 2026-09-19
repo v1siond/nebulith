@@ -291,10 +291,7 @@ const WATER_LIKE = new Set(['water', 'ice_water', 'oasis', 'koi'])
  */
 export const isWaterGround = (g: string | undefined): boolean => !!g && (WATER_LIKE.has(g) || g.includes('water'))
 
-/** How deep each `depth` option cuts, in blocks. Served as a string by the generator catalog. */
-const CHANNEL_DEPTH: Readonly<Record<string, number>> = { '1': 1, '2': 2 }
-
-/** What a map asks of its channel, beyond the bounds: how deep to cut and where the bed is recorded. */
+/** What a map's water needs beyond the bounds: where the ground stands, so a body can be levelled to it. */
 export interface RiverCut extends RiverBounds {
   elevation: number[][]
   /** The generator's own served options, the same shape the catalog parses. It was `unknown` here while the
@@ -303,31 +300,62 @@ export interface RiverCut extends RiverBounds {
   options: Readonly<Record<string, GeneratorOptionValue>> | undefined
 }
 
-/** How far below the walking floor this map cuts its channel. 0 when the generator states nothing, which
- *  leaves the river flush and is what every recipe did before the option existed. */
-export function channelDepth(cut: RiverCut): number {
-  const served = cut.options?.depth
-  return typeof served === 'string' ? CHANNEL_DEPTH[served] ?? 0 : 0
-}
-
 /**
- * CUT THE CHANNEL: every bed cell drops below the walking floor.
+ * A BODY OF WATER HAS ONE SURFACE.
  *
- * RELATIVE to whatever the ground already stands at, so a river crossing a raised region cuts into THAT
- * region rather than snapping to an absolute depth. At level 0 the two are identical, which is every map
- * that states no relief.
+ * This used to cut a channel: every bed cell dropped `depth` below whatever it stood on. Two things were
+ * wrong with that, and they are the same thing seen twice.
  *
- * Collision is NOT touched here. Carving already blocks a water cell, and a second opinion about walkability
- * in a second place is how the ten `=== 'water'` conditionals came to exist.
+ * WATER IS TERRAIN, and `WATER.md` §1 is his own correction saying so: *"we don't need a river channel layer
+ * whatsoever ... water is just terrain, floor tiles ... I think we can remove the river channel logic
+ * entirely, and just paint rivers, lakes, beaches using regular water tiles"*. The edge pass that replaced it
+ * is already in: every water cell wears an autotile piece (`water_smooth_river_c`, `_tl`, and the rest), which
+ * is what tells the eye where the water stops. It does not need a hole to sit in.
+ *
+ * AND A CUT RELATIVE TO THE GROUND IS NOT A SURFACE. Subtracting a constant from each cell keeps whatever
+ * unevenness the terrain had, so one river came out at several heights at once. Measured across all 40
+ * generators: a woodland river held 183 cells at -1 and 11 at 0, a BEACH held 174 at -1 and 158 at 0, and a
+ * mountain river spread over four levels. Each step reads as a separate pool, which is exactly the report:
+ * *"WE'RE USING RIVERS AND BEACH WATER LIKE POOLS/PODDLES AND THAT DOESN'T WORK"*.
+ *
+ * So each CONNECTED body is levelled to one elevation, and that elevation is the LOWEST ground the body
+ * covers, so water never stands proud of its own bank. Flat maps come out perfectly flat, which is every
+ * template that states no relief; a body crossing a slope settles to the bottom of it, the way water does.
+ *
+ * Collision is NOT touched here, it is set from `wadeable` further down. It never came from the carve.
  */
-export function digChannel(cut: RiverCut, water: ReadonlySet<string>): void {
-  const depth = channelDepth(cut)
-  if (depth === 0) return
-  for (const key of water) {
-    const { col, row } = toCell(key)
-    if (inBounds(col, row, cut.cols, cut.rows)) cut.elevation[row][col] -= depth
+export function levelTheWater(cut: RiverCut, water: ReadonlySet<string>): void {
+  const seen = new Set<string>()
+  for (const start of water) {
+    if (seen.has(start)) continue
+    // One connected body, and the lowest ground under it.
+    const body: string[] = []
+    const stack = [start]
+    seen.add(start)
+    let floor = Infinity
+    while (stack.length > 0) {
+      const key = stack.pop()!
+      const { col, row } = toCell(key)
+      if (!inBounds(col, row, cut.cols, cut.rows)) continue
+      body.push(key)
+      floor = Math.min(floor, cut.elevation[row][col])
+      for (const [dc, dr] of ORTHOGONAL) {
+        const next = `${col + dc},${row + dr}`
+        if (seen.has(next) || !water.has(next)) continue
+        seen.add(next)
+        stack.push(next)
+      }
+    }
+    if (!Number.isFinite(floor)) continue
+    for (const key of body) {
+      const { col, row } = toCell(key)
+      if (inBounds(col, row, cut.cols, cut.rows)) cut.elevation[row][col] = floor
+    }
   }
 }
+
+/** The four neighbours a body of water is connected through. Diagonals do not join two pools. */
+const ORTHOGONAL: ReadonlyArray<readonly [number, number]> = [[1, 0], [-1, 0], [0, 1], [0, -1]]
 
 // A band decides the LABEL and whether you can wade it. It used to decide a COLOUR too, which is what put
 // three blues in one river; the surface takes one served tone now (see the depth pass).
@@ -436,7 +464,7 @@ export function carveShore(ctx: RiverCarve, pal: GeneratorPalette | undefined, s
       water.add(`${col},${row}`)
     }
   }
-  digChannel(ctx, water)
+  levelTheWater(ctx, water)
   return water
 }
 
@@ -470,7 +498,7 @@ export function carveBody(ctx: RiverCarve, pal: GeneratorPalette | undefined, ce
     if (pal?.water) floorColors[row][col] = pal.water
     water.add(key)
   }
-  digChannel(ctx, water)
+  levelTheWater(ctx, water)
   return water
 }
 
@@ -541,7 +569,7 @@ export function carveChannel(ctx: RiverCarve, pal: GeneratorPalette | undefined,
     }
   }
   // Every channel-carved course comes through here: `through`, `divides`, and the jungle's creek.
-  digChannel(ctx, water)
+  levelTheWater(ctx, water)
   return water
 }
 
@@ -856,7 +884,6 @@ export function deckRoutes(
  */
 export function wadeCrossing(ctx: RiverDeck, wet: ReadonlySet<string>, tone: string | undefined): void {
   const style = crossingStyle(ctx)
-  const cut = channelDepth(ctx)
   const film = resolveTile(styleCatalog('ascii'), ctx.zone, FILM)
   for (const key of wet) {
     const { col, row } = toCell(key)
@@ -866,9 +893,10 @@ export function wadeCrossing(ctx: RiverDeck, wet: ReadonlySet<string>, tone: str
     ctx.ground[row][col] = style?.tile ?? WATER_BANDS.shallow.label
     ctx.floorColors[row][col] = deckTone(style, col, row, tone)
     ctx.collision[row][col] = false
-    // Level with the banks, adding back exactly what `digChannel` took off, so a crossing on a raised region
-    // comes level with THAT region rather than snapping to the map's base.
-    ctx.elevation[row][col] += cut
+    // NOTHING TO ADD BACK. This raised the cell by the channel depth to undo the carve, and there is no carve:
+    // a body of water sits at the level of the ground it covers (`levelTheWater`). Adding it anyway lifted
+    // every ford a block ABOVE its own river, which measured as 11 to 20 cells of raised water per map on
+    // every wilderness template and half of the village ones.
     ctx.wet.add(key)
     // `grows: false` because the water is not something GROWING on the way, it is the river the way runs
     // through. The sweeps that clear a path of vegetation read that flag, and without it they took the film
@@ -1142,10 +1170,10 @@ export function wadeableShallows(ctx: RiverSurface, depth: ReadonlyMap<string, n
   //
   // Measured before this: 68 of 159 wet cells were open on a one-block cut, so a walker stepped off a
   // 0.65-block bank straight into the river.
-  // EXCEPT AT A FORD, which is the one place the channel is not cut: it was raised back to the level of its
-  // banks when it was laid, so there is no rim to climb and walking through is the whole point of it. Without
-  // this the cut check below refuses every cell of a cut river and a jungle comes apart at its creek.
-  if (channelDepth(ctx) > 0) return new Set(ctx.fords)
+  // NO CUT MEANS NO RIM. This used to refuse every cell but a ford whenever the channel was dug, because a
+  // one-block bank is a wall you cannot step off. A body of water sits at the level of the ground it covers
+  // now (`levelTheWater`), so the shallow edge is exactly as walkable as the comment above says it should be,
+  // and the ford is no longer a special case of anything.
   const area = dryAreas(ctx)
   const joined = new Map<string, number>()
   const pending = new Set([...depth].filter(([, d]) => d === 1).map(([key]) => key))
