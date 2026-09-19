@@ -48,6 +48,13 @@ defmodule Nebulith.MixProject do
       {:phoenix_live_reload, "~> 1.2", only: :dev},
       {:phoenix_live_view, "~> 1.2.0"},
       {:lazy_html, ">= 0.1.0", only: :test},
+      # THE END-TO-END LAYER, in Elixir, driving a real browser. PhoenixTest's visit/click DSL backed by
+      # Playwright, so a click-through runs inside `mix test`, against the TEST database, with the Ecto
+      # sandbox holding the transaction. See docs/TESTING.md.
+      {:phoenix_test_playwright, "~> 0.18.0", only: :test, runtime: false},
+      # The websocket transport to a Playwright SERVER. This machine is Ubuntu 20.04 and Playwright stopped
+      # shipping a chromium for focal, so the local driver cannot run; the browser is reached over ws instead.
+      {:websockex, "~> 0.4", only: :test},
       {:phoenix_live_dashboard, "~> 0.8.3"},
       {:esbuild, "~> 0.10", runtime: Mix.env() == :dev},
       {:tailwind, "~> 0.3", runtime: Mix.env() == :dev},

@@ -25,8 +25,11 @@ end
 # 6328 = "NEBU" on a phone keypad. We stay off 4000/4001: 4000 is the default of every other
 # Phoenix app on this machine (insuradmin owns it) and the collision silently kills boot.
 # Override per-shell with PORT=xxxx.
+# TEST KEEPS ITS OWN PORT. The end-to-end layer runs a real endpoint for the browser to drive, and this file
+# deep-merges last, so without the guard `mix test` tried to bind 6328 and died on the dev server already
+# sitting there. 4002 against `nebulith_test`, which is also what keeps a click-through off the dev database.
 config :nebulith, NebulithWeb.Endpoint,
-  http: [port: String.to_integer(System.get_env("PORT") || "6328")]
+  http: [port: String.to_integer(System.get_env("PORT") || if(config_env() == :test, do: "4002", else: "6328"))]
 
 # The CV site's public origin, used for the engine's "Back to CV" link. Read at RUNTIME so the same
 # built image works wherever it is deployed.

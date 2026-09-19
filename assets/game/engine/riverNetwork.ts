@@ -1213,19 +1213,33 @@ export function wadeableShallows(ctx: RiverSurface, depth: ReadonlyMap<string, n
   //
   // Measured before this: 68 of 159 wet cells were open on a one-block cut, so a walker stepped off a
   // 0.65-block bank straight into the river.
-  // NO CUT MEANS NO RIM. This used to refuse every cell but a ford whenever the channel was dug, because a
-  // one-block bank is a wall you cannot step off. A body of water sits at the level of the ground it covers
-  // now (`levelTheWater`), so the shallow edge is exactly as walkable as the comment above says it should be,
-  // and the ford is no longer a special case of anything.
+  // FLUSH OR NOTHING, measured against the ELEVATION rather than assumed from whether anything was dug.
+  //
+  // *"means anything that is < floor level, like rivers, lakes, beaches"*, which is the answer to
+  // *"I shouldn't be able to walk into ANY real water zone"*. `levelTheWater` cuts a ZONE one block below its
+  // bank and leaves a pool at the level of the ground it lies on, so the map already records which water is
+  // which and this only has to read it.
+  //
+  // The note above says wading survives where the river is flush with its bank, and then a later pass removed
+  // the test for it on the grounds that nothing was being cut any more. The cut came back for zones and the
+  // test did not, so every bank-side cell of a dug river was wadeable: that is the whole rim of the water,
+  // which is why *"we're only adding collisions to the center cells ... when it should be ALL water"*.
+  //
+  // So a neighbour only counts as somewhere you can step FROM when it stands at the same height as the water.
+  // A pool, a puddle and a ford are level with what is around them and stay walkable; a river, a lake and a
+  // beach sit a block down and stop you at their edge as much as in their middle.
   const area = dryAreas(ctx)
+  const level = (col: number, row: number): number | undefined => ctx.elevation[row]?.[col]
   const joined = new Map<string, number>()
   const pending = new Set([...depth].filter(([, d]) => d === 1).map(([key]) => key))
   for (let grew = true; grew;) {
     grew = false
     for (const key of pending) {
       const { col, row } = toCell(key)
+      const here = level(col, row)
       const touching = new Set<number>()
       for (const [dc, dr] of ORTHO) {
+        if (level(col + dc, row + dr) !== here) continue // a rim you would have to climb, not a bank you step off
         const id = area.get(`${col + dc},${row + dr}`) ?? joined.get(`${col + dc},${row + dr}`)
         if (id !== undefined) touching.add(id)
       }

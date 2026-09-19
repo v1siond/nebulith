@@ -66,6 +66,20 @@ defmodule NebulithWeb.Endpoint do
     pass: ["*/*"],
     json_decoder: Phoenix.json_library()
 
+  # THE TEST'S OWN DATABASE TRANSACTION, joined by the browser. An end-to-end test drives a real browser, so
+  # its requests arrive on a DIFFERENT process from the test and would otherwise see an empty database rather
+  # than what the test set up. `PhoenixTest.Playwright` sends the sandbox metadata on the user agent and this
+  # reads it. Test only, and a no-op without the header.
+  if Mix.env() == :test do
+    # No `header:` option on purpose: the metadata rides the USER AGENT, which is what PhoenixTest.Playwright
+    # sends and what this plug reads by default. Naming a custom header made it look for one nobody sends, so
+    # the browser's requests opened their own connection and saw an empty database.
+    plug Phoenix.Ecto.SQL.Sandbox,
+      at: "/sandbox",
+      repo: Nebulith.Repo,
+      sandbox: Ecto.Adapters.SQL.Sandbox
+  end
+
   plug Plug.MethodOverride
   plug Plug.Head
   plug Plug.Session, @session_options

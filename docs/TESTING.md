@@ -69,6 +69,51 @@ end
 Everything after the last click is a plain data assertion in Elixir against the row the page wrote. No
 reconstruction of inputs, and the test says what the bug report says.
 
+## 3b. Running the end-to-end layer
+
+It is Elixir. `PhoenixTest.Playwright` drives a real browser from inside `mix test`, against the TEST
+endpoint (port 4002, `nebulith_test`), inside the Ecto sandbox. The cases live in `test/e2e/`.
+
+**THE TEST DATABASE IS THE POINT.** The first version of this layer was Node scripts pointed at the DEV
+server on 6328, and a run that clicked Save overwrote the only saved map in the dev database. His words:
+
+> *"tests should always use the test database, if you wanted to use my level, you could've fetched the data
+> and seeded into the test"*
+
+So a case seeds what it needs (`TileSource.seed()`, `GeneratorSource.seed()`) into its own transaction, and
+nothing it clicks can reach real data.
+
+### The browser
+
+This machine is Ubuntu 20.04 (focal). Playwright stopped shipping a chromium for focal, and the Elixir
+driver needs 1.63 or newer, so the local driver cannot run here. The browser runs in a container instead and
+is reached over a websocket, which is the route the package documents for exactly this case.
+
+```sh
+docker run -d --rm -p 3111:3111 --name nebulith-pw --init \
+  --workdir /home/pwuser --user pwuser mcr.microsoft.com/playwright:v1.63.0-noble \
+  /bin/sh -c "npx -y playwright@1.63.0 run-server --port 3111 --host 0.0.0.0"
+
+GW=$(ip route | awk '/default/{print $3}')
+MYIP=$(ip -4 addr show eth0 | awk '/inet /{print $2}' | cut -d/ -f1)
+PLAYWRIGHT_WS_ENDPOINT="ws://$GW:3111/" PHOENIX_TEST_BASE_URL="http://$MYIP:4002" mix test test/e2e
+```
+
+Two addresses because the browser is on the other side of a network boundary: the test reaches the SERVER at
+the docker gateway, and the browser reaches the APP at this machine's own address (which is why the test
+endpoint binds 0.0.0.0 rather than loopback).
+
+Without `PLAYWRIGHT_WS_ENDPOINT` the `:e2e` tag is excluded and `mix test` runs the unit suite as usual, so
+the suite never depends on a browser being up.
+
+### Two traps, both cost a session
+
+- **`PhoenixTest.Playwright.evaluate/2` returns the CONN, not the value**, so it can be piped. Reading its
+  result as the answer yields a struct: every check silently false, every measurement silently zero, which is
+  the degenerate oracle again. `PlaywrightEx.Frame.evaluate(frame_id, expression: js)` returns `{:ok, value}`.
+- **Wait on a signal, not a timer.** The editor re-renders when the fetched generator catalog lands, which
+  detaches whatever input is being typed into. `window.__generatorsReady` exists for this.
+
 ## 4. What makes a test real
 
 1. **It fails on the old code.** Run every new check against the code BEFORE the fix. A gate that cannot
