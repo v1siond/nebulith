@@ -4622,6 +4622,13 @@ function regionPoolBodies(ctx: ArchetypeContext, zoneAt: (GeneratorSubZone | und
     // …WITH A MARGIN. The plan's centreline is not the width of the way: the network is cut `pathwayWidth`
     // cells across, so water touching the line's neighbour still lands ON the way and gets forded. Measured
     // on a woodland asked for NO river: thirteen ford cells, all of them where a lake met the widened track.
+    //
+    // A PUDDLE ON A WAY IS STILL WANTED AND IS NOT DONE. *"the dirt path is wrong, should be adapted to the
+    // terrain, which mean, in this case, we should have a street with a poddle of water"*. Measured: 134
+    // films on a jungle and not one on a way, on any seed, because of this line. Lifting it works (7 cells on
+    // one seed) and then collides with a rule he also set, that *"a way wears ONE tone across every cell of
+    // its way"*: the paver skips a wet cell, and paving it anyway still left the jungle track wearing a tone
+    // off its own trail. Both rules are his, so which gives is his call, not a guess made here.
     if (nearRoute(ctx, col, row)) return
     // THE PATCH DECIDES WHERE, A FINER NOISE DECIDES THE SHORE.
     //
@@ -4680,6 +4687,9 @@ function layPoolFilm(ctx: ArchetypeContext, body: ReadonlySet<string>, pal: Gene
     // is already blocked does not get one: leaving it there produced a cell that was blocked and held nothing
     // but a film, which is the "blocked by a flag rather than by what stands in it" defect exactly.
     if (collision[row][col]) continue
+    // AND NEVER IN A GATE. PATHWAYS.md §4 rule 5: nothing is written into a gate cell, art included. A puddle
+    // on the way is wanted; one lying in the opening you leave by is the way out wearing something.
+    if (ctx.exitCells.has(key)) continue
     // `ctx.pools`, and NOT `ctx.water`, for the same reason a lake is kept out of it: that set is the channel.
     // The jungle used to put its films in there and it was harmless while the jungle was the only layout with
     // any, because its creek was carved first and dwarfed them. It is not harmless now that every layout has
