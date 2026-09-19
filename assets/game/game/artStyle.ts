@@ -262,6 +262,36 @@ export interface StyleInfo {
   icon: string
 }
 
+/**
+ * A SERVED STYLE IS BUILT ONCE, not per call.
+ *
+ * The built-in styles are module constants, so the same object comes back every time. A style that only
+ * exists because the backend served it was constructed fresh on EVERY call, and this is called during render:
+ * `activeStyle` therefore had a new identity on every render of the editor, which busts every `useMemo` and
+ * `useCallback` downstream that takes the style. The preview panel is where that bites hardest, its paint
+ * callback is rebuilt, so its repaint interval is torn down and recreated, and the scene is re-stamped, on
+ * every single render of the page.
+ */
+const servedStyles = new Map<string, Style>()
+
+export function styleById(id: string | null | undefined): Style {
+  if (!id) return ASCII_STYLE
+  const known = STYLE_BY_ID[id]
+  if (known) return known
+  const cached = servedStyles.get(id)
+  if (cached) return cached
+  const served = STYLE_CATALOG.find(s => s.id === id)
+  if (!served) return ASCII_STYLE
+  const built: Style = { id: served.id, name: served.name, icon: served.icon, map: {} }
+  servedStyles.set(id, built)
+  return built
+}
+
+/** Forget the built served styles, for when the catalog itself is replaced. */
+export function forgetServedStyles(): void {
+  servedStyles.clear()
+}
+
 // Filled by `setStyleCatalog` on the tileset load. EMPTY until the backend answers, the picker then shows
 // nothing rather than inventing a style list, the same honesty rule the generator menu follows.
 let STYLE_CATALOG: readonly StyleInfo[] = []
@@ -270,6 +300,8 @@ let STYLE_CATALOG: readonly StyleInfo[] = []
  *  `setStyleCatalog` in engine/tileset/styleTiles.ts). Called by the tileset loader. */
 export function setStyleList(styles: readonly StyleInfo[]): void {
   STYLE_CATALOG = styles
+  // A new list means the styles built from the old one describe nothing.
+  forgetServedStyles()
 }
 
 /** The styles the picker offers, in the backend's order. */
@@ -290,13 +322,7 @@ const STYLE_BY_ID: Readonly<Record<string, Style>> = {
  * A style the backend serves but the engine has no art lookup for still resolves: it gets a Style with an
  * empty `map`, and every tile then renders through the LABEL→IMAGE path against that style's tileset, * which is the whole point of "one engine, N art styles".
  */
-export function styleById(id: string | null | undefined): Style {
-  if (!id) return ASCII_STYLE
-  const known = STYLE_BY_ID[id]
-  if (known) return known
-  const served = STYLE_CATALOG.find(s => s.id === id)
-  return served ? { id: served.id, name: served.name, icon: served.icon, map: {} } : ASCII_STYLE
-}
+
 
 // ── kind derivation (pure classifiers the renderers call) ────────────────
 const WATER_GROUND = /water|oasis|koi_pond/

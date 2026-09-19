@@ -946,7 +946,23 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
    * stale value cannot decide what a library shows even for the one render before an effect runs.
    */
   const peek = activeRailId === 'generate' ? genPeek : null
-  const previewSubject = peek ?? subjectFor(libraryKind, previewLabel, activeStyleId)
+  /**
+   * WHAT THE PREVIEW IS SHOWING, built once per ANSWER rather than once per render.
+   *
+   * `subjectFor` returns a fresh object literal, and this line runs on every render of the editor. The
+   * preview panel memoises its SCENE on the subject's identity, and its own comment says why: stamping a
+   * composition walks its cells and pushes tiles, "far too much work to redo 20 times a second". With a new
+   * subject every render the memo protected nothing, so the scene was re-stamped, the paint callback was
+   * rebuilt and the repaint interval was torn down and recreated, on every render of a seven thousand line
+   * page. That is the cost of having the preview open.
+   *
+   * The three inputs are strings, so keying on them gives one subject per answer.
+   */
+  const librarySubject = useMemo(
+    () => subjectFor(libraryKind, previewLabel, activeStyleId),
+    [libraryKind, previewLabel, activeStyleId],
+  )
+  const previewSubject = peek ?? librarySubject
   /** What the panel calls what it is showing: a library row by its label, a generator preset by its world. */
   const previewCaption =
     peek && peek.kind === 'stage'
@@ -4974,6 +4990,9 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
 
   // Load a template
   const loadTemplate = async (id: string, spawnOverride?: { col: number; row: number }, opts?: { resetToSpawn?: boolean }) => {
+    // NOTHING TO LOAD IS NOT SOMETHING TO LOAD. An empty id reached `getTemplate`, which answered with a body
+    // that had no `heightData`, and the deserialize then tore up the live grid on its way to throwing.
+    if (!id) return
     setIsLoading(true)
     // #87: capture where the player IS *before* any resize/deserialize can move them, so reloading
     // the map they're already in can KEEP that position instead of jumping to the last-saved spawn.
@@ -4982,6 +5001,12 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
       const template = await getTemplate(id)
       const grid = gridRef.current
       if (!grid) return
+      // AND THE ANSWER HAS TO BE A MAP. A 404 or an error body deserialised into the LIVE grid, which is how
+      // a failed load left a half-written map behind instead of leaving the one you were on alone.
+      if (!template?.heightData || !template?.assetsData) {
+        toast(`That exit leads to a template that could not be loaded.`, 'error')
+        return
+      }
 
       // Resize grid if needed
       if (template.cols !== grid.cols || template.rows !== grid.rows) {
@@ -5153,6 +5178,14 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
   // connector's spawn cell. Guarded so an in-flight load can't re-trigger.
   const triggerConnector = async (c: Connector) => {
     if (teleportingRef.current) return
+    // AN EXIT WITH NOWHERE TO GO DOES NOTHING. Every gate is born with a walk connector covering its cells
+    // and NO target, because the target is the one thing that cannot be inferred. Walking onto one then
+    // asked the API for template '', which answers with nothing, and the loader wrote that nothing over the
+    // live grid: the map lost its height rows and the next frame's collision read `undefined[24]`.
+    //
+    // Unset is a legitimate state, not an error, so this is silent. It is also not the loader's only guard,
+    // `loadTemplate` refuses an empty id as well, because a connector is not the only thing that can call it.
+    if (!c.action && !c.targetTemplateId) return
     // Typed action (triggers generalization): resolve collect / content / move
     // (and action-encoded teleports) through the pure triggers module.
     if (c.action) {
