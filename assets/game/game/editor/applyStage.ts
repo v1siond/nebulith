@@ -8,7 +8,9 @@
  * Preset thumbnails need exactly this, so it is the seam that unblocks them. Nothing about the behaviour changes, the editor calls the same code it always did.
  */
 import { cellStackTop } from '@/engine/cellStack'
+import { assetIsSolid } from '@/engine/collisionBoxes'
 import { type IsometricGrid } from '@/engine/IsometricGrid'
+import { isWaterGround } from '@/engine/riverNetwork'
 import { generatedPropRender, stagePaint, type StageData } from '@/engine/stageGenerator'
 import { stagePropTileOverride } from '@/engine/zones'
 import { placeGround } from '@/game/editor/tileBrush'
@@ -97,6 +99,44 @@ export function applyStageToGrid(
   for (let r = 0; r < grid.rows; r++) {
     for (let c = 0; c < grid.cols; c++) {
       if (stage.collision[r]?.[c] !== undefined) grid.setCollision(c, r, stage.collision[r][c])
+    }
+  }
+  // …AND WRITE THE WATER'S ANSWER ONTO THE TILE, so it survives being saved.
+  //
+  // The mirror above is the whole truth for exactly as long as the page is open. A saved map has no collision
+  // column (`groundData`, `heightData`, `assetsData`, `connectors`, `entities`, `quests`), so reloading
+  // rebuilds what is solid from the assets, and whatever only ever lived in that array is gone. That is why a
+  // freshly built world behaved and the same world reloaded did not.
+  //
+  // Water now stops you because its TILE carries a collision box, which needs nothing written here. What does
+  // need writing is the opposite: the cells the generator deliberately OPENED. Its rule is
+  // `frozen || decks.has(key) ? false : !wadeable.has(key)`, so a bridge deck, a ford and ice are water you
+  // are meant to cross, and on reload the tile's box would seal all three. An empty per-instance list says
+  // "this particular cell declares nothing solid", which `declaredBoxes` already prefers over the tile's.
+  for (let r = 0; r < grid.rows; r++) {
+    for (let c = 0; c < grid.cols; c++) {
+      if (stage.collision[r]?.[c] !== false) continue // the generator did not open this cell
+      const floor = grid.floorAt(c, r)
+      if (!floor || !isWaterGround(floor.tileKey)) continue // only water has a box to waive
+      floor.settings = { ...floor.settings, collision: [] }
+    }
+  }
+  // AND NOTHING IS SOLID WITH NOTHING IN IT.
+  //
+  // The assets ARE the collision data, which is the model `deserializeToGrid` already works to: a saved map
+  // has no collision column, so loading one rebuilds what is solid by asking each asset. A cell the generator
+  // marked solid while placing nothing there therefore cannot survive a save, and it did not: measured on
+  // three builds in a row, exactly one cell per map, always on the outer row, stopping you before the save and
+  // letting you through after it.
+  //
+  // It is cleared rather than persisted because an empty solid cell is an invisible wall, and the map edge
+  // already stops you anyway (`isBlocked` reports true out of bounds). So this makes the built map agree with
+  // the loaded one by construction, in the direction that removes a barrier nobody can see.
+  for (let r = 0; r < grid.rows; r++) {
+    for (let c = 0; c < grid.cols; c++) {
+      if (!grid.isBlocked(c, r)) continue
+      const held = grid.getAssetsAtCell(c, r).some(a => assetIsSolid(a) || a.blocking)
+      if (!held) grid.setCollision(c, r, false)
     }
   }
   // A BUILDING is just TILES: stamp each GENERATED building as its backend COMPOSITION's per-cell tiles by

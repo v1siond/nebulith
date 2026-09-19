@@ -38,7 +38,7 @@ import { addItem, equipArmor, equipWeapon, itemFromReward, mintItemId, starterIn
 import { createLoadout, loadoutBonuses, seededPlayerLoadout, setSpecial } from '@/game/loadout'
 import { type Projectile } from '@/game/projectiles'
 import { type QuestEvent, acceptQuest, turnIn } from '@/game/quests'
-import { BARE_HANDS, type HitMarker, type PlayerHud, type ProjectileContext, playerHudFrom, stepCombat, tickProjectiles, triggerAbility } from '@/game/runtime/combat'
+import { BARE_HANDS, type HitMarker, type PlayerHud, type ProjectileContext, playerHudFrom, samePlayerHud, stepCombat, tickProjectiles, triggerAbility } from '@/game/runtime/combat'
 import { type PlayerState, aimFromKeys, facingFromKeys, playerDisplayName, resolveSpawnCell } from '@/game/runtime/player'
 import { moveWorldDelta } from '@/game/runtime/cameraMovement'
 import { MOVE_KEYS, isTypingTarget, matchEditorAction, type EditorActionId } from '@/game/shortcuts'
@@ -50,7 +50,7 @@ import { ENEMY_TYPES, scatterEntities } from '@/game/spawner'
 import { type CombatState, type Entity, type EntityKind, type Inventory, type Loadout, type MovementPattern, type Quest, type Reward, type Stats, type TalentPath, type Weapon } from '@/game/types'
 import { weaponReach } from '@/game/weapons'
 import { VILLAGE_CONFIG } from '@/levels/village'
-import { Connector, TemplateListItem, createTemplate, deleteTemplate, deserializeToGrid, getTemplate, listTemplates, serializeGrid, updateTemplate, updateGame } from '@/lib/api'
+import { Connector, TemplateListItem, createTemplate, deleteTemplate, deserializeToGrid, getTemplate, listTemplates, rebuildCollisionFromAssets, serializeGrid, updateTemplate, updateGame } from '@/lib/api'
 import { foldUnitData, splitUnitData } from '@/lib/unitDataPersistence'
 import { type CellTriggerGroup, ENTITY_GLYPH, cellTriggersFromAssets, cellTriggersToAssets, entitiesFromAssets, entitiesToAssets, isEntityAsset, isQuestAsset, isStyleAsset, isTriggerAsset, questsFromAssets, questsToAssets, styleFromAssets, styleToAssets, triggersAtCell } from '@/lib/gridCodec'
 import { type Trigger, type TriggerEffect, fireTriggers } from '@/game/runtime/trigger'
@@ -638,7 +638,14 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
   const syncCombatHud = useCallback((now: number) => {
     if (now - hudSyncAtRef.current < HUD_SYNC_INTERVAL_MS) return
     hudSyncAtRef.current = now
-    setPlayerHud(playerHudFrom(DEFAULT_PLAYER_STATS, playerWeaponRef.current, playerCombatRef.current))
+    // AND ONLY WHEN THE BARS WOULD ACTUALLY MOVE, the same rule the entity commit below follows.
+    // `playerHudFrom` returns a fresh object every call, so committing it unconditionally handed React a new
+    // reference on every tick and re-rendered this whole component ten times a second, forever, whether or
+    // not anything had happened. Measured on a 100x60 city, standing still with no combat: 8.4 full editor
+    // re-renders a second at roughly 16ms of element creation each, i.e. a seventh of the machine spent
+    // redrawing six numbers that had not changed.
+    const next = playerHudFrom(DEFAULT_PLAYER_STATS, playerWeaponRef.current, playerCombatRef.current)
+    setPlayerHud(prev => (samePlayerHud(prev, next) ? prev : next))
   }, [])
 
 
@@ -716,6 +723,16 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
   const [tilesetError, setTilesetError] = useState(false)
   const tilesetReadyRef = useRef(false) // live flag the gameLoop reads each frame (mirrors tilesetReady)
   useEffect(() => { tilesetReadyRef.current = tilesetReady }, [tilesetReady])
+  // WHAT IS SOLID CANNOT BE KNOWN BEFORE THE CATALOG IS. An asset that pins no collision boxes of its own
+  // takes its tile's, so deriving the collision map while the tileset is still in flight answers "nothing is
+  // solid" for most of the map. Loading a saved map does exactly that derivation, and the two are not ordered,
+  // which is why *"when I reload the world all collissions are gone"* came and went: three identical runs
+  // restored 92, 1 and 8 of the same 92 solid water cells. Recomputing once the catalog lands settles it. The
+  // pass only ever turns cells ON, so running it again costs one sweep and can undo nothing.
+  useEffect(() => {
+    if (!tilesetReady || !gridRef.current) return
+    rebuildCollisionFromAssets(gridRef.current)
+  }, [tilesetReady])
 
   // Fetch + install the backend DATA the render needs, the tilesets (the ONLY source of runtime tiles)
   // AND the entity resolution (enemyType/variant → baked slug). BOTH must be ready before the gate opens:
@@ -2595,6 +2612,7 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
       __tileTones?: (min?: number) => { label: string; total: number; colors: [string, number][] }[] | null
       __collisionAudit?: (col0?: number, row0?: number, col1?: number, row1?: number) => { col: number; row: number; ground: string; blocked: boolean; standLevel: number; tiles: { label: string; level: number; blocking: boolean }[] }[]
       __floorInfoAt?: (col: number, row: number) => { color: string | null; kind: string | null; depth: number | null; depthDir: string | null; heightLevel: number } | null
+      __tileBoxes?: (label: string) => { known: boolean; boxes: number | null }
       __camOffset?: () => { x: number; y: number }
       __stackAsset?: (col: number, row: number, n?: number) => number | null
       __paletteTiles?: (category?: string) => Array<{ id: string; label: string; category: string; height: number | null }>
@@ -2996,6 +3014,15 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
     // The map is 2D and means "a unit walking the ground is stopped here", so the only truthful source is a
     // blocking tile at (or below) the level a unit stands at. Anything else is a visible lie, red paint on
     // bare grass, or a wall you can walk through.
+    // WHAT THE CATALOG SAYS A LABEL MAKES SOLID, which is a different question from what a CELL blocks.
+    // `declaredBoxes` falls back to the served tile when an asset pins no boxes of its own, so an empty answer
+    // here and a walkable cell there are the same fact arriving twice: the tileset was not loaded when
+    // somebody asked. Without this seam the two are indistinguishable from outside.
+    win.__tileBoxes = (label: string) => {
+      const tile = styleTile('ascii', label) ?? styleTile('emoji', label)
+      const boxes = (tile?.settings as { collision?: unknown[] } | undefined)?.collision
+      return { known: !!tile, boxes: Array.isArray(boxes) ? boxes.length : null }
+    }
     win.__collisionAudit = (col0 = 0, row0 = 0, col1 = Infinity, row1 = Infinity) => {
       const grid = gridRef.current
       if (!grid) return []

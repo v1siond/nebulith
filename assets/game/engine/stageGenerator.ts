@@ -5724,7 +5724,11 @@ function stampMeadowTree(ctx: ArchetypeContext, col: number, row: number, tall: 
   // The green/verdant reference meadows show NO bare snags, only a HARSH season sprinkles a little dead wood.
   const dead = HARSH_ZONES.has(zone) && ctx.rand() < DEAD_TREE_CHANCE[zone] * 0.4
   const kind: LivingTreeKind | 'tree_dead' = dead ? 'tree_dead' : tall ? 'tree_tall' : pickLivingTree(ctx.rand(), speciesAt(ctx, col, row))
-  plantTree(ctx, { col, row, kind, variant })
+  // ONLY IF IT ACTUALLY GREW. `plantTree` refuses water, a wet cell and a deck, and this blocked the cell
+  // whatever it answered, which left a solid cell holding nothing. That is a fact no saved map can carry: the
+  // collision layer is not a column, it is rebuilt from the assets, and there is no asset here to rebuild it
+  // from. So the cell stopped you until you reloaded, and then it did not. Same rule `stampTree` follows.
+  if (!plantTree(ctx, { col, row, kind, variant })) return
   collision[row][col] = true
 }
 

@@ -9,6 +9,7 @@ import type { AssetLight } from '@/engine/tileset/tileset'
 import { NEBULITH_API } from './nebulithApi'
 import { apiFailure } from './apiError'
 import { unitStandLevel } from '@/engine/cellStack'
+import { assetIsSolid } from '@/engine/collisionBoxes'
 
 export interface Connector {
   // A connector owns a SET of cells, one connector can span many selected cells.
@@ -285,6 +286,39 @@ export function serializeGrid(grid: IsometricGrid): {
   }
 }
 
+
+/**
+ * WHAT IS SOLID, DERIVED FROM THE ASSETS.
+ *
+ * A saved map has no collision layer (`groundData`, `heightData`, `assetsData`, `connectors`, `entities`,
+ * `quests`), so this is how a loaded map gets one back. GROUND-level blocks only, the same rule the
+ * composition stamp follows: the map is 2D, one flag per cell, while a building is 3D, so blocking a cell for
+ * a tile at ANY level made an upper storey seal the floor beneath it. A saved village held 89 blocking assets
+ * above ground (windows at L2/L4/L6, wall courses at L3/L5, awnings at L2) and the collision map traced those
+ * storeys instead of the walls, *"the collissions don't match the generated building"*. A unit walks on the
+ * ground, so the ground is what this flat map means.
+ *
+ * IT ASKS `assetIsSolid` AS WELL AS `blocking`. Loading used to consult only `blocking`, the flag the
+ * collision-box system replaced, while PLACING an asset consults its boxes. So building a map and loading the
+ * same map disagreed about what stops you: measured on a saved 2,706-asset woodland, 387 assets carry boxes
+ * and exactly 4 carry `blocking`, which is why a reload came back with four solid cells and a river you could
+ * stroll across. Both are asked, because `blocking` is deprecated but still the only thing some assets carry
+ * (20 tile rows in the catalog say `blocking` while declaring no box, and a generated pillar is one of them).
+ *
+ * CALL IT AGAIN WHEN THE TILESET ARRIVES. `assetIsSolid` falls back to the served tile when an asset pins no
+ * boxes of its own, so running this before the tileset has loaded answers "nothing is solid" for every asset
+ * that relies on its tile, water included. That race is why the bug came and went: of three identical runs,
+ * one restored all 92 solid water cells and two restored one. It is idempotent by construction (it only ever
+ * turns cells ON), so re-running it the moment the catalog lands is the whole fix.
+ */
+export function rebuildCollisionFromAssets(grid: IsometricGrid): void {
+  for (const asset of grid.assets) {
+    if (!assetIsSolid(asset) && !asset.blocking) continue
+    if ((asset.heightLevel ?? 0) > unitStandLevel(grid, asset.col, asset.row)) continue // an upper storey
+    grid.setCollision(asset.col, asset.row, true)
+  }
+}
+
 export function deserializeToGrid(
   data: TemplateData,
   existingGrid?: IsometricGrid
@@ -324,18 +358,7 @@ export function deserializeToGrid(
     }
   }
 
-  // Rebuild the collision grid from the assets, GROUND-level blocks only, the same rule the composition stamp
-  // follows. The map is 2D (one flag per cell) while a building is 3D, so blocking a cell for a tile at ANY
-  // level made an upper storey seal the floor beneath it: a saved village held 89 blocking assets above ground
-  // (windows at L2/L4/L6, wall courses at L3/L5, awnings at L2) and the collision map traced those storeys
-  // instead of the walls, "the collissions don't match the generated building".
-  // A unit walks on the ground, so the ground is what this flat map means. Tiles keep their own truthful
-  // `blocking` data: a roof still blocks as a block, it just does not seal the room under it.
-  for (const asset of grid.assets) {
-    if (!asset.blocking) continue
-    if ((asset.heightLevel ?? 0) > unitStandLevel(grid, asset.col, asset.row)) continue // an upper storey
-    grid.setCollision(asset.col, asset.row, true)
-  }
+  rebuildCollisionFromAssets(grid)
 
   return grid
 }

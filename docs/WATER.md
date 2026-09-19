@@ -372,8 +372,10 @@ Out of scope for this doc beyond one rule: the water layers are RECEIVERS. A sha
 | Water phase in the pipeline | Declared and running before pathways, for woodland, jungle, meadow, cave and settlement. Temple and boss stage have no water. |
 | Water as a film over ground | Only for fords and swamp pools. The water tile still IS the ground for open water. |
 | The channel | **GONE, 2026-09-19.** The `depth` option is deleted from the catalog (`ABodyOfWaterIsLevel`). |
-| Where water sits | **Elevation 0, and the tile lies FLAT at height 0** (`WaterLiesFlat`). Not a carve, not "the lowest ground the body covers": zero. *"just make the water height 0 for now and ensure the borders are correctly positioned towards the terrain"*. |
-| The `height` COLUMN | Water's height is a top-level column on the tile row, NOT a key in `settings`. It reads as absent if you only inspect settings, which is how `water` sat at 0.5 unnoticed while `grass` was 0.0. `water_still` stays 0.05 (the ford and puddle film). `water_c` and `water_jet` stay 1.0: those are the FOUNTAIN's basin and jets, object pieces rather than terrain, and they are why a town square's fountain draws as a tall blue box. |
+| Where water sits | **Elevation 0, and the surface stands 0.4 proud of its bed** (`YouCannotWalkIntoWater`, 2026-09-19). It was flat at 0 (`WaterLiesFlat`), and he asked for the body back: *"increase the elevation of the water, looks like it's at 0, but I think we can increase it to .4 or .5 to better simulate the terrain edges"*. A zone is cut one block below its bank, so a 0.4 surface sits 0.6 under it and the cut shows along the channel. A body too small to be a zone sits at its floor's level, so there the surface stands 0.4 ABOVE the bank. `water_still` keeps height 0: the puddle film is the one he signed off as flat. |
+| The `height` COLUMN | Water's height is a top-level column on the tile row, NOT a key in `settings`. It reads as absent if you only inspect settings, which is how `water` sat at 0.5 unnoticed while `grass` was 0.0. `water_still` stays 0.0 (the ford and puddle film, flattened by `APuddleLetsYouSeeTheGround`). `water_c` and `water_jet` stay 1.0: those are the FOUNTAIN's basin and jets, object pieces rather than terrain, and they are why a town square's fountain draws as a tall blue box. |
+| Water stops you | **The tile carries a full-cell collision box** (`YouCannotWalkIntoWater`). *"I shouldn't be able to walk into ANY real water zone"*. See §Collision below. |
+| Everything sinks | **Every water tile serves `stackAt: 0`**, the film included. *"what happens when you put something in water? it sinks"*. The fountain's `water_c` and `water_jet` are excluded: a jet is water leaving the ground. |
 | Depth map | `waterDepth()` exists and is correct, including the ford and bridge exceptions. |
 | Depth to colour | Not done. Three banded labels instead. |
 | Caustics | Nothing |
@@ -449,3 +451,75 @@ Before calling any water work done:
 - [ ] Anything standing IN the water has the water bordered around it, not just the outer bank
 - [ ] Nothing branches on a tile label containing the word "water"
 - [ ] Judged at :3000
+
+---
+
+## Collision: water is solid, and the crossings are the exceptions
+
+Added 2026-09-19, from *"collissions aren't correct on water zones, I shouldn't be able to walk into ANY real
+water zone"* and, in the same breath, *"when I generate a new world, collissions look ok, when I reload the
+world all collissions are gone"*. Those turned out to be one fault with two halves.
+
+### Where the fact has to live
+
+A saved map has six columns: `groundData`, `heightData`, `assetsData`, `connectors`, `entities`, `quests`.
+**There is no collision layer.** So what stops you is DERIVED from the assets every time a map loads, and
+anything that exists only in the generator's runtime `collision[][]` array does not survive a save.
+
+The generator's own rule was already right, one line in `riverNetwork.ts`:
+
+```ts
+collision[row][col] = frozen || ctx.decks.has(key) ? false : !wadeable.has(key)
+```
+
+Water stops you unless it is ice, has a bridge over it, or is shallow enough to wade. That is why a freshly
+built world behaved and a reloaded one did not.
+
+So the rule moved to where it persists:
+
+- **The water TILE carries a full-cell collision box.** 454 rows, every autotile piece plus `water`,
+  `water_deep`, `water_shallow`, `water_bend`, the `water_f*` frames, `deep-water`, `shallow-water`,
+  `koi_pond` and `oasis`. A hand-painted lake now stops you exactly like a generated one, with nothing written
+  by the generator at all.
+- **The cells the generator deliberately OPENS carry a per-instance empty box list.** `declaredBoxes` prefers
+  an asset's own `settings.collision` over its tile's, and an empty array means "this cell declares nothing
+  solid". `applyStage` writes it wherever the generator's array says a water cell is passable, which is every
+  bridge deck, ford and ice cell. Without it the tile's box would seal every crossing on the map.
+
+### Three things that are NOT real water
+
+- `water_still` is the FILM a ford, a pool and a swamp puddle lay over ground that stays ground. It never
+  blocks: *"a ford is walkable because it is a ford"*. It keeps height 0, and it does take `stackAt: 0`.
+- `water_c` and `water_jet` are the FOUNTAIN's basin and jets, object pieces rather than terrain. They already
+  block, they stand a block tall, and they are excluded from the sinking rule.
+- `frozen_water` and `ice_water` are the winter surface you walk ON.
+
+### The race that made it look intermittent
+
+`assetIsSolid` falls back to the SERVED TILE when an asset pins no boxes of its own. Deriving the collision
+map before the tileset has loaded therefore answers "nothing is solid" for every asset that leans on its tile,
+which is most of them. Loading a saved map did exactly that derivation, and the two were not ordered.
+
+Measured, three identical runs of `e2e/waterCollision.mjs` on the same build: of 92 solid water cells, a
+reload restored 92, then 1, then 8. So `rebuildCollisionFromAssets` is exported and run AGAIN the moment the
+tileset lands. It only ever turns cells on, so it is idempotent and re-running it can undo nothing.
+
+### Two rules that fell out of it
+
+- **`blocking` and collision boxes are BOTH asked**, until the deprecated flag is actually gone. 20 tile rows
+  in the catalog set `blocking` while declaring no box, and a generated `pillar` is one of them, so asking
+  only about boxes swapped one set of missing collisions for another.
+- **Nothing is solid with nothing in it.** The assets ARE the collision data, so a cell marked solid while
+  holding no asset cannot survive a save, and measurably did not: one cell per map, always on the outer row,
+  stopping you before the save and letting you through after it. `applyStage` clears those, which makes the
+  built map agree with the loaded one by construction and removes a wall nobody can see.
+
+### The gate
+
+`assets/e2e/waterCollision.mjs` builds a world with a river through the UI, reads what is solid, saves it,
+loads it in a FRESH page and reads again. The two have to agree, and the water cells have to be solid in both.
+It makes its own scratch template and deletes it afterwards, because the editor's Save updates the template it
+has open, and on a database with one saved map that means overwriting the user's work. That happened once.
+
+Backend half: `test/nebulith/catalog/water_stops_you_test.exs`, which pins the tile rows, including the three
+exclusions above (a rule that blocks `water_still` seals every ford on the map).
