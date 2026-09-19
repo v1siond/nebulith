@@ -318,6 +318,14 @@ that stops you walking through the thing.
 Measured on real builds across woodland, jungle, meadow, swamp and beach: 79 boulders standing in water, all
 79 with water bearing an edge piece on every side of them, none missed.
 
+**The nine-piece family cannot express a cell open on three sides, and standing objects make that common.**
+Measured 2026-09-19 through the saved map: every remaining unbordered side sits beside a boulder standing in
+the water. The edge pass correctly treats that cell as not-water (this section's own rule), which can leave a
+cell open on E, S and W at once; `bl` names two of the three and the third is lost. His instruction is *"we
+draw a border connected to each thing that IS NOT water in the direction of the thing"*, which one piece per
+cell cannot satisfy: it needs the full sixteen-piece set, or a border drawn PER SIDE as an overlay rather than
+as one piece per cell. Recorded, measured and counted, not solved.
+
 **Known limit:** a composition counts at its ANCHOR cell only, so a multi-cell structure standing in water
 would border one cell of its footprint rather than all of them. Nothing in the catalog stands in open water
 across more than one cell today, so it is recorded rather than solved.
@@ -433,7 +441,10 @@ Before calling any water work done:
 - [ ] Every body is ONE connected body, at ONE elevation, and never above the ground beside it
 - [ ] Sweep EVERY generator crossed with EVERY zone, not one template. 40 generators, 176 combinations
 - [ ] Each border piece's rim faces the bank its label names, at ALL FOUR camera facings
-- [ ] EVERY side of every water cell that meets land carries a border facing it, counted, not sampled
+- [ ] EVERY side of every water cell that meets land carries a border facing it, counted, not sampled, and
+      counted through the SAVED MAP (`e2e/waterBorders.mjs`), not a stage object a test made up
+- [ ] The count of cells open on THREE OR FOUR sides is reported separately. A nine-piece family names at
+      most two, so those are a catalog gap and not a choosing mistake, and the two must never hide each other
 - [ ] The renderer's "is this a border piece" test is given the LABEL, never a folded kind
 - [ ] Anything standing IN the water has the water bordered around it, not just the outer bank
 - [ ] Nothing branches on a tile label containing the word "water"

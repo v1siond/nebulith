@@ -13,11 +13,15 @@
  */
 import '@/__tests__/helpers/installTilesetSeed'
 import { generateStage, type StageData } from '@/engine/stageGenerator'
+import { CROSSING_ROWS } from '@/engine/riverNetwork'
 import { parseGeneratorCatalog } from '@/lib/generatorCatalog'
 import { makeRng } from '@/lib/math'
 import liveBody from '@/__tests__/fixtures/generators.json'
 
 const CATALOG = parseGeneratorCatalog(liveBody)
+
+/** A ground label that IS water, in the same terms the rest of the engine asks the question. */
+const isWaterLabel = (label: string | undefined): boolean => !!label && /water|oasis|koi_pond/.test(label)
 type Node = { key?: string; layout?: string; variant?: string; config?: Record<string, never>; children?: Node[] }
 
 function served(key: string): Node {
@@ -59,18 +63,48 @@ describe('every generated bridge lies along its own crossing', () => {
           for (const seed of [4, 5, 9]) {
             const s = build(key, bridge, river, seed)
             for (const comp of (s.compositions ?? []).filter(x => x.kind.startsWith('bridge'))) {
-              const run = runAround(s, comp.col, comp.row)
-              if (run.length === 0) continue
-              const cols = new Set(run.map(x => x[0])).size
-              const rows = new Set(run.map(x => x[1])).size
               const span = Number(comp.kind.split('_').pop())
-              // THE SPAN AXIS IS THE ONE WHOSE EXTENT IS THE SPAN, not the one that happens to be longer.
-              // A band CROSSING_ROWS wide can be wider than the span it carries.
-              const alongCol = cols === span && rows !== span ? true : rows === span && cols !== span ? false : undefined
-              if (alongCol === undefined) continue // genuinely square, the axis is unreadable from here
+              if (!Number.isFinite(span)) continue
+              // ASK THE WATER, NOT THE BOUNDING BOX.
+              //
+              // This read the axis off the deck's bounding box, taking whichever side measured exactly the
+              // span. That is the same guess the doc above says cannot work, one step removed: a crossing
+              // band is CROSSING_ROWS wide and a deck cut on a diagonal has a box that matches the span on
+              // the WRONG side, so correctly turned bridges were reported as turned. Measured on the case
+              // that flagged: `bridge_stone_6` covered 5 of its 6 cells with water as placed and would have
+              // covered 4 the other way, so the placement was right and the proxy was wrong.
+              //
+              // The property the title states is "a bridge lies ACROSS the thing it crosses", and that is
+              // answerable directly: the span, walked from its anchor, must cover at least as much water as
+              // it would turned a quarter. A bridge laid ALONG a river covers less.
+              // WHAT CROSSING MEANS: the span starts on dry ground, ends on dry ground, and has water in
+              // between. That is answerable from the map and it cannot be gamed, unlike "covers more water",
+              // which a bridge lying ALONG a river wins outright, or the bounding box, which the doc above
+              // already says cannot work.
+              //
+              // Read along a WALKING row rather than the anchor's, because a bridge is authored
+              // rail / deck / deck / rail and the anchor line is a rail.
+              const crossesWater = (alongCol: boolean): boolean => {
+                const lane = Math.floor(CROSSING_ROWS / 2)
+                const at = (i: number) => {
+                  const col = alongCol ? comp.col + i : comp.col + lane
+                  const row = alongCol ? comp.row + lane : comp.row + i
+                  return s.ground[row]?.[col]
+                }
+                const ends = !isWaterLabel(at(0)) && !isWaterLabel(at(span - 1))
+                let middle = false
+                for (let i = 1; i < span - 1; i++) if (isWaterLabel(at(i))) middle = true
+                return ends && middle
+              }
+              const asPlaced = (comp.rotation ?? 0) === 0
+              // Judge only where the question HAS an answer: one orientation crosses and the other does not.
+              const here = crossesWater(asPlaced)
+              const other = crossesWater(!asPlaced)
+              if (here === other) continue
               checked++
-              const says = (comp.rotation ?? 0) === 0
-              if (says !== alongCol) turned.push(`${key}/${bridge}/${river}/seed${seed} ${comp.kind} rot=${comp.rotation} run=${cols}x${rows}`)
+              if (!here) {
+                turned.push(`${key}/${bridge}/${river}/seed${seed} ${comp.kind} rot=${comp.rotation} does not reach bank to bank, turned it would`)
+              }
             }
           }
         }

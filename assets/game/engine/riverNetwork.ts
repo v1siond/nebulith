@@ -867,10 +867,13 @@ export function wadeCrossing(ctx: RiverDeck, wet: ReadonlySet<string>, tone: str
     ctx.ground[row][col] = style?.tile ?? WATER_BANDS.shallow.label
     ctx.floorColors[row][col] = deckTone(style, col, row, tone)
     ctx.collision[row][col] = false
-    // NOTHING TO ADD BACK. This raised the cell by the channel depth to undo the carve, and there is no carve:
-    // a body of water sits at the level of the ground it covers (`levelTheWater`). Adding it anyway lifted
-    // every ford a block ABOVE its own river, which measured as 11 to 20 cells of raised water per map on
-    // every wilderness template and half of the village ones.
+    // A FORD IS LEVEL WITH ITS BANKS. That is what makes it a ford rather than a step down into the river:
+    // *"a pool/puddle of water ... should have height 0 and elevation == floor level"*. The ZONE around it is
+    // cut one block in (`levelTheWater`), so a ford is raised back out of that cut by the same one block.
+    //
+    // I deleted this line during the spell when nothing was carved, and it was correct then and wrong the
+    // moment the cut came back: a jungle's creek is crossed by wading it, and its ford sank into the channel.
+    ctx.elevation[row][col] += ZONE_DEPTH
     ctx.wet.add(key)
     // `grows: false` because the water is not something GROWING on the way, it is the river the way runs
     // through. The sweeps that clear a path of vegetation read that flag, and without it they took the film
