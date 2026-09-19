@@ -487,21 +487,6 @@ export function render2D(params: Render2DParams) {
     }
   }
 
-  // ─── CONNECTOR MARKERS (one per owned cell, same purple ◊ as top view) ──
-  for (const connector of connectors) {
-    for (const pcell of connector.cells) {
-      const p = toScreen(pcell.col + 0.5, pcell.row + 0.5)
-      if (p.x < -tileW || p.x > w + tileW || p.y < -tileH || p.y > h + tileH) continue
-      ctx.fillStyle = 'rgba(180, 80, 255, 0.6)'
-      ctx.fillRect(p.x - tileW / 2, p.y - tileH / 2, tileW, tileH)
-      ctx.font = `bold ${tileH * 0.6}px ${ASCII_FONT}`
-      ctx.textAlign = 'center'
-      ctx.textBaseline = 'middle'
-      // Portal marker is a TILE now: 🌀 under a reskin, ◊ under ASCII, over the purple cell backing.
-      drawConnectorMarker(ctx, style, p.x, p.y, tileH)
-    }
-  }
-
   // ─── OBJECTS LAYER (sorted by row for depth) ─────────────────────
   // Collect all drawable objects: assets + buildings + player. `sortRow` is the depth key (a front-
   // elevation cell sorts at its anchored front row); `level` is its stack level (draw low→high so a roof
@@ -971,6 +956,31 @@ export function render2D(params: Render2DParams) {
   drawWeather(ctx, w, h, weather, time, {
     corners: [toScreen(0, 0), toScreen(grid.cols, 0), toScreen(grid.cols, grid.rows), toScreen(0, grid.rows)],
   })
+
+  // ─── CONNECTOR MARKERS, ON TOP OF THE MAP ───────────────────────────
+  //
+  // They were drawn before the OBJECTS layer, so every tree, wall and unit painted over them: a marker under
+  // the map is not a marker. *"right now thre's nothing that tells me the exits have the template go to
+  // triggers/rule"*. They sit with the other overlays now.
+  for (const connector of connectors) {
+    for (const pcell of connector.cells) {
+      const p = toScreen(pcell.col + 0.5, pcell.row + 0.5)
+      if (p.x < -tileW || p.x > w + tileW || p.y < -tileH || p.y > h + tileH) continue
+      // Amber when the exit has no target yet, purple when it is pointed at a level. The same reading as iso.
+      const aimed = !!connector.targetTemplateId
+      ctx.fillStyle = aimed ? 'rgba(180, 80, 255, 0.6)' : 'rgba(255, 176, 32, 0.5)'
+      ctx.fillRect(p.x - tileW / 2, p.y - tileH / 2, tileW, tileH)
+      ctx.strokeStyle = aimed ? 'rgba(210, 140, 255, 0.95)' : 'rgba(255, 208, 96, 0.95)'
+      ctx.lineWidth = 2
+      ctx.strokeRect(p.x - tileW / 2, p.y - tileH / 2, tileW, tileH)
+      ctx.font = `bold ${tileH * 0.6}px ${ASCII_FONT}`
+      ctx.textAlign = 'center'
+      ctx.textBaseline = 'middle'
+      // Portal marker is a TILE now: 🌀 under a reskin, ◊ under ASCII, over the purple cell backing.
+      drawConnectorMarker(ctx, style, p.x, p.y, tileH)
+    }
+  }
+
 
   // ─── Hover + selection HIGHLIGHT, INVERTED: outline the ACTUAL rendered TILE (its recorded 2D rect,
   //     scaleY/heightLevel-lift/zOffset/pose aware) so the ring hugs what the user sees, not the flat cell.

@@ -6,7 +6,7 @@ runs.
 
 Needs the dev server up (`mix phx.server`, port 6328).
 
-    cd assets && node ../test/e2e/fps.mjs "Woodland town" town 5
+    node e2e/fps.mjs "Woodland town" town 5
 
 ## fps.mjs
 

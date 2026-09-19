@@ -1699,10 +1699,12 @@ defmodule Nebulith.Catalog.TileSource do
               image_url: "/tiles/#{tileset.key}/water_still.png",
               color_role: shallow.color_role,
               blocking: false,
-              # A FILM, NOT A FLOOR. A puddle is so it is a thin sheet the generator
-              # STACKS on the ground rather than a ground tile that replaces it. Height 0 made it a ground
-              # replacement sitting a whole block below `meadow` (1.0), which is why it fell in:
-              height: 0.05,
+              # A FILM, NOT A FLOOR: a thin sheet the generator STACKS on the ground rather than a ground
+              # tile that replaces it. It sat at 0.05 because height 0 once dropped a puddle a whole block,
+              # back when `meadow` stood at 1.0. The ground tiles are flat at 0 now, so the film can be what
+              # it was always meant to be: *"a pool/puddle of water ... should have height 0 and elevation ==
+              # floor level"*.
+              height: 0.0,
               # NOT `terrain`. It stopped being ground the moment it became a film the generator stacks ON the
               # ground, and the category is what a thing IS. It also keeps the flat-ground contract honest:
               # `emojiTileHeight` requires every terrain tile to be 0 blocks so it occludes nothing in the

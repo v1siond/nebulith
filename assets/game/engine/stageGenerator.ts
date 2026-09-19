@@ -3715,6 +3715,9 @@ const junglePhases: VariantPhases = {
 //   2. THE DRESSING IS THE LAYOUT'S. A meadow way out is cobble between flower beds under lamps; a forest way
 //      out is its own trail between flanking trunks. Same lane, the template's own materials.
 
+/** Where a `CROSSING_ROWS`-wide deck starts, so the band is centred on the line it was cut along. */
+const DECK_HALF = Math.floor(CROSSING_ROWS / 2)
+
 /** How far a way out reaches in. There is no half-width beside it on purpose: a way is as wide as the gate
  *  it runs out of, and the gate is cut at the SERVED width. PATHWAYS.md §3. */
 const GATEWAY_RUN = 11
@@ -5923,7 +5926,11 @@ function placeMeadowBridge(ctx: ArchetypeContext, water: Set<string>): void {
   if (span.length === 0) return
   const rowsToDeck = [Math.min(...span) - 1, ...span, Math.max(...span) + 1]
   const deck = new Set<string>()
-  for (const row of rowsToDeck) for (let w = -1; w <= 1; w++) deck.add(`${bridgeCol + w},${row}`)
+  // A DECK IS AS WIDE AS THE THING IT CARRIES. This laid THREE cells across, and a bridge composition is
+  // `CROSSING_ROWS` (4) deep: a rail, two walking rows, a rail. `recordBridgeSpan` refuses a deck too narrow
+  // to hold one, silently, so asking for a wooden bridge got a flat crossing and no bridge. Measured over 8
+  // seeds and 3 courses: wood and stone built a bridge on 6 of 8, and every single miss was `across 3 < 4`.
+  for (const row of rowsToDeck) for (let w = -DECK_HALF; w < CROSSING_ROWS - DECK_HALF; w++) deck.add(`${bridgeCol + w},${row}`)
   // The meadow's own cobble, stated here rather than defaulted inside layDeck, a stone bridge over a
   // meadow river is this layout's design, not something every caller should inherit.
   layDeck(ctx, deck, (MEADOW_PALETTES[ctx.zone] ?? MEADOW_PALETTES.summer).cobble)
@@ -5968,7 +5975,8 @@ function placeRiverCrossing(ctx: ArchetypeContext, water: Set<string>, routes: S
   const deck = new Set<string>()
   for (let i = -back; i <= forward; i++) {
     const cell = at(i)
-    for (let w = -1; w <= 1; w++) deck.add(`${cell.col + perp[0] * w},${cell.row + perp[1] * w}`)
+    // As wide as the bridge it has to hold, see the note on the meadow's deck above.
+    for (let w = -DECK_HALF; w < CROSSING_ROWS - DECK_HALF; w++) deck.add(`${cell.col + perp[0] * w},${cell.row + perp[1] * w}`)
   }
   if (![...deck].some(key => inBounds(toCell(key).col, toCell(key).row, ctx.cols, ctx.rows))) return false
   // A crossing wears the route it joins: the template's own trail tone when it serves one, and the meadow's
@@ -5979,10 +5987,17 @@ function placeRiverCrossing(ctx: ArchetypeContext, water: Set<string>, routes: S
   // river is narrower here, so the bridge lies ACROSS the water rather than along it.
   // The WET EXTENT along the deck's own axis. `back`/`forward` each already step one cell onto dry land, so
   // the water is what lies between them, and that is what the span has to reach across.
-  const wetAlong = [...deck]
-    .map(toCell)
-    .filter(c => water.has(`${c.col},${c.row}`))
-    .map(c => (horizontal ? c.col : c.row))
+  // ALONG THE CENTRE LINE, not across the whole band.
+  //
+  // This asked every cell of the deck, and a deck is a BAND: on a river running at an angle the band's outer
+  // lanes meet the water further up and down the axis than the crossing itself does, so the measured extent
+  // came out wider than the water the bridge actually has to reach over, and the span chosen for it
+  // overhung its own run. The crossing's centre line is where the crossing is.
+  const wetAlong: number[] = []
+  for (let i = -back; i <= forward; i++) {
+    const cell = at(i)
+    if (water.has(`${cell.col},${cell.row}`)) wetAlong.push(horizontal ? cell.col : cell.row)
+  }
   if (wetAlong.length > 0) {
     recordBridgeSpan(ctx, deck, horizontal, { from: Math.min(...wetAlong), to: Math.max(...wetAlong) })
   }

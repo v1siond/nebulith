@@ -144,6 +144,24 @@ const ATTACK_LOOP_MS = 500
  *  say between two steps. Committing every step re-rendered the whole editor at enemy-movement rate. */
 const ENTITY_COMMIT_MS = 250
 
+/**
+ * WOULD THE PANELS LOOK ANY DIFFERENT? What React shows of an entity is its identity and its health, never
+ * where it is standing: the map is drawn from the ref by the loop. So a list that differs only in position
+ * is the same list as far as every panel is concerned, and re-rendering for it is work nobody sees.
+ */
+function panelsWouldDiffer(before: readonly Entity[], after: readonly Entity[]): boolean {
+  if (before.length !== after.length) return true
+  for (let i = 0; i < after.length; i++) {
+    const a = after[i]
+    const b = before[i]
+    // Identity only. Health is not on an Entity at all, it lives in the combat runtime, so a movement tick
+    // can change nothing a panel renders except by adding or removing a unit.
+    if (a.id !== b.id || a.kind !== b.kind || a.name !== b.name) return true
+  }
+  return false
+}
+
+
 /** Stable empty list passed to the renderers when entities are hidden (avoids per-frame alloc). */
 const EMPTY_ENTITIES: Entity[] = []
 
@@ -4705,7 +4723,12 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
             // says anything new between two steps. The HP bars people watch are drawn on the CANVAS from the
             // ref, not from this. So the commit is coalesced: the ref updates every tick, React hears about
             // it a few times a second.
-            if (time - lastEntityCommitRef.current > ENTITY_COMMIT_MS) {
+            // AND ONLY WHEN REACT WOULD SHOW SOMETHING DIFFERENT. A step changes a position, and no panel
+            // draws a position: the sidebar lists names and health, the canvas draws the rest from the ref.
+            // Committing on movement re-rendered the whole editor four times a second for a picture that did
+            // not change, and a full render of this component measured ~16ms of element creation, which is a
+            // whole 60fps frame each time.
+            if (time - lastEntityCommitRef.current > ENTITY_COMMIT_MS && panelsWouldDiffer(before, movedEntities as Entity[])) {
               lastEntityCommitRef.current = time
               setEntities(movedEntities as Entity[])
             }

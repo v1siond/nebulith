@@ -545,27 +545,6 @@ export function render(params: IsoRenderParams) {
 
   ctx.globalAlpha = 1
 
-  // ─── CONNECTOR MARKERS (purple diamond + ◊ on each owned cell's top face) ──
-  for (const connector of connectors) {
-    for (const pcell of connector.cells) {
-      const p = toScreen(pcell.col, pcell.row)
-      const drawY = p.y - grid.getHeight(pcell.col, pcell.row) * heightStep
-      ctx.fillStyle = 'rgba(180, 80, 255, 0.6)'
-      ctx.beginPath()
-      ctx.moveTo(p.x, drawY - tileH)
-      ctx.lineTo(p.x + tileW, drawY)
-      ctx.lineTo(p.x, drawY + tileH)
-      ctx.lineTo(p.x - tileW, drawY)
-      ctx.closePath()
-      ctx.fill()
-      ctx.font = `bold ${tileH * 1.1}px ${ASCII_FONT}`
-      ctx.textAlign = 'center'
-      ctx.textBaseline = 'middle'
-      // Portal marker is a TILE now: 🌀 under a reskin, ◊ under ASCII, over the purple diamond backing.
-      drawConnectorMarker(ctx, style, p.x, drawY, tileH * 2)
-    }
-  }
-
   // ─── THE GRID'S OWN BODY, the thick RPG base ─────────────────────
   //
   // The map's thickness belongs to the GRID, not to each floor tile. That is the whole point of the split: a
@@ -1009,6 +988,46 @@ export function render(params: IsoRenderParams) {
     // tileW/tileH so the diamonds fill each cell edge-to-edge (not the unzoomed grid.isoScale default).
     renderDebugOverlays(ctx, w, h, grid, player, (wx, wz) => toScreen(wx / cellSize, wz / cellSize), cellSize, false, tileW, tileH, heightStep)
   }
+
+  // ─── CONNECTOR MARKERS, ON TOP OF THE MAP ───────────────────────────
+  //
+  // *"whenever there's a RULE or a trigger or something similar on a given cell/tile, show visual indicators,
+  // right now thre's nothing that tells me the exits have the template go to triggers/rule"*.
+  //
+  // They were drawn BEFORE the grid body and before every asset, so the map and everything standing on it
+  // painted straight over them. A marker under the floor is not a marker. They belong with the other
+  // overlays, after the world and before the highlight, which is where they are now.
+  //
+  // A connector with NO TARGET reads differently: every exit is born wired but unaimed, so an amber ring says
+  // "this leads somewhere, you have not said where" while a solid purple one says it is pointed at a level.
+  for (const connector of connectors) {
+    for (const pcell of connector.cells) {
+      const p = toScreen(pcell.col, pcell.row)
+      const drawY = p.y - grid.getHeight(pcell.col, pcell.row) * heightStep
+      // UNAIMED READS DIFFERENTLY. Every exit arrives with a connector and no target, because the target is
+      // the one thing that cannot be inferred, so amber means "this leads somewhere, you have not said where"
+      // and purple means it is pointed at a level.
+      const aimed = !!connector.targetTemplateId
+      ctx.fillStyle = aimed ? 'rgba(180, 80, 255, 0.6)' : 'rgba(255, 176, 32, 0.5)'
+      ctx.beginPath()
+      ctx.moveTo(p.x, drawY - tileH)
+      ctx.lineTo(p.x + tileW, drawY)
+      ctx.lineTo(p.x, drawY + tileH)
+      ctx.lineTo(p.x - tileW, drawY)
+      ctx.closePath()
+      ctx.fill()
+      // And an outline, so a marker still reads against a busy floor.
+      ctx.strokeStyle = aimed ? 'rgba(210, 140, 255, 0.95)' : 'rgba(255, 208, 96, 0.95)'
+      ctx.lineWidth = 2
+      ctx.stroke()
+      ctx.font = `bold ${tileH * 1.1}px ${ASCII_FONT}`
+      ctx.textAlign = 'center'
+      ctx.textBaseline = 'middle'
+      // Portal marker is a TILE now: 🌀 under a reskin, ◊ under ASCII, over the purple diamond backing.
+      drawConnectorMarker(ctx, style, p.x, drawY, tileH * 2)
+    }
+  }
+
 
   // ─── Hover + selection HIGHLIGHT, INVERTED: outline the ACTUAL rendered TILE (its transformed cube /
   //     billboard, from the frame's recorded geometry, resolved by the tile's STACK INDEX so same-level tiles

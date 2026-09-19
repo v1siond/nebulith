@@ -146,7 +146,8 @@ defmodule Nebulith.DataMigrations do
     Nebulith.DataMigration.ABodyOfWaterIsLevel,
     Nebulith.DataMigration.WaterLiesFlat,
     Nebulith.DataMigration.NoMoreBulbs,
-    Nebulith.DataMigration.TheCaveAndTheTempleGo
+    Nebulith.DataMigration.TheCaveAndTheTempleGo,
+    Nebulith.DataMigration.APuddleLetsYouSeeTheGround
   ]
 
   @doc "Every registered data migration module, in run order."

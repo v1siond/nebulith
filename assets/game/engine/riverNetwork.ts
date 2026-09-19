@@ -301,30 +301,35 @@ export interface RiverCut extends RiverBounds {
 }
 
 /**
- * WATER LIES AT ZERO.
+ * A BODY OF WATER SITS BELOW THE FLOOR IT IS CUT INTO.
  *
- * *"just make the water height 0 for now and ensure the borders are correctly positioned towards the
- * terrain... We'll recover the channel logic if it makes [sense]"*.
+ * *"the water zone should have elevation < floor, except when it's a pool/puddle of water which should have
+ * height 0 and elevation == floor level"*.
  *
- * This was `digChannel`, which cut every bed cell `depth` below whatever it stood on. Then it was a pass that
- * levelled each connected body to the LOWEST ground it covered, which was me generalising a narrow report
- * into every template and making the whole thing worse: a body that touched one low cell dragged its entire
- * surface down with it, and on a beach that is half the map.
+ * So a ZONE of water (a river, a lake, the sea) is one block down from the ground it runs through, and it is
+ * RELATIVE to that ground rather than snapped to an absolute depth, so a river crossing a raised region cuts
+ * into THAT region instead of leaving its surface hanging in the air.
  *
- * It is the literal instruction now. A water cell sits at elevation 0, the same plane the floor is on, and
- * the tile itself is flat (height 0, `WaterLiesFlat`), so the water is the floor rather than a slab over it
- * or a trench under it. The BORDER is what says where the water stops, which is the autotile edge pass that
- * already runs (`water_smooth_river_tl` and its eight siblings).
+ * A PUDDLE IS NOT THIS. A pool, a ford and a swamp puddle are a FILM: the floor stays the floor, the water
+ * lies over it at its own level, see-through, and *"a puddle of water ALWAYS goes above something else, like
+ * regular terrain, vegetation, etc. NEVER alone"*. They never reach this pass, because they are not painted
+ * as water GROUND at all, they are stacked over the ground that is already there (`wadeCrossing`, `layPoolFilm`).
  *
- * The channel may come back. When it does it belongs here, as one decision, not spread across a carve, a
- * ford's add-back and a wade guard the way it was.
+ * The history is worth keeping. This cut a channel, then briefly did not cut at all, then levelled each body
+ * to the lowest ground it covered, which took a narrow report about a town and made it every template's
+ * problem. What was actually wrong in that report was the water TILE standing half a block proud (`height`
+ * 0.5 against grass at 0.0), which is fixed in the catalog. The cut is the model.
  */
 export function levelTheWater(cut: RiverCut, water: ReadonlySet<string>): void {
   for (const key of water) {
     const { col, row } = toCell(key)
-    if (inBounds(col, row, cut.cols, cut.rows)) cut.elevation[row][col] = 0
+    if (inBounds(col, row, cut.cols, cut.rows)) cut.elevation[row][col] -= ZONE_DEPTH
   }
 }
+
+/** How far below its own floor a zone of water sits, in blocks. One: enough to read as cut in, shallow
+ *  enough to wade at the rim. A puddle uses none of this, it lies ON the floor. */
+const ZONE_DEPTH = 1
 
 // A band decides the LABEL and whether you can wade it. It used to decide a COLOUR too, which is what put
 // three blues in one river; the surface takes one served tone now (see the depth pass).
