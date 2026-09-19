@@ -3293,12 +3293,23 @@ defmodule Nebulith.Catalog.TileSource do
   # next variant arriving thick.
   @trunk_to_crown 0.26
 
+  # The widest trunk any species asks for. The stated `trunk_w` values are a RELATIVE spread, 0.65 to 1.45
+  # across twenty-one species, so this is what the spread is measured against: the thickest trunk lands exactly
+  # on the share above and every other one keeps its authored proportion of it.
+  @widest_trunk 1.45
+
   defp tree_comp(opts) do
     leaf_w = Map.get(opts, :leaf_w, 1.0)
     # DERIVED, not stated. `trunk_w` scales the trunk's own tile; what has to hold is the drawn WIDTH against
-    # the drawn crown, and only this has both numbers. A variant may still ask for a thinner one.
+    # the drawn crown, and only this has both numbers.
+    #
+    # SCALED, NOT CLAMPED. This was `min(stated, share)`, and the share is below even the SKINNIEST stated
+    # value, so the cap bound for all twenty-one species and every trunk in the game came out at the identical
+    # 0.585. Measured on `tree`, `tree_tall` and `tree_stub`, which are authored 1.0, 0.85 and 1.2 apart: all
+    # three read 0.585. A dozen authored widths became a dead knob, and the ask was to fix the proportions,
+    # not to make every tree the same. Scaling by the widest keeps the spread and still honours the share.
     crown = opts.leaf_zoom * leaf_w
-    trunk_w = min(Map.get(opts, :trunk_w, 1.0), crown * @trunk_to_crown / opts.trunk_zoom)
+    trunk_w = Map.get(opts, :trunk_w, 1.0) / @widest_trunk * (crown * @trunk_to_crown / opts.trunk_zoom)
     assert_tree_dimensions!(trunk_w, leaf_w, opts)
     leaf_level = round(opts.trunk_h * opts.trunk_zoom)
 

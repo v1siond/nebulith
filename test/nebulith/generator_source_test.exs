@@ -44,20 +44,22 @@ defmodule Nebulith.GeneratorSourceTest do
 
   describe "seed/0" do
     test "creates every category and generator, and reports what it wrote" do
-      assert {6, 40} = GeneratorSource.seed()
+      # FOUR categories since the cave and the temple were removed: *"WE CAN REMOVE BOTH BECAUSE THEY SUCK
+      # AND WE HAVE TO REDO THE DESIGN FROM SCRATCH LIKE WE DID WITH TOWNS AND FORESTS"*.
+      assert {4, 38} = GeneratorSource.seed()
 
       categories = Catalog.list_generator_categories()
-      assert Enum.map(categories, & &1.key) == ~w(wilderness village town city cave temple)
-      assert Enum.map(categories, & &1.name) == ["Wilderness", "Village", "Town", "City", "Cave", "Temple"]
-      # nine environments in each of the four outdoor categories, two standalone city types, two dungeons
-      assert Enum.sum(Enum.map(categories, &length(&1.generators))) == 40
+      assert Enum.map(categories, & &1.key) == ~w(wilderness village town city)
+      assert Enum.map(categories, & &1.name) == ["Wilderness", "Village", "Town", "City"]
+      # nine environments in each of the outdoor categories, plus two standalone city types
+      assert Enum.sum(Enum.map(categories, &length(&1.generators))) == 38
     end
 
     test "categories come back in MENU order, not insertion or alphabetical order" do
       GeneratorSource.seed()
       keys = Catalog.list_generator_categories() |> Enum.map(& &1.key)
 
-      assert keys == ~w(wilderness village town city cave temple)
+      assert keys == ~w(wilderness village town city)
       refute keys == Enum.sort(keys)
     end
 
@@ -194,13 +196,15 @@ defmodule Nebulith.GeneratorSourceTest do
       end
     end
 
-    test "every wild map, cave and temple says how many EXITS and PATHWAYS it has" do
+    test "every wild map says how many EXITS and PATHWAYS it has" do
       GeneratorSource.seed()
       cats = Catalog.list_generator_categories() |> by_key()
 
       # TWO numbers, not one. An exit leaves the map (a connector to the next one), a pathway runs inside
       # it, and a pathway that is not an exit has to end somewhere, which is where a gated section goes.
-      for key <- ~w(wilderness cave temple), g <- cats[key].generators do
+      # The cave and the temple used to be asked the same question here. Both were removed, so the wild maps
+      # are what is left that carries these two options.
+      for key <- ~w(wilderness), g <- cats[key].generators do
         [exits, pathways] = Enum.filter(g.options, &(&1["key"] in ~w(exits pathways)))
 
         assert exits["type"] == "choice", "#{g.key}"
@@ -337,12 +341,12 @@ defmodule Nebulith.GeneratorSourceTest do
       before = Catalog.list_generator_categories()
       ids = Enum.map(before, & &1.id)
 
-      assert {6, 40} = GeneratorSource.seed()
+      assert {4, 38} = GeneratorSource.seed()
 
       again = Catalog.list_generator_categories()
       assert Enum.map(again, & &1.id) == ids
-      assert Repo.aggregate(GeneratorCategory, :count) == 6
-      assert Repo.aggregate(Generator, :count) == 40
+      assert Repo.aggregate(GeneratorCategory, :count) == 4
+      assert Repo.aggregate(Generator, :count) == 38
     end
 
     test "re-seeding REFRESHES a row someone edited by hand" do
@@ -631,18 +635,23 @@ defmodule Nebulith.GeneratorSourceTest do
       # a standalone type may say how many people live in it
       assert generator(cats, "city", "city_futuristic").config["units"]["townsfolk"] == 16
 
-      cave = generator(cats, "cave", "cave_default").config["units"]
-      temple = generator(cats, "temple", "temple_default").config["units"]
-      assert cave == %{"townsfolk" => 0, "enemies" => 10, "enemyTypes" => ~w(bat spider skeleton)}
-      assert temple["enemyTypes"] == ~w(skeleton guardian wraith)
+      # The cave and the temple carried the "scatters its own enemies" half of this and were removed, so what
+      # is left to assert is that a settlement's own enemy list is empty rather than absent.
+      assert generator(cats, "city", "city").config["units"]["enemies"] == 0
     end
 
-    test "a dungeon carries NO settlement or building config: a missing key means it does not do that", %{categories: cats} do
-      cave = generator(cats, "cave", "cave_default").config
+    # REPLACES "a dungeon carries NO settlement or building config". The rule is the one worth keeping, a
+    # missing key means the generator does not do that thing, rather than a key full of zeroes. The dungeon
+    # was the example and it is gone, so a WILD map is asked instead: it grows trees and holds units, and it
+    # has no settlement and puts up no buildings.
+    test "a key that is absent means the generator does not do that thing", %{categories: cats} do
+      wild = generator(cats, "wilderness", "forest_meadow").config
 
-      refute Map.has_key?(cave, "settlement")
-      refute Map.has_key?(cave, "buildings")
-      refute Map.has_key?(cave, "nature")
+      refute Map.has_key?(wild, "settlement")
+      refute Map.has_key?(wild, "buildings")
+      # …and the ones it DOES do are present, or the refutes above would pass on an empty map.
+      assert Map.has_key?(wild, "nature")
+      assert Map.has_key?(wild, "units")
     end
 
     test "building materials and colours ride with the settlements that place buildings", %{categories: cats} do
@@ -737,7 +746,7 @@ defmodule Nebulith.GeneratorSourceTest do
       Repo.delete!(cat)
 
       assert Repo.aggregate(Generator, :count) == total - wild_rows
-      assert Catalog.list_generator_categories() |> Enum.map(& &1.key) == ~w(village town city cave temple)
+      assert Catalog.list_generator_categories() |> Enum.map(& &1.key) == ~w(village town city)
     end
   end
 end

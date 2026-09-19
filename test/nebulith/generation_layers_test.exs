@@ -67,7 +67,13 @@ defmodule Nebulith.GenerationLayersTest do
     for layer <- Catalog.list_generation_layers() do
       assert layer.label not in [nil, ""]
       assert layer.hint not in [nil, ""]
-      refute String.contains?(layer.hint, ", "), "#{layer.key}: no em dashes in anything user-facing"
+      # BY CODEPOINT, because the literal is the thing under test. A sweep that replaced em dashes across the
+      # repo rewrote this assertion's own needle into ", ", so it forbade COMMAS instead, which every hint
+      # has. It never failed anyway: the seeder it depends on had been deleted, so the list was empty and the
+      # loop body never ran. Two faults hiding each other, and restoring the seeder is what surfaced both.
+      for dash <- [<<0x2014::utf8>>, <<0x2013::utf8>>] do
+        refute String.contains?(layer.hint, dash), "#{layer.key}: no em dashes in anything user-facing"
+      end
     end
   end
 

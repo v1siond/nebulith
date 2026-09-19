@@ -113,14 +113,37 @@ defmodule Nebulith.TileSourceTest do
       refute Map.has_key?(crown.(cone).settings, "shape"), "#{cone} is a cone and must not be rounded off"
     end
 
-    # skinny/thick TRUNK width is a per-variant setting: tall = 0.85
-    # (skinnier), stub = 1.2 (thicker); the standard trunk omits Width entirely (default 1).
-    tall_trunk = Enum.find(comps, &(&1.name == "tree_tall")).cells |> Enum.find(&(&1.label == "trunk_mid"))
-    stub_trunk = Enum.find(comps, &(&1.name == "tree_stub")).cells |> Enum.find(&(&1.label == "trunk_mid"))
-    std_trunk = Enum.find(comps, &(&1.name == "tree")).cells |> Enum.find(&(&1.label == "trunk_mid"))
-    assert tall_trunk.settings["scaleX"] == 0.85
-    assert stub_trunk.settings["scaleX"] == 1.2
-    refute Map.has_key?(std_trunk.settings, "scaleX")
+    # TRUNK WIDTH IS DERIVED NOW, so the numbers are no longer the authored 0.85 / 1.2 / absent. What the
+    # seeder guarantees is the SHARE (`@trunk_to_crown`): a trunk is at most about a quarter of its own
+    # crown, *"trunks that are almost as thick as the leaf section, which is bad ... reduce thicknes and
+    # improve proportions of ALL trees that have trunk"*.
+    #
+    # AND THE SPREAD SURVIVES THE SHARE. A first pass clamped the width instead of scaling it, and since the
+    # share sits below even the skinniest authored value, every one of the twenty-one species came out at the
+    # identical 0.585. Asserting the share alone would have passed on that, so the ORDER is pinned too: it is
+    # the half that says the trees are still different from one another.
+    trunk = fn name -> Enum.find(comps, &(&1.name == name)).cells |> Enum.find(&(&1.label == "trunk_mid")) end
+    tall_trunk = trunk.("tree_tall")
+    stub_trunk = trunk.("tree_stub")
+    std_trunk = trunk.("tree")
+
+    assert tall_trunk.settings["scaleX"] < std_trunk.settings["scaleX"],
+           "a tall tree's trunk is the skinny one, so the authored spread has been flattened"
+
+    assert std_trunk.settings["scaleX"] < stub_trunk.settings["scaleX"],
+           "a stub's trunk is the thick one, so the authored spread has been flattened"
+
+    # …and every one of them still inside the share, measured against its OWN drawn crown.
+    for name <- ~w(tree tree_tall tree_stub tree_conifer tree_palm) do
+      cells = Enum.find(comps, &(&1.name == name)).cells
+      t = Enum.find(cells, &(&1.label == "trunk_mid"))
+      c = Enum.find(cells, &(&1.label == "leaf_center"))
+      trunk_eff = t.scale * (t.settings["scaleX"] || 1)
+      crown_eff = c.scale * (c.settings["scaleX"] || 1)
+
+      assert trunk_eff <= crown_eff * 0.26 + 0.0001,
+             "#{name}: trunk #{trunk_eff} is more than a quarter of its crown #{crown_eff}"
+    end
   end
 
   test "the fountain/well basin rim and water default to z_index 0 (draw priority is a capability, not a default)" do

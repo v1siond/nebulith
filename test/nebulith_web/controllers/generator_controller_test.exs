@@ -19,7 +19,9 @@ defmodule NebulithWeb.GeneratorControllerTest do
     test "serves every category in menu order, each with its generators", %{conn: conn} do
       data = json_response(get(conn, ~p"/api/generators"), 200)["data"]
 
-      assert Enum.map(data, & &1["key"]) == ~w(wilderness village town city cave temple)
+      # The cave and the temple were removed on purpose: *"WE CAN REMOVE BOTH BECAUSE THEY SUCK AND WE HAVE
+      # TO REDO THE DESIGN FROM SCRATCH LIKE WE DID WITH TOWNS AND FORESTS"*. Four categories is the menu now.
+      assert Enum.map(data, & &1["key"]) == ~w(wilderness village town city)
       wilderness = hd(data)
       assert wilderness["name"] == "Wilderness"
 
@@ -156,13 +158,20 @@ defmodule NebulithWeb.GeneratorControllerTest do
       assert empty == nil or empty["options"] == []
     end
 
-    test "a cave says how many EXITS and PATHWAYS it has", %{conn: conn} do
+    # REPLACES "a cave says how many EXITS and PATHWAYS it has". The cave category was deleted, so the old
+    # test defended something that no longer exists. What it was really guarding is that a generator's
+    # OPTIONS reach the editor with a key and a usable default, and that is still worth a gate, so it is
+    # asked of every generator that survives rather than of one that does not.
+    test "every generator's options reach the editor with a key and a default", %{conn: conn} do
       data = json_response(get(conn, ~p"/api/generators"), 200)["data"]
-      cave = Enum.find(data, &(&1["key"] == "cave")) |> Map.fetch!("generators") |> hd()
+      options = for cat <- data, gen <- cat["generators"], opt <- gen["options"] || [], do: opt
 
-      # The cave: Two numbers, and they reach the editor from here.
-      assert Enum.map(cave["options"], & &1["key"]) == ~w(exits pathways)
-      assert Enum.all?(cave["options"], &(&1["default"] == "random"))
+      assert options != [], "no generator serves any option, so this test is blind"
+
+      for opt <- options do
+        assert opt["key"] not in [nil, ""], "an option with no key cannot be bound to anything"
+        assert Map.has_key?(opt, "default"), "#{opt["key"]} serves no default, so the editor has nothing to show"
+      end
     end
   end
 end
