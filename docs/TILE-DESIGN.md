@@ -132,6 +132,19 @@ Measured: `deep-water` and `shallow-water` exist alongside `water_deep` and `wat
 Before a new tile is called done:
 
 - [ ] Authored as SVG on the 128 viewBox in `tiles.json`, one entry per style
+### 2.4 A tile authored for one style only falls back to a square
+
+`road_center` is authored in `tiles.json` as an ASCII GLYPH and nothing else. On the emoji style there is no
+art for it, so the street's centre marking resolves to a plain filled tile, which is what
+*"the 'lines' are big squares instead of actual street lines"* is looking at.
+
+The rule that catches this is §1: a tile is an inline SVG baked to PNG and seeded for BOTH styles. A glyph
+only entry is an ascii-only tile, and any label the generator lays on a map every style can open has to be
+authored as art, not as a character.
+
+Check it the same way as the nine piece families: render every member. A marking drawn as a lane stripe also
+needs its own direction, so it belongs to a piece family rather than being one square repeated along the way.
+
 - [ ] Full bleed if it can ever be extruded, alpha checked at the border
 - [ ] Drawn in white and greys so the `color` setting does the tinting
 - [ ] Inside its material's luminance band
