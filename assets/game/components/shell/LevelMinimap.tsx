@@ -63,6 +63,15 @@ export interface LevelMinimapProps {
 
 export function LevelMinimap({ grid, player, entities, style, camOffsetRef, zoomPct, mainCanvas, onJumpTo, onHide, onMaximize, big = false }: LevelMinimapProps) {
   const canvas = useRef<HTMLCanvasElement>(null)
+  /**
+   * THE MAP ITSELF, DRAWN ONCE.
+   *
+   * Measured per canvas while walking a city: this panel issued 186 `drawImage` a frame of the editor's loop,
+   * because every repaint re-rendered the whole level. The level does not change while you walk: what moves
+   * is the viewport rectangle and the units. So the level goes into an offscreen canvas and is BLITTED, and
+   * only what actually moves is drawn on top of it.
+   */
+  const cache = useRef<{ canvas: HTMLCanvasElement; key: string } | null>(null)
 
   // The map's aspect follows the LEVEL's, so a 40×40 map is square and a 60×20 one is wide, the shape of
   // the picture is itself information about the level.
@@ -87,19 +96,47 @@ export function LevelMinimap({ grid, player, entities, style, camOffsetRef, zoom
     if (!ctx) return
     // Fit the WHOLE grid: solve the zoom `renderTopView` needs so `cols * 16 * zoom` spans the canvas.
     const zoom = Math.min(w / Math.max(1, cols * BASE_TILE), h / Math.max(1, rows * BASE_TILE))
-    renderTopView({
-      ctx,
-      w,
-      h,
-      grid,
-      player,
-      zoom,
-      entities,
-      style,
-      chrome: false, // its heading and keyboard hint belong to the full-screen view, not to a 176px map
-      // The map shows the level, not the editing state: no selection, no hover, no placement ghost. Those
-      // belong to the thing you are working in, and repeating them here would just be noise at 4px a cell.
-    })
+    // WHAT WOULD MAKE THE PICTURE DIFFERENT: the level, its size, the art, and the box drawn into. Not the
+    // camera, and not where anybody is standing: those are drawn over the top.
+    const key = `${cols}x${rows}|${grid.assets.length}|${style.id}|${w}x${h}`
+    if (cache.current?.key !== key) {
+      const off = cache.current?.canvas ?? document.createElement('canvas')
+      off.width = w
+      off.height = h
+      const octx = off.getContext('2d')
+      if (!octx) return
+      octx.clearRect(0, 0, w, h)
+      renderTopView({
+        ctx: octx,
+        w,
+        h,
+        grid,
+        player,
+        zoom,
+        // NO UNITS IN THE CACHE. They move, the level does not, and baking them in would freeze them or bust
+        // the cache on every step. They are drawn over the blit below, as the dots they read as at 4px a cell.
+        entities: [],
+        style,
+        chrome: false, // its heading and keyboard hint belong to the full-screen view, not to a 176px map
+        // The map shows the level, not the editing state: no selection, no hover, no placement ghost. Those
+        // belong to the thing you are working in, and repeating them here would just be noise at 4px a cell.
+      })
+      cache.current = { canvas: off, key }
+    }
+    ctx.clearRect(0, 0, w, h)
+    ctx.drawImage(cache.current.canvas, 0, 0)
+    // WHAT MOVES, over the level that does not. A unit is a dot here: at four pixels a cell there is nothing
+    // else it could be, and the panel's job is where things are, not what they look like.
+    const tileNow = BASE_TILE * zoom
+    const originCol = (w - cols * tileNow) / 2
+    const originRow = (h - rows * tileNow) / 2
+    const dot = Math.max(2, tileNow * 0.8)
+    for (const e of entities) {
+      ctx.fillStyle = e.kind === 'enemy' ? '#ff6b6b' : e.kind === 'npc' ? '#ffd257' : '#8ad7ff'
+      ctx.fillRect(originCol + e.col * tileNow, originRow + e.row * tileNow, dot, dot)
+    }
+    ctx.fillStyle = '#ffffff'
+    ctx.fillRect(originCol + (player.x / grid.cellSize) * tileNow, originRow + (player.z / grid.cellSize) * tileNow, dot, dot)
     // WHERE THE MAIN VIEW IS LOOKING, derived here from the same camera the render reads, the exact
     // inverse `__centerOn` applies, so the rectangle cannot drift from what is on screen.
     if (!mainCanvas || !mainCanvas.width) return

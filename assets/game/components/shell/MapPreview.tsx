@@ -27,6 +27,19 @@ export type { PreviewView }
 /** Repaint cadence. A preview holds still unless it animates, and 20fps is plenty for water and glow. */
 const FRAME_MS = 50
 
+/**
+ * A WHOLE WORLD IS A STILL PICTURE.
+ *
+ * Measured per canvas while walking a city with the New world panel open: the map cost 861 `drawImage` a
+ * frame and this panel cost 792, because a preset's subject is a generated STAGE and the timer below was
+ * redrawing every tile of it twenty times a second, about 970 draws a paint. A preset card does not animate,
+ * it is a reference you compare against the card beside it, and its own seed is fixed so that it holds still.
+ *
+ * So a stage paints ONCE, when its scene changes. Everything else keeps the live timer, because a fountain's
+ * water and a lamp's glow are part of how that thing looks.
+ */
+const isStill = (subject: PreviewSubject | null): boolean => subject?.kind === 'stage'
+
 export interface MapPreviewProps {
   subject: PreviewSubject | null
   /** The view bar's current projection, so the preview shows what placing it will look like from here. */
@@ -67,11 +80,13 @@ export function MapPreview({ subject, view, zone, style, styleId, height = 190 }
     drawPreviewScene(ctx, w, h, scene, view, style, [], performance.now() / 1000)
   }, [scene, view, style])
 
+  const still = isStill(subject)
   useEffect(() => {
     paint()
+    if (still) return // a whole world holds still: one paint per scene, no timer
     const timer = window.setInterval(paint, FRAME_MS)
     return () => window.clearInterval(timer)
-  }, [paint])
+  }, [paint, still])
 
   if (!subject) return <div className="hint">Point at something in the library to see it here.</div>
   if (!scene) {
