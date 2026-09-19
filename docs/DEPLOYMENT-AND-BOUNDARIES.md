@@ -111,13 +111,16 @@ neither a known SPA route nor a Phoenix route is a 404 from Phoenix, not from th
 
 ## 5. The iframe contract
 
-The CV site's `/personal-projects/game-engine` renders one `<iframe>` and nothing else of substance:
+The CV site's `/personal-projects/game-engine/[[...path]]` renders one `<iframe>` and nothing else of
+substance. It is a CATCH-ALL: everything after `game-engine` is handed to the frame as the engine's own path,
+so every engine route is reachable, and shareable, from the outside.
 
 ```tsx
+// /personal-projects/game-engine/games/<id>  frames  ENGINE_URL/games/<id>
 <iframe
-  src={`${ENGINE_URL}/games`}
+  src={`${ENGINE_URL}/${path || 'games'}`}
   allow="fullscreen; gamepad; clipboard-write"
-  className="w-full h-full border-0"
+  className="fixed inset-0 h-full w-full border-0"
 />
 ```
 
@@ -126,8 +129,23 @@ Rules that bind that frame:
 1. **The frame is the whole viewport.** The engine draws its own chrome. The CV must not wrap it in
    a header, a sidebar or a max-width container, because the editor's layout maths reads the
    viewport and a letterboxed frame makes every panel wrong.
-2. **No cross-frame messaging.** The CV does not `postMessage` the engine and the engine does not
-   reach `window.parent`. If a link needs to leave the frame it uses `target="_top"` on a full URL.
+2. **ONE message, one direction, and it is a statement.** This used to forbid cross-frame messaging
+   outright. It does not, because *"when clicking 'open' on the iframe I want to chain the link to the url"*,
+   and a framed page cannot write the address bar on its own.
+
+   So the engine ANNOUNCES its route, from `navigate` in `router.tsx`, the single place it navigates:
+   `{ type: 'nebulith:route', path }`. The CV mirrors that into its own URL with a SHALLOW replace, so the
+   frame is never torn down by the navigation it just reported, and the back button does not fill with an
+   entry per level.
+
+   The limits that remain are what keep this from becoming a protocol:
+   - It is a STATEMENT, never a command. The engine says where it is; it never asks the host to do anything.
+   - It is ONE WAY. The engine does not listen for a reply, and the CV never messages the engine.
+   - The CV checks `event.origin` against `ENGINE_URL` before believing a word of it.
+   - The frame's `src` is read ONCE. Tracking the URL would reload the engine every time it reported a
+     navigation, which is a loop that throws away the map you are looking at.
+
+   If a link needs to leave the frame it still uses `target="_top"` on a full URL.
 3. **The engine never assumes it is framed.** `/games` has to work opened directly, because that is
    how it is developed and probed.
 4. **`ENGINE_URL` is read from the environment, never hardcoded.** Unset falls back to the dev

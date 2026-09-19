@@ -294,6 +294,17 @@ export const isWaterGround = (g: string | undefined): boolean => !!g && (WATER_L
 /** What a map's water needs beyond the bounds: where the ground stands, so a body can be levelled to it. */
 export interface RiverCut extends RiverBounds {
   elevation: number[][]
+  /**
+   * THE CELLS THAT ARE A PUDDLE RATHER THAN A ZONE, so the cut can leave them alone.
+   *
+   * *"the water zone should have elevation < floor, except when it's a pool/puddle of water which should have
+   * height 0 and elevation == floor level ... a puddle of water ALWAYS goes above something else, like regular
+   * terrain, vegetation, etc. NEVER alone"*.
+   *
+   * A pool is standing water lying ON ground that stays ground, so cutting it makes a hole with nothing at the
+   * bottom, which is exactly what it looked like. Optional: a caller with no pools behaves as before.
+   */
+  pools?: ReadonlySet<string>
   /** The generator's own served options, the same shape the catalog parses. It was `unknown` here while the
    *  channel was the only reader, but a deck reads them too, so one type across the module or the interfaces
    *  cannot be combined. */
@@ -321,11 +332,57 @@ export interface RiverCut extends RiverBounds {
  * 0.5 against grass at 0.0), which is fixed in the catalog. The cut is the model.
  */
 export function levelTheWater(cut: RiverCut, water: ReadonlySet<string>): void {
-  for (const key of water) {
+  const sunk = zonesOnly(cut, water)
+  for (const key of sunk) {
     const { col, row } = toCell(key)
     if (inBounds(col, row, cut.cols, cut.rows)) cut.elevation[row][col] -= ZONE_DEPTH
   }
 }
+
+/**
+ * THE WATER THAT IS A ZONE, which is the only water a cut applies to.
+ *
+ * Two things are not: a cell the map already calls a POOL (a film laid over ground that stays ground), and a
+ * BODY too small to be one. *"a pool/puddle of water ... should have height 0 and elevation == floor level
+ * ... a puddle of water ALWAYS goes above something else, like regular terrain, vegetation, etc. NEVER
+ * alone"*. Cutting either leaves a hole with nothing in the bottom of it, which is what was reported: a
+ * three-cell pool sunk a block into bare nothing.
+ *
+ * The size is not a number invented here. `REGION_LAKE_MIN` is the line this engine already draws between a
+ * lake it carves and standing water it lays a film on, and its own note says why it is sixty: a swamp's pools
+ * come out between twenty-five and fifty, a real body lands well over a hundred, and the two separate
+ * cleanly. The same question deserves the same answer.
+ */
+function zonesOnly(cut: RiverCut, water: ReadonlySet<string>): Set<string> {
+  const zones = new Set<string>()
+  const seen = new Set<string>()
+  for (const start of water) {
+    if (seen.has(start) || cut.pools?.has(start)) continue
+    const body: string[] = [start]
+    const stack = [start]
+    seen.add(start)
+    while (stack.length > 0) {
+      const { col, row } = toCell(stack.pop()!)
+      for (const [dc, dr] of ORTHOGONAL_STEPS) {
+        const next = `${col + dc},${row + dr}`
+        if (seen.has(next) || !water.has(next) || cut.pools?.has(next)) continue
+        seen.add(next)
+        body.push(next)
+        stack.push(next)
+      }
+    }
+    if (body.length < ZONE_MIN_CELLS) continue // standing water, not a zone
+    for (const key of body) zones.add(key)
+  }
+  return zones
+}
+
+/** The four neighbours a body of water is connected through. Diagonals do not join two pools. */
+const ORTHOGONAL_STEPS: ReadonlyArray<readonly [number, number]> = [[1, 0], [-1, 0], [0, 1], [0, -1]]
+
+/** How many cells a body needs before it is a ZONE rather than standing water. The same line the region
+ *  pools already draw (`REGION_LAKE_MIN`), kept here as its own name so the two can be read together. */
+const ZONE_MIN_CELLS = 60
 
 /** How far below its own floor a zone of water sits, in blocks. One: enough to read as cut in, shallow
  *  enough to wade at the rim. A puddle uses none of this, it lies ON the floor. */

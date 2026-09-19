@@ -49,12 +49,39 @@ const hrefOf = (target: Target): string => {
   return `${target.pathname}?${search}`
 }
 
+/**
+ * THE ROUTE, ANNOUNCED TO WHOEVER IS FRAMING US.
+ *
+ * *"when clicking 'open' on the iframe I want to chain the link to the url ... all the previous game-engine
+ * routes should work, but passing it to the iframe instead of directly loading stuff"*.
+ *
+ * A framed page cannot change the address bar, so the host has to be told and mirror it. This is the ONE
+ * place the engine navigates, so it is the one place that announces.
+ *
+ * `DEPLOYMENT-AND-BOUNDARIES.md` §5 used to forbid cross-frame messaging outright. It does not any more, and
+ * the doc says so: a link you can copy is worth a message, and this is the narrowest form of one, a single
+ * event that carries a path and nothing else.
+ *
+ * NEVER A COMMAND. The engine tells the host where it is; it does not ask the host to do anything, and it
+ * does not listen back. A host that ignores the message is exactly the engine opened directly, which still
+ * has to work (§5 rule 3).
+ */
+const ROUTE_ANNOUNCE = 'nebulith:route'
+
+function announceRoute(url: string): void {
+  if (typeof window === 'undefined' || window.parent === window) return
+  // `*` because the host is the CV site on another origin and its URL is not the engine's business. The
+  // payload is a path, which the host already knows: it is the one it framed.
+  window.parent.postMessage({ type: ROUTE_ANNOUNCE, path: url }, '*')
+}
+
 /** Navigate without a reload, and tell the subscribers, since history does not. */
 export const navigate = (target: Target, mode: 'push' | 'replace' = 'push') => {
   const url = hrefOf(target)
   if (mode === 'replace') window.history.replaceState(null, '', url)
   if (mode !== 'replace') window.history.pushState(null, '', url)
   window.dispatchEvent(new Event(NAVIGATED))
+  announceRoute(url)
 }
 
 export type Router = {
