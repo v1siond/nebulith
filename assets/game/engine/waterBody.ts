@@ -176,9 +176,21 @@ export function waterPieces(
    * of open water. Defaults to this body, so a caller with only one body behaves exactly as before.
    */
   allWater: Cells = cells,
+  /**
+   * The map, when the caller knows it. OFF THE MAP IS NOT A BANK.
+   *
+   * Without this, a cell on the border row asks about `row - 1`, finds no water there and calls the void
+   * land, so it wears a rim facing the edge of the world. That also costs it a side it really does need: a
+   * nine-piece family names at most two, so a cell already meeting land on two real sides loses one of them
+   * to the void. Measured on woodland seed 3, a cell at 16,0 wore the top-right corner while its actual bank
+   * was south.
+   */
+  bounds?: { cols: number; rows: number },
 ): Map<string, string> {
   const fam = FAMILIES[`${set}/${kind}`]
-  const filled = (col: number, row: number): boolean => allWater.has(key(col, row))
+  const outside = (col: number, row: number): boolean =>
+    !!bounds && (col < 0 || row < 0 || col >= bounds.cols || row >= bounds.rows)
+  const filled = (col: number, row: number): boolean => outside(col, row) || allWater.has(key(col, row))
   const pieces = new Map<string, string>()
   for (const cell of cells) {
     const [col, row] = cell.split(',').map(Number)
@@ -216,7 +228,8 @@ export function paintWaterBody(
   allWater: Cells = cells,
 ): number {
   let painted = 0
-  for (const [cell, label] of waterPieces(cells, set, kind, allWater)) {
+  const bounds = { cols: ground[0]?.length ?? 0, rows: ground.length }
+  for (const [cell, label] of waterPieces(cells, set, kind, allWater, bounds)) {
     const [col, row] = cell.split(',').map(Number)
     if (!ground[row] || ground[row][col] === undefined) continue
     ground[row][col] = label

@@ -269,8 +269,24 @@ frame before the fixed projection, so the map rotates. The texture was drawn unt
 the rim kept pointing at the screen edge it pointed at before the map moved under it.
 
 2 and 3 are one rule: **a tile's picture is authored in the world frame, so it takes the same quarter-turns
-the camera gives the coordinate.** `turns = PICTURE_TO_GRID + facing`, measured correct at all four facings in
-`waterRimFacesItsBank`. It is sound rather than a nudge because the nine-piece family is CLOSED under a
+the camera gives the coordinate.** `turns = PICTURE_TO_GRID + facing`.
+
+> **The correction above was WIRED TO A CONDITION THAT COULD NEVER BE TRUE, 2026-09-18, and this section said
+> it was done for two days.** `iso.ts` asked `isWaterSetLabel(assetKind(asset))`. `assetKind` FOLDS every
+> water label onto the single kind `water` (§1, "the fold that makes every water look the same"), while
+> `isWaterSetLabel` tests membership in the set of PIECE labels. So the question was "is the string `water`
+> one of `water_smooth_river_tl` and its siblings", the answer was always no, and not one border picture was
+> ever turned. It asks `asset.tileKey` / `asset.label` now.
+>
+> **And the test this section cited, `waterRimFacesItsBank`, did not exist.** A framework claiming a fix is
+> not the fix, and citing a test that was never written is how a constant-false condition lives for two days.
+> The gate is `waterBordersFaceTheLand.test.ts`, which asserts BOTH halves: the piece each cell wears faces
+> every side that meets land, and the label the renderer is handed is one it will actually turn.
+>
+> **A fourth defect, found by the same test.** Off the map counted as land, so a cell on the border row wore a
+> rim facing the void, and a nine-piece family names at most two sides, so it lost a real bank to do it.
+> `waterPieces` takes the map bounds now and treats outside as water: there is nothing out there to have a
+> shore against. It is sound rather than a nudge because the nine-piece family is CLOSED under a
 quarter-turn (`tl -> tr -> br -> bl`, `t -> r -> b -> l`, interior to itself), so turning a piece's texture is
 the same answer as relabelling the cell for the rotated grid.
 
@@ -417,6 +433,8 @@ Before calling any water work done:
 - [ ] Every body is ONE connected body, at ONE elevation, and never above the ground beside it
 - [ ] Sweep EVERY generator crossed with EVERY zone, not one template. 40 generators, 176 combinations
 - [ ] Each border piece's rim faces the bank its label names, at ALL FOUR camera facings
+- [ ] EVERY side of every water cell that meets land carries a border facing it, counted, not sampled
+- [ ] The renderer's "is this a border piece" test is given the LABEL, never a folded kind
 - [ ] Anything standing IN the water has the water bordered around it, not just the outer bank
 - [ ] Nothing branches on a tile label containing the word "water"
 - [ ] Judged at :3000

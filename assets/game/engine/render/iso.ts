@@ -2602,7 +2602,15 @@ export function drawIsoAssetAscii(
   // Sound rather than a nudge, because the nine-piece family is CLOSED under a quarter-turn: tl→tr→br→bl,
   // t→r→b→l, and the interior maps to itself. Turning a piece's texture is the same answer as relabelling the
   // cell for the rotated grid, so no piece can rotate into art that does not exist.
-  const bordersWater = isWaterSetLabel(assetKind(asset))
+  // ASK THE LABEL, NOT THE KIND. This passed `assetKind(asset)`, and `assetKind` FOLDS a label onto a coarse
+  // kind: every water piece comes back as the single kind `water`. `isWaterSetLabel` tests membership in the
+  // set of PIECE labels (`water_smooth_river_tl` and its siblings), so it was being asked whether the string
+  // "water" is one of them, which it is not and never was. The condition was constant false, so the whole
+  // correction below has never once run for a border piece: every rim has been drawn a quarter-turn off its
+  // own cell, at every facing, which is exactly *"none is on the edge of any water body"*.
+  //
+  // A floor carries its piece label on `tileKey`, a placed asset on `label`, so both are asked.
+  const bordersWater = isWaterSetLabel(asset.tileKey) || isWaterSetLabel(asset.label)
   if (asset.flow !== undefined || bordersWater) {
     // A PICTURE'S OWN FRAME IS NOT THE GRID'S. The top face hands the texture `eA = top.b - top.a`, which
     // points NORTH, and `eB = top.d - top.a`, which points EAST. A tile is drawn as an ordinary top-down
