@@ -53,7 +53,9 @@ defmodule NebulithWeb.GeneratorControllerTest do
       generator = hd(category["generators"])
 
       assert Map.keys(category) |> Enum.sort() == ~w(description generators key name position)
-      assert Map.keys(generator) |> Enum.sort() == ~w(children config description key layout name options position variant zones)
+
+      assert Map.keys(generator) |> Enum.sort() ==
+               ~w(children config description key layout name options position variant zones)
     end
 
     test "a forest's options ride over the wire whole, dependency and all", %{conn: conn} do
@@ -115,7 +117,8 @@ defmodule NebulithWeb.GeneratorControllerTest do
              ]
     end
 
-    test "an environment rides as a TYPE of its own, ready to run, with nothing nested under it", %{conn: conn} do
+    test "an environment rides as a TYPE of its own, ready to run, with nothing nested under it",
+         %{conn: conn} do
       data = json_response(get(conn, ~p"/api/generators"), 200)["data"]
       wilderness = hd(data) |> Map.fetch!("generators")
       woodland = hd(wilderness)
@@ -125,7 +128,18 @@ defmodule NebulithWeb.GeneratorControllerTest do
       # now, so what it is arrives whole: its own canopy, its own regions, and the grid every wild map shares.
       assert mountain["config"]["nature"]["canopy"] == 0.28
       assert mountain["config"]["grid"] == woodland["config"]["grid"]
-      assert Enum.map(mountain["config"]["subZones"], & &1["key"]) == ~w(edge deep glade thicket lakeside)
+
+      # …and its own regions means ITS OWN: a mountain climbs from its foot to its summit, and the generic
+      # wood's five went over the wire on every biome for as long as one set was shared by all nine.
+      assert Enum.map(mountain["config"]["subZones"], & &1["key"]) ==
+               ~w(foot slope treeline crag summit)
+
+      refute Enum.map(woodland["config"]["subZones"], & &1["key"]) ==
+               Enum.map(mountain["config"]["subZones"], & &1["key"])
+
+      assert mountain["config"]["regionLayout"] == "bands",
+             "a mountain is laid out in bands, REGIONS.md §2"
+
       assert mountain["children"] == []
       assert woodland["children"] == []
     end
@@ -147,6 +161,7 @@ defmodule NebulithWeb.GeneratorControllerTest do
 
     test "a generator with nothing to switch on serves an empty list, not null", %{conn: conn} do
       data = json_response(get(conn, ~p"/api/generators"), 200)["data"]
+
       # A settlement is no longer the example either: since 2026-09-14 a town says how many exits and how many
       # streets it has, so a generator with genuinely nothing to switch on is what this needs. `null` would
       # make the frontend guard every map over it; the column is NOT NULL defaulting to `[]`.
@@ -156,7 +171,8 @@ defmodule NebulithWeb.GeneratorControllerTest do
         |> Enum.find(&(&1["options"] == []))
 
       for gen <- Enum.flat_map(data, &Map.fetch!(&1, "generators")) do
-        assert is_list(gen["options"]), "#{gen["key"]} serves #{inspect(gen["options"])}, not a list"
+        assert is_list(gen["options"]),
+               "#{gen["key"]} serves #{inspect(gen["options"])}, not a list"
       end
 
       # …and if every generator has something to switch on today, the list shape is still what is being
@@ -176,7 +192,9 @@ defmodule NebulithWeb.GeneratorControllerTest do
 
       for opt <- options do
         assert opt["key"] not in [nil, ""], "an option with no key cannot be bound to anything"
-        assert Map.has_key?(opt, "default"), "#{opt["key"]} serves no default, so the editor has nothing to show"
+
+        assert Map.has_key?(opt, "default"),
+               "#{opt["key"]} serves no default, so the editor has nothing to show"
       end
     end
   end

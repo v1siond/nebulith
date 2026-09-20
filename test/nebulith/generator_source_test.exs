@@ -415,28 +415,37 @@ defmodule Nebulith.GeneratorSourceTest do
       %{categories: Catalog.list_generator_categories()}
     end
 
-    test "every wild environment divides into the SAME five regions", %{categories: cats} do
-      for g <- by_key(cats)["wilderness"].generators do
-        assert Enum.map(g.config["subZones"], & &1["key"]) == @regions,
-               "#{g.key} has its own region set"
+    test "every wild environment divides into ITS OWN regions, and no two alike", %{
+      categories: cats
+    } do
+      # THE SET BELONGS TO THE BIOME (`docs/REGIONS.md` §1.1). This used to assert the opposite, that every
+      # wild environment divides into the SAME five, which is what let a volcano offer you a "Glade" and a
+      # swamp a "Deep wood": *"the zones of a meadow aren't the same of a swamp ... we need to have logical
+      # sections per BIOM, not generic ones repeated across all of them"*.
+      wild = by_key(cats)["wilderness"].generators
+      sets = Map.new(wild, &{&1.key, Enum.map(&1.config["subZones"], fn z -> z["key"] end)})
 
-        # and the picker offers exactly them, plus random
+      for {key, regions} <- sets do
+        assert regions != [], "#{key} serves no regions"
+
+        refute regions == @regions,
+               "#{key} serves the generic wood's five, so its map is a wood wearing this biome's colours"
+      end
+
+      assert length(Enum.uniq(Map.values(sets))) == map_size(sets),
+             "two biomes share a region set: #{inspect(sets)}"
+
+      # …and the picker offers exactly what the map is made of, never a place this map does not have.
+      for g <- wild do
         region = Enum.find(g.options, &(&1["key"] == "region"))
-        assert Enum.map(region["choices"], & &1["key"]) == ["random" | @regions], "#{g.key}"
+        offered = Enum.map(region["choices"], & &1["key"])
+        assert offered == ["random" | Map.fetch!(sets, g.key)], "#{g.key}"
       end
     end
 
-    test "each environment colours those regions with its OWN floors and species", %{
-      categories: cats
-    } do
+    test "each biome grows its own species, in its own regions", %{categories: cats} do
       wild = by_key(cats)["wilderness"].generators
 
-      # The shape of a region is shared and its LOOK is not: that is the difference between reusing a sub
-      # zone and every forest being the same forest. No two environments paint the five floors alike.
-      floors = for g <- wild, do: Enum.map(g.config["subZones"], & &1["floor"])
-      assert length(Enum.uniq(floors)) == length(wild) - 2, "environments share a floor set"
-
-      # and the species differ too: a beach grows palms in its deep wood where a mountain grows conifers
       species = fn key, region ->
         g = Enum.find(wild, &(&1.key == key))
 
@@ -446,31 +455,49 @@ defmodule Nebulith.GeneratorSourceTest do
         |> Enum.map(& &1["kind"])
       end
 
-      assert "tree_conifer" in species.("forest_mountain", "deep")
-      assert "tree_coconut" in species.("forest_beach", "edge")
-      assert "tree_cypress" in species.("forest_swamp", "lakeside")
-      refute "tree_conifer" in species.("forest_beach", "deep")
+      # A conifer on a mountain slope, a coconut on a shore, a cypress in a swamp's mire: each named in the
+      # region that biome actually has, rather than in a "deep wood" every biome was made to pretend to have.
+      assert "tree_conifer" in species.("forest_mountain", "slope")
+      assert "tree_coconut" in species.("forest_beach", "palms")
+      assert "tree_cypress" in species.("forest_swamp", "mire")
+      refute "tree_conifer" in species.("forest_beach", "palms")
+
+      # …and a jungle's giants are not a wood's standards.
+      assert "tree_giant" in species.("forest_jungle", "emergent")
+      refute "tree_giant" in species.("forest_woodland", "high_forest")
     end
 
-    test "the deep wood is the thick part and the glade is the thin one, everywhere", %{
-      categories: cats
-    } do
-      # A region's canopy is a MULTIPLIER of the row's, so this ordering has to hold in every environment or
-      # the names are lying about what you walk into.
+    test "a region is told apart by what it IS, not by one density setting", %{categories: cats} do
+      # *"ALL the regions inside a given preset should be DISTINCTLY DIFFERENT AND UNIQUE IN THE CONTEXT OF
+      # THE PRESET"*. Two regions that differ only by a number are two settings of one place (§3.5), so each
+      # set has to spread across its canopy AND state its own plant at knee height.
       for g <- by_key(cats)["wilderness"].generators do
-        canopy = Map.new(g.config["subZones"], &{&1["key"], &1["canopy"]})
+        zones = g.config["subZones"]
+        canopy = Enum.map(zones, & &1["canopy"])
 
-        assert canopy["deep"] > canopy["edge"],
-               "#{g.key}: its deep wood is thinner than its margin"
+        assert length(Enum.uniq(canopy)) > 1,
+               "#{g.key}: every region has the same canopy, so they are one place at one setting"
 
-        assert canopy["edge"] > canopy["glade"], "#{g.key}: its margin is thinner than its glade"
+        assert Enum.max(canopy) - Enum.min(canopy) >= 0.3,
+               "#{g.key}: its thickest and thinnest regions are within #{Enum.max(canopy) - Enum.min(canopy)} " <>
+                 "of each other, which is not a difference you can see"
 
-        # and the lakeside is the only region standing in water
-        pools = Map.new(g.config["subZones"], &{&1["key"], &1["pools"]})
-        assert pools["lakeside"] > 0, "#{g.key} has a lakeside with no water in it"
+        plants = for z <- zones, t = get_in(z, ["formation", "understoryTile"]), do: t
 
-        assert Enum.count(pools, fn {_k, v} -> v != nil end) == 1,
-               "#{g.key} floods more than its lakeside"
+        assert length(Enum.uniq(plants)) > 1,
+               "#{g.key}: every region grows the same plant at knee height, which is §3.5's whole point"
+      end
+    end
+
+    test "a region named for water has water in it", %{categories: cats} do
+      # *"we have a section called 'lakeside' and there's no fucking lake lol"*
+      watery = ~w(streamside varzea lavaside oasis bank margin mire bog sink open_water)
+
+      for g <- by_key(cats)["wilderness"].generators,
+          z <- g.config["subZones"],
+          z["key"] in watery do
+        assert is_number(z["pools"]) and z["pools"] > 0,
+               "#{g.key}/#{z["key"]} is named for water and has none"
       end
     end
 
@@ -545,10 +572,23 @@ defmodule Nebulith.GeneratorSourceTest do
           &{&1["key"], &1["level"]}
         )
 
-      # Three DISTINCT levels, or the regions are just three colours of flat ground. The ridge is the glade
-      # up at the top where nothing grows; the vale is the deep wood at the bottom where everything does.
-      assert length(Enum.uniq(Map.values(levels))) == 3
-      assert levels["glade"] > levels["edge"] and levels["edge"] > levels["deep"]
+      # A mountain CLIMBS, so its regions are a staircase and every step is its own altitude. Anything less
+      # and the regions are colours of one flat field, which is what a "deep wood" on a mountain always was.
+      assert length(Enum.uniq(Map.values(levels))) == map_size(levels)
+
+      assert levels["summit"] > levels["crag"] and levels["crag"] > levels["treeline"] and
+               levels["treeline"] > levels["slope"] and levels["slope"] > levels["foot"],
+             "the mountain does not climb from its foot to its summit: #{inspect(levels)}"
+
+      # A cone falls AWAY from its crater, so the volcanic set runs the other way round.
+      volcanic =
+        Map.new(
+          generator(cats, "wilderness", "forest_volcanic").config["subZones"],
+          &{&1["key"], &1["level"]}
+        )
+
+      assert volcanic["crater"] > volcanic["burnt"] and volcanic["burnt"] > volcanic["ashfall"],
+             "the cone does not fall away from its crater: #{inspect(volcanic)}"
     end
   end
 
@@ -720,21 +760,28 @@ defmodule Nebulith.GeneratorSourceTest do
     end
 
     test "a region's floor is the same kind of fact as a template's density", %{categories: cats} do
-      # The deep wood has to be thicker underfoot than the glade in the same map, because the undergrowth
-      # multiplier is what makes the two read as different ground rather than as two colours.
+      # The thickest region of a map has to be thicker UNDERFOOT too, because the undergrowth multiplier and
+      # the understory density describe one piece of ground and must not disagree about it. Which region is
+      # the thick one is each biome's own business: a wood's is its coppice, a swamp's is its bog.
       for g <- by_key(cats)["wilderness"].generators do
-        zones = Map.new(g.config["subZones"], &{&1["key"], &1})
+        zones = g.config["subZones"]
 
-        assert zones["thicket"]["undergrowth"] > zones["glade"]["undergrowth"], "#{g.key}"
+        thickest = Enum.max_by(zones, & &1["undergrowth"])
+        floored = Enum.max_by(zones, &get_in(&1, ["formation", "understory"]))
 
-        assert zones["deep"]["formation"]["understory"] >
-                 zones["glade"]["formation"]["understory"],
-               "#{g.key}"
+        assert thickest["key"] == floored["key"],
+               "#{g.key}: #{thickest["key"]} has the most undergrowth but #{floored["key"]} has the most " <>
+                 "understory, so the two numbers describe different maps"
 
-        # never 1: claiming only the four orthogonal neighbours leaves a checkerboard the floor repair has
-        # to cut through the whole wood to fix
-        for {key, z} <- zones,
-            do: refute(z["formation"]["spacing"] == 1, "#{g.key}/#{key} spaces trees at 1")
+        thinnest = Enum.min_by(zones, & &1["undergrowth"])
+
+        assert thickest["undergrowth"] > thinnest["undergrowth"] * 1.5,
+               "#{g.key}: #{thickest["key"]} and #{thinnest["key"]} are the same ground in two colours"
+
+        # never 1: claiming only the four orthogonal neighbours leaves a checkerboard, passable diagonally
+        # and not orthogonally, so the floor measures as hundreds of regions the repair has to cut through
+        for z <- zones,
+            do: refute(z["formation"]["spacing"] == 1, "#{g.key}/#{z["key"]} spaces trees at 1")
       end
     end
 

@@ -774,7 +774,6 @@ defmodule Nebulith.Catalog.GeneratorSource do
            "undergrowth" => 0.95,
            "leafHue" => 2,
            "leafValue" => 0.05,
-           "stone" => 0.10,
            "formation" => %{
              "lattice" => 5,
              "spacing" => 4,
@@ -903,7 +902,7 @@ defmodule Nebulith.Catalog.GeneratorSource do
            "leafValue" => 0.06,
            "formation" => %{
              "lattice" => 10,
-             "spacing" => 1,
+             "spacing" => 0,
              "understory" => 0.45,
              "understoryTile" => "clover"
            },
@@ -983,7 +982,7 @@ defmodule Nebulith.Catalog.GeneratorSource do
            "leafValue" => 0.04,
            "formation" => %{
              "lattice" => 11,
-             "spacing" => 1,
+             "spacing" => 0,
              "understory" => 0.85,
              "understoryTile" => "shrub"
            },
@@ -1027,7 +1026,7 @@ defmodule Nebulith.Catalog.GeneratorSource do
            "level" => 0,
            "formation" => %{
              "lattice" => 11,
-             "spacing" => 1,
+             "spacing" => 0,
              "understory" => 1.00,
              "understoryTile" => "thicket"
            },
@@ -1185,7 +1184,7 @@ defmodule Nebulith.Catalog.GeneratorSource do
            "leafValue" => -0.04,
            "formation" => %{
              "lattice" => 12,
-             "spacing" => 1,
+             "spacing" => 0,
              "understory" => 1.00,
              "understoryTile" => "thicket"
            },
@@ -1234,7 +1233,7 @@ defmodule Nebulith.Catalog.GeneratorSource do
              "lattice" => 10,
              "spacing" => 2,
              "understory" => 0.90,
-             "understoryTile" => "thicket"
+             "understoryTile" => "dead_grass"
            },
            "trees" => [
              %{"kind" => "tree_willow", "weight" => 40},
@@ -1253,7 +1252,7 @@ defmodule Nebulith.Catalog.GeneratorSource do
            "pools" => 0.14,
            "formation" => %{
              "lattice" => 11,
-             "spacing" => 1,
+             "spacing" => 0,
              "understory" => 1.10,
              "understoryTile" => "thicket"
            },
@@ -1274,9 +1273,9 @@ defmodule Nebulith.Catalog.GeneratorSource do
            "pools" => 0.30,
            "formation" => %{
              "lattice" => 12,
-             "spacing" => 1,
+             "spacing" => 2,
              "understory" => 1.20,
-             "understoryTile" => "thicket"
+             "understoryTile" => "tall_grass"
            },
            "trees" => [
              %{"kind" => "tree_cypress", "weight" => 50},
@@ -1297,7 +1296,7 @@ defmodule Nebulith.Catalog.GeneratorSource do
              "lattice" => 9,
              "spacing" => 3,
              "understory" => 0.80,
-             "understoryTile" => "thicket"
+             "understoryTile" => "moss"
            },
            "trees" => [
              %{"kind" => "tree_cypress", "weight" => 45},
@@ -1318,7 +1317,7 @@ defmodule Nebulith.Catalog.GeneratorSource do
              "lattice" => 5,
              "spacing" => 5,
              "understory" => 0.25,
-             "understoryTile" => "thicket"
+             "understoryTile" => "seaweed"
            },
            "trees" => [
              %{"kind" => "tree_mangrove", "weight" => 70},
@@ -1400,7 +1399,7 @@ defmodule Nebulith.Catalog.GeneratorSource do
            "stone" => 0.10,
            "formation" => %{
              "lattice" => 11,
-             "spacing" => 1,
+             "spacing" => 0,
              "understory" => 1.15,
              "understoryTile" => "thicket"
            },
@@ -1508,7 +1507,7 @@ defmodule Nebulith.Catalog.GeneratorSource do
            "pools" => 0.18,
            "formation" => %{
              "lattice" => 10,
-             "spacing" => 1,
+             "spacing" => 2,
              "understory" => 0.80,
              "understoryTile" => "thicket"
            },
@@ -1552,7 +1551,7 @@ defmodule Nebulith.Catalog.GeneratorSource do
            "leafValue" => -0.05,
            "formation" => %{
              "lattice" => 9,
-             "spacing" => 1,
+             "spacing" => 2,
              "understory" => 1.20,
              "understoryTile" => "thicket"
            },
@@ -2514,15 +2513,15 @@ defmodule Nebulith.Catalog.GeneratorSource do
     [Map.put(river, "default", river_default) | rest]
   end
 
-  # THE SAME FIVE REGIONS, IN THIS PLACE'S COLOURS. The shapes come from `@wild_regions` and the floor
-  # tones, the species and the blooms come from the environment, which is the whole of reusing one set of
-  # sub zones across every type instead of authoring five regions nine times.
+  # THIS BIOME'S OWN REGIONS. The set comes from `@biome_regions` and states its own shapes, species and
+  # tones; the environment only fills what a region left open. An unauthored biome still falls back to the
+  # generic wood's five, and that fallback is the one thing this file should be losing over time.
   defp wild_regions(env) do
     for region <- biome_regions(env) do
       region
       |> from_biome("floor", Map.get(env.floors, region["key"]))
       |> from_biome("trees", Map.get(env.species, region["species"]))
-      |> Map.merge(env.region_extra)
+      |> fills_the_gaps(env.region_extra)
       |> with_blooms(env.blooms)
       |> with_level(Map.get(env.levels, region["key"]))
       |> Map.delete("species")
@@ -2544,6 +2543,12 @@ defmodule Nebulith.Catalog.GeneratorSource do
   defp from_biome(region, _key, nil), do: region
   defp from_biome(region, key, value), do: Map.put_new(region, key, value)
 
+  # What an environment adds to EVERY one of its regions, and the region still wins wherever it has already
+  # answered. The merge used to run the other way: a ruin states 0.60 fallen masonry at its heart and 0.10
+  # out in the trees, and the environment's flat 0.16 replaced that gradient on all five, so one ruin came
+  # out as one region printed five times.
+  defp fills_the_gaps(region, extra), do: Map.merge(extra, region)
+
   # HOW THE SET IS LAID ON THE MAP, its own arrangement or the scatter every map had before (REGIONS.md §2).
   defp region_layout(env) do
     case Map.get(@biome_regions, env.key) do
@@ -2554,11 +2559,12 @@ defmodule Nebulith.Catalog.GeneratorSource do
 
   # Absent means the season decides, which is right for a temperate wood and wrong for a rainforest.
   defp with_blooms(region, nil), do: region
-  defp with_blooms(region, blooms), do: Map.put(region, "flowers", blooms)
+  defp with_blooms(region, blooms), do: Map.put_new(region, "flowers", blooms)
 
-  # Only a place with relief states a level. Everywhere else every cell stands on the walking floor.
+  # Only a place with relief states a level. Everywhere else every cell stands on the walking floor. A
+  # region that states its own altitude keeps it: the environment is filling a gap, not correcting anyone.
   defp with_level(region, nil), do: region
-  defp with_level(region, level), do: Map.put(region, "level", level)
+  defp with_level(region, level), do: Map.put_new(region, "level", level)
 
   defp environments, do: Enum.map(@environments, &Map.merge(@environment_defaults, &1))
 
