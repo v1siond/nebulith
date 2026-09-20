@@ -69,6 +69,33 @@ The limit belongs to the DATA, not to a frontend formula: a generator already se
 
 A choice that the current size rules out is removed from the list rather than shown and rejected, and the panel says why the list is shorter.
 
+### 2.4 One control per kind of option, never picked from the data
+
+A choice renders the card picker. Always, filled or not.
+
+The panel used to choose between the card picker and a `<select>` by looking at the served option: a card
+picker when it carried `preview`, a dropdown otherwise, and a dropdown again whenever the option's dependency
+was off. So the LAYOUT of the panel was a function of the data in a table, and the day a seeder wrote the
+options without those fields, every approved picker silently became a dropdown and the whole panel looked
+like a version of itself from twenty commits earlier. Nothing in the code had changed.
+
+The rule that prevents it: **data fills a control, it never selects one.**
+
+- A choice is the card picker. A switch is a checkbox. Nothing else reads the data to decide what to draw.
+- `preview` decides whether a PICTURE is drawn inside the card, which is a cost and not a layout. A thumbnail
+  is a whole map generation, so three exits beside four buys two identical pictures.
+- An option whose dependency is off is the same picker, dimmed and not clickable. It keeps every card and it
+  reserves every picture box, so switching the dependency on fills the pictures in place instead of resizing
+  the row. It draws no pictures while it is off, because `enforceRequires` pushes it back to its off value and
+  every card would describe the same map.
+- The picker is one control, so it carries the option's label as its accessible name.
+
+The same rule covers the picture itself. A card's thumbnail is cached, and the key has to be the WHOLE
+subject: a key listing a hand-picked set of fields silently collides the moment an option varies a field the
+list forgot, and the cards then all show the first card's map.
+
+Gated by `test/e2e/the_generate_panel_test.exs` (the page) and `test/nebulith/catalog/the_panel_draws_the_options_test.exs` (the data).
+
 ---
 
 ## 3. What exists to build on
@@ -79,9 +106,9 @@ A choice that the current size rules out is removed from the list rather than sh
 | Whole-map peek on every option change (`onPeek`) | Built. Changing an option re-peeks the whole map. |
 | Composition palette grouped by served category, with per-item previews | Built. This is the pattern to copy. |
 | Option `requires`, one option gating another | Built, and is the only structure the flat list has. |
-| A `group` or `category` on a generator option | **Missing.** |
-| A per-choice preview | **Missing.** Only the whole map is previewed. |
-| Any size-derived limit | **Missing.** Every generator offers 1 to 4 whatever the map's size. |
+| A `group` or `category` on a generator option | Built. Served by `GeneratorSource`, with the headings in the generator's `config.optionGroups`. |
+| A per-choice preview | Built. `preview: true` on river, bridge and region; the card draws the map that choice builds. |
+| Any size-derived limit | Built. `maxPer` on the counts: a choice of N is offered while `cols * rows >= N * maxPer`. |
 | Lake and beach as elements | **Missing.** `river` serves COURSES (through, divides, around), not kinds of body. The water tiles now carry river, lake and beach edges, so the art is ready and the generator is not. |
 
 ---
@@ -101,6 +128,9 @@ A choice that the current size rules out is removed from the list rather than sh
 ## 5. Checklist
 
 - [ ] Every group and every limit comes from served data, no frontend heuristic
+- [ ] The control a choice renders is the same control whatever the data carries, and whatever its dependency is set to
+- [ ] Every fact the panel renders is owned by the seeder, so re-seeding cannot regress the panel
+- [ ] A card's picture is its OWN choice, checked by comparing the pictures in a row rather than by looking at one
 - [ ] Adding an element is optional and the default still builds a working map
 - [ ] A preview is fed the same options as the build it previews
 - [ ] A choice the size rules out is not offered, and the panel says why

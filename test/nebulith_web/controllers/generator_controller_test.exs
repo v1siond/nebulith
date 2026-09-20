@@ -76,6 +76,10 @@ defmodule NebulithWeb.GeneratorControllerTest do
                  "key" => "river",
                  "label" => "River",
                  "type" => "choice",
+                 # The panel needs these to draw the approved picker: which heading it sits under, and that
+                 # its choices are worth a picture. They ride over the wire with everything else.
+                 "group" => "water",
+                 "preview" => true,
                  "default" => "none",
                  "choices" => [
                    %{"key" => "none", "label" => "No river"},
@@ -89,6 +93,8 @@ defmodule NebulithWeb.GeneratorControllerTest do
                  "key" => "bridge",
                  "label" => "Kind of crossing",
                  "type" => "choice",
+                 "group" => "crossings",
+                 "preview" => true,
                  "default" => "random",
                  "requires" => "river",
                  "choices" => [

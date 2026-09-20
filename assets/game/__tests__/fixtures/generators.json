@@ -293,6 +293,11 @@
               "enemies": 0,
               "enemyTypes": [],
               "townsfolk": 3
+            },
+            "optionGroups": {
+              "crossings": "Crossings",
+              "layout": "Layout",
+              "water": "Water"
             }
           },
           "options": [
@@ -322,7 +327,9 @@
               "default": "random",
               "key": "exits",
               "label": "Exits",
-              "type": "choice"
+              "type": "choice",
+              "group": "layout",
+              "maxPer": 180
             },
             {
               "choices": [
@@ -350,7 +357,9 @@
               "default": "random",
               "key": "pathways",
               "label": "Pathways",
-              "type": "choice"
+              "type": "choice",
+              "group": "layout",
+              "maxPer": 180
             },
             {
               "choices": [
@@ -382,7 +391,9 @@
               "default": "random",
               "key": "region",
               "label": "Region",
-              "type": "choice"
+              "type": "choice",
+              "group": "layout",
+              "preview": true
             },
             {
               "choices": [
@@ -410,7 +421,9 @@
               "default": "none",
               "key": "river",
               "label": "River",
-              "type": "choice"
+              "type": "choice",
+              "group": "water",
+              "preview": true
             },
             {
               "choices": [
@@ -456,7 +469,9 @@
               "key": "bridge",
               "label": "Kind of crossing",
               "requires": "river",
-              "type": "choice"
+              "type": "choice",
+              "group": "crossings",
+              "preview": true
             }
           ],
           "description": "A temperate wood: grey-green, a lot of brown showing through, light reaching the floor.",
@@ -812,6 +827,11 @@
               "enemies": 0,
               "enemyTypes": [],
               "townsfolk": 2
+            },
+            "optionGroups": {
+              "crossings": "Crossings",
+              "layout": "Layout",
+              "water": "Water"
             }
           },
           "options": [
@@ -841,7 +861,9 @@
               "default": "random",
               "key": "exits",
               "label": "Exits",
-              "type": "choice"
+              "type": "choice",
+              "group": "layout",
+              "maxPer": 180
             },
             {
               "choices": [
@@ -869,7 +891,9 @@
               "default": "random",
               "key": "pathways",
               "label": "Pathways",
-              "type": "choice"
+              "type": "choice",
+              "group": "layout",
+              "maxPer": 180
             },
             {
               "choices": [
@@ -901,7 +925,9 @@
               "default": "random",
               "key": "region",
               "label": "Region",
-              "type": "choice"
+              "type": "choice",
+              "group": "layout",
+              "preview": true
             },
             {
               "choices": [
@@ -929,7 +955,9 @@
               "default": "none",
               "key": "river",
               "label": "River",
-              "type": "choice"
+              "type": "choice",
+              "group": "water",
+              "preview": true
             },
             {
               "choices": [
@@ -975,7 +1003,9 @@
               "key": "bridge",
               "label": "Kind of crossing",
               "requires": "river",
-              "type": "choice"
+              "type": "choice",
+              "group": "crossings",
+              "preview": true
             }
           ],
           "description": "A closed canopy over choked undergrowth, the floor in permanent shade.",
@@ -1231,7 +1261,12 @@
               "enemyTypes": [],
               "townsfolk": 5
             },
-            "regionLayout": "scatter"
+            "regionLayout": "scatter",
+            "optionGroups": {
+              "crossings": "Crossings",
+              "layout": "Layout",
+              "water": "Water"
+            }
           },
           "options": [
             {
@@ -1260,7 +1295,9 @@
               "default": "random",
               "key": "exits",
               "label": "Exits",
-              "type": "choice"
+              "type": "choice",
+              "group": "layout",
+              "maxPer": 180
             },
             {
               "choices": [
@@ -1288,7 +1325,9 @@
               "default": "random",
               "key": "pathways",
               "label": "Pathways",
-              "type": "choice"
+              "type": "choice",
+              "group": "layout",
+              "maxPer": 180
             },
             {
               "choices": [
@@ -1320,7 +1359,9 @@
               "default": "random",
               "key": "region",
               "label": "Region",
-              "type": "choice"
+              "type": "choice",
+              "group": "layout",
+              "preview": true
             },
             {
               "choices": [
@@ -1348,7 +1389,9 @@
               "default": "none",
               "key": "river",
               "label": "River",
-              "type": "choice"
+              "type": "choice",
+              "group": "water",
+              "preview": true
             },
             {
               "choices": [
@@ -1394,7 +1437,9 @@
               "key": "bridge",
               "label": "Kind of crossing",
               "requires": "river",
-              "type": "choice"
+              "type": "choice",
+              "group": "crossings",
+              "preview": true
             }
           ],
           "description": "Open grass with the odd tree standing alone in it, and the sky on it all day.",
@@ -1735,7 +1780,12 @@
               "enemyTypes": [],
               "townsfolk": 2
             },
-            "regionLayout": "bands"
+            "regionLayout": "bands",
+            "optionGroups": {
+              "crossings": "Crossings",
+              "layout": "Layout",
+              "water": "Water"
+            }
           },
           "options": [
             {
@@ -1764,7 +1814,9 @@
               "default": "random",
               "key": "exits",
               "label": "Exits",
-              "type": "choice"
+              "type": "choice",
+              "group": "layout",
+              "maxPer": 180
             },
             {
               "choices": [
@@ -1792,7 +1844,9 @@
               "default": "random",
               "key": "pathways",
               "label": "Pathways",
-              "type": "choice"
+              "type": "choice",
+              "group": "layout",
+              "maxPer": 180
             },
             {
               "choices": [
@@ -1824,7 +1878,9 @@
               "default": "random",
               "key": "region",
               "label": "Region",
-              "type": "choice"
+              "type": "choice",
+              "group": "layout",
+              "preview": true
             },
             {
               "choices": [
@@ -1852,7 +1908,9 @@
               "default": "none",
               "key": "river",
               "label": "River",
-              "type": "choice"
+              "type": "choice",
+              "group": "water",
+              "preview": true
             },
             {
               "choices": [
@@ -1898,7 +1956,9 @@
               "key": "bridge",
               "label": "Kind of crossing",
               "requires": "river",
-              "type": "choice"
+              "type": "choice",
+              "group": "crossings",
+              "preview": true
             }
           ],
           "description": "Cypress standing in the water, boardwalks over it, nothing dry underfoot.",
@@ -2147,7 +2207,12 @@
               "enemyTypes": [],
               "townsfolk": 3
             },
-            "regionLayout": "bands"
+            "regionLayout": "bands",
+            "optionGroups": {
+              "crossings": "Crossings",
+              "layout": "Layout",
+              "water": "Water"
+            }
           },
           "options": [
             {
@@ -2176,7 +2241,9 @@
               "default": "random",
               "key": "exits",
               "label": "Exits",
-              "type": "choice"
+              "type": "choice",
+              "group": "layout",
+              "maxPer": 180
             },
             {
               "choices": [
@@ -2204,7 +2271,9 @@
               "default": "random",
               "key": "pathways",
               "label": "Pathways",
-              "type": "choice"
+              "type": "choice",
+              "group": "layout",
+              "maxPer": 180
             },
             {
               "choices": [
@@ -2236,7 +2305,9 @@
               "default": "random",
               "key": "region",
               "label": "Region",
-              "type": "choice"
+              "type": "choice",
+              "group": "layout",
+              "preview": true
             },
             {
               "choices": [
@@ -2264,7 +2335,9 @@
               "default": "none",
               "key": "river",
               "label": "River",
-              "type": "choice"
+              "type": "choice",
+              "group": "water",
+              "preview": true
             },
             {
               "choices": [
@@ -2310,7 +2383,9 @@
               "key": "bridge",
               "label": "Kind of crossing",
               "requires": "river",
-              "type": "choice"
+              "type": "choice",
+              "group": "crossings",
+              "preview": true
             }
           ],
           "description": "Conifers over ground that actually climbs: a bare ridge, wooded slopes, a sheltered vale.",
@@ -2660,7 +2735,12 @@
               "enemyTypes": [],
               "townsfolk": 3
             },
-            "regionLayout": "bands"
+            "regionLayout": "bands",
+            "optionGroups": {
+              "crossings": "Crossings",
+              "layout": "Layout",
+              "water": "Water"
+            }
           },
           "options": [
             {
@@ -2689,7 +2769,9 @@
               "default": "random",
               "key": "exits",
               "label": "Exits",
-              "type": "choice"
+              "type": "choice",
+              "group": "layout",
+              "maxPer": 180
             },
             {
               "choices": [
@@ -2717,7 +2799,9 @@
               "default": "random",
               "key": "pathways",
               "label": "Pathways",
-              "type": "choice"
+              "type": "choice",
+              "group": "layout",
+              "maxPer": 180
             },
             {
               "choices": [
@@ -2749,7 +2833,9 @@
               "default": "random",
               "key": "region",
               "label": "Region",
-              "type": "choice"
+              "type": "choice",
+              "group": "layout",
+              "preview": true
             },
             {
               "choices": [
@@ -2777,7 +2863,9 @@
               "default": "around",
               "key": "river",
               "label": "River",
-              "type": "choice"
+              "type": "choice",
+              "group": "water",
+              "preview": true
             },
             {
               "choices": [
@@ -2823,7 +2911,9 @@
               "key": "bridge",
               "label": "Kind of crossing",
               "requires": "river",
-              "type": "choice"
+              "type": "choice",
+              "group": "crossings",
+              "preview": true
             }
           ],
           "description": "Palms over pale sand, ringed by shallow turquoise water.",
@@ -3164,7 +3254,12 @@
               "enemyTypes": [],
               "townsfolk": 2
             },
-            "regionLayout": "rings"
+            "regionLayout": "rings",
+            "optionGroups": {
+              "crossings": "Crossings",
+              "layout": "Layout",
+              "water": "Water"
+            }
           },
           "options": [
             {
@@ -3193,7 +3288,9 @@
               "default": "random",
               "key": "exits",
               "label": "Exits",
-              "type": "choice"
+              "type": "choice",
+              "group": "layout",
+              "maxPer": 180
             },
             {
               "choices": [
@@ -3221,7 +3318,9 @@
               "default": "random",
               "key": "pathways",
               "label": "Pathways",
-              "type": "choice"
+              "type": "choice",
+              "group": "layout",
+              "maxPer": 180
             },
             {
               "choices": [
@@ -3253,7 +3352,9 @@
               "default": "random",
               "key": "region",
               "label": "Region",
-              "type": "choice"
+              "type": "choice",
+              "group": "layout",
+              "preview": true
             },
             {
               "choices": [
@@ -3281,7 +3382,9 @@
               "default": "none",
               "key": "river",
               "label": "River",
-              "type": "choice"
+              "type": "choice",
+              "group": "water",
+              "preview": true
             },
             {
               "choices": [
@@ -3327,7 +3430,9 @@
               "key": "bridge",
               "label": "Kind of crossing",
               "requires": "river",
-              "type": "choice"
+              "type": "choice",
+              "group": "crossings",
+              "preview": true
             }
           ],
           "description": "Old stone the wood has taken back, unevenly: clumps of trees with open masonry between.",
@@ -3617,7 +3722,12 @@
               "enemyTypes": [],
               "townsfolk": 2
             },
-            "regionLayout": "bands"
+            "regionLayout": "bands",
+            "optionGroups": {
+              "crossings": "Crossings",
+              "layout": "Layout",
+              "water": "Water"
+            }
           },
           "options": [
             {
@@ -3646,7 +3756,9 @@
               "default": "random",
               "key": "exits",
               "label": "Exits",
-              "type": "choice"
+              "type": "choice",
+              "group": "layout",
+              "maxPer": 180
             },
             {
               "choices": [
@@ -3674,7 +3786,9 @@
               "default": "random",
               "key": "pathways",
               "label": "Pathways",
-              "type": "choice"
+              "type": "choice",
+              "group": "layout",
+              "maxPer": 180
             },
             {
               "choices": [
@@ -3706,7 +3820,9 @@
               "default": "random",
               "key": "region",
               "label": "Region",
-              "type": "choice"
+              "type": "choice",
+              "group": "layout",
+              "preview": true
             },
             {
               "choices": [
@@ -3734,7 +3850,9 @@
               "default": "none",
               "key": "river",
               "label": "River",
-              "type": "choice"
+              "type": "choice",
+              "group": "water",
+              "preview": true
             },
             {
               "choices": [
@@ -3780,7 +3898,9 @@
               "key": "bridge",
               "label": "Kind of crossing",
               "requires": "river",
-              "type": "choice"
+              "type": "choice",
+              "group": "crossings",
+              "preview": true
             }
           ],
           "description": "Open sand and sparse growth. Running on the beach's numbers until it gets its own.",
@@ -4033,7 +4153,12 @@
               "enemyTypes": [],
               "townsfolk": 2
             },
-            "regionLayout": "rings"
+            "regionLayout": "rings",
+            "optionGroups": {
+              "crossings": "Crossings",
+              "layout": "Layout",
+              "water": "Water"
+            }
           },
           "options": [
             {
@@ -4062,7 +4187,9 @@
               "default": "random",
               "key": "exits",
               "label": "Exits",
-              "type": "choice"
+              "type": "choice",
+              "group": "layout",
+              "maxPer": 180
             },
             {
               "choices": [
@@ -4090,7 +4217,9 @@
               "default": "random",
               "key": "pathways",
               "label": "Pathways",
-              "type": "choice"
+              "type": "choice",
+              "group": "layout",
+              "maxPer": 180
             },
             {
               "choices": [
@@ -4122,7 +4251,9 @@
               "default": "random",
               "key": "region",
               "label": "Region",
-              "type": "choice"
+              "type": "choice",
+              "group": "layout",
+              "preview": true
             },
             {
               "choices": [
@@ -4150,7 +4281,9 @@
               "default": "none",
               "key": "river",
               "label": "River",
-              "type": "choice"
+              "type": "choice",
+              "group": "water",
+              "preview": true
             },
             {
               "choices": [
@@ -4196,7 +4329,9 @@
               "key": "bridge",
               "label": "Kind of crossing",
               "requires": "river",
-              "type": "choice"
+              "type": "choice",
+              "group": "crossings",
+              "preview": true
             }
           ],
           "description": "Rock that climbs in steps. Running on the mountain's numbers until it gets its own.",
@@ -4402,7 +4537,12 @@
                 "undergrowth": 1.0,
                 "weight": 2
               }
-            ]
+            ],
+            "optionGroups": {
+              "crossings": "Crossings",
+              "layout": "Layout",
+              "water": "Water"
+            }
           },
           "options": [
             {
@@ -4431,7 +4571,9 @@
               "default": "random",
               "key": "exits",
               "label": "Exits",
-              "type": "choice"
+              "type": "choice",
+              "group": "layout",
+              "maxPer": 180
             },
             {
               "choices": [
@@ -4475,7 +4617,9 @@
               "default": "random",
               "key": "pathways",
               "label": "Streets",
-              "type": "choice"
+              "type": "choice",
+              "group": "layout",
+              "maxPer": 180
             },
             {
               "choices": [
@@ -4503,7 +4647,9 @@
               "default": "none",
               "key": "river",
               "label": "River",
-              "type": "choice"
+              "type": "choice",
+              "group": "water",
+              "preview": true
             },
             {
               "choices": [
@@ -4549,7 +4695,9 @@
               "key": "bridge",
               "label": "Kind of crossing",
               "requires": "river",
-              "type": "choice"
+              "type": "choice",
+              "group": "crossings",
+              "preview": true
             }
           ],
           "description": "Small houses, no concrete and green between every one of them, under temperate trees.",
@@ -4747,7 +4895,12 @@
                 "undergrowth": 1.0,
                 "weight": 2
               }
-            ]
+            ],
+            "optionGroups": {
+              "crossings": "Crossings",
+              "layout": "Layout",
+              "water": "Water"
+            }
           },
           "options": [
             {
@@ -4776,7 +4929,9 @@
               "default": "random",
               "key": "exits",
               "label": "Exits",
-              "type": "choice"
+              "type": "choice",
+              "group": "layout",
+              "maxPer": 180
             },
             {
               "choices": [
@@ -4820,7 +4975,9 @@
               "default": "random",
               "key": "pathways",
               "label": "Streets",
-              "type": "choice"
+              "type": "choice",
+              "group": "layout",
+              "maxPer": 180
             },
             {
               "choices": [
@@ -4848,7 +5005,9 @@
               "default": "none",
               "key": "river",
               "label": "River",
-              "type": "choice"
+              "type": "choice",
+              "group": "water",
+              "preview": true
             },
             {
               "choices": [
@@ -4894,7 +5053,9 @@
               "key": "bridge",
               "label": "Kind of crossing",
               "requires": "river",
-              "type": "choice"
+              "type": "choice",
+              "group": "crossings",
+              "preview": true
             }
           ],
           "description": "Small houses, no concrete and green between every one of them, cut into the rainforest.",
@@ -5092,7 +5253,12 @@
                 "undergrowth": 1.0,
                 "weight": 2
               }
-            ]
+            ],
+            "optionGroups": {
+              "crossings": "Crossings",
+              "layout": "Layout",
+              "water": "Water"
+            }
           },
           "options": [
             {
@@ -5121,7 +5287,9 @@
               "default": "random",
               "key": "exits",
               "label": "Exits",
-              "type": "choice"
+              "type": "choice",
+              "group": "layout",
+              "maxPer": 180
             },
             {
               "choices": [
@@ -5165,7 +5333,9 @@
               "default": "random",
               "key": "pathways",
               "label": "Streets",
-              "type": "choice"
+              "type": "choice",
+              "group": "layout",
+              "maxPer": 180
             },
             {
               "choices": [
@@ -5193,7 +5363,9 @@
               "default": "none",
               "key": "river",
               "label": "River",
-              "type": "choice"
+              "type": "choice",
+              "group": "water",
+              "preview": true
             },
             {
               "choices": [
@@ -5239,7 +5411,9 @@
               "key": "bridge",
               "label": "Kind of crossing",
               "requires": "river",
-              "type": "choice"
+              "type": "choice",
+              "group": "crossings",
+              "preview": true
             }
           ],
           "description": "Small houses, no concrete and green between every one of them, out on open grass.",
@@ -5426,7 +5600,12 @@
                 "undergrowth": 1.0,
                 "weight": 2
               }
-            ]
+            ],
+            "optionGroups": {
+              "crossings": "Crossings",
+              "layout": "Layout",
+              "water": "Water"
+            }
           },
           "options": [
             {
@@ -5455,7 +5634,9 @@
               "default": "random",
               "key": "exits",
               "label": "Exits",
-              "type": "choice"
+              "type": "choice",
+              "group": "layout",
+              "maxPer": 180
             },
             {
               "choices": [
@@ -5499,7 +5680,9 @@
               "default": "random",
               "key": "pathways",
               "label": "Streets",
-              "type": "choice"
+              "type": "choice",
+              "group": "layout",
+              "maxPer": 180
             },
             {
               "choices": [
@@ -5527,7 +5710,9 @@
               "default": "none",
               "key": "river",
               "label": "River",
-              "type": "choice"
+              "type": "choice",
+              "group": "water",
+              "preview": true
             },
             {
               "choices": [
@@ -5573,7 +5758,9 @@
               "key": "bridge",
               "label": "Kind of crossing",
               "requires": "river",
-              "type": "choice"
+              "type": "choice",
+              "group": "crossings",
+              "preview": true
             }
           ],
           "description": "Small houses, no concrete and green between every one of them, on boardwalks over the water.",
@@ -5782,7 +5969,12 @@
                 "undergrowth": 1.0,
                 "weight": 2
               }
-            ]
+            ],
+            "optionGroups": {
+              "crossings": "Crossings",
+              "layout": "Layout",
+              "water": "Water"
+            }
           },
           "options": [
             {
@@ -5811,7 +6003,9 @@
               "default": "random",
               "key": "exits",
               "label": "Exits",
-              "type": "choice"
+              "type": "choice",
+              "group": "layout",
+              "maxPer": 180
             },
             {
               "choices": [
@@ -5855,7 +6049,9 @@
               "default": "random",
               "key": "pathways",
               "label": "Streets",
-              "type": "choice"
+              "type": "choice",
+              "group": "layout",
+              "maxPer": 180
             },
             {
               "choices": [
@@ -5883,7 +6079,9 @@
               "default": "none",
               "key": "river",
               "label": "River",
-              "type": "choice"
+              "type": "choice",
+              "group": "water",
+              "preview": true
             },
             {
               "choices": [
@@ -5929,7 +6127,9 @@
               "key": "bridge",
               "label": "Kind of crossing",
               "requires": "river",
-              "type": "choice"
+              "type": "choice",
+              "group": "crossings",
+              "preview": true
             }
           ],
           "description": "Small houses, no concrete and green between every one of them, on the rock, in among the conifers.",
@@ -6128,7 +6328,12 @@
                 "undergrowth": 1.0,
                 "weight": 2
               }
-            ]
+            ],
+            "optionGroups": {
+              "crossings": "Crossings",
+              "layout": "Layout",
+              "water": "Water"
+            }
           },
           "options": [
             {
@@ -6157,7 +6362,9 @@
               "default": "random",
               "key": "exits",
               "label": "Exits",
-              "type": "choice"
+              "type": "choice",
+              "group": "layout",
+              "maxPer": 180
             },
             {
               "choices": [
@@ -6201,7 +6408,9 @@
               "default": "random",
               "key": "pathways",
               "label": "Streets",
-              "type": "choice"
+              "type": "choice",
+              "group": "layout",
+              "maxPer": 180
             },
             {
               "choices": [
@@ -6229,7 +6438,9 @@
               "default": "none",
               "key": "river",
               "label": "River",
-              "type": "choice"
+              "type": "choice",
+              "group": "water",
+              "preview": true
             },
             {
               "choices": [
@@ -6275,7 +6486,9 @@
               "key": "bridge",
               "label": "Kind of crossing",
               "requires": "river",
-              "type": "choice"
+              "type": "choice",
+              "group": "crossings",
+              "preview": true
             }
           ],
           "description": "Small houses, no concrete and green between every one of them, on the sand by the sea.",
@@ -6480,7 +6693,12 @@
                 "undergrowth": 1.0,
                 "weight": 2
               }
-            ]
+            ],
+            "optionGroups": {
+              "crossings": "Crossings",
+              "layout": "Layout",
+              "water": "Water"
+            }
           },
           "options": [
             {
@@ -6509,7 +6727,9 @@
               "default": "random",
               "key": "exits",
               "label": "Exits",
-              "type": "choice"
+              "type": "choice",
+              "group": "layout",
+              "maxPer": 180
             },
             {
               "choices": [
@@ -6553,7 +6773,9 @@
               "default": "random",
               "key": "pathways",
               "label": "Streets",
-              "type": "choice"
+              "type": "choice",
+              "group": "layout",
+              "maxPer": 180
             },
             {
               "choices": [
@@ -6581,7 +6803,9 @@
               "default": "none",
               "key": "river",
               "label": "River",
-              "type": "choice"
+              "type": "choice",
+              "group": "water",
+              "preview": true
             },
             {
               "choices": [
@@ -6627,7 +6851,9 @@
               "key": "bridge",
               "label": "Kind of crossing",
               "requires": "river",
-              "type": "choice"
+              "type": "choice",
+              "group": "crossings",
+              "preview": true
             }
           ],
           "description": "Small houses, no concrete and green between every one of them, built over old stone.",
@@ -6822,7 +7048,12 @@
                 "undergrowth": 1.0,
                 "weight": 2
               }
-            ]
+            ],
+            "optionGroups": {
+              "crossings": "Crossings",
+              "layout": "Layout",
+              "water": "Water"
+            }
           },
           "options": [
             {
@@ -6851,7 +7082,9 @@
               "default": "random",
               "key": "exits",
               "label": "Exits",
-              "type": "choice"
+              "type": "choice",
+              "group": "layout",
+              "maxPer": 180
             },
             {
               "choices": [
@@ -6895,7 +7128,9 @@
               "default": "random",
               "key": "pathways",
               "label": "Streets",
-              "type": "choice"
+              "type": "choice",
+              "group": "layout",
+              "maxPer": 180
             },
             {
               "choices": [
@@ -6923,7 +7158,9 @@
               "default": "none",
               "key": "river",
               "label": "River",
-              "type": "choice"
+              "type": "choice",
+              "group": "water",
+              "preview": true
             },
             {
               "choices": [
@@ -6969,7 +7206,9 @@
               "key": "bridge",
               "label": "Kind of crossing",
               "requires": "river",
-              "type": "choice"
+              "type": "choice",
+              "group": "crossings",
+              "preview": true
             }
           ],
           "description": "Small houses, no concrete and green between every one of them, out on the open sand.",
@@ -7178,7 +7417,12 @@
                 "undergrowth": 1.0,
                 "weight": 2
               }
-            ]
+            ],
+            "optionGroups": {
+              "crossings": "Crossings",
+              "layout": "Layout",
+              "water": "Water"
+            }
           },
           "options": [
             {
@@ -7207,7 +7451,9 @@
               "default": "random",
               "key": "exits",
               "label": "Exits",
-              "type": "choice"
+              "type": "choice",
+              "group": "layout",
+              "maxPer": 180
             },
             {
               "choices": [
@@ -7251,7 +7497,9 @@
               "default": "random",
               "key": "pathways",
               "label": "Streets",
-              "type": "choice"
+              "type": "choice",
+              "group": "layout",
+              "maxPer": 180
             },
             {
               "choices": [
@@ -7279,7 +7527,9 @@
               "default": "none",
               "key": "river",
               "label": "River",
-              "type": "choice"
+              "type": "choice",
+              "group": "water",
+              "preview": true
             },
             {
               "choices": [
@@ -7325,7 +7575,9 @@
               "key": "bridge",
               "label": "Kind of crossing",
               "requires": "river",
-              "type": "choice"
+              "type": "choice",
+              "group": "crossings",
+              "preview": true
             }
           ],
           "description": "Small houses, no concrete and green between every one of them, on the black rock under the mountain.",
@@ -7567,7 +7819,12 @@
                 "undergrowth": 0.8,
                 "weight": 2
               }
-            ]
+            ],
+            "optionGroups": {
+              "crossings": "Crossings",
+              "layout": "Layout",
+              "water": "Water"
+            }
           },
           "options": [
             {
@@ -7596,7 +7853,9 @@
               "default": "random",
               "key": "exits",
               "label": "Exits",
-              "type": "choice"
+              "type": "choice",
+              "group": "layout",
+              "maxPer": 180
             },
             {
               "choices": [
@@ -7640,7 +7899,9 @@
               "default": "random",
               "key": "pathways",
               "label": "Streets",
-              "type": "choice"
+              "type": "choice",
+              "group": "layout",
+              "maxPer": 180
             },
             {
               "choices": [
@@ -7668,7 +7929,9 @@
               "default": "none",
               "key": "river",
               "label": "River",
-              "type": "choice"
+              "type": "choice",
+              "group": "water",
+              "preview": true
             },
             {
               "choices": [
@@ -7714,7 +7977,9 @@
               "key": "bridge",
               "label": "Kind of crossing",
               "requires": "river",
-              "type": "choice"
+              "type": "choice",
+              "group": "crossings",
+              "preview": true
             }
           ],
           "description": "Defined areas and better architecture, nothing tall, under temperate trees.",
@@ -7947,7 +8212,12 @@
                 "undergrowth": 0.8,
                 "weight": 2
               }
-            ]
+            ],
+            "optionGroups": {
+              "crossings": "Crossings",
+              "layout": "Layout",
+              "water": "Water"
+            }
           },
           "options": [
             {
@@ -7976,7 +8246,9 @@
               "default": "random",
               "key": "exits",
               "label": "Exits",
-              "type": "choice"
+              "type": "choice",
+              "group": "layout",
+              "maxPer": 180
             },
             {
               "choices": [
@@ -8020,7 +8292,9 @@
               "default": "random",
               "key": "pathways",
               "label": "Streets",
-              "type": "choice"
+              "type": "choice",
+              "group": "layout",
+              "maxPer": 180
             },
             {
               "choices": [
@@ -8048,7 +8322,9 @@
               "default": "none",
               "key": "river",
               "label": "River",
-              "type": "choice"
+              "type": "choice",
+              "group": "water",
+              "preview": true
             },
             {
               "choices": [
@@ -8094,7 +8370,9 @@
               "key": "bridge",
               "label": "Kind of crossing",
               "requires": "river",
-              "type": "choice"
+              "type": "choice",
+              "group": "crossings",
+              "preview": true
             }
           ],
           "description": "Defined areas and better architecture, nothing tall, cut into the rainforest.",
@@ -8328,7 +8606,12 @@
                 "undergrowth": 0.8,
                 "weight": 2
               }
-            ]
+            ],
+            "optionGroups": {
+              "crossings": "Crossings",
+              "layout": "Layout",
+              "water": "Water"
+            }
           },
           "options": [
             {
@@ -8357,7 +8640,9 @@
               "default": "random",
               "key": "exits",
               "label": "Exits",
-              "type": "choice"
+              "type": "choice",
+              "group": "layout",
+              "maxPer": 180
             },
             {
               "choices": [
@@ -8401,7 +8686,9 @@
               "default": "random",
               "key": "pathways",
               "label": "Streets",
-              "type": "choice"
+              "type": "choice",
+              "group": "layout",
+              "maxPer": 180
             },
             {
               "choices": [
@@ -8429,7 +8716,9 @@
               "default": "none",
               "key": "river",
               "label": "River",
-              "type": "choice"
+              "type": "choice",
+              "group": "water",
+              "preview": true
             },
             {
               "choices": [
@@ -8475,7 +8764,9 @@
               "key": "bridge",
               "label": "Kind of crossing",
               "requires": "river",
-              "type": "choice"
+              "type": "choice",
+              "group": "crossings",
+              "preview": true
             }
           ],
           "description": "Defined areas and better architecture, nothing tall, out on open grass.",
@@ -8690,7 +8981,12 @@
                 "undergrowth": 0.8,
                 "weight": 2
               }
-            ]
+            ],
+            "optionGroups": {
+              "crossings": "Crossings",
+              "layout": "Layout",
+              "water": "Water"
+            }
           },
           "options": [
             {
@@ -8719,7 +9015,9 @@
               "default": "random",
               "key": "exits",
               "label": "Exits",
-              "type": "choice"
+              "type": "choice",
+              "group": "layout",
+              "maxPer": 180
             },
             {
               "choices": [
@@ -8763,7 +9061,9 @@
               "default": "random",
               "key": "pathways",
               "label": "Streets",
-              "type": "choice"
+              "type": "choice",
+              "group": "layout",
+              "maxPer": 180
             },
             {
               "choices": [
@@ -8791,7 +9091,9 @@
               "default": "none",
               "key": "river",
               "label": "River",
-              "type": "choice"
+              "type": "choice",
+              "group": "water",
+              "preview": true
             },
             {
               "choices": [
@@ -8837,7 +9139,9 @@
               "key": "bridge",
               "label": "Kind of crossing",
               "requires": "river",
-              "type": "choice"
+              "type": "choice",
+              "group": "crossings",
+              "preview": true
             }
           ],
           "description": "Defined areas and better architecture, nothing tall, on boardwalks over the water.",
@@ -9070,7 +9374,12 @@
                 "undergrowth": 0.8,
                 "weight": 2
               }
-            ]
+            ],
+            "optionGroups": {
+              "crossings": "Crossings",
+              "layout": "Layout",
+              "water": "Water"
+            }
           },
           "options": [
             {
@@ -9099,7 +9408,9 @@
               "default": "random",
               "key": "exits",
               "label": "Exits",
-              "type": "choice"
+              "type": "choice",
+              "group": "layout",
+              "maxPer": 180
             },
             {
               "choices": [
@@ -9143,7 +9454,9 @@
               "default": "random",
               "key": "pathways",
               "label": "Streets",
-              "type": "choice"
+              "type": "choice",
+              "group": "layout",
+              "maxPer": 180
             },
             {
               "choices": [
@@ -9171,7 +9484,9 @@
               "default": "none",
               "key": "river",
               "label": "River",
-              "type": "choice"
+              "type": "choice",
+              "group": "water",
+              "preview": true
             },
             {
               "choices": [
@@ -9217,7 +9532,9 @@
               "key": "bridge",
               "label": "Kind of crossing",
               "requires": "river",
-              "type": "choice"
+              "type": "choice",
+              "group": "crossings",
+              "preview": true
             }
           ],
           "description": "Defined areas and better architecture, nothing tall, on the rock, in among the conifers.",
@@ -9447,7 +9764,12 @@
                 "undergrowth": 0.8,
                 "weight": 2
               }
-            ]
+            ],
+            "optionGroups": {
+              "crossings": "Crossings",
+              "layout": "Layout",
+              "water": "Water"
+            }
           },
           "options": [
             {
@@ -9476,7 +9798,9 @@
               "default": "random",
               "key": "exits",
               "label": "Exits",
-              "type": "choice"
+              "type": "choice",
+              "group": "layout",
+              "maxPer": 180
             },
             {
               "choices": [
@@ -9520,7 +9844,9 @@
               "default": "random",
               "key": "pathways",
               "label": "Streets",
-              "type": "choice"
+              "type": "choice",
+              "group": "layout",
+              "maxPer": 180
             },
             {
               "choices": [
@@ -9548,7 +9874,9 @@
               "default": "none",
               "key": "river",
               "label": "River",
-              "type": "choice"
+              "type": "choice",
+              "group": "water",
+              "preview": true
             },
             {
               "choices": [
@@ -9594,7 +9922,9 @@
               "key": "bridge",
               "label": "Kind of crossing",
               "requires": "river",
-              "type": "choice"
+              "type": "choice",
+              "group": "crossings",
+              "preview": true
             }
           ],
           "description": "Defined areas and better architecture, nothing tall, on the sand by the sea.",
@@ -9823,7 +10153,12 @@
                 "undergrowth": 0.8,
                 "weight": 2
               }
-            ]
+            ],
+            "optionGroups": {
+              "crossings": "Crossings",
+              "layout": "Layout",
+              "water": "Water"
+            }
           },
           "options": [
             {
@@ -9852,7 +10187,9 @@
               "default": "random",
               "key": "exits",
               "label": "Exits",
-              "type": "choice"
+              "type": "choice",
+              "group": "layout",
+              "maxPer": 180
             },
             {
               "choices": [
@@ -9896,7 +10233,9 @@
               "default": "random",
               "key": "pathways",
               "label": "Streets",
-              "type": "choice"
+              "type": "choice",
+              "group": "layout",
+              "maxPer": 180
             },
             {
               "choices": [
@@ -9924,7 +10263,9 @@
               "default": "none",
               "key": "river",
               "label": "River",
-              "type": "choice"
+              "type": "choice",
+              "group": "water",
+              "preview": true
             },
             {
               "choices": [
@@ -9970,7 +10311,9 @@
               "key": "bridge",
               "label": "Kind of crossing",
               "requires": "river",
-              "type": "choice"
+              "type": "choice",
+              "group": "crossings",
+              "preview": true
             }
           ],
           "description": "Defined areas and better architecture, nothing tall, built over old stone.",
@@ -10200,7 +10543,12 @@
                 "undergrowth": 0.8,
                 "weight": 2
               }
-            ]
+            ],
+            "optionGroups": {
+              "crossings": "Crossings",
+              "layout": "Layout",
+              "water": "Water"
+            }
           },
           "options": [
             {
@@ -10229,7 +10577,9 @@
               "default": "random",
               "key": "exits",
               "label": "Exits",
-              "type": "choice"
+              "type": "choice",
+              "group": "layout",
+              "maxPer": 180
             },
             {
               "choices": [
@@ -10273,7 +10623,9 @@
               "default": "random",
               "key": "pathways",
               "label": "Streets",
-              "type": "choice"
+              "type": "choice",
+              "group": "layout",
+              "maxPer": 180
             },
             {
               "choices": [
@@ -10301,7 +10653,9 @@
               "default": "none",
               "key": "river",
               "label": "River",
-              "type": "choice"
+              "type": "choice",
+              "group": "water",
+              "preview": true
             },
             {
               "choices": [
@@ -10347,7 +10701,9 @@
               "key": "bridge",
               "label": "Kind of crossing",
               "requires": "river",
-              "type": "choice"
+              "type": "choice",
+              "group": "crossings",
+              "preview": true
             }
           ],
           "description": "Defined areas and better architecture, nothing tall, out on the open sand.",
@@ -10584,7 +10940,12 @@
                 "undergrowth": 0.8,
                 "weight": 2
               }
-            ]
+            ],
+            "optionGroups": {
+              "crossings": "Crossings",
+              "layout": "Layout",
+              "water": "Water"
+            }
           },
           "options": [
             {
@@ -10613,7 +10974,9 @@
               "default": "random",
               "key": "exits",
               "label": "Exits",
-              "type": "choice"
+              "type": "choice",
+              "group": "layout",
+              "maxPer": 180
             },
             {
               "choices": [
@@ -10657,7 +11020,9 @@
               "default": "random",
               "key": "pathways",
               "label": "Streets",
-              "type": "choice"
+              "type": "choice",
+              "group": "layout",
+              "maxPer": 180
             },
             {
               "choices": [
@@ -10685,7 +11050,9 @@
               "default": "none",
               "key": "river",
               "label": "River",
-              "type": "choice"
+              "type": "choice",
+              "group": "water",
+              "preview": true
             },
             {
               "choices": [
@@ -10731,7 +11098,9 @@
               "key": "bridge",
               "label": "Kind of crossing",
               "requires": "river",
-              "type": "choice"
+              "type": "choice",
+              "group": "crossings",
+              "preview": true
             }
           ],
           "description": "Defined areas and better architecture, nothing tall, on the black rock under the mountain.",
@@ -11160,6 +11529,11 @@
               "enemies": 0,
               "enemyTypes": [],
               "townsfolk": 14
+            },
+            "optionGroups": {
+              "crossings": "Crossings",
+              "layout": "Layout",
+              "water": "Water"
             }
           },
           "options": [
@@ -11189,7 +11563,9 @@
               "default": "random",
               "key": "exits",
               "label": "Exits",
-              "type": "choice"
+              "type": "choice",
+              "group": "layout",
+              "maxPer": 180
             },
             {
               "choices": [
@@ -11233,7 +11609,9 @@
               "default": "random",
               "key": "pathways",
               "label": "Streets",
-              "type": "choice"
+              "type": "choice",
+              "group": "layout",
+              "maxPer": 180
             },
             {
               "choices": [
@@ -11257,7 +11635,9 @@
               "default": "random",
               "key": "region",
               "label": "Region",
-              "type": "choice"
+              "type": "choice",
+              "group": "layout",
+              "preview": true
             },
             {
               "choices": [
@@ -11285,7 +11665,9 @@
               "default": "none",
               "key": "river",
               "label": "River",
-              "type": "choice"
+              "type": "choice",
+              "group": "water",
+              "preview": true
             },
             {
               "choices": [
@@ -11331,7 +11713,9 @@
               "key": "bridge",
               "label": "Kind of crossing",
               "requires": "river",
-              "type": "choice"
+              "type": "choice",
+              "group": "crossings",
+              "preview": true
             }
           ],
           "description": "Many zones, modern architecture and towers, under temperate trees.",
@@ -11704,6 +12088,11 @@
               "enemies": 0,
               "enemyTypes": [],
               "townsfolk": 14
+            },
+            "optionGroups": {
+              "crossings": "Crossings",
+              "layout": "Layout",
+              "water": "Water"
             }
           },
           "options": [
@@ -11733,7 +12122,9 @@
               "default": "random",
               "key": "exits",
               "label": "Exits",
-              "type": "choice"
+              "type": "choice",
+              "group": "layout",
+              "maxPer": 180
             },
             {
               "choices": [
@@ -11777,7 +12168,9 @@
               "default": "random",
               "key": "pathways",
               "label": "Streets",
-              "type": "choice"
+              "type": "choice",
+              "group": "layout",
+              "maxPer": 180
             },
             {
               "choices": [
@@ -11801,7 +12194,9 @@
               "default": "random",
               "key": "region",
               "label": "Region",
-              "type": "choice"
+              "type": "choice",
+              "group": "layout",
+              "preview": true
             },
             {
               "choices": [
@@ -11829,7 +12224,9 @@
               "default": "none",
               "key": "river",
               "label": "River",
-              "type": "choice"
+              "type": "choice",
+              "group": "water",
+              "preview": true
             },
             {
               "choices": [
@@ -11875,7 +12272,9 @@
               "key": "bridge",
               "label": "Kind of crossing",
               "requires": "river",
-              "type": "choice"
+              "type": "choice",
+              "group": "crossings",
+              "preview": true
             }
           ],
           "description": "Many zones, modern architecture and towers, cut into the rainforest.",
@@ -12260,6 +12659,11 @@
               "enemies": 0,
               "enemyTypes": [],
               "townsfolk": 14
+            },
+            "optionGroups": {
+              "crossings": "Crossings",
+              "layout": "Layout",
+              "water": "Water"
             }
           },
           "options": [
@@ -12289,7 +12693,9 @@
               "default": "random",
               "key": "exits",
               "label": "Exits",
-              "type": "choice"
+              "type": "choice",
+              "group": "layout",
+              "maxPer": 180
             },
             {
               "choices": [
@@ -12333,7 +12739,9 @@
               "default": "random",
               "key": "pathways",
               "label": "Streets",
-              "type": "choice"
+              "type": "choice",
+              "group": "layout",
+              "maxPer": 180
             },
             {
               "choices": [
@@ -12357,7 +12765,9 @@
               "default": "random",
               "key": "region",
               "label": "Region",
-              "type": "choice"
+              "type": "choice",
+              "group": "layout",
+              "preview": true
             },
             {
               "choices": [
@@ -12385,7 +12795,9 @@
               "default": "none",
               "key": "river",
               "label": "River",
-              "type": "choice"
+              "type": "choice",
+              "group": "water",
+              "preview": true
             },
             {
               "choices": [
@@ -12431,7 +12843,9 @@
               "key": "bridge",
               "label": "Kind of crossing",
               "requires": "river",
-              "type": "choice"
+              "type": "choice",
+              "group": "crossings",
+              "preview": true
             }
           ],
           "description": "Many zones, modern architecture and towers, out on open grass.",
@@ -12791,6 +13205,11 @@
               "enemies": 0,
               "enemyTypes": [],
               "townsfolk": 14
+            },
+            "optionGroups": {
+              "crossings": "Crossings",
+              "layout": "Layout",
+              "water": "Water"
             }
           },
           "options": [
@@ -12820,7 +13239,9 @@
               "default": "random",
               "key": "exits",
               "label": "Exits",
-              "type": "choice"
+              "type": "choice",
+              "group": "layout",
+              "maxPer": 180
             },
             {
               "choices": [
@@ -12864,7 +13285,9 @@
               "default": "random",
               "key": "pathways",
               "label": "Streets",
-              "type": "choice"
+              "type": "choice",
+              "group": "layout",
+              "maxPer": 180
             },
             {
               "choices": [
@@ -12888,7 +13311,9 @@
               "default": "random",
               "key": "region",
               "label": "Region",
-              "type": "choice"
+              "type": "choice",
+              "group": "layout",
+              "preview": true
             },
             {
               "choices": [
@@ -12916,7 +13341,9 @@
               "default": "none",
               "key": "river",
               "label": "River",
-              "type": "choice"
+              "type": "choice",
+              "group": "water",
+              "preview": true
             },
             {
               "choices": [
@@ -12962,7 +13389,9 @@
               "key": "bridge",
               "label": "Kind of crossing",
               "requires": "river",
-              "type": "choice"
+              "type": "choice",
+              "group": "crossings",
+              "preview": true
             }
           ],
           "description": "Many zones, modern architecture and towers, on boardwalks over the water.",
@@ -13302,6 +13731,11 @@
               "enemies": 0,
               "enemyTypes": [],
               "townsfolk": 14
+            },
+            "optionGroups": {
+              "crossings": "Crossings",
+              "layout": "Layout",
+              "water": "Water"
             }
           },
           "options": [
@@ -13331,7 +13765,9 @@
               "default": "random",
               "key": "exits",
               "label": "Exits",
-              "type": "choice"
+              "type": "choice",
+              "group": "layout",
+              "maxPer": 180
             },
             {
               "choices": [
@@ -13375,7 +13811,9 @@
               "default": "random",
               "key": "pathways",
               "label": "Streets",
-              "type": "choice"
+              "type": "choice",
+              "group": "layout",
+              "maxPer": 180
             },
             {
               "choices": [
@@ -13399,7 +13837,9 @@
               "default": "random",
               "key": "region",
               "label": "Region",
-              "type": "choice"
+              "type": "choice",
+              "group": "layout",
+              "preview": true
             },
             {
               "choices": [
@@ -13427,7 +13867,9 @@
               "default": "none",
               "key": "river",
               "label": "River",
-              "type": "choice"
+              "type": "choice",
+              "group": "water",
+              "preview": true
             },
             {
               "choices": [
@@ -13473,7 +13915,9 @@
               "key": "bridge",
               "label": "Kind of crossing",
               "requires": "river",
-              "type": "choice"
+              "type": "choice",
+              "group": "crossings",
+              "preview": true
             }
           ],
           "description": "Many zones, modern architecture and towers, on the rock, in among the conifers.",
@@ -13847,6 +14291,11 @@
               "enemies": 0,
               "enemyTypes": [],
               "townsfolk": 14
+            },
+            "optionGroups": {
+              "crossings": "Crossings",
+              "layout": "Layout",
+              "water": "Water"
             }
           },
           "options": [
@@ -13876,7 +14325,9 @@
               "default": "random",
               "key": "exits",
               "label": "Exits",
-              "type": "choice"
+              "type": "choice",
+              "group": "layout",
+              "maxPer": 180
             },
             {
               "choices": [
@@ -13920,7 +14371,9 @@
               "default": "random",
               "key": "pathways",
               "label": "Streets",
-              "type": "choice"
+              "type": "choice",
+              "group": "layout",
+              "maxPer": 180
             },
             {
               "choices": [
@@ -13944,7 +14397,9 @@
               "default": "random",
               "key": "region",
               "label": "Region",
-              "type": "choice"
+              "type": "choice",
+              "group": "layout",
+              "preview": true
             },
             {
               "choices": [
@@ -13972,7 +14427,9 @@
               "default": "none",
               "key": "river",
               "label": "River",
-              "type": "choice"
+              "type": "choice",
+              "group": "water",
+              "preview": true
             },
             {
               "choices": [
@@ -14018,7 +14475,9 @@
               "key": "bridge",
               "label": "Kind of crossing",
               "requires": "river",
-              "type": "choice"
+              "type": "choice",
+              "group": "crossings",
+              "preview": true
             }
           ],
           "description": "Many zones, modern architecture and towers, on the sand by the sea.",
@@ -14378,6 +14837,11 @@
               "enemies": 0,
               "enemyTypes": [],
               "townsfolk": 14
+            },
+            "optionGroups": {
+              "crossings": "Crossings",
+              "layout": "Layout",
+              "water": "Water"
             }
           },
           "options": [
@@ -14407,7 +14871,9 @@
               "default": "random",
               "key": "exits",
               "label": "Exits",
-              "type": "choice"
+              "type": "choice",
+              "group": "layout",
+              "maxPer": 180
             },
             {
               "choices": [
@@ -14451,7 +14917,9 @@
               "default": "random",
               "key": "pathways",
               "label": "Streets",
-              "type": "choice"
+              "type": "choice",
+              "group": "layout",
+              "maxPer": 180
             },
             {
               "choices": [
@@ -14475,7 +14943,9 @@
               "default": "random",
               "key": "region",
               "label": "Region",
-              "type": "choice"
+              "type": "choice",
+              "group": "layout",
+              "preview": true
             },
             {
               "choices": [
@@ -14503,7 +14973,9 @@
               "default": "none",
               "key": "river",
               "label": "River",
-              "type": "choice"
+              "type": "choice",
+              "group": "water",
+              "preview": true
             },
             {
               "choices": [
@@ -14549,7 +15021,9 @@
               "key": "bridge",
               "label": "Kind of crossing",
               "requires": "river",
-              "type": "choice"
+              "type": "choice",
+              "group": "crossings",
+              "preview": true
             }
           ],
           "description": "Many zones, modern architecture and towers, built over old stone.",
@@ -14915,6 +15389,11 @@
               "enemies": 0,
               "enemyTypes": [],
               "townsfolk": 14
+            },
+            "optionGroups": {
+              "crossings": "Crossings",
+              "layout": "Layout",
+              "water": "Water"
             }
           },
           "options": [
@@ -14944,7 +15423,9 @@
               "default": "random",
               "key": "exits",
               "label": "Exits",
-              "type": "choice"
+              "type": "choice",
+              "group": "layout",
+              "maxPer": 180
             },
             {
               "choices": [
@@ -14988,7 +15469,9 @@
               "default": "random",
               "key": "pathways",
               "label": "Streets",
-              "type": "choice"
+              "type": "choice",
+              "group": "layout",
+              "maxPer": 180
             },
             {
               "choices": [
@@ -15012,7 +15495,9 @@
               "default": "random",
               "key": "region",
               "label": "Region",
-              "type": "choice"
+              "type": "choice",
+              "group": "layout",
+              "preview": true
             },
             {
               "choices": [
@@ -15040,7 +15525,9 @@
               "default": "none",
               "key": "river",
               "label": "River",
-              "type": "choice"
+              "type": "choice",
+              "group": "water",
+              "preview": true
             },
             {
               "choices": [
@@ -15086,7 +15573,9 @@
               "key": "bridge",
               "label": "Kind of crossing",
               "requires": "river",
-              "type": "choice"
+              "type": "choice",
+              "group": "crossings",
+              "preview": true
             }
           ],
           "description": "Many zones, modern architecture and towers, out on the open sand.",
@@ -15438,6 +15927,11 @@
               "enemies": 0,
               "enemyTypes": [],
               "townsfolk": 14
+            },
+            "optionGroups": {
+              "crossings": "Crossings",
+              "layout": "Layout",
+              "water": "Water"
             }
           },
           "options": [
@@ -15467,7 +15961,9 @@
               "default": "random",
               "key": "exits",
               "label": "Exits",
-              "type": "choice"
+              "type": "choice",
+              "group": "layout",
+              "maxPer": 180
             },
             {
               "choices": [
@@ -15511,7 +16007,9 @@
               "default": "random",
               "key": "pathways",
               "label": "Streets",
-              "type": "choice"
+              "type": "choice",
+              "group": "layout",
+              "maxPer": 180
             },
             {
               "choices": [
@@ -15535,7 +16033,9 @@
               "default": "random",
               "key": "region",
               "label": "Region",
-              "type": "choice"
+              "type": "choice",
+              "group": "layout",
+              "preview": true
             },
             {
               "choices": [
@@ -15563,7 +16063,9 @@
               "default": "none",
               "key": "river",
               "label": "River",
-              "type": "choice"
+              "type": "choice",
+              "group": "water",
+              "preview": true
             },
             {
               "choices": [
@@ -15609,7 +16111,9 @@
               "key": "bridge",
               "label": "Kind of crossing",
               "requires": "river",
-              "type": "choice"
+              "type": "choice",
+              "group": "crossings",
+              "preview": true
             }
           ],
           "description": "Many zones, modern architecture and towers, on the black rock under the mountain.",
@@ -15897,6 +16401,11 @@
               "enemies": 0,
               "enemyTypes": [],
               "townsfolk": 16
+            },
+            "optionGroups": {
+              "crossings": "Crossings",
+              "layout": "Layout",
+              "water": "Water"
             }
           },
           "options": [
@@ -15926,7 +16435,9 @@
               "default": "random",
               "key": "exits",
               "label": "Exits",
-              "type": "choice"
+              "type": "choice",
+              "group": "layout",
+              "maxPer": 180
             },
             {
               "choices": [
@@ -15970,7 +16481,9 @@
               "default": "random",
               "key": "pathways",
               "label": "Streets",
-              "type": "choice"
+              "type": "choice",
+              "group": "layout",
+              "maxPer": 180
             },
             {
               "choices": [
@@ -15994,7 +16507,9 @@
               "default": "random",
               "key": "region",
               "label": "Region",
-              "type": "choice"
+              "type": "choice",
+              "group": "layout",
+              "preview": true
             },
             {
               "choices": [
@@ -16022,7 +16537,9 @@
               "default": "none",
               "key": "river",
               "label": "River",
-              "type": "choice"
+              "type": "choice",
+              "group": "water",
+              "preview": true
             },
             {
               "choices": [
@@ -16068,7 +16585,9 @@
               "key": "bridge",
               "label": "Kind of crossing",
               "requires": "river",
-              "type": "choice"
+              "type": "choice",
+              "group": "crossings",
+              "preview": true
             }
           ],
           "description": "Many zones, modern architecture and towers, towers and blocks of flats under flat grey decks.",
@@ -16363,6 +16882,11 @@
               "enemies": 0,
               "enemyTypes": [],
               "townsfolk": 14
+            },
+            "optionGroups": {
+              "crossings": "Crossings",
+              "layout": "Layout",
+              "water": "Water"
             }
           },
           "options": [
@@ -16392,7 +16916,9 @@
               "default": "random",
               "key": "exits",
               "label": "Exits",
-              "type": "choice"
+              "type": "choice",
+              "group": "layout",
+              "maxPer": 180
             },
             {
               "choices": [
@@ -16436,7 +16962,9 @@
               "default": "random",
               "key": "pathways",
               "label": "Streets",
-              "type": "choice"
+              "type": "choice",
+              "group": "layout",
+              "maxPer": 180
             },
             {
               "choices": [
@@ -16460,7 +16988,9 @@
               "default": "random",
               "key": "region",
               "label": "Region",
-              "type": "choice"
+              "type": "choice",
+              "group": "layout",
+              "preview": true
             },
             {
               "choices": [
@@ -16488,7 +17018,9 @@
               "default": "none",
               "key": "river",
               "label": "River",
-              "type": "choice"
+              "type": "choice",
+              "group": "water",
+              "preview": true
             },
             {
               "choices": [
@@ -16534,7 +17066,9 @@
               "key": "bridge",
               "label": "Kind of crossing",
               "requires": "river",
-              "type": "choice"
+              "type": "choice",
+              "group": "crossings",
+              "preview": true
             }
           ],
           "description": "Many zones, modern architecture and towers, stone under slate on cobbles, a cathedral and a castle, nothing tall.",

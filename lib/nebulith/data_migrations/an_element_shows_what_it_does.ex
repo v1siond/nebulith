@@ -2,53 +2,32 @@ defmodule Nebulith.DataMigration.AnElementShowsWhatItDoes do
   @moduledoc """
   The options whose choices are worth SEEING say so, and the panel draws a picture of each one.
 
-  *"we see the preview of the element like we do on objects and I want to see the preview of the element after
-  adding it to the map too"*, and the things he named as elements: *"water -> river, lake, beach, bridges ->
-  stone, dirt, wood"*.
+  An element is a thing the map gets made OF: the water (river, lake, beach) and the ways over it (stone, dirt
+  and wood bridges), plus the region the map sits in.
 
-  So `river`, `bridge` and `water` carry `preview: true`. Their choices are visibly different things, and a
-  picture says what a word cannot: "Divides the map in two" and "Around the edge" are two different maps.
+  So `river`, `bridge` and `region` carry `preview: true`. Their choices are visibly different places, and a
+  picture says what a word cannot: "Divides the map in two" and "Around the edge" are two different maps, and
+  so are a marsh and a thicket. `exits` and `pathways` do not: they are counts, and a thumbnail of three
+  beside four is two nearly identical pictures that cost a whole map generation each.
 
-  ## What does NOT carry it, and why that is the point
+  ## This used to PATCH the seeder's output, and that was the bug
 
-  `exits`, `pathways` and `region` are counts and placements. A thumbnail of "3 exits" beside "4 exits" is two
-  nearly identical pictures, which teaches nothing and costs a whole map generation each. `depth` is a number
-  about the channel rather than a kind of thing.
+  It ran an UPDATE that set `preview` on rows the seeder had just written without it. So one fact had two
+  owners, and `seed/0` REPLACES the whole options array, which means running the base seeder stripped the flag
+  and every preview card fell back to a plain dropdown, leaving the panel looking like a much older version of
+  itself.
 
-  The flag is served rather than decided in the panel for the same reason the groups are: the frontend renders
-  what the catalog says and infers nothing (`docs/EDITOR-UX.md` §2.1). Turning a preview on for another option
-  is one row here, not a frontend change.
-
-  Idempotent: matches only options that lack the field.
+  The flag lives in `GeneratorSource` now, beside the option it describes, so the seeder's output IS the
+  approved state and re-running it cannot regress the panel. This re-seeds, which is all it ever needed to do,
+  and is the same shape as `TheWhiteLinesInTheMiddle`. `the_panel_draws_the_options_test.exs` is the gate.
   """
   require Logger
 
-  alias Nebulith.Repo
-
-  @previewed ~w(river bridge water)
+  alias Nebulith.Catalog.GeneratorSource
 
   def run do
-    rows =
-      for key <- @previewed, reduce: 0 do
-        acc ->
-          %{num_rows: n} =
-            Repo.query!(
-              """
-              UPDATE generators SET options = (
-                SELECT jsonb_agg(
-                  CASE WHEN opt->>'key' = $1 THEN jsonb_set(opt, '{preview}', 'true') ELSE opt END
-                )
-                FROM jsonb_array_elements(options) opt
-              )
-              WHERE options @> jsonb_build_array(jsonb_build_object('key', $1::text))
-              """,
-              [key]
-            )
-
-          acc + n
-      end
-
-    Logger.info("[data_migrate] #{rows} option rows show a picture of each choice")
+    GeneratorSource.seed()
+    Logger.info("[data_migrate] the options worth seeing carry their own preview flag")
     :ok
   end
 end

@@ -46,12 +46,49 @@ const build = () => fireEvent.click(screen.getByRole('button', { name: /build th
 const seasons = () => screen.getByLabelText(/^season$/i)
 const kinds = () => screen.getByLabelText(/kind of place/i)
 /**
+ * AN OPTION IS A ROW OF CARDS, always, not a dropdown.
+ *
+ * The panel renders the same control for a choice whether or not the served option carries a picture, so
+ * these drive what a person drives: the card with that name, inside that option's own group. The group
+ * carries the option's label as its accessible name, which is what makes one row of buttons one control.
+ */
+const picker = (label: RegExp | string) => screen.getByRole('group', { name: label })
+const cardsIn = (label: RegExp | string) => within(picker(label)).getAllByRole('button') as HTMLButtonElement[]
+
+/** The choices a served row declares, so this file never keeps its own copy of them. */
+const servedChoices = (genKey: string, optKey: string) =>
+  (CATALOG.flatMap(c => c.generators).find(g => g.key === genKey)?.options ?? [])
+    .find(o => o.key === optKey)?.choices ?? []
+
+/** What each card stands for, in the order offered, by matching its printed name back to the catalog. */
+const offeredKeys = (genKey: string, optKey: string, label: RegExp | string) => {
+  const choices = servedChoices(genKey, optKey)
+  return cardsIn(label).map(b => {
+    const name = (b.textContent ?? '').trim()
+    return choices.find(c => c.label === name)?.key ?? name
+  })
+}
+
+/** Click the card for a choice KEY, found through the catalog rather than a name written down here. */
+const pickChoice = (genKey: string, optKey: string, label: RegExp | string, choiceKey: string) => {
+  const choice = servedChoices(genKey, optKey).find(c => c.key === choiceKey)
+  if (!choice) throw new Error(`${genKey} does not offer ${optKey}=${choiceKey}`)
+  fireEvent.click(within(picker(label)).getByRole('button', { name: rx(choice.label) }))
+}
+
+/** A whole option is off when every card in it is. */
+const pickerOff = (label: RegExp | string) => cardsIn(label).every(b => b.disabled)
+
+/**
  * A preset card, by the name printed on it.
  *
  * The name is ESCAPED before it becomes a regex. "Meadow + River" is a real preset, and `+` is a
  * quantifier, `new RegExp('Meadow + River')` matches "Meadow River" and finds nothing.
  */
 const rx = (text: string) => new RegExp(text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i')
+
+/** The wilderness row the panel selects first, and whose options these tests drive. */
+const WILD = CATALOG.find(c => c.key === 'wilderness')?.generators[0]?.key ?? ''
 
 /** What a wilderness row sends when nothing has been switched: its served defaults, dependencies honoured. */
 const WILD_DEFAULTS = { exits: 'random', pathways: 'random', region: 'random', river: 'none', depth: 'none', bridge: 'none' }
@@ -185,7 +222,6 @@ describe('picking is not building, §4.6\'s "why did my map just vanish" trap', 
 })
 
 describe('variations are options on a preset, not more presets', () => {
-  const control = (label: RegExp | string) => screen.getByLabelText(label) as HTMLInputElement & HTMLSelectElement
   const setup = () => {
     const onGenerate = jest.fn()
     render(<GenerateControls catalog={CATALOG} zone="spring" onZone={noop} onGenerate={onGenerate} />)
@@ -195,13 +231,13 @@ describe('variations are options on a preset, not more presets', () => {
   it('offers the river as a choice of COURSE, each one he named, random among them', () => {
     setup()
     fireEvent.change(kinds(), { target: { value: 'wilderness' } })
-    expect([...control(/^river$/i).options].map(o => o.value)).toEqual(['none', 'random', 'through', 'divides', 'around'])
+    expect(offeredKeys(WILD, 'river', /^river$/i)).toEqual(['none', 'random', 'through', 'divides', 'around'])
   })
 
   it('forwards the course that was picked, so a river never needs a row of its own', () => {
     const onGenerate = setup()
     fireEvent.change(kinds(), { target: { value: 'wilderness' } })
-    fireEvent.change(control(/^river$/i), { target: { value: 'divides' } })
+    pickChoice(WILD, 'river', /^river$/i, 'divides')
     build()
     expect(onGenerate).toHaveBeenCalledWith('spring', 'forest', expect.any(String), { ...WILD_DEFAULTS, river: 'divides', depth: '1', bridge: 'random' }, expect.any(String))
   })
@@ -213,12 +249,13 @@ describe('variations are options on a preset, not more presets', () => {
   it('offers the kind of crossing, greyed out until there is a river, and forwards the one picked', () => {
     const onGenerate = setup()
     fireEvent.change(kinds(), { target: { value: 'wilderness' } })
-    const kind = () => control(/^kind of crossing$/i)
-    expect([...kind().options].map(o => o.value)).toEqual(['random', 'dirt', 'wood', 'planks', 'stone'])
-    expect(kind().disabled).toBe(true)
-    fireEvent.change(control(/^river$/i), { target: { value: 'divides' } })
-    expect(kind().disabled).toBe(false)
-    fireEvent.change(kind(), { target: { value: 'stone' } })
+    expect(offeredKeys(WILD, 'bridge', /^kind of crossing$/i)).toEqual(['random', 'dirt', 'wood', 'planks', 'stone'])
+    // GREYED OUT, NOT SWAPPED FOR SOMETHING ELSE. The cards are all there with a river or without one: the
+    // dependency decides what can be picked, never which control is drawn.
+    expect(pickerOff(/^kind of crossing$/i)).toBe(true)
+    pickChoice(WILD, 'river', /^river$/i, 'divides')
+    expect(pickerOff(/^kind of crossing$/i)).toBe(false)
+    pickChoice(WILD, 'bridge', /^kind of crossing$/i, 'stone')
     build()
     expect(onGenerate).toHaveBeenCalledWith('spring', 'forest', expect.any(String), { ...WILD_DEFAULTS, river: 'divides', depth: '1', bridge: 'stone' }, expect.any(String))
   })
@@ -228,13 +265,14 @@ describe('variations are options on a preset, not more presets', () => {
     // option, so it gets the same coverage the other options have.
     const onGenerate = setup()
     fireEvent.change(kinds(), { target: { value: 'wilderness' } })
-    const depth = () => control(/how deep the channel is cut/i)
+    const label = /how deep the channel is cut/i
 
-    expect([...depth().options].map(o => o.value)).toEqual(['1', '2']) // not-cut is the off value, not a choice
-    expect(depth().disabled).toBe(true) // nothing to cut without a river
-    fireEvent.change(control(/^river$/i), { target: { value: 'divides' } })
-    expect(depth().disabled).toBe(false)
-    fireEvent.change(depth(), { target: { value: '2' } })
+    // not-cut is the off value, not a choice
+    expect(offeredKeys(WILD, 'depth', label)).toEqual(['1', '2'])
+    expect(pickerOff(label)).toBe(true) // nothing to cut without a river
+    pickChoice(WILD, 'river', /^river$/i, 'divides')
+    expect(pickerOff(label)).toBe(false)
+    pickChoice(WILD, 'depth', label, '2')
     build()
     expect(onGenerate).toHaveBeenCalledWith('spring', 'forest', expect.any(String), { ...WILD_DEFAULTS, river: 'divides', depth: '2', bridge: 'random' }, expect.any(String))
   })
@@ -243,7 +281,7 @@ describe('variations are options on a preset, not more presets', () => {
     setup()
     fireEvent.change(kinds(), { target: { value: 'cave' } })
     expect(screen.queryByText(/anything else/i)).toBeNull()
-    expect(screen.queryByLabelText(/^river$/i)).toBeNull()
+    expect(screen.queryByRole('group', { name: /^river$/i })).toBeNull()
   })
 })
 
@@ -263,20 +301,17 @@ describe('a card is a TYPE, and a type carries the regions it is made of', () =>
   }
 
   /** The `region` choices the row itself declares, so this file never keeps its own list of them. */
-  const servedRegions = (key: string) =>
-    (CATALOG.flatMap(c => c.generators).find(g => g.key === key)?.options ?? [])
-      .find(o => o.key === 'region')?.choices.map(c => c.key) ?? []
+  const servedRegions = (key: string) => servedChoices(key, 'region').map(c => c.key)
 
   it('a jungle offers the REGIONS its row declares, and forwards the one picked', () => {
     const onGenerate = setup()
     fireEvent.change(kinds(), { target: { value: 'wilderness' } })
     fireEvent.click(preset('Jungle'))
-    const region = screen.getByLabelText(/^region$/i) as HTMLSelectElement
     const served = servedRegions('forest_jungle')
     expect(served.length).toBeGreaterThan(1) // the row really does declare some
-    expect([...region.options].map(o => o.value)).toEqual(served)
+    expect(offeredKeys('forest_jungle', 'region', /^region$/i)).toEqual(served)
 
-    fireEvent.change(region, { target: { value: 'lakeside' } })
+    pickChoice('forest_jungle', 'region', /^region$/i, 'lakeside')
     build()
     expect(onGenerate).toHaveBeenCalledWith('spring', 'forest', 'jungle', { ...WILD_DEFAULTS, region: 'lakeside' }, 'forest_jungle')
   })
@@ -286,9 +321,9 @@ describe('a card is a TYPE, and a type carries the regions it is made of', () =>
     // canopy, and neither knows the other's keys.
     setup()
     fireEvent.change(kinds(), { target: { value: 'city' } })
-    const region = screen.getByLabelText(/^region$/i) as HTMLSelectElement
-    expect([...region.options].map(o => o.value)).toEqual(servedRegions('city'))
-    expect([...region.options].map(o => o.value)).not.toEqual(servedRegions('forest_jungle'))
+    const offered = offeredKeys('city', 'region', /^region$/i)
+    expect(offered).toEqual(servedRegions('city'))
+    expect(offered).not.toEqual(servedRegions('forest_jungle'))
   })
 })
 
@@ -615,7 +650,8 @@ describe('the preview window shows the world to build, its size, and the options
       const p = props({ tuningSlot: into, onApply })
       render(<GenerateControls {...p} />)
       fireEvent.change(kinds(), { target: { value: 'wilderness' } })
-      fireEvent.change(within(into).getByLabelText(/^river$/i), { target: { value: 'through' } })
+      // The options render into the slot, which the case above pins; this one is about what APPLY carries.
+      pickChoice(WILD, 'river', /^river$/i, 'through')
       fireEvent.click(apply())
       expect(onApply).toHaveBeenCalledWith('spring', expect.objectContaining({ river: 'through' }))
     })
@@ -631,8 +667,8 @@ describe('the preview window shows the world to build, its size, and the options
     const p = props({ tuningSlot: into })
     render(<GenerateControls {...p} />)
     fireEvent.change(kinds(), { target: { value: 'wilderness' } })
-    fireEvent.change(within(into).getByLabelText(/^river$/i), { target: { value: 'through' } })
-    fireEvent.change(within(into).getByLabelText(/^kind of crossing$/i), { target: { value: 'planks' } })
+    pickChoice(WILD, 'river', /^river$/i, 'through')
+    pickChoice(WILD, 'bridge', /^kind of crossing$/i, 'planks')
     fireEvent.click(screen.getByRole('button', { name: /build this world/i }))
     expect(p.onGenerate).toHaveBeenCalledWith('spring', 'forest', expect.any(String), { ...WILD_DEFAULTS, river: 'through', depth: '1', bridge: 'planks' }, expect.any(String))
   })

@@ -50,6 +50,17 @@ defmodule Nebulith.Catalog.GeneratorSource do
       "key" => "river",
       "label" => "River",
       "type" => "choice",
+      # THE PANEL DRAWS THESE, and the base seed says so rather than a migration bolting it on afterwards.
+      # `group` puts the option under its own heading and `preview` makes the panel render a picture of each
+      # choice instead of a dropdown (editorChrome reads both, `docs/EDITOR-UX.md` §2.1: the frontend renders
+      # what the catalog says and infers nothing).
+      #
+      # They live HERE because `seed/0` REPLACES the whole options array. While these two facts existed only
+      # in data migrations, re-running the base seeder silently stripped them, every preview card fell back to
+      # a plain dropdown, and the panel looked like a much older version of itself. A seeder whose output is
+      # not the approved state is a trap for whoever runs it next.
+      "group" => "water",
+      "preview" => true,
       "default" => "none",
       "choices" => [
         %{"key" => "none", "label" => "No river"},
@@ -67,6 +78,8 @@ defmodule Nebulith.Catalog.GeneratorSource do
       "key" => "bridge",
       "label" => "Kind of crossing",
       "type" => "choice",
+      "group" => "crossings",
+      "preview" => true,
       "default" => "random",
       "requires" => "river",
       "choices" => [
@@ -107,6 +120,12 @@ defmodule Nebulith.Catalog.GeneratorSource do
       "key" => "exits",
       "label" => "Exits",
       "type" => "choice",
+      # NO `preview`: a count is not a kind of thing. A thumbnail of "3 exits" beside "4 exits" is two nearly
+      # identical pictures and costs a whole map generation each.
+      "group" => "layout",
+      # Cells one of these wants before another is offered, so a small map stops offering four ways across it.
+      # Derived from the smallest grid a generator serves (30x24 = 720) still offering four.
+      "maxPer" => 180,
       "default" => "random",
       "choices" => [
         %{"key" => "random", "label" => "Random"},
@@ -120,6 +139,8 @@ defmodule Nebulith.Catalog.GeneratorSource do
       "key" => "pathways",
       "label" => "Pathways",
       "type" => "choice",
+      "group" => "layout",
+      "maxPer" => 180,
       "default" => "random",
       "choices" => [
         %{"key" => "random", "label" => "Random"},
@@ -140,6 +161,8 @@ defmodule Nebulith.Catalog.GeneratorSource do
       "key" => "pathways",
       "label" => "Streets",
       "type" => "choice",
+      "group" => "layout",
+      "maxPer" => 180,
       "default" => "random",
       "choices" =>
         [%{"key" => "random", "label" => "Random"}] ++
@@ -1170,6 +1193,10 @@ defmodule Nebulith.Catalog.GeneratorSource do
         "key" => "region",
         "label" => "Region",
         "type" => "choice",
+        "group" => "layout",
+        # A REGION IS A PLACE, not a count, so it is worth a picture. A marsh and a thicket are two
+        # different maps, which is the same reason `river` carries one.
+        "preview" => true,
         "default" => "random",
         "choices" => [
           %{"key" => "random", "label" => "Random"}
@@ -1331,6 +1358,21 @@ defmodule Nebulith.Catalog.GeneratorSource do
     wild ++ settlements
   end
 
+  # THE HEADING EACH OPTION GROUP WEARS. One owner, here, beside the `group` keys the options carry.
+  #
+  # This was an UPDATE in a data migration that patched the rows `seed/0` had just written. `seed/0` REPLACES
+  # what it writes, so that made one fact two owners and running the base seeder silently undid the approved
+  # panel. One fact, one owner. A generator that serves no options gets no labels, which is what it had
+  # before.
+  @option_group_labels %{"layout" => "Layout", "water" => "Water", "crossings" => "Crossings"}
+
+  defp option_group_labels(%{options: options} = params)
+       when is_list(options) and options != [] do
+    config = Map.get(params, :config) || %{}
+    Map.put(params, :config, Map.put(config, "optionGroups", @option_group_labels))
+  end
+
+  defp option_group_labels(params), do: params
 
   @doc """
   Upsert every category + generator. Idempotent by `key`, so a re-run refreshes the seeded values
@@ -1367,6 +1409,7 @@ defmodule Nebulith.Catalog.GeneratorSource do
         # them.
         |> Map.put(:zones, Map.get(attrs, :zones, @zones))
         |> Map.put(:parent_id, parent_id)
+        |> option_group_labels()
 
       {:ok, _} =
         (Repo.get_by(Generator, key: attrs.key) || %Generator{})

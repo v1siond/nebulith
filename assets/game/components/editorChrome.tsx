@@ -1002,31 +1002,65 @@ export function GenerateControls({
             // dropdown say none of that. Each thumb is built from the SAME options the build will use and
             // differs only in this one choice, which is the rule in `docs/EDITOR-UX.md` §2.2: a preview fed
             // different inputs is a picture of a different map.
-            if (opt.preview && opt.type === 'choice' && !blocked && activeKey && preview) {
-              const current = String(optionValue(opt.key) ?? opt.default)
+            // ONE UI FOR A CHOICE, ALWAYS, filled or not.
+            //
+            // This read `if (opt.preview && ... && preview)` and fell back to a `<select>` otherwise, so the
+            // panel rendered a DIFFERENT CONTROL depending on what the served data happened to carry. When
+            // the options lost a field, every approved picker silently became a dropdown and the whole panel
+            // looked like a much older version of itself.
+            //
+            // A choice renders the card picker, filled or not. Missing data can leave a card without its
+            // picture, it can no longer swap the control for a different one, so a layout regression cannot
+            // arrive through the database.
+            //
+            // `preview` still decides whether a PICTURE is drawn, because that is a cost and not a layout: a
+            // thumbnail is a whole map generation, and three exits beside four is two identical pictures.
+            //
+            // A BLOCKED CHOICE IS THE SAME PICKER, DIMMED. Its dependency being off changes what you may
+            // pick, not what the control IS, and swapping in a `<select>` for it made the crossing picker
+            // disappear on every map without a river.
+            if (opt.type === 'choice') {
+              const current = String(blocked ? optionOffValue(opt) : optionValue(opt.key) ?? opt.default)
               return (
-                <div key={opt.key} className="ctl" style={{ display: 'block' }}>
+                <div
+                  key={opt.key}
+                  className="ctl"
+                  style={{ display: 'block', opacity: blocked ? 0.45 : undefined }}
+                  title={trimmed > 0 ? `${trimmed} more on a bigger map` : undefined}
+                >
                   <span className="l">{opt.label}</span>
-                  <div className="swatches">
+                  {/* NAMED, because a row of buttons is one control. Without this the picker is a heading
+                      beside some unrelated buttons: nothing tells a screen reader, or a test, that "Stone
+                      bridge" is one of the answers to "Kind of crossing". */}
+                  <div className="swatches" role="group" aria-label={opt.label}>
                     {picks.map(c => (
                       <button
                         key={c.key}
                         type="button"
                         className={`sw${c.key === current ? ' on' : ''}`}
                         aria-pressed={c.key === current}
+                        disabled={blocked}
                         title={c.label}
                         onClick={() => set(c.key)}
                       >
-                        <PreviewThumb
-                          subject={presetSubject(
-                            activeKey,
-                            layouts.some(l => l.id === layout) ? layout ?? undefined : layouts[0]?.id,
-                            enforceRequires({ ...options, [opt.key]: c.key }),
-                            activeGenerator,
-                          ) as never}
-                          context={preview}
-                          px={64}
-                        />
+                        {opt.preview && activeKey && preview && (
+                          <PreviewThumb
+                            // A BLOCKED CHOICE RESERVES ITS PICTURE AND DRAWS NOTHING. `enforceRequires`
+                            // pushes an option whose dependency is off back to its off value, so all five
+                            // crossings of a map with no river describe the SAME map: five identical
+                            // thumbnails, each one a whole generation, saying nothing. The empty box keeps
+                            // the cards the size they will be, so picking a river fills them in place
+                            // instead of resizing the row.
+                            subject={blocked ? null : presetSubject(
+                              activeKey,
+                              layouts.some(l => l.id === layout) ? layout ?? undefined : layouts[0]?.id,
+                              enforceRequires({ ...options, [opt.key]: c.key }),
+                              activeGenerator,
+                            ) as never}
+                            context={preview}
+                            px={64}
+                          />
+                        )}
                         <span className="n">{c.label}</span>
                       </button>
                     ))}
@@ -1034,33 +1068,17 @@ export function GenerateControls({
                 </div>
               )
             }
+            // EVERYTHING THAT IS NOT A CHOICE is a switch, and a switch has always looked like one.
             return (
               <label key={opt.key} className="ctl" style={blocked ? { opacity: 0.45 } : undefined}>
                 <span className="l">{opt.label}</span>
-                {opt.type === 'choice'
-                  ? (
-                    <select
-                      // The design's own class, not the panel-scoped bridge rule: these render in the Preview
-                      // window too, outside the panel, and drew there as a blank white box without it.
-                      className="sel"
-                      value={String(blocked ? optionOffValue(opt) : optionValue(opt.key) ?? opt.default)}
-                      disabled={blocked}
-                      aria-label={opt.label}
-                      title={trimmed > 0 ? `${trimmed} more on a bigger map` : undefined}
-                      onChange={e => set(e.target.value)}
-                    >
-                      {picks.map(c => <option key={c.key} value={c.key}>{c.label}</option>)}
-                    </select>
-                  )
-                  : (
-                    <input
-                      type="checkbox"
-                      checked={!blocked && optionIsOn(optionValue(opt.key))}
-                      disabled={blocked}
-                      aria-label={opt.label}
-                      onChange={e => set(e.target.checked)}
-                    />
-                  )}
+                <input
+                  type="checkbox"
+                  checked={!blocked && optionIsOn(optionValue(opt.key))}
+                  disabled={blocked}
+                  aria-label={opt.label}
+                  onChange={e => set(e.target.checked)}
+                />
               </label>
             )
           })}

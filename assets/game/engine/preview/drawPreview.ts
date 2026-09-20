@@ -84,13 +84,32 @@ export function drawPreviewScene(
 const cache = new Map<string, string>()
 const CACHE_MAX = 400
 
+/**
+ * EVERY FIELD, IN A FIXED ORDER, so two subjects share a key only when they are the same subject.
+ *
+ * Object key order is insertion order in JS, so a plain `JSON.stringify` would give the same subject two
+ * different keys depending on how it was built, which costs a re-render rather than a wrong picture. Sorted
+ * keys make it stable. `undefined` is dropped so an absent field and an explicitly-undefined one agree.
+ */
+function stableKey(value: unknown): string {
+  if (value === null || typeof value !== 'object') return String(JSON.stringify(value))
+  if (Array.isArray(value)) return `[${value.map(stableKey).join(',')}]`
+  const fields = Object.entries(value as Record<string, unknown>)
+    .filter(([, v]) => v !== undefined)
+    .sort(([a], [b]) => (a < b ? -1 : 1))
+  return `{${fields.map(([k, v]) => `${k}:${stableKey(v)}`).join(',')}}`
+}
+
 function keyOf(subject: PreviewSubject): string {
   if (subject.kind === 'composition') return `c:${subject.comp}`
-  // A stage's picture is decided by every one of these, so all of them are in the key, two presets of the
-  // same variant differ only by `layout`, and the whole point of the card is to show that difference.
-  if (subject.kind === 'stage') {
-    return `s:${subject.variant}:${subject.layout ?? '-'}:${subject.zone}:${subject.seed}:${subject.cols}x${subject.rows}:${subject.nature?.canopy ?? '-'}`
-  }
+  // A STAGE IS KEYED ON THE WHOLE SUBJECT, not a hand-picked list of its fields.
+  //
+  // The list was variant, layout, zone, seed, size and canopy, which was everything a PRESET card varies.
+  // An option card varies `options` and nothing else, so all of them hashed to one key, every card after
+  // the first was served the first card's picture from this cache, and a row of thumbnails showed the same
+  // map with different words under it. Keying on the subject means a field added to `PreviewSubject`
+  // counts from the day it is added, instead of waiting to be noticed here.
+  if (subject.kind === 'stage') return `s:${stableKey(subject)}`
   return `t:${subject.tile.id}`
 }
 
