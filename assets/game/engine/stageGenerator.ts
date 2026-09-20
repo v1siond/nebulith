@@ -1605,17 +1605,21 @@ export function layoutPass(ctx: ArchetypeContext, settlement: Settlement): Villa
   const streets = ctx.settlement?.streets ?? 'road'
   for (let r = 0; r < rows; r++) {
     for (let c = 0; c < cols; c++) {
-      // A STREET IS MADE OF THE STREET TILE, and wears its colour.
+      // A STREET IS AN EMPTY CELL WEARING A COLOUR, and it says so when you click it.
       //
-      // This set the colour and left the ground as it found it, so clicking a street said you were standing
-      // on grass, and the street's material was a tint rather than a thing. The older note here warned that
-      // laying the tile put a RAISED block in a trench, and it was right at the time: `road` was a standing
-      // tile then. It is height 0 now, the same as `grass`, so the street is flush and says what it is.
+      // Roads are a COLOUR on the ground block, not a separate ROAD tile and not the ground tile swapped for
+      // a material one: both of those put a street across things that are not streets, the river channel
+      // included. That part is unchanged.
       //
-      // Road IDENTITY still lives in `layout.roads` (read by placement and scatter) and is never re-derived
-      // from the ground kind, which is what keeps a dirt path in a field from being mistaken for a street.
+      // What WAS wrong is that the cell kept whatever it had underneath, so a street was a grass tile with
+      // asphalt painted over it and the editor answered "grass" when you asked what you were standing on.
+      // It was telling the truth about a lie. `FLAT_FLOOR` is the colour-only tile, the one that holds no
+      // material at all, so the cell now IS what the street is: empty, and this colour.
+      //
+      // Road IDENTITY still lives in `layout.roads` (read by placement + scatter), never re-derived from the
+      // ground kind.
       if (!layout.roads[r][c]) continue
-      ctx.ground[r][c] = streets
+      ctx.ground[r][c] = FLAT_FLOOR
       ctx.floorColors[r][c] = groundTileColor(streets, c, r)
       // AND A STREET IS A PATHWAY, so it says so. Nothing recorded a settlement's streets as pathway cells,
       // so `ctx.pathwayCells` was empty for every town and city: the served pathway surface, its scatter and
@@ -2980,20 +2984,15 @@ function pavableLane(ctx: ArchetypeContext, plan: RoutePlan): Set<string> {
 function paveLane(ctx: ArchetypeContext, lane: ReadonlySet<string>, way: GeneratorPathway): void {
   const surface = way.surface
   if (!surface) return
-  // A WAY IS ITS OWN GROUND TILE, WEARING THIS MAP'S TONE. Never a tile stacked on top of another one.
+  // A WAY IS A COLOUR ON THE GROUND BLOCK, NEVER A TILE LAID ON TOP OF IT, and never the ground tile
+  // swapped out either. Laying the surface as the ground changed what a woodland's trail LOOKS like, which
+  // nobody asked for, and in a settlement it paved the river channel.
   //
-  // The distinction matters because both halves have been reported as bugs. Laying the surface as a second
-  // block ON the ground gave black tiles standing proud of the field, a raised road in a trench. Painting a
-  // colour onto the grass and leaving the tile alone gave the other half: a street that tells you it is made
-  // of grass when you click it, and a street whose material is a tint rather than a thing.
-  //
-  // Neither is needed. `road`, `path_stone` and `path_dirt` are height 0, the same as `grass`, so REPLACING
-  // the ground tile lays a street that is flush with the field and says what it is. The tone still comes
-  // from the served pathway (`wayTone`): the tile decides what the way is MADE of, the tone what that
-  // material looks like here.
+  // The surface still decides what the way is MADE of and the tone what that material looks like here; what
+  // a cell REPORTS when you click it is a separate question, answered where the report is built.
   const base = wayTone(ctx) ?? groundTileColor(surface, 0, 0)
   if (!base) return
-  wearTheWay(ctx, lane, base, surface)
+  wearTheWay(ctx, lane, base)
   paintMarking(ctx, lane, way)
 }
 
@@ -3028,21 +3027,14 @@ function wayTone(ctx: ArchetypeContext): string | undefined {
  * an outline rather than confetti, and a way is two colours in long runs, which is also what lets
  * `compressGround` merge it (it joins only floors sharing a tile AND a colour).
  */
-function wearTheWay(ctx: ArchetypeContext, cells: ReadonlySet<string>, tone: string, surface?: string): void {
+function wearTheWay(ctx: ArchetypeContext, cells: ReadonlySet<string>, tone: string): void {
   for (const key of cells) {
     const { col, row } = toCell(key)
     if (!inBounds(col, row, ctx.cols, ctx.rows)) continue
-    // REAL WATER, A FORD AND A BRIDGE DECK ARE NOT PAVED. A river is what a crossing is for, a deck is
-    // already the way over it, and a ford is the river running shallow enough to wade: paving one turns it
-    // into dry ground, and the crossing pass then finds no water there to bridge.
-    if (isWaterGround(ctx.ground[row][col]) || ctx.decks.has(key) || ctx.fords.has(key)) continue
-    // A PUDDLE IS NOT ONE OF THEM. `ctx.wet` is standing water lying ON a floor: the ground underneath is
-    // unchanged, the film is stacked over it at height 0 and you walk straight through it. This skipped
-    // those cells, so a way stopped at a puddle and started again on the other side, leaving a bite of
-    // field in the middle of a street. Rain on a road gives you a puddle on the road; the road does not
-    // stop. So the way is laid under it and the film stays on top, which is what both of them already are.
-    // THE CELL IS MADE OF THE WAY'S OWN MATERIAL.
-    if (surface) ctx.ground[row][col] = surface
+    // WATER IS NOT A WAY. A river is what a crossing is for, a deck is already the way over it, a ford is
+    // the river running shallow, and a puddle is standing water lying on the floor. None of them is
+    // something to pave: a way laid over the channel put a street across the whole river.
+    if (isWaterGround(ctx.ground[row][col]) || ctx.decks.has(key) || ctx.fords.has(key) || ctx.wet.has(key)) continue
     // ONE TONE, ON EVERY CELL OF THE WAY.
     //
     // This painted only the cells with the way on every side and left the boundary cells wearing the FIELD's

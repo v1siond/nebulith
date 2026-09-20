@@ -58,159 +58,24 @@ defmodule Nebulith.DataMigration.EveryBiomeItsOwnRegions do
   density and colour rather than a place with something in it. Both are written up in `REGIONS.md` §5.
 
   Idempotent: writes stated lists by generator key.
+
+  ## This used to PATCH the seeder's output, and that was the bug
+
+  It ran `UPDATE generators SET config = jsonb_set(config, '{subZones}', ...)` on rows `GeneratorSource.seed/0`
+  had just written. The seeder writes that whole `config` column from its own literal, so one fact had two
+  owners and every re-seed put the generic wood's five regions back on all nine biomes. Ten migrations' worth
+  of region work went that way, more than once, and nothing in the code had changed each time.
+
+  The sets live in `GeneratorSource` now (`@biome_regions`), beside the generators they describe, so the
+  seeder's output IS the approved state and this re-seeds.
   """
   require Logger
 
-  alias Nebulith.Repo
-
-  # EVERY region states `leafHue` and `leafValue`, and that is not decoration.
-  #
-  # The first run of this dropped them, because the new sets were written from scratch and the old ones carried
-  # them. Measured immediately after on a family sweep: leaf tones fell from 20 to FOUR on meadow, mountain,
-  # beach, ruins and desert, which undid the meadow fix made the same morning. A season serves four shades and
-  # the REGION is what multiplies them into a stand that varies, so a set without these is a flat wall of one
-  # colour however good its species list is.
-  #
-  # The numbers are the same exposure gradient the floors use: more light, lighter and slightly warmer.
-
-  @sets %{
-    "forest_mountain" => {"bands", [
-      %{"key" => "foot", "name" => "Mountain foot", "weight" => 4, "canopy" => 1.10, "undergrowth" => 1.00, "leafHue" => -3, "leafValue" => -0.06, "level" => 0,
-        "formation" => %{"lattice" => 11, "spacing" => 1, "understory" => 1.00, "understoryTile" => "thicket"},
-        "trees" => [%{"kind" => "tree_conifer", "weight" => 55}, %{"kind" => "tree_broadleaf", "weight" => 25}, %{"kind" => "tree_stub", "weight" => 20}]},
-      %{"key" => "slope", "name" => "Wooded slope", "weight" => 3, "canopy" => 0.85, "undergrowth" => 0.70, "leafHue" => -1, "leafValue" => -0.02, "level" => 1,
-        "formation" => %{"lattice" => 9, "spacing" => 2, "understory" => 0.70, "understoryTile" => "shrub"},
-        "trees" => [%{"kind" => "tree_conifer", "weight" => 70}, %{"kind" => "tree_tall", "weight" => 20}, %{"kind" => "tree_stub", "weight" => 10}]},
-      %{"key" => "treeline", "name" => "Treeline", "weight" => 3, "canopy" => 0.45, "undergrowth" => 0.35, "leafHue" => 1, "leafValue" => 0.04, "level" => 2,
-        "formation" => %{"lattice" => 7, "spacing" => 3, "understory" => 0.35, "understoryTile" => "shrub"},
-        "trees" => [%{"kind" => "tree_conifer", "weight" => 55}, %{"kind" => "tree_stub", "weight" => 45}]},
-      %{"key" => "crag", "name" => "Crag", "weight" => 2, "canopy" => 0.12, "undergrowth" => 0.10, "leafHue" => 3, "leafValue" => 0.08, "level" => 3,
-        "formation" => %{"lattice" => 4, "spacing" => 5, "understory" => 0.12, "understoryTile" => "shrub"},
-        "trees" => [%{"kind" => "tree_stub", "weight" => 60}, %{"kind" => "tree_sapling", "weight" => 40}]},
-      %{"key" => "summit", "name" => "Summit", "weight" => 1, "canopy" => 0.02, "undergrowth" => 0.04, "leafHue" => 5, "leafValue" => 0.10, "level" => 4,
-        "formation" => %{"lattice" => 3, "spacing" => 6, "understory" => 0.05, "understoryTile" => "shrub"},
-        "trees" => [%{"kind" => "tree_sapling", "weight" => 100}]}
-    ]},
-    "forest_beach" => {"bands", [
-      %{"key" => "shore", "name" => "Shore", "weight" => 3, "canopy" => 0.05, "undergrowth" => 0.50, "leafHue" => 6, "leafValue" => 0.10,
-        "formation" => %{"lattice" => 4, "spacing" => 5, "understory" => 0.50, "understoryTile" => "dune_grass_young"},
-        "trees" => [%{"kind" => "bush_round", "weight" => 100}]},
-      %{"key" => "dunes", "name" => "Dunes", "weight" => 3, "canopy" => 0.18, "undergrowth" => 0.90, "leafHue" => 4, "leafValue" => 0.08,
-        "formation" => %{"lattice" => 6, "spacing" => 4, "understory" => 0.90, "understoryTile" => "dune_grass"},
-        "trees" => [%{"kind" => "tree_palm", "weight" => 40}, %{"kind" => "tree_coconut", "weight" => 30}, %{"kind" => "bush_round", "weight" => 30}]},
-      %{"key" => "palms", "name" => "Palm line", "weight" => 3, "canopy" => 0.60, "undergrowth" => 0.70, "leafHue" => 1, "leafValue" => 0.03,
-        "formation" => %{"lattice" => 9, "spacing" => 2, "understory" => 0.70, "understoryTile" => "dune_grass_seed"},
-        "trees" => [%{"kind" => "tree_coconut", "weight" => 40}, %{"kind" => "tree_palm", "weight" => 35}, %{"kind" => "tree_banana", "weight" => 25}]},
-      %{"key" => "backshore", "name" => "Backshore", "weight" => 3, "canopy" => 0.95, "undergrowth" => 1.00, "leafHue" => -2, "leafValue" => -0.04,
-        "formation" => %{"lattice" => 12, "spacing" => 1, "understory" => 1.00, "understoryTile" => "thicket"},
-        "trees" => [%{"kind" => "tree_banana", "weight" => 35}, %{"kind" => "tree_mangrove", "weight" => 30}, %{"kind" => "tree_coconut", "weight" => 20}, %{"kind" => "tree_encina", "weight" => 15}]},
-      %{"key" => "inland", "name" => "Inland jungle", "weight" => 2, "canopy" => 1.20, "undergrowth" => 1.20, "leafHue" => -4, "leafValue" => -0.08,
-        "formation" => %{"lattice" => 13, "spacing" => 0, "understory" => 1.20, "understoryTile" => "thicket"},
-        "trees" => [%{"kind" => "tree_encina", "weight" => 35}, %{"kind" => "tree_banana", "weight" => 30}, %{"kind" => "tree_mangrove", "weight" => 20}, %{"kind" => "bush", "weight" => 15}]}
-    ]},
-    "forest_swamp" => {"bands", [
-      %{"key" => "margin", "name" => "Drying margin", "weight" => 3, "canopy" => 0.90, "undergrowth" => 0.90, "leafHue" => 2, "leafValue" => 0.04, "pools" => 0.02,
-        "formation" => %{"lattice" => 10, "spacing" => 2, "understory" => 0.90, "understoryTile" => "thicket"},
-        "trees" => [%{"kind" => "tree_willow", "weight" => 40}, %{"kind" => "tree_broadleaf", "weight" => 30}, %{"kind" => "tree_stub", "weight" => 30}]},
-      %{"key" => "mire", "name" => "Mire", "weight" => 3, "canopy" => 0.85, "undergrowth" => 1.10, "leafHue" => -1, "leafValue" => -0.01, "pools" => 0.14,
-        "formation" => %{"lattice" => 11, "spacing" => 1, "understory" => 1.10, "understoryTile" => "thicket"},
-        "trees" => [%{"kind" => "tree_willow", "weight" => 45}, %{"kind" => "tree_cypress", "weight" => 30}, %{"kind" => "bush", "weight" => 25}]},
-      %{"key" => "bog", "name" => "Bog", "weight" => 3, "canopy" => 0.70, "undergrowth" => 1.20, "leafHue" => -4, "leafValue" => -0.06, "pools" => 0.30,
-        "formation" => %{"lattice" => 12, "spacing" => 1, "understory" => 1.20, "understoryTile" => "thicket"},
-        "trees" => [%{"kind" => "tree_cypress", "weight" => 50}, %{"kind" => "tree_willow", "weight" => 30}, %{"kind" => "tree_mangrove", "weight" => 20}]},
-      %{"key" => "sink", "name" => "Sink", "weight" => 2, "canopy" => 0.50, "undergrowth" => 0.80, "leafHue" => -6, "leafValue" => -0.09, "pools" => 0.50,
-        "formation" => %{"lattice" => 9, "spacing" => 3, "understory" => 0.80, "understoryTile" => "thicket"},
-        "trees" => [%{"kind" => "tree_cypress", "weight" => 45}, %{"kind" => "tree_mangrove", "weight" => 45}, %{"kind" => "tree_sapling", "weight" => 10}]},
-      %{"key" => "open_water", "name" => "Open water", "weight" => 1, "canopy" => 0.15, "undergrowth" => 0.25, "leafHue" => -8, "leafValue" => -0.10, "pools" => 0.78,
-        "formation" => %{"lattice" => 5, "spacing" => 5, "understory" => 0.25, "understoryTile" => "thicket"},
-        "trees" => [%{"kind" => "tree_mangrove", "weight" => 70}, %{"kind" => "tree_cypress", "weight" => 30}]}
-    ]},
-    "forest_ruins" => {"rings", [
-      %{"key" => "heart", "name" => "The ruin itself", "weight" => 1, "canopy" => 0.08, "undergrowth" => 0.15, "leafHue" => 3, "leafValue" => 0.09, "stone" => 0.60,
-        "formation" => %{"lattice" => 3, "spacing" => 6, "understory" => 0.15, "understoryTile" => "shrub"},
-        "trees" => [%{"kind" => "tree_sapling", "weight" => 100}]},
-      %{"key" => "courts", "name" => "Fallen courts", "weight" => 2, "canopy" => 0.25, "undergrowth" => 0.35, "leafHue" => 2, "leafValue" => 0.06, "stone" => 0.42,
-        "formation" => %{"lattice" => 5, "spacing" => 4, "understory" => 0.35, "understoryTile" => "shrub"},
-        "trees" => [%{"kind" => "tree_stub", "weight" => 50}, %{"kind" => "tree_sapling", "weight" => 30}, %{"kind" => "bush", "weight" => 20}]},
-      %{"key" => "terraces", "name" => "Terraces", "weight" => 3, "canopy" => 0.55, "undergrowth" => 0.60, "leafHue" => 0, "leafValue" => 0.01, "stone" => 0.24,
-        "formation" => %{"lattice" => 8, "spacing" => 2, "understory" => 0.60, "understoryTile" => "thicket"},
-        "trees" => [%{"kind" => "tree_oak", "weight" => 35}, %{"kind" => "tree_stub", "weight" => 30}, %{"kind" => "tree_broadleaf", "weight" => 20}, %{"kind" => "bush", "weight" => 15}]},
-      %{"key" => "overgrown", "name" => "Overgrown walls", "weight" => 3, "canopy" => 0.95, "undergrowth" => 1.15, "leafHue" => -3, "leafValue" => -0.05, "stone" => 0.10,
-        "formation" => %{"lattice" => 11, "spacing" => 1, "understory" => 1.15, "understoryTile" => "thicket"},
-        "trees" => [%{"kind" => "tree_oak", "weight" => 30}, %{"kind" => "tree_broadleaf", "weight" => 25}, %{"kind" => "tree_gnarled", "weight" => 20}, %{"kind" => "bush", "weight" => 25}]},
-      %{"key" => "forest", "name" => "Forest around it", "weight" => 3, "canopy" => 1.15, "undergrowth" => 1.00, "leafHue" => -4, "leafValue" => -0.08,
-        "formation" => %{"lattice" => 13, "spacing" => 0, "understory" => 1.00, "understoryTile" => "thicket"},
-        "trees" => [%{"kind" => "tree_oak", "weight" => 30}, %{"kind" => "tree_tall", "weight" => 25}, %{"kind" => "tree_broadleaf", "weight" => 25}, %{"kind" => "tree_column", "weight" => 20}]}
-    ]},
-    "forest_desert" => {"bands", [
-      %{"key" => "erg", "name" => "Dune sea", "weight" => 4, "canopy" => 0.02, "undergrowth" => 0.06, "leafHue" => 4, "leafValue" => 0.10,
-        "formation" => %{"lattice" => 3, "spacing" => 7, "understory" => 0.06, "understoryTile" => "shrub"},
-        "trees" => [%{"kind" => "cactus_barrel", "weight" => 50}, %{"kind" => "cactus_saguaro_young", "weight" => 50}]},
-      %{"key" => "hardpan", "name" => "Hardpan", "weight" => 3, "canopy" => 0.06, "undergrowth" => 0.12, "leafHue" => 2, "leafValue" => 0.07,
-        "formation" => %{"lattice" => 5, "spacing" => 5, "understory" => 0.12, "understoryTile" => "shrub"},
-        "trees" => [%{"kind" => "cactus_saguaro_young", "weight" => 30}, %{"kind" => "cactus_prickly", "weight" => 30}, %{"kind" => "tree_gnarled", "weight" => 20}, %{"kind" => "tree_stub", "weight" => 20}]},
-      %{"key" => "wadi", "name" => "Wadi", "weight" => 2, "canopy" => 0.20, "undergrowth" => 0.40, "leafHue" => -1, "leafValue" => 0.00,
-        "formation" => %{"lattice" => 7, "spacing" => 3, "understory" => 0.40, "understoryTile" => "shrub"},
-        "trees" => [%{"kind" => "tree_gnarled", "weight" => 35}, %{"kind" => "tree_encina", "weight" => 25}, %{"kind" => "cactus_saguaro", "weight" => 20}, %{"kind" => "tree_stub", "weight" => 20}]},
-      %{"key" => "oasis", "name" => "Oasis", "weight" => 1, "canopy" => 0.75, "undergrowth" => 0.80, "leafHue" => -5, "leafValue" => -0.05, "pools" => 0.18,
-        "formation" => %{"lattice" => 10, "spacing" => 1, "understory" => 0.80, "understoryTile" => "thicket"},
-        "trees" => [%{"kind" => "tree_palm", "weight" => 60}, %{"kind" => "tree_encina", "weight" => 25}, %{"kind" => "bush", "weight" => 15}]}
-    ]},
-    "forest_meadow" => {"scatter", [
-      %{"key" => "pasture", "name" => "Pasture", "weight" => 4, "canopy" => 0.12, "undergrowth" => 0.30, "leafHue" => 2, "leafValue" => 0.05,
-        "formation" => %{"lattice" => 4, "spacing" => 5, "understory" => 0.30, "understoryTile" => "tall_grass"},
-        "trees" => [%{"kind" => "tree_round", "weight" => 40}, %{"kind" => "tree_big", "weight" => 30}, %{"kind" => "bush_round", "weight" => 30}]},
-      %{"key" => "hedgerow", "name" => "Hedgerow", "weight" => 3, "canopy" => 0.70, "undergrowth" => 1.20, "leafHue" => -3, "leafValue" => -0.05,
-        "formation" => %{"lattice" => 9, "spacing" => 1, "understory" => 1.20, "understoryTile" => "thicket"},
-        "trees" => [%{"kind" => "tree_gnarled", "weight" => 40}, %{"kind" => "bush_round", "weight" => 35}, %{"kind" => "bush", "weight" => 25}]},
-      %{"key" => "orchard", "name" => "Orchard", "weight" => 2, "canopy" => 0.85, "undergrowth" => 0.40, "leafHue" => 1, "leafValue" => 0.02,
-        "formation" => %{"lattice" => 7, "spacing" => 3, "understory" => 0.40, "understoryTile" => "clover"},
-        "trees" => [%{"kind" => "tree_cherry", "weight" => 45}, %{"kind" => "tree_round", "weight" => 35}, %{"kind" => "tree_big", "weight" => 20}]},
-      %{"key" => "bank", "name" => "River bank", "weight" => 2, "canopy" => 0.50, "undergrowth" => 0.90, "leafHue" => -5, "leafValue" => -0.02, "pools" => 0.12,
-        "formation" => %{"lattice" => 8, "spacing" => 2, "understory" => 0.90, "understoryTile" => "tall_grass"},
-        "trees" => [%{"kind" => "tree_willow", "weight" => 55}, %{"kind" => "tree_broadleaf", "weight" => 30}, %{"kind" => "bush", "weight" => 15}]},
-      %{"key" => "common", "name" => "Open common", "weight" => 3, "canopy" => 0.05, "undergrowth" => 0.20, "leafHue" => 3, "leafValue" => 0.08,
-        "formation" => %{"lattice" => 3, "spacing" => 6, "understory" => 0.20, "understoryTile" => "clover"},
-        "trees" => [%{"kind" => "bush_round", "weight" => 60}, %{"kind" => "tree_sapling", "weight" => 40}]}
-    ]}
-  }
-
+  alias Nebulith.Catalog.GeneratorSource
 
   def run do
-    rows =
-      for {key, {layout, regions}} <- @sets, reduce: 0 do
-        acc -> acc + write(key, layout, regions)
-      end
-
-    # The volcanic set is already right; what it never had was an arrangement, so it was met at random.
-    volcanic = layout_only("forest_volcanic", "rings")
-
-    Logger.info("[data_migrate] #{rows} biomes carry their own regions, #{volcanic} more get an arrangement")
-
+    GeneratorSource.seed()
+    Logger.info("[data_migrate] every biome lays out its own regions")
     :ok
-  end
-
-  defp write(key, layout, regions) do
-    %{num_rows: rows} =
-      Repo.query!(
-        """
-        UPDATE generators
-        SET config = jsonb_set(jsonb_set(config, '{subZones}', $2::text::jsonb), '{regionLayout}', $3::text::jsonb)
-        WHERE key = $1
-        """,
-        [key, Jason.encode!(regions), Jason.encode!(layout)]
-      )
-
-    rows
-  end
-
-  defp layout_only(key, layout) do
-    %{num_rows: rows} =
-      Repo.query!(
-        "UPDATE generators SET config = jsonb_set(config, '{regionLayout}', $2::text::jsonb) WHERE key = $1",
-        [key, Jason.encode!(layout)]
-      )
-
-    rows
   end
 end

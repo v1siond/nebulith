@@ -421,6 +421,49 @@ to the beach.
 `pools` climbs across the set. The deep end is the one that needs the crossings, which is section 5's other
 gap.
 
+### Woodland, `scatter`, the parts of a working wood
+
+*"what are 'edge of the wood', 'deep wood', glade and thicket???? none of those regions names make any sense
+whatsoever and aren't real meadow, woodland nor jungle sections at all"* (2026-09-20)
+
+`high_forest` / `coppice` / `ride` / `windthrow` / `streamside`
+
+The old set was four descriptions of DENSITY (edge, deep, glade, thicket) plus one that named water and had
+none. Density is not a place. These are the parts a real temperate wood is actually made of, and each one is
+made of a different thing rather than the same wood at another setting:
+
+| region | what it IS | what makes it look like itself |
+|---|---|---|
+| `high_forest` | mature standards, never cut | the tallest trunks, well apart, an OPEN floor under them |
+| `coppice` | cut on rotation and regrowing | no big trees at all, a dense low thicket of regrowth |
+| `ride` | the grass track cut through for access | almost no canopy, long grass, a strip you can see along |
+| `windthrow` | where a gale took the stand down | gaps, fallen trunks as rock-sized obstacles, scrub coming up |
+| `streamside` | the wet gill in the bottom | standing water, and the species that only grow with their feet wet |
+
+`streamside` is the one that carries `pools`, so the wood's water is somewhere a wood actually holds water.
+
+### Jungle, `scatter`, the strata of a rainforest
+
+`emergent` / `understory` / `light_gap` / `varzea` / `bamboo`
+
+A rainforest is told apart by what happens at knee height (§3.5), so the set is its strata and its two special
+stands rather than five densities:
+
+| region | what it IS | what makes it look like itself |
+|---|---|---|
+| `emergent` | the giants that break the canopy | `tree_giant` over an open, dark floor: a rainforest floor is bare |
+| `understory` | the choked layer | no big trees, a wall of `thicket` at knee height, the one biome it belongs to |
+| `light_gap` | a treefall gap | full light, dense regrowth and every bloom the biome has |
+| `varzea` | seasonally flooded forest | standing water between buttressed trunks |
+| `bamboo` | a bamboo stand | no canopy trees at all, tight even spacing, one species |
+
+### Volcanic, `rings`, the set §4 opened with
+
+The content was authored here on 2026-09-17 and never reached the catalog: `every_biome_its_own_regions` gave
+sets to six biomes and volcanic was not one of them, so it kept the generic wood's five while wearing the
+`rings` arrangement. `crater` -> `burnt` -> `ashfall` -> `sheltered` -> `lavaside`, and `lavaside` carries the
+molten body the way `streamside` carries water.
+
 ### Meadow, `scatter`, and that is correct
 
 *"a meadow is not that wet, and rivers aren't gonna be as prominent as in a swamp, on a meadow that doesn't
