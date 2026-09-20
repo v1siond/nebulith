@@ -798,7 +798,7 @@ defmodule Nebulith.Catalog.GeneratorSource do
            "undergrowth" => 1.05,
            "leafHue" => -5,
            "leafValue" => 0.02,
-           "pools" => 0.26,
+           "pools" => 0.08,
            "formation" => %{
              "lattice" => 6,
              "spacing" => 3,

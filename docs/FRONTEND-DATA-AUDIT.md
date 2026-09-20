@@ -46,6 +46,22 @@ If yes, it is data.
 | How much of the map a picked region claims | `REGION_LEAD = 5`, a multiplier in `stageGenerator.ts` | Gone. Picking a region makes the map that region; how much each claims otherwise is the generator's served `weight`. |
 | How many ways across a map, and ways out | A hand-written list of four choices in the seeder, filtered down | Measured by the engine (`pathwayCeiling`, `exitCeiling`) off the served `pathway.width`; the option says which measurement it lives by (`countBy`, `countPer`). |
 | Whether a tile stops you | `tiles.blocking`, a second switch beside `settings.collision` | The column is gone. The box list is the only answer, and the generator states it like any other tile setting. |
+| **How much of what a map CONTAINS** | **42 numeric constants in `stageGenerator.ts`**: the ground and bloom patch sizes, the treeline depth, the bare-canopy share, the pocket cap, the gateway run and gate lanes, the ford width, the lake minimum, the water cap and pool sizing, the four ruin measurements and the nine meadow ones | **`config.terrain`**, served on every generator row and read through `ctx.terrain` with no fallback anywhere. 42 constants down to 2, and both of those now say in a comment which of §1's kinds they are. |
+| The plant a region grows | `?? 'thicket'` and `?? 'tall_grass'` where a formation named none | Absent means absent: the pass grows nothing rather than manufacturing the one fact §3.5 says tells two regions apart. |
+| The tree grouping | `DEFAULT_CANOPY_LATTICE = 4`, a fallback for a served value | Gone. A formation that states no lattice describes no grouping, and the map grows nothing rather than a wood at a spacing this file picked. |
+| A crossing's look | `dirt` served `colorOf: path_dirt`, a fixed brown for every template | `reusesWay`: a dirt crossing wears the map's OWN way, so in a city it is the city's street and in a wood the wood's track. |
+
+### What the move taught, and it cost three separate bugs to learn
+
+**A value a shared LAYOUT reads has to be served by every template that can run it.** Three builders are
+shared between nine environments. Values named `MEADOW_*` were moved to the meadow's own row, and the moment
+they were, the around-course river stopped being cut and the framing trees stopped being planted on every
+other template that runs those builders. Same for the ruin measurements, which any region stating `stone`
+needs. The name of a constant is not evidence about who reads it.
+
+**A rule is not a value.** "The border is closed except at its gates" holds on every map, so the seal cannot
+be conditional on data; how DEEP the band runs is a description of one kind of map, so it must be. Making the
+whole thing conditional left a town's border 196 of 196 cells open.
 
 ---
 
@@ -69,15 +85,15 @@ model in the database.
 **Verdict: DATA.** A unit's colours belong on its tile row, like every other tile's. Blocked on nothing but
 the work: the rows exist and already carry `settings.color`.
 
-### 3.3 `engine/stageGenerator.ts`, 42 numeric constants
+### 3.3 `engine/stageGenerator.ts`, the numeric constants: CLOSED
 
-Examples: `RUIN_FALLEN = 0.3`, `RUIN_RUBBLE = 0.14`, `SWAMP_POOL_PATCH = 5`, `BARE_CANOPY = 0.1`,
-`JUNGLE_MAX_POCKET = 40`, `MEADOW_PATCH = 7`, `GATEWAY_RUN = 11`.
+42 down to 2, both of them §1 kinds and both now saying so in a comment (`WAY_PIECE_CUTS`, a count of served
+art; `RIVER_ELBOW_ROOM`, how the river search avoids crowding itself). The rest are `config.terrain`.
 
-**Verdict: DATA, nearly all of it.** Every one answers "how much of this does a map of this kind have",
-which is the definition of a template value. They belong beside `nature`, `formation` and `pathway` in the
-generator's served config. Four remaining colours in this file (`makeKey`, `ember`, the lava prop) are the
-same.
+Eleven more constants remain in this file and are NOT counted, because nothing can reach them: they belong to
+the `cave`, `temple` and `boss-stage` archetypes, and the backend serves only `forest`, `town` and `city`
+variants. They are unreachable code rather than hardcoded data, and the day a generator serves one of those
+variants they become §3.3 again. Four colours in this file (`makeKey`, `ember`, the lava prop) are still open.
 
 ### 3.4 `villageLayout.ts`: `SETBACK = 1`, `ROAD_W = 4`
 
@@ -102,3 +118,5 @@ the thing is the fallback the law is about. These are the first kind. `§3.3`'s 
 - [ ] A constant that stays is one of the three kinds in §1, and says which in a comment
 - [ ] A frontend default covers only the moment before the catalog loads, never a value the backend never described (§3.4)
 - [ ] Judged at :3000
+- [ ] A value a SHARED builder reads is served by every template that can run that builder, not only by the
+      one it happens to be named after

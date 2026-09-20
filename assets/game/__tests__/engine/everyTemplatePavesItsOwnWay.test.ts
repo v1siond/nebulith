@@ -50,6 +50,7 @@ function build(key: string, seed: number): StageData {
       cols: 44, rows: 44, options: { exits: '2', pathways: '2' },
       nature: c.nature, palette: c.palette, formation: c.formation, pathway: c.pathway, treeMix: c.trees,
       subZones: c.subZones, crossings: c.crossings, entrance: c.entrance, settlement: c.settlement,
+      terrain: c.terrain, regionLayout: c.regionLayout,
     })
   } finally {
     Math.random = orig

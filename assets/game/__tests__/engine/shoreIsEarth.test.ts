@@ -34,6 +34,7 @@ function grow(key: string, zone = 'summer', seed = 3) {
       zone: zone as never, variant: 'forest', layout: g.layout as 'jungle' | 'woodland' | 'meadow',
       cols: 60, rows: 40, nature: c.nature, palette: c.palette, formation: c.formation,
       treeMix: c.trees, subZones: c.subZones, crossings: c.crossings,
+      terrain: c.terrain, regionLayout: c.regionLayout,
       options: { river: 'around', crossing: true, bridge: 'wood', exits: '2', pathways: '3' },
     })
   } finally { Math.random = orig }

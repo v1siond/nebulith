@@ -32,7 +32,7 @@ function forest(course: string, seed: number, bridge = 'stone') {
     return generateStage({
       zone: 'summer', variant: 'forest', layout: 'woodland', cols: 60, rows: 40,
       nature: cfg.nature, palette: cfg.palette, formation: cfg.formation, treeMix: cfg.trees,
-      crossings: cfg.crossings,
+      crossings: cfg.crossings, subZones: cfg.subZones, terrain: cfg.terrain, regionLayout: cfg.regionLayout,
       // EXITS AND PATHWAYS, the way the editor builds. A crossing is placed where a WAY meets the water, so a
       // map with no route network has nothing for one to land on: without these the sweep found decks on dry
       // landings only and not one bridge across twenty-one maps.
@@ -206,8 +206,12 @@ describe('a walkable floor never wears water, whatever painted it', () => {
   it('the puddles are still there, as a stacked film rather than a painted floor', () => {
     // The other half: the fix must not have deleted the water, only moved it off the floor and onto its own
     // layer. A green test with no puddles left would be the worst possible outcome.
+    // THE GUARD IS AGAINST ZERO, and the number is a floor rather than a reading of one build: a swamp's
+    // regions decide their own pools now, and the bodies big enough to be carved as lakes are carved rather
+    // than filmed, so seed 7 comes out at 15 where it used to read 26. What must never happen is a green
+    // case with no puddles at all.
     const films = swampJungle(7).props.filter(p => p.label === 'water_still')
-    expect(films.length).toBeGreaterThan(20)
+    expect(films.length).toBeGreaterThan(10)
     expect(films.every(f => !f.occupies)).toBe(true) // you wade a puddle
   })
 })

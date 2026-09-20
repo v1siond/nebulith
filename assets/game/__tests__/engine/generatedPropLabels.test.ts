@@ -11,6 +11,7 @@ import '@/__tests__/helpers/installZoneSeed' // the generator reads every season
  * baked image (in EVERY style) instead of a glyph, "everything is a baked image resolved by label."
  */
 import { generateStage, type StageProp } from '@/engine/stageGenerator'
+import { servedWild } from '@/__tests__/helpers/servedGenerator'
 import { labelTileImage } from '@/engine/render/shared'
 import { ASCII_STYLE, EMOJI_STYLE } from '@/game/artStyle'
 import { useSeedTileset } from '@/__tests__/helpers/tilesetSeed'
@@ -28,7 +29,9 @@ function gatherProps(): StageProp[] {
     { zone: 'autumn', variant: 'cave' },
     { zone: 'winter', variant: 'boss-stage' },
   ]
-  return combos.flatMap(c => generateStage({ ...c, cols: 40, rows: 30 }).props)
+  // FROM THE ROW THE APP BUILDS FROM, with each combo's own zone and layout on top: without the served
+  // formation and terrain there is no grouping and no ground measurement, so no nature props at all.
+  return combos.flatMap(c => generateStage({ ...servedWild('woodland'), ...c, cols: 40, rows: 30 }).props)
 }
 
 /** The scattered nature prop TYPE → the baked backend LABEL it must carry (verified baked in ascii AND emoji). */

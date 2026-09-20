@@ -18,6 +18,7 @@ import '@/__tests__/helpers/installTilesetSeed'
 import { generateStage } from '@/engine/stageGenerator'
 import { findGeneratorByKey, parseGeneratorCatalog } from '@/lib/generatorCatalog'
 import { makeRng } from '@/lib/math'
+import { servedConfig } from '@/__tests__/helpers/servedGenerator'
 import liveBody from '@/__tests__/fixtures/generators.json'
 
 const CATALOG = parseGeneratorCatalog(liveBody)
@@ -38,6 +39,8 @@ function grow(key: string, seed = 3) {
       cols: 60, rows: 40,
       nature: c.nature, palette: c.palette, formation: c.formation,
       treeMix: c.trees, subZones: c.subZones, crossings: c.crossings,
+      // …and how much of what the map holds, which is what the understory planter measures itself against.
+      terrain: c.terrain, regionLayout: c.regionLayout,
     })
   } finally { Math.random = orig }
 }
@@ -60,25 +63,67 @@ describe('the understory is the plant the backend serves', () => {
   })
 
   it('a meadow grows nothing you cannot walk over', () => {
+    // THE TITLE IS THE RULE, and it is about walking, not about one label. This asserted zero THICKETS,
+    // from back when the thicket was the one plant row that blocked. It is not any more: *"the density of
+    // trees is conflicting with the functionality of the map, user can't move, we can't put any treasures
+    // nor units around"*, so `ensure_ground_plants/0` writes `occupies: false` on all nineteen of them. A
+    // meadow's `hedgerow` is a thicket by definition, and you walk through a hedgerow.
     const meadow = grow('forest_meadow')
-    expect(plants(meadow, 'thicket')).toHaveLength(0)
-    expect(blockedUnder(meadow, 'tall_grass')).toBe(0)
+    const grown = meadow.props.filter(p => p.grows)
+    expect(grown.length).toBeGreaterThan(0)
+    // A CELL THAT HOLDS ONLY THE PLANT. A trunk may stand in the same cell and a trunk blocks; what must
+    // never happen is a cell you cannot walk into whose only contents are something you walk through.
+    const trunks = new Set(meadow.trees.map(t => `${t.col},${t.row}`))
+    const blocked = grown.filter(p => meadow.collision[p.row][p.col] && !trunks.has(`${p.col},${p.row}`))
+    expect(blocked.map(p => `${p.label}@${p.col},${p.row}`)).toEqual([])
   })
 
-  it('a JUNGLE still chokes, because its formation serves the thicket', () => {
+  it('a JUNGLE still chokes, and it chokes where its own regions say it does', () => {
     const jungle = grow('forest_jungle')
     const thicket = plants(jungle, 'thicket')
     expect(thicket.length).toBeGreaterThan(0)
-    // Every one of them blocks, and the generator did not decide that: the tile row did.
-    expect(blockedUnder(jungle, 'thicket')).toBe(thicket.length)
+
+    // …and not one of them stops you on its own, which is the other half. A jungle is thick, not sealed.
+    const trunks = new Set(jungle.trees.map(t => `${t.col},${t.row}`))
+    const sealed = thicket.filter(p => jungle.collision[p.row][p.col] && !trunks.has(`${p.col},${p.row}`))
+    expect(sealed.map(p => `${p.col},${p.row}`)).toEqual([])
+
+    // WHERE it is thick is the region's business: the `understory` is the wall of bush, the `emergent` is
+    // the open dark floor under the giants. A count over the whole map cannot tell those apart.
+    const inRegion = (key: string) =>
+      thicket.filter(p => jungle.regions?.[p.row]?.[p.col] === key).length
+    expect(inRegion('understory')).toBeGreaterThan(inRegion('emergent'))
   })
 
-  it('a REGION inside a woodland inherits its plant, it does not fall back to the thicket', () => {
-    // Every served region states an `understory` number and none states a tile of its own. Reading only the
-    // region's own dropped a glade and a mountain vale straight back onto the blocking thicket: 29 of them on
-    // one woodland seed, measured.
+  it('a REGION inside a wood grows ITS OWN plant, never one the template fell back to', () => {
+    // Reading only the region's own used to drop a glade and a mountain vale onto the thicket, 29 of them
+    // on one woodland seed. The rule is that a region's plant is the one its own data names, so the check
+    // is against the SERVED set rather than against one label being absent: a mountain's `foot` is a
+    // thicketed lower slope on purpose, and asserting "no thicket anywhere" called that a defect.
     for (const key of ['forest_woodland', 'forest_mountain']) {
-      expect({ key, thickets: plants(grow(key), 'thicket').length }).toEqual({ key, thickets: 0 })
+      const stage = grow(key)
+      const config = servedConfig('wilderness', key)
+      // The regions' plants, PLUS the template's own: a cell no region claims grows what the row states,
+      // which is the documented inheritance rather than a fallback.
+      const served = new Set(
+        [
+          config.formation?.understoryTile,
+          ...(config.subZones ?? []).map(z => z.formation?.understoryTile),
+        ].filter((t): t is string => !!t),
+      )
+      expect(served.size).toBeGreaterThan(1)
+      // UNDERSTORY PLANTS ONLY. A bloom is not an understory: it comes from `nature.flowers` and is the
+      // subject of its own cases, so counting it here asked this one a question it was not about.
+      const understories = new Set(
+        wilderness().flatMap(g => [
+          g.config.formation?.understoryTile,
+          ...(g.config.subZones ?? []).map(z => z.formation?.understoryTile),
+        ]).filter((t): t is string => !!t),
+      )
+      const strangers = stage.props
+        .filter(p => p.grows && p.label && understories.has(p.label) && !served.has(p.label))
+        .map(p => p.label)
+      expect({ key, strangers: [...new Set(strangers)] }).toEqual({ key, strangers: [] })
     }
   })
 

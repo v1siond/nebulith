@@ -36,6 +36,8 @@ function grow(key: string, seed = 3) {
       zone: 'summer', variant: 'forest', layout: g.layout as 'jungle' | 'woodland' | 'meadow',
       cols: 60, rows: 40, nature: c.nature, palette: c.palette, formation: c.formation,
       treeMix: c.trees, subZones: c.subZones, crossings: c.crossings,
+      // …and how the pools are sized, which is what decides whether there is any standing water to film.
+      terrain: c.terrain, regionLayout: c.regionLayout,
       options: { river: 'through', crossing: true, bridge: 'wood' },
     })
   } finally { Math.random = orig }

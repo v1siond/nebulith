@@ -30,6 +30,9 @@ test('bridge asked for, bridge delivered', () => {
         const s = (() => { try { return generateStage({ zone: 'summer', variant: 'forest', layout: 'woodland', cols: 40, rows: 40,
           nature: def.config.nature, palette: def.config.palette, formation: def.config.formation, treeMix: def.config.trees,
           crossings: def.config.crossings, pathway: def.config.pathway,
+          // …and where an AROUND course runs, which is served: without it there is no channel to bridge and
+          // every `around` case reported a missing deck for a river that was never cut.
+          terrain: def.config.terrain, subZones: def.config.subZones, regionLayout: def.config.regionLayout,
           options: { exits: '2', pathways: '2', river: course, bridge } } as never) } finally { Math.random = orig } })()
         tried++
         const decks = s.decks?.size ?? 0

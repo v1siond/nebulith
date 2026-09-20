@@ -14,23 +14,34 @@ import '@/__tests__/helpers/installTilesetSeed'
 import { generateStage, type NatureDensity } from '@/engine/stageGenerator'
 import { type GeneratorFormation } from '@/lib/generatorCatalog'
 import { makeRng } from '@/lib/math'
+import { servedWild } from '@/__tests__/helpers/servedGenerator'
 
 const BASE: NatureDensity = { canopy: 0.45, groundCover: 0.3, flowers: 0.05 }
 
 /** The served formations, as `generator_source.ex` carries them. */
+/**
+ * THE FIVE SERVED FORMATIONS, with the PLANT each of them names.
+ *
+ * These were written out as literals and every one of them omitted `understoryTile`, which used to be
+ * harmless because the planter fell back to the thicket. It does not any more: a formation that names no
+ * plant grows nothing, so all five cases measured the same map and the comparisons between them went flat
+ * at 219 props each. A literal that shadows served data is a second opinion about it.
+ */
 const FORM: Record<string, GeneratorFormation> = {
-  scattered: { lattice: 3, spacing: 4, understory: 0.35 },
-  stand: { lattice: 5, spacing: 2, understory: 0.45 },
-  clumped: { lattice: 10, spacing: 0, understory: 0.6 },
-  closed: { lattice: 13, spacing: 0, understory: 1.25 },
-  understory: { lattice: 7, spacing: 0, understory: 1.9 },
+  scattered: { lattice: 3, spacing: 4, understory: 0.35, understoryTile: 'clover' },
+  stand: { lattice: 5, spacing: 2, understory: 0.45, understoryTile: 'shrub' },
+  clumped: { lattice: 10, spacing: 0, understory: 0.6, understoryTile: 'shrub' },
+  closed: { lattice: 13, spacing: 0, understory: 1.25, understoryTile: 'thicket' },
+  understory: { lattice: 7, spacing: 0, understory: 1.9, understoryTile: 'thicket' },
 }
 
 const build = (formation: GeneratorFormation, canopy = 0.45, seed = 3) => {
   const orig = Math.random
   Math.random = makeRng(seed)
   try {
-    return generateStage({ zone: 'summer', variant: 'forest', layout: 'woodland', cols: 60, rows: 40, nature: { ...BASE, canopy }, formation })
+    // THE FORMATION IS THE ARGUMENT, the rest is the row the app builds from: a wood with no served
+    // terrain has no ground measurements to plant against, so every case measured an empty map.
+    return generateStage({ ...servedWild('woodland'), zone: 'summer', variant: 'forest', layout: 'woodland', cols: 60, rows: 40, nature: { ...BASE, canopy }, formation, subZones: undefined })
   } finally {
     Math.random = orig
   }
@@ -136,7 +147,7 @@ describe('a formation is DISTRIBUTION, the look comes from pairing it with a den
 
   it('states no understory → plants none, and the wood is unchanged', () => {
     // The compliance rule: a formation that says nothing about the floor gets no opinion invented for it.
-    const bare = build({ lattice: 5, spacing: 2 })
+    const bare = build({ lattice: 5, spacing: 2 }) // no understory, and no plant named either
     const withFloor = build(FORM.understory)
     expect(bare.props.length).toBeLessThan(withFloor.props.length)
   })

@@ -205,7 +205,7 @@
                 "leafHue": -5,
                 "leafValue": 0.02,
                 "name": "Streamside",
-                "pools": 0.26,
+                "pools": 0.08,
                 "trees": [
                   {
                     "kind": "tree_willow",
