@@ -373,3 +373,102 @@ grid-lines were the FPS killer). A single **reusable land-only guard** (`isWater
 deck. `repairFloorConnectivity` fills only TINY stranded pockets, so the land strip beyond the river stays a
 deliberate separate area. Structure is locked by `stageGenerator.meadow.test.ts`; the visual match itself is
 validated on the running game (:3000).
+
+---
+
+## 6. What a generator ROW is
+
+§5 says what the LAYERS do. This says what they are fed, which is one row of `generators` served by
+`GET /api/generators`. There are 38 of them: nine wilderness biomes and a village / town / city for each,
+plus the standalone city types.
+
+### 6.1 The row
+
+| field | what it is |
+|---|---|
+| `key` | names exactly ONE row, `forest_woodland`, `town_swamp`. This is what a card is. |
+| `layout` | which BUILDER runs: `woodland`, `jungle`, `meadow`, `town`, `city`. Three builders serve nine biomes. |
+| `variant` | which archetype the engine runs it as: `forest`, `town`, `city`. |
+| `zones` | the seasons this row may be generated in. |
+| `config` | everything the build is made of (§6.2). |
+| `options` | what the PANEL offers: exits, pathways, region, river, kind of crossing. |
+
+`layout` and `key` are not the same thing and the difference has bitten twice: nine wilderness rows share
+three builders, so looking a row up by its layout hands back whichever row declares that builder first.
+
+### 6.2 The config sections
+
+    grid          how big a map of this kind is, and its cell geometry
+    nature        how thickly it is dressed: canopy, groundCover, flowers, tallGrass
+    palette       the COLOURS it paints with: floor, litter, canopy, water, bank
+    formation     how it DISTRIBUTES trees: lattice, spacing, understory, understoryTile
+    trees         WHICH trees, as weights
+    pathway       what its ways are made of: surface, width, tone, edge
+    crossings     what a river is crossed on, by kind (§6.4)
+    subZones      THE REGIONS it is made of (§6.3)
+    regionLayout  how those regions are laid on the map: scatter / rings / bands
+    terrain       HOW MUCH of what it contains (§6.5)
+    units         who populates it
+    settlement    plot and street tuning, settlements only
+    buildings     the material and colour palette, settlements only
+
+A section the row does not state is ABSENT, and the pass that reads it does nothing. That is the law
+(`MAP-MODEL.md` §8), and it is why a town states no `formation` and grows no wood.
+
+### 6.3 `subZones`: the regions, and they belong to the BIOME
+
+Every row is made of regions, and they are ITS OWN. `REGIONS.md` §1.1. A woodland is
+`high_forest / coppice / ride / windthrow / streamside`; a jungle is
+`emergent / understory / light_gap / varzea / bamboo`; a town is
+`centre / lanes / green / market / outskirts`. There is no shared set any more, and a "Glade" on a volcano
+was the symptom that there used to be.
+
+One region, in full, as served:
+
+```json
+{ "key": "coppice", "name": "Coppice", "weight": 3,
+  "canopy": 0.30, "undergrowth": 1.60, "leafHue": 0, "leafValue": 0.0,
+  "formation": { "lattice": 6, "spacing": 2, "understory": 1.55, "understoryTile": "shrub" },
+  "trees": [ { "kind": "tree_sapling", "weight": 55 },
+             { "kind": "bush", "weight": 30 },
+             { "kind": "bush_round", "weight": 15 } ] }
+```
+
+A region may also state `floor` (its own ground tone), `level` (relief, mountain and volcano only),
+`pools` (standing water), `stone` (fallen masonry) and `built` (the share of plots carrying a building,
+settlements only).
+
+**A region overrides the row, never the other way round.** The row's `formation` and `trees` are what a cell
+no region claims gets. Picking a region in the panel makes the map THAT region, whole.
+
+### 6.4 `crossings`: cut, or carried over
+
+A way never paves over water (`PATHWAYS.md` §1b). Where it meets a river it stops at the bank, or a crossing
+carries it:
+
+    wood / stone    a composition, a built span standing over the channel
+    dirt            reusesWay: the map's OWN way carried over, so in a city it is the city's street
+
+### 6.5 `terrain`: how much of what it contains
+
+Twenty-six numbers per row, measured in cells and in shares: the ground and bloom patch sizes, the depth of
+the treeline that closes its edge, how far its gateway reaches in, the ford width, the smallest body that
+counts as a lake, the pool sizing, the four ruin measurements and the meadow-layout ones.
+
+These were constants in `stageGenerator.ts`. They are here because **a value a shared BUILDER reads has to be
+served by every row that can run that builder**, and a constant named for one biome hides that. Moving the
+meadow's into the meadow's row alone broke the around-course river and the framing trees on every other row
+that runs the meadow builder.
+
+### 6.6 Who owns the data
+
+**The seeder owns the whole `config` column.** `GeneratorSource.seed/0` writes it from its own literal, so
+anything a data migration adds on top is gone at the next seed. That erased ten migrations' worth of region
+work, more than once, with nothing in the code having changed either time.
+
+So a fact that must survive lives in the seeder, not in a migration on top of it. The gate is
+`a_biome_has_its_own_regions_test.exs`: it seeds, and nothing else, and fails on a seeder that does not state
+the sets itself.
+
+Applying it to a database is `mix run -e 'Nebulith.Catalog.GeneratorSource.seed()'`. Nothing else writes these
+rows: `/api/generators` is read-only, `index` and no more.
