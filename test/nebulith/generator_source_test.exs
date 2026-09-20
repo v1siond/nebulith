@@ -518,9 +518,13 @@ defmodule Nebulith.GeneratorSourceTest do
       refute Enum.any?(all["forest_woodland"].config["subZones"], &Map.has_key?(&1, "stone"))
     end
 
-    test "every city has upper, middle and lower class neighbourhoods", %{categories: cats} do
+    test "every city has its three classes AND the places nobody lives in", %{categories: cats} do
+      # A city is not only somebody's neighbourhood. The park, the market and the graveyard are the parts of
+      # it that are not, and they are what stops a city being built solid from corner to corner.
       for g <- by_key(cats)["city"].generators do
-        assert Enum.map(g.config["subZones"], & &1["key"]) == ~w(upper middle lower), "#{g.key}"
+        assert Enum.map(g.config["subZones"], & &1["key"]) ==
+                 ~w(upper middle lower park market graveyard),
+               "#{g.key}"
 
         region = Enum.find(g.options, &(&1["key"] == "region"))
 
@@ -529,14 +533,22 @@ defmodule Nebulith.GeneratorSourceTest do
                    "Random",
                    "Upper class neighbourhood",
                    "Middle class neighbourhood",
-                   "Lower class neighbourhood"
+                   "Lower class neighbourhood",
+                   "Park",
+                   "Market",
+                   "Graveyard"
                  ],
                "#{g.key}"
       end
     end
 
     test "the class neighbourhoods differ by ARCHITECTURE, not by a tint", %{categories: cats} do
-      zones = generator(cats, "city", "city").config["subZones"]
+      # The three CLASSES, which are the parts of a city somebody lives in. A park states no architecture
+      # because nothing is built in it, which is the whole of what a park is.
+      zones =
+        generator(cats, "city", "city").config["subZones"]
+        |> Enum.filter(&(&1["key"] in ~w(upper middle lower)))
+
       looks = for z <- zones, b = z["buildings"], do: {z["key"], hd(b["materials"]), b["roof"]}
 
       # Money buys a different house, not the same house in another colour, so each neighbourhood owns its

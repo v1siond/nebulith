@@ -18,6 +18,7 @@ import { groundTileColor } from '@/engine/tileset/groundColor'
 import { zonePalette } from '@/engine/zones'
 import { type GeneratorPalette, type GeneratorSubZone } from '@/lib/generatorCatalog'
 import { makeRng } from '@/lib/math'
+import { servedWild } from '@/__tests__/helpers/servedGenerator'
 
 /** The served densities, as `generator_source.ex` carries them. */
 const WOODLAND: NatureDensity = { canopy: 0.434, groundCover: 0.2, flowers: 0.04 }
@@ -39,7 +40,15 @@ const build = (layout: 'woodland' | 'jungle', nature: NatureDensity, palette?: G
   const orig = Math.random
   Math.random = makeRng(seed)
   try {
-    return generateStage({ zone: 'summer', variant: 'forest', layout, cols, rows, nature, palette, subZones })
+    // Spread the served row FIRST, then only what this case is actually testing: a key written explicitly
+    // with an `undefined` value REPLACES the served one, which is how passing no palette quietly stripped
+    // the template's colours back off again.
+    return generateStage({
+      ...servedWild(layout),
+      zone: 'summer', variant: 'forest', layout, cols, rows, nature,
+      ...(palette ? { palette } : {}),
+      ...(subZones ? { subZones } : {}),
+    })
   } finally {
     Math.random = orig
   }
@@ -86,8 +95,16 @@ describe('a jungle is structurally a different place from a woodland', () => {
   it('travels along WATER, a creek runs through it, where a plain woodland has none', () => {
     // The creek is not the river OPTION. A wood may or may not have a river; a jungle IS built around its
     // watercourse, which is why this holds with no options passed at all.
-    expect(countWater(jungle())).toBeGreaterThan(0)
-    expect(countWater(woodland())).toBe(0)
+    //
+    // A WOOD HAS WATER TOO NOW, and the difference is its KIND. Its `streamside` region states `pools`, so a
+    // woodland carries STANDING water where that region falls, and asking for "no water at all" would now be
+    // asking a wood to stop having the one region named for it. A creek is water that RUNS: cells the
+    // generator did not file as standing.
+    const channel = (s: ReturnType<typeof jungle>) =>
+      s.ground.flatMap((row, r) => row.map((g, c) => (isWaterGround(g) && !s.standing?.has(`${c},${r}`) ? 1 : 0) as number)).reduce((a: number, b: number) => a + b, 0)
+
+    expect(channel(jungle())).toBeGreaterThan(0)
+    expect(channel(woodland())).toBe(0)
   })
 
   it('lays NO trails, a jungle has no roads, a woodland paves its corridors', () => {
@@ -105,7 +122,10 @@ describe('a jungle is structurally a different place from a woodland', () => {
       // The template's served trail colour, else the trail TILE's own: the SAME precedence the generator
       // uses. `s.palette` is not echoed back on the stage, so the served value is read from the config the
       // stage was grown from, exactly like the generator read it.
-      const paint = WOOD_PAL.trail ?? groundTileColor(zonePalette(s.zone)?.trail ?? '', 0, 0)
+      // The SAME precedence the generator uses (`wayTone`): the served pathway's own tone first, the
+      // template's trail colour next. This read only the second, so the day a template served a pathway the
+      // way was painted in a tone this test was not looking for and it measured zero paths on a paved map.
+      const paint = servedWild('woodland').pathway?.tone ?? WOOD_PAL.trail ?? groundTileColor(zonePalette(s.zone)?.trail ?? '', 0, 0)
       if (!paint) return 0
       let n = 0
       // THE COLOUR, WHATEVER TILE IT IS ON. This also required the ground to be the flat floor, which held
@@ -121,14 +141,43 @@ describe('a jungle is structurally a different place from a woodland', () => {
   it('is CHOKED, its undergrowth blocks, so far less of it is walkable', () => {
     const openPct = (s: ReturnType<typeof jungle>) =>
       s.collision.flat().filter(c => !c).length / (s.cols * s.rows)
+
     // Not a tuned threshold: the assertion is the GAP. If a jungle ever walks as freely as a wood it has
     // stopped being one, whatever the numbers say.
-    expect(openPct(jungle())).toBeLessThan(openPct(woodland()) * 0.6)
+    expect(openPct(jungle())).toBeLessThan(openPct(woodland()))
+
+    // CHOKED MEANS THICK, NOT SEALED, and that is a decision rather than a measurement drifting.
+    // *"the density of trees is conflicting with the functionality of the map, user can't move, we can't put
+    // any treasures nor units around"*, so every ground plant became something you walk THROUGH
+    // (`ensure_ground_plants/0` writes `occupies: false` on all nineteen of them, the thicket included).
+    // A jungle is told from a wood by how much stands between the trunks, and `aJungleYouCanWalkAcross`
+    // owns the other half, that you can still cross it and put things down.
+    const plants = (s: ReturnType<typeof jungle>) => s.props.filter(p => p.label === 'thicket').length
+    expect(plants(jungle())).toBeGreaterThan(plants(woodland()) * 2)
+
+    // …and it is thick WHERE THE MAP SAYS IT IS. Five regions exist so a rainforest is not one texture: the
+    // floor under the emergents is dark and open, the `understory` is the wall of bush.
+    const s = jungle()
+    const perRegion = (key: string) => {
+      let cells = 0, grown = 0
+      const plantAt = new Set(s.props.filter(p => p.label === 'thicket').map(p => `${p.col},${p.row}`))
+      s.regions?.forEach((row, r) => row.forEach((k, c) => {
+        if (k !== key) return
+        cells++
+        if (plantAt.has(`${c},${r}`)) grown++
+      }))
+      return cells === 0 ? undefined : grown / cells
+    }
+    const wall = perRegion('understory')
+    const open = perRegion('emergent')
+    expect(wall).toBeDefined()
+    expect(open).toBeDefined()
+    expect(wall!).toBeGreaterThan(open!)
   })
 
   it('stands EMERGENTS above the canopy, the giants a temperate wood does not roll', () => {
-    const tall = jungle().trees.filter(t => t.kind === 'tree_tall').length
-    expect(tall).toBeGreaterThan(0)
+    const giants = jungle().trees.filter(t => t.kind === 'tree_giant' || t.kind === 'tree_tall').length
+    expect(giants).toBeGreaterThan(0)
   })
 
   it('crosses its own creek by WADING it, and builds nothing to do it', () => {
@@ -170,7 +219,15 @@ describe('the COLOURS come from the served palette, and only from there', () => 
 
   it('paints NOTHING when the backend serves no palette, never a colour of its own', () => {
     // The compliance rule: a missing served value means "no opinion", not "pick one".
-    const bare = build('jungle', JUNGLE, undefined)
+    // BUILT WITH NOTHING SERVED, which is what the rule is about. Every other case here spreads the row the
+    // backend actually serves, and this one must not: a palette that arrives through the served config is
+    // still a served palette, and the question is what happens when none arrives at all.
+    const orig = Math.random
+    Math.random = makeRng(3)
+    let bare
+    try {
+      bare = generateStage({ zone: 'summer', variant: 'forest', layout: 'jungle', cols: 60, rows: 40, nature: JUNGLE })
+    } finally { Math.random = orig }
     expect(bare.floorColors.flat().filter(Boolean)).toHaveLength(0)
   })
 
@@ -233,7 +290,16 @@ describe('the jungle is PARTITIONED into sub-zones, regions inside one map', () 
 
   it('floods the SWAMP with standing pools, not a channel', () => {
     const s = zoned()
-    const dry = build('jungle', JUNGLE, JUNG_PAL, 5, 60, 40) // the same seed with no regions = creek only
+    // THE SAME SEED WITH NO REGIONS AT ALL, which is what this case compares against. It used to be
+    // `build(...)` with the sub-zones argument left off, and that stopped meaning "no regions" the day the
+    // helper began spreading the served row: a jungle serves five of its own, two of which carry water, so
+    // the "dry" map was wetter than the regioned one it was supposed to lose to.
+    const orig = Math.random
+    Math.random = makeRng(5)
+    let dry
+    try {
+      dry = generateStage({ zone: 'summer', variant: 'forest', layout: 'jungle', cols: 60, rows: 40, nature: JUNGLE, palette: JUNG_PAL })
+    } finally { Math.random = orig }
     // WATER-GROUND, not one spelling of it. A pool lays `water_shallow` since 2026-09-12, because that label
     // is height 0.0 and a puddle has to sit LEVEL with the floor, while `water` is 0.5 so a
     // RIVER surface sits under its bank. Counting the literal 'water' label therefore measured the CREEK only

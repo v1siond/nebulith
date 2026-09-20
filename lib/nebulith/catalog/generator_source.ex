@@ -104,7 +104,12 @@ defmodule Nebulith.Catalog.GeneratorSource do
   # composition's name is data about what exists in the catalog. The generator appends the span it needs
   # (`bridge_wood_5`), which is the same shape as `house_3`/`house_4`/`house_5`.
   @crossings %{
-    "dirt" => %{"tile" => "floor", "colorOf" => "path_dirt"},
+    # A DIRT CROSSING IS THE MAP'S OWN GROUND CARRIED OVER THE WATER, not a dirt colour of its own.
+    # *"if it's 'dirt bridge', it means, we reuse the terrain of the map, so in a city the dirt path is just
+    # a regular street, in a town, village, forest it'll be whatever terrain they are using"*. It served
+    # `colorOf: path_dirt`, so a city's crossing came out as a stripe of brown track through its streets.
+    # `reusesWay` says to wear the way's own tone, which is the thing this template already paves with.
+    "dirt" => %{"tile" => "floor", "reusesWay" => true},
     "wood" => %{"tile" => "bridge", "composition" => "bridge_wood"},
     "stone" => %{"tile" => "cobblestone", "composition" => "bridge_stone"}
   }
@@ -884,7 +889,7 @@ defmodule Nebulith.Catalog.GeneratorSource do
              "lattice" => 6,
              "spacing" => 4,
              "understory" => 0.75,
-             "understoryTile" => "tall_grass"
+             "understoryTile" => "thicket"
            },
            "trees" => [
              %{"kind" => "tree_big", "weight" => 45},
@@ -1718,6 +1723,138 @@ defmodule Nebulith.Catalog.GeneratorSource do
     }
   ]
 
+  # THE PARTS OF A SETTLEMENT, and they are places, not tints.
+  #
+  # `built` is the share of a region's PLOTS that carry a building: a park is 0, a market nearly 0, a
+  # terrace 1. Without it a city's neighbourhoods were three names for one thing, and a town and a village
+  # had no regions at all, so a village was one uniform sprawl of huts with no commons and no garden plots.
+  #
+  # THESE LIVE HERE FOR THE SAME REASON THE BIOME SETS DO: the seeder writes the whole `config` column, so a
+  # set authored in a migration on top of it is gone at the next seed. Measured against the captured API,
+  # every town and every village had lost its regions exactly that way.
+  @city_zone_ground %{
+    # No LEVEL on the upper tier, though a terrace is a tempting way to say "money". A settlement divides
+    # itself by what it builds, not by altitude: relief belongs to a mountain and a volcano, where the step
+    # between two regions is a cliff the builder knows how to cut.
+    "upper" => %{"built" => 1.0, "floor" => "#b9b6a8", "canopy" => 0.3},
+    "middle" => %{"built" => 1.0, "floor" => "#a8a89c", "canopy" => 0.4},
+    "lower" => %{"built" => 1.0, "floor" => "#94907f", "canopy" => 0.5}
+  }
+
+  # …and the parts of a city that are NOT somebody's neighbourhood.
+  @city_open_zones [
+    %{
+      "key" => "park",
+      "name" => "Park",
+      "weight" => 1,
+      "built" => 0.0,
+      "canopy" => 1.4,
+      "floor" => "#6f7a4a"
+    },
+    %{
+      "key" => "market",
+      "name" => "Market",
+      "weight" => 1,
+      "built" => 0.12,
+      "canopy" => 0.1,
+      "floor" => "#a89880"
+    },
+    %{
+      "key" => "graveyard",
+      "name" => "Graveyard",
+      "weight" => 1,
+      "built" => 0.04,
+      "canopy" => 0.5,
+      "stone" => 0.3,
+      "floor" => "#6b6f5c"
+    }
+  ]
+
+  # A CITY'S NEIGHBOURHOODS PLUS THE PARTS OF IT NOBODY LIVES IN. Each tier keeps the architecture money
+  # buys and gains the GROUND it stands on (`built`, its floor tone, and the terrace the upper class is
+  # raised onto); a city with only three tiers is a city built solid from corner to corner.
+  @city_zones (for zone <- @city_class_zones do
+                 Map.merge(zone, Map.fetch!(@city_zone_ground, zone["key"]))
+               end) ++ @city_open_zones
+
+  @town_zones [
+    %{
+      "key" => "centre",
+      "name" => "Centre",
+      "weight" => 2,
+      "built" => 1.0,
+      "canopy" => 0.4,
+      "floor" => "#a8a394"
+    },
+    %{
+      "key" => "lanes",
+      "name" => "Lanes",
+      "weight" => 3,
+      "built" => 0.9,
+      "canopy" => 0.7,
+      "floor" => "#9c9888"
+    },
+    %{
+      "key" => "green",
+      "name" => "Green",
+      "weight" => 2,
+      "built" => 0.0,
+      "canopy" => 1.3,
+      "floor" => "#6f7a4a"
+    },
+    %{
+      "key" => "market",
+      "name" => "Market",
+      "weight" => 1,
+      "built" => 0.15,
+      "canopy" => 0.1,
+      "floor" => "#a89880"
+    },
+    %{
+      "key" => "outskirts",
+      "name" => "Outskirts",
+      "weight" => 2,
+      "built" => 0.5,
+      "canopy" => 1.1,
+      "floor" => "#8a8f6e"
+    }
+  ]
+
+  @village_zones [
+    %{
+      "key" => "huts",
+      "name" => "Huts",
+      "weight" => 4,
+      "built" => 1.0,
+      "canopy" => 0.5,
+      "floor" => "#9a8f72"
+    },
+    %{
+      "key" => "commons",
+      "name" => "Commons",
+      "weight" => 2,
+      "built" => 0.0,
+      "canopy" => 0.9,
+      "floor" => "#7a8452"
+    },
+    %{
+      "key" => "plots",
+      "name" => "Garden plots",
+      "weight" => 2,
+      "built" => 0.25,
+      "canopy" => 0.3,
+      "floor" => "#8c8a5e"
+    },
+    %{
+      "key" => "edge",
+      "name" => "Edge",
+      "weight" => 2,
+      "built" => 0.45,
+      "canopy" => 1.2,
+      "floor" => "#6f7a4a"
+    }
+  ]
+
   # A BEACH IS A COAST, not the Amazon: sand where a jungle has peat, turquoise where it has blue-brown,
   # and a canopy that is yellow-green rather than near-black. Everything it does not restate is the
   # rainforest's, because the water depths and the swamp tone read the same in both.
@@ -1766,7 +1903,54 @@ defmodule Nebulith.Catalog.GeneratorSource do
     mix_adds: [],
     mix_drops: [],
     mix_replace: nil,
-    settlement_overrides: %{}
+    settlement_overrides: %{},
+    terrain: %{}
+  }
+
+  # WHAT A MAP OF THIS KIND CONTAINS, measured in cells and in shares.
+  #
+  # These were constants in the engine's stage generator, which meant the answer to "how coarse is this
+  # map's ground", "how far does its gateway reach in", "how much standing water may it hold" was written
+  # into the code that draws maps rather than into the row that describes one. A designer could not make a
+  # city's approach longer than a village's without editing TypeScript. Every one of them answers "how much
+  # of this does a map of this kind have", which is the definition of a template value
+  # (`docs/FRONTEND-DATA-AUDIT.md` §3.3).
+  #
+  # An environment overrides what it needs; nothing else states any of it twice.
+  @terrain %{
+    # how coarse the ground textures come out, in cells
+    "grassPatch" => 4,
+    "floorPatch" => 4,
+    "bloomLattice" => 9,
+    # the band of trees that closes a map's edge, in cells deep
+    "treeline" => 2,
+    # under this canopy share a region reads as BARE, and the winter art comes out
+    "bareCanopy" => 0.10,
+    # the largest pocket of cut-off floor the repair is allowed to fill in, in cells
+    "maxPocket" => 12,
+    # how far the entrance approach and the gate lanes reach in from an edge, and how wide a lane is
+    "gatewayRun" => 11,
+    "gateLaneHalf" => 2,
+    "gateLaneRun" => 11,
+    # water: how wide a ford is, the smallest body that counts as a lake, the most of a map water may
+    # claim, and how a swamp's pools are sized
+    "fordRows" => 2,
+    "lakeMin" => 60,
+    "waterCap" => 0.86,
+    "poolPatch" => 5,
+    "minPool" => 6,
+    # …and how much of an old place is still standing, wherever a region states `stone`. Any region may: a
+    # volcanic crater carries lava rock and a jungle can hold a ruin, so these belong to every template
+    # rather than to the one environment named after them.
+    "ruinPatch" => 5,
+    "columnStep" => 4,
+    "fallen" => 0.30,
+    "rubble" => 0.14,
+    # …and where an AROUND course runs, which is any template's to ask for, not the meadow's alone. The
+    # painter is shared: a woodland that picks "around" runs the same channel, inset from the three far
+    # edges at this half-width. A meadow states its own, because its river is the shape of that map.
+    "riverInset" => 5,
+    "riverHalf" => 1.9
   }
 
   @environments [
@@ -1881,6 +2065,22 @@ defmodule Nebulith.Catalog.GeneratorSource do
       wild_blurb: "Open grass with the odd tree standing alone in it, and the sky on it all day.",
       place_blurb: "out on open grass.",
       layout: "meadow",
+      # A TENDED FIELD IS BUILT TO ITS OWN MEASUREMENTS. The row gradient and the garden patches are drawn
+      # coarse on purpose: uniform across a row, so the ground compresses into one run per row instead of
+      # per-cell grid lines. The river runs inset from the three far edges, and the entrance sits left of
+      # centre on the near one. Its cut-off floor pockets are filled only up to 12 cells, because the land
+      # strip beyond its river is meant to stay separate rather than be repaired into the field.
+      terrain: %{
+        "gradientSteps" => 7,
+        "patch" => 7,
+        "riverInset" => 5,
+        "riverHalf" => 1.9,
+        "outerBand" => 4,
+        "entranceRun" => 11,
+        "entranceFrac" => 0.30,
+        "maxPocket" => 12,
+        "woodedRegion" => 0.55
+      },
       palette: @meadow_palette,
       nature: @outdoor_nature,
       formation: @formations["scattered"],
@@ -2408,7 +2608,7 @@ defmodule Nebulith.Catalog.GeneratorSource do
         "roofColors" => ["#6b5a34", "#7a6a3e", "#5c4f2c"],
         "wallColors" => ["#b08d5b", "#c9a66b", "#9c7c4e"]
       },
-      sub_zones: []
+      sub_zones: @village_zones
     },
     %{
       key: "town",
@@ -2439,7 +2639,7 @@ defmodule Nebulith.Catalog.GeneratorSource do
         "roofColors" => ["#8a4b2f", "#7a4326", "#6b4a2b"],
         "wallColors" => ["#c9a66b", "#b08d5b", "#d8c79a"]
       },
-      sub_zones: []
+      sub_zones: @town_zones
     },
     %{
       key: "city",
@@ -2464,7 +2664,7 @@ defmodule Nebulith.Catalog.GeneratorSource do
         "roofColors" => ["#4a4f55", "#3f464c", "#5a636b"],
         "wallColors" => ["#e8ecef", "#d3d8dc", "#bcc3c9"]
       },
-      sub_zones: @city_class_zones
+      sub_zones: @city_zones
     }
   ]
 
@@ -2549,6 +2749,14 @@ defmodule Nebulith.Catalog.GeneratorSource do
   # out as one region printed five times.
   defp fills_the_gaps(region, extra), do: Map.merge(extra, region)
 
+  # A jungle-layout map CUTS A TRACK to a stranded pocket instead of carpeting it, so it can afford to fill
+  # a larger one in; a wood, a field and a town carpet, and filling a big pocket there costs play area. The
+  # number belongs to the layout because the layout is the builder that reads it.
+  defp terrain_for(%{layout: "jungle"} = env),
+    do: @terrain |> Map.put("maxPocket", 40) |> Map.merge(env.terrain)
+
+  defp terrain_for(env), do: Map.merge(@terrain, env.terrain)
+
   # HOW THE SET IS LAID ON THE MAP, its own arrangement or the scatter every map had before (REGIONS.md §2).
   defp region_layout(env) do
     case Map.get(@biome_regions, env.key) do
@@ -2606,6 +2814,7 @@ defmodule Nebulith.Catalog.GeneratorSource do
         # HOW THE SET IS LAID OUT, served with it. A volcano is rings and a mountain is bands (REGIONS.md
         # §2); a re-seed used to put every one of them back to a scatter.
         "regionLayout" => region_layout(env),
+        "terrain" => terrain_for(env),
         "crossings" => @crossings
       },
       # …AND THE PICKER OFFERS THIS BIOME'S OWN REGIONS. It was built from `@wild_regions`, the generic
@@ -2650,6 +2859,7 @@ defmodule Nebulith.Catalog.GeneratorSource do
       "settlement" => Map.merge(tuning, env.settlement_overrides),
       "nature" => env.settlement_nature,
       "units" => townsfolk(settlement_folk(env, kind)),
+      "terrain" => terrain_for(env),
       "buildings" => Map.merge(@building_palette, Map.merge(kind.buildings, env.buildings))
     }
     |> with_sub_zones(kind.sub_zones)

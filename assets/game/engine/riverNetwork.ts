@@ -802,6 +802,10 @@ function clearForDeck(ctx: RiverDeck, keys: ReadonlySet<string>): void {
  *  nothing at all so the tile's served colour shows through. Never the water it replaced. */
 function deckTone(style: GeneratorCrossing | undefined, col: number, row: number, tone: string | undefined): string | undefined {
   if (!style) return tone
+  // THE MAP'S OWN WAY, where the crossing says it reuses it: a dirt crossing in a city IS the city's street,
+  // and in a wood it is the wood's track. It used to serve `path_dirt` for every template, so the one kind
+  // of crossing meant to disappear into the map was the one that never matched it.
+  if (style.reusesWay && tone) return tone
   return groundTileColor(style.colorOf ?? style.tile, col, row) || undefined
 }
 

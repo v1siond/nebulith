@@ -17,7 +17,7 @@
 import { IsometricGrid } from '@/engine/IsometricGrid'
 import { generateStage, type NatureDensity, type VariantId } from '@/engine/stageGenerator'
 import { applyStageToGrid } from '@/game/editor/applyStage'
-import { type GeneratorFormation, type GeneratorPalette, type GeneratorSubZone, type GeneratorTreeWeight, type GeneratorCrossing, type GeneratorOptionValue } from '@/lib/generatorCatalog'
+import { type GeneratorFormation, type GeneratorPalette, type GeneratorSubZone, type GeneratorTerrain, type GeneratorTreeWeight, type GeneratorCrossing, type GeneratorOptionValue } from '@/lib/generatorCatalog'
 import { resolveComposition } from '@/engine/tileset/tileset'
 import { styleCatalog } from '@/engine/tileset/styleTiles'
 import { zonePalette, type ZoneId } from '@/engine/zones'
@@ -60,6 +60,9 @@ export type PreviewSubject =
       options?: Record<string, GeneratorOptionValue>
       palette?: GeneratorPalette
       subZones?: readonly GeneratorSubZone[]
+      /** How those regions are laid out, and how much of what the map holds. Both served. */
+      regionLayout?: string
+      terrain?: GeneratorTerrain
       formation?: GeneratorFormation
       treeMix?: readonly GeneratorTreeWeight[]
       crossings?: Readonly<Record<string, GeneratorCrossing>>
@@ -307,7 +310,7 @@ export function subjectFor(
  * world on every re-render and stops being a reference you can compare against the card next to it.
  */
 function buildStageScene(subject: Extract<PreviewSubject, { kind: 'stage' }>): PreviewScene | null {
-  const { zone, variant, layout, nature, options, palette, subZones, formation, treeMix, crossings, seed, cols, rows } = subject
+  const { zone, variant, layout, nature, options, palette, subZones, regionLayout, terrain, formation, treeMix, crossings, seed, cols, rows } = subject
   const grid = new IsometricGrid({ cols, rows, cellSize: PREVIEW_CELL, isoScale: 2.5 })
   const stage = generateStage({
     zone,
@@ -319,6 +322,8 @@ function buildStageScene(subject: Extract<PreviewSubject, { kind: 'stage' }>): P
     options,
     palette,
     subZones,
+    regionLayout,
+    terrain,
     formation,
     treeMix,
     crossings,

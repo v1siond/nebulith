@@ -30,13 +30,18 @@ function river(course: string, seed = 5) {
     return generateStage({
       zone: 'summer', variant: 'forest', layout: 'woodland', cols: 60, rows: 40,
       nature: cfg.nature, palette: cfg.palette, formation: cfg.formation, treeMix: cfg.trees,
+      subZones: cfg.subZones, regionLayout: cfg.regionLayout, terrain: cfg.terrain,
       options: { river: course, crossing: false },
     })
   } finally { Math.random = orig }
 }
+/** THE CHANNEL, which is what a heading belongs to. A map also carries whatever standing water its regions
+ *  state (a streamside's pool), and standing water has no direction to state: it is not going anywhere. */
 const wetCells = (s: ReturnType<typeof river>) => {
   const out: Array<[number, number]> = []
-  s.ground.forEach((r, y) => r.forEach((g, x) => { if (g.includes('water')) out.push([x, y]) }))
+  s.ground.forEach((r, y) => r.forEach((g, x) => {
+    if (g.includes('water') && !s.standing?.has(`${x},${y}`)) out.push([x, y])
+  }))
   return out
 }
 

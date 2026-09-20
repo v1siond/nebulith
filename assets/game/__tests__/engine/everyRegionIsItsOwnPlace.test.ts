@@ -60,7 +60,7 @@ function grow(category: string, config: GeneratorConfig, region: string, seed: n
       palette: config.palette,
       formation: config.formation,
       treeMix: config.trees,
-      subZones: config.subZones,
+      subZones: config.subZones, terrain: config.terrain, regionLayout: config.regionLayout,
       regionLayout: config.regionLayout,
       settlement: config.settlement,
       buildingSizes: config.buildingSizes,

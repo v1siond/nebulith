@@ -10,10 +10,12 @@ import { generateStage } from '@/engine/stageGenerator'
 // edge left OPEN) with sandy banks and a walkable stone BRIDGE. Everything here is STRUCTURE the render depends
 // on; the visual match itself is validated on the running game (:3000).
 const seeds = (s: number) => ({ layout: s, buildings: s, nature: s, decor: s })
+import { servedWild } from '@/__tests__/helpers/servedGenerator'
 // A river is an OPTION on the meadow now, not a second layout (ticket 47). Same two worlds as before, the
 // switch just moved from the layout name into `options`, which is what the generator catalog serves.
 const gen = (water: 'dry' | 'river', s = 7) =>
   generateStage({
+    ...servedWild('meadow'),
     zone: 'summer', variant: 'forest', layout: 'meadow',
     options: { river: water === 'river' },
     cols: 40, rows: 40, seeds: seeds(s),
@@ -132,7 +134,7 @@ describe('meadow layouts, structural match to #14 / #24', () => {
   })
 
   it('picks a meadow layout for a plain forest generate, and is deterministic under a seed', () => {
-    const plain = generateStage({ zone: 'summer', variant: 'forest', cols: 40, rows: 40, seeds: seeds(4) })
+    const plain = generateStage({ ...servedWild('meadow'), zone: 'summer', variant: 'forest', cols: 40, rows: 40, seeds: seeds(4) })
     expect(plain.floorColors.flat().filter(Boolean).length).toBe(plain.cols * plain.rows) // meadow ran (it owns the gradient)
 
     const a = gen('river', 3)

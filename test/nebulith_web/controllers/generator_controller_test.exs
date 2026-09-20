@@ -149,13 +149,20 @@ defmodule NebulithWeb.GeneratorControllerTest do
       city = Enum.find(data, &(&1["key"] == "city")) |> Map.fetch!("generators") |> hd()
 
       zones = city["config"]["subZones"]
-      assert Enum.map(zones, & &1["key"]) == ~w(upper middle lower)
+
+      assert Enum.map(zones, & &1["key"]) == ~w(upper middle lower park market graveyard),
+             "a city is its three classes AND the places nobody lives in"
 
       # The editor draws the difference between rich and poor from HERE: the material, the roof tile and the
-      # colours, per neighbourhood, never derived at render.
-      for zone <- zones do
+      # colours, per neighbourhood, never derived at render. A park, a market and a graveyard state no
+      # architecture, because almost nothing is built in them, and they say so with `built` instead.
+      for zone <- zones, zone["key"] in ~w(upper middle lower) do
         assert zone["buildings"]["materials"] != []
         assert is_binary(zone["buildings"]["roof"])
+      end
+
+      for zone <- zones do
+        assert is_number(zone["built"]), "#{zone["key"]} does not say how built it is"
       end
     end
 

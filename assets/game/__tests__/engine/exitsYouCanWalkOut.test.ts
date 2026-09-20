@@ -30,8 +30,11 @@ const ENCLOSED = [
   { cat: 'wilderness', gen: 'forest_woodland', variant: 'forest' as const, layout: 'woodland' },
   { cat: 'wilderness', gen: 'forest_jungle', variant: 'forest' as const, layout: 'jungle' },
   { cat: 'wilderness', gen: 'forest_meadow', variant: 'forest' as const, layout: 'meadow' },
-  { cat: 'cave', gen: 'cave_default', variant: 'cave' as const, layout: undefined },
-  { cat: 'temple', gen: 'temple_default', variant: 'temple' as const, layout: undefined },
+  // The cave and the temple used to stand here and the backend serves neither any more, so what took their
+  // place is two more biomes that exist: a swamp, whose water reaches the border, and a mountain, whose
+  // regions sit at different levels. Same number of builds, all of them maps the app can actually make.
+  { cat: 'wilderness', gen: 'forest_swamp', variant: 'forest' as const, layout: 'jungle' },
+  { cat: 'wilderness', gen: 'forest_mountain', variant: 'forest' as const, layout: 'woodland' },
 ]
 
 function build(c: (typeof ENCLOSED)[number], exits: number, pathways: number, seed: number): StageData {
@@ -47,7 +50,7 @@ function build(c: (typeof ENCLOSED)[number], exits: number, pathways: number, se
       zone: 'summer', variant: c.variant, layout: c.layout as never, cols: COLS, rows: ROWS,
       options: { exits: String(exits), pathways: String(pathways) },
       nature: config?.nature, palette: config?.palette, formation: config?.formation,
-      treeMix: config?.trees, subZones: config?.subZones, crossings: config?.crossings,
+      treeMix: config?.trees, subZones: config?.subZones, terrain: config?.terrain, regionLayout: config?.regionLayout, crossings: config?.crossings,
     })
   } finally { Math.random = orig }
 }
@@ -193,7 +196,7 @@ describe('the border shows exactly the openings that were asked for', () => {
         zone: 'summer', variant: 'forest', layout: row?.layout as never, cols: COLS, rows: ROWS,
         options: { exits: String(exits), pathways: '2', river, crossing: 'bridge' },
         nature: config?.nature, palette: config?.palette, formation: config?.formation,
-        treeMix: config?.trees, subZones: config?.subZones, crossings: config?.crossings,
+        treeMix: config?.trees, subZones: config?.subZones, terrain: config?.terrain, regionLayout: config?.regionLayout, crossings: config?.crossings,
       })
     } finally { Math.random = orig }
   }

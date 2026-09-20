@@ -14,7 +14,7 @@
  * constant in the frontend won.
  */
 import '@/__tests__/helpers/installTilesetSeed'
-import { generateStage, type StageData } from '@/engine/stageGenerator'
+import { FLAT_FLOOR, generateStage, type StageData } from '@/engine/stageGenerator'
 import { planVillage, streetRoom, type BuildingSizes, type StreetPlan, type VillageLayout } from '@/engine/villageLayout'
 import { planRoutes, resolvePathways, type Side } from '@/engine/pathNetwork'
 import { findGeneratorForVariant, parseGeneratorCatalog } from '@/lib/generatorCatalog'
@@ -119,11 +119,22 @@ describe('the gates sit ON the streets', () => {
   })
 })
 
-/** Roads are the only thing a settlement paints into `floorColors`, so a row of them is a street you can see. */
+/**
+ * A STREET IS THE CELLS WEARING THE WAY'S OWN TONE, and a full-span run of them is one street across.
+ *
+ * This counted every cell that carried ANY floor colour, on the grounds that roads were the only thing a
+ * settlement painted. That stopped being true when a town gained regions: a centre, lanes, a green and a
+ * market each state their own floor tone, so every cell on the map carries a colour and the whole grid read
+ * as one street across and one down. It answered 2 for every question, including the ones it got right.
+ */
 function paintedStreets(stage: StageData): number {
-  const { floorColors, cols, rows } = stage
-  const fullRow = (r: number): boolean => floorColors[r].every(v => v !== undefined)
-  const fullCol = (c: number): boolean => floorColors.every(row => row[c] !== undefined)
+  const { ground, cols, rows } = stage
+  // A STREET IS THE EMPTY, COLOUR-ONLY CELL. The paver writes `FLAT_FLOOR` where a street runs precisely so
+  // the cell IS the street rather than a grass tile with asphalt painted over it, and that is the identity
+  // to count. The colour alone cannot be: it is resolved per cell, and every region states a floor tone now.
+  const street = (c: number, r: number) => ground[r][c] === FLAT_FLOOR
+  const fullRow = (r: number): boolean => ground[r].every((_, c) => street(c, r))
+  const fullCol = (c: number): boolean => ground.every((_, r) => street(c, r))
   let count = 0
   for (let r = 0; r < rows; r++) if (fullRow(r) && !(r > 0 && fullRow(r - 1))) count++
   for (let c = 0; c < cols; c++) if (fullCol(c) && !(c > 0 && fullCol(c - 1))) count++
@@ -143,7 +154,7 @@ describe('the whole chain, through the real generator', () => {
         zone: 'spring', variant, layout: variant as never, cols: 40, rows: 40,
         options: { exits: String(exits), pathways: String(pathways) },
         nature: config?.nature, palette: config?.palette, settlement: config?.settlement,
-        formation: config?.formation, treeMix: config?.trees, subZones: config?.subZones,
+        formation: config?.formation, treeMix: config?.trees, subZones: config?.subZones, terrain: config?.terrain, regionLayout: config?.regionLayout,
       })
     } finally { Math.random = orig }
   }

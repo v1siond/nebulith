@@ -33,6 +33,49 @@ The planner (`pathNetwork.ts`) produces, for one map:
 `spine` exists so width can vary without severing anything: the centre line is always carved, the rest of the
 band is carved where the map wants width, and connectivity holds by construction.
 
+## 1b. A way never overwrites water
+
+**A pathway does not pave over water. Where a way meets water it is CUT, or it CONTINUES ON A CROSSING.**
+
+> *"pathways DON'T overwrite water sections, with the exception of bridges, which mean, if a pathway is
+> intersected by a river for example, then it's either cut, or it continues with a bridge (any of the types)"*
+
+There is no third option. A street drawn across open water is the defect this rule exists to stop, and it was
+live: the settlement paver wrote its street into every cell `layout.roads` claimed without asking what was
+already there, and the water layer runs BEFORE it. Measured on a 50x50 town with a river through it, **60 to
+79 cells of channel paved over per map**, so the river read as a road with a blue stripe under it. `openGates`
+did the same thing at the border, copying the street's ground onto the cell where the river leaves the map.
+
+The forest paver (`wearTheWay`) has skipped water since forests got rivers. Both draw the same kind of way, so
+both follow the same rule.
+
+**How to measure it.** Not by the ground label. A paver that writes over a water cell also erases the evidence
+that it was one, so "is any water cell paved" answers zero on the broken map for the same reason it answers
+zero on the fixed one. `StageData.water` publishes what the water layer CLAIMED, and that is the set to ask.
+
+### The crossing kinds, and what "dirt" means
+
+| kind | what it lays |
+|---|---|
+| `wood` / `stone` | a composition, a built span standing over the channel |
+| `dirt` | **the map's own way, carried over the water**: in a city that is the city's street, in a wood the wood's track |
+
+> *"if it's 'dirt bridge', it means, we reuse the terrain of the map, so in a city the dirt path is just a
+> regular street, in a town, village, forest it'll be whatever terrain they are using"*
+
+So `dirt` serves `reusesWay`, never a colour of its own. It served `colorOf: path_dirt` for every template,
+which put a stripe of brown track through a city's streets, which is the one thing a crossing meant to
+disappear into the map must not do.
+
+### A way is made of a cell, and things stand ON it
+
+> *"I'm fine adding tiles or whatever when necessary, in fact, in the street we have the lines tiles to make
+> it look like an actual street"*
+
+The surface of a way is the cell it is drawn on. The markings, the kerbs and everything else that makes it
+read as a street are tiles laid on top of it by the objects phase. Saying "a way is never a tile" confuses the
+two and is wrong about the second.
+
 ## 2. Structure and look are different layers
 
 `GENERATION-SPEC.md` §5.2 draws this line, and it is the one most easily put on the wrong side:
@@ -157,6 +200,9 @@ Before calling any pathway or exit change done:
 7. Measure the DRAWN opening, not a set the defect can edit. `pathwayCells` is the wrong witness: `sealMapEdge`
    DELETES a border cell from it at the moment it plants a tree there, so a test asking that set passes on the
    broken map. Ask the ground and the floor colour, which is what is actually on screen.
+7b. **Not one cell of water is paved.** Ask `StageData.water`, the set the water layer claimed, never the
+   ground label: the paver that overwrites a water cell also erases the evidence it was one, so the ground
+   answers the same on a broken map as on a fixed one (§1b).
 8. Serve `options.pathways` or `options.exits` in every test that measures an exit. `resolvePathways` returns
    null without them, so a build that omits them plans NO routes, and every case guarded by `if (!routes)`
    passes having asserted nothing. That is how 24 green cases sat on top of a broken exit.

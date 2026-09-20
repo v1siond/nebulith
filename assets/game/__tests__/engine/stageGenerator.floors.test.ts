@@ -27,7 +27,7 @@ function grow(variant: VariantId, zone: ZoneId, seed = 7, layout?: ForestLayout)
       // AND ITS PATHWAY, which the editor passes and this omitted, so every case here was measuring a forest
       // with no served way rather than the one the app builds.
       nature: config?.nature, palette: config?.palette, formation: config?.formation, pathway: config?.pathway,
-      treeMix: config?.trees, subZones: config?.subZones,
+      treeMix: config?.trees, subZones: config?.subZones, terrain: config?.terrain, regionLayout: config?.regionLayout,
     })
   } finally {
     Math.random = orig

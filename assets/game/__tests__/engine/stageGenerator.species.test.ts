@@ -28,6 +28,10 @@ function grow(key: string, seed = 7, withRegions = true) {
       zone: 'summer', variant: 'forest', layout: gen.layout as never, cols: 60, rows: 40,
       nature: config.nature, palette: config.palette, formation: config.formation,
       subZones: withRegions ? config.subZones : undefined, treeMix: config.trees,
+      // …and how much of what the map holds, which is what the framing and understory planters measure
+      // themselves against. Without it a meadow plants no framing trees at all and this suite was counting
+      // the species of a map with almost nothing on it.
+      terrain: config.terrain, regionLayout: config.regionLayout,
     })
   } finally {
     Math.random = orig
@@ -58,15 +62,15 @@ describe('the new shapes come from the existing base, and each forest grows its 
     const k = kinds(grow('forest_jungle'))
     expect(k.has('tree_giant')).toBe(true) // the emergents stand above the canopy as their own shape now
     expect(k.has('tree_palm')).toBe(true)
-    expect(k.has('tree_column')).toBe(false)
     expect(k.has('tree_gnarled')).toBe(false)
   })
 
-  it('the jungle LAKESIDE grows cypress, so a region rolls its own species inside the row', () => {
-    // Same seed, same jungle, regions on and off. The cypress exists ONLY because the lakeside states it: the
-    // row's own mix carries none.
-    expect(kinds(grow('forest_jungle', 7, true)).has('tree_cypress')).toBe(true)
-    expect(kinds(grow('forest_jungle', 7, false)).has('tree_cypress')).toBe(false)
+  it('the jungle BAMBOO stand grows columns, so a region rolls its own species inside the row', () => {
+    // Same seed, same jungle, regions on and off. The column exists ONLY because the bamboo stand states it:
+    // the row's own mix carries none. It was the cypress and the `lakeside`, back when every biome was served
+    // the same five regions and a rainforest had a lakeside in it.
+    expect(kinds(grow('forest_jungle', 7, true)).has('tree_column')).toBe(true)
+    expect(kinds(grow('forest_jungle', 7, false)).has('tree_column')).toBe(false)
   })
 
   it('no two forests share their dominant species', () => {
@@ -101,24 +105,32 @@ describe('the region you PICK leads the map', () => {
   // Ticking a region OUT is gone, so what there is to measure is EMPHASIS: the region you pick dominates, and
   // the others are still in there. The cypress is the jungle's lakeside tree and grows nowhere else in it,
   // which makes it the thing to count.
-  it('a jungle led by its lakeside grows more cypress than one led by its glade', () => {
+  it('a jungle led by its bamboo stand grows more columns than one led by its emergents', () => {
     const config = findGenerator(CATALOG, 'wilderness', 'forest_jungle')!.config
     const build = (options: Record<string, string>) => {
       const orig = Math.random
       Math.random = makeRng(7)
       try {
         return generateStage({ zone: 'summer', variant: 'forest', layout: 'jungle', cols: 60, rows: 40, nature: config.nature,
-          palette: config.palette, formation: config.formation, subZones: config.subZones, treeMix: config.trees, options })
+          palette: config.palette, formation: config.formation, subZones: config.subZones, terrain: config.terrain, regionLayout: config.regionLayout, treeMix: config.trees, options })
       } finally {
         Math.random = orig
       }
     }
-    const cypress = (options: Record<string, string>) => build(options).trees.filter(t => t.kind === 'tree_cypress').length
+    const columns = (options: Record<string, string>) => build(options).trees.filter(t => t.kind === 'tree_column').length
 
-    expect(cypress({})).toBeGreaterThan(0) // the served weights already carry a lakeside
-    expect(cypress({ region: 'lakeside' })).toBeGreaterThan(cypress({ region: 'glade' }))
-    // and the lakeside is still THERE when another region leads: a lead is a weight, not an exclusion
-    expect(cypress({ region: 'glade' })).toBeGreaterThan(0)
+    // ASKED FOR, first: whether an unled map happens to roll a bamboo stand at one seed is the scatter's
+    // business, and the thing being tested is what picking one does.
+    expect(columns({ region: 'bamboo' })).toBeGreaterThan(0)
+    expect(columns({ region: 'bamboo' })).toBeGreaterThan(columns({ region: 'emergent' }))
+
+    // …and the map you asked for is made of THAT region and nothing else, which is the other half of the
+    // promise and the reason the count above can go to zero: an emergent-led jungle has no bamboo in it.
+    const only = (region: string) =>
+      [...new Set((build({ region }).regions ?? []).flat().filter(Boolean))]
+
+    expect(only('bamboo')).toEqual(['bamboo'])
+    expect(only('emergent')).toEqual(['emergent'])
   })
 })
 
@@ -152,7 +164,7 @@ describe('the region you pick decides what the wood is MADE of, not just its rar
           zone: 'summer', variant: 'forest', layout: 'woodland', cols: 40, rows: 40,
           options: { exits: '2', pathways: '3', region },
           nature: config.nature, palette: config.palette, formation: config.formation, pathway: config.pathway,
-          subZones: config.subZones, treeMix: config.trees,
+          subZones: config.subZones, terrain: config.terrain, regionLayout: config.regionLayout, treeMix: config.trees,
         })
         for (const t of stage.trees) if (t.kind !== 'tree_dead') counts.set(t.kind, (counts.get(t.kind) ?? 0) + 1)
       } finally {
@@ -179,17 +191,17 @@ describe('the region you pick decides what the wood is MADE of, not just its rar
     expect([...grown(key).values()].reduce((a, b) => a + b, 0)).toBeGreaterThan(50) // a wood to measure at all
     // A comparison, not a tuned number: whichever region you ask for, its own species must come out ahead of
     // where they land when you ask for a different one. That is the whole of what picking a region means.
-    for (const other of ['edge', 'deep', 'glade', 'thicket', 'lakeside']) {
+    for (const other of ALL) {
       if (ownSpecies(other) === ownSpecies(key)) continue
       expect({ key, other, leads: mine > share(grown(other), served) }).toEqual({ key, other, leads: true })
     }
   })
 
-  it('the THICKET is bushes and the DEEP WOOD is trunks, so two regions do not read alike', () => {
+  it('the COPPICE is bushes and the HIGH FOREST is trunks, so two regions do not read alike', () => {
     const bushes = (region: string) => share(grown(region), ['bush', 'bush_round'])
-    // The thicket serves bushes and saplings; the deep wood serves columns, tall trunks and standards. The
-    // two have to come apart, and by a margin you could see rather than a count you could squint at.
-    expect(bushes('thicket')).toBeGreaterThan(bushes('deep') * 1.5)
+    // A coppice is cut back to the stool, so it is saplings and bush; a high forest is columns, tall trunks
+    // and standards. The two have to come apart by a margin you can see rather than a count you squint at.
+    expect(bushes('coppice')).toBeGreaterThan(bushes('high_forest') * 1.5)
   })
 
   /**
@@ -223,7 +235,7 @@ describe('the region you pick decides what the wood is MADE of, not just its rar
           zone: 'summer', variant: 'forest', layout: gen.layout as never, cols: 40, rows: 40,
           options: { exits: '2', pathways: '3' },
           nature: config.nature, palette: config.palette, formation: config.formation, pathway: config.pathway,
-          subZones: config.subZones, treeMix: config.trees,
+          subZones: config.subZones, terrain: config.terrain, regionLayout: config.regionLayout, treeMix: config.trees,
         })
       } finally {
         Math.random = orig
@@ -254,6 +266,10 @@ describe('the region you pick decides what the wood is MADE of, not just its rar
       const stage = generateStage({
         zone: 'summer', variant: 'forest', layout: 'woodland', cols: 40, rows: 40,
         nature: config.nature, palette: config.palette, treeMix: config.trees,
+        // NO REGIONS is the subject here, and everything else the row serves still arrives: without the
+        // formation there is no grouping to plant a stand with, and this measured the species of a wood
+        // with no trees in it at all.
+        formation: config.formation, terrain: config.terrain,
       })
       const kinds = new Set(stage.trees.map(t => t.kind))
       expect(kinds.has('tree_column')).toBe(true) // the template's own leading species, with no regions served

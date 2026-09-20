@@ -185,7 +185,7 @@ describe('a walkable floor never wears water, whatever painted it', () => {
       return generateStage({
         zone: 'spring', variant: 'forest', layout: 'jungle', cols: 40, rows: 40,
         nature: cfg.nature, palette: cfg.palette, formation: cfg.formation, treeMix: cfg.trees,
-        subZones: cfg.subZones, crossings: cfg.crossings,
+        subZones: cfg.subZones, terrain: cfg.terrain, regionLayout: cfg.regionLayout, crossings: cfg.crossings,
         options: { river: 'divides', jungle: 'swamp', crossing: true },
       })
     } finally { Math.random = orig }

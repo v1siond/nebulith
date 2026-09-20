@@ -42,7 +42,7 @@ function grow(layout: ForestLayout, pathways: Record<string, string> | undefined
       // THE PATHWAY TOO, which the editor passes and this omitted: every case below was building a forest
       // with no served way, so what it measured was the fallback rather than the map the app makes.
       nature: config?.nature, palette: config?.palette, formation: config?.formation, pathway: config?.pathway,
-      treeMix: config?.trees, subZones: config?.subZones, crossings: config?.crossings,
+      treeMix: config?.trees, subZones: config?.subZones, terrain: config?.terrain, regionLayout: config?.regionLayout, crossings: config?.crossings,
     })
   } finally {
     Math.random = orig

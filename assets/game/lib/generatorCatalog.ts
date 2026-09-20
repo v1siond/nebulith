@@ -296,6 +296,21 @@ export interface GeneratorSubZone {
   buildings?: Partial<GeneratorBuildings>
 }
 
+/**
+ * WHAT A MAP OF THIS KIND CONTAINS, in cells and in shares (`config.terrain`).
+ *
+ * How coarse its ground textures are, how deep the treeline that closes its edge, how far its gateway
+ * reaches in, how much of it water may claim, how much of a ruin has come down. These were constants in
+ * `stageGenerator.ts`, which put the answer to "how much of this does a map of this kind have" in the code
+ * that draws maps instead of in the row that describes one (`nebulith/docs/FRONTEND-DATA-AUDIT.md` §3.3).
+ *
+ * Every field is optional and there is no default anywhere: what the backend does not state is ABSENT, and
+ * the pass that needs it does nothing rather than reaching for a number this file made up.
+ */
+export interface GeneratorTerrain {
+  readonly [served: string]: number | undefined
+}
+
 export interface GeneratorConfig {
   grid?: GeneratorGrid
   units?: GeneratorUnits
@@ -307,6 +322,8 @@ export interface GeneratorConfig {
   subZones?: readonly GeneratorSubZone[]
   /** How the regions above are laid on the map: `scatter`, `rings` or `bands` (`REGIONS.md` §2). */
   regionLayout?: string
+  /** How much of what a map of this kind holds. Absent → the passes that read it do nothing. */
+  terrain?: GeneratorTerrain
   /** How this template distributes its trees. Absent → the generator's own default grouping. */
   formation?: GeneratorFormation
   /** What this template's pathways are made of. Absent → the engine's own plain track. */
@@ -372,6 +389,14 @@ export interface GeneratorChoice {
 export interface GeneratorCrossing {
   tile: string
   colorOf?: string
+  /**
+   * THIS CROSSING WEARS THE MAP'S OWN WAY, rather than a colour of its own.
+   *
+   * *"if it's 'dirt bridge', it means, we reuse the terrain of the map, so in a city the dirt path is just a
+   * regular street, in a town, village, forest it'll be whatever terrain they are using"*. A dirt crossing is
+   * the ground carried over the water, so what it looks like is whatever this template paves with.
+   */
+  reusesWay?: boolean
   /**
    * The COMPOSITION this kind of crossing builds, without its span: `bridge_wood`, and the generator appends
    * the span it needs (`bridge_wood_5`), the same shape as `house_3`/`house_4`/`house_5`.
@@ -654,6 +679,19 @@ function parseNature(v: unknown): GeneratorNature | undefined {
   return { ...rest, groundCover, flowers } as GeneratorNature
 }
 
+/** EVERY NUMBER THE BACKEND SERVES under `terrain`, copied. Naming them here by hand is how a served value
+ *  gets dropped in silence, which this file has done before (`nature.tallGrass`, the palette's `leaf`). */
+function parseTerrain(v: unknown): GeneratorTerrain | undefined {
+  if (!isObject(v)) return undefined
+  const out: Record<string, number> = {}
+  for (const [field, value] of Object.entries(v)) {
+    const n = num(value)
+    if (n !== undefined) out[field] = n
+  }
+  if (Object.keys(out).length === 0) return undefined
+  return out as GeneratorTerrain
+}
+
 function parseBuildings(v: unknown): GeneratorBuildings | undefined {
   if (!isObject(v)) return undefined
   const materials = strList(v.materials)
@@ -762,6 +800,7 @@ function parseConfig(v: unknown): GeneratorConfig {
   const pathway = parsePathway(v.pathway)
   const trees = parseTreeMix(v.trees)
   const crossings = parseCrossings(v.crossings)
+  const terrain = parseTerrain(v.terrain)
   // SERVED, so it has to be READ. This parser is a whitelist, and a key it does not name is dropped on the
   // floor: that is the served-and-ignored defect this file has produced more than once (the palette's `leaf`,
   // a woodland's regions). `regionLayout` says whether a set is a scatter, rings or bands (`REGIONS.md` §2).
@@ -782,6 +821,7 @@ function parseConfig(v: unknown): GeneratorConfig {
   if (pathway) out.pathway = pathway
   if (trees) out.trees = trees
   if (crossings) out.crossings = crossings
+  if (terrain) out.terrain = terrain
   return out
 }
 
@@ -795,6 +835,7 @@ function parseCrossings(v: unknown): Readonly<Record<string, GeneratorCrossing>>
     const entry: GeneratorCrossing = { tile: str(raw.tile)! }
     const colorOf = str(raw.colorOf)
     if (colorOf) entry.colorOf = colorOf
+    if (raw.reusesWay === true) entry.reusesWay = true
     // THE COMPOSITION, read here or it is dead data. The backend began naming one per bridge kind on
     // 2026-09-12; a parser that lists its keys by hand drops any new served field silently, which
     // `parseSettlement` and `parseBuildings` have each done before. Built up field by field rather than as a

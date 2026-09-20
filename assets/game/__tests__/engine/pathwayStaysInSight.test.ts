@@ -38,7 +38,7 @@ function forest(layout: (typeof LAYOUTS)[number], seed: number): StageData {
       zone: 'summer', variant: 'forest', layout, cols: COLS, rows: ROWS,
       options: { exits: '2', pathways: '2', river: 'through', crossing: 'bridge' },
       nature: config?.nature, palette: config?.palette, formation: config?.formation,
-      treeMix: config?.trees, subZones: config?.subZones, crossings: config?.crossings,
+      treeMix: config?.trees, subZones: config?.subZones, terrain: config?.terrain, regionLayout: config?.regionLayout, crossings: config?.crossings,
     })
   } finally { Math.random = orig }
 }

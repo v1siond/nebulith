@@ -14,6 +14,7 @@ import '@/__tests__/helpers/installTilesetSeed' // the generator reads all tile/
 import { generateStage, type ForestLayout, type NatureDensity } from '@/engine/stageGenerator'
 import { findGenerator, parseGeneratorCatalog, type GeneratorPathway } from '@/lib/generatorCatalog'
 import { makeRng } from '@/lib/math'
+import { servedWild } from '@/__tests__/helpers/servedGenerator'
 import liveBody from '@/__tests__/fixtures/generators.json'
 
 const CATALOG = parseGeneratorCatalog(liveBody)
@@ -32,11 +33,11 @@ const build = (layout: ForestLayout, nature: NatureDensity, seed = 1, options?: 
   // THE DENSITY IS THE ARGUMENT, THE WAY IS THE TEMPLATE'S. `nature` stays explicit because these cases are
   // about what a served density does; the pathway comes from the same template the app builds from, because
   // a forest with no served way has nothing to paint one with and *"a trail has to be visible to be a trail"*.
-  const pathway = (findGenerator(CATALOG, 'wilderness', layout)?.config as { pathway?: GeneratorPathway } | undefined)?.pathway
+  const served = servedWild(layout)
   const orig = Math.random
   Math.random = makeRng(seed)
   try {
-    return generateStage({ zone: 'summer', variant: 'forest', layout, cols: COLS, rows: ROWS, nature, options, pathway })
+    return generateStage({ ...served, zone: 'summer', variant: 'forest', layout, cols: COLS, rows: ROWS, nature, options })
   } finally {
     Math.random = orig
   }

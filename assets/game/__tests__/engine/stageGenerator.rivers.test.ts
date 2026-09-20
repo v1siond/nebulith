@@ -37,7 +37,7 @@ function grow(layout: 'woodland' | 'meadow' | 'jungle', river: GeneratorOptionVa
     return generateStage({
       zone: 'summer', variant: 'forest', layout, cols: 60, rows: 40,
       nature: config.nature, palette: config.palette, formation: config.formation,
-      treeMix: config.trees, subZones: config.subZones, options: { river, crossing, ...more },
+      treeMix: config.trees, subZones: config.subZones, terrain: config.terrain, regionLayout: config.regionLayout, options: { river, crossing, ...more },
     })
   } finally {
     Math.random = orig
@@ -52,7 +52,7 @@ function growKind(layout: 'woodland' | 'meadow' | 'jungle', river: GeneratorOpti
     return generateStage({
       zone: 'summer', variant: 'forest', layout, cols: 60, rows: 40,
       nature: config.nature, palette: config.palette, formation: config.formation,
-      treeMix: config.trees, subZones: config.subZones, crossings: config.crossings,
+      treeMix: config.trees, subZones: config.subZones, terrain: config.terrain, regionLayout: config.regionLayout, crossings: config.crossings,
       options: { river, crossing: false, bridge },
     })
   } finally {

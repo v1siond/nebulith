@@ -28,7 +28,7 @@ function grow(layout: 'woodland' | 'meadow' | 'jungle', seed: number): StageData
     return generateStage({
       zone: 'summer', variant: 'forest', layout, cols: 60, rows: 40,
       nature: config.nature, palette: config.palette, formation: config.formation,
-      treeMix: config.trees, subZones: config.subZones, options: { river: 'through', crossing: false },
+      treeMix: config.trees, subZones: config.subZones, terrain: config.terrain, regionLayout: config.regionLayout, options: { river: 'through', crossing: false },
     })
   } finally { Math.random = orig }
 }

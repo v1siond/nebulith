@@ -111,6 +111,54 @@ defmodule Nebulith.Catalog.ABiomeHasItsOwnRegionsTest do
     end
   end
 
+  describe "a place people live in is made of places too" do
+    test "every settlement states its own regions, and a picker to choose them" do
+      # Measured against the captured `/api/generators` the frontend tests run on: a town served
+      # `centre / lanes / green / market / outskirts` and a village `huts / commons / plots / edge`, and the
+      # seeder served NEITHER, because both sets were authored in a migration that ran on top of it. So a
+      # village came out as one uniform sprawl of huts with no commons and no garden plots, and neither had
+      # a region picker at all, since the picker is built from the set.
+      settled =
+        Catalog.list_generator_categories()
+        |> Enum.reject(&(&1.key == "wilderness"))
+        |> Enum.flat_map(& &1.generators)
+
+      assert length(settled) >= 28,
+             "only #{length(settled)} settlements, so this run proves little"
+
+      for gen <- settled do
+        assert keys(gen) != [], "#{gen.key} is one uniform sprawl: it states no regions at all"
+
+        picker = Enum.find(gen.options, &(&1["key"] == "region"))
+        assert picker, "#{gen.key} states regions and offers no way to pick one"
+
+        offered = picker["choices"] |> Enum.map(& &1["key"]) |> Enum.reject(&(&1 == "random"))
+
+        assert offered == keys(gen),
+               "#{gen.key} offers #{inspect(offered)} of #{inspect(keys(gen))}"
+      end
+    end
+
+    test "a settlement region says how much of it is BUILT, or it is a tint" do
+      # `built` is the share of a region's plots carrying a building: a park is 0, a terrace 1. Without it
+      # the three neighbourhoods of a city were three names for one thing.
+      settled =
+        Catalog.list_generator_categories()
+        |> Enum.reject(&(&1.key == "wilderness"))
+        |> Enum.flat_map(& &1.generators)
+
+      for gen <- settled do
+        shares = for z <- regions(gen), do: z["built"]
+
+        assert Enum.all?(shares, &is_number/1),
+               "#{gen.key} has regions that do not say how built they are: #{inspect(shares)}"
+
+        assert length(Enum.uniq(shares)) > 1,
+               "#{gen.key} builds every region the same amount, so they are one place in #{length(shares)} colours"
+      end
+    end
+  end
+
   describe "the seeder owns it" do
     test "seeding twice says the same thing, so nothing has to patch it afterwards", %{wild: wild} do
       before = Map.new(wild, &{&1.key, {keys(&1), Map.get(&1.config, "regionLayout")}})

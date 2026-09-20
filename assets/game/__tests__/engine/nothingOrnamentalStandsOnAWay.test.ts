@@ -49,7 +49,7 @@ function build(key: string, seed: number): StageData {
       zone: 'spring', variant: gen.variant as never, layout: gen.layout as never, cols: 40, rows: 40,
       options: { exits: '2', pathways: '3', river: 'through' },
       nature: config.nature, palette: config.palette, formation: config.formation, pathway: config.pathway,
-      treeMix: config.trees, subZones: config.subZones, crossings: config.crossings, entrance: config.entrance,
+      treeMix: config.trees, subZones: config.subZones, terrain: config.terrain, regionLayout: config.regionLayout, crossings: config.crossings, entrance: config.entrance,
       settlement: config.settlement,
     })
   } finally {

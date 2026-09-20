@@ -1734,7 +1734,10 @@ defmodule Nebulith.Catalog.TileSource do
       glyph: "☙",
       emoji: "🌿",
       category: "nature",
-      occupies: true,
+      # YOU WALK THROUGH IT, like every other ground plant. This said `true` and `ensure_ground_plants/0`,
+      # which runs later in the same seed, wrote `false` over it: one fact with two owners in one file, and
+      # the literal was the one that looked authoritative while the other one won.
+      occupies: false,
       height: 1.0,
       settings: %{
         "color" => "#2f6b2a",

@@ -771,6 +771,11 @@ export function GenerateControls({
       options: opts,
       palette: def?.config.palette,
       subZones: def?.config.subZones,
+      // …AND HOW THEY ARE LAID OUT, and how much of what the map holds. A served value that reaches the
+      // build and not the picture makes the card a picture of a different map, which is the one thing this
+      // object exists to prevent.
+      regionLayout: def?.config.regionLayout,
+      terrain: def?.config.terrain,
       formation: def?.config.formation,
       pathway: def?.config.pathway,
       treeMix: def?.config.trees,

@@ -32,7 +32,7 @@ function build(layout: string, seed: number): StageData {
       zone: 'summer', variant: 'forest', layout: layout as never, cols: 40, rows: 40,
       options: { exits: '2', pathways: '2' },
       nature: config?.nature, palette: config?.palette, formation: config?.formation,
-      treeMix: config?.trees, subZones: config?.subZones, crossings: config?.crossings,
+      treeMix: config?.trees, subZones: config?.subZones, terrain: config?.terrain, regionLayout: config?.regionLayout, crossings: config?.crossings,
       entrance: config?.entrance,
     })
   } finally { Math.random = orig }
