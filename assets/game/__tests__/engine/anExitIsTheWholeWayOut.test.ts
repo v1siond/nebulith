@@ -4,6 +4,7 @@ import { applyStageToGrid } from '@/game/editor/applyStage'
 import { IsometricGrid } from '@/engine/IsometricGrid'
 import { exitConnectors } from '@/game/editor/connectors'
 import { makeRng } from '@/lib/math'
+import { servedWild } from '@/__tests__/helpers/servedGenerator'
 
 /**
  * AN EXIT IS THE FULL SERVED WIDTH, IT IS ONLY THAT WIDTH, AND NOTHING STANDS IN IT. PATHWAYS.md §3 and §4.
@@ -38,8 +39,13 @@ const build = (width: number, seed: number, layout: 'woodland' | 'jungle' | 'mea
       layout,
       cols: 60,
       rows: 40,
+      // THE ROW THE APP BUILDS FROM, with only the WIDTH overridden, because the width is this file's
+      // subject. Built with `nature` alone the map had no served tone for its ways and no served colours
+      // for its field, so every cell wore the same empty signature and "does the way reach past its gate"
+      // could not tell a way from the ground beside it.
+      ...servedWild(layout === 'meadow' ? 'meadow' : layout === 'jungle' ? 'jungle' : 'woodland'),
       nature: NATURE,
-      pathway: { width },
+      pathway: { ...servedWild(layout === 'meadow' ? 'meadow' : layout === 'jungle' ? 'jungle' : 'woodland').pathway, width },
       // Without these there is no route network and nothing below has anything to measure.
       options: { pathways: 2, exits: 4 },
     })

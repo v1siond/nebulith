@@ -1460,12 +1460,16 @@
                     "weight": 40
                   },
                   {
+                    "kind": "tree_cypress",
+                    "weight": 25
+                  },
+                  {
                     "kind": "tree_broadleaf",
-                    "weight": 30
+                    "weight": 20
                   },
                   {
                     "kind": "tree_stub",
-                    "weight": 30
+                    "weight": 15
                   }
                 ],
                 "undergrowth": 0.9,
@@ -2359,8 +2363,12 @@
                 "name": "Shore",
                 "trees": [
                   {
+                    "kind": "tree_mangrove",
+                    "weight": 55
+                  },
+                  {
                     "kind": "bush_round",
-                    "weight": 100
+                    "weight": 45
                   }
                 ],
                 "undergrowth": 0.5,
@@ -2492,7 +2500,7 @@
                     "weight": 20
                   },
                   {
-                    "kind": "tree_encina",
+                    "kind": "tree_palm",
                     "weight": 15
                   }
                 ],
@@ -2527,7 +2535,7 @@
                 "name": "Inland jungle",
                 "trees": [
                   {
-                    "kind": "tree_encina",
+                    "kind": "tree_mangrove",
                     "weight": 35
                   },
                   {

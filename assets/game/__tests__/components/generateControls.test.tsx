@@ -91,7 +91,7 @@ const rx = (text: string) => new RegExp(text.replace(/[.*+?^${}()|[\]\\]/g, '\\$
 const WILD = CATALOG.find(c => c.key === 'wilderness')?.generators[0]?.key ?? ''
 
 /** What a wilderness row sends when nothing has been switched: its served defaults, dependencies honoured. */
-const WILD_DEFAULTS = { exits: 'random', pathways: 'random', region: 'random', river: 'none', depth: 'none', bridge: 'none' }
+const WILD_DEFAULTS = { exits: 'random', pathways: 'random', region: 'random', river: 'none', bridge: 'none' }
 
 /**
  * Found by its NAME element, exactly, then walked up to the card.
@@ -239,7 +239,7 @@ describe('variations are options on a preset, not more presets', () => {
     fireEvent.change(kinds(), { target: { value: 'wilderness' } })
     pickChoice(WILD, 'river', /^river$/i, 'divides')
     build()
-    expect(onGenerate).toHaveBeenCalledWith('spring', 'forest', expect.any(String), { ...WILD_DEFAULTS, river: 'divides', depth: '1', bridge: 'random' }, expect.any(String))
+    expect(onGenerate).toHaveBeenCalledWith('spring', 'forest', expect.any(String), { ...WILD_DEFAULTS, river: 'divides', bridge: 'random' }, expect.any(String))
   })
 
 
@@ -249,7 +249,9 @@ describe('variations are options on a preset, not more presets', () => {
   it('offers the kind of crossing, greyed out until there is a river, and forwards the one picked', () => {
     const onGenerate = setup()
     fireEvent.change(kinds(), { target: { value: 'wilderness' } })
-    expect(offeredKeys(WILD, 'bridge', /^kind of crossing$/i)).toEqual(['random', 'dirt', 'wood', 'planks', 'stone'])
+    // `none` is a crossing too: a river you are not meant to get over. `planks` was removed with its
+    // compositions, which were byte-identical to the wooden ones.
+    expect(offeredKeys(WILD, 'bridge', /^kind of crossing$/i)).toEqual(['random', 'none', 'dirt', 'wood', 'stone'])
     // GREYED OUT, NOT SWAPPED FOR SOMETHING ELSE. The cards are all there with a river or without one: the
     // dependency decides what can be picked, never which control is drawn.
     expect(pickerOff(/^kind of crossing$/i)).toBe(true)
@@ -257,25 +259,12 @@ describe('variations are options on a preset, not more presets', () => {
     expect(pickerOff(/^kind of crossing$/i)).toBe(false)
     pickChoice(WILD, 'bridge', /^kind of crossing$/i, 'stone')
     build()
-    expect(onGenerate).toHaveBeenCalledWith('spring', 'forest', expect.any(String), { ...WILD_DEFAULTS, river: 'divides', depth: '1', bridge: 'stone' }, expect.any(String))
+    expect(onGenerate).toHaveBeenCalledWith('spring', 'forest', expect.any(String), { ...WILD_DEFAULTS, river: 'divides', bridge: 'stone' }, expect.any(String))
   })
 
-  it('offers HOW DEEP the channel is cut, greyed out until there is a river, and forwards it', () => {
-    // and Same shape as the crossing and its kind: served, dependent, forwarded. A variation is an
-    // option, so it gets the same coverage the other options have.
-    const onGenerate = setup()
-    fireEvent.change(kinds(), { target: { value: 'wilderness' } })
-    const label = /how deep the channel is cut/i
-
-    // not-cut is the off value, not a choice
-    expect(offeredKeys(WILD, 'depth', label)).toEqual(['1', '2'])
-    expect(pickerOff(label)).toBe(true) // nothing to cut without a river
-    pickChoice(WILD, 'river', /^river$/i, 'divides')
-    expect(pickerOff(label)).toBe(false)
-    pickChoice(WILD, 'depth', label, '2')
-    build()
-    expect(onGenerate).toHaveBeenCalledWith('spring', 'forest', expect.any(String), { ...WILD_DEFAULTS, river: 'divides', depth: '2', bridge: 'random' }, expect.any(String))
-  })
+  // THE `depth` PICKER IS GONE, and the case that drove it with it: how deep a river cuts is served by the
+  // template now rather than chosen in the panel. It went on passing for a while against a captured fixture
+  // that still carried the option, which is the one way a fixture can lie.
 
   it('offers nothing to switch on for a kind of place that has no options', () => {
     setup()
@@ -311,9 +300,10 @@ describe('a card is a TYPE, and a type carries the regions it is made of', () =>
     expect(served.length).toBeGreaterThan(1) // the row really does declare some
     expect(offeredKeys('forest_jungle', 'region', /^region$/i)).toEqual(served)
 
-    pickChoice('forest_jungle', 'region', /^region$/i, 'lakeside')
+    // A rainforest's own regions, not the generic five every biome used to be served.
+    pickChoice('forest_jungle', 'region', /^region$/i, 'varzea')
     build()
-    expect(onGenerate).toHaveBeenCalledWith('spring', 'forest', 'jungle', { ...WILD_DEFAULTS, region: 'lakeside' }, 'forest_jungle')
+    expect(onGenerate).toHaveBeenCalledWith('spring', 'forest', 'jungle', { ...WILD_DEFAULTS, region: 'varzea' }, 'forest_jungle')
   })
 
   it('a CITY offers its own neighbourhoods, not the wood\'s regions', () => {
@@ -668,9 +658,9 @@ describe('the preview window shows the world to build, its size, and the options
     render(<GenerateControls {...p} />)
     fireEvent.change(kinds(), { target: { value: 'wilderness' } })
     pickChoice(WILD, 'river', /^river$/i, 'through')
-    pickChoice(WILD, 'bridge', /^kind of crossing$/i, 'planks')
+    pickChoice(WILD, 'bridge', /^kind of crossing$/i, 'wood')
     fireEvent.click(screen.getByRole('button', { name: /build this world/i }))
-    expect(p.onGenerate).toHaveBeenCalledWith('spring', 'forest', expect.any(String), { ...WILD_DEFAULTS, river: 'through', depth: '1', bridge: 'planks' }, expect.any(String))
+    expect(p.onGenerate).toHaveBeenCalledWith('spring', 'forest', expect.any(String), { ...WILD_DEFAULTS, river: 'through', bridge: 'wood' }, expect.any(String))
   })
 
   /**

@@ -1137,7 +1137,10 @@ defmodule Nebulith.Catalog.GeneratorSource do
              "understory" => 0.50,
              "understoryTile" => "dune_grass_young"
            },
-           "trees" => [%{"kind" => "bush_round", "weight" => 100}]
+           "trees" => [
+             %{"kind" => "tree_mangrove", "weight" => 55},
+             %{"kind" => "bush_round", "weight" => 45}
+           ]
          },
          %{
            "key" => "dunes",
@@ -1197,7 +1200,7 @@ defmodule Nebulith.Catalog.GeneratorSource do
              %{"kind" => "tree_banana", "weight" => 35},
              %{"kind" => "tree_mangrove", "weight" => 30},
              %{"kind" => "tree_coconut", "weight" => 20},
-             %{"kind" => "tree_encina", "weight" => 15}
+             %{"kind" => "tree_palm", "weight" => 15}
            ]
          },
          %{
@@ -1215,7 +1218,7 @@ defmodule Nebulith.Catalog.GeneratorSource do
              "understoryTile" => "thicket"
            },
            "trees" => [
-             %{"kind" => "tree_encina", "weight" => 35},
+             %{"kind" => "tree_mangrove", "weight" => 35},
              %{"kind" => "tree_banana", "weight" => 30},
              %{"kind" => "tree_mangrove", "weight" => 20},
              %{"kind" => "bush", "weight" => 15}
@@ -1242,8 +1245,9 @@ defmodule Nebulith.Catalog.GeneratorSource do
            },
            "trees" => [
              %{"kind" => "tree_willow", "weight" => 40},
-             %{"kind" => "tree_broadleaf", "weight" => 30},
-             %{"kind" => "tree_stub", "weight" => 30}
+             %{"kind" => "tree_cypress", "weight" => 25},
+             %{"kind" => "tree_broadleaf", "weight" => 20},
+             %{"kind" => "tree_stub", "weight" => 15}
            ]
          },
          %{

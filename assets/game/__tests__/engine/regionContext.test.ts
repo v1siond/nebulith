@@ -138,6 +138,8 @@ describe('NO tropical row anywhere falls through to the season', () => {
     // woodland's `glade` both of them were asked for before every biome got its own set.
     expect(species('forest_beach', 'palms')).toContain('tree_palm')
     expect(species('forest_swamp', 'mire')).toContain('tree_cypress')
-    expect(species('forest_jungle', 'deep')).toContain('tree_giant')
+    // The jungle's giants stand in its `emergent` region: it was `deep`, one of the generic five every
+    // biome used to be served, and a rainforest has no "deep wood" in it.
+    expect(species('forest_jungle', 'emergent')).toContain('tree_giant')
   })
 })

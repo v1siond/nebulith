@@ -23,8 +23,9 @@ const LIVE = parseGeneratorCatalog(liveBody)
 
 describe('parseGeneratorCatalog, the live /api/generators body', () => {
   it('reads every category the backend serves, in menu order', () => {
-    expect(LIVE.map(c => c.key)).toEqual(['wilderness', 'village', 'town', 'city', 'cave', 'temple'])
-    expect(LIVE.map(c => c.name)).toEqual(['Wilderness', 'Village', 'Town', 'City', 'Cave', 'Temple'])
+    // The cave and the temple used to sit at the end of this list and the backend serves neither now.
+    expect(LIVE.map(c => c.key)).toEqual(['wilderness', 'village', 'town', 'city'])
+    expect(LIVE.map(c => c.name)).toEqual(['Wilderness', 'Village', 'Town', 'City'])
   })
 
   it('reads each category\'s generators, in menu order', () => {
@@ -58,9 +59,13 @@ describe('parseGeneratorCatalog, the live /api/generators body', () => {
     expect(findGenerator(LIVE, 'wilderness', 'forest_meadow')!.config.units!.townsfolk).toBe(5)
   })
 
-  it('reads the dungeon enemy rosters, CAVE_ENEMY_TYPES / TEMPLE_ENEMY_TYPES as data', () => {
-    expect(findGenerator(LIVE, 'cave')!.config.units).toEqual({ townsfolk: 0, enemies: 10, enemyTypes: ['bat', 'spider', 'skeleton'] })
-    expect(findGenerator(LIVE, 'temple')!.config.units).toEqual({ townsfolk: 0, enemies: 10, enemyTypes: ['skeleton', 'guardian', 'wraith'] })
+  it('reads who populates a map, and an empty roster is a list rather than a gap', () => {
+    // It read the CAVE and the TEMPLE rosters, and the backend serves neither type any more. What the parser
+    // still has to get right is the shape: a settlement states its townsfolk and states that it holds no
+    // enemies, and `enemyTypes: []` has to arrive as an empty list, never as undefined, or every caller has
+    // to guard it.
+    expect(findGenerator(LIVE, 'town', 'town')!.config.units).toEqual({ townsfolk: 8, enemies: 0, enemyTypes: [] })
+    expect(findGenerator(LIVE, 'wilderness', 'forest_woodland')!.config.units).toEqual({ townsfolk: 3, enemies: 0, enemyTypes: [] })
   })
 
   it('reads the building material + colour palette the page declared as five consts', () => {
@@ -116,11 +121,14 @@ describe('parseGeneratorCatalog, the live /api/generators body', () => {
     expect(town).not.toEqual(city)
   })
 
-  it('leaves a config section the backend omits UNDEFINED, a cave has no settlement or buildings', () => {
-    const cave = findGenerator(LIVE, 'cave')!.config
-    expect(cave.settlement).toBeUndefined()
-    expect(cave.buildings).toBeUndefined()
-    expect(cave.nature).toBeUndefined()
+  it('leaves a config section the backend omits UNDEFINED, a wood has no settlement or buildings', () => {
+    // It asked a CAVE, which is not served any more. A wilderness row makes the same point and is a row the
+    // app actually builds: nobody lives in a wood, so it states neither a settlement nor a building palette,
+    // and those must arrive undefined rather than as an empty object somebody has to tell apart from one.
+    const wood = findGenerator(LIVE, 'wilderness', 'forest_woodland')!.config
+    expect(wood.settlement).toBeUndefined()
+    expect(wood.buildings).toBeUndefined()
+    expect(wood.nature).toBeDefined() // …and what it DOES state still arrives
   })
 })
 
@@ -170,9 +178,13 @@ describe('categoryLayouts: a card is a ROW, identified by that row\'s KEY', () =
     expect(new Set(ids).size).toBe(ids.length) // …and no two cards collapse onto one id
   })
 
-  it('lists the ONE card of a map type that serves a single generator', () => {
-    expect(categoryLayouts(LIVE, 'cave')).toEqual([{ id: 'cave_default', label: 'Cave' }])
-    expect(categoryLayouts(LIVE, 'temple')).toEqual([{ id: 'temple_default', label: 'Temple' }])
+  it('lists one card per ROW, labelled by the row rather than by its category', () => {
+    // The cave and the temple were the single-generator types and neither is served now. The property is
+    // the same one: a card is a row, and its label is the row's own name.
+    const cards = categoryLayouts(LIVE, 'village')
+    const rows = findCategory(LIVE, 'village')!.generators
+    expect(cards).toEqual(rows.map(g => ({ id: g.key, label: g.name })))
+    expect(cards.length).toBeGreaterThan(1)
   })
 
   it('lists no layouts for a map type the backend does not serve', () => {
@@ -323,7 +335,7 @@ describe('fetchGeneratorCatalog, the wire', () => {
     global.fetch = fetchMock as unknown as typeof fetch
 
     const catalog = await fetchGeneratorCatalog()
-    expect(catalog.map(c => c.key)).toEqual(['wilderness', 'village', 'town', 'city', 'cave', 'temple'])
+    expect(catalog.map(c => c.key)).toEqual(['wilderness', 'village', 'town', 'city'])
     expect(fetchMock.mock.calls[0][0]).toContain('/generators')
   })
 
