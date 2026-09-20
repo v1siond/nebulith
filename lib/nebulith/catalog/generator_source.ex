@@ -1769,7 +1769,10 @@ defmodule Nebulith.Catalog.GeneratorSource do
       "weight" => 1,
       "built" => 0.04,
       "canopy" => 0.5,
-      "stone" => 0.3,
+      # NO `stone`. A graveyard has headstones; `stone` is the share of FALLEN MASONRY, and the only thing
+      # that reads it is the ruin builder, which lays a paved platform with a colonnade of pillars around it.
+      # Serving it here put a temple in the middle of eleven cities. A graveyard wants its own furniture, and
+      # borrowing the ruin's is not it.
       "floor" => "#6b6f5c"
     }
   ]

@@ -3433,10 +3433,26 @@ defmodule Nebulith.Catalog.TileSource do
           ground_plant?(tile.label) do
         Catalog.put_tile_setting(tileset.id, tile.label, "stackAt", 0)
         Catalog.set_tile_solid(tileset.id, tile.label, false)
+        # AND IT IS A PICTURE OF A PLANT, NOT A CUBE OF PLANT.
+        #
+        # A ground plant draws as ONE face with the ground showing through it. Fourteen of the nineteen said
+        # so because whoever authored their row happened to write it; `clover`, `flower`, `wheat`,
+        # `fallen-leaf` and `maple-leaf` did not, and they are height 1.0, so every one of them came out as a
+        # solid block wearing the plant's picture on top. A flower takes its zone's colour, which is why a
+        # meadow's blooms read as a grid of red, blue and gold crates.
+        #
+        # It belongs in this rule for the same reason `stackAt` and `occupies` do: they are one statement
+        # about what a ground plant IS, and keeping them together is what stops the next plant arriving with
+        # two of the four set.
+        Catalog.put_tile_setting(tileset.id, tile.label, "display", "single")
+        Catalog.put_tile_setting(tileset.id, tile.label, "transparent", true)
         tile.label
       end
 
-    IO.puts("#{length(written)} ground plants stack at their base and let you walk through them")
+    IO.puts(
+      "#{length(written)} ground plants draw as one face, stack at their base, and let you walk through"
+    )
+
     :ok
   end
 
