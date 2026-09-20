@@ -6358,7 +6358,7 @@ function clearMeadowCells(ctx: ArchetypeContext, keys: Set<string>): void {
  *  layer, excluded. */
 function repairFloorConnectivity(ctx: ArchetypeContext, maxPocket?: number): void {
   if (maxPocket === undefined) return // no served bound, so nothing decides how much may be filled
-  const { collision, zone, cols, rows, trees: anchors } = ctx
+  const { collision, cols, rows } = ctx
   const isFloor = (col: number, row: number): boolean => inBounds(col, row, cols, rows) && !collision[row][col]
 
   const seen = new Set<string>()
@@ -6378,10 +6378,14 @@ function repairFloorConnectivity(ctx: ArchetypeContext, maxPocket?: number): voi
     if (waterBound(ctx, region)) continue
     region.forEach(key => {
       const { col, row } = toCell(key)
-      collision[row][col] = true
       const kind = pickLivingTree(shadeNoise(col * 17 + row * 43), speciesAt(ctx, col, row))
       if (!kind) return // no species served yet, so there is nothing to plant here
-      anchors.push({ col, row, kind, variant: massVariant(col, row) % canopyCount(styleCatalog('ascii'), zone) }) // tiny dead pocket → forest fills it
+      // THROUGH THE COMMIT, like every other placer. This pushed onto `ctx.trees` directly, so the pocket
+      // filler was the one planter that skipped the water, deck and exit rules and the canopy variant
+      // bound: a tree it filled a pocket with carried a raw hash where the zone has four shades. And the
+      // cell is blocked only if something actually stands in it, because a blocked cell holding nothing is
+      // an invisible wall.
+      if (plantTree(ctx, { col, row, kind, variant: massVariant(col, row) })) collision[row][col] = true
     })
   }
 }
@@ -6501,7 +6505,13 @@ export function plantTree(ctx: ArchetypeContext, tree: TreeAnchor): boolean {
   if (ctx.exitCells.has(`${tree.col},${tree.row}`)) return false
   // A caller that already chose a colour keeps it; everything else is dressed here, so the rule lives at the
   // COMMIT rather than in eight separate placers.
-  ctx.trees.push({ ...tree, leafColor: tree.leafColor ?? leafToneAt(ctx, tree) })
+  //
+  // THE CANOPY VARIANT IS AN INDEX, so it is bounded here for the same reason. Four of the five placers
+  // pushed `massVariant(col, row)` raw, an unbounded hash, and one of them remembered to take it modulo the
+  // zone's canopy count; an anchor carrying 104 where the zone has 4 shades is not a variant, it is a hash
+  // nobody reduced. One place decides, and it is this one.
+  const shades = Math.max(1, canopyCount(styleCatalog('ascii'), ctx.zone))
+  ctx.trees.push({ ...tree, variant: ((tree.variant % shades) + shades) % shades, leafColor: tree.leafColor ?? leafToneAt(ctx, tree) })
   return true
 }
 

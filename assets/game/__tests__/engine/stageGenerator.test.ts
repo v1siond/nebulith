@@ -3,6 +3,7 @@ import '@/__tests__/helpers/installTilesetSeed' // the generator reads ALL tile 
 import { installSeedTileset } from '@/__tests__/helpers/tilesetSeed'
 import { FLAT_FLOOR, generateStage, stagePaint, footprintEdgeClass, footprintSide, footprintRing, edgeToSide, treeSubpart, labelForCell, pickLivingTree } from '@/engine/stageGenerator'
 import { makeRng } from '@/lib/math'
+import { servedConfig, servedWild } from '@/__tests__/helpers/servedGenerator'
 import { buildingDepth, buildingDoorOffset } from '@/engine/buildingCatalog'
 import { parseColor } from '@/engine/colors'
 import { groundTileColor } from '@/engine/tileset/groundColor'
@@ -184,7 +185,9 @@ describe('generateStage, a building reserves a small width×depth footprint (the
 describe('generateStage, forest archetype (Viridian-Forest style)', () => {
   // Seeded so the density assertions are deterministic, the forest path now honours the injected rng
   // (ticket 8: it used to draw from Math.random, so these thresholds were flaky only in full runs).
-  const stage = generateStage({ zone: 'summer', variant: 'forest', cols: 30, rows: 24, seeds: { layout: 42, buildings: 42, nature: 42, decor: 42 } })
+  // FROM THE ROW THE APP BUILDS FROM. A forest with no served formation has no grouping to plant a stand
+  // with and no served terrain to measure its ground against, so this measured a wood with nothing in it.
+  const stage = generateStage({ ...servedWild('woodland'), zone: 'summer', variant: 'forest', cols: 30, rows: 24, seeds: { layout: 42, buildings: 42, nature: 42, decor: 42 } })
 
   it('fills the forest with trees and walkable flowers', () => {
     const flowers = stage.props.filter(p => p.type === 'flower')
@@ -289,7 +292,7 @@ describe('generateStage, zone-tinted trees (varied canopy tones per zone)', () =
   // variant→colour RESOLUTION (trunk one tone, distinct canopy shades, glyph+colour loaded from the DB tile) is
   // covered against the real tileset by treeComposition.test.ts, colour no longer lives on the generated props.
   const variantsFor = (zone: 'summer' | 'winter' | 'autumn'): Set<number> =>
-    new Set(generateStage({ zone, variant: 'forest', cols: 40, rows: 30 }).trees.map(t => t.variant))
+    new Set(generateStage({ ...servedWild('woodland'), zone, variant: 'forest', cols: 40, rows: 30 }).trees.map(t => t.variant))
 
   it('uses MULTIPLE canopy variants per zone (varied tones, not one flat shade)', () => {
     for (const zone of ['summer', 'winter', 'autumn'] as const) {
@@ -322,7 +325,7 @@ describe('generateStage, bare/dead trees (snags)', () => {
     // (winter) maps until at least one snag appears, and assert each blocks like a living tree.
     let snags = 0
     for (let i = 0; i < 30 && snags === 0; i++) {
-      const stage = generateStage({ zone: 'winter', variant: 'forest', cols: 40, rows: 30, seeds: { layout: i, buildings: i, nature: i, decor: i } })
+      const stage = generateStage({ ...servedWild('woodland'), zone: 'winter', variant: 'forest', cols: 40, rows: 30, seeds: { layout: i, buildings: i, nature: i, decor: i } })
       const dead = stage.trees.filter(t => t.kind === 'tree_dead')
       if (dead.length > 0) {
         snags += dead.length
@@ -338,9 +341,16 @@ describe('generateStage, trees are recorded as stacked-composition anchors (the 
   // Trees are no longer baked as flat per-cell props; the generator RECORDS anchors and applyStageToGrid
   // stamps each as a composition (per-cell heightLevel-stacked DB tiles), the same model buildings use, so
   // every tile is selectable. The stacked-block shape + glyph/colour are covered by treeComposition.test.ts.
-  const stage = generateStage({ zone: 'summer', variant: 'forest', cols: 30, rows: 24 })
+  const stage = generateStage({ ...servedWild('woodland'), zone: 'summer', variant: 'forest', cols: 30, rows: 24 })
 
-  const TREE_KINDS = new Set(['tree', 'tree_tall', 'tree_stub', 'tree_round', 'bush', 'bush_round', 'tree_dead'])
+  // WHAT THIS WOOD GROWS, from the row it was grown from, plus the snag every forest can roll. A literal
+  // list here is a second opinion about a template's species: the woodland serves its own per region now
+  // (a coppice is saplings and bush, a streamside is willow and broadleaf), and none of those were in it.
+  const TREE_KINDS = new Set<string>([
+    'tree_dead',
+    ...(servedConfig('wilderness', 'forest_woodland').trees ?? []).map(t => t.kind),
+    ...(servedConfig('wilderness', 'forest_woodland').subZones ?? []).flatMap(z => (z.trees ?? []).map(t => t.kind)),
+  ])
 
   it('records tree ANCHORS (not flat props), each names a living-tree composition kind + canopy variant', () => {
     expect(stage.trees.length).toBeGreaterThan(0)
@@ -378,7 +388,7 @@ describe('generateStage, trees are recorded as stacked-composition anchors (the 
       const orig = Math.random
       Math.random = makeRng(seed)
       let s: ReturnType<typeof generateStage>
-      try { s = generateStage({ zone: 'summer', variant: 'forest', cols: 30, rows: 24 }) } finally { Math.random = orig }
+      try { s = generateStage({ ...servedWild('woodland'), zone: 'summer', variant: 'forest', cols: 30, rows: 24 }) } finally { Math.random = orig }
       const floor = s.collision.flat().filter(b => !b).length
       const reached = reachableFrom(s.collision, s.spawn)
       const reachable = reached.size
@@ -402,7 +412,7 @@ describe('generateStage, spring flower variety (a meadow in bloom)', () => {
   it('scatters MANY distinct walkable flower types across spring forests', () => {
     // sample a few maps so we see the full palette, not one unlucky draw
     const flowers = [0, 1, 2].flatMap(seed =>
-      generateStage({ zone: 'spring', variant: 'forest', cols: 40, rows: 30, seeds: { layout: seed, buildings: seed, nature: seed, decor: seed } }).props.filter(
+      generateStage({ ...servedWild('woodland'), zone: 'spring', variant: 'forest', cols: 40, rows: 30, seeds: { layout: seed, buildings: seed, nature: seed, decor: seed } }).props.filter(
         p => p.type === 'flower',
       ),
     )

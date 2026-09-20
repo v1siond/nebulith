@@ -1950,7 +1950,18 @@ defmodule Nebulith.Catalog.GeneratorSource do
     # painter is shared: a woodland that picks "around" runs the same channel, inset from the three far
     # edges at this half-width. A meadow states its own, because its river is the shape of that map.
     "riverInset" => 5,
-    "riverHalf" => 1.9
+    "riverHalf" => 1.9,
+    # …and the rest of what a shared LAYOUT measures itself against. A layout is the builder, and three of
+    # them are shared between nine environments, so a value one of those builders reads has to be served by
+    # every template that can run it. These were named for the meadow and served only to the meadow, and the
+    # builders that read them run for anything with `layout: "meadow"`: the framing trees stopped being
+    # planted, and the around-course river stopped being cut, on every other template that ran them.
+    "gradientSteps" => 7,
+    "patch" => 7,
+    "outerBand" => 4,
+    "woodedRegion" => 0.55,
+    "entranceRun" => 11,
+    "entranceFrac" => 0.30
   }
 
   @environments [
@@ -2065,22 +2076,6 @@ defmodule Nebulith.Catalog.GeneratorSource do
       wild_blurb: "Open grass with the odd tree standing alone in it, and the sky on it all day.",
       place_blurb: "out on open grass.",
       layout: "meadow",
-      # A TENDED FIELD IS BUILT TO ITS OWN MEASUREMENTS. The row gradient and the garden patches are drawn
-      # coarse on purpose: uniform across a row, so the ground compresses into one run per row instead of
-      # per-cell grid lines. The river runs inset from the three far edges, and the entrance sits left of
-      # centre on the near one. Its cut-off floor pockets are filled only up to 12 cells, because the land
-      # strip beyond its river is meant to stay separate rather than be repaired into the field.
-      terrain: %{
-        "gradientSteps" => 7,
-        "patch" => 7,
-        "riverInset" => 5,
-        "riverHalf" => 1.9,
-        "outerBand" => 4,
-        "entranceRun" => 11,
-        "entranceFrac" => 0.30,
-        "maxPocket" => 12,
-        "woodedRegion" => 0.55
-      },
       palette: @meadow_palette,
       nature: @outdoor_nature,
       formation: @formations["scattered"],
