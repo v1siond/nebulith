@@ -17,7 +17,7 @@ import type { GridAsset } from '@/engine/IsometricGrid'
 
 /** A floor asset exactly as makeFloorAsset builds it: empty art, no label, identity in tileKey. */
 const floorOf = (tileKey: string): GridAsset =>
-  ({ art: [''], col: 0, row: 0, type: FLOOR_TYPE, tileKey, heightLevel: 0, blocking: false } as GridAsset)
+  ({ art: [''], col: 0, row: 0, type: FLOOR_TYPE, tileKey, heightLevel: 0, occupies: false } as GridAsset)
 
 describe('kindTileImage, the baked ASCII image for a KIND-identified (label-less) tile', () => {
   useSeedTileset()

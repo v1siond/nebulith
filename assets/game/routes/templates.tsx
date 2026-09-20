@@ -11,6 +11,7 @@
  * - TOP: 2D bird's-eye blueprint (no height)
  * - DEBUG: Isometric + collision overlay, asset labels
  */
+import { assetIsSolid } from '@/engine/collisionBoxes'
 import { setTilePose, styleCatalog, styleTile, styleTiles } from '@/engine/tileset/styleTiles'
 import Head from '@/lib/router'
 import { Link } from '@/lib/router'
@@ -2610,7 +2611,7 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
       __leafTones?: () => { color: string; count: number }[] | null
       /** Every tile label on the map with the colours it carries, so a green sprig is identified by measuring. */
       __tileTones?: (min?: number) => { label: string; total: number; colors: [string, number][] }[] | null
-      __collisionAudit?: (col0?: number, row0?: number, col1?: number, row1?: number) => { col: number; row: number; ground: string; blocked: boolean; standLevel: number; tiles: { label: string; level: number; blocking: boolean }[] }[]
+      __collisionAudit?: (col0?: number, row0?: number, col1?: number, row1?: number) => { col: number; row: number; ground: string; blocked: boolean; standLevel: number; tiles: { label: string; level: number; solid: boolean }[] }[]
       __floorInfoAt?: (col: number, row: number) => { color: string | null; kind: string | null; depth: number | null; depthDir: string | null; heightLevel: number } | null
       __tileBoxes?: (label: string) => { known: boolean; boxes: number | null }
       __camOffset?: () => { x: number; y: number }
@@ -2655,7 +2656,7 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
       if (!g) return null
       for (let k = 0; k < n; k++) {
         const top = g.getAssetsAtCell(col, row).reduce((m, a) => Math.max(m, a.heightLevel ?? 0), -1)
-        g.placeAsset(['🪨'], col, row, { type: 'rock', blocking: true, color: '#8a8a8a', tileOverride: 'emoji:boulder', heightLevel: top + 1 })
+        g.placeAsset(['🪨'], col, row, { type: 'rock', color: '#8a8a8a', tileOverride: 'emoji:boulder', heightLevel: top + 1 })
       }
       return g.getAssetsAtCell(col, row).length
     }
@@ -2686,7 +2687,7 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
         route,
         tileHeight: tile.height ?? null,
         tileSettings: tile.settings ?? null,
-        asset: a ? { type: a.type, label: a.label ?? null, height: a.height ?? null, tileOverride: a.tileOverride ?? null, depth: a.depth ?? null, depthDir: a.depthDir ?? null, settings: a.settings ?? null, blocking: a.blocking ?? false } : null,
+        asset: a ? { type: a.type, label: a.label ?? null, height: a.height ?? null, tileOverride: a.tileOverride ?? null, depth: a.depth ?? null, depthDir: a.depthDir ?? null, settings: a.settings ?? null, solid: assetIsSolid(a) } : null,
       }
     }
     win.__isoBlockScreen = (col: number, row: number, level: number) => {
@@ -3029,10 +3030,10 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
       // Clamp to the REAL grid: `isBlocked` reports true out of bounds (a wall around the world), so an audit
       // window bigger than the grid would count the void as false positives.
       const c1 = Math.min(col1, grid.cols - 1), r1 = Math.min(row1, grid.rows - 1)
-      const out: { col: number; row: number; ground: string; blocked: boolean; standLevel: number; tiles: { label: string; level: number; blocking: boolean }[] }[] = []
+      const out: { col: number; row: number; ground: string; blocked: boolean; standLevel: number; tiles: { label: string; level: number; solid: boolean }[] }[] = []
       for (let row = Math.max(0, row0); row <= r1; row++) {
         for (let col = Math.max(0, col0); col <= c1; col++) {
-          const tiles = grid.getAssetsAtCell(col, row).map(a => ({ label: a.label ?? a.type ?? '', level: a.heightLevel ?? 0, blocking: !!a.blocking }))
+          const tiles = grid.getAssetsAtCell(col, row).map(a => ({ label: a.label ?? a.type ?? '', level: a.heightLevel ?? 0, solid: assetIsSolid(a) }))
           out.push({ col, row, ground: grid.groundAt(col, row), blocked: grid.isBlocked(col, row), standLevel: unitStandLevel(grid, col, row), tiles })
         }
       }

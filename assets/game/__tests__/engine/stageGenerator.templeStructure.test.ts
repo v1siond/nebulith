@@ -62,7 +62,7 @@ describe('a temple built from its pathways', () => {
       // altar and its braziers. That is the point of the sanctum, and its own suite requires the altar to sit
       // on a blocked cell, so the honest test is that you can reach the place, not stand in the altar.
       const setPiece = new Set(
-        s.props.filter(p => p.blocking && ['altar', 'brazier', 'pillar'].includes(p.type)).map(key),
+        s.props.filter(p => p.occupies && ['altar', 'brazier', 'pillar'].includes(p.type)).map(key),
       )
       for (const stop of s.routes!.deadEnds) {
         expect(walked.has(key(stop)) || setPiece.has(key(stop))).toBe(true)

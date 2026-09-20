@@ -119,7 +119,7 @@ describe('meadow layouts, structural match to #14 / #24', () => {
     // A ROCK IS THE ONE THING THAT BELONGS IN THE RIVER.
     // Everything else standing in water is still the bug this test was written for
     // (a tree rooted mid-channel), so the rule keeps its teeth and gains exactly one exception.
-    const standing = wet.props.filter(p => p.blocking && p.label !== 'rock')
+    const standing = wet.props.filter(p => p.occupies && p.label !== 'rock')
     expect(standing.some(p => water.has(`${p.col},${p.row}`))).toBe(false)
   })
 

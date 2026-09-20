@@ -23,7 +23,7 @@ function roundTripGrid(grid: IsometricGrid): IsometricGrid {
 describe('art-style persistence, override + active style survive the codec', () => {
   it('an asset tileOverride round-trips through serialize → JSON → deserialize', () => {
     const grid = new IsometricGrid({ cols: 8, rows: 8, cellSize: 40, isoScale: 1 })
-    grid.placeAsset(['♣'], 2, 3, { type: 'tree', blocking: true, color: '#2e8b2e' })
+    grid.placeAsset(['♣'], 2, 3, { type: 'tree', occupies: true, color: '#2e8b2e' })
     // pin this ONE tree to a specific Library tile
     grid.assets[grid.assets.length - 1].tileOverride = 'emoji:tree'
 

@@ -33,7 +33,7 @@ const ripple = (over: Partial<Animation> = {}): Animation =>
   }) as Animation
 
 const floorAsset = (animations?: Animation[]): GridAsset =>
-  ({ art: [''], col: 2, row: 3, type: 'floor', tileKey: 'water', heightLevel: 0, blocking: false, placedAt: 0, animations }) as unknown as GridAsset
+  ({ art: [''], col: 2, row: 3, type: 'floor', tileKey: 'water', heightLevel: 0, occupies: false, placedAt: 0, animations }) as unknown as GridAsset
 
 describe('a placed asset shows its live sprite frame', () => {
   it('returns NOTHING for an asset with no animations, so an un-animated tile is untouched', () => {
@@ -41,7 +41,7 @@ describe('a placed asset shows its live sprite frame', () => {
     // no per-instance animations it falls through to the TILE's and is correctly NOT null. The fixture used to
     // hide that by carrying a frameless `water`. A puddle is the honest example of a tile that never animates.
     const still = (animations?: Animation[]): GridAsset =>
-      ({ art: [''], col: 2, row: 3, type: 'floor', tileKey: 'water_still', heightLevel: 0, blocking: false, placedAt: 0, animations }) as unknown as GridAsset
+      ({ art: [''], col: 2, row: 3, type: 'floor', tileKey: 'water_still', heightLevel: 0, occupies: false, placedAt: 0, animations }) as unknown as GridAsset
     expect(spriteFrame(still(), 0, ASCII_STYLE, 'iso', 'day')).toBeNull()
     expect(spriteFrame(still([]), 500, ASCII_STYLE, 'iso', 'day')).toBeNull()
   })

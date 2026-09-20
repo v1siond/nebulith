@@ -938,7 +938,7 @@ export function wadeCrossing(ctx: RiverDeck, wet: ReadonlySet<string>, tone: str
     // is the half of the crossing that does not look like a ford.
     ctx.props.push({
       col, row, type: 'ground_decor', char: film.char, label: FILM,
-      blocking: false, grows: false, color: film.color,
+      occupies: false, grows: false, color: film.color,
       // THE PUDDLE STATES ITS OWN STACK. *"all puddle of water tiles/cells should have the ystack on 0
       // instead of 1"*. `water_still` serves `stackAt: 0`, so the resolved answer was already 0, but the
       // PLACED cell said nothing and the inspector therefore showed the engine's default of 1. His standing
@@ -1110,7 +1110,7 @@ export interface RiverProp {
   row: number
   type: string
   char: string
-  blocking: boolean
+  occupies: boolean
   color: string
   label?: string
   /** Per-cell tile settings this prop STATES rather than leaving to a default further down (a puddle's
@@ -1192,7 +1192,7 @@ export function strewRiverRocks(ctx: RiverSurface, channel: ReadonlySet<string>)
     // crosses on. A cell can be published as a way and still read as blocked here, so the collision test above
     // does not cover it.
     if (ctx.pathwayCells?.has(key)) continue
-    ctx.props.push({ col, row, type: 'rock', char: rock.char, label: 'rock', blocking: true, color: rock.color })
+    ctx.props.push({ col, row, type: 'rock', char: rock.char, label: 'rock', occupies: true, color: rock.color })
   }
 }
 
@@ -1283,7 +1283,7 @@ export function bendCells(flow: ReadonlyMap<string, number>, water: ReadonlySet<
  *
  *   · the edge you can WADE is shallow: light blue, walkable
  *   · past it the water is ordinary, and further in DEEP and darker; both block
- *   · a swamp pool stays as it is (blocking), recoloured blue-green
+ *   · a swamp pool stays as it is (it occupies its cell), recoloured blue-green
  *
  * It runs LAST, after the trails, the bridges and the connectivity joins. Everything before it still sees plain
  * water, so none of that logic changes, and the shallows are only ever hung off ground you could already reach

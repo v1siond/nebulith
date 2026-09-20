@@ -63,6 +63,7 @@ When reading a source, write down both. The second half is usually the more valu
 | Water, rivers, pools, the sea | [`WATER.md`](WATER.md) | Written 2026-09-16 from his two sources. Build order is stated, most of it is not built. |
 | What regions a biome has, and how you move through them | [`REGIONS.md`](REGIONS.md) | Written 2026-09-17. A region set belongs to its BIOME and is ORDERED; the scatter partition is why a volcano felt like a wood. |
 | How the ground is painted, per biome, region and season | [`TERRAIN.md`](TERRAIN.md) | Written 2026-09-17. Floor colours measured off the references. Biome+season blending is NOT built. |
+| What the frontend may decide for itself | [`FRONTEND-DATA-AUDIT.md`](FRONTEND-DATA-AUDIT.md) | Written 2026-09-20. The backend decides values, the frontend renders them. §1 the three constants that legitimately stay, §2 what is closed, §3 the open inventory with counts. |
 | Map generation, the layer order | [`GENERATION-SPEC.md`](GENERATION-SPEC.md) | Written. §5 is the layer model. |
 | Picking a generator algorithm | [`ALGORITHMS.md`](ALGORITHMS.md) | Written |
 | Hitboxes and elevation | [`HITBOXES-AND-ELEVATION.md`](HITBOXES-AND-ELEVATION.md) | Spec written, nothing built. §4.11 settles terrain height: `perlin(x, z)` plus a served height profile. |

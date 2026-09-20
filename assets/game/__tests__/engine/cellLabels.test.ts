@@ -30,7 +30,7 @@ describe('isGroundContact, only the BOTTOM cell of a tree/column (where the shad
 // `isWalkable(label)` was removed from `cellLabels.ts` on 2026-09-06, and its own note says why: it
 // hardcoded a walkability table in the frontend, it claimed a ROOF was walkable (which the combat spec
 // forbids, ), and it duplicated data the backend already owns
-// and serves as `tiles.blocking` and `composition_cells.walkable`. It had no runtime callers.
+// and serves as `tiles.occupies` and `composition_cells.walkable`. It had no runtime callers.
 //
 // So there is nothing here to re-point at: the question "is this label walkable?" is not one the frontend
 // answers any more. Collision now rides on the placed tile, is per-view, and is covered by the collision

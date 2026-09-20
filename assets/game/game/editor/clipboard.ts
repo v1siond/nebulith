@@ -146,7 +146,6 @@ function placeClipAsset(grid: IsometricGrid, captured: GridAsset, col: number, r
   const src = structuredClone(captured)
   const placed = grid.placeAsset([...(src.art ?? [])], col, row, {
     type: src.type,
-    blocking: src.blocking ?? false,
     color: src.color,
     bgColor: src.bgColor,
     opacity: src.opacity,

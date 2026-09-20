@@ -68,7 +68,7 @@ describe('lamp_post composition, a tall thin post + a single bulb, shaped by bac
     expect(lamp.scale).toBeCloseTo(0.6, 5)
     expect(lamp.pose?.dy).toBeCloseTo(-1.8, 5)
     expect(lamp.heightLevel).toBe(1) // one level above the post's, as the composition authors it
-    expect(lamp.blocking).toBe(false)
+    expect(assetIsSolid(lamp)).toBe(false) // the bulb is walked under, and it says so in its boxes
     expect(lamp.scaleY ?? 1).toBe(1)
   })
 })

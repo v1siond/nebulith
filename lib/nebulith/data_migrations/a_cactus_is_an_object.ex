@@ -105,7 +105,7 @@ defmodule Nebulith.DataMigration.ACactusIsAnObject do
             label: label,
             glyph: glyph,
             emoji: emoji,
-            blocking: true,
+            occupies: true,
             # ONE BLOCK TALL, not a flat slab. Copying `tree_dead`'s 0.0 left a visible GAP between the
             # stacked segments, because a height-0 cell occupies no block and levels 0/1/2 then sit apart.
             height: 1.0,

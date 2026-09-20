@@ -3,7 +3,7 @@
  *
  * And when I said the fix was backend data, it
  * corrected me: It
- * was right: `flower`, `grass`, `bush` and `decor_clover` are all `blocking: false` in the live DB, and the
+ * was right: `flower`, `grass`, `bush` and `decor_clover` are all `occupies: false` in the live DB, and the
  * generator was stamping `collision = true` over the top of them.
  *
  * THE RULE, in one test: a cell's collision comes from the thing standing IN it. So if everything a cell holds
@@ -86,7 +86,7 @@ describe('a cell is blocked by what stands in it, not by a flag stamped over it'
       for (const [key, held] of propsAt) {
         const [col, row] = key.split(',').map(Number)
         if (!s.collision[row][col]) continue
-        if (held.some(p => p.blocking)) continue // something in it blocks: correct
+        if (held.some(p => p.occupies)) continue // something in it blocks: correct
         if (trees.has(key) || built.has(key) || anchored.has(key)) continue // a trunk, a building, a lamp: correct
         const ground = s.ground[row][col]
         if (ground.includes('water') || ground === 'swamp') continue // water is not walked on

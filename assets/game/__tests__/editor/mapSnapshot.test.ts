@@ -8,7 +8,7 @@ import { DEFAULT_FLOOR_SLUG, IsometricGrid } from '@/engine/IsometricGrid'
 import { captureMapSnapshot, restoreMapSnapshot } from '@/game/editor/mapSnapshot'
 import type { Entity } from '@/game/types'
 
-/** A tile that OCCUPIES ITS WHOLE CELL. `blocking: true` used to say this; the box list says it now, which is
+/** A tile that OCCUPIES ITS WHOLE CELL. `occupies: true` used to say this; the box list says it now, which is
  * the only statement about walking through a tile. */
 const SOLID = { collision: [{ x: 0, y: 0, w: 1, h: 1 }] }
 

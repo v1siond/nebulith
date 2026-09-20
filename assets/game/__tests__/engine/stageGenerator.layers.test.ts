@@ -25,7 +25,7 @@ function digest(stage: StageData): string {
     `coll=${stage.collision.map(r => r.map(c => (c ? '1' : '0')).join('')).join('|')}`,
     `buildings=${stage.buildings.map(b => `${b.kind}@${b.col},${b.row}:${b.facing}:${b.length}x${b.height}x${b.depth}:${b.doorCells.map(d => `${d.col},${d.row}`).join('/')}`).join(';')}`,
     `trees=${stage.trees.map(t => `${t.kind}#${t.variant}@${t.col},${t.row}`).join(';')}`,
-    `props=${stage.props.map(p => `${p.type}:${p.char}:${p.color}:${p.blocking ? 1 : 0}:${p.label ?? ''}@${p.col},${p.row}`).join(';')}`,
+    `props=${stage.props.map(p => `${p.type}:${p.char}:${p.color}:${p.occupies ? 1 : 0}:${p.label ?? ''}@${p.col},${p.row}`).join(';')}`,
     `comps=${stage.compositions.map(c => `${c.kind}#${c.variant ?? 0}@${c.col},${c.row}`).join(';')}`,
     `spawn=${stage.spawn.col},${stage.spawn.row}`,
   ]

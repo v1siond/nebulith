@@ -207,7 +207,7 @@ describe('a generated river is one river, and it has a middle', () => {
         const cells = waterOf(s)
         // the same set the generator's `openWater` builds: the body minus whatever stands in it
         const open = new Set(cells)
-        for (const p of s.props) if (p.blocking) open.delete(`${p.col},${p.row}`)
+        for (const p of s.props) if (p.occupies) open.delete(`${p.col},${p.row}`)
         for (const c of s.compositions) open.delete(`${c.col},${c.row}`)
         for (const tr of s.trees) open.delete(`${tr.col},${tr.row}`)
         for (const key of open) {

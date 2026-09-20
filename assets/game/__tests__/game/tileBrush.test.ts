@@ -1,4 +1,5 @@
 import { styleTiles } from '@/engine/tileset/styleTiles'
+import { assetIsSolid } from '@/engine/collisionBoxes'
 import '@/__tests__/helpers/installTilesetSeed' // install the DB-equivalent tileset the runtime loads
 /**
  * TILE-BRUSH GRID SCENARIOS, the editor's pick-first brush against a real IsometricGrid. Validates the
@@ -16,7 +17,7 @@ import { clearGroundTile, placeGroundTile, removeTopAsset, removeAssetAtLevel, s
 import { tileSlug } from '@/game/editor/tilePlacement'
 import { captureMapSnapshot, restoreMapSnapshot } from '@/game/editor/mapSnapshot'
 
-/** A tile that OCCUPIES ITS WHOLE CELL. `blocking: true` used to say this; the box list says it now, which is
+/** A tile that OCCUPIES ITS WHOLE CELL. `occupies: true` used to say this; the box list says it now, which is
  * the only statement about walking through a tile. */
 const SOLID = { collision: [{ x: 0, y: 0, w: 1, h: 1 }] }
 
@@ -208,7 +209,7 @@ describe('painted building tiles insert as all-faces 3D blocks by default (the p
     expect(a.height).toBeGreaterThanOrEqual(1)  // a real extruded block, not a flat billboard
     expect(a.settings?.display).toBeUndefined() // absent == all-faces (never forced to single)
     expect(a.depth ?? 1).toBe(1)                // it's a block with NO Z-Width applied
-    expect(a.blocking).toBe(false)              // WALKABLE by default, height NEVER forces collision (a per-cell setting)
+    expect(assetIsSolid(a)).toBe(false)              // WALKABLE by default, height NEVER forces collision (a per-cell setting)
   })
 
   test('a wall keeps its own render behaviour (fadeNear) while still defaulting to all-faces', () => {
@@ -230,6 +231,12 @@ describe('painted building tiles insert as all-faces 3D blocks by default (the p
 // inserts through the SAME uniform path, a standing NATURE tile (tree/rock/plant, DB height ≥1) paints as a
 // 3D block exactly like a building, while a ground overlay (flower/leaf, DB height 0) paints flat. The split
 // is DATA (the tile's own height), never a per-category code branch, and `type` is the tile's own slug.
+/** What the CATALOG says this palette tile occupies, so the test never holds an opinion of its own. */
+const servedOccupies = (id: string): boolean => {
+  const boxes = (byId(id).settings as { collision?: unknown[] } | undefined)?.collision
+  return Array.isArray(boxes) && boxes.length > 0
+}
+
 describe('painted NATURE tiles read their own height through the SAME path as buildings', () => {
   test.each([
     'emoji:tree', 'emoji:palm-tree', 'emoji:pine-tree', 'emoji:rock', 'emoji:bush',
@@ -239,7 +246,10 @@ describe('painted NATURE tiles read their own height through the SAME path as bu
     stackAssetTile(g, 1, 1, byId(id))
     const a = nonFloor(g, 1, 1)[0]
     expect(a.height).toBeGreaterThanOrEqual(1) // its own DB height ≥1 → a real block
-    expect(a.blocking).toBe(false)             // WALKABLE by default, height does not force collision
+    // HEIGHT DOES NOT FORCE COLLISION. What a tile occupies is its own row's business, so the answer is
+    // whatever the catalog says for THIS tile, never a default asserted here: a rock stops you and a
+    // mushroom does not, and both come through this one path.
+    expect(assetIsSolid(a)).toBe(servedOccupies(id))
     expect(a.type).toBe(tileSlug(id))          // the tile's OWN slug, no classified category
     expect(a.tileOverride).toBe(id)            // the exact palette tile is pinned, so it renders as its own art
   })
@@ -251,7 +261,7 @@ describe('painted NATURE tiles read their own height through the SAME path as bu
     stackAssetTile(g, 2, 2, byId(id))
     const a = nonFloor(g, 2, 2)[0]
     expect(a.height).toBe(0)       // flat, its own ground-level height
-    expect(a.blocking).toBe(false) // WALKABLE by the uniform default (same as every tile, not because height is 0)
+    expect(assetIsSolid(a)).toBe(false) // WALKABLE by the uniform default (same as every tile, not because height is 0)
   })
 })
 
@@ -273,8 +283,8 @@ describe('per-tile height, read uniformly, no type/category/style distinction in
     expect(flower.height).toBe(0)                     // flat
     expect(building.height).toBeGreaterThanOrEqual(1) // block
     // collision is the SAME uniform walkable default for BOTH, height does not change it (fully decoupled)
-    expect(flower.blocking).toBe(false)
-    expect(building.blocking).toBe(false)
+    expect(assetIsSolid(flower)).toBe(false)
+    expect(assetIsSolid(building)).toBe(false)
     // same display default (both all-faces), the mechanism is identical, only the height DATA differs
     expect(flower.settings?.display).toBe(building.settings?.display)
   })
@@ -294,10 +304,10 @@ describe('per-tile height, read uniformly, no type/category/style distinction in
   // uniform walkable default. Height and collision are fully decoupled.
   test('collision does NOT depend on height, every painted tile is walkable by default (height 0 / 1 / 3 / 4)', () => {
     const base = byId('emoji:rose')
-    expect(paintFresh({ ...base, height: 0 }).blocking).toBe(false)
-    expect(paintFresh({ ...base, height: 1 }).blocking).toBe(false)
-    expect(paintFresh({ ...base, height: 3 }).blocking).toBe(false)
-    expect(paintFresh({ ...base, height: 4 }).blocking).toBe(false) // a 4-block-tall projection is WALKABLE
+    expect(assetIsSolid(paintFresh({ ...base, height: 0 }))).toBe(false)
+    expect(assetIsSolid(paintFresh({ ...base, height: 1 }))).toBe(false)
+    expect(assetIsSolid(paintFresh({ ...base, height: 3 }))).toBe(false)
+    expect(assetIsSolid(paintFresh({ ...base, height: 4 }))).toBe(false) // a 4-block-tall projection is WALKABLE
   })
 
   // The INSERT PATH has NO type/category/height branch for collision: paint a building, a standing nature
@@ -307,10 +317,10 @@ describe('per-tile height, read uniformly, no type/category/style distinction in
     const building = paintFresh(byId('emoji:house'))     // building category, height ≥1
     const nature = paintFresh(byId('emoji:pine-tree'))   // nature category, height ≥1
     const flower = paintFresh(byId('emoji:rose'))        // nature overlay, height 0
-    expect(building.blocking).toBe(false)
-    expect(nature.blocking).toBe(false)
-    expect(flower.blocking).toBe(false)
-    expect(new Set([building.blocking, nature.blocking, flower.blocking]).size).toBe(1) // one uniform default
+    expect(assetIsSolid(building)).toBe(false)
+    expect(assetIsSolid(nature)).toBe(false)
+    expect(assetIsSolid(flower)).toBe(false)
+    expect(new Set([building, nature, flower].map(assetIsSolid)).size).toBe(1) // one uniform path, one answer
   })
 
   // Collision is a per-cell SETTING the user drives (inspector Blocked/Walkable → grid.setCollision), fully

@@ -91,7 +91,7 @@ export function applyStageToGrid(
     const propLift = cellStackTop(grid, a.col, a.row)
     // Per-instance render for standing props (a flower = single billboard, height 1), the SAME override the
     // SAVE path (stageToTemplate) writes, so live + saved/loaded match. Spreads height + settings.display.
-    grid.placeAsset([a.char], a.col, a.row, { type: a.type, blocking: a.blocking, color: a.color, label: a.label, baseShadow: a.baseShadow, buildingType: a.buildingType, edge: a.edge, footprint: a.footprint, cellPart: a.label, tileOverride: override, heightLevel: propLift, ...generatedPropRender(a.type, a.label), ...(a.settings ? { settings: a.settings } : {}) })
+    grid.placeAsset([a.char], a.col, a.row, { type: a.type, color: a.color, label: a.label, baseShadow: a.baseShadow, buildingType: a.buildingType, edge: a.edge, footprint: a.footprint, cellPart: a.label, tileOverride: override, heightLevel: propLift, ...generatedPropRender(a.type, a.label), ...(a.settings ? { settings: a.settings } : {}) })
   }
   // Mirror the generator's authoritative collision into the grid so trees/water/
   // features are truly blocked, enemies (manual placement + scatter) only land on
@@ -162,7 +162,7 @@ export function applyStageToGrid(
   for (let r = 0; r < grid.rows; r++) {
     for (let c = 0; c < grid.cols; c++) {
       if (!grid.isBlocked(c, r)) continue
-      const held = grid.getAssetsAtCell(c, r).some(a => assetIsSolid(a) || a.blocking)
+      const held = grid.getAssetsAtCell(c, r).some(a => assetIsSolid(a))
       if (!held) grid.setCollision(c, r, false)
     }
   }

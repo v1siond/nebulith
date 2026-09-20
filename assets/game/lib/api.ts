@@ -61,7 +61,6 @@ export interface TemplateData {
     col: number
     row: number
     type: string
-    blocking?: boolean
     color?: string
     scale?: number   // uniform Zoom (#77/#78)
     zIndex?: number  // draw-priority (CSS z-index): a higher value draws on top / in front, overriding the depth sort
@@ -313,7 +312,7 @@ export function serializeGrid(grid: IsometricGrid): {
  */
 export function rebuildCollisionFromAssets(grid: IsometricGrid): void {
   for (const asset of grid.assets) {
-    if (!assetIsSolid(asset) && !asset.blocking) continue
+    if (!assetIsSolid(asset)) continue
     if ((asset.heightLevel ?? 0) > unitStandLevel(grid, asset.col, asset.row)) continue // an upper storey
     grid.setCollision(asset.col, asset.row, true)
   }

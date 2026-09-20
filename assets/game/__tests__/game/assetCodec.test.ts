@@ -4,6 +4,7 @@ import {
   questsToAssets,
   questsFromAssets,
 } from '@/lib/gridCodec'
+import { assetIsSolid } from '@/engine/collisionBoxes'
 import type { Entity, Quest } from '@/game/types'
 import type { GridAsset } from '@/engine/IsometricGrid'
 
@@ -69,7 +70,9 @@ describe('asset codec round-trips (entity / quest)', () => {
 
   it('encodes entities ON-GRID and quests OFF-GRID (marker shape)', () => {
     const [eAsset] = entitiesToAssets([enemy])
-    expect(eAsset).toMatchObject({ type: 'nebulith:entity', col: 5, row: 5, blocking: false })
+    expect(eAsset).toMatchObject({ type: 'nebulith:entity', col: 5, row: 5 })
+    // AN ENTITY IS NOT TERRAIN. It says so by occupying nothing, which is the only answer anyone reads.
+    expect(assetIsSolid(eAsset)).toBe(false)
     expect(eAsset.label).toBe(JSON.stringify(enemy))
 
     const [qAsset] = questsToAssets([quest])

@@ -26,7 +26,7 @@ const ASCII_STUB = {
     terrain: { grass: { char: ['.', ','], fg: ['#5faf4a', '#4a9f3a'], bg: ['#1c2e1c'] } },
   },
   tiles: {
-    bush: { glyph: '*', image_url: '/tiles/ascii/bush.png', blocking: false, height: 1, category: 'nature', title: 'Bush', color_role: null, settings: { colors: {}, position: 'single' } },
+    bush: { glyph: '*', image_url: '/tiles/ascii/bush.png', occupies: false, height: 1, category: 'nature', title: 'Bush', color_role: null, settings: { colors: {}, position: 'single' } },
   },
   compositions: {
     tree_small: { footprint: { w: 1, h: 2 }, cells: [{ dx: 0, dy: 0, level: 0, label: 'tree_stem', walkable: false }, { dx: 0, dy: 1, level: 1, label: 'tree_leaf', walkable: false }] },
@@ -39,7 +39,7 @@ const EMOJI_STUB = {
   name: 'Emoji',
   data: {},
   tiles: {
-    bear: { emoji: '🐻', image_url: '/tiles/emoji/catalog/bear.png', blocking: false, height: 0, category: 'units', title: 'Bear', color_role: null, settings: { color: '#8a5f3a' } },
+    bear: { emoji: '🐻', image_url: '/tiles/emoji/catalog/bear.png', occupies: false, height: 0, category: 'units', title: 'Bear', color_role: null, settings: { color: '#8a5f3a' } },
   },
   compositions: {},
 }
@@ -67,7 +67,7 @@ describe('loadTilesetsFromBackend, installs the new /api/tilesets shape', () => 
     expect(bush.image?.endsWith('/tiles/ascii/bush.png')).toBe(true)
   })
 
-  test('ascii bush tile is walkable (blocking: false); there is no palette blob at all', async () => {
+  test('ascii bush tile is walkable (occupies: false); there is no palette blob at all', async () => {
     await loadTilesetsFromBackend()
     expect(styleTiles('ascii').bush.walkable).toBe(true)
     // The blob was REMOVED, not emptied, a catalog is {id, name, tiles, compositions, terrain} and a tile's

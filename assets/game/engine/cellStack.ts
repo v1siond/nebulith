@@ -339,7 +339,6 @@ export function pushTile(grid: IsometricGrid, col: number, row: number, entry: T
   const heightLevel = cellPaintTop(grid, col, row)
   grid.placeAsset(entry.art ?? [], col, row, {
     type: entry.type,
-    blocking: entry.collision ?? false,
     color: entry.color ?? undefined,
     opacity: entry.opacity,
     scale: entry.zoom,
@@ -466,6 +465,6 @@ export function popTile(grid: IsometricGrid, col: number, row: number): GridAsse
 
 /** setTileCollision → setCollision. The legacy collision setter is cell-level, so this translates the
  *  stack's "does this cell block" flag straight onto grid.collision[row][col]. */
-export function setTileCollision(grid: IsometricGrid, col: number, row: number, blocking: boolean): void {
-  grid.setCollision(col, row, blocking)
+export function setTileCollision(grid: IsometricGrid, col: number, row: number, solid: boolean): void {
+  grid.setCollision(col, row, solid)
 }

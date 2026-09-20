@@ -17,15 +17,18 @@ import { deserializeToGrid } from '@/lib/api'
 import type { TemplateData } from '@/lib/api'
 import { FLOOR_TYPE } from '@/engine/IsometricGrid'
 
+/** What a SAVED asset states about the cell it occupies: the box list, the way a generated one does. */
+const WHOLE_CELL = [{ x: 0, y: 0, w: 1, h: 1 }]
+
 const COLS = 6
 const ROWS = 6
 
 /** A saved template carrying exactly the assets given, over a flat paved map. */
 const template = (assets: Record<string, unknown>[]): TemplateData => {
-  const floors = []
+const floors = []
   for (let r = 0; r < ROWS; r++)
     for (let c = 0; c < COLS; c++)
-      floors.push({ art: [''], col: c, row: r, type: FLOOR_TYPE, tileKey: 'path_stone', heightLevel: 0, blocking: false, height: 1 })
+      floors.push({ art: [''], col: c, row: r, type: FLOOR_TYPE, tileKey: 'path_stone', heightLevel: 0, settings: { collision: [] }, height: 1 })
   return {
     id: 't', name: 'test', cols: COLS, rows: ROWS, cellSize: 16, isoScale: 1.4,
     heightData: Array.from({ length: ROWS }, () => Array(COLS).fill(0)),
@@ -38,36 +41,36 @@ const template = (assets: Record<string, unknown>[]): TemplateData => {
 describe('deserializeToGrid, only ground-level blocks reach the collision map', () => {
   test('a GROUND-level wall blocks its cell', () => {
     const grid = deserializeToGrid(template([
-      { art: ['#'], col: 2, row: 2, type: 'house_4', label: 'wall_stone_c', heightLevel: 1, blocking: true, height: 1 },
+      { art: ['#'], col: 2, row: 2, type: 'house_4', label: 'wall_stone_c', heightLevel: 1, settings: { collision: WHOLE_CELL }, height: 1 },
     ]))
     expect(grid.isBlocked(2, 2)).toBe(true)
   })
 
   test('THE BUG: a second-floor WINDOW does not block the floor beneath it', () => {
     const grid = deserializeToGrid(template([
-      { art: ['#'], col: 3, row: 3, type: 'house_4', label: 'window', heightLevel: 4, blocking: true, height: 1 },
+      { art: ['#'], col: 3, row: 3, type: 'house_4', label: 'window', heightLevel: 4, settings: { collision: WHOLE_CELL }, height: 1 },
     ]))
     expect(grid.isBlocked(3, 3)).toBe(false)
   })
 
   test('a ROOF high above an open cell leaves it walkable', () => {
     const grid = deserializeToGrid(template([
-      { art: ['#'], col: 4, row: 4, type: 'house_4', label: 'roof', heightLevel: 6, blocking: true, height: 1 },
+      { art: ['#'], col: 4, row: 4, type: 'house_4', label: 'roof', heightLevel: 6, settings: { collision: WHOLE_CELL }, height: 1 },
     ]))
     expect(grid.isBlocked(4, 4)).toBe(false)
   })
 
   test('a wall on the ground still blocks even when an upper storey stands on the same cell', () => {
     const grid = deserializeToGrid(template([
-      { art: ['#'], col: 1, row: 1, type: 'house_4', label: 'wall_stone_c', heightLevel: 1, blocking: true, height: 1 },
-      { art: ['#'], col: 1, row: 1, type: 'house_4', label: 'window', heightLevel: 3, blocking: true, height: 1 },
+      { art: ['#'], col: 1, row: 1, type: 'house_4', label: 'wall_stone_c', heightLevel: 1, settings: { collision: WHOLE_CELL }, height: 1 },
+      { art: ['#'], col: 1, row: 1, type: 'house_4', label: 'window', heightLevel: 3, settings: { collision: WHOLE_CELL }, height: 1 },
     ]))
     expect(grid.isBlocked(1, 1)).toBe(true)
   })
 
   test('a non-blocking asset never blocks, at any level', () => {
     const grid = deserializeToGrid(template([
-      { art: ['#'], col: 5, row: 5, type: 'house_4', label: 'door', heightLevel: 1, blocking: false, height: 1 },
+      { art: ['#'], col: 5, row: 5, type: 'house_4', label: 'door', heightLevel: 1, settings: { collision: [] }, height: 1 },
     ]))
     expect(grid.isBlocked(5, 5)).toBe(false)
   })

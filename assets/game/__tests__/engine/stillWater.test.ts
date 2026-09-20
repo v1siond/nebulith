@@ -103,14 +103,14 @@ describe('still water is its own tile', () => {
     // The heart of `assetKind` folds every water-ish label to the
     // kind `water` so the bands can share one image, and that used to hand a puddle the river's four frames.
     // `water_still` declares an EMPTY animations list, which is a statement, not an omission.
-    const asset = { art: [''], col: 1, row: 1, type: 'floor', tileKey: 'water_still', heightLevel: 0, blocking: false, placedAt: 0 } as unknown as GridAsset
+    const asset = { art: [''], col: 1, row: 1, type: 'floor', tileKey: 'water_still', heightLevel: 0, occupies: false, placedAt: 0 } as unknown as GridAsset
     expect(spriteFrame(asset, 0, ASCII_STYLE, 'iso', 'day')).toBeNull()
     expect(spriteFrame(asset, 700, ASCII_STYLE, 'iso', 'day')).toBeNull()
   })
 
   it('a RIVER still flows: the channel keeps its frames through the same path', () => {
     // The other half. A band carries NO animations key at all, so it still inherits the river's.
-    const river = { art: [''], col: 1, row: 1, type: 'floor', tileKey: 'water_shallow', heightLevel: 0, blocking: false, placedAt: 0 } as unknown as GridAsset
+    const river = { art: [''], col: 1, row: 1, type: 'floor', tileKey: 'water_shallow', heightLevel: 0, occupies: false, placedAt: 0 } as unknown as GridAsset
     expect(spriteFrame(river, 0, ASCII_STYLE, 'iso', 'day')).not.toBeNull()
   })
 

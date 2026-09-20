@@ -83,8 +83,40 @@ export interface RoutePlan {
  */
 const AXES: ReadonlyArray<readonly [Side, Side]> = [['south', 'north'], ['west', 'east']]
 
-/** One gate per side, so four is every side of the map and the ceiling on exits. */
-export const MAX_EXITS = 4
+/** The share of an edge a gate may sit in, middle only, so a way out never hugs a corner. */
+const GATE_SPAN = [0.3, 0.7] as const
+
+/**
+ * How many ways out the four edges of a map this size can actually carry.
+ *
+ * This was the constant 4, one gate per side, and it is why picking six pathways still gave you four exits:
+ * the option moved and the map did not. A gate is `width` cells across and sits in the middle stretch of its
+ * edge, so what an edge can carry is that stretch divided by a gate plus the gap that keeps two of them from
+ * reading as one wide mouth. Four edges, two of each length.
+ *
+ * Measured, not decreed, which is the same rule `pathwayCeiling` already follows.
+ */
+export function exitCeiling(cols: number, rows: number, width = 3): number {
+  return 2 * gatesPerEdge(cols, width) + 2 * gatesPerEdge(rows, width)
+}
+
+/**
+ * How many gates fit along ONE edge, measured off the SAME span `gateOn` places them in.
+ *
+ * Both read `gateSpan`, deliberately: the first cut worked the length out again here as
+ * `along * (0.7 - 0.3)`, and in floating point that is `0.39999999999999997`, so a 40-cell edge measured 15.9
+ * cells of room and reported one gate fewer than the placer would actually fit. A ceiling and a placer that
+ * disagree by one is a map that cannot build what the panel offered.
+ */
+function gatesPerEdge(along: number, width: number): number {
+  const { lo, hi } = gateSpan(along)
+  return Math.max(1, Math.floor((hi - lo) / Math.max(2, width + 1)))
+}
+
+/** The stretch of an edge a gate may sit in: the middle of it, never a corner. */
+function gateSpan(along: number): { lo: number; hi: number } {
+  return { lo: Math.floor(along * GATE_SPAN[0]), hi: Math.ceil(along * GATE_SPAN[1]) - 1 }
+}
 
 /**
  * How the stretches divide up. Three shapes, and every pathway is exactly one of them:
@@ -149,23 +181,37 @@ export function resolvePathways(
   const pathways = resolveCount(options?.pathways, rand, ceiling)
   if (exits === null && pathways === null) return null
 
+  // WHAT THE EDGES CAN CARRY, measured off this map rather than fixed at one gate a side.
+  const edges = grid ? exitCeiling(grid.cols, grid.rows, grid.width) : ROUTE_COUNTS.length
   // EXITS ARE INFERRED FROM PATHWAYS when nobody states them. A stretch of road crosses
   // the map unless something stops it, so the inference is two exits each, which is exactly the cross: two
-  // pathways, four exits. Capped at one gate per side.
-  const wanted = exits ?? Math.min(pathways! * 2, MAX_EXITS)
+  // pathways, four exits.
+  const wanted = exits ?? Math.min(pathways! * 2, edges)
   // …and pathways from exits, the same rule read backwards: two exits can be one road straight through.
   const stretches = pathways ?? Math.max(1, Math.ceil(wanted / 2))
-  // At most two exits per pathway, and at most one gate per side. FEWER exits than pathways is allowed on
-  // purpose: that is the cave, where the extra stretches are galleries that stop rather than pathways out.
-  const bounded = clamp(wanted, 1, Math.min(stretches * 2, MAX_EXITS))
+  // At most two exits per pathway, and never more than the edges can hold. FEWER exits than pathways is
+  // allowed on purpose: that is the cave, where the extra stretches are galleries that stop rather than
+  // pathways out.
+  const bounded = clamp(wanted, 1, Math.min(stretches * 2, edges))
   const held = clamp(stretches, 1, ceiling)
   return { exits: bounded as RouteCount, pathways: held as RouteCount }
 }
 
-/** A gate on `side`, somewhere in the middle stretch of that edge so a path never hugs a corner. */
-function gateOn(side: Side, cols: number, rows: number, width: number, rand: Rng): Gate {
+/**
+ * A gate on `side`, in the middle stretch of that edge so a path never hugs a corner.
+ *
+ * `slot` of `of` shares that stretch out when a side carries more than one way out: each gate gets its own
+ * slice and rolls a position inside it, so two mouths on one edge cannot overlap into one wide one. `of` is
+ * 1 for every map that only ever had one gate a side, and the arithmetic then comes out at the whole stretch,
+ * which is exactly what it rolled before.
+ */
+function gateOn(side: Side, cols: number, rows: number, width: number, rand: Rng, slot = 0, of = 1): Gate {
   const along = side === 'south' || side === 'north' ? cols : rows
-  const at = randIntWith(rand, Math.floor(along * 0.3), Math.ceil(along * 0.7) - 1)
+  const { lo, hi } = gateSpan(along)
+  const slice = Math.max(0, hi - lo) / Math.max(1, of)
+  const from = Math.round(lo + slice * slot)
+  const to = of === 1 ? hi : Math.max(from, Math.round(lo + slice * (slot + 1)) - 1)
+  const at = randIntWith(rand, from, Math.max(from, to))
   const half = Math.floor(width / 2)
   const cells: RouteCell[] = []
   for (let k = -half; k < width - half; k++) cells.push(edgeCell(side, at + k, cols, rows))
@@ -220,13 +266,24 @@ export function planRoutes(cols: number, rows: number, pathways: Pathways, rand:
     taken.add(b)
     gates.push(gateOn(a, cols, rows, width, rand), gateOn(b, cols, rows, width, rand))
   }
-  // …then the spurs, on whatever sides are still free, so two mouths never fight over one edge.
+  // …then the spurs, spread over whatever sides are still free. A side is reused only once every free side
+  // has one, and the gates that share a side are placed in their own slices of it rather than on top of each
+  // other, which is what lets a map have more ways out than it has edges.
   const rest = AXES.flat().filter(side => side !== 'south' && !taken.has(side))
   const free = taken.has('south') ? shuffled(rest, rand) : ['south' as Side, ...shuffled(rest, rand)]
   const deadEnds: RouteCell[] = []
+  const perSide = new Map<Side, number>()
+  const sideOf: Side[] = []
   for (let i = 0; i < spurs; i++) {
     const side = free[i % Math.max(1, free.length)]
-    gates.push(gateOn(side, cols, rows, width, rand))
+    sideOf.push(side)
+    perSide.set(side, (perSide.get(side) ?? 0) + 1)
+  }
+  const placed = new Map<Side, number>()
+  for (const side of sideOf) {
+    const slot = placed.get(side) ?? 0
+    placed.set(side, slot + 1)
+    gates.push(gateOn(side, cols, rows, width, rand, slot, perSide.get(side) ?? 1))
   }
 
   const open = (gate: Gate): void => {

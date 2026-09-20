@@ -407,14 +407,26 @@ export interface GeneratorOption {
    */
   group?: string
   /**
-   * CELLS ONE OF THESE WANTS before another is offered, for the options that are a COUNT. A choice of N is
-   * offered while `cols * rows >= N * maxPer`.
+   * WHAT MEASURES THIS COUNT, for an option whose list is built rather than authored.
    *
-   * *"I want to have dynamic pathways limits based of size of the grid"*. Four ways across a 30x24 is a
-   * different map from four across a 120x90, and the list was the same for both. The rate is served rather
-   * than computed here: the frontend narrows the list, it does not own the arithmetic's constants.
+   *   `ways`   how many stretches a map this size holds (`pathwayCeiling`)
+   *   `edges`  how many ways out its border can carry (`exitCeiling`)
+   *
+   * The measurement is the ENGINE'S, the one that has to place them, and the option names which of them it
+   * lives by. It used to be a rate here (`maxPer`) that the panel divided the area by, which is a second
+   * ceiling for a fact the builder already owns: the panel offered eight ways across a map the builder
+   * would only ever cut six into, and the last two did nothing. One rule, measured once.
    */
-  maxPer?: number
+  countBy?: 'ways' | 'edges'
+  /**
+   * A COUNT THAT FOLLOWS ANOTHER COUNT, rather than the map's area.
+   *
+   * Exits are the ways a map is left, and a pathway is a stretch that leaves the map at one or both of its
+   * ends (`docs/PATHWAYS.md` §1), so the exits a map can have is decided by how many pathways it has, not by
+   * how big it is. Six pathways is up to twelve exits. Both halves are served: which option it follows, and
+   * how many of these one of those is worth.
+   */
+  countPer?: { option: string; each: number }
   /**
    * SHOW A PICTURE OF EACH CHOICE rather than a dropdown of words.
    *
@@ -427,22 +439,66 @@ export interface GeneratorOption {
   preview?: boolean
 }
 
+/** What a count option needs to know to work out its own ceiling. */
+export interface CountContext {
+  cols: number
+  rows: number
+  /** What the other options are set to, for a count that follows one of them. */
+  options?: Readonly<Record<string, GeneratorOptionValue>>
+  /** The generator the option belongs to, so the followed option's own ceiling can be read off it. */
+  gen?: GeneratorDef | null
+  /**
+   * THE ENGINE'S OWN MEASUREMENTS of this map, handed in rather than worked out here: `ways` is how many
+   * stretches it holds, `edges` how many ways out its border can carry. The panel must offer exactly what
+   * the builder can build, and a list that goes past what it can is a knob that moves and changes nothing.
+   */
+  ways?: number
+  edges?: number
+}
+
 /**
- * The choices of a COUNT option that a map this size can actually carry, and why the rest are gone.
+ * THE MOST OF THIS A MAP CAN HAVE, from the rule the option serves. `0` means it is not a count at all, or
+ * that nobody measured this map, and either way the authored choices stand.
  *
- * Non-numeric choices (`random`, `none`) always survive: they are not counts and the size says nothing about
- * them. An option with no `maxPer` is not a count at all and is returned untouched. The first choice is never
- * dropped, so a map can always be built.
+ * Two rules, and an option names which one it lives by. `countBy` takes the engine's measurement of the map
+ * straight. `countPer` measures against another count: exits follow pathways, because a pathway is a stretch
+ * that leaves the map at one or both of its ends, and is held to what the border can carry on top. A
+ * followed option sitting on "random" is any of its own values, so the ceiling is the most IT could be,
+ * which is why this recurses rather than reading a number off the current state.
  */
-export function choicesForSize(opt: GeneratorOption, cols: number, rows: number): readonly GeneratorChoice[] {
-  const picks = opt.choices ?? []
-  if (!opt.maxPer || picks.length === 0) return picks
-  const cells = Math.max(0, cols) * Math.max(0, rows)
-  const fits = picks.filter(c => {
-    const n = Number(c.key)
-    return !Number.isFinite(n) || n <= 0 || cells >= n * (opt.maxPer as number)
-  })
-  return fits.length > 0 ? fits : [picks[0]]
+export function countCeiling(opt: GeneratorOption, ctx: CountContext): number {
+  if (opt.countPer) {
+    const followed = (ctx.gen?.options ?? []).find(o => o.key === opt.countPer!.option)
+    if (!followed) return 0
+    const picked = Number(ctx.options?.[followed.key])
+    const of = Number.isFinite(picked) && picked > 0 ? picked : countCeiling(followed, ctx)
+    const wanted = of * opt.countPer.each
+    return Math.max(1, measured(ctx.edges) ? Math.min(wanted, ctx.edges!) : wanted)
+  }
+  if (opt.countBy === 'ways') return measured(ctx.ways) ? ctx.ways! : 0
+  if (opt.countBy === 'edges') return measured(ctx.edges) ? ctx.edges! : 0
+  return 0
+}
+
+/** A measurement that actually arrived. Absent means the caller could not measure, so no list is built. */
+const measured = (n: number | undefined): boolean => typeof n === 'number' && n > 0
+
+/**
+ * The choices a COUNT option offers on this map, BUILT from the rule rather than trimmed from a list.
+ *
+ * An option that is not a count is returned exactly as served: a size says nothing about a river's course.
+ * For one that is, the words it authored (`random`, `none`) keep their place at the front and the numbers
+ * are generated up to the ceiling, wearing the authored label where there is one ("2: in one side, out the
+ * other") and their own number where there is not.
+ */
+export function countChoices(opt: GeneratorOption, ctx: CountContext): readonly GeneratorChoice[] {
+  const authored = opt.choices ?? []
+  const ceiling = countCeiling(opt, ctx)
+  if (ceiling === 0) return authored
+  const labels = new Map(authored.map(c => [c.key, c.label]))
+  const words = authored.filter(c => !(Number(c.key) > 0))
+  const counts = Array.from({ length: ceiling }, (_, i) => String(i + 1))
+  return [...words, ...counts.map(key => ({ key, label: labels.get(key) ?? key }))]
 }
 
 /**
@@ -463,12 +519,25 @@ export function optionOffValue(opt: GeneratorOption): GeneratorOptionValue {
  * The options a served generator declares. A malformed one is DROPPED with a warning rather than guessed
  * at: an option the panel cannot describe is one a person cannot use on purpose.
  */
+/**
+ * A served `countPer`, or nothing. Both halves have to be there and be usable, an option name and a positive
+ * number of these per one of those. A half-stated rule is dropped rather than half-applied: the option then
+ * falls back to its authored choices, which is a visible gap, not a silently invented ceiling.
+ */
+function countPerOf(raw: unknown): { option: string; each: number } | undefined {
+  if (!isObject(raw)) return undefined
+  const option = str((raw as Json).option)
+  const each = (raw as Json).each
+  if (!option || typeof each !== 'number' || !(each > 0)) return undefined
+  return { option, each }
+}
+
 function parseOptions(raw: unknown): readonly GeneratorOption[] {
   if (!Array.isArray(raw)) return []
   const out: GeneratorOption[] = []
   for (const row of raw) {
     if (typeof row !== 'object' || row === null) continue
-    const { key, label, type, default: fallback, requires, choices, group, maxPer, preview } = row as Record<string, unknown>
+    const { key, label, type, default: fallback, requires, choices, group, countBy, countPer, preview } = row as Record<string, unknown>
     if (typeof key !== 'string' || typeof label !== 'string') {
       console.warn('[generators] an option with no key or label was dropped', row)
       continue
@@ -476,7 +545,8 @@ function parseOptions(raw: unknown): readonly GeneratorOption[] {
     const need = {
       ...(typeof requires === 'string' ? { requires } : {}),
       ...(typeof group === 'string' ? { group } : {}),
-      ...(typeof maxPer === 'number' && maxPer > 0 ? { maxPer } : {}),
+      ...(countBy === 'ways' || countBy === 'edges' ? { countBy: countBy as 'ways' | 'edges' } : {}),
+      ...(countPerOf(countPer) ? { countPer: countPerOf(countPer)! } : {}),
       ...(preview === true ? { preview: true } : {}),
     }
     if (type === 'choice') {
@@ -1137,11 +1207,3 @@ export function optionSections(gen: GeneratorDef | null | undefined): readonly G
   return sections
 }
 
-/** How many choices this map's size takes off the lists, across every option. 0 when nothing was narrowed,
- *  which is what lets the panel say so only when it is true. */
-export function trimmedBySize(gen: GeneratorDef | null | undefined, size: { cols: number; rows: number }): number {
-  return (gen?.options ?? []).reduce(
-    (n, opt) => n + ((opt.choices?.length ?? 0) - choicesForSize(opt, size.cols, size.rows).length),
-    0,
-  )
-}

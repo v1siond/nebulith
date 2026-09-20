@@ -62,7 +62,7 @@ const tileW = 40
 const tileH = 20
 const baseY = 500 // ground-level draw y; a lift SUBTRACTS from this (up the screen = smaller y)
 
-const rockAt = (heightLevel: number): GridAsset => ({ art: ['🪨'], col: 3, row: 3, type: 'rock', blocking: true, color: '#8a8a8a', tileOverride: 'emoji:rock', heightLevel })
+const rockAt = (heightLevel: number): GridAsset => ({ art: ['🪨'], col: 3, row: 3, type: 'rock', occupies: true, color: '#8a8a8a', tileOverride: 'emoji:rock', heightLevel })
 const treeAt = (heightLevel: number): GridAsset => ({ art: ['🌲'], col: 3, row: 3, type: 'tree', color: '#2f8f3f', heightLevel })
 
 describe('isoStackLift, screen-space rise per stack level', () => {
@@ -155,7 +155,7 @@ describe('drawIsoAssetAscii, a brush stack CLIMBS in iso (Task A)', () => {
   test('a single tile at heightLevel 0 renders IDENTICALLY to no stack (no regression)', () => {
     const draw = (asset: GridAsset) => { const r = recordingCtx(); drawIsoAssetAscii(r.ctx, 300, baseY, asset, tileW, tileH, 0, false, 'day', EMOJI_STYLE); return r }
     const level0 = draw(rockAt(0))
-    const noStack = draw({ art: ['🪨'], col: 3, row: 3, type: 'rock', blocking: true, color: '#8a8a8a', tileOverride: 'emoji:rock' }) // heightLevel undefined
+    const noStack = draw({ art: ['🪨'], col: 3, row: 3, type: 'rock', occupies: true, color: '#8a8a8a', tileOverride: 'emoji:rock' }) // heightLevel undefined
     expect(level0.quadYs).toEqual(noStack.quadYs) // same geometry, same screen y, a lone tile is unchanged
     expect(level0.fills).toEqual(noStack.fills)
   })

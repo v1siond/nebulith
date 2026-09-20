@@ -19,6 +19,24 @@ export interface FlowerKind {
   color: string
 }
 
+/**
+ * THE OPEN FIELD'S OWN COLOURS for a season: the row gradient's two ends, the grass and earth patches, the
+ * cobble at its entrance, and the river and its bank.
+ *
+ * Served, because this was a table of seven seasons in `stageGenerator.ts` and a map's appearance is not
+ * the frontend's to decide. Optional, and a caller with none paints no meadow rather than inventing one.
+ */
+export interface ZoneMeadow {
+  top: string
+  bottom: string
+  grass: string
+  earth: string
+  cobble: string
+  river: string
+  bank: string
+  plot: string
+}
+
 /** A season's ground: what fills it, what is hazardous, what a trail is paved with. */
 export interface ZonePalette {
   id: string
@@ -27,6 +45,7 @@ export interface ZonePalette {
   trail: string
   wallColor: string
   accentColor: string
+  meadow?: ZoneMeadow
 }
 
 /** One season, whole. */
@@ -85,6 +104,11 @@ export function zone(key: string | undefined): ZoneRow | undefined {
 /** A season's ground palette, or undefined. A caller with no palette plants nothing rather than inventing one. */
 export function zonePalette(key: string | undefined): ZonePalette | undefined {
   return zone(key)?.palette
+}
+
+/** A season's open-field colours, or undefined when the backend serves none for it. */
+export function zoneMeadow(key: string | undefined): ZoneMeadow | undefined {
+  return zonePalette(key)?.meadow
 }
 
 /** The curated catalog tile a season wears for `tree` / `decor` / `flower`. */

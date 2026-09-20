@@ -30,7 +30,7 @@ const CX = 150, CY = 235 // base diamond centre, room UP-RIGHT (higher x, lower 
 // image), and the real minimal FLAT height (0.1, a flat tile's DB block-height, drawn as a thin slab).
 // `blocking` mirrors the brush.
 const paintedWall = (over: Partial<GridAsset>): GridAsset => ({
-  art: ['🧱'], col: 4, row: 4, type: 'building', height: 0.1, blocking: true, tileOverride: OVERRIDE, ...over,
+  art: ['🧱'], col: 4, row: 4, type: 'building', height: 0.1, occupies: true, tileOverride: OVERRIDE, ...over,
 })
 
 beforeAll(async () => {

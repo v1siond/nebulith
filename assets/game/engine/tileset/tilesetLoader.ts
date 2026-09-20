@@ -22,7 +22,6 @@ import { preloadTileImages } from '@/engine/render/shared'
 // emoji; settings holds style-specific extras: ascii's position/colors, emoji's color/pose/views).
 interface ApiTile {
   image_url?: string | null
-  blocking?: boolean
   height?: number
   category?: string
   title?: string

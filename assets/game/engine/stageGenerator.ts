@@ -8,6 +8,8 @@
  * Pure logic (no rendering, no IsometricGrid mutation) so it is unit-testable
  * and reusable by the editor, the template mapper, and the eventual AI generator.
  */
+import { zoneMeadow, type ZoneMeadow } from '@/engine/zoneCatalog'
+import { FULL_CELL } from '@/engine/collisionBoxes'
 import { classifyBody, DEFAULT_LIQUID, isMolten, type Liquid, LIQUIDS, paintWaterBody, setForLiquid, waterBodies, type WaterSet } from './waterBody'
 import { styleCatalog, styleTile } from '@/engine/tileset/styleTiles'
 import { type BuildingType } from './buildingTypes'
@@ -108,12 +110,38 @@ type LayerRngs = Record<EngineLayerId, Rng>
  *  NEW variation: the open meadow opened on TWO opposite edges (top + bottom) for a through-route map (#26). */
 export type ForestLayout = 'woodland' | 'jungle' | 'meadow' | 'meadow_pass'
 
+/**
+ * A PLACED PROP SAYS WHAT IT OCCUPIES, as the box list the engine actually reads.
+ *
+ * `occupies` is the generator's own word for it while it is planning; this is where that becomes the fact on
+ * the tile. It rides the same `settings` path a puddle's `stackAt: 0` takes, so there is one road from a
+ * placer's decision to the saved cell, and nothing downstream has a second switch to consult.
+ */
+function withCollision(settings: Record<string, unknown> | undefined, occupies: boolean): Record<string, unknown> {
+  return { ...(settings ?? {}), collision: occupies ? [FULL_CELL] : [] }
+}
+
+/** Does the served tile for this label occupy its cell? The catalog's answer, never a flag beside it. */
+function labelOccupies(label: string): boolean {
+  const tile = styleTile('ascii', label) ?? styleTile('emoji', label)
+  const boxes = (tile?.settings as { collision?: unknown[] } | undefined)?.collision
+  return Array.isArray(boxes) && boxes.length > 0
+}
+
 export interface StageProp {
   col: number
   row: number
   type: string
   char: string
-  blocking: boolean
+  /**
+   * DOES THIS THING OCCUPY ITS CELL, the fact that used to be called `blocking`.
+   *
+   * It is written onto the placed tile as `settings.collision`, the list of boxes, which is where the fact
+   * lives (`docs/HITBOXES-AND-ELEVATION.md` §3.1). A placer stating a per-cell fact is the normal path, the
+   * same one a puddle's `stackAt: 0` takes; what is not allowed is a second switch saying the same thing,
+   * which is exactly what `blocking` was.
+   */
+  occupies: boolean
   color: string
   /** generator-marked tree-base cell → always casts a ground shadow (even when another
    *  tree sits directly below it). */
@@ -520,7 +548,7 @@ function speciesAt(ctx: ArchetypeContext, col: number, row: number): readonly Ge
  *
  * separately
  *
- * This was two functions that differed only in a hardcoded boolean: `makeThicket` said `blocking: true` and
+ * This was two functions that differed only in a hardcoded boolean: `makeThicket` said `occupies: true` and
  * `makeTallGrass` said `false`, neither of them asking. Measured against the live catalog, `thicket` is the
  * ONLY one of 40 nature tiles that blocks, so the frontend was minting the single most surprising collision
  * in the game rather than reading it.
@@ -530,7 +558,13 @@ const makePlant = (ctx: ArchetypeContext, col: number, row: number, label: strin
   // A PLANT GROWS. It left `grows` unset, so the flag that every way-clearing sweep reads was undefined on the
   // undergrowth: a thicket or a tuft of grass was neither something growing (to be swept off a path) nor
   // something deliberately not growing (like the film on a ford). The flowers beside it have always said true.
-  return { col, row, type: label, char: tile.char, label, blocking: !tile.walkable, grows: true, color: undergrowthTone(ctx, col, row, tile) ?? tile.color }
+  // WHAT THE TILE OCCUPIES, which is the one answer anyone reads.
+  //
+  // This asked `!tile.walkable`, a THIRD switch for the same fact beside `blocking` and the box list, and
+  // the three disagreed: the catalog said a bush is a ground plant you walk through, `walkable` said it
+  // stops you, and a saved map then lost fifteen cells of collision on the way back in because the loader
+  // asks the boxes. One fact, one reader.
+  return { col, row, type: label, char: tile.char, label, occupies: labelOccupies(label), grows: true, color: undergrowthTone(ctx, col, row, tile) ?? tile.color }
 }
 
 /**
@@ -622,7 +656,7 @@ const makeFlower = (rng: Rng, zone: ZoneId, col: number, row: number, regionSet?
   // LABEL 'flower' routes it through the label→image path (render/shared.labelTileImage) so it draws the BAKED
   // flower tile in EVERY style (ascii + emoji), colour-composited, never a per-style glyph (ASCII_STYLE.map is
   // empty, so a label-less prop would fall to the legacy '+' glyph drawer). The colour stays a per-instance tint.
-  return { col, row, type: 'flower', char: pick.char, label: 'flower', blocking: false, grows: true, color: varyIntensity(pick.color, shadeNoise(col * 2.7 + row * 3.1)) }
+  return { col, row, type: 'flower', char: pick.char, label: 'flower', occupies: false, grows: true, color: varyIntensity(pick.color, shadeNoise(col * 2.7 + row * 3.1)) }
 }
 
 /** Per-instance RENDER the generator stamps onto specific prop TYPES, the SAME per-asset settings a hand-painter
@@ -676,7 +710,7 @@ const makeRock = (col: number, row: number): StageProp => ({
   type: 'rock',
   char: Math.abs(col * 5 + row * 3) % 7 === 0 ? '▒' : '▓',
   label: 'rock', // baked 'rock' tile (both styles), draws the image, not the '▓' glyph, under ascii
-  blocking: true,
+  occupies: true,
   color: rockShade(col, row),
 })
 
@@ -687,7 +721,7 @@ const makeRock = (col: number, row: number): StageProp => ({
 const makeCaveDecor = (col: number, row: number, tone: string): StageProp => ({
   col, row, type: 'cave_decor',
   char: caveDecor()[Math.abs(col * 5 + row * 7) % caveDecor().length],
-  blocking: false,
+  occupies: false,
   color: varyIntensity(tone, shadeNoise(col * 1.7 + row * 2.3)),
 })
 
@@ -697,14 +731,14 @@ const makeCrystal = (col: number, row: number, tint: string): StageProp => ({
   col, row, type: 'crystal',
   char: Math.abs(col + row) % 2 === 0 ? '◆' : '◇',
   label: 'crystal', // baked 'crystal' tile (both styles), draws the image, not the '◆' glyph, under ascii
-  blocking: false,
+  occupies: false,
   color: varyIntensity(tint, shadeNoise(col * 3.1 + row * 1.9)),
 })
 
 // A cave mushroom (damp seasons only), a red/tan toadstool on the floor. Non-blocking.
 // Cap tone from the zone-data mushroomTones() palette (zones.ts).
 const makeMushroom = (col: number, row: number): StageProp => ({
-  col, row, type: 'mushroom', char: '♠', label: 'mushroom', blocking: false, grows: true,
+  col, row, type: 'mushroom', char: '♠', label: 'mushroom', occupies: false, grows: true,
   color: mushroomTones()[Math.abs(col * 3 + row * 5) % mushroomTones().length],
 })
 
@@ -728,7 +762,7 @@ const makeRockFace = (col: number, row: number, shades: readonly string[]): Stag
   col, row, type: 'rock_face',
   char: Math.abs(col * 5 + row * 3) % 7 === 0 ? '▒' : '▓',
   label: 'cliff_face',
-  blocking: true,
+  occupies: true,
   color: shades[Math.abs(col * 7 + row * 13) % shades.length],
 })
 
@@ -740,7 +774,7 @@ export const makeGroundDecor = (zone: ZoneId, col: number, row: number): StagePr
   const d = pickGroundDecor(styleCatalog('ascii'), zone, col, row)
   if (!d) return null
   // Carry the decor tile's LABEL so the render resolves its BAKED image (labelTileImage) per active style, // decor draws its own tile image, colour-composited, NOT a glyph (see render/shared.groundDecorImage).
-  return { col, row, type: 'ground_decor', char: d.char, blocking: false, grows: true, color: d.color, label: d.label }
+  return { col, row, type: 'ground_decor', char: d.char, occupies: false, grows: true, color: d.color, label: d.label }
 }
 
 /** Fill most empty, walkable, non-edge cells with non-blocking zone ground decor so a
@@ -810,9 +844,9 @@ function scatterFlowers(ctx: ArchetypeContext, density: number, layout?: Village
 
 // Structural decor for temple / boss arena / village (readable single-glyph props). Glyph + fallback
 // colour come from the zone-data propArt() table (zones.ts); a caller passes the zone's tint to override.
-const makePillar = (col: number, row: number, color = propArt().pillar.color): StageProp => ({ col, row, type: 'pillar', char: propArt().pillar.char, blocking: true, color })
-const makeBrazier = (col: number, row: number): StageProp => ({ col, row, type: 'brazier', char: propArt().brazier.char, blocking: true, color: propArt().brazier.color })
-const makeAltar = (col: number, row: number, color = propArt().altar.color): StageProp => ({ col, row, type: 'altar', char: propArt().altar.char, blocking: true, color })
+const makePillar = (col: number, row: number, color = propArt().pillar.color): StageProp => ({ col, row, type: 'pillar', char: propArt().pillar.char, occupies: true, color })
+const makeBrazier = (col: number, row: number): StageProp => ({ col, row, type: 'brazier', char: propArt().brazier.char, occupies: true, color: propArt().brazier.color })
+const makeAltar = (col: number, row: number, color = propArt().altar.color): StageProp => ({ col, row, type: 'altar', char: propArt().altar.char, occupies: true, color })
 
 // ── temple-interior feature cells (all SEASONAL), every KIND maps to an ASCII glyph+color
 //    AND an emoji tint (see game/artStyle.ts): temple_wall → 🧱, pillar → 🏛️, altar → 🗿,
@@ -823,24 +857,24 @@ const makeAltar = (col: number, row: number, color = propArt().altar.color): Sta
 const makeTempleWall = (col: number, row: number, shades: readonly string[]): StageProp => ({
   col, row, type: 'temple_wall',
   char: Math.abs(col * 5 + row * 3) % 6 === 0 ? '▓' : '█',
-  blocking: true,
+  occupies: true,
   color: shades[Math.abs(col * 7 + row * 13) % shades.length],
 })
 
 // A wall TORCH, a mounted flame lighting the halls. Non-blocking (a sconce you pass under),
 // so it can never pinch off the walkable floor.
-const makeTorch = (col: number, row: number, color: string): StageProp => ({ col, row, type: 'torch', char: propArt().torch.char, blocking: false, color })
+const makeTorch = (col: number, row: number, color: string): StageProp => ({ col, row, type: 'torch', char: propArt().torch.char, occupies: false, color })
 
 // A floor HAZARD, spike/pit trap tile. Non-blocking (you CAN step on it, it would deal
 // damage in play), so hazards never disconnect the dungeon floor. Season-tinted.
-const makeHazard = (col: number, row: number, char: string, color: string): StageProp => ({ col, row, type: 'hazard', char, blocking: false, color })
+const makeHazard = (col: number, row: number, char: string, color: string): StageProp => ({ col, row, type: 'hazard', char, occupies: false, color })
 
 // The boss-door KEY, a collectible on the floor of a side room. Non-blocking.
-const makeKey = (col: number, row: number): StageProp => ({ col, row, type: 'key', char: '⚷', blocking: false, color: '#ffd24a' })
+const makeKey = (col: number, row: number): StageProp => ({ col, row, type: 'key', char: '⚷', occupies: false, color: '#ffd24a' })
 
 // A gateway/threshold prop marking the (narratively locked) boss door, WALKABLE (label
 // 'door'), so it reskins as 🚪 and the floor stays one connected region.
-const makeGateway = (col: number, row: number, color: string): StageProp => ({ col, row, type: 'door', char: '∏', blocking: false, color, label: 'door' })
+const makeGateway = (col: number, row: number, color: string): StageProp => ({ col, row, type: 'door', char: '∏', occupies: false, color, label: 'door' })
 // The two town-square WATER VARIANTS, each a backend COMPOSITION (rim + water) stamped at load, no special
 // prop. Each footprint MUST match its Nebulith composition so the plaza reserve/centre matches what the stamp
 // fills: the small `well` (5w × 3d, a 1×3 water line) vs the grand `fountain` (5w × 5d, a 3×3 water grid).
@@ -894,7 +928,7 @@ function placeProp(ctx: ArchetypeContext, prop: StageProp | null, opts?: PlaceOp
   // that is what kept them off it. With the ways drawn first, three rocks a seed simply sat in the road.
   if (!opts?.onPathway && standsOnPathway(ctx, prop.col, prop.row)) return
   props.push(prop)
-  if (prop.blocking) collision[prop.row][prop.col] = true
+  if (prop.occupies) collision[prop.row][prop.col] = true
 }
 
 const makeBossAnchor = (col: number, row: number): StageProp => ({
@@ -902,7 +936,7 @@ const makeBossAnchor = (col: number, row: number): StageProp => ({
   row,
   type: 'boss',
   char: 'Ω',
-  blocking: true,
+  occupies: true,
   color: '#c0392b',
 })
 
@@ -929,7 +963,7 @@ function edgeDecor(neighbourType: string, col: number, row: number): StageProp |
   // Lava keeps its ember.
   if (isWaterGround(neighbourType)) return null
   if (LAVA_LIKE.has(neighbourType)) {
-    return { col, row, type: 'ember', char: '▒', blocking: false, color: '#d2691e' }
+    return { col, row, type: 'ember', char: '▒', occupies: false, color: '#d2691e' }
   }
   return null
 }
@@ -1571,11 +1605,17 @@ export function layoutPass(ctx: ArchetypeContext, settlement: Settlement): Villa
   const streets = ctx.settlement?.streets ?? 'road'
   for (let r = 0; r < rows; r++) {
     for (let c = 0; c < cols; c++) {
-      // Roads are a COLOUR on the ground BLOCK, not a separate ROAD tile. The base ground stays (a height-1 block)
-      // and is tinted asphalt, so a
-      // road is FLUSH with the grass, no raised road-tile trench. Road IDENTITY lives in `layout.roads` (read by
-      // placement + scatter), never re-derived from the ground kind.
+      // A STREET IS MADE OF THE STREET TILE, and wears its colour.
+      //
+      // This set the colour and left the ground as it found it, so clicking a street said you were standing
+      // on grass, and the street's material was a tint rather than a thing. The older note here warned that
+      // laying the tile put a RAISED block in a trench, and it was right at the time: `road` was a standing
+      // tile then. It is height 0 now, the same as `grass`, so the street is flush and says what it is.
+      //
+      // Road IDENTITY still lives in `layout.roads` (read by placement and scatter) and is never re-derived
+      // from the ground kind, which is what keeps a dirt path in a field from being mistaken for a street.
       if (!layout.roads[r][c]) continue
+      ctx.ground[r][c] = streets
       ctx.floorColors[r][c] = groundTileColor(streets, c, r)
       // AND A STREET IS A PATHWAY, so it says so. Nothing recorded a settlement's streets as pathway cells,
       // so `ctx.pathwayCells` was empty for every town and city: the served pathway surface, its scatter and
@@ -2540,7 +2580,7 @@ function borderTheWater(ctx: ArchetypeContext): void {
  */
 function openWater(ctx: ArchetypeContext, body: ReadonlySet<string>): Set<string> {
   const open = new Set(body)
-  for (const prop of ctx.props) if (prop.blocking) open.delete(`${prop.col},${prop.row}`)
+  for (const prop of ctx.props) if (prop.occupies) open.delete(`${prop.col},${prop.row}`)
   for (const comp of ctx.compositions) open.delete(`${comp.col},${comp.row}`)
   for (const tree of ctx.trees) open.delete(`${tree.col},${tree.row}`)
   return open
@@ -2940,19 +2980,20 @@ function pavableLane(ctx: ArchetypeContext, plan: RoutePlan): Set<string> {
 function paveLane(ctx: ArchetypeContext, lane: ReadonlySet<string>, way: GeneratorPathway): void {
   const surface = way.surface
   if (!surface) return
-  // A WAY IS A COLOUR ON THE GROUND BLOCK, NEVER A TILE LAID ON TOP OF IT.
+  // A WAY IS ITS OWN GROUND TILE, WEARING THIS MAP'S TONE. Never a tile stacked on top of another one.
   //
-  // This wrote `ground[row][col] = surface`, which is the exact thing the settlement paver forty lines up has
-  // warned against since it was written: *"Roads are a COLOUR on the ground BLOCK, not a separate ROAD tile.
-  // The base ground stays (a height-1 block) and is tinted asphalt, so a road is FLUSH with the grass, no
-  // raised road-tile trench"*. Swapping the tile puts a second block on the map, which is why it read as
-  // *"BLACK ULGY TILES ON TOP"* and why every floor came out wrong at once.
+  // The distinction matters because both halves have been reported as bugs. Laying the surface as a second
+  // block ON the ground gave black tiles standing proud of the field, a raised road in a trench. Painting a
+  // colour onto the grass and leaving the tile alone gave the other half: a street that tells you it is made
+  // of grass when you click it, and a street whose material is a tint rather than a thing.
   //
-  // WHICH COLOUR is `wayTone`'s to answer, from the served pathway. The surface still decides what the way is
-  // MADE of, and the tone what that material looks like here.
+  // Neither is needed. `road`, `path_stone` and `path_dirt` are height 0, the same as `grass`, so REPLACING
+  // the ground tile lays a street that is flush with the field and says what it is. The tone still comes
+  // from the served pathway (`wayTone`): the tile decides what the way is MADE of, the tone what that
+  // material looks like here.
   const base = wayTone(ctx) ?? groundTileColor(surface, 0, 0)
   if (!base) return
-  wearTheWay(ctx, lane, base)
+  wearTheWay(ctx, lane, base, surface)
   paintMarking(ctx, lane, way)
 }
 
@@ -2987,11 +3028,21 @@ function wayTone(ctx: ArchetypeContext): string | undefined {
  * an outline rather than confetti, and a way is two colours in long runs, which is also what lets
  * `compressGround` merge it (it joins only floors sharing a tile AND a colour).
  */
-function wearTheWay(ctx: ArchetypeContext, cells: ReadonlySet<string>, tone: string): void {
+function wearTheWay(ctx: ArchetypeContext, cells: ReadonlySet<string>, tone: string, surface?: string): void {
   for (const key of cells) {
     const { col, row } = toCell(key)
     if (!inBounds(col, row, ctx.cols, ctx.rows)) continue
-    if (isWaterGround(ctx.ground[row][col]) || ctx.wet.has(key) || ctx.decks.has(key)) continue
+    // REAL WATER, A FORD AND A BRIDGE DECK ARE NOT PAVED. A river is what a crossing is for, a deck is
+    // already the way over it, and a ford is the river running shallow enough to wade: paving one turns it
+    // into dry ground, and the crossing pass then finds no water there to bridge.
+    if (isWaterGround(ctx.ground[row][col]) || ctx.decks.has(key) || ctx.fords.has(key)) continue
+    // A PUDDLE IS NOT ONE OF THEM. `ctx.wet` is standing water lying ON a floor: the ground underneath is
+    // unchanged, the film is stacked over it at height 0 and you walk straight through it. This skipped
+    // those cells, so a way stopped at a puddle and started again on the other side, leaving a bite of
+    // field in the middle of a street. Rain on a road gives you a puddle on the road; the road does not
+    // stop. So the way is laid under it and the film stays on top, which is what both of them already are.
+    // THE CELL IS MADE OF THE WAY'S OWN MATERIAL.
+    if (surface) ctx.ground[row][col] = surface
     // ONE TONE, ON EVERY CELL OF THE WAY.
     //
     // This painted only the cells with the way on every side and left the boundary cells wearing the FIELD's
@@ -3020,7 +3071,7 @@ function wearTheWay(ctx: ArchetypeContext, cells: ReadonlySet<string>, tone: str
     // reference puts it and the one thing a colour per cell can never do.
     ctx.props.push({
       col, row, type: 'ground_decor', char: '', label: wayPiece(cells, col, row),
-      blocking: false, grows: false, color: field,
+      occupies: false, grows: false, color: field,
     })
   }
 }
@@ -3183,7 +3234,7 @@ function markAcross(ctx: ArchetypeContext, lane: ReadonlySet<string>, tone: stri
       const art = resolveTile(styleCatalog('ascii'), ctx.zone, label)
       ctx.props.push({
         col, row, type: 'ground_decor', char: art.char, label,
-        blocking: false, grows: false, color: tone,
+        occupies: false, grows: false, color: tone,
         // Flat on the road it lies on, the same stack the ford and the puddle films state.
         settings: { stackAt: 0 },
       })
@@ -4285,24 +4336,27 @@ function fellLogsAcross(ctx: ArchetypeContext, water: Set<string>, pal: Generato
  * Seeds are drawn by WEIGHT, so the served numbers decide how much of the map each kind tends to claim.
  */
 /**
- * How much heavier the region you PICKED is than the weights the generator serves.
+ * The served regions, and what PICKING one MEANS: the map IS that region.
  *
- * `partitionSubZones` hands one seed to every kind first and draws the rest by weight, so multiplying the
- * lead's weight makes it dominate the map WITHOUT deleting the others: a swamp-led jungle is mostly swamp with
- * dense growth and open canopy still in it, which is what a region you pick should mean.
- */
-const REGION_LEAD = 5
-
-/**
- * The served regions, with the picked one weighted up. `random` or nothing picked leaves the served weights
- * exactly as they are, and a key this template does not carry is ignored rather than guessed at.
+ * This used to multiply the picked region's weight by a constant kept right here, so a pick moved only how
+ * much of the map that region tended to claim. Every region then built the same wood with its trees dealt
+ * out differently, which is exactly what `docs/REGIONS.md` §0b says is not the answer: *a percentage is not
+ * evidence, it proves only that the weighting moved, and says nothing about whether the place IS what it is
+ * called.* A thicket has to come out a thicket.
+ *
+ * So a pick NARROWS the set to that one region and the partition lays it over the whole map, taking its
+ * floor, its canopy, its formation, its undergrowth and its own species with it. `random`, an empty pick, or
+ * a key this template does not serve leave the served set exactly as it is, which is the mix.
+ *
+ * The constant went with it. How much of a map a region claims is the generator's `weight`, served per
+ * region; nothing in here gets to hold a number that decides what a map looks like.
  */
 function leadRegion(ctx: ArchetypeContext, zones: readonly GeneratorSubZone[] | undefined): readonly GeneratorSubZone[] {
   const served = zones ?? []
   const picked = ctx.options?.region
   if (typeof picked !== 'string' || picked === 'random' || picked === '') return served
-  if (!served.some(z => z.key === picked)) return served
-  return served.map(z => (z.key === picked ? { ...z, weight: z.weight * REGION_LEAD } : z))
+  const only = served.find(z => z.key === picked)
+  return only ? [only] : served
 }
 
 /** How a region set is laid on the map. Served per generator; absent means the scatter it has always had. */
@@ -4724,7 +4778,7 @@ function layPoolFilm(ctx: ArchetypeContext, body: ReadonlySet<string>, pal: Gene
     // on the ground, it is water lying on it, and every sweep that clears a way of vegetation reads that flag.
     // Without it a puddle on a path counted as undergrowth on the path.
     // Stated, not defaulted: a puddle's stack is 0, see the ford's film for why it is written here.
-    ctx.props.push({ col, row, type: 'ground_decor', char: film.char, label: 'water_still', blocking: false, grows: false, color: pal?.swamp ?? pal?.water ?? film.color, settings: { stackAt: 0 } })
+    ctx.props.push({ col, row, type: 'ground_decor', char: film.char, label: 'water_still', occupies: false, grows: false, color: pal?.swamp ?? pal?.water ?? film.color, settings: { stackAt: 0 } })
     // NO COLLISION. and
     // earlier:
     //
@@ -4882,7 +4936,7 @@ const RUIN_WALL: MassFamily<string> = {
 function makeRuinWall(ctx: ArchetypeContext, col: number, row: number, wall: ReadonlySet<string>): StageProp {
   const label = autotileLabel(RUIN_WALL, (c, r) => wall.has(`${c},${r}`), col, row)
   const tile = resolveTile(styleCatalog('ascii'), ctx.zone, label)
-  return { col, row, type: 'ruin_wall', char: tile.char, label, blocking: true, color: tile.color }
+  return { col, row, type: 'ruin_wall', char: tile.char, label, occupies: true, color: tile.color }
 }
 
 /** The floor a ruin stands on: walkable stone, so a ruin is somewhere you go INTO rather than around. */
@@ -5477,22 +5531,19 @@ function dressWoodlandClearings(
 // (grass / earth / cobble) or the flat 'water' tile tinted river-blue, both carry a real block HEIGHT, so
 // terrain reads as a raised block and every ornament STACKS on top of it (no 0-height tiles emitted).
 
-/** Per-season meadow floor palette: the gradient endpoints (top/light → bottom/dark, an olive greens→
- *  yellows) plus the earth / grass patch tints, the cobblestone entrance tone, and the river + bank
- *  colours, every colour the meadow layouts write as floor STATE. Muted olive around the @meadow_color
- *  #a4ac48 base (sampled from #14/#17). Open/Closed: add a season → add a row. */
-interface MeadowPalette {
-  top: string; bottom: string; grass: string; earth: string; cobble: string; river: string; bank: string; plot: string
-}
-const MEADOW_PALETTES: Readonly<Record<ZoneId, MeadowPalette>> = {
-  summer: { top: '#b4c05a', bottom: '#8ba341', grass: '#7f9b39', earth: '#b39a72', cobble: '#b7a488', river: '#4f93b3', bank: '#c1a877', plot: '#c6cb92' },
-  spring: { top: '#b0c85f', bottom: '#8fb14c', grass: '#7cae44', earth: '#b69c78', cobble: '#bcac90', river: '#57a1bd', bank: '#c8b07d', plot: '#c8cf94' },
-  autumn: { top: '#bba750', bottom: '#8f7d38', grass: '#93813a', earth: '#a5875c', cobble: '#b39d82', river: '#4d8aa2', bank: '#b8996e', plot: '#cbbd84' },
-  winter: { top: '#ccd6cf', bottom: '#aabbb6', grass: '#b2c1bc', earth: '#8d887e', cobble: '#c1c4bf', river: '#7cb8d8', bank: '#c9ccc5', plot: '#dde4de' },
-  desert: { top: '#cabf6c', bottom: '#aea050', grass: '#bcb35c', earth: '#b07f4a', cobble: '#c8b48a', river: '#5aa6b4', bank: '#d3ba80', plot: '#dbd29a' },
-  beach: { top: '#c2c86a', bottom: '#a3b24e', grass: '#9fb84a', earth: '#c2a466', cobble: '#cbbf9a', river: '#4bb0c2', bank: '#dcc78e', plot: '#d6da9c' },
-  lava: { top: '#8a7f4a', bottom: '#6e5f38', grass: '#726838', earth: '#7a4f3a', cobble: '#8a7d6a', river: '#a25a2a', bank: '#8a5a3a', plot: '#9c916a' },
-}
+/**
+ * THE OPEN FIELD'S COLOURS, SERVED.
+ *
+ * This was a table of seven seasons written here, every colour a meadow layout paints. A map's appearance
+ * is the backend's to state (`ZoneSource`, `palette.meadow`), so the table moved and this reads it.
+ *
+ * A season the backend serves no meadow palette for gets NOTHING, never a colour invented here. The old
+ * code fell back to summer, so a season that had not been described yet quietly came out as summer and
+ * looked like a working map, which is the failure mode the no-fallback law exists to stop (MAP-MODEL §8).
+ */
+type MeadowPalette = ZoneMeadow
+
+const meadowPalette = (ctx: ArchetypeContext): MeadowPalette | undefined => zoneMeadow(ctx.zone)
 
 const MEADOW_GRADIENT_STEPS = 7   // coarse ROW gradient bands, few colour breaks + horizontally UNIFORM so compressGround merges each row into ONE run (FPS)
 const MEADOW_PATCH = 7            // coarse garden-PATCH size, a tended-field patchwork painted as large uniform regions (merges), not per-cell grid lines
@@ -5523,14 +5574,18 @@ function lerpHex(a: string, b: string, t: number): string {
 /** The meadow's water, bank and deck tones. The WATER comes from the served palette when the template states
  *  one (it does, by depth); the bank and deck keep the meadow's own seasonal tones, which is what they always wore. */
 function meadowWater(ctx: ArchetypeContext): GeneratorPalette {
-  const pal = MEADOW_PALETTES[ctx.zone] ?? MEADOW_PALETTES.summer
+  const pal = meadowPalette(ctx)
+  // NO COLOURS SERVED, NOTHING STATED. Falling back to another season's is how an undescribed season came
+  // out looking like a working summer map (MAP-MODEL §8, the no-fallback law). The template's own palette
+  // still answers for the water itself, which is served by depth.
+  if (!pal) return { water: ctx.palette?.water, waterShallow: ctx.palette?.waterShallow, waterDeep: ctx.palette?.waterDeep, swamp: ctx.palette?.swamp }
   return {
     water: ctx.palette?.water ?? pal.river,
     waterShallow: ctx.palette?.waterShallow,
     waterDeep: ctx.palette?.waterDeep,
     swamp: ctx.palette?.swamp,
-    bank: pal.bank,
-    trail: pal.cobble,
+    bank: pal?.bank,
+    trail: pal?.cobble,
   }
 }
 
@@ -5611,8 +5666,10 @@ function meadowPhases(twoPathways: boolean): VariantPhases {
       floodMeadowFloor(ctx) // flat 'meadow' tile everywhere (a raised, tintable block)
       // ITS OWN PALETTE STILL, because the backend serves a meadow no `palette.floor` to paint from. A
       // gradient is what the meadow has always had; where the tones come from is a data gap, not a code one.
-      const meadowPal = MEADOW_PALETTES[ctx.zone] ?? MEADOW_PALETTES.summer
-      paintFloor(ctx, { top: meadowPal.top, bottom: meadowPal.bottom })
+      const meadowPal = meadowPalette(ctx)
+      // A season the backend has not given an open field its colours paints none, rather than borrowing
+      // another season's and looking like a working map.
+      if (meadowPal) paintFloor(ctx, { top: meadowPal.top, bottom: meadowPal.bottom })
 
       // AND ITS REGIONS, which it served and never used. `partitionSubZones` was called by the jungle, then
       // by the woodland when the same gap was found there, and the meadow was left out of both passes: its
@@ -5703,7 +5760,10 @@ function floodMeadowFloor(ctx: ArchetypeContext): void {
  *  the water cell-key set. */
 function paintMeadowRiver(ctx: ArchetypeContext): Set<string> {
   const { cols, rows, ground, collision, floorColors } = ctx
-  const pal = MEADOW_PALETTES[ctx.zone] ?? MEADOW_PALETTES.summer
+  const pal = meadowPalette(ctx)
+  // NO COLOURS SERVED, NO MEADOW RIVER CUT. Falling back to another season's is how an undescribed season
+  // came out looking like a working summer map (MAP-MODEL §8, the no-fallback law).
+  if (!pal) return new Set<string>()
   const phase = ctx.rand() * Math.PI * 2
   const phase2 = ctx.rand() * Math.PI * 2
   const water = new Set<string>()
@@ -5826,7 +5886,8 @@ function stampMeadowTree(ctx: ArchetypeContext, col: number, row: number, tall: 
  *  dropped on it, then painted the cobble tone on the flat meadow floor: a COLOUR, not a tile, like every other
  *  way in this layout paves. */
 function paveMeadowRoutes(ctx: ArchetypeContext, plan: RoutePlan, water: Set<string>, routes: Set<string>): void {
-  const tone = wayTone(ctx) ?? (MEADOW_PALETTES[ctx.zone] ?? MEADOW_PALETTES.summer).cobble
+  const tone = wayTone(ctx) ?? meadowPalette(ctx)?.cobble
+  if (!tone) return
   const lane = new Set<string>()
   for (const key of plan.cells) if (!water.has(key)) lane.add(key)
   // CLEARING AND CLAIMING ALWAYS HAPPEN. A way has to be clear of what was planted on it and has to be
@@ -5861,8 +5922,13 @@ function paintMeadowGateways(ctx: ArchetypeContext, plan: RoutePlan, water: Read
   // THE WAY'S OWN TONE, not the season's cobble. A gateway is the way continuing to the border, and these
   // two painted a different material from the way they open onto: measured, a meadow wore its park path
   // across the middle and seasonal cobble for the last eleven cells at every gate.
-  const pal = MEADOW_PALETTES[ctx.zone] ?? MEADOW_PALETTES.summer
-  paintGateways(ctx, plan, water, routes, { ground: 'meadow', paving: wayTone(ctx) ?? pal.cobble, flank: bedsAndLamps })
+  const pal = meadowPalette(ctx)
+  // NO COLOURS SERVED, NO MEADOW PAINTED. Falling back to another season's is how an undescribed season
+  // came out looking like a working summer map (MAP-MODEL §8, the no-fallback law).
+  if (!pal) return
+  const paving = wayTone(ctx) ?? pal?.cobble
+  if (!paving) return
+  paintGateways(ctx, plan, water, routes, { ground: 'meadow', paving, flank: bedsAndLamps })
 }
 
 /**
@@ -5871,7 +5937,10 @@ function paintMeadowGateways(ctx: ArchetypeContext, plan: RoutePlan, water: Read
  * itself 5 wide off a constant, which is the second width PATHWAYS.md §3 forbids.
  */
 function paintMeadowEntrance(ctx: ArchetypeContext, water: Set<string>, routes: Set<string>, fromTop = false, frac = MEADOW_ENTRANCE_FRAC): void {
-  const pal = MEADOW_PALETTES[ctx.zone] ?? MEADOW_PALETTES.summer
+  const pal = meadowPalette(ctx)
+  // NO COLOURS SERVED, NO MEADOW PAINTED. Falling back to another season's is how an undescribed season
+  // came out looking like a working summer map (MAP-MODEL §8, the no-fallback law).
+  if (!pal) return
   const width = pathwayWidth(ctx)
   const half = Math.floor(width / 2)
   const centre = clamp(Math.floor(ctx.cols * frac), half + 1, ctx.cols - (width - half) - 1)
@@ -5943,7 +6012,10 @@ function scatterMeadowOrnaments(ctx: ArchetypeContext, water: Set<string>): void
  *  painted after can override. */
 function paintMeadowPlots(ctx: ArchetypeContext, water: Set<string>): void {
   const { cols, rows, ground, collision, floorColors } = ctx
-  const pal = MEADOW_PALETTES[ctx.zone] ?? MEADOW_PALETTES.summer
+  const pal = meadowPalette(ctx)
+  // NO COLOURS SERVED, NO MEADOW PAINTED. Falling back to another season's is how an undescribed season
+  // came out looking like a working summer map (MAP-MODEL §8, the no-fallback law).
+  if (!pal) return
   forEachCell(cols, rows, (col, row) => {
     if (isEdge(col, row, cols, rows) || water.has(`${col},${row}`) || collision[row][col]) return
     if (ground[row][col] !== 'meadow') return
@@ -6006,7 +6078,10 @@ function mutedEarth(ctx: ArchetypeContext, col: number, row: number, pal: Meadow
  *  water / trees / paved cells. Flowers may spread one cell wider (a fuller bloom cluster). */
 function placeMeadowOrnamentZone(ctx: ArchetypeContext, cc: number, cr: number, kind: MeadowOrnament, water: Set<string>): void {
   const { cols, rows, ground, collision } = ctx
-  const pal = MEADOW_PALETTES[ctx.zone] ?? MEADOW_PALETTES.summer
+  const pal = meadowPalette(ctx)
+  // NO COLOURS SERVED, NO MEADOW PAINTED. Falling back to another season's is how an undescribed season
+  // came out looking like a working summer map (MAP-MODEL §8, the no-fallback law).
+  if (!pal) return
   const radius = kind === 'flowers' ? 1 + randIntWith(ctx.rand, 0, 1) : 1
   const paint = MEADOW_ORNAMENT_CELL[kind]
   for (let dy = -radius; dy <= radius; dy++) {
@@ -6041,7 +6116,9 @@ function placeMeadowBridge(ctx: ArchetypeContext, water: Set<string>): void {
   for (const row of rowsToDeck) for (let w = -DECK_HALF; w < CROSSING_ROWS - DECK_HALF; w++) deck.add(`${bridgeCol + w},${row}`)
   // The meadow's own cobble, stated here rather than defaulted inside layDeck, a stone bridge over a
   // meadow river is this layout's design, not something every caller should inherit.
-  layDeck(ctx, deck, (MEADOW_PALETTES[ctx.zone] ?? MEADOW_PALETTES.summer).cobble)
+  const cobble = meadowPalette(ctx)?.cobble
+  if (!cobble) return
+  layDeck(ctx, deck, cobble)
   // …and the STRUCTURE on it. This function's own doc calls itself "a stone BRIDGE crossing the river", so it
   // is the one deck of the six that most obviously needs a real bridge. The deck runs along +row here (it
   // spans the top-edge arm at a fixed column), so the span axis is rows, not cols.
@@ -6090,7 +6167,11 @@ function placeRiverCrossing(ctx: ArchetypeContext, water: Set<string>, routes: S
   // A crossing wears the route it joins: the template's own trail tone when it serves one, and the meadow's
   // stone when it does not, because a bridge over a meadow river IS cobble. That is this layout's design
   // choice, not a stand-in for a served value it failed to read.
-  layDeck(ctx, deck, wayTone(ctx) ?? (MEADOW_PALETTES[ctx.zone] ?? MEADOW_PALETTES.summer).cobble)
+  const deckTone = wayTone(ctx) ?? meadowPalette(ctx)?.cobble
+  // No tone served for this season is no crossing laid, and the caller is told so rather than left with a
+  // deck it cannot see.
+  if (!deckTone) return false
+  layDeck(ctx, deck, deckTone)
   // …and a real BRIDGE standing on it. `horizontal` is the deck's own axis, decided above by which way the
   // river is narrower here, so the bridge lies ACROSS the water rather than along it.
   // The WET EXTENT along the deck's own axis. `back`/`forward` each already step one cell onto dry land, so
@@ -7095,7 +7176,7 @@ function reopenCaveEntrance(ctx: ArchetypeContext, pal: CavePalette, entrance: R
     // the array out orphans their pushes into a detached list (it silently emptied the crystals/mushrooms).
     for (let i = ctx.props.length - 1; i >= 0; i--) {
       const pr = ctx.props[i]
-      if (pr.col === col && pr.row === row && pr.blocking) ctx.props.splice(i, 1)
+      if (pr.col === col && pr.row === row && pr.occupies) ctx.props.splice(i, 1)
     }
   }
 
@@ -7438,7 +7519,7 @@ function firstWalkable(collision: boolean[][], cols: number, rows: number): Cell
 // ── visual mapping (shared by the template mapper + the live-grid applier) ──
 export interface StagePaint {
   ground: { col: number; row: number; type: string; color?: string }[]
-  assets: { col: number; row: number; char: string; type: string; color: string; blocking: boolean; label?: string; baseShadow?: boolean; buildingType?: string; edge?: BuildingEdge; footprint?: number; height?: number; settings?: Record<string, unknown> }[]
+  assets: { col: number; row: number; char: string; type: string; color: string; label?: string; baseShadow?: boolean; buildingType?: string; edge?: BuildingEdge; footprint?: number; height?: number; settings?: Record<string, unknown> }[]
 }
 
 export function stagePaint(stage: StageData): StagePaint {
@@ -7449,7 +7530,7 @@ export function stagePaint(stage: StageData): StagePaint {
     // EVERY FIELD, BY HAND, WHICH IS THE TRAP. This copier is a whitelist: a field a prop states and this
     // line does not name is dropped on the floor, silently. `settings` is how a placer states a per-cell fact
     // (a puddle's `stackAt: 0`) rather than leaning on a default further down.
-    assets.push({ col: p.col, row: p.row, char: p.char, type: p.type, color: p.color, blocking: p.blocking, label: p.label, baseShadow: p.baseShadow, buildingType: p.buildingType, edge: p.edge, footprint: p.footprint, height: p.height, settings: p.settings }),
+    assets.push({ col: p.col, row: p.row, char: p.char, type: p.type, color: p.color, label: p.label, baseShadow: p.baseShadow, buildingType: p.buildingType, edge: p.edge, footprint: p.footprint, height: p.height, settings: withCollision(p.settings, p.occupies) }),
   )
   return { ground, assets }
 }
@@ -7522,7 +7603,7 @@ function anchorAssets(stage: StageData, kind: string, anchorCol: number, anchorR
       col,
       row,
       type: kind,
-      blocking: !c.walkable,
+      occupies: !c.walkable,
       color: tile.color,
       label: c.label,
       footprint: undefined,
@@ -7549,7 +7630,6 @@ export function stageToTemplate(stage: StageData, name: string): StageTemplatePa
     col: a.col,
     row: a.row,
     type: a.type,
-    blocking: a.blocking,
     color: a.color,
     // NO hardcoded height, the renderer reads each tile's OWN block-height from the DB (a flat decor is 0.1,
     // a standing prop ≥1), so a saved generated map matches the LIVE applyStageToGrid path (which also leaves

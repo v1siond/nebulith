@@ -9,9 +9,11 @@ defmodule Nebulith.TilesetParityTest do
 
   This asserts both, on the REAL seeded rows:
     * no tile in EITHER style lacks a baked image (image_url present AND the PNG exists on disk), and
-    * every SHARED label (present in both styles) agrees on height / category / blocking.
+    * every SHARED label (present in both styles) agrees on height / category / what it occupies.
   """
   use Nebulith.DataCase
+
+  @full_cell [%{"x" => 0, "y" => 0, "w" => 1, "h" => 1}]
 
   alias Nebulith.Catalog
   alias Nebulith.Catalog.TileSource
@@ -39,13 +41,15 @@ defmodule Nebulith.TilesetParityTest do
     %{ascii: ascii, emoji: emoji}
   end
 
-  test "no tile in EITHER style lacks a baked image (image_url present AND the PNG exists)", ctx do
+  test "no tile in EITHER style lacks a baked image (image_url present AND the PNG exists)",
+       ctx do
     static_dir = Application.app_dir(:nebulith, "priv/static")
 
     offenders =
       for {style, tiles} <- [{"ascii", ctx.ascii}, {"emoji", ctx.emoji}],
           {label, tile} <- tiles,
-          not (style == "ascii" and label in @color_only_floors), # flat colour floors: ascii = glyph + bg fill
+          # flat colour floors: ascii = glyph + bg fill
+          not (style == "ascii" and label in @color_only_floors),
           reason = image_problem(tile, static_dir),
           reason != nil,
           do: "#{style}/#{label}: #{reason}"
@@ -64,14 +68,15 @@ defmodule Nebulith.TilesetParityTest do
     emoji_only = emoji |> MapSet.difference(ascii) |> MapSet.difference(excused) |> Enum.sort()
 
     assert ascii_only == [],
-           "ascii labels with NO emoji twin (would render `?` in emoji):\n" <> Enum.join(ascii_only, ", ")
+           "ascii labels with NO emoji twin (would render `?` in emoji):\n" <>
+             Enum.join(ascii_only, ", ")
 
     assert emoji_only == [],
            "emoji labels with NO ascii twin (would render `?` in ascii):\n" <>
              Enum.join(emoji_only, ", ")
   end
 
-  test "every SHARED label agrees across styles on height, category and blocking", ctx do
+  test "every SHARED label agrees across styles on height, category and what it occupies", ctx do
     shared =
       MapSet.intersection(MapSet.new(Map.keys(ctx.ascii)), MapSet.new(Map.keys(ctx.emoji)))
       |> MapSet.to_list()
@@ -84,7 +89,8 @@ defmodule Nebulith.TilesetParityTest do
       end
 
     assert mismatches == [],
-           "shared labels that DON'T behave the same across ascii/emoji:\n" <> Enum.join(mismatches, "\n")
+           "shared labels that DON'T behave the same across ascii/emoji:\n" <>
+             Enum.join(mismatches, "\n")
   end
 
   test "every SHARED label agrees across styles on its per-zone COLOURS", ctx do
@@ -107,7 +113,8 @@ defmodule Nebulith.TilesetParityTest do
              Enum.join(mismatches, "\n")
   end
 
-  test "the colour agreement FILLS a blank without overwriting a style that authored its own", ctx do
+  test "the colour agreement FILLS a blank without overwriting a style that authored its own",
+       ctx do
     ascii_id = ctx.ascii["wall"].tileset_id
     emoji_id = ctx.emoji["wall"].tileset_id
     own = %{"spring" => "#010203"}
@@ -121,27 +128,38 @@ defmodule Nebulith.TilesetParityTest do
     emoji_wall = Map.new(Catalog.list_tiles_for("emoji"), &{&1.label, &1})["wall"]
     ascii_door = Map.new(Catalog.list_tiles_for("ascii"), &{&1.label, &1})["door"]
 
-    assert emoji_wall.settings["colors"] == own, "an authored per-style colour is never overwritten"
+    assert emoji_wall.settings["colors"] == own,
+           "an authored per-style colour is never overwritten"
+
     assert is_map(ascii_door.settings["colors"]), "a blank is filled from whichever style has one"
   end
 
-  test "AsciiEmojiBehaviorParity fixes a DRIFTED live ascii row (height/blocking/category), settings untouched, idempotent", ctx do
+  test "AsciiEmojiBehaviorParity fixes a DRIFTED live ascii row (height/collision/category), the rest of its settings untouched, idempotent",
+       ctx do
     door = ctx.ascii["door"]
     settings_before = door.settings
 
-    # simulate the pre-fix live row: a blocking 1-block door (the old ascii glyph-seed default).
+    # simulate the pre-fix live row: a 1-block door that occupies its cell (the old ascii glyph-seed
+    # default).
     {1, _} =
       from(t in Nebulith.Catalog.Tile, where: t.id == ^door.id)
-      |> Repo.update_all(set: [height: 1.0, blocking: true])
+      |> Repo.update_all(
+        set: [height: 1.0, settings: Map.put(settings_before, "collision", @full_cell)]
+      )
 
     :ok = AsciiEmojiBehaviorParity.run()
 
     fixed = Enum.find(Catalog.list_tiles_for("ascii"), &(&1.label == "door"))
     emoji_door = ctx.emoji["door"]
     assert fixed.height == emoji_door.height, "door height snaps to the emoji twin"
-    assert fixed.blocking == emoji_door.blocking, "door collision snaps to the emoji twin (walkable)"
+
+    assert (fixed.settings["collision"] || []) == (emoji_door.settings["collision"] || []),
+           "door collision snaps to the emoji twin (walkable)"
+
     assert fixed.category == emoji_door.category
-    assert fixed.settings == settings_before, "settings (colour/pose) survive the behavior-only fix"
+
+    assert Map.drop(fixed.settings, ["collision"]) == Map.drop(settings_before, ["collision"]),
+           "settings (colour/pose) survive the behavior-only fix"
 
     # idempotent: a row already in parity changes nothing on a re-run.
     :ok = AsciiEmojiBehaviorParity.run()
@@ -149,14 +167,18 @@ defmodule Nebulith.TilesetParityTest do
     assert again.height == emoji_door.height
   end
 
-  test "AsciiEmojiBehaviorParity leaves the intentionally-divergent ascii ground tiles (rock/crystal/coral) alone", ctx do
+  test "AsciiEmojiBehaviorParity leaves the intentionally-divergent ascii ground tiles (rock/crystal/coral) alone",
+       ctx do
     before = Map.new(@intentional_divergence, fn l -> {l, ctx.ascii[l]} end)
     :ok = AsciiEmojiBehaviorParity.run()
     after_run = Map.new(Catalog.list_tiles_for("ascii"), &{&1.label, &1})
 
     for label <- @intentional_divergence do
-      assert after_run[label].height == before[label].height, "#{label} ground height must not be touched"
-      assert after_run[label].category == before[label].category, "#{label} stays a ground-terrain tile"
+      assert after_run[label].height == before[label].height,
+             "#{label} ground height must not be touched"
+
+      assert after_run[label].category == before[label].category,
+             "#{label} stays a ground-terrain tile"
     end
   end
 
@@ -174,10 +196,14 @@ defmodule Nebulith.TilesetParityTest do
       []
       |> field_diff("height", a.height, e.height)
       |> field_diff("category", a.category, e.category)
-      |> field_diff("blocking", a.blocking, e.blocking)
+      |> field_diff("occupies", occupies(a), occupies(e))
 
     if diffs == [], do: nil, else: Enum.join(diffs, ", ")
   end
+
+  # WHAT A LABEL OCCUPIES, off its box list. A label owns this in every style; only the picture is the
+  # style's, so the two have to agree.
+  defp occupies(tile), do: (tile.settings["collision"] || []) != []
 
   defp field_diff(acc, _name, same, same), do: acc
   defp field_diff(acc, name, a, e), do: acc ++ ["#{name} ascii=#{inspect(a)} emoji=#{inspect(e)}"]

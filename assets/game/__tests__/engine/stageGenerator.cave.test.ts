@@ -52,7 +52,7 @@ describe('generateStage, cave: rock walls are collision', () => {
     // of a loose stone.
     const rocks = stage.props.filter(p => p.type === 'rock_face')
     expect(rocks.length).toBeGreaterThan(50) // a real cavern boundary + formations
-    expect(rocks.every(r => r.blocking === true)).toBe(true)
+    expect(rocks.every(r => r.occupies === true)).toBe(true)
     expect(rocks.every(r => stage.collision[r.row][r.col] === true)).toBe(true)
   })
 
@@ -145,7 +145,7 @@ describe('generateStage, cave: scattered features', () => {
     // aggregate a few caves so at least one cluster lands
     const crystals = [0, 1, 2, 3].flatMap(() => cave('spring').props.filter(p => p.type === 'crystal'))
     expect(crystals.length).toBeGreaterThan(0)
-    expect(crystals.every(c => c.blocking === false)).toBe(true)
+    expect(crystals.every(c => c.occupies === false)).toBe(true)
     expect(crystals.every(c => c.char === '◆' || c.char === '◇')).toBe(true)
   })
 
@@ -160,7 +160,7 @@ describe('generateStage, cave: scattered features', () => {
   it('scatters non-blocking cave rubble/stalagmites over the floor', () => {
     const decor = [0, 1].flatMap(() => cave('autumn').props.filter(p => p.type === 'cave_decor'))
     expect(decor.length).toBeGreaterThan(0)
-    expect(decor.every(d => d.blocking === false)).toBe(true)
+    expect(decor.every(d => d.occupies === false)).toBe(true)
   })
 })
 

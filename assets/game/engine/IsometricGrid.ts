@@ -43,7 +43,6 @@ export interface GridAsset {
   col: number
   row: number
   type: string
-  blocking?: boolean
   /**
    * WHICH WAY THE WATER IN THIS CELL IS GOING, in quarter turns (0 = +col, 1 = +row, 2 = -col, 3 = -row).
    *
@@ -435,7 +434,7 @@ export class IsometricGrid {
     // served by the backend and saved with it, not a number this factory stamps on. Pinning it here made the floor
     // special again and, worse, put the value somewhere that never persists.
     return {
-      art: [''], col, row, type: FLOOR_TYPE, tileKey: slug, heightLevel: 0, blocking: false,
+      art: [''], col, row, type: FLOOR_TYPE, tileKey: slug, heightLevel: 0,
       color: color ?? groundTileColor(slug, col, row),
       // …and the colour of the map BODY under it, picked at the same moment from the same data. State,
       // so the render READS it instead of shading at draw time (forbidden, and recomputed per frame).
@@ -549,7 +548,6 @@ export class IsometricGrid {
       col,
       row,
       type: options.type ?? 'decoration',
-      blocking: options.blocking ?? false,
       scale: options.scale ?? 1.0,
       zIndex: options.zIndex,   // draw-priority (CSS z-index), undefined ⇒ the sort treats it as 0 (positional)
       color: options.color ?? '#ffffff',

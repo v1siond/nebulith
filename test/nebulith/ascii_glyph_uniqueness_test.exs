@@ -25,7 +25,6 @@ defmodule Nebulith.AsciiGlyphUniquenessTest do
   alias Nebulith.Catalog
   alias Nebulith.Catalog.TileSource
 
-  @family_prefixes ~w(wall_ fountain_ trunk_ canopy_ tree_ roof_top)
   @people ~w(adult person player)
 
   @static_root Path.join([__DIR__, "..", "..", "priv", "static"])
@@ -35,16 +34,26 @@ defmodule Nebulith.AsciiGlyphUniquenessTest do
     :ok
   end
 
-  defp family?(label), do: Enum.any?(@family_prefixes, &String.starts_with?(label, &1))
-
   test "every ascii tile that names a distinct thing draws a distinct glyph" do
+    # ONE IDENTITY PER GLYPH. An identity is one thing entitled to hold a glyph: an autotiled family (every
+    # `water_` piece is one river, drawn in edges, corners and frames) or a single label. A family sharing
+    # with ITS OWN is the point; sharing with an outsider is two tiles with one picture.
+    #
+    # The family list is the seeder's (`TileSource.glyph_identity/1`), never a copy kept here. This file used
+    # to hold its own and it excused a whole prefix from the check, which is how `water_still` went on
+    # drawing `bamboo_floor`'s glyph while this test stayed green.
     collisions =
       Catalog.list_tiles_for("ascii")
       |> Enum.group_by(& &1.glyph, & &1.label)
       |> Enum.map(fn {glyph, labels} ->
-        {glyph, labels |> Enum.reject(&(family?(&1) or &1 in @people)) |> Enum.sort()}
+        {glyph,
+         labels
+         |> Enum.reject(&(&1 in @people))
+         |> Enum.map(&TileSource.glyph_identity/1)
+         |> Enum.uniq()
+         |> Enum.sort()}
       end)
-      |> Enum.filter(fn {_glyph, labels} -> length(labels) > 1 end)
+      |> Enum.filter(fn {_glyph, identities} -> length(identities) > 1 end)
       |> Enum.sort()
 
     assert collisions == [],
@@ -83,7 +92,6 @@ defmodule Nebulith.AsciiGlyphUniquenessTest do
 
     assert blank == [], "ascii tiles with no glyph:\n" <> Enum.join(blank, ", ")
   end
-
 end
 
 defmodule Nebulith.OneEngineManyStylesTest do
@@ -103,21 +111,38 @@ defmodule Nebulith.OneEngineManyStylesTest do
   setup do
     TileSource.seed()
     styles = Catalog.list_tilesets()
-    {:ok, styles: styles, by_style: Map.new(styles, &{&1.key, Map.new(Catalog.list_tiles_for(&1.key), fn t -> {t.label, t} end)})}
+
+    {:ok,
+     styles: styles,
+     by_style:
+       Map.new(
+         styles,
+         &{&1.key, Map.new(Catalog.list_tiles_for(&1.key), fn t -> {t.label, t} end)}
+       )}
   end
 
-  test "every style carries the SAME set of labels, a style is a set of pictures, not a set of things", ctx do
-    [first | rest] = Enum.map(ctx.by_style, fn {key, tiles} -> {key, MapSet.new(Map.keys(tiles))} end)
+  test "every style carries the SAME set of labels, a style is a set of pictures, not a set of things",
+       ctx do
+    [first | rest] =
+      Enum.map(ctx.by_style, fn {key, tiles} -> {key, MapSet.new(Map.keys(tiles))} end)
+
     {first_key, first_labels} = first
 
     for {key, labels} <- rest do
       only_here = labels |> MapSet.difference(first_labels) |> Enum.sort()
       only_there = first_labels |> MapSet.difference(labels) |> Enum.sort()
 
-      assert only_here == [], "#{key} has labels #{first_key} does not: #{Enum.join(only_here, ", ")}"
-      assert only_there == [], "#{first_key} has labels #{key} does not: #{Enum.join(only_there, ", ")}"
+      assert only_here == [],
+             "#{key} has labels #{first_key} does not: #{Enum.join(only_here, ", ")}"
+
+      assert only_there == [],
+             "#{first_key} has labels #{key} does not: #{Enum.join(only_there, ", ")}"
     end
   end
+
+  # WHAT A LABEL OCCUPIES, off its box list. A label owns this in every style; only the picture is the
+  # style's, so the two have to agree.
+  defp occupies(tile), do: (tile.settings["collision"] || []) != []
 
   test "a label's NAME, BUCKET, HEIGHT and COLLISION are the same in every style", ctx do
     [{_key, reference} | rest] = Map.to_list(ctx.by_style)
@@ -133,22 +158,35 @@ defmodule Nebulith.OneEngineManyStylesTest do
       end
 
     assert drift == [],
-           "these are facts about the LABEL, not the style, they must not differ:\n" <> Enum.join(drift, "\n")
+           "these are facts about the LABEL, not the style, they must not differ:\n" <>
+             Enum.join(drift, "\n")
   end
 
   defp label_diff(a, b) do
     cond do
-      a.title != b.title -> "title #{inspect(a.title)} vs #{inspect(b.title)}"
-      a.category != b.category -> "category #{inspect(a.category)} vs #{inspect(b.category)}"
-      a.height != b.height -> "height #{inspect(a.height)} vs #{inspect(b.height)}"
-      a.blocking != b.blocking -> "blocking #{inspect(a.blocking)} vs #{inspect(b.blocking)}"
-      true -> nil
+      a.title != b.title ->
+        "title #{inspect(a.title)} vs #{inspect(b.title)}"
+
+      a.category != b.category ->
+        "category #{inspect(a.category)} vs #{inspect(b.category)}"
+
+      a.height != b.height ->
+        "height #{inspect(a.height)} vs #{inspect(b.height)}"
+
+      occupies(a) != occupies(b) ->
+        "occupies #{inspect(occupies(a))} vs #{inspect(occupies(b))}"
+
+      true ->
+        nil
     end
   end
 
   test "no tile is left showing a raw slug in the picker (§3.5)", ctx do
     nameless =
-      for {_key, tiles} <- ctx.by_style, {label, tile} <- tiles, tile.title in [nil, ""], do: label
+      for {_key, tiles} <- ctx.by_style,
+          {label, tile} <- tiles,
+          tile.title in [nil, ""],
+          do: label
 
     assert Enum.sort(Enum.uniq(nameless)) == [], "tiles with no title fall back to their raw slug"
   end
@@ -164,7 +202,8 @@ defmodule Nebulith.OneEngineManyStylesTest do
       end
 
     assert wrong == [],
-           "a tile pointing at another tile's picture is the 'fake tile' defect:\n" <> Enum.join(wrong, "\n")
+           "a tile pointing at another tile's picture is the 'fake tile' defect:\n" <>
+             Enum.join(wrong, "\n")
   end
 end
 
@@ -225,21 +264,25 @@ defmodule Nebulith.UnitRolesTest do
     # Every served enemy type that IS a tile label must be roled `enemy`, bat, spider and wolf included,
     # which is what settles them from data rather than opinion.
     for slug <- enemies, Map.has_key?(by_label, slug) do
-      assert by_label[slug] == "enemy", "#{slug} is a served enemy type but is roled #{by_label[slug]}"
+      assert by_label[slug] == "enemy",
+             "#{slug} is a served enemy type but is roled #{by_label[slug]}"
     end
   end
 
   test "a role is the same in every style, it is a fact about the LABEL" do
     drift =
       unit_tiles()
-      |> Enum.group_by(fn {_key, tile} -> tile.label end, fn {key, tile} -> {key, (tile.settings || %{})["unitRole"]} end)
-      |> Enum.filter(fn {_label, roles} -> roles |> Enum.map(&elem(&1, 1)) |> Enum.uniq() |> length() > 1 end)
+      |> Enum.group_by(fn {_key, tile} -> tile.label end, fn {key, tile} ->
+        {key, (tile.settings || %{})["unitRole"]}
+      end)
+      |> Enum.filter(fn {_label, roles} ->
+        roles |> Enum.map(&elem(&1, 1)) |> Enum.uniq() |> length() > 1
+      end)
       |> Enum.map(fn {label, roles} -> "#{label}: #{inspect(roles)}" end)
 
     assert drift == [], "a unit's role must not differ per style:\n" <> Enum.join(drift, "\n")
   end
 end
-
 
 defmodule Nebulith.UnitArtTest do
   @moduledoc """

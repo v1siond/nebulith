@@ -6,6 +6,10 @@ defmodule Nebulith.Catalog do
   import Ecto.Query, warn: false
   alias Nebulith.Repo
 
+  # THE BOX A SOLID TILE OCCUPIES. One shape in the catalog today, the whole cell; a tile gets a real one the
+  # day hitboxes are authored (`docs/HITBOXES-AND-ELEVATION.md`).
+  @whole_cell [%{"x" => 0, "y" => 0, "w" => 1, "h" => 1}]
+
   alias Nebulith.Catalog.Tileset
   alias Nebulith.Catalog.Template
   alias Nebulith.Catalog.{Tile, Composition, CompositionCell}
@@ -176,7 +180,9 @@ defmodule Nebulith.Catalog do
   """
   def set_tile_height(tileset_id, label, height) do
     from(t in Tile, where: t.tileset_id == ^tileset_id and t.label == ^label)
-    |> Repo.update_all(set: [height: height, updated_at: DateTime.truncate(DateTime.utc_now(), :second)])
+    |> Repo.update_all(
+      set: [height: height, updated_at: DateTime.truncate(DateTime.utc_now(), :second)]
+    )
   end
 
   @doc """
@@ -194,7 +200,9 @@ defmodule Nebulith.Catalog do
         settings = Map.put(tile.settings || %{}, key, value)
 
         from(t in Tile, where: t.id == ^tile.id)
-        |> Repo.update_all(set: [settings: settings, updated_at: DateTime.truncate(DateTime.utc_now(), :second)])
+        |> Repo.update_all(
+          set: [settings: settings, updated_at: DateTime.truncate(DateTime.utc_now(), :second)]
+        )
     end
   end
 
@@ -210,15 +218,15 @@ defmodule Nebulith.Catalog do
   end
 
   @doc """
-  Sets ONLY the `blocking` column of the (tileset_id, label) tile. Pose-safe, like `set_tile_height`.
+  Says whether the (tileset_id, label) tile OCCUPIES its cell, by writing its collision box. Pose-safe:
+  it touches that one key and nothing else in the map.
 
   Whether you can walk through a tile is a fact about the LABEL, not about a pose or a size, so it is
   reconciled the same surgical way: a full upsert would `replace_all` the settings and clobber every
   editor-tuned pose on the row. Returns `{updated_count, nil}`.
   """
-  def set_tile_blocking(tileset_id, label, blocking) do
-    from(t in Tile, where: t.tileset_id == ^tileset_id and t.label == ^label)
-    |> Repo.update_all(set: [blocking: blocking, updated_at: DateTime.truncate(DateTime.utc_now(), :second)])
+  def set_tile_solid(tileset_id, label, solid) do
+    put_tile_setting(tileset_id, label, "collision", if(solid, do: @whole_cell, else: []))
   end
 
   @doc """
@@ -226,7 +234,9 @@ defmodule Nebulith.Catalog do
   """
   def set_tile_image(tileset_id, label, image_url) do
     from(t in Tile, where: t.tileset_id == ^tileset_id and t.label == ^label)
-    |> Repo.update_all(set: [image_url: image_url, updated_at: DateTime.truncate(DateTime.utc_now(), :second)])
+    |> Repo.update_all(
+      set: [image_url: image_url, updated_at: DateTime.truncate(DateTime.utc_now(), :second)]
+    )
   end
 
   @doc """
@@ -238,7 +248,11 @@ defmodule Nebulith.Catalog do
   def set_tile_label_facts(tileset_id, label, title, category) do
     from(t in Tile, where: t.tileset_id == ^tileset_id and t.label == ^label)
     |> Repo.update_all(
-      set: [title: title, category: category, updated_at: DateTime.truncate(DateTime.utc_now(), :second)]
+      set: [
+        title: title,
+        category: category,
+        updated_at: DateTime.truncate(DateTime.utc_now(), :second)
+      ]
     )
   end
 
@@ -265,7 +279,9 @@ defmodule Nebulith.Catalog do
   """
   def set_tile_glyph(tileset_id, label, glyph) do
     from(t in Tile, where: t.tileset_id == ^tileset_id and t.label == ^label)
-    |> Repo.update_all(set: [glyph: glyph, updated_at: DateTime.truncate(DateTime.utc_now(), :second)])
+    |> Repo.update_all(
+      set: [glyph: glyph, updated_at: DateTime.truncate(DateTime.utc_now(), :second)]
+    )
   end
 
   @doc """
@@ -277,17 +293,109 @@ defmodule Nebulith.Catalog do
   """
   def set_tile_category(tileset_id, label, category) do
     from(t in Tile, where: t.tileset_id == ^tileset_id and t.label == ^label)
-    |> Repo.update_all(set: [category: category, updated_at: DateTime.truncate(DateTime.utc_now(), :second)])
+    |> Repo.update_all(
+      set: [category: category, updated_at: DateTime.truncate(DateTime.utc_now(), :second)]
+    )
   end
 
-  @doc "Inserts or updates a tile, keyed on (tileset_id, label)."
+  @doc """
+  Inserts or updates a tile, keyed on (tileset_id, label).
+
+  A SEED ADDS, IT DOES NOT ERASE. The settings a row already carries are kept, and only the keys this call
+  actually states are written over. Without that, re-seeding replaced the whole settings map, so every fact
+  written after the seed disappeared the next time anything called `seed/0`: a tile-fact rule's, a data
+  migration's, and a pose tuned in the editor. It is the same regression over and over, in a different tile
+  each time, with nothing in the code having changed.
+
+  A seeder that has to REMOVE a setting removes it, with `delete_tile_setting/3`. Silently dropping every key
+  it did not mention is not removal, it is data loss that looks like a render bug.
+  """
   def upsert_tile(attrs) do
     %Tile{}
-    |> Tile.changeset(attrs)
+    |> Tile.changeset(attrs |> solidity_as_boxes() |> keep_stored_settings())
     |> Repo.insert(
       on_conflict: {:replace_all_except, [:id, :inserted_at]},
       conflict_target: [:tileset_id, :label]
     )
+  end
+
+  # WHAT A TILE OCCUPIES, said once, in the place the fact lives.
+  #
+  # A seeder row still says whether the thing is solid in the plain word a person would use, and it lands in
+  # `settings.collision`: the list of boxes, where an empty list SAYS "nothing solid here" and a missing key
+  # only says nobody got round to it. `blocking` was a second switch for the same fact, the docs have had it
+  # marked for deletion since the box system landed (`docs/HITBOXES-AND-ELEVATION.md` §3.1), and the column
+  # is gone. Translated here rather than left to the changeset, which would drop the unknown field in silence
+  # and quietly make every wall walk-through.
+  defp solidity_as_boxes(attrs) do
+    case {Map.has_key?(attrs, :occupies), Map.has_key?(attrs, "occupies")} do
+      {false, false} -> attrs
+      _ -> put_boxes(attrs, get_attr(attrs, :occupies))
+    end
+  end
+
+  defp put_boxes(attrs, solid) do
+    boxes = if solid, do: @whole_cell, else: []
+    settings = Map.put(get_attr(attrs, :settings) || %{}, "collision", boxes)
+
+    attrs
+    |> Map.drop([:occupies, "occupies"])
+    |> put_settings_key(settings)
+  end
+
+  defp put_settings_key(attrs, settings) when is_map_key(attrs, "label"),
+    do: Map.put(attrs, "settings", settings)
+
+  defp put_settings_key(attrs, settings), do: Map.put(attrs, :settings, settings)
+
+  # The stored settings under the incoming ones, so a key nobody mentioned this time survives. A row that does
+  # not exist yet has nothing to keep.
+  defp keep_stored_settings(attrs) do
+    tileset_id = get_attr(attrs, :tileset_id)
+    label = get_attr(attrs, :label)
+    incoming = get_attr(attrs, :settings) || %{}
+
+    stored =
+      Repo.one(
+        from(t in Tile,
+          where: t.tileset_id == ^tileset_id and t.label == ^label,
+          select: t.settings
+        )
+      )
+
+    put_settings(attrs, stored, incoming)
+  end
+
+  defp put_settings(attrs, nil, _incoming), do: attrs
+
+  defp put_settings(attrs, stored, incoming) when is_map_key(attrs, "label"),
+    do: Map.put(attrs, "settings", Map.merge(stored, incoming))
+
+  defp put_settings(attrs, stored, incoming),
+    do: Map.put(attrs, :settings, Map.merge(stored, incoming))
+
+  defp get_attr(attrs, key), do: Map.get(attrs, key) || Map.get(attrs, to_string(key))
+
+  @doc """
+  Removes ONE setting from a tile. Returns `{updated_count, nil}`, like its `put` twin.
+
+  The only way a fact leaves a row, now that a seed keeps what it finds. Same shape as
+  `put_tile_setting/4`: read the map, change the one key, write it back, so nothing else in it is touched and
+  a tile that does not exist is a no-op rather than an error.
+  """
+  def delete_tile_setting(tileset_id, label, key) do
+    case Repo.get_by(Tile, tileset_id: tileset_id, label: label) do
+      nil ->
+        {0, nil}
+
+      tile ->
+        settings = Map.delete(tile.settings || %{}, key)
+
+        from(t in Tile, where: t.id == ^tile.id)
+        |> Repo.update_all(
+          set: [settings: settings, updated_at: DateTime.truncate(DateTime.utc_now(), :second)]
+        )
+    end
   end
 
   @doc "Lists all compositions with their cells preloaded."
@@ -318,6 +426,7 @@ defmodule Nebulith.Catalog do
       Repo.preload(comp, :cells)
     end)
   end
+
   @doc """
   Every generator CATEGORY in menu order, each with its generators (also ordered) preloaded, the
   one read `/api/generators` serves. Ordering is data (`position`), never the insertion order or an
@@ -375,6 +484,7 @@ defmodule Nebulith.Catalog do
   # complete, so there is nothing in it a subtype could have meant to keep.
   defp merge_key("pathway", _base, over), do: over
   defp merge_key(_key, base, over), do: deep_merge(base, over)
+
   # ── GENERATION LAYERS ──────────────────────────────────────────────────────────────────────────────────
   # The stack generation runs in, as data. The engine binds a pass to each `key`; the editor builds its
   # re-roll panel from the same list, so adding a layer is a row rather than an edit in two repos.
@@ -412,5 +522,4 @@ defmodule Nebulith.Catalog do
       layer -> update_generation_layer(layer, attrs)
     end
   end
-
 end

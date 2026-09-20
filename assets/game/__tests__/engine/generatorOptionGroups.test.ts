@@ -6,7 +6,7 @@
  * nothing: a generator with no groups renders as it always did, and a generator with no `maxPer` is never
  * narrowed.
  */
-import { choicesForSize, optionSections, parseGeneratorCatalog, trimmedBySize, type GeneratorDef, type GeneratorOption } from '@/lib/generatorCatalog'
+import { countCeiling, countChoices, optionSections, parseGeneratorCatalog, type GeneratorDef, type GeneratorOption } from '@/lib/generatorCatalog'
 
 const opt = (over: Partial<GeneratorOption> & Pick<GeneratorOption, 'key'>): GeneratorOption => ({
   label: over.key,
@@ -48,60 +48,48 @@ describe('an option belongs to a group', () => {
   })
 })
 
-describe('the limits move with the size of the map', () => {
-  const ways = opt({ key: 'pathways', group: 'layout', maxPer: 180 })
-
-  it('offers every count on a map with room for them', () => {
-    // 60x40 = 2400 cells, and 4 x 180 = 720, so all four fit.
-    expect(choicesForSize(ways, 60, 40).map(c => c.key)).toEqual(['random', '1', '2', '3', '4'])
+describe('the limits are BUILT from the map, not trimmed from a list', () => {
+  const ways = opt({ key: 'pathways', group: 'layout', countBy: 'ways', choices: [{ key: 'random', label: 'Random' }] })
+  const exits = opt({
+    key: 'exits',
+    group: 'layout',
+    countPer: { option: 'pathways', each: 2 },
+    choices: [{ key: 'random', label: 'Random' }, { key: '1', label: '1: in and out the same way' }],
   })
 
-  it('drops the counts a small map cannot carry, and keeps the ones it can', () => {
-    // 20x20 = 400 cells: 1 and 2 fit at 180 each, 3 and 4 do not.
-    expect(choicesForSize(ways, 20, 20).map(c => c.key)).toEqual(['random', '1', '2'])
+  it('offers as many ways across as the map measures, not a hand-written four', () => {
+    // The ENGINE measures it (`pathwayCeiling`) and hands it in; the list is generated up to it. Trimming a
+    // list of four could only ever take choices AWAY, so a big map and a small one both topped out at four.
+    expect(countChoices(ways, { cols: 60, rows: 40, ways: 6 }).map(c => c.key))
+      .toEqual(['random', '1', '2', '3', '4', '5', '6'])
+    expect(countChoices(ways, { cols: 20, rows: 20, ways: 2 }).map(c => c.key)).toEqual(['random', '1', '2'])
   })
 
-  it('never drops a NON-count choice, because a size says nothing about it', () => {
-    const river = opt({ key: 'river', maxPer: 180, choices: [{ key: 'none', label: 'No river' }, { key: 'through', label: 'Through' }] })
-    expect(choicesForSize(river, 1, 1).map(c => c.key)).toEqual(['none', 'through'])
+  it('and as many ways OUT as it has ways across, two per stretch', () => {
+    const gAll = gen([ways, exits])
+    const ctx = { cols: 60, rows: 40, ways: 6, edges: 20, gen: gAll, options: { pathways: '3' } }
+    expect(countCeiling(exits, ctx)).toBe(6)
+    // …and the wording a bare number cannot carry survives on the choices that authored it.
+    expect(countChoices(exits, ctx).map(c => c.label))
+      .toEqual(['Random', '1: in and out the same way', '2', '3', '4', '5', '6'])
   })
 
-  it('leaves an option with no maxPer completely alone', () => {
-    expect(choicesForSize(opt({ key: 'region' }), 1, 1)).toEqual(opt({ key: 'region' }).choices)
+  it('held to what the BORDER can carry, so the panel never offers an exit that cannot be placed', () => {
+    const gAll = gen([ways, exits])
+    expect(countCeiling(exits, { cols: 20, rows: 20, ways: 6, edges: 4, gen: gAll, options: { pathways: '6' } })).toBe(4)
   })
 
-  it('always leaves something to pick, however small the map', () => {
-    const counts = opt({ key: 'pathways', maxPer: 180, choices: [{ key: '4', label: '4' }] })
-    expect(choicesForSize(counts, 1, 1)).toHaveLength(1)
+  it('a followed option on "random" means the most it could be', () => {
+    const gAll = gen([ways, exits])
+    expect(countCeiling(exits, { cols: 60, rows: 40, ways: 5, edges: 20, gen: gAll, options: { pathways: 'random' } })).toBe(10)
   })
 
-  it('counts how many were trimmed, so the panel only explains itself when it is true', () => {
-    const g = gen([ways, opt({ key: 'region' })])
-    expect(trimmedBySize(g, { cols: 60, rows: 40 })).toBe(0)
-    expect(trimmedBySize(g, { cols: 20, rows: 20 })).toBe(2)
+  it('leaves an option that is not a count completely alone', () => {
+    const region = opt({ key: 'region' })
+    expect(countChoices(region, { cols: 1, rows: 1 })).toEqual(region.choices)
   })
-})
 
-describe('the live catalog carries both, so this is not testing a fixture', () => {
-  it('parses group and maxPer off a served generator', () => {
-    const catalog = parseGeneratorCatalog({
-      data: [{
-        key: 'wilderness', name: 'Wilderness', description: null, position: 0,
-        generators: [{
-          key: 'woodland', name: 'Woodland', description: null, position: 0, layout: 'woodland',
-          config: { optionGroups: { layout: 'Layout', water: 'Water' } },
-          options: [
-            { key: 'pathways', label: 'Pathways', type: 'choice', default: 'random', group: 'layout', maxPer: 180,
-              choices: [{ key: 'random', label: 'Random' }, { key: '4', label: '4' }] },
-            { key: 'river', label: 'River', type: 'choice', default: 'none', group: 'water',
-              choices: [{ key: 'none', label: 'No river' }] },
-          ],
-        }],
-      }],
-    })
-    const found = catalog[0].generators[0]
-    expect(found.options.map(o => [o.key, o.group, o.maxPer])).toEqual([['pathways', 'layout', 180], ['river', 'water', undefined]])
-    expect(found.config.optionGroups).toEqual({ layout: 'Layout', water: 'Water' })
-    expect(optionSections(found).map(s => s.label)).toEqual(['Layout', 'Water'])
+  it('and builds nothing when nobody measured the map, rather than inventing a ceiling', () => {
+    expect(countChoices(ways, { cols: 60, rows: 40 })).toEqual(ways.choices)
   })
 })

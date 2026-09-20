@@ -7,7 +7,6 @@ defmodule Nebulith.Catalog.Tile do
     field :glyph, :string
     field :emoji, :string
     field :color_role, :string
-    field :blocking, :boolean, default: false
     field :height, :float, default: 0.0
     field :category, :string
     field :title, :string
@@ -27,7 +26,6 @@ defmodule Nebulith.Catalog.Tile do
       :glyph,
       :emoji,
       :color_role,
-      :blocking,
       :height,
       :category,
       :title,

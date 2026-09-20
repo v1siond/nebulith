@@ -15,7 +15,7 @@ defmodule Nebulith.DataMigration.AnOrnamentIsASingleTileAndARockStopsYou do
   ## 2. A rock stops you, a mushroom does not
 
   *"make sure their collissions are logical, for example that rock doesn't have collisions, but it should
-  considering it's size"*. Every ornament in the catalog carries `blocking: false` and an empty collision
+  considering it's size"*. Every ornament in the catalog carries `occupies: false` and an empty collision
   box, so a boulder was scenery you walked through.
 
   Split by what the thing IS, which is what he asked for:
@@ -23,42 +23,32 @@ defmodule Nebulith.DataMigration.AnOrnamentIsASingleTileAndARockStopsYou do
     * **Blocks**: `rock`, `boulder`, `wood-log`. Knee-high or better, you go round them.
     * **Walk over**: mushrooms, shells, pebbles, shamrock, flowers, bush, shrub. You step on them.
 
-  A blocker gets `blocking: true` and the full-cell box every blocking tile in the catalog already carries,
+  A blocker gets `occupies: true` and the full-cell box every blocking tile in the catalog already carries,
   `[{x: 0, y: 0, w: 1, h: 1}]`, so it matches the fountain and the wall rather than inventing a shape. When
   the hitbox system lands (ticket 62) these become real boxes; until then this is the mechanism that works.
 
-  Idempotent: targeted setting writes.
+  ## This used to PATCH the seeder's output, and that was the bug
+
+  It wrote both facts onto rows `TileSource.seed/0` had already written. `upsert_tile` REPLACES the whole
+  settings map, so one fact had two owners and every reseed put the crates back and let you walk through the
+  boulders again, with nothing in the code having changed.
+
+  They live in `TileSource.ensure_ornaments/0` now, beside the other tile-fact rules, so the seeder's output
+  IS the approved state, and this calls that one rule to bring an existing database up to it.
+
+  It calls the two RULES and not `seed/0`, deliberately. A tile row carries poses and sizes tuned in the editor
+  and `seed/0` rewrites every settings map, so a full reseed would fix the rocks by flattening someone's
+  work. The rule writes the two keys it owns and nothing else.
+  `an_ornament_is_one_object_test.exs` is the gate that keeps the facts in the seeder.
   """
   require Logger
 
-  alias Nebulith.Catalog
-
-  # Everything that lies on the ground and is read as one object. Both lists draw as a single tile; they
-  # differ only in whether you can walk through them.
-  @blocking ~w(rock boulder wood-log)
-  @walkable ~w(mushroom red-mushroom seashell decor_shell decor_pebbles shamrock bush shrub)
-
-  # The full-cell box every blocking tile in the catalog already uses.
-  @whole_cell [%{"x" => 0, "y" => 0, "w" => 1, "h" => 1}]
+  alias Nebulith.Catalog.TileSource
 
   def run do
-    singles =
-      for label <- @blocking ++ @walkable, ts <- Catalog.list_tilesets(), reduce: 0 do
-        acc ->
-          {hit, _} = Catalog.put_tile_setting(ts.id, label, "display", "single")
-          Catalog.put_tile_setting(ts.id, label, "transparent", true)
-          acc + hit
-      end
-
-    blocks =
-      for label <- @blocking, ts <- Catalog.list_tilesets(), reduce: 0 do
-        acc ->
-          {hit, _} = Catalog.put_tile_setting(ts.id, label, "collision", @whole_cell)
-          Catalog.set_tile_blocking(ts.id, label, true)
-          acc + hit
-      end
-
-    Logger.info("[data_migrate] #{singles} ornament rows draw single, #{blocks} of them now stop you")
+    TileSource.ensure_ornaments()
+    TileSource.ensure_collisions()
+    Logger.info("[data_migrate] every ornament draws as one object, and a rock stops you")
     :ok
   end
 end

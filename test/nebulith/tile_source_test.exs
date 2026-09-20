@@ -32,12 +32,16 @@ defmodule Nebulith.TileSourceTest do
     %{ascii: ascii, emoji: emoji, expected_ascii: expected_ascii, expected_emoji: map_size(emoji)}
   end
 
-  test "ports every distinct ascii + emoji tile into its tileset (the DB is a SUPERSET of the JSON)", ctx do
+  test "ports every distinct ascii + emoji tile into its tileset (the DB is a SUPERSET of the JSON)",
+       ctx do
     ascii_labels = MapSet.new(Catalog.list_tiles_for("ascii"), & &1.label)
     emoji_labels = MapSet.new(Catalog.list_tiles_for("emoji"), & &1.label)
 
     json_ascii =
-      ctx.ascii["tiles"] |> Map.keys() |> MapSet.new() |> MapSet.union(MapSet.new(Map.keys(ctx.ascii["terrain"])))
+      ctx.ascii["tiles"]
+      |> Map.keys()
+      |> MapSet.new()
+      |> MapSet.union(MapSet.new(Map.keys(ctx.ascii["terrain"])))
 
     # every JSON-sourced tile is ported; seed ALSO authors extra pieces in Elixir (trunk/leaf/canopy/building),
     # so the DB is a SUPERSET, asserting an exact count would be stale the moment a piece is added.
@@ -95,7 +99,10 @@ defmodule Nebulith.TileSourceTest do
 
   test "a broadleaf crown is a CIRCLE and a conifer crown stays a box" do
     comps = Catalog.list_compositions()
-    crown = fn name -> Enum.find(comps, &(&1.name == name)).cells |> Enum.find(&(&1.label == "leaf_center")) end
+
+    crown = fn name ->
+      Enum.find(comps, &(&1.name == name)).cells |> Enum.find(&(&1.label == "leaf_center"))
+    end
 
     # THIS USED TO SAY THE PLAIN `tree` CARRIED NO SHAPE, and that was overtaken. A crown's outline comes from
     # the composition and not from the picture, because the renderer paints the shaded block and then lays the
@@ -106,11 +113,13 @@ defmodule Nebulith.TileSourceTest do
     # wrong as boxing an oak, so they keep the box until the renderer can draw a cone. That distinction is the
     # thing worth pinning, and the frontend twin of this test (treeCrownShape) sweeps all fifteen species.
     for round <- ~w(tree tree_round tree_big tree_palm) do
-      assert crown.(round).settings["shape"] == "circle", "#{round} is round-crowned and has no circle"
+      assert crown.(round).settings["shape"] == "circle",
+             "#{round} is round-crowned and has no circle"
     end
 
     for cone <- ~w(tree_conifer tree_cypress) do
-      refute Map.has_key?(crown.(cone).settings, "shape"), "#{cone} is a cone and must not be rounded off"
+      refute Map.has_key?(crown.(cone).settings, "shape"),
+             "#{cone} is a cone and must not be rounded off"
     end
 
     # TRUNK WIDTH IS DERIVED NOW, so the numbers are no longer the authored 0.85 / 1.2 / absent. What the
@@ -122,7 +131,10 @@ defmodule Nebulith.TileSourceTest do
     # share sits below even the skinniest authored value, every one of the twenty-one species came out at the
     # identical 0.585. Asserting the share alone would have passed on that, so the ORDER is pinned too: it is
     # the half that says the trees are still different from one another.
-    trunk = fn name -> Enum.find(comps, &(&1.name == name)).cells |> Enum.find(&(&1.label == "trunk_mid")) end
+    trunk = fn name ->
+      Enum.find(comps, &(&1.name == name)).cells |> Enum.find(&(&1.label == "trunk_mid"))
+    end
+
     tall_trunk = trunk.("tree_tall")
     stub_trunk = trunk.("tree_stub")
     std_trunk = trunk.("tree")
@@ -197,11 +209,16 @@ defmodule Nebulith.TileSourceTest do
     refute post.animations, "the post base never animates"
 
     anims = lamp.animations
-    assert is_list(anims) and length(anims) == 1, "the default bulb carries exactly the steady night-lit glow"
+
+    assert is_list(anims) and length(anims) == 1,
+           "the default bulb carries exactly the steady night-lit glow"
 
     [lit] = anims
     assert lit["id"] == "lamp_night_lit"
-    assert lit["trigger"] == %{"on" => "night"}, "night-gated, off (unlit) in day, on (lit) at night"
+
+    assert lit["trigger"] == %{"on" => "night"},
+           "night-gated, off (unlit) in day, on (lit) at night"
+
     assert lit["kind"] == "settings"
 
     # STEADY: a single `color` track whose `from` == `to` (a held value, not a tween), so the bulb reads a
@@ -248,7 +265,9 @@ defmodule Nebulith.TileSourceTest do
     assert flicker["kind"] == "settings"
     assert flicker["ease"] == "flicker", "irregular/stepped failing-bulb envelope, not sine"
     assert flicker["loop"] == true
-    refute flicker["yoyo"], "a yoyo would smooth the flicker back into a pulse, the failing bulb must not yoyo"
+
+    refute flicker["yoyo"],
+           "a yoyo would smooth the flicker back into a pulse, the failing bulb must not yoyo"
 
     # ONE opacity track dipping toward off (the bulb dims/cuts; the pool dims on the same beat downstream).
     assert [%{"setting" => "opacity", "from" => 1, "to" => to}] = flicker["tracks"]
@@ -332,6 +351,7 @@ defmodule Nebulith.TileSourceTest do
     emoji_roof_top = Enum.find(Catalog.list_tiles_for("emoji"), &(&1.label == "roof_top"))
     assert emoji_roof_top, "emoji roof_top parity twin missing"
     assert emoji_roof_top.image_url == "/tiles/emoji/roof_top.png"
+
     # The ridge apex is ROOF: it lifts off with the rest of the roof (cutawayRoof), it does not merely ease
     # translucent. While it carried fadeNear, a hero under a PEAK column, the door columns of every gable
     # house, was under no cutaway tile, so the roof never came off.
@@ -381,12 +401,14 @@ defmodule Nebulith.TileSourceTest do
       floor = Enum.find(Catalog.list_tiles_for(style), &(&1.label == "floor"))
       assert floor, "#{style} serves no flat floor"
       assert floor.category == "terrain"
-      assert floor.blocking == false
+      assert (floor.settings["collision"] || []) == [], "the flat floor is what you walk on"
       assert floor.height == 0.0
       assert floor.title == "Floor"
 
       on_disk = Application.app_dir(:nebulith, Path.join("priv/static", floor.image_url))
-      assert File.exists?(on_disk), "#{style} floor points at #{floor.image_url}, which was never baked"
+
+      assert File.exists?(on_disk),
+             "#{style} floor points at #{floor.image_url}, which was never baked"
     end
 
     ascii = Map.new(Catalog.list_tiles_for("ascii"), &{&1.label, &1})
@@ -398,13 +420,17 @@ defmodule Nebulith.TileSourceTest do
     for style <- ["ascii", "emoji"] do
       tiles = Map.new(Catalog.list_tiles_for(style), &{&1.label, &1})
 
-      for label <- ~w(leaf_center trunk_mid canopy_c tree_top oak-tree bush boulder house castle tower fountain lamp),
+      for label <-
+            ~w(leaf_center trunk_mid canopy_c tree_top oak-tree bush boulder house castle tower fountain lamp),
           Map.has_key?(tiles, label) do
-        assert tiles[label].settings["fadeNear"] == true, "#{style} #{label} does not fade near the hero"
+        assert tiles[label].settings["fadeNear"] == true,
+               "#{style} #{label} does not fade near the hero"
       end
 
-      for label <- ~w(rose tulip clover key hazard connector mushroom), Map.has_key?(tiles, label) do
-        refute tiles[label].settings["fadeNear"], "#{style} #{label} fades, but it cannot hide anyone"
+      for label <- ~w(rose tulip clover key hazard connector mushroom),
+          Map.has_key?(tiles, label) do
+        refute tiles[label].settings["fadeNear"],
+               "#{style} #{label} fades, but it cannot hide anyone"
       end
     end
   end
@@ -441,7 +467,9 @@ defmodule Nebulith.TileSourceTest do
       |> Enum.filter(fn label -> ascii[label] != emoji[label] end)
       |> Enum.map(fn label -> "#{label}: ascii #{ascii[label]} vs emoji #{emoji[label]}" end)
 
-    assert drift == [], "the same label must carry the same height in every style:\n  " <> Enum.join(drift, "\n  ")
+    assert drift == [],
+           "the same label must carry the same height in every style:\n  " <>
+             Enum.join(drift, "\n  ")
 
     # Every tile HAS a height, and none is negative, the floor-vs-block boundary is a number, always present.
     for {label, height} <- ascii do
@@ -450,8 +478,10 @@ defmodule Nebulith.TileSourceTest do
     end
 
     # The one structural claim that is still true and still worth pinning: a STANDING object extrudes.
-    for label <- ~w(wall house castle brick tower bank tree palm-tree rock boulder mushroom bush cactus potted-plant) do
-      assert ascii[label] >= 1, "#{label} is a standing object, it must extrude into a block (height >= 1)"
+    for label <-
+          ~w(wall house castle brick tower bank tree palm-tree rock boulder mushroom bush cactus potted-plant) do
+      assert ascii[label] >= 1,
+             "#{label} is a standing object, it must extrude into a block (height >= 1)"
     end
   end
 

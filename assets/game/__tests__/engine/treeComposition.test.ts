@@ -5,6 +5,7 @@
  * These assert grid state directly after stampComposition: the stacked per-cell blocks, the selectable-block
  * shape (heightLevel + height>=1, the picker's gate), collision, and that glyph+colour come from the DB tile.
  */
+import { assetIsSolid } from '@/engine/collisionBoxes'
 import { styleCatalog } from '@/engine/tileset/styleTiles'
 import { IsometricGrid } from '@/engine/IsometricGrid'
 import { getStack } from '@/engine/cellStack'
@@ -144,7 +145,7 @@ describe('tree composition, every ascii asset is a collection of selectable DB t
     const grid = mkGrid()
     stampComposition(grid, 'tree', 7, 7, 'spring', 0)
     expect(grid.isBlocked(7, 7)).toBe(true) // the trunk column blocks its cell
-    expect(grid.assets.find(a => a.label === 'leaf_center')!.blocking).toBeFalsy() // canopy walkable overhead
+    expect(assetIsSolid(grid.assets.find(a => a.label === 'leaf_center')!)).toBe(false) // canopy walkable overhead
   })
 
   test('a per-tree variant tints the leaf a different canopy SHADE (spring green → pink), colour is a SETTING', () => {

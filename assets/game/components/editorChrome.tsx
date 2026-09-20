@@ -12,7 +12,8 @@ import { compositionPreview, tileFrames } from '@/engine/tilePreview'
 import { InfoButton } from './shell/InfoButton'
 import { availableStyles, CATEGORY_LABELS, TILE_CATEGORIES, type TileCategory, type TileDef, tilesForStyle } from '@/game/artStyle'
 import { DEFAULT_ACTION_PARAMS, makeTrigger, type Trigger, type TriggerActionType, type TriggerEvent } from '@/game/runtime/trigger'
-import { catalogZones, categoryLayouts, choicesForSize, findCategory, findGenerator, type GeneratorCatalog, type GeneratorOptionValue, optionIsOn, optionOffValue, optionSections, trimmedBySize, type GeneratorDef } from '@/lib/generatorCatalog'
+import { exitCeiling, pathwayCeiling } from '@/engine/pathNetwork'
+import { catalogZones, categoryLayouts, countCeiling, countChoices, findCategory, findGenerator, type GeneratorCatalog, type GeneratorOption, type GeneratorOptionValue, optionIsOn, optionOffValue, optionSections, type GeneratorDef } from '@/lib/generatorCatalog'
 import { CELL_SIZE_MIN, atLeast, cellCount, mapSizeProblem, mapSizeValid, type MapSize } from '@/lib/mapSize'
 import { PreviewThumb, type PreviewContext } from '@/components/shell/PreviewThumb'
 import { subjectFor } from '@/engine/preview/previewScene'
@@ -603,6 +604,23 @@ function presetSeed(categoryKey: string, layoutId: string, zone: string): number
   return Math.abs(hash) % 1_000_000
 }
 
+/**
+ * WHY THIS LIST IS THIS LONG, said on the option itself.
+ *
+ * It used to be one note under the whole panel, which could only describe the panel. The rule belongs to the
+ * option, and the two rules say different things: one is about how big the map is, the other about what
+ * another option is set to. The followed option is named by its LABEL, because a town calls its pathways
+ * "Streets" and a rule that says "per pathways" there is a rule about something not on screen.
+ */
+function countRule(opt: GeneratorOption, ceiling: number, gen: GeneratorDef | null | undefined): string | undefined {
+  if (ceiling <= 0) return undefined
+  if (!opt.countPer) return `Up to ${ceiling} on a map this size. A bigger map carries more`
+  const followed = (gen?.options ?? []).find(o => o.key === opt.countPer!.option)
+  // ONE of them, so the label is singular: a town calls these "Streets" and "2 per streets" is not English.
+  const one = (followed?.label ?? opt.countPer.option).toLowerCase().replace(/s$/, '')
+  return `Up to ${ceiling}, ${opt.countPer.each} per ${one}`
+}
+
 export function GenerateControls({
   catalog,
   catalogError,
@@ -992,11 +1010,28 @@ export function GenerateControls({
               setOptions(next)
               if (activeKey) onPeek?.(presetSubject(activeKey, layouts.some(l => l.id === layout) ? layout ?? undefined : layouts[0]?.id, enforceRequires(next), activeGenerator, peekCells()) as never, 'resting')
             }
-            // WHAT THIS MAP'S SIZE CAN CARRY. A count option states how many cells one of these wants, so a
-            // small map stops offering four ways across it. A choice that no longer fits is removed rather
-            // than offered and refused, and the hint below says the list moved.
-            const picks = sizeDraft ? choicesForSize(opt, sizeDraft.cols, sizeDraft.rows) : (opt.choices ?? [])
-            const trimmed = (opt.choices?.length ?? 0) - picks.length
+            // WHAT THIS MAP CAN CARRY, BUILT rather than trimmed.
+            //
+            // A count option says what decides it, and the list is generated from that: `maxPer` measures
+            // against the map's area, `countPer` against another count (exits follow pathways, two per
+            // stretch). So a bigger map really does offer more ways across it instead of the same four with
+            // a filter in front of them, and picking six pathways puts twelve exits on the table.
+            // …and never more ways out than this map's border can hold, measured by the engine that places
+            // them, so the panel offers exactly what a build will produce.
+            const wayWidth = activeGenerator?.config.pathway?.width
+            const counting = {
+              cols: sizeDraft?.cols ?? 0,
+              rows: sizeDraft?.rows ?? 0,
+              options,
+              gen: activeGenerator,
+              // BOTH MEASUREMENTS COME FROM THE ENGINE that has to build them, so the panel offers exactly
+              // what a build produces. A ceiling worked out here would be a second opinion, and the two
+              // would drift the first time either changed.
+              ways: sizeDraft ? pathwayCeiling(sizeDraft.cols, sizeDraft.rows, wayWidth) : undefined,
+              edges: sizeDraft ? exitCeiling(sizeDraft.cols, sizeDraft.rows, wayWidth) : undefined,
+            }
+            const picks = sizeDraft ? countChoices(opt, counting) : (opt.choices ?? [])
+            const ceiling = sizeDraft ? countCeiling(opt, counting) : 0
             // A PICTURE OF EACH CHOICE, for the options the catalog says are worth seeing. A course that
             // divides the map and one that runs round its edge are two different maps, and two words in a
             // dropdown say none of that. Each thumb is built from the SAME options the build will use and
@@ -1026,7 +1061,7 @@ export function GenerateControls({
                   key={opt.key}
                   className="ctl"
                   style={{ display: 'block', opacity: blocked ? 0.45 : undefined }}
-                  title={trimmed > 0 ? `${trimmed} more on a bigger map` : undefined}
+                  title={countRule(opt, ceiling, activeGenerator)}
                 >
                   <span className="l">{opt.label}</span>
                   {/* NAMED, because a row of buttons is one control. Without this the picker is a heading
@@ -1086,9 +1121,6 @@ export function GenerateControls({
           ))}
           <div className="hint">
             Variations are options, not extra templates. Adding one never makes the list above longer.
-            {sizeDraft && trimmedBySize(activeGenerator, sizeDraft) > 0
-              ? ` A ${sizeDraft.cols} × ${sizeDraft.rows} map is too small for some counts; a bigger one offers more.`
-              : ''}
           </div>
         </>
       )}

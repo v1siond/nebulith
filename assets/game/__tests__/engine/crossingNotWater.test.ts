@@ -208,6 +208,6 @@ describe('a walkable floor never wears water, whatever painted it', () => {
     // layer. A green test with no puddles left would be the worst possible outcome.
     const films = swampJungle(7).props.filter(p => p.label === 'water_still')
     expect(films.length).toBeGreaterThan(20)
-    expect(films.every(f => !f.blocking)).toBe(true) // you wade a puddle
+    expect(films.every(f => !f.occupies)).toBe(true) // you wade a puddle
   })
 })

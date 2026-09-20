@@ -26,6 +26,7 @@ defmodule Nebulith.Catalog.TileSource do
 
   alias Nebulith.Catalog
   alias Nebulith.Catalog.BuildingCompositions
+
   # `seed_frame_rows/4` reads a base row with `Repo.get_by(Tile, ...)`. Without this alias `Tile` is the atom
   # `Elixir.Tile`, which does not exist, and Elixir does NOT warn, because the module is passed as a VALUE,
   # never called or expanded as a struct. So it compiled clean and raised UndefinedFunctionError the moment the
@@ -64,7 +65,12 @@ defmodule Nebulith.Catalog.TileSource do
     # Image #3: "it's only applied viewing to MY front, not the front of the house"). `left-down` is +row =
     # the FRONT face a building is authored with (`building_compositions.ex`: `front = dy == h - 1`), and the
     # stamp ROTATES it by the building's rotation, so every door is thin toward ITS OWN house's front.
-    "door" => %{"fadeNear" => true, "minAlpha" => 0.9, "scaleZ" => 0.3, "thicknessDir" => "left-down"},
+    "door" => %{
+      "fadeNear" => true,
+      "minAlpha" => 0.9,
+      "scaleZ" => 0.3,
+      "thicknessDir" => "left-down"
+    },
     # The ridge apex is ROOF, so it lifts off with the rest of it. It used to carry `fadeNear` (it was the
     # "walkable apex cap"), which left a hero standing under a PEAK column, the door columns of every gable
     # house, under no cutaway tile at all, so the roof stayed solid over their head (
@@ -118,6 +124,7 @@ defmodule Nebulith.Catalog.TileSource do
     seed_autotile_pieces(ascii_id, emoji_id)
     seed_tree_pieces(ascii_id, emoji_id, ascii["palettes"])
     seed_parity_tiles(ascii_id, emoji_id)
+
     # AFTER every seeder that OWNS a label, because `seed_water_look/0` copies a FRAME ROW from a base tile and
     # a base that does not exist yet seeds nothing. `decor_ripple` is exactly that case: ascii gets it from
     # `seed_decor_tiles/1` near the top, its emoji twin arrives from a later list, and running this at its old
@@ -127,12 +134,14 @@ defmodule Nebulith.Catalog.TileSource do
     # It also has to stay AHEAD of the normalizers below, so the frame rows it writes get their per-label facts
     # and colours agreed like every other row. This spot is the only one that satisfies both.
     seed_water_look()
+
     # THE SAME TRAP THE COMMENT ABOVE DESCRIBES, one line below where it was written. `seed_water_surface/0`
     # copies the emoji and the colour from each tileset's own `water_shallow` row, and it sat up beside
     # `seed_water_color/0`, ahead of the list that gives EMOJI its shallow band. So the `nil -> :ok` arm took
     # it every time and `water_still` was seeded into ascii alone: an emoji player got a `?` where a puddle
     # should be, and only the 1:1-vocabulary test could see it.
     seed_water_surface()
+
     # NEVER CALLED. `seed_bridge_tiles/0` was written, documented and left unwired, so `bridge_deck` and
     # `bridge_rail` existed only in databases where it had been run by hand. Fifteen bridge compositions
     # reference the pair, which on a fresh seed is fifteen crossings built out of a label nothing serves.
@@ -141,33 +150,44 @@ defmodule Nebulith.Catalog.TileSource do
     seed_compositions(ascii["compositions"])
     seed_new_compositions()
     seed_building_compositions()
+
     # PER-TILE height DATA: each asset tile keeps its OWN height (ground/flat = 0, standing ≥ 1), read uniformly
     # with no per-category code branch. seed_emoji_tiles already writes the raw per-tile height; this re-applies it
     # pose-safely so a fresh full seed agrees with seed_sample.
     reconcile_tile_heights()
     # …and the OTHER half of that sentence: the ground is flat. See flatten_ground_heights/0.
     flatten_ground_heights()
+
     # …and then make every OTHER style agree, because height is DATA and the same label is the same shape in
     # every style. This used to live in seeds.exs, which meant `seed()` on its own left 32 of 358 shared
     # labels disagreeing (ascii 0.0 vs emoji 1.0), a caller had to remember a second call for the DB to be
     # correct. An invariant that depends on being remembered is not an invariant.
     normalize_tile_heights()
+
     # Seven seeders write glyphs and none can see the others' choices. The curated file says what each ascii
     # tile should look like; the algorithm then catches anything it does not cover yet. Without this pair,
     # two tiles share a glyph and therefore share a picture, the "fake tiles" report.
     apply_curated_glyphs()
+
     # The UNIT FIGURES, a unit is a GRID of characters, not one character (see `apply_unit_art/0`).
     apply_unit_art()
     ensure_distinct_glyphs()
     ensure_fade_near()
     ensure_ground_plants()
+
+    # …and a rock is one rock, not a crate with a rock painted on each face. After the plants rule, which
+    # clears `blocking` on the walk-over ones, and before the collision rule, which reads the flag.
+    ensure_ornaments()
+
     # LAST of the tile-fact rules, because it DERIVES from `blocking` and every rule above may still be
     # changing it (ensure_ground_plants clears it on 38 rows).
     ensure_collisions()
+
     # …and every PER-LABEL fact agrees across styles. A label owns its name, bucket, height and collision;
     # only the picture is the style's. Without this the same `grass` was "Grass" in one style and nameless
     # in the other, two engines' worth of drift in the data.
     normalize_label_facts()
+
     # …including a label's COLOURS, which was the column nobody had got to. See normalize_label_colors/0.
     normalize_label_colors()
     point_tiles_at_own_image()
@@ -207,7 +227,10 @@ defmodule Nebulith.Catalog.TileSource do
 
   defp create_tileset!(key, name) do
     look = Map.get(@style_presentation, key, %{icon: nil, position: 99})
-    {:ok, tileset} = Catalog.create_tileset(%{key: key, name: name, icon: look.icon, position: look.position})
+
+    {:ok, tileset} =
+      Catalog.create_tileset(%{key: key, name: name, icon: look.icon, position: look.position})
+
     tileset
   end
 
@@ -215,9 +238,13 @@ defmodule Nebulith.Catalog.TileSource do
   # blank affordance on an upgraded DB.
   defp ensure_presentation(%Tileset{icon: icon} = tileset) when icon in [nil, ""] do
     case Map.get(@style_presentation, tileset.key) do
-      nil -> tileset
+      nil ->
+        tileset
+
       look ->
-        {:ok, updated} = Catalog.update_tileset(tileset, %{icon: look.icon, position: look.position})
+        {:ok, updated} =
+          Catalog.update_tileset(tileset, %{icon: look.icon, position: look.position})
+
         updated
     end
   end
@@ -239,7 +266,7 @@ defmodule Nebulith.Catalog.TileSource do
           label: label,
           glyph: tile["glyph"],
           color_role: tile["colorRole"],
-          blocking: not (tile["walkable"] || false),
+          occupies: not (tile["walkable"] || false),
           height: Map.get(tile, "height", 1),
           category: tile["category"],
           title: tile["title"],
@@ -267,7 +294,7 @@ defmodule Nebulith.Catalog.TileSource do
           label: label,
           glyph: List.first(char),
           color_role: nil,
-          blocking: false,
+          occupies: false,
           # Height 1 (raised block) so content marked act_as_tile stacks ON TOP of the ground, not sunk inside it.
           height: 1,
           # Ground defaults to `terrain`; a paved way (`roads`) or a constructed interior floor (`floors`)
@@ -311,7 +338,7 @@ defmodule Nebulith.Catalog.TileSource do
           label: label,
           glyph: glyph,
           color_role: nil,
-          blocking: false,
+          occupies: false,
           height: 0,
           category: "decor",
           image_url: "/tiles/ascii/#{label}.png",
@@ -382,7 +409,7 @@ defmodule Nebulith.Catalog.TileSource do
           label: label,
           glyph: @base_glyph[base],
           color_role: nil,
-          blocking: base != "roof_top",
+          occupies: base != "roof_top",
           height: 1,
           # building_tiles are all roof pieces (store/hospital roof + apex cap) → the finer `roofs` bucket.
           category: "roofs",
@@ -401,7 +428,7 @@ defmodule Nebulith.Catalog.TileSource do
           label: label,
           emoji: tile.emoji,
           color_role: nil,
-          blocking: base != "roof_top",
+          occupies: base != "roof_top",
           height: 1,
           category: "roofs",
           image_url: "/tiles/emoji/#{label}.png",
@@ -448,7 +475,7 @@ defmodule Nebulith.Catalog.TileSource do
   end
 
   defp seed_extra_tiles(ascii_id, emoji_id) do
-    for %{label: label, glyph: glyph, color: color, blocking: blocking, category: category} = tile <-
+    for %{label: label, glyph: glyph, color: color, occupies: occupies, category: category} = tile <-
           extra_tiles() do
       {:ok, _} =
         Catalog.upsert_tile(%{
@@ -456,7 +483,7 @@ defmodule Nebulith.Catalog.TileSource do
           label: label,
           glyph: glyph,
           color_role: nil,
-          blocking: blocking,
+          occupies: occupies,
           height: 1,
           category: category,
           image_url: "/tiles/ascii/#{label}.png",
@@ -476,7 +503,7 @@ defmodule Nebulith.Catalog.TileSource do
             label: label,
             emoji: emoji,
             color_role: nil,
-            blocking: blocking,
+            occupies: occupies,
             height: 1,
             category: category,
             image_url: "/tiles/emoji/#{label}.png",
@@ -486,7 +513,7 @@ defmodule Nebulith.Catalog.TileSource do
     end
   end
 
-  # {label, glyph, colour, blocking, sidebar category}. Colour is zone-independent (one tone every
+  # {label, glyph, colour, occupies, sidebar category}. Colour is zone-independent (one tone every
   # season). The storefront glass reads as `windows`; the awning + flat-roof deck/parapet/rooftop unit read as `roofs`.
   defp extra_tiles do
     [
@@ -494,7 +521,7 @@ defmodule Nebulith.Catalog.TileSource do
         label: "display_window",
         glyph: "▦",
         color: "#86bcd6",
-        blocking: true,
+        occupies: true,
         category: "windows",
         emoji: "🪟"
       },
@@ -502,18 +529,18 @@ defmodule Nebulith.Catalog.TileSource do
         label: "awning",
         glyph: "▨",
         color: "#b64a34",
-        blocking: true,
+        occupies: true,
         # storefront canopy, grouped with roofs (flagged for review).
         category: "roofs",
         emoji: "🟧"
       },
-      %{label: "flat_roof", glyph: "▬", color: "#8b9098", blocking: false, category: "roofs"},
-      %{label: "parapet", glyph: "▀", color: "#70757c", blocking: true, category: "roofs"},
+      %{label: "flat_roof", glyph: "▬", color: "#8b9098", occupies: false, category: "roofs"},
+      %{label: "parapet", glyph: "▀", color: "#70757c", occupies: true, category: "roofs"},
       %{
         label: "rooftop_unit",
         glyph: "▪",
         color: "#616870",
-        blocking: true,
+        occupies: true,
         category: "roofs",
         emoji: "⬛"
       }
@@ -582,7 +609,7 @@ defmodule Nebulith.Catalog.TileSource do
           label: label,
           glyph: glyph,
           emoji: emoji,
-          blocking: true,
+          occupies: true,
           height: 1.0,
           category: "nature",
           title: title,
@@ -607,7 +634,7 @@ defmodule Nebulith.Catalog.TileSource do
         label: "post",
         glyph: "║",
         color_role: nil,
-        blocking: true,
+        occupies: true,
         height: 1,
         category: nil,
         image_url: "/tiles/ascii/post.png",
@@ -620,7 +647,7 @@ defmodule Nebulith.Catalog.TileSource do
         label: "post",
         emoji: "⬛",
         color_role: nil,
-        blocking: true,
+        occupies: true,
         height: 1,
         category: nil,
         image_url: "/tiles/emoji/post.png",
@@ -636,7 +663,7 @@ defmodule Nebulith.Catalog.TileSource do
         label: "roof_top",
         emoji: "🟥",
         color_role: nil,
-        blocking: false,
+        occupies: false,
         height: 1,
         category: "roofs",
         image_url: "/tiles/emoji/roof_top.png",
@@ -678,7 +705,7 @@ defmodule Nebulith.Catalog.TileSource do
       common = %{
         label: piece.label,
         color_role: nil,
-        blocking: piece.blocking,
+        occupies: piece.occupies,
         height: 1,
         category: piece[:category]
       }
@@ -712,7 +739,7 @@ defmodule Nebulith.Catalog.TileSource do
     end
   end
 
-  # Each piece: {label, ascii glyph, emoji, colour, blocking, sidebar category?, title?}. The rim/wall
+  # Each piece: {label, ascii glyph, emoji, colour, occupies, sidebar category?, title?}. The rim/wall
   # EDGE + CORNER glyphs are the block-drawing border set (▛▜▙▟ corners, ▀▄▌▐ edges) so ascii reads as a
   # framed border; the emoji parts are the material's own part-emoji (🪨 stone, 🧱 brick, 🟫 wood, ⬜ plaster
   # + fountain rim, 🟦 water, 💧 jet, ⬛ slate). A wall material's WHOLE autotile set, center `_c` AND its
@@ -769,7 +796,7 @@ defmodule Nebulith.Catalog.TileSource do
         color: slate,
         category: "roofs",
         title: "Slate Roof",
-        blocking: true
+        occupies: true
       },
       %{
         label: "roof_top_slate",
@@ -777,11 +804,11 @@ defmodule Nebulith.Catalog.TileSource do
         emoji: "⬛",
         color: slate,
         category: "roofs",
-        blocking: false
+        occupies: false
       }
     ]
 
-    Enum.map(fountain ++ walls ++ roofs, fn t -> Map.put_new(t, :blocking, true) end)
+    Enum.map(fountain ++ walls ++ roofs, fn t -> Map.put_new(t, :occupies, true) end)
   end
 
   # One wall MATERIAL's autotile set: the browseable center `_c` anchor (its own glyph + part-emoji + title)
@@ -864,7 +891,7 @@ defmodule Nebulith.Catalog.TileSource do
       common = %{
         label: piece.label,
         color_role: piece.role,
-        blocking: piece.blocking,
+        occupies: piece.occupies,
         height: 1,
         category: nil
       }
@@ -930,7 +957,7 @@ defmodule Nebulith.Catalog.TileSource do
   Two pieces because a street has a direction: `_along_row` for one that runs down the map and `_along_col`
   for the one that runs across it, which is the axis the generator already measures when it finds the middle.
 
-  Flat decor, so height 0 and non-blocking: it is paint lying on the road, not something standing on it. The
+  Flat decor, so height 0 and non-occupies: it is paint lying on the road, not something standing on it. The
   body is drawn white so the served marking colour tints it, which is `TILE-DESIGN.md` §1.
   """
   def seed_road_markings do
@@ -938,16 +965,24 @@ defmodule Nebulith.Catalog.TileSource do
     emoji_id = ensure_tileset("emoji", "Emoji").id
 
     for {label, glyph} <- [{"road_marking_along_row", "|"}, {"road_marking_along_col", "-"}] do
-      common = %{label: label, blocking: false, height: 0.0, category: "roads"}
+      common = %{label: label, occupies: false, height: 0.0, category: "roads"}
 
       {:ok, _} =
         common
-        |> Map.merge(%{tileset_id: ascii_id, glyph: glyph, image_url: "/tiles/ascii/#{label}.png"})
+        |> Map.merge(%{
+          tileset_id: ascii_id,
+          glyph: glyph,
+          image_url: "/tiles/ascii/#{label}.png"
+        })
         |> Catalog.upsert_tile()
 
       {:ok, _} =
         common
-        |> Map.merge(%{tileset_id: emoji_id, emoji: glyph, image_url: "/tiles/emoji/#{label}.png"})
+        |> Map.merge(%{
+          tileset_id: emoji_id,
+          emoji: glyph,
+          image_url: "/tiles/emoji/#{label}.png"
+        })
         |> Catalog.upsert_tile()
     end
 
@@ -958,6 +993,7 @@ defmodule Nebulith.Catalog.TileSource do
   def seed_path_pieces do
     ascii_id = ensure_tileset("ascii", "ASCII").id
     emoji_id = ensure_tileset("emoji", "Emoji").id
+
     # The family this replaces. Leaving it seeded would leave 27 tiles in the browser that nothing places.
     Repo.delete_all(from(t in Tile, where: like(t.label, "path_dirt\\_%")))
     seed_path_pieces(ascii_id, emoji_id)
@@ -969,7 +1005,7 @@ defmodule Nebulith.Catalog.TileSource do
     for label <- path_piece_labels() do
       common = %{
         label: label,
-        blocking: false,
+        occupies: false,
         height: 0.0,
         # A ROAD, which is what puts it in the ground family the floor renderer reads.
         category: "roads"
@@ -1004,7 +1040,7 @@ defmodule Nebulith.Catalog.TileSource do
     for pos <- ~w(t b l r tl tr bl br), cut <- ["", "2", "3"], do: "path_edge_#{pos}#{cut}"
   end
 
-  # Each tree piece: {label, ascii glyph, emoji, colour ROLE (per-zone palette path), blocking, emoji_color}. The
+  # Each tree piece: {label, ascii glyph, emoji, colour ROLE (per-zone palette path), occupies, emoji_color}. The
   # trunk is a woody ║ / 🟫 column (blocks); the canopy is a rounded leaf crown, dense ♣ centre, ♧ leafy edges,
   # ╭╮╰╯ rounded corners in ascii / 🍃 in emoji (walkable overhead). ASCII colour is a per-zone SETTING (trunk →
   # one woody tone, canopy → the 4-shade array so a per-tree variant picks a tone); `emoji_color` is the single
@@ -1017,7 +1053,7 @@ defmodule Nebulith.Catalog.TileSource do
             glyph: "║",
             emoji: "🟫",
             role: "trunk",
-            blocking: true,
+            occupies: true,
             emoji_color: "#7a5a3a"
           }
 
@@ -1040,7 +1076,7 @@ defmodule Nebulith.Catalog.TileSource do
             glyph: glyph,
             emoji: "🍃",
             role: "canopy",
-            blocking: false,
+            occupies: false,
             emoji_color: "#5fae4f"
           }
 
@@ -1061,7 +1097,7 @@ defmodule Nebulith.Catalog.TileSource do
   #     coloured SQUARE picked by the ascii tile's own hue for grounds/decor, the tree part-emoji (🟫 trunk /
   #     🍃 leaf) for tree pieces, 🗻 for the peak, the existing emoji-ground / tree-piece conventions, never
   #     a whole-object emoji (@emoji_twins).
-  # BEHAVIOR (height/category/blocking) is COPIED FROM the twin's existing row at seed time, so the two
+  # BEHAVIOR (height/category/occupies) is COPIED FROM the twin's existing row at seed time, so the two
   # styles can never disagree; only the art columns are authored here. The genuinely-atomic emoji-only labels
   # with NO ascii pattern (per-creature units, single-tile buildings, a few props/effects) are LEFT
   # emoji-only and tracked as pending art direction in Nebulith.TilesetParityTest, never guessed here.
@@ -1100,7 +1136,7 @@ defmodule Nebulith.Catalog.TileSource do
     %{label: "red-mushroom", glyph: "♠", reuse: "mushroom"},
     %{label: "brick", glyph: "▒", reuse: "wall_brick_c"},
     %{label: "glass-window", glyph: "▒", reuse: "window"},
-    %{label: "wooden-door", glyph: "╫", reuse: "door"},
+    %{label: "wooden-door", glyph: "╫", reuse: "door"}
   ]
 
   # {label, part-emoji, baked PNG, backing colour}, an ascii-only label whose emoji twin is a coloured
@@ -1117,7 +1153,7 @@ defmodule Nebulith.Catalog.TileSource do
   # Mono) and the bake is verified to produce real ink, no blanks, no tofu boxes.
   #
   # BEHAVIOUR + COLOUR still come from the label's own emoji row, so the two styles can never disagree on
-  # height/category/blocking, only the ART differs. This is what closes the vocabulary gap completely: after
+  # height/category/occupies, only the ART differs. This is what closes the vocabulary gap completely: after
   # this there is NO emoji label without an ascii tile.
   @ascii_own_art_twins [
     %{label: "person", glyph: "@"},
@@ -1230,40 +1266,115 @@ defmodule Nebulith.Catalog.TileSource do
 
   @emoji_twins [
     %{label: "adobe", emoji: "🟨", image_url: "/tiles/emoji/sq_yellow.png", color: "#c8a078"},
-    %{label: "ancient_stone", emoji: "🟫", image_url: "/tiles/emoji/sq_brown.png", color: "#8c8264"},
+    %{
+      label: "ancient_stone",
+      emoji: "🟫",
+      image_url: "/tiles/emoji/sq_brown.png",
+      color: "#8c8264"
+    },
     %{label: "ash", emoji: "🟫", image_url: "/tiles/emoji/sq_brown.png", color: "#96604a"},
-    %{label: "autumn_ground", emoji: "🟫", image_url: "/tiles/emoji/sq_brown.png", color: "#b07a46"},
-    %{label: "autumn_leaves", emoji: "🟧", image_url: "/tiles/emoji/sq_orange.png", color: "#d2782d"},
-    %{label: "bamboo_floor", emoji: "🟨", image_url: "/tiles/emoji/sq_yellow.png", color: "#b4c864"},
+    %{
+      label: "autumn_ground",
+      emoji: "🟫",
+      image_url: "/tiles/emoji/sq_brown.png",
+      color: "#b07a46"
+    },
+    %{
+      label: "autumn_leaves",
+      emoji: "🟧",
+      image_url: "/tiles/emoji/sq_orange.png",
+      color: "#d2782d"
+    },
+    %{
+      label: "bamboo_floor",
+      emoji: "🟨",
+      image_url: "/tiles/emoji/sq_yellow.png",
+      color: "#b4c864"
+    },
     %{label: "basalt", emoji: "⬛", image_url: "/tiles/emoji/sq_black.png", color: "#6e3a30"},
-    %{label: "birch_forest", emoji: "🟨", image_url: "/tiles/emoji/sq_yellow.png", color: "#b4c8a0"},
+    %{
+      label: "birch_forest",
+      emoji: "🟨",
+      image_url: "/tiles/emoji/sq_yellow.png",
+      color: "#b4c8a0"
+    },
     %{label: "bridge", emoji: "🟫", image_url: "/tiles/emoji/sq_brown.png", color: "#bb8844"},
     %{label: "cave_floor", emoji: "🟫", image_url: "/tiles/emoji/sq_brown.png", color: "#82786e"},
     %{label: "cave_moss", emoji: "🟩", image_url: "/tiles/emoji/sq_green.png", color: "#508c46"},
     %{label: "cliff", emoji: "🟨", image_url: "/tiles/emoji/sq_yellow.png", color: "#ffd43a"},
     %{label: "cliff_face", emoji: "🟫", image_url: "/tiles/emoji/sq_brown.png", color: "#8b6914"},
-    %{label: "colorful_tile", emoji: "🟨", image_url: "/tiles/emoji/sq_yellow.png", color: "#ffc832"},
-    %{label: "courtyard_stone", emoji: "⬜", image_url: "/tiles/emoji/sq_white.png", color: "#dcd2be"},
+    %{
+      label: "colorful_tile",
+      emoji: "🟨",
+      image_url: "/tiles/emoji/sq_yellow.png",
+      color: "#ffc832"
+    },
+    %{
+      label: "courtyard_stone",
+      emoji: "⬜",
+      image_url: "/tiles/emoji/sq_white.png",
+      color: "#dcd2be"
+    },
     %{label: "crypt_floor", emoji: "🟫", image_url: "/tiles/emoji/sq_brown.png", color: "#645f5a"},
     %{label: "dead_grass", emoji: "🟫", image_url: "/tiles/emoji/sq_brown.png", color: "#8c825a"},
-    %{label: "decor_blossom", emoji: "🟨", image_url: "/tiles/emoji/sq_yellow.png", color: "#c4b061"},
-    %{label: "decor_clover", emoji: "🟩", image_url: "/tiles/emoji/sq_green.png", color: "#5aaf5a"},
+    %{
+      label: "decor_blossom",
+      emoji: "🟨",
+      image_url: "/tiles/emoji/sq_yellow.png",
+      color: "#c4b061"
+    },
+    %{
+      label: "decor_clover",
+      emoji: "🟩",
+      image_url: "/tiles/emoji/sq_green.png",
+      color: "#5aaf5a"
+    },
     %{label: "decor_dot", emoji: "🟫", image_url: "/tiles/emoji/sq_brown.png", color: "#a06a2c"},
-    %{label: "decor_flower", emoji: "🟪", image_url: "/tiles/emoji/sq_purple.png", color: "#c79bb4"},
+    %{
+      label: "decor_flower",
+      emoji: "🟪",
+      image_url: "/tiles/emoji/sq_purple.png",
+      color: "#c79bb4"
+    },
     %{label: "decor_grit", emoji: "🟫", image_url: "/tiles/emoji/sq_brown.png", color: "#bba360"},
-    %{label: "decor_pebbles", emoji: "🟫", image_url: "/tiles/emoji/sq_brown.png", color: "#b0894e"},
-    %{label: "decor_ripple", emoji: "⬜", image_url: "/tiles/emoji/sq_white.png", color: "#8fc7e0"},
+    %{
+      label: "decor_pebbles",
+      emoji: "🟫",
+      image_url: "/tiles/emoji/sq_brown.png",
+      color: "#b0894e"
+    },
+    %{
+      label: "decor_ripple",
+      emoji: "⬜",
+      image_url: "/tiles/emoji/sq_white.png",
+      color: "#8fc7e0"
+    },
     %{label: "decor_shell", emoji: "⬜", image_url: "/tiles/emoji/sq_white.png", color: "#cfe6ee"},
     %{label: "decor_spark", emoji: "⬜", image_url: "/tiles/emoji/sq_white.png", color: "#ccdbe7"},
-    %{label: "desert_road", emoji: "🟨", image_url: "/tiles/emoji/sq_yellow.png", color: "#c8aa78"},
+    %{
+      label: "desert_road",
+      emoji: "🟨",
+      image_url: "/tiles/emoji/sq_yellow.png",
+      color: "#c8aa78"
+    },
     %{label: "eucalyptus", emoji: "🟩", image_url: "/tiles/emoji/sq_green.png", color: "#78a082"},
     %{label: "flat_roof", emoji: "⬜", image_url: "/tiles/emoji/sq_white.png", color: "#8b9098"},
     %{label: "frost", emoji: "⬜", image_url: "/tiles/emoji/sq_white.png", color: "#d2ebff"},
-    %{label: "frozen_water", emoji: "⬜", image_url: "/tiles/emoji/sq_white.png", color: "#a0d2fa"},
+    %{
+      label: "frozen_water",
+      emoji: "⬜",
+      image_url: "/tiles/emoji/sq_white.png",
+      color: "#a0d2fa"
+    },
     %{label: "gold_tile", emoji: "🟨", image_url: "/tiles/emoji/sq_yellow.png", color: "#ffdc64"},
     %{label: "grass_tall", emoji: "🟩", image_url: "/tiles/emoji/sq_green.png", color: "#78ac3c"},
     %{label: "grave_dirt", emoji: "🟫", image_url: "/tiles/emoji/sq_brown.png", color: "#645541"},
-    %{label: "hieroglyph_floor", emoji: "🟨", image_url: "/tiles/emoji/sq_yellow.png", color: "#ffd264"},
+    %{
+      label: "hieroglyph_floor",
+      emoji: "🟨",
+      image_url: "/tiles/emoji/sq_yellow.png",
+      color: "#ffd264"
+    },
     %{label: "ice_cracked", emoji: "⬜", image_url: "/tiles/emoji/sq_white.png", color: "#b4e6ff"},
     %{label: "ice_water", emoji: "🟦", image_url: "/tiles/emoji/sq_blue.png", color: "#78c8ff"},
     %{label: "inca_stone", emoji: "🟫", image_url: "/tiles/emoji/sq_brown.png", color: "#a09682"},
@@ -1274,21 +1385,36 @@ defmodule Nebulith.Catalog.TileSource do
     %{label: "oasis", emoji: "🟦", image_url: "/tiles/emoji/sq_blue.png", color: "#32b4c8"},
     %{label: "obsidian", emoji: "⬛", image_url: "/tiles/emoji/sq_black.png", color: "#503c50"},
     %{label: "olive_grove", emoji: "🟩", image_url: "/tiles/emoji/sq_green.png", color: "#507832"},
-    %{label: "outback_red", emoji: "🟧", image_url: "/tiles/emoji/sq_orange.png", color: "#dc783c"},
+    %{
+      label: "outback_red",
+      emoji: "🟧",
+      image_url: "/tiles/emoji/sq_orange.png",
+      color: "#dc783c"
+    },
     %{label: "pampas", emoji: "🟨", image_url: "/tiles/emoji/sq_yellow.png", color: "#b4c896"},
     %{label: "parapet", emoji: "⬜", image_url: "/tiles/emoji/sq_white.png", color: "#8b9098"},
     %{label: "path_dirt", emoji: "🟫", image_url: "/tiles/emoji/sq_brown.png", color: "#aa9977"},
     %{label: "path_stone", emoji: "🟨", image_url: "/tiles/emoji/sq_yellow.png", color: "#ccbbaa"},
     %{label: "peak", emoji: "🗻", image_url: "/tiles/emoji/baked/mountain.png", color: "#8d8d97"},
     %{label: "prairie", emoji: "🟨", image_url: "/tiles/emoji/sq_yellow.png", color: "#c8be82"},
-    %{label: "pyramid_stone", emoji: "🟨", image_url: "/tiles/emoji/sq_yellow.png", color: "#e6c896"},
+    %{
+      label: "pyramid_stone",
+      emoji: "🟨",
+      image_url: "/tiles/emoji/sq_yellow.png",
+      color: "#e6c896"
+    },
     %{label: "red_earth", emoji: "🟫", image_url: "/tiles/emoji/sq_brown.png", color: "#b4643c"},
     %{label: "red_lacquer", emoji: "🟥", image_url: "/tiles/emoji/sq_red.png", color: "#dc3c32"},
     %{label: "road_center", emoji: "⬛", image_url: "/tiles/emoji/sq_black.png", color: "#9698a0"},
     %{label: "road_edge", emoji: "⬛", image_url: "/tiles/emoji/sq_black.png", color: "#60626a"},
     %{label: "rune_floor", emoji: "🟦", image_url: "/tiles/emoji/sq_blue.png", color: "#64c8ff"},
     %{label: "russian_red", emoji: "🟥", image_url: "/tiles/emoji/sq_red.png", color: "#b43228"},
-    %{label: "sakura_petals", emoji: "⬜", image_url: "/tiles/emoji/sq_white.png", color: "#ffc8dc"},
+    %{
+      label: "sakura_petals",
+      emoji: "⬜",
+      image_url: "/tiles/emoji/sq_white.png",
+      color: "#ffc8dc"
+    },
     %{label: "sand_dune", emoji: "⬜", image_url: "/tiles/emoji/sq_white.png", color: "#ffe6aa"},
     %{label: "sand_trap", emoji: "🟨", image_url: "/tiles/emoji/sq_yellow.png", color: "#c8a860"},
     %{label: "sandstone", emoji: "🟨", image_url: "/tiles/emoji/sq_yellow.png", color: "#e6be82"},
@@ -1297,36 +1423,131 @@ defmodule Nebulith.Catalog.TileSource do
     %{label: "seaweed", emoji: "🟩", image_url: "/tiles/emoji/sq_green.png", color: "#3cb478"},
     %{label: "snow_deep", emoji: "⬜", image_url: "/tiles/emoji/sq_white.png", color: "#ffffff"},
     %{label: "snow_path", emoji: "⬜", image_url: "/tiles/emoji/sq_white.png", color: "#d2dceb"},
-    %{label: "spanish_tile", emoji: "🟨", image_url: "/tiles/emoji/sq_yellow.png", color: "#ffc896"},
+    %{
+      label: "spanish_tile",
+      emoji: "🟨",
+      image_url: "/tiles/emoji/sq_yellow.png",
+      color: "#ffc896"
+    },
     %{label: "stairs", emoji: "🟫", image_url: "/tiles/emoji/sq_brown.png", color: "#998866"},
     %{label: "tatami", emoji: "🟨", image_url: "/tiles/emoji/sq_yellow.png", color: "#c8be96"},
-    %{label: "temple_floor", emoji: "🟨", image_url: "/tiles/emoji/sq_yellow.png", color: "#cec09e"},
+    %{
+      label: "temple_floor",
+      emoji: "🟨",
+      image_url: "/tiles/emoji/sq_yellow.png",
+      color: "#cec09e"
+    },
     %{label: "terracotta", emoji: "🟧", image_url: "/tiles/emoji/sq_orange.png", color: "#dc8c64"},
-    %{label: "tree_bottom", emoji: "🍃", image_url: "/tiles/emoji/leaf_center.png", color: "#5fae4f"},
-    %{label: "tree_bottom_left", emoji: "🍃", image_url: "/tiles/emoji/leaf_center.png", color: "#5fae4f"},
-    %{label: "tree_bottom_right", emoji: "🍃", image_url: "/tiles/emoji/leaf_center.png", color: "#5fae4f"},
-    %{label: "tree_crown", emoji: "🍃", image_url: "/tiles/emoji/leaf_center.png", color: "#5fae4f"},
-    %{label: "tree_edge_left", emoji: "🍃", image_url: "/tiles/emoji/leaf_center.png", color: "#5fae4f"},
-    %{label: "tree_edge_right", emoji: "🍃", image_url: "/tiles/emoji/leaf_center.png", color: "#5fae4f"},
-    %{label: "tree_interior", emoji: "🍃", image_url: "/tiles/emoji/leaf_center.png", color: "#5fae4f"},
-    %{label: "tree_leaf", emoji: "🍃", image_url: "/tiles/emoji/leaf_center.png", color: "#5fae4f"},
-    %{label: "tree_leaf_top", emoji: "🍃", image_url: "/tiles/emoji/leaf_center.png", color: "#5fae4f"},
+    %{
+      label: "tree_bottom",
+      emoji: "🍃",
+      image_url: "/tiles/emoji/leaf_center.png",
+      color: "#5fae4f"
+    },
+    %{
+      label: "tree_bottom_left",
+      emoji: "🍃",
+      image_url: "/tiles/emoji/leaf_center.png",
+      color: "#5fae4f"
+    },
+    %{
+      label: "tree_bottom_right",
+      emoji: "🍃",
+      image_url: "/tiles/emoji/leaf_center.png",
+      color: "#5fae4f"
+    },
+    %{
+      label: "tree_crown",
+      emoji: "🍃",
+      image_url: "/tiles/emoji/leaf_center.png",
+      color: "#5fae4f"
+    },
+    %{
+      label: "tree_edge_left",
+      emoji: "🍃",
+      image_url: "/tiles/emoji/leaf_center.png",
+      color: "#5fae4f"
+    },
+    %{
+      label: "tree_edge_right",
+      emoji: "🍃",
+      image_url: "/tiles/emoji/leaf_center.png",
+      color: "#5fae4f"
+    },
+    %{
+      label: "tree_interior",
+      emoji: "🍃",
+      image_url: "/tiles/emoji/leaf_center.png",
+      color: "#5fae4f"
+    },
+    %{
+      label: "tree_leaf",
+      emoji: "🍃",
+      image_url: "/tiles/emoji/leaf_center.png",
+      color: "#5fae4f"
+    },
+    %{
+      label: "tree_leaf_top",
+      emoji: "🍃",
+      image_url: "/tiles/emoji/leaf_center.png",
+      color: "#5fae4f"
+    },
     %{label: "tree_snag", emoji: "🟫", image_url: "/tiles/emoji/trunk.png", color: "#7a5a3a"},
     %{label: "tree_stem", emoji: "🟫", image_url: "/tiles/emoji/trunk.png", color: "#7a5a3a"},
-    %{label: "tree_stem_bottom", emoji: "🟫", image_url: "/tiles/emoji/trunk.png", color: "#7a5a3a"},
+    %{
+      label: "tree_stem_bottom",
+      emoji: "🟫",
+      image_url: "/tiles/emoji/trunk.png",
+      color: "#7a5a3a"
+    },
     %{label: "tree_top", emoji: "🍃", image_url: "/tiles/emoji/leaf_center.png", color: "#5fae4f"},
-    %{label: "tree_top_left", emoji: "🍃", image_url: "/tiles/emoji/leaf_center.png", color: "#5fae4f"},
-    %{label: "tree_top_right", emoji: "🍃", image_url: "/tiles/emoji/leaf_center.png", color: "#5fae4f"},
-    %{label: "tropical_grass", emoji: "🟩", image_url: "/tiles/emoji/sq_green.png", color: "#32c850"},
-    %{label: "volcanic_rock", emoji: "⬛", image_url: "/tiles/emoji/sq_black.png", color: "#644632"},
+    %{
+      label: "tree_top_left",
+      emoji: "🍃",
+      image_url: "/tiles/emoji/leaf_center.png",
+      color: "#5fae4f"
+    },
+    %{
+      label: "tree_top_right",
+      emoji: "🍃",
+      image_url: "/tiles/emoji/leaf_center.png",
+      color: "#5fae4f"
+    },
+    %{
+      label: "tropical_grass",
+      emoji: "🟩",
+      image_url: "/tiles/emoji/sq_green.png",
+      color: "#32c850"
+    },
+    %{
+      label: "volcanic_rock",
+      emoji: "⬛",
+      image_url: "/tiles/emoji/sq_black.png",
+      color: "#644632"
+    },
     # THE BANDS HAVE THEIR OWN ART NOW. Both pointed at `sq_blue.png`, a flat rounded square, so a river came
     # out as three flat tones with no texture in any band: and Authored as drawn art in `tiles.json` (the new
     # `svg` shape) and baked per style, so shallow reads busy and bright and deep reads calm and dark.
-    %{label: "water_deep", emoji: "🟦", image_url: "/tiles/emoji/water_deep.png", color: @water_color},
-    %{label: "water_shallow", emoji: "🟦", image_url: "/tiles/emoji/water_shallow.png", color: @water_color},
+    %{
+      label: "water_deep",
+      emoji: "🟦",
+      image_url: "/tiles/emoji/water_deep.png",
+      color: @water_color
+    },
+    %{
+      label: "water_shallow",
+      emoji: "🟦",
+      image_url: "/tiles/emoji/water_shallow.png",
+      color: @water_color
+    },
     %{label: "whitewash", emoji: "⬜", image_url: "/tiles/emoji/sq_white.png", color: "#fffffa"},
-    %{label: "wooden_planks", emoji: "🟫", image_url: "/tiles/emoji/sq_brown.png", color: "#aa8250"},
-    %{label: "zen_garden", emoji: "⬜", image_url: "/tiles/emoji/sq_white.png", color: "#dcd7c8"},
+    %{
+      label: "wooden_planks",
+      emoji: "🟫",
+      image_url: "/tiles/emoji/sq_brown.png",
+      color: "#aa8250"
+    },
+    %{label: "zen_garden", emoji: "⬜", image_url: "/tiles/emoji/sq_white.png", color: "#dcd7c8"}
   ]
 
   @doc """
@@ -1385,7 +1606,7 @@ defmodule Nebulith.Catalog.TileSource do
           label: label,
           glyph: glyph,
           color_role: nil,
-          blocking: src.blocking,
+          occupies: solid?(src),
           height: src.height,
           category: src.category,
           image_url: "/tiles/ascii/#{label}.png",
@@ -1404,12 +1625,11 @@ defmodule Nebulith.Catalog.TileSource do
           label: label,
           glyph: glyph,
           color_role: nil,
-          blocking: src.blocking,
+          occupies: solid?(src),
           height: src.height,
           category: src.category,
           image_url: "/tiles/ascii/#{png}.png",
-          settings:
-            %{"colors" => Map.new(@all_zones, &{&1, color})} |> merge_behavior(label)
+          settings: %{"colors" => Map.new(@all_zones, &{&1, color})} |> merge_behavior(label)
         })
     end
   end
@@ -1417,14 +1637,15 @@ defmodule Nebulith.Catalog.TileSource do
   # Author the emoji twin of each ascii-only label: the part-emoji + baked PNG + backing colour, with
   # height/category/blocking COPIED from the ascii row.
   defp seed_emoji_square_twins(emoji_id, ascii_src) do
-    for %{label: label, emoji: emoji, image_url: img, color: color} <- @emoji_twins, src = ascii_src[label] do
+    for %{label: label, emoji: emoji, image_url: img, color: color} <- @emoji_twins,
+        src = ascii_src[label] do
       {:ok, _} =
         Catalog.upsert_tile(%{
           tileset_id: emoji_id,
           label: label,
           emoji: emoji,
           color_role: nil,
-          blocking: src.blocking,
+          occupies: solid?(src),
           height: src.height,
           category: src.category,
           image_url: img,
@@ -1491,7 +1712,7 @@ defmodule Nebulith.Catalog.TileSource do
     ascii_id = ensure_tileset("ascii", "ASCII").id
     emoji_id = ensure_tileset("emoji", "Emoji").id
     seed_growth_tiles(ascii_id, emoji_id)
-    IO.puts("seeded tall_grass (walkable) + thicket (blocking), ascii + emoji")
+    IO.puts("seeded tall_grass (walkable) + thicket (occupies), ascii + emoji")
     :ok
   end
 
@@ -1503,7 +1724,7 @@ defmodule Nebulith.Catalog.TileSource do
       glyph: "⁑",
       emoji: "🌾",
       category: "terrain",
-      blocking: false,
+      occupies: false,
       height: 0.0,
       settings: %{"color" => "#3f8f38"}
     },
@@ -1513,9 +1734,14 @@ defmodule Nebulith.Catalog.TileSource do
       glyph: "☙",
       emoji: "🌿",
       category: "nature",
-      blocking: true,
+      occupies: true,
       height: 1.0,
-      settings: %{"color" => "#2f6b2a", "fadeNear" => true, "display" => "single", "transparent" => true}
+      settings: %{
+        "color" => "#2f6b2a",
+        "fadeNear" => true,
+        "display" => "single",
+        "transparent" => true
+      }
     }
   ]
 
@@ -1527,7 +1753,7 @@ defmodule Nebulith.Catalog.TileSource do
           label: t.label,
           emoji: t.emoji,
           color_role: nil,
-          blocking: t.blocking,
+          occupies: t.occupies,
           height: t.height,
           category: t.category,
           title: t.title,
@@ -1541,7 +1767,7 @@ defmodule Nebulith.Catalog.TileSource do
           label: t.label,
           glyph: t.glyph,
           color_role: nil,
-          blocking: t.blocking,
+          occupies: t.occupies,
           height: t.height,
           category: t.category,
           title: t.title,
@@ -1599,7 +1825,7 @@ defmodule Nebulith.Catalog.TileSource do
         label: "floor",
         emoji: "⬜",
         color_role: nil,
-        blocking: false,
+        occupies: false,
         height: 0.0,
         category: "terrain",
         title: "Floor",
@@ -1613,7 +1839,7 @@ defmodule Nebulith.Catalog.TileSource do
         label: "floor",
         glyph: "⸪",
         color_role: nil,
-        blocking: false,
+        occupies: false,
         height: 0.0,
         category: "terrain",
         title: "Floor",
@@ -1639,7 +1865,7 @@ defmodule Nebulith.Catalog.TileSource do
         label: "meadow",
         emoji: "🟩",
         color_role: nil,
-        blocking: false,
+        occupies: false,
         height: 1.0,
         category: "terrain",
         title: "Meadow",
@@ -1653,7 +1879,7 @@ defmodule Nebulith.Catalog.TileSource do
         label: "meadow",
         glyph: ".",
         color_role: nil,
-        blocking: false,
+        occupies: false,
         height: 1.0,
         category: "terrain",
         title: "Meadow",
@@ -1734,7 +1960,7 @@ defmodule Nebulith.Catalog.TileSource do
               # `tiles.json` as a flat sheet with a soft sheen and no directional stroke anywhere, and baked.
               image_url: "/tiles/#{tileset.key}/water_still.png",
               color_role: shallow.color_role,
-              blocking: false,
+              occupies: false,
               # A FILM, NOT A FLOOR: a thin sheet the generator STACKS on the ground rather than a ground
               # tile that replaces it. It sat at 0.05 because height 0 once dropped a puddle a whole block,
               # back when `meadow` stood at 1.0. The ground tiles are flat at 0 now, so the film can be what
@@ -1786,7 +2012,7 @@ defmodule Nebulith.Catalog.TileSource do
         label: "water",
         emoji: "🟦",
         color_role: nil,
-        blocking: false,
+        occupies: false,
         # FLAT, like the grass beside it. This was 0.5, and the arithmetic behind that number assumed a
         # CHANNEL: one elevation level drops 0.4 and one block of tile height rises 0.639, so half a block in a
         # one-deep cut put the surface just under the bank rim. There is no cut any more, so 0.5 simply stands
@@ -1808,7 +2034,7 @@ defmodule Nebulith.Catalog.TileSource do
         label: "water",
         glyph: "~",
         color_role: nil,
-        blocking: false,
+        occupies: false,
         # Kept equal to the emoji row on purpose: height is a fact about the LABEL, not the picture, and
         # `normalize_tile_heights/0` would overwrite a disagreement here from the emoji authority anyway.
         height: 0.0,
@@ -1841,7 +2067,7 @@ defmodule Nebulith.Catalog.TileSource do
       NOT `water_*`: `water_c` is the fountain's water and colliding with it would silently repoint a live
       tile. There is no `_c` piece because the centre of water is the water tile itself.
 
-  Height 0 and non-blocking: a shore piece is a flat overlay on the LAND side of the bank, and what blocks is
+  Height 0 and non-occupies: a shore piece is a flat overlay on the LAND side of the bank, and what blocks is
   decided by collision, never by a picture.
   """
   @water_frame_ms 1200
@@ -1900,10 +2126,17 @@ defmodule Nebulith.Catalog.TileSource do
 
   def seed_water_sets do
     static = Path.join(:code.priv_dir(:nebulith), "static")
-    styles = [{"ascii", ensure_tileset("ascii", "ASCII").id}, {"emoji", ensure_tileset("emoji", "Emoji").id}]
+
+    styles = [
+      {"ascii", ensure_tileset("ascii", "ASCII").id},
+      {"emoji", ensure_tileset("emoji", "Emoji").id}
+    ]
 
     seeded =
-      for {base, spec} <- @water_sets, kind <- @water_kinds, piece <- @water_pieces, {style, tileset_id} <- styles do
+      for {base, spec} <- @water_sets,
+          kind <- @water_kinds,
+          piece <- @water_pieces,
+          {style, tileset_id} <- styles do
         label = "#{base}_#{kind}_#{piece}"
 
         {:ok, _} =
@@ -1914,7 +2147,7 @@ defmodule Nebulith.Catalog.TileSource do
             emoji: spec.emoji,
             color_role: nil,
             # A water surface is flat and what stops a unit is its collision, never a picture.
-            blocking: false,
+            occupies: false,
             height: 0.0,
             category: "terrain",
             title: "#{spec.title}, #{kind} #{piece_name(piece)}",
@@ -1926,9 +2159,16 @@ defmodule Nebulith.Catalog.TileSource do
 
         if length(frames) > 1 do
           seed_frame_rows(tileset_id, style, label, length(frames))
-          labels = Enum.map(0..(length(frames) - 1), fn 0 -> label; i -> "#{label}_f#{i}" end)
+
+          labels =
+            Enum.map(0..(length(frames) - 1), fn
+              0 -> label
+              i -> "#{label}_f#{i}"
+            end)
+
           Catalog.put_tile_setting(tileset_id, label, "frames", frames)
           Catalog.put_tile_setting(tileset_id, label, "frameMs", @water_frame_ms)
+
           # Two envelopes for the same reason the old bands needed two: the sprite loop swaps the pictures,
           # and the translucence is a settings track because `resolveAssetAnimation` returns null when only a
           # sprite is in scope. A plain `settings.opacity` is read by nothing.
@@ -1945,6 +2185,7 @@ defmodule Nebulith.Catalog.TileSource do
       "water sets: #{length(Enum.uniq(seeded))} pieces across #{map_size(@water_sets)} sets x " <>
         "#{length(@water_kinds)} kinds, #{@water_set_frames} frames each"
     )
+
     :ok
   end
 
@@ -1960,7 +2201,6 @@ defmodule Nebulith.Catalog.TileSource do
   defp piece_name("bl"), do: "(bottom-left corner)"
   defp piece_name("br"), do: "(bottom-right corner)"
 
-
   def seed_water_look do
     static = Path.join(:code.priv_dir(:nebulith), "static")
     ascii_id = ensure_tileset("ascii", "ASCII").id
@@ -1969,12 +2209,14 @@ defmodule Nebulith.Catalog.TileSource do
     seed_shore_pieces(ascii_id, emoji_id)
 
     framed =
-      for {key, tileset_id} <- [{"ascii", ascii_id}, {"emoji", emoji_id}], label <- @water_bands ++ @water_effects do
+      for {key, tileset_id} <- [{"ascii", ascii_id}, {"emoji", emoji_id}],
+          label <- @water_bands ++ @water_effects do
         # FOUR frames, not three. The wave art has a 32px period in a 128px tile, and each frame shifts it by
         # 8px, so four frames advance the pattern exactly ONE period and the loop closes on itself. With three
         # frames the loop jumped back a third of a period every cycle, which is the flicker it reported:
         # (2026-09-12).
         frames = frame_images(key, label, [nil, nil, nil, nil], static)
+
         # Only when there is more than one picture to swap between: a single frame is a still, and writing one
         # would claim an animation that cannot play.
         if length(frames) > 1 do
@@ -1982,10 +2224,17 @@ defmodule Nebulith.Catalog.TileSource do
           # looking the LABEL up in that style's catalog, so a frame label with no row resolves to nothing and
           # the loop silently plays its base picture forever. Seeding the rows is what makes the animation real.
           seed_frame_rows(tileset_id, key, label, length(frames))
+
           # The frame LABELS, in the same order as the pictures: frame 0 is the label itself, then _f1, _f2.
-          labels = Enum.map(0..(length(frames) - 1), fn 0 -> label; i -> "#{label}_f#{i}" end)
+          labels =
+            Enum.map(0..(length(frames) - 1), fn
+              0 -> label
+              i -> "#{label}_f#{i}"
+            end)
+
           Catalog.put_tile_setting(tileset_id, label, "frames", frames)
           Catalog.put_tile_setting(tileset_id, label, "frameMs", @water_frame_ms)
+
           # TWO envelopes, because the engine resolves the two kinds through different paths and one cannot
           # carry the other: the SPRITE loop swaps the frame pictures (the current), while the SETTINGS track
           # holds the surface translucent. `resolveAssetAnimation` returns null when only a sprite is in scope
@@ -1994,6 +2243,7 @@ defmodule Nebulith.Catalog.TileSource do
             water_ripple(key, labels),
             water_translucence()
           ])
+
           {key, label, length(frames)}
         end
       end
@@ -2028,7 +2278,7 @@ defmodule Nebulith.Catalog.TileSource do
           glyph: base.glyph,
           emoji: base.emoji,
           color_role: base.color_role,
-          blocking: base.blocking,
+          occupies: solid?(base),
           height: base.height,
           category: base.category,
           title: "#{base.title || base_label} frame #{i}",
@@ -2120,7 +2370,7 @@ defmodule Nebulith.Catalog.TileSource do
           glyph: glyph,
           emoji: "🟫",
           color_role: nil,
-          blocking: false,
+          occupies: false,
           height: 1.0,
           category: "props",
           image_url: "/tiles/#{tileset.key}/#{label}.png",
@@ -2153,7 +2403,11 @@ defmodule Nebulith.Catalog.TileSource do
 
       if Repo.get_by(Tile, tileset_id: tileset.id, label: "water") do
         current = water_current(tileset.key, ["water", "water_f1", "water_f2", "water_f3"])
-        Catalog.put_tile_setting(tileset.id, "water", "animations", [current, water_translucence()])
+
+        Catalog.put_tile_setting(tileset.id, "water", "animations", [
+          current,
+          water_translucence()
+        ])
       end
     end
 
@@ -2211,7 +2465,7 @@ defmodule Nebulith.Catalog.TileSource do
           glyph: piece.glyph,
           emoji: piece.emoji,
           color_role: nil,
-          blocking: false,
+          occupies: false,
           height: 0.0,
           category: "terrain",
           title: shore_title(label),
@@ -2233,7 +2487,7 @@ defmodule Nebulith.Catalog.TileSource do
           label: label,
           emoji: t["char"],
           color_role: nil,
-          blocking: false,
+          occupies: false,
           height: t["height"] || 0,
           category: t["category"],
           title: t["title"],
@@ -2351,12 +2605,24 @@ defmodule Nebulith.Catalog.TileSource do
         {tileset.key, tile.label}
       end
 
-    IO.puts("normalized #{length(changed)} tile heights across #{length(Catalog.list_tilesets())} styles (height is not art)")
+    IO.puts(
+      "normalized #{length(changed)} tile heights across #{length(Catalog.list_tilesets())} styles (height is not art)"
+    )
+
     :ok
   end
 
   # Prefixes whose members are pieces of ONE autotiled thing, so sharing a shape is the point.
-  @glyph_family_prefixes ~w(wall_ fountain_ trunk_ canopy_ tree_ roof_top)
+  #
+  # `water_` was the omission that emptied the pool. A river's edges, corners and animation frames are one
+  # autotiled family, 134 rows of it, and every one was treated as a tile that had lost a contest and owed
+  # the pool a fresh glyph. The pool ran out, `seed/0` raised half way through, and the catalog was left with
+  # its rows written and none of the tile-fact rules run.
+  #
+  # ONLY the families that really are one autotiled shape. `bridge_`, `road_` and `path_` were tried here at
+  # the same time and they are not: a bridge's deck, rib and post are different things, and excusing them
+  # let `bridge_timber_rib` keep the `H` that `horse` already drew.
+  @glyph_family_prefixes ~w(wall_ fountain_ trunk_ canopy_ tree_ roof_top water_)
   # One figure, distinguished by colour rather than by shape.
   @glyph_shared_labels ~w(adult person player)
 
@@ -2373,7 +2639,6 @@ defmodule Nebulith.Catalog.TileSource do
     ⧌ ⧍ ⧎ ⧏ ⧐ ⧑ ⧒ ⧓ ⧔ ⧕ ⧖ ⧗ ⧘ ⧙ ⧚ ⧛ ⧜ ⧝ ⧞ ⧟
     ⧠ ⧡ ⧢ ⧣ ⧤ ⧥ ⧦ ⧧ ⧨ ⧩ ⧪ ⧫ ⧬ ⧭ ⧮ ⧯ ⧰ ⧱ ⧲ ⧳
   )
-
 
   @doc """
   Applies the CURATED ascii glyphs (`priv/repo/tilesets/ascii_glyphs.json`), the file that decides what each
@@ -2440,7 +2705,10 @@ defmodule Nebulith.Catalog.TileSource do
         agree_on_label(label, tiles, tilesets)
       end)
 
-    IO.puts("agreed #{length(changed)} per-label facts across styles (a label owns everything but the picture)")
+    IO.puts(
+      "agreed #{length(changed)} per-label facts across styles (a label owns everything but the picture)"
+    )
+
     :ok
   end
 
@@ -2475,9 +2743,13 @@ defmodule Nebulith.Catalog.TileSource do
         end
       end)
 
-    plain = Enum.flat_map(by_label, fn {label, tiles} -> fill_blank_color(tilesets, tiles, label) end)
+    plain =
+      Enum.flat_map(by_label, fn {label, tiles} -> fill_blank_color(tilesets, tiles, label) end)
 
-    IO.puts("agreed #{length(written)} per-label colour maps and #{length(plain)} plain colours across styles")
+    IO.puts(
+      "agreed #{length(written)} per-label colour maps and #{length(plain)} plain colours across styles"
+    )
+
     :ok
   end
 
@@ -2498,7 +2770,8 @@ defmodule Nebulith.Catalog.TileSource do
   end
 
   # No style states a colour for this label: nothing to agree, and a colour is never invented here.
-  defp paint_blank_colors(canonical, _tilesets, _tiles, _label) when not is_binary(canonical), do: []
+  defp paint_blank_colors(canonical, _tilesets, _tiles, _label) when not is_binary(canonical),
+    do: []
 
   defp paint_blank_colors(canonical, tilesets, tiles, label) do
     for tileset <- tilesets,
@@ -2557,7 +2830,9 @@ defmodule Nebulith.Catalog.TileSource do
 
     tilesets
     |> Enum.map(fn tileset -> {tileset, Enum.find(tiles, &(&1.tileset_id == tileset.id))} end)
-    |> Enum.filter(fn {_tileset, tile} -> tile && (tile.title != title or tile.category != category) end)
+    |> Enum.filter(fn {_tileset, tile} ->
+      tile && (tile.title != title or tile.category != category)
+    end)
     |> Enum.map(fn {tileset, _tile} ->
       Catalog.set_tile_label_facts(tileset.id, label, title, category)
       {tileset.key, label}
@@ -2632,7 +2907,13 @@ defmodule Nebulith.Catalog.TileSource do
       for tileset <- Catalog.list_tilesets(),
           tile <- Catalog.list_tiles_for(tileset.key),
           tile.category == "units" do
-        Catalog.put_tile_setting(tileset.id, tile.label, "unitRole", role_for(tile.label, enemies))
+        Catalog.put_tile_setting(
+          tileset.id,
+          tile.label,
+          "unitRole",
+          role_for(tile.label, enemies)
+        )
+
         tile.label
       end
 
@@ -2658,52 +2939,190 @@ defmodule Nebulith.Catalog.TileSource do
   # ghost tile, so that is where a bandit's and a wraith's numbers belong.
   @unit_combat %{
     "goblin" => %{
-      "stats" => %{"strength" => 6, "intelligence" => 0, "defense" => 3, "maxHp" => 34, "dodge" => 5},
-      "moveDelayMs" => 1000, "reachCells" => 1,
-      "attack" => %{"mode" => "sequential", "attacks" => [
-        %{"mode" => "melee", "damage" => 4, "cooldownMs" => 1000, "animation" => "cleave", "name" => "Strike"}]}
+      "stats" => %{
+        "strength" => 6,
+        "intelligence" => 0,
+        "defense" => 3,
+        "maxHp" => 34,
+        "dodge" => 5
+      },
+      "moveDelayMs" => 1000,
+      "reachCells" => 1,
+      "attack" => %{
+        "mode" => "sequential",
+        "attacks" => [
+          %{
+            "mode" => "melee",
+            "damage" => 4,
+            "cooldownMs" => 1000,
+            "animation" => "cleave",
+            "name" => "Strike"
+          }
+        ]
+      }
     },
     "skeleton" => %{
-      "stats" => %{"strength" => 12, "intelligence" => 0, "defense" => 6, "maxHp" => 72, "dodge" => 0},
-      "moveDelayMs" => 1700, "reachCells" => 1,
-      "attack" => %{"mode" => "sequential", "attacks" => [
-        %{"mode" => "melee", "damage" => 18, "cooldownMs" => 6000, "animation" => "fire-slash", "name" => "Fire Slash"}]}
+      "stats" => %{
+        "strength" => 12,
+        "intelligence" => 0,
+        "defense" => 6,
+        "maxHp" => 72,
+        "dodge" => 0
+      },
+      "moveDelayMs" => 1700,
+      "reachCells" => 1,
+      "attack" => %{
+        "mode" => "sequential",
+        "attacks" => [
+          %{
+            "mode" => "melee",
+            "damage" => 18,
+            "cooldownMs" => 6000,
+            "animation" => "fire-slash",
+            "name" => "Fire Slash"
+          }
+        ]
+      }
     },
     "wolf" => %{
-      "stats" => %{"strength" => 5, "intelligence" => 0, "defense" => 1, "maxHp" => 20, "dodge" => 18},
-      "moveDelayMs" => 550, "reachCells" => 1,
-      "attack" => %{"mode" => "sequential", "attacks" => [
-        %{"mode" => "melee", "damage" => 2, "cooldownMs" => 450, "animation" => "cleave", "name" => "Quick Slash"}]}
+      "stats" => %{
+        "strength" => 5,
+        "intelligence" => 0,
+        "defense" => 1,
+        "maxHp" => 20,
+        "dodge" => 18
+      },
+      "moveDelayMs" => 550,
+      "reachCells" => 1,
+      "attack" => %{
+        "mode" => "sequential",
+        "attacks" => [
+          %{
+            "mode" => "melee",
+            "damage" => 2,
+            "cooldownMs" => 450,
+            "animation" => "cleave",
+            "name" => "Quick Slash"
+          }
+        ]
+      }
     },
     "ninja" => %{
-      "stats" => %{"strength" => 4, "intelligence" => 0, "defense" => 1, "maxHp" => 22, "dodge" => 10},
-      "moveDelayMs" => 900, "reachCells" => 6,
-      "attack" => %{"mode" => "sequential", "attacks" => [
-        %{"mode" => "ranged", "damage" => 6, "cooldownMs" => 1500, "animation" => "bolt", "name" => "Bolt", "reachCells" => 6}]}
+      "stats" => %{
+        "strength" => 4,
+        "intelligence" => 0,
+        "defense" => 1,
+        "maxHp" => 22,
+        "dodge" => 10
+      },
+      "moveDelayMs" => 900,
+      "reachCells" => 6,
+      "attack" => %{
+        "mode" => "sequential",
+        "attacks" => [
+          %{
+            "mode" => "ranged",
+            "damage" => 6,
+            "cooldownMs" => 1500,
+            "animation" => "bolt",
+            "name" => "Bolt",
+            "reachCells" => 6
+          }
+        ]
+      }
     },
     "ghost" => %{
-      "stats" => %{"strength" => 3, "intelligence" => 10, "defense" => 1, "maxHp" => 18, "dodge" => 6},
-      "moveDelayMs" => 950, "reachCells" => 7,
-      "attack" => %{"mode" => "sequential", "attacks" => [
-        %{"mode" => "ranged", "damage" => 12, "cooldownMs" => 1900, "animation" => "nova", "name" => "Arcane Bolt", "reachCells" => 7}]}
+      "stats" => %{
+        "strength" => 3,
+        "intelligence" => 10,
+        "defense" => 1,
+        "maxHp" => 18,
+        "dodge" => 6
+      },
+      "moveDelayMs" => 950,
+      "reachCells" => 7,
+      "attack" => %{
+        "mode" => "sequential",
+        "attacks" => [
+          %{
+            "mode" => "ranged",
+            "damage" => 12,
+            "cooldownMs" => 1900,
+            "animation" => "nova",
+            "name" => "Arcane Bolt",
+            "reachCells" => 7
+          }
+        ]
+      }
     },
     "bat" => %{
-      "stats" => %{"strength" => 4, "intelligence" => 0, "defense" => 0, "maxHp" => 16, "dodge" => 24},
-      "moveDelayMs" => 560, "reachCells" => 1,
-      "attack" => %{"mode" => "sequential", "attacks" => [
-        %{"mode" => "melee", "damage" => 2, "cooldownMs" => 500, "animation" => "cleave", "name" => "Bite"}]}
+      "stats" => %{
+        "strength" => 4,
+        "intelligence" => 0,
+        "defense" => 0,
+        "maxHp" => 16,
+        "dodge" => 24
+      },
+      "moveDelayMs" => 560,
+      "reachCells" => 1,
+      "attack" => %{
+        "mode" => "sequential",
+        "attacks" => [
+          %{
+            "mode" => "melee",
+            "damage" => 2,
+            "cooldownMs" => 500,
+            "animation" => "cleave",
+            "name" => "Bite"
+          }
+        ]
+      }
     },
     "spider" => %{
-      "stats" => %{"strength" => 6, "intelligence" => 0, "defense" => 2, "maxHp" => 30, "dodge" => 12},
-      "moveDelayMs" => 720, "reachCells" => 1,
-      "attack" => %{"mode" => "sequential", "attacks" => [
-        %{"mode" => "melee", "damage" => 4, "cooldownMs" => 900, "animation" => "cleave", "name" => "Venom Bite"}]}
+      "stats" => %{
+        "strength" => 6,
+        "intelligence" => 0,
+        "defense" => 2,
+        "maxHp" => 30,
+        "dodge" => 12
+      },
+      "moveDelayMs" => 720,
+      "reachCells" => 1,
+      "attack" => %{
+        "mode" => "sequential",
+        "attacks" => [
+          %{
+            "mode" => "melee",
+            "damage" => 4,
+            "cooldownMs" => 900,
+            "animation" => "cleave",
+            "name" => "Venom Bite"
+          }
+        ]
+      }
     },
     "guardian" => %{
-      "stats" => %{"strength" => 14, "intelligence" => 0, "defense" => 9, "maxHp" => 96, "dodge" => 0},
-      "moveDelayMs" => 1700, "reachCells" => 1,
-      "attack" => %{"mode" => "sequential", "attacks" => [
-        %{"mode" => "melee", "damage" => 20, "cooldownMs" => 2200, "animation" => "cleave", "name" => "Crush"}]}
+      "stats" => %{
+        "strength" => 14,
+        "intelligence" => 0,
+        "defense" => 9,
+        "maxHp" => 96,
+        "dodge" => 0
+      },
+      "moveDelayMs" => 1700,
+      "reachCells" => 1,
+      "attack" => %{
+        "mode" => "sequential",
+        "attacks" => [
+          %{
+            "mode" => "melee",
+            "damage" => 20,
+            "cooldownMs" => 2200,
+            "animation" => "cleave",
+            "name" => "Crush"
+          }
+        ]
+      }
     }
   }
 
@@ -2760,10 +3179,12 @@ defmodule Nebulith.Catalog.TileSource do
         {tileset.key, tile.label}
       end
 
-    IO.puts("pointed #{length(repointed)} tiles at their own picture (a tile draws ITSELF, not a neighbour)")
+    IO.puts(
+      "pointed #{length(repointed)} tiles at their own picture (a tile draws ITSELF, not a neighbour)"
+    )
+
     :ok
   end
-
 
   @doc """
   Applies the ASCII UNIT ART (`priv/repo/tilesets/ascii_unit_art.json`), the FIGURES units draw as.
@@ -2829,12 +3250,22 @@ defmodule Nebulith.Catalog.TileSource do
     written =
       for {label, %{"frames" => [_ | _] = frames}} <- art, Map.has_key?(served, label) do
         Catalog.put_tile_setting(tileset.id, label, "artFrames", frames)
-        Catalog.put_tile_setting(tileset.id, label, "frames", frame_images(tileset.key, label, frames, static))
+
+        Catalog.put_tile_setting(
+          tileset.id,
+          label,
+          "frames",
+          frame_images(tileset.key, label, frames, static)
+        )
+
         Catalog.put_tile_setting(tileset.id, label, "frameMs", @unit_frame_ms)
         label
       end
 
-    IO.puts("gave #{length(written)} ascii units their composed FIGURE (a unit is a grid of characters)")
+    IO.puts(
+      "gave #{length(written)} ascii units their composed FIGURE (a unit is a grid of characters)"
+    )
+
     :ok
   end
 
@@ -2844,7 +3275,9 @@ defmodule Nebulith.Catalog.TileSource do
   defp frame_images(style, label, frames, static) do
     frames
     |> Enum.with_index()
-    |> Enum.map(fn {_rows, i} -> if i == 0, do: "/tiles/#{style}/#{label}.png", else: "/tiles/#{style}/#{label}_f#{i}.png" end)
+    |> Enum.map(fn {_rows, i} ->
+      if i == 0, do: "/tiles/#{style}/#{label}.png", else: "/tiles/#{style}/#{label}_f#{i}.png"
+    end)
     |> Enum.filter(&File.exists?(Path.join(static, &1)))
   end
 
@@ -2875,14 +3308,14 @@ defmodule Nebulith.Catalog.TileSource do
   # AND YOU WALK THROUGH THEM.
   #
   # It is right, and the reason it survived three sessions is that the fix was looked for in the GENERATOR
-  # every time. It was never there. `makePlant` reads the tile and writes `blocking: !tile.walkable`, so a
+  # every time. It was never there. `makePlant` reads the tile and writes `occupies: !tile.walkable`, so a
   # plant blocks because its CATALOG ROW says it blocks, and `thicket` was the one plant row in the whole
-  # catalog with `blocking: true` (measured against live: every other nature tile is already false). It is
+  # catalog with `occupies: true` (measured against live: every other nature tile is already false). It is
   # also the understory of the `closed` and `understory` formations, which is exactly the swamp jungle he
   # was standing in. One boolean, on one row, in the backend where walkability belongs.
   #
   # So the rule writes BOTH facts about a ground plant: it stands at your feet (`stackAt: 0`) and you pass
-  # through it (`blocking: false`). They are the same statement said twice, and keeping them in one list is
+  # through it (`occupies: false`). They are the same statement said twice, and keeping them in one list is
   # what stops the next plant from arriving with one of the two missing.
   @ground_plants ~w(blossom bouquet clover flower hibiscus mushroom red-mushroom rose shamrock sunflower
                     tulip wilted-flower wheat bush shrub fallen-leaf maple-leaf thicket tall_grass)
@@ -2891,41 +3324,100 @@ defmodule Nebulith.Catalog.TileSource do
   #
   # It is right about where this ends up and it is worth writing down why it had not happened yet: the boxes
   # system was built (`collisionBoxes.ts`, 2026-09-11) but NO ROW HAS EVER CARRIED ONE. Measured against live
-  # before this: 0 of 375 tiles have `settings.collision`, 72 have `blocking: true`. So the finer truth has
+  # before this: 0 of 375 tiles have `settings.collision`, 72 have `occupies: true`. So the finer truth has
   # been running entirely off the coarse flag it was meant to replace, and `boxesForAsset` opens with
-  # `if (!asset.blocking) return []`. Two switches for one fact, and the one that owns the fact is empty.
+  # `if (!asset.occupies) return []`. Two switches for one fact, and the one that owns the fact is empty.
   #
   # This fills it, from the flag, so the world behaves IDENTICALLY the moment it lands: a tile that blocks
   # occupies its whole cell, a tile that does not occupies nothing. From here the box list is the only thing
   # anyone reads, a tile can be given a real shape instead of a square, and the flag has nothing left to say.
-  @whole_cell [%{"x" => 0, "y" => 0, "w" => 1, "h" => 1}]
 
   @doc """
-  Writes `settings.collision` on EVERY tile, in every tileset, derived from the `blocking` column.
+  Makes sure EVERY tile, in every tileset, SAYS what it occupies.
 
-  Pose-safe (`Catalog.put_tile_setting/4`), and written to walk-through rows too: an empty list SAYS "nothing
-  solid here", where an absent key only says nobody got round to it. The distinction is the whole point of
-  moving the fact into the data.
+  The boxes themselves are written where the fact is stated, at `Catalog.upsert_tile/1`, so this is the
+  backstop for a row nobody said anything about: an empty list SAYS "nothing solid here", where an absent key
+  only says nobody got round to it. That distinction is the whole point of moving the fact into the data, and
+  it is why this writes rather than skips.
+
+  It used to DERIVE the boxes from a `blocking` column. Two switches for one fact, the derivation ran once at
+  the end of a seed, and anything that changed the flag afterwards left the boxes behind. The column is gone.
   """
   def ensure_collisions do
-    {solid, clear} =
-      for tileset <- Catalog.list_tilesets(), tile <- Catalog.list_tiles_for(tileset.key), reduce: {0, 0} do
-        {solid, clear} ->
-          boxes = if tile.blocking, do: @whole_cell, else: []
-          Catalog.put_tile_setting(tileset.id, tile.label, "collision", boxes)
-          if tile.blocking, do: {solid + 1, clear}, else: {solid, clear + 1}
+    {stated, filled} =
+      for tileset <- Catalog.list_tilesets(),
+          tile <- Catalog.list_tiles_for(tileset.key),
+          reduce: {0, 0} do
+        {stated, filled} ->
+          case Map.has_key?(tile.settings || %{}, "collision") do
+            true ->
+              {stated + 1, filled}
+
+            false ->
+              Catalog.put_tile_setting(tileset.id, tile.label, "collision", [])
+              {stated, filled + 1}
+          end
       end
 
-    IO.puts("#{solid} tiles occupy their cell, #{clear} occupy nothing")
+    IO.puts(
+      "#{stated} tiles say what they occupy, #{filled} were silent and now say nothing solid"
+    )
+
     :ok
   end
+
+  # DOES THIS ROW OCCUPY ITS CELL, read off the box list, which is where the fact lives now that the
+  # `blocking` column is gone. A seeder that copies one tile's solidity onto another asks this.
+  defp solid?(%{settings: settings}), do: length(Map.get(settings || %{}, "collision", [])) > 0
+  defp solid?(_), do: false
 
   @doc "Does this label stand at ground level, so nothing stacks on top of it? The rule `ensure_ground_plants/0` writes."
   def ground_plant?(label), do: label in @ground_plants
 
+  # AN ORNAMENT IS ONE OBJECT LYING ON THE GROUND. It draws as a single billboard inside a transparent
+  # block, never as a cube with its picture painted on the top and both visible faces, which is what a rock
+  # and a bush looked like: a stone crate.
+  #
+  # Split only by whether you can walk through it. A boulder is knee-high or better so you go round it; a
+  # mushroom you step on.
+  #
+  # These two facts lived in a data migration that patched the seeder's output. `upsert_tile` REPLACES the
+  # whole settings map, so every reseed turned the rocks back into cubes you could walk through, over and
+  # over, with nothing in the code having changed. One fact, one owner, and the owner is the seeder.
+  @solid_ornaments ~w(rock boulder wood-log)
+  @walkover_ornaments ~w(mushroom red-mushroom seashell decor_shell decor_pebbles shamrock bush shrub)
+
+  @doc "Is this label an ornament, one object lying on the ground? The rule `ensure_ornaments/0` writes."
+  def ornament?(label), do: label in @solid_ornaments or label in @walkover_ornaments
+
   @doc """
-  Gives every ground plant `stackAt: 0` AND `blocking: false`, in every tileset, writing ONLY those two
-  facts (`Catalog.put_tile_setting/4`, `Catalog.set_tile_blocking/3`) so poses and sizes tuned in the
+  Every ornament draws as ONE object, and the ones big enough to stop you do.
+
+  Runs after `ensure_ground_plants/0`, which clears `blocking` on the walk-over ones, and before
+  `ensure_collisions/0`, which is what turns the flag into the box. Targeted setting writes
+  (`Catalog.put_tile_setting/4`), so a pose tuned in the editor survives.
+  """
+  def ensure_ornaments do
+    {solid, walkover} =
+      for tileset <- Catalog.list_tilesets(),
+          tile <- Catalog.list_tiles_for(tileset.key),
+          ornament?(tile.label),
+          reduce: {0, 0} do
+        {solid, walkover} ->
+          stops_you = tile.label in @solid_ornaments
+          Catalog.put_tile_setting(tileset.id, tile.label, "display", "single")
+          Catalog.put_tile_setting(tileset.id, tile.label, "transparent", true)
+          Catalog.set_tile_solid(tileset.id, tile.label, stops_you)
+          if stops_you, do: {solid + 1, walkover}, else: {solid, walkover + 1}
+      end
+
+    IO.puts("#{solid + walkover} ornaments draw as one object, #{solid} of them stop you")
+    :ok
+  end
+
+  @doc """
+  Gives every ground plant `stackAt: 0` AND `occupies: false`, in every tileset, writing ONLY those two
+  facts (`Catalog.put_tile_setting/4`, `Catalog.set_tile_solid/3`) so poses and sizes tuned in the
   editor survive.
 
   Runs alongside `ensure_fade_near/0` for the same reason: these labels are written by several passes and
@@ -2933,9 +3425,11 @@ defmodule Nebulith.Catalog.TileSource do
   """
   def ensure_ground_plants do
     written =
-      for tileset <- Catalog.list_tilesets(), tile <- Catalog.list_tiles_for(tileset.key), ground_plant?(tile.label) do
+      for tileset <- Catalog.list_tilesets(),
+          tile <- Catalog.list_tiles_for(tileset.key),
+          ground_plant?(tile.label) do
         Catalog.put_tile_setting(tileset.id, tile.label, "stackAt", 0)
-        Catalog.set_tile_blocking(tileset.id, tile.label, false)
+        Catalog.set_tile_solid(tileset.id, tile.label, false)
         tile.label
       end
 
@@ -2944,7 +3438,8 @@ defmodule Nebulith.Catalog.TileSource do
   end
 
   @doc "Does this label fade as the hero comes close? The rule `ensure_fade_near/0` writes."
-  def fades_near?(label), do: label in @fade_near or String.starts_with?(label, @fade_near_prefixes)
+  def fades_near?(label),
+    do: label in @fade_near or String.starts_with?(label, @fade_near_prefixes)
 
   @doc """
   Gives every tree part and standing exterior tile `fadeNear`, in every tileset, writing ONLY that key
@@ -2956,7 +3451,9 @@ defmodule Nebulith.Catalog.TileSource do
   """
   def ensure_fade_near do
     written =
-      for tileset <- Catalog.list_tilesets(), tile <- Catalog.list_tiles_for(tileset.key), fades_near?(tile.label) do
+      for tileset <- Catalog.list_tilesets(),
+          tile <- Catalog.list_tiles_for(tileset.key),
+          fades_near?(tile.label) do
         Catalog.put_tile_setting(tileset.id, tile.label, "fadeNear", true)
         tile.label
       end
@@ -2991,12 +3488,22 @@ defmodule Nebulith.Catalog.TileSource do
   the plain glyphs a reader expects. Walks the glyph column only, so editor-tuned poses survive.
   """
   def ensure_distinct_glyphs do
-    changed =
-      for tileset <- Catalog.list_tilesets(), reduce: [] do
-        acc -> acc ++ distinct_glyphs_for(tileset)
+    {changed, short} =
+      for tileset <- Catalog.list_tilesets(), reduce: {[], []} do
+        {changed, short} ->
+          {gave, missed} = distinct_glyphs_for(tileset)
+          {changed ++ gave, short ++ missed}
       end
 
     IO.puts("gave #{length(changed)} tiles their own glyph (a shared glyph is a shared picture)")
+
+    if short != [] do
+      IO.puts(
+        "GLYPH POOL EXHAUSTED: #{length(short)} tiles kept a glyph another tile already draws, so they " <>
+          "draw the same picture. Widen @glyph_pool. #{Enum.join(Enum.take(short, 12), ", ")}"
+      )
+    end
+
     :ok
   end
 
@@ -3007,30 +3514,68 @@ defmodule Nebulith.Catalog.TileSource do
     tiles
     |> Enum.group_by(& &1.glyph, & &1.label)
     |> Enum.flat_map(fn {_glyph, labels} -> contested(labels) end)
-    |> Enum.sort()
-    |> Enum.reduce({taken, @glyph_pool, []}, fn label, {taken, pool, done} ->
-      {glyph, rest} = take_free_glyph(pool, taken)
-      Catalog.set_tile_glyph(tileset.id, label, glyph)
-      {MapSet.put(taken, glyph), rest, [label | done]}
-    end)
-    |> elem(2)
+    |> Enum.sort_by(fn {identity, _labels} -> identity end)
+    |> Enum.reduce({taken, @glyph_pool, [], []}, &move_to_free_glyph(tileset, &1, &2))
+    |> then(fn {_taken, _pool, done, short} -> {done, short} end)
   end
 
-  # The labels on one glyph that must MOVE: everything but the incumbent, once the members that share a
-  # glyph BY DESIGN are set aside.
+  # ONE new glyph for the whole group that has to move, written onto every one of its labels.
+  #
+  # A family is one SHAPE drawn in many pieces, so when it loses a contest it moves together and keeps
+  # sharing; giving each piece its own glyph would break the very thing the family exists to express.
+  defp move_to_free_glyph(tileset, {_identity, labels}, {taken, pool, done, short}) do
+    case take_free_glyph(pool, taken) do
+      {nil, _} ->
+        {taken, [], done, labels ++ short}
+
+      {glyph, rest} ->
+        for label <- labels, do: Catalog.set_tile_glyph(tileset.id, label, glyph)
+        {MapSet.put(taken, glyph), rest, labels ++ done, short}
+    end
+  end
+
+  # WHAT HAS TO MOVE OFF THIS GLYPH, as groups rather than as labels.
+  #
+  # An IDENTITY is one thing that may hold a glyph: an autotiled family (every `water_` piece is one river),
+  # or a single label. One identity on a glyph is not a collision, it is the family drawing its own shape.
+  # Two are, however one of them is spelled, and that is the case this missed: `water_` was excused from the
+  # contest entirely, so `water_still` went on drawing the `⌷` that `bamboo_floor` also drew. Being a family
+  # earns a member the right to share with ITS OWN, never with an outsider.
+  #
+  # The incumbent is the alphabetically-first identity, so the assignment is stable across runs and the
+  # baseline tiles the generator leans on keep the plain glyphs a reader expects.
   defp contested(labels) do
-    case labels
-         |> Enum.reject(&(glyph_family?(&1) or &1 in @glyph_shared_labels))
-         |> Enum.sort() do
+    labels
+    |> Enum.reject(&(&1 in @glyph_shared_labels))
+    |> Enum.group_by(&glyph_identity/1)
+    |> Enum.sort_by(fn {identity, _labels} -> identity end)
+    |> case do
       [] -> []
       [_only] -> []
       [_incumbent | rest] -> rest
     end
   end
 
-  defp glyph_family?(label), do: Enum.any?(@glyph_family_prefixes, &String.starts_with?(label, &1))
+  @doc """
+  The ONE THING that holds a glyph: the autotiled family this label belongs to, or the label itself.
 
-  defp take_free_glyph([], _taken), do: raise("glyph pool exhausted, widen @glyph_pool")
+  Public because the rule has exactly one owner. A test that keeps its own list of families is a second
+  list, and the day one of them gains a member the two disagree about what counts as a collision.
+  """
+  def glyph_identity(label) do
+    Enum.find(@glyph_family_prefixes, label, &String.starts_with?(label, &1))
+  end
+
+  defp glyph_family?(label),
+    do: Enum.any?(@glyph_family_prefixes, &String.starts_with?(label, &1))
+
+  # NO GLYPH LEFT is reported, never raised.
+  #
+  # Raising here stopped `seed/0` half way, with the tile rows written and none of the tile-FACT rules run,
+  # so a catalog that had merely run out of glyphs came out of it with rocks you could walk through and a
+  # preview panel missing its pictures. A seed has to finish; a tile that had to keep a shared glyph is a
+  # picture shared with another tile, which is visible, countable and said out loud at the end.
+  defp take_free_glyph([], _taken), do: {nil, []}
 
   defp take_free_glyph([g | rest], taken) do
     if MapSet.member?(taken, g), do: take_free_glyph(rest, taken), else: {g, rest}
@@ -3093,7 +3638,10 @@ defmodule Nebulith.Catalog.TileSource do
           [tile.label | acc]
       end
 
-    IO.puts("flattened #{length(flattened)} ground tiles: #{Enum.join(Enum.uniq(flattened), ", ")}")
+    IO.puts(
+      "flattened #{length(flattened)} ground tiles: #{Enum.join(Enum.uniq(flattened), ", ")}"
+    )
+
     :ok
   end
 
@@ -3102,13 +3650,18 @@ defmodule Nebulith.Catalog.TileSource do
     emoji = read_tileset("emoji.json")
 
     updated =
-      for {label, t} <- emoji, t["category"] in ~w(buildings walls windows doors roofs props nature), reduce: 0 do
+      for {label, t} <- emoji,
+          t["category"] in ~w(buildings walls windows doors roofs props nature),
+          reduce: 0 do
         acc ->
           {n, _} = Catalog.set_tile_height(emoji_id, label, max(1.0, t["height"] || 1))
           acc + n
       end
 
-    IO.puts("reconciled #{updated} emoji asset-tile heights from per-tile DATA (ground = 0, standing ≥ 1)")
+    IO.puts(
+      "reconciled #{updated} emoji asset-tile heights from per-tile DATA (ground = 0, standing ≥ 1)"
+    )
+
     :ok
   end
 
@@ -3144,6 +3697,7 @@ defmodule Nebulith.Catalog.TileSource do
   # priv/tilegen (tiles.json → bake.mjs). image_url MUST be non-nil (MAP-MODEL §8 / TILE-BACKEND-MIGRATION §5).
   defp seed_tree_leaves(emoji_id, palettes) do
     emoji = read_tileset("emoji.json")
+
     # The canopy SHADE array per zone (green…pink for spring), the SAME data ascii's leaf carries, so an emoji
     # tree's per-tree `variant` picks a tone (green vs pink) exactly like ascii. `color` stays for the emoji
     # sidebar/backing fill; `colors` drives the composition's variant tint.
@@ -3156,7 +3710,7 @@ defmodule Nebulith.Catalog.TileSource do
           label: label,
           emoji: t["char"],
           color_role: nil,
-          blocking: false,
+          occupies: false,
           height: t["height"] || 0,
           category: t["category"],
           title: t["title"],
@@ -3182,7 +3736,9 @@ defmodule Nebulith.Catalog.TileSource do
   def seed_canopy_sheet do
     ascii_id = ensure_tileset("ascii", "ASCII").id
     emoji_id = ensure_tileset("emoji", "Emoji").id
-    pieces = ~w(canopy_tl canopy_t canopy_tr canopy_l canopy_c canopy_r canopy_bl canopy_b canopy_br canopy_under)
+
+    pieces =
+      ~w(canopy_tl canopy_t canopy_tr canopy_l canopy_c canopy_r canopy_bl canopy_b canopy_br canopy_under)
 
     for {id, style} <- [{emoji_id, "emoji"}, {ascii_id, "ascii"}], label <- pieces do
       {:ok, _} =
@@ -3190,7 +3746,7 @@ defmodule Nebulith.Catalog.TileSource do
           tileset_id: id,
           label: label,
           color_role: nil,
-          blocking: false,
+          occupies: false,
           # A canopy piece is CONTENT hung in the air, not ground: the composition places it at the level its
           # trunks reach, so its own height must not add to that.
           height: 0,
@@ -3230,11 +3786,15 @@ defmodule Nebulith.Catalog.TileSource do
   # flat one stands on piles, and no retexturing turns one into the other.
   @bridge_materials %{
     "stone" => %{
-      block: "bridge_stone_block", deck: "bridge_stone_deck", side: "bridge_stone_parapet",
+      block: "bridge_stone_block",
+      deck: "bridge_stone_deck",
+      side: "bridge_stone_parapet",
       cap: "bridge_stone_bollard"
     },
     "timber" => %{
-      block: "bridge_timber_rib", deck: "bridge_timber_deck", side: "bridge_timber_rail",
+      block: "bridge_timber_rib",
+      deck: "bridge_timber_deck",
+      side: "bridge_timber_rail",
       cap: "bridge_timber_post"
     }
   }
@@ -3338,6 +3898,7 @@ defmodule Nebulith.Catalog.TileSource do
 
   defp tree_comp(opts) do
     leaf_w = Map.get(opts, :leaf_w, 1.0)
+
     # DERIVED, not stated. `trunk_w` scales the trunk's own tile; what has to hold is the drawn WIDTH against
     # the drawn crown, and only this has both numbers.
     #
@@ -3347,7 +3908,10 @@ defmodule Nebulith.Catalog.TileSource do
     # three read 0.585. A dozen authored widths became a dead knob, and the ask was to fix the proportions,
     # not to make every tree the same. Scaling by the widest keeps the spread and still honours the share.
     crown = opts.leaf_zoom * leaf_w
-    trunk_w = Map.get(opts, :trunk_w, 1.0) / @widest_trunk * (crown * @trunk_to_crown / opts.trunk_zoom)
+
+    trunk_w =
+      Map.get(opts, :trunk_w, 1.0) / @widest_trunk * (crown * @trunk_to_crown / opts.trunk_zoom)
+
     assert_tree_dimensions!(trunk_w, leaf_w, opts)
     leaf_level = round(opts.trunk_h * opts.trunk_zoom)
 
@@ -3357,7 +3921,15 @@ defmodule Nebulith.Catalog.TileSource do
       # A tree is natural cover → the `nature` bucket (the SAME category vocabulary tiles use, MAP-MODEL §8).
       category: "nature",
       cells: [
-        %{dx: 0, dy: 0, level: 0, label: "trunk_mid", walkable: false, scale: opts.trunk_zoom, settings: trunk_settings(opts.trunk_h, trunk_w)},
+        %{
+          dx: 0,
+          dy: 0,
+          level: 0,
+          label: "trunk_mid",
+          walkable: false,
+          scale: opts.trunk_zoom,
+          settings: trunk_settings(opts.trunk_h, trunk_w)
+        },
         leaf_cell(leaf_level, opts.leaf_h, opts.leaf_zoom, Map.get(opts, :shape), true)
       ]
     }
@@ -3368,7 +3940,12 @@ defmodule Nebulith.Catalog.TileSource do
   # walkable overhead canopy). One tile, the leanest asset in the set.
   defp bush_comp(opts) do
     # A bush is natural cover too → the `nature` bucket, exactly like the trees it is a trunkless variant of.
-    %{footprint_w: 1, footprint_h: 1, category: "nature", cells: [leaf_cell(0, opts.leaf_h, opts.leaf_zoom, Map.get(opts, :shape), false)]}
+    %{
+      footprint_w: 1,
+      footprint_h: 1,
+      category: "nature",
+      cells: [leaf_cell(0, opts.leaf_h, opts.leaf_zoom, Map.get(opts, :shape), false)]
+    }
   end
 
   # A CACTUS, AS AN OBJECT MADE OF CELLS.
@@ -3398,7 +3975,16 @@ defmodule Nebulith.Catalog.TileSource do
     # ("tree_round"/"bush_round"), so "tree" and "tree round" render DIFFERENTLY. An explicit shape always wins (a future conifer can pass a cone).
     settings = %{"scaleY" => leaf_h}
     settings = if shape, do: Map.put(settings, "shape", shape), else: settings
-    %{dx: 0, dy: 0, level: level, label: "leaf_center", walkable: walkable, scale: leaf_zoom, settings: settings}
+
+    %{
+      dx: 0,
+      dy: 0,
+      level: level,
+      label: "leaf_center",
+      walkable: walkable,
+      scale: leaf_zoom,
+      settings: settings
+    }
   end
 
   # Width (scaleX) rides the settings jsonb like Height (scaleY); a default-width trunk omits it so the cell
@@ -3413,7 +3999,8 @@ defmodule Nebulith.Catalog.TileSource do
     # THINNER IS NOT ENOUGH. This asked only that the trunk be narrower than the crown, which a trunk at 80%
     # of it satisfies, and `tree_cypress` was exactly that. The share is the thing that reads as a tree, so
     # the share is what is checked.
-    unless opts.trunk_zoom < opts.leaf_zoom and trunk_eff_w <= leaf_eff_w * @trunk_to_crown + 0.0001 do
+    unless opts.trunk_zoom < opts.leaf_zoom and
+             trunk_eff_w <= leaf_eff_w * @trunk_to_crown + 0.0001 do
       raise ArgumentError,
             "tree #{inspect(opts)} has too thick a trunk: #{Float.round(trunk_eff_w / leaf_eff_w, 3)} of its " <>
               "crown, and a trunk may be at most #{@trunk_to_crown} (trunk_eff_w=#{trunk_eff_w}, " <>
@@ -3437,16 +4024,63 @@ defmodule Nebulith.Catalog.TileSource do
       # hand-tuned green tree (trunk H3.15/zoom0.6, leaf H2/zoom1.35) is the CENTER; the variants spread a
       # believable range: tall/small trunks, skinny/thick trunks, ROUND canopies (shape: circle), and trunkless
       # BUSHES (leaf only). Down from 3 cells to 2 (bush: 1), the optimization the ticket asked for.
-      "tree" => tree_comp(%{trunk_h: 3.15, trunk_zoom: 0.6, trunk_w: 1.0, leaf_h: 2.0, leaf_zoom: 1.35, shape: "circle"}),
-      "tree_tall" => tree_comp(%{trunk_h: 4.4, trunk_zoom: 0.6, trunk_w: 0.85, leaf_h: 2.0, leaf_zoom: 1.35, shape: "circle"}),
-      "tree_stub" => tree_comp(%{trunk_h: 1.7, trunk_zoom: 0.6, trunk_w: 1.2, leaf_h: 1.0, leaf_zoom: 1.35, shape: "circle"}),
+      "tree" =>
+        tree_comp(%{
+          trunk_h: 3.15,
+          trunk_zoom: 0.6,
+          trunk_w: 1.0,
+          leaf_h: 2.0,
+          leaf_zoom: 1.35,
+          shape: "circle"
+        }),
+      "tree_tall" =>
+        tree_comp(%{
+          trunk_h: 4.4,
+          trunk_zoom: 0.6,
+          trunk_w: 0.85,
+          leaf_h: 2.0,
+          leaf_zoom: 1.35,
+          shape: "circle"
+        }),
+      "tree_stub" =>
+        tree_comp(%{
+          trunk_h: 1.7,
+          trunk_zoom: 0.6,
+          trunk_w: 1.2,
+          leaf_h: 1.0,
+          leaf_zoom: 1.35,
+          shape: "circle"
+        }),
       "tree_round" =>
-        tree_comp(%{trunk_h: 3.15, trunk_zoom: 0.6, trunk_w: 1.0, leaf_h: 2.0, leaf_zoom: 1.35, shape: "circle"}),
+        tree_comp(%{
+          trunk_h: 3.15,
+          trunk_zoom: 0.6,
+          trunk_w: 1.0,
+          leaf_h: 2.0,
+          leaf_zoom: 1.35,
+          shape: "circle"
+        }),
       # SIZE variants: tree_small = a genuinely SMALL tree (short trunk + small canopy, was a
       # confusing legacy 5×3), tree_big = a LARGE tree (tall trunk + broad canopy). Both respect the trunk<leaf
       # dimension guard. Canopy WIDTH (leaf_zoom) is the main size read: 0.95 small vs 1.35 default vs 1.9 big.
-      "tree_small" => tree_comp(%{trunk_h: 1.9, trunk_zoom: 0.5, trunk_w: 1.0, leaf_h: 1.2, leaf_zoom: 0.95, shape: "circle"}),
-      "tree_big" => tree_comp(%{trunk_h: 4.2, trunk_zoom: 0.7, trunk_w: 1.0, leaf_h: 2.8, leaf_zoom: 1.9, shape: "circle"}),
+      "tree_small" =>
+        tree_comp(%{
+          trunk_h: 1.9,
+          trunk_zoom: 0.5,
+          trunk_w: 1.0,
+          leaf_h: 1.2,
+          leaf_zoom: 0.95,
+          shape: "circle"
+        }),
+      "tree_big" =>
+        tree_comp(%{
+          trunk_h: 4.2,
+          trunk_zoom: 0.7,
+          trunk_w: 1.0,
+          leaf_h: 2.8,
+          leaf_zoom: 1.9,
+          shape: "circle"
+        }),
       "bush" => bush_comp(%{leaf_h: 1.2, leaf_zoom: 1.35}),
       "bush_round" => bush_comp(%{leaf_h: 1.2, leaf_zoom: 1.35, shape: "circle"}),
       # MORE SPECIES, FROM THE SAME BASE. Every one below is `tree_comp/1` with different proportions, so each still
@@ -3458,25 +4092,71 @@ defmodule Nebulith.Catalog.TileSource do
       # `circle` would be just as wrong the other way. The renderer draws `square` and `circle` and nothing
       # else, so these two keep the box until a cone exists. Filed rather than fudged.
       # conifer: a tall narrow crown on a thin trunk (reference image #12, the hillside conifers)
-      "tree_conifer" => tree_comp(%{trunk_h: 3.8, trunk_zoom: 0.45, trunk_w: 0.8, leaf_h: 3.4, leaf_zoom: 0.9}),
+      "tree_conifer" =>
+        tree_comp(%{trunk_h: 3.8, trunk_zoom: 0.45, trunk_w: 0.8, leaf_h: 3.4, leaf_zoom: 0.9}),
       # column: a long straight bare trunk with the crown held high (image #11's beech stand, #15's giants)
-      "tree_column" => tree_comp(%{trunk_h: 5.0, trunk_zoom: 0.5, trunk_w: 0.8, leaf_h: 2.2, leaf_zoom: 1.2, shape: "circle"}),
+      "tree_column" =>
+        tree_comp(%{
+          trunk_h: 5.0,
+          trunk_zoom: 0.5,
+          trunk_w: 0.8,
+          leaf_h: 2.2,
+          leaf_zoom: 1.2,
+          shape: "circle"
+        }),
       # broadleaf: short trunk under a wide, low, round crown
       "tree_broadleaf" =>
-        tree_comp(%{trunk_h: 2.4, trunk_zoom: 0.55, trunk_w: 1.1, leaf_h: 1.7, leaf_zoom: 1.75, shape: "circle"}),
+        tree_comp(%{
+          trunk_h: 2.4,
+          trunk_zoom: 0.55,
+          trunk_w: 1.1,
+          leaf_h: 1.7,
+          leaf_zoom: 1.75,
+          shape: "circle"
+        }),
       # gnarled: a squat trunk under a flat spreading crown, the lone pasture tree of image #10
       "tree_gnarled" =>
-        tree_comp(%{trunk_h: 2.0, trunk_zoom: 0.6, trunk_w: 1.15, leaf_h: 1.3, leaf_zoom: 1.85, shape: "circle"}),
+        tree_comp(%{
+          trunk_h: 2.0,
+          trunk_zoom: 0.6,
+          trunk_w: 1.15,
+          leaf_h: 1.3,
+          leaf_zoom: 1.85,
+          shape: "circle"
+        }),
       # giant: the jungle emergent, taller and broader than anything around it
       "tree_giant" =>
-        tree_comp(%{trunk_h: 5.8, trunk_zoom: 0.75, trunk_w: 1.1, leaf_h: 2.8, leaf_zoom: 2.1, shape: "circle"}),
+        tree_comp(%{
+          trunk_h: 5.8,
+          trunk_zoom: 0.75,
+          trunk_w: 1.1,
+          leaf_h: 2.8,
+          leaf_zoom: 2.1,
+          shape: "circle"
+        }),
       # cypress: a thick buttressed trunk and a modest crown, the trees standing in the water of image #13
-      "tree_cypress" => tree_comp(%{trunk_h: 3.4, trunk_zoom: 0.8, trunk_w: 1.3, leaf_h: 1.8, leaf_zoom: 1.3}),
+      "tree_cypress" =>
+        tree_comp(%{trunk_h: 3.4, trunk_zoom: 0.8, trunk_w: 1.3, leaf_h: 1.8, leaf_zoom: 1.3}),
       # palm: a tall skinny trunk with a small round top, for coastal and island ground
       "tree_palm" =>
-        tree_comp(%{trunk_h: 4.6, trunk_zoom: 0.4, trunk_w: 0.7, leaf_h: 1.0, leaf_zoom: 1.15, shape: "circle"}),
+        tree_comp(%{
+          trunk_h: 4.6,
+          trunk_zoom: 0.4,
+          trunk_w: 0.7,
+          leaf_h: 1.0,
+          leaf_zoom: 1.15,
+          shape: "circle"
+        }),
       # sapling: new growth, the smallest tree there is
-      "tree_sapling" => tree_comp(%{trunk_h: 1.2, trunk_zoom: 0.35, trunk_w: 0.8, leaf_h: 0.9, leaf_zoom: 0.7, shape: "circle"}),
+      "tree_sapling" =>
+        tree_comp(%{
+          trunk_h: 1.2,
+          trunk_zoom: 0.35,
+          trunk_w: 0.8,
+          leaf_h: 0.9,
+          leaf_zoom: 0.7,
+          shape: "circle"
+        }),
       # THE TROPICS. and, when I called it
       # blocked on art:
       #
@@ -3485,11 +4165,35 @@ defmodule Nebulith.Catalog.TileSource do
       # same two-tile `tree_comp` every other species is.
       #
       # coconut: taller and leaner than the palm, its small crown held right at the top
-      "tree_coconut" => tree_comp(%{trunk_h: 5.4, trunk_zoom: 0.38, trunk_w: 0.65, leaf_h: 1.1, leaf_zoom: 1.3, shape: "circle"}),
+      "tree_coconut" =>
+        tree_comp(%{
+          trunk_h: 5.4,
+          trunk_zoom: 0.38,
+          trunk_w: 0.65,
+          leaf_h: 1.1,
+          leaf_zoom: 1.3,
+          shape: "circle"
+        }),
       # banana: a short fat pseudo-stem under enormous low leaves, wider than it is tall
-      "tree_banana" => tree_comp(%{trunk_h: 1.6, trunk_zoom: 0.5, trunk_w: 0.9, leaf_h: 1.6, leaf_zoom: 1.95, shape: "circle"}),
+      "tree_banana" =>
+        tree_comp(%{
+          trunk_h: 1.6,
+          trunk_zoom: 0.5,
+          trunk_w: 0.9,
+          leaf_h: 1.6,
+          leaf_zoom: 1.95,
+          shape: "circle"
+        }),
       # mangrove: the for a coast, a thick braced base under a broad low crown
-      "tree_mangrove" => tree_comp(%{trunk_h: 2.2, trunk_zoom: 0.7, trunk_w: 1.25, leaf_h: 1.5, leaf_zoom: 1.8, shape: "circle"}),
+      "tree_mangrove" =>
+        tree_comp(%{
+          trunk_h: 2.2,
+          trunk_zoom: 0.7,
+          trunk_w: 1.25,
+          leaf_h: 1.5,
+          leaf_zoom: 1.8,
+          shape: "circle"
+        }),
       # THE FOUR HE NAMED THAT THE CATALOG DID NOT HAVE: *"I like to see pines, palm tree, cypress, oak,
       # weeping willow, cherry tree, encina"*. Pine is `tree_conifer`, and cypress and palm are already here,
       # so these are the remainder. Same `tree_comp/1` as every other species, which is the point: the builder
@@ -3501,20 +4205,52 @@ defmodule Nebulith.Catalog.TileSource do
       # AN OAK IS TALL. It and the encina were the same tree at two sizes, and read as one thing on the map.
       # A Quercus robur carries a big round crown well clear of the ground on a long bole, which is the half of
       # the pair that goes UP.
-      "tree_oak" => tree_comp(%{trunk_h: 3.6, trunk_zoom: 0.64, trunk_w: 1.15, leaf_h: 2.5, leaf_zoom: 2.05, shape: "circle"}),
+      "tree_oak" =>
+        tree_comp(%{
+          trunk_h: 3.6,
+          trunk_zoom: 0.64,
+          trunk_w: 1.15,
+          leaf_h: 2.5,
+          leaf_zoom: 2.05,
+          shape: "circle"
+        }),
       # weeping willow: the crown HANGS. A slim trunk carrying a tall, wide fall of leaf, so its mass sits low
       # and spreads, the opposite silhouette to the column.
-      "tree_willow" => tree_comp(%{trunk_h: 2.6, trunk_zoom: 0.5, trunk_w: 0.9, leaf_h: 2.6, leaf_zoom: 1.95, shape: "circle"}),
+      "tree_willow" =>
+        tree_comp(%{
+          trunk_h: 2.6,
+          trunk_zoom: 0.5,
+          trunk_w: 0.9,
+          leaf_h: 2.6,
+          leaf_zoom: 1.95,
+          shape: "circle"
+        }),
       # cherry: small and delicate, a light crown on a thin trunk. Its BLOSSOM needs no special art: the
       # spring shade array already carries a pink, and a tree's variant picks it.
-      "tree_cherry" => tree_comp(%{trunk_h: 2.2, trunk_zoom: 0.45, trunk_w: 0.9, leaf_h: 1.4, leaf_zoom: 1.6, shape: "circle"}),
+      "tree_cherry" =>
+        tree_comp(%{
+          trunk_h: 2.2,
+          trunk_zoom: 0.45,
+          trunk_w: 0.9,
+          leaf_h: 1.4,
+          leaf_zoom: 1.6,
+          shape: "circle"
+        }),
       # encina: the holm oak of a dry dehesa. Evergreen, dense and rounded, on a short sturdy trunk, and it
       # stands in the open rather than in a closed wood.
       # AN ENCINA IS LOW AND WIDE, which is the other half. A holm oak branches low off a short thick bole and
       # spreads into a broad flat dome, the dehesa shape, so it goes OUT where the oak goes up. Same two pieces,
       # opposite proportions, and that is the whole separation: no new art, because the difference between
       # these two species in life IS their proportion.
-      "tree_encina" => tree_comp(%{trunk_h: 1.5, trunk_zoom: 0.52, trunk_w: 1.45, leaf_h: 1.35, leaf_zoom: 2.7, shape: "circle"}),
+      "tree_encina" =>
+        tree_comp(%{
+          trunk_h: 1.5,
+          trunk_zoom: 0.52,
+          trunk_w: 1.45,
+          leaf_h: 1.35,
+          leaf_zoom: 2.7,
+          shape: "circle"
+        }),
       # THE DRY COUNTRY. A desert grew bananas and mangroves and had no cactus at all.
       #
       # saguaro, straight off his sketch: the trunk runs the full height, a wide low bar crosses it, and a
@@ -3576,10 +4312,34 @@ defmodule Nebulith.Catalog.TileSource do
         footprint_h: 1,
         category: "nature",
         cells: [
-          %{dx: 0, dy: 0, level: 0, label: "cactus_barrel", walkable: false, scale: 1.0,
-            settings: %{"scaleX" => 0.72, "scaleY" => 0.72, "shape" => "circle", "pose" => %{"dx" => -0.2}}},
-          %{dx: 0, dy: 0, level: 0, label: "cactus_barrel", walkable: false, scale: 1.0,
-            settings: %{"scaleX" => 0.48, "scaleY" => 0.5, "shape" => "circle", "pose" => %{"dx" => 0.3, "dy" => 0.1}}}
+          %{
+            dx: 0,
+            dy: 0,
+            level: 0,
+            label: "cactus_barrel",
+            walkable: false,
+            scale: 1.0,
+            settings: %{
+              "scaleX" => 0.72,
+              "scaleY" => 0.72,
+              "shape" => "circle",
+              "pose" => %{"dx" => -0.2}
+            }
+          },
+          %{
+            dx: 0,
+            dy: 0,
+            level: 0,
+            label: "cactus_barrel",
+            walkable: false,
+            scale: 1.0,
+            settings: %{
+              "scaleX" => 0.48,
+              "scaleY" => 0.5,
+              "shape" => "circle",
+              "pose" => %{"dx" => 0.3, "dy" => 0.1}
+            }
+          }
         ]
       },
       # a taller prickly pear, three pads instead of two
@@ -3588,12 +4348,43 @@ defmodule Nebulith.Catalog.TileSource do
         footprint_h: 1,
         category: "nature",
         cells: [
-          %{dx: 0, dy: 0, level: 0, label: "cactus_pad", walkable: false, scale: 1.0,
-            settings: %{"scaleX" => 0.86, "scaleY" => 0.9, "shape" => "circle"}},
-          %{dx: 0, dy: 0, level: 1, label: "cactus_pad", walkable: false, scale: 1.0,
-            settings: %{"scaleX" => 0.66, "scaleY" => 0.85, "shape" => "circle", "pose" => %{"dx" => -0.24}}},
-          %{dx: 0, dy: 0, level: 2, label: "cactus_pad", walkable: false, scale: 1.0,
-            settings: %{"scaleX" => 0.5, "scaleY" => 0.7, "shape" => "circle", "pose" => %{"dx" => 0.2}}}
+          %{
+            dx: 0,
+            dy: 0,
+            level: 0,
+            label: "cactus_pad",
+            walkable: false,
+            scale: 1.0,
+            settings: %{"scaleX" => 0.86, "scaleY" => 0.9, "shape" => "circle"}
+          },
+          %{
+            dx: 0,
+            dy: 0,
+            level: 1,
+            label: "cactus_pad",
+            walkable: false,
+            scale: 1.0,
+            settings: %{
+              "scaleX" => 0.66,
+              "scaleY" => 0.85,
+              "shape" => "circle",
+              "pose" => %{"dx" => -0.24}
+            }
+          },
+          %{
+            dx: 0,
+            dy: 0,
+            level: 2,
+            label: "cactus_pad",
+            walkable: false,
+            scale: 1.0,
+            settings: %{
+              "scaleX" => 0.5,
+              "scaleY" => 0.7,
+              "shape" => "circle",
+              "pose" => %{"dx" => 0.2}
+            }
+          }
         ]
       },
       # barrel: squat and round, wider than tall. ROUND is `shape: circle`, which is how this renderer rounds
@@ -3602,8 +4393,17 @@ defmodule Nebulith.Catalog.TileSource do
         footprint_w: 1,
         footprint_h: 1,
         category: "nature",
-        cells: [%{dx: 0, dy: 0, level: 0, label: "cactus_barrel", walkable: false, scale: 1.0,
-                  settings: %{"scaleX" => 0.92, "scaleY" => 0.8, "shape" => "circle"}}]
+        cells: [
+          %{
+            dx: 0,
+            dy: 0,
+            level: 0,
+            label: "cactus_barrel",
+            walkable: false,
+            scale: 1.0,
+            settings: %{"scaleX" => 0.92, "scaleY" => 0.8, "shape" => "circle"}
+          }
+        ]
       },
       # prickly pear: pads, the wider one at the bottom, each one rounded off
       "cactus_prickly" => %{
@@ -3611,10 +4411,29 @@ defmodule Nebulith.Catalog.TileSource do
         footprint_h: 1,
         category: "nature",
         cells: [
-          %{dx: 0, dy: 0, level: 0, label: "cactus_pad", walkable: false, scale: 1.0,
-            settings: %{"scaleX" => 0.9, "scaleY" => 0.9, "shape" => "circle"}},
-          %{dx: 0, dy: 0, level: 1, label: "cactus_pad", walkable: false, scale: 1.0,
-            settings: %{"scaleX" => 0.62, "scaleY" => 0.8, "shape" => "circle", "pose" => %{"dx" => 0.28}}}
+          %{
+            dx: 0,
+            dy: 0,
+            level: 0,
+            label: "cactus_pad",
+            walkable: false,
+            scale: 1.0,
+            settings: %{"scaleX" => 0.9, "scaleY" => 0.9, "shape" => "circle"}
+          },
+          %{
+            dx: 0,
+            dy: 0,
+            level: 1,
+            label: "cactus_pad",
+            walkable: false,
+            scale: 1.0,
+            settings: %{
+              "scaleX" => 0.62,
+              "scaleY" => 0.8,
+              "shape" => "circle",
+              "pose" => %{"dx" => 0.28}
+            }
+          }
         ]
       },
       # TWO water variants of the town-square basin, both COMPOSITIONS assembled from AUTOTILE PIECES
@@ -3643,16 +4462,66 @@ defmodule Nebulith.Catalog.TileSource do
       # when we only have to connect a small river?? we just need something like 4 cells long x whatever the river
       # size"*, and With only odd spans authored, a 4-wide river needed 4 plus a landing each side and rounded
       # straight up to 7, which is the size it rejected.
-      "bridge_wood_3" => %{footprint_w: 3, footprint_h: 4, category: "props", cells: bridge_cells("timber", 3)},
-      "bridge_wood_4" => %{footprint_w: 4, footprint_h: 4, category: "props", cells: bridge_cells("timber", 4)},
-      "bridge_wood_5" => %{footprint_w: 5, footprint_h: 4, category: "props", cells: bridge_cells("timber", 5)},
-      "bridge_wood_6" => %{footprint_w: 6, footprint_h: 4, category: "props", cells: bridge_cells("timber", 6)},
-      "bridge_wood_7" => %{footprint_w: 7, footprint_h: 4, category: "props", cells: bridge_cells("timber", 7)},
-      "bridge_stone_3" => %{footprint_w: 3, footprint_h: 4, category: "props", cells: bridge_cells("stone", 3)},
-      "bridge_stone_4" => %{footprint_w: 4, footprint_h: 4, category: "props", cells: bridge_cells("stone", 4)},
-      "bridge_stone_5" => %{footprint_w: 5, footprint_h: 4, category: "props", cells: bridge_cells("stone", 5)},
-      "bridge_stone_6" => %{footprint_w: 6, footprint_h: 4, category: "props", cells: bridge_cells("stone", 6)},
-      "bridge_stone_7" => %{footprint_w: 7, footprint_h: 4, category: "props", cells: bridge_cells("stone", 7)},
+      "bridge_wood_3" => %{
+        footprint_w: 3,
+        footprint_h: 4,
+        category: "props",
+        cells: bridge_cells("timber", 3)
+      },
+      "bridge_wood_4" => %{
+        footprint_w: 4,
+        footprint_h: 4,
+        category: "props",
+        cells: bridge_cells("timber", 4)
+      },
+      "bridge_wood_5" => %{
+        footprint_w: 5,
+        footprint_h: 4,
+        category: "props",
+        cells: bridge_cells("timber", 5)
+      },
+      "bridge_wood_6" => %{
+        footprint_w: 6,
+        footprint_h: 4,
+        category: "props",
+        cells: bridge_cells("timber", 6)
+      },
+      "bridge_wood_7" => %{
+        footprint_w: 7,
+        footprint_h: 4,
+        category: "props",
+        cells: bridge_cells("timber", 7)
+      },
+      "bridge_stone_3" => %{
+        footprint_w: 3,
+        footprint_h: 4,
+        category: "props",
+        cells: bridge_cells("stone", 3)
+      },
+      "bridge_stone_4" => %{
+        footprint_w: 4,
+        footprint_h: 4,
+        category: "props",
+        cells: bridge_cells("stone", 4)
+      },
+      "bridge_stone_5" => %{
+        footprint_w: 5,
+        footprint_h: 4,
+        category: "props",
+        cells: bridge_cells("stone", 5)
+      },
+      "bridge_stone_6" => %{
+        footprint_w: 6,
+        footprint_h: 4,
+        category: "props",
+        cells: bridge_cells("stone", 6)
+      },
+      "bridge_stone_7" => %{
+        footprint_w: 7,
+        footprint_h: 4,
+        category: "props",
+        cells: bridge_cells("stone", 7)
+      },
       "well" => %{footprint_w: 5, footprint_h: 3, category: "props", cells: well_cells()},
       "fountain" => %{footprint_w: 5, footprint_h: 5, category: "props", cells: fountain_cells()},
       # LIGHT POSTS, a composition, NOT a single lamp tile. ONE 1×1 column of TWO cells, each shaped by its OWN tuned
@@ -3674,7 +4543,8 @@ defmodule Nebulith.Catalog.TileSource do
       # flavour (~18% of stamped lamps), so it carries NO category → it renders on the map but is NOT a duplicate
       # palette entry.
       "lamp_post" => lamp_post_composition([bulb_night_lit_anim()], "props"),
-      "lamp_post_failing" => lamp_post_composition([bulb_night_lit_anim(), lamp_flicker_anim()], nil)
+      "lamp_post_failing" =>
+        lamp_post_composition([bulb_night_lit_anim(), lamp_flicker_anim()], nil)
     }
   end
 
@@ -3716,7 +4586,15 @@ defmodule Nebulith.Catalog.TileSource do
       # Category is passed in: "props" for the browseable default lamp, nil for the generator-only failing variant.
       category: category,
       cells: [
-        %{dx: 0, dy: 0, level: 0, label: "post", walkable: false, scale: 0.3, settings: %{"scaleY" => 7.0}},
+        %{
+          dx: 0,
+          dy: 0,
+          level: 0,
+          label: "post",
+          walkable: false,
+          scale: 0.3,
+          settings: %{"scaleY" => 7.0}
+        },
         bulb
       ]
     }
@@ -3910,8 +4788,14 @@ defmodule Nebulith.Catalog.TileSource do
   end
 
   defp pier_cell(label, dx, dy, level, depth) do
-    %{dx: dx, dy: dy, level: level, label: label, walkable: true,
-      settings: %{"scaleY" => @abutment_height, "depth" => depth, "depthDir" => "left-down"}}
+    %{
+      dx: dx,
+      dy: dy,
+      level: level,
+      label: label,
+      walkable: true,
+      settings: %{"scaleY" => @abutment_height, "depth" => depth, "depthDir" => "left-down"}
+    }
   end
 
   # WHICH COLUMNS ARE THE OPENING, which is to say which ones have nothing under the deck at all.
@@ -3955,14 +4839,28 @@ defmodule Nebulith.Catalog.TileSource do
   defp deck_column(label, dx, dy, top, false) do
     bed =
       for level <- 0..(top - 1)//1 do
-        %{dx: dx, dy: dy, level: level, label: label, walkable: true, settings: %{"scaleY" => 1.0}}
+        %{
+          dx: dx,
+          dy: dy,
+          level: level,
+          label: label,
+          walkable: true,
+          settings: %{"scaleY" => 1.0}
+        }
       end
 
     bed ++ [deck_surface(label, dx, dy, top)]
   end
 
   defp deck_surface(label, dx, dy, top),
-    do: %{dx: dx, dy: dy, level: top, label: label, walkable: true, settings: %{"scaleY" => @deck_thickness}}
+    do: %{
+      dx: dx,
+      dy: dy,
+      level: top,
+      label: label,
+      walkable: true,
+      settings: %{"scaleY" => @deck_thickness}
+    }
 
   # ONE COLUMN OF SIDE WALL: solid from the base up to the level its own deck reaches, then the parapet course
   # standing above that deck. Same law as the deck, and for the same reason.
@@ -3972,16 +4870,34 @@ defmodule Nebulith.Catalog.TileSource do
   defp wall_column(label, dx, dy, top, false) do
     below =
       for level <- 0..(top - 1)//1 do
-        %{dx: dx, dy: dy, level: level, label: label, walkable: false,
-          settings: %{"scaleY" => 1.0, "collision" => [%{"x" => 0.0, "y" => 0.0, "w" => 1.0, "h" => 1.0}]}}
+        %{
+          dx: dx,
+          dy: dy,
+          level: level,
+          label: label,
+          walkable: false,
+          settings: %{
+            "scaleY" => 1.0,
+            "collision" => [%{"x" => 0.0, "y" => 0.0, "w" => 1.0, "h" => 1.0}]
+          }
+        }
       end
 
     below ++ [coping(label, dx, dy, top)]
   end
 
   defp coping(label, dx, dy, top),
-    do: %{dx: dx, dy: dy, level: top, label: label, walkable: false,
-          settings: %{"scaleY" => @parapet_height, "collision" => [%{"x" => 0.0, "y" => 0.0, "w" => 1.0, "h" => 1.0}]}}
+    do: %{
+      dx: dx,
+      dy: dy,
+      level: top,
+      label: label,
+      walkable: false,
+      settings: %{
+        "scaleY" => @parapet_height,
+        "collision" => [%{"x" => 0.0, "y" => 0.0, "w" => 1.0, "h" => 1.0}]
+      }
+    }
 
   # HOW MANY LEVELS UP THE DECK STANDS AT EACH COLUMN: zero at the two banks, `@deck_rise` at the crown, on a
   # parabola between them. Zero at the banks is not decoration, it is what lets you step on: the ends meet the
@@ -4021,9 +4937,15 @@ defmodule Nebulith.Catalog.TileSource do
     # staying at the height of the ends.
     uprights =
       for dx <- upright_columns(span), dy <- @side_rows do
-        %{dx: dx, dy: dy, level: deck_top(span, dx) + 1, label: pieces.cap, walkable: false,
+        %{
+          dx: dx,
+          dy: dy,
+          level: deck_top(span, dx) + 1,
+          label: pieces.cap,
+          walkable: false,
           scale: @upright_zoom,
-          settings: %{"scaleY" => @upright_height, "thickness" => post_reach(@upright_thickness)}}
+          settings: %{"scaleY" => @upright_height, "thickness" => post_reach(@upright_thickness)}
+        }
       end
 
     sides ++ uprights
@@ -4214,27 +5136,95 @@ defmodule Nebulith.Catalog.TileSource do
   # A BUILT gateway: two piers of real mass, a lintel that oversails them, a dark opening between, foliage over
   # the top and stones at the feet. Post, lintel, post, which is exactly what a cave must NOT be.
   defp temple_entrance_cells do
-    pier = fn dx -> %{dx: dx, dy: 0, level: 0, label: "wall_stone_c", walkable: false, scale: 1.0,
-                      settings: %{"scaleY" => 3.0}} end
+    pier = fn dx ->
+      %{
+        dx: dx,
+        dy: 0,
+        level: 0,
+        label: "wall_stone_c",
+        walkable: false,
+        scale: 1.0,
+        settings: %{"scaleY" => 3.0}
+      }
+    end
 
     [
       pier.(0),
       pier.(2),
       # The opening. Dark, and WALKABLE because it is the way through.
-      %{dx: 1, dy: 0, level: 0, label: "wall_stone_c", walkable: true, scale: 1.0,
-        settings: %{"scaleY" => 2.35, "color" => "#12100e"}},
+      %{
+        dx: 1,
+        dy: 0,
+        level: 0,
+        label: "wall_stone_c",
+        walkable: true,
+        scale: 1.0,
+        settings: %{"scaleY" => 2.35, "color" => "#12100e"}
+      },
       # The lintel: ONE cell reaching across all three, and wider than the piers so it reads as a cap.
-      %{dx: 0, dy: 0, level: 3, label: "wall_stone_c", walkable: false, scale: 1.12,
-        settings: %{"scaleY" => 0.62, "depth" => 3, "depthDir" => "right-down"}},
-      %{dx: 0, dy: 0, level: 4, label: "leaf_center", walkable: false, scale: 0.95,
-        settings: %{"scaleY" => 0.95, "shape" => "circle"}},
-      %{dx: 1, dy: 0, level: 4, label: "leaf_center", walkable: false, scale: 0.7,
-        settings: %{"scaleY" => 0.8, "shape" => "circle"}},
-      %{dx: 2, dy: 0, level: 4, label: "leaf_center", walkable: false, scale: 0.8,
-        settings: %{"scaleY" => 0.95, "shape" => "circle"}},
-      %{dx: 0, dy: 1, level: 0, label: "rock", walkable: false, scale: 0.5, settings: %{"scaleY" => 0.8}},
-      %{dx: 2, dy: 1, level: 0, label: "rock", walkable: false, scale: 0.4, settings: %{"scaleY" => 0.7}},
-      %{dx: 1, dy: 1, level: 0, label: "path_dirt", walkable: true, scale: 1.0, settings: %{"scaleY" => 0.08}}
+      %{
+        dx: 0,
+        dy: 0,
+        level: 3,
+        label: "wall_stone_c",
+        walkable: false,
+        scale: 1.12,
+        settings: %{"scaleY" => 0.62, "depth" => 3, "depthDir" => "right-down"}
+      },
+      %{
+        dx: 0,
+        dy: 0,
+        level: 4,
+        label: "leaf_center",
+        walkable: false,
+        scale: 0.95,
+        settings: %{"scaleY" => 0.95, "shape" => "circle"}
+      },
+      %{
+        dx: 1,
+        dy: 0,
+        level: 4,
+        label: "leaf_center",
+        walkable: false,
+        scale: 0.7,
+        settings: %{"scaleY" => 0.8, "shape" => "circle"}
+      },
+      %{
+        dx: 2,
+        dy: 0,
+        level: 4,
+        label: "leaf_center",
+        walkable: false,
+        scale: 0.8,
+        settings: %{"scaleY" => 0.95, "shape" => "circle"}
+      },
+      %{
+        dx: 0,
+        dy: 1,
+        level: 0,
+        label: "rock",
+        walkable: false,
+        scale: 0.5,
+        settings: %{"scaleY" => 0.8}
+      },
+      %{
+        dx: 2,
+        dy: 1,
+        level: 0,
+        label: "rock",
+        walkable: false,
+        scale: 0.4,
+        settings: %{"scaleY" => 0.7}
+      },
+      %{
+        dx: 1,
+        dy: 1,
+        level: 0,
+        label: "path_dirt",
+        walkable: true,
+        scale: 1.0,
+        settings: %{"scaleY" => 0.08}
+      }
     ]
   end
 
@@ -4248,14 +5238,28 @@ defmodule Nebulith.Catalog.TileSource do
   defp cave_entrance_cells(rounded) do
     rock = fn dx, dy, scale, h ->
       settings = if rounded, do: %{"scaleY" => h, "shape" => "circle"}, else: %{"scaleY" => h}
-      %{dx: dx, dy: dy, level: 0, label: "wall_stone_c", walkable: false, scale: scale, settings: settings}
+
+      %{
+        dx: dx,
+        dy: dy,
+        level: 0,
+        label: "wall_stone_c",
+        walkable: false,
+        scale: scale,
+        settings: settings
+      }
     end
 
     {mouth_dx, mouth_dy} = @cave_mouth
 
     # THE MASS, sloping down toward the viewer over four diagonals.
     bulk =
-      for {d, {scale, h}} <- %{0 => {0.75, 1.0}, 1 => {1.0, 1.9}, 2 => {1.15, 2.6}, 3 => {1.15, 2.4}},
+      for {d, {scale, h}} <- %{
+            0 => {0.75, 1.0},
+            1 => {1.0, 1.9},
+            2 => {1.15, 2.6},
+            3 => {1.15, 2.4}
+          },
           dx <- 0..4,
           dy = d - dx,
           dy >= 0 and dy <= 4,
@@ -4279,26 +5283,78 @@ defmodule Nebulith.Catalog.TileSource do
       face ++
       [
         # THE MOUTH: full cell width, tall, dark, walkable. It is the object's whole point.
-        %{dx: mouth_dx, dy: mouth_dy, level: 0, label: "wall_stone_c", walkable: true, scale: 1.0,
-          settings: %{"scaleY" => 2.3, "color" => "#141109"}},
+        %{
+          dx: mouth_dx,
+          dy: mouth_dy,
+          level: 0,
+          label: "wall_stone_c",
+          walkable: true,
+          scale: 1.0,
+          settings: %{"scaleY" => 2.3, "color" => "#141109"}
+        },
         # THE OVERHANG: one block spanning the three face cells ALONG the diagonal, which is the roof's
         # `depth` trick pointed at the other axis.
-        %{dx: 1, dy: 3, level: 2, label: "wall_stone_c", walkable: false, scale: 1.25, settings: lip_settings},
+        %{
+          dx: 1,
+          dy: 3,
+          level: 2,
+          label: "wall_stone_c",
+          walkable: false,
+          scale: 1.25,
+          settings: lip_settings
+        },
         # TREES GROWING OUT of the mound, seated on the tall back diagonal rather than floating over it.
-        %{dx: 1, dy: 1, level: 3, label: "trunk_mid", walkable: false, scale: 0.32, settings: %{"scaleY" => 2.8}},
-        %{dx: 1, dy: 1, level: 4, label: "leaf_center", walkable: false, scale: 1.15,
-          settings: %{"scaleY" => 1.2, "shape" => "circle"}},
-        %{dx: 2, dy: 1, level: 3, label: "trunk_mid", walkable: false, scale: 0.28, settings: %{"scaleY" => 2.2}},
-        %{dx: 2, dy: 1, level: 4, label: "leaf_center", walkable: false, scale: 0.95,
-          settings: %{"scaleY" => 1.2, "shape" => "circle"}},
+        %{
+          dx: 1,
+          dy: 1,
+          level: 3,
+          label: "trunk_mid",
+          walkable: false,
+          scale: 0.32,
+          settings: %{"scaleY" => 2.8}
+        },
+        %{
+          dx: 1,
+          dy: 1,
+          level: 4,
+          label: "leaf_center",
+          walkable: false,
+          scale: 1.15,
+          settings: %{"scaleY" => 1.2, "shape" => "circle"}
+        },
+        %{
+          dx: 2,
+          dy: 1,
+          level: 3,
+          label: "trunk_mid",
+          walkable: false,
+          scale: 0.28,
+          settings: %{"scaleY" => 2.2}
+        },
+        %{
+          dx: 2,
+          dy: 1,
+          level: 4,
+          label: "leaf_center",
+          walkable: false,
+          scale: 0.95,
+          settings: %{"scaleY" => 1.2, "shape" => "circle"}
+        },
         # SCATTER on the open ground, small enough that it never hides the mouth.
         rock.(0, 4, 0.5, 0.45),
         rock.(4, 1, 0.45, 0.4),
         rock.(3, 3, 0.4, 0.36),
         rock.(4, 2, 0.35, 0.32),
         # THE THRESHOLD you walk in on.
-        %{dx: 2, dy: 3, level: 0, label: "path_dirt", walkable: true, scale: 1.0, settings: %{"scaleY" => 0.08}}
+        %{
+          dx: 2,
+          dy: 3,
+          level: 0,
+          label: "path_dirt",
+          walkable: true,
+          scale: 1.0,
+          settings: %{"scaleY" => 0.08}
+        }
       ]
   end
-
 end

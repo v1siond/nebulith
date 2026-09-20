@@ -48,18 +48,21 @@ describe('generateStage, town vertical slice', () => {
     expect(stage.rows).toBeGreaterThan(0)
   })
 
-  it('carves streets as a dark-gray ROAD COLOUR on the ground block, never a separate road tile', () => {
-    // A road is the ordinary
-    // ground block TINTED asphalt, so it sits FLUSH with the grass, a road tile of its own re-introduced the
-    // raised trench. Road identity lives in the layout and lands here as a per-cell floor colour.
-    // The open ground is the flat floor wearing the season's colour, the meadow's way on every template
-    // . path_stone is left only under the buildings, as their foundation.
-    const allowed = new Set([FLAT_FLOOR, 'autumn_leaves', 'path_stone'])
+  it('carves streets as the STREET TILE, flush with the field, wearing the road colour', () => {
+    // A STREET IS MADE OF THE STREET TILE, and says so when you click it. It used to be a colour painted on
+    // whatever ground was already there, so a street reported itself as grass and its material was a tint.
+    //
+    // The older rule this replaces was right about the thing it feared: laying a STANDING road tile put a
+    // raised block in a trench. `path_stone` and `road` are height 0 now, the same as the flat floor, so the
+    // street is flush AND says what it is. Road identity still lives in the layout, never re-derived from
+    // the ground kind.
+    const allowed = new Set([FLAT_FLOOR, 'autumn_leaves', 'path_stone', 'road'])
     const allThemed = stage.ground.every(row => row.every(t => allowed.has(t)))
     expect(allThemed).toBe(true)
-    // No cell is a road TILE, that is the thing that was removed.
-    expect(stage.ground.flat().filter(t => t === 'road').length).toBe(0)
-    // …and streets ARE carved: a good number of cells carry the road tint.
+    // …and the streets ARE made of it, not merely tinted.
+    const streetTiles = stage.ground.flat().filter(t => t === 'path_stone' || t === 'road').length
+    expect(streetTiles).toBeGreaterThan(0)
+    // …and they carry the road colour too, which is what makes one place's streets look like that place's.
     expect(roadCellKeys().size).toBeGreaterThan(0)
     // the broken cavefloor hijack is gone
     expect(stage.ground.flat().includes('cavefloor')).toBe(false)
@@ -172,7 +175,7 @@ describe('generateStage, a building reserves a small width×depth footprint (the
     expect(stage.buildings).toHaveLength(0)
     const walls = stage.props.filter(p => p.type === 'temple_wall')
     expect(walls.length).toBeGreaterThan(0)
-    expect(walls.every(w => w.blocking === true && stage.collision[w.row][w.col] === true)).toBe(true)
+    expect(walls.every(w => w.occupies === true && stage.collision[w.row][w.col] === true)).toBe(true)
     expect(stage.props.some(p => p.type === 'altar')).toBe(true) // the boss chamber
     expect(stage.collision[stage.spawn.row][stage.spawn.col]).toBe(false) // walkable spawn
   })
@@ -187,7 +190,7 @@ describe('generateStage, forest archetype (Viridian-Forest style)', () => {
     const flowers = stage.props.filter(p => p.type === 'flower')
     expect(stage.trees.length).toBeGreaterThan(20) // trees are recorded as anchors, stamped as compositions at load
     expect(flowers.length).toBeGreaterThan(0)
-    expect(flowers.every(f => f.blocking === false)).toBe(true)
+    expect(flowers.every(f => f.occupies === false)).toBe(true)
   })
 
   it('carves walkable paths through the trees and spawns on open ground', () => {
@@ -234,7 +237,7 @@ describe('generateStage, cave archetype (cellular automata)', () => {
     // `rock_face`: a wall of stone. A `rock` is the boulder lying on the ground, a different thing.
     const rocks = stage.props.filter(p => p.type === 'rock_face')
     expect(rocks.length).toBeGreaterThan(0)
-    expect(rocks.every(r => r.blocking === true)).toBe(true)
+    expect(rocks.every(r => r.occupies === true)).toBe(true)
   })
 
   it('spawns on walkable ground inside one connected cavern', () => {
@@ -270,7 +273,7 @@ describe('generateStage, temple archetype (INTERIOR dungeon)', () => {
 
   it('is a walled dungeon (no overworld buildings)', () => {
     expect(stage.buildings).toHaveLength(0)
-    expect(stage.props.some(p => p.type === 'temple_wall' && p.blocking)).toBe(true)
+    expect(stage.props.some(p => p.type === 'temple_wall' && p.occupies)).toBe(true)
   })
 
   it('builds a pillared hall + a boss altar, and keeps the spawn walkable', () => {
@@ -404,7 +407,7 @@ describe('generateStage, spring flower variety (a meadow in bloom)', () => {
       ),
     )
     expect(flowers.length).toBeGreaterThan(0)
-    expect(flowers.every(f => f.blocking === false)).toBe(true) // flowers never block
+    expect(flowers.every(f => f.occupies === false)).toBe(true) // flowers never block
     const distinctGlyphs = new Set(flowers.map(f => f.char))
     expect(distinctGlyphs.size).toBeGreaterThanOrEqual(4) // several flower shapes, not one '*'
   })

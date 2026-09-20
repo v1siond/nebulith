@@ -31,8 +31,40 @@ const SHOT = process.env.SHOT === '1'
 const b = await chromium.launch()
 const p = await b.newPage({ viewport: { width: 1500, height: 950 } })
 
-/** Set one <select> by the VALUE it offers, and say whether it took. */
-const choose = (page, value) => page.evaluate(v => {
+/**
+ * THE WORDS PRINTED ON EACH CHOICE, read off the served catalog.
+ *
+ * A card shows its LABEL; the harness pins things by KEY. Built once from the API rather than written down
+ * here, so a renamed choice moves the harness with it instead of silently failing to pin anything.
+ */
+const ENGINE = process.env.ENGINE_URL ?? 'http://localhost:6328'
+const labels = await fetch(`${ENGINE}/api/generators`)
+  .then(r => r.json())
+  .then(body => {
+    const out = new Map()
+    for (const c of (body.data ?? body)) for (const g of (c.generators ?? []))
+      for (const o of (g.options ?? [])) for (const ch of (o.choices ?? [])) out.set(ch.key, ch.label)
+    return out
+  })
+  .catch(() => new Map())
+
+/**
+ * Pick one option by the VALUE it offers, and say whether it took.
+ *
+ * TWO CONTROLS, because the panel has had both. An option is a row of CARDS now; it was a `<select>` when
+ * this harness was written, and driving only the select is how a run came back reporting that every region
+ * was ignored when the generator had never been asked for one. The instrument lies before the code does
+ * (`docs/REGIONS.md` §0b.2), so the card comes first and the select stays for anything still drawn as one.
+ */
+const choose = (page, value) => page.evaluate(({ v, label }) => {
+  for (const group of document.querySelectorAll('.swatches')) {
+    const hit = [...group.querySelectorAll('.sw')]
+      .find(c => (c.querySelector('.n')?.textContent ?? '').trim() === label)
+    if (!hit) continue
+    hit.click()
+    return true
+  }
+
   for (const s of document.querySelectorAll('select')) {
     const o = [...s.options].find(x => x.value === v)
     if (!o) continue
@@ -41,7 +73,7 @@ const choose = (page, value) => page.evaluate(v => {
     return true
   }
   return false
-}, value)
+}, { v: value, label: labels.get(value) ?? value })
 
 /**
  * WAIT FOR THE MAP TO STOP CHANGING.

@@ -42,7 +42,6 @@ defmodule NebulithWeb.TilesetJSON do
   defp tile_data(t) do
     %{
       image_url: t.image_url,
-      blocking: t.blocking,
       height: t.height,
       category: t.category,
       title: t.title,

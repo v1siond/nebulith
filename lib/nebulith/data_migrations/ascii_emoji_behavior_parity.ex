@@ -28,7 +28,7 @@ defmodule Nebulith.DataMigration.AsciiEmojiBehaviorParity do
   alias Nebulith.Catalog.Tileset
   alias Nebulith.Repo
 
-  # The SHARED labels whose ascii row drifted from its emoji twin's behavior (height/category/blocking).
+  # The SHARED labels whose ascii row drifted from its emoji twin's behavior (height/category/occupies).
   # Kept explicit (not "every divergent row") so the pass is auditable and the rock/crystal/coral divergence
   # stays intentional.
   @parity_labels ~w(
@@ -51,31 +51,45 @@ defmodule Nebulith.DataMigration.AsciiEmojiBehaviorParity do
     :ok
   end
 
-  # emoji's authoritative {height, blocking, category} per parity label.
+  # emoji's authoritative {height, category, what it occupies} per parity label.
   defp emoji_targets(emoji_id) do
-    from(t in Tile,
-      where: t.tileset_id == ^emoji_id and t.label in ^@parity_labels,
-      select: {t.label, %{height: t.height, blocking: t.blocking, category: t.category}}
-    )
+    from(t in Tile, where: t.tileset_id == ^emoji_id and t.label in ^@parity_labels)
     |> Repo.all()
-    |> Map.new()
+    |> Map.new(&{&1.label, %{height: &1.height, category: &1.category, collision: boxes(&1)}})
   end
 
-  # Copy the emoji target onto the ascii row, ONLY when it differs (idempotent), height/blocking/category
-  # columns alone, so ascii `settings` (poses/colours) are untouched. Returns 1 when a row changed, else 0.
-  defp align_ascii(ascii_id, label, %{height: h, blocking: b, category: c}) do
-    {count, _} =
-      from(t in Tile,
-        where:
-          t.tileset_id == ^ascii_id and t.label == ^label and
-            (t.height != ^h or t.blocking != ^b or fragment("? IS DISTINCT FROM ?", t.category, ^c))
-      )
-      |> Repo.update_all(
-        set: [height: h, blocking: b, category: c, updated_at: DateTime.truncate(DateTime.utc_now(), :second)]
-      )
-
-    count
+  # Copy the emoji target onto the ascii row, ONLY when it differs (idempotent). Height and category are
+  # columns; what a tile OCCUPIES is its collision box list, so that one key is merged into `settings` and
+  # every other key in there (a pose, a colour) is left exactly as it was.
+  defp align_ascii(ascii_id, label, %{height: h, category: c, collision: boxes}) do
+    case Repo.get_by(Tile, tileset_id: ascii_id, label: label) do
+      nil -> 0
+      tile -> align_row(tile, h, c, boxes)
+    end
   end
+
+  defp align_row(tile, h, c, boxes) do
+    settled? = tile.height == h and tile.category == c and boxes(tile) == boxes
+
+    if settled? do
+      0
+    else
+      {count, _} =
+        from(t in Tile, where: t.id == ^tile.id)
+        |> Repo.update_all(
+          set: [
+            height: h,
+            category: c,
+            settings: Map.put(tile.settings || %{}, "collision", boxes),
+            updated_at: DateTime.truncate(DateTime.utc_now(), :second)
+          ]
+        )
+
+      count
+    end
+  end
+
+  defp boxes(tile), do: Map.get(tile.settings || %{}, "collision", [])
 
   defp tileset_id!(key), do: Repo.one!(from ts in Tileset, where: ts.key == ^key, select: ts.id)
 end

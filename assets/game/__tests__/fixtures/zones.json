@@ -62,7 +62,17 @@
         "hazard": "water",
         "id": "spring",
         "trail": "path",
-        "wallColor": "#6a5a3a"
+        "wallColor": "#6a5a3a",
+        "meadow": {
+          "bank": "#c8b07d",
+          "bottom": "#8fb14c",
+          "cobble": "#bcac90",
+          "earth": "#b69c78",
+          "grass": "#7cae44",
+          "plot": "#c8cf94",
+          "river": "#57a1bd",
+          "top": "#b0c85f"
+        }
       },
       "temple": {
         "accent": "cave_moss",
@@ -144,7 +154,17 @@
         "hazard": "water",
         "id": "summer",
         "trail": "path",
-        "wallColor": "#5a4a30"
+        "wallColor": "#5a4a30",
+        "meadow": {
+          "bank": "#c1a877",
+          "bottom": "#8ba341",
+          "cobble": "#b7a488",
+          "earth": "#b39a72",
+          "grass": "#7f9b39",
+          "plot": "#c6cb92",
+          "river": "#4f93b3",
+          "top": "#b4c05a"
+        }
       },
       "temple": {
         "accent": "marble",
@@ -199,7 +219,17 @@
         "hazard": "water",
         "id": "autumn",
         "trail": "path",
-        "wallColor": "#6a4a28"
+        "wallColor": "#6a4a28",
+        "meadow": {
+          "bank": "#b8996e",
+          "bottom": "#8f7d38",
+          "cobble": "#b39d82",
+          "earth": "#a5875c",
+          "grass": "#93813a",
+          "plot": "#cbbd84",
+          "river": "#4d8aa2",
+          "top": "#bba750"
+        }
       },
       "temple": {
         "accent": "gold_tile",
@@ -254,7 +284,17 @@
         "hazard": "ice_water",
         "id": "winter",
         "trail": "path",
-        "wallColor": "#3a5a7a"
+        "wallColor": "#3a5a7a",
+        "meadow": {
+          "bank": "#c9ccc5",
+          "bottom": "#aabbb6",
+          "cobble": "#c1c4bf",
+          "earth": "#8d887e",
+          "grass": "#b2c1bc",
+          "plot": "#dde4de",
+          "river": "#7cb8d8",
+          "top": "#ccd6cf"
+        }
       },
       "temple": {
         "accent": "ice",
@@ -309,7 +349,17 @@
         "hazard": "water",
         "id": "desert",
         "trail": "path",
-        "wallColor": "#b89a5a"
+        "wallColor": "#b89a5a",
+        "meadow": {
+          "bank": "#d3ba80",
+          "bottom": "#aea050",
+          "cobble": "#c8b48a",
+          "earth": "#b07f4a",
+          "grass": "#bcb35c",
+          "plot": "#dbd29a",
+          "river": "#5aa6b4",
+          "top": "#cabf6c"
+        }
       },
       "temple": {
         "accent": "sand",
@@ -364,7 +414,17 @@
         "hazard": "water",
         "id": "beach",
         "trail": "path",
-        "wallColor": "#c2a878"
+        "wallColor": "#c2a878",
+        "meadow": {
+          "bank": "#dcc78e",
+          "bottom": "#a3b24e",
+          "cobble": "#cbbf9a",
+          "earth": "#c2a466",
+          "grass": "#9fb84a",
+          "plot": "#d6da9c",
+          "river": "#4bb0c2",
+          "top": "#c2c86a"
+        }
       },
       "temple": {
         "accent": "temple_floor",
@@ -419,7 +479,17 @@
         "hazard": "lava",
         "id": "lava",
         "trail": "path",
-        "wallColor": "#4a4038"
+        "wallColor": "#4a4038",
+        "meadow": {
+          "bank": "#8a5a3a",
+          "bottom": "#6e5f38",
+          "cobble": "#8a7d6a",
+          "earth": "#7a4f3a",
+          "grass": "#726838",
+          "plot": "#9c916a",
+          "river": "#a25a2a",
+          "top": "#8a7f4a"
+        }
       },
       "temple": {
         "accent": "obsidian",

@@ -1,6 +1,6 @@
 defmodule Nebulith.DataMigration.AddGrowthTiles do
   @moduledoc """
-  Adds `tall_grass` (walkable) and `thicket` (blocking), in both styles.
+  Adds `tall_grass` (walkable) and `thicket` (occupies), in both styles.
 
   The generator was blocking cells that held a clover. A thicket that stops you needs to look like one, and
   long grass you walk into needs to exist at all.

@@ -81,7 +81,7 @@ defmodule Nebulith.DataMigration.AVolcanoYouCanSee do
           label: "volcanic_rock",
           glyph: "▩",
           emoji: "🌋",
-          blocking: true,
+          occupies: true,
           height: 1.0,
           category: "nature",
           title: "Volcanic rock",

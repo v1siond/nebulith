@@ -87,7 +87,6 @@ const entityCodec = makeAssetCodec<Entity>(
     col: entity.col,
     row: entity.row,
     type: ENTITY_ASSET_TYPE,
-    blocking: false, // entities are not terrain collision
     color: ENTITY_COLOR[entity.kind],
     label: JSON.stringify(entity), // the round-trip payload
   }),
@@ -111,7 +110,6 @@ const questCodec = makeAssetCodec<Quest>(
     col: -1, // off-grid: never drawn by the tile/asset renderers
     row: -1,
     type: QUEST_ASSET_TYPE,
-    blocking: false,
     color: '#000000',
     label: JSON.stringify(quest), // the round-trip payload
   }),
@@ -148,7 +146,6 @@ const triggerCodec = makeAssetCodec<CellTriggerGroup>(
     col: -1, // off-grid: never drawn by the tile/asset renderers
     row: -1,
     type: TRIGGER_ASSET_TYPE,
-    blocking: false,
     color: '#000000',
     label: JSON.stringify(group), // the round-trip payload (cell + its triggers)
   }),
@@ -174,7 +171,7 @@ export const STYLE_ASSET_TYPE = 'nebulith:style'
 /** One off-grid marker carrying the active style id (empty when ASCII/default → no marker). */
 export function styleToAssets(styleId: string | null | undefined): GridAsset[] {
   if (!styleId || styleId === 'ascii') return []
-  return [{ art: [' '], col: -1, row: -1, type: STYLE_ASSET_TYPE, blocking: false, color: '#000000', label: styleId }]
+  return [{ art: [' '], col: -1, row: -1, type: STYLE_ASSET_TYPE, color: '#000000', label: styleId }]
 }
 
 /** The saved active style id (or null when none was persisted). */

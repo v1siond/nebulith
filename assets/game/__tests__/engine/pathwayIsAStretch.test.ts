@@ -4,7 +4,7 @@
  * The planner counted from the centre out: one path per gate, radiating from a hub. A cross came out as
  * four pathways. A stretch is the unit now, and these tests are the requirements.
  */
-import { MAX_EXITS, planRoutes, resolvePathways, splitPathways } from '@/engine/pathNetwork'
+import { exitCeiling, planRoutes, resolvePathways, splitPathways } from '@/engine/pathNetwork'
 import { makeRng } from '@/lib/math'
 
 const rand = () => makeRng(11)
@@ -47,10 +47,27 @@ describe('exits are inferred from pathways when nobody states them', () => {
     expect(resolvePathways({ pathways: '2' }, rand())).toEqual({ pathways: 2, exits: 4 })
   })
 
-  it('capped at one gate per side, so more pathways become spurs rather than impossible exits', () => {
+  it('held to what the BORDER can carry, so more pathways become spurs rather than impossible exits', () => {
+    // NO GRID HANDED IN, so there is nothing to measure and the ceiling falls back to the four a forest
+    // trail was written for. That is this case, unchanged.
     const four = resolvePathways({ pathways: '4' }, rand())!
-    expect(four.exits).toBe(MAX_EXITS)
+    expect(four.exits).toBe(4)
     expect(splitPathways(four)).toEqual({ through: 0, spurs: 4, branches: 0 })
+  })
+
+  it('and MEASURED off the map when there is one, because four was never a fact about the border', () => {
+    // A 40x40 at width 3 carries 12 gates: each edge offers cells 12..27 to sit in, and a 3-wide gate plus
+    // the gap that keeps two from reading as one mouth costs 4, so three fit per edge. Six pathways can
+    // therefore be left in twelve places. It used to stop at four however big the map was, which is the
+    // knob that moved and changed nothing.
+    expect(exitCeiling(40, 40, 3)).toBe(12)
+    const six = resolvePathways({ pathways: '6' }, rand(), { cols: 40, rows: 40, width: 3 })!
+    expect(six.exits).toBe(12)
+
+    // …and a SMALL map cannot, so the ceiling bites there instead of a number written down here.
+    expect(exitCeiling(12, 12, 3)).toBe(4)
+    const tight = resolvePathways({ pathways: '6' }, rand(), { cols: 12, rows: 12, width: 3 })!
+    expect(tight.exits).toBe(4)
   })
 
   it('and pathways are inferred from exits, the same rule read backwards', () => {

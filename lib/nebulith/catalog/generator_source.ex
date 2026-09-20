@@ -123,16 +123,18 @@ defmodule Nebulith.Catalog.GeneratorSource do
       # NO `preview`: a count is not a kind of thing. A thumbnail of "3 exits" beside "4 exits" is two nearly
       # identical pictures and costs a whole map generation each.
       "group" => "layout",
-      # Cells one of these wants before another is offered, so a small map stops offering four ways across it.
-      # Derived from the smallest grid a generator serves (30x24 = 720) still offering four.
-      "maxPer" => 180,
+      # HOW MANY WAYS OUT follows how many PATHWAYS, not how big the map is. A pathway is a stretch that
+      # leaves the map at one or both of its ends (docs/PATHWAYS.md §1), so a map with six pathways can be
+      # left in up to twelve places, and a map with one can be left in two. The panel builds the list from
+      # this; it is not a hand-written four with a filter in front of it.
+      "countPer" => %{"option" => "pathways", "each" => 2},
       "default" => "random",
+      # Only the choices that say something a number cannot. The rest are generated up to the ceiling, so
+      # this list is a source of LABELS, never the limit.
       "choices" => [
         %{"key" => "random", "label" => "Random"},
         %{"key" => "1", "label" => "1: in and out the same way"},
-        %{"key" => "2", "label" => "2: in one side, out the other"},
-        %{"key" => "3", "label" => "3"},
-        %{"key" => "4", "label" => "4"}
+        %{"key" => "2", "label" => "2: in one side, out the other"}
       ]
     },
     %{
@@ -140,21 +142,20 @@ defmodule Nebulith.Catalog.GeneratorSource do
       "label" => "Pathways",
       "type" => "choice",
       "group" => "layout",
-      "maxPer" => 180,
+      # HOW MANY WAYS ACROSS THIS MAP HOLDS, measured by the engine that has to cut them (`pathwayCeiling`:
+      # a stretch is `width` cells across and two side by side need a gap you can build in, so the map fits
+      # as many as its shorter side has room for). The number follows the size of the template, and it is
+      # the SAME number the builder uses, so the panel cannot offer a way across that never gets cut.
+      "countBy" => "ways",
       "default" => "random",
-      "choices" => [
-        %{"key" => "random", "label" => "Random"},
-        %{"key" => "1", "label" => "1"},
-        %{"key" => "2", "label" => "2"},
-        %{"key" => "3", "label" => "3"},
-        %{"key" => "4", "label" => "4"}
-      ]
+      # Random is the only choice worth a word. The counts are generated.
+      "choices" => [%{"key" => "random", "label" => "Random"}]
     }
   ]
 
-  # A SETTLEMENT'S WAYS. The same exits as everywhere else, and more pathways to choose from. A town is a
-  # street grid and a street grid carries as many streets as it has room for, so the list goes to 8 and the
-  # engine holds it to what the map measures rather than to a forest's four.
+  # A SETTLEMENT'S WAYS. The same exits and the same rule as everywhere else. A town is a street grid and a
+  # street grid carries as many streets as it has room for, which is what `maxPer` says, so the list is as
+  # long as the map is big rather than stopping at a number written here.
   @settlement_way_options [
     List.first(@way_options),
     %{
@@ -162,11 +163,9 @@ defmodule Nebulith.Catalog.GeneratorSource do
       "label" => "Streets",
       "type" => "choice",
       "group" => "layout",
-      "maxPer" => 180,
+      "countBy" => "ways",
       "default" => "random",
-      "choices" =>
-        [%{"key" => "random", "label" => "Random"}] ++
-          Enum.map(1..8, &%{"key" => to_string(&1), "label" => to_string(&1)})
+      "choices" => [%{"key" => "random", "label" => "Random"}]
     }
   ]
 
@@ -221,7 +220,12 @@ defmodule Nebulith.Catalog.GeneratorSource do
   # were reading as a wall rather than as a wood. Thinning them lets the clearings and trails breathe and
   # lets you see through the trunks. The density lives HERE, not in the generator, so tuning it is a data
   # change and not a code change.
-  @woodland_nature %{"groundCover" => 0.2, "flowers" => 0.04, "canopy" => 0.434, "tallGrass" => 0.12}
+  @woodland_nature %{
+    "groundCover" => 0.2,
+    "flowers" => 0.04,
+    "canopy" => 0.434,
+    "tallGrass" => 0.12
+  }
 
   # A JUNGLE is a woodland grown over: the canopy already accepted as forest-dense (the 0.62 the
   # woodland used to carry), plus the thing that actually distinguishes a jungle from a wood, UNDERGROWTH.
@@ -372,21 +376,46 @@ defmodule Nebulith.Catalog.GeneratorSource do
   @formations %{
     # Image #10, a wood pasture. Big gnarled trees standing alone on open grass, wide apart, nothing
     # between them. The trees are individuals, not a canopy.
-    "scattered" => %{"lattice" => 3, "spacing" => 4, "understory" => 0.35, "understoryTile" => "tall_grass"},
+    "scattered" => %{
+      "lattice" => 3,
+      "spacing" => 4,
+      "understory" => 0.35,
+      "understoryTile" => "tall_grass"
+    },
     # Image #11, an even-aged beech stand. Straight trunks at regular spacing, a clear walkable floor, and
     # a broad track through it. Ordered rather than clumped.
-    "stand" => %{"lattice" => 5, "spacing" => 2, "understory" => 0.45, "understoryTile" => "tall_grass"},
+    "stand" => %{
+      "lattice" => 5,
+      "spacing" => 2,
+      "understory" => 0.45,
+      "understoryTile" => "tall_grass"
+    },
     # Image #12, conifers scattered in patches over an open hillside. Clear ground between the groups, so
     # a large lattice (real clumps) but a low overall density.
-    "clumped" => %{"lattice" => 10, "spacing" => 0, "understory" => 0.6, "understoryTile" => "tall_grass"},
+    "clumped" => %{
+      "lattice" => 10,
+      "spacing" => 0,
+      "understory" => 0.6,
+      "understoryTile" => "tall_grass"
+    },
     # Image #14, a closed canopy seen from across the valley. Wall to wall, no floor visible anywhere.
-    "closed" => %{"lattice" => 13, "spacing" => 0, "understory" => 1.25, "understoryTile" => "thicket"},
+    "closed" => %{
+      "lattice" => 13,
+      "spacing" => 0,
+      "understory" => 1.25,
+      "understoryTile" => "thicket"
+    },
     # Image #15, tall dense trunks over deep green undergrowth, with a narrow trail winding through. The
     # canopy is not the hard part here, the floor is.
     # 1.9 MADE THE DENSE WOODLAND THE WORST MAP IN THE GAME: 46% of its interior walkable, against a super
     # dense JUNGLE's 64%. Only `forest_woodland_dense` uses this, so the number is tuned there and nowhere
     # else suffers for it. Same rule as everywhere: the floor may be hard work, it may not be a wall.
-    "understory" => %{"lattice" => 7, "spacing" => 0, "understory" => 1.1, "understoryTile" => "thicket"},
+    "understory" => %{
+      "lattice" => 7,
+      "spacing" => 0,
+      "understory" => 1.1,
+      "understoryTile" => "thicket"
+    },
     # Image #13, cypress standing IN the water, well apart, buttressed bases. Spaced like a pasture but wet.
     "flooded" => %{"lattice" => 5, "spacing" => 3, "understory" => 0.7}
   }
@@ -442,7 +471,10 @@ defmodule Nebulith.Catalog.GeneratorSource do
     # `alongside_river`: its tracks are #a78463, 137.1, over a forest floor around 67. Our woodland floor is
     # 119.6, so the same distance puts the track at 170.
     "forest_track" => %{
-      "surface" => "path_dirt", "tone" => "#cfa37b", "width" => 3, "edge" => 0.35,
+      "surface" => "path_dirt",
+      "tone" => "#cfa37b",
+      "width" => 3,
+      "edge" => 0.35,
       "scatter" => [],
       "lining" => [%{"tile" => "rock", "rate" => 0.08}, %{"tile" => "shrub", "rate" => 0.1}]
     },
@@ -451,7 +483,10 @@ defmodule Nebulith.Catalog.GeneratorSource do
     # `woodland_mountain`: a pale grey-beige gravel track, #ded6c1 at 214.2 over grass at 145, so +69. Our
     # mountain floor is 103.1, which puts it at 171. This is the one the woodland's dirt tone was overriding.
     "rocky_track" => %{
-      "surface" => "gravel", "tone" => "#b1ab9a", "width" => 3, "edge" => 0.4,
+      "surface" => "gravel",
+      "tone" => "#b1ab9a",
+      "width" => 3,
+      "edge" => 0.4,
       "scatter" => [],
       "lining" => [%{"tile" => "rock", "rate" => 0.16}, %{"tile" => "shrub", "rate" => 0.05}]
     },
@@ -461,7 +496,10 @@ defmodule Nebulith.Catalog.GeneratorSource do
     # the set, because a kept lawn is already bright. Our meadow floor is 166.9, so 189. The meadow served NO
     # trail at all before this, which is why its way came out 45 points DARKER than the grass beside it.
     "park_path" => %{
-      "surface" => "path_dirt", "tone" => "#ddb985", "width" => 3, "edge" => 0.28,
+      "surface" => "path_dirt",
+      "tone" => "#ddb985",
+      "width" => 3,
+      "edge" => 0.28,
       "scatter" => [],
       "lining" => [%{"tile" => "flower", "rate" => 0.1}, %{"tile" => "rock", "rate" => 0.04}]
     },
@@ -471,7 +509,10 @@ defmodule Nebulith.Catalog.GeneratorSource do
     # the jungle has (dense 49.9, base 65.9, swamp 68.8, ruins 73.0, open 85.0). `swamp_straightforward` is the
     # reference and agrees: a trail cut through wet shaded ground is the smallest step of all, +15.
     "cut_trail" => %{
-      "surface" => "path_dirt", "tone" => "#8a7550", "width" => 2, "edge" => 0.5,
+      "surface" => "path_dirt",
+      "tone" => "#8a7550",
+      "width" => 2,
+      "edge" => 0.5,
       "scatter" => [],
       # LINED WITH THE GRASS, NOT THE THICKET, and this is measured rather than chosen. Of every tile a
       # pathway can be dressed with, `thicket` is the only one that BLOCKS, and lining a cut trail with it at
@@ -479,14 +520,20 @@ defmodule Nebulith.Catalog.GeneratorSource do
       # room back. It was redundant besides: thicket already grows over the whole jungle floor, so a hedge of
       # it at the verge adds no information. Long grass crowding the trail is what makes the edge legible,
       # and you walk through it.
-      "lining" => [%{"tile" => "tall_grass", "rate" => 0.22}, %{"tile" => "thicket", "rate" => 0.03}]
+      "lining" => [
+        %{"tile" => "tall_grass", "rate" => 0.22},
+        %{"tile" => "thicket", "rate" => 0.03}
+      ]
     },
     # The clifftop path above the beach: one winding line of warm dirt, scrub and the odd rock along it,
     # nothing laid and nothing kept.
     # The island's own tone, moved here from its palette override: 183.3 on a bright sand floor. Its reference
     # `beach_hill_path` puts the clifftop path at #e9cc98, 206.4, over scrub at 129.
     "coast_path" => %{
-      "surface" => "path_dirt", "tone" => "#cdb684", "width" => 2, "edge" => 0.45,
+      "surface" => "path_dirt",
+      "tone" => "#cdb684",
+      "width" => 2,
+      "edge" => 0.45,
       "scatter" => [],
       "lining" => [%{"tile" => "shrub", "rate" => 0.12}, %{"tile" => "rock", "rate" => 0.06}]
     },
@@ -496,7 +543,10 @@ defmodule Nebulith.Catalog.GeneratorSource do
     # so its tone is that material's; what it must never be is the dirt tone of the swamp it was built over,
     # which is what it inherited.
     "boardwalk" => %{
-      "surface" => "wooden_planks", "tone" => "#aa8250", "width" => 2, "edge" => 0.0,
+      "surface" => "wooden_planks",
+      "tone" => "#aa8250",
+      "width" => 2,
+      "edge" => 0.0,
       "scatter" => [],
       "lining" => [%{"tile" => "bush", "rate" => 0.1}]
     },
@@ -505,7 +555,10 @@ defmodule Nebulith.Catalog.GeneratorSource do
     # The stone's own colour. The settlement streets were already right, so a settlement's tone is the
     # material it is laid in and nothing is moved.
     "village_lane" => %{
-      "surface" => "path_stone", "tone" => "#ccbbaa", "width" => 3, "edge" => 0.15,
+      "surface" => "path_stone",
+      "tone" => "#ccbbaa",
+      "width" => 3,
+      "edge" => 0.15,
       "scatter" => [],
       # No `lamp`: that name is the BULB cell of `lamp_post`, not an object, so it came down as a yellow
       # cube lying on the paving. See `NoMoreBulbs`.
@@ -513,7 +566,10 @@ defmodule Nebulith.Catalog.GeneratorSource do
     },
     # Cobbles between the houses of an older town, worn at the sides, lamps along them.
     "cobbled_lane" => %{
-      "surface" => "cobblestone", "tone" => "#b9b2a3", "width" => 3, "edge" => 0.12,
+      "surface" => "cobblestone",
+      "tone" => "#b9b2a3",
+      "width" => 3,
+      "edge" => 0.12,
       "scatter" => [],
       # No `lamp`, see `NoMoreBulbs`.
       "lining" => []
@@ -528,7 +584,10 @@ defmodule Nebulith.Catalog.GeneratorSource do
     # pixels lying on its asphalt; that asphalt measures #3e403f against our `road` at #3d3d44, so the pair is
     # the picture's pair.
     "city_street" => %{
-      "surface" => "road", "tone" => "#3d3d44", "width" => 4, "edge" => 0.0,
+      "surface" => "road",
+      "tone" => "#3d3d44",
+      "width" => 4,
+      "edge" => 0.0,
       "marking" => %{"color" => "#eae7db", "every" => 3},
       "scatter" => [],
       # No `lamp`, see `NoMoreBulbs`.
@@ -539,7 +598,10 @@ defmodule Nebulith.Catalog.GeneratorSource do
     # `beach_hill_path` again, held back off its 206.4 because a cart track through a town is trodden rather
     # than bleached.
     "sand_track" => %{
-      "surface" => "path_dirt", "tone" => "#dcc190", "width" => 3, "edge" => 0.3,
+      "surface" => "path_dirt",
+      "tone" => "#dcc190",
+      "width" => 3,
+      "edge" => 0.3,
       "scatter" => [],
       "lining" => [%{"tile" => "shrub", "rate" => 0.1}]
     }
@@ -561,7 +623,10 @@ defmodule Nebulith.Catalog.GeneratorSource do
   #
   # Deriving it here makes the contradiction unrepresentable instead of merely absent, and a row that states
   # no pathway keeps whatever streets it has, so nothing that predates the pathway block moves.
-  defp streets_follow_the_pathway(%{config: %{"pathway" => %{"surface" => surface}, "settlement" => settlement} = config} = attrs)
+  defp streets_follow_the_pathway(
+         %{config: %{"pathway" => %{"surface" => surface}, "settlement" => settlement} = config} =
+           attrs
+       )
        when is_binary(surface) and is_map(settlement) do
     %{attrs | config: %{config | "settlement" => Map.put(settlement, "streets", surface)}}
   end
@@ -772,20 +837,49 @@ defmodule Nebulith.Catalog.GeneratorSource do
     %{
       key: "woodland",
       name: "Woodland",
-      wild_blurb: "A temperate wood: grey-green, a lot of brown showing through, light reaching the floor.",
+      wild_blurb:
+        "A temperate wood: grey-green, a lot of brown showing through, light reaching the floor.",
       place_blurb: "under temperate trees.",
       layout: "woodland",
       palette: @woodland_palette,
       nature: @woodland_nature,
       formation: @formations["stand"],
       trees: @woodland_trees,
-      ways: %{"wild" => "forest_track", "village" => "forest_track", "town" => "village_lane", "city" => "city_street"},
-      floors: %{"edge" => "#7d8a55", "deep" => "#5c6e3d", "glade" => "#8b9a5a", "thicket" => "#66753f", "lakeside" => "#5a6b48"},
+      ways: %{
+        "wild" => "forest_track",
+        "village" => "forest_track",
+        "town" => "village_lane",
+        "city" => "city_street"
+      },
+      floors: %{
+        "edge" => "#7d8a55",
+        "deep" => "#5c6e3d",
+        "glade" => "#8b9a5a",
+        "thicket" => "#66753f",
+        "lakeside" => "#5a6b48"
+      },
       species: %{
-        "canopy" => [%{"kind" => "tree_column", "weight" => 30}, %{"kind" => "tree_tall", "weight" => 25}, %{"kind" => "tree", "weight" => 25}, %{"kind" => "tree_sapling", "weight" => 20}],
-        "open" => [%{"kind" => "tree_gnarled", "weight" => 60}, %{"kind" => "tree_round", "weight" => 25}, %{"kind" => "bush_round", "weight" => 15}],
-        "scrub" => [%{"kind" => "bush", "weight" => 45}, %{"kind" => "bush_round", "weight" => 30}, %{"kind" => "tree_sapling", "weight" => 25}],
-        "wet" => [%{"kind" => "tree_broadleaf", "weight" => 40}, %{"kind" => "tree_round", "weight" => 35}, %{"kind" => "bush_round", "weight" => 25}]
+        "canopy" => [
+          %{"kind" => "tree_column", "weight" => 30},
+          %{"kind" => "tree_tall", "weight" => 25},
+          %{"kind" => "tree", "weight" => 25},
+          %{"kind" => "tree_sapling", "weight" => 20}
+        ],
+        "open" => [
+          %{"kind" => "tree_gnarled", "weight" => 60},
+          %{"kind" => "tree_round", "weight" => 25},
+          %{"kind" => "bush_round", "weight" => 15}
+        ],
+        "scrub" => [
+          %{"kind" => "bush", "weight" => 45},
+          %{"kind" => "bush_round", "weight" => 30},
+          %{"kind" => "tree_sapling", "weight" => 25}
+        ],
+        "wet" => [
+          %{"kind" => "tree_broadleaf", "weight" => 40},
+          %{"kind" => "tree_round", "weight" => 35},
+          %{"kind" => "bush_round", "weight" => 25}
+        ]
       }
     },
     %{
@@ -800,13 +894,42 @@ defmodule Nebulith.Catalog.GeneratorSource do
       trees: @jungle_trees,
       folk: 2,
       blooms: @jungle_blooms,
-      ways: %{"wild" => "cut_trail", "village" => "cut_trail", "town" => "village_lane", "city" => "city_street"},
-      floors: %{"edge" => "#3f5f33", "deep" => "#24381f", "glade" => "#4c6b38", "thicket" => "#2c4526", "lakeside" => "#3b4a2e"},
+      ways: %{
+        "wild" => "cut_trail",
+        "village" => "cut_trail",
+        "town" => "village_lane",
+        "city" => "city_street"
+      },
+      floors: %{
+        "edge" => "#3f5f33",
+        "deep" => "#24381f",
+        "glade" => "#4c6b38",
+        "thicket" => "#2c4526",
+        "lakeside" => "#3b4a2e"
+      },
       species: %{
-        "canopy" => [%{"kind" => "tree_giant", "weight" => 25}, %{"kind" => "tree_big", "weight" => 25}, %{"kind" => "bush", "weight" => 25}, %{"kind" => "tree_round", "weight" => 25}],
-        "open" => [%{"kind" => "tree_palm", "weight" => 30}, %{"kind" => "tree_round", "weight" => 30}, %{"kind" => "tree_big", "weight" => 20}, %{"kind" => "bush_round", "weight" => 20}],
-        "scrub" => [%{"kind" => "bush", "weight" => 45}, %{"kind" => "bush_round", "weight" => 35}, %{"kind" => "tree_sapling", "weight" => 20}],
-        "wet" => [%{"kind" => "tree_cypress", "weight" => 60}, %{"kind" => "bush_round", "weight" => 25}, %{"kind" => "tree_round", "weight" => 15}]
+        "canopy" => [
+          %{"kind" => "tree_giant", "weight" => 25},
+          %{"kind" => "tree_big", "weight" => 25},
+          %{"kind" => "bush", "weight" => 25},
+          %{"kind" => "tree_round", "weight" => 25}
+        ],
+        "open" => [
+          %{"kind" => "tree_palm", "weight" => 30},
+          %{"kind" => "tree_round", "weight" => 30},
+          %{"kind" => "tree_big", "weight" => 20},
+          %{"kind" => "bush_round", "weight" => 20}
+        ],
+        "scrub" => [
+          %{"kind" => "bush", "weight" => 45},
+          %{"kind" => "bush_round", "weight" => 35},
+          %{"kind" => "tree_sapling", "weight" => 20}
+        ],
+        "wet" => [
+          %{"kind" => "tree_cypress", "weight" => 60},
+          %{"kind" => "bush_round", "weight" => 25},
+          %{"kind" => "tree_round", "weight" => 15}
+        ]
       },
       settlement_nature: %{"groundCover" => 0.35, "flowers" => 0.1, "tallGrass" => 0.25},
       nature_scale: 1.4,
@@ -827,13 +950,40 @@ defmodule Nebulith.Catalog.GeneratorSource do
       formation: @formations["scattered"],
       trees: @meadow_trees,
       folk: 5,
-      ways: %{"wild" => "park_path", "village" => "park_path", "town" => "village_lane", "city" => "city_street"},
-      floors: %{"edge" => "#7f9050", "deep" => "#6b7d45", "glade" => "#93a463", "thicket" => "#77894c", "lakeside" => "#6f8352"},
+      ways: %{
+        "wild" => "park_path",
+        "village" => "park_path",
+        "town" => "village_lane",
+        "city" => "city_street"
+      },
+      floors: %{
+        "edge" => "#7f9050",
+        "deep" => "#6b7d45",
+        "glade" => "#93a463",
+        "thicket" => "#77894c",
+        "lakeside" => "#6f8352"
+      },
       species: %{
-        "canopy" => [%{"kind" => "tree_broadleaf", "weight" => 40}, %{"kind" => "tree_round", "weight" => 30}, %{"kind" => "tree_big", "weight" => 30}],
-        "open" => [%{"kind" => "tree_gnarled", "weight" => 60}, %{"kind" => "tree_round", "weight" => 25}, %{"kind" => "bush_round", "weight" => 15}],
-        "scrub" => [%{"kind" => "bush_round", "weight" => 50}, %{"kind" => "bush", "weight" => 30}, %{"kind" => "tree_sapling", "weight" => 20}],
-        "wet" => [%{"kind" => "tree_broadleaf", "weight" => 40}, %{"kind" => "tree_round", "weight" => 35}, %{"kind" => "bush_round", "weight" => 25}]
+        "canopy" => [
+          %{"kind" => "tree_broadleaf", "weight" => 40},
+          %{"kind" => "tree_round", "weight" => 30},
+          %{"kind" => "tree_big", "weight" => 30}
+        ],
+        "open" => [
+          %{"kind" => "tree_gnarled", "weight" => 60},
+          %{"kind" => "tree_round", "weight" => 25},
+          %{"kind" => "bush_round", "weight" => 15}
+        ],
+        "scrub" => [
+          %{"kind" => "bush_round", "weight" => 50},
+          %{"kind" => "bush", "weight" => 30},
+          %{"kind" => "tree_sapling", "weight" => 20}
+        ],
+        "wet" => [
+          %{"kind" => "tree_broadleaf", "weight" => 40},
+          %{"kind" => "tree_round", "weight" => 35},
+          %{"kind" => "bush_round", "weight" => 25}
+        ]
       },
       nature_scale: 1.1,
       buildings: %{
@@ -850,18 +1000,51 @@ defmodule Nebulith.Catalog.GeneratorSource do
       palette: @jungle_palette,
       nature: @jungle_nature,
       formation: @formations["closed"],
-      trees: [%{"kind" => "tree_cypress", "weight" => 45}, %{"kind" => "tree_mangrove", "weight" => 25}, %{"kind" => "bush_round", "weight" => 18}, %{"kind" => "tree_round", "weight" => 12}],
+      trees: [
+        %{"kind" => "tree_cypress", "weight" => 45},
+        %{"kind" => "tree_mangrove", "weight" => 25},
+        %{"kind" => "bush_round", "weight" => 18},
+        %{"kind" => "tree_round", "weight" => 12}
+      ],
       folk: 2,
       blooms: @swamp_blooms,
       # a swamp does not freeze over and it is not a desert either
       seasons: ~w(spring summer),
-      ways: %{"wild" => "boardwalk", "village" => "boardwalk", "town" => "boardwalk", "city" => "boardwalk"},
-      floors: %{"edge" => "#3d5233", "deep" => "#2a3a24", "glade" => "#4a5c37", "thicket" => "#33472b", "lakeside" => "#35462c"},
+      ways: %{
+        "wild" => "boardwalk",
+        "village" => "boardwalk",
+        "town" => "boardwalk",
+        "city" => "boardwalk"
+      },
+      floors: %{
+        "edge" => "#3d5233",
+        "deep" => "#2a3a24",
+        "glade" => "#4a5c37",
+        "thicket" => "#33472b",
+        "lakeside" => "#35462c"
+      },
       species: %{
-        "canopy" => [%{"kind" => "tree_cypress", "weight" => 35}, %{"kind" => "tree_giant", "weight" => 25}, %{"kind" => "bush", "weight" => 25}, %{"kind" => "tree_round", "weight" => 15}],
-        "open" => [%{"kind" => "tree_cypress", "weight" => 40}, %{"kind" => "tree_mangrove", "weight" => 30}, %{"kind" => "bush_round", "weight" => 30}],
-        "scrub" => [%{"kind" => "bush", "weight" => 45}, %{"kind" => "bush_round", "weight" => 35}, %{"kind" => "tree_sapling", "weight" => 20}],
-        "wet" => [%{"kind" => "tree_cypress", "weight" => 60}, %{"kind" => "tree_mangrove", "weight" => 25}, %{"kind" => "bush_round", "weight" => 15}]
+        "canopy" => [
+          %{"kind" => "tree_cypress", "weight" => 35},
+          %{"kind" => "tree_giant", "weight" => 25},
+          %{"kind" => "bush", "weight" => 25},
+          %{"kind" => "tree_round", "weight" => 15}
+        ],
+        "open" => [
+          %{"kind" => "tree_cypress", "weight" => 40},
+          %{"kind" => "tree_mangrove", "weight" => 30},
+          %{"kind" => "bush_round", "weight" => 30}
+        ],
+        "scrub" => [
+          %{"kind" => "bush", "weight" => 45},
+          %{"kind" => "bush_round", "weight" => 35},
+          %{"kind" => "tree_sapling", "weight" => 20}
+        ],
+        "wet" => [
+          %{"kind" => "tree_cypress", "weight" => 60},
+          %{"kind" => "tree_mangrove", "weight" => 25},
+          %{"kind" => "bush_round", "weight" => 15}
+        ]
       },
       settlement_nature: %{"groundCover" => 0.45, "flowers" => 0.08, "tallGrass" => 0.3},
       nature_scale: 1.5,
@@ -877,25 +1060,57 @@ defmodule Nebulith.Catalog.GeneratorSource do
     %{
       key: "mountain",
       name: "Mountain",
-      wild_blurb: "Conifers over ground that actually climbs: a bare ridge, wooded slopes, a sheltered vale.",
+      wild_blurb:
+        "Conifers over ground that actually climbs: a bare ridge, wooded slopes, a sheltered vale.",
       place_blurb: "on the rock, in among the conifers.",
       layout: "woodland",
       palette: @woodland_palette,
       nature: %{"groundCover" => 0.2, "flowers" => 0.04, "canopy" => 0.28, "tallGrass" => 0.12},
       formation: @formations["clumped"],
-      trees: [%{"kind" => "tree_conifer", "weight" => 70}, %{"kind" => "tree_tall", "weight" => 15}, %{"kind" => "tree_stub", "weight" => 15}],
-      ways: %{"wild" => "rocky_track", "village" => "rocky_track", "town" => "cobbled_lane", "city" => "cobbled_lane"},
-      floors: %{"edge" => "#6b7a4e", "deep" => "#47603a", "glade" => "#8a8d76", "thicket" => "#5f7047", "lakeside" => "#52664a"},
+      trees: [
+        %{"kind" => "tree_conifer", "weight" => 70},
+        %{"kind" => "tree_tall", "weight" => 15},
+        %{"kind" => "tree_stub", "weight" => 15}
+      ],
+      ways: %{
+        "wild" => "rocky_track",
+        "village" => "rocky_track",
+        "town" => "cobbled_lane",
+        "city" => "cobbled_lane"
+      },
+      floors: %{
+        "edge" => "#6b7a4e",
+        "deep" => "#47603a",
+        "glade" => "#8a8d76",
+        "thicket" => "#5f7047",
+        "lakeside" => "#52664a"
+      },
       # WHAT MAKES IT A MOUNTAIN rather than a colour change: the cells of a region stand at that level and
       # the step down to the next is drawn as a cliff. The glade is the exposed ridge at the top, where
       # almost nothing grows, and the deep wood is the vale at the bottom, where the water and the soil end
       # up. Nothing else in the catalog states a level except its volcanic placeholder.
       levels: %{"glade" => 3, "edge" => 2, "thicket" => 2, "deep" => 0, "lakeside" => 0},
       species: %{
-        "canopy" => [%{"kind" => "tree_conifer", "weight" => 65}, %{"kind" => "tree_tall", "weight" => 20}, %{"kind" => "tree_stub", "weight" => 15}],
-        "open" => [%{"kind" => "tree_stub", "weight" => 55}, %{"kind" => "tree_conifer", "weight" => 45}],
-        "scrub" => [%{"kind" => "tree_stub", "weight" => 50}, %{"kind" => "bush", "weight" => 30}, %{"kind" => "tree_sapling", "weight" => 20}],
-        "wet" => [%{"kind" => "tree_conifer", "weight" => 45}, %{"kind" => "tree_tall", "weight" => 25}, %{"kind" => "tree_broadleaf", "weight" => 20}, %{"kind" => "tree_sapling", "weight" => 10}]
+        "canopy" => [
+          %{"kind" => "tree_conifer", "weight" => 65},
+          %{"kind" => "tree_tall", "weight" => 20},
+          %{"kind" => "tree_stub", "weight" => 15}
+        ],
+        "open" => [
+          %{"kind" => "tree_stub", "weight" => 55},
+          %{"kind" => "tree_conifer", "weight" => 45}
+        ],
+        "scrub" => [
+          %{"kind" => "tree_stub", "weight" => 50},
+          %{"kind" => "bush", "weight" => 30},
+          %{"kind" => "tree_sapling", "weight" => 20}
+        ],
+        "wet" => [
+          %{"kind" => "tree_conifer", "weight" => 45},
+          %{"kind" => "tree_tall", "weight" => 25},
+          %{"kind" => "tree_broadleaf", "weight" => 20},
+          %{"kind" => "tree_sapling", "weight" => 10}
+        ]
       },
       nature_scale: 0.9,
       buildings: %{
@@ -915,17 +1130,52 @@ defmodule Nebulith.Catalog.GeneratorSource do
       palette: @beach_palette,
       nature: @jungle_nature,
       formation: @formations["closed"],
-      trees: [%{"kind" => "tree_coconut", "weight" => 30}, %{"kind" => "tree_palm", "weight" => 25}, %{"kind" => "tree_banana", "weight" => 20}, %{"kind" => "tree_mangrove", "weight" => 15}, %{"kind" => "bush_round", "weight" => 10}],
+      trees: [
+        %{"kind" => "tree_coconut", "weight" => 30},
+        %{"kind" => "tree_palm", "weight" => 25},
+        %{"kind" => "tree_banana", "weight" => 20},
+        %{"kind" => "tree_mangrove", "weight" => 15},
+        %{"kind" => "bush_round", "weight" => 10}
+      ],
       blooms: @island_blooms,
       # a coast starts ringed by water
       river: "around",
-      ways: %{"wild" => "coast_path", "village" => "coast_path", "town" => "sand_track", "city" => "city_street"},
-      floors: %{"edge" => "#8c9a5b", "deep" => "#6b7a45", "glade" => "#9aa768", "thicket" => "#7c8a4e", "lakeside" => "#b8a978"},
+      ways: %{
+        "wild" => "coast_path",
+        "village" => "coast_path",
+        "town" => "sand_track",
+        "city" => "city_street"
+      },
+      floors: %{
+        "edge" => "#8c9a5b",
+        "deep" => "#6b7a45",
+        "glade" => "#9aa768",
+        "thicket" => "#7c8a4e",
+        "lakeside" => "#b8a978"
+      },
       species: %{
-        "canopy" => [%{"kind" => "tree_banana", "weight" => 30}, %{"kind" => "tree_coconut", "weight" => 25}, %{"kind" => "tree_mangrove", "weight" => 25}, %{"kind" => "bush", "weight" => 20}],
-        "open" => [%{"kind" => "tree_coconut", "weight" => 35}, %{"kind" => "tree_palm", "weight" => 25}, %{"kind" => "tree_banana", "weight" => 25}, %{"kind" => "bush_round", "weight" => 15}],
-        "scrub" => [%{"kind" => "bush_round", "weight" => 50}, %{"kind" => "bush", "weight" => 30}, %{"kind" => "tree_sapling", "weight" => 20}],
-        "wet" => [%{"kind" => "tree_mangrove", "weight" => 60}, %{"kind" => "tree_palm", "weight" => 25}, %{"kind" => "bush_round", "weight" => 15}]
+        "canopy" => [
+          %{"kind" => "tree_banana", "weight" => 30},
+          %{"kind" => "tree_coconut", "weight" => 25},
+          %{"kind" => "tree_mangrove", "weight" => 25},
+          %{"kind" => "bush", "weight" => 20}
+        ],
+        "open" => [
+          %{"kind" => "tree_coconut", "weight" => 35},
+          %{"kind" => "tree_palm", "weight" => 25},
+          %{"kind" => "tree_banana", "weight" => 25},
+          %{"kind" => "bush_round", "weight" => 15}
+        ],
+        "scrub" => [
+          %{"kind" => "bush_round", "weight" => 50},
+          %{"kind" => "bush", "weight" => 30},
+          %{"kind" => "tree_sapling", "weight" => 20}
+        ],
+        "wet" => [
+          %{"kind" => "tree_mangrove", "weight" => 60},
+          %{"kind" => "tree_palm", "weight" => 25},
+          %{"kind" => "bush_round", "weight" => 15}
+        ]
       },
       settlement_nature: %{"groundCover" => 0.06, "flowers" => 0.03, "tallGrass" => 0.08},
       nature_scale: 0.45,
@@ -939,25 +1189,59 @@ defmodule Nebulith.Catalog.GeneratorSource do
     %{
       key: "ruins",
       name: "Ruins",
-      wild_blurb: "Old stone the wood has taken back, unevenly: clumps of trees with open masonry between.",
+      wild_blurb:
+        "Old stone the wood has taken back, unevenly: clumps of trees with open masonry between.",
       place_blurb: "built over old stone.",
       layout: "jungle",
       palette: @jungle_palette,
       nature: @jungle_nature,
       formation: @formations["closed"],
-      trees: [%{"kind" => "tree_round", "weight" => 30}, %{"kind" => "bush", "weight" => 30}, %{"kind" => "tree_stub", "weight" => 20}, %{"kind" => "tree_sapling", "weight" => 20}],
+      trees: [
+        %{"kind" => "tree_round", "weight" => 30},
+        %{"kind" => "bush", "weight" => 30},
+        %{"kind" => "tree_stub", "weight" => 20},
+        %{"kind" => "tree_sapling", "weight" => 20}
+      ],
       folk: 2,
       blooms: @jungle_blooms,
-      ways: %{"wild" => "forest_track", "village" => "forest_track", "town" => "cobbled_lane", "city" => "cobbled_lane"},
-      floors: %{"edge" => "#4a4a3c", "deep" => "#3a3c30", "glade" => "#5d5c4a", "thicket" => "#414433", "lakeside" => "#46503a"},
+      ways: %{
+        "wild" => "forest_track",
+        "village" => "forest_track",
+        "town" => "cobbled_lane",
+        "city" => "cobbled_lane"
+      },
+      floors: %{
+        "edge" => "#4a4a3c",
+        "deep" => "#3a3c30",
+        "glade" => "#5d5c4a",
+        "thicket" => "#414433",
+        "lakeside" => "#46503a"
+      },
       # fallen masonry everywhere, which is the whole point of the place: it rides on every region rather
       # than on one, because the ruin is the environment now and not a corner of a rainforest
       region_extra: %{"stone" => 0.16},
       species: %{
-        "canopy" => [%{"kind" => "tree_round", "weight" => 30}, %{"kind" => "bush", "weight" => 30}, %{"kind" => "tree_stub", "weight" => 20}, %{"kind" => "tree_sapling", "weight" => 20}],
-        "open" => [%{"kind" => "tree_stub", "weight" => 40}, %{"kind" => "tree_round", "weight" => 30}, %{"kind" => "bush_round", "weight" => 30}],
-        "scrub" => [%{"kind" => "bush", "weight" => 45}, %{"kind" => "tree_sapling", "weight" => 30}, %{"kind" => "bush_round", "weight" => 25}],
-        "wet" => [%{"kind" => "tree_round", "weight" => 40}, %{"kind" => "bush", "weight" => 35}, %{"kind" => "tree_sapling", "weight" => 25}]
+        "canopy" => [
+          %{"kind" => "tree_round", "weight" => 30},
+          %{"kind" => "bush", "weight" => 30},
+          %{"kind" => "tree_stub", "weight" => 20},
+          %{"kind" => "tree_sapling", "weight" => 20}
+        ],
+        "open" => [
+          %{"kind" => "tree_stub", "weight" => 40},
+          %{"kind" => "tree_round", "weight" => 30},
+          %{"kind" => "bush_round", "weight" => 30}
+        ],
+        "scrub" => [
+          %{"kind" => "bush", "weight" => 45},
+          %{"kind" => "tree_sapling", "weight" => 30},
+          %{"kind" => "bush_round", "weight" => 25}
+        ],
+        "wet" => [
+          %{"kind" => "tree_round", "weight" => 40},
+          %{"kind" => "bush", "weight" => 35},
+          %{"kind" => "tree_sapling", "weight" => 25}
+        ]
       },
       settlement_nature: %{"groundCover" => 0.22, "flowers" => 0.05, "tallGrass" => 0.16},
       nature_scale: 0.9,
@@ -976,23 +1260,58 @@ defmodule Nebulith.Catalog.GeneratorSource do
     %{
       key: "desert",
       name: "Desert",
-      wild_blurb: "Open sand and sparse growth. Running on the beach's numbers until it gets its own.",
+      wild_blurb:
+        "Open sand and sparse growth. Running on the beach's numbers until it gets its own.",
       place_blurb: "out on the open sand.",
       layout: "jungle",
       palette: @beach_palette,
       nature: @jungle_nature,
       formation: @formations["closed"],
-      trees: [%{"kind" => "tree_palm", "weight" => 40}, %{"kind" => "tree_coconut", "weight" => 25}, %{"kind" => "tree_stub", "weight" => 20}, %{"kind" => "bush_round", "weight" => 15}],
+      trees: [
+        %{"kind" => "tree_palm", "weight" => 40},
+        %{"kind" => "tree_coconut", "weight" => 25},
+        %{"kind" => "tree_stub", "weight" => 20},
+        %{"kind" => "bush_round", "weight" => 15}
+      ],
       folk: 2,
       blooms: @island_blooms,
       seasons: ~w(summer desert),
-      ways: %{"wild" => "coast_path", "village" => "sand_track", "town" => "sand_track", "city" => "sand_track"},
-      floors: %{"edge" => "#8c9a5b", "deep" => "#6b7a45", "glade" => "#9aa768", "thicket" => "#7c8a4e", "lakeside" => "#b8a978"},
+      ways: %{
+        "wild" => "coast_path",
+        "village" => "sand_track",
+        "town" => "sand_track",
+        "city" => "sand_track"
+      },
+      floors: %{
+        "edge" => "#8c9a5b",
+        "deep" => "#6b7a45",
+        "glade" => "#9aa768",
+        "thicket" => "#7c8a4e",
+        "lakeside" => "#b8a978"
+      },
       species: %{
-        "canopy" => [%{"kind" => "tree_banana", "weight" => 30}, %{"kind" => "tree_coconut", "weight" => 25}, %{"kind" => "tree_mangrove", "weight" => 25}, %{"kind" => "bush", "weight" => 20}],
-        "open" => [%{"kind" => "tree_coconut", "weight" => 35}, %{"kind" => "tree_palm", "weight" => 25}, %{"kind" => "tree_banana", "weight" => 25}, %{"kind" => "bush_round", "weight" => 15}],
-        "scrub" => [%{"kind" => "bush_round", "weight" => 50}, %{"kind" => "bush", "weight" => 30}, %{"kind" => "tree_sapling", "weight" => 20}],
-        "wet" => [%{"kind" => "tree_mangrove", "weight" => 60}, %{"kind" => "tree_palm", "weight" => 25}, %{"kind" => "bush_round", "weight" => 15}]
+        "canopy" => [
+          %{"kind" => "tree_banana", "weight" => 30},
+          %{"kind" => "tree_coconut", "weight" => 25},
+          %{"kind" => "tree_mangrove", "weight" => 25},
+          %{"kind" => "bush", "weight" => 20}
+        ],
+        "open" => [
+          %{"kind" => "tree_coconut", "weight" => 35},
+          %{"kind" => "tree_palm", "weight" => 25},
+          %{"kind" => "tree_banana", "weight" => 25},
+          %{"kind" => "bush_round", "weight" => 15}
+        ],
+        "scrub" => [
+          %{"kind" => "bush_round", "weight" => 50},
+          %{"kind" => "bush", "weight" => 30},
+          %{"kind" => "tree_sapling", "weight" => 20}
+        ],
+        "wet" => [
+          %{"kind" => "tree_mangrove", "weight" => 60},
+          %{"kind" => "tree_palm", "weight" => 25},
+          %{"kind" => "bush_round", "weight" => 15}
+        ]
       },
       settlement_nature: %{"groundCover" => 0.06, "flowers" => 0.03, "tallGrass" => 0.08},
       nature_scale: 0.45,
@@ -1010,22 +1329,54 @@ defmodule Nebulith.Catalog.GeneratorSource do
     %{
       key: "volcanic",
       name: "Volcanic",
-      wild_blurb: "Rock that climbs in steps. Running on the mountain's numbers until it gets its own.",
+      wild_blurb:
+        "Rock that climbs in steps. Running on the mountain's numbers until it gets its own.",
       place_blurb: "on the black rock under the mountain.",
       layout: "woodland",
       palette: @woodland_palette,
       nature: %{"groundCover" => 0.2, "flowers" => 0.04, "canopy" => 0.28, "tallGrass" => 0.12},
       formation: @formations["clumped"],
-      trees: [%{"kind" => "tree_conifer", "weight" => 70}, %{"kind" => "tree_tall", "weight" => 15}, %{"kind" => "tree_stub", "weight" => 15}],
+      trees: [
+        %{"kind" => "tree_conifer", "weight" => 70},
+        %{"kind" => "tree_tall", "weight" => 15},
+        %{"kind" => "tree_stub", "weight" => 15}
+      ],
       folk: 2,
-      ways: %{"wild" => "rocky_track", "village" => "rocky_track", "town" => "rocky_track", "city" => "cobbled_lane"},
-      floors: %{"edge" => "#6b7a4e", "deep" => "#47603a", "glade" => "#8a8d76", "thicket" => "#5f7047", "lakeside" => "#52664a"},
+      ways: %{
+        "wild" => "rocky_track",
+        "village" => "rocky_track",
+        "town" => "rocky_track",
+        "city" => "cobbled_lane"
+      },
+      floors: %{
+        "edge" => "#6b7a4e",
+        "deep" => "#47603a",
+        "glade" => "#8a8d76",
+        "thicket" => "#5f7047",
+        "lakeside" => "#52664a"
+      },
       levels: %{"glade" => 3, "edge" => 2, "thicket" => 2, "deep" => 0, "lakeside" => 0},
       species: %{
-        "canopy" => [%{"kind" => "tree_conifer", "weight" => 65}, %{"kind" => "tree_tall", "weight" => 20}, %{"kind" => "tree_stub", "weight" => 15}],
-        "open" => [%{"kind" => "tree_stub", "weight" => 55}, %{"kind" => "tree_conifer", "weight" => 45}],
-        "scrub" => [%{"kind" => "tree_stub", "weight" => 50}, %{"kind" => "bush", "weight" => 30}, %{"kind" => "tree_sapling", "weight" => 20}],
-        "wet" => [%{"kind" => "tree_conifer", "weight" => 45}, %{"kind" => "tree_tall", "weight" => 25}, %{"kind" => "tree_broadleaf", "weight" => 20}, %{"kind" => "tree_sapling", "weight" => 10}]
+        "canopy" => [
+          %{"kind" => "tree_conifer", "weight" => 65},
+          %{"kind" => "tree_tall", "weight" => 20},
+          %{"kind" => "tree_stub", "weight" => 15}
+        ],
+        "open" => [
+          %{"kind" => "tree_stub", "weight" => 55},
+          %{"kind" => "tree_conifer", "weight" => 45}
+        ],
+        "scrub" => [
+          %{"kind" => "tree_stub", "weight" => 50},
+          %{"kind" => "bush", "weight" => 30},
+          %{"kind" => "tree_sapling", "weight" => 20}
+        ],
+        "wet" => [
+          %{"kind" => "tree_conifer", "weight" => 45},
+          %{"kind" => "tree_tall", "weight" => 25},
+          %{"kind" => "tree_broadleaf", "weight" => 20},
+          %{"kind" => "tree_sapling", "weight" => 10}
+        ]
       },
       nature_scale: 0.9,
       buildings: %{
@@ -1071,7 +1422,13 @@ defmodule Nebulith.Catalog.GeneratorSource do
         "roofColors" => ["#3f464c", "#4a4f55", "#5c4433"],
         "wallColors" => ["#8a8580", "#a89f7a", "#9e4b3b"]
       },
-      mix_replace: [{"cathedral", 1, 1}, {"castle", 1, 1}, {"manor", 2, 4}, {"smithy", 1, 2}, {"church", 1, 2}]
+      mix_replace: [
+        {"cathedral", 1, 1},
+        {"castle", 1, 1},
+        {"manor", 2, 4},
+        {"smithy", 1, 2},
+        {"church", 1, 2}
+      ]
     }
   ]
 
@@ -1133,7 +1490,13 @@ defmodule Nebulith.Catalog.GeneratorSource do
       demanded_houses: {1, 3},
       nature_mult: 1.3,
       folk: 8,
-      mix: [{"temple", 1, 1}, {"church", 1, 1}, {"stable", 1, 2}, {"barn", 1, 2}, {"smithy", 1, 1}],
+      mix: [
+        {"temple", 1, 1},
+        {"church", 1, 1},
+        {"stable", 1, 2},
+        {"barn", 1, 2},
+        {"smithy", 1, 1}
+      ],
       buildings: %{
         "roof" => "roof",
         "materials" => ["wall_brick", "wall_wood"],
@@ -1180,7 +1543,9 @@ defmodule Nebulith.Catalog.GeneratorSource do
   }
 
   # How many ancestors a seed row has. Parents seed first.
-  defp depth(%{parent: parent}, by_key) when is_binary(parent), do: 1 + depth(Map.fetch!(by_key, parent), by_key)
+  defp depth(%{parent: parent}, by_key) when is_binary(parent),
+    do: 1 + depth(Map.fetch!(by_key, parent), by_key)
+
   defp depth(_row, _by_key), do: 0
 
   # THE REGION PICKER. You pick a region to LEAD and the map leans that way, which is the same idiom as
@@ -1218,7 +1583,10 @@ defmodule Nebulith.Catalog.GeneratorSource do
   defp wild_regions(env) do
     for region <- @wild_regions do
       region
-      |> Map.merge(%{"floor" => Map.fetch!(env.floors, region["key"]), "trees" => Map.fetch!(env.species, region["species"])})
+      |> Map.merge(%{
+        "floor" => Map.fetch!(env.floors, region["key"]),
+        "trees" => Map.fetch!(env.species, region["species"])
+      })
       |> Map.merge(env.region_extra)
       |> with_blooms(env.blooms)
       |> with_level(Map.get(env.levels, region["key"]))
@@ -1236,7 +1604,8 @@ defmodule Nebulith.Catalog.GeneratorSource do
 
   defp environments, do: Enum.map(@environments, &Map.merge(@environment_defaults, &1))
 
-  defp settlement_key(kind, env), do: Map.get(@kept_keys, {kind.key, env.key}, "#{kind.key}_#{env.key}")
+  defp settlement_key(kind, env),
+    do: Map.get(@kept_keys, {kind.key, env.key}, "#{kind.key}_#{env.key}")
 
   # A standalone type may say how many people live in it; everything else takes the kind's count.
   defp settlement_folk(%{settlement_folk: count}, _kind) when is_integer(count), do: count
@@ -1328,14 +1697,31 @@ defmodule Nebulith.Catalog.GeneratorSource do
   """
   def categories do
     [
-      %{key: "wilderness", name: "Wilderness", position: 0,
-        description: "Wild country with nobody living in it: wood, marsh, rock, sand and ruin."},
-      %{key: "village", name: "Village", position: 1,
-        description: "A rural place. Small houses, nothing in concrete, nothing modern."},
-      %{key: "town", name: "Town", position: 2,
-        description: "A decent size settlement with defined areas and better architecture, and nothing tall."},
-      %{key: "city", name: "City", position: 3,
-        description: "A large settlement of many zones, modern architecture and towers."}
+      %{
+        key: "wilderness",
+        name: "Wilderness",
+        position: 0,
+        description: "Wild country with nobody living in it: wood, marsh, rock, sand and ruin."
+      },
+      %{
+        key: "village",
+        name: "Village",
+        position: 1,
+        description: "A rural place. Small houses, nothing in concrete, nothing modern."
+      },
+      %{
+        key: "town",
+        name: "Town",
+        position: 2,
+        description:
+          "A decent size settlement with defined areas and better architecture, and nothing tall."
+      },
+      %{
+        key: "city",
+        name: "City",
+        position: 3,
+        description: "A large settlement of many zones, modern architecture and towers."
+      }
       # No cave, no temple. Both are removed to be designed again from scratch, the way the towns and the
       # forests were: *"WE CAN REMOVE BOTH BECAUSE THEY SUCK AND WE HAVE TO REDO THE DESIGN FROM SCRATCH"*.
     ]
@@ -1348,7 +1734,9 @@ defmodule Nebulith.Catalog.GeneratorSource do
   written out. Nothing here is a hand-copied row.
   """
   def generators do
-    wild = for {env, i} <- Enum.with_index(Enum.filter(environments(), & &1.wild)), do: wilderness_row(env, i)
+    wild =
+      for {env, i} <- Enum.with_index(Enum.filter(environments(), & &1.wild)),
+          do: wilderness_row(env, i)
 
     settlements =
       for kind <- @settlement_kinds,
@@ -1533,32 +1921,95 @@ defmodule Nebulith.Catalog.GeneratorSource do
   """
   def seed_generation_layers do
     layers = [
-      %{key: "terrain", label: "Terrain", position: 10, group: "layout", seedable: true,
-        hint: "the grid and the ground on it, by zone, region and season. decides the floor and what may grow"},
-      %{key: "water", label: "Water", position: 20, group: "layout", seedable: true,
-        hint: "rivers, pools and shallows. water is laid before the paths, because it is what they go around"},
-      %{key: "pathways", label: "Pathways", position: 30, group: "layout", seedable: true,
-        hint: "the map's structure: where the ways run, where the exits are, and which ground is left to build on"},
-      %{key: "buildings", label: "Buildings", position: 40, group: "objects", seedable: true,
-        hint: "the structures, re-rolled in place"},
-      %{key: "nature", label: "Nature", position: 50, group: "objects", seedable: true,
-        hint: "the trees, plants and greenery"},
-      %{key: "decor", label: "Decor", position: 60, group: "objects", seedable: true,
-        hint: "the dressing: what surfaces a way, what lines it, plazas, lamps and fountains"},
-      %{key: "units", label: "Units", position: 70, seedable: true,
-        hint: "the creatures and townsfolk. they depend on everything above them"},
-      %{key: "fog", label: "Fog", position: 80, seedable: false,
-        hint: "distance and what it hides. not built yet"},
-      %{key: "lightning", label: "Lightning", position: 90, seedable: false,
-        hint: "the light, which affects every element on the map. not built yet"},
-      %{key: "shadow", label: "Shadow", position: 100, seedable: false,
-        hint: "cast from the light and from where things ended up standing. not built yet"},
-      %{key: "post_processing", label: "Post processing", position: 110, seedable: false,
-        hint: "the final pass over the finished frame. not built yet"}
+      %{
+        key: "terrain",
+        label: "Terrain",
+        position: 10,
+        group: "layout",
+        seedable: true,
+        hint:
+          "the grid and the ground on it, by zone, region and season. decides the floor and what may grow"
+      },
+      %{
+        key: "water",
+        label: "Water",
+        position: 20,
+        group: "layout",
+        seedable: true,
+        hint:
+          "rivers, pools and shallows. water is laid before the paths, because it is what they go around"
+      },
+      %{
+        key: "pathways",
+        label: "Pathways",
+        position: 30,
+        group: "layout",
+        seedable: true,
+        hint:
+          "the map's structure: where the ways run, where the exits are, and which ground is left to build on"
+      },
+      %{
+        key: "buildings",
+        label: "Buildings",
+        position: 40,
+        group: "objects",
+        seedable: true,
+        hint: "the structures, re-rolled in place"
+      },
+      %{
+        key: "nature",
+        label: "Nature",
+        position: 50,
+        group: "objects",
+        seedable: true,
+        hint: "the trees, plants and greenery"
+      },
+      %{
+        key: "decor",
+        label: "Decor",
+        position: 60,
+        group: "objects",
+        seedable: true,
+        hint: "the dressing: what surfaces a way, what lines it, plazas, lamps and fountains"
+      },
+      %{
+        key: "units",
+        label: "Units",
+        position: 70,
+        seedable: true,
+        hint: "the creatures and townsfolk. they depend on everything above them"
+      },
+      %{
+        key: "fog",
+        label: "Fog",
+        position: 80,
+        seedable: false,
+        hint: "distance and what it hides. not built yet"
+      },
+      %{
+        key: "lightning",
+        label: "Lightning",
+        position: 90,
+        seedable: false,
+        hint: "the light, which affects every element on the map. not built yet"
+      },
+      %{
+        key: "shadow",
+        label: "Shadow",
+        position: 100,
+        seedable: false,
+        hint: "cast from the light and from where things ended up standing. not built yet"
+      },
+      %{
+        key: "post_processing",
+        label: "Post processing",
+        position: 110,
+        seedable: false,
+        hint: "the final pass over the finished frame. not built yet"
+      }
     ]
 
     for attrs <- layers, do: {:ok, _} = Nebulith.Catalog.upsert_generation_layer(attrs)
     :ok
   end
-
 end

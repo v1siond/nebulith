@@ -5,7 +5,7 @@ import { boxesForAsset, worldPointBlocked, FULL_CELL, MIN_BOX_SIDE, type BoxGrid
 import type { GridAsset } from '@/engine/IsometricGrid'
 
 /**
- * A tile that OCCUPIES ITS WHOLE CELL, which is what `blocking: true` used to mean and what
+ * A tile that OCCUPIES ITS WHOLE CELL, which is what `occupies: true` used to mean and what
  * `ensure_collisions/0` now writes for every solid row. Saying it in the data is the point: a tile is solid
  * where its boxes are, and one with no boxes is not solid at all (on removing the
  * flag: ).

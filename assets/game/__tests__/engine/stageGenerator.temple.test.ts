@@ -52,7 +52,7 @@ describe('generateStage, temple interior: walls are collision + border enclosed'
     const stage = temple('autumn')
     const walls = stage.props.filter(p => p.type === 'temple_wall')
     expect(walls.length).toBeGreaterThan(50) // a real dungeon boundary + inner walls
-    expect(walls.every(w => w.blocking === true)).toBe(true)
+    expect(walls.every(w => w.occupies === true)).toBe(true)
     expect(walls.every(w => stage.collision[w.row][w.col] === true)).toBe(true)
   })
 
@@ -79,7 +79,7 @@ describe('generateStage, temple interior: rooms + a boss/altar chamber + pillare
     expect(pillars.length).toBeGreaterThan(4) // colonnades + the altar ring → pillared halls
     // the altar blocks and sits on a blocked cell; it lives in the NORTH (top) half, the boss chamber
     const altar = altars[0]
-    expect(altar.blocking).toBe(true)
+    expect(altar.occupies).toBe(true)
     expect(stage.collision[altar.row][altar.col]).toBe(true)
     expect(altar.row).toBeLessThan(stage.rows / 2)
   })
@@ -130,13 +130,13 @@ describe('generateStage, temple interior: seasonal hazards + torches', () => {
     const stage = temple('autumn')
     const torches = stage.props.filter(p => p.type === 'torch')
     expect(torches.length).toBeGreaterThan(0)
-    expect(torches.every(t => t.blocking === false)).toBe(true) // sconces never pinch the floor
+    expect(torches.every(t => t.occupies === false)).toBe(true) // sconces never pinch the floor
   })
 
   it('scatters non-blocking spike hazards across the halls', () => {
     const spikes = [0, 1, 2].flatMap(() => temple('summer').props.filter(p => p.type === 'hazard'))
     expect(spikes.length).toBeGreaterThan(0)
-    expect(spikes.every(s => s.blocking === false)).toBe(true) // you can step on a trap (it never disconnects)
+    expect(spikes.every(s => s.occupies === false)).toBe(true) // you can step on a trap (it never disconnects)
   })
 
   it('freezes the winter temple pools into WALKABLE ice, but molten lava BLOCKS', () => {

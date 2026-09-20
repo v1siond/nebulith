@@ -68,11 +68,27 @@ defmodule Nebulith.Catalog.ThePanelDrawsTheOptionsTest do
   end
 
   describe "what the panel needs to fit the map" do
-    test "a COUNT option says how much map one of its choices wants", %{options: options} do
-      for key <- ~w(exits pathways) do
-        assert options[key]["maxPer"] == 180,
-               "#{key} lost maxPer, so a small map goes back to offering four ways across it"
-      end
+    test "the ways across a map are measured by the map", %{options: options} do
+      assert options["pathways"]["countBy"] == "ways",
+             "pathways no longer says what measures it, so the list goes back to a hand-written four " <>
+               "however big the template is"
+    end
+
+    test "and the ways OUT are measured by the ways across", %{options: options} do
+      # A pathway is a stretch that leaves the map at one or both of its ends (docs/PATHWAYS.md §1), so six
+      # pathways is up to twelve exits. The panel builds the list from this.
+      assert options["exits"]["countPer"] == %{"option" => "pathways", "each" => 2},
+             "exits no longer follows the pathways, so picking six of them still offers four ways out"
+    end
+
+    test "a count authors only the choices that say something a number cannot", %{options: options} do
+      # The rest are generated up to the ceiling, so an authored list is a source of LABELS, never the limit.
+      # Four hand-written entries here is what capped every map at four.
+      assert length(options["pathways"]["choices"]) == 1,
+             "pathways authors a list of counts again, which is a second limit beside the measured one"
+
+      assert Enum.map(options["exits"]["choices"], & &1["key"]) == ~w(random 1 2),
+             "exits authors counts past the two whose wording says something a bare number cannot"
     end
   end
 

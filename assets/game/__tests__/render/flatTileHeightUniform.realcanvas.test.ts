@@ -102,7 +102,7 @@ describe('a tile renders at its OWN DB height, read, not invented; sub-1 not flo
   })
 
   test('the floor is FLAT, no side walls, so it can never occlude what stands beyond it', () => {
-    const floor = { art: [''], col: 4, row: 4, type: 'floor', tileKey: 'grass', heightLevel: 0, blocking: false } as unknown as GridAsset
+    const floor = { art: [''], col: 4, row: 4, type: 'floor', tileKey: 'grass', heightLevel: 0, occupies: false } as unknown as GridAsset
     const cv = H.makeCanvas(480, 420)
     const g = drawIsoAssetAscii(cv.getContext('2d') as unknown as CanvasRenderingContext2D, CX, CY, floor, TW, TH, 0, false, 'day', EMOJI_STYLE)
     expect(g?.kind).toBe('cube')          // still the ONE tile path, a flat tile, never a billboard

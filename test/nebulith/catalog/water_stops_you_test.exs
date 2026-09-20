@@ -35,7 +35,13 @@ defmodule Nebulith.Catalog.WaterStopsYouTest do
           {"grass", 0.0, %{}}
         ] do
       {:ok, _} =
-        Catalog.upsert_tile(%{tileset_id: ts.id, label: label, color_role: "terrain", height: height, settings: settings})
+        Catalog.upsert_tile(%{
+          tileset_id: ts.id,
+          label: label,
+          color_role: "terrain",
+          height: height,
+          settings: settings
+        })
     end
 
     :ok = YouCannotWalkIntoWater.run()
@@ -61,15 +67,19 @@ defmodule Nebulith.Catalog.WaterStopsYouTest do
 
   describe "what is deliberately still walkable" do
     test "the ford film is not a wall, or every crossing on the map seals" do
-      refute Map.has_key?(tile("water_still").settings, "collision")
+      assert (tile("water_still").settings["collision"] || []) == [],
+             "water_still occupies #{inspect(tile("water_still").settings["collision"])}, and you walk on it"
     end
 
     test "ice is the surface you walk on" do
-      refute Map.has_key?(tile("frozen_water").settings, "collision")
+      assert (tile("frozen_water").settings["collision"] || []) == [],
+             "frozen_water occupies #{inspect(tile("frozen_water").settings["collision"])}, and you walk on it"
     end
 
     test "dry land is untouched" do
-      refute Map.has_key?(tile("grass").settings, "collision")
+      assert (tile("grass").settings["collision"] || []) == [],
+             "grass occupies #{inspect(tile("grass").settings["collision"])}, and you walk on it"
+
       assert tile("grass").height == 0.0
     end
   end

@@ -104,7 +104,7 @@ defmodule Nebulith.DataMigration.ABeachGrowsDuneGrass do
             label: label,
             glyph: glyph,
             emoji: emoji,
-            blocking: false,
+            occupies: false,
             height: 1.0,
             category: "nature",
             title: title,
