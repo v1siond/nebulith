@@ -10,6 +10,25 @@
       >
         Documentation
       </a>
+
+      <%!-- THE CORPUS. `/docs` serves the spec rather than a card index, so without this the other
+            documents exist and nothing on the site ever links to them. --%>
+      <nav aria-label="Documents" class="mb-5 flex flex-col border-b border-base-300 pb-4">
+        <a
+          :for={other <- @sections |> Enum.flat_map(& &1.docs)}
+          href={~p"/docs/#{other.slug}"}
+          aria-current={other.slug == @doc.slug && "page"}
+          class={[
+            "truncate rounded py-1 pr-2 text-[13px] leading-snug",
+            "hover:text-primary focus-visible:outline-2 focus-visible:outline-primary",
+            other.slug == @doc.slug && "font-semibold text-primary",
+            other.slug != @doc.slug && "text-base-content/60"
+          ]}
+        >
+          {other.title}
+        </a>
+      </nav>
+
       <nav aria-label="On this page" class="flex flex-col">
         <a
           :for={heading <- @doc.headings}
