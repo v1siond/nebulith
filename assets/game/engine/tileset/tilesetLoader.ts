@@ -115,7 +115,11 @@ function toStyleTile(label: string, tile: ApiTile): StyleTile {
     // boxes instead, and the flag has no readers left.
     walkable: !occupiesItsCell(tile),
     image: abs(tile.image_url),
-    char: tile.glyph || tile.emoji || '',
+    // NO CHAR. A tile is an image; `image` above is it. This used to build a character from the served
+    // glyph or emoji as a last resort for a missing png, and the renderers fell through to it. The backend
+    // no longer serves either, and on a generated map every tile image loads, so the fallback only kept a
+    // second vocabulary for "what this looks like" alive.
+    char: '',
     color: tile.settings?.color,
     colorRole: tile.color_role ?? '',
     position: tile.settings?.position ?? 'single',

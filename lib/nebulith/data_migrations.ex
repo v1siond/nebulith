@@ -49,11 +49,13 @@ defmodule Nebulith.DataMigrations do
 
   alias Nebulith.Repo
 
+  # THE GLYPH PASSES ARE GONE. `DistinctAsciiGlyphs`, `DistinctAsciiGlyphsRoundTwo` and
+  # `AsciiGlyphsResolveRemaining` existed to give every ascii tile its own character, because the png was
+  # rasterised from it and two tiles sharing a glyph shared a picture. `tiles.glyph` no longer exists;
+  # `image_url` is the picture. Databases that already ran them keep their ledger rows, which is harmless:
+  # a recorded pass that is no longer registered is simply never run again.
   @migrations [
     Nebulith.DataMigration.BuiltInCatalog,
-    Nebulith.DataMigration.DistinctAsciiGlyphs,
-    Nebulith.DataMigration.DistinctAsciiGlyphsRoundTwo,
-    Nebulith.DataMigration.AsciiGlyphsResolveRemaining,
     Nebulith.DataMigration.StylePresentationForTilesets,
     Nebulith.DataMigration.AsciiUnitArtFigures,
     Nebulith.DataMigration.DropBagAndJournalButtons,

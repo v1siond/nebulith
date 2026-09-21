@@ -164,14 +164,8 @@ defmodule Nebulith.Catalog.TileSource do
     # correct. An invariant that depends on being remembered is not an invariant.
     normalize_tile_heights()
 
-    # Seven seeders write glyphs and none can see the others' choices. The curated file says what each ascii
-    # tile should look like; the algorithm then catches anything it does not cover yet. Without this pair,
-    # two tiles share a glyph and therefore share a picture, the "fake tiles" report.
-    apply_curated_glyphs()
-
     # The UNIT FIGURES, a unit is a GRID of characters, not one character (see `apply_unit_art/0`).
     apply_unit_art()
-    ensure_distinct_glyphs()
     ensure_fade_near()
     ensure_ground_plants()
 
@@ -1956,8 +1950,6 @@ defmodule Nebulith.Catalog.TileSource do
               tileset_id: tileset.id,
               label: "water_still",
               title: "Still water",
-              glyph: "⌷",
-              emoji: shallow.emoji,
               # ITS OWN PICTURE. This copied the shallow band's, which is drawn as wave paths:
               # 2026-09-13, Authored in
               # `tiles.json` as a flat sheet with a soft sheen and no directional stroke anywhere, and baked.
@@ -2278,8 +2270,6 @@ defmodule Nebulith.Catalog.TileSource do
         Catalog.upsert_tile(%{
           tileset_id: tileset_id,
           label: label,
-          glyph: base.glyph,
-          emoji: base.emoji,
           color_role: base.color_role,
           occupies: solid?(base),
           height: base.height,
@@ -2629,20 +2619,6 @@ defmodule Nebulith.Catalog.TileSource do
   # One figure, distinguished by colour rather than by shape.
   @glyph_shared_labels ~w(adult person player)
 
-  # Replacement glyphs, in order, box-drawing, geometric and technical blocks, so a distinct tile reads as
-  # a distinct mark at 128px. Only ever consulted for a tile that lost a contest, so the pool is small.
-  @glyph_pool ~w(
-    ⌬ ⌭ ⌮ ⌯ ⌰ ⌱ ⌲ ⌳ ⌴ ⌵ ⌶ ⌷ ⌸ ⌹ ⌺ ⌻ ⌼ ⌽ ⌾ ⌿
-    ⍀ ⍁ ⍂ ⍃ ⍄ ⍅ ⍆ ⍇ ⍈ ⍉ ⍊ ⍋ ⍌ ⍍ ⍎ ⍏ ⍐ ⍑ ⍒ ⍓
-    ⍔ ⍕ ⍖ ⍗ ⍘ ⍙ ⍚ ⍛ ⍜ ⍝ ⍞ ⍟ ⍠ ⍡ ⍢ ⍣ ⍤ ⍥ ⍦ ⍧
-    ⍨ ⍩ ⍪ ⍫ ⍬ ⍭ ⍮ ⍯ ⍰ ⍱ ⍲ ⍳ ⍴ ⍵ ⍶ ⍷ ⍸ ⍹ ⍺ ⎊
-    ⎔ ⎕ ⏆ ⏇ ⏈ ⏉ ⏊ ⏋ ⏌ ⏍ ⏎ ⏏ ⏐ ⏑ ⏒ ⏓ ⏔ ⏕ ⏖ ⏗
-    ▰ ▱ ◰ ◱ ◲ ◳ ◴ ◵ ◶ ◷ ◸ ◹ ◿ ⬢ ⬣ ⬟ ⬠ ⬡ ⯀ ⯁
-    ⯂ ⯃ ⯄ ⯅ ⯆ ⯇ ⯈ ⯊ ⯋ ⯌ ⯍ ⯎ ⯏ ⯐ ⯑ ⧄ ⧆ ⧇ ⧊ ⧋
-    ⧌ ⧍ ⧎ ⧏ ⧐ ⧑ ⧒ ⧓ ⧔ ⧕ ⧖ ⧗ ⧘ ⧙ ⧚ ⧛ ⧜ ⧝ ⧞ ⧟
-    ⧠ ⧡ ⧢ ⧣ ⧤ ⧥ ⧦ ⧧ ⧨ ⧩ ⧪ ⧫ ⧬ ⧭ ⧮ ⧯ ⧰ ⧱ ⧲ ⧳
-  )
-
   @doc """
   Applies the CURATED ascii glyphs (`priv/repo/tilesets/ascii_glyphs.json`), the file that decides what each
   ascii tile looks like.
@@ -2654,36 +2630,9 @@ defmodule Nebulith.Catalog.TileSource do
 
   Runs after every seeder and before `ensure_distinct_glyphs/0`, which is the safety net for any label this
   file has not been updated for yet. Walks the glyph column only, so editor-tuned poses survive. Idempotent.
-  """
-  def apply_curated_glyphs do
-    path = Path.join(:code.priv_dir(:nebulith), "repo/tilesets/ascii_glyphs.json")
 
-    with true <- File.exists?(path),
-         {:ok, body} <- File.read(path),
-         {:ok, %{"glyphs" => glyphs}} <- Jason.decode(body) do
-      tileset = Enum.find(Catalog.list_tilesets(), &(&1.key == "ascii"))
-      apply_glyphs(tileset, glyphs)
-    else
-      _ -> IO.puts("no curated ascii glyphs to apply")
-    end
-  end
 
-  defp apply_glyphs(nil, _glyphs), do: :ok
-
-  defp apply_glyphs(tileset, glyphs) do
-    applied =
-      for tile <- Catalog.list_tiles_for(tileset.key),
-          want = glyphs[tile.label],
-          want != nil and want != tile.glyph do
-        Catalog.set_tile_glyph(tileset.id, tile.label, want)
-        tile.label
-      end
-
-    IO.puts("applied #{length(applied)} curated ascii glyphs")
-    :ok
-  end
-
-  @doc """
+  @doc \"""
   Makes every PER-LABEL fact agree across styles, the "one engine, N art styles" rule, enforced.
 
   So a LABEL owns everything except the picture. `grass` is called "Grass", is `terrain`, is walkable and is
@@ -3505,53 +3454,8 @@ defmodule Nebulith.Catalog.TileSource do
   The INCUMBENT of a contested glyph is the alphabetically-first label, so the assignment is stable across
   runs (idempotent) and the baseline tiles the generator leans on, `grass`, `water`, `path`, `sand`, keep
   the plain glyphs a reader expects. Walks the glyph column only, so editor-tuned poses survive.
-  """
-  def ensure_distinct_glyphs do
-    {changed, short} =
-      for tileset <- Catalog.list_tilesets(), reduce: {[], []} do
-        {changed, short} ->
-          {gave, missed} = distinct_glyphs_for(tileset)
-          {changed ++ gave, short ++ missed}
-      end
 
-    IO.puts("gave #{length(changed)} tiles their own glyph (a shared glyph is a shared picture)")
 
-    if short != [] do
-      IO.puts(
-        "GLYPH POOL EXHAUSTED: #{length(short)} tiles kept a glyph another tile already draws, so they " <>
-          "draw the same picture. Widen @glyph_pool. #{Enum.join(Enum.take(short, 12), ", ")}"
-      )
-    end
-
-    :ok
-  end
-
-  defp distinct_glyphs_for(tileset) do
-    tiles = Enum.filter(Catalog.list_tiles_for(tileset.key), &(&1.glyph not in [nil, ""]))
-    taken = MapSet.new(tiles, & &1.glyph)
-
-    tiles
-    |> Enum.group_by(& &1.glyph, & &1.label)
-    |> Enum.flat_map(fn {_glyph, labels} -> contested(labels) end)
-    |> Enum.sort_by(fn {identity, _labels} -> identity end)
-    |> Enum.reduce({taken, @glyph_pool, [], []}, &move_to_free_glyph(tileset, &1, &2))
-    |> then(fn {_taken, _pool, done, short} -> {done, short} end)
-  end
-
-  # ONE new glyph for the whole group that has to move, written onto every one of its labels.
-  #
-  # A family is one SHAPE drawn in many pieces, so when it loses a contest it moves together and keeps
-  # sharing; giving each piece its own glyph would break the very thing the family exists to express.
-  defp move_to_free_glyph(tileset, {_identity, labels}, {taken, pool, done, short}) do
-    case take_free_glyph(pool, taken) do
-      {nil, _} ->
-        {taken, [], done, labels ++ short}
-
-      {glyph, rest} ->
-        for label <- labels, do: Catalog.set_tile_glyph(tileset.id, label, glyph)
-        {MapSet.put(taken, glyph), rest, labels ++ done, short}
-    end
-  end
 
   # WHAT HAS TO MOVE OFF THIS GLYPH, as groups rather than as labels.
   #
@@ -3575,7 +3479,7 @@ defmodule Nebulith.Catalog.TileSource do
     end
   end
 
-  @doc """
+  @doc \"""
   The ONE THING that holds a glyph: the autotiled family this label belongs to, or the label itself.
 
   Public because the rule has exactly one owner. A test that keeps its own list of families is a second
@@ -3587,18 +3491,6 @@ defmodule Nebulith.Catalog.TileSource do
 
   defp glyph_family?(label),
     do: Enum.any?(@glyph_family_prefixes, &String.starts_with?(label, &1))
-
-  # NO GLYPH LEFT is reported, never raised.
-  #
-  # Raising here stopped `seed/0` half way, with the tile rows written and none of the tile-FACT rules run,
-  # so a catalog that had merely run out of glyphs came out of it with rocks you could walk through and a
-  # preview panel missing its pictures. A seed has to finish; a tile that had to keep a shared glyph is a
-  # picture shared with another tile, which is visible, countable and said out loud at the end.
-  defp take_free_glyph([], _taken), do: {nil, []}
-
-  defp take_free_glyph([g | rest], taken) do
-    if MapSet.member?(taken, g), do: take_free_glyph(rest, taken), else: {g, rest}
-  end
 
   @doc """
   Reconciles the `height` COLUMN of every paintable emoji ASSET tile (the standing categories, walls/windows/doors/roofs/props + nature; `buildings` kept for pre-split DBs) to the tile's OWN height

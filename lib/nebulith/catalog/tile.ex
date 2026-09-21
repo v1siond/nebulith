@@ -4,8 +4,6 @@ defmodule Nebulith.Catalog.Tile do
 
   schema "tiles" do
     field :label, :string
-    field :glyph, :string
-    field :emoji, :string
     field :color_role, :string
     field :height, :float, default: 0.0
     field :category, :string
@@ -23,8 +21,6 @@ defmodule Nebulith.Catalog.Tile do
     |> cast(attrs, [
       :tileset_id,
       :label,
-      :glyph,
-      :emoji,
       :color_role,
       :height,
       :category,

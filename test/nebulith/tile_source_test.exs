@@ -383,7 +383,7 @@ defmodule Nebulith.TileSourceTest do
   test "an emoji tile carries its color in settings" do
     grass = Enum.find(Catalog.list_tiles_for("emoji"), &(&1.label == "grass"))
 
-    assert grass.emoji
+    assert grass.image_url
     assert grass.settings["color"]
   end
 
@@ -425,7 +425,12 @@ defmodule Nebulith.TileSourceTest do
     end
 
     ascii = Map.new(Catalog.list_tiles_for("ascii"), &{&1.label, &1})
-    refute ascii["floor"].glyph == ascii["meadow"].glyph, "a shared glyph is a shared picture"
+
+    # Same assertion, on the field that now holds the picture: the ascii png used to be rasterised FROM
+    # the glyph, so "two tiles, one glyph" and "two tiles, one picture" were the same statement. Only the
+    # second half still exists, and it is the half that mattered.
+    refute ascii["floor"].image_url == ascii["meadow"].image_url,
+           "the floor and the meadow draw the same picture"
   end
 
   # trees, buildings and any exterior element that can hide the player fade when you're close.

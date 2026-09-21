@@ -24,14 +24,12 @@ defmodule Nebulith.DataMigration.WaterBendTile do
   def run do
     %{num_rows: count} =
       Repo.query!("""
-      INSERT INTO tiles (tileset_id, label, title, category, glyph, emoji, image_url, height,
+      INSERT INTO tiles (tileset_id, label, title, category, image_url, height,
                          settings, inserted_at, updated_at)
       SELECT t.tileset_id,
              'water_bend',
              'Water (bend)',
              t.category,
-             t.glyph,
-             t.emoji,
              replace(t.image_url, 'water.png', 'water_bend.png'),
              t.height,
              t.settings,

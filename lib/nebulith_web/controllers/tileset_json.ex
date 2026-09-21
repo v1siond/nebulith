@@ -45,8 +45,10 @@ defmodule NebulithWeb.TilesetJSON do
       height: t.height,
       category: t.category,
       title: t.title,
-      glyph: t.glyph,
-      emoji: t.emoji,
+      # No glyph and no emoji. A TILE IS AN IMAGE, and `image_url` is that image. These were served as a
+      # last-resort character for a tile whose png was missing; measured on a generated 40x40 map, 1200
+      # tile images load and none fail, so the character was never reached and its only effect was to keep
+      # a second way of saying what a tile looks like alive in the wire format.
       color_role: t.color_role,
       settings: t.settings
     }

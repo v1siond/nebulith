@@ -44,7 +44,11 @@ defmodule Nebulith.AsciiGlyphUniquenessTest do
     # drawing `bamboo_floor`'s glyph while this test stayed green.
     collisions =
       Catalog.list_tiles_for("ascii")
-      |> Enum.group_by(& &1.glyph, & &1.label)
+      # GROUPED BY THE PICTURE, which is what this always measured. The ascii png was rasterised FROM the
+      # glyph, so "two tiles, one glyph" and "two tiles, one picture" were the same statement and the glyph
+      # was the convenient half to read. The glyph column is gone; the picture is `image_url` and the
+      # assertion is unchanged.
+      |> Enum.group_by(& &1.image_url, & &1.label)
       |> Enum.map(fn {glyph, labels} ->
         {glyph,
          labels
@@ -83,14 +87,14 @@ defmodule Nebulith.AsciiGlyphUniquenessTest do
     assert missing == [], "emoji tiles with no baked file:\n" <> Enum.join(missing, ", ")
   end
 
-  test "no ascii tile is left without a glyph to rasterise" do
+  test "no ascii tile is left without a picture" do
     blank =
       Catalog.list_tiles_for("ascii")
-      |> Enum.filter(&(&1.glyph in [nil, ""]))
+      |> Enum.filter(&(&1.image_url in [nil, ""]))
       |> Enum.map(& &1.label)
       |> Enum.sort()
 
-    assert blank == [], "ascii tiles with no glyph:\n" <> Enum.join(blank, ", ")
+    assert blank == [], "ascii tiles with no picture:\n" <> Enum.join(blank, ", ")
   end
 end
 

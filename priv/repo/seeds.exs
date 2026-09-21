@@ -18,9 +18,9 @@ admin_email = System.get_env("NEBULITH_ADMIN_EMAIL") || "admin@nebulith.local"
 admin_password = System.get_env("NEBULITH_ADMIN_PASSWORD") || "12345678"
 
 {:ok, admin} =
-  Nebulith.Accounts.upsert_admin_user(admin_email, %{password: admin_password, role: "admin"})
+  Nebulith.Accounts.upsert_admin_user(admin_email, %{password: admin_password})
 
-IO.puts("seeded admin user '#{admin.email}' (role: #{admin.role})")
+IO.puts("seeded admin user '#{admin.email}' (admin: #{admin.is_admin})")
 
 case Nebulith.DataMigrations.run_pending() do
   [] -> IO.puts("no data migration was pending, the catalog is already seeded")

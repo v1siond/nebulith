@@ -53,8 +53,12 @@ defmodule Nebulith.TintedArtIsPaleTest do
     # A GLYPH-drawn tile is already pale: the ascii bake rasterises the character in white ink, so the tint
     # lands on its own colour. Only drawn SVG art can paint itself dark, so only that is checked below.
     for t <- found, not is_binary(t["svg"]) do
+      # THIS READS THE BAKE SOURCE, NOT THE DATABASE. `priv/tilegen/tiles.json` is where art is authored,
+      # and an ascii tile is legitimately authored as a CHARACTER that the baker rasterises into the png.
+      # So a glyph here is a picture, unlike in the `tiles` table where the column is gone and `image_url`
+      # is the only answer.
       assert is_binary(t["glyph"]) or is_binary(t["emoji"]),
-             "#{t["style"]}/#{t["label"]} has no svg, no glyph and no emoji, so it has no picture at all"
+             "#{t["style"]}/#{t["label"]} has no svg and nothing to rasterise, so it has no picture at all"
     end
 
     for t <- found,
