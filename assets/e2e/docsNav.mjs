@@ -8,11 +8,11 @@
  * Measured before the fix: Earmark emitted a bare `<h2>`, so all 73 rail links pointed at nothing and
  * clicking one did nothing at all.
  *
- *   node e2e/docsNav.mjs            (server on :6328)
+ *   bin/e2e docsNav            (via bin/e2e)
  */
 import { chromium } from 'playwright'
+import { BASE } from './base.mjs'
 
-const BASE = process.env.BASE || 'http://localhost:6328'
 const failures = []
 
 function check(ok, label, detail = '') {

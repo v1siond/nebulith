@@ -1,4 +1,5 @@
 import { chromium } from 'playwright'
+import { BASE } from './base.mjs'
 
 const LABEL = process.argv[2] ?? 'Woodland'
 const CATEGORY = process.argv[3] ?? 'wilderness'
@@ -18,7 +19,7 @@ await page.addInitScript(() => {
 const errors = []
 page.on('pageerror', e => errors.push(e.message.slice(0, 120)))
 
-await page.goto('http://localhost:6328/templates', { waitUntil: 'networkidle' })
+await page.goto(`${BASE}/templates`, { waitUntil: 'networkidle' })
 await page.waitForTimeout(3500)
 
 // CLICK THROUGH IT, the way a person does.

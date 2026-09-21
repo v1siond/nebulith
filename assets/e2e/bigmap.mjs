@@ -1,12 +1,13 @@
 /**
  * THE WORST CASE: a big map, zoomed all the way out so every cell of it is on screen, walked with WASD.
  *
- *     node e2e/bigmap.mjs "Woodland city" city 100 60 5
+ *     bin/e2e bigmap "Woodland city" city 100 60 5
  *
  * Zoom is the mouse wheel, clamped 0.5 to 4.0, so max OUT is 0.5: ten notches down from the default 1.0.
  * Map size is the grid panel's own Columns/Rows fields, driven the way a person drives them.
  */
 import { chromium } from 'playwright'
+import { BASE } from './base.mjs'
 const LABEL = process.argv[2] ?? 'Woodland city'
 const CATEGORY = process.argv[3] ?? 'city'
 const COLS = Number(process.argv[4] ?? 100)
@@ -31,7 +32,7 @@ await page.addInitScript(() => {
     }
   }
 })
-await page.goto('http://localhost:6328/templates', { waitUntil: 'networkidle' })
+await page.goto(`${BASE}/templates`, { waitUntil: 'networkidle' })
 await page.waitForTimeout(2500)
 
 // THE MAP SIZE, through the panel a person uses.

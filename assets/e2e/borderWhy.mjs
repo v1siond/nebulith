@@ -1,8 +1,9 @@
 /** One build through the UI, saved, with the unbordered cells and their neighbourhood printed. */
 import { chromium } from 'playwright'
+import { BASE } from './base.mjs'
 import { logIn } from './logIn.mjs'
 import { openScratchMap, dropScratchMap } from './scratchMap.mjs'
-const BASE = 'http://localhost:6328'
+
 const isWater = l => !!l && /water|oasis|koi_pond/.test(l)
 const sfx = l => (/_(tl|t|tr|l|c|r|bl|b|br)$/.exec(String(l).replace(/_f\d$/, '')) ?? [, ''])[1]
 const RIM = { tl: 'NW', t: 'N', tr: 'NE', l: 'W', c: '', r: 'E', bl: 'SW', b: 'S', br: 'SE' }

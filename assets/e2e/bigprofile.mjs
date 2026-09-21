@@ -3,12 +3,13 @@
  * the CPU profiler, so the next optimisation is aimed at what the samples say rather than at what reads
  * expensive in the source.
  *
- *     node e2e/bigprofile.mjs "Woodland city" city 100 60 6
+ *     bin/e2e bigprofile "Woodland city" city 100 60 6
  *
  * It also reports `__isoRenderMs`, which splits "the renderer is slow" from "something else in the frame is
  * slow". A 40ms frame with a 12ms render is not a rendering problem.
  */
 import { chromium } from 'playwright'
+import { BASE } from './base.mjs'
 const LABEL = process.argv[2] ?? 'Woodland city'
 const CATEGORY = process.argv[3] ?? 'city'
 const COLS = Number(process.argv[4] ?? 100)
@@ -23,7 +24,7 @@ await page.addInitScript(() => {
   const raf = w.requestAnimationFrame.bind(w)
   w.requestAnimationFrame = cb => raf(t => { w.__frames++; return cb(t) })
 })
-await page.goto('http://localhost:6328/templates', { waitUntil: 'networkidle' })
+await page.goto(`${BASE}/templates`, { waitUntil: 'networkidle' })
 await page.waitForTimeout(2500)
 
 const setField = async (aria, value) => {

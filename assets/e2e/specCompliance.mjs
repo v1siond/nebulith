@@ -14,13 +14,12 @@
  *
  * Both are read from the source and from /api/maps/schema, never from a copy.
  *
- *   node e2e/specCompliance.mjs        (server on :6328)
+ *   bin/e2e specCompliance        (via bin/e2e)
  */
 import { readFileSync } from 'node:fs'
+import { BASE } from './base.mjs'
 import { chromium } from 'playwright'
 import { logIn } from './logIn.mjs'
-
-const BASE = process.env.BASE || 'http://localhost:6328'
 
 /**
  * Fields the ENGINE carries that are deliberately not columns, each with the reason.

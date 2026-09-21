@@ -1,7 +1,7 @@
 /**
  * NO SLIDER CAPS A VALUE.
  *
- *     node e2e/sliderLimits.mjs          (server on :6328)
+ *     bin/e2e sliderLimits          (via bin/e2e)
  *
  * *"none of the sliders should be limited... the react side just reacts the values of the backend and
  * allow us to change them in the state, as simple as that."*
@@ -14,9 +14,9 @@
  * So this types past the end and then NUDGES, which is the move that used to destroy the value.
  */
 import { chromium } from 'playwright'
+import { BASE } from './base.mjs'
 import { logIn } from './logIn.mjs'
 
-const BASE = process.env.BASE || 'http://localhost:6328'
 const failures = []
 
 function check(ok, label, detail = '') {

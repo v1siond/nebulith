@@ -14,10 +14,9 @@
  *     cd assets && node ../test/e2e/waterBorders.mjs
  */
 import { chromium } from 'playwright'
+import { BASE } from './base.mjs'
 import { logIn } from './logIn.mjs'
 import { openScratchMap, dropScratchMap } from './scratchMap.mjs'
-
-const BASE = process.env.NEB_URL ?? 'http://localhost:6328'
 
 /** The river shapes the panel offers, by the button that picks them. `No river` has nothing to measure. */
 const COURSES = ['Winds through', 'Divides the map', 'Around the edge', 'Sea along the shore']

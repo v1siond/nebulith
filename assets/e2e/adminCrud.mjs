@@ -1,7 +1,7 @@
 /**
  * THE ADMIN CAN FIND A ROW, OPEN IT, CHANGE IT AND PUT IT BACK.
  *
- *     node e2e/adminCrud.mjs          (server on :6328)
+ *     bin/e2e adminCrud          (via bin/e2e)
  *
  * *"I can't see details from any of the records listed on the tables, nor edit them, nor delete them, I
  * can't search"*. The Elixir suite proves the context and the controller; this drives the pages, because
@@ -13,8 +13,8 @@
  * something that mattered.
  */
 import { chromium } from 'playwright'
+import { BASE } from './base.mjs'
 
-const BASE = process.env.BASE || 'http://localhost:6328'
 const USER = process.env.ADMIN_EMAIL || 'admin@nebulith.local'
 const PASS = process.env.ADMIN_PASSWORD || '12345678'
 const failures = []

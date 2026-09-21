@@ -8,13 +8,12 @@
  * It also proves the cutover happened at all, by reading the rows: a map that saved into the blob
  * would leave the tables empty and this would see it.
  *
- *   node e2e/mapRoundTrip.mjs          (server on :6328)
+ *   bin/e2e mapRoundTrip          (via bin/e2e)
  */
 import { chromium } from 'playwright'
+import { BASE } from './base.mjs'
 import { logIn } from './logIn.mjs'
 import { openScratchMap, dropScratchMap } from './scratchMap.mjs'
-
-const BASE = process.env.BASE || 'http://localhost:6328'
 
 const browser = await chromium.launch()
 const page = await browser.newPage({ viewport: { width: 1700, height: 1000 } })

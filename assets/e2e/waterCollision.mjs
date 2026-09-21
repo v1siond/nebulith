@@ -1,7 +1,7 @@
 /**
  * A RELOADED MAP STOPS YOU WHERE THE BUILT ONE DID.
  *
- *     node e2e/waterCollision.mjs
+ *     bin/e2e waterCollision
  *
  * *"when I generate a new world, collissions look ok, when I reload the world all collissions are gone ...
  * this map should have all collissions stored, but only the rocks are showing"*, and alongside it
@@ -14,6 +14,7 @@
  * blocks it, so the assertion is about the thing the hero actually walks into rather than about pixels.
  */
 import { chromium } from 'playwright'
+import { BASE } from './base.mjs'
 import { logIn } from './logIn.mjs'
 
 const RIVER = process.argv[2] ?? 'Winds through (easy to cross)'
@@ -29,7 +30,7 @@ const fail = []
 // template of its own first and drives the editor on that, and deletes it afterwards.
 // The editor is behind a login, and the /api reads below ride the session cookie.
 await logIn(page, BASE)
-await page.goto('http://localhost:6328/templates', { waitUntil: 'networkidle' })
+await page.goto(`${BASE}/templates`, { waitUntil: 'networkidle' })
 await page.waitForTimeout(2500)
 const scratchId = await page.evaluate(async (dims) => {
   const res = await fetch('/api/templates', {
@@ -51,7 +52,7 @@ if (!scratchId) {
   await browser.close()
   process.exit(1)
 }
-await page.goto(`http://localhost:6328/templates?id=${scratchId}`, { waitUntil: 'networkidle' })
+await page.goto(`http://localhost:/templates?id=${scratchId}`, { waitUntil: 'networkidle' })
 await page.waitForTimeout(3000)
 const setField = async (aria, value) => {
   const f = page.getByLabel(aria, { exact: false }).first()

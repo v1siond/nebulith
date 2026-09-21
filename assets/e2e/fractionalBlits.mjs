@@ -1,7 +1,7 @@
 /**
  * HOW MANY BLITS LAND OFF-PIXEL, and which code path issues them.
  *
- *     node e2e/fractionalBlits.mjs
+ *     bin/e2e fractionalBlits
  *
  * A 1:1 `drawImage` onto whole-pixel coordinates is a straight copy; a fractional destination resamples every
  * pixel through a bilinear filter. So this counts both and names the top offenders by stack, which is how the
@@ -11,6 +11,7 @@
  * See docs/PERFORMANCE.md §4.1.
  */
 import { chromium } from 'playwright'
+import { BASE } from './base.mjs'
 const b = await chromium.launch()
 const p = await b.newPage({ viewport: { width: 1600, height: 1000 } })
 await p.addInitScript(()=>{const w=window;w.__int=0;w.__frac=0;w.__fracStacks={}
@@ -25,7 +26,7 @@ await p.addInitScript(()=>{const w=window;w.__int=0;w.__frac=0;w.__fracStacks={}
     }
     return o.apply(this,a) }
 })
-await p.goto('http://localhost:6328/templates',{waitUntil:'networkidle'}); await p.waitForTimeout(2500)
+await p.goto(`${BASE}/templates`,{waitUntil:'networkidle'}); await p.waitForTimeout(2500)
 const sf=async(a,v)=>{const f=p.getByLabel(a,{exact:false}).first(); if(await f.count()===0)return; await f.fill(String(v)); await f.press('Enter').catch(()=>{})}
 await sf('Map columns',100); await sf('Map rows',60); await p.waitForTimeout(600)
 await p.selectOption('select','city').catch(()=>{}); await p.waitForTimeout(500)

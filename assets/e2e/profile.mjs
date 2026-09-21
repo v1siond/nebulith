@@ -2,16 +2,17 @@
  * WHERE THE FRAME GOES. A CPU profile of the real page while the hero walks, so the optimisation is aimed at
  * what is actually expensive rather than at what looks expensive.
  *
- *     node e2e/profile.mjs "Woodland city" city 6
+ *     bin/e2e profile "Woodland city" city 6
  */
 import { chromium } from 'playwright'
+import { BASE } from './base.mjs'
 const LABEL = process.argv[2] ?? 'Woodland city'
 const CATEGORY = process.argv[3] ?? 'city'
 const SECONDS = Number(process.argv[4] ?? 6)
 
 const browser = await chromium.launch()
 const page = await browser.newPage({ viewport: { width: 1600, height: 1000 } })
-await page.goto('http://localhost:6328/templates', { waitUntil: 'networkidle' })
+await page.goto(`${BASE}/templates`, { waitUntil: 'networkidle' })
 await page.waitForTimeout(3000)
 if (CATEGORY !== 'wilderness') { await page.selectOption('select', CATEGORY).catch(() => {}); await page.waitForTimeout(600) }
 await page.getByRole('button', { name: new RegExp('^' + LABEL) }).first().click()

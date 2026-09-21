@@ -1,7 +1,7 @@
 /**
  * THE FRAME RATE, measured the way a person would feel it.
  *
- *     node e2e/perf.mjs "Woodland city" city 100 60
+ *     bin/e2e perf "Woodland city" city 100 60
  *
  * Builds a world through the UI, zooms all the way out so the whole map is on screen, then walks with WASD
  * and counts frames. Three things this harness insists on, each because measuring without it produced a
@@ -17,6 +17,7 @@
  * which reads as "the change did nothing" for every change. Run `mix esbuild game` before this.
  */
 import { chromium } from 'playwright'
+import { BASE } from './base.mjs'
 const LABEL = process.argv[2] ?? 'Woodland city'
 const CATEGORY = process.argv[3] ?? 'city'
 const COLS = Number(process.argv[4] ?? 100)
@@ -37,7 +38,7 @@ await page.addInitScript(() => {
     return orig.apply(this, a)
   }
 })
-await page.goto('http://localhost:6328/templates', { waitUntil: 'networkidle' })
+await page.goto(`${BASE}/templates`, { waitUntil: 'networkidle' })
 await page.waitForTimeout(2500)
 const setField = async (aria, value) => {
   const f = page.getByLabel(aria, { exact: false }).first()

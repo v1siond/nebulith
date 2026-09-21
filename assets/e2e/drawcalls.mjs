@@ -6,6 +6,7 @@
  * total tells you nothing about which one to fix, and "is the preview expensive" is exactly the question.
  */
 import { chromium } from 'playwright'
+import { BASE } from './base.mjs'
 const LABEL = process.argv[2] ?? 'Woodland city', CATEGORY = process.argv[3] ?? 'city'
 const SECONDS = Number(process.argv[4] ?? 4)
 const b = await chromium.launch()
@@ -27,7 +28,7 @@ await page.addInitScript(() => {
     }
   }
 })
-await page.goto('http://localhost:6328/templates', { waitUntil: 'networkidle' })
+await page.goto(`${BASE}/templates`, { waitUntil: 'networkidle' })
 await page.waitForTimeout(2500)
 if (CATEGORY !== 'wilderness') { await page.selectOption('select', CATEGORY).catch(() => {}); await page.waitForTimeout(500) }
 await page.getByRole('button', { name: new RegExp('^' + LABEL) }).first().click()

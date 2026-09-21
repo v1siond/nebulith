@@ -16,12 +16,11 @@
  *      list typed beside it.
  *   5. There is no zoom, and no walkable or blocking either.
  *
- *   node e2e/servedDefaults.mjs          (server on :6328)
+ *   bin/e2e servedDefaults          (via bin/e2e)
  */
 import { chromium } from 'playwright'
+import { BASE } from './base.mjs'
 import { logIn } from './logIn.mjs'
-
-const BASE = process.env.BASE || 'http://localhost:6328'
 
 const browser = await chromium.launch()
 const page = await browser.newPage()

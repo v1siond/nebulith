@@ -1,0 +1,59 @@
+#!/usr/bin/env bash
+#
+# THE BROWSER LAYER, AGAINST ITS OWN DATABASE.
+#
+# `mix test` gets nebulith_test and the Ecto sandbox. The browser gates cannot: they drive a real
+# server over real HTTP from another process, so there is no sandbox to join. They pointed at the DEV
+# server, which meant they ran against real working data, and a gate that clicks Save then writes over
+# whatever map is open. That is not a hazard to remember, it is a database to provide.
+#
+# So this builds nebulith_e2e, serves it on its own port, runs the gates against that, and stops.
+# CI runs this same script, so what happens here is what happens there.
+#
+#   bin/e2e                 every gate
+#   bin/e2e login mapRoundTrip    just those
+set -euo pipefail
+
+cd "$(dirname "$0")/.."
+
+export MIX_ENV=dev
+export NEBULITH_DATABASE_URL="${E2E_DATABASE_URL:-ecto://postgres:postgres@localhost/nebulith_e2e}"
+export PORT="${E2E_PORT:-6329}"
+export BASE="http://localhost:${PORT}"
+export ADMIN_EMAIL="${ADMIN_EMAIL:-admin@nebulith.local}"
+export ADMIN_PASSWORD="${ADMIN_PASSWORD:-12345678}"
+
+GATES=("$@")
+if [ ${#GATES[@]} -eq 0 ]; then
+  GATES=(login servedDefaults specCompliance mapRoundTrip docsNav sliderLimits adminCrud)
+fi
+
+echo "e2e: ${NEBULITH_DATABASE_URL} on :${PORT}"
+
+# A FRESH DATABASE EVERY RUN. A gate that leaves rows behind is a gate that passes for the wrong
+# reason the next time, and these gates author maps on purpose.
+mix ecto.drop --quiet >/dev/null 2>&1 || true
+mix ecto.create --quiet
+mix ecto.migrate --quiet
+mix run priv/repo/seeds.exs >/dev/null
+mix assets.build >/dev/null
+
+mix phx.server >/tmp/nebulith-e2e-server.log 2>&1 &
+SERVER=$!
+trap 'kill "$SERVER" 2>/dev/null || true' EXIT
+
+until curl -sf "${BASE}/health" >/dev/null; do
+  kill -0 "$SERVER" 2>/dev/null || { echo "the e2e server died:"; tail -20 /tmp/nebulith-e2e-server.log; exit 1; }
+  sleep 2
+done
+echo "e2e: up"
+
+cd assets
+failed=0
+for gate in "${GATES[@]}"; do
+  echo
+  echo "── ${gate} ──"
+  node "e2e/${gate}.mjs" || failed=1
+done
+
+exit "$failed"

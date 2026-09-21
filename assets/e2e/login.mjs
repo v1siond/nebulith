@@ -7,12 +7,12 @@
  *
  * Measured before the gate existed: /games rendered the engine to anybody who asked for it.
  *
- *   node e2e/login.mjs              (server on :6328)
+ *   bin/e2e login              (via bin/e2e)
  */
 import { chromium } from 'playwright'
+import { BASE } from './base.mjs'
 import { logIn } from './logIn.mjs'
 
-const BASE = process.env.BASE || 'http://localhost:6328'
 const EMAIL = process.env.ADMIN_EMAIL || 'admin@nebulith.local'
 
 const browser = await chromium.launch()
