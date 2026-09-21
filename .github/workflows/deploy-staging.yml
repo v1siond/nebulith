@@ -1,0 +1,36 @@
+# STAGING DEPLOYS ON A PUSH TO `staging`.
+#
+# Same shape as retrogroove: Railway builds the repo's own Dockerfile, the release runs `bin/server`, and
+# migrations run before the new version takes traffic. The only difference is which service it lands on.
+#
+# Production is NOT here on purpose. It deploys from a tag, never from a branch.
+name: deploy staging
+
+on:
+  push:
+    branches: [staging]
+  workflow_dispatch:
+
+# One deploy at a time, and let a running one finish: cancelling half way through leaves the service in a
+# state nobody chose.
+concurrency:
+  group: deploy-staging
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: railway
+    runs-on: ubuntu-latest
+    environment: staging
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install the Railway CLI
+        run: npm install -g @railway/cli
+
+      - name: Deploy
+        run: railway up --service "$RAILWAY_SERVICE" --detach
+        env:
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+          RAILWAY_SERVICE: ${{ vars.RAILWAY_SERVICE_STAGING }}

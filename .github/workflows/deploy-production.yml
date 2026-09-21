@@ -1,0 +1,75 @@
+# PRODUCTION DEPLOYS ON A TAG, AND ONLY ON A TAG.
+#
+# *"GitLab CI: staging on push, production on git tags only"*. A branch moves when somebody pushes to it;
+# a tag is a decision. Production follows the decision.
+#
+#     git tag v0.2.0 && git push origin v0.2.0
+#
+# The suite runs again here rather than trusting the run on the branch: a tag can point at a commit whose
+# CI never ran, and "it was green on master" is not the same claim as "it is green at this tag".
+name: deploy production
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+
+env:
+  ELIXIR_VERSION: "1.20.2"
+  OTP_VERSION: "29.0.3"
+
+jobs:
+  test:
+    name: elixir at this tag
+    runs-on: ubuntu-latest
+    env:
+      MIX_ENV: test
+
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: nebulith_test
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: erlef/setup-beam@v1
+        with:
+          elixir-version: ${{ env.ELIXIR_VERSION }}
+          otp-version: ${{ env.OTP_VERSION }}
+
+      - run: mix deps.get
+      - run: mix test
+        env:
+          PORT: "4002"
+
+  deploy:
+    name: railway
+    runs-on: ubuntu-latest
+    needs: test
+    environment: production
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install the Railway CLI
+        run: npm install -g @railway/cli
+
+      - name: Deploy
+        run: railway up --service "$RAILWAY_SERVICE" --detach
+        env:
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+          RAILWAY_SERVICE: ${{ vars.RAILWAY_SERVICE_PRODUCTION }}

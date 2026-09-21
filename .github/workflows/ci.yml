@@ -1,0 +1,146 @@
+# THE GATE. Every push and every pull request, on any branch.
+#
+# Two layers, because that is the rule this project works to: the Elixir suite, and a real browser driving
+# the pages. A node suite supplies its own inputs and so tests the app you imagined; the browser tests the
+# one that runs. The last three defects in this repo were only visible in the second layer.
+name: ci
+
+on:
+  push:
+    branches: ["**"]
+    tags-ignore: ["**"]
+  pull_request:
+
+# A newer push to the same branch makes the older run pointless.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  ELIXIR_VERSION: "1.20.2"
+  OTP_VERSION: "29.0.3"
+  MIX_ENV: test
+
+jobs:
+  test:
+    name: elixir
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: nebulith_test
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: erlef/setup-beam@v1
+        with:
+          elixir-version: ${{ env.ELIXIR_VERSION }}
+          otp-version: ${{ env.OTP_VERSION }}
+
+      - name: Cache deps and build
+        uses: actions/cache@v4
+        with:
+          path: |
+            deps
+            _build
+          key: ${{ runner.os }}-mix-${{ env.OTP_VERSION }}-${{ env.ELIXIR_VERSION }}-${{ hashFiles('**/mix.lock') }}
+          restore-keys: ${{ runner.os }}-mix-${{ env.OTP_VERSION }}-${{ env.ELIXIR_VERSION }}-
+
+      - run: mix deps.get
+
+      # An unused dependency in the lock file is a dependency nobody decided to keep.
+      - run: mix deps.unlock --check-unused
+
+      - run: mix format --check-formatted
+
+      - run: mix compile
+
+      # The port matters: the endpoint starts during tests, and the dev server may hold the default.
+      - name: mix test
+        run: mix test
+        env:
+          PORT: "4002"
+
+  browser:
+    name: browser
+    runs-on: ubuntu-latest
+    needs: test
+
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: nebulith_dev
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: erlef/setup-beam@v1
+        with:
+          elixir-version: ${{ env.ELIXIR_VERSION }}
+          otp-version: ${{ env.OTP_VERSION }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: npm
+          cache-dependency-path: assets/package-lock.json
+
+      - name: Cache deps and build
+        uses: actions/cache@v4
+        with:
+          path: |
+            deps
+            _build
+          key: ${{ runner.os }}-mix-${{ env.OTP_VERSION }}-${{ env.ELIXIR_VERSION }}-${{ hashFiles('**/mix.lock') }}
+          restore-keys: ${{ runner.os }}-mix-${{ env.OTP_VERSION }}-${{ env.ELIXIR_VERSION }}-
+
+      - run: mix deps.get
+      - run: npm ci --prefix assets
+      - run: npx --prefix assets playwright install --with-deps chromium
+
+      # The browser drives the DEV server against a seeded database, because that is what a person uses.
+      - name: Build the database and the assets
+        run: mix ecto.setup && mix assets.setup && mix assets.build
+        env:
+          MIX_ENV: dev
+
+      - name: Start the server
+        run: |
+          mix phx.server &
+          until curl -sf http://localhost:6328/docs > /dev/null; do sleep 2; done
+          echo "up"
+        env:
+          MIX_ENV: dev
+          PORT: "6328"
+
+      # Each of these fails on the code that shipped before it, which is the only kind of gate worth having.
+      - name: Drive the pages
+        working-directory: assets
+        run: |
+          node e2e/docsNav.mjs
+          node e2e/sliderLimits.mjs
+          node e2e/adminCrud.mjs
+        env:
+          BASE: http://localhost:6328
+          ADMIN_EMAIL: admin@nebulith.local
+          ADMIN_PASSWORD: "12345678"
