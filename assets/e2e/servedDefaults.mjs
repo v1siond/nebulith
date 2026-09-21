@@ -84,13 +84,10 @@ for (const banned of ['zoom', 'walkable', 'blocking', 'blocked', 'blocks_movemen
   if (served.fields.includes(banned)) await fail(`${banned} is back in the schema`)
 }
 
-// And the editor is actually up with all of it, not merely mounted. Asserted on the chrome rather
-// than on a rendered grid: a fresh database has no saved map, so there is nothing to draw and
-// `__nebulithGrid` is never set, which says nothing about the defaults this gate is about.
-const chrome = await page.locator('body').innerText()
-for (const control of ['ISO', 'Top']) {
-  if (!chrome.includes(control)) await fail(`the editor never came up: no ${control} control on the page`)
-}
+// Nothing about the page's own rendering is asserted here on purpose. What /templates shows depends
+// on whether the database has a map in it, so a check on the editor's chrome passes on a developer
+// machine and fails on a fresh one, and says nothing either way about the defaults this gate is for.
+// That the editor comes up and its controls work is sliderLimits.
 
 await browser.close()
 console.log(`PASS  served defaults: ${served.fields.length} settings, every one defaulted by the database and agreed by the engine`)
