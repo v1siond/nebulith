@@ -10,6 +10,11 @@
  *        column is spelled, or is on the list below with a reason. `scaleX` and `scaleY` were exactly
  *        this: Width and Height under other names, translated at every boundary.
  *
+ * LAW 7  The backend decides values, the frontend renders them. A hardcoded fallback for served data is
+ *        a defect, not a safety net. Every column has a DEFAULT and /api/maps/schema serves it, so a
+ *        literal standing in for one is the engine holding a second opinion about a value the database
+ *        already states, and it is the opinion that reaches the screen.
+ *
  * LAW 12 The frontend sets no limits. No minimum, no maximum, no step invented in React.
  *
  * Both are read from the source and from /api/maps/schema, never from a copy.
@@ -112,6 +117,60 @@ for (const gone of ['scale', 'scaleX', 'scaleY', 'scaleZ']) {
 // the compliant shape is `dragRange(value, from, to)`, which returns Math.min(from, value) and
 // Math.max(to, value): the window follows the value and never caps it, and the number field beside it
 // takes anything. So what is checked is that EVERY range input gets its bounds that way.
+// ── LAW 7 ────────────────────────────────────────────────────────────────────────────────────────
+//
+// The files that WRITE a placement or carry one across the wire. A renderer reading `asset.x ?? 1` is
+// the same defect, but these four are where a value is decided, and a literal here is the one that
+// persists: it is written to the row and read back as if somebody meant it.
+//
+// Measured when this check was written: every one of these had literals, and two of them had already
+// reached the screen as a field of cubes and a road with uncentred markings.
+const WRITERS = [
+  '../game/engine/IsometricGrid.ts',
+  '../game/lib/mapPayload.ts',
+  '../game/game/runtime/composition.ts',
+  '../game/engine/tileset/placementSettings.ts',
+]
+
+// The readers that ask the database instead of inventing an answer.
+const SERVED = /numericDefault\(|booleanDefault\(|stringDefault\(|defaultOf\(|columnNumber\(|beyondAnchor\(/
+
+// WHAT IS BEING WRITTEN, not what is being read.
+//
+// The first version of this flagged any `x ?? 1` whose left side shared a name with a column, and it
+// was noisy in a way that would have got it switched off: `(f.spanForward ?? 1) > 1` is a question
+// about whether a tile spans, and `cell.level ?? 0` is a composition cell's own authored level, which
+// merely shares a word with a column.
+//
+// The defect is a literal being STORED as a setting's value, so the check is the assignment: a column's
+// name, a colon, and a made-up value on the other side of a `??`. That is the one that is written to
+// the row and read back as though somebody meant it.
+const literalFallbacks = (src, columns) => {
+  const hits = []
+  for (const [i, line] of src.split('\n').entries()) {
+    const code = line.replace(/\/\/.*$/, '').replace(/\/\*.*?\*\//g, '')
+    if (!code.includes('??')) continue
+    if (SERVED.test(code)) continue
+    // `<field>: <anything> ?? <literal>,` — a property being given an invented value.
+    const m = code.match(/^\s*(\w+):\s*[^?]*\?\?\s*(-?\d+(?:\.\d+)?|'[^']*'|"[^"]*")/)
+    if (!m) continue
+    const field = m[1]
+    if (!columns.has(field) && !columns.has(snake(field))) continue
+    hits.push(`${i + 1}: ${code.trim()}`)
+  }
+  return hits
+}
+
+for (const file of WRITERS) {
+  const src = readFileSync(new URL(file, import.meta.url), 'utf8')
+  const hits = literalFallbacks(src, columns)
+  check(
+    hits.length === 0,
+    `${file.split('/').pop()} states no served value as a literal`,
+    hits.length ? `\n    ${hits.join('\n    ')}` : '',
+  )
+}
+
 const inspector = readFileSync(new URL('../game/components/editorInspector.tsx', import.meta.url), 'utf8')
 const ranges = [...inspector.matchAll(/<input type="range"[^>]*>/g)].map((m) => m[0])
 

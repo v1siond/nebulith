@@ -24,6 +24,54 @@ export interface TilePose {
   color?: string | null
 }
 
+/**
+ * DOES THIS POSE MOVE ANYTHING?
+ *
+ * A placement states its pose now rather than leaving it absent, so `if (asset.pose)` stopped meaning
+ * "this tile is nudged" and started meaning "this tile exists". Every renderer that asked that question
+ * then took the transform branch for the whole map: a save, a transform push and a pop per tile per
+ * frame, for an identity transform.
+ *
+ * The rule the whole engine now needs: a stated default must read exactly like silence. So the question
+ * is asked of the VALUES.
+ */
+export function poseDeviates(pose?: TilePose | null): boolean {
+  if (!pose) return false
+
+  return (
+    (pose.dx ?? 0) !== 0 ||
+    (pose.dy ?? 0) !== 0 ||
+    (pose.rot ?? 0) !== 0 ||
+    pose.flip === true ||
+    (pose.scale ?? 1) !== 1 ||
+    typeof pose.color === 'string'
+  )
+}
+
+/**
+ * THE POSE, STATED IN FULL.
+ *
+ * The identity values, with whatever was authored on top. A stamped tile used to carry `{dy: -0.11}`
+ * and the same tile read back off the wire carried all five fields, so the two were never comparable
+ * and a map could differ after a reload without anything noticing.
+ *
+ * Free to do now: `poseDeviates` asks the values, so a full pose of identity numbers costs no transform.
+ */
+export function statedPose(pose?: TilePose | null): TilePose {
+  const out: TilePose = {
+    dx: pose?.dx ?? 0,
+    dy: pose?.dy ?? 0,
+    rot: pose?.rot ?? 0,
+    flip: pose?.flip === true,
+    scale: pose?.scale ?? 1,
+  }
+  // The two that are genuinely nullable: a melee weapon has no muzzle and most tiles override no colour.
+  if (typeof pose?.muzzle === 'number') out.muzzle = pose.muzzle
+  if (typeof pose?.color === 'string') out.color = pose.color
+
+  return out
+}
+
 /** The spatial fields resolved to concrete numbers, absent pose/field → identity. */
 export interface ResolvedPose {
   dx: number

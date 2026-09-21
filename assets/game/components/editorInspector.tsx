@@ -203,7 +203,7 @@ export interface TileControlModel {
    *  overriding the positional depth sort (asset.zIndex; null = mixed). Asset tiles only. */
   zIndex?: number | null
   onZIndex?: (value: number) => void
-  /** DISPLAY mode, how the tile is painted on its block: 'all-faces' (paint on every visible face) vs
+  /** DISPLAY mode, how the tile is painted on its block: 'all_faces' (paint on every visible face) vs
    *  'single' (ONE centered tile inside the block). Reads asset.settings.display; null = mixed. Asset tiles
    *  only, the floor omits onDisplay (a flat cell has no block volume to sit a single tile inside). */
   display?: TileDisplay | null
@@ -487,7 +487,7 @@ function DisplayModeRow({ display, onDisplay }: { display: TileDisplay | null | 
   return (
     <label className="flex items-center gap-2" title="Faces, paint the art on ALL faces of the block, or show ONE upright tile inside it">
       <span className="w-14 shrink-0 text-[10px] text-gray-400">Faces</span>
-      <button onClick={() => onDisplay('all-faces')} aria-pressed={display === 'all-faces'} className={`rounded px-2 py-0.5 text-[10px] font-bold ${display === 'all-faces' ? 'bg-cyan-600 text-white' : 'bg-gray-700 hover:bg-gray-600'}`}>All</button>
+      <button onClick={() => onDisplay('all_faces')} aria-pressed={display === 'all_faces'} className={`rounded px-2 py-0.5 text-[10px] font-bold ${display === 'all_faces' ? 'bg-cyan-600 text-white' : 'bg-gray-700 hover:bg-gray-600'}`}>All</button>
       <button onClick={() => onDisplay('single')} aria-pressed={display === 'single'} className={`rounded px-2 py-0.5 text-[10px] font-bold ${display === 'single' ? 'bg-cyan-600 text-white' : 'bg-gray-700 hover:bg-gray-600'}`}>One</button>
       {display === null && mixedBadge}
     </label>

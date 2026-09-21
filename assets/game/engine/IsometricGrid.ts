@@ -14,7 +14,17 @@ import type { CellAnimation } from './cellAnimation'
 import { assetRectExtents, type IsoDiagonal, type ThicknessReach } from './render/isoBlock'
 import type { TilePose } from './tileset/pose'
 import type { AssetLight, TileDisplay, TileShape } from './tileset/tileset'
-import { groundSideColor, groundTileColor } from './tileset/groundColor'
+import { groundSideColor, groundTileColor, groundTileHeight } from './tileset/groundColor'
+import { styleTile } from './tileset/styleTiles'
+import { tileCatalogHeight } from './tileset/tileHeight'
+import { placementColor, placementSettings } from './tileset/placementSettings'
+import { numericDefault } from '@/lib/tileDefaults'
+
+/** WHICH CATALOGUE ROW A PLACEMENT IS, in the order the save path resolves it, so a placement and its saved
+ *  row can never disagree about which tile they are. */
+function placementLabel(options: Partial<GridAsset>): string {
+  return options.label ?? options.tileOverride ?? options.tileKey ?? options.type ?? ''
+}
 
 /** GENERIC per-tile BEHAVIOR flags copied from the resolved tile's `settings` onto a placed asset, so ONE
  *  render path drives them for ANY tile, a wall, a roof, or a tree leaf. No `type:'building'` special case:
@@ -27,7 +37,7 @@ export interface AssetSettings {
                         // "doors should be more opaque and obvious"). Data, so the renderer needs no name check.
   badge?: { text: string; color: string } // apex signage (STORE/HOSPITAL) drawn generically, no buildingType
   display?: TileDisplay // 'single' → ONE centered tile drawn INSIDE the block (billboard at the block centre)
-                        // over a plain shell; absent/'all-faces' → the tile is painted on all visible faces.
+                        // over a plain shell; absent/'all_faces' → the tile is painted on all visible faces.
   transparent?: boolean // the block SHELL is not drawn, only the tile's content shows (with 'single', just the
                         // centered billboard, in its own colour). Lets a flower show WITHOUT colouring its block.
   /** What this tile makes solid INSIDE its cell, in cell fractions (collisionBoxes.ts). Many boxes allowed, each
@@ -437,18 +447,29 @@ export class IsometricGrid {
     }
   }
 
-  /** Build a bare floor asset for a cell, a regular tile that carries NO hardcoded height: the renderer reads
-   *  the floor tile's OWN block-height from the DB (its ground tile, resolved via groundKind(tileKey)) and draws
-   *  it as a thin slab (a flat tile is 0.1 blocks tall in the DB). Height is DATA, never invented here. The
-   *  ground COLOUR is per-cell STATE the map-builder writes (`color`, see setGround); renders READ it, never
-   *  derive it, so a floor with no colour renders nothing (empty), never a hardcoded fallback. */
+  /** Build a bare floor asset for a cell. A floor is a REGULAR TILE, so it is born carrying its own
+   *  settings as state, exactly like any other placement: its height and both its colours are read from
+   *  the catalogue ONCE, here, and the renderers only ever read them back off the placement. */
   private makeFloorAsset(col: number, row: number, slug: string, color?: string): GridAsset {
-    // NO HEIGHT PINNED HERE. A floor is a regular tile, "FLOOR ARE FUCKING TILES, ALL TILES STACK ON TOP OF
-    // ANOTHER LIKE LEGOS BY DEFAULT … THE FLOOR IS NO DIFFERENT FROM IT". Its height is the TILE's own setting,
-    // served by the backend and saved with it, not a number this factory stamps on. Pinning it here made the floor
-    // special again and, worse, put the value somewhere that never persists.
     return {
       art: [''], col, row, type: FLOOR_TYPE, tileKey: slug, heightLevel: 0,
+      // THE HEIGHT IS STATED, because every placement states its own. Terrain is 0 in the catalogue, so a
+      // floor lies flat; leaving it unsaid is not "let the tile decide", it is the column's default of one
+      // whole block, which is a field of cubes where the ground should be. The renderer reads the
+      // placement and nothing else, so whoever places a tile owes it the value.
+      height: groundTileHeight(slug),
+      // A floor is a whole cell that spans nothing, said rather than left to be inferred. It does not
+      // come through `placeAsset`, so it states its own.
+      width: numericDefault('width'),
+      depth: numericDefault('depth'),
+      spanForward: numericDefault('span_forward'),
+      spanBack: numericDefault('span_back') - 1,
+      spanPerp: numericDefault('span_perp') - 1,
+      spanPerpBack: numericDefault('span_perp_back') - 1,
+      settings: placementSettings(slug),
+      opacity: numericDefault('opacity'),
+      brightness: numericDefault('brightness'),
+      zIndex: numericDefault('draw_order'),
       color: color ?? groundTileColor(slug, col, row),
       // …and the colour of the map BODY under it, picked at the same moment from the same data. State,
       // so the render READS it instead of shading at draw time (forbidden, and recomputed per frame).
@@ -466,7 +487,13 @@ export class IsometricGrid {
     this.decompressGroundAt(col, row) // if this cell is inside a z-width run, cut the run so only THIS cell changes
     const existing = this.floorAt(col, row)
     if (existing) {
-      if (existing.tileKey !== type) { existing.tileKey = type; this.groundVersion++ }
+      // A new slug is a new tile, so every value the slug decides is re-stated. Height was missed here and
+      // a grass cell painted over with a wall-height terrain kept grass's flatness.
+      if (existing.tileKey !== type) {
+        existing.tileKey = type
+        existing.height = groundTileHeight(type)
+        this.groundVersion++
+      }
       if (color !== undefined && existing.color !== color) { existing.color = color; this.groundVersion++ }
       return
     }
@@ -573,7 +600,58 @@ export class IsometricGrid {
       col,
       row,
       type: options.type ?? 'decoration',
-      color: options.color ?? '#ffffff',
+      // THE TILE'S OWN COLOUR, or none. Not a white invented here: `color` is nullable with no column
+      // default, so nothing said is a real answer, and the renderer draws the tile's art untinted rather
+      // than washing it out. A hardcoded `#ffffff` in this position tinted every uncoloured tile white.
+      color: placementColor(placementLabel(options), options.color),
+      // EVERY PLACEMENT LEAVES HERE WITH A HEIGHT, taken from the catalogue when the caller had nothing
+      // more specific to say.
+      //
+      // The renderer reads the placement and nothing else. It used to read the placement, then the tile,
+      // then a literal, and several writers were built around that chain: `generatedPropRender` says in
+      // as many words that it withholds a height "where the backend states one", meaning it expected the
+      // tile to be consulted next. With the chain gone that silence stopped meaning "ask the tile" and
+      // started meaning the column's default of one whole block, so flat ground decor, road markings and
+      // puddles all came up as cubes, and the frame filled with faces nothing needed.
+      //
+      // Discharged here rather than in each caller: this is the one door every placement comes through.
+      height: options.height ?? tileCatalogHeight(styleTile('ascii', placementLabel(options))),
+      // …AND THE BEHAVIOUR THE CATALOGUE STATES FOR IT. Same reasoning as the height directly above: a
+      // placement that leaves `display` unsaid is not deferring to the tile, it is one reader's habit
+      // away from meaning the column's default. It reached a map that way, where an ornament drew as a
+      // billboard when it was generated and as a cube after a reload, because the two paths disagreed
+      // about whether silence was an answer.
+      settings: placementSettings(placementLabel(options), options.settings),
+      // …and the last three that a reader could otherwise mistake for silence. All have column defaults,
+      // so none of them is ever really absent; saying so is what makes a stamped tile and the same tile
+      // read back off the wire the same object.
+      // POSE IS NOT STATED, and it is the one field here that must not be.
+      //
+      // A tile's own pose is PER VIEW (`resolveTilePose`): a road marking sits centred in iso and
+      // somewhere else from above. A placement has one pose slot, so a stated identity pose is not "no
+      // opinion", it is an override that cancels whatever the tile authored, in every view at once. It
+      // read as the street markings sliding off the middle of the road.
+      //
+      // So absence keeps meaning "ask the tile", exactly as it does for thickness, and the save/load
+      // pair below agrees with that: a pose that moves nothing is written as identity and comes back
+      // absent.
+      opacity: options.opacity ?? numericDefault('opacity'),
+      brightness: options.brightness ?? numericDefault('brightness'),
+      zIndex: options.zIndex ?? numericDefault('draw_order'),
+      // …AND ITS SIZE AND ITS REACH, for the same reason. These all have column defaults, so an absent
+      // one is not "no opinion", it is that default said quietly. Saying it out loud is what lets a
+      // stamped tile and the same tile read back off the wire compare equal.
+      // EVERY ONE OF THESE COMES FROM ITS COLUMN. Not one of them is a number chosen here: the backend
+      // decides values and the frontend renders them, so a literal in this position is a second opinion
+      // about what the database already states, and it is the opinion that wins on the screen.
+      width: options.width ?? numericDefault('width'),
+      depth: options.depth ?? numericDefault('depth'),
+      spanForward: options.spanForward ?? numericDefault('span_forward'),
+      // The counts the editor holds are cells BEYOND the anchor and the columns count inclusively, so
+      // the column's 1 is this side's 0. Converted here rather than restated.
+      spanBack: options.spanBack ?? numericDefault('span_back') - 1,
+      spanPerp: options.spanPerp ?? numericDefault('span_perp') - 1,
+      spanPerpBack: options.spanPerpBack ?? numericDefault('span_perp_back') - 1,
     }
     this.assets.push(asset)
     this.cellIndex = null
@@ -656,7 +734,10 @@ export class IsometricGrid {
       row,
       type: options.type ?? 'tile',
       settings: options.settings,
-      color: options.color ?? '#ffffff',
+      // THE TILE'S OWN COLOUR, or none. Not a white invented here: `color` is nullable with no column
+      // default, so nothing said is a real answer, and the renderer draws the tile's art untinted rather
+      // than washing it out. A hardcoded `#ffffff` in this position tinted every uncoloured tile white.
+      color: placementColor(placementLabel(options), options.color),
       bgColor: options.bgColor,
       heightLevel,
       tileKey,

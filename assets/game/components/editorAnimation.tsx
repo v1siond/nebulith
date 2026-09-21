@@ -309,7 +309,7 @@ const numOr = (raw: string, fb: number): number => { const n = parseFloat(raw); 
 /** A fresh track for a newly-checked setting: colour/display carry string endpoints, everything else 0→1. */
 function defaultTrack(setting: SettingKey): AnimationTrack {
   if (setting === 'color') return { setting, from: '#ffffff', to: '#38bdf8' }
-  if (setting === 'display') return { setting, from: 'all-faces', to: 'single' }
+  if (setting === 'display') return { setting, from: 'all_faces', to: 'single' }
   return { setting, from: 0, to: 1 }
 }
 
@@ -356,7 +356,7 @@ export interface SpriteAnimationContext {
   variant?: EntityVariant
 }
 
-/** ONE track's from/to editor, colour pickers for `color`, an all-faces/single toggle for `display`,
+/** ONE track's from/to editor, colour pickers for `color`, an all_faces/single toggle for `display`,
  *  numeric fields otherwise. Labels are `<setting> from` / `<setting> to` so each is uniquely addressable. */
 function TrackRow({ track, onChange }: { track: AnimationTrack; onChange: (patch: Partial<AnimationTrack>) => void }) {
   const s = track.setting
@@ -367,7 +367,7 @@ function TrackRow({ track, onChange }: { track: AnimationTrack; onChange: (patch
     if (s === 'display') {
       return (
         <select value={String(value)} onChange={e => onChange({ [which]: e.target.value })} aria-label={`${s} ${which}`} className="rounded bg-gray-800 p-1 text-[10px] text-gray-100">
-          <option value="all-faces">all-faces</option>
+          <option value="all_faces">all_faces</option>
           <option value="single">single</option>
         </select>
       )

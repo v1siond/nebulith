@@ -7,6 +7,8 @@
  */
 import { chromium } from 'playwright'
 import { BASE } from './base.mjs'
+import { logIn } from './logIn.mjs'
+import { openScratchMap, dropScratchMap } from './scratchMap.mjs'
 const LABEL = process.argv[2] ?? 'Woodland city', CATEGORY = process.argv[3] ?? 'city'
 const SECONDS = Number(process.argv[4] ?? 4)
 const b = await chromium.launch()
@@ -28,7 +30,8 @@ await page.addInitScript(() => {
     }
   }
 })
-await page.goto(`${BASE}/templates`, { waitUntil: 'networkidle' })
+await logIn(page, BASE)
+const scratchId = await openScratchMap(page, BASE, { cols: 100, rows: 60, name: 'e2e probe' })
 await page.waitForTimeout(2500)
 if (CATEGORY !== 'wilderness') { await page.selectOption('select', CATEGORY).catch(() => {}); await page.waitForTimeout(500) }
 await page.getByRole('button', { name: new RegExp('^' + LABEL) }).first().click()
@@ -44,4 +47,5 @@ console.log(`frames ${frames} over ${SECONDS}s\n`)
 for (const [k, n] of Object.entries(ops).sort((a, b) => b[1] - a[1])) {
   console.log(`${String(n).padStart(8)}  ${(n / Math.max(1, frames)).toFixed(0).padStart(5)}/frame  ${k}`)
 }
+await dropScratchMap(page, scratchId)
 await b.close()

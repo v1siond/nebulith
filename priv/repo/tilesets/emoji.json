@@ -87,6 +87,7 @@
   },
   "door": {
     "char": "🚪",
+    "height": 2,
     "color": "#5a3a22",
     "image": "/tiles/emoji/baked/door.png",
     "category": "doors",
@@ -1083,6 +1084,7 @@
   },
   "wooden-door": {
     "char": "🚪",
+    "height": 2,
     "color": "#5a3a22",
     "category": "doors",
     "title": "Wooden Door",

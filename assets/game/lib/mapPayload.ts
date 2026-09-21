@@ -1,7 +1,8 @@
 import { resolveTileHeight } from '@/engine/tileset/tileHeight'
+import { numericDefault } from '@/lib/tileDefaults'
 import { FLOOR_TYPE, type GridAsset, IsometricGrid } from '@/engine/IsometricGrid'
 import type { IsoDiagonal, ThicknessReach } from '@/engine/render/isoBlock'
-import type { TilePose } from '@/engine/tileset/pose'
+import { poseDeviates, type TilePose } from '@/engine/tileset/pose'
 
 /**
  * A MAP, BETWEEN THE EDITOR'S GRID AND THE ROWS THE BACKEND KEEPS.
@@ -61,6 +62,19 @@ export interface CellPayload {
 
 const num = (v: unknown, fallback: number): number => (typeof v === 'number' && Number.isFinite(v) ? v : fallback)
 
+/**
+ * WHAT A COLUMN SAYS WHEN THE PLACEMENT DOES NOT, on both sides of this boundary.
+ *
+ * Every literal that used to sit in a `??` here was the engine holding a second opinion about a value
+ * the database already states. They are unreachable in practice, because every writer states every
+ * setting now, but an unreachable literal is still the thing that wins the day something stops stating
+ * its value, and that is how the ground came to be a field of cubes.
+ */
+const columnNumber = (field: string): number => numericDefault(field)
+
+/** The same, for the four span counts, which the columns count inclusively and the editor counts beyond. */
+const beyondAnchor = (field: string): number => numericDefault(field) - 1
+
 /** Decimals travel as strings so a value survives the trip without a float rounding it. */
 const dec = (v: number): string => String(v)
 
@@ -89,28 +103,28 @@ export function tileToPayload(asset: GridAsset): Record<string, unknown> {
     label: labelOf(asset),
     stack_level: Math.round(num(asset.heightLevel, 0)),
 
-    width: dec(num(asset.width, 1)),
+    width: dec(num(asset.width, columnNumber('width'))),
     // THE ONE HEIGHT, in blocks. The editor keeps a block height and a vertical stretch and multiplies
     // them to show a single number; the column IS that single number (D6).
     height: dec(resolveTileHeight(asset)),
-    depth: dec(num(asset.depth, 1)),
+    depth: dec(num(asset.depth, columnNumber('depth'))),
 
-    span_forward: Math.round(num(asset.spanForward, 1)),
-    span_back: Math.round(num(asset.spanBack, 0)) + 1,
-    span_perp: Math.round(num(asset.spanPerp, 0)) + 1,
-    span_perp_back: Math.round(num(asset.spanPerpBack, 0)) + 1,
+    span_forward: Math.round(num(asset.spanForward, columnNumber('span_forward'))),
+    span_back: Math.round(num(asset.spanBack, beyondAnchor('span_back'))) + 1,
+    span_perp: Math.round(num(asset.spanPerp, beyondAnchor('span_perp'))) + 1,
+    span_perp_back: Math.round(num(asset.spanPerpBack, beyondAnchor('span_perp_back'))) + 1,
 
-    nudge_x: dec(num(pose.dx, 0)),
-    nudge_y: dec(num(pose.dy, 0)),
-    rotation: dec(degrees(num(pose.rot, 0))),
+    nudge_x: dec(num(pose.dx, columnNumber('nudge_x'))),
+    nudge_y: dec(num(pose.dy, columnNumber('nudge_y'))),
+    rotation: dec(degrees(num(pose.rot, radians(columnNumber('rotation'))))),
     mirror: pose.flip === true,
-    art_scale: dec(num(pose.scale, 1)),
+    art_scale: dec(num(pose.scale, columnNumber('art_scale'))),
 
-    slide_amount: dec(num(asset.zOffset, 0)),
-    draw_order: Math.round(num(asset.zIndex, 0)),
+    slide_amount: dec(num(asset.zOffset, columnNumber('slide_amount'))),
+    draw_order: Math.round(num(asset.zIndex, columnNumber('draw_order'))),
 
-    opacity: dec(num(asset.opacity, 1)),
-    brightness: dec(num(asset.brightness, 1)),
+    opacity: dec(num(asset.opacity, columnNumber('opacity'))),
+    brightness: dec(num(asset.brightness, columnNumber('brightness'))),
 
     act_as_tile: settings.actAsTile !== false,
     display: settings.display === 'single' ? 'single' : 'all_faces',
@@ -121,7 +135,7 @@ export function tileToPayload(asset: GridAsset): Record<string, unknown> {
   }
 
   for (const [dir, column] of REACHES) {
-    out[column] = dec(num(reach[dir], 1))
+    out[column] = dec(num(reach[dir], columnNumber(column)))
   }
 
   // A nullable column is the one case where absent is the value: `span_axis` has no default, and a
@@ -137,73 +151,118 @@ export function tileToPayload(asset: GridAsset): Record<string, unknown> {
   if (settings.badge?.color) out.sign_color = settings.badge.color
   if (typeof asset.flow === 'number' && HEADINGS[asset.flow % 4]) out.water_heading = HEADINGS[asset.flow % 4]
 
+  // THE MOTION, which had no column at all until now and so was simply dropped: a fountain rose and
+  // faded when it was stamped and sat still forever after a reload. Absent is the value for a tile that
+  // does not move, so a nullable column and no default, like `span_axis`.
+  if (asset.animations?.length) {
+    out.animations = asset.animations
+    out.placed_at = dec(num(asset.placedAt, 0))
+  }
+
   return out
 }
 
-/** The reverse: a served tile, as the editor's asset. */
-export function payloadToTile(tile: Record<string, unknown>, col: number, row: number): GridAsset {
+/**
+ * The reverse: a served tile, as the editor's asset.
+ *
+ * `groundLabel` is the cell's own `texture_label`, and it is what tells a floor apart from anything else
+ * standing in the same square. The grid answers "what is the ground here" from the placement's TYPE, and
+ * nothing on the wire carries that type, so a floor loaded as a plain tile left the grid with no ground
+ * at all: no floor index, no ground slugs, and every ground-shaped question answered empty.
+ */
+export function payloadToTile(tile: Record<string, unknown>, col: number, row: number, groundLabel?: string | null): GridAsset {
   // EVERY field, stated. A setting is never implied by its own absence (law 6): the column has a
   // default, the payload carries it, and a renderer that receives an absent field is a renderer that
   // has to invent one. That invention is the defect this phase exists to delete.
   const pose: TilePose = {
-    dx: fromDec(tile.nudge_x, 0),
-    dy: fromDec(tile.nudge_y, 0),
-    rot: radians(fromDec(tile.rotation, 0)),
+    dx: fromDec(tile.nudge_x, columnNumber('nudge_x')),
+    dy: fromDec(tile.nudge_y, columnNumber('nudge_y')),
+    rot: radians(fromDec(tile.rotation, columnNumber('rotation'))),
     flip: tile.mirror === true,
-    scale: fromDec(tile.art_scale, 1),
+    scale: fromDec(tile.art_scale, columnNumber('art_scale')),
   }
   if (tile.muzzle != null) pose.muzzle = fromDec(tile.muzzle, 0)
 
+  // A REACH OF 1 IS NOT A THINNING, IT IS THE ABSENCE OF ONE, and the difference is not cosmetic.
+  //
+  // The columns are always stated, which is right: every one of the four has a default and the wire
+  // carries it. On the engine's side, though, `thickness` present means "this tile is thinner than its
+  // cell", and the live stamp says so by leaving it undefined. Building a full map of 1s here made the
+  // two paths disagree, and every renderer fast path that asks "does this tile deviate at all?" answered
+  // yes for all of them, so a whole map's worth of tiles took the slow branch every frame.
   const reach: ThicknessReach = {}
+  let thinned = false
   for (const [dir, column] of REACHES) {
-    reach[dir] = fromDec(tile[column], 1)
+    const value = fromDec(tile[column], columnNumber(column))
+    if (value >= 1) continue
+    reach[dir] = value
+    thinned = true
   }
 
   const label = typeof tile.label === 'string' ? tile.label : undefined
 
   const settings: Record<string, unknown> = {
-    display: tile.display === 'single' ? 'single' : 'all-faces',
+    display: tile.display === 'single' ? 'single' : 'all_faces',
     transparent: tile.transparent === true,
     fadeNear: tile.fade_near === true,
     cutawayRoof: tile.cutaway_near === true,
     actAsTile: tile.act_as_tile !== false,
   }
-  if (tile.min_alpha != null) settings.minAlpha = fromDec(tile.min_alpha, 1)
-  if (tile.sign_text) settings.badge = { text: String(tile.sign_text), color: String(tile.sign_color ?? '#ffffff') }
+  // `min_alpha` is nullable and has no column default, and this branch runs only when the row states
+  // one, so there is nothing here to fall back to. Borrowing another column's default would be a made-up
+  // number wearing a lookup.
+  if (tile.min_alpha != null) settings.minAlpha = Number(tile.min_alpha)
+  // The sign and its colour are two nullable columns. A sign with no colour of its own keeps none, and
+  // the badge drawer uses its own ink; inventing a white here put one on the row as though it was meant.
+  if (tile.sign_text) {
+    settings.badge = { text: String(tile.sign_text), color: tile.sign_color ? String(tile.sign_color) : '' }
+  }
 
   const asset: GridAsset = {
     art: [''],
     col,
     row,
-    type: label ?? 'decoration',
+    // The ground course of the square it sits in is the floor. A tile of the same label standing at a
+    // higher level is a tile, not the ground.
+    type: label && label === groundLabel && Math.round(fromDec(tile.stack_level, 0)) === 0 ? FLOOR_TYPE : (label ?? 'decoration'),
     label,
     tileKey: label,
     heightLevel: Math.round(fromDec(tile.stack_level, 0)),
     // The one height comes back whole: the column IS the number, so nothing multiplies it again.
-    height: fromDec(tile.height, 1),
-    width: fromDec(tile.width, 1),
-    depth: fromDec(tile.depth, 1),
-    spanForward: Math.round(fromDec(tile.span_forward, 1)),
-    zIndex: Math.round(fromDec(tile.draw_order, 0)),
-    opacity: fromDec(tile.opacity, 1),
-    brightness: fromDec(tile.brightness, 1),
+    height: fromDec(tile.height, columnNumber('height')),
+    width: fromDec(tile.width, columnNumber('width')),
+    depth: fromDec(tile.depth, columnNumber('depth')),
+    spanForward: Math.round(fromDec(tile.span_forward, columnNumber('span_forward'))),
+    zIndex: Math.round(fromDec(tile.draw_order, columnNumber('draw_order'))),
+    opacity: fromDec(tile.opacity, columnNumber('opacity')),
+    brightness: fromDec(tile.brightness, columnNumber('brightness')),
     shape: tile.shape === 'circle' || tile.shape === 'cone' ? tile.shape : undefined,
   }
 
   // Counts come back as counts: the editor holds cells BEYOND the anchor. Stated, not omitted.
-  asset.spanBack = Math.max(0, Math.round(fromDec(tile.span_back, 1)) - 1)
-  asset.spanPerp = Math.max(0, Math.round(fromDec(tile.span_perp, 1)) - 1)
-  asset.spanPerpBack = Math.max(0, Math.round(fromDec(tile.span_perp_back, 1)) - 1)
+  asset.spanBack = Math.max(0, Math.round(fromDec(tile.span_back, columnNumber('span_back'))) - 1)
+  asset.spanPerp = Math.max(0, Math.round(fromDec(tile.span_perp, columnNumber('span_perp'))) - 1)
+  asset.spanPerpBack = Math.max(0, Math.round(fromDec(tile.span_perp_back, columnNumber('span_perp_back'))) - 1)
 
   if (tile.span_axis) asset.spanAxis = tile.span_axis as IsoDiagonal
   if (tile.slide_direction) asset.zDir = tile.slide_direction as IsoDiagonal
-  asset.zOffset = fromDec(tile.slide_amount, 0)
+  asset.zOffset = fromDec(tile.slide_amount, columnNumber('slide_amount'))
   if (tile.color) asset.color = String(tile.color)
   if (tile.side_color) asset.sideColor = String(tile.side_color)
   if (tile.bg_color) asset.bgColor = String(tile.bg_color)
-  asset.pose = pose
-  asset.thickness = reach
+  // A POSE THAT MOVES NOTHING IS NOT A POSE, same rule as the thickness above and for the same reason:
+  // a tile's own pose is per view, and a placement that states an identity one overrides it in every
+  // view. The columns still carry all five, always; what is rebuilt here is an override.
+  if (poseDeviates(pose)) asset.pose = pose
+  if (thinned) asset.thickness = reach
   asset.settings = settings as GridAsset['settings']
+
+  // …and back. `placedAt` is the clock origin, so a loop that was anchored at 0 comes back anchored at 0
+  // and every copy of the same object stays in step.
+  if (Array.isArray(tile.animations) && tile.animations.length) {
+    asset.animations = tile.animations as GridAsset['animations']
+    asset.placedAt = fromDec(tile.placed_at, columnNumber('placed_at'))
+  }
 
   const heading = HEADINGS.indexOf(tile.water_heading as (typeof HEADINGS)[number])
   if (heading >= 0) asset.flow = heading
@@ -290,7 +349,7 @@ export function applyMapPayload(payload: MapPayload, grid: IsometricGrid): Isome
     grid.setHeight(cell.col, cell.row, fromDec(cell.ground_height, 0))
 
     for (const tile of cell.tiles ?? []) {
-      assets.push(payloadToTile(tile, cell.col, cell.row))
+      assets.push(payloadToTile(tile, cell.col, cell.row, cell.texture_label))
     }
   }
 

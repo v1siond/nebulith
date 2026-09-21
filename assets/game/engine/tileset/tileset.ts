@@ -25,13 +25,21 @@ export type TilePosition =
 
 /** DISPLAY MODE, how a tile is PAINTED onto its block. A per-tile render SETTING (lives in the tile's
  *  `settings` jsonb, mirrored as a per-ASSET override from the editor):
- *    • 'all-faces' (DEFAULT, current behaviour), the baked tile image is painted on the block's top + the
+ *    • 'all_faces' (DEFAULT, current behaviour), the baked tile image is painted on the block's top + the
  *      two camera-visible side faces (drawIsoTileBlock / fillIsoFaceWithTile).
  *    • 'single', ONE instance of the tile is shown INSIDE the block volume (a single centered billboard at
  *      the block centre) over a plain, shaded block shell, e.g. a single water droplet floating in the block.
- *  Absent → 'all-faces' (byte-identical to before). This changes WHERE / HOW MANY TIMES the SAME baked image
+ *  Absent → 'all_faces' (byte-identical to before). This changes WHERE / HOW MANY TIMES the SAME baked image
  *  is drawn on the block, it never introduces a glyph. */
-export type TileDisplay = 'all-faces' | 'single'
+/**
+ * ONE SPELLING, THE COLUMN'S.
+ *
+ * This was `all-faces` in the engine and `all_faces` in `cell_tiles.display`, which is a second
+ * vocabulary whose whole job is to be translated back. It cost a round trip: a map saved the column's
+ * spelling and loaded the engine's, so the same tile came back holding a different string than it went
+ * in with, and the two paths could never be compared.
+ */
+export type TileDisplay = 'all_faces' | 'single'
 
 /** How a tile's block renders: a cube, a shaded ball, or a cone.
  *
@@ -101,7 +109,7 @@ export interface CompositionCell {
    *  siblings. `scaleY` stretches the block's HEIGHT (the lamp POST = one cell drawn ~7 blocks tall); `display`
    *  'single' draws ONE centered billboard instead of tiling the faces (the lamp BULB); `pose` nudges the
    *  placed tile (the bulb's `dy` lift onto the post top). stampComposition applies each onto the placed asset.
-   *  Absent → the cell places its tile at one block, unposed, all-faces, unchanged. */
+   *  Absent → the cell places its tile at one block, unposed, all_faces, unchanged. */
   settings?: CompositionCellSettings
 }
 
@@ -266,7 +274,7 @@ export const FALLBACK_RESOLVED: ResolvedTile = { char: '?', color: '#cccccc', wa
 /** The GENERIC render-behavior keys (`fadeNear`/`cutawayRoof`/`display`) a stamp copies from a resolved
  *  tile's `settings` onto the placed asset. Returns undefined when the tile carries none (the common case),
  *  so a stamp only sets `asset.settings` on tiles that actually opt into a behavior. `display` follows the
- *  SAME data path: only the non-default `'single'` rides through, `'all-faces'` / absent carries nothing,
+ *  SAME data path: only the non-default `'single'` rides through, `'all_faces'` / absent carries nothing,
  *  leaving `asset.settings` unset so a default tile renders byte-identically to before. */
 export function tileRenderBehavior(settings?: Record<string, unknown>): { fadeNear?: boolean; cutawayRoof?: boolean; minAlpha?: number; display?: TileDisplay; transparent?: boolean; collision?: Array<{ x: number; y: number; w: number; h: number }> } | undefined {
   if (!settings) return undefined

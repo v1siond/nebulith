@@ -30,13 +30,16 @@ describe('per-element dimensions persist through serialize → JSON → deserial
     expect(back.scale).toBe(1.25)
   })
 
-  it('leaves per-axis dims undefined on an asset that never set them (default = natural size)', () => {
+  it('states the default per-axis dims on an asset that never set them, rather than leaving them silent', () => {
     const grid = new IsometricGrid({ cols: 4, rows: 4, cellSize: 64 })
     grid.placeAsset(['🌸'], 0, 0, { type: 'flower' })
 
+    // A SETTING IS STATED, NEVER IMPLIED BY ITS OWN ABSENCE. These used to be left silent and the
+    // renderer filled them in, which is the fallback that made a flat tile a cube once the renderer
+    // stopped guessing. `placeAsset` now says the natural size out loud, and this pins the value it says.
     const back = hydrate(grid).getAssetsAtCell(0, 0).find(a => a.type !== 'floor')!
-    expect(back.width).toBeUndefined()
-    expect(back.height).toBeUndefined()
+    expect(back.width).toBe(1)
+    expect(back.height).toBe(1)
     expect(back.scaleZ).toBeUndefined()
   })
 })

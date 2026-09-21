@@ -10,6 +10,8 @@
  */
 import { chromium } from 'playwright'
 import { BASE } from './base.mjs'
+import { logIn } from './logIn.mjs'
+import { openScratchMap, dropScratchMap } from './scratchMap.mjs'
 const LABEL = process.argv[2] ?? 'Woodland city'
 const CATEGORY = process.argv[3] ?? 'city'
 const COLS = Number(process.argv[4] ?? 100)
@@ -24,7 +26,8 @@ await page.addInitScript(() => {
   const raf = w.requestAnimationFrame.bind(w)
   w.requestAnimationFrame = cb => raf(t => { w.__frames++; return cb(t) })
 })
-await page.goto(`${BASE}/templates`, { waitUntil: 'networkidle' })
+await logIn(page, BASE)
+const scratchId = await openScratchMap(page, BASE, { cols: 100, rows: 60, name: 'e2e probe' })
 await page.waitForTimeout(2500)
 
 const setField = async (aria, value) => {
@@ -78,4 +81,5 @@ console.log(`\nself time, top 25 of ${total} samples:`)
 for (const [name, hits] of [...self.entries()].sort((a, b) => b[1] - a[1]).slice(0, 25)) {
   console.log(`  ${(100 * hits / total).toFixed(1).padStart(5)}%  ${name}`)
 }
+await dropScratchMap(page, scratchId)
 await browser.close()

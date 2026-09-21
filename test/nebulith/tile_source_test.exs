@@ -82,13 +82,23 @@ defmodule Nebulith.TileSourceTest do
     trunk = Enum.find(tree.cells, &(&1.label == "trunk_mid"))
     leaf = Enum.find(tree.cells, &(&1.label == "leaf_center"))
 
-    # the user's hand-tuned settings: trunk = Zoom(scale) 0.6 / Height(scaleY) 3.15 (a thin tall post); leaf =
-    # Zoom 1.35 / Height 2 (a bigger cube), lifted to level 2 so it sits ON the trunk top.
-    assert trunk.level == 0 and trunk.scale == 0.6 and trunk.settings["scaleY"] == 3.15
+    # The hand-tuned trunk is a thin tall post: 3.15 blocks at 60%, which is 1.89 blocks drawn.
+    #
+    # THE AUTHORING NUMBERS AND THE CELL ARE NO LONGER THE SAME NUMBERS, and that is the point. A Zoom on
+    # the cell is folded into the placed tile's width and depth, so a trunk authored at 60% came out 0.6 of
+    # a cell across on both ground axes and was thin because it had been shrunk. What the cell states now
+    # is the height it draws at and the reaches that pull its faces in, and 3.15 x 0.6 lives in the seeder
+    # where the species is described.
+    assert trunk.level == 0
+    assert trunk.scale == 1.0, "a trunk carries no Zoom, or it is thin by its width again"
+    assert trunk.settings["scaleY"] == 1.89
+    assert trunk.settings["thickness"]["left-up"] > 0, "a trunk is thin by its thickness"
     assert leaf.level == 2 and leaf.scale == 1.35 and leaf.settings["scaleY"] == 2.0
 
-    # DIMENSION SANITY: the trunk is thinner + less zoomed than the leaves.
-    assert trunk.scale < leaf.scale
+    # DIMENSION SANITY: the trunk draws narrower than the leaves it carries. Measured as drawn width, which
+    # is what the eye compares, and not as a Zoom the trunk no longer has.
+    trunk_face = (1.0 - trunk.settings["thickness"]["left-up"]) * trunk.scale
+    assert trunk_face < leaf.scale
 
     # the bush's one cell is a leaf on the ground, no trunk anywhere.
     assert hd(bush.cells).label == "leaf_center" and hd(bush.cells).level == 0
@@ -135,6 +145,21 @@ defmodule Nebulith.TileSourceTest do
       Enum.find(comps, &(&1.name == name)).cells |> Enum.find(&(&1.label == "trunk_mid"))
     end
 
+    # HOW WIDE A CELL ACTUALLY DRAWS, as a share of its own cell, which is the only number the eye sees and
+    # so the only one worth comparing. Two different controls can narrow a cell and they do not compose the
+    # same way: Width scales the whole block, a thickness reach pulls one face in and leaves the rest. What
+    # is left over after both is the face.
+    # A REACH IS HOW FAR THE BLOCK EXTENDS TOWARD THAT FACE, which with only the two "up" faces pulled in
+    # is the drawn width itself. This computed `1 - reach`, which is what the seeder was writing at the
+    # time, and both were wrong the same way: a trunk meant to be a quarter of its cell drew at
+    # three-quarters, and twenty-one species were squeezed into a band where they all looked alike.
+    #
+    # `reachOf` answers 1 for a face nobody set, so a cell with no thickness at all fills its width.
+    drawn_face = fn cell ->
+      reach = get_in(cell.settings, ["thickness", "left-up"]) || 1.0
+      (cell.settings["scaleX"] || 1.0) * cell.scale * reach
+    end
+
     tall_trunk = trunk.("tree_tall")
     stub_trunk = trunk.("tree_stub")
     std_trunk = trunk.("tree")
@@ -142,12 +167,14 @@ defmodule Nebulith.TileSourceTest do
     # A TRUNK'S WIDTH IS A THICKNESS, NOT A SCALE. Width squashes the whole block, so a trunk at 0.40 drew
     # as a squished slab; the reaches pull two faces in and leave the block its own size. This used to read
     # `settings["scaleX"]` and kept passing on the old model after the seeder moved off it.
-    reach = fn cell -> get_in(cell.settings, ["thickness", "left-up"]) || 1.0 end
-
-    assert reach.(tall_trunk) < reach.(std_trunk),
+    #
+    # AND IT IS MEASURED AS A DRAWN WIDTH, not as a reach. A reach is how much is pulled IN, so comparing
+    # reaches ranks the species backwards: the skinniest trunk has the LARGEST one. Reading them directly
+    # was right only while the number in that slot was still a width wearing a thickness's name.
+    assert drawn_face.(tall_trunk) < drawn_face.(std_trunk),
            "a tall tree's trunk is the skinny one, so the authored spread has been flattened"
 
-    assert reach.(std_trunk) < reach.(stub_trunk),
+    assert drawn_face.(std_trunk) < drawn_face.(stub_trunk),
            "a stub's trunk is the thick one, so the authored spread has been flattened"
 
     # …and every one of them still inside the share, measured against its OWN drawn crown.
@@ -157,14 +184,11 @@ defmodule Nebulith.TileSourceTest do
       c = Enum.find(cells, &(&1.label == "leaf_center"))
 
       # A cell narrows itself EITHER by Width or by a thickness reach, and a trunk moved from the first to
-      # the second. Reading only `scaleX` made an absent value default to full width, so a narrowed trunk
-      # measured as if it had never been narrowed and the share was computed against the wrong number.
-      narrowed = fn cell ->
-        cell.settings["scaleX"] || get_in(cell.settings, ["thickness", "left-up"]) || 1
-      end
-
-      trunk_eff = t.scale * narrowed.(t)
-      crown_eff = c.scale * narrowed.(c)
+      # the second. Reading either one ALONE lets the other pass unmeasured: `scaleX` alone measured a
+      # narrowed trunk as if it had never been narrowed, and a bare reach measures the pulled-in part
+      # rather than what is left. `drawn_face` is both, in the units the share is stated in.
+      trunk_eff = drawn_face.(t)
+      crown_eff = drawn_face.(c)
 
       assert trunk_eff <= crown_eff * 0.26 + 0.0001,
              "#{name}: trunk #{trunk_eff} is more than a quarter of its crown #{crown_eff}"

@@ -143,6 +143,9 @@ defmodule Nebulith.DataMigrations do
     Nebulith.DataMigration.ARegionGrowsItsOwnTrees,
     Nebulith.DataMigration.TheDesertKeepsItsCacti,
     Nebulith.DataMigration.ASettingIsStatedNotGuessed,
+    # Re-runs two seeders, so it comes before the height pass below, which settles what they land.
+    Nebulith.DataMigration.ATrunkIsThinByThickness,
+    Nebulith.DataMigration.ADoorIsTwoBlocksTall,
     Nebulith.DataMigration.TheHeartAloneStandsOnItsPlatform,
     Nebulith.DataMigration.TheRejectedEntrancesAreGone,
     Nebulith.DataMigration.ABodyOfWaterIsLevel,

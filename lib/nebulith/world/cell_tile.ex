@@ -119,6 +119,25 @@ defmodule Nebulith.World.CellTile do
     field :surface, :string, default: "plain"
     field :pinned, :boolean, default: false
 
+    ## MOTION (2)
+    #
+    # The one place a placement is allowed a shapeless payload, and it earns it under law 8: an animation
+    # is a list of keyframes, each a partial transform with its own easing and trigger, and nothing
+    # selects a map by what its tiles animate.
+    #
+    # It cannot be re-derived from the label the way height and display are. A fountain has nine
+    # `water_c` cells and three of them rise and fade, so animating is a fact about this PLACEMENT and
+    # not about the tile. Leaving it off the table is why a fountain stopped moving after a reload.
+    field :animations, {:array, :map}
+    # The clock origin the loop is measured from. A composition's defaults anchor at 0 so every fountain
+    # on a map stays in step.
+    #
+    # THE DEFAULT HAS TO BE HERE, not only on the column. A whole map is written with `insert_all`, which
+    # names every column, and a column DEFAULT only applies to a column that was left OUT: naming it with
+    # a nil sends NULL and the not-null constraint rejects the row. That is why every other decimal in
+    # this schema carries one, and leaving it off made every save of every map fail at once.
+    field :placed_at, :decimal, default: Decimal.new("0")
+
     has_many :views, Nebulith.World.CellTileView, foreign_key: :cell_tile_id
 
     timestamps(type: :utc_datetime)

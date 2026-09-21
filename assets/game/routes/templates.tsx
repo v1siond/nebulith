@@ -2422,11 +2422,11 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
   // the positional depth sort. Written to THIS placed tile (persists with the map); the render reads asset.zIndex.
   const setAssetZIndex = (i: number, v: number) =>
     applyToSelectedTiles(i, (a) => { a.zIndex = Math.round(v) })
-  // PER-ASSET "display" mode (all-faces / single), how the tile is painted on its block. Written into THIS
+  // PER-ASSET "display" mode (all_faces / single), how the tile is painted on its block. Written into THIS
   // placed tile's `settings` (persists with the map via the full-asset serialize); the render reads it back
   // through `assetSetting`, which is this instance FIRST and then the served tile.
   //
-  // IT WRITES THE CHOSEN VALUE, ALWAYS. It used to clear the key for 'all-faces', on the theory that absent
+  // IT WRITES THE CHOSEN VALUE, ALWAYS. It used to clear the key for 'all_faces', on the theory that absent
   // meant default. It does not: absent means "ask the tile", and the tile may well say 'single'. So picking
   // All on a rock served as 'single' deleted the override, the read fell back to 'single', and the button
   // appeared to do nothing. A setting is stated, never implied by its own absence.
@@ -2906,7 +2906,7 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
       return { col, row, shape }
     }
     // Per-instance DISPLAY validation seam (sibling of __setShape): set the topmost asset's Display mode
-    // (all-faces vs single) so a headless render can prove Display actually applies to a painted block.
+    // (all_faces vs single) so a headless render can prove Display actually applies to a painted block.
     win.__setDisplay = (col: number, row: number, mode: TileDisplay) => {
       const g = gridRef.current
       if (!g) return null
@@ -4333,6 +4333,17 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
 
     const ctx = canvas.getContext('2d')
     if (!ctx) return
+
+    // THIS EFFECT RUNS ONCE, ON MOUNT, and it has to.
+    //
+    // It was briefly gated on `tilesetReady` so that a grid would not be constructed before the schema
+    // arrived. That fixed the throw and broke the load: a gate on a flag that flips later turns a
+    // one-shot effect into a two-shot one, and the second shot built a blank 40x40 grid over the map
+    // that had just been loaded into it. Measured: a reload came back as 1,600 bare floors.
+    //
+    // The wait belongs above every page, not inside one of its effects, and it is in `js/game.tsx`:
+    // nothing renders at all until /api/maps/schema has answered, so by the time this runs the data it
+    // needs is already here and its lifecycle is unchanged.
 
     // The canvas is a PANE in the editor grid now, not a full-bleed backdrop, so its backing store is
     // sized from its own box, see the ResizeObserver effect below, which also fixes the fact that this
@@ -6552,7 +6563,7 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
                             // per-instance first, then the SERVED tile's own settings. No fallback literal:
                             // every tile STATES these now (ASettingIsStatedNotGuessed), so a missing value is
                             // a data gap to see, not something for this to invent. Reading the instance alone
-                            // and `??`-ing 'all-faces' is what reported "All" for a rock served as 'single'.
+                            // and `??`-ing 'all_faces' is what reported "All" for a rock served as 'single'.
                             display: commonValue(cells.map(({ col, row }) => {
                               const a = stackedAssetsAt(grid, col, row)[i]
                               return (a ? assetSetting<TileDisplay>(a, 'display') : undefined) as TileDisplay

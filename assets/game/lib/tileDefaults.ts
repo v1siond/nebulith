@@ -92,13 +92,25 @@ export function withServedDefaults<T extends object>(tile: T): T {
 /**
  * A NUMERIC default, as the column states it.
  *
- * The one reader for "what is this setting when nobody said". Before the schema has loaded it answers
- * the caller's own last resort, which is the only moment in the app's life where that can happen: the
- * boot gate waits on `loadTileSchema` before anything renders.
+ * NO LITERAL LAST RESORT. This used to take one, and a parameter called `beforeLoad` is a hardcoded
+ * fallback with a polite name: every caller had to pick a number, so the engine held an opinion about
+ * `height` and another about `width` and the database held the only real ones. The boot gate waits on
+ * `loadTileSchema` before anything renders, so the moment it was covering for does not exist at run
+ * time; in a test it means the test has not installed a schema, and that is worth knowing.
  */
-export function numericDefault(field: string, beforeLoad: number): number {
-  const stated = served?.defaults?.[field]
-  const n = typeof stated === 'string' ? Number(stated) : stated
+export function numericDefault(field: string): number {
+  const n = Number(defaultOf(field))
+  if (!Number.isFinite(n)) throw new Error(`tile defaults: "${field}" is not a number, it is ${JSON.stringify(defaultOf(field))}`)
 
-  return typeof n === 'number' && Number.isFinite(n) ? n : beforeLoad
+  return n
+}
+
+/** A BOOLEAN default, as the column states it. */
+export function booleanDefault(field: string): boolean {
+  return defaultOf(field) === true
+}
+
+/** A STRING default, as the column states it, in the column's own spelling. */
+export function stringDefault(field: string): string {
+  return String(defaultOf(field))
 }

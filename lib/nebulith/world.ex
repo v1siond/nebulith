@@ -469,12 +469,24 @@ defmodule Nebulith.World do
     |> Elixir.Map.new(fn field -> {field, cast_field(field, tile[Atom.to_string(field)])} end)
   end
 
-  @decimal_fields ~w(width height depth thickness_lu thickness_ru thickness_ld thickness_rd
-                     nudge_x nudge_y rotation art_scale muzzle slide_amount opacity brightness
-                     min_alpha)a
+  # WHICH COLUMNS ARE DECIMALS, ASKED OF THE SCHEMA.
+  #
+  # This was a hand-written list of seventeen names, and law 10 says what happens next: `placed_at`
+  # arrived as a decimal column, was not on the list, and its value went to Postgres as the string it
+  # travels as. `insert_all` skips changesets, so nothing cast it and nothing complained until the whole
+  # map failed to save.
+  #
+  # The schema already knows every column's type. Asking it is shorter than the list was and cannot fall
+  # behind it. Derived at call time for the same reason `settable_fields/0` is: `__schema__/1` does not
+  # exist until the module has finished compiling.
+  defp decimal_field?(field), do: CellTile.__schema__(:type, field) == :decimal
 
-  defp cast_field(field, value) when field in @decimal_fields, do: decimal(value, nil)
-  defp cast_field(_field, value), do: value
+  defp cast_field(field, value) do
+    case decimal_field?(field) do
+      true -> decimal(value, nil)
+      false -> value
+    end
+  end
 
   defp integer(nil, fallback), do: fallback
   defp integer(value, _fallback) when is_integer(value), do: value

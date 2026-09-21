@@ -1,5 +1,6 @@
 import { Suspense, lazy } from 'react'
 import { createRoot } from 'react-dom/client'
+import { loadTileSchema } from '@/lib/tileDefaults'
 import { ToastProvider } from '@/components/Toast'
 import { useRouter } from '@/lib/router'
 import { matchRoute } from '@/lib/routes'
@@ -36,11 +37,38 @@ function Loading({ children }: { children: React.ReactNode }) {
   return <Suspense fallback={<p className="p-8 font-mono text-gray-400">Loading…</p>}>{children}</Suspense>
 }
 
+/**
+ * NOTHING RENDERS BEFORE THE SCHEMA LANDS, and this is the one place that can promise it.
+ *
+ * `/api/maps/schema` carries what every setting is when nobody said, from the column that states it.
+ * Anything that builds a placement needs it, and a grid builds placements the moment it is constructed,
+ * which happens inside a React effect on a cold mount.
+ *
+ * The editor used to gate itself, and that was one page gating one of its effects: the page threw
+ * before it drew, because a grid fills its ground on construction and a floor asks how tall its tile
+ * is. Gating each caller is a list that falls behind, so the wait happens once, here, above every page.
+ *
+ * The alternative is a number for a renderer to use meanwhile, which is the hardcoded fallback this
+ * whole phase exists to delete. A failure to load is shown as a failure, not papered over: a map drawn
+ * from invented values is worse than a map not drawn.
+ */
 const mount = document.getElementById('game')
+
 if (mount) {
-  createRoot(mount).render(
-    <ToastProvider>
-      <App />
-    </ToastProvider>,
-  )
+  const root = createRoot(mount)
+
+  loadTileSchema()
+    .then(() => root.render(<ToastProvider><App /></ToastProvider>))
+    .catch((err: unknown) => {
+      root.render(
+        <div className="p-8 font-mono text-sm text-red-300">
+          <p className="mb-2 font-bold">The editor could not load what a tile setting means.</p>
+          <p className="mb-2 text-gray-400">
+            /api/maps/schema did not answer, so every setting would have to be guessed at. Reload once it
+            is back.
+          </p>
+          <p className="text-gray-500">{String(err)}</p>
+        </div>,
+      )
+    })
 }

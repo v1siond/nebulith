@@ -21,14 +21,14 @@ export interface HasAssetHeight {
  * link answered: a tile could never be flat, because 0 fell through to the tile's own number.
  *
  * A placement states its height. `payloadToTile` states it from the column, `placeAsset` states it from
- * the served default, and the column itself has a default, so there is nothing left to guess. The
- * argument to `numericDefault` is not a value this file chooses; it is what to answer in the one moment
- * before the schema has loaded, which the boot gate makes unreachable.
+ * the served default, and the column itself has a default, so there is nothing left to guess. And the answer
+ * when a placement somehow still states nothing is the COLUMN's, read from the served schema, never a
+ * number chosen here.
  */
 export function resolveTileHeight(asset: HasAssetHeight | undefined): number {
   const stated = asset?.height
 
-  return typeof stated === 'number' && stated >= 0 ? stated : numericDefault('height', 1)
+  return typeof stated === 'number' && stated >= 0 ? stated : numericDefault('height')
 }
 
 /** Render-geometry ONLY (no invented value): how MANY layers the iso renderer stacks for a tile of `blocks`
@@ -65,5 +65,5 @@ export interface HasTileHeight {
 export function tileCatalogHeight(tile: HasTileHeight | undefined): number {
   const stated = tile?.height
 
-  return typeof stated === 'number' && stated >= 0 ? stated : numericDefault('height', 1)
+  return typeof stated === 'number' && stated >= 0 ? stated : numericDefault('height')
 }

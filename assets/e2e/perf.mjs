@@ -18,6 +18,8 @@
  */
 import { chromium } from 'playwright'
 import { BASE } from './base.mjs'
+import { logIn } from './logIn.mjs'
+import { openScratchMap, dropScratchMap } from './scratchMap.mjs'
 const LABEL = process.argv[2] ?? 'Woodland city'
 const CATEGORY = process.argv[3] ?? 'city'
 const COLS = Number(process.argv[4] ?? 100)
@@ -38,8 +40,11 @@ await page.addInitScript(() => {
     return orig.apply(this, a)
   }
 })
-await page.goto(`${BASE}/templates`, { waitUntil: 'networkidle' })
-await page.waitForTimeout(2500)
+// ITS OWN MAP, at the size being measured, for the reason in fps.mjs: bare /templates is the gallery
+// once anything is saved.
+await logIn(page, BASE)
+const scratchId = await openScratchMap(page, BASE, { cols: COLS, rows: ROWS, name: 'e2e perf' })
+await page.waitForTimeout(1500)
 const setField = async (aria, value) => {
   const f = page.getByLabel(aria, { exact: false }).first()
   if (await f.count() === 0) return
@@ -82,6 +87,7 @@ for (let i = 0; i < SAMPLES; i++) {
   console.log(`  sample ${i + 1}  fps ${(r.f / el).toFixed(1).padStart(5)}   drawImage/frame ${(r.di / r.f).toFixed(0).padStart(5)}`)
 }
 await page.keyboard.up('w'); await page.keyboard.up('d')
+await dropScratchMap(page, scratchId)
 const best = Math.max(...fps), median = fps.slice().sort((a, b) => a - b)[Math.floor(fps.length / 2)]
 console.log(`\nmedian ${median.toFixed(1)} fps   best ${best.toFixed(1)} fps`)
 await browser.close()

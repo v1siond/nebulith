@@ -45,7 +45,10 @@ describe('a painted tile carries its authored thickness axis', () => {
     stackAssetTile(g, 1, 1, DOOR)
     expect(topAsset(g).thickness).toEqual({ [HUGGED]: 0.3 })
     // THINNING IS THICKNESS, and nothing else. Depth is a size and a thin door does not touch it.
-    expect(topAsset(g).depth).toBeUndefined()
+    // A FULL-DEPTH TILE SAYS SO. Thinning is thickness and must never leak onto the depth axis, which
+    // is what this line is for; what changed is that untouched is now the value 1 rather than silence.
+    // It is the stronger assertion of the two: silence also passes when the field is dropped entirely.
+    expect(topAsset(g).depth).toBe(1)
   })
 
   it('a thickness with NO direction thins toward every face', () => {
@@ -55,7 +58,7 @@ describe('a painted tile carries its authored thickness axis', () => {
     // screen-axis squash on the depth axis, which is how one control came to thin from the side and
     // stretch from above.
     expect(topAsset(g).thickness).toEqual({ 'left-up': 0.3, 'right-up': 0.3, 'left-down': 0.3, 'right-down': 0.3 })
-    expect(topAsset(g).depth).toBeUndefined()
+    expect(topAsset(g).depth).toBe(1)
   })
 
   it('rejects a direction that is not one of the four iso diagonals', () => {
@@ -106,7 +109,7 @@ describe('a stamped composition rotates the axis with the BUILDING', () => {
     const render = compositionCellRender(comp, cell(), tile({ scaleZ: 0.3 }), 1, 2)
 
     expect(render.thickness).toEqual({ 'left-up': 0.3, 'right-up': 0.3, 'left-down': 0.3, 'right-down': 0.3 })
-    expect(render.depth).toBeUndefined()
+    expect(render.depth).toBe(1)
   })
 })
 
@@ -125,7 +128,7 @@ describe('the axis survives save and load, a reloaded map keeps its thin doors',
     stackAssetTile(g, 1, 1, DOOR)
     const back = topAsset(hydrate(g))
     expect(back.thickness).toEqual({ [HUGGED]: 0.3 })
-    expect(back.depth).toBeUndefined()
+    expect(back.depth).toBe(1)
   })
 
   it('a tile with no axis round-trips without inventing one', () => {

@@ -23,9 +23,16 @@ export BASE="http://localhost:${PORT}"
 export ADMIN_EMAIL="${ADMIN_EMAIL:-admin@nebulith.local}"
 export ADMIN_PASSWORD="${ADMIN_PASSWORD:-12345678}"
 
-GATES=("$@")
-if [ ${#GATES[@]} -eq 0 ]; then
-  GATES=(login servedDefaults specCompliance mapRoundTrip docsNav sliderLimits adminCrud)
+# One gate with arguments, or a list of gates, or the default set.
+GATE_ARGS=()
+if [ $# -eq 0 ]; then
+  GATES=(login servedDefaults specCompliance mapRoundTrip loadKeepsShape tileShapes docsNav sliderLimits adminCrud)
+elif [ $# -eq 1 ]; then
+  GATES=("$1")
+else
+  GATES=("$1")
+  shift
+  GATE_ARGS=("$@")
 fi
 
 echo "e2e: ${NEBULITH_DATABASE_URL} on :${PORT}"
@@ -53,7 +60,7 @@ failed=0
 for gate in "${GATES[@]}"; do
   echo
   echo "── ${gate} ──"
-  node "e2e/${gate}.mjs" || failed=1
+  node "e2e/${gate}.mjs" ${GATE_ARGS[@]+"${GATE_ARGS[@]}"} || failed=1
 done
 
 exit "$failed"

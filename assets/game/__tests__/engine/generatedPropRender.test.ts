@@ -34,7 +34,12 @@ describe('generatedPropRender, per-instance standing-prop render', () => {
     expect(flower.settings?.transparent).toBe(true) // block shell is skipped → just the bloom shows
 
     const rock = grid.placeAsset(['🪨'], 7, 8, { type: 'rock', ...generatedPropRender('rock') })
-    expect(rock.height).toBeUndefined() // no override → tile's own block-height drives it, as before
+    // NO OVERRIDE MEANS THE CATALOGUE'S HEIGHT, SAID OUT LOUD, not silence for a renderer to fill in.
+    // The comment here used to read "tile's own block-height drives it", and that stopped being true the
+    // moment the renderer stopped consulting the tile: silence became the column's default of one whole
+    // block, and every flat prop on the map came up a cube. No catalogue is loaded in this test, so the
+    // answer is that same default, which is now stated where it can be seen and saved.
+    expect(rock.height).toBe(1)
     expect(rock.settings).toBeUndefined()
   })
 })

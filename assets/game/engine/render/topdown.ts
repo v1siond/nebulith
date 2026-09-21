@@ -201,7 +201,7 @@ export function draw2DLabeledCell(
     ctx.fillStyle = 'rgba(0, 0, 0, 0.45)'
     ctx.fillRect(x - drawW / 2, baseY - drawH, drawW, drawH)
     // DISPLAY = "single" (per-tile setting): draw ONE smaller centered tile INSIDE the plain colour cell instead
-    // of filling the whole front face, mirroring the iso "single tile inside the block" look. Absent/'all-faces'
+    // of filling the whole front face, mirroring the iso "single tile inside the block" look. Absent/'all_faces'
     // → the tile fills the cell exactly as before.
     const single = assetDrawsSingle(asset)
     const frac = single ? SINGLE_TILE_FRAC : 1

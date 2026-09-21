@@ -3816,11 +3816,20 @@ defmodule Nebulith.Catalog.TileSource do
     # not to make every tree the same. Scaling by the widest keeps the spread and still honours the share.
     crown = opts.leaf_zoom * leaf_w
 
-    trunk_w =
-      Map.get(opts, :trunk_w, 1.0) / @widest_trunk * (crown * @trunk_to_crown / opts.trunk_zoom)
+    # HOW MUCH OF ITS CELL THE TRUNK FILLS, drawn. Not a number to be scaled again later: this is the
+    # width that ends up on screen, so it is the width the cell states.
+    #
+    # This used to divide by `trunk_zoom`, purely to cancel a multiplication the frontend did two layers
+    # away in another language, and the two terms drifted apart the moment the cell stopped carrying a
+    # zoom. A derivation that only works because something else undoes half of it is not a derivation.
+    trunk_face = Map.get(opts, :trunk_w, 1.0) / @widest_trunk * crown * @trunk_to_crown
 
-    assert_tree_dimensions!(trunk_w, leaf_w, opts)
-    leaf_level = round(opts.trunk_h * opts.trunk_zoom)
+    assert_tree_dimensions!(trunk_face, crown, opts)
+
+    # THE DRAWN HEIGHT, in blocks, for the same reason. `trunk_h` and `trunk_zoom` are how a species is
+    # authored (this one is 3.15 blocks at 60%); one number is what it is.
+    trunk_height = opts.trunk_h * opts.trunk_zoom
+    leaf_level = round(trunk_height)
 
     %{
       footprint_w: 1,
@@ -3834,8 +3843,12 @@ defmodule Nebulith.Catalog.TileSource do
           level: 0,
           label: "trunk_mid",
           walkable: false,
-          scale: opts.trunk_zoom,
-          settings: trunk_settings(opts.trunk_h, trunk_w)
+          # NO ZOOM. A zoom on the cell is folded into the placed tile's WIDTH and DEPTH, so a trunk
+          # authored at 60% came out 0.6 of a cell across on both ground axes, on top of the reaches
+          # that were already thinning it. That is the trunk being made thin by its width, which is the
+          # one thing a trunk must not be.
+          scale: 1.0,
+          settings: trunk_settings(trunk_height, trunk_face)
         },
         leaf_cell(
           leaf_level,
@@ -3916,25 +3929,42 @@ defmodule Nebulith.Catalog.TileSource do
   # block its own width. His corrected trunk is Width 1 with the ↖ and ↗ reaches brought in.
   #
   # `left-up` and `right-up` are those two arrows, in the panel's own order (`Z_WIDTH_DIRS`).
-  defp trunk_settings(trunk_h, 1.0), do: %{"scaleY" => trunk_h}
+  # A trunk that fills its whole cell has nothing to pull in, so it says nothing about thickness. Width
+  # is still stated, because a setting is stated rather than implied by its own absence.
+  defp trunk_settings(trunk_h, 1.0), do: %{"scaleX" => 1.0, "scaleY" => trunk_h}
 
-  defp trunk_settings(trunk_h, trunk_w) do
-    %{"scaleY" => trunk_h, "thickness" => %{"left-up" => trunk_w, "right-up" => trunk_w}}
+  # A REACH IS HOW FAR THE BLOCK EXTENDS TOWARD THAT FACE, not how much is pulled in from it.
+  #
+  # `reachOf` answers 1 for a face nobody set, and the block spans `1 - reach(back)` to `reach(forward)`
+  # along each axis. So with only the two "up" faces set, the reach IS the drawn width: 0.24 means a
+  # trunk a quarter of its cell across.
+  #
+  # Writing `1 - face` here inverted every trunk in the game. A tree meant to be 0.24 across drew at
+  # 0.76, and since the authored spread runs 0.15 to 0.70, inverting it squeezed twenty-one species into
+  # the band 0.30 to 0.85, where they all read as the same fat brown box.
+  defp trunk_settings(trunk_h, trunk_face) do
+    %{
+      "scaleX" => 1.0,
+      "scaleY" => trunk_h,
+      "thickness" => %{
+        "left-up" => Float.round(trunk_face, 4),
+        "right-up" => Float.round(trunk_face, 4)
+      }
+    }
   end
 
-  defp assert_tree_dimensions!(trunk_w, leaf_w, opts) do
-    trunk_eff_w = trunk_w * opts.trunk_zoom
-    leaf_eff_w = leaf_w * opts.leaf_zoom
-
-    # THINNER IS NOT ENOUGH. This asked only that the trunk be narrower than the crown, which a trunk at 80%
-    # of it satisfies, and `tree_cypress` was exactly that. The share is the thing that reads as a tree, so
-    # the share is what is checked.
-    unless opts.trunk_zoom < opts.leaf_zoom and
-             trunk_eff_w <= leaf_eff_w * @trunk_to_crown + 0.0001 do
+  # BOTH NUMBERS ARE NOW DRAWN WIDTHS, so the check is the proportion itself rather than two authoring
+  # knobs compared through a zoom that no longer reaches the trunk.
+  #
+  # THINNER IS NOT ENOUGH. This asked only that the trunk be narrower than the crown, which a trunk at 80%
+  # of it satisfies, and `tree_cypress` was exactly that. The share is the thing that reads as a tree, so
+  # the share is what is checked.
+  defp assert_tree_dimensions!(trunk_face, crown, opts) do
+    unless trunk_face > 0 and trunk_face <= crown * @trunk_to_crown + 0.0001 do
       raise ArgumentError,
-            "tree #{inspect(opts)} has too thick a trunk: #{Float.round(trunk_eff_w / leaf_eff_w, 3)} of its " <>
-              "crown, and a trunk may be at most #{@trunk_to_crown} (trunk_eff_w=#{trunk_eff_w}, " <>
-              "leaf_eff_w=#{leaf_eff_w})"
+            "tree #{inspect(opts)} has too thick a trunk: #{Float.round(trunk_face / crown, 3)} of its " <>
+              "crown, and a trunk may be at most #{@trunk_to_crown} (trunk_face=#{trunk_face}, " <>
+              "crown=#{crown})"
     end
 
     :ok
@@ -5240,8 +5270,8 @@ defmodule Nebulith.Catalog.TileSource do
           level: 3,
           label: "trunk_mid",
           walkable: false,
-          scale: 0.32,
-          settings: %{"scaleY" => 2.8}
+          scale: 1.0,
+          settings: trunk_settings(0.896, 0.32)
         },
         %{
           dx: 1,
@@ -5258,8 +5288,8 @@ defmodule Nebulith.Catalog.TileSource do
           level: 3,
           label: "trunk_mid",
           walkable: false,
-          scale: 0.28,
-          settings: %{"scaleY" => 2.2}
+          scale: 1.0,
+          settings: trunk_settings(0.616, 0.28)
         },
         %{
           dx: 2,

@@ -102,6 +102,40 @@ unreachable from the editor, and nothing anywhere says so.
 > *"none of the sliders should be limited... the react side just reacts the values of the backend and allow
 > us to change them in the state, as simple as that."*
 
+### Laws 6 and 7 are one rule, and deleting half of it costs frame rate
+
+Law 7 deletes the renderer's fallback. Law 6 says the value is stated instead. They have to land
+together, because between them sits a third party neither one names: the WRITER.
+
+Measured here, on 2026-09-21. The renderer used to answer "how tall is this tile?" with a chain: the
+placement, then the tile, then a literal 1. The chain went, correctly, because a renderer that invents a
+served value is a defect. What did not go was the set of writers built around it. `generatedPropRender`
+says so in as many words, withholding a height *"where the backend states one"*, meaning it expected the
+tile to be consulted next. `makeFloorAsset` carried a comment explaining that a floor deliberately pins no
+height.
+
+So the silence stopped meaning "ask the tile" and started meaning the column's default of one whole block.
+Every flat thing on the map came up a cube: 3,600 ground cells on a 60x60 map, plus every road marking,
+puddle and ground decoration, each one drawing three faces where it needed one.
+
+| | before | after |
+|---|---|---|
+| play, walking | 37.2 fps | 119.9 fps |
+| editor, walking | 30.5 fps | 118.4 fps |
+| iso render, per frame | 16.07 ms | 0.37 ms |
+
+The profile said the frame was 78% `save`, `restore` and `drawImage`, which is what a frame is made of when
+nothing is wrong with it either. The count was the defect, not the drawing.
+
+**The rule that falls out of it:** a placement leaves its writer with every setting stated, and the one
+place to discharge that is the door they all come through (`placeAsset`), not each caller. Two settings
+are the exception and stay nullable, because absence is their value: `span_axis` and `slide_direction`. A
+tile that spans nothing has no axis to span along.
+
+The gate is `bin/e2e loadKeepsShape`, which compares the grid the engine holds after a stamp against the
+grid it holds after a save and a real reload. Comparing the payload to itself cannot see this: the JSON was
+always right. What differed was which fields the two paths bothered to say out loud.
+
 ### The two failure modes this rebuild exists to end
 
 Both measured, both in `VERIFIED.md`:

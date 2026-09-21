@@ -1,9 +1,13 @@
 import { chromium } from 'playwright'
 import { BASE } from './base.mjs'
+import { logIn } from './logIn.mjs'
+import { openScratchMap, dropScratchMap } from './scratchMap.mjs'
 
 const LABEL = process.argv[2] ?? 'Woodland'
 const CATEGORY = process.argv[3] ?? 'wilderness'
 const SECONDS = Number(process.argv[4] ?? 6)
+const COLS = Number(process.argv[5] ?? 100)
+const ROWS = Number(process.argv[6] ?? 60)
 
 const browser = await chromium.launch()
 const page = await browser.newPage({ viewport: { width: 1600, height: 1000 } })
@@ -19,8 +23,11 @@ await page.addInitScript(() => {
 const errors = []
 page.on('pageerror', e => errors.push(e.message.slice(0, 120)))
 
-await page.goto(`${BASE}/templates`, { waitUntil: 'networkidle' })
-await page.waitForTimeout(3500)
+// ITS OWN MAP. Bare /templates shows the GALLERY once the database holds a map, and the gallery has no
+// generator button, so a harness that assumes the editor measures nothing and times out instead.
+await logIn(page, BASE)
+const scratchId = await openScratchMap(page, BASE, { cols: COLS, rows: ROWS, name: 'e2e fps' })
+await page.waitForTimeout(1500)
 
 // CLICK THROUGH IT, the way a person does.
 if (CATEGORY !== 'wilderness') {
@@ -31,6 +38,18 @@ await page.getByRole('button', { name: new RegExp('^' + LABEL) }).first().click(
 await page.waitForTimeout(400)
 await page.getByRole('button', { name: /Build this world/ }).click()
 await page.waitForTimeout(6000) // generation
+
+// PROVE THERE IS A MAP BEFORE MEASURING ONE.
+//
+// A frame rate is only a number about a scene. This harness reported 120 fps at 0.37ms a frame once,
+// and 0.37ms cannot draw five thousand tiles: the run had not built a world, and an empty canvas
+// redraws very fast. A measurement that cannot tell "fast" from "nothing there" is worse than no
+// measurement, because it gets quoted.
+const built = await page.evaluate(() => window.__nebulithGrid?.assets?.length ?? 0)
+if (built < 500) {
+  throw new Error(`refusing to measure an empty scene: the grid holds ${built} tiles, so the world never built`)
+}
+console.log(`scene: ${built} tiles\n`)
 
 const sample = async (tag, keys) => {
   await page.evaluate(() => { window.__frames = 0; window.__iso = [] })
@@ -65,4 +84,5 @@ await page.waitForTimeout(1500)
 await sample(`play    walking WASD  ${CATEGORY}/${LABEL}`, ['w', 'd'])
 
 if (errors.length) console.log('PAGE ERRORS:', errors.slice(0, 3))
+await dropScratchMap(page, scratchId)
 await browser.close()

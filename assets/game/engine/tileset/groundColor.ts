@@ -4,10 +4,11 @@
   * from the
  * ground tile's OWN DB colour; every view then READS `floor.color` instead of deriving it per-frame.
  */
-import { styleCatalog } from './styleTiles'
+import { styleCatalog, styleTile } from './styleTiles'
 import { varyIntensity } from '@/engine/colors'
 import { resolveGroundTile } from '@/engine/tileset/tileset'
 import { darkenColor } from '@/engine/colors'
+import { tileCatalogHeight } from './tileHeight'
 
 /** Deterministic per-cell grass tint: a stable position hash nudges the base grass bg lighter or darker so the
  *  lawn reads as natural patches, not one flat sheet. Computed from (col,row) only, stable per cell. */
@@ -27,6 +28,22 @@ export function grassShade(baseBg: string, col: number, row: number): string {
  *  No terrain loaded → resolveGroundTile returns an empty colour, so nothing is invented. */
 export function groundTileColor(tileType: string, col: number, row: number): string {
   return resolveGroundTile(styleCatalog('ascii'), tileType, col, row).bg
+}
+
+/**
+ * A GROUND TILE'S OWN HEIGHT, from the catalogue.
+ *
+ * Written as STATE at placement, exactly like the two colours here, and for the same reason: the
+ * renderer reads the PLACEMENT and nothing else, so anything the catalogue knows has to be put on the
+ * placement by whoever places it. A floor that states no height is a floor drawn at the column's
+ * default, which is one block, which is a sea of cubes where the ground should be.
+ *
+ * It persists now, which is what changed. It used to be left unstated deliberately, because a height
+ * pinned here "never persists", and that was true while a map was three JSON blobs. `cell_tiles.height`
+ * is a column.
+ */
+export function groundTileHeight(tileType: string): number {
+  return tileCatalogHeight(styleTile('ascii', tileType))
 }
 
 /** The colour of the map BODY beneath a ground tile, the earth under grass, the bed under a river.

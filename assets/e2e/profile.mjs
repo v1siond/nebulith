@@ -6,13 +6,16 @@
  */
 import { chromium } from 'playwright'
 import { BASE } from './base.mjs'
+import { logIn } from './logIn.mjs'
+import { openScratchMap, dropScratchMap } from './scratchMap.mjs'
 const LABEL = process.argv[2] ?? 'Woodland city'
 const CATEGORY = process.argv[3] ?? 'city'
 const SECONDS = Number(process.argv[4] ?? 6)
 
 const browser = await chromium.launch()
 const page = await browser.newPage({ viewport: { width: 1600, height: 1000 } })
-await page.goto(`${BASE}/templates`, { waitUntil: 'networkidle' })
+await logIn(page, BASE)
+const scratchId = await openScratchMap(page, BASE, { cols: 100, rows: 60, name: 'e2e probe' })
 await page.waitForTimeout(3000)
 if (CATEGORY !== 'wilderness') { await page.selectOption('select', CATEGORY).catch(() => {}); await page.waitForTimeout(600) }
 await page.getByRole('button', { name: new RegExp('^' + LABEL) }).first().click()
@@ -43,4 +46,5 @@ console.log(`samples ${total} over ${SECONDS}s\n`)
 for (const [name, hits] of [...self.entries()].sort((a, b) => b[1] - a[1]).slice(0, 22)) {
   console.log(`${String((hits / total * 100).toFixed(1)).padStart(5)}%  ${String(hits).padStart(6)}  ${name}`)
 }
+await dropScratchMap(page, scratchId)
 await browser.close()

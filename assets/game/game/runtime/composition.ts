@@ -7,7 +7,9 @@
 // face its road), not a special building unit, that is how "everything is a collection of backend tiles"
 // is enforced.
 import { styleCatalog } from '@/engine/tileset/styleTiles'
-import { resolveComposition, resolveTile, tileRenderBehavior, tileThicknessReach } from '@/engine/tileset/tileset'
+import { resolveComposition, resolveTile, tileRenderBehavior, tileThicknessReach, type CompositionCellSettings } from '@/engine/tileset/tileset'
+import { placementSettings } from '@/engine/tileset/placementSettings'
+import { numericDefault } from '@/lib/tileDefaults'
 import type { Composition, CompositionCell, ResolvedTile } from '@/engine/tileset/tileset'
 import type { GridAsset, IsometricGrid } from '@/engine/IsometricGrid'
 import { cellStackTop } from '@/engine/cellStack'
@@ -147,6 +149,21 @@ function rotateThickness(reach: ThicknessReach | undefined, rotation: number): T
   return reach ? rotateThicknessReach(reach, rotation) : undefined
 }
 
+/**
+ * WHICH AXIS A COMPOSITION CELL SPANS ALONG, turned by the building's rotation.
+ *
+ * The stored key is `depthDir`. The TypeScript field was renamed to `spanAxis` and the data was not, so
+ * the reader asked for a key that exists on no row while the count it pairs with kept working: every
+ * roof in the catalogue came out as a row of separate blocks.
+ *
+ * Both spellings are read, and the axis is genuinely nullable: a tile that spans nothing has no axis to
+ * span along, so absence is the value here and there is no column default to fall back to.
+ */
+function spanAxisOf(cs: CompositionCellSettings | undefined, rotation: number): IsoDiagonal | undefined {
+  const stored = cs?.spanAxis ?? (cs as { depthDir?: IsoDiagonal } | undefined)?.depthDir
+  return stored ? rotateDepthDir(stored, rotation) : undefined
+}
+
 export function compositionCellRender(comp: Composition, cell: CompositionCell, tile: ResolvedTile, span: number, rotation: number, baseLevel = 0): CompositionCellRender {
   const cs = cell.settings
   const animated = (cell.animations?.length ?? 0) > 0
@@ -159,7 +176,9 @@ export function compositionCellRender(comp: Composition, cell: CompositionCell, 
     // and `scaleY` (the run-collapse below, and the lamp POST drawn ~7 tall), never from a per-art height. This
     // is why window/leaf/roof/door no longer render flat: they used to copy an art-tile `height: 0`.
     heightLevel: (cell.level ?? 0) + baseLevel,
-    zIndex: cell.zIndex,
+    // Stated, like the rest of this map, because it is assigned OVER the placement: an undefined here
+    // erases the draw order the placement was born with rather than leaving it alone.
+    zIndex: cell.zIndex ?? numericDefault('draw_order'),
     // THE ONE HEIGHT, in blocks. An AUTHORED per-cell tallness (the lamp POST is one cell drawn ~7
     // blocks tall) wins; otherwise a collapsed vertical RUN is as tall as the run (a wall column of 4
     // becomes one block 4 tall); otherwise one block. An authored cell is never part of a run, so the
@@ -176,9 +195,12 @@ export function compositionCellRender(comp: Composition, cell: CompositionCell, 
     //
     // A THIN DOOR is a different thing and is NOT this: thinness inside a full-size cell is the
     // `thickness` reaches below.
-    height: zoomed(cs?.scaleY ?? (span > 1 ? span : 1), zoom) ?? 1,
-    width: zoomed(cs?.scaleX, zoom),
-    depth: zoomed(undefined, zoom),
+    height: zoomed(cs?.scaleY ?? (span > 1 ? span : 1), zoom) ?? numericDefault('height'),
+    // BOTH GROUND AXES ARE STATED, because a setting is stated rather than implied by its own absence.
+    // They were left undefined whenever the cell had no Zoom, which reads the same on screen (the
+    // column's default is 1) and reads as "no opinion" everywhere a value is inspected or saved.
+    width: zoomed(cs?.scaleX ?? numericDefault('width'), zoom),
+    depth: zoomed(numericDefault('depth'), zoom),
     // The thickness AXIS is authored south-facing, exactly like `spanAxis`, ROTATE it by the building's
     // rotation so a house turned a quarter-turn has its doors thin toward ITS front, not the map's.
     thickness: rotateThickness(
@@ -189,12 +211,27 @@ export function compositionCellRender(comp: Composition, cell: CompositionCell, 
     // Directional DEPTH (roof-z-width / the entrance apron): ONE block spanning `depth` cells along a diagonal.
     // `spanAxis` is authored south-facing, ROTATE it by the building's rotation (the SAME quarter-turns
     // rotateFootprintOffset applied to the cell's offset).
-    spanForward: cs?.depth,
-    spanAxis: cs?.spanAxis ? rotateDepthDir(cs.spanAxis, rotation) : undefined,
-    spanBack: cs?.spanBack, // BIDIRECTIONAL z-width (#58): a composition cell can span BOTH pathways from its anchor
-                              // → one roof tile instead of a row (the "optimize tiles usage AGAIN" win)
-    spanPerp: cs?.spanPerp, // 2-AXIS z-width ("two sides at the same time"): + the PERPENDICULAR extents, so a
-    spanPerpBack: cs?.spanPerpBack, // composition cell covers a RECTANGLE (a 2×2 roof deck authored as 1 tile)
+    // STATED, all four, and every default is the COLUMN's. This map is assigned OVER the placement, so
+    // an undefined here does not mean "leave what the placement said", it erases it.
+    spanForward: cs?.depth ?? numericDefault('span_forward'),
+    //
+    // THE AXIS IS READ FROM THE KEY THE DATA ACTUALLY USES.
+    //
+    // This read `cs.spanAxis`, and no composition cell has ever had one: the stored key is `depthDir`,
+    // on 153 cells, which is every roof in the catalogue. So the span COUNT arrived and the axis never
+    // did, and a span with no axis is ignored, which is why a roof drew as a row of separate cells when
+    // it was generated and snapped into one block the moment the value was touched in the panel.
+    //
+    // A rename that reached the TypeScript field and not the jsonb key, and a jsonb key is exactly what
+    // the compiler cannot check. `spanAxis` is accepted too, so the day the data is renamed with its
+    // table nothing here has to move.
+    spanAxis: spanAxisOf(cs, rotation),
+    spanBack: cs?.spanBack ?? numericDefault('span_back') - 1, // BIDIRECTIONAL z-width: a cell can span BOTH
+                                 // pathways from its anchor → one roof tile instead of a row
+    spanPerp: cs?.spanPerp ?? numericDefault('span_perp') - 1, // 2-AXIS z-width: + the PERPENDICULAR extents,
+    spanPerpBack: cs?.spanPerpBack ?? numericDefault('span_perp_back') - 1, // so a cell covers a RECTANGLE
+    // NOT stated, unlike everything else here: a tile's own pose is per VIEW and a placement has one
+    // slot, so an identity pose cancels the tile's art instead of deferring to it.
     pose: cs?.pose,
     shape: cs?.shape,
     light: cs?.light,
@@ -219,13 +256,18 @@ function cellSettings(comp: Composition, cell: CompositionCell, tile: ResolvedTi
   // coloured box and the tetris piece was never actually fixed, only seeded.
   const transparent = cell.settings?.transparent
   const badge = comp.title && cell.label.startsWith('roof_top') ? { text: comp.title, color: BADGE_COLOR } : undefined
-  if (!behavior && !display && !transparent && !badge) return undefined
-  return {
+
+  // ALWAYS THE COMPLETE SET, NEVER UNDEFINED AND NEVER A SUBSET. This map is `Object.assign`ed over the
+  // placement, so returning undefined for a cell that states nothing does not mean "leave what is
+  // there", it erases it; and returning only the fields the catalogue turns ON leaves the rest silent,
+  // which is the same asymmetry one level down. `placementSettings` is the one answer to "what does a
+  // placement of this label say", and the cell's own three win over it.
+  return placementSettings(cell.label, {
     ...behavior,
     ...(display ? { display } : {}),
     ...(transparent ? { transparent } : {}),
     ...(badge ? { badge } : {}),
-  }
+  })
 }
 
 /**

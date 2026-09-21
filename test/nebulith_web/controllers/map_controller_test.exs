@@ -24,7 +24,11 @@ defmodule NebulithWeb.MapControllerTest do
     test "serves the field list off the schema, not a list typed beside it", %{conn: conn} do
       data = conn |> get(~p"/api/maps/schema") |> json_response(200) |> Elixir.Map.get("data")
 
-      assert length(data["fields"]) == 52, "53 columns less the id the caller never sets"
+      # DERIVED, NOT COUNTED. The number here was 52, typed out, and the test's whole point is that the
+      # endpoint does not type out a list. A hand-written count is the same defect one level up: adding a
+      # column fails this test for the wrong reason and teaches whoever is looking to edit the number.
+      assert length(data["fields"]) == length(Nebulith.World.CellTile.settable_fields()),
+             "the endpoint serves every settable column, and only those"
       assert "stack_at" in data["fields"]
       assert "thickness_lu" in data["fields"]
       assert "water_heading" in data["fields"]

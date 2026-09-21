@@ -19,11 +19,11 @@ import { drawWeather, type WeatherId } from './weather'
 import { resolveAssetDrawSize } from './assetDimensions'
 import { resolveAssetAnimation, spriteFrame } from './assetAnimation'
 import { assetDrawsSingle, assetIsTransparent, getStack, assetStackIndexer, unitStandLevel, type TileSource } from '@/engine/cellStack'
-import { DEPTH_CELL_STEP, isoBlockFaces, isoDepthBox, depthCells, depthFrontExtent, isoZOffset, rotateDepthDir, spanBackmost, normalizeSpan, assetRectExtents, reachGroundQuad, rotateThicknessReach, thicknessThins, turnFaceTexture, textureTurnForHeading, type BlockFace, type IsoDiagonal, type ThicknessReach } from './isoBlock'
+import { DEPTH_CELL_STEP, isoBlockFaces, isoDepthBox, depthCells, depthFrontExtent, isoZOffset, rotateDepthDir, spanBackmost, normalizeSpan, assetRectExtents, reachGroundQuad, rotateThicknessReach, spansCells, thicknessThins, turnFaceTexture, textureTurnForHeading, type BlockFace, type IsoDiagonal, type ThicknessReach } from './isoBlock'
 import { type Orientation } from './isoOrientation'
 import { cellOrienterFor, orientCellTurn, deorientCellTurn, orientedDimsForTurn, facingForTurn, wrapTurn } from './isoTurn'
 import { resolveTileHeight, blockLayers, layerBlockScale } from '@/engine/tileset/tileHeight'
-import { applyPose } from '@/engine/tileset/pose'
+import { applyPose, poseDeviates } from '@/engine/tileset/pose'
 import { isWaterSetLabel } from '../waterBody'
 import { cubeGeom, depthBoxGeom, rectBoxGeom, billboardGeom, diamondGeom, pointInTileGeom, outlineSegments, poseMapper, tileGeomCentroid, tilesInScreenRect, type TileGeom } from './tileHit'
 import { revealedRoofs, revealedShell, revealAlpha } from './roofReveal'
@@ -351,7 +351,9 @@ function viewDepthDir(dir: IsoDiagonal, facing: Orientation): IsoDiagonal {
  *  the coords take, or a spanned/slid tile would point off-grid the moment you rotate. This is general to
  *  EVERY depth-box asset (a roof is just the common one). Facing 0, or no axes → the SAME object, untouched. */
 function orientAssetForView(asset: GridAsset, facing: Orientation): GridAsset {
-  if (facing === 0 || (!asset.spanAxis && !asset.zDir && !asset.thickness)) return asset
+  // Nothing to turn: no span axis, no slide direction, and no face pulled in. Asked of the VALUES, so a
+  // reach map that states four untouched faces is still nothing to turn.
+  if (facing === 0 || (!asset.spanAxis && !asset.zDir && !thicknessThins(asset.thickness))) return asset
   return {
     ...asset,
     spanAxis: asset.spanAxis && rotateDepthDir(asset.spanAxis, facing),
@@ -1822,7 +1824,13 @@ export function isoDepthCompare(
   // depth-less asset (every existing tile) adds 0, so the no-depth case is byte-identical to (col+row).
   const key = (o: { col: number; row: number; blockRise?: number; asset?: { spanForward?: number; spanAxis?: IsoDiagonal; spanBack?: number; heightLevel?: number; height?: number } }): number => {
     const dir = o.asset?.spanAxis
-    if (!dir || !o.asset?.spanForward) return o.col + o.row // no depth box → plain anchor key (byte-identical to before)
+    // A SPAN OF ONE IS NOT A SPAN. This read `!o.asset?.spanForward`, which was a fair question while a
+    // tile that spanned nothing said nothing; once every placement states its span, 1 is truthy and the
+    // cheap branch became unreachable, so the whole map paid for the depth-box maths every frame.
+    // Two questions, asked separately: is there an asset at all, and does it reach past its own cell.
+    // The old `!o.asset?.spanForward` answered both at once, which is how the second one came to be
+    // asked of a field's presence rather than its value.
+    if (!dir || !o.asset || !spansCells(o.asset)) return o.col + o.row
     // Fold a BIDIRECTIONAL span into its one-way equivalent, then
     // key on the TRUE backmost cell + total length (spanBack 0/absent → unchanged). The front-extent (sort by the
     // FRONTMOST covered cell) is only correct for a box that OVERHANGS what it covers, a STACKED asset
@@ -1906,7 +1914,8 @@ function orientDepthItem(
   if (!item.asset) return { col, row, blockRise: item.blockRise, asset: item.asset }
 
   const dir = item.asset.spanAxis && rotateDepthDir(item.asset.spanAxis, facing)
-  if (!dir || !item.asset.spanForward) return { col, row, blockRise: item.blockRise, asset: { ...item.asset, spanAxis: dir } }
+  // Same question, same answer: one cell forward is what a tile that spans nothing occupies.
+  if (!dir || !spansCells(item.asset)) return { col, row, blockRise: item.blockRise, asset: { ...item.asset, spanAxis: dir } }
 
   // Fold the bidirectional span (#58) in the ORIENTED frame, THEN re-anchor to the backmost for this turn. The
   // folded item carries the TOTAL depth with spanBack cleared, so isoDepthCompare's own fold is a no-op on it.
@@ -2663,7 +2672,7 @@ export function drawIsoAssetAscii(
     // decides via the tile's shape drawer (the SAME solid-rect path a painted/override tile takes), so nothing
     // here has to branch on z-width. blockGeom hugs the whole hull for the pick/outline.
     const geom = blockGeom(x, y, bw, bd, bh, layers, asset, tileH)
-    if (asset.pose) {
+    if (poseDeviates(asset.pose)) {
       ctx.save(); ctx.translate(x, y); applyPose(ctx, asset.pose, 1, tileH); drawIsoTileForShape(ctx, { x: 0, y: 0 }, bw, bd, bh, layers, dvBlock, recolor, asset); ctx.restore()
     } else {
       drawIsoTileForShape(ctx, { x, y }, bw, bd, bh, layers, dvBlock, recolor, asset)
@@ -2803,7 +2812,7 @@ export function drawIsoAssetAscii(
     const geom = blockGeom(x, y, bw, bd, bh, blockCount, asset, tileH)
     // Per-asset pose (x/y/rotate/flip) transforms the block around its base centre, the SAME applyPose the
     // billboard/floor paths use, so moving/rotating a placed BLOCK works too. No pose → the byte-identical draw.
-    if (asset.pose) {
+    if (poseDeviates(asset.pose)) {
       ctx.save(); ctx.translate(x, y); applyPose(ctx, asset.pose, 1, tileH)
       drawIsoTileForShape(ctx, { x: 0, y: 0 }, bw, bd, bh, blockCount, adv, asset.color, asset)
       ctx.restore()

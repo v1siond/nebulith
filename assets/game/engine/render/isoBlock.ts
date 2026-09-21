@@ -315,6 +315,17 @@ export function depthCells(col: number, row: number, depth: number, dir: IsoDiag
  *  depth grows to spanBack+depth. spanBack ≤ 0 → anchor + depth unchanged (today's one-way span, byte-identical).
  * So authoring can z-width BOTH pathways while depthCells / isoDepthBox / spanBackmost / the depth
  *  sort keep their single "anchor is the start, depth runs along dir" contract untouched. Pure, unit-tested. */
+/**
+ * DOES THIS TILE SPAN MORE THAN ITS OWN CELL?
+ *
+ * `spanForward` is stated on every placement now, and 1 is truthy, so `if (asset.spanForward)` answered
+ * yes for every tile on the map and the depth-box path ran for all of them. One cell forward is exactly
+ * what a tile that spans nothing occupies, so the question is whether it reaches past that.
+ */
+export function spansCells(a: { spanForward?: number; spanBack?: number; spanPerp?: number; spanPerpBack?: number }): boolean {
+  return (a.spanForward ?? 1) > 1 || (a.spanBack ?? 0) > 0 || (a.spanPerp ?? 0) > 0 || (a.spanPerpBack ?? 0) > 0
+}
+
 export function normalizeSpan(col: number, row: number, spanForward: number | undefined, spanBack: number | undefined, dir: IsoDiagonal): { col: number; row: number; span: number } {
   const b = Math.max(0, Math.floor(spanBack ?? 0))
   const d = Math.max(1, Math.floor(spanForward ?? 1))

@@ -41,6 +41,49 @@ defmodule Nebulith.WorldRoundTripTest do
     end
   end
 
+  describe "a tile that moves" do
+    test "keeps its animation and its clock origin", %{map: map} do
+      # A fountain rose and faded when it was stamped and sat still forever after a reload, because
+      # `cell_tiles` had no column for this and the save simply dropped it. It cannot be re-derived from
+      # the label either: a fountain has nine `water_c` cells and three of them animate.
+      loop = %{
+        "id" => "rise",
+        "durationMs" => 900,
+        "delayMs" => 120,
+        "loop" => true,
+        "trigger" => "load",
+        "frames" => [%{"dy" => 0, "scale" => 1}, %{"dy" => -0.2, "scale" => 1.1}]
+      }
+
+      sent = %{
+        "cells" => [
+          %{
+            "col" => 1,
+            "row" => 1,
+            "tiles" => [%{"label" => "water_c", "animations" => [loop], "placed_at" => "0"}]
+          },
+          # …and the tile beside it, which does not move, so absence stays absence.
+          %{"col" => 2, "row" => 1, "tiles" => [%{"label" => "water_c"}]}
+        ]
+      }
+
+      {:ok, _} = World.save_map(map.id, sent)
+      {:ok, loaded} = World.load_map(map.id)
+
+      [moving, still] = Enum.sort_by(loaded["cells"], & &1["col"])
+      [water] = moving["tiles"]
+
+      assert [returned] = water["animations"]
+      assert returned["id"] == "rise"
+      assert returned["durationMs"] == 900
+      assert returned["loop"] == true
+      assert length(returned["frames"]) == 2
+      assert Decimal.equal?(water["placed_at"], Decimal.new("0"))
+
+      assert hd(still["tiles"])["animations"] in [nil, []]
+    end
+  end
+
   describe "a saved map" do
     test "comes back cell for cell and setting for setting", %{map: map} do
       sent = %{
