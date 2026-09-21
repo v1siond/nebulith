@@ -3822,9 +3822,23 @@ defmodule Nebulith.Catalog.TileSource do
     # This used to divide by `trunk_zoom`, purely to cancel a multiplication the frontend did two layers
     # away in another language, and the two terms drifted apart the moment the cell stopped carrying a
     # zoom. A derivation that only works because something else undoes half of it is not a derivation.
-    trunk_face = Map.get(opts, :trunk_w, 1.0) / @widest_trunk * crown * @trunk_to_crown
+    # THE WIDTH THE SHARE ALLOWS, against the crown, which is the rule the catalogue was tuned to.
+    trunk_width = Map.get(opts, :trunk_w, 1.0) / @widest_trunk * crown * @trunk_to_crown
 
-    assert_tree_dimensions!(trunk_face, crown, opts)
+    # …AND THE SAME MASS, SQUARED OFF.
+    #
+    # A trunk used to be shrunk by a Zoom, which took BOTH ground axes but not equally against the
+    # share: it drew `trunk_width` across and `trunk_zoom` deep, so `tree` stood 0.24 by 0.60. Thinning
+    # by thickness instead made both axes the width, 0.24 by 0.24, and the post lost three fifths of its
+    # depth. On screen that is not "thin", it is a wire.
+    #
+    # So the square cross-section keeps the AREA the species was tuned with. Nothing here is picked:
+    # both numbers are the ones the catalogue already authored, and the spread widens rather than
+    # flattening, 0.24 to 0.49 across the species instead of 0.15 to 0.35.
+    trunk_face = :math.sqrt(trunk_width * opts.trunk_zoom)
+
+    # Checked on the WIDTH, because that is what the share is a share of.
+    assert_tree_dimensions!(trunk_width, crown, opts)
 
     # THE DRAWN HEIGHT, in blocks, for the same reason. `trunk_h` and `trunk_zoom` are how a species is
     # authored (this one is 3.15 blocks at 60%); one number is what it is.
@@ -3943,12 +3957,25 @@ defmodule Nebulith.Catalog.TileSource do
   # 0.76, and since the authored spread runs 0.15 to 0.70, inverting it squeezed twenty-one species into
   # the band 0.30 to 0.85, where they all read as the same fat brown box.
   defp trunk_settings(trunk_h, trunk_face) do
+    # A TRUNK STANDS IN THE MIDDLE OF ITS CELL, so it is pulled in from all FOUR faces, not two.
+    #
+    # The block spans `1 - reach(back)` to `reach(forward)` along each axis. Setting only the two "up"
+    # faces leaves the other two at their full 1, so the block runs from `1 - face` to 1: the right
+    # WIDTH, wedged into the same corner every time. Twenty-one species then differ by a couple of
+    # pixels of thickness at identical positions, which is why they read as one tree stamped over and
+    # over, and why every crown sat off to one side of its own trunk.
+    #
+    # Centred, the span is `(1-face)/2` to `(1+face)/2`, so every reach is `(1+face)/2`.
+    reach = Float.round((1.0 + trunk_face) / 2.0, 4)
+
     %{
       "scaleX" => 1.0,
       "scaleY" => trunk_h,
       "thickness" => %{
-        "left-up" => Float.round(trunk_face, 4),
-        "right-up" => Float.round(trunk_face, 4)
+        "left-up" => reach,
+        "right-up" => reach,
+        "left-down" => reach,
+        "right-down" => reach
       }
     }
   end

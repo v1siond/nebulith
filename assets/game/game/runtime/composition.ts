@@ -447,3 +447,19 @@ export function stampBuildingKind(grid: IsometricGrid, kind: string, anchorCol: 
 export function stampBuildingComposition(grid: IsometricGrid, type: BuildingType, length: number, anchorCol: number, anchorRow: number, zone: ZoneId, facing: Facing, material?: string, roofColor?: string, wallColor?: string, roofTile?: string): number {
   return stampBuildingKind(grid, buildingCompositionKind(type, length), anchorCol, anchorRow, zone, facing, material, roofColor, wallColor, roofTile)
 }
+
+
+/**
+ * A QA SEAM, beside `__nebulithGrid` and `__nebulithProject`.
+ *
+ * Stamping a composition is the only way to see one, and until now the only thing that could do it was
+ * the generator, which picks a handful of species for a region. That made "are the trees right" a
+ * question nobody could answer for the whole family: every look at them was a look at whichever three
+ * a woodland happened to plant, and three changes in a row each fixed the tree in front of me and broke
+ * two I never saw.
+ *
+ * So the render-all sheet gets what it needs to lay every species out side by side.
+ */
+if (typeof window !== 'undefined') {
+  ;(window as unknown as { __nebulithStamp?: unknown }).__nebulithStamp = stampComposition
+}

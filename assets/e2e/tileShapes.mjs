@@ -43,12 +43,14 @@ await logIn(page, BASE)
 const scratchId = await openScratchMap(page, BASE, { cols: 60, rows: 60, name: 'e2e tile shapes' })
 
 // A TOWN, so there are doors, and a wilderness generator would give none.
-await page.selectOption('select', 'city').catch(() => {})
+const CATEGORY = process.argv[2] ?? 'city'
+const LABEL = process.argv[3] ?? 'Woodland'
+if (CATEGORY !== 'wilderness') await page.selectOption('select', CATEGORY).catch(() => {})
 await page.waitForTimeout(600)
 
 // WAIT FOR THE CONTROL, not for a guess at how long booting takes. The editor builds its world only
 // once the catalogue and the schema have landed, so how long that is depends on the machine.
-const generator = page.getByRole('button', { name: /^Woodland/ }).first()
+const generator = page.getByRole('button', { name: new RegExp('^' + LABEL) }).first()
 await generator.waitFor({ state: 'visible', timeout: 30000 }).catch(() => {
   throw new Error(`the generator never appeared. Page errors: ${pageErrors.slice(0, 3).join(' | ') || 'none'}`)
 })
@@ -140,11 +142,22 @@ if (!shapes) {
 
   // A trunk is thin, and the species are NOT all thin the same way. The authored spread is the thing
   // that reads as a forest rather than as one tree stamped over and over.
-  const faces = [...new Set(shapes.trunks.map(t => t.reaches[0]?.[1]).filter(v => typeof v === 'number'))]
+  // THE CENSUS, not a spot check. "Are the trunks varied" is a question about the whole forest, and a
+  // count of one map's distinct values is the only answer that is not an anecdote.
+  const widths = [...new Set(shapes.trunks.map(t => t.reaches[0]?.[1]).filter(v => typeof v === 'number'))].sort()
+  const heights = [...new Set(shapes.trunks.map(t => t.height).filter(v => typeof v === 'number'))].sort()
+  console.log(`\n  trunk widths  (${widths.length}): ${widths.map(f => f.toFixed(3)).join(', ')}`)
+  console.log(`  trunk heights (${heights.length}): ${heights.map(f => f.toFixed(2)).join(', ')}\n`)
+
   check(
-    faces.length > 1,
+    widths.length > 1,
     'the trunks are not all the same width, the authored spread survives',
-    `${faces.length} distinct widths: ${faces.slice(0, 6).map(f => f.toFixed(3)).join(', ')}`,
+    `${widths.length} distinct`,
+  )
+  check(
+    heights.length > 1,
+    'the trunks are not all the same height either',
+    `${heights.length} distinct`,
   )
 
   // 4. A ROOF SPANS ITS CELLS.
