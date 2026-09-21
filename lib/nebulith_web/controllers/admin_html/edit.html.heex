@@ -1,0 +1,84 @@
+<Layouts.app flash={@flash} width={:full}>
+  <div class="px-4 pb-24 sm:px-8 lg:px-12">
+    <header class="border-b border-base-300 pb-6 pt-10">
+      <nav class="mb-3 font-mono text-[11.5px] uppercase tracking-[0.2em] text-base-content/50">
+        <.link navigate={~p"/admin"} class="hover:text-primary">Database</.link>
+        <span class="px-1.5">/</span>
+        <.link navigate={~p"/admin/#{@table}"} class="hover:text-primary">{@table}</.link>
+        <span class="px-1.5">/</span>
+        <.link navigate={~p"/admin/#{@table}/#{@id}"} class="hover:text-primary">{@id}</.link>
+        <span class="px-1.5">/</span>
+        <span class="text-primary">edit</span>
+      </nav>
+      <h1 class="font-mono text-2xl font-bold tracking-tight">Edit {@id}</h1>
+    </header>
+
+    <form method="post" action={~p"/admin/#{@table}/#{@id}"} class="mt-8">
+      <input type="hidden" name="_method" value="put" />
+      <input type="hidden" name="_csrf_token" value={Phoenix.Controller.get_csrf_token()} />
+
+      <%!-- Key columns are shown and not editable: changing the value you are addressing the row by is how
+            you lose the row. Everything else is a field, typed by what the column actually is. --%>
+      <div class="grid gap-px overflow-hidden rounded-box border border-base-300 bg-base-300">
+        <div
+          :for={column <- @columns}
+          class="grid gap-1 bg-base-100 px-4 py-3 sm:grid-cols-[minmax(0,14rem)_minmax(0,1fr)] sm:gap-4"
+        >
+          <label for={"row_#{column.name}"} class="min-w-0">
+            <span class="block truncate font-mono text-[13px] font-semibold">{column.name}</span>
+            <span class="font-mono text-[11px] text-base-content/40">
+              {column.type}<span :if={column.primary?} class="text-primary"> · key</span><span :if={
+                not column.nullable
+              }> · required</span>
+            </span>
+          </label>
+
+          <div class="min-w-0">
+            <span
+              :if={column.primary?}
+              class="block break-words font-mono text-[13px] text-base-content/50"
+            >
+              {@row[column.name]}
+            </span>
+
+            <textarea
+              :if={not column.primary? and column.udt in ~w(jsonb json text)}
+              id={"row_#{column.name}"}
+              name={"row[#{column.name}]"}
+              rows={if column.udt in ~w(jsonb json), do: 10, else: 3}
+              class="w-full rounded border border-base-300 bg-base-200 p-2 font-mono text-[12px] focus-visible:outline-2 focus-visible:outline-primary"
+            >{@row[column.name]}</textarea>
+
+            <select
+              :if={not column.primary? and column.udt == "bool"}
+              id={"row_#{column.name}"}
+              name={"row[#{column.name}]"}
+              class="rounded border border-base-300 bg-base-200 p-2 font-mono text-[13px]"
+            >
+              <option value="true" selected={@row[column.name] == "true"}>true</option>
+              <option value="false" selected={@row[column.name] == "false"}>false</option>
+            </select>
+
+            <input
+              :if={not column.primary? and column.udt not in ~w(jsonb json text bool)}
+              type="text"
+              id={"row_#{column.name}"}
+              name={"row[#{column.name}]"}
+              value={@row[column.name]}
+              class="w-full rounded border border-base-300 bg-base-200 p-2 font-mono text-[13px] tabular-nums focus-visible:outline-2 focus-visible:outline-primary"
+            />
+
+            <p :if={not column.primary? and column.nullable} class="mt-1 text-[11px] text-base-content/40">
+              Leave empty for NULL.
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <div class="mt-5 flex items-center gap-2">
+        <button type="submit" class="btn btn-primary">Save</button>
+        <.link navigate={~p"/admin/#{@table}/#{@id}"} class="btn btn-ghost">Cancel</.link>
+      </div>
+    </form>
+  </div>
+</Layouts.app>

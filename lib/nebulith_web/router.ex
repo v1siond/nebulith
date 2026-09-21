@@ -69,10 +69,17 @@ defmodule NebulithWeb.Router do
     get "/*rest", EngineController, :legacy
   end
 
+  # The database browser. Every table, searchable, a row at a time, editable and deletable. Behind :admin
+  # because it can write to any table in the database.
   scope "/admin", NebulithWeb do
     pipe_through [:browser, :admin]
 
     get "/", AdminController, :index
+    get "/:table", AdminController, :table
+    get "/:table/:id", AdminController, :show
+    get "/:table/:id/edit", AdminController, :edit
+    put "/:table/:id", AdminController, :update
+    delete "/:table/:id", AdminController, :delete
   end
 
   # The documentation site: an index of every markdown document in the repo, and a page per document.

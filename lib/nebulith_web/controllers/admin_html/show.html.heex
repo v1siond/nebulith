@@ -1,0 +1,54 @@
+<Layouts.app flash={@flash} width={:full}>
+  <div class="px-4 pb-24 sm:px-8 lg:px-12">
+    <header class="border-b border-base-300 pb-6 pt-10">
+      <nav class="mb-3 font-mono text-[11.5px] uppercase tracking-[0.2em] text-base-content/50">
+        <.link navigate={~p"/admin"} class="hover:text-primary">Database</.link>
+        <span class="px-1.5">/</span>
+        <.link navigate={~p"/admin/#{@table}"} class="hover:text-primary">{@table}</.link>
+        <span class="px-1.5">/</span>
+        <span class="text-primary">{@id}</span>
+      </nav>
+      <div class="flex flex-wrap items-center justify-between gap-3">
+        <h1 class="font-mono text-2xl font-bold tracking-tight">{@id}</h1>
+        <div class="flex items-center gap-2">
+          <.link navigate={~p"/admin/#{@table}/#{@id}/edit"} class="btn btn-sm btn-primary">Edit</.link>
+          <.link
+            href={~p"/admin/#{@table}/#{@id}"}
+            method="delete"
+            data-confirm={"Delete this row from #{@table}? This cannot be undone."}
+            class="btn btn-sm btn-error btn-outline"
+          >
+            Delete
+          </.link>
+        </div>
+      </div>
+    </header>
+
+    <%!-- Every column, in the table's own order, with the full value rather than a truncated cell. A jsonb
+          blob is what you most often come here to read, so it is not cut off. --%>
+    <dl class="mt-8 grid gap-px overflow-hidden rounded-box border border-base-300 bg-base-300">
+      <div
+        :for={column <- @columns}
+        class="grid gap-1 bg-base-100 px-4 py-3 sm:grid-cols-[minmax(0,14rem)_minmax(0,1fr)] sm:gap-4"
+      >
+        <dt class="min-w-0">
+          <span class="block truncate font-mono text-[13px] font-semibold">{column.name}</span>
+          <span class="font-mono text-[11px] text-base-content/40">
+            {column.type}<span :if={column.primary?} class="text-primary"> · key</span><span :if={
+              not column.nullable
+            }> · required</span>
+          </span>
+        </dt>
+        <dd class="min-w-0">
+          <pre :if={String.contains?(@row[column.name] || "", "\n")} class="overflow-x-auto whitespace-pre-wrap break-words rounded border border-base-300 bg-base-200 p-3 font-mono text-[12px]">{@row[column.name]}</pre>
+          <span
+            :if={not String.contains?(@row[column.name] || "", "\n")}
+            class="break-words font-mono text-[13px] tabular-nums"
+          >
+            {if (@row[column.name] || "") == "", do: "—", else: @row[column.name]}
+          </span>
+        </dd>
+      </div>
+    </dl>
+  </div>
+</Layouts.app>

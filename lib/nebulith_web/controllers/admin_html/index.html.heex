@@ -1,59 +1,34 @@
-<Layouts.app flash={@flash}>
-  <.header>
-    Admin · all data
-    <:subtitle>
-      Every table in the shared <code class="font-mono">game_website</code> database, read-only.
-    </:subtitle>
-  </.header>
-
-  <div class="mt-6 space-y-8">
-    <section
-      :for={table <- @tables}
-      class="rounded-box border border-base-300 bg-base-100 overflow-hidden"
-    >
-      <div class="flex flex-wrap items-center gap-3 border-b border-base-300 px-4 py-3">
-        <h2 class="font-mono font-semibold">{table.name}</h2>
-        <span class={[
-          "badge badge-sm",
-          table.owner == :nebulith && "badge-primary",
-          table.owner == :prisma && "badge-ghost"
-        ]}>
-          {table.owner}
-        </span>
-        <span class="badge badge-sm badge-outline">{table.count} rows</span>
-      </div>
-
-      <p :if={table.count == 0} class="px-4 py-6 text-sm text-base-content/60">
-        No rows.
+<Layouts.app flash={@flash} width={:full}>
+  <div class="px-4 pb-24 sm:px-8 lg:px-12">
+    <header class="border-b border-base-300 pb-6 pt-10">
+      <p class="mb-3 font-mono text-[11.5px] font-bold uppercase tracking-[0.2em] text-primary">
+        Nebulith · database
       </p>
+      <h1 class="mb-3 text-3xl font-bold tracking-tight sm:text-4xl">Tables</h1>
+      <p class="text-base-content/70">
+        {length(@tables)} tables, {@tables |> Enum.map(& &1.count) |> Enum.sum()} rows. Every table is
+        read from Postgres, so one added by a migration appears here with no code change.
+      </p>
+    </header>
 
-      <div :if={table.count > 0} class="overflow-x-auto">
-        <table class="table table-zebra table-sm">
-          <thead>
-            <tr>
-              <th :for={column <- table.preview.columns}>{column}</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr :for={row <- table.preview.rows}>
-              <td
-                :for={cell <- row}
-                class="max-w-xs truncate align-top font-mono text-xs"
-                title={cell}
-              >
-                {cell}
-              </td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-
-      <p
-        :if={table.count > length(table.preview.rows)}
-        class="border-t border-base-300 px-4 py-2 text-xs text-base-content/60"
+    <div class="mt-8 grid gap-3 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4">
+      <.link
+        :for={table <- @tables}
+        navigate={~p"/admin/#{table.name}"}
+        class="group flex items-baseline justify-between gap-3 rounded-box border border-base-300 bg-base-200 px-4 py-3 transition hover:border-primary focus-visible:outline-2 focus-visible:outline-primary"
       >
-        showing {length(table.preview.rows)} of {table.count}
-      </p>
-    </section>
+        <span class="min-w-0">
+          <span class="block truncate font-mono text-sm font-semibold group-hover:text-primary">
+            {table.name}
+          </span>
+          <span :if={table.owner == :prisma} class="text-[11px] text-base-content/40">
+            from the Prisma era
+          </span>
+        </span>
+        <span class="shrink-0 font-mono text-xs tabular-nums text-base-content/50">
+          {table.count}
+        </span>
+      </.link>
+    </div>
   </div>
 </Layouts.app>

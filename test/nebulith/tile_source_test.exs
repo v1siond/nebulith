@@ -139,10 +139,15 @@ defmodule Nebulith.TileSourceTest do
     stub_trunk = trunk.("tree_stub")
     std_trunk = trunk.("tree")
 
-    assert tall_trunk.settings["scaleX"] < std_trunk.settings["scaleX"],
+    # A TRUNK'S WIDTH IS A THICKNESS, NOT A SCALE. Width squashes the whole block, so a trunk at 0.40 drew
+    # as a squished slab; the reaches pull two faces in and leave the block its own size. This used to read
+    # `settings["scaleX"]` and kept passing on the old model after the seeder moved off it.
+    reach = fn cell -> get_in(cell.settings, ["thickness", "left-up"]) || 1.0 end
+
+    assert reach.(tall_trunk) < reach.(std_trunk),
            "a tall tree's trunk is the skinny one, so the authored spread has been flattened"
 
-    assert std_trunk.settings["scaleX"] < stub_trunk.settings["scaleX"],
+    assert reach.(std_trunk) < reach.(stub_trunk),
            "a stub's trunk is the thick one, so the authored spread has been flattened"
 
     # …and every one of them still inside the share, measured against its OWN drawn crown.
@@ -150,8 +155,15 @@ defmodule Nebulith.TileSourceTest do
       cells = Enum.find(comps, &(&1.name == name)).cells
       t = Enum.find(cells, &(&1.label == "trunk_mid"))
       c = Enum.find(cells, &(&1.label == "leaf_center"))
-      trunk_eff = t.scale * (t.settings["scaleX"] || 1)
-      crown_eff = c.scale * (c.settings["scaleX"] || 1)
+      # A cell narrows itself EITHER by Width or by a thickness reach, and a trunk moved from the first to
+      # the second. Reading only `scaleX` made an absent value default to full width, so a narrowed trunk
+      # measured as if it had never been narrowed and the share was computed against the wrong number.
+      narrowed = fn cell ->
+        cell.settings["scaleX"] || get_in(cell.settings, ["thickness", "left-up"]) || 1
+      end
+
+      trunk_eff = t.scale * narrowed.(t)
+      crown_eff = c.scale * narrowed.(c)
 
       assert trunk_eff <= crown_eff * 0.26 + 0.0001,
              "#{name}: trunk #{trunk_eff} is more than a quarter of its crown #{crown_eff}"

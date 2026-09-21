@@ -3949,7 +3949,14 @@ defmodule Nebulith.Catalog.TileSource do
           scale: opts.trunk_zoom,
           settings: trunk_settings(opts.trunk_h, trunk_w)
         },
-        leaf_cell(leaf_level, opts.leaf_h, opts.leaf_zoom, Map.get(opts, :shape), true)
+        leaf_cell(
+          leaf_level,
+          opts.leaf_h,
+          opts.leaf_zoom,
+          Map.get(opts, :shape),
+          true,
+          Float.round(opts.trunk_h * opts.trunk_zoom - leaf_level, 3)
+        )
       ]
     }
   end
@@ -3989,11 +3996,18 @@ defmodule Nebulith.Catalog.TileSource do
     %{dx: 0, dy: 0, level: level, label: label, walkable: false, scale: 1.0, settings: settings}
   end
 
-  defp leaf_cell(level, leaf_h, leaf_zoom, shape, walkable) do
+  defp leaf_cell(level, leaf_h, leaf_zoom, shape, walkable, lift \\ 0.0) do
     # The canopy defaults to a SQUARE crown (a leaf cube); a ROUND crown is OPT-IN via `shape: "circle"`
     # ("tree_round"/"bush_round"), so "tree" and "tree round" render DIFFERENTLY. An explicit shape always wins (a future conifer can pass a cone).
     settings = %{"scaleY" => leaf_h}
     settings = if shape, do: Map.put(settings, "shape", shape), else: settings
+
+    # AND IT SITS ON THE TRUNK, which is the panel's "Up ↕ Down" (`pose.dy`): *"LEAF WITH .5 Y POSITION TO
+    # ACTUALLY BE LINKED TO TRUNK"*. A cell can only be placed at a whole LEVEL, and a trunk's real top is
+    # `trunk_h * trunk_zoom`, which is almost never whole, so the crown was left standing at the rounded
+    # level with the gap showing. The lift is exactly that remainder, so it is derived from the trunk rather
+    # than a number picked to look right. A bush has no trunk (#224), so it passes none.
+    settings = if lift == 0.0, do: settings, else: Map.put(settings, "pose", %{"dy" => lift})
 
     %{
       dx: 0,
@@ -4006,10 +4020,19 @@ defmodule Nebulith.Catalog.TileSource do
     }
   end
 
-  # Width (scaleX) rides the settings jsonb like Height (scaleY); a default-width trunk omits it so the cell
-  # serialises exactly as an unsized one.
+  # A TRUNK IS FULL WIDTH AND THIN, NOT NARROW.
+  #
+  # *"I REQUESTED TO EDIT THE THICKNES AND YOU CHANGED THE WITH"*, and the two are different controls: Width
+  # (`scaleX`) squashes the whole block, so a trunk at 0.40 came out as a squished slab, while THICKNESS
+  # (`thickness`, the panel's "How much of its own cell it fills") pulls the two back faces in and leaves the
+  # block its own width. His corrected trunk is Width 1 with the ↖ and ↗ reaches brought in.
+  #
+  # `left-up` and `right-up` are those two arrows, in the panel's own order (`Z_WIDTH_DIRS`).
   defp trunk_settings(trunk_h, 1.0), do: %{"scaleY" => trunk_h}
-  defp trunk_settings(trunk_h, trunk_w), do: %{"scaleY" => trunk_h, "scaleX" => trunk_w}
+
+  defp trunk_settings(trunk_h, trunk_w) do
+    %{"scaleY" => trunk_h, "thickness" => %{"left-up" => trunk_w, "right-up" => trunk_w}}
+  end
 
   defp assert_tree_dimensions!(trunk_w, leaf_w, opts) do
     trunk_eff_w = trunk_w * opts.trunk_zoom

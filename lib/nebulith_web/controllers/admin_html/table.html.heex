@@ -1,0 +1,99 @@
+<Layouts.app flash={@flash} width={:full}>
+  <div class="px-4 pb-24 sm:px-8 lg:px-12">
+    <header class="border-b border-base-300 pb-6 pt-10">
+      <nav class="mb-3 font-mono text-[11.5px] uppercase tracking-[0.2em] text-base-content/50">
+        <.link navigate={~p"/admin"} class="hover:text-primary">Database</.link>
+        <span class="px-1.5">/</span>
+        <span class="text-primary">{@table}</span>
+      </nav>
+      <div class="flex flex-wrap items-end justify-between gap-4">
+        <div>
+          <h1 class="text-3xl font-bold tracking-tight">{@table}</h1>
+          <p class="mt-1 text-sm text-base-content/70">
+            {@result.total} {if @result.total == 1, do: "row", else: "rows"}<%= if @result.search do %>
+              matching <span class="font-mono text-primary">{@result.search}</span>
+            <% end %>, page {@result.page} of {@result.pages}
+          </p>
+        </div>
+
+        <%!-- Search casts the whole row to text, so one box finds a uuid, a name or something inside a
+              jsonb blob without the reader having to know which column holds it. --%>
+        <form method="get" action={~p"/admin/#{@table}"} class="flex items-center gap-2">
+          <input
+            type="search"
+            name="q"
+            value={@result.search}
+            placeholder={"Search #{@table}…"}
+            aria-label={"Search #{@table}"}
+            class="w-64 rounded-box border border-base-300 bg-base-200 px-3 py-2 text-sm focus-visible:outline-2 focus-visible:outline-primary"
+          />
+          <button type="submit" class="btn btn-sm btn-primary">Search</button>
+          <.link :if={@result.search} navigate={~p"/admin/#{@table}"} class="btn btn-sm btn-ghost">
+            Clear
+          </.link>
+        </form>
+      </div>
+    </header>
+
+    <div :if={@result.rows == []} class="mt-10 rounded-box border border-base-300 bg-base-200 p-6 text-sm text-base-content/70">
+      Nothing here<%= if @result.search do %> matching that search<% end %>.
+    </div>
+
+    <div :if={@result.rows != []} class="mt-6 overflow-x-auto rounded-box border border-base-300">
+      <table class="w-full border-collapse text-[13px]">
+        <thead>
+          <tr>
+            <th class="whitespace-nowrap border-b border-base-300 bg-base-200 px-3 py-2 text-left font-mono text-[11px] font-bold uppercase tracking-wider text-base-content/50">
+            </th>
+            <th
+              :for={column <- @result.columns}
+              class="whitespace-nowrap border-b border-base-300 bg-base-200 px-3 py-2 text-left font-mono text-[11px] font-bold uppercase tracking-wider text-base-content/50"
+            >
+              {column}
+            </th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr
+            :for={{row, id} <- Enum.zip(@result.rows, @result.ids)}
+            class="border-b border-base-300/50 last:border-b-0 hover:bg-base-200/60"
+          >
+            <td class="whitespace-nowrap px-3 py-2 align-top">
+              <.link
+                :if={id}
+                navigate={~p"/admin/#{@table}/#{id}"}
+                class="font-mono text-[11px] text-primary hover:underline"
+              >
+                open
+              </.link>
+              <span :if={!id} class="font-mono text-[11px] text-base-content/30">no key</span>
+            </td>
+            <td :for={cell <- row} class="max-w-md truncate px-3 py-2 align-top tabular-nums" title={cell}>
+              {cell}
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <nav :if={@result.pages > 1} class="mt-5 flex items-center gap-2">
+      <.link
+        :if={@result.page > 1}
+        navigate={~p"/admin/#{@table}?#{[q: @result.search, page: @result.page - 1]}"}
+        class="btn btn-sm"
+      >
+        ← Previous
+      </.link>
+      <span class="font-mono text-xs tabular-nums text-base-content/50">
+        {@result.page} / {@result.pages}
+      </span>
+      <.link
+        :if={@result.page < @result.pages}
+        navigate={~p"/admin/#{@table}?#{[q: @result.search, page: @result.page + 1]}"}
+        class="btn btn-sm"
+      >
+        Next →
+      </.link>
+    </nav>
+  </div>
+</Layouts.app>
