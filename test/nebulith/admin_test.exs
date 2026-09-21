@@ -196,4 +196,93 @@ defmodule Nebulith.AdminTest do
       assert result.total == 0, "a quote in the search box was treated as SQL"
     end
   end
+
+  describe "shape/1 says what a value IS" do
+    test "a list of equal-length lists of scalars is a grid" do
+      assert {:grid, 2, 3, _} = Admin.shape([[1, 2, 3], [4, 5, 6]])
+      assert Admin.shape([[1, 2, 3], [4, 5, 6]]) |> Admin.shape_summary() == "3 x 2 grid, one per cell"
+    end
+
+    test "ragged rows are not a grid, because they are not one value per cell" do
+      refute match?({:grid, _, _, _}, Admin.shape([[1, 2], [3]]))
+    end
+
+    test "a list of objects is a collection, and reports the union of their fields" do
+      assert {:collection, 2, keys, _} = Admin.shape([%{"a" => 1}, %{"b" => 2}])
+      assert keys == ["a", "b"]
+    end
+
+    test "a flat list, an object and a scalar each say so" do
+      assert {:list, 3, _} = Admin.shape([1, 2, 3])
+      assert {:object, [{"a", "1"}]} = Admin.shape(%{"a" => 1})
+      assert {:scalar, "hello"} = Admin.shape("hello")
+      assert {:scalar, ""} = Admin.shape(nil)
+    end
+
+    test "an empty list is empty, not a grid" do
+      assert {:list, 0, []} = Admin.shape([])
+      assert Admin.shape([]) |> Admin.shape_summary() == "empty"
+    end
+  end
+
+  describe "grid_groups/1 answers how the grids relate" do
+    test "columns holding the same grid dimensions are reported together" do
+      row = %{
+        "groundData" => [["a", "b"], ["c", "d"]],
+        "heightData" => [[0, 1], [2, 3]],
+        "other" => [[1, 2, 3]],
+        "name" => "not a grid"
+      }
+
+      groups = Admin.grid_groups(row)
+
+      assert groups[{2, 2}] == ["groundData", "heightData"],
+             "the two 2x2 grids were not reported as the same grid"
+
+      assert groups[{3, 1}] == ["other"]
+      refute Enum.any?(Map.values(groups), &("name" in &1))
+    end
+
+    test "the live template's ground and height are one grid" do
+      case Nebulith.Repo.query!(~s|SELECT id FROM "Template" LIMIT 1|) do
+        %{rows: [[id]]} ->
+          {:ok, raw} = Admin.get_row_raw("Template", id)
+          groups = Admin.grid_groups(raw)
+
+          assert Enum.any?(groups, fn {_dims, names} ->
+                   "groundData" in names and "heightData" in names
+                 end),
+                 "ground and height are stored per cell on the same grid and were not reported as such"
+
+        _ ->
+          :ok
+      end
+    end
+  end
+
+  describe "relations/1 reads the foreign keys both ways" do
+    test "a game names what it points at and what points at it" do
+      %{belongs_to: out, has_many: incoming} = Admin.relations("games")
+
+      assert Enum.any?(out, &(&1.column == "owner_id" and &1.table == "users"))
+      assert Enum.any?(out, &(&1.column == "default_tileset_id" and &1.table == "tilesets"))
+
+      assert Enum.any?(incoming, &(&1.table == "levels" and &1.column == "game_id"))
+      assert Enum.any?(incoming, &(&1.table == "game_settings" and &1.column == "game_id"))
+    end
+
+    test "a table nothing points at reports an empty side rather than failing" do
+      %{belongs_to: out, has_many: incoming} = Admin.relations("users")
+      assert out == []
+      assert Enum.any?(incoming, &(&1.table == "games"))
+    end
+  end
+
+  describe "count_where/3" do
+    test "counts the rows pointing at one row, and refuses a column that is not real" do
+      user = seed_user()
+      assert Admin.count_where("games", "owner_id", user.id) == 0
+      assert_raise ArgumentError, fn -> Admin.count_where("games", "owner_id; drop table games", user.id) end
+    end
+  end
 end

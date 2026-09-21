@@ -213,6 +213,160 @@ defmodule Nebulith.Admin do
     end
   end
 
+  # ── shapes ─────────────────────────────────────────────────────────────
+
+  @doc """
+  What a value IS, so the page can render it rather than print it.
+
+  A row of this database holds things that are not scalars: a 40 by 40 grid of ground labels, the same grid
+  of heights, a list of 2,568 placed tiles. Printed as truncated JSON they say nothing at all, and the
+  relationship between them, that they are indexed by the same cell, is invisible.
+
+    * `{:grid, rows, cols, values}` a list of equal-length lists of scalars, which is a value per cell
+    * `{:collection, count, keys, items}` a list of objects, which is a list of records
+    * `{:list, count, values}` a list of scalars
+    * `{:object, pairs}` an object
+    * `{:scalar, text}` everything else
+  """
+  def shape(nil), do: {:scalar, ""}
+
+  def shape(value) when is_list(value) do
+    cond do
+      value == [] -> {:list, 0, []}
+      grid?(value) -> {:grid, length(value), length(hd(value)), value}
+      Enum.all?(value, &is_map/1) -> {:collection, length(value), collection_keys(value), value}
+      true -> {:list, length(value), value}
+    end
+  end
+
+  def shape(value) when is_map(value) and not is_struct(value) do
+    {:object, value |> Enum.sort_by(&elem(&1, 0)) |> Enum.map(fn {k, v} -> {k, display(v)} end)}
+  end
+
+  def shape(value), do: {:scalar, display_full(value)}
+
+  @doc "A one-line description of a shape, for a table cell or a heading."
+  def shape_summary({:grid, rows, cols, _}), do: "#{cols} x #{rows} grid, one per cell"
+  def shape_summary({:collection, n, keys, _}), do: "#{n} records, #{length(keys)} fields"
+  def shape_summary({:list, 0, _}), do: "empty"
+  def shape_summary({:list, n, _}), do: "#{n} values"
+  def shape_summary({:object, pairs}), do: "#{length(pairs)} fields"
+  def shape_summary({:scalar, text}), do: truncate(text)
+
+  @doc """
+  The columns of `row` that carry the same grid dimensions, keyed by those dimensions.
+
+  This is the answer to "how does the height data relate to the ground data": they are the same grid, one
+  value per cell, and so is anything else listed beside them.
+  """
+  def grid_groups(row) when is_map(row) do
+    row
+    |> Enum.flat_map(fn {name, value} ->
+      case shape(value) do
+        {:grid, rows, cols, _} -> [{{cols, rows}, name}]
+        _ -> []
+      end
+    end)
+    |> Enum.group_by(&elem(&1, 0), &elem(&1, 1))
+    |> Map.new(fn {dims, names} -> {dims, Enum.sort(names)} end)
+  end
+
+  defp grid?([first | _] = value) when is_list(first) do
+    width = length(first)
+
+    width > 0 and
+      Enum.all?(value, fn row ->
+        is_list(row) and length(row) == width and Enum.all?(row, &scalar?/1)
+      end)
+  end
+
+  defp grid?(_), do: false
+
+  defp scalar?(v), do: is_binary(v) or is_number(v) or is_boolean(v) or is_nil(v)
+
+  defp collection_keys(items) do
+    items
+    |> Enum.take(50)
+    |> Enum.flat_map(&Map.keys/1)
+    |> Enum.uniq()
+    |> Enum.sort()
+  end
+
+  # ── relationships ──────────────────────────────────────────────────────
+
+  @doc """
+  What `table` points AT and what points at IT, read from the database's own foreign keys.
+
+  Both directions matter: a game names its owner, and a game is named by its levels, its settings and its
+  ui profiles. One direction alone leaves half the model invisible.
+  """
+  def relations(table) do
+    table = safe_table(table)
+
+    %{rows: out} =
+      Repo.query!(fk_sql() <> " AND tc.table_name = $1", [table])
+
+    %{rows: incoming} =
+      Repo.query!(fk_sql() <> " AND ccu.table_name = $1", [table])
+
+    %{
+      belongs_to: Enum.map(out, fn [_, column, to_table, to_column] -> %{column: column, table: to_table, key: to_column} end),
+      has_many: Enum.map(incoming, fn [from_table, column, _, key] -> %{table: from_table, column: column, key: key} end)
+    }
+  end
+
+  defp fk_sql do
+    """
+    SELECT tc.table_name, kcu.column_name, ccu.table_name, ccu.column_name
+    FROM information_schema.table_constraints tc
+    JOIN information_schema.key_column_usage kcu
+      ON kcu.constraint_name = tc.constraint_name AND kcu.table_schema = tc.table_schema
+    JOIN information_schema.constraint_column_usage ccu
+      ON ccu.constraint_name = tc.constraint_name AND ccu.table_schema = tc.table_schema
+    WHERE tc.constraint_type = 'FOREIGN KEY' AND tc.table_schema = 'public'
+    """
+  end
+
+  @doc "How many rows of `table` have `column` equal to `value`."
+  def count_where(table, column, value) do
+    table = safe_table(table)
+    column = safe_column(table, column)
+
+    %{rows: [[n]]} =
+      Repo.query!(
+        ~s|SELECT count(*) FROM "#{table}" WHERE "#{column}" = $1::text::#{key_type(table, column)}|,
+        [to_string(value)]
+      )
+
+    n
+  end
+
+  defp safe_column(table, column) do
+    names = for c <- columns(table), do: c.name
+    if column in names, do: column, else: raise(ArgumentError, "no such column: #{inspect(column)}")
+  end
+
+  @doc "The raw (uncast) value of one row, so shapes can be read from the real term."
+  def get_row_raw(table, id) do
+    table = safe_table(table)
+
+    case primary_key(table) do
+      [] ->
+        :error
+
+      [key | _] ->
+        %{columns: columns, rows: rows} =
+          Repo.query!(~s|SELECT * FROM "#{table}" WHERE "#{key}" = $1::text::#{key_type(table, key)}|, [
+            to_string(id)
+          ])
+
+        case rows do
+          [row] -> {:ok, columns |> Enum.zip(row) |> Map.new()}
+          _ -> :error
+        end
+    end
+  end
+
   # ── internals ──────────────────────────────────────────────────────────
 
   defp owner(name) when name in @prisma_owned, do: :prisma
@@ -273,6 +427,12 @@ defmodule Nebulith.Admin do
   defp normalise_search(nil), do: nil
   defp normalise_search(term) when is_binary(term), do: (t = String.trim(term)) != "" && t || nil
   defp normalise_search(_), do: nil
+
+  # A CELL SAYS WHAT THE VALUE IS, NOT THE FIRST 160 CHARACTERS OF IT. A 40 by 40 grid of ground labels
+  # printed as truncated JSON tells the reader nothing and fills the row; "40 x 40 grid, one per cell"
+  # tells them what they are looking at and where to click for the rest.
+  defp display(value) when is_list(value) or (is_map(value) and not is_struct(value)),
+    do: shape_summary(shape(value))
 
   defp display(value), do: value |> display_full() |> truncate()
 

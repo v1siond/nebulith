@@ -86,6 +86,41 @@ await page.waitForTimeout(1200)
 const restored = (await page.locator('main').innerText()).includes(probe)
 check(!restored, 'the original value is restored', `back to "${original}"`)
 
+// ── the detail view renders structures, and says how they relate ────────
+await page.goto(`${BASE}/admin/Template`, { waitUntil: 'networkidle' })
+if (await page.locator('a:has-text("open")').count()) {
+  await page.locator('a:has-text("open")').first().click()
+  await page.waitForTimeout(1500)
+
+  // A grid is drawn as a grid, not printed as JSON. Every cell carries its own col,row.
+  const cells = await page.locator('table td[title^="col "]').count()
+  check(cells > 100, 'a grid column is drawn as a grid', `${cells} cells`)
+
+  // THE QUESTION THIS PAGE EXISTS TO ANSWER: how does the height data relate to the ground data?
+  const sameGrid = await page.locator('section:has(h2:text("Same grid"))').innerText().catch(() => '')
+  check(/one value per cell/.test(sameGrid), 'the page says the grids are read per cell')
+  check(
+    /groundData/.test(sameGrid) && /heightData/.test(sameGrid),
+    'and names the columns that share that grid',
+    sameGrid.replace(/\s+/g, ' ').slice(0, 90),
+  )
+
+  // A list of records is a table, not a wall of JSON.
+  const body = await page.locator('main').innerText()
+  check(/records, \d+ fields/.test(body), 'a list of records reports its count and fields')
+  check(!/\{"art":/.test(body), 'no raw JSON blob is printed into the page')
+}
+
+// A row that points at another row links to it, and back the other way.
+await page.goto(`${BASE}/admin/games`, { waitUntil: 'networkidle' })
+if (await page.locator('a:has-text("open")').count()) {
+  await page.locator('a:has-text("open")').first().click()
+  await page.waitForTimeout(1200)
+  const related = await page.locator('section:has(h2:text("Related"))').innerText().catch(() => '')
+  check(/owner_id/.test(related), 'the row links out to what it points at', related.replace(/\s+/g, ' ').slice(0, 70))
+  check(/levels|game_settings/.test(related), 'and lists what points back at it')
+}
+
 // ── a table name that is not a table ────────────────────────────────────
 await page.goto(`${BASE}/admin/${encodeURIComponent('users; drop table users')}`, { waitUntil: 'networkidle' })
 check(page.url().endsWith('/admin'), 'a crafted table name is turned away', page.url())

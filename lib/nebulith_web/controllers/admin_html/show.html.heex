@@ -24,31 +24,103 @@
       </div>
     </header>
 
-    <%!-- Every column, in the table's own order, with the full value rather than a truncated cell. A jsonb
-          blob is what you most often come here to read, so it is not cut off. --%>
-    <dl class="mt-8 grid gap-px overflow-hidden rounded-box border border-base-300 bg-base-300">
-      <div
-        :for={column <- @columns}
-        class="grid gap-1 bg-base-100 px-4 py-3 sm:grid-cols-[minmax(0,14rem)_minmax(0,1fr)] sm:gap-4"
-      >
-        <dt class="min-w-0">
-          <span class="block truncate font-mono text-[13px] font-semibold">{column.name}</span>
-          <span class="font-mono text-[11px] text-base-content/40">
-            {column.type}<span :if={column.primary?} class="text-primary"> · key</span><span :if={
-              not column.nullable
-            }> · required</span>
-          </span>
-        </dt>
-        <dd class="min-w-0">
-          <pre :if={String.contains?(@row[column.name] || "", "\n")} class="overflow-x-auto whitespace-pre-wrap break-words rounded border border-base-300 bg-base-200 p-3 font-mono text-[12px]">{@row[column.name]}</pre>
-          <span
-            :if={not String.contains?(@row[column.name] || "", "\n")}
-            class="break-words font-mono text-[13px] tabular-nums"
-          >
-            {if (@row[column.name] || "") == "", do: "—", else: @row[column.name]}
-          </span>
-        </dd>
+    <%!-- HOW THIS ROW RELATES TO THE REST, both directions, read from the database's own foreign keys.
+          One direction alone leaves half the model invisible: a game names its owner, and a game is named
+          by its levels, its settings and its ui profiles. --%>
+    <section :if={@belongs_to != [] or @has_many != []} class="mt-8">
+      <h2 class="mb-3 font-mono text-[11px] font-bold uppercase tracking-[0.16em] text-base-content/50">
+        Related
+      </h2>
+      <div class="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+        <.link
+          :for={link <- @belongs_to}
+          navigate={~p"/admin/#{link.table}/#{link.value}"}
+          class="group rounded-box border border-base-300 bg-base-200 px-4 py-3 hover:border-primary"
+        >
+          <div class="font-mono text-[11px] text-base-content/50">
+            this row's <span class="text-base-content/80">{link.column}</span> →
+          </div>
+          <div class="mt-0.5 font-mono text-sm font-semibold group-hover:text-primary">
+            one {link.table}
+          </div>
+          <div class="mt-0.5 truncate font-mono text-[11px] text-base-content/40">{link.value}</div>
+        </.link>
+
+        <.link
+          :for={link <- @has_many}
+          navigate={~p"/admin/#{link.table}?#{[q: @id]}"}
+          class="group rounded-box border border-base-300 bg-base-200 px-4 py-3 hover:border-primary"
+        >
+          <div class="font-mono text-[11px] text-base-content/50">
+            ← rows whose <span class="text-base-content/80">{link.column}</span> is this row
+          </div>
+          <div class="mt-0.5 font-mono text-sm font-semibold group-hover:text-primary">
+            {link.count || "?"} {link.table}
+          </div>
+        </.link>
       </div>
-    </dl>
+    </section>
+
+    <%!-- WHICH COLUMNS ARE THE SAME GRID. This is the thing the old page could not say: groundData and
+          heightData are not two blobs, they are one grid of cells read twice, and cols by rows says so. --%>
+    <section :if={map_size(@grid_groups) > 0} class="mt-8">
+      <h2 class="mb-3 font-mono text-[11px] font-bold uppercase tracking-[0.16em] text-base-content/50">
+        Same grid
+      </h2>
+      <div
+        :for={{{cols, rows}, names} <- @grid_groups}
+        class="rounded-box border border-base-300 bg-base-200 px-4 py-3 text-sm"
+      >
+        <span class="font-mono font-semibold text-primary">{cols} x {rows}</span>
+        <span class="text-base-content/70">
+          , one value per cell, indexed <span class="font-mono">[row][col]</span>. Read at the same cell by:
+        </span>
+        <span class="font-mono text-base-content">{Enum.join(names, ", ")}</span>
+      </div>
+    </section>
+
+    <%!-- Scalars first, because that is what identifies the row, then the structures. --%>
+    <section class="mt-8">
+      <h2 class="mb-3 font-mono text-[11px] font-bold uppercase tracking-[0.16em] text-base-content/50">
+        Fields
+      </h2>
+      <dl class="grid gap-px overflow-hidden rounded-box border border-base-300 bg-base-300">
+        <div
+          :for={column <- Enum.filter(@columns, &match?({:scalar, _}, @shapes[&1.name]))}
+          class="grid gap-1 bg-base-100 px-4 py-3 sm:grid-cols-[minmax(0,14rem)_minmax(0,1fr)] sm:gap-4"
+        >
+          <dt class="min-w-0">
+            <span class="block truncate font-mono text-[13px] font-semibold">{column.name}</span>
+            <span class="font-mono text-[11px] text-base-content/40">
+              {column.type}<span :if={column.primary?} class="text-primary"> · key</span>
+            </span>
+          </dt>
+          <dd class="min-w-0 break-words font-mono text-[13px] tabular-nums">
+            {if (@row[column.name] || "") == "", do: "—", else: @row[column.name]}
+          </dd>
+        </div>
+      </dl>
+    </section>
+
+    <%!-- Everything that is not a scalar gets rendered as the thing it is. --%>
+    <section
+      :for={column <- Enum.reject(@columns, &match?({:scalar, _}, @shapes[&1.name]))}
+      class="mt-8"
+    >
+      <h2 class="mb-2 flex flex-wrap items-baseline gap-x-3">
+        <span class="font-mono text-sm font-bold">{column.name}</span>
+        <span class="font-mono text-[11px] text-base-content/50">
+          {column.type} · {Nebulith.Admin.shape_summary(@shapes[column.name])}
+        </span>
+      </h2>
+
+      <.grid_value :if={match?({:grid, _, _, _}, @shapes[column.name])} shape={@shapes[column.name]} />
+      <.collection_value
+        :if={match?({:collection, _, _, _}, @shapes[column.name])}
+        shape={@shapes[column.name]}
+      />
+      <.list_value :if={match?({:list, _, _}, @shapes[column.name])} shape={@shapes[column.name]} />
+      <.object_value :if={match?({:object, _}, @shapes[column.name])} shape={@shapes[column.name]} />
+    </section>
   </div>
 </Layouts.app>

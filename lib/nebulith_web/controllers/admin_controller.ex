@@ -29,14 +29,49 @@ defmodule NebulithWeb.AdminController do
 
   def show(conn, %{"table" => table, "id" => id}) do
     with_table(conn, table, fn ->
-      case Admin.get_row(table, id) do
-        {:ok, row} ->
-          render(conn, :show, table: table, id: id, row: row, columns: Admin.columns(table))
+      with {:ok, row} <- Admin.get_row(table, id),
+           {:ok, raw} <- Admin.get_row_raw(table, id) do
+        relations = Admin.relations(table)
 
+        render(conn, :show,
+          table: table,
+          id: id,
+          row: row,
+          raw: raw,
+          columns: Admin.columns(table),
+          shapes: Map.new(raw, fn {name, value} -> {name, Admin.shape(value)} end),
+          grid_groups: Admin.grid_groups(raw),
+          belongs_to: belongs_to_links(relations, raw),
+          has_many: has_many_counts(relations, table, id)
+        )
+      else
         :error ->
           conn |> put_flash(:error, "No row #{id} in #{table}.") |> redirect(to: ~p"/admin/#{table}")
       end
     end)
+  end
+
+  # What this row POINTS AT: each foreign key that actually holds a value, with the id to follow.
+  defp belongs_to_links(%{belongs_to: links}, raw) do
+    for link <- links,
+        value = Map.get(raw, link.column),
+        not is_nil(value),
+        do: Map.put(link, :value, Nebulith.Admin.shape(value) |> elem(1))
+  end
+
+  # What POINTS AT this row, and how many. A count of nought is still worth showing: it says the
+  # relationship exists and is empty, which is different from the relationship not existing.
+  defp has_many_counts(%{has_many: links}, _table, id) do
+    for link <- links do
+      count =
+        try do
+          Admin.count_where(link.table, link.column, id)
+        rescue
+          _ -> nil
+        end
+
+      Map.put(link, :count, count)
+    end
   end
 
   def edit(conn, %{"table" => table, "id" => id}) do
