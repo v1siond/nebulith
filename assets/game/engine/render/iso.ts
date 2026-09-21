@@ -897,7 +897,11 @@ export function render(params: IsoRenderParams) {
       // up-right toward the back) and −z toward its opposite, landing on the neighbouring diamond exactly like
       // z-width's per-cell step. 0 (every generated/existing asset) → no-op.
       // The slide axis is a WORLD diagonal, so it turns with the camera, a slid tile stays on the cell it slid to.
-      const zMove = isoZOffset(obj.asset.zOffset ?? 0, viewDepthDir(obj.asset.zDir ?? 'right-up', facing), tileW, tileH)
+          // A TILE WITH NO SLIDE DIRECTION DOES NOT SLIDE. `slide_direction` is nullable with no default, so
+      // absence is its value; naming one here was the renderer deciding which way a tile leans.
+      const zMove = obj.asset.zDir
+        ? isoZOffset(obj.asset.zOffset ?? 0, viewDepthDir(obj.asset.zDir, facing), tileW, tileH)
+        : { dx: 0, dy: 0 }
       // Animated screen shift: `x` slides right, `y` LIFTS up (screen-space up is −Y), in tile fractions. 0 when
       // not animated → the anchor is unchanged.
       // A CELL'S CURRENT IS NOT AN OFFSET. I first projected the flow onto the screen axes here, on the
@@ -1245,8 +1249,13 @@ export function drawIsoPlayer(
       const cy = groundY - glyphPx * 0.42 - breathe
       ctx.font = `bold ${glyphPx}px ${ASCII_FONT}`
       ctx.textAlign = 'center'
-      ctx.fillStyle = pdv.color
-      drawFacingGlyph(ctx, genderize(pf.char ?? pdv.char, player.variant), x, cy, pf.flipX)
+      // NO INK, NO GLYPH. A figure whose draw resolved no colour is not painted in a colour chosen
+      // here; the callers below hand this one a real role colour, so the branch is unreachable, and an
+      // unreachable literal is still a literal.
+      if (pdv.color) {
+        ctx.fillStyle = pdv.color
+        drawFacingGlyph(ctx, genderize(pf.char ?? pdv.char, player.variant), x, cy, pf.flipX)
+      }
       ctx.textAlign = 'left'
       ctx.font = `bold ${fontSize}px ${ASCII_FONT}`
       headY = cy - glyphPx * 0.5
@@ -1341,10 +1350,12 @@ export function drawIsoLabeledCell(
   const w = char.length * fontSize * 0.6
   // A cell carrying apex signage FILLS solid (its darkened tint) so the word reads over it; every other
   // labeled cell keeps the plain dark backing behind its glyph. No `type:'building'` special case.
-  const base = asset.color ?? '#cccccc'
-  ctx.fillStyle = asset.settings?.badge ? darkenColor(base, 0.28) : 'rgba(0, 0, 0, 0.5)'
+  // Signage fills with the cell's own darkened colour so the word reads over it; a cell with no colour
+  // keeps the plain dark backing rather than one invented here.
+  ctx.fillStyle = asset.settings?.badge && asset.color ? darkenColor(asset.color, 0.28) : 'rgba(0, 0, 0, 0.5)'
   ctx.fillRect(x - w / 2 - 2, cy - fontSize * 0.55, w + 4, fontSize * 1.1)
-  ctx.fillStyle = base
+  if (!asset.color) return // no ink, no glyph
+  ctx.fillStyle = asset.color
   ctx.fillText(char, x, cy)
 
   // Apex signage, driven GENERICALLY by settings.badge (not buildingType). Only the one apex tile per
@@ -1431,8 +1442,13 @@ export function drawIsoEntity(
       const cy = groundY - baseEmojiPx * 0.42 - (emojiPx - baseEmojiPx) * 0.5
       ctx.font = `bold ${emojiPx}px ${ASCII_FONT}`
       ctx.textAlign = 'center'
-      ctx.fillStyle = edv.color
-      drawFacingGlyph(ctx, genderize(ef.char ?? edv.char, entity.variant), x, cy, ef.flipX)
+      // NO INK, NO GLYPH. A figure whose draw resolved no colour is not painted in a colour chosen
+      // here; the callers below hand this one a real role colour, so the branch is unreachable, and an
+      // unreachable literal is still a literal.
+      if (edv.color) {
+        ctx.fillStyle = edv.color
+        drawFacingGlyph(ctx, genderize(ef.char ?? edv.char, entity.variant), x, cy, ef.flipX)
+      }
       ctx.textAlign = 'left'
       ctx.font = `bold ${fontSize}px ${ASCII_FONT}`
       figureTop = cy - emojiPx * 0.5
@@ -1507,7 +1523,9 @@ export function fillIsoFaceWithTile(
   origin: Pt,
   eA: Pt,
   eB: Pt,
-  tv: { char?: string; color: string; image?: ImageVisual; tintTo?: string; turns?: number }, // tintTo → recolour a colour-emoji GLYPH (the roof 🟥 → roof colour); turns → quarter-turn the TEXTURE
+  // `color` is the GLYPH's ink and is optional: a tile that states none draws its image, and a tile with
+  // neither an image nor ink draws nothing rather than a colour this renderer picked.
+  tv: { char?: string; color?: string; image?: ImageVisual; tintTo?: string; turns?: number }, // tintTo → recolour a colour-emoji GLYPH; turns → quarter-turn the TEXTURE
   na: number,
   nb: number,
   tint?: string, // an editor floor-colour override → recolour the tile image (#80)
@@ -1557,6 +1575,7 @@ export function fillIsoFaceWithTile(
     if (sprite) {
       for (let j = 0; j < rows; j++) for (let i = 0; i < cols; i++) ctx.drawImage(sprite, 0, 0, sprite.width, sprite.height, i * cw, j * ch, cw, ch)
     } else {
+      if (!tv.color) { ctx.restore(); return } // no ink: the image path above already drew, or there is nothing to draw
       ctx.fillStyle = tv.color
       ctx.textAlign = 'center'
       ctx.textBaseline = 'middle'
@@ -2115,12 +2134,19 @@ function drawIsoTileBlockLive(
   const quad = thickness && thicknessThins(thickness) ? reachGroundQuad(tileW, tileH, thickness) : undefined
   // Per-face brightness from the sun (outward screen normals of the two FRONT walls). Constant per
   // block → hoisted out of the stacking loop. Same faceLight shading the peaked roof uses.
-  const leftShade = darkenColor(faceColor, faceLight(-tileH, tileW)) // front-left wall (L→B edge)
-  const rightShade = darkenColor(faceColor, faceLight(tileH, tileW)) // front-right wall (B→R edge)
+  const leftShade = faceColor ? darkenColor(faceColor, faceLight(-tileH, tileW)) : undefined // front-left wall
+  const rightShade = faceColor ? darkenColor(faceColor, faceLight(tileH, tileW)) : undefined // front-right wall
   // Fill a face as a shaded solid quad, then overlay ITS tile sheared onto it (the auto-extrude).
-  const fillFace = (f: BlockFace, colour: string, fdv: DrawVisual, ftint?: string): void => {
-    ctx.fillStyle = colour
-    fillQuad(ctx, f.a, f.b, f.c, f.d)
+  //
+  // NO COLOUR, NO SHELL. A block whose tile states no colour is not a grey block, it is a block with
+  // nothing painted on its faces, and the tile's own art still draws over them. That is the same thing
+  // `transparent` asks for, arrived at from the other side. The alternative is a literal here, which is
+  // this renderer deciding what a tile looks like when the database did not.
+  const fillFace = (f: BlockFace, colour: string | undefined, fdv: DrawVisual, ftint?: string): void => {
+    if (colour) {
+      ctx.fillStyle = colour
+      fillQuad(ctx, f.a, f.b, f.c, f.d)
+    }
     if (fdv.image || fdv.char) {
       fillIsoFaceWithTile(ctx, f.a, { x: f.b.x - f.a.x, y: f.b.y - f.a.y }, { x: f.d.x - f.a.x, y: f.d.y - f.a.y }, { char: fdv.char, color: fdv.color, image: fdv.image, turns: fdv.turns }, 1, 1, ftint)
     }
@@ -2200,11 +2226,14 @@ function drawIsoRectBlock(
   const L = at(a0, b1) // left (min col, max row)
   const dn = (p: Pt): Pt => ({ x: p.x, y: p.y + H })
   const faceColor = tint ?? dv.tint ?? dv.color
-  const leftShade = darkenColor(faceColor, faceLight(-tileH, tileW)) // +row (front-left) wall
-  const rightShade = darkenColor(faceColor, faceLight(tileH, tileW)) // +col (front-right) wall
-  const fillFace = (f: BlockFace, colour: string, fdv: DrawVisual, ftint?: string): void => {
-    ctx.fillStyle = colour
-    fillQuad(ctx, f.a, f.b, f.c, f.d)
+  // NO COLOUR, NO SHELL, exactly as the cube path above.
+  const leftShade = faceColor ? darkenColor(faceColor, faceLight(-tileH, tileW)) : undefined // +row wall
+  const rightShade = faceColor ? darkenColor(faceColor, faceLight(tileH, tileW)) : undefined // +col wall
+  const fillFace = (f: BlockFace, colour: string | undefined, fdv: DrawVisual, ftint?: string): void => {
+    if (colour) {
+      ctx.fillStyle = colour
+      fillQuad(ctx, f.a, f.b, f.c, f.d)
+    }
     if (fdv.image || fdv.char) fillIsoFaceWithTile(ctx, f.a, { x: f.b.x - f.a.x, y: f.b.y - f.a.y }, { x: f.d.x - f.a.x, y: f.d.y - f.a.y }, { char: fdv.char, color: fdv.color, image: fdv.image, turns: fdv.turns }, 1, 1, ftint)
   }
   fillFace({ a: dn(L), b: dn(B), c: B, d: L }, leftShade, dv, tint) // +row (front-left) wall
@@ -2412,7 +2441,8 @@ export function drawIsoRoundedBlock(
   // The SAME cuboid, three shaded faces + painted art, drawn normally; only the clip above rounds it.
   drawIsoTileBlock(ctx, center, tileW, tileH, blockH, blockLayers(height), dv, tint)
   // Bevel the one corner the silhouette clip can't reach, the top face's interior front vertex (Image #61).
-  roundIsoTopFrontCorner(ctx, center, tileW, tileH, blockH, height, tint ?? dv.tint ?? dv.color)
+  const bevel = tint ?? dv.tint ?? dv.color
+  if (bevel) roundIsoTopFrontCorner(ctx, center, tileW, tileH, blockH, height, bevel)
   ctx.restore()
 }
 
@@ -2668,12 +2698,18 @@ export function drawIsoAssetAscii(
     // itself stayed put.
     // No composition tile ships a DB height above 1, so generated maps render exactly as before.
     const layers = blockLayers(labelBlocks)
-    const tint = asset.color ?? '#cccccc'
+    // NO COLOUR IS AN ANSWER. `color` is nullable with no column default, and a placement is born with
+  // the catalogue's colour, so a placement with none means the catalogue has none either. Measured on
+  // the live catalogue: 636 of 638 tiles carry one and the other two are tinted by the generator, so
+  // this is unreachable. An unreachable literal is still a literal, and it is still this renderer
+  // holding an opinion about a value the database owns.
+  const tint = asset.color
     // The label's own glyph in the ACTIVE style (one lookup, no style branch), the last-resort char if the
     // baked PNG is genuinely missing; falls back to the asset's authored art when the style has no such tile.
     const glyph = styleTileArt(asset.label, style.id)?.char ?? asset.art[0] ?? '?'
     const image = labelImage
-    const recolor = labelTileRecolor(style, tint)
+    // A recolour needs a colour to recolour TO. With none, the baked picture draws as it was baked.
+    const recolor = tint ? labelTileRecolor(style, tint) : undefined
     const dvBlock = { char: glyph, color: tint, tint: recolor, image }
     // A z-width tile (≥2 cells, 1 or 2 axes) draws as ONE SOLID block, a plain tile as a cube, drawIsoTileForShape
     // decides via the tile's shape drawer (the SAME solid-rect path a painted/override tile takes), so nothing

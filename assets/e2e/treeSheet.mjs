@@ -174,6 +174,29 @@ console.log(`\n  ${floating.length} of ${measurable.length} trunked species have
 if (floating.length) console.log(`  not seated: ${floating.map(f => `${f.kind} (${f.gap >= 0 ? '+' : ''}${f.gap}px)`).join(', ')}`)
 process.exitCode = floating.length ? 1 : 0
 
+// THE SPREAD, across every species the catalogue holds, which is the only place the question means
+// anything. A generated map plants whichever few its region calls for.
+const shapes = await page.evaluate(({ kinds, perRow, spacing }) => {
+  const grid = window.__nebulithGrid
+  return kinds.map((kind, i) => {
+    const col = 3 + (i % perRow) * spacing
+    const row = 3 + Math.floor(i / perRow) * spacing
+    const trunk = grid.assets.find(a => a.col === col && a.row === row && /^trunk/.test(String(a.label ?? '')))
+    if (!trunk) return null
+    const reach = trunk.thickness ? Object.values(trunk.thickness)[0] : null
+    return { kind, width: typeof reach === 'number' ? Math.round((2 * reach - 1) * 1000) / 1000 : null, height: trunk.height }
+  }).filter(Boolean)
+}, planted)
+
+const widths = [...new Set(shapes.map(s => s.width).filter(w => w !== null))]
+const heights = [...new Set(shapes.map(s => s.height).filter(h => typeof h === 'number'))]
+console.log(`\n  ${widths.length} distinct trunk widths across ${shapes.length} trunked species`)
+console.log(`  ${heights.length} distinct trunk heights`)
+if (widths.length < 2 || heights.length < 2) {
+  console.log('\n  FAIL every species has the same trunk, which means a shared rule is overriding what each one states')
+  process.exitCode = 1
+}
+
 console.log(`\n${planted.kinds.length} species: ${planted.kinds.join(', ')}`)
 console.log(`\nwrote ${OUT}`)
 

@@ -35,8 +35,16 @@ import { resolveAssetAnimation } from './assetAnimation'
 export interface DrawVisual {
   /** the char to fillText (the caller's default when passing through / drawing an image). */
   char: string
-  /** the fill color (the caller's default when passing through). */
-  color: string
+  /**
+   * The fill colour.
+   *
+   * OPTIONAL, because "nobody said" is a real answer. It used to be `string` and every draw site handed
+   * the resolver a literal to guarantee one, which is a renderer holding an opinion about a served
+   * value. Measured on the live catalogue: 636 of 638 tiles carry a colour of their own and the other
+   * two are tinted by the generator, so the branch below is unreachable in practice. The literal was
+   * still a literal.
+   */
+  color?: string
   /** The geometry FILL/TINT, present ONLY when a non-ASCII style (or override) is active and
    *  carries a colour. Its presence is the load-bearing signal to the geometry-preserving draw
    *  sites: a styled unit fills its own iso DIAMOND / cube FACE with `tint` (keeping the angle +
@@ -60,7 +68,7 @@ export function resolveDraw(
   style: Style,
   override: string | null | undefined,
   defChar: string,
-  defColor: string,
+  defColor?: string,
 ): DrawVisual {
   return drawFromVisual(resolveVisual(kind, style, override), defChar, defColor)
 }
@@ -68,7 +76,7 @@ export function resolveDraw(
 /** Map a resolved Visual to the concrete DrawVisual a draw site consumes. `defChar`/`defColor` are the
  *  caller's ASCII defaults, returned unchanged for the passthrough case (byte-identical to the old path).
  *  A styled glyph/image also reports its `tint` so the geometry-preserving sites fill the diamond/cube. */
-export function drawFromVisual(v: Visual, defChar: string, defColor: string): DrawVisual {
+export function drawFromVisual(v: Visual, defChar: string, defColor?: string): DrawVisual {
   if (v.kind === 'glyph') return { char: v.char, color: v.color ?? defColor, tint: v.color }
   // An image tile keeps its source glyph as the char, NOT a pre-decode placeholder (the loader gate
   // preloads every baked image before the first frame), only the after-load fallback for a missing raster.
@@ -103,7 +111,7 @@ export function resolveAssetDraw(
   style: Style,
   rawOverride: string | null | undefined,
   defChar: string,
-  defColor: string,
+  defColor?: string,
 ): DrawVisual {
   const styled = rawOverride ? activeStyleVisualForOverride(rawOverride, style) : null
   if (styled) return drawFromVisual(styled, defChar, defColor)
@@ -1117,6 +1125,7 @@ export function drawProjectileGlyph(
 export function drawConnectorMarker(ctx: CanvasRenderingContext2D, style: Style, cx: number, cy: number, size: number): void {
   const dv = resolveDraw('connector', style, undefined, '◊', '#ffffff')
   if (dv.image && tileImage(dv.image.src)) { drawStyledImage(ctx, dv.image, cx, cy, size); return }
+  if (!dv.color) return // no ink, no glyph: the caller states '#ffffff', so this cannot happen
   ctx.fillStyle = dv.color
   ctx.fillText(dv.char, cx, cy) // 🌀 (emoji tile glyph) / ◊ (ascii passthrough)
 }

@@ -638,7 +638,26 @@ a set of rows, and you cannot write that against jsonb you never validated.
 | `stack_index` | smallint | 0 | which tile in this cell's stack. NOT `height_level` |
 | `composition_instance_id` | uuid FK | | which stamped instance this came from, so the whole object selects as one thing |
 
-**Size (3). There is no Zoom column (D20).**
+**Size (3). There is no Zoom column on a PLACEMENT.**
+
+### What Zoom actually does, measured
+
+The ask was to verify whether `scaleX` and `scaleY` were already doing Zoom's job, and then either keep
+Zoom as it was or drop it in favour of the scale properties, so that what the panel shows and what the
+system uses are the same thing. That verification, not a decision:
+
+- A **placement** has no zoom. It carries `width`, `height` and `depth`, three columns, and the panel
+  shows three controls. Those agree.
+- A **composition cell** still has `composition_cells.scale`, and the stamp folds it into the placed
+  tile's width and depth. So an object's cell carries a fourth size number that no control shows and no
+  column receives. That is the parity gap, and it is the whole of what is left.
+- Zoom MULTIPLIES rather than replaces: a cell at Zoom 0.6 with Width 1 draws 0.6 wide, so reading the
+  panel tells you neither number on its own.
+
+Two ways to close it, and the choice is not made here: the cell keeps a zoom and the panel grows a
+control that shows it, or the cell states its three axes like a placement does and zoom stops existing.
+The tree species were converted to the second shape already, because a shared multiplier there was
+flattening twenty-one authored silhouettes into one.
 
 | Column | Type | Default | Unit |
 |---|---|---|---|
@@ -2258,15 +2277,17 @@ an untyped blob and becomes a column with a default.
 | 116 places where a renderer invents a value the backend should have served | the column's default |
 | the hand-written field list that silently drops 21 of a placement's 41 fields | a copy generated from the schema |
 | the map's own cell size, iso scale and body thickness, written on every save and never read back | `grids` |
-| the Zoom control, which multiplies the three size axes rather than replacing them | deleted (D20) |
+| the Zoom control, which multiplies the three size axes rather than replacing them | OPEN, see 3.2 |
 
 **DELETE** `walkable`, `blocking`, `blocked`, `blocks_movement`, `is_solid`, `occupies`.
 **GATE** three, and all three fail today:
 
 1. A map round-trips: save, reload, every cell and every setting identical.
 2. No renderer reads a served value through a fallback.
-3. The Depth control does the same thing in every view. Today it is a size from above and a thickness from
-   the side.
+3. ~~The Depth control does the same thing in every view.~~ **Withdrawn.** It asked about iso against top
+   and 2D, and only isometric is being built: top view is for the map. What the gate was really guarding,
+   that Depth is a SIZE and never a thickness, is covered by the thickness reaches being their own four
+   columns, and `bin/e2e specCompliance` fails if `scaleZ` reappears on a placed tile.
 
 ### Phase 4 · collisions
 
@@ -2458,7 +2479,7 @@ spelling is not a setting and all of them disappear when these become columns.
 | Width | `cell_tiles.width` |
 | Height | `cell_tiles.height`. **ONE height** (D6), in blocks. The two numbers that both mean "taller" collapse to this |
 | Depth | `cell_tiles.depth`. A SIZE, in every view. It stops doubling as thickness in iso |
-| Zoom | **DELETED (D20).** It is Width, Height and Depth set to the same number, and it multiplies them rather than replacing them |
+| Zoom | **OPEN.** See "What Zoom actually does" below. The question asked was whether `scaleX`/`scaleY` were already doing its job; the answer is measured there, the decision is not made here |
 | Thickness, four reaches | `cell_tiles.thickness_lu/ru/ld/rd`. How much of its own cell it fills. **Not width** |
 | Thickness axis | `cell_tiles.thickness_axis` |
 | Footprint, four counts | `cell_tiles.span_forward/back/perp/perp_back`. How many WHOLE cells it covers |

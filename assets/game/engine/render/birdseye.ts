@@ -167,10 +167,15 @@ export function renderTopView(params: RenderTopViewParams) {
       // The label's glyph in the ACTIVE style, one lookup, no style branch (only ever painted when the
       // baked PNG is genuinely missing; a floor has no label and resolves by KIND below).
       const char = (asset.label ? styleTileArt(asset.label, style.id)?.char : undefined) ?? asset.art[0] ?? '?'
-      const fg = asset.color ?? '#cccccc'
+      // NO COLOUR IS AN ANSWER. `color` is nullable with no column default, and a placement is born with
+  // the catalogue's colour, so a placement with none means the catalogue has none either. Measured on
+  // the live catalogue: 636 of 638 tiles carry one and the other two are tinted by the generator, so
+  // this is unreachable. An unreachable literal is still a literal, and it is still this renderer
+  // holding an opinion about a value the database owns.
+  const fg = asset.color
       // Grass floors keep their per-cell shade (grassShade via cellFill) so a field isn't one flat sheet.
       const grassy = asset.type === FLOOR_TYPE && (asset.tileKey ?? '').includes('grass')
-      const bg = asset.color ?? '#141414'
+      const bg = asset.color
       const kind = assetKind(asset)
 
       // Resolve the active art style (ASCII passthrough → the defaults above, unchanged). A PLACED
@@ -197,8 +202,12 @@ export function renderTopView(params: RenderTopViewParams) {
       // A FLOOR tile's per-cell colour override wins; a bare grass/road floor falls to cellFill(dv.tint) so it
       // paints its ground colour. A wall/prop keeps the asset tint via cellFill too.
       const floorOverride = asset.type === FLOOR_TYPE ? (asset.color ?? null) : null
-      ctx.fillStyle = floorOverride ?? cellFill(dv.tint, bg, grassy, col, row)
-      ctx.fillRect(x, y, tileSize - 1, tileSize - 1)
+      // A cell with no colour anywhere gets no backing, rather than one this view picked.
+      const backing = floorOverride ?? (bg ? cellFill(dv.tint, bg, grassy, col, row) : undefined)
+      if (backing) {
+        ctx.fillStyle = backing
+        ctx.fillRect(x, y, tileSize - 1, tileSize - 1)
+      }
       // Darken a PROP/WALL cell's tile-colour backing so its glyph reads; a FLOOR keeps its resolved ground
       // fill (no dark overlay, it IS the ground).
       if (asset.type !== FLOOR_TYPE) {
@@ -206,11 +215,12 @@ export function renderTopView(params: RenderTopViewParams) {
         ctx.fillRect(x, y, tileSize - 1, tileSize - 1)
       }
 
-      ctx.fillStyle = dv.color
+      // NO INK, NO GLYPH, see the note in iso.ts.
+      if (dv.color) ctx.fillStyle = dv.color
       // "z position" slides an asset along the iso diagonal; from ABOVE that projects to the ground-plane cell
       // delta (zDir's DEPTH_CELL_STEP × the magnitude), so the tile ART slides in the footprint. The cell BACKING
       // stays put (like iso/2D keep the ground cell under a slid prop). 0 / bare ground → no shift, unchanged.
-      const zStep = asset ? DEPTH_CELL_STEP[asset.zDir ?? 'right-up'] : null
+      const zStep = asset?.zDir ? DEPTH_CELL_STEP[asset.zDir] : null
       const zAmt = asset?.zOffset ?? 0
       const gx = x + tileSize / 2 + (zStep ? zAmt * zStep.dc * tileSize : 0)
       const gy = y + tileSize / 2 + (zStep ? zAmt * zStep.dr * tileSize : 0)
@@ -246,7 +256,7 @@ export function renderTopView(params: RenderTopViewParams) {
           // Per-view tile size (byte-identical when unset: old tileSize base), then per-element dims (#77/#78).
           const d = resolveAssetDrawSize(tileSize * (resolveTileSize(styleTile, 'top') ?? 1), dAsset ?? {}, 'overhead')
           const pose = asset?.pose ?? resolveTilePose(styleTile, 'top') // per-asset pose (inspector x/y/rotate) wins; else the tileset-kind pose
-          const recolor = labelImage ? labelTileRecolor(style, dAsset?.color ?? '#cccccc') : dAsset?.color
+          const recolor = labelImage && dAsset?.color ? labelTileRecolor(style, dAsset.color) : dAsset?.color
           // DISPLAY = "single": draw ONE smaller centered tile inside the plain cell (the cell backing already
           // painted above shows around it), matching the iso/2D "single tile inside the block" look. Absent → 1×.
           const frac = asset && assetDrawsSingle(asset) ? SINGLE_TILE_FRAC : 1
@@ -467,7 +477,7 @@ export function renderTopView(params: RenderTopViewParams) {
     // genderize so npcs show their male/female figure in top view too (the ASCII `>` fallback and 👾
     // pass through unchanged); matches iso/2d.
     if (edv.image) drawStyledImage(ctx, edv.image, ex + tileSize / 2, ey + tileSize / 2, tileSize)
-    else drawTopArrow(ctx, ex, ey, tileSize, edv.color, genderize(edv.char, entity.variant))
+    else if (edv.color) drawTopArrow(ctx, ex, ey, tileSize, edv.color, genderize(edv.char, entity.variant))
     // Only DAMAGED enemies show a bar in the overview, a full-HP mob adds nothing but clutter (its
     // glyph already marks its position); matches the engaged/damaged gate iso + 2D use for vitals.
     if (entity.kind === 'enemy') { const f = hpFraction(entity, combat); if (f < 0.999) drawHpBar(ctx, ex + tileSize / 2, ey - 3, tileSize, 3, f) }

@@ -71,7 +71,10 @@ const snapshot = () =>
       a.col, a.row, a.label ?? a.tileKey ?? a.type, a.heightLevel ?? 0,
       a.height, a.width, a.depth,
       a.spanForward, a.spanAxis, a.spanBack, a.spanPerp, a.spanPerpBack,
-      a.thickness ? JSON.stringify(a.thickness) : null,
+      // IN A FIXED ORDER. `JSON.stringify` preserves insertion order, so the same four reaches written
+      // in a different sequence compared unequal and the gate reported a round-trip failure on a tile
+      // that round-tripped perfectly.
+      ['left-up', 'right-up', 'left-down', 'right-down'].map(d => a.thickness?.[d] ?? '-').join(','),
       // How it is drawn: one billboard or painted on every face, and whether the block shell shows.
       a.settings?.display ?? '-', a.settings?.transparent ?? '-',
       a.settings?.fadeNear ?? '-', a.settings?.cutawayRoof ?? '-', a.settings?.actAsTile ?? '-',
@@ -96,6 +99,19 @@ const snapshot = () =>
       shapes: grid.assets.map(shape).sort(),
     }
   })
+
+// PLANT WHAT MUST SURVIVE, rather than hoping the generator planted it.
+//
+// The animation check asserted that at least one animated tile made the round trip, and whether a
+// generated woodland contains a fountain is up to the generator that day: the gate passed for a week
+// and then failed on a map with no moving water in it. A gate that depends on what the dice rolled is
+// testing the dice.
+await page.evaluate(() => {
+  const grid = window.__nebulithGrid
+  const stamp = window.__nebulithStamp
+  if (stamp && grid) stamp(grid, 'fountain', 2, 2, 'spring', 0, 0, {}, 0)
+})
+await page.waitForTimeout(1200)
 
 const before = await snapshot()
 if (!before) check(false, 'the grid is on the page')

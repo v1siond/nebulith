@@ -142,23 +142,10 @@ if (!shapes) {
 
   // A trunk is thin, and the species are NOT all thin the same way. The authored spread is the thing
   // that reads as a forest rather than as one tree stamped over and over.
-  // THE CENSUS, not a spot check. "Are the trunks varied" is a question about the whole forest, and a
-  // count of one map's distinct values is the only answer that is not an anecdote.
-  const widths = [...new Set(shapes.trunks.map(t => t.reaches[0]?.[1]).filter(v => typeof v === 'number'))].sort()
-  const heights = [...new Set(shapes.trunks.map(t => t.height).filter(v => typeof v === 'number'))].sort()
-  console.log(`\n  trunk widths  (${widths.length}): ${widths.map(f => f.toFixed(3)).join(', ')}`)
-  console.log(`  trunk heights (${heights.length}): ${heights.map(f => f.toFixed(2)).join(', ')}\n`)
-
-  check(
-    widths.length > 1,
-    'the trunks are not all the same width, the authored spread survives',
-    `${widths.length} distinct`,
-  )
-  check(
-    heights.length > 1,
-    'the trunks are not all the same height either',
-    `${heights.length} distinct`,
-  )
+  // THE SPREAD IS NOT CHECKED HERE. "Are the trunks varied" is a question about the twenty-one species
+  // the catalogue holds, and this measures whatever one generated map happened to plant: a city plants
+  // one species, so the answer was "1 distinct" and the gate failed on a map that was entirely correct.
+  // `bin/e2e treeSheet` stamps every species and asks it there.
 
   // 4. A ROOF SPANS ITS CELLS.
   //

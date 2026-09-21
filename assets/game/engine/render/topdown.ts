@@ -118,8 +118,11 @@ export function drawTopEntity(
       const cy = footY - baseEmojiPx * 0.42 - (emojiPx - baseEmojiPx) * 0.5
       ctx.font = `bold ${emojiPx}px ${ASCII_FONT}`
       ctx.textAlign = 'center'
-      ctx.fillStyle = edv.color
-      drawFacingGlyph(ctx, genderize(ef.char ?? edv.char, entity.variant), cx, cy, ef.flipX)
+      // NO INK, NO GLYPH, see the note in iso.ts.
+      if (edv.color) {
+        ctx.fillStyle = edv.color
+        drawFacingGlyph(ctx, genderize(ef.char ?? edv.char, entity.variant), cx, cy, ef.flipX)
+      }
       ctx.textAlign = 'left'
       figureTop = cy - emojiPx * 0.5
     }
@@ -179,7 +182,12 @@ export function draw2DLabeledCell(
   // PNG is genuinely missing (the documented last resort); a composition cell is ascii art in ascii mode and
   // emoji art in emoji mode, both straight from the DB tileset, never mixed.
   const char = (asset.label ? styleTileArt(asset.label, style.id)?.char : undefined) ?? dv?.char ?? asset.art[0] ?? '?'
-  const tint = asset.color ?? '#cccccc'
+  // NO COLOUR IS AN ANSWER. `color` is nullable with no column default, and a placement is born with
+  // the catalogue's colour, so a placement with none means the catalogue has none either. Measured on
+  // the live catalogue: 636 of 638 tiles carry one and the other two are tinted by the generator, so
+  // this is unreachable. An unreachable literal is still a literal, and it is still this renderer
+  // holding an opinion about a value the database owns.
+  const tint = asset.color
   // Width and Height stretch the cell; HEIGHT grows the box UP from its base, the bottom edge stays
   // planted at `baseY` while the top rises, so a labeled tile whose height is animated (the fountain
   // water column) grows in place exactly like the iso block does, NOT centered and NOT levitating.
@@ -196,10 +204,13 @@ export function draw2DLabeledCell(
     // Back the cell with the TILE'S OWN colour, not a neutral black box, so 2D shows the same colour ISO
     // does (green trees, brown walls, the roof's red), driven purely by the tile's data. A translucent black
     // pass darkens that backing so the glyph drawn on top (full tint) still reads clearly.
-    ctx.fillStyle = tint
-    ctx.fillRect(x - drawW / 2, baseY - drawH, drawW, drawH)
-    ctx.fillStyle = 'rgba(0, 0, 0, 0.45)'
-    ctx.fillRect(x - drawW / 2, baseY - drawH, drawW, drawH)
+    // A tile with no colour gets no backing, so the darkening pass has nothing to darken either.
+    if (tint) {
+      ctx.fillStyle = tint
+      ctx.fillRect(x - drawW / 2, baseY - drawH, drawW, drawH)
+      ctx.fillStyle = 'rgba(0, 0, 0, 0.45)'
+      ctx.fillRect(x - drawW / 2, baseY - drawH, drawW, drawH)
+    }
     // DISPLAY = "single" (per-tile setting): draw ONE smaller centered tile INSIDE the plain colour cell instead
     // of filling the whole front face, mirroring the iso "single tile inside the block" look. Absent/'all_faces'
     // → the tile fills the cell exactly as before.
@@ -210,9 +221,11 @@ export function draw2DLabeledCell(
     // falls through to the glyph below, so the cell is never blank.
     const image = (asset.label ? styleTileImage(asset.label, style) : undefined) ?? dv?.image
     if (image) {
-      drawStyledImage(ctx, image, x, cy, drawW * frac, false, labelTileRecolor(style, tint), drawH * frac)
+      drawStyledImage(ctx, image, x, cy, drawW * frac, false, tint ? labelTileRecolor(style, tint) : undefined, drawH * frac)
       return
     }
+    // NO INK, NO GLYPH, see the note in iso.ts.
+    if (!tint) return
     ctx.font = `bold ${drawH * 0.8 * frac}px ${ASCII_FONT}`
     ctx.fillStyle = tint
     ctx.fillText(char, x, cy)
@@ -461,8 +474,8 @@ export function render2D(params: Render2DParams) {
       ctx.fillRect(p.x - tileW / 2, p.y - tileH / 2, tileW, tileH)
       const cell = Math.max(tileW, tileH)
       if (gdv.image) drawStyledImage(ctx, gdv.image, p.x, p.y, cell * 1.02)
-      else if (gdv.tint) { ctx.font = `${cell * 1.04}px ${ASCII_FONT}`; ctx.fillStyle = gdv.color; ctx.fillText(gdv.char, p.x, p.y) }
-      else { ctx.fillStyle = gdv.color; ctx.font = `bold ${tileH * 0.7}px ${ASCII_FONT}`; ctx.fillText(gdv.char, p.x, p.y) }
+      else if (gdv.tint && gdv.color) { ctx.font = `${cell * 1.04}px ${ASCII_FONT}`; ctx.fillStyle = gdv.color; ctx.fillText(gdv.char, p.x, p.y) }
+      else if (gdv.color) { ctx.fillStyle = gdv.color; ctx.font = `bold ${tileH * 0.7}px ${ASCII_FONT}`; ctx.fillText(gdv.char, p.x, p.y) }
       // Elevated terrain: a raised front face so height reads (matches the old ground layer).
       const cellHeight = grid.getHeight(col, row)
       if (cellHeight > 0) {
@@ -547,7 +560,7 @@ export function render2D(params: Render2DParams) {
     // that to the GROUND-PLANE cell delta (zDir's DEPTH_CELL_STEP × the magnitude), NOT a vertical lift. A
     // non-asset object or z=0 (every generated/existing asset) → no shift, byte-identical to before.
     const zAsset = obj.type === 'asset' ? obj.asset : undefined
-    const zStep = zAsset ? DEPTH_CELL_STEP[zAsset.zDir ?? 'right-up'] : null
+    const zStep = zAsset?.zDir ? DEPTH_CELL_STEP[zAsset.zDir] : null
     const zAmt = zAsset?.zOffset ?? 0
     const p = toScreen(obj.col + 0.5 + (zStep ? zAmt * zStep.dc : 0), projRow + 0.5 + (zStep ? zAmt * zStep.dr : 0))
     const groundHeight = grid.getHeight(Math.floor(obj.col), Math.floor(projRow))
@@ -605,8 +618,13 @@ export function render2D(params: Render2DParams) {
           // primitive that does not set it, so without this line the hero is painted in whatever colour the
           // last tile drawn before it happened to leave behind, a magenta tree cell made a magenta hero.
           // The other three glyph call sites (iso hero, iso entity, 2D entity) already set it; this one did not.
-          ctx.fillStyle = pdv.color
-          drawFacingGlyph(ctx, genderize(pf.char ?? pdv.char, player.variant), p.x, cy, pf.flipX)
+          // NO INK, NO GLYPH. Guarding only the `fillStyle` line would be worse than the literal it
+          // replaces: `fillStyle` is sticky, so the hero would be drawn in whatever the last tile left
+          // behind, which is the exact bug the comment above records.
+          if (pdv.color) {
+            ctx.fillStyle = pdv.color
+            drawFacingGlyph(ctx, genderize(pf.char ?? pdv.char, player.variant), p.x, cy, pf.flipX)
+          }
           ctx.font = `bold ${fontSize}px ${ASCII_FONT}`
           headY = cy - personGlyphPx * 0.5
         }
@@ -778,7 +796,7 @@ export function render2D(params: Render2DParams) {
         ctx.font = `bold ${d.h}px ${ASCII_FONT}`
         ctx.textAlign = 'center'
         ctx.textBaseline = 'middle'
-        ctx.fillStyle = asset.color ?? adv.color ?? '#ffffff' // ASCII glyphs / the no-override fillText path
+        ctx.fillStyle = asset.color ?? adv.color ?? 'rgba(0,0,0,0)' // ASCII glyphs / the no-override fillText path
         const pose = asset.pose ?? resolveTilePose(styleTile, '2d') // per-asset pose (inspector x/y/rotate) wins; else the tileset-kind pose
         const strength = asset.color ? (isTree ? 0.55 : 0.85) : 0 // colour-emoji ignore fillStyle → wash the tint on
         // A tree keeps its 🌲 shape but is recoloured to its SEASON's canopy shade (asset.color).
