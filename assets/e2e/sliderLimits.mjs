@@ -30,6 +30,33 @@ const page = await browser.newPage({ viewport: { width: 1700, height: 1000 } })
 // The editor is behind a login now, so the gate walks through the real form before it can drive it.
 await logIn(page, BASE)
 await page.goto(`${BASE}/templates`, { waitUntil: 'networkidle' })
+await page.waitForTimeout(2500)
+
+// ITS OWN MAP, ALWAYS. /templates shows the gallery when the database has nothing in it, so a gate
+// that assumes the editor is open passes where somebody has been working and fails on a fresh
+// database. It also keeps the run off whatever map is really saved there.
+const scratchId = await page.evaluate(async () => {
+  const res = await fetch('/api/templates', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      name: `e2e slider limits ${Date.now()}`,
+      cols: 24, rows: 24, cellSize: 16, isoScale: 2.5,
+      groundData: Array.from({ length: 24 }, () => Array.from({ length: 24 }, () => 'grass')),
+      heightData: Array.from({ length: 24 }, () => Array.from({ length: 24 }, () => 0)),
+      assetsData: [], connectors: [], entities: [], quests: [],
+    }),
+  })
+  return res.ok ? (await res.json()).id : null
+})
+
+if (!scratchId) {
+  console.log('FAIL  could not create a scratch template to drive')
+  await browser.close()
+  process.exit(1)
+}
+
+await page.goto(`${BASE}/templates?id=${scratchId}`, { waitUntil: 'networkidle' })
 await page.waitForTimeout(3000)
 
 // A world to select something in. This never saves: the editor's Save writes over the open template.
@@ -97,6 +124,10 @@ for (const [label, typed] of [['Width', 20], ['Height', 14]]) {
     `typed=${typed} after=${after}`,
   )
 }
+
+// Leave the database as it was found, pass or fail. Before the browser closes, because the delete
+// rides the page's own session, and before the exit, because nothing after process.exit runs.
+await page.evaluate(id => fetch(`/api/templates/${id}`, { method: 'DELETE' }).catch(() => {}), scratchId)
 
 await browser.close()
 
