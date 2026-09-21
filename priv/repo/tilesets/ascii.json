@@ -884,7 +884,8 @@
       "bg": [
         "rgba(90, 69, 16, 0.95)",
         "rgba(74, 53, 10, 0.9)"
-      ]
+      ],
+      "category": "walls"
     },
     "stairs": {
       "char": [

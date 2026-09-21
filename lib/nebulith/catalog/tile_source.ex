@@ -3794,54 +3794,28 @@ defmodule Nebulith.Catalog.TileSource do
   # measured on the live catalog: cypress 0.80, stub and small 0.53, mangrove 0.49, and `tree` itself, the
   # commonest of all, 0.44.
   #
-  # So it is one rule for every tree rather than twenty-one hand-tuned numbers, which is also what stops the
-  # next variant arriving thick.
-  @trunk_to_crown 0.26
 
-  # The widest trunk any species asks for. The stated `trunk_w` values are a RELATIVE spread, 0.65 to 1.45
-  # across twenty-one species, so this is what the spread is measured against: the thickest trunk lands exactly
-  # on the share above and every other one keeps its authored proportion of it.
-  @widest_trunk 1.45
 
   defp tree_comp(opts) do
-    leaf_w = Map.get(opts, :leaf_w, 1.0)
-
-    # DERIVED, not stated. `trunk_w` scales the trunk's own tile; what has to hold is the drawn WIDTH against
-    # the drawn crown, and only this has both numbers.
+    # AN OBJECT IS TILES SOMEBODY PUT TOGETHER, and its numbers are its own.
     #
-    # SCALED, NOT CLAMPED. This was `min(stated, share)`, and the share is below even the SKINNIEST stated
-    # value, so the cap bound for all twenty-one species and every trunk in the game came out at the identical
-    # 0.585. Measured on `tree`, `tree_tall` and `tree_stub`, which are authored 1.0, 0.85 and 1.2 apart: all
-    # three read 0.585. A dozen authored widths became a dead knob, and the ask was to fix the proportions,
-    # not to make every tree the same. Scaling by the widest keeps the spread and still honours the share.
-    crown = opts.leaf_zoom * leaf_w
-
-    # HOW MUCH OF ITS CELL THE TRUNK FILLS, drawn. Not a number to be scaled again later: this is the
-    # width that ends up on screen, so it is the width the cell states.
+    # There is no shared rule here any more. `@trunk_to_crown` capped every trunk at a quarter of its
+    # crown and `@widest_trunk` rescaled the authored spread into whatever was left of that cap, so
+    # twenty-one species that state different proportions all came out within a few pixels of each
+    # other, and every attempt to fix one tree moved all twenty-one. That cap was invented here; it was
+    # never asked for.
     #
-    # This used to divide by `trunk_zoom`, purely to cancel a multiplication the frontend did two layers
-    # away in another language, and the two terms drifted apart the moment the cell stopped carrying a
-    # zoom. A derivation that only works because something else undoes half of it is not a derivation.
-    # THE WIDTH THE SHARE ALLOWS, against the crown, which is the rule the catalogue was tuned to.
-    trunk_width = Map.get(opts, :trunk_w, 1.0) / @widest_trunk * crown * @trunk_to_crown
-
-    # …AND THE SAME MASS, SQUARED OFF.
+    # What a species states is what it gets. This function only converts the two authoring words into
+    # the words a cell speaks:
     #
-    # A trunk used to be shrunk by a Zoom, which took BOTH ground axes but not equally against the
-    # share: it drew `trunk_width` across and `trunk_zoom` deep, so `tree` stood 0.24 by 0.60. Thinning
-    # by thickness instead made both axes the width, 0.24 by 0.24, and the post lost three fifths of its
-    # depth. On screen that is not "thin", it is a wire.
+    #   `trunk_zoom` is HOW MUCH OF ITS CELL the trunk fills, and `trunk_w` scales the across-axis
+    #   against it, so a conifer at 0.45 and 0.8 is a post 0.36 by 0.45 and an encina at 0.52 and 1.45
+    #   is a broad one. No cap, no rescale, no guard that quietly rewrites the number.
     #
-    # So the square cross-section keeps the AREA the species was tuned with. Nothing here is picked:
-    # both numbers are the ones the catalogue already authored, and the spread widens rather than
-    # flattening, 0.24 to 0.49 across the species instead of 0.15 to 0.35.
-    trunk_face = :math.sqrt(trunk_width * opts.trunk_zoom)
-
-    # Checked on the WIDTH, because that is what the share is a share of.
-    assert_tree_dimensions!(trunk_width, crown, opts)
-
-    # THE DRAWN HEIGHT, in blocks, for the same reason. `trunk_h` and `trunk_zoom` are how a species is
-    # authored (this one is 3.15 blocks at 60%); one number is what it is.
+    #   `trunk_h` x `trunk_zoom` is the height it draws at, because a species is authored as "3.15
+    #   blocks at 60%" and a cell states one number.
+    trunk_across = opts.trunk_zoom * Map.get(opts, :trunk_w, 1.0)
+    trunk_along = opts.trunk_zoom
     trunk_height = opts.trunk_h * opts.trunk_zoom
     leaf_level = round(trunk_height)
 
@@ -3862,7 +3836,7 @@ defmodule Nebulith.Catalog.TileSource do
           # that were already thinning it. That is the trunk being made thin by its width, which is the
           # one thing a trunk must not be.
           scale: 1.0,
-          settings: trunk_settings(trunk_height, trunk_face)
+          settings: trunk_settings(trunk_height, trunk_across, trunk_along)
         },
         leaf_cell(
           leaf_level,
@@ -3947,59 +3921,29 @@ defmodule Nebulith.Catalog.TileSource do
   # block its own width. His corrected trunk is Width 1 with the ↖ and ↗ reaches brought in.
   #
   # `left-up` and `right-up` are those two arrows, in the panel's own order (`Z_WIDTH_DIRS`).
-  # A trunk that fills its whole cell has nothing to pull in, so it says nothing about thickness. Width
-  # is still stated, because a setting is stated rather than implied by its own absence.
-  defp trunk_settings(trunk_h, 1.0), do: %{"scaleX" => 1.0, "scaleY" => trunk_h}
-
   # A REACH IS HOW FAR THE BLOCK EXTENDS TOWARD THAT FACE, not how much is pulled in from it.
   #
   # `reachOf` answers 1 for a face nobody set, and the block spans `1 - reach(back)` to `reach(forward)`
-  # along each axis. So with only the two "up" faces set, the reach IS the drawn width: 0.24 means a
-  # trunk a quarter of its cell across.
+  # along each axis. Centred, a block `w` across runs from `(1-w)/2` to `(1+w)/2`, so both of that axis'
+  # reaches are `(1+w)/2`.
   #
-  # Writing `1 - face` here inverted every trunk in the game. A tree meant to be 0.24 across drew at
-  # 0.76, and since the authored spread runs 0.15 to 0.70, inverting it squeezed twenty-one species into
-  # the band 0.30 to 0.85, where they all read as the same fat brown box.
-  defp trunk_settings(trunk_h, trunk_face) do
-    # A TRUNK STANDS IN THE MIDDLE OF ITS CELL, so it is pulled in from all FOUR faces, not two.
-    #
-    # The block spans `1 - reach(back)` to `reach(forward)` along each axis. Setting only the two "up"
-    # faces leaves the other two at their full 1, so the block runs from `1 - face` to 1: the right
-    # WIDTH, wedged into the same corner every time. Twenty-one species then differ by a couple of
-    # pixels of thickness at identical positions, which is why they read as one tree stamped over and
-    # over, and why every crown sat off to one side of its own trunk.
-    #
-    # Centred, the span is `(1-face)/2` to `(1+face)/2`, so every reach is `(1+face)/2`.
-    reach = Float.round((1.0 + trunk_face) / 2.0, 4)
+  # The two axes are separate because a trunk is not always square: `trunk_w` narrows the across-axis
+  # only, which is how a conifer reads thin from the front and a mangrove does not. `reachGroundQuad`
+  # pairs `right-down` with `left-up` on the +col axis and `left-down` with `right-up` on +row.
+  defp trunk_settings(trunk_h, across, along) do
+    a = Float.round((1.0 + min(across, 1.0)) / 2.0, 4)
+    b = Float.round((1.0 + min(along, 1.0)) / 2.0, 4)
 
     %{
       "scaleX" => 1.0,
       "scaleY" => trunk_h,
-      "thickness" => %{
-        "left-up" => reach,
-        "right-up" => reach,
-        "left-down" => reach,
-        "right-down" => reach
-      }
+      "thickness" => %{"right-down" => a, "left-up" => a, "left-down" => b, "right-up" => b}
     }
   end
 
-  # BOTH NUMBERS ARE NOW DRAWN WIDTHS, so the check is the proportion itself rather than two authoring
-  # knobs compared through a zoom that no longer reaches the trunk.
-  #
-  # THINNER IS NOT ENOUGH. This asked only that the trunk be narrower than the crown, which a trunk at 80%
-  # of it satisfies, and `tree_cypress` was exactly that. The share is the thing that reads as a tree, so
-  # the share is what is checked.
-  defp assert_tree_dimensions!(trunk_face, crown, opts) do
-    unless trunk_face > 0 and trunk_face <= crown * @trunk_to_crown + 0.0001 do
-      raise ArgumentError,
-            "tree #{inspect(opts)} has too thick a trunk: #{Float.round(trunk_face / crown, 3)} of its " <>
-              "crown, and a trunk may be at most #{@trunk_to_crown} (trunk_face=#{trunk_face}, " <>
-              "crown=#{crown})"
-    end
-
-    :ok
-  end
+  # `assert_tree_dimensions!` is gone with the cap it enforced. It asserted a species' trunk was at most
+  # a quarter of its crown, which is a rule about all trees, and a rule about all trees is the thing that
+  # made every tree the same. A species that wants a fat trunk states one.
 
   defp compositions do
     %{
@@ -5302,7 +5246,7 @@ defmodule Nebulith.Catalog.TileSource do
           label: "trunk_mid",
           walkable: false,
           scale: 1.0,
-          settings: trunk_settings(0.896, 0.32)
+          settings: trunk_settings(0.896, 0.32, 0.32)
         },
         %{
           dx: 1,
@@ -5320,7 +5264,7 @@ defmodule Nebulith.Catalog.TileSource do
           label: "trunk_mid",
           walkable: false,
           scale: 1.0,
-          settings: trunk_settings(0.616, 0.28)
+          settings: trunk_settings(0.616, 0.28, 0.28)
         },
         %{
           dx: 2,
