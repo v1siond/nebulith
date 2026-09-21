@@ -42,20 +42,20 @@ describe('a tile that covers many cells is kept while ANY of them is in the wind
     const g = grid()
     // A 33-cell floor run, the longest measured on a real map, anchored well left of the window and reaching
     // right through it. Before the fix this vanished entirely and took 33 cells of floor with it.
-    put(g, { col: 2, row: 30, depth: 33, depthDir: 'right-down' })
+    put(g, { col: 2, row: 30, spanForward: 33, spanAxis: 'right-down' })
     const kept = g.getVisibleAssets(30, 30, 20, 20)
     expect(kept).toHaveLength(1)
   })
 
   it('drops a run that genuinely misses the window, so the cull still culls', () => {
     const g = grid()
-    put(g, { col: 2, row: 2, depth: 4, depthDir: 'right-down' })
+    put(g, { col: 2, row: 2, spanForward: 4, spanAxis: 'right-down' })
     expect(g.getVisibleAssets(45, 45, 10, 10)).toHaveLength(0)
   })
 
   it('keeps a run reaching the window from the far side too', () => {
     const g = grid()
-    put(g, { col: 50, row: 30, depth: 30, depthDir: 'left-up' })
+    put(g, { col: 50, row: 30, spanForward: 30, spanAxis: 'left-up' })
     expect(g.getVisibleAssets(30, 30, 20, 20)).toHaveLength(1)
   })
 
@@ -68,12 +68,12 @@ describe('a tile that covers many cells is kept while ANY of them is in the wind
     expect(kept[0].col).toBe(30)
   })
 
-  it('counts the axes the old expansion ignored: depthBack, depthPerp, depthPerpBack', () => {
+  it('counts the axes the old expansion ignored: spanBack, spanPerp, spanPerpBack', () => {
     const g = grid()
     // Each of these reaches the window ONLY along an axis the old `coveredCells` never looked at, which is the
     // range-ring half of the same bug.
-    put(g, { col: 45, row: 30, depth: 1, depthBack: 14, depthDir: 'right-down', type: 'back' })
-    put(g, { col: 30, row: 45, depth: 1, depthPerp: 0, depthPerpBack: 14, depthDir: 'right-down', type: 'perpBack' })
+    put(g, { col: 45, row: 30, spanForward: 1, spanBack: 14, spanAxis: 'right-down', type: 'back' })
+    put(g, { col: 30, row: 45, spanForward: 1, spanPerp: 0, spanPerpBack: 14, spanAxis: 'right-down', type: 'perpBack' })
     const kept = g.getVisibleAssets(30, 30, 20, 20).map(a => a.type)
     expect(kept).toContain('back')
     expect(kept).toContain('perpBack')
@@ -81,26 +81,26 @@ describe('a tile that covers many cells is kept while ANY of them is in the wind
 })
 
 describe('the extent model itself, which both culls now share', () => {
-  it('reports no reach for a tile with no depthDir', () => {
+  it('reports no reach for a tile with no spanAxis', () => {
     expect(assetRectExtents({})).toEqual({ colMinus: 0, colPlus: 0, rowMinus: 0, rowPlus: 0 })
   })
 
   it('counts depth as INCLUDING the anchor, so a depth of 1 reaches nothing', () => {
-    expect(assetRectExtents({ depth: 1, depthDir: 'right-down' })).toEqual({ colMinus: 0, colPlus: 0, rowMinus: 0, rowPlus: 0 })
+    expect(assetRectExtents({ spanForward: 1, spanAxis: 'right-down' })).toEqual({ colMinus: 0, colPlus: 0, rowMinus: 0, rowPlus: 0 })
   })
 
   it('reaches depth-1 cells forward', () => {
-    const e = assetRectExtents({ depth: 33, depthDir: 'right-down' })
+    const e = assetRectExtents({ spanForward: 33, spanAxis: 'right-down' })
     expect(e.colPlus + e.rowPlus).toBe(32)
   })
 
   it('reaches BACKWARD as well, which is what a one-way expansion missed', () => {
-    const e = assetRectExtents({ depth: 1, depthBack: 5, depthDir: 'right-down' })
+    const e = assetRectExtents({ spanForward: 1, spanBack: 5, spanAxis: 'right-down' })
     expect(e.colMinus + e.rowMinus).toBe(5)
   })
 
   it('reaches along the PERPENDICULAR axis, the other thing it missed', () => {
-    const e = assetRectExtents({ depth: 1, depthPerp: 3, depthPerpBack: 2, depthDir: 'right-down' })
+    const e = assetRectExtents({ spanForward: 1, spanPerp: 3, spanPerpBack: 2, spanAxis: 'right-down' })
     expect(e.colMinus + e.colPlus + e.rowMinus + e.rowPlus).toBe(5)
   })
 })

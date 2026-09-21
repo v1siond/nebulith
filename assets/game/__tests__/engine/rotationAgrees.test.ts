@@ -10,16 +10,16 @@
  * describe the same move.
  */
 import { rotateFootprintOffset } from '@/engine/buildingCatalog'
-import { rotateDepthDir, type DepthDir } from '@/engine/render/isoBlock'
+import { rotateDepthDir, type IsoDiagonal } from '@/engine/render/isoBlock'
 
 /** The grid step each direction means: right-down = +col, left-down = +row. */
-const STEP: Record<DepthDir, { dx: number; dy: number }> = {
+const STEP: Record<IsoDiagonal, { dx: number; dy: number }> = {
   'right-down': { dx: 1, dy: 0 },
   'left-down': { dx: 0, dy: 1 },
   'left-up': { dx: -1, dy: 0 },
   'right-up': { dx: 0, dy: -1 },
 }
-const DIRS = Object.keys(STEP) as DepthDir[]
+const DIRS = Object.keys(STEP) as IsoDiagonal[]
 
 describe('footprint offsets and directions turn together', () => {
   it.each([0, 1, 2, 3])('rotation %i: a step along a direction still points that way after turning', rotation => {

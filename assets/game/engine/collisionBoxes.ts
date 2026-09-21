@@ -16,6 +16,7 @@
  * DRAWN at, which is already data: a standard trunk draws at 0.6 of its cell, so it occupies 0.6 of it. That
  * keeps walls, rocks and buildings unchanged while a tree stops blocking the gap beside it.
  */
+import { reachOf } from '@/engine/render/isoBlock'
 import { resolveAssetDrawSize } from './render/assetDimensions'
 import { styleTile } from './tileset/styleTiles'
 import type { GridAsset } from './IsometricGrid'
@@ -29,6 +30,28 @@ export const FULL_CELL: CollisionBox = { x: 0, y: 0, w: 1, h: 1 }
 export const MIN_BOX_SIDE = 0.2
 
 const clamp01 = (n: number) => Math.max(MIN_BOX_SIDE, Math.min(1, n))
+
+/**
+ * One axis of the box: how far it reaches each way from the cell's centre.
+ *
+ * The SIZE sets the half-extent and each REACH pulls its own face in, so a door thin toward its wall
+ * blocks a strip along that wall rather than a centred square. Clamped at the end rather than at the
+ * start: clamping the size first and then multiplying by a reach could still take the final box below
+ * the minimum, and a box that shrinks to nothing lets a body walk through a solid tile.
+ */
+const axis = (size: number, minusReach: number, plusReach: number): { minus: number; plus: number; span: number } => {
+  const half = Math.min(1, Math.max(0, size)) / 2
+  const minus = half * minusReach
+  const plus = half * plusReach
+  const span = minus + plus
+  if (span >= MIN_BOX_SIDE) return { minus, plus, span }
+
+  // Too thin to be real. Keep the side it was leaning toward, widened to the minimum.
+  const grow = MIN_BOX_SIDE / (span > 0 ? span : 1)
+  return span > 0
+    ? { minus: minus * grow, plus: plus * grow, span: MIN_BOX_SIDE }
+    : { minus: MIN_BOX_SIDE / 2, plus: MIN_BOX_SIDE / 2, span: MIN_BOX_SIDE }
+}
 
 /** Is this the plain "all of it" box the seeding writes, rather than a shape somebody authored? */
 const isWholeCell = (boxes: readonly CollisionBox[]): boolean =>
@@ -53,12 +76,26 @@ export function boxesForAsset(asset: GridAsset): readonly CollisionBox[] {
   const declared = declaredBoxes(asset)
   if (declared.length === 0) return []
   if (!isWholeCell(declared)) return declared // an authored shape is used verbatim, never second-guessed
-  // "All of it" means all of what it DRAWS: width across, thickness into the screen (assetDimensions' overhead).
+  // "All of it" means all of what it DRAWS, and what a tile draws inside its own cell is two things:
+  // how big it is (Width across, Depth into the screen) and how far it REACHES toward each face.
+  //
+  // It used to read the size alone, back when a thinness and a size shared one field. They are separate
+  // now, so a thin door has to be read from its thickness or the box it makes solid is the whole cell
+  // and you cannot walk past it.
+  //
+  // The four reaches are iso diagonals and map onto the grid: left-up is −col, right-down is +col,
+  // right-up is −row, left-down is +row. Each pulls its own face in, so a door thin toward its wall
+  // blocks a strip along that wall rather than a centred square.
   const { w, h } = resolveAssetDrawSize(1, asset, 'overhead')
-  if (!(w > 0) || !(h > 0) || (w >= 1 && h >= 1)) return [FULL_CELL]
-  const bw = clamp01(w)
-  const bh = clamp01(h)
-  return [{ x: (1 - bw) / 2, y: (1 - bh) / 2, w: bw, h: bh }]
+  if (!(w > 0) || !(h > 0)) return [FULL_CELL]
+
+  const reach = asset.thickness ?? {}
+  const across = axis(w, reachOf(reach, 'left-up'), reachOf(reach, 'right-down'))
+  const into = axis(h, reachOf(reach, 'right-up'), reachOf(reach, 'left-down'))
+
+  if (across.span >= 1 && into.span >= 1) return [FULL_CELL]
+
+  return [{ x: 0.5 - across.minus, y: 0.5 - into.minus, w: across.span, h: into.span }]
 }
 
 /** Does this asset make ANYTHING solid? The single question the cell grid asks, replacing `asset.blocking`. */

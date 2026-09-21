@@ -10824,7 +10824,7 @@
               "level": 9,
               "settings": {
                 "depth": 6,
-                "depthDir": "left-down"
+                "spanAxis": "left-down"
               },
               "dx": 0,
               "dy": 0,
@@ -10996,7 +10996,7 @@
               "level": 9,
               "settings": {
                 "depth": 6,
-                "depthDir": "left-down"
+                "spanAxis": "left-down"
               },
               "dx": 1,
               "dy": 0,
@@ -11102,7 +11102,7 @@
               "level": 9,
               "settings": {
                 "depth": 6,
-                "depthDir": "left-down"
+                "spanAxis": "left-down"
               },
               "dx": 2,
               "dy": 0,
@@ -11226,7 +11226,7 @@
               "level": 9,
               "settings": {
                 "depth": 6,
-                "depthDir": "left-down"
+                "spanAxis": "left-down"
               },
               "dx": 3,
               "dy": 0,
@@ -11332,7 +11332,7 @@
               "level": 9,
               "settings": {
                 "depth": 6,
-                "depthDir": "left-down",
+                "spanAxis": "left-down",
                 "scaleY": 2
               },
               "dx": 4,
@@ -11457,7 +11457,7 @@
               "level": 9,
               "settings": {
                 "depth": 6,
-                "depthDir": "left-down",
+                "spanAxis": "left-down",
                 "scaleY": 3
               },
               "dx": 5,
@@ -11546,7 +11546,7 @@
               "level": 0,
               "settings": {
                 "depth": 2,
-                "depthDir": "right-down"
+                "spanAxis": "right-down"
               },
               "dx": 5,
               "dy": 6,
@@ -11640,7 +11640,7 @@
               "level": 9,
               "settings": {
                 "depth": 6,
-                "depthDir": "left-down",
+                "spanAxis": "left-down",
                 "scaleY": 3
               },
               "dx": 6,
@@ -11741,7 +11741,7 @@
               "level": 9,
               "settings": {
                 "depth": 6,
-                "depthDir": "left-down",
+                "spanAxis": "left-down",
                 "scaleY": 2
               },
               "dx": 7,
@@ -11866,7 +11866,7 @@
               "level": 9,
               "settings": {
                 "depth": 6,
-                "depthDir": "left-down"
+                "spanAxis": "left-down"
               },
               "dx": 8,
               "dy": 0,
@@ -11972,7 +11972,7 @@
               "level": 9,
               "settings": {
                 "depth": 6,
-                "depthDir": "left-down"
+                "spanAxis": "left-down"
               },
               "dx": 9,
               "dy": 0,
@@ -12096,7 +12096,7 @@
               "level": 9,
               "settings": {
                 "depth": 6,
-                "depthDir": "left-down"
+                "spanAxis": "left-down"
               },
               "dx": 10,
               "dy": 0,
@@ -12202,7 +12202,7 @@
               "level": 9,
               "settings": {
                 "depth": 6,
-                "depthDir": "left-down"
+                "spanAxis": "left-down"
               },
               "dx": 11,
               "dy": 0,
@@ -12315,7 +12315,7 @@
               "level": 5,
               "settings": {
                 "depth": 5,
-                "depthDir": "left-down"
+                "spanAxis": "left-down"
               },
               "dx": 0,
               "dy": 0,
@@ -12439,7 +12439,7 @@
               "level": 5,
               "settings": {
                 "depth": 5,
-                "depthDir": "left-down"
+                "spanAxis": "left-down"
               },
               "dx": 1,
               "dy": 0,
@@ -12509,7 +12509,7 @@
               "level": 5,
               "settings": {
                 "depth": 5,
-                "depthDir": "left-down",
+                "spanAxis": "left-down",
                 "scaleY": 2
               },
               "dx": 2,
@@ -12598,7 +12598,7 @@
               "level": 5,
               "settings": {
                 "depth": 5,
-                "depthDir": "left-down",
+                "spanAxis": "left-down",
                 "scaleY": 3
               },
               "dx": 3,
@@ -12672,7 +12672,7 @@
               "level": 5,
               "settings": {
                 "depth": 5,
-                "depthDir": "left-down",
+                "spanAxis": "left-down",
                 "scaleY": 2
               },
               "dx": 4,
@@ -12761,7 +12761,7 @@
               "level": 5,
               "settings": {
                 "depth": 5,
-                "depthDir": "left-down"
+                "spanAxis": "left-down"
               },
               "dx": 5,
               "dy": 0,
@@ -12831,7 +12831,7 @@
               "level": 5,
               "settings": {
                 "depth": 5,
-                "depthDir": "left-down"
+                "spanAxis": "left-down"
               },
               "dx": 6,
               "dy": 0,
@@ -13239,7 +13239,7 @@
               "level": 4,
               "settings": {
                 "depth": 4,
-                "depthDir": "left-down"
+                "spanAxis": "left-down"
               },
               "dx": 0,
               "dy": 0,
@@ -13342,7 +13342,7 @@
               "level": 4,
               "settings": {
                 "depth": 4,
-                "depthDir": "left-down",
+                "spanAxis": "left-down",
                 "scaleY": 2
               },
               "dx": 1,
@@ -13404,7 +13404,7 @@
               "level": 4,
               "settings": {
                 "depth": 4,
-                "depthDir": "left-down",
+                "spanAxis": "left-down",
                 "scaleY": 3
               },
               "dx": 2,
@@ -13448,7 +13448,7 @@
               "level": 0,
               "settings": {
                 "depth": 2,
-                "depthDir": "right-down"
+                "spanAxis": "right-down"
               },
               "dx": 2,
               "dy": 4,
@@ -13473,7 +13473,7 @@
               "level": 4,
               "settings": {
                 "depth": 4,
-                "depthDir": "left-down",
+                "spanAxis": "left-down",
                 "scaleY": 3
               },
               "dx": 3,
@@ -13553,7 +13553,7 @@
               "level": 4,
               "settings": {
                 "depth": 4,
-                "depthDir": "left-down",
+                "spanAxis": "left-down",
                 "scaleY": 2
               },
               "dx": 4,
@@ -13615,7 +13615,7 @@
               "level": 4,
               "settings": {
                 "depth": 4,
-                "depthDir": "left-down"
+                "spanAxis": "left-down"
               },
               "dx": 5,
               "dy": 0,
@@ -13704,7 +13704,7 @@
               "level": 4,
               "settings": {
                 "depth": 4,
-                "depthDir": "left-down"
+                "spanAxis": "left-down"
               },
               "dx": 0,
               "dy": 0,
@@ -13807,7 +13807,7 @@
               "level": 4,
               "settings": {
                 "depth": 4,
-                "depthDir": "left-down",
+                "spanAxis": "left-down",
                 "scaleY": 2
               },
               "dx": 1,
@@ -13872,7 +13872,7 @@
               "level": 4,
               "settings": {
                 "depth": 4,
-                "depthDir": "left-down"
+                "spanAxis": "left-down"
               },
               "dx": 2,
               "dy": 0,
@@ -13961,7 +13961,7 @@
               "level": 4,
               "settings": {
                 "depth": 4,
-                "depthDir": "left-down"
+                "spanAxis": "left-down"
               },
               "dx": 0,
               "dy": 0,
@@ -14064,7 +14064,7 @@
               "level": 4,
               "settings": {
                 "depth": 4,
-                "depthDir": "left-down",
+                "spanAxis": "left-down",
                 "scaleY": 2
               },
               "dx": 1,
@@ -14108,7 +14108,7 @@
               "level": 0,
               "settings": {
                 "depth": 2,
-                "depthDir": "right-down"
+                "spanAxis": "right-down"
               },
               "dx": 1,
               "dy": 4,
@@ -14157,7 +14157,7 @@
               "level": 4,
               "settings": {
                 "depth": 4,
-                "depthDir": "left-down",
+                "spanAxis": "left-down",
                 "scaleY": 2
               },
               "dx": 2,
@@ -14213,7 +14213,7 @@
               "level": 4,
               "settings": {
                 "depth": 4,
-                "depthDir": "left-down"
+                "spanAxis": "left-down"
               },
               "dx": 3,
               "dy": 0,
@@ -14302,7 +14302,7 @@
               "level": 4,
               "settings": {
                 "depth": 4,
-                "depthDir": "left-down"
+                "spanAxis": "left-down"
               },
               "dx": 0,
               "dy": 0,
@@ -14405,7 +14405,7 @@
               "level": 4,
               "settings": {
                 "depth": 4,
-                "depthDir": "left-down",
+                "spanAxis": "left-down",
                 "scaleY": 2
               },
               "dx": 1,
@@ -14467,7 +14467,7 @@
               "level": 4,
               "settings": {
                 "depth": 4,
-                "depthDir": "left-down",
+                "spanAxis": "left-down",
                 "scaleY": 3
               },
               "dx": 2,
@@ -14556,7 +14556,7 @@
               "level": 4,
               "settings": {
                 "depth": 4,
-                "depthDir": "left-down",
+                "spanAxis": "left-down",
                 "scaleY": 2
               },
               "dx": 3,
@@ -14618,7 +14618,7 @@
               "level": 4,
               "settings": {
                 "depth": 4,
-                "depthDir": "left-down"
+                "spanAxis": "left-down"
               },
               "dx": 4,
               "dy": 0,
@@ -14858,7 +14858,7 @@
               "level": 6,
               "settings": {
                 "depth": 5,
-                "depthDir": "left-down"
+                "spanAxis": "left-down"
               },
               "dx": 0,
               "dy": 0,
@@ -14991,7 +14991,7 @@
               "level": 6,
               "settings": {
                 "depth": 5,
-                "depthDir": "left-down"
+                "spanAxis": "left-down"
               },
               "dx": 1,
               "dy": 0,
@@ -15070,7 +15070,7 @@
               "level": 6,
               "settings": {
                 "depth": 5,
-                "depthDir": "left-down"
+                "spanAxis": "left-down"
               },
               "dx": 2,
               "dy": 0,
@@ -15188,7 +15188,7 @@
               "level": 6,
               "settings": {
                 "depth": 5,
-                "depthDir": "left-down"
+                "spanAxis": "left-down"
               },
               "dx": 3,
               "dy": 0,
@@ -15267,7 +15267,7 @@
               "level": 6,
               "settings": {
                 "depth": 5,
-                "depthDir": "left-down"
+                "spanAxis": "left-down"
               },
               "dx": 4,
               "dy": 0,
@@ -15368,7 +15368,7 @@
               "level": 4,
               "settings": {
                 "depth": 4,
-                "depthDir": "left-down"
+                "spanAxis": "left-down"
               },
               "dx": 0,
               "dy": 0,
@@ -15447,7 +15447,7 @@
               "level": 4,
               "settings": {
                 "depth": 4,
-                "depthDir": "left-down",
+                "spanAxis": "left-down",
                 "scaleY": 2
               },
               "dx": 1,
@@ -15509,7 +15509,7 @@
               "level": 4,
               "settings": {
                 "depth": 4,
-                "depthDir": "left-down",
+                "spanAxis": "left-down",
                 "scaleY": 3
               },
               "dx": 2,
@@ -15574,7 +15574,7 @@
               "level": 4,
               "settings": {
                 "depth": 4,
-                "depthDir": "left-down",
+                "spanAxis": "left-down",
                 "scaleY": 2
               },
               "dx": 3,
@@ -15636,7 +15636,7 @@
               "level": 4,
               "settings": {
                 "depth": 4,
-                "depthDir": "left-down"
+                "spanAxis": "left-down"
               },
               "dx": 4,
               "dy": 0,
@@ -15725,7 +15725,7 @@
               "level": 4,
               "settings": {
                 "depth": 4,
-                "depthDir": "left-down"
+                "spanAxis": "left-down"
               },
               "dx": 0,
               "dy": 0,
@@ -15804,7 +15804,7 @@
               "level": 4,
               "settings": {
                 "depth": 4,
-                "depthDir": "left-down"
+                "spanAxis": "left-down"
               },
               "dx": 1,
               "dy": 0,
@@ -15865,7 +15865,7 @@
               "level": 4,
               "settings": {
                 "depth": 4,
-                "depthDir": "left-down"
+                "spanAxis": "left-down"
               },
               "dx": 2,
               "dy": 0,
@@ -15938,7 +15938,7 @@
               "level": 4,
               "settings": {
                 "depth": 4,
-                "depthDir": "left-down"
+                "spanAxis": "left-down"
               },
               "dx": 3,
               "dy": 0,
@@ -15999,7 +15999,7 @@
               "level": 4,
               "settings": {
                 "depth": 4,
-                "depthDir": "left-down"
+                "spanAxis": "left-down"
               },
               "dx": 4,
               "dy": 0,
@@ -16088,7 +16088,7 @@
               "level": 6,
               "settings": {
                 "depth": 4,
-                "depthDir": "left-down"
+                "spanAxis": "left-down"
               },
               "dx": 0,
               "dy": 0,
@@ -16209,7 +16209,7 @@
               "level": 6,
               "settings": {
                 "depth": 4,
-                "depthDir": "left-down"
+                "spanAxis": "left-down"
               },
               "dx": 1,
               "dy": 0,
@@ -16288,7 +16288,7 @@
               "level": 6,
               "settings": {
                 "depth": 4,
-                "depthDir": "left-down",
+                "spanAxis": "left-down",
                 "scaleY": 2
               },
               "dx": 2,
@@ -16386,7 +16386,7 @@
               "level": 6,
               "settings": {
                 "depth": 4,
-                "depthDir": "left-down",
+                "spanAxis": "left-down",
                 "scaleY": 3
               },
               "dx": 3,
@@ -16448,7 +16448,7 @@
               "level": 0,
               "settings": {
                 "depth": 2,
-                "depthDir": "right-down"
+                "spanAxis": "right-down"
               },
               "dx": 3,
               "dy": 4,
@@ -16515,7 +16515,7 @@
               "level": 6,
               "settings": {
                 "depth": 4,
-                "depthDir": "left-down",
+                "spanAxis": "left-down",
                 "scaleY": 3
               },
               "dx": 4,
@@ -16589,7 +16589,7 @@
               "level": 6,
               "settings": {
                 "depth": 4,
-                "depthDir": "left-down",
+                "spanAxis": "left-down",
                 "scaleY": 2
               },
               "dx": 5,
@@ -16687,7 +16687,7 @@
               "level": 6,
               "settings": {
                 "depth": 4,
-                "depthDir": "left-down"
+                "spanAxis": "left-down"
               },
               "dx": 6,
               "dy": 0,
@@ -16766,7 +16766,7 @@
               "level": 6,
               "settings": {
                 "depth": 4,
-                "depthDir": "left-down"
+                "spanAxis": "left-down"
               },
               "dx": 7,
               "dy": 0,
@@ -17709,7 +17709,7 @@
                 ],
                 "color": "#b9b2a3",
                 "depth": 7,
-                "depthDir": "right-down",
+                "spanAxis": "right-down",
                 "scaleY": 0.55,
                 "scaleZ": 0.3,
                 "thicknessDir": "right-up"
@@ -17745,7 +17745,7 @@
               "settings": {
                 "color": "#b9b2a3",
                 "depth": 7,
-                "depthDir": "right-down",
+                "spanAxis": "right-down",
                 "scaleY": 0.9,
                 "scaleZ": 0.45,
                 "thicknessDir": "left-down"
@@ -17761,7 +17761,7 @@
               "scale": 1,
               "settings": {
                 "depth": 7,
-                "depthDir": "right-down",
+                "spanAxis": "right-down",
                 "scaleY": 0.09
               },
               "dx": 0,
@@ -17776,7 +17776,7 @@
               "settings": {
                 "color": "#b9b2a3",
                 "depth": 7,
-                "depthDir": "right-down",
+                "spanAxis": "right-down",
                 "scaleY": 0.9,
                 "scaleZ": 0.45,
                 "thicknessDir": "left-down"
@@ -17792,7 +17792,7 @@
               "scale": 1,
               "settings": {
                 "depth": 7,
-                "depthDir": "right-down",
+                "spanAxis": "right-down",
                 "scaleY": 0.09
               },
               "dx": 0,
@@ -17815,7 +17815,7 @@
                 ],
                 "color": "#b9b2a3",
                 "depth": 7,
-                "depthDir": "right-down",
+                "spanAxis": "right-down",
                 "scaleY": 0.55,
                 "scaleZ": 0.3,
                 "thicknessDir": "left-down"
@@ -17907,7 +17907,7 @@
                 ],
                 "color": "#b9b2a3",
                 "depth": 3,
-                "depthDir": "right-down",
+                "spanAxis": "right-down",
                 "scaleY": 0.55,
                 "scaleZ": 0.3,
                 "thicknessDir": "right-up"
@@ -17943,7 +17943,7 @@
               "settings": {
                 "color": "#b9b2a3",
                 "depth": 3,
-                "depthDir": "right-down",
+                "spanAxis": "right-down",
                 "scaleY": 0.9,
                 "scaleZ": 0.45,
                 "thicknessDir": "left-down"
@@ -17959,7 +17959,7 @@
               "scale": 1,
               "settings": {
                 "depth": 3,
-                "depthDir": "right-down",
+                "spanAxis": "right-down",
                 "scaleY": 0.09
               },
               "dx": 0,
@@ -17974,7 +17974,7 @@
               "settings": {
                 "color": "#b9b2a3",
                 "depth": 3,
-                "depthDir": "right-down",
+                "spanAxis": "right-down",
                 "scaleY": 0.9,
                 "scaleZ": 0.45,
                 "thicknessDir": "left-down"
@@ -17990,7 +17990,7 @@
               "scale": 1,
               "settings": {
                 "depth": 3,
-                "depthDir": "right-down",
+                "spanAxis": "right-down",
                 "scaleY": 0.09
               },
               "dx": 0,
@@ -18013,7 +18013,7 @@
                 ],
                 "color": "#b9b2a3",
                 "depth": 3,
-                "depthDir": "right-down",
+                "spanAxis": "right-down",
                 "scaleY": 0.55,
                 "scaleZ": 0.3,
                 "thicknessDir": "left-down"
@@ -18105,7 +18105,7 @@
                 ],
                 "color": "#b9b2a3",
                 "depth": 4,
-                "depthDir": "right-down",
+                "spanAxis": "right-down",
                 "scaleY": 0.55,
                 "scaleZ": 0.3,
                 "thicknessDir": "right-up"
@@ -18141,7 +18141,7 @@
               "settings": {
                 "color": "#b9b2a3",
                 "depth": 4,
-                "depthDir": "right-down",
+                "spanAxis": "right-down",
                 "scaleY": 0.9,
                 "scaleZ": 0.45,
                 "thicknessDir": "left-down"
@@ -18157,7 +18157,7 @@
               "scale": 1,
               "settings": {
                 "depth": 4,
-                "depthDir": "right-down",
+                "spanAxis": "right-down",
                 "scaleY": 0.09
               },
               "dx": 0,
@@ -18172,7 +18172,7 @@
               "settings": {
                 "color": "#b9b2a3",
                 "depth": 4,
-                "depthDir": "right-down",
+                "spanAxis": "right-down",
                 "scaleY": 0.9,
                 "scaleZ": 0.45,
                 "thicknessDir": "left-down"
@@ -18188,7 +18188,7 @@
               "scale": 1,
               "settings": {
                 "depth": 4,
-                "depthDir": "right-down",
+                "spanAxis": "right-down",
                 "scaleY": 0.09
               },
               "dx": 0,
@@ -18211,7 +18211,7 @@
                 ],
                 "color": "#b9b2a3",
                 "depth": 4,
-                "depthDir": "right-down",
+                "spanAxis": "right-down",
                 "scaleY": 0.55,
                 "scaleZ": 0.3,
                 "thicknessDir": "left-down"
@@ -18303,7 +18303,7 @@
                 ],
                 "color": "#8a6a45",
                 "depth": 5,
-                "depthDir": "right-down",
+                "spanAxis": "right-down",
                 "scaleY": 0.55,
                 "scaleZ": 0.3,
                 "thicknessDir": "right-up"
@@ -18339,7 +18339,7 @@
               "settings": {
                 "color": "#8a6a45",
                 "depth": 5,
-                "depthDir": "right-down",
+                "spanAxis": "right-down",
                 "scaleY": 0.9,
                 "scaleZ": 0.45,
                 "thicknessDir": "left-down"
@@ -18355,7 +18355,7 @@
               "scale": 1,
               "settings": {
                 "depth": 5,
-                "depthDir": "right-down",
+                "spanAxis": "right-down",
                 "scaleY": 0.09
               },
               "dx": 0,
@@ -18370,7 +18370,7 @@
               "settings": {
                 "color": "#8a6a45",
                 "depth": 5,
-                "depthDir": "right-down",
+                "spanAxis": "right-down",
                 "scaleY": 0.9,
                 "scaleZ": 0.45,
                 "thicknessDir": "left-down"
@@ -18386,7 +18386,7 @@
               "scale": 1,
               "settings": {
                 "depth": 5,
-                "depthDir": "right-down",
+                "spanAxis": "right-down",
                 "scaleY": 0.09
               },
               "dx": 0,
@@ -18409,7 +18409,7 @@
                 ],
                 "color": "#8a6a45",
                 "depth": 5,
-                "depthDir": "right-down",
+                "spanAxis": "right-down",
                 "scaleY": 0.55,
                 "scaleZ": 0.3,
                 "thicknessDir": "left-down"
@@ -18501,7 +18501,7 @@
                 ],
                 "color": "#8a6a45",
                 "depth": 6,
-                "depthDir": "right-down",
+                "spanAxis": "right-down",
                 "scaleY": 0.55,
                 "scaleZ": 0.3,
                 "thicknessDir": "right-up"
@@ -18537,7 +18537,7 @@
               "settings": {
                 "color": "#8a6a45",
                 "depth": 6,
-                "depthDir": "right-down",
+                "spanAxis": "right-down",
                 "scaleY": 0.9,
                 "scaleZ": 0.45,
                 "thicknessDir": "left-down"
@@ -18553,7 +18553,7 @@
               "scale": 1,
               "settings": {
                 "depth": 6,
-                "depthDir": "right-down",
+                "spanAxis": "right-down",
                 "scaleY": 0.09
               },
               "dx": 0,
@@ -18568,7 +18568,7 @@
               "settings": {
                 "color": "#8a6a45",
                 "depth": 6,
-                "depthDir": "right-down",
+                "spanAxis": "right-down",
                 "scaleY": 0.9,
                 "scaleZ": 0.45,
                 "thicknessDir": "left-down"
@@ -18584,7 +18584,7 @@
               "scale": 1,
               "settings": {
                 "depth": 6,
-                "depthDir": "right-down",
+                "spanAxis": "right-down",
                 "scaleY": 0.09
               },
               "dx": 0,
@@ -18607,7 +18607,7 @@
                 ],
                 "color": "#8a6a45",
                 "depth": 6,
-                "depthDir": "right-down",
+                "spanAxis": "right-down",
                 "scaleY": 0.55,
                 "scaleZ": 0.3,
                 "thicknessDir": "left-down"
@@ -18699,7 +18699,7 @@
                 ],
                 "color": "#8a6a45",
                 "depth": 7,
-                "depthDir": "right-down",
+                "spanAxis": "right-down",
                 "scaleY": 0.55,
                 "scaleZ": 0.3,
                 "thicknessDir": "right-up"
@@ -18735,7 +18735,7 @@
               "settings": {
                 "color": "#8a6a45",
                 "depth": 7,
-                "depthDir": "right-down",
+                "spanAxis": "right-down",
                 "scaleY": 0.9,
                 "scaleZ": 0.45,
                 "thicknessDir": "left-down"
@@ -18751,7 +18751,7 @@
               "scale": 1,
               "settings": {
                 "depth": 7,
-                "depthDir": "right-down",
+                "spanAxis": "right-down",
                 "scaleY": 0.09
               },
               "dx": 0,
@@ -18766,7 +18766,7 @@
               "settings": {
                 "color": "#8a6a45",
                 "depth": 7,
-                "depthDir": "right-down",
+                "spanAxis": "right-down",
                 "scaleY": 0.9,
                 "scaleZ": 0.45,
                 "thicknessDir": "left-down"
@@ -18782,7 +18782,7 @@
               "scale": 1,
               "settings": {
                 "depth": 7,
-                "depthDir": "right-down",
+                "spanAxis": "right-down",
                 "scaleY": 0.09
               },
               "dx": 0,
@@ -18805,7 +18805,7 @@
                 ],
                 "color": "#8a6a45",
                 "depth": 7,
-                "depthDir": "right-down",
+                "spanAxis": "right-down",
                 "scaleY": 0.55,
                 "scaleZ": 0.3,
                 "thicknessDir": "left-down"
@@ -18897,7 +18897,7 @@
                 ],
                 "color": "#8a6a45",
                 "depth": 3,
-                "depthDir": "right-down",
+                "spanAxis": "right-down",
                 "scaleY": 0.55,
                 "scaleZ": 0.3,
                 "thicknessDir": "right-up"
@@ -18933,7 +18933,7 @@
               "settings": {
                 "color": "#8a6a45",
                 "depth": 3,
-                "depthDir": "right-down",
+                "spanAxis": "right-down",
                 "scaleY": 0.9,
                 "scaleZ": 0.45,
                 "thicknessDir": "left-down"
@@ -18949,7 +18949,7 @@
               "scale": 1,
               "settings": {
                 "depth": 3,
-                "depthDir": "right-down",
+                "spanAxis": "right-down",
                 "scaleY": 0.09
               },
               "dx": 0,
@@ -18964,7 +18964,7 @@
               "settings": {
                 "color": "#8a6a45",
                 "depth": 3,
-                "depthDir": "right-down",
+                "spanAxis": "right-down",
                 "scaleY": 0.9,
                 "scaleZ": 0.45,
                 "thicknessDir": "left-down"
@@ -18980,7 +18980,7 @@
               "scale": 1,
               "settings": {
                 "depth": 3,
-                "depthDir": "right-down",
+                "spanAxis": "right-down",
                 "scaleY": 0.09
               },
               "dx": 0,
@@ -19003,7 +19003,7 @@
                 ],
                 "color": "#8a6a45",
                 "depth": 3,
-                "depthDir": "right-down",
+                "spanAxis": "right-down",
                 "scaleY": 0.55,
                 "scaleZ": 0.3,
                 "thicknessDir": "left-down"
@@ -19095,7 +19095,7 @@
                 ],
                 "color": "#8a6a45",
                 "depth": 4,
-                "depthDir": "right-down",
+                "spanAxis": "right-down",
                 "scaleY": 0.55,
                 "scaleZ": 0.3,
                 "thicknessDir": "right-up"
@@ -19131,7 +19131,7 @@
               "settings": {
                 "color": "#8a6a45",
                 "depth": 4,
-                "depthDir": "right-down",
+                "spanAxis": "right-down",
                 "scaleY": 0.9,
                 "scaleZ": 0.45,
                 "thicknessDir": "left-down"
@@ -19147,7 +19147,7 @@
               "scale": 1,
               "settings": {
                 "depth": 4,
-                "depthDir": "right-down",
+                "spanAxis": "right-down",
                 "scaleY": 0.09
               },
               "dx": 0,
@@ -19162,7 +19162,7 @@
               "settings": {
                 "color": "#8a6a45",
                 "depth": 4,
-                "depthDir": "right-down",
+                "spanAxis": "right-down",
                 "scaleY": 0.9,
                 "scaleZ": 0.45,
                 "thicknessDir": "left-down"
@@ -19178,7 +19178,7 @@
               "scale": 1,
               "settings": {
                 "depth": 4,
-                "depthDir": "right-down",
+                "spanAxis": "right-down",
                 "scaleY": 0.09
               },
               "dx": 0,
@@ -19201,7 +19201,7 @@
                 ],
                 "color": "#8a6a45",
                 "depth": 4,
-                "depthDir": "right-down",
+                "spanAxis": "right-down",
                 "scaleY": 0.55,
                 "scaleZ": 0.3,
                 "thicknessDir": "left-down"
@@ -19293,7 +19293,7 @@
                 ],
                 "color": "#8a6a45",
                 "depth": 5,
-                "depthDir": "right-down",
+                "spanAxis": "right-down",
                 "scaleY": 0.55,
                 "scaleZ": 0.3,
                 "thicknessDir": "right-up"
@@ -19329,7 +19329,7 @@
               "settings": {
                 "color": "#8a6a45",
                 "depth": 5,
-                "depthDir": "right-down",
+                "spanAxis": "right-down",
                 "scaleY": 0.9,
                 "scaleZ": 0.45,
                 "thicknessDir": "left-down"
@@ -19345,7 +19345,7 @@
               "scale": 1,
               "settings": {
                 "depth": 5,
-                "depthDir": "right-down",
+                "spanAxis": "right-down",
                 "scaleY": 0.09
               },
               "dx": 0,
@@ -19360,7 +19360,7 @@
               "settings": {
                 "color": "#8a6a45",
                 "depth": 5,
-                "depthDir": "right-down",
+                "spanAxis": "right-down",
                 "scaleY": 0.9,
                 "scaleZ": 0.45,
                 "thicknessDir": "left-down"
@@ -19376,7 +19376,7 @@
               "scale": 1,
               "settings": {
                 "depth": 5,
-                "depthDir": "right-down",
+                "spanAxis": "right-down",
                 "scaleY": 0.09
               },
               "dx": 0,
@@ -19399,7 +19399,7 @@
                 ],
                 "color": "#8a6a45",
                 "depth": 5,
-                "depthDir": "right-down",
+                "spanAxis": "right-down",
                 "scaleY": 0.55,
                 "scaleZ": 0.3,
                 "thicknessDir": "left-down"
@@ -19491,7 +19491,7 @@
                 ],
                 "color": "#8a6a45",
                 "depth": 6,
-                "depthDir": "right-down",
+                "spanAxis": "right-down",
                 "scaleY": 0.55,
                 "scaleZ": 0.3,
                 "thicknessDir": "right-up"
@@ -19527,7 +19527,7 @@
               "settings": {
                 "color": "#8a6a45",
                 "depth": 6,
-                "depthDir": "right-down",
+                "spanAxis": "right-down",
                 "scaleY": 0.9,
                 "scaleZ": 0.45,
                 "thicknessDir": "left-down"
@@ -19543,7 +19543,7 @@
               "scale": 1,
               "settings": {
                 "depth": 6,
-                "depthDir": "right-down",
+                "spanAxis": "right-down",
                 "scaleY": 0.09
               },
               "dx": 0,
@@ -19558,7 +19558,7 @@
               "settings": {
                 "color": "#8a6a45",
                 "depth": 6,
-                "depthDir": "right-down",
+                "spanAxis": "right-down",
                 "scaleY": 0.9,
                 "scaleZ": 0.45,
                 "thicknessDir": "left-down"
@@ -19574,7 +19574,7 @@
               "scale": 1,
               "settings": {
                 "depth": 6,
-                "depthDir": "right-down",
+                "spanAxis": "right-down",
                 "scaleY": 0.09
               },
               "dx": 0,
@@ -19597,7 +19597,7 @@
                 ],
                 "color": "#8a6a45",
                 "depth": 6,
-                "depthDir": "right-down",
+                "spanAxis": "right-down",
                 "scaleY": 0.55,
                 "scaleZ": 0.3,
                 "thicknessDir": "left-down"
@@ -19689,7 +19689,7 @@
                 ],
                 "color": "#b9b2a3",
                 "depth": 5,
-                "depthDir": "right-down",
+                "spanAxis": "right-down",
                 "scaleY": 0.55,
                 "scaleZ": 0.3,
                 "thicknessDir": "right-up"
@@ -19725,7 +19725,7 @@
               "settings": {
                 "color": "#b9b2a3",
                 "depth": 5,
-                "depthDir": "right-down",
+                "spanAxis": "right-down",
                 "scaleY": 0.9,
                 "scaleZ": 0.45,
                 "thicknessDir": "left-down"
@@ -19741,7 +19741,7 @@
               "scale": 1,
               "settings": {
                 "depth": 5,
-                "depthDir": "right-down",
+                "spanAxis": "right-down",
                 "scaleY": 0.09
               },
               "dx": 0,
@@ -19756,7 +19756,7 @@
               "settings": {
                 "color": "#b9b2a3",
                 "depth": 5,
-                "depthDir": "right-down",
+                "spanAxis": "right-down",
                 "scaleY": 0.9,
                 "scaleZ": 0.45,
                 "thicknessDir": "left-down"
@@ -19772,7 +19772,7 @@
               "scale": 1,
               "settings": {
                 "depth": 5,
-                "depthDir": "right-down",
+                "spanAxis": "right-down",
                 "scaleY": 0.09
               },
               "dx": 0,
@@ -19795,7 +19795,7 @@
                 ],
                 "color": "#b9b2a3",
                 "depth": 5,
-                "depthDir": "right-down",
+                "spanAxis": "right-down",
                 "scaleY": 0.55,
                 "scaleZ": 0.3,
                 "thicknessDir": "left-down"
@@ -19887,7 +19887,7 @@
                 ],
                 "color": "#b9b2a3",
                 "depth": 6,
-                "depthDir": "right-down",
+                "spanAxis": "right-down",
                 "scaleY": 0.55,
                 "scaleZ": 0.3,
                 "thicknessDir": "right-up"
@@ -19923,7 +19923,7 @@
               "settings": {
                 "color": "#b9b2a3",
                 "depth": 6,
-                "depthDir": "right-down",
+                "spanAxis": "right-down",
                 "scaleY": 0.9,
                 "scaleZ": 0.45,
                 "thicknessDir": "left-down"
@@ -19939,7 +19939,7 @@
               "scale": 1,
               "settings": {
                 "depth": 6,
-                "depthDir": "right-down",
+                "spanAxis": "right-down",
                 "scaleY": 0.09
               },
               "dx": 0,
@@ -19954,7 +19954,7 @@
               "settings": {
                 "color": "#b9b2a3",
                 "depth": 6,
-                "depthDir": "right-down",
+                "spanAxis": "right-down",
                 "scaleY": 0.9,
                 "scaleZ": 0.45,
                 "thicknessDir": "left-down"
@@ -19970,7 +19970,7 @@
               "scale": 1,
               "settings": {
                 "depth": 6,
-                "depthDir": "right-down",
+                "spanAxis": "right-down",
                 "scaleY": 0.09
               },
               "dx": 0,
@@ -19993,7 +19993,7 @@
                 ],
                 "color": "#b9b2a3",
                 "depth": 6,
-                "depthDir": "right-down",
+                "spanAxis": "right-down",
                 "scaleY": 0.55,
                 "scaleZ": 0.3,
                 "thicknessDir": "left-down"
@@ -20085,7 +20085,7 @@
                 ],
                 "color": "#8a6a45",
                 "depth": 3,
-                "depthDir": "right-down",
+                "spanAxis": "right-down",
                 "scaleY": 0.55,
                 "scaleZ": 0.3,
                 "thicknessDir": "right-up"
@@ -20121,7 +20121,7 @@
               "settings": {
                 "color": "#8a6a45",
                 "depth": 3,
-                "depthDir": "right-down",
+                "spanAxis": "right-down",
                 "scaleY": 0.9,
                 "scaleZ": 0.45,
                 "thicknessDir": "left-down"
@@ -20137,7 +20137,7 @@
               "scale": 1,
               "settings": {
                 "depth": 3,
-                "depthDir": "right-down",
+                "spanAxis": "right-down",
                 "scaleY": 0.09
               },
               "dx": 0,
@@ -20152,7 +20152,7 @@
               "settings": {
                 "color": "#8a6a45",
                 "depth": 3,
-                "depthDir": "right-down",
+                "spanAxis": "right-down",
                 "scaleY": 0.9,
                 "scaleZ": 0.45,
                 "thicknessDir": "left-down"
@@ -20168,7 +20168,7 @@
               "scale": 1,
               "settings": {
                 "depth": 3,
-                "depthDir": "right-down",
+                "spanAxis": "right-down",
                 "scaleY": 0.09
               },
               "dx": 0,
@@ -20191,7 +20191,7 @@
                 ],
                 "color": "#8a6a45",
                 "depth": 3,
-                "depthDir": "right-down",
+                "spanAxis": "right-down",
                 "scaleY": 0.55,
                 "scaleZ": 0.3,
                 "thicknessDir": "left-down"
@@ -20283,7 +20283,7 @@
                 ],
                 "color": "#8a6a45",
                 "depth": 4,
-                "depthDir": "right-down",
+                "spanAxis": "right-down",
                 "scaleY": 0.55,
                 "scaleZ": 0.3,
                 "thicknessDir": "right-up"
@@ -20319,7 +20319,7 @@
               "settings": {
                 "color": "#8a6a45",
                 "depth": 4,
-                "depthDir": "right-down",
+                "spanAxis": "right-down",
                 "scaleY": 0.9,
                 "scaleZ": 0.45,
                 "thicknessDir": "left-down"
@@ -20335,7 +20335,7 @@
               "scale": 1,
               "settings": {
                 "depth": 4,
-                "depthDir": "right-down",
+                "spanAxis": "right-down",
                 "scaleY": 0.09
               },
               "dx": 0,
@@ -20350,7 +20350,7 @@
               "settings": {
                 "color": "#8a6a45",
                 "depth": 4,
-                "depthDir": "right-down",
+                "spanAxis": "right-down",
                 "scaleY": 0.9,
                 "scaleZ": 0.45,
                 "thicknessDir": "left-down"
@@ -20366,7 +20366,7 @@
               "scale": 1,
               "settings": {
                 "depth": 4,
-                "depthDir": "right-down",
+                "spanAxis": "right-down",
                 "scaleY": 0.09
               },
               "dx": 0,
@@ -20389,7 +20389,7 @@
                 ],
                 "color": "#8a6a45",
                 "depth": 4,
-                "depthDir": "right-down",
+                "spanAxis": "right-down",
                 "scaleY": 0.55,
                 "scaleZ": 0.3,
                 "thicknessDir": "left-down"
@@ -20481,7 +20481,7 @@
                 ],
                 "color": "#8a6a45",
                 "depth": 7,
-                "depthDir": "right-down",
+                "spanAxis": "right-down",
                 "scaleY": 0.55,
                 "scaleZ": 0.3,
                 "thicknessDir": "right-up"
@@ -20517,7 +20517,7 @@
               "settings": {
                 "color": "#8a6a45",
                 "depth": 7,
-                "depthDir": "right-down",
+                "spanAxis": "right-down",
                 "scaleY": 0.9,
                 "scaleZ": 0.45,
                 "thicknessDir": "left-down"
@@ -20533,7 +20533,7 @@
               "scale": 1,
               "settings": {
                 "depth": 7,
-                "depthDir": "right-down",
+                "spanAxis": "right-down",
                 "scaleY": 0.09
               },
               "dx": 0,
@@ -20548,7 +20548,7 @@
               "settings": {
                 "color": "#8a6a45",
                 "depth": 7,
-                "depthDir": "right-down",
+                "spanAxis": "right-down",
                 "scaleY": 0.9,
                 "scaleZ": 0.45,
                 "thicknessDir": "left-down"
@@ -20564,7 +20564,7 @@
               "scale": 1,
               "settings": {
                 "depth": 7,
-                "depthDir": "right-down",
+                "spanAxis": "right-down",
                 "scaleY": 0.09
               },
               "dx": 0,
@@ -20587,7 +20587,7 @@
                 ],
                 "color": "#8a6a45",
                 "depth": 7,
-                "depthDir": "right-down",
+                "spanAxis": "right-down",
                 "scaleY": 0.55,
                 "scaleZ": 0.3,
                 "thicknessDir": "left-down"
@@ -22732,7 +22732,7 @@
               "scale": 1.12,
               "settings": {
                 "depth": 3,
-                "depthDir": "right-down",
+                "spanAxis": "right-down",
                 "scaleY": 0.62
               },
               "dx": 0,
@@ -23001,7 +23001,7 @@
               "scale": 1.25,
               "settings": {
                 "depth": 3,
-                "depthDir": "right-up",
+                "spanAxis": "right-up",
                 "scaleY": 0.7
               },
               "dx": 1,
@@ -23326,7 +23326,7 @@
               "scale": 1.25,
               "settings": {
                 "depth": 3,
-                "depthDir": "right-up",
+                "spanAxis": "right-up",
                 "scaleY": 0.7,
                 "shape": "circle"
               },
@@ -33402,7 +33402,7 @@
               "level": 9,
               "settings": {
                 "depth": 6,
-                "depthDir": "left-down"
+                "spanAxis": "left-down"
               },
               "dx": 0,
               "dy": 0,
@@ -33574,7 +33574,7 @@
               "level": 9,
               "settings": {
                 "depth": 6,
-                "depthDir": "left-down"
+                "spanAxis": "left-down"
               },
               "dx": 1,
               "dy": 0,
@@ -33680,7 +33680,7 @@
               "level": 9,
               "settings": {
                 "depth": 6,
-                "depthDir": "left-down"
+                "spanAxis": "left-down"
               },
               "dx": 2,
               "dy": 0,
@@ -33804,7 +33804,7 @@
               "level": 9,
               "settings": {
                 "depth": 6,
-                "depthDir": "left-down"
+                "spanAxis": "left-down"
               },
               "dx": 3,
               "dy": 0,
@@ -33910,7 +33910,7 @@
               "level": 9,
               "settings": {
                 "depth": 6,
-                "depthDir": "left-down",
+                "spanAxis": "left-down",
                 "scaleY": 2
               },
               "dx": 4,
@@ -34035,7 +34035,7 @@
               "level": 9,
               "settings": {
                 "depth": 6,
-                "depthDir": "left-down",
+                "spanAxis": "left-down",
                 "scaleY": 3
               },
               "dx": 5,
@@ -34124,7 +34124,7 @@
               "level": 0,
               "settings": {
                 "depth": 2,
-                "depthDir": "right-down"
+                "spanAxis": "right-down"
               },
               "dx": 5,
               "dy": 6,
@@ -34218,7 +34218,7 @@
               "level": 9,
               "settings": {
                 "depth": 6,
-                "depthDir": "left-down",
+                "spanAxis": "left-down",
                 "scaleY": 3
               },
               "dx": 6,
@@ -34319,7 +34319,7 @@
               "level": 9,
               "settings": {
                 "depth": 6,
-                "depthDir": "left-down",
+                "spanAxis": "left-down",
                 "scaleY": 2
               },
               "dx": 7,
@@ -34444,7 +34444,7 @@
               "level": 9,
               "settings": {
                 "depth": 6,
-                "depthDir": "left-down"
+                "spanAxis": "left-down"
               },
               "dx": 8,
               "dy": 0,
@@ -34550,7 +34550,7 @@
               "level": 9,
               "settings": {
                 "depth": 6,
-                "depthDir": "left-down"
+                "spanAxis": "left-down"
               },
               "dx": 9,
               "dy": 0,
@@ -34674,7 +34674,7 @@
               "level": 9,
               "settings": {
                 "depth": 6,
-                "depthDir": "left-down"
+                "spanAxis": "left-down"
               },
               "dx": 10,
               "dy": 0,
@@ -34780,7 +34780,7 @@
               "level": 9,
               "settings": {
                 "depth": 6,
-                "depthDir": "left-down"
+                "spanAxis": "left-down"
               },
               "dx": 11,
               "dy": 0,
@@ -34893,7 +34893,7 @@
               "level": 5,
               "settings": {
                 "depth": 5,
-                "depthDir": "left-down"
+                "spanAxis": "left-down"
               },
               "dx": 0,
               "dy": 0,
@@ -35017,7 +35017,7 @@
               "level": 5,
               "settings": {
                 "depth": 5,
-                "depthDir": "left-down"
+                "spanAxis": "left-down"
               },
               "dx": 1,
               "dy": 0,
@@ -35087,7 +35087,7 @@
               "level": 5,
               "settings": {
                 "depth": 5,
-                "depthDir": "left-down",
+                "spanAxis": "left-down",
                 "scaleY": 2
               },
               "dx": 2,
@@ -35176,7 +35176,7 @@
               "level": 5,
               "settings": {
                 "depth": 5,
-                "depthDir": "left-down",
+                "spanAxis": "left-down",
                 "scaleY": 3
               },
               "dx": 3,
@@ -35250,7 +35250,7 @@
               "level": 5,
               "settings": {
                 "depth": 5,
-                "depthDir": "left-down",
+                "spanAxis": "left-down",
                 "scaleY": 2
               },
               "dx": 4,
@@ -35339,7 +35339,7 @@
               "level": 5,
               "settings": {
                 "depth": 5,
-                "depthDir": "left-down"
+                "spanAxis": "left-down"
               },
               "dx": 5,
               "dy": 0,
@@ -35409,7 +35409,7 @@
               "level": 5,
               "settings": {
                 "depth": 5,
-                "depthDir": "left-down"
+                "spanAxis": "left-down"
               },
               "dx": 6,
               "dy": 0,
@@ -35817,7 +35817,7 @@
               "level": 4,
               "settings": {
                 "depth": 4,
-                "depthDir": "left-down"
+                "spanAxis": "left-down"
               },
               "dx": 0,
               "dy": 0,
@@ -35920,7 +35920,7 @@
               "level": 4,
               "settings": {
                 "depth": 4,
-                "depthDir": "left-down",
+                "spanAxis": "left-down",
                 "scaleY": 2
               },
               "dx": 1,
@@ -35982,7 +35982,7 @@
               "level": 4,
               "settings": {
                 "depth": 4,
-                "depthDir": "left-down",
+                "spanAxis": "left-down",
                 "scaleY": 3
               },
               "dx": 2,
@@ -36026,7 +36026,7 @@
               "level": 0,
               "settings": {
                 "depth": 2,
-                "depthDir": "right-down"
+                "spanAxis": "right-down"
               },
               "dx": 2,
               "dy": 4,
@@ -36051,7 +36051,7 @@
               "level": 4,
               "settings": {
                 "depth": 4,
-                "depthDir": "left-down",
+                "spanAxis": "left-down",
                 "scaleY": 3
               },
               "dx": 3,
@@ -36131,7 +36131,7 @@
               "level": 4,
               "settings": {
                 "depth": 4,
-                "depthDir": "left-down",
+                "spanAxis": "left-down",
                 "scaleY": 2
               },
               "dx": 4,
@@ -36193,7 +36193,7 @@
               "level": 4,
               "settings": {
                 "depth": 4,
-                "depthDir": "left-down"
+                "spanAxis": "left-down"
               },
               "dx": 5,
               "dy": 0,
@@ -36282,7 +36282,7 @@
               "level": 4,
               "settings": {
                 "depth": 4,
-                "depthDir": "left-down"
+                "spanAxis": "left-down"
               },
               "dx": 0,
               "dy": 0,
@@ -36385,7 +36385,7 @@
               "level": 4,
               "settings": {
                 "depth": 4,
-                "depthDir": "left-down",
+                "spanAxis": "left-down",
                 "scaleY": 2
               },
               "dx": 1,
@@ -36450,7 +36450,7 @@
               "level": 4,
               "settings": {
                 "depth": 4,
-                "depthDir": "left-down"
+                "spanAxis": "left-down"
               },
               "dx": 2,
               "dy": 0,
@@ -36539,7 +36539,7 @@
               "level": 4,
               "settings": {
                 "depth": 4,
-                "depthDir": "left-down"
+                "spanAxis": "left-down"
               },
               "dx": 0,
               "dy": 0,
@@ -36642,7 +36642,7 @@
               "level": 4,
               "settings": {
                 "depth": 4,
-                "depthDir": "left-down",
+                "spanAxis": "left-down",
                 "scaleY": 2
               },
               "dx": 1,
@@ -36686,7 +36686,7 @@
               "level": 0,
               "settings": {
                 "depth": 2,
-                "depthDir": "right-down"
+                "spanAxis": "right-down"
               },
               "dx": 1,
               "dy": 4,
@@ -36735,7 +36735,7 @@
               "level": 4,
               "settings": {
                 "depth": 4,
-                "depthDir": "left-down",
+                "spanAxis": "left-down",
                 "scaleY": 2
               },
               "dx": 2,
@@ -36791,7 +36791,7 @@
               "level": 4,
               "settings": {
                 "depth": 4,
-                "depthDir": "left-down"
+                "spanAxis": "left-down"
               },
               "dx": 3,
               "dy": 0,
@@ -36880,7 +36880,7 @@
               "level": 4,
               "settings": {
                 "depth": 4,
-                "depthDir": "left-down"
+                "spanAxis": "left-down"
               },
               "dx": 0,
               "dy": 0,
@@ -36983,7 +36983,7 @@
               "level": 4,
               "settings": {
                 "depth": 4,
-                "depthDir": "left-down",
+                "spanAxis": "left-down",
                 "scaleY": 2
               },
               "dx": 1,
@@ -37045,7 +37045,7 @@
               "level": 4,
               "settings": {
                 "depth": 4,
-                "depthDir": "left-down",
+                "spanAxis": "left-down",
                 "scaleY": 3
               },
               "dx": 2,
@@ -37134,7 +37134,7 @@
               "level": 4,
               "settings": {
                 "depth": 4,
-                "depthDir": "left-down",
+                "spanAxis": "left-down",
                 "scaleY": 2
               },
               "dx": 3,
@@ -37196,7 +37196,7 @@
               "level": 4,
               "settings": {
                 "depth": 4,
-                "depthDir": "left-down"
+                "spanAxis": "left-down"
               },
               "dx": 4,
               "dy": 0,
@@ -37436,7 +37436,7 @@
               "level": 6,
               "settings": {
                 "depth": 5,
-                "depthDir": "left-down"
+                "spanAxis": "left-down"
               },
               "dx": 0,
               "dy": 0,
@@ -37569,7 +37569,7 @@
               "level": 6,
               "settings": {
                 "depth": 5,
-                "depthDir": "left-down"
+                "spanAxis": "left-down"
               },
               "dx": 1,
               "dy": 0,
@@ -37648,7 +37648,7 @@
               "level": 6,
               "settings": {
                 "depth": 5,
-                "depthDir": "left-down"
+                "spanAxis": "left-down"
               },
               "dx": 2,
               "dy": 0,
@@ -37766,7 +37766,7 @@
               "level": 6,
               "settings": {
                 "depth": 5,
-                "depthDir": "left-down"
+                "spanAxis": "left-down"
               },
               "dx": 3,
               "dy": 0,
@@ -37845,7 +37845,7 @@
               "level": 6,
               "settings": {
                 "depth": 5,
-                "depthDir": "left-down"
+                "spanAxis": "left-down"
               },
               "dx": 4,
               "dy": 0,
@@ -37946,7 +37946,7 @@
               "level": 4,
               "settings": {
                 "depth": 4,
-                "depthDir": "left-down"
+                "spanAxis": "left-down"
               },
               "dx": 0,
               "dy": 0,
@@ -38025,7 +38025,7 @@
               "level": 4,
               "settings": {
                 "depth": 4,
-                "depthDir": "left-down",
+                "spanAxis": "left-down",
                 "scaleY": 2
               },
               "dx": 1,
@@ -38087,7 +38087,7 @@
               "level": 4,
               "settings": {
                 "depth": 4,
-                "depthDir": "left-down",
+                "spanAxis": "left-down",
                 "scaleY": 3
               },
               "dx": 2,
@@ -38152,7 +38152,7 @@
               "level": 4,
               "settings": {
                 "depth": 4,
-                "depthDir": "left-down",
+                "spanAxis": "left-down",
                 "scaleY": 2
               },
               "dx": 3,
@@ -38214,7 +38214,7 @@
               "level": 4,
               "settings": {
                 "depth": 4,
-                "depthDir": "left-down"
+                "spanAxis": "left-down"
               },
               "dx": 4,
               "dy": 0,
@@ -38303,7 +38303,7 @@
               "level": 4,
               "settings": {
                 "depth": 4,
-                "depthDir": "left-down"
+                "spanAxis": "left-down"
               },
               "dx": 0,
               "dy": 0,
@@ -38382,7 +38382,7 @@
               "level": 4,
               "settings": {
                 "depth": 4,
-                "depthDir": "left-down"
+                "spanAxis": "left-down"
               },
               "dx": 1,
               "dy": 0,
@@ -38443,7 +38443,7 @@
               "level": 4,
               "settings": {
                 "depth": 4,
-                "depthDir": "left-down"
+                "spanAxis": "left-down"
               },
               "dx": 2,
               "dy": 0,
@@ -38516,7 +38516,7 @@
               "level": 4,
               "settings": {
                 "depth": 4,
-                "depthDir": "left-down"
+                "spanAxis": "left-down"
               },
               "dx": 3,
               "dy": 0,
@@ -38577,7 +38577,7 @@
               "level": 4,
               "settings": {
                 "depth": 4,
-                "depthDir": "left-down"
+                "spanAxis": "left-down"
               },
               "dx": 4,
               "dy": 0,
@@ -38666,7 +38666,7 @@
               "level": 6,
               "settings": {
                 "depth": 4,
-                "depthDir": "left-down"
+                "spanAxis": "left-down"
               },
               "dx": 0,
               "dy": 0,
@@ -38787,7 +38787,7 @@
               "level": 6,
               "settings": {
                 "depth": 4,
-                "depthDir": "left-down"
+                "spanAxis": "left-down"
               },
               "dx": 1,
               "dy": 0,
@@ -38866,7 +38866,7 @@
               "level": 6,
               "settings": {
                 "depth": 4,
-                "depthDir": "left-down",
+                "spanAxis": "left-down",
                 "scaleY": 2
               },
               "dx": 2,
@@ -38964,7 +38964,7 @@
               "level": 6,
               "settings": {
                 "depth": 4,
-                "depthDir": "left-down",
+                "spanAxis": "left-down",
                 "scaleY": 3
               },
               "dx": 3,
@@ -39026,7 +39026,7 @@
               "level": 0,
               "settings": {
                 "depth": 2,
-                "depthDir": "right-down"
+                "spanAxis": "right-down"
               },
               "dx": 3,
               "dy": 4,
@@ -39093,7 +39093,7 @@
               "level": 6,
               "settings": {
                 "depth": 4,
-                "depthDir": "left-down",
+                "spanAxis": "left-down",
                 "scaleY": 3
               },
               "dx": 4,
@@ -39167,7 +39167,7 @@
               "level": 6,
               "settings": {
                 "depth": 4,
-                "depthDir": "left-down",
+                "spanAxis": "left-down",
                 "scaleY": 2
               },
               "dx": 5,
@@ -39265,7 +39265,7 @@
               "level": 6,
               "settings": {
                 "depth": 4,
-                "depthDir": "left-down"
+                "spanAxis": "left-down"
               },
               "dx": 6,
               "dy": 0,
@@ -39344,7 +39344,7 @@
               "level": 6,
               "settings": {
                 "depth": 4,
-                "depthDir": "left-down"
+                "spanAxis": "left-down"
               },
               "dx": 7,
               "dy": 0,
@@ -40287,7 +40287,7 @@
                 ],
                 "color": "#b9b2a3",
                 "depth": 7,
-                "depthDir": "right-down",
+                "spanAxis": "right-down",
                 "scaleY": 0.55,
                 "scaleZ": 0.3,
                 "thicknessDir": "right-up"
@@ -40323,7 +40323,7 @@
               "settings": {
                 "color": "#b9b2a3",
                 "depth": 7,
-                "depthDir": "right-down",
+                "spanAxis": "right-down",
                 "scaleY": 0.9,
                 "scaleZ": 0.45,
                 "thicknessDir": "left-down"
@@ -40339,7 +40339,7 @@
               "scale": 1,
               "settings": {
                 "depth": 7,
-                "depthDir": "right-down",
+                "spanAxis": "right-down",
                 "scaleY": 0.09
               },
               "dx": 0,
@@ -40354,7 +40354,7 @@
               "settings": {
                 "color": "#b9b2a3",
                 "depth": 7,
-                "depthDir": "right-down",
+                "spanAxis": "right-down",
                 "scaleY": 0.9,
                 "scaleZ": 0.45,
                 "thicknessDir": "left-down"
@@ -40370,7 +40370,7 @@
               "scale": 1,
               "settings": {
                 "depth": 7,
-                "depthDir": "right-down",
+                "spanAxis": "right-down",
                 "scaleY": 0.09
               },
               "dx": 0,
@@ -40393,7 +40393,7 @@
                 ],
                 "color": "#b9b2a3",
                 "depth": 7,
-                "depthDir": "right-down",
+                "spanAxis": "right-down",
                 "scaleY": 0.55,
                 "scaleZ": 0.3,
                 "thicknessDir": "left-down"
@@ -40485,7 +40485,7 @@
                 ],
                 "color": "#b9b2a3",
                 "depth": 3,
-                "depthDir": "right-down",
+                "spanAxis": "right-down",
                 "scaleY": 0.55,
                 "scaleZ": 0.3,
                 "thicknessDir": "right-up"
@@ -40521,7 +40521,7 @@
               "settings": {
                 "color": "#b9b2a3",
                 "depth": 3,
-                "depthDir": "right-down",
+                "spanAxis": "right-down",
                 "scaleY": 0.9,
                 "scaleZ": 0.45,
                 "thicknessDir": "left-down"
@@ -40537,7 +40537,7 @@
               "scale": 1,
               "settings": {
                 "depth": 3,
-                "depthDir": "right-down",
+                "spanAxis": "right-down",
                 "scaleY": 0.09
               },
               "dx": 0,
@@ -40552,7 +40552,7 @@
               "settings": {
                 "color": "#b9b2a3",
                 "depth": 3,
-                "depthDir": "right-down",
+                "spanAxis": "right-down",
                 "scaleY": 0.9,
                 "scaleZ": 0.45,
                 "thicknessDir": "left-down"
@@ -40568,7 +40568,7 @@
               "scale": 1,
               "settings": {
                 "depth": 3,
-                "depthDir": "right-down",
+                "spanAxis": "right-down",
                 "scaleY": 0.09
               },
               "dx": 0,
@@ -40591,7 +40591,7 @@
                 ],
                 "color": "#b9b2a3",
                 "depth": 3,
-                "depthDir": "right-down",
+                "spanAxis": "right-down",
                 "scaleY": 0.55,
                 "scaleZ": 0.3,
                 "thicknessDir": "left-down"
@@ -40683,7 +40683,7 @@
                 ],
                 "color": "#b9b2a3",
                 "depth": 4,
-                "depthDir": "right-down",
+                "spanAxis": "right-down",
                 "scaleY": 0.55,
                 "scaleZ": 0.3,
                 "thicknessDir": "right-up"
@@ -40719,7 +40719,7 @@
               "settings": {
                 "color": "#b9b2a3",
                 "depth": 4,
-                "depthDir": "right-down",
+                "spanAxis": "right-down",
                 "scaleY": 0.9,
                 "scaleZ": 0.45,
                 "thicknessDir": "left-down"
@@ -40735,7 +40735,7 @@
               "scale": 1,
               "settings": {
                 "depth": 4,
-                "depthDir": "right-down",
+                "spanAxis": "right-down",
                 "scaleY": 0.09
               },
               "dx": 0,
@@ -40750,7 +40750,7 @@
               "settings": {
                 "color": "#b9b2a3",
                 "depth": 4,
-                "depthDir": "right-down",
+                "spanAxis": "right-down",
                 "scaleY": 0.9,
                 "scaleZ": 0.45,
                 "thicknessDir": "left-down"
@@ -40766,7 +40766,7 @@
               "scale": 1,
               "settings": {
                 "depth": 4,
-                "depthDir": "right-down",
+                "spanAxis": "right-down",
                 "scaleY": 0.09
               },
               "dx": 0,
@@ -40789,7 +40789,7 @@
                 ],
                 "color": "#b9b2a3",
                 "depth": 4,
-                "depthDir": "right-down",
+                "spanAxis": "right-down",
                 "scaleY": 0.55,
                 "scaleZ": 0.3,
                 "thicknessDir": "left-down"
@@ -40881,7 +40881,7 @@
                 ],
                 "color": "#8a6a45",
                 "depth": 5,
-                "depthDir": "right-down",
+                "spanAxis": "right-down",
                 "scaleY": 0.55,
                 "scaleZ": 0.3,
                 "thicknessDir": "right-up"
@@ -40917,7 +40917,7 @@
               "settings": {
                 "color": "#8a6a45",
                 "depth": 5,
-                "depthDir": "right-down",
+                "spanAxis": "right-down",
                 "scaleY": 0.9,
                 "scaleZ": 0.45,
                 "thicknessDir": "left-down"
@@ -40933,7 +40933,7 @@
               "scale": 1,
               "settings": {
                 "depth": 5,
-                "depthDir": "right-down",
+                "spanAxis": "right-down",
                 "scaleY": 0.09
               },
               "dx": 0,
@@ -40948,7 +40948,7 @@
               "settings": {
                 "color": "#8a6a45",
                 "depth": 5,
-                "depthDir": "right-down",
+                "spanAxis": "right-down",
                 "scaleY": 0.9,
                 "scaleZ": 0.45,
                 "thicknessDir": "left-down"
@@ -40964,7 +40964,7 @@
               "scale": 1,
               "settings": {
                 "depth": 5,
-                "depthDir": "right-down",
+                "spanAxis": "right-down",
                 "scaleY": 0.09
               },
               "dx": 0,
@@ -40987,7 +40987,7 @@
                 ],
                 "color": "#8a6a45",
                 "depth": 5,
-                "depthDir": "right-down",
+                "spanAxis": "right-down",
                 "scaleY": 0.55,
                 "scaleZ": 0.3,
                 "thicknessDir": "left-down"
@@ -41079,7 +41079,7 @@
                 ],
                 "color": "#8a6a45",
                 "depth": 6,
-                "depthDir": "right-down",
+                "spanAxis": "right-down",
                 "scaleY": 0.55,
                 "scaleZ": 0.3,
                 "thicknessDir": "right-up"
@@ -41115,7 +41115,7 @@
               "settings": {
                 "color": "#8a6a45",
                 "depth": 6,
-                "depthDir": "right-down",
+                "spanAxis": "right-down",
                 "scaleY": 0.9,
                 "scaleZ": 0.45,
                 "thicknessDir": "left-down"
@@ -41131,7 +41131,7 @@
               "scale": 1,
               "settings": {
                 "depth": 6,
-                "depthDir": "right-down",
+                "spanAxis": "right-down",
                 "scaleY": 0.09
               },
               "dx": 0,
@@ -41146,7 +41146,7 @@
               "settings": {
                 "color": "#8a6a45",
                 "depth": 6,
-                "depthDir": "right-down",
+                "spanAxis": "right-down",
                 "scaleY": 0.9,
                 "scaleZ": 0.45,
                 "thicknessDir": "left-down"
@@ -41162,7 +41162,7 @@
               "scale": 1,
               "settings": {
                 "depth": 6,
-                "depthDir": "right-down",
+                "spanAxis": "right-down",
                 "scaleY": 0.09
               },
               "dx": 0,
@@ -41185,7 +41185,7 @@
                 ],
                 "color": "#8a6a45",
                 "depth": 6,
-                "depthDir": "right-down",
+                "spanAxis": "right-down",
                 "scaleY": 0.55,
                 "scaleZ": 0.3,
                 "thicknessDir": "left-down"
@@ -41277,7 +41277,7 @@
                 ],
                 "color": "#8a6a45",
                 "depth": 7,
-                "depthDir": "right-down",
+                "spanAxis": "right-down",
                 "scaleY": 0.55,
                 "scaleZ": 0.3,
                 "thicknessDir": "right-up"
@@ -41313,7 +41313,7 @@
               "settings": {
                 "color": "#8a6a45",
                 "depth": 7,
-                "depthDir": "right-down",
+                "spanAxis": "right-down",
                 "scaleY": 0.9,
                 "scaleZ": 0.45,
                 "thicknessDir": "left-down"
@@ -41329,7 +41329,7 @@
               "scale": 1,
               "settings": {
                 "depth": 7,
-                "depthDir": "right-down",
+                "spanAxis": "right-down",
                 "scaleY": 0.09
               },
               "dx": 0,
@@ -41344,7 +41344,7 @@
               "settings": {
                 "color": "#8a6a45",
                 "depth": 7,
-                "depthDir": "right-down",
+                "spanAxis": "right-down",
                 "scaleY": 0.9,
                 "scaleZ": 0.45,
                 "thicknessDir": "left-down"
@@ -41360,7 +41360,7 @@
               "scale": 1,
               "settings": {
                 "depth": 7,
-                "depthDir": "right-down",
+                "spanAxis": "right-down",
                 "scaleY": 0.09
               },
               "dx": 0,
@@ -41383,7 +41383,7 @@
                 ],
                 "color": "#8a6a45",
                 "depth": 7,
-                "depthDir": "right-down",
+                "spanAxis": "right-down",
                 "scaleY": 0.55,
                 "scaleZ": 0.3,
                 "thicknessDir": "left-down"
@@ -41475,7 +41475,7 @@
                 ],
                 "color": "#8a6a45",
                 "depth": 3,
-                "depthDir": "right-down",
+                "spanAxis": "right-down",
                 "scaleY": 0.55,
                 "scaleZ": 0.3,
                 "thicknessDir": "right-up"
@@ -41511,7 +41511,7 @@
               "settings": {
                 "color": "#8a6a45",
                 "depth": 3,
-                "depthDir": "right-down",
+                "spanAxis": "right-down",
                 "scaleY": 0.9,
                 "scaleZ": 0.45,
                 "thicknessDir": "left-down"
@@ -41527,7 +41527,7 @@
               "scale": 1,
               "settings": {
                 "depth": 3,
-                "depthDir": "right-down",
+                "spanAxis": "right-down",
                 "scaleY": 0.09
               },
               "dx": 0,
@@ -41542,7 +41542,7 @@
               "settings": {
                 "color": "#8a6a45",
                 "depth": 3,
-                "depthDir": "right-down",
+                "spanAxis": "right-down",
                 "scaleY": 0.9,
                 "scaleZ": 0.45,
                 "thicknessDir": "left-down"
@@ -41558,7 +41558,7 @@
               "scale": 1,
               "settings": {
                 "depth": 3,
-                "depthDir": "right-down",
+                "spanAxis": "right-down",
                 "scaleY": 0.09
               },
               "dx": 0,
@@ -41581,7 +41581,7 @@
                 ],
                 "color": "#8a6a45",
                 "depth": 3,
-                "depthDir": "right-down",
+                "spanAxis": "right-down",
                 "scaleY": 0.55,
                 "scaleZ": 0.3,
                 "thicknessDir": "left-down"
@@ -41673,7 +41673,7 @@
                 ],
                 "color": "#8a6a45",
                 "depth": 4,
-                "depthDir": "right-down",
+                "spanAxis": "right-down",
                 "scaleY": 0.55,
                 "scaleZ": 0.3,
                 "thicknessDir": "right-up"
@@ -41709,7 +41709,7 @@
               "settings": {
                 "color": "#8a6a45",
                 "depth": 4,
-                "depthDir": "right-down",
+                "spanAxis": "right-down",
                 "scaleY": 0.9,
                 "scaleZ": 0.45,
                 "thicknessDir": "left-down"
@@ -41725,7 +41725,7 @@
               "scale": 1,
               "settings": {
                 "depth": 4,
-                "depthDir": "right-down",
+                "spanAxis": "right-down",
                 "scaleY": 0.09
               },
               "dx": 0,
@@ -41740,7 +41740,7 @@
               "settings": {
                 "color": "#8a6a45",
                 "depth": 4,
-                "depthDir": "right-down",
+                "spanAxis": "right-down",
                 "scaleY": 0.9,
                 "scaleZ": 0.45,
                 "thicknessDir": "left-down"
@@ -41756,7 +41756,7 @@
               "scale": 1,
               "settings": {
                 "depth": 4,
-                "depthDir": "right-down",
+                "spanAxis": "right-down",
                 "scaleY": 0.09
               },
               "dx": 0,
@@ -41779,7 +41779,7 @@
                 ],
                 "color": "#8a6a45",
                 "depth": 4,
-                "depthDir": "right-down",
+                "spanAxis": "right-down",
                 "scaleY": 0.55,
                 "scaleZ": 0.3,
                 "thicknessDir": "left-down"
@@ -41871,7 +41871,7 @@
                 ],
                 "color": "#8a6a45",
                 "depth": 5,
-                "depthDir": "right-down",
+                "spanAxis": "right-down",
                 "scaleY": 0.55,
                 "scaleZ": 0.3,
                 "thicknessDir": "right-up"
@@ -41907,7 +41907,7 @@
               "settings": {
                 "color": "#8a6a45",
                 "depth": 5,
-                "depthDir": "right-down",
+                "spanAxis": "right-down",
                 "scaleY": 0.9,
                 "scaleZ": 0.45,
                 "thicknessDir": "left-down"
@@ -41923,7 +41923,7 @@
               "scale": 1,
               "settings": {
                 "depth": 5,
-                "depthDir": "right-down",
+                "spanAxis": "right-down",
                 "scaleY": 0.09
               },
               "dx": 0,
@@ -41938,7 +41938,7 @@
               "settings": {
                 "color": "#8a6a45",
                 "depth": 5,
-                "depthDir": "right-down",
+                "spanAxis": "right-down",
                 "scaleY": 0.9,
                 "scaleZ": 0.45,
                 "thicknessDir": "left-down"
@@ -41954,7 +41954,7 @@
               "scale": 1,
               "settings": {
                 "depth": 5,
-                "depthDir": "right-down",
+                "spanAxis": "right-down",
                 "scaleY": 0.09
               },
               "dx": 0,
@@ -41977,7 +41977,7 @@
                 ],
                 "color": "#8a6a45",
                 "depth": 5,
-                "depthDir": "right-down",
+                "spanAxis": "right-down",
                 "scaleY": 0.55,
                 "scaleZ": 0.3,
                 "thicknessDir": "left-down"
@@ -42069,7 +42069,7 @@
                 ],
                 "color": "#8a6a45",
                 "depth": 6,
-                "depthDir": "right-down",
+                "spanAxis": "right-down",
                 "scaleY": 0.55,
                 "scaleZ": 0.3,
                 "thicknessDir": "right-up"
@@ -42105,7 +42105,7 @@
               "settings": {
                 "color": "#8a6a45",
                 "depth": 6,
-                "depthDir": "right-down",
+                "spanAxis": "right-down",
                 "scaleY": 0.9,
                 "scaleZ": 0.45,
                 "thicknessDir": "left-down"
@@ -42121,7 +42121,7 @@
               "scale": 1,
               "settings": {
                 "depth": 6,
-                "depthDir": "right-down",
+                "spanAxis": "right-down",
                 "scaleY": 0.09
               },
               "dx": 0,
@@ -42136,7 +42136,7 @@
               "settings": {
                 "color": "#8a6a45",
                 "depth": 6,
-                "depthDir": "right-down",
+                "spanAxis": "right-down",
                 "scaleY": 0.9,
                 "scaleZ": 0.45,
                 "thicknessDir": "left-down"
@@ -42152,7 +42152,7 @@
               "scale": 1,
               "settings": {
                 "depth": 6,
-                "depthDir": "right-down",
+                "spanAxis": "right-down",
                 "scaleY": 0.09
               },
               "dx": 0,
@@ -42175,7 +42175,7 @@
                 ],
                 "color": "#8a6a45",
                 "depth": 6,
-                "depthDir": "right-down",
+                "spanAxis": "right-down",
                 "scaleY": 0.55,
                 "scaleZ": 0.3,
                 "thicknessDir": "left-down"
@@ -42267,7 +42267,7 @@
                 ],
                 "color": "#b9b2a3",
                 "depth": 5,
-                "depthDir": "right-down",
+                "spanAxis": "right-down",
                 "scaleY": 0.55,
                 "scaleZ": 0.3,
                 "thicknessDir": "right-up"
@@ -42303,7 +42303,7 @@
               "settings": {
                 "color": "#b9b2a3",
                 "depth": 5,
-                "depthDir": "right-down",
+                "spanAxis": "right-down",
                 "scaleY": 0.9,
                 "scaleZ": 0.45,
                 "thicknessDir": "left-down"
@@ -42319,7 +42319,7 @@
               "scale": 1,
               "settings": {
                 "depth": 5,
-                "depthDir": "right-down",
+                "spanAxis": "right-down",
                 "scaleY": 0.09
               },
               "dx": 0,
@@ -42334,7 +42334,7 @@
               "settings": {
                 "color": "#b9b2a3",
                 "depth": 5,
-                "depthDir": "right-down",
+                "spanAxis": "right-down",
                 "scaleY": 0.9,
                 "scaleZ": 0.45,
                 "thicknessDir": "left-down"
@@ -42350,7 +42350,7 @@
               "scale": 1,
               "settings": {
                 "depth": 5,
-                "depthDir": "right-down",
+                "spanAxis": "right-down",
                 "scaleY": 0.09
               },
               "dx": 0,
@@ -42373,7 +42373,7 @@
                 ],
                 "color": "#b9b2a3",
                 "depth": 5,
-                "depthDir": "right-down",
+                "spanAxis": "right-down",
                 "scaleY": 0.55,
                 "scaleZ": 0.3,
                 "thicknessDir": "left-down"
@@ -42465,7 +42465,7 @@
                 ],
                 "color": "#b9b2a3",
                 "depth": 6,
-                "depthDir": "right-down",
+                "spanAxis": "right-down",
                 "scaleY": 0.55,
                 "scaleZ": 0.3,
                 "thicknessDir": "right-up"
@@ -42501,7 +42501,7 @@
               "settings": {
                 "color": "#b9b2a3",
                 "depth": 6,
-                "depthDir": "right-down",
+                "spanAxis": "right-down",
                 "scaleY": 0.9,
                 "scaleZ": 0.45,
                 "thicknessDir": "left-down"
@@ -42517,7 +42517,7 @@
               "scale": 1,
               "settings": {
                 "depth": 6,
-                "depthDir": "right-down",
+                "spanAxis": "right-down",
                 "scaleY": 0.09
               },
               "dx": 0,
@@ -42532,7 +42532,7 @@
               "settings": {
                 "color": "#b9b2a3",
                 "depth": 6,
-                "depthDir": "right-down",
+                "spanAxis": "right-down",
                 "scaleY": 0.9,
                 "scaleZ": 0.45,
                 "thicknessDir": "left-down"
@@ -42548,7 +42548,7 @@
               "scale": 1,
               "settings": {
                 "depth": 6,
-                "depthDir": "right-down",
+                "spanAxis": "right-down",
                 "scaleY": 0.09
               },
               "dx": 0,
@@ -42571,7 +42571,7 @@
                 ],
                 "color": "#b9b2a3",
                 "depth": 6,
-                "depthDir": "right-down",
+                "spanAxis": "right-down",
                 "scaleY": 0.55,
                 "scaleZ": 0.3,
                 "thicknessDir": "left-down"
@@ -42663,7 +42663,7 @@
                 ],
                 "color": "#8a6a45",
                 "depth": 3,
-                "depthDir": "right-down",
+                "spanAxis": "right-down",
                 "scaleY": 0.55,
                 "scaleZ": 0.3,
                 "thicknessDir": "right-up"
@@ -42699,7 +42699,7 @@
               "settings": {
                 "color": "#8a6a45",
                 "depth": 3,
-                "depthDir": "right-down",
+                "spanAxis": "right-down",
                 "scaleY": 0.9,
                 "scaleZ": 0.45,
                 "thicknessDir": "left-down"
@@ -42715,7 +42715,7 @@
               "scale": 1,
               "settings": {
                 "depth": 3,
-                "depthDir": "right-down",
+                "spanAxis": "right-down",
                 "scaleY": 0.09
               },
               "dx": 0,
@@ -42730,7 +42730,7 @@
               "settings": {
                 "color": "#8a6a45",
                 "depth": 3,
-                "depthDir": "right-down",
+                "spanAxis": "right-down",
                 "scaleY": 0.9,
                 "scaleZ": 0.45,
                 "thicknessDir": "left-down"
@@ -42746,7 +42746,7 @@
               "scale": 1,
               "settings": {
                 "depth": 3,
-                "depthDir": "right-down",
+                "spanAxis": "right-down",
                 "scaleY": 0.09
               },
               "dx": 0,
@@ -42769,7 +42769,7 @@
                 ],
                 "color": "#8a6a45",
                 "depth": 3,
-                "depthDir": "right-down",
+                "spanAxis": "right-down",
                 "scaleY": 0.55,
                 "scaleZ": 0.3,
                 "thicknessDir": "left-down"
@@ -42861,7 +42861,7 @@
                 ],
                 "color": "#8a6a45",
                 "depth": 4,
-                "depthDir": "right-down",
+                "spanAxis": "right-down",
                 "scaleY": 0.55,
                 "scaleZ": 0.3,
                 "thicknessDir": "right-up"
@@ -42897,7 +42897,7 @@
               "settings": {
                 "color": "#8a6a45",
                 "depth": 4,
-                "depthDir": "right-down",
+                "spanAxis": "right-down",
                 "scaleY": 0.9,
                 "scaleZ": 0.45,
                 "thicknessDir": "left-down"
@@ -42913,7 +42913,7 @@
               "scale": 1,
               "settings": {
                 "depth": 4,
-                "depthDir": "right-down",
+                "spanAxis": "right-down",
                 "scaleY": 0.09
               },
               "dx": 0,
@@ -42928,7 +42928,7 @@
               "settings": {
                 "color": "#8a6a45",
                 "depth": 4,
-                "depthDir": "right-down",
+                "spanAxis": "right-down",
                 "scaleY": 0.9,
                 "scaleZ": 0.45,
                 "thicknessDir": "left-down"
@@ -42944,7 +42944,7 @@
               "scale": 1,
               "settings": {
                 "depth": 4,
-                "depthDir": "right-down",
+                "spanAxis": "right-down",
                 "scaleY": 0.09
               },
               "dx": 0,
@@ -42967,7 +42967,7 @@
                 ],
                 "color": "#8a6a45",
                 "depth": 4,
-                "depthDir": "right-down",
+                "spanAxis": "right-down",
                 "scaleY": 0.55,
                 "scaleZ": 0.3,
                 "thicknessDir": "left-down"
@@ -43059,7 +43059,7 @@
                 ],
                 "color": "#8a6a45",
                 "depth": 7,
-                "depthDir": "right-down",
+                "spanAxis": "right-down",
                 "scaleY": 0.55,
                 "scaleZ": 0.3,
                 "thicknessDir": "right-up"
@@ -43095,7 +43095,7 @@
               "settings": {
                 "color": "#8a6a45",
                 "depth": 7,
-                "depthDir": "right-down",
+                "spanAxis": "right-down",
                 "scaleY": 0.9,
                 "scaleZ": 0.45,
                 "thicknessDir": "left-down"
@@ -43111,7 +43111,7 @@
               "scale": 1,
               "settings": {
                 "depth": 7,
-                "depthDir": "right-down",
+                "spanAxis": "right-down",
                 "scaleY": 0.09
               },
               "dx": 0,
@@ -43126,7 +43126,7 @@
               "settings": {
                 "color": "#8a6a45",
                 "depth": 7,
-                "depthDir": "right-down",
+                "spanAxis": "right-down",
                 "scaleY": 0.9,
                 "scaleZ": 0.45,
                 "thicknessDir": "left-down"
@@ -43142,7 +43142,7 @@
               "scale": 1,
               "settings": {
                 "depth": 7,
-                "depthDir": "right-down",
+                "spanAxis": "right-down",
                 "scaleY": 0.09
               },
               "dx": 0,
@@ -43165,7 +43165,7 @@
                 ],
                 "color": "#8a6a45",
                 "depth": 7,
-                "depthDir": "right-down",
+                "spanAxis": "right-down",
                 "scaleY": 0.55,
                 "scaleZ": 0.3,
                 "thicknessDir": "left-down"
@@ -45310,7 +45310,7 @@
               "scale": 1.12,
               "settings": {
                 "depth": 3,
-                "depthDir": "right-down",
+                "spanAxis": "right-down",
                 "scaleY": 0.62
               },
               "dx": 0,
@@ -45579,7 +45579,7 @@
               "scale": 1.25,
               "settings": {
                 "depth": 3,
-                "depthDir": "right-up",
+                "spanAxis": "right-up",
                 "scaleY": 0.7
               },
               "dx": 1,
@@ -45904,7 +45904,7 @@
               "scale": 1.25,
               "settings": {
                 "depth": 3,
-                "depthDir": "right-up",
+                "spanAxis": "right-up",
                 "scaleY": 0.7,
                 "shape": "circle"
               },

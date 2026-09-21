@@ -9,10 +9,10 @@
  *   A. isoZOffset, the per-cell step math, i.e. the ACTUAL screen delta per direction (+N, −N opposite, 0).
  *   B. the ISO render() applies that slide to a placed asset's DRAWN ORIGIN (real recording ctx).
  *   C. render2D projects the slide to the ground plane and carries NO vertical lift (real recording ctx).
- *   D. zOffset + zDir round-trip through serializeGrid/deserializeToGrid (like zOffset/depthDir already do).
+ *   D. zOffset + zDir round-trip through serializeGrid/deserializeToGrid (like zOffset/spanAxis already do).
  */
 import '@/__tests__/helpers/installTilesetSeed' // ground reads the loaded backend tileset, install the fixture
-import { isoZOffset, DEPTH_STEP, type DepthDir } from '@/engine/render/isoBlock'
+import { isoZOffset, DEPTH_STEP, type IsoDiagonal } from '@/engine/render/isoBlock'
 import { render } from '@/engine/render/iso'
 import { render2D, twoDRecordedTileGeom } from '@/engine/render/topdown'
 import { tileGeomCentroid, type Pt } from '@/engine/render/tileHit'
@@ -22,7 +22,7 @@ import { ASCII_STYLE } from '@/game/artStyle'
 import { makeCellAnimation, restFrame } from '@/engine/cellAnimation'
 import type { PlayerState } from '@/game/runtime/player'
 
-const DIRS: DepthDir[] = ['right-up', 'left-up', 'left-down', 'right-down']
+const DIRS: IsoDiagonal[] = ['right-up', 'left-up', 'left-down', 'right-down']
 
 // ── A. isoZOffset, the per-cell step math ──────────────────────────────────────────────────────
 describe('A. isoZOffset, z slides a tile along the iso diagonal (the per-cell screen step)', () => {
@@ -95,7 +95,7 @@ describe('B. ISO render, the asset SLIDES along the diagonal (drawn origin moves
 
   // A flat, un-elevated asset carrying a REST cell-animation, so the render calls applyCellTransform(ax,ay)
   // → ctx.translate(ax, ay): the exact screen origin it drew the asset at (including the z slide).
-  const assetGrid = (zOffset: number, zDir?: DepthDir): IsometricGrid => {
+  const assetGrid = (zOffset: number, zDir?: IsoDiagonal): IsometricGrid => {
     const grid = new IsometricGrid({ cols: 30, rows: 30, cellSize: CELL, isoScale: ISO })
     const asset: GridAsset = {
       art: ['#'], col: ACOL, row: AROW, type: 'crate', color: '#abcdef',
@@ -142,7 +142,7 @@ describe('C. render2D, z projects to the ground-plane delta, never a vertical li
   const CELL = 16, W = 480, H = 480, TILE = 24, PCOL = 20, PROW = 20, ACOL = 22, AROW = 20
   const player = (): PlayerState => ({ x: PCOL * CELL, z: PROW * CELL, moving: false } as PlayerState)
 
-  const assetGrid = (zOffset: number, zDir?: DepthDir): IsometricGrid => {
+  const assetGrid = (zOffset: number, zDir?: IsoDiagonal): IsometricGrid => {
     const grid = new IsometricGrid({ cols: 40, rows: 40, cellSize: CELL, isoScale: 1 })
     grid.setAssets([{
       art: ['#'], col: ACOL, row: AROW, type: 'crate', color: '#ffffff',
@@ -160,7 +160,7 @@ describe('C. render2D, z projects to the ground-plane delta, never a vertical li
    * the asset drew through `drawImage` and the probe found nothing at all. It was pinned to a rescue path,
    * not to the geometry under test.
    */
-  const assetAt = (zOffset: number, zDir?: DepthDir): Pt => {
+  const assetAt = (zOffset: number, zDir?: IsoDiagonal): Pt => {
     const { ctx } = recordingCtx()
     render2D({ ctx, w: W, h: H, grid: assetGrid(zOffset, zDir), player: player(), time: 0 })
     const geom = twoDRecordedTileGeom(ACOL, AROW, 0)
@@ -189,7 +189,7 @@ describe('C. render2D, z projects to the ground-plane delta, never a vertical li
 })
 
 // ── D. round-trip zOffset + zDir through serialize/deserialize ───────────────────────────────────
-describe('D. serialize/deserialize preserves zOffset + zDir (like zOffset/depthDir already do)', () => {
+describe('D. serialize/deserialize preserves zOffset + zDir (like zOffset/spanAxis already do)', () => {
   const tmpl = (assetsData: unknown[]): TemplateData => ({
     id: 't', name: 'n', description: '', category: '', cols: 4, rows: 4, cellSize: 32, isoScale: 1.4,
     spawnCol: 0, spawnRow: 0,

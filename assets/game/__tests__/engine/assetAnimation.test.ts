@@ -76,13 +76,12 @@ describe('resolveAssetAnimation, screen shift: `y` is a RISE (positive = up)', (
   })
 })
 
-describe('resolveAssetAnimation, field overlay (colour/zoom/width/height) onto the effective asset', () => {
-  test('colour/zoom/width/height are overlaid; the base asset is NOT mutated', () => {
+describe('resolveAssetAnimation, field overlay (colour/width/height) onto the effective asset', () => {
+  test('colour/width/height are overlaid; the base asset is NOT mutated', () => {
     const base = baseAsset({
       color: '#111111',
       animations: [anim({ durationMs: 1000, ease: 'linear', tracks: [
         { setting: 'color', from: '#000000', to: '#ffffff' },
-        { setting: 'zoom', from: 1, to: 3 },
         { setting: 'width', from: 1, to: 2 },
         { setting: 'height', from: 1, to: 4 },
       ] })],
@@ -91,9 +90,19 @@ describe('resolveAssetAnimation, field overlay (colour/zoom/width/height) onto t
     expect(fx.asset).not.toBe(base)          // a fresh clone (base untouched)
     expect(base.color).toBe('#111111')       // original not mutated
     expect(fx.asset.color).toBe('rgb(255, 255, 255)')
-    expect(fx.asset.scale).toBeCloseTo(3)
     expect(fx.asset.scaleX).toBeCloseTo(2)
     expect(fx.asset.scaleY).toBeCloseTo(4)
+  })
+
+  // A target that writes nowhere is worse than no target: it parses, it runs, and nothing moves. Zoom
+  // is not a field any more, so it is not a target either.
+  test('a zoom track is inert, because there is no zoom to animate', () => {
+    const base = baseAsset({
+      scaleX: 3,
+      animations: [anim({ ease: 'linear', tracks: [{ setting: 'zoom', from: 1, to: 3 }] })],
+    })
+
+    expect(resolveAssetAnimation(base, 1000, EMOJI_STYLE, 'iso')?.asset.scaleX ?? 3).toBeCloseTo(3)
   })
 
   test('an opacity-only animation writes no fields → the SAME asset reference (no needless clone)', () => {
@@ -120,30 +129,26 @@ describe('resolveAssetAnimation, animation COMPOSES with the base setting, it do
     expect(resolveAssetAnimation(mk(1), 1000, EMOJI_STYLE, 'iso')!.asset.scaleY).toBeCloseTo(4)
   })
 
-  test('MULTIPLICATIVE zoom/width: base scale 2 × a zoom ratio 1→3 renders 2→6; a from of 0 falls back to the value', () => {
+  test('MULTIPLICATIVE width: base width 3 x a ratio 1->2 renders 6; a from of 0 falls back to the value', () => {
     const a = baseAsset({
-      scale: 2, scaleX: 3,
-      animations: [anim({ ease: 'linear', tracks: [
-        { setting: 'zoom', from: 1, to: 3 },   // ratio ×1 → ×3
-        { setting: 'width', from: 1, to: 2 },  // ratio ×1 → ×2
-      ] })],
+      scaleX: 3,
+      animations: [anim({ ease: 'linear', tracks: [{ setting: 'width', from: 1, to: 2 }] })],
     })
-    const end = resolveAssetAnimation(a, 1000, EMOJI_STYLE, 'iso')!.asset
-    expect(end.scale).toBeCloseTo(6)  // base 2 × (3/1)
-    expect(end.scaleX).toBeCloseTo(6) // base 3 × (2/1)
+    expect(resolveAssetAnimation(a, 1000, EMOJI_STYLE, 'iso')!.asset.scaleX).toBeCloseTo(6)
+
     // guard: a MULTIPLICATIVE track whose `from` is 0 has no ratio → fall back to the absolute value.
-    const z0 = baseAsset({ scale: 2, animations: [anim({ ease: 'linear', tracks: [{ setting: 'zoom', from: 0, to: 4 }] })] })
-    expect(resolveAssetAnimation(z0, 1000, EMOJI_STYLE, 'iso')!.asset.scale).toBeCloseTo(4)
+    const w0 = baseAsset({ scaleX: 2, animations: [anim({ ease: 'linear', tracks: [{ setting: 'width', from: 0, to: 4 }] })] })
+    expect(resolveAssetAnimation(w0, 1000, EMOJI_STYLE, 'iso')!.asset.scaleX).toBeCloseTo(4)
   })
 
-  test('base ZOOM still applies while HEIGHT animates (the "only zoom applied" report), both compose', () => {
+  test('a base WIDTH still applies while HEIGHT animates, both compose', () => {
     const a = baseAsset({
-      scale: 0.5, scaleY: 3, // reduced zoom + raised height, together
+      scaleX: 0.5, scaleY: 3,
       animations: [anim({ ease: 'linear', tracks: [{ setting: 'height', from: 1, to: 4 }] })],
     })
     const end = resolveAssetAnimation(a, 1000, EMOJI_STYLE, 'iso')!.asset
-    expect(end.scaleY).toBeCloseTo(6) // height composed (3 + 3), NOT masked by the animation
-    expect(end.scale).toBeCloseTo(0.5) // base zoom preserved alongside the active height animation
+    expect(end.scaleY).toBeCloseTo(6)  // height composed (3 + 3), NOT masked by the animation
+    expect(end.scaleX).toBeCloseTo(0.5) // the base axis survives alongside an active animation
   })
 })
 

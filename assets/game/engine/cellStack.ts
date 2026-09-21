@@ -71,8 +71,6 @@ export interface TileEntry {
    *  Absent = do NOT pin a per-instance height, the renderer falls back to the tile's catalog height (the
    *  editor brush relies on this so a placed house/tree keeps its authored extrusion). */
   h?: number
-  /** Zoom, uniform multiplier over every axis. GridAsset.scale. */
-  zoom?: number
   /** Height (up), the per-instance Height MULTIPLIER over the tile's own DB block-height (GridAsset.scaleY,
    *  default 1). The tile's base height is DATA (its DB `height`, a flat tile 0.1); scaleY scales it. Round-trips
    *  through save/load. */
@@ -109,9 +107,8 @@ function assetEntry(a: GridAsset): TileEntry {
     tileId: a.tileOverride,
     slug: a.type === FLOOR_TYPE ? (a.tileKey ?? DEFAULT_FLOOR_SLUG) : (a.label ?? a.type),
     w: a.scaleX ?? 1,
-    d: a.scaleZ ?? 1,
+    d: a.depth ?? 1,
     h: resolveTileHeight(undefined, a),
-    zoom: a.scale,
     scaleY: a.scaleY,
     color: a.color ?? null,
     opacity: a.opacity,
@@ -341,13 +338,12 @@ export function pushTile(grid: IsometricGrid, col: number, row: number, entry: T
     type: entry.type,
     color: entry.color ?? undefined,
     opacity: entry.opacity,
-    scale: entry.zoom,
     tileOverride: entry.tileId,
     heightLevel,
   })
   const placed = grid.assets[grid.assets.length - 1]
   if (entry.w !== undefined) placed.scaleX = entry.w
-  if (entry.d !== undefined) placed.scaleZ = entry.d
+  if (entry.d !== undefined) placed.depth = entry.d
   if (entry.scaleY !== undefined) placed.scaleY = entry.scaleY
   if (entry.h !== undefined) placed.height = entry.h
   if (entry.label !== undefined) placed.label = entry.label
@@ -447,8 +443,8 @@ const blockKey = (b: { col: number; row: number }): string => `${b.col},${b.row}
   * elsewhere.
  *  A tile with no z-width simply occupies its own block, so the ordinary case is unchanged. */
 function occupiedBlocks(a: GridAsset): { col: number; row: number }[] {
-  const depth = a.depth ?? 1
-  if (depth > 1 && a.depthDir) return depthCells(a.col, a.row, depth, a.depthDir)
+  const depth = a.spanForward ?? 1
+  if (depth > 1 && a.spanAxis) return depthCells(a.col, a.row, depth, a.spanAxis)
   return [{ col: a.col, row: a.row }]
 }
 

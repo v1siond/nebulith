@@ -12,7 +12,7 @@
  */
 import { installRealCanvas, type RealCanvasHarness } from '@/__tests__/helpers/realCanvas'
 import { drawIsoTileBlock, drawIsoTileForShape } from '@/engine/render/iso'
-import { rotateDepthDir, rotateThicknessReach, type DepthDir, type ThicknessReach } from '@/engine/render/isoBlock'
+import { rotateDepthDir, rotateThicknessReach, type IsoDiagonal, type ThicknessReach } from '@/engine/render/isoBlock'
 import type { GridAsset } from '@/engine/IsometricGrid'
 import type { Canvas } from '@napi-rs/canvas'
 
@@ -41,10 +41,10 @@ function silhouette(canvas: Canvas): { x0: number; x1: number; y0: number; y1: n
   return { x0, x1, y0, y1, area }
 }
 
-const draw = (thickness?: ThicknessReach, depth = 1, depthDir?: DepthDir) => {
+const draw = (thickness?: ThicknessReach, depth = 1, spanAxis?: IsoDiagonal) => {
   const canvas = H.makeCanvas(W, HT)
   const ctx = canvas.getContext('2d') as unknown as CanvasRenderingContext2D
-  drawIsoTileBlock(ctx, { x: CX, y: CY }, TW, TH, BH, 1, SOLID, undefined, undefined, depth, depthDir, thickness)
+  drawIsoTileBlock(ctx, { x: CX, y: CY }, TW, TH, BH, 1, SOLID, undefined, undefined, depth, spanAxis, thickness)
   return silhouette(canvas)
 }
 
@@ -104,7 +104,7 @@ describe('the UI arrow and the map agree at EVERY rotation', () => {
   // converts the arrow to a world axis with `rotateDepthDir(dir, -facing)` and the renderer converts it back
   // with `rotateDepthDir(dir, +facing)`. If those two ever stop being inverses, the slider you drag stops
   // matching the side that moves, which is the whole complaint.
-  const SCREEN: DepthDir[] = ['right-down', 'left-down', 'left-up', 'right-up']
+  const SCREEN: IsoDiagonal[] = ['right-down', 'left-down', 'left-up', 'right-up']
 
   it.each([0, 1, 2, 3])('facing %i: the arrow you drag is the world axis that comes back', facing => {
     for (const arrow of SCREEN) {
@@ -135,7 +135,7 @@ describe('a Z-WIDTH tile takes its thickness too (the rect branch)', () => {
   const rect = (thickness?: ThicknessReach) => {
     const canvas = H.makeCanvas(W, HT)
     const ctx = canvas.getContext('2d') as unknown as CanvasRenderingContext2D
-    const asset = { depthDir: 'left-down' as DepthDir, depth: 6, thickness, shape: 'square' } as unknown as GridAsset
+    const asset = { spanAxis: 'left-down' as IsoDiagonal, spanForward: 6, thickness, shape: 'square' } as unknown as GridAsset
     drawIsoTileForShape(ctx, { x: CX, y: CY }, TW, TH, BH, 1, SOLID, undefined, asset)
     return silhouette(canvas)
   }
@@ -162,7 +162,7 @@ describe('a spanning block covers exactly the cells it claims', () => {
   const span = (cells: number, thickness?: ThicknessReach) => {
     const canvas = H.makeCanvas(SW, SH)
     const ctx = canvas.getContext('2d') as unknown as CanvasRenderingContext2D
-    const asset = { depthDir: 'left-down' as DepthDir, depth: cells, thickness, shape: 'square' } as unknown as GridAsset
+    const asset = { spanAxis: 'left-down' as IsoDiagonal, spanForward: cells, thickness, shape: 'square' } as unknown as GridAsset
     drawIsoTileForShape(ctx, { x: SCX, y: SCY }, TW, TH, BH, 1, SOLID, undefined, asset)
     return silhouette(canvas)
   }

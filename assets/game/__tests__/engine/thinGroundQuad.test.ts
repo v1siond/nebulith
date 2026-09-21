@@ -9,7 +9,7 @@
  * `thinGroundQuad` shrinks the footprint along ONE world axis and keeps the block HUGGING the face that
  * direction points at, so a door stays flush with its wall instead of floating in the middle of the cell.
  */
-import { thinGroundQuad, unitGroundQuad, type DepthDir } from '@/engine/render/isoBlock'
+import { thinGroundQuad, unitGroundQuad, type IsoDiagonal } from '@/engine/render/isoBlock'
 
 const TW = 32, TH = 16
 const unit = unitGroundQuad(TW, TH)
@@ -25,7 +25,7 @@ const sameQuad = (got: ReturnType<typeof unitGroundQuad>, want: ReturnType<typeo
 }
 
 describe('a full-thickness block is the untouched unit diamond', () => {
-  it.each<DepthDir>(['right-down', 'left-up', 'left-down', 'right-up'])('t = 1 changes nothing (%s)', dir => {
+  it.each<IsoDiagonal>(['right-down', 'left-up', 'left-down', 'right-up'])('t = 1 changes nothing (%s)', dir => {
     sameQuad(thinGroundQuad(TW, TH, dir, 1), unit)
   })
 
@@ -74,7 +74,7 @@ describe('the perpendicular axis keeps its full length, a thin door is still a f
   const len = (a: { x: number; y: number }, b: { x: number; y: number }) => Math.hypot(b.x - a.x, b.y - a.y)
   const fullEdge = Math.hypot(TW, TH)
 
-  it.each<[DepthDir, 'col' | 'row']>([
+  it.each<[IsoDiagonal, 'col' | 'row']>([
     ['right-down', 'col'],
     ['left-up', 'col'],
     ['left-down', 'row'],

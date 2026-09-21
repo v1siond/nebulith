@@ -150,7 +150,7 @@ describe('Z-Width extrudes the block (settings honoured), per category', () => {
   }
   it.each(oneEmojiPerCategory())('%s extrudes when Z-Width is set', (_label, r) => {
     const base = bbox(renderIso(EMOJI_STYLE, r))
-    const wide = bbox(renderIso(EMOJI_STYLE, r, { depth: 5, depthDir: 'right-up' }))
+    const wide = bbox(renderIso(EMOJI_STYLE, r, { depth: 5, spanAxis: 'right-up' }))
     expect(wide.area).toBeGreaterThan(base.area * 1.3) // the depth-box covers substantially more than the base cube
   })
 })

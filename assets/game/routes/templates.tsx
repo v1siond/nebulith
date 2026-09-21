@@ -11,6 +11,7 @@
  * - TOP: 2D bird's-eye blueprint (no height)
  * - DEBUG: Isometric + collision overlay, asset labels
  */
+import { loadTileSchema } from '@/lib/tileDefaults'
 import { assetIsSolid } from '@/engine/collisionBoxes'
 import { setTilePose, styleCatalog, styleTile, styleTiles } from '@/engine/tileset/styleTiles'
 import Head from '@/lib/router'
@@ -61,7 +62,7 @@ import { useRouter } from '@/lib/router'
 import { ROUTES } from '@/lib/routes'
 import { readStored, writeStored } from '@/lib/storage'
 import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from 'react'
-import { render, render2D, renderTopView, clampCameraAxis, entityMotion, ENEMY_MOVE_MS, isDebugMode, setDebugMode, isShowCollisions, setShowCollisions as setCollisionsFlag, cellCaptionMap, pickIsoTilesAt, pickTwoDTilesAt, renderedTilesInRect, renderedTwoDTilesInRect, isoRecordedGeom, twoDRecordedGeom, nextPickIndex, ISO_BLOCK_H_FRAC, depthCells, tileGeomPolygon, tileGeomCentroid, tileHandlePoints, handleAtPoint, dragOutwardPx, scaleFromDrag, depthFromDrag, drawTileHandles, polyBBox, HANDLE_HIT_RADIUS, type TileHandle, type HandleId, type CompositionGhost, type DepthDir } from '@/engine/render'
+import { render, render2D, renderTopView, clampCameraAxis, entityMotion, ENEMY_MOVE_MS, isDebugMode, setDebugMode, isShowCollisions, setShowCollisions as setCollisionsFlag, cellCaptionMap, pickIsoTilesAt, pickTwoDTilesAt, renderedTilesInRect, renderedTwoDTilesInRect, isoRecordedGeom, twoDRecordedGeom, nextPickIndex, ISO_BLOCK_H_FRAC, depthCells, tileGeomPolygon, tileGeomCentroid, tileHandlePoints, handleAtPoint, dragOutwardPx, scaleFromDrag, depthFromDrag, drawTileHandles, polyBBox, HANDLE_HIT_RADIUS, type TileHandle, type HandleId, type CompositionGhost, type IsoDiagonal } from '@/engine/render'
 import { isoWorldCellToScreen, setIsoCameraFacing, setIsoCameraTurn, isoCameraTurn } from '@/engine/render/iso'
 import { type Orientation } from '@/engine/render/isoOrientation'
 import { isoEditorCamera, isoEditorCellAt, isoEditorCellAnchor, type IsoEditorView } from '@/game/editor/isoEditorCamera'
@@ -760,7 +761,10 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
     // THE SEASONS GATE THE RENDER, unlike those. Ground palettes are backend data since 2026-09-11, so a
     // map with no season catalog has no ground at all, that is a broken editor, not a degraded one, and it
     // belongs with the tileset in the gate rather than failing quietly into an empty world.
-    Promise.all([loadTilesetsFromBackend(), loadEntitiesFromBackend(), loadZones()])
+    // AND THE TILE SCHEMA, for the same reason. It carries what every setting is when nobody said, from
+    // the column that states it. Without it a renderer is back to holding its own literal, which is the
+    // defect phase 3 removes, so it belongs in the gate rather than failing quietly into invented values.
+    Promise.all([loadTilesetsFromBackend(), loadEntitiesFromBackend(), loadZones(), loadTileSchema()])
       .then(([loaded, entitiesLoaded]) => {
         if (loaded.length === 0 || !entitiesLoaded || zones().length === 0) { setTilesetError(true); return }
         // Build the Tile-composition palette from the just-loaded tileset, EVERY composition the backend
@@ -2323,11 +2327,16 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
     for (const { col, row, index } of resolveSelectionTargets(selectedCells, fallbackI)) apply(grid, col, row, index)
     bumpBuildingVersion()
   }
-  // Per-tile sprite scale (#77/#78): Width/Height/Depth are per-axis, Zoom is uniform. Dispatch the UI
-  // axis to the asset field it writes; the renderers read these back per view (assetDimensions.ts).
-  // Width/Depth/Zoom are plain per-axis field writes. HEIGHT is deliberately NOT in here: changing a tile's
-  // height is a STACK operation (setTileHeight), because whatever rests on that tile has to move with it.
-  const DIM_FIELD = { width: 'scaleX', depth: 'scaleZ', zoom: 'scale' } as const
+  // Per-tile size: Width, Height and Depth, three axes and nothing else. Dispatch the control to the
+  // field it writes; the renderers read them back per view (assetDimensions.ts).
+  //
+  // THERE IS NO ZOOM. It was a fourth number that multiplied the three rather than replacing them, so
+  // Width 2 with Zoom 2 drew at 4 and nothing on this panel said so. The axes are the primitive: they
+  // can express a uniform size and Zoom could never express a non-uniform one.
+  //
+  // HEIGHT is deliberately not in here: changing a tile's height is a STACK operation (setTileHeight),
+  // because whatever rests on that tile has to move with it.
+  const DIM_FIELD = { width: 'scaleX', depth: 'depth' } as const
   type DimAxis = 'height' | keyof typeof DIM_FIELD
   // Write the i-th stacked TILE of every selected cell (per-tile, not "all assets in the cell at once").
   // The tile's BLOCK-HEIGHT (data): its DB height × any per-instance scaleY. This is the ONE "Height" number the
@@ -2355,34 +2364,34 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
   // affordance the base/floor tile shows; the floor is a plain asset, so it clears like any other tile.
   const clearAssetColor = (i: number) =>
     applyToSelectedTiles(i, (a) => { a.color = undefined })
-  // "Z Width" (directional depth): the i-th stacked TILE spans `cells` blocks along asset.depthDir, extruded as
+  // "Z Width" (directional depth): the i-th stacked TILE spans `cells` blocks along asset.spanAxis, extruded as
   // a long iso box (isoDepthBox). A box needs a direction to grow, default to 'right-up' ("right top", the
   // user's Image #28 arrow) when raising it past 1 with none set, so the extrusion shows immediately.
   const setAssetDepth = (i: number, cells: number) =>
     applyToSelectedTiles(i, (a) => {
-      a.depth = Math.max(1, Math.round(cells))
-      if (a.depth > 1 && !a.depthDir) a.depthDir = 'right-up'
+      a.spanForward = Math.max(1, Math.round(cells))
+      if (a.spanForward > 1 && !a.spanAxis) a.spanAxis = 'right-up'
     })
-  const setAssetDepthDir = (i: number, dir: DepthDir) =>
-    applyToSelectedTiles(i, (a) => { a.depthDir = dir })
-  // BIDIRECTIONAL z-width (#58): extend the SAME tile BACKWARD from its anchor (opposite depthDir) by `cells`, so
-  // one roof tile spans both pathways. 0 = one-way (today). Needs a depthDir to point the axis (default like depth).
+  const setAssetDepthDir = (i: number, dir: IsoDiagonal) =>
+    applyToSelectedTiles(i, (a) => { a.spanAxis = dir })
+  // BIDIRECTIONAL z-width (#58): extend the SAME tile BACKWARD from its anchor (opposite spanAxis) by `cells`, so
+  // one roof tile spans both pathways. 0 = one-way (today). Needs a spanAxis to point the axis (default like depth).
   const setAssetDepthBack = (i: number, cells: number) =>
     applyToSelectedTiles(i, (a) => {
-      a.depthBack = Math.max(0, Math.round(cells))
-      if ((a.depthBack ?? 0) > 0 && !a.depthDir) a.depthDir = 'right-down'
+      a.spanBack = Math.max(0, Math.round(cells))
+      if ((a.spanBack ?? 0) > 0 && !a.spanAxis) a.spanAxis = 'right-down'
     })
-  // 2-AXIS z-width: the PERPENDICULAR extents, forward (depthPerp) +
-  // back (depthPerpBack) along rotateDepthDir(depthDir,1). With the primary axis this makes the tile a RECTANGLE.
+  // 2-AXIS z-width: the PERPENDICULAR extents, forward (spanPerp) +
+  // back (spanPerpBack) along rotateDepthDir(spanAxis,1). With the primary axis this makes the tile a RECTANGLE.
   const setAssetDepthPerp = (i: number, cells: number) =>
     applyToSelectedTiles(i, (a) => {
-      a.depthPerp = Math.max(0, Math.round(cells))
-      if (!a.depthDir) a.depthDir = 'right-down'
+      a.spanPerp = Math.max(0, Math.round(cells))
+      if (!a.spanAxis) a.spanAxis = 'right-down'
     })
   const setAssetDepthPerpBack = (i: number, cells: number) =>
     applyToSelectedTiles(i, (a) => {
-      a.depthPerpBack = Math.max(0, Math.round(cells))
-      if (!a.depthDir) a.depthDir = 'right-down'
+      a.spanPerpBack = Math.max(0, Math.round(cells))
+      if (!a.spanAxis) a.spanAxis = 'right-down'
     })
   // PER-ASSET pose (x/y/rotate/flip) and "z position" (ISO-DIAGONAL slide), written to THIS placed tile
   // (persists with the map), not the shared tileset kind. The render reads asset.pose / asset.zOffset / asset.zDir
@@ -2391,13 +2400,13 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
     applyToSelectedTiles(i, (a) => { a.pose = pose })
   // "z position": SLIDE the tile along an iso diagonal (NOT a vertical lift). Default the direction to 'right-up'
   // ("right top", the user's +z = up-right) the first time z is set with none, so the slide has a direction to
-  // move along immediately, mirrors setAssetDepth defaulting depthDir when depth grows past 1.
+  // move along immediately, mirrors setAssetDepth defaulting spanAxis when depth grows past 1.
   const setAssetZOffset = (i: number, v: number) =>
     applyToSelectedTiles(i, (a) => {
       a.zOffset = v
       if (v !== 0 && !a.zDir) a.zDir = 'right-up'
     })
-  const setAssetZDir = (i: number, dir: DepthDir) =>
+  const setAssetZDir = (i: number, dir: IsoDiagonal) =>
     applyToSelectedTiles(i, (a) => { a.zDir = dir })
   // PER-ASSET "z-index" (draw-priority, CSS z-index style), a higher value draws on top / in front, overriding
   // the positional depth sort. Written to THIS placed tile (persists with the map); the render reads asset.zIndex.
@@ -2437,7 +2446,7 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
   // question the Footprint asks, in the smaller unit. `dir` arrives already converted from the arrow the user
   // clicked (screen) to the world axis it means, so the stored value survives camera rotation. A full reach
   // (1) is the default and is dropped, so an untouched tile carries no thickness at all.
-  const setAssetThicknessReach = (i: number, dir: DepthDir, value: number) =>
+  const setAssetThicknessReach = (i: number, dir: IsoDiagonal, value: number) =>
     applyToSelectedTiles(i, (a) => {
       const next = { ...(a.thickness ?? {}) }
       if (value >= 1) delete next[dir]
@@ -2542,7 +2551,7 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
     handleDragRef.current = {
       id: hit.id, i: target.i,
       startCx: cx, startCy: cy, sx, sy,
-      startScaleX: scaleX, startScaleY: heightBase, startDepth: target.asset.depth ?? 1,
+      startScaleX: scaleX, startScaleY: heightBase, startDepth: target.asset.spanForward ?? 1,
       baseHalfWpx: Math.max(1, (b.width / 2) / scaleX),
       baseHalfHpx: Math.max(1, (b.height / 2) / heightBase),
     }
@@ -2612,7 +2621,7 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
       /** Every tile label on the map with the colours it carries, so a green sprig is identified by measuring. */
       __tileTones?: (min?: number) => { label: string; total: number; colors: [string, number][] }[] | null
       __collisionAudit?: (col0?: number, row0?: number, col1?: number, row1?: number) => { col: number; row: number; ground: string; blocked: boolean; standLevel: number; tiles: { label: string; level: number; solid: boolean }[] }[]
-      __floorInfoAt?: (col: number, row: number) => { color: string | null; kind: string | null; depth: number | null; depthDir: string | null; heightLevel: number } | null
+      __floorInfoAt?: (col: number, row: number) => { color: string | null; kind: string | null; depth: number | null; spanAxis: string | null; heightLevel: number } | null
       __tileBoxes?: (label: string) => { known: boolean; boxes: number | null }
       __camOffset?: () => { x: number; y: number }
       __stackAsset?: (col: number, row: number, n?: number) => number | null
@@ -2629,10 +2638,10 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
       __randomizeSelected?: () => boolean
       __centerOn?: (col: number, row: number) => void
       __setHero?: (col: number, row: number) => void
-      __setDepth?: (col: number, row: number, depth: number, dir: DepthDir) => { col: number; row: number; depth: number; depthDir: DepthDir; cells: { col: number; row: number }[] } | null
-      __setDepthBack?: (col: number, row: number, back: number, dir?: DepthDir) => { col: number; row: number; depthBack: number; depthDir?: DepthDir } | null
-      __setDepthPerp?: (col: number, row: number, fwd: number, backCells?: number) => { col: number; row: number; depthPerp: number; depthPerpBack: number; depthDir?: DepthDir } | null
-      __setZPos?: (col: number, row: number, z: number, dir: DepthDir) => { col: number; row: number; zOffset: number; zDir: DepthDir } | null
+      __setDepth?: (col: number, row: number, depth: number, dir: IsoDiagonal) => { col: number; row: number; depth: number; spanAxis: IsoDiagonal; cells: { col: number; row: number }[] } | null
+      __setDepthBack?: (col: number, row: number, back: number, dir?: IsoDiagonal) => { col: number; row: number; spanBack: number; spanAxis?: IsoDiagonal } | null
+      __setDepthPerp?: (col: number, row: number, fwd: number, backCells?: number) => { col: number; row: number; spanPerp: number; spanPerpBack: number; spanAxis?: IsoDiagonal } | null
+      __setZPos?: (col: number, row: number, z: number, dir: IsoDiagonal) => { col: number; row: number; zOffset: number; zDir: IsoDiagonal } | null
       __setShape?: (col: number, row: number, shape: TileShape) => { col: number; row: number; shape: TileShape } | null
       __setDisplay?: (col: number, row: number, mode: TileDisplay) => { col: number; row: number; mode: TileDisplay } | null
       __setLight?: (col: number, row: number, light: AssetLight | null) => { col: number; row: number; light: AssetLight | null } | null
@@ -2687,7 +2696,7 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
         route,
         tileHeight: tile.height ?? null,
         tileSettings: tile.settings ?? null,
-        asset: a ? { type: a.type, label: a.label ?? null, height: a.height ?? null, tileOverride: a.tileOverride ?? null, depth: a.depth ?? null, depthDir: a.depthDir ?? null, settings: a.settings ?? null, solid: assetIsSolid(a) } : null,
+        asset: a ? { type: a.type, label: a.label ?? null, height: a.height ?? null, tileOverride: a.tileOverride ?? null, depth: a.spanForward ?? null, spanAxis: a.spanAxis ?? null, settings: a.settings ?? null, solid: assetIsSolid(a) } : null,
       }
     }
     win.__isoBlockScreen = (col: number, row: number, level: number) => {
@@ -2815,36 +2824,36 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
       playerRef.current.x = col * grid.cellSize + grid.cellSize / 2
       playerRef.current.z = row * grid.cellSize + grid.cellSize / 2
     }
-    // DIRECTIONAL-DEPTH validation seam: set `depth` + `depthDir` on the TOPMOST block at (col,row) so it
+    // DIRECTIONAL-DEPTH validation seam: set `depth` + `spanAxis` on the TOPMOST block at (col,row) so it
     // extrudes into a long iso box along one of the four diagonals, mark collision on every covered cell
     // (walk into any = blocked; anchor stays the base cell), and bump a redraw. Returns what it set + the
     // covered cells, so the render can be driven deterministically in all four directions. Same family as
     // __stackAsset / __setHero (mutates the grid in place, then bumpBuildingVersion re-renders from it).
-    win.__setDepth = (col: number, row: number, depth: number, dir: DepthDir) => {
+    win.__setDepth = (col: number, row: number, depth: number, dir: IsoDiagonal) => {
       const g = gridRef.current
       if (!g) return null
       const a = g.getAssetsAtCell(col, row).at(-1) // topmost stacked asset at the cell
       if (!a) return null
-      a.depth = depth
-      a.depthDir = dir
+      a.spanForward = depth
+      a.spanAxis = dir
       const cells = depthCells(col, row, depth, dir)
       for (const c of cells) g.setCollision(c.col, c.row, true)
       g.assetLevelsChanged() // mirror the real editor path: re-index the covered footprint so it stacks
       bumpBuildingVersion()
-      return { col, row, depth, depthDir: dir, cells }
+      return { col, row, depth, spanAxis: dir, cells }
     }
     // BIDIRECTIONAL z-width (#58): extend the topmost tile at (col,row) BACKWARD `back` cells too.
-    win.__setDepthBack = (col: number, row: number, back: number, dir?: DepthDir) => {
+    win.__setDepthBack = (col: number, row: number, back: number, dir?: IsoDiagonal) => {
       const g = gridRef.current
       if (!g) return null
       const a = g.getAssetsAtCell(col, row).at(-1)
       if (!a) return null
-      a.depthBack = back
-      if (dir) a.depthDir = dir
-      else if (!a.depthDir) a.depthDir = 'right-down'
+      a.spanBack = back
+      if (dir) a.spanAxis = dir
+      else if (!a.spanAxis) a.spanAxis = 'right-down'
       g.assetLevelsChanged() // re-index covered footprint (mirror the editor path)
       bumpBuildingVersion()
-      return { col, row, depthBack: back, depthDir: a.depthDir }
+      return { col, row, spanBack: back, spanAxis: a.spanAxis }
     }
     // 2-AXIS z-width validation seam: set the PERPENDICULAR extents (forward + back) on the topmost block, making
     // it a RECTANGLE with the primary depth. Returns what it set so the render can be driven deterministically.
@@ -2853,18 +2862,18 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
       if (!g) return null
       const a = g.getAssetsAtCell(col, row).at(-1)
       if (!a) return null
-      a.depthPerp = fwd
-      a.depthPerpBack = backCells
-      if (!a.depthDir) a.depthDir = 'right-down'
+      a.spanPerp = fwd
+      a.spanPerpBack = backCells
+      if (!a.spanAxis) a.spanAxis = 'right-down'
       g.assetLevelsChanged() // re-index covered footprint (mirror the editor path)
       bumpBuildingVersion()
-      return { col, row, depthPerp: fwd, depthPerpBack: backCells, depthDir: a.depthDir }
+      return { col, row, spanPerp: fwd, spanPerpBack: backCells, spanAxis: a.spanAxis }
     }
     // Z-POSITION validation seam: set `zOffset` (magnitude in cells) + `zDir` (which iso diagonal) on the TOPMOST
     // block at (col,row) so it SLIDES along that diagonal (+z toward dir, −z opposite), then bump a redraw.
     // Returns what it set so the render can be driven deterministically in all four directions. Same family as
     // __setDepth (mutates the grid in place, then bumpBuildingVersion re-renders from it).
-    win.__setZPos = (col: number, row: number, z: number, dir: DepthDir) => {
+    win.__setZPos = (col: number, row: number, z: number, dir: IsoDiagonal) => {
       const g = gridRef.current
       if (!g) return null
       const a = g.getAssetsAtCell(col, row).at(-1) // topmost stacked asset at the cell
@@ -3009,7 +3018,7 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
       const grid = gridRef.current
       if (!grid) return null
       const f = grid.floorAt(col, row)
-      return f ? { color: f.color ?? null, kind: f.tileKey ?? null, depth: f.depth ?? null, depthDir: f.depthDir ?? null, heightLevel: f.heightLevel ?? 0 } : null
+      return f ? { color: f.color ?? null, kind: f.tileKey ?? null, depth: f.spanForward ?? null, spanAxis: f.spanAxis ?? null, heightLevel: f.heightLevel ?? 0 } : null
     }
     // COLLISION AUDIT (QA seam): per cell, what the flat collision map says vs what actually stands there.
     // The map is 2D and means "a unit walking the ground is stopped here", so the only truthful source is a
@@ -6207,7 +6216,7 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
                 const unitTileModel: TileControlModel = {
                   key: `unit-${selEntity.id}`,
                   label: selEntity.name || selEntity.kind,
-                  dims: { width: unitScale, height: unitScale, depth: unitScale, zoom: unitScale },
+                  dims: { width: unitScale, height: unitScale, depth: unitScale },
                   color: selEntity.color ?? null,
                   colorFallback: '#ffffff',
                   onDim: (_axis, v) => patchSelectedEntity({ size: v > 1 ? v : undefined }), // size 1 drops the field
@@ -6469,8 +6478,7 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
                             dims: {
                               width: adim(i, a => a.scaleX ?? 1),
                               height: adim(i, a => blockHeightOf(a)), // the tile's real BLOCK-HEIGHT (0.1 flat, 1 wall, …), not the scaleY multiplier
-                              depth: adim(i, a => a.scaleZ ?? 1),
-                              zoom: adim(i, a => a.scale ?? 1),
+                              depth: adim(i, a => a.depth ?? 1),
                             },
                             color: commonValue(cells.map(({ col, row }) => stackedAssetsAt(grid, col, row)[i]?.color ?? null)),
                             colorFallback: isFloorTile ? '#3a7d34' : '#ffffff',
@@ -6482,11 +6490,11 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
                             preview: previewFor(a0?.tileOverride ?? selectedOverride, stack[lvl]?.slug ?? kind),
                             libraryLabel,
                             onOpenLibrary: () => setTileLibraryOpen(true),
-                            zWidth: adim(i, a => a.depth ?? 1),
-                            zBack: adim(i, a => a.depthBack ?? 0),
-                            zPerp: adim(i, a => a.depthPerp ?? 0),
-                            zPerpBack: adim(i, a => a.depthPerpBack ?? 0),
-                            zDir: commonValue(cells.map(({ col, row }) => (stackedAssetsAt(grid, col, row)[i]?.depthDir ?? null) as DepthDir | null)),
+                            zWidth: adim(i, a => a.spanForward ?? 1),
+                            zBack: adim(i, a => a.spanBack ?? 0),
+                            zPerp: adim(i, a => a.spanPerp ?? 0),
+                            zPerpBack: adim(i, a => a.spanPerpBack ?? 0),
+                            zDir: commonValue(cells.map(({ col, row }) => (stackedAssetsAt(grid, col, row)[i]?.spanAxis ?? null) as IsoDiagonal | null)),
                             onZWidth: posable ? (v => setAssetDepth(i, v)) : undefined,
                             onZBack: posable ? (v => setAssetDepthBack(i, v)) : undefined,
                             onZPerp: posable ? (v => setAssetDepthPerp(i, v)) : undefined,
@@ -6494,11 +6502,11 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
                             onZDir: posable ? (dir => setAssetDepthDir(i, dir)) : undefined,
                             // The reach MAP across the selection: identical everywhere, or null = mixed.
                             thickness: commonValue(cells.map(({ col, row }) => JSON.stringify(stackedAssetsAt(grid, col, row)[i]?.thickness ?? {}))) as string | null,
-                            onThicknessReach: (dir: DepthDir, value: number) => setAssetThicknessReach(i, dir, value),
+                            onThicknessReach: (dir: IsoDiagonal, value: number) => setAssetThicknessReach(i, dir, value),
                             // The camera's quarter-turn, so the direction arrows read in SCREEN space, facing: cameraFacing,
                             zPos: adim(i, a => a.zOffset ?? 0),
                             onZPos: posable ? (v => setAssetZOffset(i, v)) : undefined,
-                            zPosDir: commonValue(cells.map(({ col, row }) => (stackedAssetsAt(grid, col, row)[i]?.zDir ?? null) as DepthDir | null)),
+                            zPosDir: commonValue(cells.map(({ col, row }) => (stackedAssetsAt(grid, col, row)[i]?.zDir ?? null) as IsoDiagonal | null)),
                             onZPosDir: posable ? (dir => setAssetZDir(i, dir)) : undefined,
                             zIndex: adim(i, a => a.zIndex ?? 0),
                             onZIndex: posable ? (v => setAssetZIndex(i, v)) : undefined,
@@ -6563,7 +6571,6 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
                               width: entry?.w ?? 1,
                               height: (entry?.h ?? 1) * (entry?.scaleY ?? 1), // block-height (data), not the scaleY multiplier
                               depth: entry?.d ?? 1,
-                              zoom: entry?.zoom ?? 1,
                             },
                             color: entry?.color ?? null,
                             colorFallback: entry?.color ?? '#8a8a8a',

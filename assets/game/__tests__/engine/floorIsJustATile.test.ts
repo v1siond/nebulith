@@ -204,8 +204,8 @@ describe('RAISE a tile and what is on top of it goes up with it', () => {
     // ONE road tile anchored at (C,R) but spanning 4 blocks via smart z-width, it OCCUPIES all four.
     grid.setGround(C, R, 'road')
     const road = grid.floorAt(C, R)!
-    road.depth = 4
-    road.depthDir = 'right-down'
+    road.spanForward = 4
+    road.spanAxis = 'right-down'
 
     // A wall standing on the THIRD block of that span, its own cell, but the same tile underneath.
     const spanned = depthCells(C, R, 4, 'right-down')[2]
@@ -225,8 +225,8 @@ describe('RAISE a tile and what is on top of it goes up with it', () => {
     // though its anchor cell is somewhere else.
     const roof = grid.placeAsset([''], C + 2, R, { type: 'house_4', heightLevel: 4 })
     roof.height = 1
-    roof.depth = 3
-    roof.depthDir = 'left-up' // steps -1 col per block: (C+2,R) → (C+1,R) → (C,R)
+    roof.spanForward = 3
+    roof.spanAxis = 'left-up' // steps -1 col per block: (C+2,R) → (C+1,R) → (C,R)
     expect(depthCells(C + 2, R, 3, 'left-up').some(c => c.col === C && c.row === R)).toBe(true)
 
     setTileHeight(grid, C, R, 0, 2) // the ground under it goes from one block to two, a delta of ONE

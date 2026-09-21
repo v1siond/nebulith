@@ -131,14 +131,17 @@ describe('tree composition, every ascii asset is a collection of selectable DB t
     expect(col.map(t => t.label)).toEqual(['trunk_mid', 'leaf_center'])
     expect(col.map(t => t.heightLevel)).toEqual([0, 2]) // trunk ON the flat ground; leaf lifted to the trunk top
 
-    // The user's hand-tuned settings ride the cell: trunk = Height(scaleY) 3.15 at Zoom(scale) 0.6 (thin tall
-    // post); leaf = Height(scaleY) 2 at Zoom(scale) 1.35 (a bigger cube). All DATA, nothing hardcoded.
+    // The hand-tuned settings ride the cell, with the cell's Zoom FOLDED INTO the axes: a trunk at
+    // Height 3.15 and Zoom 0.6 is Height 1.89 across a 0.6 footprint, which is the same thin tall post
+    // drawn without a fourth multiplier. All DATA, nothing hardcoded.
     const trunk = grid.assets.find(a => a.label === 'trunk_mid')!
     const leaf = grid.assets.find(a => a.label === 'leaf_center')!
-    expect(trunk.scale).toBe(0.6)
-    expect(trunk.scaleY).toBe(3.15)
-    expect(leaf.scale).toBe(1.35)
-    expect(leaf.scaleY).toBe(2)
+    expect(trunk.scaleX).toBeCloseTo(0.6, 5)
+    expect(trunk.depth).toBeCloseTo(0.6, 5)
+    expect(trunk.scaleY).toBeCloseTo(3.15 * 0.6, 5)
+    expect(leaf.scaleX).toBeCloseTo(1.35, 5)
+    expect(leaf.depth).toBeCloseTo(1.35, 5)
+    expect(leaf.scaleY).toBeCloseTo(2 * 1.35, 5)
   })
 
   test('the tree: only the trunk cell blocks, the leaf cube is walkable overhead', () => {
@@ -194,17 +197,16 @@ describe('tree composition, every ascii asset is a collection of selectable DB t
   })
 
   // ── DIMENSION-SANITY: the trunk is never bigger than the leaves ─────────────────────
-  test('DIMENSION SANITY: for every tree variant the trunk is thinner + less zoomed than the leaves, and sits BELOW them', () => {
+  test('DIMENSION SANITY: for every tree variant the trunk is narrower and shallower than the leaves, and sits BELOW them', () => {
     for (const kind of TREE_VARIANTS) {
       const grid = mkGrid()
       stampComposition(grid, kind, 7, 7, 'spring', 0)
       const trunk = grid.assets.find(a => a.label === 'trunk_mid')!
       const leaf = grid.assets.find(a => a.label === 'leaf_center')!
-      const trunkZoom = trunk.scale ?? 1
-      const leafZoom = leaf.scale ?? 1
-      const trunkWidth = (trunk.scaleX ?? 1) * trunkZoom // effective footprint width
-      const leafWidth = (leaf.scaleX ?? 1) * leafZoom
-      expect(trunkZoom).toBeLessThan(leafZoom) // never zoomed larger than the canopy
+      // The axes ARE the footprint now; there is no separate multiplier to fold in first.
+      const trunkWidth = trunk.scaleX ?? 1
+      const leafWidth = leaf.scaleX ?? 1
+      expect(trunk.depth ?? 1).toBeLessThan(leaf.depth ?? 1) // never deeper than the canopy
       expect(trunkWidth).toBeLessThan(leafWidth) // never wider than the canopy
       expect(leaf.heightLevel).toBeGreaterThan(trunk.heightLevel!) // leaves sit ABOVE the trunk
     }

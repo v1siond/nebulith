@@ -61,15 +61,15 @@ export function unitGroundQuad(tileW: number, tileH: number): GroundQuad {
 
 /** THICKNESS as four independent REACHES, how far the block extends toward each world direction, as a
  *  fraction of the cell. 1 (the default) reaches all the way to that face; lowering it pulls that face in. */
-export type ThicknessReach = Partial<Record<DepthDir, number>>
+export type ThicknessReach = Partial<Record<IsoDiagonal, number>>
 
 /** The opposite iso diagonal (180°). */
-const OPPOSITE_DIR: Record<DepthDir, DepthDir> = {
+const OPPOSITE_DIR: Record<IsoDiagonal, IsoDiagonal> = {
   'left-up': 'right-down', 'right-down': 'left-up', 'right-up': 'left-down', 'left-down': 'right-up',
 }
 
 /** A reach, clamped to (0, 1]. Anything else (missing, NaN, negative, > 1) means "all the way". */
-const reachOf = (reach: ThicknessReach, dir: DepthDir): number => {
+export const reachOf = (reach: ThicknessReach, dir: IsoDiagonal): number => {
   const raw = reach[dir]
   return typeof raw === 'number' && raw > 0 && raw < 1 ? raw : 1
 }
@@ -106,7 +106,7 @@ export function reachGroundQuad(tileW: number, tileH: number, reach: ThicknessRe
   const full = unitGroundQuad(tileW, tileH)
 
   // Parameters along the two world axes, each in [0,1] across the cell. `+col` runs t→r, `+row` runs t→l.
-  const span = (forward: DepthDir): [number, number] => {
+  const span = (forward: IsoDiagonal): [number, number] => {
     const hi = reachOf(reach, forward)
     const lo = 1 - reachOf(reach, OPPOSITE_DIR[forward])
     if (hi - lo >= MIN_SPAN) return [lo, hi]
@@ -131,10 +131,10 @@ export function reachGroundQuad(tileW: number, tileH: number, reach: ThicknessRe
 
 /** Turn a reach map by `rotation` quarter-turns, the KEYS move, the values ride along. Thickness axes are
  *  WORLD axes, so they rotate with the camera (`orientAssetForView`) and with the building a tile is stamped
- *  into (`compositionCellRender`), exactly like `depthDir`. */
+ *  into (`compositionCellRender`), exactly like `spanAxis`. */
 export function rotateThicknessReach(reach: ThicknessReach, rotation: number): ThicknessReach {
   const out: ThicknessReach = {}
-  for (const [dir, value] of Object.entries(reach) as [DepthDir, number][]) {
+  for (const [dir, value] of Object.entries(reach) as [IsoDiagonal, number][]) {
     out[rotateDepthDir(dir, rotation)] = value
   }
   return out
@@ -145,7 +145,7 @@ export function rotateThicknessReach(reach: ThicknessReach, rotation: number): T
  * backend tile uses ("a door is 0.3 thick toward its wall"). Expressed in reaches: full toward `dir`, `t`
  * toward its opposite.
  */
-export function thinGroundQuad(tileW: number, tileH: number, dir: DepthDir, t: number): GroundQuad {
+export function thinGroundQuad(tileW: number, tileH: number, dir: IsoDiagonal, t: number): GroundQuad {
   if (!(t > 0) || t >= 1) return unitGroundQuad(tileW, tileH)
   return reachGroundQuad(tileW, tileH, { [OPPOSITE_DIR[dir]]: t })
 }
@@ -196,7 +196,7 @@ export function isoBlockFaces(
 /**
  * DIRECTIONAL DEPTH, a block extruded into a long iso box.
  *
- * A block with `depth = D` and one of the four diagonal `DepthDir`s renders as ONE long box spanning D
+ * A block with `depth = D` and one of the four diagonal `IsoDiagonal`s renders as ONE long box spanning D
  * cells along that diagonal, anchored at its base cell, NOT D separate cubes and NOT a symmetric widening.
  * The direction is a screen-space step (in the SAME tileW/tileH units isoBlockFaces uses), derived from the
  * iso projection (Kx per unit of col−row, Ky per unit of col+row): +col = (+tileW,+tileH) = right-down,
@@ -244,10 +244,10 @@ export function textureTurnForHeading(heading: number): number {
   return ((Math.round(heading) + 1) % 4 + 4) % 4
 }
 
-export type DepthDir = 'right-up' | 'left-up' | 'left-down' | 'right-down'
+export type IsoDiagonal = 'right-up' | 'left-up' | 'left-down' | 'right-down'
 
 /** Screen-space per-cell step for each direction, in tileW/tileH units (see the mapping above). */
-export const DEPTH_STEP: Record<DepthDir, { sx: number; sy: number }> = {
+export const DEPTH_STEP: Record<IsoDiagonal, { sx: number; sy: number }> = {
   'right-up': { sx: +1, sy: -1 }, // −row
   'left-up': { sx: -1, sy: -1 }, // −col
   'left-down': { sx: -1, sy: +1 }, // +row
@@ -255,7 +255,7 @@ export const DEPTH_STEP: Record<DepthDir, { sx: number; sy: number }> = {
 }
 
 /** GRID per-cell step (which cells the box covers) for each direction, the collision + depth-sort axis. */
-export const DEPTH_CELL_STEP: Record<DepthDir, { dc: number; dr: number }> = {
+export const DEPTH_CELL_STEP: Record<IsoDiagonal, { dc: number; dr: number }> = {
   'right-up': { dc: 0, dr: -1 },
   'left-up': { dc: -1, dr: 0 },
   'left-down': { dc: 0, dr: +1 },
@@ -269,11 +269,11 @@ export const DEPTH_CELL_STEP: Record<DepthDir, { dc: number; dr: number }> = {
  * DERIVED from DEPTH_CELL_STEP: one CW quarter-turn sends a grid step (dc,dr) → (−dr,dc); apply it `k` times
  * and map the resulting unit vector back to its direction name (the four dirs are closed under the turn). Pure.
  */
-export function rotateDepthDir(dir: DepthDir, rotation: number): DepthDir {
+export function rotateDepthDir(dir: IsoDiagonal, rotation: number): IsoDiagonal {
   const k = ((rotation % 4) + 4) % 4
   let { dc, dr } = DEPTH_CELL_STEP[dir]
   for (let i = 0; i < k; i++) [dc, dr] = [-dr, dc]
-  return (Object.keys(DEPTH_CELL_STEP) as DepthDir[]).find(d => DEPTH_CELL_STEP[d].dc === dc && DEPTH_CELL_STEP[d].dr === dr)!
+  return (Object.keys(DEPTH_CELL_STEP) as IsoDiagonal[]).find(d => DEPTH_CELL_STEP[d].dc === dc && DEPTH_CELL_STEP[d].dr === dr)!
 }
 
 /**
@@ -284,7 +284,7 @@ export function rotateDepthDir(dir: DepthDir, rotation: number): DepthDir {
  * z-width per-cell step: right-up = (+tileW,−tileH) up-right, right-down = (+tileW,+tileH) down-right, etc.
  * Pure, unit-tested.
  */
-export function isoZOffset(z: number, dir: DepthDir, tileW: number, tileH: number): { dx: number; dy: number } {
+export function isoZOffset(z: number, dir: IsoDiagonal, tileW: number, tileH: number): { dx: number; dy: number } {
   const s = DEPTH_STEP[dir]
   return { dx: z * s.sx * tileW, dy: z * s.sy * tileH }
 }
@@ -302,7 +302,7 @@ export interface DepthBoxFaces {
 
 /** The D grid cells a depth box covers: anchor (col,row) then D−1 steps along the direction's grid axis.
  *  Anchor stays the base cell. Pure, used for collision-adapt and depth-sort. depth≤1 → just the anchor. */
-export function depthCells(col: number, row: number, depth: number, dir: DepthDir): { col: number; row: number }[] {
+export function depthCells(col: number, row: number, depth: number, dir: IsoDiagonal): { col: number; row: number }[] {
   const n = Math.max(1, Math.floor(depth))
   const { dc, dr } = DEPTH_CELL_STEP[dir]
   const out: { col: number; row: number }[] = []
@@ -310,28 +310,28 @@ export function depthCells(col: number, row: number, depth: number, dir: DepthDi
   return out
 }
 
-/** Normalize a BIDIRECTIONAL span (anchor + `depth` ahead along `dir`, plus `depthBack` behind it) into the
- *  one-way span every depth fn already understands: the anchor moves BACK `depthBack` cells along −dir and the
- *  depth grows to depthBack+depth. depthBack ≤ 0 → anchor + depth unchanged (today's one-way span, byte-identical).
+/** Normalize a BIDIRECTIONAL span (anchor + `depth` ahead along `dir`, plus `spanBack` behind it) into the
+ *  one-way span every depth fn already understands: the anchor moves BACK `spanBack` cells along −dir and the
+ *  depth grows to spanBack+depth. spanBack ≤ 0 → anchor + depth unchanged (today's one-way span, byte-identical).
  * So authoring can z-width BOTH pathways while depthCells / isoDepthBox / spanBackmost / the depth
  *  sort keep their single "anchor is the start, depth runs along dir" contract untouched. Pure, unit-tested. */
-export function normalizeDepthSpan(col: number, row: number, depth: number | undefined, depthBack: number | undefined, dir: DepthDir): { col: number; row: number; depth: number } {
-  const b = Math.max(0, Math.floor(depthBack ?? 0))
-  const d = Math.max(1, Math.floor(depth ?? 1))
-  if (b === 0) return { col, row, depth: d }
+export function normalizeSpan(col: number, row: number, spanForward: number | undefined, spanBack: number | undefined, dir: IsoDiagonal): { col: number; row: number; span: number } {
+  const b = Math.max(0, Math.floor(spanBack ?? 0))
+  const d = Math.max(1, Math.floor(spanForward ?? 1))
+  if (b === 0) return { col, row, span: d }
   const { dc, dr } = DEPTH_CELL_STEP[dir]
-  return { col: col - b * dc, row: row - b * dr, depth: b + d }
+  return { col: col - b * dc, row: row - b * dr, span: b + d }
 }
 
 /** The GRID extents of a 2-axis z-width tile, how many cells it spans in each of ±col/±row from its anchor.
- *  Folds the model (depthDir + depth/depthBack on the primary axis, depthPerp/depthPerpBack on the perpendicular)
+ *  Folds the model (spanAxis + depth/spanBack on the primary axis, spanPerp/spanPerpBack on the perpendicular)
  *  into a plain rectangle cols [col−colMinus, col+colPlus] × rows [row−rowMinus, row+rowPlus]. `depth` INCLUDES the
- *  anchor (depth−1 cells forward); the other three are cells BEYOND the anchor. depthDir absent → all 0 (1 cell). */
-export function assetRectExtents(a: { depthDir?: DepthDir; depth?: number; depthBack?: number; depthPerp?: number; depthPerpBack?: number }): { colMinus: number; colPlus: number; rowMinus: number; rowPlus: number } {
+ *  anchor (depth−1 cells forward); the other three are cells BEYOND the anchor. spanAxis absent → all 0 (1 cell). */
+export function assetRectExtents(a: { spanAxis?: IsoDiagonal; spanForward?: number; spanBack?: number; spanPerp?: number; spanPerpBack?: number }): { colMinus: number; colPlus: number; rowMinus: number; rowPlus: number } {
   const ext = { colMinus: 0, colPlus: 0, rowMinus: 0, rowPlus: 0 }
-  const dir = a.depthDir
+  const dir = a.spanAxis
   if (!dir) return ext
-  const add = (d: DepthDir, cells: number): void => {
+  const add = (d: IsoDiagonal, cells: number): void => {
     if (cells <= 0) return
     const { dc, dr } = DEPTH_CELL_STEP[d]
     if (dc > 0) ext.colPlus += cells
@@ -339,11 +339,11 @@ export function assetRectExtents(a: { depthDir?: DepthDir; depth?: number; depth
     if (dr > 0) ext.rowPlus += cells
     else if (dr < 0) ext.rowMinus += cells
   }
-  add(dir, Math.max(0, Math.floor(a.depth ?? 1) - 1)) // primary FORWARD (depth incl. anchor)
-  add(rotateDepthDir(dir, 2), Math.max(0, Math.floor(a.depthBack ?? 0))) // primary BACK (opposite)
+  add(dir, Math.max(0, Math.floor(a.spanForward ?? 1) - 1)) // primary FORWARD (the span includes the anchor)
+  add(rotateDepthDir(dir, 2), Math.max(0, Math.floor(a.spanBack ?? 0))) // primary BACK (opposite)
   const perp = rotateDepthDir(dir, 1)
-  add(perp, Math.max(0, Math.floor(a.depthPerp ?? 0))) // perpendicular FORWARD
-  add(rotateDepthDir(perp, 2), Math.max(0, Math.floor(a.depthPerpBack ?? 0))) // perpendicular BACK
+  add(perp, Math.max(0, Math.floor(a.spanPerp ?? 0))) // perpendicular FORWARD
+  add(rotateDepthDir(perp, 2), Math.max(0, Math.floor(a.spanPerpBack ?? 0))) // perpendicular BACK
   return ext
 }
 
@@ -351,7 +351,7 @@ export function assetRectExtents(a: { depthDir?: DepthDir; depth?: number; depth
  *  cell's (col+row) minus the anchor's. Approaching dirs (+col/+row) reach (D−1) closer; receding dirs
  *  (−col/−row) reach 0 (the anchor stays the frontmost). Added to the iso depth-sort key so a box that
  *  extends toward the camera sorts in FRONT of what it overlaps, and receding boxes stay byte-identical. */
-export function depthFrontExtent(depth: number, dir: DepthDir): number {
+export function depthFrontExtent(depth: number, dir: IsoDiagonal): number {
   const n = Math.max(1, Math.floor(depth))
   const { dc, dr } = DEPTH_CELL_STEP[dir]
   return dc + dr > 0 ? n - 1 : 0
@@ -368,7 +368,7 @@ export function depthFrontExtent(depth: number, dir: DepthDir): number {
  *
  * Re-anchoring restores the invariant instead of teaching every sort rule about a second case. Pure.
  */
-export function spanBackmost(col: number, row: number, depth: number, dir: DepthDir): { col: number; row: number; dir: DepthDir } {
+export function spanBackmost(col: number, row: number, depth: number, dir: IsoDiagonal): { col: number; row: number; dir: IsoDiagonal } {
   const n = Math.floor(depth)
   if (n <= 1) return { col, row, dir } // a single cell has no far end
   const { dc, dr } = DEPTH_CELL_STEP[dir]
@@ -389,7 +389,7 @@ export function isoDepthBox(
   tileH: number,
   blockH: number,
   depth: number,
-  dir: DepthDir,
+  dir: IsoDiagonal,
   level = 0,
   /** THICKNESS, as the ground quad it shrinks the cell to. Absent → the full unit cell, byte-identical to
    *  before. A z-width box used to build its corners from the unit diamond unconditionally, so a tile that

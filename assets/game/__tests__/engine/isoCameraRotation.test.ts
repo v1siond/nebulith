@@ -12,7 +12,7 @@
  *      corner becomes the FRONT (nearest-camera) one, i.e. all four map faces become reachable.
  *   3. The PICK round-trips at every facing: a click at a tile's rendered position selects THAT world tile,
  *      through the recorded silhouettes AND through the flat bare-cell screen↔cell pair.
- *   4. A depth/`depthDir` span (a roof) stays GRID-ALIGNED under rotation, its covered cells rotate with it.
+ *   4. A depth/`spanAxis` span (a roof) stays GRID-ALIGNED under rotation, its covered cells rotate with it.
  *   5. OCCLUSION sorts in the view frame, the camera CLAMP uses the ORIENTED dims, and the `__setCameraFacing`
  *      seam drives a param-less render.
  *
@@ -206,13 +206,13 @@ describe('3, the PICK round-trips at every facing (the whole point: reach the hi
 })
 
 // ────────────────────────────────────────────────────────────────────────────────────────────────────────
-describe('4, a depth/depthDir span (a roof) stays GRID-ALIGNED under rotation', () => {
+describe('4, a depth/spanAxis span (a roof) stays GRID-ALIGNED under rotation', () => {
   const SPAN = 3
   const ANCHOR: [number, number] = [1, 0]
   // A roof column authored along +row ('left-down'), the axis TILESET-AUTHORING §3 collapses a gable into.
   const roof = (): GridAsset[] => [{
     art: ['#'], col: ANCHOR[0], row: ANCHOR[1], type: 'roof', label: 'roof', height: 1,
-    depth: SPAN, depthDir: 'left-down', color: '#a33',
+    spanForward: SPAN, spanAxis: 'left-down', color: '#a33',
   }]
   const BLOCK_H = TILE_W * ISO_BLOCK_H_FRAC
 
@@ -227,8 +227,8 @@ describe('4, a depth/depthDir span (a roof) stays GRID-ALIGNED under rotation', 
     }
   })
 
-  test('the span does NOT run along the un-rotated screen axis (the depthDir really rotated)', () => {
-    // At facing 1 the +row world axis appears as the −col screen diagonal. If depthDir were left un-rotated the
+  test('the span does NOT run along the un-rotated screen axis (the spanAxis really rotated)', () => {
+    // At facing 1 the +row world axis appears as the −col screen diagonal. If spanAxis were left un-rotated the
     // box would still extrude down-left from the anchor and cover THIS point instead.
     renderIso(gridWith(roof()), 1)
     const a = expectedScreen(ANCHOR[0], ANCHOR[1], 1)

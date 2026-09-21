@@ -14,7 +14,7 @@ import type { StyleTile } from './styleTiles'
 import type { TileView, TileViewSettings } from './tileViewSettings'
 import type { ImageVisual } from '@/game/artStyle'
 import type { Animation } from '@/engine/animation/tileAnimation'
-import type { DepthDir, ThicknessReach } from '../render/isoBlock'
+import type { IsoDiagonal, ThicknessReach } from '../render/isoBlock'
 
 // 9-piece autotile POSITION, the swap standard: all sides + corners. 'single' = a non-tiling tile.
 export type TilePosition =
@@ -108,25 +108,28 @@ export interface CompositionCellSettings {
   scaleX?: number
   scaleY?: number
   scaleZ?: number
-  /** Which WORLD axis this cell's THICKNESS shrinks along (authored south-facing, like `depthDir`). The stamp
+  /** Which WORLD axis this cell's THICKNESS shrinks along (authored south-facing, like `spanAxis`). The stamp
    *  rotates it by the building's rotation, so a door is thin toward ITS house's front. */
-  thicknessDir?: DepthDir
-  /** Directional DEPTH in blocks (roof-z-width): >1 (with `depthDir`) extrudes this cell into ONE long iso box
-   *  spanning `depth` cells along a diagonal, anchored at its base cell, a roof column spans the whole footprint
-   *  depth as a single block. stampComposition copies it onto the placed asset's `depth`. Absent/1 → a unit cell. */
+  thicknessDir?: IsoDiagonal
+  /** How many CELLS this composition cell spans along `spanAxis`, anchored at its base cell: a roof column
+   *  covers the whole footprint as a single block. Absent/1 is the anchor and nothing more.
+   *
+   *  Still spelled `depth` because it mirrors the `composition_cells` column, which phase 7 renames with
+   *  its table. `compositionCellRender` maps it onto the placed tile's `spanForward`, so the clash between
+   *  a span and a size stops at that boundary rather than travelling into the renderers. */
   depth?: number
   /** Which iso diagonal `depth` extrudes along (authored south-facing as `left-down` = +row); stampComposition
-   *  copies it onto the asset's `depthDir`, ROTATED by the building's rotation so an east/west building's roof
+   *  copies it onto the asset's `spanAxis`, ROTATED by the building's rotation so an east/west building's roof
    *  spans the correct grid axis. Absent → no directional depth (a plain cube). */
-  depthDir?: DepthDir
-  /** BIDIRECTIONAL z-width (#58): extra cells this SAME cell spans BACKWARD (opposite `depthDir`) from its anchor,
+  spanAxis?: IsoDiagonal
+  /** BIDIRECTIONAL z-width (#58): extra cells this SAME cell spans BACKWARD (opposite `spanAxis`) from its anchor,
    *  so ONE roof/deck cell covers a footprint both pathways, a 4-cell roof authored as 1 tile. stampComposition
-   *  copies it onto the placed asset's `depthBack`. Absent/0 → today's one-way span. */
-  depthBack?: number
-  /** 2-AXIS z-width ("two sides at the same time"): cells this cell ALSO spans along the PERPENDICULAR axis, *  forward (`depthPerp`) + back (`depthPerpBack`). With `depth`/`depthBack` this makes the cell a RECTANGLE
+   *  copies it onto the placed asset's `spanBack`. Absent/0 → today's one-way span. */
+  spanBack?: number
+  /** 2-AXIS z-width ("two sides at the same time"): cells this cell ALSO spans along the PERPENDICULAR axis, *  forward (`spanPerp`) + back (`spanPerpBack`). With `depth`/`spanBack` this makes the cell a RECTANGLE
    *  (a 2×2 roof deck authored as 1 tile). stampComposition copies both onto the placed asset. Absent/0 = a line. */
-  depthPerp?: number
-  depthPerpBack?: number
+  spanPerp?: number
+  spanPerpBack?: number
   display?: TileDisplay
   /**
    * DROP THE CUBE SHELL: only the tile's own picture is drawn, with no coloured block behind it.
@@ -285,17 +288,6 @@ export function tileRenderBehavior(settings?: Record<string, unknown>): { fadeNe
   return out.fadeNear || out.cutawayRoof || out.display || out.transparent || out.collision ? out : undefined
 }
 
-/** A tile's authored THICKNESS (`settings.scaleZ`), how much of its own cell the block fills along the
- *  into-screen axis. Backend TILE data (`tile_source.ex`: "scaleZ is THICKNESS, a door is a thin panel in
- *  the wall, not a full cube"), so a door is thin WHEREVER it lands: stamped by the generator or painted by
- *  hand. THE single reader, the composition stamp and the paint brush both call this, so they cannot drift
- *  the way they did when each kept its own copy.
- *
- *  Ignored unless it is a positive number: a malformed record must never collapse a block to nothing. */
-export function tileThickness(settings?: Record<string, unknown>): number | undefined {
-  const raw = settings?.scaleZ
-  return typeof raw === 'number' && raw > 0 ? raw : undefined
-}
 
 /** The four iso diagonals a THICKNESS may shrink along, the same axes z-width spans. */
 const THICKNESS_DIRS: ReadonlySet<string> = new Set(['left-up', 'right-up', 'left-down', 'right-down'])
@@ -323,7 +315,7 @@ export function tileColorByLabel(tileset: TileSource, label: string, zone = 'spr
 }
 
 /** The opposite iso diagonal, for expanding the "hug this face" shorthand. */
-const OPPOSITE: Record<DepthDir, DepthDir> = {
+const OPPOSITE: Record<IsoDiagonal, IsoDiagonal> = {
   'left-up': 'right-down', 'right-down': 'left-up', 'right-up': 'left-down', 'left-down': 'right-up',
 }
 
@@ -346,7 +338,7 @@ export function tileThicknessReach(settings?: Record<string, unknown>): Thicknes
   if (explicit && typeof explicit === 'object') {
     for (const [dir, value] of Object.entries(explicit as Record<string, unknown>)) {
       if (THICKNESS_DIRS.has(dir) && typeof value === 'number' && value > 0 && value < 1) {
-        out[dir as DepthDir] = value
+        out[dir as IsoDiagonal] = value
       }
     }
   }
@@ -355,8 +347,18 @@ export function tileThicknessReach(settings?: Record<string, unknown>): Thicknes
   const amount = settings?.scaleZ
   const hug = settings?.thicknessDir
   if (typeof amount === 'number' && amount > 0 && amount < 1 && typeof hug === 'string' && THICKNESS_DIRS.has(hug)) {
-    const back = OPPOSITE[hug as DepthDir]
+    const back = OPPOSITE[hug as IsoDiagonal]
     if (out[back] === undefined) out[back] = amount
+  }
+
+  // A thickness with NO direction thins toward every face, which is what "0.3 thick" means when nobody
+  // said which way. It used to fall through to a screen-axis squash on the depth axis instead, so the
+  // one control thinned from the side and stretched from above. Thickness is the only thinner now, and
+  // it says so here rather than in each renderer.
+  if (typeof amount === 'number' && amount > 0 && amount < 1 && typeof hug !== 'string') {
+    for (const dir of THICKNESS_DIRS) {
+      if (out[dir as IsoDiagonal] === undefined) out[dir as IsoDiagonal] = amount
+    }
   }
 
   return Object.keys(out).length > 0 ? out : undefined

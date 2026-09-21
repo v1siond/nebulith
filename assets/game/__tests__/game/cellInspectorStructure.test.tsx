@@ -22,7 +22,7 @@ function floorTile(overrides: Partial<TileControlModel> = {}): TileControlModel 
   return {
     key: 'floor',
     label: 'grass',
-    dims: { width: 1, height: 1, depth: 1, zoom: 1 },
+    dims: { width: 1, height: 1, depth: 1 },
     color: null,
     colorFallback: '#3a7d34',
     onDim: jest.fn(),
@@ -144,7 +144,7 @@ describe('the inspector renders §4.7\'s sections', () => {
 
   it('SIZE & POSITION holds the per-axis controls that used to need a modal', () => {
     renderPanel({ tile: assetTile() })
-    for (const label of ['Width', 'Height', 'Zoom', 'Left ↔ Right', 'Up ↕ Down', 'Rotate', 'Mirror', 'Draw order']) {
+    for (const label of ['Width', 'Height', 'Depth', 'Left ↔ Right', 'Up ↕ Down', 'Rotate', 'Mirror', 'Draw order']) {
       expect(screen.getByLabelText(label)).toBeInTheDocument()
     }
     expect(screen.getByRole('group', { name: 'Footprint per direction' })).toBeInTheDocument()
@@ -239,7 +239,7 @@ describe('the control bodies, every setting renders + writes through', () => {
   it('a floor tile shows colour, the three scale axes and the nudge controls', () => {
     render(<TileControls tile={floorTile()} />)
     expect(screen.getAllByLabelText(/colour/i).length).toBeGreaterThan(0)
-    for (const label of ['Width', 'Height', 'Zoom', 'Left ↔ Right', 'Up ↕ Down', 'Rotate', 'Mirror']) {
+    for (const label of ['Width', 'Height', 'Depth', 'Left ↔ Right', 'Up ↕ Down', 'Rotate', 'Mirror']) {
       expect(screen.getByLabelText(label)).toBeInTheDocument()
     }
   })
@@ -252,7 +252,7 @@ describe('the control bodies, every setting renders + writes through', () => {
 
   it('EVERY dimension slider drags down to 0, the slider is the control, not a fallback to typing', () => {
     render(<TileControls tile={floorTile()} />)
-    for (const axis of ['Width', 'Height', 'Zoom']) {
+    for (const axis of ['Width', 'Height', 'Depth']) {
       expect(screen.getByLabelText(axis)).toHaveAttribute('min', '0')
     }
   })

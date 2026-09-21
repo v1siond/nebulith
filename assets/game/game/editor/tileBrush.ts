@@ -18,7 +18,7 @@
 import { DEFAULT_FLOOR_SLUG, FLOOR_TYPE, type GridAsset, type IsometricGrid } from '@/engine/IsometricGrid'
 import type { TileDef, Visual } from '@/game/artStyle'
 import { deriveCellCollision, getStack, popTile, pushTile, setTileCollision } from '@/engine/cellStack'
-import { tileThickness, tileThicknessReach, tileRenderBehavior } from '@/engine/tileset/tileset'
+import { tileThicknessReach, tileRenderBehavior } from '@/engine/tileset/tileset'
 import { groundTileColor } from '@/engine/render/shared'
 import { placementFor, tileSlug } from './tilePlacement'
 
@@ -112,12 +112,14 @@ export function stackAssetTile(
   })
   const behavior = tileRenderBehavior(tile.settings)
   if (behavior) placed.settings = behavior
-  // THICKNESS: the tile's authored 3D fill inside its own cell. Seeded onto the instance exactly like its
-  // height, so a hand-painted door is the same thin panel the generator stamps, the brush used to drop it.
-  const thicknessAmount = tileThickness(tile.settings)
-  if (thicknessAmount !== undefined) placed.scaleZ = thicknessAmount
-  // …and WHICH WAY it is thin, as the four per-direction reaches. Without them the render falls back to the
-  // old screen-axis squash, so a painted door would be thin toward the viewer instead of into its wall.
+  // THICKNESS: the tile's authored 3D fill inside its own cell, and WHICH WAY it is thin, as the four
+  // per-direction reaches. Seeded onto the instance exactly like its height, so a hand-painted door is
+  // the same thin panel the generator stamps.
+  //
+  // ONE writer. The amount used to be written onto the depth axis as well, which is how a thinness
+  // ended up sharing a field with a size and why the renderer needed a rule about which of the two it
+  // was looking at. `tileThicknessReach` folds a bare amount into all four reaches, so a tile that says
+  // "0.3 thick" with no direction is thin all round and its depth is untouched.
   const thickness = tileThicknessReach(tile.settings)
   if (thickness !== undefined) placed.thickness = thickness
 }
@@ -156,9 +158,9 @@ export function replaceTileInPlace(grid: IsometricGrid, col: number, row: number
   target.height = tile.height ?? 0 // the picked tile's OWN block height (DATA), read uniformly, like stackAssetTile
   target.label = undefined         // no longer a composition part, it resolves by its own slug / tileOverride now
   target.settings = tileRenderBehavior(tile.settings) ?? undefined // the picked tile's authored render behaviour
-  target.scaleZ = tileThickness(tile.settings) // the picked tile's own thickness, CLEARED when it has none,
-                                               // so swapping a door out doesn't leave the wall thin
-  target.thickness = tileThicknessReach(tile.settings) // …and its reaches, cleared the same way
+  // The picked tile's thickness, CLEARED when it has none, so swapping a door out does not leave the
+  // wall thin. Depth is a size and a tile swap has no opinion about it.
+  target.thickness = tileThicknessReach(tile.settings)
   return true
 }
 

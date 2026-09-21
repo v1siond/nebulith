@@ -31,8 +31,7 @@ export interface ClipFloor {
   color: string | null
   scaleX?: number
   scaleY?: number
-  scaleZ?: number
-  scale?: number
+  depth?: number
   pose?: TilePose
 }
 
@@ -88,8 +87,7 @@ export function copyTiles(grid: IsometricGrid, keys: Iterable<string>): TileClip
         color: target.color ?? null,
         scaleX: target.scaleX,
         scaleY: target.scaleY,
-        scaleZ: target.scaleZ,
-        scale: target.scale,
+        depth: target.depth,
         pose: target.pose,
       })
       continue
@@ -118,8 +116,7 @@ export function pasteTiles(grid: IsometricGrid, clip: TileClip, anchorCol: numbe
         floor.color = t.color ?? undefined
         floor.scaleX = t.scaleX
         floor.scaleY = t.scaleY
-        floor.scaleZ = t.scaleZ
-        floor.scale = t.scale
+        floor.depth = t.depth
         floor.pose = t.pose
       }
       count++
@@ -137,45 +134,19 @@ export function pasteTiles(grid: IsometricGrid, clip: TileClip, anchorCol: numbe
   return count
 }
 
-/** Place a captured asset at (col,row,level), reproducing EVERY render field. placeAsset's fixed option list
- *  drops the per-instance dims/label/transform fields (scaleX/Y/Z, height, pose, depth, …), so, exactly like
- *  cellStack.pushTile, those are assigned onto the returned asset afterwards. The captured asset is cloned
- *  per placement so pasting the SAME clip repeatedly yields fully independent instances (no shared nested
- *  settings/pose/animation references between two pastes). */
+/**
+ * Place a captured asset at (col,row,level), reproducing EVERY render field.
+ *
+ * This was two hand-written field lists: one of options handed to `placeAsset`, and a second one
+ * assigning afterwards the fields the first could not carry. Both fell behind `GridAsset`, and a
+ * pasted tile quietly lost whatever neither list mentioned. `placeAsset` carries everything now, so
+ * the capture goes across whole.
+ *
+ * Cloned per placement, so pasting the same clip twice yields fully independent instances and no two
+ * pasted tiles share a nested settings, pose or animation object.
+ */
 function placeClipAsset(grid: IsometricGrid, captured: GridAsset, col: number, row: number, level: number): void {
   const src = structuredClone(captured)
-  const placed = grid.placeAsset([...(src.art ?? [])], col, row, {
-    type: src.type,
-    color: src.color,
-    bgColor: src.bgColor,
-    opacity: src.opacity,
-    brightness: src.brightness,
-    scale: src.scale,
-    zIndex: src.zIndex,
-    tileOverride: src.tileOverride,
-    heightLevel: level,
-    baseShadow: src.baseShadow,
-    edge: src.edge,
-    footprint: src.footprint,
-    cellPart: src.cellPart,
-  })
-  // Fields placeAsset's option list does not carry, assign them directly (mirrors cellStack.pushTile).
-  if (src.scaleX !== undefined) placed.scaleX = src.scaleX
-  if (src.scaleY !== undefined) placed.scaleY = src.scaleY
-  if (src.scaleZ !== undefined) placed.scaleZ = src.scaleZ
-  if (src.height !== undefined) placed.height = src.height
-  if (src.label !== undefined) placed.label = src.label
-  if (src.depth !== undefined) placed.depth = src.depth
-  if (src.depthDir !== undefined) placed.depthDir = src.depthDir
-  if (src.zOffset !== undefined) placed.zOffset = src.zOffset
-  if (src.zDir !== undefined) placed.zDir = src.zDir
-  if (src.pose !== undefined) placed.pose = src.pose
-  if (src.shape !== undefined) placed.shape = src.shape
-  if (src.settings !== undefined) placed.settings = src.settings
-  if (src.light !== undefined) placed.light = src.light
-  if (src.buildingType !== undefined) placed.buildingType = src.buildingType
-  if (src.tileKey !== undefined) placed.tileKey = src.tileKey
-  if (src.cycles !== undefined) placed.cycles = src.cycles
-  if (src.cellAnim !== undefined) placed.cellAnim = src.cellAnim
-  if (src.animations !== undefined) placed.animations = src.animations
+
+  grid.placeAsset([...(src.art ?? [])], col, row, { ...src, heightLevel: level })
 }

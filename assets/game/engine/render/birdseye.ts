@@ -135,12 +135,12 @@ export function renderTopView(params: RenderTopViewParams) {
   // The hero's cell, for the near-hero fade. No hero drawn (a preview) → nothing fades.
   const heroCell = showPlayer ? { col: player.x / cellSize, row: player.z / cellSize } : null
   for (const asset of grid.assets) {
-    // A depth-spanned asset (a roof column, `depthDir` + `depth` > 1) covers EVERY cell along its diagonal, so
+    // A depth-spanned asset (a roof column, `spanAxis` + `depth` > 1) covers EVERY cell along its diagonal, so
     // the overhead view paints its tile across the whole footprint span, not just the anchor cell (which would
     // leave the rest of the roof reading as bare ground). A plain asset covers only its own (col,row). The
     // zIndex tie-break is unchanged (a higher/last-placed asset still wins each cell).
-    const cells = asset.depthDir && (asset.depth ?? 1) > 1
-      ? depthCells(asset.col, asset.row, asset.depth!, asset.depthDir)
+    const cells = asset.spanAxis && (asset.spanForward ?? 1) > 1
+      ? depthCells(asset.col, asset.row, asset.spanForward!, asset.spanAxis)
       : [{ col: asset.col, row: asset.row }]
     for (const { col, row } of cells) {
       const key = `${col},${row}`

@@ -22,12 +22,12 @@ const tile = (settings?: Record<string, unknown>): ResolvedTile =>
 describe('a tile carries its own thickness, and a composition cell may override it', () => {
   test("the TILE's scaleZ reaches the placed block, a thin door stays thin wherever it is stamped", () => {
     const render = compositionCellRender(comp, cell(), tile({ scaleZ: 0.25 }), 1, 0)
-    expect(render.scaleZ).toBe(0.25)
+    expect(render.thickness).toEqual({ 'left-up': 0.25, 'right-up': 0.25, 'left-down': 0.25, 'right-down': 0.25 })
   })
 
   test('an explicit composition-cell scaleZ WINS over the tile default', () => {
     const render = compositionCellRender(comp, cell({ scaleZ: 0.8 }), tile({ scaleZ: 0.25 }), 1, 0)
-    expect(render.scaleZ).toBe(0.8)
+    expect(render.thickness).toEqual({ 'left-up': 0.8, 'right-up': 0.8, 'left-down': 0.8, 'right-down': 0.8 })
   })
 
   test('a tile with no thickness of its own is left alone (full block, unchanged)', () => {

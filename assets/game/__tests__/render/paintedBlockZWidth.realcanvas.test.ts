@@ -86,7 +86,7 @@ const cubeExtrudePx = (asset: GridAsset): number => {
 describe('a painted base-height-0 tile honours Z-Width by extruding into a real iso block', () => {
   test('Z-Width (depth) makes it a BLOCK that reaches up-right, the flat face does not', () => {
     const flat = draw(paintedWall({}))                                  // no Z-Width → flat billboard
-    const extruded = draw(paintedWall({ depth: 5, depthDir: 'right-up' })) // Z-Width 5 → extruded depth-box
+    const extruded = draw(paintedWall({ spanForward: 5, spanAxis: 'right-up' })) // Z-Width 5 → extruded depth-box
 
     // The UP-RIGHT region (well past the base cell toward the depth direction) is EMPTY for the flat face
     // but FILLED by the extruded box, the extrusion is the visible fix.
@@ -103,8 +103,8 @@ describe('a painted base-height-0 tile honours Z-Width by extruding into a real 
   })
 
   test('larger Z-Width extrudes FURTHER (depth-6 covers more than depth-3)', () => {
-    const d3 = regionGreen(draw(paintedWall({ depth: 3, depthDir: 'right-up' })), 0, 0, 360, 320)
-    const d6 = regionGreen(draw(paintedWall({ depth: 6, depthDir: 'right-up' })), 0, 0, 360, 320)
+    const d3 = regionGreen(draw(paintedWall({ spanForward: 3, spanAxis: 'right-up' })), 0, 0, 360, 320)
+    const d6 = regionGreen(draw(paintedWall({ spanForward: 6, spanAxis: 'right-up' })), 0, 0, 360, 320)
     expect(d6).toBeGreaterThan(d3)
   })
 

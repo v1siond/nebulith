@@ -25,7 +25,7 @@ import '@/__tests__/helpers/installTilesetSeed'
 const makeUnitTile = (over: Partial<TileControlModel> = {}): TileControlModel => ({
   key: 'unit-u1',
   label: 'Hero',
-  dims: { width: 1, height: 1, depth: 1, zoom: 1 },
+  dims: { width: 1, height: 1, depth: 1 },
   color: '#33d6ff',
   colorFallback: '#ffffff',
   onDim: jest.fn(),
@@ -75,7 +75,7 @@ describe('the shared control body, a unit uses the SAME settings UX as a tile', 
     expect(screen.getByLabelText('Hero colour')).toBeInTheDocument()
     expect(screen.getByLabelText('Width')).toBeInTheDocument()
     expect(screen.getByLabelText('Height')).toBeInTheDocument()
-    expect(screen.getByLabelText('Zoom')).toBeInTheDocument()
+    expect(screen.getByLabelText('Depth')).toBeInTheDocument()
     // The nudge controls say what they DO now, bare x / y / rotate / "flip horizontally" became
     // Left ↔ Right, Up ↕ Down, Rotate and Mirror. The labels changed; the writers did not.
     expect(screen.getByLabelText('Left ↔ Right')).toBeInTheDocument()
@@ -149,8 +149,8 @@ describe('the shared control body, edits fan out to the selected unit (one sourc
   it('editing scale writes through the shared dim writer (→ the unit size)', () => {
     const onDim = jest.fn()
     render(<><TileControls tile={makeUnitTile({ onDim })} /><UnitSettingsSection unit={makeUnit()} /></>)
-    fireEvent.change(screen.getByLabelText('Zoom'), { target: { value: '2' } })
-    expect(onDim).toHaveBeenCalledWith('zoom', 2)
+    fireEvent.change(screen.getByLabelText('Depth'), { target: { value: '2' } })
+    expect(onDim).toHaveBeenCalledWith('depth', 2)
   })
 
   it('toggling flip writes through the shared pose writer', () => {

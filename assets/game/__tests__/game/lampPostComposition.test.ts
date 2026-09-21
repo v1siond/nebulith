@@ -38,7 +38,9 @@ describe('lamp_post composition, a tall thin post + a single bulb, shaped by bac
     expect(post.scale).toBeCloseTo(0.3, 5)
     expect(post.settings?.scaleY).toBeCloseTo(7, 5)
 
-    // BULB, a single centered billboard, zoomed down + lifted onto the post's top.
+    // BULB, a single centered billboard, scaled down + lifted onto the post's top. The CELL is what the
+    // backend authored, so it still spells this as a cell-wide `scale`; the fold onto the three axes
+    // happens when it is stamped (see the stamping test below).
     expect(lamp.level).toBe(1)
     expect(lamp.scale).toBeCloseTo(0.6, 5)
     expect(lamp.settings?.display).toBe('single')
@@ -55,20 +57,26 @@ describe('lamp_post composition, a tall thin post + a single bulb, shaped by bac
     expect(post).toBeTruthy()
     expect(lamp).toBeTruthy()
 
-    // POST: stretched tall (scaleY 7) and thin (scale 0.3), standing ON the flat ground, blocking.
+    // POST: tall and narrow, standing ON the flat ground, blocking. Authored as Height 7 at Zoom 0.3,
+    // which folds into the axes as Height 2.1 across a 0.3 footprint: the same pole, expressed in the
+    // three axes rather than in four numbers where one multiplied the others.
     // Level 0, not 1: the ground is flat since T-140, so there is no block under the post to climb.
-    expect(post.scaleY).toBeCloseTo(7, 5)
-    expect(post.scale).toBeCloseTo(0.3, 5)
+    expect(post.scaleY).toBeCloseTo(7 * 0.3, 5)
+    expect(post.scaleX).toBeCloseTo(0.3, 5)
+    expect(post.depth).toBeCloseTo(0.3, 5)
     expect(post.heightLevel).toBe(0)
     expect(assetIsSolid(post)).toBe(true) // it occupies its cell, which is the only way a tile says "solid" now
 
-    // BULB, a single centered billboard (settings.display), zoomed 0.6, lifted onto the post top via pose.dy;
+    // BULB, a single centered billboard (settings.display), drawn at 0.6 on both ground axes, lifted onto the post top via pose.dy;
     // walkable overhead, and NOT height-stretched (only the post carries a scaleY).
     expect(lamp.settings?.display).toBe('single')
-    expect(lamp.scale).toBeCloseTo(0.6, 5)
+    expect(lamp.scaleX).toBeCloseTo(0.6, 5)
+    expect(lamp.depth).toBeCloseTo(0.6, 5)
     expect(lamp.pose?.dy).toBeCloseTo(-1.8, 5)
     expect(lamp.heightLevel).toBe(1) // one level above the post's, as the composition authors it
     expect(assetIsSolid(lamp)).toBe(false) // the bulb is walked under, and it says so in its boxes
-    expect(lamp.scaleY ?? 1).toBe(1)
+    // The bulb is drawn at 0.6 on EVERY axis, height included, which is what a cell-wide 0.6 meant.
+    // It carries no height stretch of its own: only the post does, and its own 7 is separate.
+    expect(lamp.scaleY ?? 1).toBeCloseTo(0.6, 5)
   })
 })

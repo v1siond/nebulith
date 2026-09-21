@@ -330,6 +330,21 @@ export function deserializeToGrid(
     slabBlocks: data.slabBlocks,
   })
 
+  // THE MAP'S OWN SHAPE, READ BACK.
+  //
+  // These three describe the map, they save with it, and until now a load only applied them when it
+  // had to BUILD the grid. The editor always hands in the grid it already has, so every saved map
+  // opened at whatever cell size and iso scale the editor happened to be holding, and the numbers it
+  // had written travelled nowhere. A value that is written and never read is not a setting.
+  //
+  // Only what the payload actually states: an older row that carries no slab thickness keeps the
+  // grid's, rather than being reset to a number nobody chose.
+  if (existingGrid) {
+    if (data.cellSize !== undefined) grid.cellSize = data.cellSize
+    if (data.isoScale !== undefined) grid.isoScale = data.isoScale
+    if (data.slabBlocks !== undefined) grid.slabBlocks = data.slabBlocks
+  }
+
   // Load height data
   for (let r = 0; r < data.rows && r < data.heightData.length; r++) {
     for (let c = 0; c < data.cols && c < data.heightData[r].length; c++) {

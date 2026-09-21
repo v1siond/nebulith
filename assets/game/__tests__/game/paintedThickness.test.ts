@@ -41,7 +41,8 @@ describe('painting a tile carries its authored thickness', () => {
   it('a painted door is thin, like a stamped one', () => {
     const g = grid()
     stackAssetTile(g, 1, 1, DOOR)
-    expect(topAsset(g).scaleZ).toBe(0.3)
+    // Thinning is THICKNESS, in all four reaches when nobody said which way.
+    expect(topAsset(g).thickness).toEqual({ 'left-up': 0.3, 'right-up': 0.3, 'left-down': 0.3, 'right-down': 0.3 })
   })
 
   it('a tile with no authored thickness is left alone, a full block, unchanged', () => {
@@ -77,7 +78,8 @@ describe('replacing a tile in place swaps its thickness too', () => {
     stackAssetTile(g, 1, 1, WALL)
     const index = g.getAssetsAtCell(1, 1).length - 1
     expect(replaceTileInPlace(g, 1, 1, index, DOOR)).toBe(true)
-    expect(topAsset(g).scaleZ).toBe(0.3)
+    // Thinning is THICKNESS, in all four reaches when nobody said which way.
+    expect(topAsset(g).thickness).toEqual({ 'left-up': 0.3, 'right-up': 0.3, 'left-down': 0.3, 'right-down': 0.3 })
   })
 
   it('swapping a door back for a wall CLEARS the thickness, no leftover thinness', () => {

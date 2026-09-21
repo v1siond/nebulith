@@ -13,7 +13,7 @@
  */
 import { render, screen, fireEvent } from '@testing-library/react'
 import { TileControls, type TileControlModel } from '@/components/editorChrome'
-import { rotateDepthDir, type DepthDir } from '@/engine/render/isoBlock'
+import { rotateDepthDir, type IsoDiagonal } from '@/engine/render/isoBlock'
 
 const baseTile = (overrides: Partial<TileControlModel> = {}): TileControlModel => ({
   key: 'tile-0',
@@ -108,7 +108,7 @@ describe('the arrows follow the camera, what you see is what you edit', () => {
   it.each([0, 1, 2, 3])('Footprint ↘ edits the axis seen as ↘ at facing %i', facing => {
     const onZWidth = jest.fn(), onZBack = jest.fn(), onZPerp = jest.fn(), onZPerpBack = jest.fn()
     // With the primary axis pinned to what ↘ currently means, ↘ is always the FORWARD end.
-    const zDir = rotateDepthDir('right-down', -facing) as DepthDir
+    const zDir = rotateDepthDir('right-down', -facing) as IsoDiagonal
     render(<TileControls tile={baseTile({ facing, zDir, onZWidth, onZBack, onZPerp, onZPerpBack })} />)
     fireEvent.change(screen.getByLabelText('Footprint down-right'), { target: { value: '3' } })
     expect(onZWidth).toHaveBeenLastCalledWith(3)

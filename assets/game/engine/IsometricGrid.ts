@@ -11,7 +11,7 @@ import type { Animation } from './animation/tileAnimation'
 import { assetIsSolid, worldPointBlocked } from './collisionBoxes'
 import type { AnimationCycle } from './animationCycles'
 import type { CellAnimation } from './cellAnimation'
-import { assetRectExtents, type DepthDir, type ThicknessReach } from './render/isoBlock'
+import { assetRectExtents, type IsoDiagonal, type ThicknessReach } from './render/isoBlock'
 import type { TilePose } from './tileset/pose'
 import type { AssetLight, TileDisplay, TileShape } from './tileset/tileset'
 import { groundSideColor, groundTileColor } from './tileset/groundColor'
@@ -50,30 +50,37 @@ export interface GridAsset {
    * its cell's heading and every river on every map drifted the same way. Absent = still.
    */
   flow?: number
-  scale?: number        // uniform Zoom, multiplies every draw axis (#77/#78). Default 1.
   scaleX?: number       // Width, horizontal sprite stretch, every view (#77/#78). Default 1.
   scaleY?: number       // Height, vertical stretch, grows UP from the base; iso/2D views (#77/#78). Default 1.
-  scaleZ?: number       // THICKNESS, the fraction of its own cell the block fills (1 = a full cube, a door
-                        // 0.3). With `thicknessDir` it shrinks along that WORLD axis; without one it falls back
-                        // to the historical screen-axis squash. Also the overhead/top vertical stretch (#77/#78).
+  depth?: number        // DEPTH: how far the tile reaches INTO THE SCREEN, as a share of its own cell.
+                        // A SIZE, and the same size in every view: the into-screen axis of the iso box, and
+                        // the vertical axis of the overhead view, which is that same axis seen from above.
+                        //
+                        // It used to be `scaleZ` and lead two lives. From above it stretched the sprite; from
+                        // the side it THINNED the block, and only when no thickness was set, so one control
+                        // answered two questions and which one depended on the camera. Thinning is
+                        // `thickness` alone now, and the two compose instead of excluding each other.
   /** THICKNESS as four independent REACHES, how far the block extends toward each WORLD direction, as a
    *  fraction of its own cell (1 = all the way to that face). The same question the Footprint asks, in the
    *  smaller unit: Footprint counts whole CELLS, this measures within one. World axes, so a door stays thin
    * toward ITS wall when the camera rotates and when the BUILDING is rotated ("the front of the
    *  house", not "MY front"). Absent = the legacy screen-axis `scaleZ` squash. */
   thickness?: ThicknessReach
-  depth?: number        // Directional DEPTH (blocks): >1 (with depthDir) extrudes this block into a long iso
-                        // box spanning `depth` cells along a diagonal, anchored at its base cell. Default 1
-                        // (a unit cube). ISO view. Distinct from scaleZ (the flat top-view stretch).
-  depthDir?: DepthDir   // Which iso diagonal the depth extrudes along: right-up/left-up/left-down/right-down.
-  depthBack?: number    // BIDIRECTIONAL z-width: EXTRA blocks the box extends the OPPOSITE way
-                        // from `depthDir` (backward from the anchor). Default 0 = today's one-way span. So one
-                        // tile z-widths BOTH pathways (`depthBack` behind + `depth` ahead), a 4-cell roof → 1 tile.
-                        // Normalized to a one-way span (anchor − depthBack·step, total depth depthBack+depth) so
+  spanForward?: number  // How many WHOLE CELLS this tile covers along `spanAxis`, anchored at its base cell.
+                        // Default 1, which is the anchor and nothing more. ISO view.
+                        //
+                        // This was called `depth`, and so is the SIZE a tile draws at, which is a fraction of
+                        // ONE cell. Two controls under one word, and the type definition flagged the clash in
+                        // its own comment. Span counts cells; depth measures within a cell.
+  spanAxis?: IsoDiagonal   // Which iso diagonal the depth extrudes along: right-up/left-up/left-down/right-down.
+  spanBack?: number    // BIDIRECTIONAL z-width: EXTRA blocks the box extends the OPPOSITE way
+                        // from `spanAxis` (backward from the anchor). Default 0 = today's one-way span. So one
+                        // tile z-widths BOTH pathways (`spanBack` behind + `depth` ahead), a 4-cell roof → 1 tile.
+                        // Normalized to a one-way span (anchor − spanBack·step, total depth spanBack+depth) so
                         // every depth fn (depthCells/isoDepthBox/spanBackmost/the sort) keeps working. ISO view.
-  depthPerp?: number    // 2-AXIS z-width: cells the box ALSO spans along
-  depthPerpBack?: number // the PERPENDICULAR axis (rotateDepthDir(depthDir,1)), forward (`depthPerp`) + back
-                        // (`depthPerpBack`) beyond the anchor. With the col-axis depth this makes the tile a small
+  spanPerp?: number    // 2-AXIS z-width: cells the box ALSO spans along
+  spanPerpBack?: number // the PERPENDICULAR axis (rotateDepthDir(spanAxis,1)), forward (`spanPerp`) + back
+                        // (`spanPerpBack`) beyond the anchor. With the col-axis depth this makes the tile a small
                         // RECTANGLE (a 2×2 roof → 1 tile), sliders independent per direction. Both absent/0 =
                         // today's 1-wide line. The render draws the rectangle as adjacent depth-box lines. ISO view.
   pose?: TilePose       // PER-INSTANCE position/rotation/flip (x/y/rotate/flip inspector). Deviations-only; the
@@ -82,8 +89,8 @@ export interface GridAsset {
   zOffset?: number      // "z position", ISO-DIAGONAL slide magnitude in cells (NOT a vertical lift). The tile
                         // moves along zDir's iso diagonal: +z toward zDir, −z toward its opposite. Every view
                         // shows the ground-plane slide (iso/2D/top). Default 0. (Field name kept for round-trip.)
-  zDir?: DepthDir       // Which iso diagonal the "z position" slides along (right-up/left-up/left-down/right-down).
-                        // Default right-up → +z = up-right (toward the back), −z = down-left. Same 4 dirs as depthDir.
+  zDir?: IsoDiagonal       // Which iso diagonal the "z position" slides along (right-up/left-up/left-down/right-down).
+                        // Default right-up → +z = up-right (toward the back), −z = down-left. Same 4 dirs as spanAxis.
   zIndex?: number       // DRAW-PRIORITY (CSS z-index style): the depth sort draws a HIGHER zIndex LATER (on top /
                         // in front), overriding the positional iso/2D/top key, e.g. a cell authored with a higher
                         // zIndex renders in front of one behind it. A capability for composition optimization;
@@ -247,12 +254,12 @@ export class IsometricGrid {
     return this.floorAt(col, row)?.tileKey ?? DEFAULT_FLOOR_SLUG
   }
 
-  /** The grid cells a floor covers. A plain floor is its one cell; a Z-WIDTH RUN floor (depth>1 + depthDir, *  the "same as roofs" merge) covers `depth` cells stepping along its diagonal, so every covered cell maps
+  /** The grid cells a floor covers. A plain floor is its one cell; a Z-WIDTH RUN floor (depth>1 + spanAxis, *  the "same as roofs" merge) covers `depth` cells stepping along its diagonal, so every covered cell maps
    *  back to the ONE run tile (groundAt / 2D / stack still resolve per-cell). */
   floorCoveredCells(f: GridAsset): { col: number; row: number }[] {
-    const n = Math.max(1, Math.floor(f.depth ?? 1))
-    if (n <= 1 || !f.depthDir) return [{ col: f.col, row: f.row }]
-    const S = { 'right-up': { dc: 0, dr: -1 }, 'left-up': { dc: -1, dr: 0 }, 'left-down': { dc: 0, dr: 1 }, 'right-down': { dc: 1, dr: 0 } }[f.depthDir]
+    const n = Math.max(1, Math.floor(f.spanForward ?? 1))
+    if (n <= 1 || !f.spanAxis) return [{ col: f.col, row: f.row }]
+    const S = { 'right-up': { dc: 0, dr: -1 }, 'left-up': { dc: -1, dr: 0 }, 'left-down': { dc: 0, dr: 1 }, 'right-down': { dc: 1, dr: 0 } }[f.spanAxis]
     const out: { col: number; row: number }[] = []
     for (let k = 0; k < n; k++) out.push({ col: f.col + k * S.dc, row: f.row + k * S.dr })
     return out
@@ -279,10 +286,10 @@ export class IsometricGrid {
   }
 
   /** Merge contiguous same-floor cells (same tileKey + colour) into ONE Z-WIDTH floor tile, the SAME
-   *  depth-spanned-block trick roofs use (settings.depth + depthDir), applied to grass/road so the map draws a
+   *  depth-spanned-block trick roofs use (settings.depth + spanAxis), applied to grass/road so the map draws a
    *  handful of run tiles instead of one per cell. Each seed run is measured in BOTH directions and merged along
-   *  the LONGER one, so a run spans ALONG its road: a grid-ROW road runs `\` (depthDir 'right-down' = +col), a
-   *  grid-COLUMN road runs `/` (depthDir 'left-down' = +row). The run anchors at its BACKMOST cell (min col / min
+   *  the LONGER one, so a run spans ALONG its road: a grid-ROW road runs `\` (spanAxis 'right-down' = +col), a
+   *  grid-COLUMN road runs `/` (spanAxis 'left-down' = +row). The run anchors at its BACKMOST cell (min col / min
    *  row) so the flat-run depth sort keeps it behind standing tiles. Data stays TILES (no new model); the rest of
    *  a run are dropped + re-indexed to the anchor. Call after the ground is bulk-set (generation / load). Editing
    *  a covered cell decompresses its run first (decompressGroundAt), so per-cell edits keep working. */
@@ -294,13 +301,13 @@ export class IsometricGrid {
     // side of a dug channel's lip are the same tile in the same colour, so they would collapse into one
     // z-width block spanning both levels and the step would disappear from the map.
     const joins = (g: GridAsset | undefined, seed: GridAsset): g is GridAsset =>
-      !!g && !used.has(g) && (g.depth ?? 1) <= 1 && g.tileKey === seed.tileKey && (g.color ?? '') === (seed.color ?? '')
+      !!g && !used.has(g) && (g.spanForward ?? 1) <= 1 && g.tileKey === seed.tileKey && (g.color ?? '') === (seed.color ?? '')
       && (this.height[g.row]?.[g.col] ?? 0) === (this.height[seed.row]?.[seed.col] ?? 0)
     for (let r = 0; r < this.rows; r++) {
       let c = 0
       while (c < this.cols) {
         const f = this.floorAt(c, r)
-        if (!f || (f.depth ?? 1) > 1 || used.has(f)) { c++; continue } // no floor, already a run, or claimed
+        if (!f || (f.spanForward ?? 1) > 1 || used.has(f)) { c++; continue } // no floor, already a run, or claimed
         // How far the same floor runs RIGHT (along the row, +col) vs DOWN (along the column, +row) from here.
         let hEnd = c; while (hEnd + 1 < this.cols && joins(this.floorAt(hEnd + 1, r), f)) hEnd++
         let vEnd = r; while (vEnd + 1 < this.rows && joins(this.floorAt(c, vEnd + 1), f)) vEnd++
@@ -308,11 +315,11 @@ export class IsometricGrid {
         if (hLen < 2 && vLen < 2) { used.add(f); c++; continue } // lone cell, nothing to merge
         if (hLen >= vLen) { // ROW run → `\`
           for (let cc = c; cc <= hEnd; cc++) { const g = this.floorAt(cc, r); if (g) { used.add(g); if (g !== f) remove.add(g) } }
-          f.depth = hLen; f.depthDir = 'right-down'
+          f.spanForward = hLen; f.spanAxis = 'right-down'
           c = hEnd + 1
         } else { // COLUMN run → `/` (anchor stays at min row, the backmost cell)
           for (let rr = r; rr <= vEnd; rr++) { const g = this.floorAt(c, rr); if (g) { used.add(g); if (g !== f) remove.add(g) } }
-          f.depth = vLen; f.depthDir = 'left-down'
+          f.spanForward = vLen; f.spanAxis = 'left-down'
           c++
         }
       }
@@ -327,7 +334,7 @@ export class IsometricGrid {
    *  change just this cell ("cut it to put another tile"). No-op for a plain floor / bare cell. */
   private decompressGroundAt(col: number, row: number): void {
     const run = this.floorAt(col, row)
-    if (!run || (run.depth ?? 1) <= 1) return
+    if (!run || (run.spanForward ?? 1) <= 1) return
     const cells = this.floorCoveredCells(run)
     this.assets = this.assets.filter(a => a !== run)
     for (const { col: cc, row: rr } of cells) {
@@ -348,8 +355,8 @@ export class IsometricGrid {
       // A Z-WIDTH run FLOOR belongs to EVERY cell it covers (so a prop's stack + a per-cell pick see the ground
       // beneath); a 2-axis z-width STANDING tile (a rectangular deck) likewise belongs to its whole footprint so a
       // tile dropped on its MIDDLE stacks ON TOP; every other tile is its single cell.
-      const cells = (a.type === FLOOR_TYPE && (a.depth ?? 1) > 1) ? this.floorCoveredCells(a)
-        : (a.type !== FLOOR_TYPE && a.depthDir) ? this.rectCoveredCells(a)
+      const cells = (a.type === FLOOR_TYPE && (a.spanForward ?? 1) > 1) ? this.floorCoveredCells(a)
+        : (a.type !== FLOOR_TYPE && a.spanAxis) ? this.rectCoveredCells(a)
         : [{ col: a.col, row: a.row }]
       for (const { col, row } of cells) {
         const key = this.floorKey(col, row)
@@ -542,36 +549,24 @@ export class IsometricGrid {
   // Place an asset at grid position. Returns the placed asset so a caller can set the few GridAsset
   // fields this fixed option list doesn't carry (height/label/buildingType/…) WITHOUT reaching into
   // grid.assets directly, the same trick cellStack.pushTile uses.
+  /**
+   * Place a tile, carrying EVERY field the caller set.
+   *
+   * This used to copy a hand-written list of options onto the new asset, and that list fell behind the
+   * type it was copying: 20 of 41 fields, so a caller set `label` or `height` or `settings`, nothing
+   * complained, and the value was simply gone. Callers grew a second block that assigned the missing
+   * fields onto the returned asset afterwards, which is the same list written twice.
+   *
+   * A spread cannot fall behind. Adding a field to GridAsset carries it here with no edit at all.
+   */
   placeAsset(art: string[], col: number, row: number, options: Partial<GridAsset> = {}): GridAsset {
     const asset: GridAsset = {
+      ...options,
       art,
       col,
       row,
       type: options.type ?? 'decoration',
-      scale: options.scale ?? 1.0,
-      zIndex: options.zIndex,   // draw-priority (CSS z-index), undefined ⇒ the sort treats it as 0 (positional)
       color: options.color ?? '#ffffff',
-      bgColor: options.bgColor,
-      opacity: options.opacity,
-      brightness: options.brightness,
-      cycles: options.cycles,
-      baseShadow: options.baseShadow,
-      edge: options.edge,
-      footprint: options.footprint,
-      cellPart: options.cellPart,
-      // THE LABEL, which every by-label lookup needs and which this list dropped.
-      //
-      // A caller passed `label` and it was silently discarded, so `assetStackAt`, `assetBlocks` and
-      // `assetActsAsTile` all fell back to the asset's TYPE when they went looking for the tile row. For a
-      // flower that works by accident, because `flower` is also a tile label; for a scattered bloom the type
-      // is `ground_decor` and no tile is called that, so the tile's `stackAt: 0` was never read and a tree
-      // sharing the cell was lifted a block clear of the floor. The comment below this list says a caller
-      // should set the field on the returned asset afterwards, and no caller ever did.
-      label: options.label,
-      tileOverride: options.tileOverride, // per-cell art-style pin (e.g. a season's tree tile), was dropped
-      heightLevel: options.heightLevel,   // stack level: the editor brush stacks assets on one cell
-      height: options.height,             // per-instance block-height (a generated flower stands 1 block); undefined ⇒ tile height
-      settings: options.settings,         // per-instance render (e.g. display:'single' for a standing billboard); undefined ⇒ tile default
     }
     this.assets.push(asset)
     this.cellIndex = null
@@ -614,7 +609,7 @@ export class IsometricGrid {
    * falls from 49 to 17 as you zoom, so the window narrows past the length of the runs and starts clipping
    * them. *"sometimes maps would stop showing the floor, specially when zoomed in"*.
    *
-   * `assetRectExtents` folds `depth`, `depthBack`, `depthPerp` and `depthPerpBack` into the rectangle the tile
+   * `assetRectExtents` folds `depth`, `spanBack`, `spanPerp` and `spanPerpBack` into the rectangle the tile
    * really covers, so this asks the one model of that rather than growing a second.
    */
   getVisibleAssets(cameraCol: number, cameraRow: number, viewCols: number, viewRows: number): GridAsset[] {

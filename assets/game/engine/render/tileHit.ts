@@ -13,7 +13,7 @@
  * → the isoTileHits list) so the pick can never drift from the draw: it IS the draw's geometry.
  */
 import type { Pt } from './isoBlock'
-import { isoDepthBox, type DepthDir } from './isoBlock'
+import { isoDepthBox, type IsoDiagonal } from './isoBlock'
 import { resolvePose, type TilePose } from '@/engine/tileset/pose'
 
 export type { Pt }
@@ -119,7 +119,7 @@ export function depthBoxGeom(
   blockH: number,
   blocks: number,
   depth: number,
-  dir: DepthDir,
+  dir: IsoDiagonal,
   xf: (p: Pt) => Pt,
 ): PolyGeom {
   const n = Math.max(1, Math.floor(blocks))

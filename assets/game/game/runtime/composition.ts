@@ -7,7 +7,7 @@
 // face its road), not a special building unit, that is how "everything is a collection of backend tiles"
 // is enforced.
 import { styleCatalog } from '@/engine/tileset/styleTiles'
-import { resolveComposition, resolveTile, tileRenderBehavior, tileThickness, tileThicknessReach } from '@/engine/tileset/tileset'
+import { resolveComposition, resolveTile, tileRenderBehavior, tileThicknessReach } from '@/engine/tileset/tileset'
 import type { Composition, CompositionCell, ResolvedTile } from '@/engine/tileset/tileset'
 import type { GridAsset, IsometricGrid } from '@/engine/IsometricGrid'
 import { cellStackTop } from '@/engine/cellStack'
@@ -15,7 +15,7 @@ import type { ZoneId } from '@/engine/zones'
 import type { BuildingType } from '@/engine/buildingTypes'
 import type { Facing } from '@/engine/villageLayout'
 import { buildingCompositionKind, facingRotation, rotateFootprintOffset } from '@/engine/buildingCatalog'
-import { rotateDepthDir, rotateThicknessReach, type DepthDir, type ThicknessReach } from '@/engine/render/isoBlock'
+import { rotateDepthDir, rotateThicknessReach, type IsoDiagonal, type ThicknessReach } from '@/engine/render/isoBlock'
 
 // Apex-signage colour for a titled building, a single readable signage tone drawn on drawApexBadge's
 // dark backing. The building NAME is the DATA (the composition's `title`); the colour is a fixed render
@@ -111,10 +111,19 @@ const isWallLabel = (label: string): boolean => label === 'wall' || label.starts
  */
 const isFoliage = (tile: { settings?: Record<string, unknown> }): boolean => tile.settings?.foliage === true
 
+/**
+ * An axis with the cell's Zoom folded into it.
+ *
+ * Absent and Zoom 1 stays absent, so a cell that said nothing still carries no opinion and the
+ * column's default applies. Anything else becomes a plain number on the axis it belongs to.
+ */
+const zoomed = (value: number | undefined, zoom: number): number | undefined =>
+  zoom === 1 ? value : (value ?? 1) * zoom
+
 /** The per-cell RENDER fields a composition cell contributes to the tile placed in it. */
 export type CompositionCellRender = Pick<
   GridAsset,
-  'height' | 'heightLevel' | 'scale' | 'zIndex' | 'scaleX' | 'scaleY' | 'scaleZ' | 'thickness' | 'depth' | 'depthDir' | 'depthBack' | 'depthPerp' | 'depthPerpBack' | 'pose' | 'shape' | 'light' | 'settings' | 'animations' | 'placedAt'
+  'height' | 'heightLevel' | 'zIndex' | 'scaleX' | 'scaleY' | 'depth' | 'thickness' | 'spanForward' | 'spanAxis' | 'spanBack' | 'spanPerp' | 'spanPerpBack' | 'pose' | 'shape' | 'light' | 'settings' | 'animations' | 'placedAt'
 >
 
 /** ONE mapping of a composition CELL onto those render fields, shared by the LIVE stamp (stampRun) and the
@@ -126,7 +135,7 @@ export type CompositionCellRender = Pick<
  *  branch by type/category/art style): a floor tile (the entrance's `path` doorstep) is its flat 0.1 slab, a
  *  standing tile a whole block. A label with no DB tile keeps the unit block, so a stamp never vanishes.
  *  `span` is the collapsed vertical RUN length (1 for a lone cell); `rotation` the building's quarter-turns,
- *  applied to `depthDir` so a turned building's roof spans the right grid axis. */
+ *  applied to `spanAxis` so a turned building's roof spans the right grid axis. */
 // `baseLevel` LIFTS every cell onto the raised FLOOR block it is stamped on (0 for a flat/thin town floor, so
 // towns are byte-identical; 1 for a height-1 meadow, so a trunk sits ON TOP of the block instead of embedding
 // at level 0). Added to the cell's OWN authored level so the whole composition rises as one, the live callers
@@ -141,6 +150,8 @@ function rotateThickness(reach: ThicknessReach | undefined, rotation: number): T
 export function compositionCellRender(comp: Composition, cell: CompositionCell, tile: ResolvedTile, span: number, rotation: number, baseLevel = 0): CompositionCellRender {
   const cs = cell.settings
   const animated = (cell.animations?.length ?? 0) > 0
+  const zoom = cell.scale ?? 1
+
   return {
     // A placed block is ALWAYS height 1. A tile is pure ART, it does NOT carry height; the GENERATOR/stamp assigns
     // it here when it
@@ -149,19 +160,22 @@ export function compositionCellRender(comp: Composition, cell: CompositionCell, 
     // is why window/leaf/roof/door no longer render flat: they used to copy an art-tile `height: 0`.
     height: 1,
     heightLevel: (cell.level ?? 0) + baseLevel,
-    scale: cell.scale ?? 1,
     zIndex: cell.zIndex,
-    // An AUTHORED per-cell `scaleY` (the lamp POST = one cell drawn ~7 blocks tall) wins; otherwise a collapsed
-    // vertical RUN sizes scaleY = span (a wall column of 4 → one block 4 tall). An authored cell is never part
-    // of a run, so the two never collide.
-    scaleY: cs?.scaleY ?? (span > 1 ? span : undefined),
-    // WIDTH + DEPTH: a cell can ship a THIN or WIDE tile independent of the uniform Zoom (a tree's trunk width).
-    // THICKNESS is TILE data first (`tile.settings.scaleZ`) so a door is a thin panel WHEREVER it is placed, // generator-stamped or hand-painted, instead of drawing as a full cube that reads as a block, not a door
-    // . An explicit per-cell value still wins. Note this is NOT the editor's "z-width":
-    // that is `depth`, the number of CELLS spanned, which is always ≥1 because a tile occupies its own cell.
-    scaleX: cs?.scaleX,
-    scaleZ: cs?.scaleZ ?? tileThickness(tile.settings as Record<string, unknown> | undefined),
-    // The thickness AXIS is authored south-facing, exactly like `depthDir`, ROTATE it by the building's
+    // An AUTHORED per-cell `scaleY` (the lamp POST = one cell drawn ~7 blocks tall) wins; otherwise a
+    // collapsed vertical RUN sizes scaleY = span (a wall column of 4 → one block 4 tall). An authored
+    // cell is never part of a run, so the two never collide.
+    //
+    // THE CELL'S ZOOM IS FOLDED IN, not dropped. A trunk and a lamp post are authored thin by scaling
+    // every axis at once, and Zoom is gone, so discarding it would draw both at full width. Multiplied
+    // into the axes it is the same picture in the primitive that survives: a trunk at Height 3.15 and
+    // Zoom 0.6 is Height 1.89, Width 0.6, Depth 0.6.
+    //
+    // A THIN DOOR is a different thing and is NOT this: thinness inside a full-size cell is the
+    // `thickness` reaches below.
+    scaleY: zoomed(cs?.scaleY ?? (span > 1 ? span : undefined), zoom),
+    scaleX: zoomed(cs?.scaleX, zoom),
+    depth: zoomed(undefined, zoom),
+    // The thickness AXIS is authored south-facing, exactly like `spanAxis`, ROTATE it by the building's
     // rotation so a house turned a quarter-turn has its doors thin toward ITS front, not the map's.
     thickness: rotateThickness(
       tileThicknessReach((cs ?? undefined) as Record<string, unknown> | undefined)
@@ -169,14 +183,14 @@ export function compositionCellRender(comp: Composition, cell: CompositionCell, 
       rotation,
     ),
     // Directional DEPTH (roof-z-width / the entrance apron): ONE block spanning `depth` cells along a diagonal.
-    // `depthDir` is authored south-facing, ROTATE it by the building's rotation (the SAME quarter-turns
+    // `spanAxis` is authored south-facing, ROTATE it by the building's rotation (the SAME quarter-turns
     // rotateFootprintOffset applied to the cell's offset).
-    depth: cs?.depth,
-    depthDir: cs?.depthDir ? rotateDepthDir(cs.depthDir, rotation) : undefined,
-    depthBack: cs?.depthBack, // BIDIRECTIONAL z-width (#58): a composition cell can span BOTH pathways from its anchor
+    spanForward: cs?.depth,
+    spanAxis: cs?.spanAxis ? rotateDepthDir(cs.spanAxis, rotation) : undefined,
+    spanBack: cs?.spanBack, // BIDIRECTIONAL z-width (#58): a composition cell can span BOTH pathways from its anchor
                               // → one roof tile instead of a row (the "optimize tiles usage AGAIN" win)
-    depthPerp: cs?.depthPerp, // 2-AXIS z-width ("two sides at the same time"): + the PERPENDICULAR extents, so a
-    depthPerpBack: cs?.depthPerpBack, // composition cell covers a RECTANGLE (a 2×2 roof deck authored as 1 tile)
+    spanPerp: cs?.spanPerp, // 2-AXIS z-width ("two sides at the same time"): + the PERPENDICULAR extents, so a
+    spanPerpBack: cs?.spanPerpBack, // composition cell covers a RECTANGLE (a 2×2 roof deck authored as 1 tile)
     pose: cs?.pose,
     shape: cs?.shape,
     light: cs?.light,

@@ -16,13 +16,13 @@
  */
 import { isoDepthComparatorFor, isoDepthCompare } from '@/engine/render/iso'
 import { spanBackmost, DEPTH_CELL_STEP } from '@/engine/render/isoBlock'
-import type { DepthDir } from '@/engine/render/isoBlock'
+import type { IsoDiagonal } from '@/engine/render/isoBlock'
 
 const COLS = 20, ROWS = 20
 
 /** A flat merged ground run (heightLevel 0), like compressGround produces. */
-const run = (col: number, row: number, depth: number, depthDir: DepthDir) =>
-  ({ col, row, asset: { heightLevel: 0, depth, depthDir } })
+const run = (col: number, row: number, spanForward: number, spanAxis: IsoDiagonal) =>
+  ({ col, row, asset: { heightLevel: 0, spanForward, spanAxis } })
 
 /** An ordinary standing tile, a tree trunk, say. */
 const standing = (col: number, row: number) => ({ col, row, asset: { heightLevel: 0 } })
@@ -47,7 +47,7 @@ describe('spanBackmost, the anchor must name the span end FARTHEST from the came
   })
 
   it('agrees with DEPTH_CELL_STEP: the returned direction always runs toward the camera', () => {
-    for (const dir of Object.keys(DEPTH_CELL_STEP) as DepthDir[]) {
+    for (const dir of Object.keys(DEPTH_CELL_STEP) as IsoDiagonal[]) {
       const out = spanBackmost(9, 9, 3, dir)
       const step = DEPTH_CELL_STEP[out.dir]
       expect(step.dc + step.dr).toBeGreaterThan(0)

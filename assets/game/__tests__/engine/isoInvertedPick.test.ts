@@ -17,7 +17,7 @@ import {
 import { IsometricGrid, type GridAsset } from '@/engine/IsometricGrid'
 import { ASCII_STYLE } from '@/game/artStyle'
 import type { PlayerState } from '@/game/runtime/player'
-import type { DepthDir } from '@/engine/render/isoBlock'
+import type { IsoDiagonal } from '@/engine/render/isoBlock'
 
 const CELL = 100, W = 800, H = 600, ISO = 1
 const TILE_W = CELL * ISO * 0.71, TILE_H = CELL * ISO * 0.36
@@ -103,7 +103,7 @@ describe('a TALL (scaleY) block, picked at its lifted top, not the ground below'
 })
 
 describe('a zOffset-slid block, picked where it slid to, not at its cell origin', () => {
-  const dir: DepthDir = 'right-down'
+  const dir: IsoDiagonal = 'right-down'
   const slid: GridAsset = { art: ['#'], col: ACOL, row: AROW, type: 'crate', label: 'crate', height: 1, scaleY: 2, zOffset: 3, zDir: dir, color: '#abcdef' }
 
   test('the pick follows the diagonal slide; the un-slid cell origin returns nothing', () => {
@@ -119,7 +119,7 @@ describe('a zOffset-slid block, picked where it slid to, not at its cell origin'
 })
 
 describe('a directional-depth box, picked along its extruded length', () => {
-  const box: GridAsset = { art: ['#'], col: ACOL, row: AROW, type: 'wall', label: 'wall', height: 1, depth: 4, depthDir: 'right-down', color: '#8a8a8a' }
+  const box: GridAsset = { art: ['#'], col: ACOL, row: AROW, type: 'wall', label: 'wall', height: 1, spanForward: 4, spanAxis: 'right-down', color: '#8a8a8a' }
 
   test('hit along the length; miss in the opposite direction; geom is the box hull (poly)', () => {
     renderIso(gridWith(box))

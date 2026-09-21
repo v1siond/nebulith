@@ -178,13 +178,11 @@ function withAnimatedFields(asset: GridAsset, values: AnimatedSettingsDetailed):
   const width = values.width
   const height = values.height
   const hasColor = !!color && typeof color.value === 'string'
-  const hasZoom = !!zoom && typeof zoom.value === 'number'
   const hasWidth = !!width && typeof width.value === 'number'
   const hasHeight = !!height && typeof height.value === 'number'
-  if (!hasColor && !hasZoom && !hasWidth && !hasHeight) return asset
+  if (!hasColor && !hasWidth && !hasHeight) return asset
   const out: GridAsset = { ...asset }
   if (hasColor) out.color = color!.value as string
-  if (hasZoom) out.scale = composeAnimatedSetting('zoom', asset.scale ?? 1, zoom!.value as number, Number(zoom!.from))
   if (hasWidth) out.scaleX = composeAnimatedSetting('width', asset.scaleX ?? 1, width!.value as number, Number(width!.from))
   if (hasHeight) out.scaleY = composeAnimatedSetting('height', asset.scaleY ?? 1, height!.value as number, Number(height!.from))
   return out

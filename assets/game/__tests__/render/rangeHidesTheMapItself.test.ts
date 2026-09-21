@@ -81,17 +81,17 @@ describe('the map body obeys the player range', () => {
 import { clipAssetToRange } from '@/engine/render/iso'
 
 describe('a spanning tile is cut to the range', () => {
-  const run = { col: 0, row: 10, depth: 33, depthDir: 'right-down' as const }
+  const run = { col: 0, row: 10, spanForward: 33, spanAxis: 'right-down' as const }
 
   it('keeps a run that lies wholly inside, unchanged', () => {
-    const a = { col: 8, row: 10, depth: 3, depthDir: 'right-down' as const }
+    const a = { col: 8, row: 10, spanForward: 3, spanAxis: 'right-down' as const }
     expect(clipAssetToRange(a as never, 10, 10, 20)).toBe(a)
   })
 
   it('trims a 33-cell run reaching in from far away to the cells that are in range', () => {
     const cut = clipAssetToRange(run as never, 10, 10, 4) as typeof run
-    expect(cut.depth).toBeLessThan(run.depth)
-    expect(cut.depth).toBeLessThanOrEqual(9) // a radius of 4 spans at most 9 cells along one axis
+    expect(cut.spanForward).toBeLessThan(run.spanForward)
+    expect(cut.spanForward).toBeLessThanOrEqual(9) // a radius of 4 spans at most 9 cells along one axis
     expect(cut.col).toBeGreaterThan(run.col)
   })
 
@@ -101,8 +101,8 @@ describe('a spanning tile is cut to the range', () => {
   })
 
   it('drops the perpendicular span, so a 2-axis tile cannot stick out sideways', () => {
-    const rect = { col: 0, row: 10, depth: 20, depthPerp: 6, depthDir: 'right-down' as const }
+    const rect = { col: 0, row: 10, spanForward: 20, spanPerp: 6, spanAxis: 'right-down' as const }
     const cut = clipAssetToRange(rect as never, 10, 10, 3) as typeof rect
-    expect(cut.depthPerp).toBe(0)
+    expect(cut.spanPerp).toBe(0)
   })
 })

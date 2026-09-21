@@ -5,9 +5,9 @@
  * east/west building gets a sideways roof. The mapping is DERIVED from DEPTH_CELL_STEP: a CW quarter-turn sends
  * the grid step (dc,dr) → (-dr,dc), so this test pins the derivation, the 4-cycle, and the roof-facing cases.
  */
-import { rotateDepthDir, DEPTH_CELL_STEP, type DepthDir } from '@/engine/render/isoBlock'
+import { rotateDepthDir, DEPTH_CELL_STEP, type IsoDiagonal } from '@/engine/render/isoBlock'
 
-const DIRS: DepthDir[] = ['right-up', 'left-up', 'left-down', 'right-down']
+const DIRS: IsoDiagonal[] = ['right-up', 'left-up', 'left-down', 'right-down']
 
 describe('rotateDepthDir, CW quarter-turns on a depth direction (matches rotateFootprintOffset)', () => {
   test('rotation 0 is the identity for every direction', () => {

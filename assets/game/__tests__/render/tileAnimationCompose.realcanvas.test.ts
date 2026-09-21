@@ -40,11 +40,11 @@ function growAnim(from: number, to: number): Animation {
 }
 
 /** A 6×6 grid with ONE magenta water tile: base height `baseScaleY`, base zoom `scale`, + optional animation. */
-function makeGrid(opts: { baseScaleY?: number; scale?: number; anim?: Animation }): IsometricGrid {
+function makeGrid(opts: { baseScaleY?: number; anim?: Animation }): IsometricGrid {
   const grid = new IsometricGrid({ cols: 6, rows: 6, cellSize: 40 })
   const asset = {
     art: ['?'], col: 3, row: 3, type: 'water_c', label: LABEL, color: MAGENTA, height: 1,
-    scale: opts.scale ?? 1, scaleY: opts.baseScaleY, placedAt: T0,
+    scaleY: opts.baseScaleY, placedAt: T0,
     ...(opts.anim ? { animations: [opts.anim] } : {}),
   } as GridAsset
   grid.assets.push(asset)
@@ -80,8 +80,8 @@ function metrics(cv: Canvas): { extent: number; bottom: number; top: number; mas
 /** Static reference: a tile with base height `scaleY` and NO animation → its drawn extent. */
 const staticExtent = (scaleY: number, s: Style) => metrics(isoCanvas(makeGrid({ baseScaleY: scaleY }), T0, s)).extent
 /** Animated: base height `base` + a `from→to` grow, sampled at clock `t`. */
-const animMetrics = (base: number, from: number, to: number, t: number, s: Style, scale = 1) =>
-  metrics(isoCanvas(makeGrid({ baseScaleY: base, scale, anim: growAnim(from, to) }), t, s))
+const animMetrics = (base: number, from: number, to: number, t: number, s: Style) =>
+  metrics(isoCanvas(makeGrid({ baseScaleY: base, anim: growAnim(from, to) }), t, s))
 
 const hadGrass = '__had_grass_compose__'
 beforeAll(async () => {
@@ -163,23 +163,31 @@ describe('BUG #1: editing the BASE height shifts the whole animated range (base 
   }
 })
 
-describe('BUG #1: base ZOOM still applies alongside an active height animation (the "only zoom applied" report)', () => {
+/**
+ * BUG #1: an authored BASE SIZE still applies alongside an active animation, both compose.
+ *
+ * Reported as "only zoom applied": the animation masked the authored height instead of composing with
+ * it. Zoom is gone, so this is stated in the axis that carried the base all along. The guarantee is
+ * unchanged and is the point of the whole file: what a person authored and what is animating are two
+ * numbers that multiply, not two that fight.
+ */
+describe('BUG #1: an authored base height still applies alongside an active height animation', () => {
   for (const [styleName, style] of [['EMOJI', EMOJI_STYLE], ['ASCII', ASCII_STYLE]] as const) {
-    test(`${styleName}: reducing base zoom shrinks the drawn column while the height animation still grows it`, () => {
-      // Same base-3 height animation, sampled at the peak, at two base zoom levels.
-      const full = animMetrics(3, 1, 4, T0 + DUR, style, 1.0)   // zoom 1.0
-      const small = animMetrics(3, 1, 4, T0 + DUR, style, 0.6)  // zoom reduced
-      // eslint-disable-next-line no-console
-      console.log(`${styleName} zoomCo  full=${full.extent} small=${small.extent}`)
+    test(`${styleName}: a smaller authored height draws a shorter column, and the animation still grows it`, () => {
+      // The same growth animation, sampled at its peak, over two authored base heights.
+      const full = animMetrics(3, 1, 4, T0 + DUR, style)
+      const small = animMetrics(3 * 0.6, 1, 4, T0 + DUR, style)
 
       expect(full.mass).toBeGreaterThan(0)
       expect(small.mass).toBeGreaterThan(0)
-      // Zoom (MULTIPLICATIVE base) shrinks the column even though the height animation is active → BOTH apply
-      // (the bug was: height was masked so only zoom moved; now height composes AND zoom scales it).
-      expect(small.extent).toBeLessThan(full.extent * 0.8)
-      // And the height animation is STILL growing it: at 0.6 zoom the peak is still taller than the un-animated
-      // base-3 tile at the same reduced zoom (proof height didn't get frozen out by zoom).
-      const smallStaticBase = metrics(isoCanvas(makeGrid({ baseScaleY: 3, scale: 0.6 }), T0, style)).extent
+      // The authored base scales the column even while the animation runs, so BOTH apply. Measured at
+      // 0.83 of the full column: the drawn extent is not linear in the height, because the animation's
+      // ratio compounds onto the base. The threshold is what distinguishes "the base applies" from "the
+      // animation masked it", and a masked base would sit at 1.0.
+      expect(small.extent).toBeLessThan(full.extent * 0.9)
+      // And the animation is STILL growing it: the peak is well past the un-animated tile at that base,
+      // which is the proof the base did not freeze the animation out.
+      const smallStaticBase = metrics(isoCanvas(makeGrid({ baseScaleY: 3 * 0.6 }), T0, style)).extent
       expect(small.extent).toBeGreaterThan(smallStaticBase * 1.5)
     })
   }

@@ -23,14 +23,19 @@ function grid(at1: GridAsset[], blocked = new Set([1])): BoxGrid {
   }
 }
 
+// A trunk is THIN: it fills 0.6 of its own cell toward every face. That is a THICKNESS. It used to be
+// written as a uniform Zoom, which is the field that no longer exists, because a zoom scaled a tile's
+// size and a trunk is full-size and narrow.
+const THIN = { 'left-up': 0.6, 'right-up': 0.6, 'left-down': 0.6, 'right-down': 0.6 } as const
+
 describe('what a tile makes solid', () => {
   it('a tile drawn at its full cell keeps the whole cell', () => {
     expect(boxesForAsset(asset())).toEqual([FULL_CELL])
-    expect(boxesForAsset(asset({ scale: 1, scaleX: 1 }))).toEqual([FULL_CELL])
+    expect(boxesForAsset(asset({ scaleX: 1, depth: 1 }))).toEqual([FULL_CELL])
   })
 
   it('a trunk drawn at 0.6 of its cell blocks 0.6 of it, centred', () => {
-    const [box] = boxesForAsset(asset({ scale: 0.6 }))
+    const [box] = boxesForAsset(asset({ thickness: THIN }))
     expect(box.w).toBeCloseTo(0.6)
     expect(box.h).toBeCloseTo(0.6)
     expect(box.x).toBeCloseTo(0.2)
@@ -38,13 +43,13 @@ describe('what a tile makes solid', () => {
   })
 
   it('however thin it is drawn, it never shrinks past the minimum', () => {
-    const [box] = boxesForAsset(asset({ scale: 0.01 }))
+    const [box] = boxesForAsset(asset({ thickness: { 'left-up': 0.01, 'right-up': 0.01, 'left-down': 0.01, 'right-down': 0.01 } }))
     expect(box.w).toBeCloseTo(MIN_BOX_SIDE)
   })
 
   it('authored boxes win, as many as the tile likes', () => {
     const boxes = [{ x: 0, y: 0, w: 0.3, h: 1 }, { x: 0.7, y: 0, w: 0.3, h: 1 }]
-    expect(boxesForAsset(asset({ scale: 0.6, settings: { collision: boxes } }))).toEqual(boxes)
+    expect(boxesForAsset(asset({ thickness: THIN, settings: { collision: boxes } }))).toEqual(boxes)
   })
 
   it('a tile that declares no boxes makes nothing solid', () => {
@@ -54,7 +59,7 @@ describe('what a tile makes solid', () => {
 })
 
 describe('a body collides on real contact', () => {
-  const trunk = grid([asset({ scale: 0.6 })])
+  const trunk = grid([asset({ thickness: THIN })])
 
   it('the middle of a trunk cell is solid', () => {
     expect(worldPointBlocked(trunk, 16 + 8, 8)).toBe(true)

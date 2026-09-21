@@ -2,7 +2,7 @@
  * THE THICKNESS AXIS IS THE HOUSE'S, NOT THE VIEWER'S.
  *
  * For that to hold, `thicknessDir` has to survive the two rotations that stand between an authored tile and
- * the pixels, exactly as `depthDir` already does:
+ * the pixels, exactly as `spanAxis` already does:
  *
  *   1. the BUILDING's rotation, applied when a composition is stamped (a house facing east has its doors
  *      thin toward east), and
@@ -43,15 +43,19 @@ describe('a painted tile carries its authored thickness axis', () => {
   it('paints the door with both the amount and the direction', () => {
     const g = grid()
     stackAssetTile(g, 1, 1, DOOR)
-    expect(topAsset(g).scaleZ).toBe(0.3)
     expect(topAsset(g).thickness).toEqual({ [HUGGED]: 0.3 })
+    // THINNING IS THICKNESS, and nothing else. Depth is a size and a thin door does not touch it.
+    expect(topAsset(g).depth).toBeUndefined()
   })
 
-  it('a tile with thickness but NO direction keeps the legacy behaviour, amount only', () => {
+  it('a thickness with NO direction thins toward every face', () => {
     const g = grid()
     stackAssetTile(g, 1, 1, tileWith({ scaleZ: 0.3 }))
-    expect(topAsset(g).scaleZ).toBe(0.3)
-    expect(topAsset(g).thickness).toBeUndefined() // amount alone → the legacy screen squash, no world axis
+    // "0.3 thick" with nobody saying which way means thin all round. It used to fall through to a
+    // screen-axis squash on the depth axis, which is how one control came to thin from the side and
+    // stretch from above.
+    expect(topAsset(g).thickness).toEqual({ 'left-up': 0.3, 'right-up': 0.3, 'left-down': 0.3, 'right-down': 0.3 })
+    expect(topAsset(g).depth).toBeUndefined()
   })
 
   it('rejects a direction that is not one of the four iso diagonals', () => {
@@ -98,8 +102,11 @@ describe('a stamped composition rotates the axis with the BUILDING', () => {
     expect(render.thickness).toEqual({ [rotateDepthDir('right-up', 1)]: 0.4 })
   })
 
-  it('a tile with no axis stamps without one', () => {
-    expect(compositionCellRender(comp, cell(), tile({ scaleZ: 0.3 }), 1, 2).thickness).toBeUndefined()
+  it('a tile with no axis stamps thin toward every face, never onto the depth axis', () => {
+    const render = compositionCellRender(comp, cell(), tile({ scaleZ: 0.3 }), 1, 2)
+
+    expect(render.thickness).toEqual({ 'left-up': 0.3, 'right-up': 0.3, 'left-down': 0.3, 'right-down': 0.3 })
+    expect(render.depth).toBeUndefined()
   })
 })
 
@@ -117,8 +124,8 @@ describe('the axis survives save and load, a reloaded map keeps its thin doors',
     const g = grid()
     stackAssetTile(g, 1, 1, DOOR)
     const back = topAsset(hydrate(g))
-    expect(back.scaleZ).toBe(0.3)
     expect(back.thickness).toEqual({ [HUGGED]: 0.3 })
+    expect(back.depth).toBeUndefined()
   })
 
   it('a tile with no axis round-trips without inventing one', () => {

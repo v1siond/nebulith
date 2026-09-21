@@ -60,7 +60,7 @@ const isStructureCell = (a: GridAsset): boolean => a.label != null
  *  ever KEEPS more, never wrongly hides. */
 function cellFrontHeight(a: GridAsset): number {
   const baseScaleY = a.scaleY ?? 1
-  const dims = (scaleY: number): number => (a.height ?? 1) * scaleY * (a.scale ?? 1)
+  const dims = (scaleY: number): number => (a.height ?? 1) * scaleY
   let peak = dims(baseScaleY)
   for (const anim of a.animations ?? []) {
     if (anim.kind !== 'settings') continue

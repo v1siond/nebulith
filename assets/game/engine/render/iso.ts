@@ -19,7 +19,7 @@ import { drawWeather, type WeatherId } from './weather'
 import { resolveAssetDrawSize } from './assetDimensions'
 import { resolveAssetAnimation, spriteFrame } from './assetAnimation'
 import { assetDrawsSingle, assetIsTransparent, getStack, assetStackIndexer, unitStandLevel, type TileSource } from '@/engine/cellStack'
-import { DEPTH_CELL_STEP, isoBlockFaces, isoDepthBox, depthCells, depthFrontExtent, isoZOffset, rotateDepthDir, spanBackmost, normalizeDepthSpan, assetRectExtents, reachGroundQuad, rotateThicknessReach, thicknessThins, turnFaceTexture, textureTurnForHeading, type BlockFace, type DepthDir, type ThicknessReach } from './isoBlock'
+import { DEPTH_CELL_STEP, isoBlockFaces, isoDepthBox, depthCells, depthFrontExtent, isoZOffset, rotateDepthDir, spanBackmost, normalizeSpan, assetRectExtents, reachGroundQuad, rotateThicknessReach, thicknessThins, turnFaceTexture, textureTurnForHeading, type BlockFace, type IsoDiagonal, type ThicknessReach } from './isoBlock'
 import { type Orientation } from './isoOrientation'
 import { cellOrienterFor, orientCellTurn, deorientCellTurn, orientedDimsForTurn, facingForTurn, wrapTurn } from './isoTurn'
 import { resolveTileHeight, blockLayers, layerBlockScale } from '@/engine/tileset/tileHeight'
@@ -337,24 +337,24 @@ export function isoScreenToWorldCell(
   return { col: Math.floor(world.col), row: Math.floor(world.row) }
 }
 
-/** A WORLD depth axis as the rotated view sees it. `DEPTH_CELL_STEP` maps every DepthDir to a grid step
+/** A WORLD depth axis as the rotated view sees it. `DEPTH_CELL_STEP` maps every IsoDiagonal to a grid step
  *  (dc,dr), and one camera quarter-turn carries a grid step the same way it carries a coord, so the two use
  *  the identical rotation and can never disagree. Facing 0 → the same dir (no lookup).
- *  A DepthDir is one of 4 discrete diagonals with no continuous form, so mid-turn it follows the NEAREST
+ *  A IsoDiagonal is one of 4 discrete diagonals with no continuous form, so mid-turn it follows the NEAREST
  *  corner, see `isoDepthComparatorFor` for what that quantisation costs. */
-function viewDepthDir(dir: DepthDir, facing: Orientation): DepthDir {
+function viewDepthDir(dir: IsoDiagonal, facing: Orientation): IsoDiagonal {
   return facing === 0 ? dir : rotateDepthDir(dir, facing)
 }
 
-/** The asset AS THE ROTATED VIEW SEES IT: its directional axes, `depthDir` (z-width span) and `zDir`
+/** The asset AS THE ROTATED VIEW SEES IT: its directional axes, `spanAxis` (z-width span) and `zDir`
  *  (z-position slide), are WORLD grid axes, so a rotated camera must carry them CW by the same quarter-turns
  *  the coords take, or a spanned/slid tile would point off-grid the moment you rotate. This is general to
  *  EVERY depth-box asset (a roof is just the common one). Facing 0, or no axes → the SAME object, untouched. */
 function orientAssetForView(asset: GridAsset, facing: Orientation): GridAsset {
-  if (facing === 0 || (!asset.depthDir && !asset.zDir && !asset.thickness)) return asset
+  if (facing === 0 || (!asset.spanAxis && !asset.zDir && !asset.thickness)) return asset
   return {
     ...asset,
-    depthDir: asset.depthDir && rotateDepthDir(asset.depthDir, facing),
+    spanAxis: asset.spanAxis && rotateDepthDir(asset.spanAxis, facing),
     zDir: asset.zDir && rotateDepthDir(asset.zDir, facing),
     // THICKNESS reaches are world axes too: a door thin toward its wall must stay thin toward THAT wall when
     // the camera turns. Without this it would thin toward whatever the viewer currently calls "front", the
@@ -619,8 +619,8 @@ export function render(params: IsoRenderParams) {
   // depth-less tile covers just its own cell, so this is the plain cell test for everything else.
   // THE CELLS A TILE COVERS, all of them.
   //
-  // This used to expand a tile with `depth` + `depthDir` only, which is ONE of the four pathways a tile spans: it
-  // ignored `depthBack` (cells behind the anchor), `depthPerp` and `depthPerpBack` (the perpendicular axis). So
+  // This used to expand a tile with `depth` + `spanAxis` only, which is ONE of the four pathways a tile spans: it
+  // ignored `spanBack` (cells behind the anchor), `spanPerp` and `spanPerpBack` (the perpendicular axis). So
   // a 2-axis tile was range-tested on a line through the middle of itself and vanished whenever that line fell
   // outside while the rest of it did not. His words: *"my guess is that the range is cutting at the cell level
   // only not at the tile level, and some cell have tiles that spand multiple cells"*.
@@ -724,10 +724,10 @@ export function render(params: IsoRenderParams) {
   // keeps its anchor sort (like before) so the thing on top stays drawn over it, trading a little of the run's
   // own completeness for never occluding what sits on it. A bare run still draws complete.
   const runFrontExtentRise = (a: GridAsset): number | undefined => {
-    if (!((a.depth ?? 1) > 1 && a.depthDir)) return undefined
+    if (!((a.spanForward ?? 1) > 1 && a.spanAxis)) return undefined
     const rise = assetBlockRise(a)
     if (rise < 1) return rise // a flat run, front-extent gate is off anyway; report the true rise
-    const bare = !depthCells(a.col, a.row, a.depth!, a.depthDir).some(c => standingCells.has(`${c.col},${c.row}`))
+    const bare = !depthCells(a.col, a.row, a.spanForward!, a.spanAxis).some(c => standingCells.has(`${c.col},${c.row}`))
     return bare ? rise : 0 // carries something on top → sort by anchor (rise 0 = no front-extent)
   }
   const allObjects: { col: number; row: number; isPlayer?: boolean; asset?: GridAsset; blockRise?: number; entity?: Entity; moving?: boolean; inRange?: boolean }[] = [
@@ -1808,8 +1808,8 @@ function assetBlockRise(a: GridAsset): number {
  *  keep the array's stable insertion order, so nothing but same-cell asset stacks is reordered, the
  *  no-stack case is byte-identical to the old `(a.col+a.row)-(b.col+b.row)` sort. */
 export function isoDepthCompare(
-  a: { col: number; row: number; blockRise?: number; asset?: { heightLevel?: number; height?: number; depth?: number; depthDir?: DepthDir; depthBack?: number; zIndex?: number } },
-  b: { col: number; row: number; blockRise?: number; asset?: { heightLevel?: number; height?: number; depth?: number; depthDir?: DepthDir; depthBack?: number; zIndex?: number } },
+  a: { col: number; row: number; blockRise?: number; asset?: { heightLevel?: number; height?: number; spanForward?: number; spanAxis?: IsoDiagonal; spanBack?: number; zIndex?: number } },
+  b: { col: number; row: number; blockRise?: number; asset?: { heightLevel?: number; height?: number; spanForward?: number; spanAxis?: IsoDiagonal; spanBack?: number; zIndex?: number } },
 ): number {
   // DRAW-PRIORITY first (CSS z-index): a HIGHER zIndex draws LATER (on top / in front), overriding the
   // positional key below, a cell authored with a higher zIndex sits in front of one behind it no matter where
@@ -1820,17 +1820,17 @@ export function isoDepthCompare(
   // A directional-depth box reaches `depthFrontExtent` cells toward the camera past its anchor, so it sorts by
   // its FRONTMOST covered cell, a box extending toward the camera draws in front of what it overlaps. A
   // depth-less asset (every existing tile) adds 0, so the no-depth case is byte-identical to (col+row).
-  const key = (o: { col: number; row: number; blockRise?: number; asset?: { depth?: number; depthDir?: DepthDir; depthBack?: number; heightLevel?: number; height?: number } }): number => {
-    const dir = o.asset?.depthDir
-    if (!dir || !o.asset?.depth) return o.col + o.row // no depth box → plain anchor key (byte-identical to before)
+  const key = (o: { col: number; row: number; blockRise?: number; asset?: { spanForward?: number; spanAxis?: IsoDiagonal; spanBack?: number; heightLevel?: number; height?: number } }): number => {
+    const dir = o.asset?.spanAxis
+    if (!dir || !o.asset?.spanForward) return o.col + o.row // no depth box → plain anchor key (byte-identical to before)
     // Fold a BIDIRECTIONAL span into its one-way equivalent, then
-    // key on the TRUE backmost cell + total length (depthBack 0/absent → unchanged). The front-extent (sort by the
+    // key on the TRUE backmost cell + total length (spanBack 0/absent → unchanged). The front-extent (sort by the
     // FRONTMOST covered cell) is only correct for a box that OVERHANGS what it covers, a STACKED asset
     // (heightLevel ≥ 1: a roof / upper level). The GROUND (heightLevel 0) never overhangs, so it sorts by its
     // anchor and stays BEHIND the standing tiles along its span.
-    const box = normalizeDepthSpan(o.col, o.row, o.asset.depth, o.asset.depthBack, dir)
-    const extend = Math.floor(box.depth) > 1 && (o.asset?.heightLevel ?? 0) >= 1
-    return box.col + box.row + (extend ? depthFrontExtent(box.depth, dir) : 0)
+    const box = normalizeSpan(o.col, o.row, o.asset.spanForward, o.asset.spanBack, dir)
+    const extend = Math.floor(box.span) > 1 && (o.asset?.heightLevel ?? 0) >= 1
+    return box.col + box.row + (extend ? depthFrontExtent(box.span, dir) : 0)
   }
   const d = key(a) - key(b)
   if (d !== 0) return d
@@ -1853,20 +1853,20 @@ export function isoDepthCompare(
  * Returns the asset itself when nothing needs cutting, so a map with no spans allocates nothing.
  */
 export function clipAssetToRange(a: GridAsset, pcol: number, prow: number, range: number): GridAsset {
-  const dir = a.depthDir
+  const dir = a.spanAxis
   if (!dir) return a
-  const span = normalizeDepthSpan(a.col, a.row, a.depth, a.depthBack, dir)
-  if (span.depth <= 1) return a
+  const span = normalizeSpan(a.col, a.row, a.spanForward, a.spanBack, dir)
+  if (span.span <= 1) return a
   const { dc, dr } = DEPTH_CELL_STEP[dir]
   let first = -1
   let last = -1
-  for (let k = 0; k < span.depth; k++) {
+  for (let k = 0; k < span.span; k++) {
     if (!withinPlayerRange(span.col + k * dc, span.row + k * dr, pcol, prow, range)) continue
     if (first < 0) first = k
     last = k
   }
   if (first < 0) return a // nothing of it is in range; the range filter has already dropped it
-  if (first === 0 && last === span.depth - 1 && !a.depthPerp && !a.depthPerpBack) return a // wholly inside
+  if (first === 0 && last === span.span - 1 && !a.spanPerp && !a.spanPerpBack) return a // wholly inside
   // The PERPENDICULAR span is dropped rather than trimmed: a 2-axis tile is a rectangle, and cutting one axis
   // while keeping the other whole leaves a strip sticking out sideways past the ring, which is the same leak
   // in a different direction. That axis is rare on ground runs and always small.
@@ -1874,10 +1874,10 @@ export function clipAssetToRange(a: GridAsset, pcol: number, prow: number, range
     ...a,
     col: span.col + first * dc,
     row: span.row + first * dr,
-    depth: last - first + 1,
-    depthBack: 0,
-    depthPerp: 0,
-    depthPerpBack: 0,
+    spanForward: last - first + 1,
+    spanBack: 0,
+    spanPerp: 0,
+    spanPerpBack: 0,
   }
 }
 
@@ -1905,14 +1905,14 @@ function orientDepthItem(
   const { col, row } = orient(item.col, item.row)
   if (!item.asset) return { col, row, blockRise: item.blockRise, asset: item.asset }
 
-  const dir = item.asset.depthDir && rotateDepthDir(item.asset.depthDir, facing)
-  if (!dir || !item.asset.depth) return { col, row, blockRise: item.blockRise, asset: { ...item.asset, depthDir: dir } }
+  const dir = item.asset.spanAxis && rotateDepthDir(item.asset.spanAxis, facing)
+  if (!dir || !item.asset.spanForward) return { col, row, blockRise: item.blockRise, asset: { ...item.asset, spanAxis: dir } }
 
   // Fold the bidirectional span (#58) in the ORIENTED frame, THEN re-anchor to the backmost for this turn. The
-  // folded item carries the TOTAL depth with depthBack cleared, so isoDepthCompare's own fold is a no-op on it.
-  const norm = normalizeDepthSpan(col, row, item.asset.depth, item.asset.depthBack, dir)
-  const back = spanBackmost(norm.col, norm.row, norm.depth, dir)
-  return { col: back.col, row: back.row, blockRise: item.blockRise, asset: { ...item.asset, depth: norm.depth, depthBack: 0, depthDir: back.dir } }
+  // folded item carries the TOTAL depth with spanBack cleared, so isoDepthCompare's own fold is a no-op on it.
+  const norm = normalizeSpan(col, row, item.asset.spanForward, item.asset.spanBack, dir)
+  const back = spanBackmost(norm.col, norm.row, norm.span, dir)
+  return { col: back.col, row: back.row, blockRise: item.blockRise, asset: { ...item.asset, spanForward: norm.span, spanBack: 0, spanAxis: back.dir } }
 }
 
 /** The back-to-front comparator for a camera at `turn`: isoDepthCompare's key is (col + row), which is a
@@ -1930,7 +1930,7 @@ function orientDepthItem(
  *  tiles genuinely reach the same screen depth, not at an arbitrary threshold.
  *
  *  LIMITATION: the two DISCRETE parts have no continuous form and follow the NEAREST corner, a span's
- *  `depthDir` (one of 4 diagonals) and therefore its backmost re-anchor + `depthFrontExtent` bonus. So while a
+ *  `spanAxis` (one of 4 diagonals) and therefore its backmost re-anchor + `depthFrontExtent` bonus. So while a
  *  MULTI-CELL span (a roof/merged ground run) is between corners, it is sorted by the end that will be its
  *  backmost at the corner it is heading for. It can therefore occlude wrongly against something it overlaps
  *  for at most half a quarter-turn of the transient. Single-cell tiles, every ordinary tile, are exact. */
@@ -2086,8 +2086,8 @@ function drawIsoTileBlockLive(
   dv: DrawVisual,
   tint?: string,
   topDv?: DrawVisual, // optional DIFFERENT tile for the TOP face (e.g. a ROOF cap on a WALL block)
-  depth = 1, // directional-depth: >1 (with depthDir) extrudes into a long iso box spanning `depth` cells
-  depthDir?: DepthDir,
+  depth = 1, // directional-depth: >1 (with spanAxis) extrudes into a long iso box spanning `depth` cells
+  spanAxis?: IsoDiagonal,
   /** THICKNESS: how far the block reaches toward each WORLD direction inside its own cell. Present → the
    *  footprint shrinks to those reaches; absent → the untouched unit cell. */
   thickness?: ThicknessReach,
@@ -2112,15 +2112,15 @@ function drawIsoTileBlockLive(
 
   // DIRECTIONAL-DEPTH path (depth>1 + a direction): draw the extruded long-box HULL instead of a unit cube.
   // Guarded so a depth-less block (every existing tree/wall/terrain) never reaches here → byte-identical render.
-  if (depthDir && Math.floor(depth) > 1) {
+  if (spanAxis && Math.floor(depth) > 1) {
     const shade = (role: 'left' | 'right') => (role === 'left' ? leftShade : rightShade)
     // Stack bottom→top exactly like the cube path; each level is one long box, higher levels composite over lower.
     for (let k = 0; k < n; k++) {
-      const box = isoDepthBox(center, tileW, tileH, blockH, depth, depthDir, k, quad)
+      const box = isoDepthBox(center, tileW, tileH, blockH, depth, spanAxis, k, quad)
       fillFace(box.long, shade(box.longShade), dv, tint)
       fillFace(box.cap, shade(box.capShade), dv, tint)
     }
-    const boxTop = isoDepthBox(center, tileW, tileH, blockH, depth, depthDir, n - 1, quad).top
+    const boxTop = isoDepthBox(center, tileW, tileH, blockH, depth, spanAxis, n - 1, quad).top
     if (topDv) fillFace(boxTop, topDv.tint ?? topDv.color ?? faceColor, topDv)
     else fillFace(boxTop, faceColor, dv, tint)
     return
@@ -2165,7 +2165,7 @@ function drawIsoRectBlock(
   // The rectangle in CELL space: `a` runs along +col, `b` along +row, both measured from the anchor cell's
   // back corner. The outer faces sit at the cell boundaries, and thickness pulls each one inward by however
   // much of its own cell that side gives up, the same rule `reachGroundQuad` applies to a single cell.
-  const reach = (dir: DepthDir): number => {
+  const reach = (dir: IsoDiagonal): number => {
     const raw = thickness?.[dir]
     return typeof raw === 'number' && raw > 0 && raw < 1 ? raw : 1
   }
@@ -2248,12 +2248,12 @@ export function drawIsoTileBlock(
   dv: DrawVisual,
   tint?: string,
   topDv?: DrawVisual,
-  depth = 1, // directional-depth (with depthDir) → a long iso box; default 1 = the unmodified cube
-  depthDir?: DepthDir,
+  depth = 1, // directional-depth (with spanAxis) → a long iso box; default 1 = the unmodified cube
+  spanAxis?: IsoDiagonal,
   /** THICKNESS reaches → the footprint shrinks inside its own cell (a door flush in its wall). */
   thickness?: ThicknessReach,
 ): void {
-  const isDepthBox = !!depthDir && Math.floor(depth) > 1
+  const isDepthBox = !!spanAxis && Math.floor(depth) > 1
   // The cube-sprite cache bakes a UNIT cube, never a directional box, and never a THINNED one; skip it for
   // both so the live builder draws the real footprint.
   if (!isDepthBox && !thickness && Math.floor(height) === 1 && ctx.globalAlpha === 1 && dv.image) {
@@ -2263,7 +2263,7 @@ export function drawIsoTileBlock(
       return
     }
   }
-  drawIsoTileBlockLive(ctx, center, tileW, tileH, blockH, height, dv, tint, topDv, depth, depthDir, thickness)
+  drawIsoTileBlockLive(ctx, center, tileW, tileH, blockH, height, dv, tint, topDv, depth, spanAxis, thickness)
 }
 
 /** DISPLAY = "single" (per-tile `settings.display`): draw the block as a PLAIN, shaded SHELL, the SAME cube
@@ -2284,13 +2284,13 @@ export function drawIsoSingleTileBlock(
   dv: DrawVisual,
   tint?: string,
   depth = 1,
-  depthDir?: DepthDir,
+  spanAxis?: IsoDiagonal,
   transparent = false,
 ): void {
   // 1) The plain block SHELL, same cube, but no image/char on the faces (fillFace only fills the shaded quad).
   //    SKIPPED when the tile is transparent: only the billboard (step 2) shows, so a flower stands with NO
   //    coloured block around it, "style the flower without colouring the whole block".
-  if (!transparent) drawIsoTileBlock(ctx, center, tileW, tileH, blockH, height, { char: '', color: dv.color, tint: dv.tint }, tint, undefined, depth, depthDir)
+  if (!transparent) drawIsoTileBlock(ctx, center, tileW, tileH, blockH, height, { char: '', color: dv.color, tint: dv.tint }, tint, undefined, depth, spanAxis)
   // 2) ONE centered tile INSIDE the block. `center` is the base diamond centre; the stack rises `total` px, so
   //    the volume's vertical mid-point is total/2 above it. The tile is drawn at SINGLE_TILE_FRAC of the block
   //    width so the shell stays visible around it.
@@ -2424,17 +2424,17 @@ const ISO_SHAPE_DRAWERS: Record<TileShape, IsoShapeDrawer> = {
     // DISPLAY = "single" still draws ONE centered billboard inside the (here dropped) shell; an all-faces tile
     // with transparent draws NOTHING (see-through), same as single drops its shell.
     const transparent = assetIsTransparent(asset)
-    // Z-WIDTH RECTANGLE: a square tile spanning ≥2 cells, along ONE axis (depth/depthBack)
-    // or TWO (depthPerp/depthPerpBack too), draws as ONE SOLID block: one parallelogram top + two outer walls,
+    // Z-WIDTH RECTANGLE: a square tile spanning ≥2 cells, along ONE axis (depth/spanBack)
+    // or TWO (spanPerp/spanPerpBack too), draws as ONE SOLID block: one parallelogram top + two outer walls,
     // NO column seams. This lives HERE (the shape drawer) so EVERY tile gets it, not just label-backed ones, a
     // painted/override roof (label:null) reaches this same drawer, so "all settings apply to every tile" holds.
     // `assetRectExtents` is all-zeros for a non-z-width tile → isRect false → the byte-identical cube below.
     const ext = assetRectExtents(asset)
     const isRect = ext.colMinus + ext.colPlus + ext.rowMinus + ext.rowPlus > 0
-    if (assetDrawsSingle(asset)) drawIsoSingleTileBlock(ctx, center, bw, bd, bh, blocks, dv, tint, asset.depth, asset.depthDir, transparent)
+    if (assetDrawsSingle(asset)) drawIsoSingleTileBlock(ctx, center, bw, bd, bh, blocks, dv, tint, asset.spanForward, asset.spanAxis, transparent)
     else if (transparent) return // see-through: no coloured block (whether a rect deck or a plain cube)
     else if (isRect) drawIsoRectBlock(ctx, center, bw, bd, bh, blocks, dv, tint, ext, undefined, assetThickness(asset))
-    else drawIsoTileBlock(ctx, center, bw, bd, bh, blocks, dv, tint, undefined, asset.depth, asset.depthDir, assetThickness(asset))
+    else drawIsoTileBlock(ctx, center, bw, bd, bh, blocks, dv, tint, undefined, asset.spanForward, asset.spanAxis, assetThickness(asset))
   },
   circle: (ctx, center, bw, bd, bh, blocks, dv, tint, asset) => {
     if (assetIsTransparent(asset)) return // transparent applies to circles too, see-through, no coloured ball
@@ -2493,7 +2493,7 @@ function drawIsoWaterDepth(
 
 
 /** The screen silhouette of a drawn iso BLOCK/column: a directional-depth box when the asset extrudes along a
- *  diagonal (depth>1 + depthDir), else the plain stacked cube. Pose (x/y/rotate/flip) is folded in through
+ *  diagonal (depth>1 + spanAxis), else the plain stacked cube. Pose (x/y/rotate/flip) is folded in through
  *  poseMapper exactly as the draw applies it, so the geom matches whether or not the block is posed. */
 function blockGeom(x: number, y: number, halfW: number, halfD: number, blockH: number, blocks: number, asset: GridAsset, unit: number): TileGeom {
   const xf = poseMapper({ x, y }, asset.pose, unit)
@@ -2595,16 +2595,16 @@ export function drawIsoAssetAscii(
   // not-yet-baked) still falls to the neutral glyph below (MAP-MODEL §8), unchanged.
   const labelImage = asset.label ? styleTileImage(asset.label, style) : undefined
   if (asset.label && ((asset.height ?? 0) >= 1 || labelImage)) {
-    const zoom = asset.scale ?? 1
     // WHOLE PIXELS, the block's half-dimensions. Its faces are drawn at `centre ± bw/bd/bh`, and the centre
     // is already on the whole-pixel lattice (see tileW), so a fractional dimension is what would put the
     // corners back off-pixel and cost the resample on every face. Measured: with the lattice snapped but
     // these left fractional, 18% of the frame's blits still landed off-pixel, all of them block faces.
-    const bw = Math.max(1, Math.round(tileW * (asset.scaleX ?? 1) * zoom))       // Width , diamond half-width
-    // THICKNESS: with a `thicknessDir` the shrink happens along a WORLD axis inside the shape drawer, so the
-    // screen half-height stays FULL here, applying scaleZ in both places would thin a door twice. Without a
-    // direction, `scaleZ` keeps its historical screen-axis meaning.
-    const bd = Math.max(1, Math.round(tileH * (assetThickness(asset) ? 1 : (asset.scaleZ ?? 1)) * zoom))
+    const bw = Math.max(1, Math.round(tileW * (asset.scaleX ?? 1)))             // Width , diamond half-width
+    // DEPTH, the diamond's half-height: how far the tile reaches INTO THE SCREEN, as a share of its own
+    // cell. A SIZE, applied unconditionally, which is what makes it mean the same thing here as it does
+    // from above. THINNING is `thickness` alone, and it happens inside the shape drawer along a world
+    // axis, so the two compose instead of one cancelling the other.
+    const bd = Math.max(1, Math.round(tileH * (asset.depth ?? 1)))
     // Height, the tile's OWN DB block-height turned into pixels: partialBlockScale draws a sub-block cell as a
     // partial slab and a standing cell as a full block, × the per-instance Height multiplier (scaleY).
     //
@@ -2618,7 +2618,7 @@ export function drawIsoAssetAscii(
     // `resolveTileHeight` is the shared rule and it says it in one line: the asset's height when it pins one,
     // the TILE's otherwise. Resolved by LABEL, which is the only input this whole branch uses.
     const labelBlocks = resolveTileHeight(asset.label ? styleTileArt(asset.label, style.id) : undefined, asset)
-    const bh = tileW * ISO_BLOCK_H_FRAC * (asset.scaleY ?? 1) * layerBlockScale(labelBlocks) * zoom
+    const bh = tileW * ISO_BLOCK_H_FRAC * (asset.scaleY ?? 1) * layerBlockScale(labelBlocks)
     // …stacked as many times as the tile is tall. This used to be hardcoded to ONE layer, so a labeled cell
     // drew a single block however tall you made it, raise it to 5 and the tiles above rose while the tile
     // itself stayed put.
@@ -2724,10 +2724,10 @@ export function drawIsoAssetAscii(
   // Z-WIDTH (directional depth) is a 3D BLOCK operation: setting it declares the tile a block extruded N cells
   // along a diagonal, so the iso render MUST extrude it even at base height 0. Z-Width only changes how FAR a
   // block extrudes, a flat tile stays a THIN slab (see flatSlab below), just deeper.
-  const hasZWidth = (asset.depth ?? 1) > 1
+  const hasZWidth = (asset.spanForward ?? 1) > 1
   // A well / fountain under a RESKIN (emoji), flat + no Z-Width, extrudes its RESOLVED TILE (⛲/🪣) into a raised
   // iso basin block (bespoke depth), town fountains scale to their footprint. A Z-Width well, or one with its
-  // own height, flows to the generic block path below (which honours depthDir). ASCII → the per-type draw.
+  // own height, flows to the generic block path below (which honours spanAxis). ASCII → the per-type draw.
   const reskinned = style.id !== ASCII_STYLE.id
   if (reskinned && blocks < 1 && !hasZWidth && (asset.type === 'well' || asset.type === 'fountain') && (adv.image || adv.char)) {
     const span = asset.footprint && asset.footprint > 1 ? asset.footprint : 1
@@ -2738,7 +2738,7 @@ export function drawIsoAssetAscii(
     return cubeGeom(bw, bhScreen, basinH, 1, poseMapper({ x, y }, undefined, tileH))
   }
   // EVERY tile with ANY art is a BLOCK, the flat-billboard path for a placed tile is GONE (MAP-MODEL §4;
-  // EDITOR-INTERACTION §11: "the old flat billboard path that silently dropped depth/depthDir + display is
+  // EDITOR-INTERACTION §11: "the old flat billboard path that silently dropped depth/spanAxis + display is
   // gone"). A height≥1 tile extrudes into N cubes; a sub-block (flat) tile, a flower, a fallen leaf, floor
   // decor, the floor itself, draws its OWN DB height as a thin partial slab (partialBlockScale), so it looks
   // FLAT, not a tall cube, while Z-Width/display/shape/scaleX/scaleY/
@@ -2756,23 +2756,21 @@ export function drawIsoAssetAscii(
   const floorSolid = asset.type === FLOOR_TYPE && !!asset.color
   const blockCount = blocks >= 1 ? blocks : ((hasZWidth || adv.image || adv.char || floorSolid) ? 1 : 0)
   if (blockCount >= 1 && (adv.image || adv.char || floorSolid)) {
-    // A block scales on ALL THREE axes (was height-only): Width (scaleX) widens the diamond, Depth (scaleZ)
-    // deepens it, Height (scaleY) stretches it up, and Zoom (scale) multiplies every axis. This is what makes a
-    // tile able to SPAN MANY BLOCKS (a 1×2 wall, a wide roof) instead of only growing taller.
-    const zoom = asset.scale ?? 1
+    // A block sizes on THREE axes and only three: Width widens the diamond, Depth deepens it, Height
+    // stretches it up. There is no fourth multiplier. This is what makes a tile able to SPAN MANY BLOCKS
+    // (a 1x2 wall, a wide roof) instead of only growing taller.
     // WHOLE PIXELS, the block's half-dimensions. Its faces are drawn at `centre ± bw/bd/bh`, and the centre
     // is already on the whole-pixel lattice (see tileW), so a fractional dimension is what would put the
     // corners back off-pixel and cost the resample on every face. Measured: with the lattice snapped but
     // these left fractional, 18% of the frame's blits still landed off-pixel, all of them block faces.
-    const bw = Math.max(1, Math.round(tileW * (asset.scaleX ?? 1) * zoom))       // Width , diamond half-width
-    // Depth, diamond half-height (into-screen axis). A tile that states a world-axis THICKNESS is thinned by
-    // its quad instead, so applying scaleZ here as well would thin it twice, and a z-width sweep would step
-    // by a squashed cell rather than a whole one. Its sibling above already guarded this; this one did not.
-    const bd = Math.max(1, Math.round(tileH * (assetThickness(asset) ? 1 : (asset.scaleZ ?? 1)) * zoom))
+    const bw = Math.max(1, Math.round(tileW * (asset.scaleX ?? 1)))             // Width , diamond half-width
+    // DEPTH, diamond half-height (into-screen axis). A size, applied unconditionally, the same way its
+    // sibling above applies it. Thinning belongs to `thickness` and happens in the shape drawer.
+    const bd = Math.max(1, Math.round(tileH * (asset.depth ?? 1)))
     // Height, the tile's OWN DB block-height as pixels: partialBlockScale draws a sub-block (flat 0.1) tile as a
     // thin partial slab and a standing tile as a full block, × the per-instance Height multiplier (scaleY). The
     // height VALUE is DATA (from the DB, read into `blocks`); nothing invented.
-    const bh = tileW * 0.9 * (asset.scaleY ?? 1) * layerBlockScale(blocks) * zoom
+    const bh = tileW * 0.9 * (asset.scaleY ?? 1) * layerBlockScale(blocks)
     // SHAPE + DISPLAY (per-tile settings): drawIsoTileForShape picks the solid, cube (all-faces / single) or ball.
     const geom = blockGeom(x, y, bw, bd, bh, blockCount, asset, tileH)
     // Per-asset pose (x/y/rotate/flip) transforms the block around its base centre, the SAME applyPose the

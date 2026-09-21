@@ -14,14 +14,13 @@ export type DimView =
 
 /** Per-element sprite-scale multipliers carried on a GridAsset. Every axis defaults to 1 (current look). */
 export interface AssetDims {
-  /** Uniform Zoom, multiplies every axis at once. */
-  scale?: number
   /** Width (x), horizontal stretch, in every view. */
   scaleX?: number
   /** Height (up), vertical stretch that grows UP from the base; billboard views only. */
   scaleY?: number
-  /** Depth (into-screen ground axis), renders as vertical stretch in the overhead view only. */
-  scaleZ?: number
+  /** Depth, the into-screen ground axis. A SIZE in every view: on screen it is the vertical axis of
+   *  the overhead view, and the into-screen axis of the iso box. */
+  depth?: number
 }
 
 export interface DrawSize {
@@ -38,10 +37,15 @@ export interface DrawSize {
  * @param base the renderer's existing fixed sprite size (the current look = all dims at 1).
  */
 export function resolveAssetDrawSize(base: number, dims: AssetDims, view: DimView): DrawSize {
-  const zoom = dims.scale ?? 1
-  const w = base * (dims.scaleX ?? 1) * zoom
-  const verticalAxis = view === 'overhead' ? dims.scaleZ ?? 1 : dims.scaleY ?? 1
-  const h = base * verticalAxis * zoom
+  // NO ZOOM. Zoom was a fourth number that multiplied the three axes rather than replacing them, so
+  // Width 2 with Zoom 2 drew at 4 and nothing in the panel said so. The axes are the primitive: they
+  // can express a uniform size and Zoom could never express a non-uniform one.
+  const w = base * (dims.scaleX ?? 1)
+  // Which axis is VERTICAL on screen depends on where the camera is, and that is the only thing that
+  // changes here. Looking down, the screen's vertical axis IS the into-screen ground axis, so Depth
+  // draws it. From the side, Height does. Each control means one thing in both.
+  const verticalAxis = view === 'overhead' ? dims.depth ?? 1 : dims.scaleY ?? 1
+  const h = base * verticalAxis
   const baseLift = view === 'overhead' ? 0 : (h - base) / 2
   return { w, h, baseLift }
 }

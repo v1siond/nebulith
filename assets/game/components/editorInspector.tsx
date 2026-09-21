@@ -4,7 +4,7 @@
 import { useState } from 'react'
 import { sectionTitle, type InspectorSectionId } from '@/game/editor/inspectorSections'
 import { rotateDepthDir } from '@/engine/render'
-import type { DepthDir, ThicknessReach } from '@/engine/render'
+import type { IsoDiagonal, ThicknessReach } from '@/engine/render'
 import { InfoButton } from './shell/InfoButton'
 import type { TilePose } from '@/engine/tileset/pose'
 import type { AssetLight, TileDisplay, TileShape } from '@/engine/tileset/tileset'
@@ -146,13 +146,13 @@ export function PoseControls({ kind, pose, isWeapon, onChange, onReset }: { kind
   )
 }
 
-/** The four per-tile sprite-scale axes (#77/#78). Width/Height/Depth are per-axis; Zoom is uniform. */
-export type DimAxis = 'width' | 'height' | 'depth' | 'zoom'
+/** The THREE per-tile size axes. There is no fourth: Zoom multiplied these rather than replacing them,
+ *  so Width 2 with Zoom 2 drew at 4 and this panel never said so. */
+export type DimAxis = 'width' | 'height' | 'depth'
 export interface ElementDims {
-  width: number | null // shared scaleX, or null (mixed)
-  height: number | null // shared scaleY, or null (mixed)
-  depth: number | null // shared scaleZ, or null (mixed)
-  zoom: number | null // shared scale (uniform), or null (mixed)
+  width: number | null // shared width, or null (mixed)
+  height: number | null // shared height in blocks, or null (mixed)
+  depth: number | null // shared depth, the into-screen axis, or null (mixed)
 }
 
 /** The ONE selected tile in the Cell inspector, as a single consolidated control group. A cell is a fixed
@@ -180,25 +180,25 @@ export interface TileControlModel {
   /** DIRECTIONAL DEPTH ("Z Width"): how many cells this block extrudes into a long iso box (asset.depth;
    *  null = mixed). Present only for asset tiles that support it, the floor omits it (no directional depth). */
   zWidth?: number | null
-  /** BIDIRECTIONAL z-width (#58): cells this SAME block extends BACKWARD (asset.depthBack; 0 = one-way, null = mixed). */
+  /** BIDIRECTIONAL z-width (#58): cells this SAME block extends BACKWARD (asset.spanBack; 0 = one-way, null = mixed). */
   zBack?: number | null
-  /** 2-AXIS z-width: cells along the PERPENDICULAR axis, forward (asset.depthPerp) + back (asset.depthPerpBack). */
+  /** 2-AXIS z-width: cells along the PERPENDICULAR axis, forward (asset.spanPerp) + back (asset.spanPerpBack). */
   zPerp?: number | null
   zPerpBack?: number | null
-  /** which iso diagonal the Z Width grows along (asset.depthDir; null = none/mixed). */
-  zDir?: DepthDir | null
+  /** which iso diagonal the Z Width grows along (asset.spanAxis; null = none/mixed). */
+  zDir?: IsoDiagonal | null
   onZWidth?: (cells: number) => void
   onZBack?: (cells: number) => void
   onZPerp?: (cells: number) => void
   onZPerpBack?: (cells: number) => void
-  onZDir?: (dir: DepthDir) => void
+  onZDir?: (dir: IsoDiagonal) => void
   /** "z position": ISO-DIAGONAL slide magnitude in cells (asset.zOffset; null = mixed). NOT a vertical lift, *  the tile moves along zPosDir's diagonal. Asset tiles only. */
   zPos?: number | null
   onZPos?: (value: number) => void
   /** "z position" DIRECTION: which iso diagonal the z slide moves along (asset.zDir; null = default/mixed).
    *  Same 4 dirs + labels as Z Width; +z slides toward it, −z toward its opposite. Asset tiles only. */
-  zPosDir?: DepthDir | null
-  onZPosDir?: (dir: DepthDir) => void
+  zPosDir?: IsoDiagonal | null
+  onZPosDir?: (dir: IsoDiagonal) => void
   /** "z-index": DRAW-PRIORITY (CSS z-index style), a higher value draws on top / in front of a lower one,
    *  overriding the positional depth sort (asset.zIndex; null = mixed). Asset tiles only. */
   zIndex?: number | null
@@ -219,7 +219,7 @@ export interface TileControlModel {
   /** THICKNESS as per-direction reaches, JSON-encoded so a multi-selection can report "mixed" as null.
    *  Present with `onThicknessReach` → the four Thickness rows render. */
   thickness?: string | null
-  onThicknessReach?: (dir: DepthDir, value: number) => void
+  onThicknessReach?: (dir: IsoDiagonal, value: number) => void
   /** The camera's quarter-turn, so every direction control reads in SCREEN space. */
   facing?: number
   onTransparent?: (on: boolean) => void
@@ -344,11 +344,11 @@ function DimRow({ label, axis, value, title, onDim }: { label: string; axis: Dim
 
 /** The four directional-depth options with the USER's exact labels, laid out 2×2 to match where the box grows
  *  on screen (top row = up diagonals, bottom row = down diagonals; left = ←, right = →). Each maps to a
- *  DepthDir (verified against the iso projection: right top = up-right, etc.). */
+ *  IsoDiagonal (verified against the iso projection: right top = up-right, etc.). */
 // The four iso diagonals a tile can extend along. `glyph` is what the UI SHOWS, the design (§4.7) replaced
 // "left top / bottom left" with arrows precisely because those words never agreed with each other; `spoken`
 // is what a screen reader and a tooltip say, so the control is still nameable.
-const Z_WIDTH_DIRS: { glyph: string; spoken: string; dir: DepthDir }[] = [
+const Z_WIDTH_DIRS: { glyph: string; spoken: string; dir: IsoDiagonal }[] = [
   { glyph: '↖', spoken: 'up-left', dir: 'left-up' },
   { glyph: '↗', spoken: 'up-right', dir: 'right-up' },
   { glyph: '↙', spoken: 'down-left', dir: 'left-down' },
@@ -366,7 +366,7 @@ const Z_WIDTH_DIRS: { glyph: string; spoken: string; dir: DepthDir }[] = [
  * edits the axis you are looking at. Storage stays world-space, that is what keeps a door thin toward its own
  * wall as you rotate.
  */
-function dirsForFacing(facing: number): { glyph: string; spoken: string; dir: DepthDir }[] {
+function dirsForFacing(facing: number): { glyph: string; spoken: string; dir: IsoDiagonal }[] {
   return Z_WIDTH_DIRS.map(({ glyph, spoken, dir }) => ({
     glyph,
     spoken,
@@ -375,16 +375,16 @@ function dirsForFacing(facing: number): { glyph: string; spoken: string; dir: De
 }
 
 /** Opposite iso diagonal (180°); perpendicular (90°, = rotateDepthDir(dir,1)). The 4 diagonals close under both. */
-const Z_WIDTH_OPPOSITE: Record<DepthDir, DepthDir> = { 'left-up': 'right-down', 'right-down': 'left-up', 'right-up': 'left-down', 'left-down': 'right-up' }
-const Z_WIDTH_PERP: Record<DepthDir, DepthDir> = { 'left-up': 'right-up', 'right-up': 'right-down', 'right-down': 'left-down', 'left-down': 'left-up' }
+const Z_WIDTH_OPPOSITE: Record<IsoDiagonal, IsoDiagonal> = { 'left-up': 'right-down', 'right-down': 'left-up', 'right-up': 'left-down', 'left-down': 'right-up' }
+const Z_WIDTH_PERP: Record<IsoDiagonal, IsoDiagonal> = { 'left-up': 'right-up', 'right-up': 'right-down', 'right-down': 'left-down', 'left-down': 'left-up' }
 
 /** Z WIDTH, MULTI-DIRECTION: one INDEPENDENT amount per direction. The
- *  box spans a RECTANGLE: the primary axis (depthDir) has a FORWARD end (`depth-1` past the anchor) + a BACK end
- *  (`depthBack`); the PERPENDICULAR axis has forward (`depthPerp`) + back (`depthPerpBack`). Because the 4
+ *  box spans a RECTANGLE: the primary axis (spanAxis) has a FORWARD end (`depth-1` past the anchor) + a BACK end
+ *  (`spanBack`); the PERPENDICULAR axis has forward (`spanPerp`) + back (`spanPerpBack`). Because the 4
  *  diagonals are exactly {dir, opposite, perp, opposite-perp}, EACH of the 4 sliders writes its OWN extent, so
- *  moving one never resets the others (the bug). A fresh tile fixes depthDir to the primary col axis. 2×2 layout
+ *  moving one never resets the others (the bug). A fresh tile fixes spanAxis to the primary col axis. 2×2 layout
  *  matches where the box grows on screen; cap at 2 sides (zoom covers the rest). */
-function ZWidthRow({ zWidth, zBack, zPerp, zPerpBack, zDir, facing, onZWidth, onZBack, onZPerp, onZPerpBack, onZDir }: { zWidth: number | null; facing: number; zBack?: number | null; zPerp?: number | null; zPerpBack?: number | null; zDir: DepthDir | null; onZWidth: (cells: number) => void; onZBack?: (cells: number) => void; onZPerp?: (cells: number) => void; onZPerpBack?: (cells: number) => void; onZDir: (dir: DepthDir) => void }) {
+function ZWidthRow({ zWidth, zBack, zPerp, zPerpBack, zDir, facing, onZWidth, onZBack, onZPerp, onZPerpBack, onZDir }: { zWidth: number | null; facing: number; zBack?: number | null; zPerp?: number | null; zPerpBack?: number | null; zDir: IsoDiagonal | null; onZWidth: (cells: number) => void; onZBack?: (cells: number) => void; onZPerp?: (cells: number) => void; onZPerpBack?: (cells: number) => void; onZDir: (dir: IsoDiagonal) => void }) {
   const depth = zWidth ?? 1, back = zBack ?? 0, perp = zPerp ?? 0, perpBack = zPerpBack ?? 0
   const dir = zDir ?? 'right-down' // fresh tile → the primary (col) axis, so the 4 sliders map to fixed extents
   const perpDir = Z_WIDTH_PERP[dir]
@@ -392,12 +392,12 @@ function ZWidthRow({ zWidth, zBack, zPerp, zPerpBack, zDir, facing, onZWidth, on
   // uses, and 1 (its own cell) is the floor. It used to show the EXTRA cells beyond the anchor, which made
   // "0" and "1" render the identical block and a fractional value do nothing at all. The four extents underneath
   // stay independent, moving one never resets another.
-  const amountFor = (d: DepthDir): number =>
+  const amountFor = (d: IsoDiagonal): number =>
     1 + (d === dir ? Math.max(0, depth - 1)
       : d === Z_WIDTH_OPPOSITE[dir] ? back
         : d === perpDir ? perp
           : perpBack)
-  const setAmount = (d: DepthDir, raw: number): void => {
+  const setAmount = (d: IsoDiagonal, raw: number): void => {
     const cells = Math.max(1, Math.round(raw))          // a tile always occupies at least its own cell
     const extent = cells - 1                            // …so the stored EXTENT is what it reaches beyond it
     if (zDir == null) onZDir(dir)                       // establish the axis ONCE for a fresh tile (never after)
@@ -442,8 +442,8 @@ function ZWidthRow({ zWidth, zBack, zPerp, zPerpBack, zDir, facing, onZWidth, on
  *  The arrows are SCREEN directions, `dirsForFacing` turns the stored WORLD axes into what is currently on
  *  screen, because "I rotated and the direction the propreties in the UI were showing didn't match the
  *  view". Storage stays world-space, or rotating the camera would re-thin the tile. */
-function ThicknessRow({ reach, facing, onThicknessReach }: { reach: ThicknessReach | null; facing: number; onThicknessReach: (dir: DepthDir, value: number) => void }) {
-  const reachFor = (dir: DepthDir): number => reach?.[dir] ?? 1
+function ThicknessRow({ reach, facing, onThicknessReach }: { reach: ThicknessReach | null; facing: number; onThicknessReach: (dir: IsoDiagonal, value: number) => void }) {
+  const reachFor = (dir: IsoDiagonal): number => reach?.[dir] ?? 1
   return (
     <div className="space-y-1">
       <div className="flex items-center gap-2 text-[10px] text-gray-400">
@@ -580,7 +580,7 @@ function LightControls({ light, onLight }: { light: AssetLight | undefined; onLi
  *  diagonal it slides along, reusing the same 4 dirs + labels as Z Width. +z slides TOWARD the picked dir,
  *  −z toward its opposite; default 'right-up' ("right top") → +z = up-right toward the back. The direction
  *  buttons always show one highlighted (the effective default) so there's never a "no direction" limbo. */
-function ZPosRow({ zPos, zDir, onZPos, onZDir }: { zPos: number | null; zDir: DepthDir | null; onZPos: (value: number) => void; onZDir: (dir: DepthDir) => void }) {
+function ZPosRow({ zPos, zDir, onZPos, onZDir }: { zPos: number | null; zDir: IsoDiagonal | null; onZPos: (value: number) => void; onZDir: (dir: IsoDiagonal) => void }) {
   const active = zDir ?? 'right-up' // z always has an effective direction (render defaults to right-up)
   return (
     <div className="space-y-1">
@@ -631,7 +631,7 @@ export function LooksControls({ tile }: { tile: TileControlModel }) {
  * SIZE & POSITION (§4.7), the hardest section, and the one §3.10 singled out: how big the tile is, how many
  * cells it covers, where it sits inside its own cell, and what draws in front of what.
  *
- * The three sub-groups are the design's: **Size** (width / height / zoom + thickness), **Footprint** (cells
+ * The three sub-groups are the design's: **Size** (width / height / depth + thickness), **Footprint** (cells
  * covered, formerly "Z Width"), **Nudge** (movement WITHIN the cell, formerly the bare x / y / z), and
  * **Draw order** (formerly "Z-Index"). The labels changed; the writers did not.
  */
@@ -643,7 +643,7 @@ export function SizeAndPositionControls({ tile }: { tile: TileControlModel }) {
     <div className="space-y-1.5">
       <DimRow label="Width" axis="width" value={tile.dims.width} title="Width, horizontal stretch (every view)" onDim={tile.onDim} />
       <DimRow label="Height" axis="height" value={tile.dims.height} title="Height, grows UP from the base (iso + 2D views)" onDim={tile.onDim} />
-      <DimRow label="Zoom" axis="zoom" value={tile.dims.zoom} title="Zoom, scales Width, Height and Zoom together" onDim={tile.onDim} />
+      <DimRow label="Depth" axis="depth" value={tile.dims.depth} title="Depth, how far the tile reaches into the screen. The same size in every view" onDim={tile.onDim} />
       {/* THICKNESS (scaleZ), how much of its OWN cell the block fills along the into-screen axis.
           "it was used as 3d fill inside the cells/tiles". It is NOT the Footprint below: that counts CELLS
           SPANNED (always ≥1), this fills within one. A door is a thin panel in a wall, the backend already

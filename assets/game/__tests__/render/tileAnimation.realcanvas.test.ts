@@ -51,7 +51,9 @@ function makeGrid(assetOver: Partial<GridAsset> = {}): IsometricGrid {
   const grid = new IsometricGrid({ cols: 6, rows: 6, cellSize: 40 })
   const asset: GridAsset = {
     art: ['?'], col: 3, row: 3, type: 'anim_probe', label: LABEL,
-    color: MAGENTA, height: 1, scale: 3, placedAt: T0, ...assetOver,
+    // Drawn big on every axis, so there is real magenta mass to measure. This was one Zoom of 3; the
+    // axes are the only size now, and three of them saying 3 is the same tile.
+    color: MAGENTA, height: 1, scaleX: 3, scaleY: 3, depth: 3, placedAt: T0, ...assetOver,
   } as GridAsset
   grid.assets.push(asset)
   return grid

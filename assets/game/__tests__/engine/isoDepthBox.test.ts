@@ -6,7 +6,7 @@
  * covered-cell / depth-sort helpers.
  */
 import { isoBlockFaces } from '@/engine/render/isoBlock'
-import { isoDepthBox, depthCells, depthFrontExtent, type DepthDir } from '@/engine/render/isoBlock'
+import { isoDepthBox, depthCells, depthFrontExtent, type IsoDiagonal } from '@/engine/render/isoBlock'
 import type { Pt, BlockFace } from '@/engine/render/isoBlock'
 
 const center = { x: 300, y: 200 }
@@ -18,13 +18,13 @@ const blockH = 36 // same fixtures as isoBlockFaces.test.ts, so cross-checks lin
 const U = { L: { x: 260, y: 164 }, T: { x: 300, y: 144 }, R: { x: 340, y: 164 }, B: { x: 300, y: 184 } }
 
 // Per-direction spec: the (D−1)*step offset at D=4, which unit corners STAY (near) and which are PUSHED (far).
-const SPEC: Record<DepthDir, { off: Pt; near: (keyof typeof U)[]; far: (keyof typeof U)[] }> = {
+const SPEC: Record<IsoDiagonal, { off: Pt; near: (keyof typeof U)[]; far: (keyof typeof U)[] }> = {
   'right-up': { off: { x: 120, y: -60 }, near: ['L', 'B'], far: ['T', 'R'] },
   'left-up': { off: { x: -120, y: -60 }, near: ['R', 'B'], far: ['L', 'T'] },
   'left-down': { off: { x: -120, y: 60 }, near: ['T', 'R'], far: ['L', 'B'] },
   'right-down': { off: { x: 120, y: 60 }, near: ['L', 'T'], far: ['R', 'B'] },
 }
-const DIRS = Object.keys(SPEC) as DepthDir[]
+const DIRS = Object.keys(SPEC) as IsoDiagonal[]
 const D = 4
 
 const key = (p: Pt) => `${Math.round(p.x)},${Math.round(p.y)}`
@@ -89,7 +89,7 @@ describe('depthCells, the D grid cells a directional box covers (collision + dep
     ['left-up', [{ col: 5, row: 5 }, { col: 4, row: 5 }, { col: 3, row: 5 }, { col: 2, row: 5 }]],
     ['left-down', [{ col: 5, row: 5 }, { col: 5, row: 6 }, { col: 5, row: 7 }, { col: 5, row: 8 }]],
     ['right-down', [{ col: 5, row: 5 }, { col: 6, row: 5 }, { col: 7, row: 5 }, { col: 8, row: 5 }]],
-  ] as [DepthDir, { col: number; row: number }[]][])('%s covers the anchor then D−1 steps along its axis', (dir, cells) => {
+  ] as [IsoDiagonal, { col: number; row: number }[]][])('%s covers the anchor then D−1 steps along its axis', (dir, cells) => {
     expect(depthCells(5, 5, 4, dir)).toEqual(cells)
   })
 
