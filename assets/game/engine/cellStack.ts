@@ -106,10 +106,9 @@ function assetEntry(a: GridAsset): TileEntry {
     source: 'asset',
     tileId: a.tileOverride,
     slug: a.type === FLOOR_TYPE ? (a.tileKey ?? DEFAULT_FLOOR_SLUG) : (a.label ?? a.type),
-    w: a.scaleX ?? 1,
+    w: a.width ?? 1,
     d: a.depth ?? 1,
-    h: resolveTileHeight(undefined, a),
-    scaleY: a.scaleY,
+    h: resolveTileHeight(a),
     color: a.color ?? null,
     opacity: a.opacity,
     // WHAT IT OCCUPIES, asked once. `assetIsSolid` reads the tile's collision boxes (per-instance, else its
@@ -318,7 +317,7 @@ function assetActsAsTile(a: GridAsset): boolean {
  *  tileset holds the label answers. */
 function assetBlocks(a: GridAsset): number {
   const slug = a.type === FLOOR_TYPE ? (a.tileKey ?? DEFAULT_FLOOR_SLUG) : (a.label ?? a.type)
-  return resolveTileHeight(styleTile('ascii', slug) ?? styleTile('emoji', slug), a) * (a.scaleY ?? 1)
+  return resolveTileHeight(a)
 }
 
 /** pushTile → STACK a tile onto the cell (MAP-MODEL §4 "a cell holds an ORDERED stack ... stacked like legos"):
@@ -342,9 +341,8 @@ export function pushTile(grid: IsometricGrid, col: number, row: number, entry: T
     heightLevel,
   })
   const placed = grid.assets[grid.assets.length - 1]
-  if (entry.w !== undefined) placed.scaleX = entry.w
+  if (entry.w !== undefined) placed.width = entry.w
   if (entry.d !== undefined) placed.depth = entry.d
-  if (entry.scaleY !== undefined) placed.scaleY = entry.scaleY
   if (entry.h !== undefined) placed.height = entry.h
   if (entry.label !== undefined) placed.label = entry.label
   return placed
@@ -381,7 +379,6 @@ export function setTileHeight(grid: IsometricGrid, col: number, row: number, sta
   // has to decide how far it moves.
   const before = stackContribution(target)
   target.height = blocks
-  target.scaleY = undefined
   const delta = stackContribution(target) - before
   if (delta === 0) return
 

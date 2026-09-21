@@ -136,12 +136,12 @@ describe('tree composition, every ascii asset is a collection of selectable DB t
     // drawn without a fourth multiplier. All DATA, nothing hardcoded.
     const trunk = grid.assets.find(a => a.label === 'trunk_mid')!
     const leaf = grid.assets.find(a => a.label === 'leaf_center')!
-    expect(trunk.scaleX).toBeCloseTo(0.6, 5)
+    expect(trunk.width).toBeCloseTo(0.6, 5)
     expect(trunk.depth).toBeCloseTo(0.6, 5)
-    expect(trunk.scaleY).toBeCloseTo(3.15 * 0.6, 5)
-    expect(leaf.scaleX).toBeCloseTo(1.35, 5)
+    expect(trunk.height).toBeCloseTo(3.15 * 0.6, 5)
+    expect(leaf.width).toBeCloseTo(1.35, 5)
     expect(leaf.depth).toBeCloseTo(1.35, 5)
-    expect(leaf.scaleY).toBeCloseTo(2 * 1.35, 5)
+    expect(leaf.height).toBeCloseTo(2 * 1.35, 5)
   })
 
   test('the tree: only the trunk cell blocks, the leaf cube is walkable overhead', () => {
@@ -204,8 +204,8 @@ describe('tree composition, every ascii asset is a collection of selectable DB t
       const trunk = grid.assets.find(a => a.label === 'trunk_mid')!
       const leaf = grid.assets.find(a => a.label === 'leaf_center')!
       // The axes ARE the footprint now; there is no separate multiplier to fold in first.
-      const trunkWidth = trunk.scaleX ?? 1
-      const leafWidth = leaf.scaleX ?? 1
+      const trunkWidth = trunk.width ?? 1
+      const leafWidth = leaf.width ?? 1
       expect(trunk.depth ?? 1).toBeLessThan(leaf.depth ?? 1) // never deeper than the canopy
       expect(trunkWidth).toBeLessThan(leafWidth) // never wider than the canopy
       expect(leaf.heightLevel).toBeGreaterThan(trunk.heightLevel!) // leaves sit ABOVE the trunk

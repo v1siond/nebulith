@@ -246,7 +246,7 @@ describe('OCCLUSION follows the rotated camera (the painter sorts in the VIEW fr
   const BACK: [number, number] = [1, 1]
   const FRONT: [number, number] = [2, 2]
   const pair = (): GridAsset[] => [BACK, FRONT].map(([col, row]) => (
-    { art: ['#'], col, row, type: 'wall', label: 'wall', height: 1, scaleY: SCALE_Y, color: '#8a8a8a' }
+    { art: ['#'], col, row, type: 'wall', label: 'wall', height: SCALE_Y, color: '#8a8a8a' }
   ))
 
   const topmostOverBoth = (facing: Orientation): { col: number; row: number } => {

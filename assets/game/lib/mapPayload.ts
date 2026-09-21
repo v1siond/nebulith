@@ -1,3 +1,4 @@
+import { resolveTileHeight } from '@/engine/tileset/tileHeight'
 import { FLOOR_TYPE, type GridAsset, IsometricGrid } from '@/engine/IsometricGrid'
 import type { IsoDiagonal, ThicknessReach } from '@/engine/render/isoBlock'
 import type { TilePose } from '@/engine/tileset/pose'
@@ -88,10 +89,10 @@ export function tileToPayload(asset: GridAsset): Record<string, unknown> {
     label: labelOf(asset),
     stack_level: Math.round(num(asset.heightLevel, 0)),
 
-    width: dec(num(asset.scaleX, 1)),
+    width: dec(num(asset.width, 1)),
     // THE ONE HEIGHT, in blocks. The editor keeps a block height and a vertical stretch and multiplies
     // them to show a single number; the column IS that single number (D6).
-    height: dec(num(asset.height, 1) * num(asset.scaleY, 1)),
+    height: dec(resolveTileHeight(asset)),
     depth: dec(num(asset.depth, 1)),
 
     span_forward: Math.round(num(asset.spanForward, 1)),
@@ -123,8 +124,8 @@ export function tileToPayload(asset: GridAsset): Record<string, unknown> {
     out[column] = dec(num(reach[dir], 1))
   }
 
-  // Absent means absent, and a null in a nullable column is not the same as a default in a defaulted
-  // one. Only what the tile actually carries is stated.
+  // A nullable column is the one case where absent is the value: `span_axis` has no default, and a
+  // tile that spans nothing has no axis. Everything with a default is stated above, always.
   if (asset.spanAxis) out.span_axis = asset.spanAxis
   if (asset.zDir) out.slide_direction = asset.zDir
   if (asset.color) out.color = asset.color
@@ -141,28 +142,32 @@ export function tileToPayload(asset: GridAsset): Record<string, unknown> {
 
 /** The reverse: a served tile, as the editor's asset. */
 export function payloadToTile(tile: Record<string, unknown>, col: number, row: number): GridAsset {
-  const pose: TilePose = {}
-  if (fromDec(tile.nudge_x, 0) !== 0) pose.dx = fromDec(tile.nudge_x, 0)
-  if (fromDec(tile.nudge_y, 0) !== 0) pose.dy = fromDec(tile.nudge_y, 0)
-  if (fromDec(tile.rotation, 0) !== 0) pose.rot = radians(fromDec(tile.rotation, 0))
-  if (tile.mirror === true) pose.flip = true
-  if (fromDec(tile.art_scale, 1) !== 1) pose.scale = fromDec(tile.art_scale, 1)
+  // EVERY field, stated. A setting is never implied by its own absence (law 6): the column has a
+  // default, the payload carries it, and a renderer that receives an absent field is a renderer that
+  // has to invent one. That invention is the defect this phase exists to delete.
+  const pose: TilePose = {
+    dx: fromDec(tile.nudge_x, 0),
+    dy: fromDec(tile.nudge_y, 0),
+    rot: radians(fromDec(tile.rotation, 0)),
+    flip: tile.mirror === true,
+    scale: fromDec(tile.art_scale, 1),
+  }
   if (tile.muzzle != null) pose.muzzle = fromDec(tile.muzzle, 0)
 
   const reach: ThicknessReach = {}
   for (const [dir, column] of REACHES) {
-    const value = fromDec(tile[column], 1)
-    if (value !== 1) reach[dir] = value
+    reach[dir] = fromDec(tile[column], 1)
   }
 
   const label = typeof tile.label === 'string' ? tile.label : undefined
 
-  const settings: Record<string, unknown> = {}
-  if (tile.display === 'single') settings.display = 'single'
-  if (tile.transparent === true) settings.transparent = true
-  if (tile.fade_near === true) settings.fadeNear = true
-  if (tile.cutaway_near === true) settings.cutawayRoof = true
-  if (tile.act_as_tile === false) settings.actAsTile = false
+  const settings: Record<string, unknown> = {
+    display: tile.display === 'single' ? 'single' : 'all-faces',
+    transparent: tile.transparent === true,
+    fadeNear: tile.fade_near === true,
+    cutawayRoof: tile.cutaway_near === true,
+    actAsTile: tile.act_as_tile !== false,
+  }
   if (tile.min_alpha != null) settings.minAlpha = fromDec(tile.min_alpha, 1)
   if (tile.sign_text) settings.badge = { text: String(tile.sign_text), color: String(tile.sign_color ?? '#ffffff') }
 
@@ -176,7 +181,7 @@ export function payloadToTile(tile: Record<string, unknown>, col: number, row: n
     heightLevel: Math.round(fromDec(tile.stack_level, 0)),
     // The one height comes back whole: the column IS the number, so nothing multiplies it again.
     height: fromDec(tile.height, 1),
-    scaleX: fromDec(tile.width, 1),
+    width: fromDec(tile.width, 1),
     depth: fromDec(tile.depth, 1),
     spanForward: Math.round(fromDec(tile.span_forward, 1)),
     zIndex: Math.round(fromDec(tile.draw_order, 0)),
@@ -185,23 +190,20 @@ export function payloadToTile(tile: Record<string, unknown>, col: number, row: n
     shape: tile.shape === 'circle' || tile.shape === 'cone' ? tile.shape : undefined,
   }
 
-  // Counts come back as counts: the editor holds cells BEYOND the anchor.
-  const back = Math.round(fromDec(tile.span_back, 1)) - 1
-  const perp = Math.round(fromDec(tile.span_perp, 1)) - 1
-  const perpBack = Math.round(fromDec(tile.span_perp_back, 1)) - 1
-  if (back > 0) asset.spanBack = back
-  if (perp > 0) asset.spanPerp = perp
-  if (perpBack > 0) asset.spanPerpBack = perpBack
+  // Counts come back as counts: the editor holds cells BEYOND the anchor. Stated, not omitted.
+  asset.spanBack = Math.max(0, Math.round(fromDec(tile.span_back, 1)) - 1)
+  asset.spanPerp = Math.max(0, Math.round(fromDec(tile.span_perp, 1)) - 1)
+  asset.spanPerpBack = Math.max(0, Math.round(fromDec(tile.span_perp_back, 1)) - 1)
 
   if (tile.span_axis) asset.spanAxis = tile.span_axis as IsoDiagonal
   if (tile.slide_direction) asset.zDir = tile.slide_direction as IsoDiagonal
-  if (fromDec(tile.slide_amount, 0) !== 0) asset.zOffset = fromDec(tile.slide_amount, 0)
+  asset.zOffset = fromDec(tile.slide_amount, 0)
   if (tile.color) asset.color = String(tile.color)
   if (tile.side_color) asset.sideColor = String(tile.side_color)
   if (tile.bg_color) asset.bgColor = String(tile.bg_color)
-  if (Object.keys(pose).length) asset.pose = pose
-  if (Object.keys(reach).length) asset.thickness = reach
-  if (Object.keys(settings).length) asset.settings = settings as GridAsset['settings']
+  asset.pose = pose
+  asset.thickness = reach
+  asset.settings = settings as GridAsset['settings']
 
   const heading = HEADINGS.indexOf(tile.water_heading as (typeof HEADINGS)[number])
   if (heading >= 0) asset.flow = heading

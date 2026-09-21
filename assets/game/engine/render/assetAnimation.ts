@@ -18,6 +18,7 @@
  * MULTIPLY the base by their ratio-from-start, colour is last-wins. So the base height/zoom sliders stay live
  * and editable while an animation plays, and the existing draw code reads the composed fields with no changes.
  */
+import { resolveTileHeight } from '@/engine/tileset/tileHeight'
 import type { GridAsset } from '@/engine/IsometricGrid'
 import {
   animationMatchesScope,
@@ -183,8 +184,8 @@ function withAnimatedFields(asset: GridAsset, values: AnimatedSettingsDetailed):
   if (!hasColor && !hasWidth && !hasHeight) return asset
   const out: GridAsset = { ...asset }
   if (hasColor) out.color = color!.value as string
-  if (hasWidth) out.scaleX = composeAnimatedSetting('width', asset.scaleX ?? 1, width!.value as number, Number(width!.from))
-  if (hasHeight) out.scaleY = composeAnimatedSetting('height', asset.scaleY ?? 1, height!.value as number, Number(height!.from))
+  if (hasWidth) out.width = composeAnimatedSetting('width', asset.width ?? 1, width!.value as number, Number(width!.from))
+  if (hasHeight) out.height = composeAnimatedSetting('height', resolveTileHeight(asset), height!.value as number, Number(height!.from))
   return out
 }
 

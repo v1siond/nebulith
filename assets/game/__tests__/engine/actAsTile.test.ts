@@ -81,7 +81,7 @@ describe('heights ACCUMULATE, the rule that makes it a lego model', () => {
 
   it('multiplies a tile\'s own height by its scaleY when it spans several blocks', () => {
     const g = grid()
-    pushTile(g, 2, 2, { source: 'asset', type: PLAIN, art: ['.'], h: 1, collision: false, scaleY: 4 })
+    pushTile(g, 2, 2, { source: 'asset', type: PLAIN, art: ['.'], h: 1, collision: false, height: 4 })
     expect(push(g, TOP).heightLevel).toBe(5) // floor 1 + a 4-block column
   })
 })

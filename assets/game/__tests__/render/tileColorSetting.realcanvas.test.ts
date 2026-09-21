@@ -167,7 +167,7 @@ describe('per-art-style scenarios, stacked, multi-detail, and NEGATIVE cases', (
   test('EMOJI: colour recolours a tile on a STACKED/scaled cell (leaf @ scaleY 2)', () => {
     const cv = H.makeCanvas(260, 300)
     const ctx = cv.getContext('2d') as unknown as CanvasRenderingContext2D
-    const stacked = { art: ['?'], col: 3, row: 3, type: 'leaf', height: 1, label: STACK_LABEL, color: MAGENTA, scale: 2, scaleY: 2 } as GridAsset
+    const stacked = { art: ['?'], col: 3, row: 3, type: 'leaf', height: 2, label: STACK_LABEL, color: MAGENTA } as GridAsset
     drawIsoAssetAscii(ctx, 130, 210, stacked, 30, 15, 0, false, 'day', EMOJI_STYLE)
     const s = H.scan(cv)
     expect(s.opaque).toBeGreaterThan(500)

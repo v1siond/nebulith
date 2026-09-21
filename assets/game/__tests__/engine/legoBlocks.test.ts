@@ -36,7 +36,7 @@ describe('lego model, everything on the grid is an editable block', () => {
     const wall = pushTile(grid, 4, 4, { source: 'asset', slug: 'stone', h: 1, art: ['█'], type: 'block' })
     wall.color = '#ff0000'
     wall.tileOverride = 'emoji:brick'
-    wall.scaleX = 0.5
+    wall.width = 0.5
     const block = getStack(grid, 4, 4).find(t => t.type === 'block')! // the pushed block (the floor stays at slot 0)
     expect(block.color).toBe('#ff0000')
     expect(block.tileId).toBe('emoji:brick')

@@ -31,7 +31,7 @@ const THIN = { 'left-up': 0.6, 'right-up': 0.6, 'left-down': 0.6, 'right-down': 
 describe('what a tile makes solid', () => {
   it('a tile drawn at its full cell keeps the whole cell', () => {
     expect(boxesForAsset(asset())).toEqual([FULL_CELL])
-    expect(boxesForAsset(asset({ scaleX: 1, depth: 1 }))).toEqual([FULL_CELL])
+    expect(boxesForAsset(asset({ width: 1, depth: 1 }))).toEqual([FULL_CELL])
   })
 
   it('a trunk drawn at 0.6 of its cell blocks 0.6 of it, centred', () => {

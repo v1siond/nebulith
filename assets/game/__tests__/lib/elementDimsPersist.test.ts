@@ -18,14 +18,14 @@ describe('per-element dimensions persist through serialize → JSON → deserial
     const grid = new IsometricGrid({ cols: 4, rows: 4, cellSize: 64 })
     grid.placeAsset(['🌲'], 2, 1, { type: 'tree' })
     const asset = grid.getAssetsAtCell(2, 1).find(a => a.type !== 'floor')!
-    asset.scaleX = 1.5
-    asset.scaleY = 3
+    asset.width = 1.5
+    asset.height = 3
     asset.scaleZ = 2
     asset.scale = 1.25
 
     const back = hydrate(grid).getAssetsAtCell(2, 1).find(a => a.type !== 'floor')!
-    expect(back.scaleX).toBe(1.5)
-    expect(back.scaleY).toBe(3)
+    expect(back.width).toBe(1.5)
+    expect(back.height).toBe(3)
     expect(back.scaleZ).toBe(2)
     expect(back.scale).toBe(1.25)
   })
@@ -35,8 +35,8 @@ describe('per-element dimensions persist through serialize → JSON → deserial
     grid.placeAsset(['🌸'], 0, 0, { type: 'flower' })
 
     const back = hydrate(grid).getAssetsAtCell(0, 0).find(a => a.type !== 'floor')!
-    expect(back.scaleX).toBeUndefined()
-    expect(back.scaleY).toBeUndefined()
+    expect(back.width).toBeUndefined()
+    expect(back.height).toBeUndefined()
     expect(back.scaleZ).toBeUndefined()
   })
 })

@@ -118,8 +118,8 @@ describe('buildings still depth-collapse (the occlusion rule did NOT un-collapse
       )
       // Any co-located kept cell must be a genuinely TALLER one (never an equal-height duplicate row).
       for (const o of sameColLevel) {
-        const ha = (a.height ?? 1) * (a.scaleY ?? 1) * (a.scale ?? 1)
-        const ho = (o.height ?? 1) * (o.scaleY ?? 1) * (o.scale ?? 1)
+        const ha = (a.height ?? 1) * (a.height ?? 1) * (a.scale ?? 1)
+        const ho = (o.height ?? 1) * (o.height ?? 1) * (o.scale ?? 1)
         expect(ha).not.toBeCloseTo(ho, 5)
       }
     }

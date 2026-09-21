@@ -50,8 +50,9 @@ export interface GridAsset {
    * its cell's heading and every river on every map drifted the same way. Absent = still.
    */
   flow?: number
-  scaleX?: number       // Width, horizontal sprite stretch, every view (#77/#78). Default 1.
-  scaleY?: number       // Height, vertical stretch, grows UP from the base; iso/2D views (#77/#78). Default 1.
+  width?: number        // WIDTH: how wide the tile draws, in every view. The column is `width`, and so
+                        // is this: an engine that spells a setting differently from the column is a
+                        // second vocabulary whose whole job is to be translated back.
   depth?: number        // DEPTH: how far the tile reaches INTO THE SCREEN, as a share of its own cell.
                         // A SIZE, and the same size in every view: the into-screen axis of the iso box, and
                         // the vertical axis of the overhead view, which is that same axis seen from above.
@@ -100,7 +101,13 @@ export interface GridAsset {
    *  picked at placement from the ground's own colour; the render reads it and draws nothing without it. */
   sideColor?: string
   bgColor?: string
-  height?: number       // Height in blocks (for buildings, towers, etc.)
+  height?: number       // HEIGHT: how tall the tile draws, in BLOCKS. THE ONE HEIGHT.
+                        //
+                        // There used to be two: this, and a `scaleY` that stretched it. One height,
+                        // measured in blocks, reachable by raising the ground, by making the tile
+                        // taller, or by stacking (D6). The schema gives it one spelling; the engine
+                        // had six, and a tile three blocks tall could be written as 3, or as 1
+                        // stretched by 3, and nothing said which a reader would get.
   heightLevel?: number  // Which height level this asset sits on (for stacked tiles)
   tileKey?: string      // Reference to tile definition key
   tileOverride?: string // Art-style override: a style-agnostic Tile Library id pinning THIS cell's

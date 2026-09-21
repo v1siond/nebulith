@@ -185,10 +185,10 @@ export function draw2DLabeledCell(
   // water column) grows in place exactly like the iso block does, NOT centered and NOT levitating.
   //
   // No per-tile zoom here. `zoom` in this file is the CAMERA's, and the axes are the only size.
-  const drawW = tileW * (asset.scaleX ?? 1)
+  const drawW = tileW * (asset.width ?? 1)
   // HEIGHT, the SAME reading iso uses: the tile's OWN DB block-height (partialBlockScale) × the per-instance
   // Height multiplier (scaleY). A sub-block (flat 0.1) cell is a thin slab, a standing cell a full box, // identically in 2D and iso because both read the tile's real height DATA. Nothing invented.
-  const drawH = tileH * (asset.scaleY ?? 1) * resolveTileHeight(undefined, asset)
+  const drawH = tileH * resolveTileHeight(asset)
   const cy = baseY - drawH * 0.5
   // The tile's NORMAL 2D front face, its own-colour backing + the label image (or glyph). Shared by the plain
   // square path and the circle path so a rounded tile shows the SAME painting, only its form changes.
@@ -741,9 +741,9 @@ export function render2D(params: Render2DParams) {
         // "tree on tree" doubling. Keyed on the cell's DATA (label + height), NOT on the tile type, so ANY
         // composition (tree/building/fountain/lamp) translates into the 2D front elevation exactly like iso, // each cell drawn at its own heightLevel-lifted baseY, composing into one coherent object.
         draw2DLabeledCell(ctx, p.x, baseY, tileW, tileH, asset, style)
-        const dw = tileW * (asset.scaleX ?? 1), dh = tileH * (asset.scaleY ?? 1)
+        const dw = tileW * (asset.width ?? 1), dh = tileH * resolveTileHeight(asset)
         hit2D = billboardGeom(dw, dh, poseMapper({ x: p.x, y: baseY - dh / 2 }, undefined, tileH))
-      } else if ((adv.image || adv.char) && resolveTileHeight(styleTile, asset) < 1) {
+      } else if ((adv.image || adv.char) && resolveTileHeight(asset) < 1) {
         // FLAT tile (its OWN DB height is 0: a flower, a fallen leaf, floor decor) → a flat front-elevation CELL
         // through the SAME drawer a composition cell uses (draw2DLabeledCell), fed its resolved image/glyph.
         // Honours shape/display/colour/scale, the SAME settings iso's thin slab honours, instead of the
@@ -751,8 +751,8 @@ export function render2D(params: Render2DParams) {
         // keeps its upright front-elevation sprite in the branches below.
         draw2DLabeledCell(ctx, p.x, baseY, tileW, tileH, asset, style, adv)
         // Pick box matches the drawn slab, the tile's own DB height (partialBlockScale), not a full-height rect.
-        const dw = tileW * (asset.scaleX ?? 1)
-        const dh = tileH * (asset.scaleY ?? 1) * resolveTileHeight(undefined, asset)
+        const dw = tileW * (asset.width ?? 1)
+        const dh = tileH * resolveTileHeight(asset)
         hit2D = billboardGeom(dw, dh, poseMapper({ x: p.x, y: baseY - dh / 2 }, undefined, tileH))
       } else if (adv.image) {
         // A per-asset colour override recolours the baked sprite (#80); undefined → drawn untinted.
@@ -794,7 +794,7 @@ export function render2D(params: Render2DParams) {
         // IS the tile), matching the iso + top views. No green multi-tile overdraw.
         draw2DLabeledCell(ctx, p.x, baseY, tileW, tileH, asset, style)
         // Match draw2DLabeledCell's rect: Width/Height/Zoom stretch the cell, grown UP from baseY.
-        const dw = tileW * (asset.scaleX ?? 1), dh = tileH * (asset.scaleY ?? 1)
+        const dw = tileW * (asset.width ?? 1), dh = tileH * resolveTileHeight(asset)
         hit2D = billboardGeom(dw, dh, poseMapper({ x: p.x, y: baseY - dh / 2 }, undefined, tileH))
       } else {
         // LAST RESORT, no label, and this asset's KIND has no tile in the ACTIVE tileset, so there is

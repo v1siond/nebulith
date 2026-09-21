@@ -58,6 +58,18 @@ defmodule Nebulith.World do
     end
   end
 
+  @doc """
+  Deletes the map a template became, if it became one.
+
+  A map outlives the template it came from otherwise, with all of its cells, because the bridge is a
+  plain column and nothing cascades through it. Four of them were left behind by the gates before this
+  existed, carrying 3,260 placed tiles between them.
+  """
+  def delete_map_for_template(template_id) do
+    Repo.delete_all(from m in Nebulith.World.Map, where: m.template_id == ^template_id)
+    :ok
+  end
+
   @doc "One map with its grid, or `:error` rather than nil, for callers that want to pattern match."
   def fetch_map(id) do
     case get_map(id) do

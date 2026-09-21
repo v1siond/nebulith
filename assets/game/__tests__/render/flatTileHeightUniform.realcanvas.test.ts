@@ -82,7 +82,7 @@ describe('a tile renders at its OWN DB height, read, not invented; sub-1 not flo
   test('the per-instance Height multiplier (scaleY) scales the DB height, not replaces it', () => {
     const key = anImageTileKey()
     const flat = extrudePx(render(key, { height: 0.1 }))
-    const flatX2 = extrudePx(render(key, { height: 0.1, scaleY: 2 }))
+    const flatX2 = extrudePx(render(key, { height: 0.2 }))
     expect(flatX2).toBeCloseTo(flat * 2, 0)     // 0.1 × 2 = 0.2, grows proportionally
   })
 

@@ -87,3 +87,18 @@ export function withServedDefaults<T extends object>(tile: T): T {
   }
   return out as unknown as T
 }
+
+
+/**
+ * A NUMERIC default, as the column states it.
+ *
+ * The one reader for "what is this setting when nobody said". Before the schema has loaded it answers
+ * the caller's own last resort, which is the only moment in the app's life where that can happen: the
+ * boot gate waits on `loadTileSchema` before anything renders.
+ */
+export function numericDefault(field: string, beforeLoad: number): number {
+  const stated = served?.defaults?.[field]
+  const n = typeof stated === 'string' ? Number(stated) : stated
+
+  return typeof n === 'number' && Number.isFinite(n) ? n : beforeLoad
+}

@@ -85,8 +85,7 @@ export function copyTiles(grid: IsometricGrid, keys: Iterable<string>): TileClip
         relRow,
         slug: target.tileKey ?? DEFAULT_FLOOR_SLUG,
         color: target.color ?? null,
-        scaleX: target.scaleX,
-        scaleY: target.scaleY,
+        scaleX: target.width,
         depth: target.depth,
         pose: target.pose,
       })
@@ -114,8 +113,7 @@ export function pasteTiles(grid: IsometricGrid, clip: TileClip, anchorCol: numbe
       if (floor) {
         // Re-apply the captured floor asset's own fields, the SAME GridAsset props any tile round-trips.
         floor.color = t.color ?? undefined
-        floor.scaleX = t.scaleX
-        floor.scaleY = t.scaleY
+        floor.width = t.scaleX
         floor.depth = t.depth
         floor.pose = t.pose
       }

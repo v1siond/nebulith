@@ -43,6 +43,11 @@ defmodule NebulithWeb.TemplateController do
   def delete(conn, %{"id" => id}) do
     with {:ok, %Template{} = template} <- Catalog.get_template(id),
          {:ok, %Template{}} <- Catalog.delete_template(template) do
+      # AND WHAT IT BECAME. A map's contents are rows now, and the bridge between the two is a plain
+      # column with nothing to cascade through it, so without this a deleted template leaves its whole
+      # map behind: cells, tiles and all.
+      :ok = Nebulith.World.delete_map_for_template(id)
+
       json(conn, %{success: true, id: id})
     end
   end

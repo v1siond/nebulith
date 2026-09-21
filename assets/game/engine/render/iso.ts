@@ -1799,7 +1799,7 @@ function assetBlockRise(a: GridAsset): number {
   // resolveTileHeight reads the PLACED block, never the art tile (heights are placement data, not art), so
   // there is nothing style-dependent to look up here, and the per-asset tileset probe this used to do ran
   // on every item of the depth sort, every frame, for a value the resolver discards.
-  return resolveTileHeight(undefined, a) * (a.scaleY ?? 1)
+  return resolveTileHeight(a)
 }
 
 /** Depth order for the merged iso draw list: back-to-front by the iso key (col + row), then, for two
@@ -2627,7 +2627,7 @@ export function drawIsoAssetAscii(
     // is already on the whole-pixel lattice (see tileW), so a fractional dimension is what would put the
     // corners back off-pixel and cost the resample on every face. Measured: with the lattice snapped but
     // these left fractional, 18% of the frame's blits still landed off-pixel, all of them block faces.
-    const bw = Math.max(1, Math.round(tileW * (asset.scaleX ?? 1)))             // Width , diamond half-width
+    const bw = Math.max(1, Math.round(tileW * (asset.width ?? 1)))             // Width , diamond half-width
     // DEPTH, the diamond's half-height: how far the tile reaches INTO THE SCREEN, as a share of its own
     // cell. A SIZE, applied unconditionally, which is what makes it mean the same thing here as it does
     // from above. THINNING is `thickness` alone, and it happens inside the shape drawer along a world
@@ -2645,8 +2645,8 @@ export function drawIsoAssetAscii(
     //
     // `resolveTileHeight` is the shared rule and it says it in one line: the asset's height when it pins one,
     // the TILE's otherwise. Resolved by LABEL, which is the only input this whole branch uses.
-    const labelBlocks = resolveTileHeight(asset.label ? styleTileArt(asset.label, style.id) : undefined, asset)
-    const bh = tileW * ISO_BLOCK_H_FRAC * (asset.scaleY ?? 1) * layerBlockScale(labelBlocks)
+    const labelBlocks = resolveTileHeight(asset)
+    const bh = tileW * ISO_BLOCK_H_FRAC * layerBlockScale(labelBlocks)
     // …stacked as many times as the tile is tall. This used to be hardcoded to ONE layer, so a labeled cell
     // drew a single block however tall you made it, raise it to 5 and the tiles above rose while the tile
     // itself stayed put.
@@ -2748,7 +2748,7 @@ export function drawIsoAssetAscii(
     const heading = asset.flow !== undefined ? textureTurnForHeading(asset.flow) : PICTURE_TO_GRID
     adv = { ...adv, turns: heading + isoCameraFacing() }
   }
-  const blocks = resolveTileHeight(dbTile, asset)
+  const blocks = resolveTileHeight(asset)
   // Z-WIDTH (directional depth) is a 3D BLOCK operation: setting it declares the tile a block extruded N cells
   // along a diagonal, so the iso render MUST extrude it even at base height 0. Z-Width only changes how FAR a
   // block extrudes, a flat tile stays a THIN slab (see flatSlab below), just deeper.
@@ -2791,14 +2791,14 @@ export function drawIsoAssetAscii(
     // is already on the whole-pixel lattice (see tileW), so a fractional dimension is what would put the
     // corners back off-pixel and cost the resample on every face. Measured: with the lattice snapped but
     // these left fractional, 18% of the frame's blits still landed off-pixel, all of them block faces.
-    const bw = Math.max(1, Math.round(tileW * (asset.scaleX ?? 1)))             // Width , diamond half-width
+    const bw = Math.max(1, Math.round(tileW * (asset.width ?? 1)))             // Width , diamond half-width
     // DEPTH, diamond half-height (into-screen axis). A size, applied unconditionally, the same way its
     // sibling above applies it. Thinning belongs to `thickness` and happens in the shape drawer.
     const bd = Math.max(1, Math.round(tileH * (asset.depth ?? 1)))
     // Height, the tile's OWN DB block-height as pixels: partialBlockScale draws a sub-block (flat 0.1) tile as a
     // thin partial slab and a standing tile as a full block, × the per-instance Height multiplier (scaleY). The
     // height VALUE is DATA (from the DB, read into `blocks`); nothing invented.
-    const bh = tileW * 0.9 * (asset.scaleY ?? 1) * layerBlockScale(blocks)
+    const bh = tileW * 0.9 * layerBlockScale(blocks)
     // SHAPE + DISPLAY (per-tile settings): drawIsoTileForShape picks the solid, cube (all-faces / single) or ball.
     const geom = blockGeom(x, y, bw, bd, bh, blockCount, asset, tileH)
     // Per-asset pose (x/y/rotate/flip) transforms the block around its base centre, the SAME applyPose the

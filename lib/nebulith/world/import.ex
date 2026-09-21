@@ -35,8 +35,6 @@ defmodule Nebulith.World.Import do
   later. They stay in the `Template` row until then rather than being flattened into columns that would
   have to be unflattened again.
   """
-  require Logger
-
   import Ecto.Query
 
   alias Nebulith.Repo
@@ -85,7 +83,7 @@ defmodule Nebulith.World.Import do
   end
 
   defp write(template) do
-    tiles = tile_ids_by_label()
+    tiles = tiles_by_label()
     map = map_for(template)
 
     payload = %{
@@ -139,10 +137,16 @@ defmodule Nebulith.World.Import do
     }
   end
 
-  defp tile_ids_by_label do
-    from(t in "tiles", select: {t.label, t.id})
+  # A LABEL'S ROW AND ITS OWN HEIGHT. The height matters as much as the id: the catalogue is thin and
+  # the PLACEMENT is fat, so a placement that states no height of its own has to be given the tile's
+  # here, at write time. The renderer reads the placement and only the placement.
+  #
+  # Measured on the real map before this existed: meadow, floor and path_stone are all authored FLAT
+  # (height 0), and defaulting the placement to 1 turned 3,129 squares of ground into full cubes.
+  defp tiles_by_label do
+    from(t in "tiles", select: {t.label, {t.id, t.height}})
     |> Repo.all()
-    |> Enum.reduce(%{}, fn {label, id}, acc -> Elixir.Map.put_new(acc, label, id) end)
+    |> Enum.reduce(%{}, fn {label, row}, acc -> Elixir.Map.put_new(acc, label, row) end)
   end
 
   # A cell row exists where the map says anything about that square: a texture, a height, or a tile
@@ -159,7 +163,7 @@ defmodule Nebulith.World.Import do
         "col" => col,
         "row" => row,
         "ground_height" => at(heights, row, col) || 0,
-        "texture_tile_id" => tiles[at(ground, row, col)],
+        "texture_tile_id" => tile_id(tiles, at(ground, row, col)),
         "tiles" => tiles_of(by_cell[{col, row}] || [], tiles)
       }
     end)
@@ -194,13 +198,20 @@ defmodule Nebulith.World.Import do
     thickness = asset["thickness"] || %{}
     squash = number(asset["scaleZ"], 1.0)
 
+    label = label_of(asset)
+
     %{
-      "tile_id" => tiles[label_of(asset)],
+      "tile_id" => tile_id(tiles, label),
       "stack_level" => trunc(number(asset["heightLevel"], 0)),
 
       # Zoom folded in, so the picture survives the concept going away.
       "width" => text(number(asset["scaleX"], 1.0) * zoom),
-      "height" => text(number(asset["height"], 1.0) * zoom),
+      # THE ONE HEIGHT, stated on the placement. What the placement said, times its vertical stretch,
+      # and where it said nothing the TILE's own height rather than a 1 nobody chose.
+      "height" =>
+        text(
+          number(asset["height"], tile_height(tiles, label)) * number(asset["scaleY"], 1.0) * zoom
+        ),
       "depth" => text(zoom),
 
       # A reach named directly wins; otherwise the old uniform squash applies to all four.
@@ -240,6 +251,20 @@ defmodule Nebulith.World.Import do
       "sign_color" => get_in(settings, ["badge", "color"]),
       "water_heading" => @headings[asset["flow"]]
     }
+  end
+
+  defp tile_id(tiles, label) do
+    case tiles[label] do
+      {id, _height} -> id
+      _ -> nil
+    end
+  end
+
+  defp tile_height(tiles, label) do
+    case tiles[label] do
+      {_id, height} when is_number(height) -> height
+      _ -> 1.0
+    end
   end
 
   # The label is what every by-label lookup needs. An explicit per-cell art pin wins over it, and the

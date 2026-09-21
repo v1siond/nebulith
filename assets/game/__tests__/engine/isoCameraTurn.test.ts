@@ -236,7 +236,7 @@ describe('3, the depth sort MID-TURN uses the CONTINUOUS projected key', () => {
 
   test('the RENDER draws in that order, the frontmost tile is drawn LAST', () => {
     const tall = (col: number, row: number): GridAsset =>
-      ({ art: ['#'], col, row, type: 'wall', label: 'wall', height: 1, scaleY: 3, color: '#8a8a8a' })
+      ({ art: ['#'], col, row, type: 'wall', label: 'wall', height: 3, color: '#8a8a8a' })
     const topmostOf = (turn: number): { col: number; row: number } => {
       renderIso(gridWith([tall(BACK.col, BACK.row), tall(FRONT.col, FRONT.row)]), { cameraTurn: turn })
       const drawn = renderedTilesInRect(0, 0, W, H) // last-drawn FIRST

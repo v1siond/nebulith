@@ -8,6 +8,7 @@
  * Pure logic (no rendering, no IsometricGrid mutation) so it is unit-testable
  * and reusable by the editor, the template mapper, and the eventual AI generator.
  */
+import { tileCatalogHeight } from '@/engine/tileset/tileHeight'
 import { zoneMeadow, type ZoneMeadow } from '@/engine/zoneCatalog'
 import { FULL_CELL } from '@/engine/collisionBoxes'
 import { classifyBody, DEFAULT_LIQUID, isMolten, type Liquid, LIQUIDS, paintWaterBody, setForLiquid, waterBodies, type WaterSet } from './waterBody'
@@ -52,7 +53,7 @@ import { resolveTileHeight } from './tileset/tileHeight'
  *  level a stamped composition/prop lands at, because it serializes StageData WITHOUT a grid; the LIVE path gets
  *  the identical value from the real stack (`cellStackTop`). No `floorStackLift` special case, just a tile's height. */
 function groundBlockHeight(slug: string): number {
-  return resolveTileHeight(styleTile('ascii', slug) ?? styleTile('ascii', groundKind(slug)), undefined)
+  return tileCatalogHeight(styleTile('ascii', slug) ?? styleTile('ascii', groundKind(slug)))
 }
 // The ONE per-cell mapping the live composition stamp uses, the save path expands its anchors through it too,
 // so a generated stage RELOADS exactly as it was stamped (height / z-width / scale / pose / animations).

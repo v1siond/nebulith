@@ -14,6 +14,7 @@
  *
  * It is deliberately pure and canvas-free: the scene is data, the drawing is `MapPreview`'s job.
  */
+import { resolveTileHeight } from '@/engine/tileset/tileHeight'
 import { IsometricGrid } from '@/engine/IsometricGrid'
 import { generateStage, type NatureDensity, type VariantId } from '@/engine/stageGenerator'
 import { applyStageToGrid } from '@/game/editor/applyStage'
@@ -219,7 +220,7 @@ function tallestStack(grid: IsometricGrid, anchor: { col: number; row: number },
   for (let r = anchor.row; r < anchor.row + span.rows; r++) {
     for (let c = anchor.col; c < anchor.col + span.cols; c++) {
       for (const asset of grid.getAssetsAtCell(c, r)) {
-        top = Math.max(top, (asset.heightLevel ?? 0) + Math.max(1, asset.scaleY ?? 1))
+        top = Math.max(top, (asset.heightLevel ?? 0) + Math.max(1, resolveTileHeight(asset)))
       }
     }
   }

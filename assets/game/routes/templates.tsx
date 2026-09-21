@@ -2346,7 +2346,7 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
   //
   // HEIGHT is deliberately not in here: changing a tile's height is a STACK operation (setTileHeight),
   // because whatever rests on that tile has to move with it.
-  const DIM_FIELD = { width: 'scaleX', depth: 'depth' } as const
+  const DIM_FIELD = { width: 'width', depth: 'depth' } as const
   type DimAxis = 'height' | keyof typeof DIM_FIELD
   // Write the i-th stacked TILE of every selected cell (per-tile, not "all assets in the cell at once").
   // The tile's BLOCK-HEIGHT (data): its DB height × any per-instance scaleY. This is the ONE "Height" number the
@@ -2355,7 +2355,7 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
   const blockHeightOf = (a: GridAsset): number => {
     const kind = assetKind(a)
     const dbTile = activeStyleId === ASCII_STYLE.id ? styleTile('ascii', kind) : styleTile('emoji', kind)
-    return resolveTileHeight(dbTile, a) * (a.scaleY ?? 1)
+    return resolveTileHeight(a)
   }
   const setAssetDim = (i: number, axis: DimAxis, v: number) => {
     // "Height" edits the tile's BLOCK-HEIGHT (asset.height) as ONE number, the data, AND lifts everything
@@ -2556,7 +2556,7 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
     const hit = handleAtPoint(found.handles, cx, cy, HANDLE_HIT_RADIUS)
     if (!hit) return false
     const b = polyBBox(found.poly)
-    const scaleX = target.asset.scaleX ?? 1
+    const scaleX = target.asset.width ?? 1
     const heightBase = blockHeightOf(target.asset) // the Height handle drags the tile's BLOCK-HEIGHT, not scaleY
     handleDragRef.current = {
       id: hit.id, i: target.i,
@@ -6514,7 +6514,7 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
                             key: `tile-${i}`,
                             label: kind,
                             dims: {
-                              width: adim(i, a => a.scaleX ?? 1),
+                              width: adim(i, a => a.width ?? 1),
                               height: adim(i, a => blockHeightOf(a)), // the tile's real BLOCK-HEIGHT (0.1 flat, 1 wall, …), not the scaleY multiplier
                               depth: adim(i, a => a.depth ?? 1),
                             },

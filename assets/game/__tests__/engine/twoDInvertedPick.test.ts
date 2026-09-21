@@ -47,7 +47,7 @@ const bounds = (g: TileGeom | null) => {
 }
 
 describe('a TALL (scaleY) 2D tile, picked at its lifted top, not the ground cell rows below', () => {
-  const tall: GridAsset = { art: ['#'], col: ACOL, row: AROW, type: 'wall', label: 'wall', height: 1, scaleY: 5, color: '#8a8a8a' }
+  const tall: GridAsset = { art: ['#'], col: ACOL, row: AROW, type: 'wall', label: 'wall', height: 5, color: '#8a8a8a' }
 
   test('the recorded rect grows UP ~scaleY cells; the pick at its top returns the tile, the ground below nothing', () => {
     render2DGrid(tall)

@@ -26,19 +26,19 @@ describe('resolveAssetDrawSize, defaults (no dims set)', () => {
 
 describe('Width stretches horizontally in every view', () => {
   it('billboard: width 1.5 widens only, height unchanged, no lift', () => {
-    expect(resolveAssetDrawSize(BASE, { scaleX: 1.5 }, 'billboard')).toEqual({ w: 150, h: 100, baseLift: 0 })
+    expect(resolveAssetDrawSize(BASE, { width: 1.5 }, 'billboard')).toEqual({ w: 150, h: 100, baseLift: 0 })
   })
   it('overhead: width 1.5 widens only', () => {
-    expect(resolveAssetDrawSize(BASE, { scaleX: 1.5 }, 'overhead')).toEqual({ w: 150, h: 100, baseLift: 0 })
+    expect(resolveAssetDrawSize(BASE, { width: 1.5 }, 'overhead')).toEqual({ w: 150, h: 100, baseLift: 0 })
   })
 })
 
 describe('Height grows UP, and only where up is on screen', () => {
   it('billboard: height 3 makes it 3x tall and lifts by (300-100)/2 = 100 so the base is fixed', () => {
-    expect(resolveAssetDrawSize(BASE, { scaleY: 3 }, 'billboard')).toEqual({ w: 100, h: 300, baseLift: 100 })
+    expect(resolveAssetDrawSize(BASE, { height: 3 }, 'billboard')).toEqual({ w: 100, h: 300, baseLift: 100 })
   })
   it('overhead: height has NO effect, because you are looking straight down that axis', () => {
-    expect(resolveAssetDrawSize(BASE, { scaleY: 3 }, 'overhead')).toEqual({ w: 100, h: 100, baseLift: 0 })
+    expect(resolveAssetDrawSize(BASE, { height: 3 }, 'overhead')).toEqual({ w: 100, h: 100, baseLift: 0 })
   })
 })
 
@@ -75,15 +75,15 @@ describe('there is no fourth multiplier', () => {
   it('the axes are the only size, so an unknown key changes nothing', () => {
     // Zoom was a fourth number that multiplied the three rather than replacing them, so Width 2 with
     // Zoom 2 drew at 4 and no panel said so. Passing the old key now does exactly nothing.
-    const withOldZoom = resolveAssetDrawSize(BASE, { scaleX: 1.5, scale: 2 } as never, 'billboard')
+    const withOldZoom = resolveAssetDrawSize(BASE, { width: 1.5, scale: 2 } as never, 'billboard')
 
     expect(withOldZoom).toEqual({ w: 150, h: 100, baseLift: 0 })
   })
 
   it('combines the axes and nothing else', () => {
-    expect(resolveAssetDrawSize(BASE, { scaleX: 1.5, scaleY: 2 }, 'billboard'))
+    expect(resolveAssetDrawSize(BASE, { width: 1.5, height: 2 }, 'billboard'))
       .toEqual({ w: 150, h: 200, baseLift: 50 })
-    expect(resolveAssetDrawSize(BASE, { scaleX: 1.5, scaleY: 9, depth: 2 }, 'overhead'))
+    expect(resolveAssetDrawSize(BASE, { width: 1.5, height: 9, depth: 2 }, 'overhead'))
       .toEqual({ w: 150, h: 200, baseLift: 0 })
   })
 })

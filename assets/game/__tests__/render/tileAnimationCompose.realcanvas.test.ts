@@ -43,8 +43,7 @@ function growAnim(from: number, to: number): Animation {
 function makeGrid(opts: { baseScaleY?: number; anim?: Animation }): IsometricGrid {
   const grid = new IsometricGrid({ cols: 6, rows: 6, cellSize: 40 })
   const asset = {
-    art: ['?'], col: 3, row: 3, type: 'water_c', label: LABEL, color: MAGENTA, height: 1,
-    scaleY: opts.baseScaleY, placedAt: T0,
+    art: ['?'], col: 3, row: 3, type: 'water_c', label: LABEL, color: MAGENTA, height: opts.baseScaleY, placedAt: T0,
     ...(opts.anim ? { animations: [opts.anim] } : {}),
   } as GridAsset
   grid.assets.push(asset)
@@ -78,7 +77,7 @@ function metrics(cv: Canvas): { extent: number; bottom: number; top: number; mas
 }
 
 /** Static reference: a tile with base height `scaleY` and NO animation → its drawn extent. */
-const staticExtent = (scaleY: number, s: Style) => metrics(isoCanvas(makeGrid({ baseScaleY: scaleY }), T0, s)).extent
+const staticExtent = (height: number, s: Style) => metrics(isoCanvas(makeGrid({ baseScaleY: scaleY }), T0, s)).extent
 /** Animated: base height `base` + a `from→to` grow, sampled at clock `t`. */
 const animMetrics = (base: number, from: number, to: number, t: number, s: Style) =>
   metrics(isoCanvas(makeGrid({ baseScaleY: base, anim: growAnim(from, to) }), t, s))

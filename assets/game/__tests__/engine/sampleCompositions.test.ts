@@ -12,10 +12,10 @@ import { assetKind } from '@/game/artStyle'
 type Cell = { dx: number; dy: number; level: number; label: string; settings?: { scaleY?: number } }
 const comp = (name: string) => resolveComposition(styleCatalog('ascii'), name)!
 
-// A minimal-cell (#30) building authors a same-tile vertical RUN as ONE cell sized settings.scaleY = span,
+// A minimal-cell (#30) building authors a same-tile vertical RUN as ONE cell sized settings.height = span,
 // so a cell at `level` with scaleY = n covers levels level..level+n-1. Expand so a per-level read still works.
 function levelsOf(c: Cell): number[] {
-  const span = Math.max(1, Math.trunc(c.settings?.scaleY ?? 1))
+  const span = Math.max(1, Math.trunc(c.settings?.height ?? 1))
   return Array.from({ length: span }, (_, i) => c.level + i)
 }
 // The building's OWN cells, its footprint rows only. The backend also authors the entrance APRON (the `path`
@@ -285,12 +285,12 @@ describe('sample compositions, realistic building/fountain/tree DATA from the ba
     const cells = c.cells as Array<Cell & { scale?: number; settings?: { scaleX?: number; scaleY?: number } }>
     expect(cells.length).toBe(2) // the optimized model, one trunk, one leaf
     expect(c.footprint).toEqual({ w: 1, h: 1 }) // a single column, not a canopy footprint
-    // ONE trunk cell on the ground (L0): a thin tall post, Zoom(scale) 0.6, Height(settings.scaleY) 3.15.
+    // ONE trunk cell on the ground (L0): a thin tall post, Zoom(scale) 0.6, Height(settings.height) 3.15.
     const trunk = cells.filter(x => x.label.startsWith('trunk'))
     expect(trunk.length).toBe(1)
     expect([trunk[0].dx, trunk[0].dy, trunk[0].level]).toEqual([0, 0, 0]) // base is a TRUNK on the ground
     expect(trunk[0].scale).toBe(0.6)
-    expect(trunk[0].settings?.scaleY).toBe(3.15)
+    expect(trunk[0].settings?.height).toBe(3.15)
     // ONE leaf cell tops the trunk (level 2), same column, zoomed UP into a bigger cube (Zoom 1.35, Height 2).
     const leaves = cells.filter(x => x.label.startsWith('leaf'))
     expect(leaves.length).toBe(1)
@@ -299,7 +299,7 @@ describe('sample compositions, realistic building/fountain/tree DATA from the ba
     expect([leaf.dx, leaf.dy, leaf.level]).toEqual([0, 0, 2])
     expect(leaf.level).toBeGreaterThan(trunk[0].level) // the leaf sits ABOVE the trunk
     expect(leaf.scale).toBe(1.35)
-    expect(leaf.settings?.scaleY).toBe(2)
+    expect(leaf.settings?.height).toBe(2)
     // DIMENSION SANITY: the trunk is thinner + less zoomed than the leaves (never a top-heavy-inverted tree).
     expect((trunk[0].scale ?? 1)).toBeLessThan(leaf.scale ?? 1)
     // the retired 9-slice canopy is gone

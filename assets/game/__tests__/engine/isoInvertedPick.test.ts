@@ -60,7 +60,7 @@ const renderIso = (grid: IsometricGrid): void => {
 
 describe('a TALL (scaleY) block, picked at its lifted top, not the ground below', () => {
   const SCALE_Y = 5
-  const labeledTallBlock: GridAsset = { art: ['#'], col: ACOL, row: AROW, type: 'wall', label: 'wall', height: 1, scaleY: SCALE_Y, color: '#8a8a8a' }
+  const labeledTallBlock: GridAsset = { art: ['#'], col: ACOL, row: AROW, type: 'wall', label: 'wall', height: SCALE_Y, color: '#8a8a8a' }
 
   test('the pick at the tile\'s lifted top returns THAT tile + its cell', () => {
     renderIso(gridWith(labeledTallBlock))
@@ -104,7 +104,7 @@ describe('a TALL (scaleY) block, picked at its lifted top, not the ground below'
 
 describe('a zOffset-slid block, picked where it slid to, not at its cell origin', () => {
   const dir: IsoDiagonal = 'right-down'
-  const slid: GridAsset = { art: ['#'], col: ACOL, row: AROW, type: 'crate', label: 'crate', height: 1, scaleY: 2, zOffset: 3, zDir: dir, color: '#abcdef' }
+  const slid: GridAsset = { art: ['#'], col: ACOL, row: AROW, type: 'crate', label: 'crate', height: 2, zOffset: 3, zDir: dir, color: '#abcdef' }
 
   test('the pick follows the diagonal slide; the un-slid cell origin returns nothing', () => {
     renderIso(gridWith(slid))

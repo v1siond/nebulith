@@ -78,7 +78,7 @@ describe('tileFacts', () => {
         category: 'walls',
         walkable: false,
         height: 1,
-        settings: { scaleY: 4, actAsTile: false },
+        settings: { height: 4, actAsTile: false },
       }),
     ])
     const facts = tileFacts(STYLE, 'wall_brick_c')
@@ -86,8 +86,7 @@ describe('tileFacts', () => {
       name: 'Brick Wall',
       category: 'walls',
       blocks: true,
-      height: 1,
-      scaleY: 4,
+      height: 4,
       stacks: false,
     })
   })
@@ -140,10 +139,10 @@ describe('compositionPreview', () => {
     title: 'Uneven House',
     category: 'buildings',
     cells: [
-      cell(0, 1, { level: 0, settings: { scaleY: 2 } }), // front-left, 2 high
-      cell(1, 1, { level: 0, settings: { scaleY: 2 } }), // front-right, 2 high
-      cell(0, 0, { level: 0, settings: { scaleY: 5 } }), // BACK-left, 5 high
-      cell(1, 0, { level: 0, settings: { scaleY: 5 } }), // BACK-right, 5 high
+      cell(0, 1, { level: 0, settings: { height: 2 } }), // front-left, 2 high
+      cell(1, 1, { level: 0, settings: { height: 2 } }), // front-right, 2 high
+      cell(0, 0, { level: 0, settings: { height: 5 } }), // BACK-left, 5 high
+      cell(1, 0, { level: 0, settings: { height: 5 } }), // BACK-right, 5 high
     ],
   }
 
@@ -230,7 +229,7 @@ describe('compositionPreview', () => {
 
   it('treats a nonsensical scaleY as a single level instead of trusting it', () => {
     install([tile('wall')], {
-      broken: { footprint: { w: 1, h: 1 }, cells: [cell(0, 0, { settings: { scaleY: 0 } })] },
+      broken: { footprint: { w: 1, h: 1 }, cells: [cell(0, 0, { settings: { height: 0 } })] },
     })
     expect(compositionPreview(STYLE, 'broken')?.levels).toBe(1)
   })

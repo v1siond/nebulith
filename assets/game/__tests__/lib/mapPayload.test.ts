@@ -20,7 +20,7 @@ describe('one tile, out and back', () => {
     const original = asset({
       heightLevel: 3,
       height: 2,
-      scaleX: 1.5,
+      width: 1.5,
       depth: 0.5,
       spanForward: 4,
       spanBack: 2,
@@ -43,7 +43,7 @@ describe('one tile, out and back', () => {
     const back = payloadToTile(tileToPayload(original), 1, 2)
 
     expect(back.heightLevel).toBe(3)
-    expect(back.scaleX).toBeCloseTo(1.5, 6)
+    expect(back.width).toBeCloseTo(1.5, 6)
     expect(back.depth).toBeCloseTo(0.5, 6)
     expect(back.spanForward).toBe(4)
     expect(back.spanBack).toBe(2)
@@ -92,11 +92,11 @@ describe('one tile, out and back', () => {
   it('folds the block height and the vertical stretch into the ONE height', () => {
     // D6: one height, measured in blocks. The editor multiplies the two to show a single number and
     // the column IS that number, so nothing downstream multiplies it again.
-    const payload = tileToPayload(asset({ height: 3, scaleY: 2 }))
+    const payload = tileToPayload(asset({ height: 3, height: 2 }))
 
     expect(Number(payload.height)).toBeCloseTo(6, 6)
     expect(payloadToTile(payload, 1, 2).height).toBeCloseTo(6, 6)
-    expect(payloadToTile(payload, 1, 2).scaleY).toBeUndefined()
+    expect(payloadToTile(payload, 1, 2).height).toBeUndefined()
   })
 
   it('states a default rather than leaving it to be invented', () => {

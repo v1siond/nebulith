@@ -1,3 +1,4 @@
+import { resolveTileHeight } from '@/engine/tileset/tileHeight'
 import type { GridAsset } from '@/engine/IsometricGrid'
 
 /**
@@ -59,15 +60,15 @@ const isStructureCell = (a: GridAsset): boolean => a.label != null
  *  (value − from)), so a `1→4` grow lifts scaleY to `base + (4 − 1)`. An upper bound is safe here, it only
  *  ever KEEPS more, never wrongly hides. */
 function cellFrontHeight(a: GridAsset): number {
-  const baseScaleY = a.scaleY ?? 1
-  const dims = (scaleY: number): number => (a.height ?? 1) * scaleY
-  let peak = dims(baseScaleY)
+  // THE ONE HEIGHT is the base, and a height animation composes ADDITIVELY onto it.
+  const base = resolveTileHeight(a)
+  let peak = base
   for (const anim of a.animations ?? []) {
     if (anim.kind !== 'settings') continue
     for (const t of anim.tracks) {
       // height → scaleY (ADDITIVE). Only numeric tracks stretch the block; colour/display don't.
       if (t.setting !== 'height' || typeof t.from !== 'number' || typeof t.to !== 'number') continue
-      peak = Math.max(peak, dims(baseScaleY + (Math.max(t.from, t.to) - t.from)))
+      peak = Math.max(peak, base + (Math.max(t.from, t.to) - t.from))
     }
   }
   return peak

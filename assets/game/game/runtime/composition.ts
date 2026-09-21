@@ -123,7 +123,7 @@ const zoomed = (value: number | undefined, zoom: number): number | undefined =>
 /** The per-cell RENDER fields a composition cell contributes to the tile placed in it. */
 export type CompositionCellRender = Pick<
   GridAsset,
-  'height' | 'heightLevel' | 'zIndex' | 'scaleX' | 'scaleY' | 'depth' | 'thickness' | 'spanForward' | 'spanAxis' | 'spanBack' | 'spanPerp' | 'spanPerpBack' | 'pose' | 'shape' | 'light' | 'settings' | 'animations' | 'placedAt'
+  'height' | 'heightLevel' | 'zIndex' | 'width' | 'depth' | 'thickness' | 'spanForward' | 'spanAxis' | 'spanBack' | 'spanPerp' | 'spanPerpBack' | 'pose' | 'shape' | 'light' | 'settings' | 'animations' | 'placedAt'
 >
 
 /** ONE mapping of a composition CELL onto those render fields, shared by the LIVE stamp (stampRun) and the
@@ -158,22 +158,26 @@ export function compositionCellRender(comp: Composition, cell: CompositionCell, 
     // creates the block. Tallness comes from STACKING cells (a 5-storey building = 5 stacked level-0..4 cells)
     // and `scaleY` (the run-collapse below, and the lamp POST drawn ~7 tall), never from a per-art height. This
     // is why window/leaf/roof/door no longer render flat: they used to copy an art-tile `height: 0`.
-    height: 1,
     heightLevel: (cell.level ?? 0) + baseLevel,
     zIndex: cell.zIndex,
-    // An AUTHORED per-cell `scaleY` (the lamp POST = one cell drawn ~7 blocks tall) wins; otherwise a
-    // collapsed vertical RUN sizes scaleY = span (a wall column of 4 → one block 4 tall). An authored
-    // cell is never part of a run, so the two never collide.
+    // THE ONE HEIGHT, in blocks. An AUTHORED per-cell tallness (the lamp POST is one cell drawn ~7
+    // blocks tall) wins; otherwise a collapsed vertical RUN is as tall as the run (a wall column of 4
+    // becomes one block 4 tall); otherwise one block. An authored cell is never part of a run, so the
+    // two never collide.
     //
-    // THE CELL'S ZOOM IS FOLDED IN, not dropped. A trunk and a lamp post are authored thin by scaling
-    // every axis at once, and Zoom is gone, so discarding it would draw both at full width. Multiplied
-    // into the axes it is the same picture in the primitive that survives: a trunk at Height 3.15 and
-    // Zoom 0.6 is Height 1.89, Width 0.6, Depth 0.6.
+    // The composition CELL still spells it `scaleY`, because that is the `composition_cells` column
+    // and phase 7 renames it with its table. It stops being a second spelling right here: what the
+    // placed tile carries is `height`, the same word the column uses.
+    //
+    // AND THE CELL'S ZOOM IS FOLDED IN, not dropped. A trunk and a lamp post are authored thin by
+    // scaling every axis at once, and Zoom is gone, so discarding it would draw both at full size.
+    // Multiplied into the axes it is the same picture in the primitive that survives: a trunk at
+    // Height 3.15 and Zoom 0.6 is Height 1.89 across a 0.6 footprint.
     //
     // A THIN DOOR is a different thing and is NOT this: thinness inside a full-size cell is the
     // `thickness` reaches below.
-    scaleY: zoomed(cs?.scaleY ?? (span > 1 ? span : undefined), zoom),
-    scaleX: zoomed(cs?.scaleX, zoom),
+    height: zoomed(cs?.scaleY ?? (span > 1 ? span : 1), zoom) ?? 1,
+    width: zoomed(cs?.scaleX, zoom),
     depth: zoomed(undefined, zoom),
     // The thickness AXIS is authored south-facing, exactly like `spanAxis`, ROTATE it by the building's
     // rotation so a house turned a quarter-turn has its doors thin toward ITS front, not the map's.
@@ -376,7 +380,7 @@ function stampRun(
   if (grounded) asset.settings = { ...asset.settings, collision: c.walkable ? [] : [{ x: 0, y: 0, w: 1, h: 1 }] }
   if (grounded && !c.walkable) grid.setCollision(col, row, true)
   if (flatten) {
-    asset.scaleY = 1
+    asset.height = 1
     asset.heightLevel = (comp.cells.reduce((lowest, x) => (isRoofLabel(x.label) ? Math.min(lowest, x.level ?? 0) : lowest), Infinity) || 0) + baseLevel
   }
   if (!c.walkable && grounded) grid.setCollision(col, row, true) // ground course only, see the note above

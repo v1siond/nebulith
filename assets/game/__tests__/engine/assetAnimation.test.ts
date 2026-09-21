@@ -90,19 +90,19 @@ describe('resolveAssetAnimation, field overlay (colour/width/height) onto the ef
     expect(fx.asset).not.toBe(base)          // a fresh clone (base untouched)
     expect(base.color).toBe('#111111')       // original not mutated
     expect(fx.asset.color).toBe('rgb(255, 255, 255)')
-    expect(fx.asset.scaleX).toBeCloseTo(2)
-    expect(fx.asset.scaleY).toBeCloseTo(4)
+    expect(fx.asset.width).toBeCloseTo(2)
+    expect(fx.asset.height).toBeCloseTo(4)
   })
 
   // A target that writes nowhere is worse than no target: it parses, it runs, and nothing moves. Zoom
   // is not a field any more, so it is not a target either.
   test('a zoom track is inert, because there is no zoom to animate', () => {
     const base = baseAsset({
-      scaleX: 3,
+      width: 3,
       animations: [anim({ ease: 'linear', tracks: [{ setting: 'zoom', from: 1, to: 3 }] })],
     })
 
-    expect(resolveAssetAnimation(base, 1000, EMOJI_STYLE, 'iso')?.asset.scaleX ?? 3).toBeCloseTo(3)
+    expect(resolveAssetAnimation(base, 1000, EMOJI_STYLE, 'iso')?.asset.width ?? 3).toBeCloseTo(3)
   })
 
   test('an opacity-only animation writes no fields → the SAME asset reference (no needless clone)', () => {
@@ -115,40 +115,40 @@ describe('resolveAssetAnimation, field overlay (colour/width/height) onto the ef
 describe('resolveAssetAnimation, animation COMPOSES with the base setting, it does not mask it (Image #40)', () => {
   test('ADDITIVE height: base scaleY 3 + a height track 1→4 renders 3→6 (base + delta), base stays editable', () => {
     const mk = (base: number) => baseAsset({
-      scaleY: base,
+      height: base,
       animations: [anim({ ease: 'linear', tracks: [{ setting: 'height', from: 1, to: 4 }] })],
     })
     // base 3: at the track start (t=0) → 3 + (1−1) = 3; at the end (t=DUR) → 3 + (4−1) = 6.
-    expect(resolveAssetAnimation(mk(3), 0, EMOJI_STYLE, 'iso')!.asset.scaleY).toBeCloseTo(3)
-    expect(resolveAssetAnimation(mk(3), 1000, EMOJI_STYLE, 'iso')!.asset.scaleY).toBeCloseTo(6)
+    expect(resolveAssetAnimation(mk(3), 0, EMOJI_STYLE, 'iso')!.asset.height).toBeCloseTo(3)
+    expect(resolveAssetAnimation(mk(3), 1000, EMOJI_STYLE, 'iso')!.asset.height).toBeCloseTo(6)
     // editing the base to 2 shifts the whole range → 2→5 (the base slider is live under the animation).
-    expect(resolveAssetAnimation(mk(2), 0, EMOJI_STYLE, 'iso')!.asset.scaleY).toBeCloseTo(2)
-    expect(resolveAssetAnimation(mk(2), 1000, EMOJI_STYLE, 'iso')!.asset.scaleY).toBeCloseTo(5)
+    expect(resolveAssetAnimation(mk(2), 0, EMOJI_STYLE, 'iso')!.asset.height).toBeCloseTo(2)
+    expect(resolveAssetAnimation(mk(2), 1000, EMOJI_STYLE, 'iso')!.asset.height).toBeCloseTo(5)
     // the fountain's base (height 1) is the additive identity → an unchanged 1→4.
-    expect(resolveAssetAnimation(mk(1), 0, EMOJI_STYLE, 'iso')!.asset.scaleY).toBeCloseTo(1)
-    expect(resolveAssetAnimation(mk(1), 1000, EMOJI_STYLE, 'iso')!.asset.scaleY).toBeCloseTo(4)
+    expect(resolveAssetAnimation(mk(1), 0, EMOJI_STYLE, 'iso')!.asset.height).toBeCloseTo(1)
+    expect(resolveAssetAnimation(mk(1), 1000, EMOJI_STYLE, 'iso')!.asset.height).toBeCloseTo(4)
   })
 
   test('MULTIPLICATIVE width: base width 3 x a ratio 1->2 renders 6; a from of 0 falls back to the value', () => {
     const a = baseAsset({
-      scaleX: 3,
+      width: 3,
       animations: [anim({ ease: 'linear', tracks: [{ setting: 'width', from: 1, to: 2 }] })],
     })
-    expect(resolveAssetAnimation(a, 1000, EMOJI_STYLE, 'iso')!.asset.scaleX).toBeCloseTo(6)
+    expect(resolveAssetAnimation(a, 1000, EMOJI_STYLE, 'iso')!.asset.width).toBeCloseTo(6)
 
     // guard: a MULTIPLICATIVE track whose `from` is 0 has no ratio → fall back to the absolute value.
-    const w0 = baseAsset({ scaleX: 2, animations: [anim({ ease: 'linear', tracks: [{ setting: 'width', from: 0, to: 4 }] })] })
-    expect(resolveAssetAnimation(w0, 1000, EMOJI_STYLE, 'iso')!.asset.scaleX).toBeCloseTo(4)
+    const w0 = baseAsset({ width: 2, animations: [anim({ ease: 'linear', tracks: [{ setting: 'width', from: 0, to: 4 }] })] })
+    expect(resolveAssetAnimation(w0, 1000, EMOJI_STYLE, 'iso')!.asset.width).toBeCloseTo(4)
   })
 
   test('a base WIDTH still applies while HEIGHT animates, both compose', () => {
     const a = baseAsset({
-      scaleX: 0.5, scaleY: 3,
+      width: 0.5, height: 3,
       animations: [anim({ ease: 'linear', tracks: [{ setting: 'height', from: 1, to: 4 }] })],
     })
     const end = resolveAssetAnimation(a, 1000, EMOJI_STYLE, 'iso')!.asset
-    expect(end.scaleY).toBeCloseTo(6)  // height composed (3 + 3), NOT masked by the animation
-    expect(end.scaleX).toBeCloseTo(0.5) // the base axis survives alongside an active animation
+    expect(end.height).toBeCloseTo(6)  // height composed (3 + 3), NOT masked by the animation
+    expect(end.width).toBeCloseTo(0.5) // the base axis survives alongside an active animation
   })
 })
 
@@ -184,9 +184,9 @@ describe('resolveAssetAnimation, the `night` trigger gates playback to night mod
     ] })
     const day = resolveAssetAnimation(a, 500, EMOJI_STYLE, 'iso', 'day')!
     expect(day.opacity).toBeCloseTo(0.5)          // the load fade still plays
-    expect(day.asset.scaleY ?? 1).toBeCloseTo(1)   // the night height track is gated out → base height
+    expect(day.asset.height ?? 1).toBeCloseTo(1)   // the night height track is gated out → base height
     const night = resolveAssetAnimation(a, 500, EMOJI_STYLE, 'iso', 'night')!
-    expect(night.asset.scaleY).toBeGreaterThan(1)  // at night the height grow contributes
+    expect(night.asset.height).toBeGreaterThan(1)  // at night the height grow contributes
   })
 
   test('the lamp night-LIT glow: a STEADY night colour (from==to) lights the bulb at night, unlit in day', () => {

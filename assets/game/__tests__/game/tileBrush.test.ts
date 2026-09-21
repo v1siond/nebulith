@@ -396,7 +396,7 @@ describe('clearGroundTile, reset a cell FLOOR back to bare (the road/ground goes
     placeGroundTile(g, 1, 1, byId('emoji:desert'))
     // The floor is a plain level-0 asset, its colour/dims are its OWN GridAsset fields (no separate ground store).
     g.floorAt(1, 1)!.color = '#804000'                // a styled/tinted road
-    g.floorAt(1, 1)!.scaleX = 2
+    g.floorAt(1, 1)!.width = 2
     g.floorAt(1, 1)!.pose = { rot: Math.PI / 2 }
     clearGroundTile(g, 1, 1)
     expect(g.groundAt(1, 1)).toBe(DEFAULT_FLOOR_SLUG)            // slug back to the bare default

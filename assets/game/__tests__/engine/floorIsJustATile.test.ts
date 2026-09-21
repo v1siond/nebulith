@@ -296,14 +296,14 @@ describe('RAISE a tile and what is on top of it goes up with it', () => {
     grid.setGround(C, R, 'grass')
     const wall = grid.placeAsset([''], C, R, { type: 'house_4', heightLevel: 0 })
     wall.height = 1
-    wall.scaleY = 4 // a collapsed 4-block run, as compositions author it
+    wall.height = 4 // a collapsed 4-block run, as compositions author it
     const roof = grid.placeAsset([''], C, R, { type: 'house_4', heightLevel: 4 })
     roof.height = 2
 
     setTileHeight(grid, C, R, 1, 5) // 4 blocks → 5 blocks
 
     expect(wall.height).toBe(5)
-    expect(wall.scaleY).toBeUndefined() // one number, the data, no leftover multiplier
+    expect(wall.height).toBeUndefined() // one number, the data, no leftover multiplier
     expect(roof.heightLevel).toBe(5)    // lifted by the ONE block it actually grew
   })
 })

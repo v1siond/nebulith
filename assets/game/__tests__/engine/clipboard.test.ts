@@ -23,7 +23,7 @@ describe('copyTiles / pasteTiles, reproduce a multi-block selection at a new anc
     const tree = g.placeAsset(['🌲'], 1, 1, { type: 'tree', heightLevel: 1, color: '#3a5' })
     tree.label = 'tree_top'
     const wall = g.placeAsset(['🧱'], 2, 1, { type: 'wall', heightLevel: 1, settings: SOLID, color: '#987' })
-    wall.scaleY = 3 // a tall wall: ONE asset spanning levels 1..3 (collapsed vertical run)
+    wall.height = 3 // a tall wall: ONE asset spanning levels 1..3 (collapsed vertical run)
     wall.label = 'wall'
     wall.settings = { fadeNear: true }
     wall.tileOverride = 'emoji:brick'
@@ -47,7 +47,7 @@ describe('copyTiles / pasteTiles, reproduce a multi-block selection at a new anc
     const pastedWall = g.getAssetsAtCell(11, 10).find((a) => a.type === 'wall')
     expect(pastedWall).toBeTruthy()
     expect(pastedWall!.heightLevel).toBe(1)
-    expect(pastedWall!.scaleY).toBe(3)
+    expect(pastedWall!.height).toBe(3)
     expect(pastedWall!.label).toBe('wall')
     expect(pastedWall!.settings).toEqual({ fadeNear: true })
     expect(pastedWall!.tileOverride).toBe('emoji:brick')

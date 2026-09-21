@@ -60,7 +60,7 @@ describe('render2D, a stamped building renders as a front elevation (depth colla
     // spans is its own height, not its distance from the grid plane.
     const building = grid.assets.filter(a => a.type !== FLOOR_TYPE)
     const baseLevel = Math.min(...building.map(a => a.heightLevel ?? 0))
-    const ridgeLevel = Math.max(...building.map(a => (a.heightLevel ?? 0) + (a.height ?? 1) * (a.scaleY ?? 1)))
+    const ridgeLevel = Math.max(...building.map(a => (a.heightLevel ?? 0) + (a.height ?? 1) * (a.height ?? 1)))
     const topBlocks = ridgeLevel - baseLevel
     expect(topBlocks).toBe(6) // sanity: the house really is 6 blocks tall (ridge = 4 levels of wall + a 2-block bar)
 

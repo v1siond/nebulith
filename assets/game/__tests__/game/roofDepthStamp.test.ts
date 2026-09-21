@@ -18,7 +18,7 @@ const PLAIN_KIND = 'test_roof_plain'
 // row (dy=0), spanning the full depth (h=4) along +row (left-down), 3 blocks tall, exactly what gable_roof emits.
 const spanComposition: Composition = {
   footprint: { w: 3, h: 4 },
-  cells: [{ dx: 1, dy: 0, level: 4, label: 'roof', walkable: true, settings: { depth: 4, spanAxis: 'left-down', scaleY: 3 } }],
+  cells: [{ dx: 1, dy: 0, level: 4, label: 'roof', walkable: true, settings: { depth: 4, spanAxis: 'left-down', height: 3 } }],
 }
 // A plain roof cell with NO depth, proves the depth wiring is opt-in.
 const plainComposition: Composition = {
@@ -41,7 +41,7 @@ describe('stampRun copies a roof cell depth-span onto the placed asset, rotated 
     const roof = grid.assets.find(a => a.label === 'roof')!
     expect(roof.spanForward).toBe(4)
     expect(roof.spanAxis).toBe('left-down')
-    expect(roof.scaleY).toBe(3)
+    expect(roof.height).toBe(3)
   })
 
   test('rotation 1 (west): rotates the span direction with the footprint (left-down → left-up), depth kept', () => {
@@ -50,7 +50,7 @@ describe('stampRun copies a roof cell depth-span onto the placed asset, rotated 
     const roof = grid.assets.find(a => a.label === 'roof')!
     expect(roof.spanForward).toBe(4)
     expect(roof.spanAxis).toBe('left-up') // spans −col now, no sideways roof on an east/west building
-    expect(roof.scaleY).toBe(3)
+    expect(roof.height).toBe(3)
   })
 
   test('rotation 3 (east): span direction follows to +col (left-down → right-down)', () => {
