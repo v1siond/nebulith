@@ -26,6 +26,21 @@ defmodule NebulithWeb.MapController do
     end
   end
 
+  @doc """
+  The map a `Template` became.
+
+  The editor addresses a map by its template id for as long as both exist, so this is the door
+  between them. It imports on first ask, which is what stops a map that predates phase 3 from
+  answering 404 and losing somebody their work.
+  """
+  def for_template(conn, %{"template_id" => template_id}) do
+    case World.map_for_template(template_id) do
+      {:ok, map} -> show(conn, %{"id" => map.id})
+      {:error, :no_such_template} -> not_found(conn)
+      {:error, reason} -> unprocessable_reason(conn, reason)
+    end
+  end
+
   def create(conn, params) do
     case World.create_map(params) do
       {:ok, map} -> conn |> put_status(:created) |> json(%{data: summary(map)})
@@ -93,6 +108,10 @@ defmodule NebulithWeb.MapController do
   # which of 2,568 tiles was wrong.
   defp refused(conn, offences) do
     conn |> put_status(:unprocessable_entity) |> json(%{errors: %{payload: offences}})
+  end
+
+  defp unprocessable_reason(conn, reason) do
+    conn |> put_status(:unprocessable_entity) |> json(%{errors: %{detail: inspect(reason)}})
   end
 
   defp unprocessable(conn, changeset) do

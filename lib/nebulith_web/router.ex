@@ -195,8 +195,9 @@ defmodule NebulithWeb.Router do
     # keys, and the keys are the column names. See docs/SPEC.md §8 phase 3.
     get "/maps", MapController, :index
     post "/maps", MapController, :create
-    # Before /maps/:id, or the word "schema" is read as an id.
+    # Before /maps/:id, or these words are read as ids.
     get "/maps/schema", MapController, :schema
+    get "/maps/for_template/:template_id", MapController, :for_template
     get "/maps/:id", MapController, :show
     put "/maps/:id", MapController, :update
     get "/cv", CVController, :index

@@ -15,6 +15,7 @@
  */
 import { chromium } from 'playwright'
 import { logIn } from './logIn.mjs'
+import { openScratchMap, dropScratchMap } from './scratchMap.mjs'
 
 const BASE = process.env.NEB_URL ?? 'http://localhost:6328'
 
@@ -75,10 +76,14 @@ let runs = 0
 // The editor is behind a login, and the /api reads inside the loop ride the session cookie.
 await logIn(page, BASE)
 
+// Its own map, always: this gate SAVES, and Save writes over whatever is open. One for the whole
+// run, reused by every combination, so it never touches the map that is really saved.
+const scratchId = await openScratchMap(page, BASE)
+
 for (const course of COURSES) {
   for (const liquid of LIQUIDS) {
     for (const crossing of CROSSINGS) {
-      await page.goto(`${BASE}/templates`, { waitUntil: 'networkidle' })
+      await page.goto(`${BASE}/templates?id=${scratchId}`, { waitUntil: 'networkidle' })
       await page.waitForTimeout(2200)
       await page.getByRole('button', { name: /^Woodland/ }).first().click()
       await page.waitForTimeout(400)
@@ -135,4 +140,5 @@ for (const course of COURSES) {
 console.log(`\n${runs} combinations`)
 if (failures.length === 0) console.log('PASS: every side that meets land carries a border facing it')
 else { console.log(`FAIL: ${failures.length}\n  ` + failures.join('\n  ')); process.exitCode = 1 }
+await dropScratchMap(page, scratchId)
 await browser.close()

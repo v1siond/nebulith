@@ -1,6 +1,7 @@
 /** Build the same world several times in ONE session and audit the borders each time. */
 import { chromium } from 'playwright'
 import { logIn } from './logIn.mjs'
+import { openScratchMap, dropScratchMap } from './scratchMap.mjs'
 const BASE = 'http://localhost:6328'
 const isWater = l => !!l && /water|oasis|koi_pond/.test(l)
 const sfx = l => (/_(tl|t|tr|l|c|r|bl|b|br)$/.exec(String(l).replace(/_f\d$/, '')) ?? [, ''])[1]
@@ -10,8 +11,8 @@ const b = await chromium.launch()
 const page = await b.newPage({ viewport: { width: 1600, height: 1000 } })
 // The editor is behind a login, and the /api reads below ride the session cookie.
 await logIn(page, BASE)
-await page.goto(`${BASE}/templates`, { waitUntil: 'networkidle' })
-await page.waitForTimeout(2500)
+// Its own map, always: this gate SAVES, and Save writes over whatever is open.
+const scratchId = await openScratchMap(page, BASE)
 await page.getByRole('button', { name: /^Woodland/ }).first().click()
 await page.waitForTimeout(400)
 await page.getByRole('button', { name: /Winds through/ }).first().click()
@@ -52,4 +53,5 @@ for (let pass = 1; pass <= 4; pass++) {
   }
   console.log(`pass ${pass}: water=${water} sides=${sides} standing=${blocked.size} needs3+=${beyond} unbordered=${miss}  tally=${JSON.stringify(tally)}`)
 }
+await dropScratchMap(page, scratchId)
 await b.close()

@@ -1,6 +1,7 @@
 /** One build through the UI, saved, with the unbordered cells and their neighbourhood printed. */
 import { chromium } from 'playwright'
 import { logIn } from './logIn.mjs'
+import { openScratchMap, dropScratchMap } from './scratchMap.mjs'
 const BASE = 'http://localhost:6328'
 const isWater = l => !!l && /water|oasis|koi_pond/.test(l)
 const sfx = l => (/_(tl|t|tr|l|c|r|bl|b|br)$/.exec(String(l).replace(/_f\d$/, '')) ?? [, ''])[1]
@@ -11,8 +12,8 @@ const b = await chromium.launch()
 const page = await b.newPage({ viewport: { width: 1600, height: 1000 } })
 // The editor is behind a login, and the /api reads below ride the session cookie.
 await logIn(page, BASE)
-await page.goto(`${BASE}/templates`, { waitUntil: 'networkidle' })
-await page.waitForTimeout(2500)
+// Its own map, always: this gate SAVES, and Save writes over whatever is open.
+const scratchId = await openScratchMap(page, BASE)
 await page.getByRole('button', { name: /^Woodland/ }).first().click()
 await page.waitForTimeout(400)
 await page.getByRole('button', { name: /Winds through/ }).first().click()
@@ -57,4 +58,5 @@ for (const x of bad.slice(0, 10)) {
   const around = SIDES.map(([n, dc, dr]) => `${n}=${g[x.r + dr]?.[x.c + dc] ?? 'off'}${blocked.has(`${x.c + dc},${x.r + dr}`) ? '*' : ''}`).join(' ')
   console.log(`  ${x.c},${x.r} wears ${x.here}  meets ${x.side}=${x.neighbour}   around: ${around}   (* = something standing in it)`)
 }
+await dropScratchMap(page, scratchId)
 await b.close()

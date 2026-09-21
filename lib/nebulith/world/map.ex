@@ -23,12 +23,16 @@ defmodule Nebulith.World.Map do
     # Optimistic locking. Two editors on one map used to mean the last save won silently.
     field :lock_version, :integer, default: 1
 
+    # THE MIGRATION BRIDGE. Which `Template` row this map came from, for as long as both exist.
+    # `Template` is not in the target schema; this column dies with it.
+    field :template_id, :string
+
     has_one :grid, Nebulith.World.Grid, foreign_key: :map_id
 
     timestamps(type: :utc_datetime)
   end
 
-  @castable ~w(name description level_id tileset_id zone_id)a
+  @castable ~w(name description level_id tileset_id zone_id template_id)a
 
   @doc false
   def changeset(map, attrs) do

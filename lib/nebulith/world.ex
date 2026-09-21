@@ -44,6 +44,20 @@ defmodule Nebulith.World do
     |> Repo.preload(:grid)
   end
 
+  @doc """
+  The map a template became, importing it the first time it is asked for.
+
+  The editor still addresses a map by its `Template` id while both exist, and a map that has never
+  been imported has to answer the first request rather than 404 and lose somebody their work. See
+  `Nebulith.World.Import` for what the import does and what it deliberately leaves behind.
+  """
+  def map_for_template(template_id) do
+    case Repo.one(from m in Nebulith.World.Map, where: m.template_id == ^template_id, limit: 1) do
+      nil -> Nebulith.World.Import.import_template(template_id)
+      map -> {:ok, Repo.preload(map, :grid)}
+    end
+  end
+
   @doc "One map with its grid, or `:error` rather than nil, for callers that want to pattern match."
   def fetch_map(id) do
     case get_map(id) do

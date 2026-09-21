@@ -89,7 +89,7 @@ defmodule Nebulith.World.Import do
     map = map_for(template)
 
     payload = %{
-      "map" => %{"name" => template.name, "description" => template.description},
+      "map" => %{"name" => template.name, "description" => template.description, "template_id" => template.id},
       "grid" => grid_attrs(template),
       "cells" => cells(template, tiles)
     }
@@ -100,9 +100,10 @@ defmodule Nebulith.World.Import do
     end
   end
 
-  # One map per template name, so running this twice rewrites rather than duplicates.
+  # One map per TEMPLATE, so running this twice rewrites rather than duplicates. By the template's id
+  # rather than its name: two maps can share a name, and a rename must not orphan the map.
   defp map_for(template) do
-    case Repo.one(from m in World.Map, where: m.name == ^template.name, limit: 1) do
+    case Repo.one(from m in World.Map, where: m.template_id == ^template.id, limit: 1) do
       nil -> created_map(template)
       map -> Repo.preload(map, :grid)
     end
@@ -111,7 +112,7 @@ defmodule Nebulith.World.Import do
   defp created_map(template) do
     {:ok, map} =
       World.create_map(%{
-        "map" => %{"name" => template.name, "description" => template.description},
+        "map" => %{"name" => template.name, "description" => template.description, "template_id" => template.id},
         "grid" => grid_attrs(template)
       })
 
