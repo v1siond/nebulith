@@ -12,6 +12,7 @@
  * - DEBUG: Isometric + collision overlay, asset labels
  */
 import { loadTileSchema } from '@/lib/tileDefaults'
+import { applyMapPayload, gridToMapPayload } from '@/lib/mapPayload'
 import { assetIsSolid } from '@/engine/collisionBoxes'
 import { setTilePose, styleCatalog, styleTile, styleTiles } from '@/engine/tileset/styleTiles'
 import Head from '@/lib/router'
@@ -52,7 +53,7 @@ import { ENEMY_TYPES, scatterEntities } from '@/game/spawner'
 import { type CombatState, type Entity, type EntityKind, type Inventory, type Loadout, type MovementPattern, type Quest, type Reward, type Stats, type TalentPath, type Weapon } from '@/game/types'
 import { weaponReach } from '@/game/weapons'
 import { VILLAGE_CONFIG } from '@/levels/village'
-import { Connector, TemplateListItem, createTemplate, deleteTemplate, deserializeToGrid, getTemplate, listTemplates, rebuildCollisionFromAssets, serializeGrid, updateTemplate, updateGame } from '@/lib/api'
+import { Connector, TemplateListItem, createTemplate, deleteTemplate, deserializeToGrid, getTemplate, loadMapForTemplate, saveMap, listTemplates, rebuildCollisionFromAssets, serializeGrid, updateTemplate, updateGame } from '@/lib/api'
 import { foldUnitData, splitUnitData } from '@/lib/unitDataPersistence'
 import { type CellTriggerGroup, ENTITY_GLYPH, cellTriggersFromAssets, cellTriggersToAssets, entitiesFromAssets, entitiesToAssets, isEntityAsset, isQuestAsset, isStyleAsset, isTriggerAsset, questsFromAssets, questsToAssets, styleFromAssets, styleToAssets, triggersAtCell } from '@/lib/gridCodec'
 import { type Trigger, type TriggerEffect, fireTriggers } from '@/game/runtime/trigger'
@@ -309,6 +310,15 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
   // connections are made so the game always contains the flow it opens.
   const [gameTemplateIds, setGameTemplateIds] = useState<string[]>(gameContext?.templateIds ?? [])
   const [currentTemplateId, setCurrentTemplateId] = useState<string | null>(null)
+  // THE MAP behind that template. Phase 3 made a map's contents rows, and the editor still addresses
+  // it by the template id while both tables exist, so the map's own id is resolved on load.
+  const [currentMapId, setCurrentMapId] = useState<string | null>(null)
+
+  // WHAT IS NOT A TILE. Entities, quests, the active style and the cell triggers ride inside the asset
+  // array as marked records because they had no field of their own. They get tables in phases 8, 10
+  // and 11; until then they keep riding the template, and they must never be written as cells.
+  const isMarkerAsset = (a: GridAsset): boolean =>
+    isEntityAsset(a) || isQuestAsset(a) || isStyleAsset(a) || isTriggerAsset(a)
   const [templateName, setTemplateName] = useState('')
   const [isSaving, setIsSaving] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
@@ -5005,14 +5015,21 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
       // read-only here), so they ride alongside the assets as marked records and
       // are split back out on load. This keeps both persistent without touching
       // the API layer. NPC↔quest links survive via each entity's own questId.
+      // ONLY THE MARKERS ride the template now. The cells are rows, written to the map below, so
+      // `assetsData` carries what still has nowhere else to live and nothing that does.
       const assetsWithEntities = [
-        ...assetsData,
         ...entitiesToAssets(entitiesToSave),
         ...questsToAssets(quests),
         ...styleToAssets(activeStyleId), // active art style rides as one off-grid marker (ASCII → none)
         ...cellTriggersToAssets(cellTriggers), // cell triggers (enter/interact) ride as off-grid markers
         // Floor colour + dims now ride the FLOOR ASSET itself (it's in assetsData), so no separate markers.
       ]
+
+      // THE MAP FIRST. If this fails the template is left exactly as it was, rather than being
+      // rewritten to point at cells that were never stored.
+      if (currentMapId) {
+        await saveMap(currentMapId, gridToMapPayload(grid, isMarkerAsset))
+      }
 
       let savedTemplateId = currentTemplateId
       if (currentTemplateId) {
@@ -5096,8 +5113,25 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
         resizeGrid(template.cols, template.rows)
       }
 
-      // Deserialize into grid
-      deserializeToGrid(template, gridRef.current!)
+      // THE CELLS COME FROM THE MAP, the markers from the template.
+      //
+      // Phase 3 moved a map's contents off the three JSON blobs onto rows, so `cells` and `cell_tiles`
+      // are what a map IS now. The template still carries what phase 3 does not own: entities, quests,
+      // the active style and the cell triggers, which ride inside the asset array as marked records
+      // until phases 8, 10 and 11 give them tables.
+      //
+      // So the map is applied first and the markers are appended after it, which leaves every line
+      // below untouched: they still read the markers off `grid.assets` exactly as they did.
+      const served = await loadMapForTemplate(id)
+      applyMapPayload(served, gridRef.current!)
+      setCurrentMapId(typeof served.map?.id === 'string' ? served.map.id : null)
+
+      // The template's asset array is the LEGACY wire shape: it still declares `scale` and `scaleZ`,
+      // which the engine no longer has. Only MARKER records are read out of it now, and a marker
+      // carries none of those fields, so the shape crosses here and nowhere else.
+      const legacy = (template.assetsData ?? []) as unknown as GridAsset[]
+
+      for (const marker of legacy.filter(isMarkerAsset)) gridRef.current!.assets.push({ ...marker })
 
       // Split placed entities AND quests back out of the assets they rode in on,
       // then strip both marker kinds so they don't double-render as decoration.

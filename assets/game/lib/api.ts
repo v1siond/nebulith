@@ -10,6 +10,7 @@ import { NEBULITH_API } from './nebulithApi'
 import { apiFailure } from './apiError'
 import { unitStandLevel } from '@/engine/cellStack'
 import { assetIsSolid } from '@/engine/collisionBoxes'
+import type { MapPayload } from './mapPayload'
 
 export interface Connector {
   // A connector owns a SET of cells, one connector can span many selected cells.
@@ -375,4 +376,32 @@ export function deserializeToGrid(
   rebuildCollisionFromAssets(grid)
 
   return grid
+}
+
+
+/**
+ * THE MAP, AS ROWS.
+ *
+ * Phase 3 moved a map's contents off `Template`'s three JSON blobs onto `maps`, `grids`, `cells` and
+ * `cell_tiles`. These two calls are that boundary. The editor still addresses a map by its template id
+ * while both tables exist; `for_template` imports on the first ask, so a map authored before phase 3
+ * answers rather than 404ing.
+ *
+ * What the template still carries is what phase 3 does not own: its name and spawn, its connectors,
+ * and the entity / quest / style / trigger markers that ride inside the asset array until phases 8, 10
+ * and 11 give them tables.
+ */
+export async function loadMapForTemplate(templateId: string): Promise<MapPayload & { map?: Record<string, unknown> }> {
+  const res = await fetch(`/api/maps/for_template/${encodeURIComponent(templateId)}`)
+  if (!res.ok) throw new Error(`map for template ${templateId}: ${res.status}`)
+  return (await res.json()).data
+}
+
+export async function saveMap(mapId: string, payload: MapPayload): Promise<void> {
+  const res = await fetch(`/api/maps/${encodeURIComponent(mapId)}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  })
+  if (!res.ok) throw new Error(`saving map ${mapId}: ${res.status} ${(await res.text()).slice(0, 200)}`)
 }

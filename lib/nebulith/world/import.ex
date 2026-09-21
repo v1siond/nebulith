@@ -89,7 +89,11 @@ defmodule Nebulith.World.Import do
     map = map_for(template)
 
     payload = %{
-      "map" => %{"name" => template.name, "description" => template.description, "template_id" => template.id},
+      "map" => %{
+        "name" => template.name,
+        "description" => template.description,
+        "template_id" => template.id
+      },
       "grid" => grid_attrs(template),
       "cells" => cells(template, tiles)
     }
@@ -112,7 +116,11 @@ defmodule Nebulith.World.Import do
   defp created_map(template) do
     {:ok, map} =
       World.create_map(%{
-        "map" => %{"name" => template.name, "description" => template.description, "template_id" => template.id},
+        "map" => %{
+          "name" => template.name,
+          "description" => template.description,
+          "template_id" => template.id
+        },
         "grid" => grid_attrs(template)
       })
 

@@ -33,8 +33,13 @@ export type TilePosition =
  *  is drawn on the block, it never introduces a glyph. */
 export type TileDisplay = 'all-faces' | 'single'
 
-/** How a tile's block renders: a cube, or a shaded ball. */
-export type TileShape = 'square' | 'circle'
+/** How a tile's block renders: a cube, a shaded ball, or a cone.
+ *
+ *  `cone` is here because a conifer and a cypress are not round, and with only square and circle on
+ *  offer every conifer in the catalogue was lying about its silhouette. The column admits all three
+ *  (docs/SPEC.md §3.2); a drawer that does not know a shape falls through to the cube, so adding one
+ *  is a new drawer rather than a branch in every renderer. */
+export type TileShape = 'square' | 'circle' | 'cone'
 
 // `StyleTile` (engine/tileset/styleTiles.ts) is THE tile shape, one per (style, label). The old
 // per-style `TilesetTile` is gone with the two holder files.

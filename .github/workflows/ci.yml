@@ -157,6 +157,7 @@ jobs:
         run: |
           node e2e/login.mjs
           node e2e/servedDefaults.mjs
+          node e2e/mapRoundTrip.mjs
           node e2e/docsNav.mjs
           node e2e/sliderLimits.mjs
           node e2e/adminCrud.mjs

@@ -428,6 +428,30 @@ export function clipToBall(ctx: CanvasRenderingContext2D, cx: number, cy: number
   ctx.clip()
 }
 
+/** SHAPE = 'cone' TAPERS a tile's silhouette to a point; like `clipToBall` it never repaints the tile.
+ *
+ *  A conifer and a cypress are not round, and with only square and circle on offer every conifer in the
+ *  catalogue was lying about its silhouette. The clip runs from an apex at the top centre down two straight
+ *  sides to a base rim, and the rim is an ARC rather than a straight edge because a cone stands on a round
+ *  base and in iso that base reads as the front half of an ellipse.
+ *
+ *  Same contract as the ball: the painted art and the per-face shading are kept, only the outline changes,
+ *  and the caller owns the surrounding save/restore. */
+export function clipToCone(ctx: CanvasRenderingContext2D, cx: number, cy: number, rx: number, ry: number): void {
+  const halfWidth = Math.max(0.5, rx)
+  const halfHeight = Math.max(0.5, ry)
+  const baseY = cy + halfHeight
+  // A shallow rim, proportional to the cone, so a tall thin cypress does not gain a fat foot.
+  const rimY = Math.max(0.5, halfHeight * 0.22)
+
+  ctx.beginPath()
+  ctx.moveTo(cx, cy - halfHeight)
+  ctx.lineTo(cx + halfWidth, baseY)
+  ctx.ellipse(cx, baseY, halfWidth, rimY, 0, 0, Math.PI, false)
+  ctx.closePath()
+  ctx.clip()
+}
+
 /** How a FLAT (2D / overhead) tile's front face renders for a given `shape`, the flat analogue of iso's
  *  `ISO_SHAPE_DRAWERS`. Each drawer gets the already-built face painter (`drawFace`) plus the tile's centre +
  *  radii, so a new shape adds ONE entry here, never an `if` at the 2D/Top call sites (SOLID/OCP). 'square' just
@@ -443,6 +467,12 @@ const FLAT_SHAPE_DRAWERS: Record<TileShape, FlatShapeDrawer> = {
   circle: (ctx, drawFace, cx, cy, rx, ry) => {
     ctx.save()
     clipToBall(ctx, cx, cy, rx, ry) // round the silhouette; the face keeps its own painting + shading
+    drawFace()
+    ctx.restore()
+  },
+  cone: (ctx, drawFace, cx, cy, rx, ry) => {
+    ctx.save()
+    clipToCone(ctx, cx, cy, rx, ry) // taper the silhouette; the face keeps its own painting + shading
     drawFace()
     ctx.restore()
   },

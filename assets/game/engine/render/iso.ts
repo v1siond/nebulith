@@ -14,7 +14,7 @@ import { type PlayerState, barFraction, hpFraction, playerDisplayName } from '@/
 import { type CombatState, type Entity, type Quest } from '@/game/types'
 import { resolveGroundTile, type TileShape } from '@/engine/tileset/tileset'
 import { Connector } from '@/lib/api'
-import { ASCII_FONT, COMBAT_RANGE, type DayNight, type DrawVisual, ENEMY_MOVE_MS, LIGHT, applyCellTransform, isoCameraFocus, assetCaptionByCell, terrainLabelAt, collectLampGlows, type CompositionGhost, compositionGhostColors, drawCellLabel, debugLabelColors, drawFacingGlyph, drawFigureVitals, drawGroundShadow, drawWaterStep, drawHitMarker, drawHoverRing, drawNightLighting, drawPlayerArm, drawProjectileGlyph, drawConnectorMarker, drawAttackAnimFrame, drawQuestMarker, drawRangeRing, drawSelectionRing, drawStyledImage, clipToBall, SINGLE_TILE_FRAC, enemyInAttackReach, entityAnimFrame, entityMotion, entityRenderCell, frameImage, getPlayerArt, fillTintedGlyph, idleNow, isDeadEnemy, isDebugMode, isShowCollisions, resolveDraw, resolveAssetDraw, resolveEntityDraw, assetOverride, assetTileImage, styleTileImage, labelTileRecolor, groundDecorImage, tileImage, tintedImage, tintedGlyphSprite, treeCellSet } from './shared'
+import { ASCII_FONT, COMBAT_RANGE, type DayNight, type DrawVisual, ENEMY_MOVE_MS, LIGHT, applyCellTransform, isoCameraFocus, assetCaptionByCell, terrainLabelAt, collectLampGlows, type CompositionGhost, compositionGhostColors, drawCellLabel, debugLabelColors, drawFacingGlyph, drawFigureVitals, drawGroundShadow, drawWaterStep, drawHitMarker, drawHoverRing, drawNightLighting, drawPlayerArm, drawProjectileGlyph, drawConnectorMarker, drawAttackAnimFrame, drawQuestMarker, drawRangeRing, drawSelectionRing, drawStyledImage, clipToBall, clipToCone, SINGLE_TILE_FRAC, enemyInAttackReach, entityAnimFrame, entityMotion, entityRenderCell, frameImage, getPlayerArt, fillTintedGlyph, idleNow, isDeadEnemy, isDebugMode, isShowCollisions, resolveDraw, resolveAssetDraw, resolveEntityDraw, assetOverride, assetTileImage, styleTileImage, labelTileRecolor, groundDecorImage, tileImage, tintedImage, tintedGlyphSprite, treeCellSet } from './shared'
 import { drawWeather, type WeatherId } from './weather'
 import { resolveAssetDrawSize } from './assetDimensions'
 import { resolveAssetAnimation, spriteFrame } from './assetAnimation'
@@ -2400,6 +2400,30 @@ export function drawIsoRoundedBlock(
   ctx.restore()
 }
 
+/**
+ * A CONE: the same cuboid, tapered to a point.
+ *
+ * Built exactly the way the ball is, because the principle is the same one: the tile draws normally and a
+ * CLIP decides its outline, so the art and the per-face shading survive and no shape needs its own lighting.
+ * A conifer is a cone, not a ball and not a box, and the catalogue had no way to say so.
+ */
+export function drawIsoConeBlock(
+  ctx: CanvasRenderingContext2D,
+  center: Pt,
+  tileW: number,
+  tileH: number,
+  blockH: number,
+  height: number,
+  dv: DrawVisual,
+  tint?: string,
+): void {
+  const { cx, cy, rx, ry } = roundedBlockEllipse(center, tileW, tileH, blockH, height)
+  ctx.save()
+  clipToCone(ctx, cx, cy, rx, ry)
+  drawIsoTileBlock(ctx, center, tileW, tileH, blockH, blockLayers(height), dv, tint)
+  ctx.restore()
+}
+
 /** ONE dispatch for "how to draw a placed tile's SOLID", keyed by its `shape` (default 'square'). The
  *  'square' drawer keeps the existing cube / single-billboard split (display setting); 'circle' builds a ball.
  *  A new shape ('oval', …) adds ONE entry here, never a new `if` at the call sites (SOLID/OCP). */
@@ -2439,6 +2463,10 @@ const ISO_SHAPE_DRAWERS: Record<TileShape, IsoShapeDrawer> = {
   circle: (ctx, center, bw, bd, bh, blocks, dv, tint, asset) => {
     if (assetIsTransparent(asset)) return // transparent applies to circles too, see-through, no coloured ball
     drawIsoRoundedBlock(ctx, center, bw, bd, bh, blocks, dv, tint)
+  },
+  cone: (ctx, center, bw, bd, bh, blocks, dv, tint, asset) => {
+    if (assetIsTransparent(asset)) return // and to cones, for the same reason
+    drawIsoConeBlock(ctx, center, bw, bd, bh, blocks, dv, tint)
   },
 }
 
