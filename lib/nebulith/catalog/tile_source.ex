@@ -2617,7 +2617,6 @@ defmodule Nebulith.Catalog.TileSource do
   # let `bridge_timber_rib` keep the `H` that `horse` already drew.
   @glyph_family_prefixes ~w(wall_ fountain_ trunk_ canopy_ tree_ roof_top water_)
   # One figure, distinguished by colour rather than by shape.
-  @glyph_shared_labels ~w(adult person player)
 
   @doc """
   Applies the CURATED ascii glyphs (`priv/repo/tilesets/ascii_glyphs.json`), the file that decides what each
@@ -3488,9 +3487,6 @@ defmodule Nebulith.Catalog.TileSource do
   def glyph_identity(label) do
     Enum.find(@glyph_family_prefixes, label, &String.starts_with?(label, &1))
   end
-
-  defp glyph_family?(label),
-    do: Enum.any?(@glyph_family_prefixes, &String.starts_with?(label, &1))
 
   @doc """
   Reconciles the `height` COLUMN of every paintable emoji ASSET tile (the standing categories, walls/windows/doors/roofs/props + nature; `buildings` kept for pre-split DBs) to the tile's OWN height
