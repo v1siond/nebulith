@@ -54,6 +54,9 @@ if config_env() == :prod do
       For example: ecto://USER:PASS@HOST/DATABASE
       """
 
+  # Railway's private network (`*.railway.internal`) is IPv6 ONLY, so a database reached that way needs
+  # `:inet6` or the connection simply never resolves. Left off, the app boots and then fails on its first
+  # query with a name-resolution error that looks nothing like a missing setting.
   maybe_ipv6 = if System.get_env("ECTO_IPV6") in ~w(true 1), do: [:inet6], else: []
 
   config :nebulith, Nebulith.Repo,
@@ -76,7 +79,16 @@ if config_env() == :prod do
       You can generate one by calling: mix phx.gen.secret
       """
 
-  host = System.get_env("PHX_HOST") || "example.com"
+  # A VARIABLE THAT SILENTLY DEFAULTS IS NOT DEFINED. This fell back to "example.com", so a deploy that
+  # forgot it booted happily and generated every URL, every email link and every redirect against a domain
+  # nobody owns. DATABASE_URL and SECRET_KEY_BASE already refuse to start without a value; the public
+  # hostname is the same kind of fact.
+  host =
+    System.get_env("PHX_HOST") ||
+      raise """
+      environment variable PHX_HOST is missing.
+      It is the public hostname this app is reached on, for example: nebulith-production.up.railway.app
+      """
 
   config :nebulith, :dns_cluster_query, System.get_env("DNS_CLUSTER_QUERY")
 
