@@ -20,7 +20,8 @@ defmodule Nebulith.Docs do
   """
 
   @sections %{
-    # Read first. The index of frameworks is the entry point to everything else.
+    # Read first. SPEC is the target architecture; everything else describes a part of it.
+    "SPEC" => :frameworks,
     "FRAMEWORKS" => :frameworks,
     "README" => :frameworks,
     "VISION" => :frameworks,
@@ -105,9 +106,20 @@ defmodule Nebulith.Docs do
   out of the docs directory.
   """
   def fetch(slug) do
-    with %{file: file, title: title} <- Enum.find(list(), &(&1.slug == slug)),
+    with %{file: file, title: title, section: section, summary: summary} <-
+           Enum.find(list(), &(&1.slug == slug)),
          {:ok, body} <- File.read(Path.join(dir(), file)) do
-      {:ok, %{title: title, slug: slug, html: to_html(body), headings: headings(body)}}
+      {:ok,
+       %{
+         title: title,
+         slug: slug,
+         section: section,
+         section_title: Keyword.get(@section_titles, section, "Documentation"),
+         summary: summary,
+         html: to_html(body),
+         headings: headings(body),
+         diagrams?: diagrams?(body)
+       }}
     else
       _ -> :error
     end
@@ -162,11 +174,26 @@ defmodule Nebulith.Docs do
     |> String.slice(0, 240)
   end
 
-  # The H2s, for the in-page navigation. Anchors match what Earmark generates.
+  # The contents rail: H2s and H3s, each with its level and, where the heading is numbered, that number
+  # split off so the rail can hang it as a figure. A numbered document already HAS a structure; the rail
+  # shows the one the document declares rather than inventing a second one.
   defp headings(body) do
-    ~r/^##\s+(.+)$/m
+    # The # is escaped: an unescaped #{...} is interpolation inside a sigil, not a repeat count.
+    ~r/^(\#{2,3})\s+(.+)$/m
     |> Regex.scan(body)
-    |> Enum.map(fn [_, text] -> %{text: String.trim(text), anchor: anchor(text)} end)
+    |> Enum.map(fn [_, hashes, text] ->
+      text = String.trim(text)
+      {number, label} = split_number(text)
+
+      %{level: String.length(hashes), text: text, label: label, number: number, anchor: anchor(text)}
+    end)
+  end
+
+  defp split_number(text) do
+    case Regex.run(~r/^(\d+(?:\.\d+)*)\.?\s+(.*)$/, text) do
+      [_, number, label] -> {number, label}
+      _ -> {nil, text}
+    end
   end
 
   defp anchor(text) do
@@ -178,9 +205,99 @@ defmodule Nebulith.Docs do
   end
 
   defp to_html(body) do
+    {stripped, diagrams} = lift_diagrams(body)
+
+    stripped
+    |> render_markdown()
+    |> drop_in_diagrams(diagrams)
+    |> drop_masthead()
+    |> anchor_headings()
+  end
+
+  # Earmark emits a bare `<h2>` with no id, so every link in the contents rail pointed at nothing and
+  # clicking one did exactly that. The id is computed here from the heading's own text with the SAME
+  # `anchor/1` the rail uses, so the two are one function and cannot drift apart.
+  defp anchor_headings(html) do
+    Regex.replace(~r{<(h[23])>\s*(.*?)</\1>}s, html, fn _whole, tag, inner ->
+      ~s(<#{tag} id="#{anchor(strip_tags(inner))}">#{inner}</#{tag}>)
+    end)
+  end
+
+  defp strip_tags(html), do: String.replace(html, ~r{<[^>]*>}, "")
+
+  # The page's own header already shows the title and the opening line, so rendering them again at the top
+  # of the body prints both twice. The markdown keeps them, because the file has to read correctly on its
+  # own; the page drops them because it has somewhere better to put them.
+  defp drop_masthead(html) do
+    html
+    |> String.replace(~r{\A\s*<h1>.*?</h1>\s*}s, "", global: false)
+    |> String.replace(~r{\A\s*<p>.*?</p>\s*}s, "", global: false)
+  end
+
+  defp render_markdown(body) do
     case Earmark.as_html(body, escape: false, gfm: true, breaks: false) do
       {:ok, html, _} -> html
       {:error, html, _} -> html
     end
+  end
+
+  @doc false
+  def diagrams?(body), do: Regex.match?(~r/^```mermaid\s*$/m, body)
+
+  # ── mermaid ────────────────────────────────────────────────────────────
+  #
+  # A mermaid fence is pulled OUT before Earmark sees it and put back afterwards, rather than rewriting
+  # Earmark's output. Two reasons, both of which bite the other way round:
+  #
+  #   1. The docs render with `escape: false`, so a `<br/>` inside a flowchart label would reach the page as
+  #      a real line break and vanish from the diagram source. Every multi-line node label in the engine spec
+  #      uses one.
+  #   2. Mermaid reads its source from `textContent`, so the source has to be HTML-escaped exactly once.
+  #      Escaping Earmark's already-escaped code block would double it and `--&amp;gt;` is not an arrow.
+  #
+  # The placeholder is a paragraph of its own so Earmark cannot fold it into surrounding text.
+
+  @placeholder "NEBULITHMERMAID"
+
+  defp lift_diagrams(body) do
+    diagrams =
+      ~r/^```mermaid\r?\n(.*?)^```/ms
+      |> Regex.scan(body, capture: :all_but_first)
+      |> Enum.map(&hd/1)
+
+    stripped =
+      diagrams
+      |> Enum.with_index()
+      |> Enum.reduce(body, fn {source, i}, acc ->
+        String.replace(acc, "```mermaid\n" <> source <> "```", "#{@placeholder}#{i}", global: false)
+      end)
+
+    {stripped, diagrams}
+  end
+
+  defp drop_in_diagrams(html, diagrams) do
+    diagrams
+    |> Enum.with_index()
+    |> Enum.reduce(html, fn {source, i}, acc ->
+      String.replace(acc, "<p>\n#{@placeholder}#{i}</p>", figure(source))
+      |> String.replace("<p>#{@placeholder}#{i}</p>", figure(source))
+      |> String.replace("#{@placeholder}#{i}", figure(source))
+    end)
+  end
+
+  # A hook class and semantic elements, no styling. Tailwind scans `lib/nebulith_web`, not this module, so
+  # utilities written here would be purged; the docs template styles this the same way it styles every other
+  # generated element, with an arbitrary variant. The caption is a real `figcaption` rather than a CSS
+  # pseudo-element, which keeps it in the accessibility tree and out of a stylesheet.
+  defp figure(source) do
+    ~s(<figure class="nebulith-diagram"><figcaption>Diagram</figcaption><pre class="mermaid">) <>
+      escape(source) <> ~s(</pre></figure>)
+  end
+
+  defp escape(text) do
+    text
+    |> String.replace("&", "\&amp;")
+    |> String.replace("<", "\&lt;")
+    |> String.replace(">", "\&gt;")
   end
 end

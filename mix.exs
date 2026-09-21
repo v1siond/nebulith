@@ -99,13 +99,15 @@ defmodule Nebulith.MixProject do
         "tailwind nebulith",
         "tailwind game",
         "esbuild nebulith",
-        "esbuild game"
+        "esbuild game",
+        "esbuild docs"
       ],
       "assets.deploy": [
         "tailwind nebulith --minify",
         "tailwind game --minify",
         "esbuild nebulith --minify",
         "esbuild game --minify",
+        "esbuild docs --minify",
         "phx.digest"
       ],
       precommit: ["compile --warnings-as-errors", "deps.unlock --unused", "format", "test"]

@@ -9,8 +9,21 @@ defmodule NebulithWeb.DocsController do
 
   alias Nebulith.Docs
 
+  @doc """
+  The documentation root.
+
+  It serves the PRIMARY document rather than a list of links to it. The engine spec is what the
+  documentation is, so `/docs` is that page: *"i want /docs/spec to be /docs, it's basically what it is"*.
+  The card index only appears when there is no primary document to show, which is the honest thing to
+  render when the corpus is a set of peers.
+  """
+  @primary "spec"
+
   def index(conn, _params) do
-    render(conn, :index, sections: Docs.sections(), count: length(Docs.list()))
+    case Docs.fetch(@primary) do
+      {:ok, doc} -> render(conn, :show, doc: doc, sections: Docs.sections())
+      :error -> render(conn, :index, sections: Docs.sections(), count: length(Docs.list()))
+    end
   end
 
   def show(conn, %{"slug" => slug}) do

@@ -40,6 +40,13 @@ config :esbuild,
     cd: Path.expand("../assets", __DIR__),
     env: %{"NODE_PATH" => [Path.expand("../deps", __DIR__), Mix.Project.build_path()]}
   ],
+  # The DOCUMENTATION bundle: mermaid, and nothing else. Its own profile because mermaid is large and only
+  # `/docs` pages that actually contain a diagram load it, so it must not ride in the app bundle.
+  docs: [
+    args: ~w(js/docs.js --bundle --format=esm --target=es2022 --outdir=../priv/static/assets/js),
+    cd: Path.expand("../assets", __DIR__),
+    env: %{"NODE_PATH" => [Path.expand("../deps", __DIR__), Mix.Project.build_path()]}
+  ],
   # The ENGINE bundle. Code-split on purpose: the editor is a large tree and one blob would block
   # the gallery on the whole thing. `--alias:@=./game` is the same `@/` the source and the suite use.
   # NODE_ENV has to be defined or React's own `process.env.NODE_ENV` reads crash in the browser;

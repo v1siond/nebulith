@@ -1,42 +1,55 @@
-<Layouts.app flash={@flash}>
-  <div class="flex gap-8">
+<Layouts.app flash={@flash} width={:full}>
+  <div class="flex w-full gap-0">
     <.sidebar sections={@sections} />
 
-    <main class="min-w-0 flex-1">
-      <.header>
-        Nebulith documentation
-        <:subtitle>
-          {@count} documents covering the API, the map model, the generators, the editor and how the whole
-          thing is put together. Every page is rendered from the markdown in
-          <code class="font-mono">docs/</code>, so the page and the repo cannot disagree.
-        </:subtitle>
-      </.header>
+    <main class="min-w-0 flex-1 px-4 pb-24 sm:px-8 lg:px-16">
+      <header class="border-b border-base-300 pb-8 pt-10 sm:pt-13">
+        <p class="mb-3.5 font-mono text-[11.5px] font-bold uppercase tracking-[0.2em] text-primary">
+          Nebulith · documentation
+        </p>
+        <h1 class="mb-4 text-3xl font-bold leading-[1.04] tracking-tight text-balance sm:text-5xl">
+          The engine, written down
+        </h1>
+        <p class="text-lg text-base-content/70">
+          {@count} {if @count == 1, do: "document", else: "documents"}, rendered straight from the markdown in
+          <code class="rounded-sm border border-base-300 bg-base-200 px-1 py-0.5 font-mono text-[0.855em]">docs/</code>,
+          so the page and the repo cannot disagree.
+        </p>
+      </header>
 
-      <section :for={section <- @sections} class="mt-8">
-        <h2 class="mb-3 text-lg font-bold">{section.title}</h2>
+      <%!-- Sections in the order `Nebulith.Docs` declares, which is reading order: start here, then the
+            architecture, then the parts. A document's section comes from its filename, so a new one appears
+            the moment it is added and nobody has to register it. --%>
+      <section :for={section <- @sections} class="mt-12">
+        <h2 class="mb-1.5 border-t-2 border-base-content pt-7 text-2xl font-bold tracking-tight">
+          {section.title}
+        </h2>
 
-        <div class="grid gap-3 sm:grid-cols-2">
+        <div class="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
           <a
             :for={doc <- section.docs}
             href={"/docs/#{doc.slug}"}
-            class="rounded-box border border-base-300 bg-base-100 p-4 transition hover:border-primary hover:bg-base-200"
+            class="group flex flex-col rounded-box border border-base-300 bg-base-200 p-4 transition hover:border-primary focus-visible:outline-2 focus-visible:outline-primary"
           >
             <div class="flex items-baseline justify-between gap-3">
-              <h3 class="font-semibold">{doc.title}</h3>
-              <span class="badge badge-sm badge-ghost shrink-0">
+              <h3 class="font-semibold leading-snug text-balance group-hover:text-primary">
+                {doc.title}
+              </h3>
+              <span class="shrink-0 font-mono text-[11px] tabular-nums text-base-content/40">
                 {div(doc.bytes, 1024)}k
               </span>
             </div>
-            <p :if={doc.summary != ""} class="mt-2 text-sm text-base-content/70">
+            <p :if={doc.summary != ""} class="mt-2 text-sm leading-relaxed text-base-content/60">
               {doc.summary}
             </p>
           </a>
         </div>
       </section>
 
-      <p :if={@count == 0} class="mt-8 rounded-box border border-warning/40 bg-warning/10 p-4 text-sm">
-        No documents found. The corpus is the repo's <code class="font-mono">docs/</code> directory, resolved
-        relative to the working directory the server was started from.
+      <p :if={@count == 0} class="mt-12 rounded-box border border-warning/40 bg-warning/10 p-4 text-sm">
+        No documents found. The corpus is the repo's
+        <code class="font-mono">docs/</code> directory, resolved relative to the working directory the
+        server was started from.
       </p>
     </main>
   </div>

@@ -31,6 +31,15 @@ defmodule NebulithWeb.Layouts do
     default: nil,
     doc: "the current [scope](https://phoenix.hexdocs.pm/scopes.html)"
 
+  attr :width, :atom,
+    default: :reading,
+    values: [:reading, :full],
+    doc: """
+    How wide the page may run. `:reading` keeps the default column, which suits a form or a short page.
+    `:full` removes the cap for a page that lays out its own columns, such as the documentation, where a
+    schema table or a diagram needs the whole screen.
+    """
+
   slot :inner_block, required: true
 
   def app(assigns) do
@@ -68,8 +77,11 @@ defmodule NebulithWeb.Layouts do
       </div>
     </header>
 
-    <main class="px-4 py-20 sm:px-6 lg:px-8">
-      <div class="mx-auto max-w-2xl space-y-4">
+    <main class={["py-20", @width == :reading && "px-4 sm:px-6 lg:px-8"]}>
+      <div class={[
+        @width == :reading && "mx-auto max-w-2xl space-y-4",
+        @width == :full && "w-full"
+      ]}>
         {render_slot(@inner_block)}
       </div>
     </main>

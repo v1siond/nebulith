@@ -1,53 +1,99 @@
-<Layouts.app flash={@flash}>
-  <div class="flex gap-8">
-    <.sidebar sections={@sections} current={@doc.slug} />
+<Layouts.app flash={@flash} width={:full}>
+  <div class="flex w-full gap-0">
+    <%!-- THE CONTENTS RAIL. A numbered document already declares its own structure, so the rail hangs the
+          section number as a figure and shows it rather than inventing a second scheme. Sticky, scrolls on
+          its own, collapses to two columns above the document on a narrow screen. --%>
+    <aside class="sticky top-0 hidden max-h-screen w-80 shrink-0 self-start overflow-y-auto border-r border-base-300 py-7 pl-6 pr-5 lg:block">
+      <a href="/docs" class="mb-4 block text-xs font-bold uppercase tracking-[0.14em] text-base-content/50 hover:text-primary">
+        Documentation
+      </a>
+      <nav aria-label="On this page" class="flex flex-col">
+        <a
+          :for={heading <- @doc.headings}
+          href={"##{heading.anchor}"}
+          class={[
+            "grid grid-cols-[38px_1fr] items-baseline gap-1 rounded py-1 pr-2 leading-snug",
+            "hover:text-primary focus-visible:outline-2 focus-visible:outline-primary",
+            heading.level == 2 && "mt-2.5 text-[13.5px] font-semibold text-base-content",
+            heading.level == 3 && "text-[13px] text-base-content/60"
+          ]}
+        >
+          <span class={[
+            "font-mono text-[11px] tabular-nums text-base-content/40",
+            heading.level == 3 && "pl-2.5"
+          ]}>
+            {heading.number}
+          </span>
+          <span>{heading.label}</span>
+        </a>
+      </nav>
+    </aside>
 
-    <main class="min-w-0 flex-1">
-      <div class="mb-4 text-sm text-base-content/60">
-        <a href="/docs" class="hover:underline">Documentation</a>
-        <span class="px-1">/</span>
-        <span>{@doc.title}</span>
-      </div>
+    <main class="min-w-0 flex-1 px-4 pb-24 sm:px-8 lg:px-16">
+      <%!-- THE MASTHEAD. The document's own title, set large, with the vocabulary the whole corpus rests on
+            as a legend. CELL, BLOCK and TILE are never interchangeable and every document assumes it. --%>
+      <header class="border-b border-base-300 pb-8 pt-10 sm:pt-13">
+        <p class="mb-3.5 font-mono text-[11.5px] font-bold uppercase tracking-[0.2em] text-primary">
+          Nebulith · {@doc.section_title}
+        </p>
+        <h1 class="mb-4 text-3xl font-bold leading-[1.04] tracking-tight text-balance sm:text-5xl">
+          {@doc.title}
+        </h1>
+        <p :if={@doc.summary} class="text-lg text-base-content/70">
+          {@doc.summary}
+        </p>
+        <div :if={@doc.diagrams?} class="mt-6 flex flex-wrap gap-2">
+          <span
+            :for={{term, gloss} <- [{"CELL", "a 2D square on the grid"}, {"BLOCK", "a 3D unit, the fixed ruler"}, {"TILE", "the content placed into blocks"}]}
+            class="inline-flex items-baseline gap-1.5 rounded-sm border border-base-300 bg-base-200 px-2.5 py-1 text-xs text-base-content/70"
+          >
+            <b class="font-mono text-[11.5px] font-bold tracking-wide text-base-content">{term}</b>
+            {gloss}
+          </span>
+        </div>
+      </header>
 
-      <div class="flex gap-8">
-        <%!-- The document body. There is no Tailwind typography plugin in this project (assets/css/app.css
-              loads heroicons and daisyUI only), so `prose-*` classes would be inert and the markdown would
-              render unstyled. These child selectors do the same job with what the project already ships. --%>
-        <article class="min-w-0 flex-1 text-sm leading-relaxed
-                        [&_h1]:mt-0 [&_h1]:mb-4 [&_h1]:text-2xl [&_h1]:font-bold
-                        [&_h2]:mt-8 [&_h2]:mb-3 [&_h2]:scroll-mt-20 [&_h2]:border-b [&_h2]:border-base-300 [&_h2]:pb-1 [&_h2]:text-xl [&_h2]:font-bold
-                        [&_h3]:mt-6 [&_h3]:mb-2 [&_h3]:text-base [&_h3]:font-semibold
-                        [&_h4]:mt-4 [&_h4]:mb-2 [&_h4]:font-semibold
-                        [&_p]:my-3
-                        [&_ul]:my-3 [&_ul]:list-disc [&_ul]:pl-6
-                        [&_ol]:my-3 [&_ol]:list-decimal [&_ol]:pl-6
-                        [&_li]:my-1
-                        [&_a]:text-primary [&_a]:underline
-                        [&_strong]:font-semibold
-                        [&_code]:rounded [&_code]:bg-base-300 [&_code]:px-1 [&_code]:py-0.5 [&_code]:font-mono [&_code]:text-xs
-                        [&_pre]:my-4 [&_pre]:overflow-x-auto [&_pre]:rounded-box [&_pre]:bg-base-300 [&_pre]:p-4
-                        [&_pre_code]:bg-transparent [&_pre_code]:p-0
-                        [&_blockquote]:my-4 [&_blockquote]:border-l-4 [&_blockquote]:border-base-300 [&_blockquote]:pl-4 [&_blockquote]:text-base-content/70
-                        [&_table]:my-4 [&_table]:w-full [&_table]:text-xs
-                        [&_th]:border [&_th]:border-base-300 [&_th]:bg-base-200 [&_th]:px-2 [&_th]:py-1 [&_th]:text-left
-                        [&_td]:border [&_td]:border-base-300 [&_td]:px-2 [&_td]:py-1 [&_td]:align-top
-                        [&_hr]:my-8 [&_hr]:border-base-300">
-          <%= raw(@doc.html) %>
-        </article>
-
-        <aside :if={@doc.headings != []} class="hidden w-56 shrink-0 xl:block">
-          <p class="mb-2 text-xs font-semibold uppercase tracking-wide text-base-content/50">
-            On this page
-          </p>
-          <ul class="space-y-1 border-l border-base-300 pl-3">
-            <li :for={heading <- @doc.headings}>
-              <a href={"##{heading.anchor}"} class="block text-sm text-base-content/70 hover:text-primary">
-                {heading.text}
-              </a>
-            </li>
-          </ul>
-        </aside>
-      </div>
+      <%!-- THE DOCUMENT. Its HTML is generated from markdown, so every element is styled with an arbitrary
+            variant rather than a class on the tag. Colours come from the app's own daisyUI tokens, never a
+            literal. Nothing here caps its width: the document fills the space it is given, and a table, a
+            diagram or a code block scrolls inside its own box so the page never scrolls sideways. --%>
+      <article class="w-full text-[17px] leading-relaxed
+                      [&_h1]:mb-4 [&_h1]:mt-0 [&_h1]:text-2xl [&_h1]:font-bold
+                      [&_h2]:mb-1.5 [&_h2]:mt-16 [&_h2]:scroll-mt-6 [&_h2]:border-t-2 [&_h2]:border-base-content [&_h2]:pt-7 [&_h2]:text-2xl [&_h2]:font-bold [&_h2]:tracking-tight [&_h2]:text-balance
+                      [&_h3]:mb-1 [&_h3]:mt-11 [&_h3]:scroll-mt-6 [&_h3]:text-lg [&_h3]:font-semibold [&_h3]:text-balance
+                      [&_h4]:mb-0.5 [&_h4]:mt-8 [&_h4]:font-semibold
+                      [&_p]:my-3.5
+                      [&_ul]:my-3.5 [&_ul]:list-disc [&_ul]:pl-6
+                      [&_ol]:my-3.5 [&_ol]:list-decimal [&_ol]:pl-6
+                      [&_li]:my-1.5 [&_li]:marker:text-base-content/40
+                      [&_a]:text-primary [&_a]:underline [&_a]:underline-offset-2
+                      [&_strong]:font-semibold
+                      [&_hr]:my-9 [&_hr]:border-base-300
+                      [&_blockquote]:my-5 [&_blockquote]:border-l-2 [&_blockquote]:border-primary [&_blockquote]:py-0.5 [&_blockquote]:pl-5 [&_blockquote]:text-base-content/70
+                      [&_code]:rounded-sm [&_code]:border [&_code]:border-base-300 [&_code]:bg-base-200 [&_code]:px-1 [&_code]:py-0.5 [&_code]:font-mono [&_code]:text-[0.855em] [&_code]:break-words
+                      [&_pre]:my-5 [&_pre]:overflow-x-auto [&_pre]:rounded-box [&_pre]:border [&_pre]:border-base-300 [&_pre]:bg-base-200 [&_pre]:p-4 [&_pre]:text-[13px] [&_pre]:leading-relaxed
+                      [&_pre_code]:border-0 [&_pre_code]:bg-transparent [&_pre_code]:p-0 [&_pre_code]:text-[13px]
+                      [&_table]:w-full [&_table]:border-collapse [&_table]:text-[13.5px]
+                      [&_th]:whitespace-nowrap [&_th]:border-b [&_th]:border-base-300 [&_th]:bg-base-200 [&_th]:px-3.5 [&_th]:py-2 [&_th]:text-left [&_th]:font-mono [&_th]:text-[11px] [&_th]:font-bold [&_th]:uppercase [&_th]:tracking-wider [&_th]:text-base-content/50
+                      [&_td]:border-b [&_td]:border-base-300/50 [&_td]:px-3.5 [&_td]:py-2.5 [&_td]:align-top [&_td]:tabular-nums
+                      [&_tbody_tr:last-child_td]:border-b-0
+                      [&_th_code]:border-0 [&_th_code]:bg-transparent [&_th_code]:p-0
+                      [&_td_code]:border-0 [&_td_code]:bg-transparent [&_td_code]:p-0
+                      [&_.nebulith-diagram]:my-6 [&_.nebulith-diagram]:overflow-x-auto [&_.nebulith-diagram]:rounded-box [&_.nebulith-diagram]:border [&_.nebulith-diagram]:border-base-300 [&_.nebulith-diagram]:bg-base-200
+                      [&_.nebulith-diagram>figcaption]:px-4 [&_.nebulith-diagram>figcaption]:pt-2 [&_.nebulith-diagram>figcaption]:font-mono [&_.nebulith-diagram>figcaption]:text-[10px] [&_.nebulith-diagram>figcaption]:uppercase [&_.nebulith-diagram>figcaption]:tracking-[0.16em] [&_.nebulith-diagram>figcaption]:text-base-content/40
+                      [&_.nebulith-diagram>pre]:my-0 [&_.nebulith-diagram>pre]:max-w-none [&_.nebulith-diagram>pre]:rounded-none [&_.nebulith-diagram>pre]:border-0 [&_.nebulith-diagram>pre]:bg-transparent [&_.nebulith-diagram>pre]:px-4 [&_.nebulith-diagram>pre]:pb-5 [&_.nebulith-diagram>pre]:pt-2.5
+                      [&_.nebulith-diagram_svg]:h-auto [&_.nebulith-diagram_svg]:max-w-full
+                      [&_.nebulith-diagram.is-broken]:border-error">
+        <%!-- A table is wider than the reading measure, so it gets its own scroll box. --%>
+        <div class="[&>table]:my-0 [&_table]:my-0">
+          {raw(@doc.html)}
+        </div>
+      </article>
     </main>
   </div>
+
+  <%!-- Mermaid, only on a document that actually has a diagram. It is a large bundle and every other page,
+        the gallery included, must not pay for it. `Nebulith.Docs` answers whether this one does. --%>
+  <script :if={@doc.diagrams?} type="module" src={~p"/assets/js/docs.js"}>
+  </script>
 </Layouts.app>

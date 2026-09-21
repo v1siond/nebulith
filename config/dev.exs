@@ -30,6 +30,7 @@ config :nebulith, NebulithWeb.Endpoint,
   watchers: [
     esbuild: {Esbuild, :install_and_run, [:nebulith, ~w(--sourcemap=inline --watch)]},
     esbuild_game: {Esbuild, :install_and_run, [:game, ~w(--sourcemap=inline --watch)]},
+    esbuild_docs: {Esbuild, :install_and_run, [:docs, ~w(--sourcemap=inline --watch)]},
     tailwind: {Tailwind, :install_and_run, [:nebulith, ~w(--watch)]},
     tailwind_game: {Tailwind, :install_and_run, [:game, ~w(--watch)]}
   ]

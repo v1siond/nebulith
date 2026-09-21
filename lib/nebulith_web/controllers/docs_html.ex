@@ -14,19 +14,30 @@ defmodule NebulithWeb.DocsHTML do
 
   def sidebar(assigns) do
     ~H"""
-    <nav class="w-64 shrink-0 border-r border-base-300 pr-4">
-      <a href="/docs" class="block font-mono text-sm font-bold hover:underline">Documentation</a>
+    <nav
+      aria-label="Documents"
+      class="sticky top-0 hidden max-h-screen w-80 shrink-0 self-start overflow-y-auto border-r border-base-300 py-7 pl-6 pr-5 lg:block"
+    >
+      <a
+        href="/docs"
+        class="mb-4 block text-xs font-bold uppercase tracking-[0.14em] text-base-content/50 hover:text-primary"
+      >
+        Documentation
+      </a>
       <div :for={section <- @sections} class="mt-5">
-        <p class="mb-1 text-xs font-semibold uppercase tracking-wide text-base-content/50">
+        <p class="mb-1.5 font-mono text-[11px] font-bold uppercase tracking-[0.14em] text-base-content/40">
           {section.title}
         </p>
-        <ul class="space-y-0.5">
+        <ul>
           <li :for={doc <- section.docs}>
             <a
               href={"/docs/#{doc.slug}"}
+              aria-current={@current == doc.slug && "page"}
               class={[
-                "block rounded px-2 py-1 text-sm hover:bg-base-200",
-                @current == doc.slug && "bg-base-200 font-semibold"
+                "block rounded py-1 pr-2 text-[13.5px] leading-snug hover:text-primary",
+                "focus-visible:outline-2 focus-visible:outline-primary",
+                @current == doc.slug && "font-semibold text-primary",
+                @current != doc.slug && "text-base-content/70"
               ]}
             >
               {doc.title}
