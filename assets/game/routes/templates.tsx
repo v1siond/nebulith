@@ -53,7 +53,7 @@ import { ENEMY_TYPES, scatterEntities } from '@/game/spawner'
 import { type CombatState, type Entity, type EntityKind, type Inventory, type Loadout, type MovementPattern, type Quest, type Reward, type Stats, type TalentPath, type Weapon } from '@/game/types'
 import { weaponReach } from '@/game/weapons'
 import { VILLAGE_CONFIG } from '@/levels/village'
-import { Connector, TemplateListItem, createTemplate, deleteTemplate, deserializeToGrid, getTemplate, loadMapForTemplate, saveMap, listTemplates, rebuildCollisionFromAssets, serializeGrid, updateTemplate, updateGame } from '@/lib/api'
+import { Connector, TemplateListItem, createTemplate, deleteTemplate, getTemplate, loadMapForTemplate, saveMap, listTemplates, rebuildCollisionFromAssets, serializeGrid, updateTemplate, updateGame } from '@/lib/api'
 import { foldUnitData, splitUnitData } from '@/lib/unitDataPersistence'
 import { type CellTriggerGroup, ENTITY_GLYPH, cellTriggersFromAssets, cellTriggersToAssets, entitiesFromAssets, entitiesToAssets, isEntityAsset, isQuestAsset, isStyleAsset, isTriggerAsset, questsFromAssets, questsToAssets, styleFromAssets, styleToAssets, triggersAtCell } from '@/lib/gridCodec'
 import { type Trigger, type TriggerEffect, fireTriggers } from '@/game/runtime/trigger'
@@ -5003,7 +5003,11 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
 
     setIsSaving(true)
     try {
-      const { groundData, heightData, assetsData } = serializeGrid(grid)
+      // The GROUND and the HEIGHTS are still mirrored onto the template. Not because anything reads
+      // them, the map owns the cells now, but because Template is still here and a faithful mirror is
+      // worth keeping while it is. The ASSETS are not mirrored: the cells are rows, and `assetsData`
+      // carries only the markers below.
+      const { groundData, heightData } = serializeGrid(grid)
 
       // Fold every unit's LOADOUT (+ the hero's INVENTORY) onto its entity BEFORE serializing, so a
       // unit's gear rides the unit ("everything is data; what a unit HAS is data"). The folded entities
@@ -5143,7 +5147,7 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
       const loadedQuests = questsFromAssets(gridRef.current!.assets)
       const loadedStyle = styleFromAssets(gridRef.current!.assets) // active art style marker (null → ASCII)
       const loadedCellTriggers = cellTriggersFromAssets(gridRef.current!.assets) // cell triggers (enter/interact)
-      // Floor colour + dims ride the FLOOR ASSET now (restored by deserializeToGrid → setAssets), so there is
+      // Floor colour + dims ride the FLOOR ASSET now (restored by applyMapPayload → setAssets), so there is
       // nothing to reapply here, the floor is a plain level-0 asset that round-trips like every tile.
       gridRef.current!.removeAssetsWhere(
         a => isEntityAsset(a) || isQuestAsset(a) || isStyleAsset(a) || isTriggerAsset(a),
