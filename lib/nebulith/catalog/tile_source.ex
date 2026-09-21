@@ -3870,7 +3870,7 @@ defmodule Nebulith.Catalog.TileSource do
           opts.leaf_zoom,
           Map.get(opts, :shape),
           true,
-          Float.round(opts.trunk_h * opts.trunk_zoom - leaf_level, 3)
+          Float.round(leaf_level - trunk_height, 3)
         )
       ]
     }
@@ -3917,11 +3917,15 @@ defmodule Nebulith.Catalog.TileSource do
     settings = %{"scaleY" => leaf_h}
     settings = if shape, do: Map.put(settings, "shape", shape), else: settings
 
-    # AND IT SITS ON THE TRUNK, which is the panel's "Up ↕ Down" (`pose.dy`): *"LEAF WITH .5 Y POSITION TO
-    # ACTUALLY BE LINKED TO TRUNK"*. A cell can only be placed at a whole LEVEL, and a trunk's real top is
-    # `trunk_h * trunk_zoom`, which is almost never whole, so the crown was left standing at the rounded
-    # level with the gap showing. The lift is exactly that remainder, so it is derived from the trunk rather
-    # than a number picked to look right. A bush has no trunk (#224), so it passes none.
+    # AND IT SITS ON THE TRUNK, which is the panel's "Up / Down" (`pose.dy`). A cell can only be placed at
+    # a whole LEVEL, and a trunk's real top is almost never whole, so the crown is nudged by exactly the
+    # remainder. Derived from the trunk rather than picked to look right. A bush has no trunk, so it
+    # passes none.
+    #
+    # THE SIGN IS THE SCREEN'S. `applyPose` translates the canvas by `dy * unit`, and canvas y grows
+    # DOWNWARD, so a positive dy moves the crown down onto the trunk. This was `trunk_top - leaf_level`,
+    # which is negative whenever the level rounds up, so the crown was pushed UP by the very remainder
+    # that was meant to seat it, and it floated by twice the gap.
     settings = if lift == 0.0, do: settings, else: Map.put(settings, "pose", %{"dy" => lift})
 
     %{

@@ -24,12 +24,80 @@ import { logIn } from './logIn.mjs'
 import { openScratchMap, dropScratchMap } from './scratchMap.mjs'
 
 const OUT = process.argv[2] ?? 'docs/renders/tree-sheet.png'
+// `bin/e2e treeSheet <out> generated` measures the trees a GENERATED world plants, on its own ground,
+// at its own elevations. The flat sheet is the controlled case; this is his.
+const MODE = process.argv[3] ?? 'sheet'
+
+
+/**
+ * THE GAP BETWEEN A CROWN AND ITS TRUNK, from the geometry the renderer RECORDED as it drew.
+ *
+ * Not from pixels. A pixel reader has to tell a canopy from a lawn by hue and both are green, so a
+ * floating crown measured as a healthy overlap twice: once on the sheet's grass and again on a
+ * generated woodland. Not from `level + pose.dy` either, which is how the lift is defined, so the two
+ * sides of that comparison can never disagree.
+ *
+ * `__nebulithDrawn` is the list the selector hit-tests against. It IS the draw.
+ */
+const measureCrowns = page => page.evaluate(() => {
+  const grid = window.__nebulithGrid
+  const drawn = window.__nebulithDrawn ?? []
+
+  const yOf = geom => {
+    const pts = geom.kind === 'cube' ? [...geom.base, ...geom.top] : geom.pts
+    return { top: Math.min(...pts.map(p => p.y)), bottom: Math.max(...pts.map(p => p.y)) }
+  }
+
+  const cells = new Map()
+  for (const hit of drawn) {
+    const asset = grid.getAssetsAtCell?.(hit.col, hit.row)?.[hit.stackIndex]
+    if (!asset) continue
+    const label = String(asset.label ?? asset.tileKey ?? asset.type)
+    const part = /^trunk/.test(label) ? 'trunk' : /^(leaf|canopy)/.test(label) ? 'crown' : null
+    if (!part) continue
+
+    const key = `${hit.col},${hit.row}`
+    const at = cells.get(key) ?? { cell: key }
+    const y = yOf(hit.geom)
+    // The trunk's HIGHEST point and the crown's LOWEST, which is where they are supposed to meet.
+    if (part === 'trunk') at.trunkTop = Math.min(at.trunkTop ?? Infinity, y.top)
+    if (part === 'crown') { at.crownBottom = Math.max(at.crownBottom ?? -Infinity, y.bottom); at.kind = label }
+    cells.set(key, at)
+  }
+
+  return [...cells.values()]
+    .filter(c => c.trunkTop !== undefined && c.crownBottom !== undefined)
+    .map(c => ({ cell: c.cell, kind: c.kind, gap: Math.round(c.trunkTop - c.crownBottom) }))
+})
 
 const browser = await chromium.launch()
 const page = await browser.newPage({ viewport: { width: 1800, height: 1000 } })
 
 await logIn(page, BASE)
-const scratchId = await openScratchMap(page, BASE, { cols: 80, rows: 12, name: 'e2e tree sheet' })
+const scratchId = await openScratchMap(page, BASE, { cols: 34, rows: 34, name: 'e2e tree sheet' })
+
+if (MODE === 'generated') {
+  const gen = page.getByRole('button', { name: /^Woodland/ }).first()
+  await gen.waitFor({ state: 'visible', timeout: 30000 })
+  await gen.click()
+  await page.waitForTimeout(400)
+  await page.getByRole('button', { name: /Build this world/ }).click()
+  await page.waitForTimeout(9000)
+
+  const found = await measureCrowns(page)
+
+  const bad = found.filter(f => f.gap >= 0).sort((a, b) => b.gap - a.gap)
+  console.log(`\n  ON A GENERATED WOODLAND: ${found.length} trees measured, ${bad.length} whose crown does not sit ON its trunk\n`)
+  for (const b of bad.slice(0, 12)) console.log(`  ${b.cell.padEnd(9)} ${b.kind.padEnd(16)} +${b.gap} px`)
+  const worst = bad[0]
+  if (worst) console.log(`\n  worst: ${worst.kind} at ${worst.cell}, +${worst.gap} px of sky between crown and trunk`)
+
+  await page.locator('canvas').first().screenshot({ path: OUT.replace('.png', '-generated.png') })
+  console.log(`\n  wrote ${OUT.replace('.png', '-generated.png')}`)
+  await dropScratchMap(page, scratchId)
+  await browser.close()
+  process.exit(bad.length ? 1 : 0)
+}
 await page.waitForFunction(() => !!window.__nebulithGrid && !!window.__nebulithStamp, null, { timeout: 30000 })
 
 // THE SPECIES LIST COMES FROM THE BACKEND, which is where compositions live. `__nebulithTilesets` is
@@ -42,63 +110,69 @@ const planted = await page.evaluate(async () => {
   const ascii = (served.data ?? []).find(t => /ascii/i.test(t.key ?? t.name ?? '')) ?? (served.data ?? [])[0]
   const kinds = Object.keys(ascii?.compositions ?? {}).filter(k => /^(tree|bush)/.test(k)).sort()
 
-  // Flat ground, nothing else on it, so the only thing in the picture is the tree.
+  // GROUND THAT IS NEITHER GREEN NOR BROWN, because the pixel reader tells a canopy from a trunk by
+  // hue. On grass every blade counted as canopy, so the crown's "lowest pixel" was the lawn and the
+  // measurement came back as a healthy overlap no matter what the trees were doing.
   grid.clearAssets?.()
-  for (let r = 0; r < grid.rows; r++) for (let c = 0; c < grid.cols; c++) grid.setGround(c, r, 'grass')
+  for (let r = 0; r < grid.rows; r++) for (let c = 0; c < grid.cols; c++) grid.setGround(c, r, 'marble')
 
-  // One species every third cell along one row, so no crown overlaps its neighbour.
-  const row = Math.floor(grid.rows / 2)
-  kinds.forEach((kind, i) => stamp(grid, kind, 2 + i * 3, row, 'spring', i, 0, {}, 0))
+  // EVERY SPECIES ON ONE SCREEN. A row of twenty-four runs off the side of the camera, and a sheet that
+  // shows half the family is the same anecdote as looking at one tree: the first twelve passed while
+  // twelve nobody had drawn sat behind the edge.
+  //
+  // A grid, four cells apart so no crown touches its neighbour and the pixel reader can tell the trees
+  // apart by the empty columns between them.
+  const PER_ROW = 6
+  const SPACING = 4
+  kinds.forEach((kind, i) => {
+    const col = 3 + (i % PER_ROW) * SPACING
+    const row = 3 + Math.floor(i / PER_ROW) * SPACING
+    stamp(grid, kind, col, row, 'spring', i, 0, {}, 0)
+  })
 
-  return { kinds, row }
+  return { kinds, perRow: PER_ROW, spacing: SPACING }
 })
 
 if (!planted.kinds.length) throw new Error('no tree compositions in the catalogue, nothing to draw')
 
-// Frame the row. The camera follows the hero, so the hero goes to the row.
-await page.evaluate(({ row }) => {
+// Frame the whole block: the hero goes to its middle and the camera pulls back far enough to hold it.
+await page.evaluate(() => {
   const g = window.__nebulithGrid
-  if (g?.player) { g.player.col = 2; g.player.row = row }
-}, planted)
+  if (g?.player) { g.player.col = Math.floor(g.cols / 2); g.player.row = Math.floor(g.rows / 2) }
+})
+await page.waitForTimeout(600)
+await page.evaluate(() => {
+  const c = document.querySelector('canvas.nebcanvas') ?? document.querySelector('canvas')
+  if (c) for (let i = 0; i < 3; i++) c.dispatchEvent(new WheelEvent('wheel', { deltaY: 120, bubbles: true, cancelable: true }))
+})
 await page.waitForTimeout(2500)
 
 mkdirSync(OUT.replace(/\/[^/]+$/, ''), { recursive: true })
 const canvas = page.locator('canvas.nebcanvas').first()
 await (await canvas.count() ? canvas : page.locator('canvas').first()).screenshot({ path: OUT })
 
-// THE NUMBERS BESIDE THE PICTURE, so a gap you can see has a value you can chase.
-const measured = await page.evaluate(() => {
-  const grid = window.__nebulithGrid
-  const by = {}
-  for (const a of grid.assets) {
-    const label = a.label ?? a.tileKey ?? a.type
-    if (!/^(trunk|leaf)/.test(String(label))) continue
-    const key = `${a.col},${a.row}`
-    by[key] ??= {}
-    by[key][String(label).startsWith('trunk') ? 'trunk' : 'leaf'] = {
-      level: a.heightLevel, height: a.height, width: a.width,
-      dy: a.pose?.dy ?? 0,
-      // THE DRAWN WIDTH, which for a centred block pulled in on all four faces is `2 * reach - 1`.
-      // Reporting the reach itself made a 0.24-wide trunk read as 0.62 and hid the very thing the
-      // column exists to show.
-      reach: a.thickness ? 2 * Object.values(a.thickness)[0] - 1 : (a.width ?? 1),
-    }
-  }
-  return Object.entries(by).filter(([, v]) => v.trunk && v.leaf).slice(0, 8).map(([cell, v]) => ({
-    cell,
-    trunkTop: (v.trunk.level ?? 0) + (v.trunk.height ?? 0),
-    leafBase: (v.leaf.level ?? 0) + (v.leaf.dy ?? 0),
-    trunkWidth: v.trunk.reach,
-    leafWidth: v.leaf.width,
-  }))
-})
+// THE GAP, MEASURED IN PIXELS, which is the only oracle that is not circular.
+//
+// The first version computed `level + pose.dy` and compared it to the trunk top. That is exactly how the
+// lift is DEFINED, so the two sides could never disagree: it reported a gap of 0.000 for every species
+// on a sheet where crowns were visibly floating. A test whose expected value is derived from the same
+// arithmetic as the actual value passes whatever the code does.
+//
+// So this reads the canvas. For each species column it finds the lowest CROWN pixel and the highest
+// TRUNK pixel and reports the distance between them. A crown that sits on its trunk overlaps it, so a
+// seated tree measures zero or negative. A positive number is a floating crown, in pixels, on screen.
+const gaps = await measureCrowns(page)
 
-console.log('\n  cell      trunk top   leaf base    GAP     trunk/crown')
-for (const m of measured) {
-  const gap = m.leafBase - m.trunkTop
-  const ratio = m.trunkWidth && m.leafWidth ? (m.trunkWidth / m.leafWidth) : null
-  console.log(`  ${m.cell.padEnd(9)} ${m.trunkTop.toFixed(2).padStart(8)} ${m.leafBase.toFixed(2).padStart(11)} ${gap.toFixed(3).padStart(8)}   ${ratio ? ratio.toFixed(3) : '-'}`)
-}
+console.log('\n  MEASURED IN PIXELS, positive = the crown floats clear of its trunk\n')
+for (const g of gaps) console.log(`  ${g.cell.padEnd(9)} ${String(g.kind).padEnd(16)} ${String(g.gap).padStart(6)} px`)
+// A CROWN MUST OVERLAP ITS TRUNK, not merely reach it. Touching at a single pixel row reads as a seam
+// with sky through it, and it is what the wrong lift produced: measured, the bad sign put eleven
+// species at 0 or +1 while the right one seats every trunked species several pixels deep.
+const measurable = gaps
+const floating = measurable.filter(g => g.gap >= 0)
+console.log(`\n  ${floating.length} of ${measurable.length} trunked species have a crown that does not sit ON its trunk`)
+if (floating.length) console.log(`  not seated: ${floating.map(f => `${f.kind} (${f.gap >= 0 ? '+' : ''}${f.gap}px)`).join(', ')}`)
+process.exitCode = floating.length ? 1 : 0
 
 console.log(`\n${planted.kinds.length} species: ${planted.kinds.join(', ')}`)
 console.log(`\nwrote ${OUT}`)

@@ -6519,11 +6519,22 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
                           const i = lvl
                           const a0 = stackedAssetsAt(grid, fc.col, fc.row)[i]
                           const kind = a0 ? assetKind(a0) : (stack[lvl]?.slug || `tile ${lvl}`)
+                          // WHAT THE TILE IS, which is not the same question as which art bucket it draws
+                          // from. `assetKind` answers the second: it maps a tile to a coarse ElementKind so
+                          // the emoji style knows what picture to reach for, and every autotile PIECE and
+                          // material tile answers `ground` there by design. Naming the selection with it
+                          // meant a trunk, a wall, a roof and a window all read "CELL - GROUND".
+                          //
+                          // A tile's identity is its LABEL, the same one the save writes and the engine
+                          // resolves art by. One identity, not a second vocabulary to translate back.
+                          const tileName = a0
+                            ? (a0.label ?? a0.tileKey ?? a0.type)
+                            : (stack[lvl]?.slug || `tile ${lvl}`)
                           const posable = !!a0
                           const isFloorTile = a0?.type === FLOOR_TYPE
                           tile = {
                             key: `tile-${i}`,
-                            label: kind,
+                            label: tileName,
                             dims: {
                               width: adim(i, a => a.width ?? 1),
                               height: adim(i, a => blockHeightOf(a)), // the tile's real BLOCK-HEIGHT (0.1 flat, 1 wall, …), not the scaleY multiplier

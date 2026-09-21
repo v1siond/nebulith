@@ -565,6 +565,13 @@ export function render(params: IsoRenderParams) {
   // QA seam beside `__nebulithGrid`: the frame's cell->pixel projection and its tile size. A probe that finds
   // an undrawn pixel can then name the CELL responsible instead of guessing from the picture.
   ;(globalThis as unknown as { __nebulithProject?: unknown }).__nebulithProject = { toScreen, tileW, tileH, heightStep }
+  // …AND WHAT WAS ACTUALLY DRAWN, which is already recorded for the picker.
+  //
+  // A probe that reads PIXELS has to tell a canopy from a lawn by hue, and both are green: measured, a
+  // crown's "lowest pixel" came back as the grass under the tree and a floating canopy reported a
+  // healthy overlap. This is the draw's own geometry, the same list the selector hit-tests against, so
+  // it can never drift from what was drawn and needs no colour guessing at all.
+  ;(globalThis as unknown as { __nebulithDrawn?: unknown }).__nebulithDrawn = isoTileHits
 
   // ─── GROUND: nothing special here anymore ──────────────────────────
   // Floors are ordinary level-0 tiles in grid.assets (thin colored slabs), they flow through the SAME
