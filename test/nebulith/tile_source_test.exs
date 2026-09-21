@@ -177,22 +177,35 @@ defmodule Nebulith.TileSourceTest do
     assert drawn_face.(std_trunk) < drawn_face.(stub_trunk),
            "a stub's trunk is the thick one, so the authored spread has been flattened"
 
-    # …and every one of them still inside the share, measured against its OWN drawn crown.
-    for name <- ~w(tree tree_tall tree_stub tree_conifer tree_palm) do
-      cells = Enum.find(comps, &(&1.name == name)).cells
-      t = Enum.find(cells, &(&1.label == "trunk_mid"))
-      c = Enum.find(cells, &(&1.label == "leaf_center"))
+    # THE SHARE RULE IS GONE, and so is the assertion that enforced it.
+    #
+    # It read "a trunk is at most a quarter of its crown", which is a rule about ALL trees, and a rule
+    # about all trees is exactly what made twenty-one species come out within a few pixels of each
+    # other. An object is tiles somebody put together and its numbers are its own: a species that wants
+    # a fat trunk states one, and nothing here overrules it.
+    #
+    # What replaces it is a stronger claim, because it is about the whole family rather than a bound:
+    # the species must actually DIFFER. A single shared rule creeping back in would collapse this.
+    widths =
+      comps
+      |> Enum.filter(&String.starts_with?(&1.name, "tree"))
+      |> Enum.map(fn comp -> Enum.find(comp.cells, &(&1.label == "trunk_mid")) end)
+      |> Enum.reject(&is_nil/1)
+      |> Enum.map(drawn_face)
+      |> Enum.uniq()
 
-      # A cell narrows itself EITHER by Width or by a thickness reach, and a trunk moved from the first to
-      # the second. Reading either one ALONE lets the other pass unmeasured: `scaleX` alone measured a
-      # narrowed trunk as if it had never been narrowed, and a bare reach measures the pulled-in part
-      # rather than what is left. `drawn_face` is both, in the units the share is stated in.
-      trunk_eff = drawn_face.(t)
-      crown_eff = drawn_face.(c)
+    assert length(widths) > 5,
+           "every tree has the same trunk width, so something is overriding what each species states"
 
-      assert trunk_eff <= crown_eff * 0.26 + 0.0001,
-             "#{name}: trunk #{trunk_eff} is more than a quarter of its crown #{crown_eff}"
-    end
+    heights =
+      comps
+      |> Enum.filter(&String.starts_with?(&1.name, "tree"))
+      |> Enum.map(fn comp -> Enum.find(comp.cells, &(&1.label == "trunk_mid")) end)
+      |> Enum.reject(&is_nil/1)
+      |> Enum.map(& &1.settings["scaleY"])
+      |> Enum.uniq()
+
+    assert length(heights) > 5, "every tree has the same trunk height"
   end
 
   test "the fountain/well basin rim and water default to z_index 0 (draw priority is a capability, not a default)" do
