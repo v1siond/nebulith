@@ -22,7 +22,9 @@ defmodule Nebulith.DataMigration.ABodyOfWaterIsLevel do
 
   def run do
     %Postgrex.Result{num_rows: configs} =
-      Repo.query!("UPDATE generators SET config = config - 'depth' WHERE jsonb_exists(config, 'depth')")
+      Repo.query!(
+        "UPDATE generators SET config = config - 'depth' WHERE jsonb_exists(config, 'depth')"
+      )
 
     %Postgrex.Result{num_rows: options} =
       Repo.query!("""
@@ -36,7 +38,10 @@ defmodule Nebulith.DataMigration.ABodyOfWaterIsLevel do
          AND EXISTS (SELECT 1 FROM jsonb_array_elements(options) AS o WHERE o->>'key' = 'depth')
       """)
 
-    Logger.info("[data_migrate] no channel to cut: #{configs} config(s), #{options} option list(s)")
+    Logger.info(
+      "[data_migrate] no channel to cut: #{configs} config(s), #{options} option list(s)"
+    )
+
     :ok
   end
 end

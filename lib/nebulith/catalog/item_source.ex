@@ -18,23 +18,78 @@ defmodule Nebulith.Catalog.ItemSource do
   # `reachCells` is the weapon's reach in CELLS; melee 1-2, ranged 6-12.
   @weapons [
     {"wpn_sword", "Iron Sword", "sword", ["warrior"],
-     %{"baseDamage" => 12, "baseMagic" => 0, "baseDefense" => 2, "strengthBonus" => 3, "intBonus" => 0,
-       "school" => "physical", "range" => "melee", "hands" => 1, "reachCells" => 1}},
+     %{
+       "baseDamage" => 12,
+       "baseMagic" => 0,
+       "baseDefense" => 2,
+       "strengthBonus" => 3,
+       "intBonus" => 0,
+       "school" => "physical",
+       "range" => "melee",
+       "hands" => 1,
+       "reachCells" => 1
+     }},
     {"wpn_axe", "Battle Axe", "axe", [],
-     %{"baseDamage" => 18, "baseMagic" => 0, "baseDefense" => 0, "strengthBonus" => 4, "intBonus" => 0,
-       "school" => "physical", "range" => "melee", "hands" => 2, "reachCells" => 2}},
+     %{
+       "baseDamage" => 18,
+       "baseMagic" => 0,
+       "baseDefense" => 0,
+       "strengthBonus" => 4,
+       "intBonus" => 0,
+       "school" => "physical",
+       "range" => "melee",
+       "hands" => 2,
+       "reachCells" => 2
+     }},
     {"wpn_bow", "Hunter Bow", "bow", ["warrior"],
-     %{"baseDamage" => 10, "baseMagic" => 0, "baseDefense" => 0, "strengthBonus" => 2, "intBonus" => 0,
-       "school" => "physical", "range" => "ranged", "hands" => 2, "reachCells" => 8}},
+     %{
+       "baseDamage" => 10,
+       "baseMagic" => 0,
+       "baseDefense" => 0,
+       "strengthBonus" => 2,
+       "intBonus" => 0,
+       "school" => "physical",
+       "range" => "ranged",
+       "hands" => 2,
+       "reachCells" => 8
+     }},
     {"wpn_gun", "Flintlock Pistol", "gun", ["warrior"],
-     %{"baseDamage" => 16, "baseMagic" => 0, "baseDefense" => 0, "strengthBonus" => 0, "intBonus" => 0,
-       "school" => "physical", "range" => "ranged", "hands" => 1, "reachCells" => 7}},
+     %{
+       "baseDamage" => 16,
+       "baseMagic" => 0,
+       "baseDefense" => 0,
+       "strengthBonus" => 0,
+       "intBonus" => 0,
+       "school" => "physical",
+       "range" => "ranged",
+       "hands" => 1,
+       "reachCells" => 7
+     }},
     {"wpn_staff", "Oak Staff", "staff", ["magician"],
-     %{"baseDamage" => 2, "baseMagic" => 14, "baseDefense" => 1, "strengthBonus" => 0, "intBonus" => 4,
-       "school" => "magical", "range" => "melee", "hands" => 2, "reachCells" => 2}},
+     %{
+       "baseDamage" => 2,
+       "baseMagic" => 14,
+       "baseDefense" => 1,
+       "strengthBonus" => 0,
+       "intBonus" => 4,
+       "school" => "magical",
+       "range" => "melee",
+       "hands" => 2,
+       "reachCells" => 2
+     }},
     {"wpn_shield", "Round Shield", "shield", ["warrior"],
-     %{"baseDamage" => 0, "baseMagic" => 0, "baseDefense" => 6, "strengthBonus" => 0, "intBonus" => 0,
-       "school" => "physical", "range" => "melee", "hands" => 1, "reachCells" => 1, "blockChance" => 35}}
+     %{
+       "baseDamage" => 0,
+       "baseMagic" => 0,
+       "baseDefense" => 6,
+       "strengthBonus" => 0,
+       "intBonus" => 0,
+       "school" => "physical",
+       "range" => "melee",
+       "hands" => 1,
+       "reachCells" => 1,
+       "blockChance" => 35
+     }}
   ]
 
   # ── armour / clothes (covers every gear slot) ──────────────────────────────
@@ -44,17 +99,41 @@ defmodule Nebulith.Catalog.ItemSource do
     {"arm_chest_iron", "Iron Cuirass", "iron", ["warrior"],
      %{"defenseBonus" => 6, "strengthBonus" => 2, "intBonus" => 0, "slot" => "chest"}},
     {"arm_chest_leather", "Leather Jerkin", "leather", ["magician"],
-     %{"defenseBonus" => 3, "strengthBonus" => 0, "intBonus" => 2, "slot" => "chest", "dodgeBonus" => 4}},
+     %{
+       "defenseBonus" => 3,
+       "strengthBonus" => 0,
+       "intBonus" => 2,
+       "slot" => "chest",
+       "dodgeBonus" => 4
+     }},
     {"arm_gloves_iron", "Iron Gauntlets", "iron", ["warrior"],
      %{"defenseBonus" => 2, "strengthBonus" => 1, "intBonus" => 0, "slot" => "gloves"}},
     {"arm_gloves_leather", "Leather Gloves", "leather", ["magician"],
-     %{"defenseBonus" => 1, "strengthBonus" => 0, "intBonus" => 1, "slot" => "gloves", "dodgeBonus" => 3}},
+     %{
+       "defenseBonus" => 1,
+       "strengthBonus" => 0,
+       "intBonus" => 1,
+       "slot" => "gloves",
+       "dodgeBonus" => 3
+     }},
     {"arm_boots_iron", "Iron Greaves", "iron", ["warrior"],
      %{"defenseBonus" => 2, "strengthBonus" => 1, "intBonus" => 0, "slot" => "boots"}},
     {"arm_boots_leather", "Leather Boots", "leather", ["magician"],
-     %{"defenseBonus" => 1, "strengthBonus" => 0, "intBonus" => 0, "slot" => "boots", "dodgeBonus" => 5}},
+     %{
+       "defenseBonus" => 1,
+       "strengthBonus" => 0,
+       "intBonus" => 0,
+       "slot" => "boots",
+       "dodgeBonus" => 5
+     }},
     {"arm_ring_dodge", "Ring of Evasion", "leather", [],
-     %{"defenseBonus" => 0, "strengthBonus" => 0, "intBonus" => 0, "slot" => "ring", "dodgeBonus" => 5}},
+     %{
+       "defenseBonus" => 0,
+       "strengthBonus" => 0,
+       "intBonus" => 0,
+       "slot" => "ring",
+       "dodgeBonus" => 5
+     }},
     {"arm_ring_focus", "Ring of Focus", "leather", ["magician"],
      %{"defenseBonus" => 0, "strengthBonus" => 0, "intBonus" => 3, "slot" => "ring"}},
     {"arm_neck_amulet", "Warding Amulet", "leather", ["magician"],

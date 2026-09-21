@@ -67,7 +67,9 @@ defmodule Nebulith.DataMigration.UndergrowthBelongsToItsBiome do
     tints = Enum.sum(for {name, hex} <- @undergrowth, do: tint_biome(name, hex))
     tagged = tag_foliage()
 
-    Logger.info("[data_migrate] #{tints} generators carry their own undergrowth tint, #{tagged} tiles say they are foliage")
+    Logger.info(
+      "[data_migrate] #{tints} generators carry their own undergrowth tint, #{tagged} tiles say they are foliage"
+    )
 
     :ok
   end

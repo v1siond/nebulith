@@ -153,21 +153,90 @@ defmodule Nebulith.DataMigration.EveryRegionIsAPlace do
   }
 
   @town_regions [
-    %{"key" => "centre", "name" => "Centre", "weight" => 2, "built" => 1.0, "canopy" => 0.4, "floor" => "#a8a394"},
-    %{"key" => "lanes", "name" => "Lanes", "weight" => 3, "built" => 0.9, "canopy" => 0.7, "floor" => "#9c9888"},
-    %{"key" => "green", "name" => "Green", "weight" => 2, "built" => 0.0, "canopy" => 1.3, "floor" => "#6f7a4a"},
-    %{"key" => "market", "name" => "Market", "weight" => 1, "built" => 0.15, "canopy" => 0.1, "floor" => "#a89880"},
-    %{"key" => "outskirts", "name" => "Outskirts", "weight" => 2, "built" => 0.5, "canopy" => 1.1, "floor" => "#8a8f6e"}
+    %{
+      "key" => "centre",
+      "name" => "Centre",
+      "weight" => 2,
+      "built" => 1.0,
+      "canopy" => 0.4,
+      "floor" => "#a8a394"
+    },
+    %{
+      "key" => "lanes",
+      "name" => "Lanes",
+      "weight" => 3,
+      "built" => 0.9,
+      "canopy" => 0.7,
+      "floor" => "#9c9888"
+    },
+    %{
+      "key" => "green",
+      "name" => "Green",
+      "weight" => 2,
+      "built" => 0.0,
+      "canopy" => 1.3,
+      "floor" => "#6f7a4a"
+    },
+    %{
+      "key" => "market",
+      "name" => "Market",
+      "weight" => 1,
+      "built" => 0.15,
+      "canopy" => 0.1,
+      "floor" => "#a89880"
+    },
+    %{
+      "key" => "outskirts",
+      "name" => "Outskirts",
+      "weight" => 2,
+      "built" => 0.5,
+      "canopy" => 1.1,
+      "floor" => "#8a8f6e"
+    }
   ]
 
   @village_regions [
-    %{"key" => "huts", "name" => "Huts", "weight" => 4, "built" => 1.0, "canopy" => 0.5, "floor" => "#9a8f72"},
-    %{"key" => "commons", "name" => "Commons", "weight" => 2, "built" => 0.0, "canopy" => 0.9, "floor" => "#7a8452"},
-    %{"key" => "plots", "name" => "Garden plots", "weight" => 2, "built" => 0.25, "canopy" => 0.3, "floor" => "#8c8a5e"},
-    %{"key" => "edge", "name" => "Edge", "weight" => 2, "built" => 0.45, "canopy" => 1.2, "floor" => "#6f7a4a"}
+    %{
+      "key" => "huts",
+      "name" => "Huts",
+      "weight" => 4,
+      "built" => 1.0,
+      "canopy" => 0.5,
+      "floor" => "#9a8f72"
+    },
+    %{
+      "key" => "commons",
+      "name" => "Commons",
+      "weight" => 2,
+      "built" => 0.0,
+      "canopy" => 0.9,
+      "floor" => "#7a8452"
+    },
+    %{
+      "key" => "plots",
+      "name" => "Garden plots",
+      "weight" => 2,
+      "built" => 0.25,
+      "canopy" => 0.3,
+      "floor" => "#8c8a5e"
+    },
+    %{
+      "key" => "edge",
+      "name" => "Edge",
+      "weight" => 2,
+      "built" => 0.45,
+      "canopy" => 1.2,
+      "floor" => "#6f7a4a"
+    }
   ]
 
-  @picker %{"key" => "region", "label" => "Region", "type" => "choice", "group" => "layout", "default" => "random"}
+  @picker %{
+    "key" => "region",
+    "label" => "Region",
+    "type" => "choice",
+    "group" => "layout",
+    "default" => "random"
+  }
 
   def run do
     wild = Enum.sum(for {key, overlay} <- @wild, do: merge_regions(key, overlay))
@@ -210,14 +279,18 @@ defmodule Nebulith.DataMigration.EveryRegionIsAPlace do
 
     updated =
       if Enum.any?(options, &(&1["key"] == "region")),
-        do: Enum.map(options, fn
-          %{"key" => "region"} = o -> Map.put(o, "choices", choices)
-          other -> other
-        end),
+        do:
+          Enum.map(options, fn
+            %{"key" => "region"} = o -> Map.put(o, "choices", choices)
+            other -> other
+          end),
         else: options ++ [picker]
 
     %{num_rows: rows} =
-      Repo.query!("UPDATE generators SET options = $2::text::jsonb WHERE key = $1", [key, Jason.encode!(updated)])
+      Repo.query!("UPDATE generators SET options = $2::text::jsonb WHERE key = $1", [
+        key,
+        Jason.encode!(updated)
+      ])
 
     rows
   end
@@ -226,7 +299,10 @@ defmodule Nebulith.DataMigration.EveryRegionIsAPlace do
   # `city_medieval` are all caught and `forest_*` never is.
   defp keys_like(name) do
     %{rows: rows} =
-      Repo.query!("SELECT key FROM generators WHERE key = $1 OR key LIKE $2", [name, name <> "\\_%"])
+      Repo.query!("SELECT key FROM generators WHERE key = $1 OR key LIKE $2", [
+        name,
+        name <> "\\_%"
+      ])
 
     List.flatten(rows)
   end
@@ -245,7 +321,10 @@ defmodule Nebulith.DataMigration.EveryRegionIsAPlace do
   # biomes without anything failing.
   defp merge_regions(key, overlay) do
     zones = sub_zones(key)
-    if zones == [], do: 0, else: write(key, Enum.map(zones, &Map.merge(&1, Map.get(overlay, &1["key"], %{}))))
+
+    if zones == [],
+      do: 0,
+      else: write(key, Enum.map(zones, &Map.merge(&1, Map.get(overlay, &1["key"], %{}))))
   end
 
   # A city keeps its three wealth tiers, gains the ground they never stated, and gains the three places that

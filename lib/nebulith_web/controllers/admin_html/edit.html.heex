@@ -68,7 +68,10 @@
               class="w-full rounded border border-base-300 bg-base-200 p-2 font-mono text-[13px] tabular-nums focus-visible:outline-2 focus-visible:outline-primary"
             />
 
-            <p :if={not column.primary? and column.nullable} class="mt-1 text-[11px] text-base-content/40">
+            <p
+              :if={not column.primary? and column.nullable}
+              class="mt-1 text-[11px] text-base-content/40"
+            >
               Leave empty for NULL.
             </p>
           </div>

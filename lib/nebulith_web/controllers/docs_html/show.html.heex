@@ -4,7 +4,10 @@
           section number as a figure and shows it rather than inventing a second scheme. Sticky, scrolls on
           its own, collapses to two columns above the document on a narrow screen. --%>
     <aside class="sticky top-0 hidden max-h-screen w-80 shrink-0 self-start overflow-y-auto border-r border-base-300 py-7 pl-6 pr-5 lg:block">
-      <a href="/docs" class="mb-4 block text-xs font-bold uppercase tracking-[0.14em] text-base-content/50 hover:text-primary">
+      <a
+        href="/docs"
+        class="mb-4 block text-xs font-bold uppercase tracking-[0.14em] text-base-content/50 hover:text-primary"
+      >
         Documentation
       </a>
       <nav aria-label="On this page" class="flex flex-col">
@@ -44,7 +47,13 @@
         </p>
         <div :if={@doc.diagrams?} class="mt-6 flex flex-wrap gap-2">
           <span
-            :for={{term, gloss} <- [{"CELL", "a 2D square on the grid"}, {"BLOCK", "a 3D unit, the fixed ruler"}, {"TILE", "the content placed into blocks"}]}
+            :for={
+              {term, gloss} <- [
+                {"CELL", "a 2D square on the grid"},
+                {"BLOCK", "a 3D unit, the fixed ruler"},
+                {"TILE", "the content placed into blocks"}
+              ]
+            }
             class="inline-flex items-baseline gap-1.5 rounded-sm border border-base-300 bg-base-200 px-2.5 py-1 text-xs text-base-content/70"
           >
             <b class="font-mono text-[11.5px] font-bold tracking-wide text-base-content">{term}</b>

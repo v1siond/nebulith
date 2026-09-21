@@ -55,7 +55,11 @@ defmodule NebulithWeb.PixellabController do
   defp dispatch(%{"action" => "estimate-skeleton"} = params) do
     with {:ok, body} <- Pixellab.estimate_skeleton(params) do
       # The field has been named both ways across API revisions; take whichever came back.
-      {:ok, %{skeleton: body["skeleton"] || body["keypoints"] || [], usage: Response.usd(body["usage"])}}
+      {:ok,
+       %{
+         skeleton: body["skeleton"] || body["keypoints"] || [],
+         usage: Response.usd(body["usage"])
+       }}
     end
   end
 

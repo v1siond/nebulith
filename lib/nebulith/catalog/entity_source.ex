@@ -21,7 +21,7 @@ defmodule Nebulith.Catalog.EntitySource do
   it now lives here and is served by `GET /api/entities`, so the frontend holds no
   entity data, it fetches this at load time, exactly like it fetches the tilesets.
   It is static resolution DATA (not per-row tiles), so, like `BuildingCompositions`
- , it is authored as an Elixir module and served directly; there is no DB table to
+  , it is authored as an Elixir module and served directly; there is no DB table to
   seed.
   """
 

@@ -34,13 +34,17 @@ defmodule Nebulith.DataMigration.ReliefOnlyWhereItIsTheJourney do
     wild = Enum.sum(for {key, regions} <- @drop, do: flatten(key, regions))
     cities = Enum.sum(for key <- city_keys(), do: flatten(key, ["upper"]))
 
-    Logger.info("[data_migrate] relief narrowed to the climbs: #{wild} wild templates, #{cities} cities")
+    Logger.info(
+      "[data_migrate] relief narrowed to the climbs: #{wild} wild templates, #{cities} cities"
+    )
 
     :ok
   end
 
   defp city_keys do
-    %{rows: rows} = Repo.query!("SELECT key FROM generators WHERE key = $1 OR key LIKE $2", ["city", "city\\_%"])
+    %{rows: rows} =
+      Repo.query!("SELECT key FROM generators WHERE key = $1 OR key LIKE $2", ["city", "city\\_%"])
+
     List.flatten(rows)
   end
 
@@ -49,7 +53,10 @@ defmodule Nebulith.DataMigration.ReliefOnlyWhereItIsTheJourney do
 
     case rows do
       [[zones]] when is_list(zones) ->
-        write(key, Enum.map(zones, fn z -> if z["key"] in regions, do: Map.delete(z, "level"), else: z end))
+        write(
+          key,
+          Enum.map(zones, fn z -> if z["key"] in regions, do: Map.delete(z, "level"), else: z end)
+        )
 
       _ ->
         0

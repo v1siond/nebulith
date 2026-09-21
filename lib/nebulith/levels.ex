@@ -14,7 +14,12 @@ defmodule Nebulith.Levels do
 
   @doc "Every level in a game, in play order, each carrying its ordered map ids."
   def list_levels(game_id) do
-    Repo.all(from(l in Level, where: l.game_id == ^game_id, order_by: [asc: l.position, asc: l.inserted_at]))
+    Repo.all(
+      from(l in Level,
+        where: l.game_id == ^game_id,
+        order_by: [asc: l.position, asc: l.inserted_at]
+      )
+    )
     |> Enum.map(&preload_ordered/1)
   end
 
@@ -28,7 +33,9 @@ defmodule Nebulith.Levels do
   end
 
   @doc "The ordered template ids of a loaded level."
-  def template_ids(%Level{level_templates: lts}) when is_list(lts), do: Enum.map(lts, & &1.template_id)
+  def template_ids(%Level{level_templates: lts}) when is_list(lts),
+    do: Enum.map(lts, & &1.template_id)
+
   def template_ids(_), do: []
 
   @doc """
@@ -121,7 +128,11 @@ defmodule Nebulith.Levels do
   end
 
   defp preload_ordered(%Level{} = level) do
-    Repo.preload(level, [level_templates: from(lt in LevelTemplate, order_by: [asc: lt.position])], force: true)
+    Repo.preload(
+      level,
+      [level_templates: from(lt in LevelTemplate, order_by: [asc: lt.position])],
+      force: true
+    )
   end
 
   defp sync_templates(level, attrs) do

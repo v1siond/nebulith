@@ -59,8 +59,14 @@ defmodule Nebulith.PixellabResponseTest do
     end
 
     test "completed finds the frames under last_response" do
-      body = %{"status" => "completed", "last_response" => %{"images" => ["QQ"]}, "usage" => %{"usd" => 0.1}}
-      assert %{status: "completed", images: ["data:image/png;base64,QQ"], usage: 0.1} = Response.v3_status(body)
+      body = %{
+        "status" => "completed",
+        "last_response" => %{"images" => ["QQ"]},
+        "usage" => %{"usd" => 0.1}
+      }
+
+      assert %{status: "completed", images: ["data:image/png;base64,QQ"], usage: 0.1} =
+               Response.v3_status(body)
     end
 
     test "completed finds them under result, and under images, the other two shapes seen" do

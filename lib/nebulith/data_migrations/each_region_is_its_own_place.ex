@@ -62,85 +62,85 @@ defmodule Nebulith.DataMigration.EachRegionIsItsOwnPlace do
 
   defp sets do
     %{
-    "forest_jungle" => %{
-      # the broken margin, where the light gets in from the side
-      "edge" => r(0.6, 0.8, 0.8, "shrub", 3, 9),
-      # giants over an open floor: a rainforest floor is dark and WALKABLE
-      "deep" => r(1.3, 0.25, 0.2, "clover", 0, 15),
-      # where one of them came down, and the only sun on the floor
-      "glade" => r(0.08, 0.35, 0.35, "tall_grass", 5, 3),
-      # a wall at knee height, and nothing above it
-      "thicket" => r(0.15, 2.0, 2.0, "thicket", 2, 7),
-      # cypress standing in the water, reeds around them
-      "lakeside" => r(0.85, 0.7, 0.7, "tall_grass", 3, 5)
-    },
-    "forest_woodland" => %{
-      "edge" => r(0.7, 0.9, 0.9, "shrub", 3, 9),
-      "deep" => r(1.25, 0.25, 0.2, "clover", 1, 14),
-      "glade" => r(0.1, 0.3, 0.3, "clover", 5, 3),
-      "thicket" => r(0.2, 2.0, 2.0, "shrub", 2, 7),
-      "lakeside" => r(0.8, 0.6, 0.6, "tall_grass", 3, 5)
-    },
-    "forest_meadow" => %{
-      # grazed short, and the most open ground after the common
-      "pasture" => r(0.1, 0.95, 0.95, "tall_grass", 6, 4),
-      # a hedge is a LINE of dense shrub, which is a long thin clump
-      "hedgerow" => r(0.6, 1.6, 1.6, "shrub", 1, 11),
-      # planted in rows, and mown underneath: the spacing IS the orchard
-      "orchard" => r(0.9, 0.2, 0.2, "clover", 4, 7),
-      "bank" => r(0.5, 1.0, 1.0, "tall_grass", 2, 6),
-      # the most open thing on the map
-      "common" => r(0.03, 0.15, 0.15, "clover", 7, 3)
-    },
-    "forest_swamp" => %{
-      "margin" => r(0.9, 0.9, 0.9, "shrub", 3, 8),
-      "mire" => r(0.85, 1.3, 1.3, "tall_grass", 2, 7),
-      "bog" => r(0.7, 0.8, 0.8, "tall_grass", 2, 6),
-      # dead trees standing in open water
-      "sink" => r(0.35, 0.3, 0.3, "tall_grass", 4, 5),
-      "open_water" => r(0.08, 0.2, 0.2, "tall_grass", 6, 4)
-    },
-    "forest_mountain" => %{
-      "foot" => r(1.1, 1.0, 1.0, "shrub", 1, 12),
-      "slope" => r(0.85, 0.6, 0.6, "shrub", 2, 9),
-      # stunted and far apart: the treeline is where trees give up
-      "treeline" => r(0.45, 0.3, 0.3, "shrub", 5, 6),
-      "crag" => r(0.1, 0.2, 0.2, "clover", 7, 4),
-      "summit" => r(0.05, 0.16, 0.16, "clover", 8, 3)
-    },
-    "forest_beach" => %{
-      # bare wet sand. NOTHING grows at the waterline
-      "shore" => r(0.05, 0.18, 0.18, "dune_grass_seed", 8, 3),
-      # dune grass is the whole plant list of a dune
-      "dunes" => r(0.15, 0.9, 0.9, "dune_grass", 5, 6),
-      # palms with clear sand under them
-      "palms" => r(0.6, 0.2, 0.2, "dune_grass_young", 4, 7),
-      "backshore" => r(0.9, 1.1, 1.1, "shrub", 2, 9),
-      "inland" => r(1.2, 0.9, 0.9, "shrub", 1, 12)
-    },
-    "forest_ruins" => %{
-      # swept stone: nothing grows on the floor of the thing itself
-      "heart" => r(0.08, 0.2, 0.2, "clover", 7, 4),
-      "courts" => r(0.2, 0.5, 0.5, "clover", 5, 6),
-      "terraces" => r(0.5, 0.8, 0.8, "tall_grass", 3, 8),
-      # this is where the wood is taking the walls back
-      "overgrown" => r(1.0, 1.4, 1.4, "shrub", 1, 11),
-      "forest" => r(1.2, 0.9, 0.9, "shrub", 2, 12)
-    },
-    "forest_desert" => %{
-      "erg" => r(0.04, 0.16, 0.16, "dune_grass_seed", 9, 3),
-      "hardpan" => r(0.08, 0.22, 0.22, "shrub", 7, 4),
-      # a wadi is a dry watercourse, and it is where the green is
-      "wadi" => r(0.25, 0.7, 0.7, "tall_grass", 3, 7),
-      "oasis" => r(0.8, 0.5, 0.5, "tall_grass", 2, 6)
-    },
-    "forest_volcanic" => %{
-      "crater" => r(0.06, 0.18, 0.18, "clover", 8, 3),
-      # dead stumps, and nothing at knee height
-      "burnt" => r(0.4, 0.15, 0.15, "shrub", 4, 6),
-      "ashfall" => r(0.7, 0.5, 0.5, "shrub", 3, 8),
-      "sheltered" => r(1.2, 1.0, 1.0, "shrub", 1, 12),
-      "lavaside" => r(0.5, 0.3, 0.3, "shrub", 4, 6)
+      "forest_jungle" => %{
+        # the broken margin, where the light gets in from the side
+        "edge" => r(0.6, 0.8, 0.8, "shrub", 3, 9),
+        # giants over an open floor: a rainforest floor is dark and WALKABLE
+        "deep" => r(1.3, 0.25, 0.2, "clover", 0, 15),
+        # where one of them came down, and the only sun on the floor
+        "glade" => r(0.08, 0.35, 0.35, "tall_grass", 5, 3),
+        # a wall at knee height, and nothing above it
+        "thicket" => r(0.15, 2.0, 2.0, "thicket", 2, 7),
+        # cypress standing in the water, reeds around them
+        "lakeside" => r(0.85, 0.7, 0.7, "tall_grass", 3, 5)
+      },
+      "forest_woodland" => %{
+        "edge" => r(0.7, 0.9, 0.9, "shrub", 3, 9),
+        "deep" => r(1.25, 0.25, 0.2, "clover", 1, 14),
+        "glade" => r(0.1, 0.3, 0.3, "clover", 5, 3),
+        "thicket" => r(0.2, 2.0, 2.0, "shrub", 2, 7),
+        "lakeside" => r(0.8, 0.6, 0.6, "tall_grass", 3, 5)
+      },
+      "forest_meadow" => %{
+        # grazed short, and the most open ground after the common
+        "pasture" => r(0.1, 0.95, 0.95, "tall_grass", 6, 4),
+        # a hedge is a LINE of dense shrub, which is a long thin clump
+        "hedgerow" => r(0.6, 1.6, 1.6, "shrub", 1, 11),
+        # planted in rows, and mown underneath: the spacing IS the orchard
+        "orchard" => r(0.9, 0.2, 0.2, "clover", 4, 7),
+        "bank" => r(0.5, 1.0, 1.0, "tall_grass", 2, 6),
+        # the most open thing on the map
+        "common" => r(0.03, 0.15, 0.15, "clover", 7, 3)
+      },
+      "forest_swamp" => %{
+        "margin" => r(0.9, 0.9, 0.9, "shrub", 3, 8),
+        "mire" => r(0.85, 1.3, 1.3, "tall_grass", 2, 7),
+        "bog" => r(0.7, 0.8, 0.8, "tall_grass", 2, 6),
+        # dead trees standing in open water
+        "sink" => r(0.35, 0.3, 0.3, "tall_grass", 4, 5),
+        "open_water" => r(0.08, 0.2, 0.2, "tall_grass", 6, 4)
+      },
+      "forest_mountain" => %{
+        "foot" => r(1.1, 1.0, 1.0, "shrub", 1, 12),
+        "slope" => r(0.85, 0.6, 0.6, "shrub", 2, 9),
+        # stunted and far apart: the treeline is where trees give up
+        "treeline" => r(0.45, 0.3, 0.3, "shrub", 5, 6),
+        "crag" => r(0.1, 0.2, 0.2, "clover", 7, 4),
+        "summit" => r(0.05, 0.16, 0.16, "clover", 8, 3)
+      },
+      "forest_beach" => %{
+        # bare wet sand. NOTHING grows at the waterline
+        "shore" => r(0.05, 0.18, 0.18, "dune_grass_seed", 8, 3),
+        # dune grass is the whole plant list of a dune
+        "dunes" => r(0.15, 0.9, 0.9, "dune_grass", 5, 6),
+        # palms with clear sand under them
+        "palms" => r(0.6, 0.2, 0.2, "dune_grass_young", 4, 7),
+        "backshore" => r(0.9, 1.1, 1.1, "shrub", 2, 9),
+        "inland" => r(1.2, 0.9, 0.9, "shrub", 1, 12)
+      },
+      "forest_ruins" => %{
+        # swept stone: nothing grows on the floor of the thing itself
+        "heart" => r(0.08, 0.2, 0.2, "clover", 7, 4),
+        "courts" => r(0.2, 0.5, 0.5, "clover", 5, 6),
+        "terraces" => r(0.5, 0.8, 0.8, "tall_grass", 3, 8),
+        # this is where the wood is taking the walls back
+        "overgrown" => r(1.0, 1.4, 1.4, "shrub", 1, 11),
+        "forest" => r(1.2, 0.9, 0.9, "shrub", 2, 12)
+      },
+      "forest_desert" => %{
+        "erg" => r(0.04, 0.16, 0.16, "dune_grass_seed", 9, 3),
+        "hardpan" => r(0.08, 0.22, 0.22, "shrub", 7, 4),
+        # a wadi is a dry watercourse, and it is where the green is
+        "wadi" => r(0.25, 0.7, 0.7, "tall_grass", 3, 7),
+        "oasis" => r(0.8, 0.5, 0.5, "tall_grass", 2, 6)
+      },
+      "forest_volcanic" => %{
+        "crater" => r(0.06, 0.18, 0.18, "clover", 8, 3),
+        # dead stumps, and nothing at knee height
+        "burnt" => r(0.4, 0.15, 0.15, "shrub", 4, 6),
+        "ashfall" => r(0.7, 0.5, 0.5, "shrub", 3, 8),
+        "sheltered" => r(1.2, 1.0, 1.0, "shrub", 1, 12),
+        "lavaside" => r(0.5, 0.3, 0.3, "shrub", 4, 6)
       }
     }
   end
@@ -148,26 +148,26 @@ defmodule Nebulith.DataMigration.EachRegionIsItsOwnPlace do
   # A settlement region is told apart by how BUILT it is and how GREEN it is.
   defp settlements do
     %{
-    "city" => %{
-      "upper" => r(1.0, 0.4, 0.4, "clover", 3, 6),
-      "middle" => r(0.75, 0.3, 0.3, "clover", 3, 6),
-      "lower" => r(0.5, 0.2, 0.2, "shrub", 3, 6),
-      "park" => r(1.4, 0.9, 0.9, "tall_grass", 2, 8),
-      # a market is trodden bare
-      "market" => r(0.1, 0.18, 0.18, "clover", 6, 3),
-      "graveyard" => r(0.5, 0.4, 0.4, "tall_grass", 4, 5)
-    },
-    "town" => %{
-      "centre" => r(0.25, 0.5, 0.5, "shrub", 4, 5),
-      "lanes" => r(0.7, 0.4, 0.4, "shrub", 3, 6),
-      "green" => r(1.3, 0.9, 0.9, "tall_grass", 2, 8),
-      "market" => r(0.1, 0.18, 0.18, "clover", 6, 3),
-      "outskirts" => r(1.1, 0.8, 0.8, "shrub", 2, 9)
-    },
-    "village" => %{
-      "huts" => r(0.5, 0.3, 0.3, "shrub", 3, 6),
-      "commons" => r(0.9, 0.7, 0.7, "tall_grass", 3, 7),
-      "plots" => r(0.3, 0.9, 0.9, "clover", 4, 5),
+      "city" => %{
+        "upper" => r(1.0, 0.4, 0.4, "clover", 3, 6),
+        "middle" => r(0.75, 0.3, 0.3, "clover", 3, 6),
+        "lower" => r(0.5, 0.2, 0.2, "shrub", 3, 6),
+        "park" => r(1.4, 0.9, 0.9, "tall_grass", 2, 8),
+        # a market is trodden bare
+        "market" => r(0.1, 0.18, 0.18, "clover", 6, 3),
+        "graveyard" => r(0.5, 0.4, 0.4, "tall_grass", 4, 5)
+      },
+      "town" => %{
+        "centre" => r(0.25, 0.5, 0.5, "shrub", 4, 5),
+        "lanes" => r(0.7, 0.4, 0.4, "shrub", 3, 6),
+        "green" => r(1.3, 0.9, 0.9, "tall_grass", 2, 8),
+        "market" => r(0.1, 0.18, 0.18, "clover", 6, 3),
+        "outskirts" => r(1.1, 0.8, 0.8, "shrub", 2, 9)
+      },
+      "village" => %{
+        "huts" => r(0.5, 0.3, 0.3, "shrub", 3, 6),
+        "commons" => r(0.9, 0.7, 0.7, "tall_grass", 3, 7),
+        "plots" => r(0.3, 0.9, 0.9, "clover", 4, 5),
         "edge" => r(1.2, 1.0, 1.0, "shrub", 2, 10)
       }
     }
@@ -183,14 +183,19 @@ defmodule Nebulith.DataMigration.EachRegionIsItsOwnPlace do
             do: merge(key, set)
       )
 
-    Logger.info("[data_migrate] #{wild} wild templates and #{places} settlements: each region its own place")
+    Logger.info(
+      "[data_migrate] #{wild} wild templates and #{places} settlements: each region its own place"
+    )
 
     :ok
   end
 
   defp keys_like(name) do
     %{rows: rows} =
-      Repo.query!("SELECT key FROM generators WHERE key = $1 OR key LIKE $2", [name, name <> "\\_%"])
+      Repo.query!("SELECT key FROM generators WHERE key = $1 OR key LIKE $2", [
+        name,
+        name <> "\\_%"
+      ])
 
     List.flatten(rows)
   end

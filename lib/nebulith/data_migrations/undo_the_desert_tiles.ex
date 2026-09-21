@@ -80,7 +80,9 @@ defmodule Nebulith.DataMigration.UndoTheDesertTiles do
     restore_desert()
     TileSource.seed_compositions()
 
-    Logger.info("[data_migrate] #{comps} compositions and #{tiles} tiles removed, desert mixes restored")
+    Logger.info(
+      "[data_migrate] #{comps} compositions and #{tiles} tiles removed, desert mixes restored"
+    )
 
     :ok
   end
@@ -108,8 +110,14 @@ defmodule Nebulith.DataMigration.UndoTheDesertTiles do
   @cactus_green "#4a8f3f"
 
   defp strip_cactus_settings do
-    settings = %{"color" => @cactus_green, "colors" => Map.new(@cactus_zones, &{&1, @cactus_green})}
-    Repo.query!("UPDATE tiles SET settings = $1::text::jsonb WHERE label = 'cactus'", [Jason.encode!(settings)])
+    settings = %{
+      "color" => @cactus_green,
+      "colors" => Map.new(@cactus_zones, &{&1, @cactus_green})
+    }
+
+    Repo.query!("UPDATE tiles SET settings = $1::text::jsonb WHERE label = 'cactus'", [
+      Jason.encode!(settings)
+    ])
   end
 
   defp restore_desert do

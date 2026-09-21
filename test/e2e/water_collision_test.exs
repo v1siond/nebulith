@@ -59,7 +59,10 @@ defmodule Nebulith.E2E.WaterCollisionTest do
   end
 
   describe "collision survives a save" do
-    test "a reloaded map stops you where the built one did", %{conn: conn, template_id: template_id} do
+    test "a reloaded map stops you where the built one did", %{
+      conn: conn,
+      template_id: template_id
+    } do
       session =
         conn
         |> visit("/templates?id=" <> template_id)
@@ -102,14 +105,22 @@ defmodule Nebulith.E2E.WaterCollisionTest do
     # lands detaches the very input being typed into: *"element was detached from the DOM, retrying"*. The seam
     # exists for this, and its own note says a generate with no catalog plants nothing by design.
     session =
-      wait_until(session, &truthy?(&1, "window.__generatorsReady && window.__generatorsReady()"), "the generator catalog")
+      wait_until(
+        session,
+        &truthy?(&1, "window.__generatorsReady && window.__generatorsReady()"),
+        "the generator catalog"
+      )
 
     # …AND THE TILESET LOADER TO LIFT. The editor holds a full-screen overlay until the backend style is
     # installed, so that everything the canvas draws comes from the DB and no default tile can flash first.
     # It covers the panel too, so a click lands on the overlay rather than on the preset under it, which
     # Playwright reports as "intercepts pointer events" and retries until it gives up.
 
-    wait_until(session, &truthy?(&1, "!document.querySelector('.fixed.inset-0.z-\\\\[60\\\\]')"), "the tileset loader to lift")
+    wait_until(
+      session,
+      &truthy?(&1, "!document.querySelector('.fixed.inset-0.z-\\\\[60\\\\]')"),
+      "the tileset loader to lift"
+    )
   end
 
   # THE VALUE, not the session. `PhoenixTest.Playwright.evaluate/2` returns the CONN so it can be piped, so

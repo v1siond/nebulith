@@ -101,7 +101,6 @@ defmodule Nebulith.BuildingCompositionsTest do
   # facade (dy == footprint_h, one past the front wall row), where the frontend's driveway lands.
   defp entrance_cells(c), do: Enum.filter(c.cells, &(&1.dy == c.footprint_h))
 
-
   # Every DOOR column the composition actually places, `door_cols/1` as realised in the authored data.
   defp door_columns(c) do
     for {dx, _dy, _l, "door"} <- expanded(c.cells), uniq: true, do: dx
@@ -370,6 +369,7 @@ defmodule Nebulith.BuildingCompositionsTest do
       end
     end
   end
+
   # ── WALKABILITY ────────────────────────────────────────────────────
   # "when entering through a door, the user goes over the roof instead of inside the house … we're most likely
   #  applying the properties wrong, plus roof should have collissions, so this shouldn't be a posssible bug"
@@ -391,6 +391,7 @@ defmodule Nebulith.BuildingCompositionsTest do
         doors = ground |> Enum.filter(&(&1.label == "door")) |> Enum.map(&{&1.dx, &1.dy})
 
         assert doors != [], "#{unquote(name)} has no ground-floor door"
+
         assert Enum.sort(walkable_ground) == Enum.sort(doors),
                "#{unquote(name)}: walkable ground cells #{inspect(Enum.sort(walkable_ground))} should be exactly the doors #{inspect(Enum.sort(doors))}"
 
@@ -421,6 +422,7 @@ defmodule Nebulith.BuildingCompositionsTest do
   defp roof_label?(label),
     do: String.starts_with?(label, "roof") or label in ["flat_roof", "parapet", "rooftop_unit"]
 end
+
 defmodule Nebulith.BuildingCompositionsContextTest do
   @moduledoc """
   THE THINGS THAT MAKE A PLACE A PLACE.
@@ -530,6 +532,7 @@ defmodule Nebulith.BuildingCompositionsContextTest do
     # could only change labels, so these two stayed boxes: a nave and its tower are different HEIGHTS.
     walls = fn type ->
       {w, h} = Buildings.default_footprint(type)
+
       Buildings.compose_building(type, w, h, seed: 1).cells
       |> Enum.filter(&String.starts_with?(&1.label, "wall_"))
       |> Enum.group_by(& &1.dx, fn c -> c.level + (get_in(c, [:settings, "scaleY"]) || 1) - 1 end)
@@ -559,7 +562,13 @@ defmodule Nebulith.BuildingCompositionsContextTest do
     # the tower has exactly one roof cell, its own cap, and it sits above the nave's ridge
     tower_roofs = Enum.filter(roofs, &(&1.dx == tower_dx))
     assert length(tower_roofs) == 1
-    nave_peak = roofs |> Enum.reject(&(&1.dx == tower_dx)) |> Enum.map(&(&1.level + (get_in(&1, [:settings, "scaleY"]) || 1) - 1)) |> Enum.max()
+
+    nave_peak =
+      roofs
+      |> Enum.reject(&(&1.dx == tower_dx))
+      |> Enum.map(&(&1.level + (get_in(&1, [:settings, "scaleY"]) || 1) - 1))
+      |> Enum.max()
+
     assert hd(tower_roofs).level > nave_peak
   end
 
@@ -575,19 +584,25 @@ defmodule Nebulith.BuildingCompositionsContextTest do
     # flat colour and nothing else: the city's blocks and towers
     for type <- ~w(apartment office tower) do
       {plain, tiled} = surface.(type)
-      assert plain > 0 and tiled == 0, "#{type} should be flat colour, got plain=#{plain} tiled=#{tiled}"
+
+      assert plain > 0 and tiled == 0,
+             "#{type} should be flat colour, got plain=#{plain} tiled=#{tiled}"
     end
 
     # the material, showing: you are meant to SEE the planks and the courses
     for type <- ~w(house barn stable smithy store) do
       {plain, tiled} = surface.(type)
-      assert tiled > 0 and plain == 0, "#{type} should show its material, got plain=#{plain} tiled=#{tiled}"
+
+      assert tiled > 0 and plain == 0,
+             "#{type} should show its material, got plain=#{plain} tiled=#{tiled}"
     end
 
     # a plain field DRESSED with the material, on every face
     for type <- ~w(church cathedral castle manor hospital temple) do
       {plain, tiled} = surface.(type)
-      assert plain > 0 and tiled > 0, "#{type} should be dressed, got plain=#{plain} tiled=#{tiled}"
+
+      assert plain > 0 and tiled > 0,
+             "#{type} should be dressed, got plain=#{plain} tiled=#{tiled}"
     end
   end
 

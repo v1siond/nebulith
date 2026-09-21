@@ -45,6 +45,7 @@ defmodule Nebulith.TintedArtIsPaleTest do
 
   test "every tile a composition tints is drawn pale enough for the colour to survive the filter" do
     found = entries()
+
     # Both styles of all three, or the filter is matching nothing and every assertion below is vacuous.
     assert length(found) == length(@tinted) * 2,
            "expected #{length(@tinted) * 2} entries, found #{length(found)}: #{inspect(Enum.map(found, & &1["label"]))}"

@@ -24,7 +24,10 @@ defmodule Nebulith.DataMigration.TheCaveAndTheTempleGo do
     {generators, _} = Repo.delete_all(from(g in "generators", where: g.category_id in ^ids))
     {categories, _} = Repo.delete_all(from(c in "generator_categories", where: c.id in ^ids))
 
-    Logger.info("[data_migrate] cave and temple gone: #{generators} generator(s), #{categories} category(ies)")
+    Logger.info(
+      "[data_migrate] cave and temple gone: #{generators} generator(s), #{categories} category(ies)"
+    )
+
     :ok
   end
 end

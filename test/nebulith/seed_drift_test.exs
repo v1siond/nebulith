@@ -101,12 +101,22 @@ defmodule Nebulith.SeedDriftTest do
 
               got ->
                 want_fp = {comp.footprint_w, comp.footprint_h}
-                fp_msg = if got.footprint != want_fp, do: ["#{name}: footprint #{inspect(got.footprint)} != #{inspect(want_fp)}"], else: []
+
+                fp_msg =
+                  if got.footprint != want_fp,
+                    do: ["#{name}: footprint #{inspect(got.footprint)} != #{inspect(want_fp)}"],
+                    else: []
 
                 want = comp.cells |> Enum.map(&(&1 |> source_cell() |> anchor())) |> MapSet.new()
                 have = got.cells |> Enum.map(&anchor/1) |> MapSet.new()
                 missing = MapSet.difference(want, have)
-                cell_msg = if MapSet.size(missing) > 0, do: ["#{name}: #{MapSet.size(missing)} source cell anchor(s) NOT served, e.g. #{inspect(Enum.take(missing, 3))}"], else: []
+
+                cell_msg =
+                  if MapSet.size(missing) > 0,
+                    do: [
+                      "#{name}: #{MapSet.size(missing)} source cell anchor(s) NOT served, e.g. #{inspect(Enum.take(missing, 3))}"
+                    ],
+                    else: []
 
                 fp_msg ++ cell_msg ++ acc
             end
@@ -132,12 +142,32 @@ defmodule Nebulith.SeedDriftTest do
             match = Enum.find(got.cells, fn s -> anchor(s) == anchor(src) end)
 
             cond do
-              match == nil -> ["#{name} #{inspect(anchor(src))}: no served cell at this anchor" | acc]
-              match.settings != src.settings -> ["#{name} #{inspect(anchor(src))}: settings #{inspect(match.settings)} != #{inspect(src.settings)}" | acc]
-              match.scale != src.scale -> ["#{name} #{inspect(anchor(src))}: scale #{match.scale} != #{src.scale}" | acc]
-              match.z_index != src.z_index -> ["#{name} #{inspect(anchor(src))}: z_index #{match.z_index} != #{src.z_index}" | acc]
-              match.animated != src.animated -> ["#{name} #{inspect(anchor(src))}: animations presence #{match.animated} != #{src.animated}" | acc]
-              true -> acc
+              match == nil ->
+                ["#{name} #{inspect(anchor(src))}: no served cell at this anchor" | acc]
+
+              match.settings != src.settings ->
+                [
+                  "#{name} #{inspect(anchor(src))}: settings #{inspect(match.settings)} != #{inspect(src.settings)}"
+                  | acc
+                ]
+
+              match.scale != src.scale ->
+                ["#{name} #{inspect(anchor(src))}: scale #{match.scale} != #{src.scale}" | acc]
+
+              match.z_index != src.z_index ->
+                [
+                  "#{name} #{inspect(anchor(src))}: z_index #{match.z_index} != #{src.z_index}"
+                  | acc
+                ]
+
+              match.animated != src.animated ->
+                [
+                  "#{name} #{inspect(anchor(src))}: animations presence #{match.animated} != #{src.animated}"
+                  | acc
+                ]
+
+              true ->
+                acc
             end
         end
 

@@ -106,7 +106,10 @@ defmodule NebulithWeb.AdminHTML do
           </tr>
         </tbody>
       </table>
-      <p :if={@clipped} class="border-t border-base-300 bg-base-200 px-2.5 py-1.5 font-mono text-[11px] text-base-content/50">
+      <p
+        :if={@clipped}
+        class="border-t border-base-300 bg-base-200 px-2.5 py-1.5 font-mono text-[11px] text-base-content/50"
+      >
         showing {@collection_cap} of {@count}
       </p>
     </div>
@@ -121,10 +124,16 @@ defmodule NebulithWeb.AdminHTML do
     assigns = assign(assigns, count: count, values: Enum.take(values, 200))
 
     ~H"""
-    <div :if={@count == 0} class="rounded-box border border-base-300 bg-base-200 px-4 py-3 text-sm text-base-content/50">
+    <div
+      :if={@count == 0}
+      class="rounded-box border border-base-300 bg-base-200 px-4 py-3 text-sm text-base-content/50"
+    >
       empty
     </div>
-    <div :if={@count > 0} class="flex flex-wrap gap-1.5 rounded-box border border-base-300 bg-base-200 p-3">
+    <div
+      :if={@count > 0}
+      class="flex flex-wrap gap-1.5 rounded-box border border-base-300 bg-base-200 p-3"
+    >
       <span
         :for={value <- @values}
         class="rounded border border-base-300 bg-base-100 px-1.5 py-0.5 font-mono text-[11px] tabular-nums"
@@ -144,7 +153,10 @@ defmodule NebulithWeb.AdminHTML do
 
     ~H"""
     <dl class="grid gap-px overflow-hidden rounded-box border border-base-300 bg-base-300">
-      <div :for={{key, value} <- @pairs} class="grid gap-1 bg-base-100 px-4 py-2 sm:grid-cols-[minmax(0,12rem)_minmax(0,1fr)]">
+      <div
+        :for={{key, value} <- @pairs}
+        class="grid gap-1 bg-base-100 px-4 py-2 sm:grid-cols-[minmax(0,12rem)_minmax(0,1fr)]"
+      >
         <dt class="truncate font-mono text-[12px] text-base-content/60">{key}</dt>
         <dd class="break-words font-mono text-[12px] tabular-nums">{value}</dd>
       </div>

@@ -58,9 +58,11 @@ defmodule Nebulith.Repo.Migrations.PhaseOneUsersGamesAndSettings do
 
     alter table(:games) do
       add :owner_id, references(:users, type: :uuid, on_delete: :delete_all)
+
       # A bigint because `tilesets` is a bigserial table. Nilify rather than cascade: deleting an art style
       # must not delete somebody's game.
       add :default_tileset_id, references(:tilesets, type: :bigint, on_delete: :nilify_all)
+
       # Private by default. "a platform and a community where people can play with their ideas openly"
       # is what unlisted and public are for, and neither is the default.
       add :visibility, :string, null: false, default: "private"
@@ -77,6 +79,7 @@ defmodule Nebulith.Repo.Migrations.PhaseOneUsersGamesAndSettings do
     create table(:game_settings, primary_key: false) do
       add :id, :uuid, primary_key: true, default: fragment("gen_random_uuid()")
       add :game_id, references(:games, type: :uuid, on_delete: :delete_all), null: false
+
       # Was MAP_SIZE_MAX in the frontend. A number in a row, so "100, for now" can stop being for now.
       add :map_size_max, :integer, null: false, default: 100
       add :discovery_on, :boolean, null: false, default: false

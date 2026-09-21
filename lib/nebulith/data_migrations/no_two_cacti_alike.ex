@@ -95,7 +95,11 @@ defmodule Nebulith.DataMigration.NoTwoCactiAlike do
     TileSource.seed_compositions()
     env = set(@environment, nil)
     reg = set_regions()
-    Logger.info("[data_migrate] #{env} desert generators and #{reg} with regions grow seven cactus forms")
+
+    Logger.info(
+      "[data_migrate] #{env} desert generators and #{reg} with regions grow seven cactus forms"
+    )
+
     :ok
   end
 

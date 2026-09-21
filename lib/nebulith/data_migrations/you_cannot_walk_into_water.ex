@@ -65,6 +65,7 @@ defmodule Nebulith.DataMigration.YouCannotWalkIntoWater do
     solid = solid_water()
     raised = raise_the_surface()
     sunk = everything_sinks()
+
     Logger.info(
       "[data_migrate] you cannot walk into water: #{solid} blocked, #{raised} raised to 0.4, #{sunk} set to stackAt 0"
     )

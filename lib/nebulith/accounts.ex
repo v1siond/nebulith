@@ -45,7 +45,8 @@ defmodule Nebulith.Accounts do
   end
 
   @doc "Creates an admin user from the given attrs."
-  def create_admin_user(attrs), do: attrs |> Map.new() |> Map.put(:is_admin, true) |> create_user()
+  def create_admin_user(attrs),
+    do: attrs |> Map.new() |> Map.put(:is_admin, true) |> create_user()
 
   @doc "Creates the admin identified by `email`, or updates it if it already exists (for seeding)."
   def upsert_admin_user(email, attrs) do

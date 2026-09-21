@@ -86,7 +86,10 @@ defmodule Nebulith.DataMigration.AVolcanoYouCanSee do
           category: "nature",
           title: "Volcanic rock",
           image_url: "/tiles/#{tileset.key}/volcanic_rock.png",
-          settings: %{"color" => "#5a4a42", "collision" => [%{"x" => 0, "y" => 0, "w" => 1, "h" => 1}]}
+          settings: %{
+            "color" => "#5a4a42",
+            "collision" => [%{"x" => 0, "y" => 0, "w" => 1, "h" => 1}]
+          }
         })
     end
 
@@ -120,7 +123,8 @@ defmodule Nebulith.DataMigration.AVolcanoYouCanSee do
   defp radius(dx, dy), do: :math.sqrt(:math.pow(dx - @centre, 2) + :math.pow(dy - @centre, 2))
 
   # Inside the crater the ground RISES from the floor out to the rim; outside it falls away to the foot.
-  defp height_at(r, _dx, _dy) when r < @crater, do: @rim * (@floor + (1.0 - @floor) * (r / @crater))
+  defp height_at(r, _dx, _dy) when r < @crater,
+    do: @rim * (@floor + (1.0 - @floor) * (r / @crater))
 
   defp height_at(r, dx, dy) do
     near = (dx + dy) / (2 * (@footprint - 1))
@@ -135,7 +139,16 @@ defmodule Nebulith.DataMigration.AVolcanoYouCanSee do
   # The pool, sized to the BOWL rather than to the summit, and seated at the level its own floor reaches.
   defp mouth do
     top = @scale * round2(@rim * @floor / @scale)
-    %{dx: 3, dy: 3, level: round(top), label: "lava", walkable: false, scale: 1.75, settings: %{"scaleY" => 0.18}}
+
+    %{
+      dx: 3,
+      dy: 3,
+      level: round(top),
+      label: "lava",
+      walkable: false,
+      scale: 1.75,
+      settings: %{"scaleY" => 0.18}
+    }
   end
 
   defp round2(n), do: Float.round(n, 2)

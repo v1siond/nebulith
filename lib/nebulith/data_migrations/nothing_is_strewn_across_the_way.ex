@@ -34,14 +34,12 @@ defmodule Nebulith.DataMigration.NothingIsStrewnAcrossTheWay do
 
   def run do
     %{num_rows: rows} =
-      Repo.query!(
-        """
-        UPDATE generators
-        SET config = jsonb_set(config, '{pathway,scatter}', '[]'::jsonb)
-        WHERE config->'pathway'->'scatter' IS NOT NULL
-          AND jsonb_array_length(config->'pathway'->'scatter') > 0
-        """
-      )
+      Repo.query!("""
+      UPDATE generators
+      SET config = jsonb_set(config, '{pathway,scatter}', '[]'::jsonb)
+      WHERE config->'pathway'->'scatter' IS NOT NULL
+        AND jsonb_array_length(config->'pathway'->'scatter') > 0
+      """)
 
     Logger.info("[data_migrate] nothing strewn across the way: #{rows} generators cleared")
     :ok

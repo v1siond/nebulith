@@ -75,8 +75,10 @@ defmodule Nebulith.Catalog.TileSettings do
     # ── BEHAVIOUR ────────────────────────────────────────────────────────────
     # The boxes that stop you. Empty means you walk through it.
     field :collision, {:array, :map}, default: []
+
     # Which level of its own cell it stacks at. 0 = at your feet, so the next tile lands on the ground.
     field :stack_at, :integer, default: 0
+
     # The cell behaves as though a tile is already in it, so the next one stacks ON TOP (a road, a deck).
     field :act_as_tile, :boolean, default: false
   end

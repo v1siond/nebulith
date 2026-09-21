@@ -83,10 +83,19 @@ defmodule Nebulith.DataMigration.FourSpeciesHeAskedFor do
     # crowns migration proved the hard way that `seed_tree_pieces/0` writes the leaf TILES and not these.
     TileSource.seed_compositions()
 
-    env = Enum.sum(for {name, kind, weight} <- @environment, do: add_to_environment(name, kind, weight))
-    reg = Enum.sum(for {zone, kind, weight, envs} <- @regional, do: add_to_region(zone, kind, weight, envs))
+    env =
+      Enum.sum(
+        for {name, kind, weight} <- @environment, do: add_to_environment(name, kind, weight)
+      )
 
-    Logger.info("[data_migrate] 4 species composed, #{env} environment mixes and #{reg} region mixes grow them")
+    reg =
+      Enum.sum(
+        for {zone, kind, weight, envs} <- @regional, do: add_to_region(zone, kind, weight, envs)
+      )
+
+    Logger.info(
+      "[data_migrate] 4 species composed, #{env} environment mixes and #{reg} region mixes grow them"
+    )
 
     :ok
   end
@@ -103,7 +112,11 @@ defmodule Nebulith.DataMigration.FourSpeciesHeAskedFor do
           AND config->'trees' IS NOT NULL
           AND NOT config->'trees' @> $2::text::jsonb
         """,
-        [name, Jason.encode!([%{"kind" => kind}]), Jason.encode!([%{"kind" => kind, "weight" => weight}])]
+        [
+          name,
+          Jason.encode!([%{"kind" => kind}]),
+          Jason.encode!([%{"kind" => kind, "weight" => weight}])
+        ]
       )
 
     rows
@@ -127,7 +140,12 @@ defmodule Nebulith.DataMigration.FourSpeciesHeAskedFor do
         WHERE config->'subZones' IS NOT NULL
           AND EXISTS (SELECT 1 FROM unnest($4::text[]) env WHERE generators.name = env OR generators.name LIKE env || ' %')
         """,
-        [zone_key, Jason.encode!([%{"kind" => kind}]), Jason.encode!([%{"kind" => kind, "weight" => weight}]), envs]
+        [
+          zone_key,
+          Jason.encode!([%{"kind" => kind}]),
+          Jason.encode!([%{"kind" => kind, "weight" => weight}]),
+          envs
+        ]
       )
 
     rows

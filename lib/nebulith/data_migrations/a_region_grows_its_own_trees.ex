@@ -16,7 +16,8 @@ defmodule Nebulith.DataMigration.ARegionGrowsItsOwnTrees do
 
   alias Nebulith.Repo
 
-  defp mix(list), do: Enum.map(list, fn {kind, weight} -> %{"kind" => kind, "weight" => weight} end)
+  defp mix(list),
+    do: Enum.map(list, fn {kind, weight} -> %{"kind" => kind, "weight" => weight} end)
 
   defp sets do
     %{
@@ -47,7 +48,10 @@ defmodule Nebulith.DataMigration.ARegionGrowsItsOwnTrees do
 
     case rows do
       [[zones]] when is_list(zones) ->
-        write(key, Enum.map(zones, fn z -> Map.put(z, "trees", Map.get(set, z["key"], z["trees"])) end))
+        write(
+          key,
+          Enum.map(zones, fn z -> Map.put(z, "trees", Map.get(set, z["key"], z["trees"])) end)
+        )
 
       _ ->
         0

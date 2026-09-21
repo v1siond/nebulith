@@ -32,7 +32,8 @@ defmodule NebulithWeb.LevelController do
 
   def update(conn, %{"id" => id} = params) do
     with {:ok, %Level{} = found} <- Levels.get_level(id),
-         {:ok, %Level{} = level} <- Levels.update_level(found, Map.drop(params, ["id", "game_id"])) do
+         {:ok, %Level{} = level} <-
+           Levels.update_level(found, Map.drop(params, ["id", "game_id"])) do
       render(conn, :show, level: level)
     end
   end

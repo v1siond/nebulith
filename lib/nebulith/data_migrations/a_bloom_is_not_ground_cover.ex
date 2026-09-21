@@ -23,41 +23,36 @@ defmodule Nebulith.DataMigration.ABloomIsNotGroundCover do
     # ONE KEY, not the whole map. `tiles` carries the season's whole tile set, so setting the field would
     # delete every other key in it.
     %{num_rows: zones} =
-      Repo.query!(
-        """
-        UPDATE zones
-        SET tiles = jsonb_set(tiles, '{decor}', '"emoji:clover"'::jsonb)
-        WHERE key = 'spring' AND tiles->>'decor' = 'emoji:blossom'
-        """
-      )
+      Repo.query!("""
+      UPDATE zones
+      SET tiles = jsonb_set(tiles, '{decor}', '"emoji:clover"'::jsonb)
+      WHERE key = 'spring' AND tiles->>'decor' = 'emoji:blossom'
+      """)
 
     # ONE KEY, not the whole map, and only the two that are blooms. `decor_clover`, `decor_pebbles`,
     # `decor_grit`, `decor_dot`, `decor_shell`, `decor_spark` and the ripples stay where they are: they are
     # what ground cover means.
     %{num_rows: tiles} =
-      Repo.query!(
-        """
-        UPDATE tiles SET category = 'nature'
-        WHERE label IN ('decor_blossom', 'decor_flower') AND category = 'decor'
-        """
-      )
+      Repo.query!("""
+      UPDATE tiles SET category = 'nature'
+      WHERE label IN ('decor_blossom', 'decor_flower') AND category = 'decor'
+      """)
 
     # AND SPRING GETS NO SUBSTITUTE COVER. Those two blooms were the only decor tiles serving a spring
     # colour, and clover was given one here so spring would not be bare. Rejected on sight: 85 clovers a map,
     # and none of the flat decor has baked art for the emoji style anyway, so each one draws as a coloured
     # square. Ground cover comes back when it has art and a reason to be there, not before.
     %{num_rows: cover} =
-      Repo.query!(
-        """
-        UPDATE tiles
-        SET settings = settings #- '{colors,spring}'
-        WHERE label = 'decor_clover' AND settings->'colors' ? 'spring'
-        """
-      )
+      Repo.query!("""
+      UPDATE tiles
+      SET settings = settings #- '{colors,spring}'
+      WHERE label = 'decor_clover' AND settings->'colors' ? 'spring'
+      """)
 
     Logger.info(
       "[data_migrate] blooms out of ground cover: #{tiles} tiles recategorised, #{zones} zone, #{cover} cover"
     )
+
     :ok
   end
 end

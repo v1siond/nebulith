@@ -24,7 +24,11 @@ defmodule Nebulith.Catalog.TemplateLoadoutPersistenceTest do
     "baseStats" => %{"strength" => 10, "maxHp" => 100},
     "loadout" => %{
       "equipped" => %{"weapon1" => %{"id" => "sword", "slot" => "weapon"}},
-      "bag" => [%{"id" => "potion-a", "slot" => "consumable"}, nil, %{"id" => "potion-b", "slot" => "consumable"}],
+      "bag" => [
+        %{"id" => "potion-a", "slot" => "consumable"},
+        nil,
+        %{"id" => "potion-b", "slot" => "consumable"}
+      ],
       "special" => [%{"id" => "bomb", "slot" => "consumable"}, nil, nil, nil],
       "shortcuts" => ["9", "8", "7", "6"]
     },
@@ -41,7 +45,10 @@ defmodule Nebulith.Catalog.TemplateLoadoutPersistenceTest do
     "kind" => "enemy",
     "col" => 9,
     "row" => 9,
-    "loadout" => %{"equipped" => %{"helmet" => %{"id" => "e-helm", "slot" => "armor"}}, "bag" => [%{"id" => "loot"}]}
+    "loadout" => %{
+      "equipped" => %{"helmet" => %{"id" => "e-helm", "slot" => "armor"}},
+      "bag" => [%{"id" => "loot"}]
+    }
   }
 
   describe "EctoJSON pass-through (the `entities` jsonb column type)" do
@@ -87,7 +94,9 @@ defmodule Nebulith.Catalog.TemplateLoadoutPersistenceTest do
     end
 
     test "an update-style changeset with a DROPPED bag item persists the drop" do
-      dropped = put_in(@player, ["loadout", "bag"], [%{"id" => "potion-a", "slot" => "consumable"}])
+      dropped =
+        put_in(@player, ["loadout", "bag"], [%{"id" => "potion-a", "slot" => "consumable"}])
+
       changeset = Template.changeset(%Template{}, Map.put(@base, "entities", [dropped]))
       [player] = Ecto.Changeset.get_change(changeset, :entities)
       bag_ids = player["loadout"]["bag"] |> Enum.reject(&is_nil/1) |> Enum.map(& &1["id"])

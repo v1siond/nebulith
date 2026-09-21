@@ -24,7 +24,7 @@ defmodule NebulithWeb.EngineController do
     redirect(conn, to: legacy_target(params["rest"] || [], conn.query_string))
   end
 
-  defp legacy_target(segments, "") , do: "/" <> Enum.join(short(segments), "/")
+  defp legacy_target(segments, ""), do: "/" <> Enum.join(short(segments), "/")
   defp legacy_target(segments, query), do: "/" <> Enum.join(short(segments), "/") <> "?" <> query
 
   defp short([]), do: ["games"]

@@ -34,7 +34,11 @@ defmodule NebulithWeb.CombatControllerTest do
       assert combat["specialMultiplier"] == 1.75
       assert combat["specialResourceCost"] == 20
       assert combat["minDamage"] == 1
-      assert combat["specialResource"]["physical"] == %{"key" => "rage", "failure" => "insufficient-rage"}
+
+      assert combat["specialResource"]["physical"] == %{
+               "key" => "rage",
+               "failure" => "insufficient-rage"
+             }
     end
 
     test "serves the default stat lines and the respawn delay", %{conn: conn} do

@@ -65,7 +65,9 @@ defmodule Nebulith.DocsMermaidTest do
       doc = render("```mermaid\nflowchart TB\n    A --> B\n```\n")
 
       assert doc.html =~ "A --&gt; B"
-      refute doc.html =~ "--&amp;gt;", "the source was escaped twice and the arrow is now literal text"
+
+      refute doc.html =~ "--&amp;gt;",
+             "the source was escaped twice and the arrow is now literal text"
     end
 
     test "leaves a plain code block alone" do
@@ -126,7 +128,8 @@ defmodule Nebulith.DocsMermaidTest do
             not String.contains?(doc.html, ~s(id="#{heading.anchor}")),
             do: heading.anchor
 
-      assert dangling == [], "these rail entries link to an id the body never renders: #{inspect(dangling)}"
+      assert dangling == [],
+             "these rail entries link to an id the body never renders: #{inspect(dangling)}"
     end
 
     test "the id survives formatting inside the heading text" do

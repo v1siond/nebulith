@@ -28,6 +28,7 @@ defmodule Nebulith.Repo.Migrations.CreateItems do
       add :slot, :string, null: false
       # The material/型 within the slot: sword/axe/bow/gun/staff/shield, iron/leather, or null.
       add :kind, :string
+
       # The stat block, shaped by `slot`. A weapon carries baseDamage/reachCells/hands/…; armour carries
       # defenseBonus/dodgeBonus/its gear slot; a consumable carries its effect.
       add :stats, :map, null: false, default: %{}

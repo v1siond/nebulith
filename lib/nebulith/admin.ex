@@ -156,9 +156,12 @@ defmodule Nebulith.Admin do
 
       [key | _] ->
         %{columns: columns, rows: rows} =
-          Repo.query!(~s|SELECT * FROM "#{table}" WHERE "#{key}" = $1::text::#{key_type(table, key)}|, [
-            to_string(id)
-          ])
+          Repo.query!(
+            ~s|SELECT * FROM "#{table}" WHERE "#{key}" = $1::text::#{key_type(table, key)}|,
+            [
+              to_string(id)
+            ]
+          )
 
         case rows do
           [row] -> {:ok, columns |> Enum.zip(Enum.map(row, &display_full/1)) |> Map.new()}
@@ -184,7 +187,9 @@ defmodule Nebulith.Admin do
       {sets, values} =
         changes
         |> Enum.with_index(1)
-        |> Enum.map(fn {{c, value}, i} -> {~s|"#{c.name}" = #{cast(i, c)}|, blank_to_nil(value, c)} end)
+        |> Enum.map(fn {{c, value}, i} ->
+          {~s|"#{c.name}" = #{cast(i, c)}|, blank_to_nil(value, c)}
+        end)
         |> Enum.unzip()
 
       sql =
@@ -205,9 +210,12 @@ defmodule Nebulith.Admin do
 
       [key | _] ->
         %{num_rows: n} =
-          Repo.query!(~s|DELETE FROM "#{table}" WHERE "#{key}" = $1::text::#{key_type(table, key)}|, [
-            to_string(id)
-          ])
+          Repo.query!(
+            ~s|DELETE FROM "#{table}" WHERE "#{key}" = $1::text::#{key_type(table, key)}|,
+            [
+              to_string(id)
+            ]
+          )
 
         {:ok, n}
     end
@@ -310,8 +318,14 @@ defmodule Nebulith.Admin do
       Repo.query!(fk_sql() <> " AND ccu.table_name = $1", [table])
 
     %{
-      belongs_to: Enum.map(out, fn [_, column, to_table, to_column] -> %{column: column, table: to_table, key: to_column} end),
-      has_many: Enum.map(incoming, fn [from_table, column, _, key] -> %{table: from_table, column: column, key: key} end)
+      belongs_to:
+        Enum.map(out, fn [_, column, to_table, to_column] ->
+          %{column: column, table: to_table, key: to_column}
+        end),
+      has_many:
+        Enum.map(incoming, fn [from_table, column, _, key] ->
+          %{table: from_table, column: column, key: key}
+        end)
     }
   end
 
@@ -343,7 +357,10 @@ defmodule Nebulith.Admin do
 
   defp safe_column(table, column) do
     names = for c <- columns(table), do: c.name
-    if column in names, do: column, else: raise(ArgumentError, "no such column: #{inspect(column)}")
+
+    if column in names,
+      do: column,
+      else: raise(ArgumentError, "no such column: #{inspect(column)}")
   end
 
   @doc "The raw (uncast) value of one row, so shapes can be read from the real term."
@@ -356,9 +373,12 @@ defmodule Nebulith.Admin do
 
       [key | _] ->
         %{columns: columns, rows: rows} =
-          Repo.query!(~s|SELECT * FROM "#{table}" WHERE "#{key}" = $1::text::#{key_type(table, key)}|, [
-            to_string(id)
-          ])
+          Repo.query!(
+            ~s|SELECT * FROM "#{table}" WHERE "#{key}" = $1::text::#{key_type(table, key)}|,
+            [
+              to_string(id)
+            ]
+          )
 
         case rows do
           [row] -> {:ok, columns |> Enum.zip(row) |> Map.new()}
@@ -381,10 +401,17 @@ defmodule Nebulith.Admin do
   # name is refused rather than run. The shape check is kept as well, because it costs nothing.
   defp safe_table(table) do
     cond do
-      not is_binary(table) -> raise ArgumentError, "unsafe table identifier: #{inspect(table)}"
-      not Regex.match?(~r/\A[A-Za-z_][A-Za-z0-9_]*\z/, table) -> raise ArgumentError, "unsafe table identifier: #{inspect(table)}"
-      table not in table_names() -> raise ArgumentError, "no such table: #{inspect(table)}"
-      true -> table
+      not is_binary(table) ->
+        raise ArgumentError, "unsafe table identifier: #{inspect(table)}"
+
+      not Regex.match?(~r/\A[A-Za-z_][A-Za-z0-9_]*\z/, table) ->
+        raise ArgumentError, "unsafe table identifier: #{inspect(table)}"
+
+      table not in table_names() ->
+        raise ArgumentError, "no such table: #{inspect(table)}"
+
+      true ->
+        table
     end
   end
 
@@ -411,8 +438,11 @@ defmodule Nebulith.Admin do
 
   defp row_id(columns, row, table) do
     case primary_key(table) do
-      [] -> nil
-      [key | _] -> columns |> Enum.zip(row) |> Enum.find_value(fn {c, v} -> if c == key, do: display(v) end)
+      [] ->
+        nil
+
+      [key | _] ->
+        columns |> Enum.zip(row) |> Enum.find_value(fn {c, v} -> if c == key, do: display(v) end)
     end
   end
 
@@ -425,7 +455,10 @@ defmodule Nebulith.Admin do
   defp blank_to_nil(value, _), do: to_string(value)
 
   defp normalise_search(nil), do: nil
-  defp normalise_search(term) when is_binary(term), do: (t = String.trim(term)) != "" && t || nil
+
+  defp normalise_search(term) when is_binary(term),
+    do: ((t = String.trim(term)) != "" && t) || nil
+
   defp normalise_search(_), do: nil
 
   # A CELL SAYS WHAT THE VALUE IS, NOT THE FIRST 160 CHARACTERS OF IT. A 40 by 40 grid of ground labels
@@ -443,7 +476,9 @@ defmodule Nebulith.Admin do
   defp display_full(%DateTime{} = value), do: to_string(value)
   defp display_full(%NaiveDateTime{} = value), do: to_string(value)
   defp display_full(%Date{} = value), do: to_string(value)
-  defp display_full(value) when is_map(value) or is_list(value), do: Jason.encode!(value, pretty: true)
+
+  defp display_full(value) when is_map(value) or is_list(value),
+    do: Jason.encode!(value, pretty: true)
 
   # A uuid arrives as its raw 16 bytes, which are not valid UTF-8, so printing it as text gives a byte dump
   # and the link built from it points nowhere. Every 16-byte binary in this database is a uuid.

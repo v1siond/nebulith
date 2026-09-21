@@ -33,6 +33,7 @@ defmodule Nebulith.Repo.Migrations.CreateLevels do
     create table(:level_templates, primary_key: false) do
       add :id, :binary_id, primary_key: true
       add :level_id, references(:levels, type: :binary_id, on_delete: :delete_all), null: false
+
       # The Template table is Prisma-owned, so no cross-owner FK, the same rule game_templates follows.
       add :template_id, :string, null: false
       add :position, :integer, null: false, default: 0

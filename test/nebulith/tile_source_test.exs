@@ -155,6 +155,7 @@ defmodule Nebulith.TileSourceTest do
       cells = Enum.find(comps, &(&1.name == name)).cells
       t = Enum.find(cells, &(&1.label == "trunk_mid"))
       c = Enum.find(cells, &(&1.label == "leaf_center"))
+
       # A cell narrows itself EITHER by Width or by a thickness reach, and a trunk moved from the first to
       # the second. Reading only `scaleX` made an absent value default to full width, so a narrowed trunk
       # measured as if it had never been narrowed and the share was computed against the wrong number.

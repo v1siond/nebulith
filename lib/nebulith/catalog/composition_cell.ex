@@ -8,21 +8,25 @@ defmodule Nebulith.Catalog.CompositionCell do
     field :level, :integer
     field :label, :string
     field :walkable, :boolean, default: false
+
     # Uniform draw ZOOM for this cell's tile, the render multiplies every axis by it (iso.ts `zoom =
     # asset.scale`), so a cell can hold a tile bigger than one block. The tree's canopy is ONE leaf cell
     # at scale 2 (a 2×2 crown) instead of a 9-slice ring. Default 1.0 → every other cell renders unchanged.
     field :scale, :float, default: 1.0
+
     # Draw-priority (CSS z-index style): a higher value renders LATER (on top / in front), overriding the
     # positional depth sort in every view (iso `isoDepthCompare`, 2D, top). The fountain's water cells carry a
     # high value so the water reads IN FRONT of a wall behind it. Default 0 → the sort falls through to the
     # positional key, so every other cell orders EXACTLY as before.
     field :z_index, :integer, default: 0
+
     # DEFAULT tile ANIMATIONS for this cell, a LIST of `Animation` envelopes (id/kind/durationMs/yoyo/tracks/…,
     # the exact shape the frontend engine reads), stored as jsonb. The fountain's interior `water_c` cells carry
     # the single yoyo HEIGHT-grow animation (grow the column 1→4 blocks then back, on loop), copied onto the
     # placed asset at stamp time so a generated town's fountain animates BY DEFAULT. Nil on every other cell →
     # the API omits the key, so a non-animated cell serves EXACTLY as before.
     field :animations, {:array, :map}
+
     # TUNED per-cell tile settings (jsonb), the display overrides that shape a cell's tile into a realistic
     # form, beyond the scalar Zoom (`scale`) + draw-priority (`z_index`) columns. Mirrors the way a TILE carries
     # `settings.display`/`settings.pose`, so a cell overrides them per placement: the lamp POST cell stretches
@@ -38,7 +42,18 @@ defmodule Nebulith.Catalog.CompositionCell do
   @doc false
   def changeset(cell, attrs) do
     cell
-    |> cast(attrs, [:composition_id, :dx, :dy, :level, :label, :walkable, :scale, :z_index, :animations, :settings])
+    |> cast(attrs, [
+      :composition_id,
+      :dx,
+      :dy,
+      :level,
+      :label,
+      :walkable,
+      :scale,
+      :z_index,
+      :animations,
+      :settings
+    ])
     |> validate_required([:composition_id, :dx, :dy, :level, :label])
   end
 end

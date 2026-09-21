@@ -43,7 +43,9 @@
           <div class="mt-0.5 font-mono text-sm font-semibold group-hover:text-primary">
             one {link.table}
           </div>
-          <div class="mt-0.5 truncate font-mono text-[11px] text-base-content/40">{link.value}</div>
+          <div class="mt-0.5 truncate font-mono text-[11px] text-base-content/40">
+            {link.value}
+          </div>
         </.link>
 
         <.link
@@ -114,13 +116,19 @@
         </span>
       </h2>
 
-      <.grid_value :if={match?({:grid, _, _, _}, @shapes[column.name])} shape={@shapes[column.name]} />
+      <.grid_value
+        :if={match?({:grid, _, _, _}, @shapes[column.name])}
+        shape={@shapes[column.name]}
+      />
       <.collection_value
         :if={match?({:collection, _, _, _}, @shapes[column.name])}
         shape={@shapes[column.name]}
       />
       <.list_value :if={match?({:list, _, _}, @shapes[column.name])} shape={@shapes[column.name]} />
-      <.object_value :if={match?({:object, _}, @shapes[column.name])} shape={@shapes[column.name]} />
+      <.object_value
+        :if={match?({:object, _}, @shapes[column.name])}
+        shape={@shapes[column.name]}
+      />
     </section>
   </div>
 </Layouts.app>

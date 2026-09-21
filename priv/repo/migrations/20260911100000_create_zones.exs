@@ -17,6 +17,7 @@ defmodule Nebulith.Repo.Migrations.CreateZones do
   def change do
     create table(:zones, primary_key: false) do
       add :id, :binary_id, primary_key: true
+
       # The engine's own zone id (spring / summer / …) — the key every generate call already speaks.
       add :key, :string, null: false
       add :name, :string, null: false

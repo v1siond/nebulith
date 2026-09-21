@@ -42,7 +42,10 @@ defmodule Nebulith.DataMigration.GroundTilesAreFlat do
       from(t in Tile, where: t.category in ^@ground_categories and t.height != 0.0)
       |> Repo.update_all(set: [height: 0.0])
 
-    Logger.info("[data_migrate] ground tiles (#{Enum.join(@ground_categories, "/")}) -> flat (#{count} updated)")
+    Logger.info(
+      "[data_migrate] ground tiles (#{Enum.join(@ground_categories, "/")}) -> flat (#{count} updated)"
+    )
+
     :ok
   end
 end

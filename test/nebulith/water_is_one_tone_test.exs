@@ -37,17 +37,25 @@ defmodule Nebulith.WaterIsOneToneTest do
     |> Jason.decode!()
     |> Enum.filter(fn t ->
       is_binary(t["svg"]) and is_binary(t["label"]) and
-        (String.starts_with?(t["label"], "water_shallow") or String.starts_with?(t["label"], "water_deep") or
+        (String.starts_with?(t["label"], "water_shallow") or
+           String.starts_with?(t["label"], "water_deep") or
            t["label"] == "water" or String.starts_with?(t["label"], "water_f"))
     end)
   end
 
-  defp colors(svg), do: Regex.scan(~r/#[0-9a-fA-F]{6}/, svg) |> List.flatten() |> Enum.map(&String.downcase/1) |> MapSet.new()
+  defp colors(svg),
+    do:
+      Regex.scan(~r/#[0-9a-fA-F]{6}/, svg)
+      |> List.flatten()
+      |> Enum.map(&String.downcase/1)
+      |> MapSet.new()
 
   test "every depth band of the river is painted from the one palette its style carries" do
     tiles = water_tiles()
+
     # The filter has to actually find them: an empty list would pass every assertion below and prove nothing.
-    assert length(tiles) >= 12, "expected the three bands and their frames, found #{length(tiles)}"
+    assert length(tiles) >= 12,
+           "expected the three bands and their frames, found #{length(tiles)}"
 
     for t <- tiles do
       allowed = Map.fetch!(@palette, t["style"])
@@ -62,6 +70,7 @@ defmodule Nebulith.WaterIsOneToneTest do
 
   test "the bands are still told apart, same palette, different wave geometry" do
     by_label = Map.new(water_tiles(), &{&1["label"] <> "/" <> &1["style"], &1["svg"]})
+
     # The curves, stripped of colour. If two bands drew the same paths they would be the same tile with two
     # names, which is the opposite mistake to the one above.
     paths = fn svg -> Regex.scan(~r/ d="([^"]+)"/, svg) |> List.flatten() |> Enum.sort() end

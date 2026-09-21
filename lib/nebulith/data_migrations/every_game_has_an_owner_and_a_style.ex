@@ -44,7 +44,10 @@ defmodule Nebulith.DataMigration.EveryGameHasAnOwnerAndAStyle do
        WHERE NOT EXISTS (SELECT 1 FROM game_settings s WHERE s.game_id = g.id)
       """)
 
-    Logger.info("[data_migrate] #{owned} game(s) given an owner, #{styled} a default style, #{settled} their settings")
+    Logger.info(
+      "[data_migrate] #{owned} game(s) given an owner, #{styled} a default style, #{settled} their settings"
+    )
+
     :ok
   end
 end

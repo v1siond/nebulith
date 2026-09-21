@@ -40,7 +40,9 @@ defmodule Nebulith.DataMigration.ABeachHasASea do
     offered = offer_everywhere()
     defaulted = default_on_beaches()
 
-    Logger.info("[data_migrate] #{offered} generators offer a sea, #{defaulted} beaches have one by default")
+    Logger.info(
+      "[data_migrate] #{offered} generators offer a sea, #{defaulted} beaches have one by default"
+    )
 
     :ok
   end
@@ -67,7 +69,9 @@ defmodule Nebulith.DataMigration.ABeachHasASea do
 
   # A BEACH STARTS WITH ITS SEA. Every other template keeps whatever default it had.
   defp default_on_beaches do
-    for %{key: key, options: options} <- with_river(), String.ends_with?(key, "_beach"), reduce: 0 do
+    for %{key: key, options: options} <- with_river(),
+        String.ends_with?(key, "_beach"),
+        reduce: 0 do
       acc ->
         updated =
           for option <- options do
@@ -95,7 +99,10 @@ defmodule Nebulith.DataMigration.ABeachHasASea do
 
   defp write(key, updated, _options) do
     %{num_rows: rows} =
-      Repo.query!("UPDATE generators SET options = $2::text::jsonb WHERE key = $1", [key, Jason.encode!(updated)])
+      Repo.query!("UPDATE generators SET options = $2::text::jsonb WHERE key = $1", [
+        key,
+        Jason.encode!(updated)
+      ])
 
     rows
   end

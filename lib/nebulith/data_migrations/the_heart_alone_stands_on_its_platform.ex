@@ -11,7 +11,8 @@ defmodule Nebulith.DataMigration.TheHeartAloneStandsOnItsPlatform do
   alias Nebulith.Repo
 
   def run do
-    %{rows: [[zones]]} = Repo.query!("SELECT config->'subZones' FROM generators WHERE key = 'forest_ruins'", [])
+    %{rows: [[zones]]} =
+      Repo.query!("SELECT config->'subZones' FROM generators WHERE key = 'forest_ruins'", [])
 
     updated =
       Enum.map(zones, fn

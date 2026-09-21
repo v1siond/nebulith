@@ -161,9 +161,27 @@ defmodule Nebulith.Catalog.BuildingCompositions do
       wall_top_bonus: 2,
       default: {5, 5}
     },
-    "temple" => %{materials: ["wall_stone"], roof: {:gable, "roof_slate", "roof_top_slate"}, portico: true, walls: :ornament, default: {8, 4}},
-    "cathedral" => %{materials: ["wall_stone"], roof: {:gable, "roof_slate", "roof_top_slate"}, aisles: true, walls: :ornament, default: {7, 5}},
-    "castle" => %{materials: ["wall_stone"], roof: {:gable, "roof_slate", "roof_top_slate"}, wide_door: true, walls: :ornament, default: {12, 6}},
+    "temple" => %{
+      materials: ["wall_stone"],
+      roof: {:gable, "roof_slate", "roof_top_slate"},
+      portico: true,
+      walls: :ornament,
+      default: {8, 4}
+    },
+    "cathedral" => %{
+      materials: ["wall_stone"],
+      roof: {:gable, "roof_slate", "roof_top_slate"},
+      aisles: true,
+      walls: :ornament,
+      default: {7, 5}
+    },
+    "castle" => %{
+      materials: ["wall_stone"],
+      roof: {:gable, "roof_slate", "roof_top_slate"},
+      wide_door: true,
+      walls: :ornament,
+      default: {12, 6}
+    },
 
     # ── THE THINGS THAT MAKE A PLACE A PLACE ────────────────────────────────────────────────────────
     # with a town of (image #28) against a
@@ -183,7 +201,14 @@ defmodule Nebulith.Catalog.BuildingCompositions do
       title: "Stable",
       default: {6, 3}
     },
-    "barn" => %{materials: ["wall_wood"], roof: :gable, wide_door: true, window_faces: :none, title: "Barn", default: {7, 4}},
+    "barn" => %{
+      materials: ["wall_wood"],
+      roof: :gable,
+      wide_door: true,
+      window_faces: :none,
+      title: "Barn",
+      default: {7, 4}
+    },
     "smithy" => %{
       materials: ["wall_brick"],
       roof: :gable,
@@ -314,7 +339,8 @@ defmodule Nebulith.Catalog.BuildingCompositions do
   #
   # It is a function of the COLUMN now. The default returns the constant it always was, so every other type
   # composes byte for byte as before.
-  defp column_tops(%{tower_bay: true}, w, base), do: fn dx -> if dx == w - 1, do: base + 3, else: base end
+  defp column_tops(%{tower_bay: true}, w, base),
+    do: fn dx -> if dx == w - 1, do: base + 3, else: base end
 
   defp column_tops(%{wings: true}, w, base) do
     lo = div(w, 3)
@@ -383,12 +409,14 @@ defmodule Nebulith.Catalog.BuildingCompositions do
     fn dx, dy, level ->
       front = dy == h - 1
       flank = (dx == 0 or dx == w - 1) and not front and dy != 0
+
       glazed_face =
         cond do
           unglazed? -> false
           front_only? -> front
           true -> dy == 0 or dy == h - 1
         end
+
       shop = storefront? and front and abs(dx - door_col) <= 1
 
       cond do
@@ -414,11 +442,25 @@ defmodule Nebulith.Catalog.BuildingCompositions do
   end
 
   defp roof_for(%{roof: :gable} = _spec, w, h, wall_top, top_at, opts) do
-    gable_roof(w, h, wall_top, Keyword.get(opts, :roof, "roof"), Keyword.get(opts, :roof_top, "roof_top"), top_at)
+    gable_roof(
+      w,
+      h,
+      wall_top,
+      Keyword.get(opts, :roof, "roof"),
+      Keyword.get(opts, :roof_top, "roof_top"),
+      top_at
+    )
   end
 
   defp roof_for(%{roof: {:gable, roof, roof_top}}, w, h, wall_top, top_at, opts) do
-    gable_roof(w, h, wall_top, Keyword.get(opts, :roof, roof), Keyword.get(opts, :roof_top, roof_top), top_at)
+    gable_roof(
+      w,
+      h,
+      wall_top,
+      Keyword.get(opts, :roof, roof),
+      Keyword.get(opts, :roof_top, roof_top),
+      top_at
+    )
   end
 
   defp roof_for(%{roof: {:flat, flat_opts}}, w, h, wall_top, _top_at, _opts) do

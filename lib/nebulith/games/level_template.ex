@@ -24,6 +24,8 @@ defmodule Nebulith.Games.LevelTemplate do
     level_template
     |> cast(attrs, [:template_id, :position, :level_id])
     |> validate_required([:template_id, :level_id])
-    |> unique_constraint([:level_id, :template_id], name: :level_templates_level_id_template_id_index)
+    |> unique_constraint([:level_id, :template_id],
+      name: :level_templates_level_id_template_id_index
+    )
   end
 end

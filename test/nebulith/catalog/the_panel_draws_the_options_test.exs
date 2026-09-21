@@ -81,7 +81,9 @@ defmodule Nebulith.Catalog.ThePanelDrawsTheOptionsTest do
              "exits no longer follows the pathways, so picking six of them still offers four ways out"
     end
 
-    test "a count authors only the choices that say something a number cannot", %{options: options} do
+    test "a count authors only the choices that say something a number cannot", %{
+      options: options
+    } do
       # The rest are generated up to the ceiling, so an authored list is a source of LABELS, never the limit.
       # Four hand-written entries here is what capped every map at four.
       assert length(options["pathways"]["choices"]) == 1,

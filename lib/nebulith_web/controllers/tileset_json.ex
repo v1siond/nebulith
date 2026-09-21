@@ -63,7 +63,8 @@ defmodule NebulithWeb.TilesetJSON do
       # which would make the served list, and any fixture captured from it, reorder run to run. Sort by grid
       # position (dx, dy, level, label) so the payload is reproducible; the render is order-independent (every
       # cell carries its own dx/dy/level and the views depth-sort), so this only stabilises the data, not the look.
-      cells: c.cells |> Enum.sort_by(&{&1.dx, &1.dy, &1.level, &1.label}) |> Enum.map(&cell_data/1)
+      cells:
+        c.cells |> Enum.sort_by(&{&1.dx, &1.dy, &1.level, &1.label}) |> Enum.map(&cell_data/1)
     }
   end
 
@@ -72,7 +73,15 @@ defmodule NebulithWeb.TilesetJSON do
   # `animations` (the cell's default `Animation[]`) is added ONLY when the cell carries some, so every
   # non-animated cell serves byte-identically to before (only the fountain's water cells gain the key).
   defp cell_data(cell) do
-    base = %{dx: cell.dx, dy: cell.dy, level: cell.level, label: cell.label, walkable: cell.walkable, scale: cell.scale, zIndex: cell.z_index}
+    base = %{
+      dx: cell.dx,
+      dy: cell.dy,
+      level: cell.level,
+      label: cell.label,
+      walkable: cell.walkable,
+      scale: cell.scale,
+      zIndex: cell.z_index
+    }
 
     base
     |> maybe_put_animations(cell.animations)

@@ -40,7 +40,10 @@ defmodule Nebulith.DataMigration.NoMoreBulbs do
              )
       """)
 
-    Logger.info("[data_migrate] no more bulbs: #{rows} generator(s) stop lining their ways with one")
+    Logger.info(
+      "[data_migrate] no more bulbs: #{rows} generator(s) stop lining their ways with one"
+    )
+
     :ok
   end
 end

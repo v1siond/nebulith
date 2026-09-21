@@ -21,15 +21,13 @@ defmodule Nebulith.DataMigration.FlatDecorStacksAtTheBottomFace do
 
   def run do
     %{num_rows: count} =
-      Repo.query!(
-        """
-        UPDATE tiles
-        SET settings = jsonb_set(coalesce(settings, '{}'::jsonb), '{stackAt}', '0'::jsonb)
-        WHERE label LIKE 'decor\\_%'
-          AND height = 0
-          AND NOT (coalesce(settings, '{}'::jsonb) ? 'stackAt')
-        """
-      )
+      Repo.query!("""
+      UPDATE tiles
+      SET settings = jsonb_set(coalesce(settings, '{}'::jsonb), '{stackAt}', '0'::jsonb)
+      WHERE label LIKE 'decor\\_%'
+        AND height = 0
+        AND NOT (coalesce(settings, '{}'::jsonb) ? 'stackAt')
+      """)
 
     Logger.info("[data_migrate] flat decor stacks at the bottom face (#{count} tiles)")
     :ok

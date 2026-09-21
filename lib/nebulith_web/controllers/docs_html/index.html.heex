@@ -11,8 +11,7 @@
           The engine, written down
         </h1>
         <p class="text-lg text-base-content/70">
-          {@count} {if @count == 1, do: "document", else: "documents"}, rendered straight from the markdown in
-          <code class="rounded-sm border border-base-300 bg-base-200 px-1 py-0.5 font-mono text-[0.855em]">docs/</code>,
+          {@count} {if @count == 1, do: "document", else: "documents"}, rendered straight from the markdown in <code class="rounded-sm border border-base-300 bg-base-200 px-1 py-0.5 font-mono text-[0.855em]">docs/</code>,
           so the page and the repo cannot disagree.
         </p>
       </header>
@@ -46,9 +45,12 @@
         </div>
       </section>
 
-      <p :if={@count == 0} class="mt-12 rounded-box border border-warning/40 bg-warning/10 p-4 text-sm">
-        No documents found. The corpus is the repo's
-        <code class="font-mono">docs/</code> directory, resolved relative to the working directory the
+      <p
+        :if={@count == 0}
+        class="mt-12 rounded-box border border-warning/40 bg-warning/10 p-4 text-sm"
+      >
+        No documents found. The corpus is the repo's <code class="font-mono">docs/</code>
+        directory, resolved relative to the working directory the
         server was started from.
       </p>
     </main>

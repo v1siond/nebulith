@@ -44,7 +44,11 @@ defmodule NebulithWeb.EditorSettingControllerTest do
       conn = put(conn, ~p"/api/editor_settings/triggers", value: trig)
 
       conn = get(conn, ~p"/api/editor_settings")
-      assert json_response(conn, 200)["editorSettings"] == %{"settings" => @geo, "triggers" => trig}
+
+      assert json_response(conn, 200)["editorSettings"] == %{
+               "settings" => @geo,
+               "triggers" => trig
+             }
     end
   end
 end

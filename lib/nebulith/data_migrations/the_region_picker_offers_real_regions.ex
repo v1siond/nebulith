@@ -59,7 +59,10 @@ defmodule Nebulith.DataMigration.TheRegionPickerOffersRealRegions do
       WHERE config->'subZones' IS NOT NULL AND options IS NOT NULL
       """)
 
-    for [key, zones, options] <- rows, is_list(zones), is_list(options), do: %{key: key, zones: zones, options: options}
+    for [key, zones, options] <- rows,
+        is_list(zones),
+        is_list(options),
+        do: %{key: key, zones: zones, options: options}
   end
 
   defp rewrite(key, zones, options) do
@@ -80,7 +83,10 @@ defmodule Nebulith.DataMigration.TheRegionPickerOffersRealRegions do
       0
     else
       %{num_rows: rows} =
-        Repo.query!("UPDATE generators SET options = $2::text::jsonb WHERE key = $1", [key, Jason.encode!(updated)])
+        Repo.query!("UPDATE generators SET options = $2::text::jsonb WHERE key = $1", [
+          key,
+          Jason.encode!(updated)
+        ])
 
       rows
     end

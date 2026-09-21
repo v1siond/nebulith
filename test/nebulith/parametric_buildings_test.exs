@@ -13,6 +13,7 @@ defmodule Nebulith.ParametricBuildingsTest do
 
   defp labels(comp), do: comp.cells |> Enum.map(& &1.label) |> MapSet.new()
   defp front_row(comp), do: Enum.filter(comp.cells, &(&1.dy == comp.footprint_h - 1))
+
   defp door_cols(comp) do
     front_row(comp)
     |> Enum.filter(&(&1.label == "door"))
@@ -53,13 +54,22 @@ defmodule Nebulith.ParametricBuildingsTest do
       for w <- 4..14 do
         cols = BC.compose_building("house", w, 4) |> door_cols()
         expected = if rem(w, 2) == 1, do: [div(w, 2)], else: [div(w, 2) - 1, div(w, 2)]
-        assert cols == expected, "width #{w}: doors at #{inspect(cols)}, expected #{inspect(expected)}"
+
+        assert cols == expected,
+               "width #{w}: doors at #{inspect(cols)}, expected #{inspect(expected)}"
       end
     end
 
     test "the doorway is the only walkable opening on the front row" do
       comp = BC.compose_building("house", 8, 4)
-      walkable = front_row(comp) |> Enum.filter(& &1.walkable) |> Enum.map(& &1.dx) |> Enum.uniq() |> Enum.sort()
+
+      walkable =
+        front_row(comp)
+        |> Enum.filter(& &1.walkable)
+        |> Enum.map(& &1.dx)
+        |> Enum.uniq()
+        |> Enum.sort()
+
       assert walkable == door_cols(comp)
     end
   end
@@ -73,7 +83,9 @@ defmodule Nebulith.ParametricBuildingsTest do
         end
 
       assert tops == Enum.sort(tops), "height must be monotonic in width, got #{inspect(tops)}"
-      assert List.last(tops) > List.first(tops), "a 12-wide building is no taller than a 4-wide one"
+
+      assert List.last(tops) > List.first(tops),
+             "a 12-wide building is no taller than a 4-wide one"
     end
   end
 
@@ -94,7 +106,9 @@ defmodule Nebulith.ParametricBuildingsTest do
     test "the wall height" do
       short = BC.compose_building("castle", 12, 6, wall_top: 4)
       tall = BC.compose_building("castle", 12, 6)
-      assert Enum.max(Enum.map(short.cells, & &1.level)) < Enum.max(Enum.map(tall.cells, & &1.level))
+
+      assert Enum.max(Enum.map(short.cells, & &1.level)) <
+               Enum.max(Enum.map(tall.cells, & &1.level))
     end
   end
 

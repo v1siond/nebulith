@@ -11,7 +11,13 @@ defmodule NebulithWeb.UiJSON do
   end
 
   defp action(%Action{} = a),
-    do: %{key: a.key, category: a.category, label: a.label, defaultChord: a.default_chord, position: a.position}
+    do: %{
+      key: a.key,
+      category: a.category,
+      label: a.label,
+      defaultChord: a.default_chord,
+      position: a.position
+    }
 
   defp profile(nil), do: nil
 

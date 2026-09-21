@@ -47,8 +47,8 @@ defmodule Nebulith.GenerationLayersTest do
     refute Map.has_key?(by_key, "layout"), "layout is a group, not a layer"
     refute Map.has_key?(by_key, "objects"), "objects is a group, not a layer"
 
-    for key <- ~w(terrain water pathways), do: assert by_key[key].group == "layout"
-    for key <- ~w(buildings nature decor), do: assert by_key[key].group == "objects"
+    for key <- ~w(terrain water pathways), do: assert(by_key[key].group == "layout")
+    for key <- ~w(buildings nature decor), do: assert(by_key[key].group == "objects")
     assert by_key["units"].group == nil
   end
 
@@ -57,7 +57,9 @@ defmodule Nebulith.GenerationLayersTest do
 
     for key <- ~w(fog lightning shadow post_processing) do
       assert Map.has_key?(by_key, key), "#{key} is a layer he named and it has to be in the list"
-      refute by_key[key].seedable, "#{key} has no pass yet, so the panel must not offer a re-roll for it"
+
+      refute by_key[key].seedable,
+             "#{key} has no pass yet, so the panel must not offer a re-roll for it"
     end
   end
 
@@ -67,12 +69,14 @@ defmodule Nebulith.GenerationLayersTest do
     for layer <- Catalog.list_generation_layers() do
       assert layer.label not in [nil, ""]
       assert layer.hint not in [nil, ""]
+
       # BY CODEPOINT, because the literal is the thing under test. A sweep that replaced em dashes across the
       # repo rewrote this assertion's own needle into ", ", so it forbade COMMAS instead, which every hint
       # has. It never failed anyway: the seeder it depends on had been deleted, so the list was empty and the
       # loop body never ran. Two faults hiding each other, and restoring the seeder is what surfaced both.
       for dash <- [<<0x2014::utf8>>, <<0x2013::utf8>>] do
-        refute String.contains?(layer.hint, dash), "#{layer.key}: no em dashes in anything user-facing"
+        refute String.contains?(layer.hint, dash),
+               "#{layer.key}: no em dashes in anything user-facing"
       end
     end
   end
@@ -89,13 +93,16 @@ defmodule Nebulith.GenerationLayersTest do
         })
 
       assert added.key == "reflection"
+
       # 35 sits between pathways (30) and buildings (40), and the list says so without being re-sorted by hand
       assert keys() ==
                ~w(terrain water pathways reflection buildings nature decor units fog lightning shadow post_processing)
     end
 
     test "can be updated and deleted, so the list is edited rather than deployed" do
-      {:ok, fog} = Catalog.create_generation_layer(%{"key" => "haze", "label" => "Haze", "position" => 75})
+      {:ok, fog} =
+        Catalog.create_generation_layer(%{"key" => "haze", "label" => "Haze", "position" => 75})
+
       {:ok, renamed} = Catalog.update_generation_layer(fog, %{"label" => "Haze and murk"})
       assert renamed.label == "Haze and murk"
 
@@ -107,12 +114,18 @@ defmodule Nebulith.GenerationLayersTest do
   describe "what the table refuses" do
     test "two layers cannot share a key, because the engine binds its pass to that key" do
       assert {:error, changeset} =
-               Catalog.create_generation_layer(%{"key" => "pathways", "label" => "Pathways again"})
+               Catalog.create_generation_layer(%{
+                 "key" => "pathways",
+                 "label" => "Pathways again"
+               })
+
       assert %{key: ["has already been taken"]} = errors_on(changeset)
     end
 
     test "a key the engine could not bind to is refused" do
-      assert {:error, changeset} = Catalog.create_generation_layer(%{"key" => "Water Reflection", "label" => "x"})
+      assert {:error, changeset} =
+               Catalog.create_generation_layer(%{"key" => "Water Reflection", "label" => "x"})
+
       assert Map.has_key?(errors_on(changeset), :key)
     end
 

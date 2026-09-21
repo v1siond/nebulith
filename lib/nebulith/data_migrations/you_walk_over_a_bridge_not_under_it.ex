@@ -47,17 +47,19 @@ defmodule Nebulith.DataMigration.YouWalkOverABridgeNotUnderIt do
   @rail_colors %{"bridge_timber_rail" => "#7d5a38", "bridge_timber_post" => "#6b4c2f"}
 
   def run do
-    decks = for label <- @decks, ts <- Catalog.list_tilesets(), reduce: 0 do
-      acc ->
-        {hit, _} = Catalog.put_tile_setting(ts.id, label, "actAsTile", true)
-        acc + hit
-    end
+    decks =
+      for label <- @decks, ts <- Catalog.list_tilesets(), reduce: 0 do
+        acc ->
+          {hit, _} = Catalog.put_tile_setting(ts.id, label, "actAsTile", true)
+          acc + hit
+      end
 
-    rails = for {label, color} <- @rail_colors, ts <- Catalog.list_tilesets(), reduce: 0 do
-      acc ->
-        {hit, _} = Catalog.put_tile_setting(ts.id, label, "color", color)
-        acc + hit
-    end
+    rails =
+      for {label, color} <- @rail_colors, ts <- Catalog.list_tilesets(), reduce: 0 do
+        acc ->
+          {hit, _} = Catalog.put_tile_setting(ts.id, label, "color", color)
+          acc + hit
+      end
 
     Logger.info("[data_migrate] #{decks} deck rows hold a walker up, #{rails} rail rows darkened")
     :ok

@@ -51,10 +51,24 @@ defmodule Nebulith.DataMigration.AnOakIsNotAnEncina do
         Catalog.upsert_composition_with_cells(
           %{name: name, footprint_w: 1, footprint_h: 1, category: "nature"},
           [
-            %{dx: 0, dy: 0, level: 0, label: "trunk_mid", walkable: false, scale: tz,
-              settings: %{"scaleY" => th, "scaleX" => tw}},
-            %{dx: 0, dy: 0, level: level, label: "leaf_center", walkable: true, scale: cz,
-              settings: %{"scaleY" => ch, "shape" => "circle"}}
+            %{
+              dx: 0,
+              dy: 0,
+              level: 0,
+              label: "trunk_mid",
+              walkable: false,
+              scale: tz,
+              settings: %{"scaleY" => th, "scaleX" => tw}
+            },
+            %{
+              dx: 0,
+              dy: 0,
+              level: level,
+              label: "leaf_center",
+              walkable: true,
+              scale: cz,
+              settings: %{"scaleY" => ch, "shape" => "circle"}
+            }
           ]
         )
     end

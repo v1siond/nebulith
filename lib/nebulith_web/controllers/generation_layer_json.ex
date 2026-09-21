@@ -8,6 +8,13 @@ defmodule NebulithWeb.GenerationLayerJSON do
   def show(%{layer: %GenerationLayer{} = layer}), do: %{generationLayer: data(layer)}
 
   defp data(%GenerationLayer{} = l) do
-    %{key: l.key, label: l.label, hint: l.hint, position: l.position, seedable: l.seedable, group: l.group}
+    %{
+      key: l.key,
+      label: l.label,
+      hint: l.hint,
+      position: l.position,
+      seedable: l.seedable,
+      group: l.group
+    }
   end
 end

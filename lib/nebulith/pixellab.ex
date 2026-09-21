@@ -25,37 +25,52 @@ defmodule Nebulith.Pixellab do
   def api_key, do: Application.get_env(:nebulith, :pixellab_api_key)
 
   def generate(%{"description" => description} = params) do
-    post(@v1, "/generate-image-pixflux", drop_nils(%{
-      "description" => description,
-      "image_size" => %{"width" => param(params, "width", 64), "height" => param(params, "height", 64)},
-      "no_background" => no_background(params),
-      "init_image" => base64_image(params["initImage"]),
-      "seed" => params["seed"]
-    }))
+    post(
+      @v1,
+      "/generate-image-pixflux",
+      drop_nils(%{
+        "description" => description,
+        "image_size" => %{
+          "width" => param(params, "width", 64),
+          "height" => param(params, "height", 64)
+        },
+        "no_background" => no_background(params),
+        "init_image" => base64_image(params["initImage"]),
+        "seed" => params["seed"]
+      })
+    )
   end
 
   def animate_with_text(params) do
-    post(@v1, "/animate-with-text", drop_nils(%{
-      "description" => params["description"],
-      "action" => param(params, "animationAction", "idle"),
-      "image_size" => %{"width" => 64, "height" => 64},
-      "reference_image" => base64_image(params["referenceImage"]),
-      "direction" => param(params, "direction", "south-east"),
-      "no_background" => no_background(params),
-      "seed" => params["seed"]
-    }))
+    post(
+      @v1,
+      "/animate-with-text",
+      drop_nils(%{
+        "description" => params["description"],
+        "action" => param(params, "animationAction", "idle"),
+        "image_size" => %{"width" => 64, "height" => 64},
+        "reference_image" => base64_image(params["referenceImage"]),
+        "direction" => param(params, "direction", "south-east"),
+        "no_background" => no_background(params),
+        "seed" => params["seed"]
+      })
+    )
   end
 
   def animate_with_skeleton(params) do
     size = params["size"]
 
-    post(@v1, "/animate-with-skeleton", drop_nils(%{
-      "image_size" => %{"width" => size, "height" => size},
-      "reference_image" => base64_image(params["referenceImage"]),
-      "skeleton_keypoints" => params["skeletonKeypoints"],
-      "no_background" => no_background(params),
-      "seed" => params["seed"]
-    }))
+    post(
+      @v1,
+      "/animate-with-skeleton",
+      drop_nils(%{
+        "image_size" => %{"width" => size, "height" => size},
+        "reference_image" => base64_image(params["referenceImage"]),
+        "skeleton_keypoints" => params["skeletonKeypoints"],
+        "no_background" => no_background(params),
+        "seed" => params["seed"]
+      })
+    )
   end
 
   def estimate_skeleton(params) do
@@ -71,13 +86,17 @@ defmodule Nebulith.Pixellab do
     width = param(params, "width", 128)
     height = param(params, "height", 128)
 
-    post(@v2, "/animate-with-text-v3", drop_nils(%{
-      "first_frame" => base64_image(params["firstFrame"]),
-      "action" => params["animationAction"],
-      "frame_count" => v3_frame_count(params["frameCount"], width, height),
-      "no_background" => no_background(params),
-      "seed" => params["seed"]
-    }))
+    post(
+      @v2,
+      "/animate-with-text-v3",
+      drop_nils(%{
+        "first_frame" => base64_image(params["firstFrame"]),
+        "action" => params["animationAction"],
+        "frame_count" => v3_frame_count(params["frameCount"], width, height),
+        "no_background" => no_background(params),
+        "seed" => params["seed"]
+      })
+    )
   end
 
   def job_status(job_id), do: get(@v2, "/background-jobs/#{job_id}")
@@ -98,7 +117,9 @@ defmodule Nebulith.Pixellab do
   defp request(method, url, opts) do
     key = api_key()
 
-    Req.request([method: method, url: url, auth: {:bearer, key}, receive_timeout: 120_000] ++ opts)
+    Req.request(
+      [method: method, url: url, auth: {:bearer, key}, receive_timeout: 120_000] ++ opts
+    )
     |> handle()
   end
 

@@ -40,7 +40,10 @@ defmodule Nebulith.LevelsTest do
 
     test "but ONE game cannot have two levels in the same slot", %{game: game} do
       {:ok, _} = Levels.create_level(game.id, %{"name" => "1-1", "position" => 0})
-      assert {:error, changeset} = Levels.create_level(game.id, %{"name" => "clash", "position" => 0})
+
+      assert {:error, changeset} =
+               Levels.create_level(game.id, %{"name" => "clash", "position" => 0})
+
       assert "has already been taken" in errors_on(changeset).game_id
     end
 
@@ -61,12 +64,16 @@ defmodule Nebulith.LevelsTest do
     end
 
     test "accepts the frontend's camelCase templateIds on create", %{game: game} do
-      {:ok, level} = Levels.create_level(game.id, %{"name" => "Jungle", "templateIds" => ["a", "b"]})
+      {:ok, level} =
+        Levels.create_level(game.id, %{"name" => "Jungle", "templateIds" => ["a", "b"]})
+
       assert Levels.template_ids(level) == ["a", "b"]
     end
 
     test "REPLACES the set on update rather than merging into it", %{game: game} do
-      {:ok, level} = Levels.create_level(game.id, %{"name" => "Jungle", "templateIds" => ["a", "b", "c"]})
+      {:ok, level} =
+        Levels.create_level(game.id, %{"name" => "Jungle", "templateIds" => ["a", "b", "c"]})
+
       {:ok, level} = Levels.update_level(level, %{"templateIds" => ["c", "a"]})
 
       assert Levels.template_ids(level) == ["c", "a"]
@@ -81,7 +88,9 @@ defmodule Nebulith.LevelsTest do
     end
 
     test "removing keeps the rest in order", %{game: game} do
-      {:ok, level} = Levels.create_level(game.id, %{"name" => "Jungle", "templateIds" => ["a", "b", "c"]})
+      {:ok, level} =
+        Levels.create_level(game.id, %{"name" => "Jungle", "templateIds" => ["a", "b", "c"]})
+
       level = Levels.remove_template(level, "b")
 
       assert Levels.template_ids(level) == ["a", "c"]
@@ -97,7 +106,9 @@ defmodule Nebulith.LevelsTest do
 
   describe "reordering" do
     test "renumbers to exactly the list it is given", %{game: game} do
-      for name <- ["1-1", "1-2", "1-3"], do: {:ok, _} = Levels.create_level(game.id, %{"name" => name})
+      for name <- ["1-1", "1-2", "1-3"],
+          do: {:ok, _} = Levels.create_level(game.id, %{"name" => name})
+
       ids = Levels.list_levels(game.id) |> Enum.map(& &1.id)
 
       moved = Levels.reorder(game.id, [Enum.at(ids, 2), Enum.at(ids, 0), Enum.at(ids, 1)])
@@ -118,7 +129,9 @@ defmodule Nebulith.LevelsTest do
 
   describe "deleting" do
     test "deleting a level takes its template memberships with it (no orphans)", %{game: game} do
-      {:ok, level} = Levels.create_level(game.id, %{"name" => "Jungle", "templateIds" => ["a", "b"]})
+      {:ok, level} =
+        Levels.create_level(game.id, %{"name" => "Jungle", "templateIds" => ["a", "b"]})
+
       assert Repo.aggregate(Nebulith.Games.LevelTemplate, :count) == 2
 
       {:ok, _} = Levels.delete_level(level)

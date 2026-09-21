@@ -64,5 +64,6 @@ defmodule Nebulith.DataMigration.BackfillCompositionCategories do
   defp door?(%{label: label}), do: label == "door"
 
   defp tree?(%{label: label}),
-    do: String.starts_with?(label, "trunk") or String.starts_with?(label, "leaf") or label == "snag"
+    do:
+      String.starts_with?(label, "trunk") or String.starts_with?(label, "leaf") or label == "snag"
 end

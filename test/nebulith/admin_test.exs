@@ -200,7 +200,9 @@ defmodule Nebulith.AdminTest do
   describe "shape/1 says what a value IS" do
     test "a list of equal-length lists of scalars is a grid" do
       assert {:grid, 2, 3, _} = Admin.shape([[1, 2, 3], [4, 5, 6]])
-      assert Admin.shape([[1, 2, 3], [4, 5, 6]]) |> Admin.shape_summary() == "3 x 2 grid, one per cell"
+
+      assert Admin.shape([[1, 2, 3], [4, 5, 6]]) |> Admin.shape_summary() ==
+               "3 x 2 grid, one per cell"
     end
 
     test "ragged rows are not a grid, because they are not one value per cell" do
@@ -282,7 +284,10 @@ defmodule Nebulith.AdminTest do
     test "counts the rows pointing at one row, and refuses a column that is not real" do
       user = seed_user()
       assert Admin.count_where("games", "owner_id", user.id) == 0
-      assert_raise ArgumentError, fn -> Admin.count_where("games", "owner_id; drop table games", user.id) end
+
+      assert_raise ArgumentError, fn ->
+        Admin.count_where("games", "owner_id; drop table games", user.id)
+      end
     end
   end
 end

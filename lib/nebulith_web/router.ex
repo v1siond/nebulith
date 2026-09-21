@@ -25,6 +25,7 @@ defmodule NebulithWeb.Router do
   pipeline :engine do
     plug :accepts, ["html"]
     plug :put_root_layout, html: {NebulithWeb.Layouts, :engine}
+
     plug :put_secure_browser_headers, %{
       "content-security-policy" => "base-uri 'self'; frame-ancestors *;"
     }
@@ -100,6 +101,7 @@ defmodule NebulithWeb.Router do
     get "/entities", EntityController, :index
     get "/combat", CombatController, :index
     get "/zones", ZoneController, :index
+
     # THE GENERATION LAYERS, as data. The engine binds a pass to each key and the editor builds its re-roll
     # panel from the list, so a layer is a row rather than an edit in two repos. Keyed by `key`, not id: the
     # key is what the engine binds to, so it is what a caller has in hand.
@@ -108,12 +110,14 @@ defmodule NebulithWeb.Router do
     get "/generation_layers/:key", GenerationLayerController, :show
     put "/generation_layers/:key", GenerationLayerController, :update
     delete "/generation_layers/:key", GenerationLayerController, :delete
+
     # The sprite generator's door to pixellab.ai. It is here rather than in the browser because the
     # API key must not be. See NebulithWeb.PixellabController.
     post "/pixellab", PixellabController, :create
     get "/ui", UiController, :index
     put "/ui", UiController, :update
     resources "/templates", TemplateController, except: [:new, :edit]
+
     resources "/games", GameController, except: [:new, :edit] do
       # A game's LEVELS, nested so the route itself carries whose levels these are., the layer that was missing, and
       # the reason "Manage levels" could only show

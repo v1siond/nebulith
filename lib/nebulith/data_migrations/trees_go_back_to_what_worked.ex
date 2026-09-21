@@ -79,7 +79,9 @@ defmodule Nebulith.DataMigration.TreesGoBackToWhatWorked do
     |> Enum.sum()
   end
 
-  defp volcanic?(%{name: name}) when is_binary(name), do: String.contains?(String.downcase(name), "volcanic")
+  defp volcanic?(%{name: name}) when is_binary(name),
+    do: String.contains?(String.downcase(name), "volcanic")
+
   defp volcanic?(_), do: false
 
   defp restore_one(%{name: name, config: config}) do
@@ -105,12 +107,17 @@ defmodule Nebulith.DataMigration.TreesGoBackToWhatWorked do
     # `$2::text::jsonb`, NOT `$2::jsonb`. Postgrex types the parameter as jsonb and encodes the string as a
     # JSON string SCALAR, so a has-key test answers false for a key that is plainly in the map and the UPDATE
     # reports rows while changing nothing. Every migration in this directory uses the double cast.
-    rewrite_zones(name, "jsonb_set(z, '{trees}', $2::text::jsonb -> (z->>'key'))", Jason.encode!(zones))
+    rewrite_zones(
+      name,
+      "jsonb_set(z, '{trees}', $2::text::jsonb -> (z->>'key'))",
+      Jason.encode!(zones)
+    )
   end
 
   defp strip_zone_mixes(_name, []), do: :ok
 
-  defp strip_zone_mixes(name, keys), do: rewrite_zones(name, "z - 'trees'", Jason.encode!(Map.new(keys, &{&1, true})))
+  defp strip_zone_mixes(name, keys),
+    do: rewrite_zones(name, "z - 'trees'", Jason.encode!(Map.new(keys, &{&1, true})))
 
   # One rewrite for both halves: walk the sub-zones in order, apply `change` to the ones the map names, leave
   # the rest untouched. ORDINALITY keeps the order, which a bare jsonb_agg does not promise.

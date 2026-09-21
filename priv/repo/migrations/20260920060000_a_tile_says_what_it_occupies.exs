@@ -35,6 +35,8 @@ defmodule Nebulith.Repo.Migrations.ATileSaysWhatItOccupies do
       add :blocking, :boolean, default: false
     end
 
-    execute("update tiles set blocking = jsonb_array_length(coalesce(settings->'collision', '[]'::jsonb)) > 0")
+    execute(
+      "update tiles set blocking = jsonb_array_length(coalesce(settings->'collision', '[]'::jsonb)) > 0"
+    )
   end
 end

@@ -54,7 +54,9 @@ defmodule Nebulith.DataMigration.ARegionsWaterIsTheMapsWater do
         acc -> acc + rewrite(key)
       end
 
-    Logger.info("[data_migrate] #{changed} templates: a region's water is the map's water, and less of it")
+    Logger.info(
+      "[data_migrate] #{changed} templates: a region's water is the map's water, and less of it"
+    )
 
     :ok
   end

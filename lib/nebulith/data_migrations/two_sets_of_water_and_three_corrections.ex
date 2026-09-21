@@ -126,7 +126,11 @@ defmodule Nebulith.DataMigration.TwoSetsOfWaterAndThreeCorrections do
         WHERE label = 'water_still'
           AND settings->'animations' @> '[{"id": "puddle_translucence"}]'
         """,
-        [Jason.encode!([%{"setting" => "opacity", "from" => @ford_film_opacity, "to" => @ford_film_opacity}])]
+        [
+          Jason.encode!([
+            %{"setting" => "opacity", "from" => @ford_film_opacity, "to" => @ford_film_opacity}
+          ])
+        ]
       )
 
     rows

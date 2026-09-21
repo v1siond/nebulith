@@ -86,7 +86,13 @@ defmodule NebulithWeb.BuildingController do
         comp.cells
         |> Enum.sort_by(&{&1.dx, &1.dy, &1.level, &1.label})
         |> Enum.map(fn cell ->
-          %{dx: cell.dx, dy: cell.dy, level: cell.level, label: cell.label, walkable: cell.walkable}
+          %{
+            dx: cell.dx,
+            dy: cell.dy,
+            level: cell.level,
+            label: cell.label,
+            walkable: cell.walkable
+          }
           |> maybe_put(:settings, Map.get(cell, :settings))
         end)
     }

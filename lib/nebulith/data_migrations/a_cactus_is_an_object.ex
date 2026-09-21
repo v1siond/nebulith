@@ -88,7 +88,9 @@ defmodule Nebulith.DataMigration.ACactusIsAnObject do
     TileSource.seed_compositions()
     set_mixes()
 
-    Logger.info("[data_migrate] #{rows} cactus segment tiles, three cactus compositions, desert mixes grow them")
+    Logger.info(
+      "[data_migrate] #{rows} cactus segment tiles, three cactus compositions, desert mixes grow them"
+    )
 
     :ok
   end

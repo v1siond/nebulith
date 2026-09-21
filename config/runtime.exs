@@ -29,7 +29,12 @@ end
 # deep-merges last, so without the guard `mix test` tried to bind 6328 and died on the dev server already
 # sitting there. 4002 against `nebulith_test`, which is also what keeps a click-through off the dev database.
 config :nebulith, NebulithWeb.Endpoint,
-  http: [port: String.to_integer(System.get_env("PORT") || if(config_env() == :test, do: "4002", else: "6328"))]
+  http: [
+    port:
+      String.to_integer(
+        System.get_env("PORT") || if(config_env() == :test, do: "4002", else: "6328")
+      )
+  ]
 
 # The CV site's public origin, used for the engine's "Back to CV" link. Read at RUNTIME so the same
 # built image works wherever it is deployed.

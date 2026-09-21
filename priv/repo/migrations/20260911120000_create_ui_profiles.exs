@@ -42,6 +42,7 @@ defmodule Nebulith.Repo.Migrations.CreateUiProfiles do
       add :key, :string, null: false
       add :name, :string, null: false
       add :game_id, references(:games, type: :binary_id, on_delete: :delete_all)
+
       # What a PLAYER may change in this profile, as the author allows: keys, layout, both or neither.
       add :player_may, :map, null: false, default: %{}
 
@@ -54,7 +55,10 @@ defmodule Nebulith.Repo.Migrations.CreateUiProfiles do
     # ONE INPUT → ONE ACTION. Several rows per action is how an alternate binding is expressed.
     create table(:ui_bindings, primary_key: false) do
       add :id, :binary_id, primary_key: true
-      add :profile_id, references(:ui_profiles, type: :binary_id, on_delete: :delete_all), null: false
+
+      add :profile_id, references(:ui_profiles, type: :binary_id, on_delete: :delete_all),
+        null: false
+
       add :action_key, :string, null: false
       # "KeyW" / "Space" / "mouse:right" — the input as the browser names it.
       add :input, :string, null: false
@@ -70,7 +74,10 @@ defmodule Nebulith.Repo.Migrations.CreateUiProfiles do
     # ONE HUD ELEMENT, per FORM. A profile carries a Desktop row and a Mobile row for the same element.
     create table(:ui_elements, primary_key: false) do
       add :id, :binary_id, primary_key: true
-      add :profile_id, references(:ui_profiles, type: :binary_id, on_delete: :delete_all), null: false
+
+      add :profile_id, references(:ui_profiles, type: :binary_id, on_delete: :delete_all),
+        null: false
+
       add :element_key, :string, null: false
       add :form, :string, null: false
       # anchor + offset + size + scale + opacity + z + on — the placement model, whole.
@@ -86,13 +93,17 @@ defmodule Nebulith.Repo.Migrations.CreateUiProfiles do
     # A BAR. Unlimited per profile, no paging, and it may carry a condition that decides when it shows.
     create table(:ui_bars, primary_key: false) do
       add :id, :binary_id, primary_key: true
-      add :profile_id, references(:ui_profiles, type: :binary_id, on_delete: :delete_all), null: false
+
+      add :profile_id, references(:ui_profiles, type: :binary_id, on_delete: :delete_all),
+        null: false
+
       add :name, :string
       add :position, :integer, null: false, default: 0
       add :rows, :integer, null: false, default: 1
       add :cols, :integer, null: false, default: 6
       # button size, gap, show keys / cooldown / empty slots, text + font
       add :settings, :map, null: false, default: %{}
+
       # WHEN this bar is up. Nil = always. Otherwise a rule: {"when": "ability", "id": …} and so on.
       add :condition, :map
 
@@ -106,6 +117,7 @@ defmodule Nebulith.Repo.Migrations.CreateUiProfiles do
       add :id, :binary_id, primary_key: true
       add :bar_id, references(:ui_bars, type: :binary_id, on_delete: :delete_all), null: false
       add :slot, :integer, null: false
+
       # What the button DOES: an ability key, an item slug, or an action key. Nil = a deliberate blank.
       add :ref_kind, :string
       add :ref_key, :string

@@ -87,7 +87,9 @@ defmodule Nebulith.DataMigration.ABeachGrowsDuneGrass do
     maps = set_default()
     zones = set_regions()
 
-    Logger.info("[data_migrate] #{tiles} dune grass tiles, #{maps} beach formations, #{zones} beach region sets")
+    Logger.info(
+      "[data_migrate] #{tiles} dune grass tiles, #{maps} beach formations, #{zones} beach region sets"
+    )
 
     :ok
   end
@@ -125,13 +127,11 @@ defmodule Nebulith.DataMigration.ABeachGrowsDuneGrass do
   # The map-wide default, for anywhere that states no region of its own.
   defp set_default do
     %{num_rows: rows} =
-      Repo.query!(
-        """
-        UPDATE generators
-        SET config = jsonb_set(config, '{formation,understoryTile}', '"dune_grass"')
-        WHERE key LIKE '%\\_beach' AND config->'formation' IS NOT NULL
-        """
-      )
+      Repo.query!("""
+      UPDATE generators
+      SET config = jsonb_set(config, '{formation,understoryTile}', '"dune_grass"')
+      WHERE key LIKE '%\\_beach' AND config->'formation' IS NOT NULL
+      """)
 
     rows
   end

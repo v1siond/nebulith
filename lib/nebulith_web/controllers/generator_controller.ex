@@ -10,5 +10,6 @@ defmodule NebulithWeb.GeneratorController do
 
   action_fallback NebulithWeb.FallbackController
 
-  def index(conn, _params), do: render(conn, :index, categories: Catalog.list_generator_categories())
+  def index(conn, _params),
+    do: render(conn, :index, categories: Catalog.list_generator_categories())
 end

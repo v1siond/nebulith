@@ -22,7 +22,16 @@ defmodule Nebulith.Catalog.Ability do
   @doc false
   def changeset(ability, attrs) do
     ability
-    |> cast(attrs, [:slug, :name, :description, :category, :animation, :cooldown_ms, :effect, :position])
+    |> cast(attrs, [
+      :slug,
+      :name,
+      :description,
+      :category,
+      :animation,
+      :cooldown_ms,
+      :effect,
+      :position
+    ])
     |> validate_required([:slug, :name, :category])
     |> unique_constraint(:slug)
   end

@@ -43,7 +43,10 @@ defmodule NebulithWeb.AdminControllerTest do
     test "rejects wrong credentials", %{conn: conn} do
       conn =
         conn
-        |> put_req_header("authorization", Plug.BasicAuth.encode_basic_auth(@email, "wrongpassword"))
+        |> put_req_header(
+          "authorization",
+          Plug.BasicAuth.encode_basic_auth(@email, "wrongpassword")
+        )
         |> get(~p"/admin")
 
       assert response(conn, 401)
@@ -83,7 +86,9 @@ defmodule NebulithWeb.AdminControllerTest do
       found = conn |> as_admin() |> get(~p"/admin/users?q=#{prefix}") |> html_response(200)
       assert found =~ subject.email
 
-      missing = conn |> as_admin() |> get(~p"/admin/users?q=zzz-no-such-user") |> html_response(200)
+      missing =
+        conn |> as_admin() |> get(~p"/admin/users?q=zzz-no-such-user") |> html_response(200)
+
       refute missing =~ subject.email
       assert missing =~ "Nothing here"
     end

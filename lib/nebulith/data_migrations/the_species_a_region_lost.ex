@@ -22,7 +22,8 @@ defmodule Nebulith.DataMigration.TheSpeciesARegionLost do
 
   alias Nebulith.Repo
 
-  defp mix(list), do: Enum.map(list, fn {kind, weight} -> %{"kind" => kind, "weight" => weight} end)
+  defp mix(list),
+    do: Enum.map(list, fn {kind, weight} -> %{"kind" => kind, "weight" => weight} end)
 
   defp species do
     %{
@@ -30,12 +31,15 @@ defmodule Nebulith.DataMigration.TheSpeciesARegionLost do
         "shore" => mix([{"tree_mangrove", 60}, {"tree_palm", 25}, {"bush_round", 15}]),
         "dunes" => mix([{"bush_round", 55}, {"tree_palm", 25}, {"bush", 20}]),
         "palms" => mix([{"tree_coconut", 40}, {"tree_palm", 35}, {"tree_banana", 25}]),
-        "backshore" => mix([{"tree_banana", 30}, {"tree_coconut", 25}, {"tree_mangrove", 25}, {"bush", 20}]),
-        "inland" => mix([{"tree_coconut", 35}, {"tree_palm", 25}, {"tree_banana", 25}, {"bush_round", 15}])
+        "backshore" =>
+          mix([{"tree_banana", 30}, {"tree_coconut", 25}, {"tree_mangrove", 25}, {"bush", 20}]),
+        "inland" =>
+          mix([{"tree_coconut", 35}, {"tree_palm", 25}, {"tree_banana", 25}, {"bush_round", 15}])
       },
       "forest_swamp" => %{
         "margin" => mix([{"tree_cypress", 40}, {"tree_mangrove", 30}, {"bush_round", 30}]),
-        "mire" => mix([{"tree_cypress", 35}, {"tree_giant", 25}, {"bush", 25}, {"tree_round", 15}]),
+        "mire" =>
+          mix([{"tree_cypress", 35}, {"tree_giant", 25}, {"bush", 25}, {"tree_round", 15}]),
         "bog" => mix([{"tree_cypress", 55}, {"tree_mangrove", 25}, {"bush_round", 20}]),
         "sink" => mix([{"tree_cypress", 60}, {"tree_mangrove", 25}, {"bush_round", 15}]),
         "open_water" => mix([{"tree_cypress", 70}, {"tree_mangrove", 20}, {"bush_round", 10}])
@@ -50,7 +54,8 @@ defmodule Nebulith.DataMigration.TheSpeciesARegionLost do
         "heart" => mix([{"tree_stub", 60}, {"tree_sapling", 40}]),
         "courts" => mix([{"tree_stub", 40}, {"tree_round", 30}, {"bush_round", 30}]),
         "terraces" => mix([{"tree_round", 40}, {"bush", 35}, {"tree_sapling", 25}]),
-        "overgrown" => mix([{"tree_round", 30}, {"bush", 30}, {"tree_stub", 20}, {"tree_sapling", 20}]),
+        "overgrown" =>
+          mix([{"tree_round", 30}, {"bush", 30}, {"tree_stub", 20}, {"tree_sapling", 20}]),
         "forest" => mix([{"tree_stub", 40}, {"tree_round", 30}, {"bush_round", 30}])
       }
     }
@@ -67,7 +72,10 @@ defmodule Nebulith.DataMigration.TheSpeciesARegionLost do
 
     case rows do
       [[zones]] when is_list(zones) ->
-        write(key, Enum.map(zones, fn z -> Map.put(z, "trees", Map.get(set, z["key"], z["trees"])) end))
+        write(
+          key,
+          Enum.map(zones, fn z -> Map.put(z, "trees", Map.get(set, z["key"], z["trees"])) end)
+        )
 
       _ ->
         0

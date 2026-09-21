@@ -19,32 +19,113 @@ defmodule Nebulith.Catalog.UiSource do
   @doc "Every bindable action the engine understands, in menu order."
   def actions do
     [
-      %{key: "move_up", category: "movement", label: "Move up", default_chord: "W / ↑", position: 0},
-      %{key: "move_down", category: "movement", label: "Move down", default_chord: "S / ↓", position: 1},
-      %{key: "move_left", category: "movement", label: "Move left", default_chord: "A / ←", position: 2},
-      %{key: "move_right", category: "movement", label: "Move right", default_chord: "D / →", position: 3},
+      %{
+        key: "move_up",
+        category: "movement",
+        label: "Move up",
+        default_chord: "W / ↑",
+        position: 0
+      },
+      %{
+        key: "move_down",
+        category: "movement",
+        label: "Move down",
+        default_chord: "S / ↓",
+        position: 1
+      },
+      %{
+        key: "move_left",
+        category: "movement",
+        label: "Move left",
+        default_chord: "A / ←",
+        position: 2
+      },
+      %{
+        key: "move_right",
+        category: "movement",
+        label: "Move right",
+        default_chord: "D / →",
+        position: 3
+      },
       %{key: "run", category: "movement", label: "Run", default_chord: "Shift", position: 4},
       %{key: "jump", category: "movement", label: "Jump", default_chord: "Space", position: 5},
-      %{key: "attack_primary", category: "combat", label: "Attack primary", default_chord: "F", position: 6},
-      %{key: "attack_special", category: "combat", label: "Attack special", default_chord: "G", position: 7},
+      %{
+        key: "attack_primary",
+        category: "combat",
+        label: "Attack primary",
+        default_chord: "F",
+        position: 6
+      },
+      %{
+        key: "attack_special",
+        category: "combat",
+        label: "Attack special",
+        default_chord: "G",
+        position: 7
+      },
       %{key: "power_1", category: "combat", label: "Power 1", default_chord: "1", position: 8},
       %{key: "power_2", category: "combat", label: "Power 2", default_chord: "2", position: 9},
       %{key: "power_3", category: "combat", label: "Power 3", default_chord: "3", position: 10},
       %{key: "power_4", category: "combat", label: "Power 4", default_chord: "4", position: 11},
-      %{key: "interact", category: "world", label: "Interact", default_chord: "E / Enter", position: 12},
-      %{key: "target_next", category: "world", label: "Target next", default_chord: "Tab", position: 13},
-      %{key: "open_bag", category: "interface", label: "Open bag", default_chord: "I", position: 14},
-      %{key: "open_journal", category: "interface", label: "Open journal", default_chord: "Q", position: 15},
-      %{key: "select", category: "mouse", label: "Select", default_chord: "mouse_left", position: 16},
-      %{key: "context", category: "mouse", label: "Context", default_chord: "mouse_right", position: 17},
-      %{key: "camera_pan", category: "mouse", label: "Camera pan", default_chord: "mouse_middle", position: 18}
+      %{
+        key: "interact",
+        category: "world",
+        label: "Interact",
+        default_chord: "E / Enter",
+        position: 12
+      },
+      %{
+        key: "target_next",
+        category: "world",
+        label: "Target next",
+        default_chord: "Tab",
+        position: 13
+      },
+      %{
+        key: "open_bag",
+        category: "interface",
+        label: "Open bag",
+        default_chord: "I",
+        position: 14
+      },
+      %{
+        key: "open_journal",
+        category: "interface",
+        label: "Open journal",
+        default_chord: "Q",
+        position: 15
+      },
+      %{
+        key: "select",
+        category: "mouse",
+        label: "Select",
+        default_chord: "mouse_left",
+        position: 16
+      },
+      %{
+        key: "context",
+        category: "mouse",
+        label: "Context",
+        default_chord: "mouse_right",
+        position: 17
+      },
+      %{
+        key: "camera_pan",
+        category: "mouse",
+        label: "Camera pan",
+        default_chord: "mouse_middle",
+        position: 18
+      }
     ]
   end
 
   @doc "The default profile's HUD placements, per form."
   def elements do
     [
-      %{element_key: "vitals", form: "Desktop", placement: %{
+      %{
+        element_key: "vitals",
+        form: "Desktop",
+        placement: %{
           "a" => "BL",
           "x" => 16,
           "y" => 16,
@@ -54,8 +135,12 @@ defmodule Nebulith.Catalog.UiSource do
           "o" => 1,
           "on" => true,
           "z" => 20
-        }},
-      %{element_key: "action_bar", form: "Desktop", placement: %{
+        }
+      },
+      %{
+        element_key: "action_bar",
+        form: "Desktop",
+        placement: %{
           "a" => "BC",
           "x" => 0,
           "y" => 16,
@@ -65,8 +150,12 @@ defmodule Nebulith.Catalog.UiSource do
           "o" => 1,
           "on" => true,
           "z" => 20
-        }},
-      %{element_key: "quest_tracker", form: "Desktop", placement: %{
+        }
+      },
+      %{
+        element_key: "quest_tracker",
+        form: "Desktop",
+        placement: %{
           "a" => "TC",
           "x" => 0,
           "y" => 80,
@@ -76,8 +165,12 @@ defmodule Nebulith.Catalog.UiSource do
           "o" => 1,
           "on" => true,
           "z" => 20
-        }},
-      %{element_key: "fps", form: "Desktop", placement: %{
+        }
+      },
+      %{
+        element_key: "fps",
+        form: "Desktop",
+        placement: %{
           "a" => "TR",
           "x" => 16,
           "y" => 16,
@@ -87,8 +180,12 @@ defmodule Nebulith.Catalog.UiSource do
           "o" => 1,
           "on" => true,
           "z" => 30
-        }},
-      %{element_key: "exit", form: "Desktop", placement: %{
+        }
+      },
+      %{
+        element_key: "exit",
+        form: "Desktop",
+        placement: %{
           "a" => "TL",
           "x" => 16,
           "y" => 16,
@@ -98,8 +195,12 @@ defmodule Nebulith.Catalog.UiSource do
           "o" => 1,
           "on" => true,
           "z" => 30
-        }},
-      %{element_key: "select_hint", form: "Desktop", placement: %{
+        }
+      },
+      %{
+        element_key: "select_hint",
+        form: "Desktop",
+        placement: %{
           "a" => "BC",
           "x" => 0,
           "y" => 74,
@@ -109,8 +210,12 @@ defmodule Nebulith.Catalog.UiSource do
           "o" => 1,
           "on" => false,
           "z" => 20
-        }},
-      %{element_key: "trigger_msg", form: "Desktop", placement: %{
+        }
+      },
+      %{
+        element_key: "trigger_msg",
+        form: "Desktop",
+        placement: %{
           "a" => "BC",
           "x" => 0,
           "y" => 108,
@@ -120,8 +225,12 @@ defmodule Nebulith.Catalog.UiSource do
           "o" => 1,
           "on" => false,
           "z" => 40
-        }},
-      %{element_key: "win_lose", form: "Desktop", placement: %{
+        }
+      },
+      %{
+        element_key: "win_lose",
+        form: "Desktop",
+        placement: %{
           "a" => "MC",
           "x" => 0,
           "y" => 0,
@@ -131,8 +240,12 @@ defmodule Nebulith.Catalog.UiSource do
           "o" => 1,
           "on" => false,
           "z" => 50
-        }},
-      %{element_key: "bag_panel", form: "Desktop", placement: %{
+        }
+      },
+      %{
+        element_key: "bag_panel",
+        form: "Desktop",
+        placement: %{
           "a" => "MC",
           "x" => 0,
           "y" => 0,
@@ -142,8 +255,12 @@ defmodule Nebulith.Catalog.UiSource do
           "o" => 1,
           "on" => false,
           "z" => 30
-        }},
-      %{element_key: "journal_panel", form: "Desktop", placement: %{
+        }
+      },
+      %{
+        element_key: "journal_panel",
+        form: "Desktop",
+        placement: %{
           "a" => "MC",
           "x" => 0,
           "y" => 0,
@@ -153,8 +270,12 @@ defmodule Nebulith.Catalog.UiSource do
           "o" => 1,
           "on" => false,
           "z" => 30
-        }},
-      %{element_key: "debug_legend", form: "Desktop", placement: %{
+        }
+      },
+      %{
+        element_key: "debug_legend",
+        form: "Desktop",
+        placement: %{
           "a" => "BL",
           "x" => 16,
           "y" => 16,
@@ -164,8 +285,12 @@ defmodule Nebulith.Catalog.UiSource do
           "o" => 1,
           "on" => false,
           "z" => 20
-        }},
-      %{element_key: "vitals", form: "Mobile", placement: %{
+        }
+      },
+      %{
+        element_key: "vitals",
+        form: "Mobile",
+        placement: %{
           "a" => "TL",
           "x" => 10,
           "y" => 10,
@@ -175,8 +300,12 @@ defmodule Nebulith.Catalog.UiSource do
           "o" => 1,
           "on" => true,
           "z" => 20
-        }},
-      %{element_key: "action_bar", form: "Mobile", placement: %{
+        }
+      },
+      %{
+        element_key: "action_bar",
+        form: "Mobile",
+        placement: %{
           "a" => "BC",
           "x" => 0,
           "y" => 14,
@@ -186,8 +315,12 @@ defmodule Nebulith.Catalog.UiSource do
           "o" => 1,
           "on" => true,
           "z" => 20
-        }},
-      %{element_key: "quest_tracker", form: "Mobile", placement: %{
+        }
+      },
+      %{
+        element_key: "quest_tracker",
+        form: "Mobile",
+        placement: %{
           "a" => "TC",
           "x" => 0,
           "y" => 58,
@@ -197,8 +330,12 @@ defmodule Nebulith.Catalog.UiSource do
           "o" => 0.9,
           "on" => true,
           "z" => 20
-        }},
-      %{element_key: "fps", form: "Mobile", placement: %{
+        }
+      },
+      %{
+        element_key: "fps",
+        form: "Mobile",
+        placement: %{
           "a" => "TR",
           "x" => 8,
           "y" => 8,
@@ -208,8 +345,12 @@ defmodule Nebulith.Catalog.UiSource do
           "o" => 0.7,
           "on" => false,
           "z" => 30
-        }},
-      %{element_key: "exit", form: "Mobile", placement: %{
+        }
+      },
+      %{
+        element_key: "exit",
+        form: "Mobile",
+        placement: %{
           "a" => "TR",
           "x" => 8,
           "y" => 34,
@@ -219,8 +360,12 @@ defmodule Nebulith.Catalog.UiSource do
           "o" => 1,
           "on" => true,
           "z" => 30
-        }},
-      %{element_key: "select_hint", form: "Mobile", placement: %{
+        }
+      },
+      %{
+        element_key: "select_hint",
+        form: "Mobile",
+        placement: %{
           "a" => "BC",
           "x" => 0,
           "y" => 72,
@@ -230,8 +375,12 @@ defmodule Nebulith.Catalog.UiSource do
           "o" => 1,
           "on" => false,
           "z" => 20
-        }},
-      %{element_key: "trigger_msg", form: "Mobile", placement: %{
+        }
+      },
+      %{
+        element_key: "trigger_msg",
+        form: "Mobile",
+        placement: %{
           "a" => "MC",
           "x" => 0,
           "y" => 60,
@@ -241,8 +390,12 @@ defmodule Nebulith.Catalog.UiSource do
           "o" => 1,
           "on" => false,
           "z" => 40
-        }},
-      %{element_key: "win_lose", form: "Mobile", placement: %{
+        }
+      },
+      %{
+        element_key: "win_lose",
+        form: "Mobile",
+        placement: %{
           "a" => "MC",
           "x" => 0,
           "y" => 0,
@@ -252,8 +405,12 @@ defmodule Nebulith.Catalog.UiSource do
           "o" => 1,
           "on" => false,
           "z" => 50
-        }},
-      %{element_key: "bag_panel", form: "Mobile", placement: %{
+        }
+      },
+      %{
+        element_key: "bag_panel",
+        form: "Mobile",
+        placement: %{
           "a" => "MC",
           "x" => 0,
           "y" => 0,
@@ -263,8 +420,12 @@ defmodule Nebulith.Catalog.UiSource do
           "o" => 1,
           "on" => false,
           "z" => 30
-        }},
-      %{element_key: "journal_panel", form: "Mobile", placement: %{
+        }
+      },
+      %{
+        element_key: "journal_panel",
+        form: "Mobile",
+        placement: %{
           "a" => "MC",
           "x" => 0,
           "y" => 0,
@@ -274,8 +435,12 @@ defmodule Nebulith.Catalog.UiSource do
           "o" => 1,
           "on" => false,
           "z" => 30
-        }},
-      %{element_key: "debug_legend", form: "Mobile", placement: %{
+        }
+      },
+      %{
+        element_key: "debug_legend",
+        form: "Mobile",
+        placement: %{
           "a" => "BL",
           "x" => 10,
           "y" => 66,
@@ -285,7 +450,8 @@ defmodule Nebulith.Catalog.UiSource do
           "o" => 0.8,
           "on" => false,
           "z" => 20
-        }}
+        }
+      }
     ]
   end
 
@@ -367,14 +533,25 @@ defmodule Nebulith.Catalog.UiSource do
         position: 0,
         rows: 1,
         cols: 4,
-        settings: %{"buttonPx" => 44, "gapPx" => 6, "showKeys" => true, "showCooldown" => true, "showEmpty" => true},
+        settings: %{
+          "buttonPx" => 44,
+          "gapPx" => 6,
+          "showKeys" => true,
+          "showCooldown" => true,
+          "showEmpty" => true
+        },
         condition: nil
       })
       |> Repo.insert!()
 
     for slot <- 0..3 do
       %BarSlot{}
-      |> BarSlot.changeset(%{bar_id: bar.id, slot: slot, ref_kind: "action", ref_key: "power_#{slot + 1}"})
+      |> BarSlot.changeset(%{
+        bar_id: bar.id,
+        slot: slot,
+        ref_kind: "action",
+        ref_key: "power_#{slot + 1}"
+      })
       |> Repo.insert!()
     end
   end
@@ -426,25 +603,50 @@ defmodule Nebulith.Catalog.UiSource do
     if source do
       for b <- source.bindings do
         %Binding{}
-        |> Binding.changeset(%{profile_id: mine.id, action_key: b.action_key, input: b.input, editable: b.editable, position: b.position})
+        |> Binding.changeset(%{
+          profile_id: mine.id,
+          action_key: b.action_key,
+          input: b.input,
+          editable: b.editable,
+          position: b.position
+        })
         |> Repo.insert!()
       end
 
       for e <- source.elements do
         %Element{}
-        |> Element.changeset(%{profile_id: mine.id, element_key: e.element_key, form: e.form, placement: e.placement, editable: e.editable})
+        |> Element.changeset(%{
+          profile_id: mine.id,
+          element_key: e.element_key,
+          form: e.form,
+          placement: e.placement,
+          editable: e.editable
+        })
         |> Repo.insert!()
       end
 
       for bar <- source.bars do
         copy =
           %Bar{}
-          |> Bar.changeset(%{profile_id: mine.id, name: bar.name, position: bar.position, rows: bar.rows, cols: bar.cols, settings: bar.settings, condition: bar.condition})
+          |> Bar.changeset(%{
+            profile_id: mine.id,
+            name: bar.name,
+            position: bar.position,
+            rows: bar.rows,
+            cols: bar.cols,
+            settings: bar.settings,
+            condition: bar.condition
+          })
           |> Repo.insert!()
 
         for slot <- bar.slots do
           %BarSlot{}
-          |> BarSlot.changeset(%{bar_id: copy.id, slot: slot.slot, ref_kind: slot.ref_kind, ref_key: slot.ref_key})
+          |> BarSlot.changeset(%{
+            bar_id: copy.id,
+            slot: slot.slot,
+            ref_kind: slot.ref_kind,
+            ref_key: slot.ref_key
+          })
           |> Repo.insert!()
         end
       end
@@ -479,7 +681,12 @@ defmodule Nebulith.Catalog.UiSource do
 
       for slot <- bar["slots"] || [] do
         %BarSlot{}
-        |> BarSlot.changeset(%{bar_id: row.id, slot: slot["slot"], ref_kind: slot["refKind"], ref_key: slot["refKey"]})
+        |> BarSlot.changeset(%{
+          bar_id: row.id,
+          slot: slot["slot"],
+          ref_kind: slot["refKind"],
+          ref_key: slot["refKey"]
+        })
         |> Repo.insert!()
       end
     end
@@ -498,8 +705,12 @@ defmodule Nebulith.Catalog.UiSource do
         editable: Map.get(e, "editable", true)
       }
 
-      case Repo.one(from x in Element,
-             where: x.profile_id == ^profile.id and x.element_key == ^attrs.element_key and x.form == ^attrs.form) do
+      case Repo.one(
+             from x in Element,
+               where:
+                 x.profile_id == ^profile.id and x.element_key == ^attrs.element_key and
+                   x.form == ^attrs.form
+           ) do
         nil -> %Element{}
         found -> found
       end

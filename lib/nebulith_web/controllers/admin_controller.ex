@@ -46,7 +46,9 @@ defmodule NebulithWeb.AdminController do
         )
       else
         :error ->
-          conn |> put_flash(:error, "No row #{id} in #{table}.") |> redirect(to: ~p"/admin/#{table}")
+          conn
+          |> put_flash(:error, "No row #{id} in #{table}.")
+          |> redirect(to: ~p"/admin/#{table}")
       end
     end)
   end
@@ -81,7 +83,9 @@ defmodule NebulithWeb.AdminController do
           render(conn, :edit, table: table, id: id, row: row, columns: Admin.columns(table))
 
         :error ->
-          conn |> put_flash(:error, "No row #{id} in #{table}.") |> redirect(to: ~p"/admin/#{table}")
+          conn
+          |> put_flash(:error, "No row #{id} in #{table}.")
+          |> redirect(to: ~p"/admin/#{table}")
       end
     end)
   end
@@ -116,7 +120,10 @@ defmodule NebulithWeb.AdminController do
 
         {:error, :no_primary_key} ->
           conn
-          |> put_flash(:error, "#{table} has no primary key, so a single row cannot be addressed.")
+          |> put_flash(
+            :error,
+            "#{table} has no primary key, so a single row cannot be addressed."
+          )
           |> redirect(to: ~p"/admin/#{table}")
       end
     end)

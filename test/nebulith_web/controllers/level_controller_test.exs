@@ -21,7 +21,9 @@ defmodule NebulithWeb.LevelControllerTest do
   test "serves THIS GAME's levels, in play order, and nobody else's", %{conn: conn, game: game} do
     {:ok, other} = Games.create_game(%{"name" => "Sonic"})
     {:ok, _} = Levels.create_level(other.id, %{"name" => "Green Hill"})
-    for name <- ["1-1", "1-2", "1-3"], do: {:ok, _} = Levels.create_level(game.id, %{"name" => name})
+
+    for name <- ["1-1", "1-2", "1-3"],
+        do: {:ok, _} = Levels.create_level(game.id, %{"name" => name})
 
     data = json_response(get(conn, ~p"/api/games/#{game.id}/levels"), 200)["data"]
 
@@ -39,20 +41,26 @@ defmodule NebulithWeb.LevelControllerTest do
   end
 
   test "updates a level's maps in place", %{conn: conn, game: game} do
-    {:ok, level} = Levels.create_level(game.id, %{"name" => "Jungle", "templateIds" => ["a", "b"]})
+    {:ok, level} =
+      Levels.create_level(game.id, %{"name" => "Jungle", "templateIds" => ["a", "b"]})
 
-    updated = json_response(put(conn, ~p"/api/levels/#{level.id}", %{"templateIds" => ["b"]}), 200)
+    updated =
+      json_response(put(conn, ~p"/api/levels/#{level.id}", %{"templateIds" => ["b"]}), 200)
 
     assert updated["templateIds"] == ["b"]
   end
 
   test "reorders a game's levels from the ordered list of ids", %{conn: conn, game: game} do
-    for name <- ["1-1", "1-2", "1-3"], do: {:ok, _} = Levels.create_level(game.id, %{"name" => name})
+    for name <- ["1-1", "1-2", "1-3"],
+        do: {:ok, _} = Levels.create_level(game.id, %{"name" => name})
+
     ids = Levels.list_levels(game.id) |> Enum.map(& &1.id)
 
     data =
       conn
-      |> put(~p"/api/games/#{game.id}/levels/order", %{"levelIds" => [Enum.at(ids, 2), Enum.at(ids, 1), Enum.at(ids, 0)]})
+      |> put(~p"/api/games/#{game.id}/levels/order", %{
+        "levelIds" => [Enum.at(ids, 2), Enum.at(ids, 1), Enum.at(ids, 0)]
+      })
       |> json_response(200)
       |> Map.fetch!("data")
 
@@ -70,7 +78,10 @@ defmodule NebulithWeb.LevelControllerTest do
     assert json_response(get(conn, ~p"/api/levels/#{Ecto.UUID.generate()}"), 404)
   end
 
-  test "the response carries no database bookkeeping, just what the editor needs", %{conn: conn, game: game} do
+  test "the response carries no database bookkeeping, just what the editor needs", %{
+    conn: conn,
+    game: game
+  } do
     {:ok, level} = Levels.create_level(game.id, %{"name" => "1-1"})
     body = json_response(get(conn, ~p"/api/levels/#{level.id}"), 200)
 

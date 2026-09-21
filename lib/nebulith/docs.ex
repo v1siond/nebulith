@@ -185,7 +185,13 @@ defmodule Nebulith.Docs do
       text = String.trim(text)
       {number, label} = split_number(text)
 
-      %{level: String.length(hashes), text: text, label: label, number: number, anchor: anchor(text)}
+      %{
+        level: String.length(hashes),
+        text: text,
+        label: label,
+        number: number,
+        anchor: anchor(text)
+      }
     end)
   end
 
@@ -269,7 +275,9 @@ defmodule Nebulith.Docs do
       diagrams
       |> Enum.with_index()
       |> Enum.reduce(body, fn {source, i}, acc ->
-        String.replace(acc, "```mermaid\n" <> source <> "```", "#{@placeholder}#{i}", global: false)
+        String.replace(acc, "```mermaid\n" <> source <> "```", "#{@placeholder}#{i}",
+          global: false
+        )
       end)
 
     {stripped, diagrams}

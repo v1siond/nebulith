@@ -5,6 +5,7 @@ defmodule Nebulith.Catalog.Tileset do
   schema "tilesets" do
     field :key, :string
     field :name, :string
+
     # A tileset row IS an art style, so it carries what the style picker needs to show one: the affordance
     # icon and the order it appears in. Without these the frontend has to declare the style list itself,
     # which is what §3.14a's BUILT_IN_STYLES was.

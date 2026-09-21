@@ -13,6 +13,7 @@ defmodule Nebulith.Repo.Migrations.CreateGenerators do
     # as one typed blob, and adding a knob must not need a migration.
     create table(:generator_categories, primary_key: false) do
       add :id, :binary_id, primary_key: true
+
       # The engine's own variant id (`forest`/`town`/`city`/`cave`/`temple`) — the key the generate
       # call already speaks, so nothing has to translate names.
       add :key, :string, null: false
@@ -28,7 +29,10 @@ defmodule Nebulith.Repo.Migrations.CreateGenerators do
 
     create table(:generators, primary_key: false) do
       add :id, :binary_id, primary_key: true
-      add :category_id, references(:generator_categories, type: :binary_id, on_delete: :delete_all), null: false
+
+      add :category_id,
+          references(:generator_categories, type: :binary_id, on_delete: :delete_all), null: false
+
       add :key, :string, null: false
       add :name, :string, null: false
       add :description, :string

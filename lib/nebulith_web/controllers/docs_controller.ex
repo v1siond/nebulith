@@ -28,8 +28,11 @@ defmodule NebulithWeb.DocsController do
 
   def show(conn, %{"slug" => slug}) do
     case Docs.fetch(slug) do
-      {:ok, doc} -> render(conn, :show, doc: doc, sections: Docs.sections())
-      :error -> conn |> put_status(:not_found) |> render(:missing, slug: slug, sections: Docs.sections())
+      {:ok, doc} ->
+        render(conn, :show, doc: doc, sections: Docs.sections())
+
+      :error ->
+        conn |> put_status(:not_found) |> render(:missing, slug: slug, sections: Docs.sections())
     end
   end
 end

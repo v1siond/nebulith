@@ -36,12 +36,17 @@ defmodule Nebulith.AccountsTest do
     test "the same email cannot be taken twice, in any case" do
       email = unique_email("taken")
       {:ok, _} = Accounts.create_user(%{email: email, password: "12345678"})
-      {:error, changeset} = Accounts.create_user(%{email: String.upcase(email), password: "12345678"})
+
+      {:error, changeset} =
+        Accounts.create_user(%{email: String.upcase(email), password: "12345678"})
+
       assert "has already been taken" in errors_on(changeset).email
     end
 
     test "a password shorter than the minimum is refused" do
-      {:error, changeset} = Accounts.create_user(%{email: unique_email("short"), password: "1234567"})
+      {:error, changeset} =
+        Accounts.create_user(%{email: unique_email("short"), password: "1234567"})
+
       assert errors_on(changeset).password != []
     end
   end

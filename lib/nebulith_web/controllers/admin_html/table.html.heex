@@ -10,7 +10,8 @@
         <div>
           <h1 class="text-3xl font-bold tracking-tight">{@table}</h1>
           <p class="mt-1 text-sm text-base-content/70">
-            {@result.total} {if @result.total == 1, do: "row", else: "rows"}<%= if @result.search do %>
+            {@result.total} {if @result.total == 1, do: "row", else: "rows"}
+            <%= if @result.search do %>
               matching <span class="font-mono text-primary">{@result.search}</span>
             <% end %>, page {@result.page} of {@result.pages}
           </p>
@@ -35,8 +36,13 @@
       </div>
     </header>
 
-    <div :if={@result.rows == []} class="mt-10 rounded-box border border-base-300 bg-base-200 p-6 text-sm text-base-content/70">
-      Nothing here<%= if @result.search do %> matching that search<% end %>.
+    <div
+      :if={@result.rows == []}
+      class="mt-10 rounded-box border border-base-300 bg-base-200 p-6 text-sm text-base-content/70"
+    >
+      Nothing here<%= if @result.search do %>
+        matching that search
+      <% end %>.
     </div>
 
     <div :if={@result.rows != []} class="mt-6 overflow-x-auto rounded-box border border-base-300">
@@ -68,7 +74,11 @@
               </.link>
               <span :if={!id} class="font-mono text-[11px] text-base-content/30">no key</span>
             </td>
-            <td :for={cell <- row} class="max-w-md truncate px-3 py-2 align-top tabular-nums" title={cell}>
+            <td
+              :for={cell <- row}
+              class="max-w-md truncate px-3 py-2 align-top tabular-nums"
+              title={cell}
+            >
               {cell}
             </td>
           </tr>

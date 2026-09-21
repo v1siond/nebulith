@@ -47,9 +47,10 @@ defmodule Nebulith.DataMigration.TwoBiomesOutOfOrder do
   @leaf %{"meadow" => "#8c7835", "mountain" => "#8c875a"}
 
   def run do
-    rows = for {biome, leaf} <- @leaf, reduce: 0 do
-      acc -> acc + repaint(biome, leaf)
-    end
+    rows =
+      for {biome, leaf} <- @leaf, reduce: 0 do
+        acc -> acc + repaint(biome, leaf)
+      end
 
     Logger.info("[data_migrate] #{rows} generators wear the leaf hue their reference gives them")
 

@@ -17,7 +17,11 @@ defmodule Nebulith.DataMigration.AStreetIsTheOnlyPaintOnATown do
 
   def run do
     rows = Enum.sum(for key <- settlement_keys(), do: strip(key))
-    Logger.info("[data_migrate] #{rows} settlements: the street is the only paint that crosses them")
+
+    Logger.info(
+      "[data_migrate] #{rows} settlements: the street is the only paint that crosses them"
+    )
+
     :ok
   end
 
