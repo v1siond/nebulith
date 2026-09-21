@@ -117,6 +117,19 @@ jobs:
       - run: mix deps.get
       - run: npm ci --prefix assets
 
+      # THE ASSET BINARIES, CACHED. `assets.setup` downloads tailwind and esbuild from GitHub releases
+      # on every run, so a GitHub 5xx fails a build that has nothing wrong with it. It has already done
+      # so twice in a row. Keyed on the versions in config/config.exs, and `--if-missing` means a hit
+      # skips the download entirely.
+      - name: Cache the asset binaries
+        uses: actions/cache@v4
+        with:
+          path: |
+            _build/tailwind-*
+            _build/esbuild-*
+          key: ${{ runner.os }}-assetbins-${{ hashFiles('config/config.exs') }}
+          restore-keys: ${{ runner.os }}-assetbins-
+
       # THE INSTALLER HAS TO BE THE PLAYWRIGHT THE TESTS IMPORT, and this proves it rather than
       # assuming it. Every Playwright version hard-codes the browser revision it will launch, so an
       # installer that is a different build installs one browser and the tests launch another, which
