@@ -190,6 +190,15 @@ defmodule NebulithWeb.Router do
     get "/abilities", AbilityController, :index
     get "/editor_settings", EditorSettingController, :index
     put "/editor_settings/:key", EditorSettingController, :update
+
+    # MAPS, as rows. `show` and `update` are exact inverses: what goes out comes back under the same
+    # keys, and the keys are the column names. See docs/SPEC.md §8 phase 3.
+    get "/maps", MapController, :index
+    post "/maps", MapController, :create
+    # Before /maps/:id, or the word "schema" is read as an id.
+    get "/maps/schema", MapController, :schema
+    get "/maps/:id", MapController, :show
+    put "/maps/:id", MapController, :update
     get "/cv", CVController, :index
   end
 
