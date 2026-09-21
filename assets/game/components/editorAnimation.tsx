@@ -14,6 +14,10 @@ import {
   type SpriteAnimation,
   type AnimationTrack,
   type SettingKey,
+  EASES,
+  TRIGGER_EVENTS,
+  TILE_STYLES,
+  TILE_VIEWS,
   type Ease as AnimEase,
   type TriggerEvent as AnimTriggerEvent,
   type TileStyle,
@@ -280,15 +284,24 @@ const ANIM_SETTING_KEYS: ReadonlyArray<{ key: SettingKey; label: string }> = [
   { key: 'zIndex', label: 'zIndex' },
   { key: 'display', label: 'display' },
 ]
-const ANIM_EASES: readonly AnimEase[] = ['linear', 'sine', 'ease']
-const ANIM_TILE_TRIGGERS: ReadonlyArray<{ id: AnimTriggerEvent; label: string }> = [
-  { id: 'load', label: 'on load (ambient)' },
-  { id: 'proximity', label: 'near hero' },
-  { id: 'attack', label: 'on attack' },
-  { id: 'interact', label: 'on interact' },
-]
-const ANIM_STYLES: readonly TileStyle[] = ['ascii', 'emoji']
-const ANIM_VIEWS: readonly TileView[] = ['iso', '2d', 'top']
+/* The ENGINE owns which values exist; this file owns only how they read on screen. Before, each of these
+ * was a second copy of an engine union and the two drifted: `flicker` and `night` were fully implemented
+ * and unreachable from the panel. The lists below are the engine's own, so a value it accepts is always
+ * offered, and a label missing here falls back to the value itself rather than hiding the option. */
+const ANIM_EASES: readonly AnimEase[] = EASES
+
+const TRIGGER_LABELS: Partial<Record<AnimTriggerEvent, string>> = {
+  load: 'on load (ambient)',
+  proximity: 'near hero',
+  attack: 'on attack',
+  interact: 'on interact',
+  night: 'only at night',
+}
+const ANIM_TILE_TRIGGERS: ReadonlyArray<{ id: AnimTriggerEvent; label: string }> =
+  TRIGGER_EVENTS.map(id => ({ id, label: TRIGGER_LABELS[id] ?? id }))
+
+const ANIM_STYLES: readonly TileStyle[] = TILE_STYLES
+const ANIM_VIEWS: readonly TileView[] = TILE_VIEWS
 
 /** Parse a number field, falling back to `fb` on empty/invalid so the input never writes NaN. */
 const numOr = (raw: string, fb: number): number => { const n = parseFloat(raw); return Number.isNaN(n) ? fb : n }

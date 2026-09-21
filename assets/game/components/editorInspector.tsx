@@ -78,10 +78,29 @@ function NumberField({ value, onCommit, ariaLabel, className }: {
   )
 }
 
+/**
+ * THE SLIDER'S ENDS FOLLOW THE VALUE, SO NOTHING IS EVER CAPPED.
+ *
+ * *"none of the sliders should be limited... the react side just reacts the values of the backend and
+ * allow us to change them in the state, as simple as that."*
+ *
+ * A range input has to have ends to be draggable at all, so the numbers below are a comfortable DRAG
+ * range and nothing more. If the stored value sits outside it, the range grows to take it in.
+ *
+ * That is not cosmetic. Without it a value typed past the end pins the handle at the end, and the next
+ * nudge of the slider writes the end back, silently destroying what was typed. A width of 20 became 5 on
+ * one drag.
+ */
+function dragRange(value: number, min: number, max: number): { min: number; max: number } {
+  if (!Number.isFinite(value)) return { min, max }
+  return { min: Math.min(min, value), max: Math.max(max, value) }
+}
+
 /** One labeled row of the pose editor: a range slider paired with a typeable number input (same units).
  *  Unit-agnostic, the caller converts (e.g. degrees→radians for rotation) so this stays a dumb control. */
 function PoseRow({ label, value, min, max, step, suffix, onInput, labelWidth = 'w-12', help }: { label: string; value: number; min: number; max: number; step: number; suffix?: string; onInput: (v: number) => void; labelWidth?: string; help?: string }) {
   const emit = (raw: string) => { const n = parseFloat(raw); if (!Number.isNaN(n)) onInput(n) }
+  const drag = dragRange(value, min, max)
   return (
     <label className="flex items-center gap-2">
       <span className={`${labelWidth} shrink-0 text-[10px] text-gray-400`}>
@@ -89,7 +108,7 @@ function PoseRow({ label, value, min, max, step, suffix, onInput, labelWidth = '
         {/* Several of these settings are not self-explanatory. The ones with an answer carry it. */}
         {help && <InfoButton helpId={help} />}
       </span>
-      <input type="range" min={min} max={max} step={step} value={value} onChange={e => emit(e.target.value)} aria-label={label} className="flex-1 accent-cyan-500" />
+      <input type="range" min={drag.min} max={drag.max} step={step} value={value} onChange={e => emit(e.target.value)} aria-label={label} className="flex-1 accent-cyan-500" />
       <NumberField value={value} onCommit={onInput} ariaLabel={`${label} value`} className="w-14 rounded bg-gray-800 p-1 text-[10px] tabular-nums text-cyan-300" />
       {suffix && <span className="text-[10px] text-gray-400">{suffix}</span>}
     </label>
@@ -312,10 +331,11 @@ const parseNum = (raw: string, cb: (n: number) => void) => { const n = parseFloa
  *  Every axis DRAGS DOWN TO 0, a dimension is a measurement, and 0 is a value it can hold (a flat tile is
  *  0 blocks tall). The slider is the control; it must reach the whole range on its own, not defer to typing. */
 function DimRow({ label, axis, value, title, onDim }: { label: string; axis: DimAxis; value: number | null; title: string; onDim: (axis: DimAxis, value: number) => void }) {
+  const drag = dragRange(value ?? 1, 0, 5)
   return (
     <label className="flex items-center gap-2" title={title}>
       <span className="w-14 shrink-0 text-[10px] text-gray-400">{label}</span>
-      <input type="range" min={0} max={5} step={0.05} value={value ?? 1} onChange={e => parseNum(e.target.value, v => onDim(axis, v))} aria-label={label} className="flex-1 accent-cyan-500" />
+      <input type="range" min={drag.min} max={drag.max} step={0.05} value={value ?? 1} onChange={e => parseNum(e.target.value, v => onDim(axis, v))} aria-label={label} className="flex-1 accent-cyan-500" />
       <NumberField value={value ?? 1} onCommit={v => onDim(axis, v)} ariaLabel={`${label} value`} className="w-14 rounded bg-gray-800 p-1 text-[10px] tabular-nums text-cyan-300" />
       {value === null && mixedBadge}
     </label>
@@ -397,7 +417,7 @@ function ZWidthRow({ zWidth, zBack, zPerp, zPerpBack, zDir, facing, onZWidth, on
           return (
             <label key={dir} className={`flex items-center gap-1.5 rounded px-1.5 py-0.5 ${on ? 'bg-cyan-900/50 ring-1 ring-cyan-700' : 'bg-gray-800/60'}`} title={`Reach ${spoken}, how many CELLS this tile covers that way, counting its own. 1 = just this cell.`}>
               <span aria-hidden className="w-6 shrink-0 text-center text-[12px] font-bold text-gray-300">{glyph}</span>
-              <input type="range" min={1} max={9} step={1} value={amountFor(dir)} onChange={e => parseNum(e.target.value, n => setAmount(dir, n))} aria-label={`Footprint ${spoken}`} className="min-w-0 flex-1 accent-cyan-500" />
+              <input type="range" {...dragRange(amountFor(dir), 1, 9)} step={1} value={amountFor(dir)} onChange={e => parseNum(e.target.value, n => setAmount(dir, n))} aria-label={`Footprint ${spoken}`} className="min-w-0 flex-1 accent-cyan-500" />
               <NumberField value={amountFor(dir)} onCommit={n => setAmount(dir, n)} ariaLabel={`Footprint ${spoken} value`} className="w-10 rounded bg-gray-900 p-1 text-[10px] tabular-nums text-cyan-300" />
             </label>
           )
@@ -435,7 +455,7 @@ function ThicknessRow({ reach, facing, onThicknessReach }: { reach: ThicknessRea
           return (
             <label key={dir} className={`flex items-center gap-1.5 rounded px-1.5 py-0.5 ${value < 1 ? 'bg-cyan-900/50 ring-1 ring-cyan-700' : 'bg-gray-800/60'}`} title={`Reach ${spoken}, how far into its own cell this tile extends that way. 1 fills the cell; lower pulls that face in, so a door becomes a thin panel flush with the opposite wall.`}>
               <span aria-hidden className="w-6 shrink-0 text-center text-[12px] font-bold text-gray-300">{glyph}</span>
-              <input type="range" min={0.05} max={1} step={0.05} value={value} onChange={e => parseNum(e.target.value, n => onThicknessReach(dir, n))} aria-label={`Thickness ${spoken}`} className="min-w-0 flex-1 accent-cyan-500" />
+              <input type="range" {...dragRange(value, 0.05, 1)} step={0.05} value={value} onChange={e => parseNum(e.target.value, n => onThicknessReach(dir, n))} aria-label={`Thickness ${spoken}`} className="min-w-0 flex-1 accent-cyan-500" />
               <NumberField value={value} onCommit={n => onThicknessReach(dir, n)} ariaLabel={`Thickness ${spoken} value`} className="w-10 rounded bg-gray-900 p-1 text-[10px] tabular-nums text-cyan-300" />
             </label>
           )
@@ -452,7 +472,7 @@ function ZIndexRow({ zIndex, onZIndex }: { zIndex: number | null; onZIndex: (val
   return (
     <label className="flex items-center gap-2" title="Draw order, higher draws on top of / in front of lower, overriding the normal depth sort. Only change this if a tile is hidden behind something it should cover.">
       <span className="w-14 shrink-0 text-[10px] text-gray-400">Draw order</span>
-      <input type="range" min={0} max={100} step={1} value={zIndex ?? 0} onChange={e => parseNum(e.target.value, v => onZIndex(Math.round(v)))} aria-label="Draw order" className="flex-1 accent-cyan-500" />
+      <input type="range" {...dragRange(zIndex ?? 0, 0, 100)} step={1} value={zIndex ?? 0} onChange={e => parseNum(e.target.value, v => onZIndex(Math.round(v)))} aria-label="Draw order" className="flex-1 accent-cyan-500" />
       <NumberField value={zIndex ?? 0} onCommit={v => onZIndex(Math.round(v))} ariaLabel="Draw order value" className="w-14 rounded bg-gray-800 p-1 text-[10px] tabular-nums text-cyan-300" />
       {zIndex === null && mixedBadge}
     </label>
@@ -540,12 +560,12 @@ function LightControls({ light, onLight }: { light: AssetLight | undefined; onLi
       </div>
       <label className="flex items-center gap-2" title="Intensity, how strong the glow pool is (0-1)">
         <span className="w-14 shrink-0 text-[10px] text-gray-400">Intensity</span>
-        <input type="range" min={0} max={1} step={0.05} value={cur.intensity} onChange={e => parseNum(e.target.value, v => patch({ intensity: v }))} aria-label="Glow intensity" className="flex-1 accent-amber-500" />
+        <input type="range" {...dragRange(cur.intensity, 0, 1)} step={0.05} value={cur.intensity} onChange={e => parseNum(e.target.value, v => patch({ intensity: v }))} aria-label="Glow intensity" className="flex-1 accent-amber-500" />
         <NumberField value={cur.intensity} onCommit={v => patch({ intensity: v })} ariaLabel="Glow intensity value" className="w-14 rounded bg-gray-800 p-1 text-[10px] tabular-nums text-amber-300" />
       </label>
       <label className="flex items-center gap-2" title="Distance, how far the glow reaches, in cells">
         <span className="w-14 shrink-0 text-[10px] text-gray-400">Distance</span>
-        <input type="range" min={0} max={12} step={0.1} value={cur.distance} onChange={e => parseNum(e.target.value, v => patch({ distance: v }))} aria-label="Glow distance" className="flex-1 accent-amber-500" />
+        <input type="range" {...dragRange(cur.distance, 0, 12)} step={0.1} value={cur.distance} onChange={e => parseNum(e.target.value, v => patch({ distance: v }))} aria-label="Glow distance" className="flex-1 accent-amber-500" />
         <NumberField value={cur.distance} onCommit={v => patch({ distance: v })} ariaLabel="Glow distance value" className="w-14 rounded bg-gray-800 p-1 text-[10px] tabular-nums text-amber-300" />
       </label>
       <label className="flex items-center gap-2" title="Colour, the hue of the glow">

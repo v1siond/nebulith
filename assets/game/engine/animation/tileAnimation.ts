@@ -55,18 +55,37 @@ export type SettingKey =
 
 export type AnimationKind = 'settings' | 'sprite'
 
+/*
+ * THE LISTS ARE THE TYPES.
+ *
+ * Each of these is declared as a `const` array and its union type is derived from it, rather than the type
+ * being written out and a second copy of the same values living in the editor's picker. A union type has no
+ * runtime value, so a picker cannot read one and has to restate it, and the two then drift apart quietly.
+ *
+ * Measured before this change: the engine accepted `flicker` and `night`; the animation picker offered
+ * neither, so two behaviours the engine fully implements were unreachable from the editor and nothing
+ * anywhere said so.
+ *
+ * Adding a value here now adds it to the picker. Removing one is a type error at every use.
+ */
+
 /** Interpolation curve. `sine`/`ease` = ease-in-out (matches `cellAnimation.easeT`); `linear` = default;
  *  `flicker` = an irregular, STEPPED envelope for a FAILING bulb (not a smooth curve, see `flickerEase`). */
-export type Ease = 'linear' | 'sine' | 'ease' | 'flicker'
+export const EASES = ['linear', 'sine', 'ease', 'flicker'] as const
+export type Ease = (typeof EASES)[number]
 
 /** How an animation fires. `load` = plays immediately; `proximity` uses `radiusCells` from the hero;
  *  `night` is a CONDITION (not a one-shot), the animation plays ONLY while the scene is in night mode, so
  *  a lamp flicker rests in day and comes alive at night. The pure interpolator ignores it; the render bridge
  *  (`resolveAssetAnimation`, gated by the view's `dayNight`) drops a `night` animation while it's day. */
-export type TriggerEvent = 'load' | 'attack' | 'interact' | 'proximity' | 'night'
+export const TRIGGER_EVENTS = ['load', 'attack', 'interact', 'proximity', 'night'] as const
+export type TriggerEvent = (typeof TRIGGER_EVENTS)[number]
 
-export type TileStyle = 'ascii' | 'emoji'
-export type TileView = 'iso' | '2d' | 'top'
+export const TILE_STYLES = ['ascii', 'emoji'] as const
+export type TileStyle = (typeof TILE_STYLES)[number]
+
+export const TILE_VIEWS = ['iso', '2d', 'top'] as const
+export type TileView = (typeof TILE_VIEWS)[number]
 
 export interface AnimationTrigger {
   on: TriggerEvent

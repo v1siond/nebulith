@@ -12,6 +12,10 @@ defmodule Nebulith.DataMigration.WaterBendTile do
 
   It copies the `water` row rather than restating it, so height, stacking and colour cannot drift apart from
   the band it belongs to. Idempotent: the insert skips a tileset that already has the row.
+
+  Solidity rides in `settings`, which carries the collision boxes. It used to be copied through a separate
+  `occupies` column too; that column was the old blocking flag and is gone, so naming it here raised on
+  every database that had not already recorded this migration as done, which made one unbuildable.
   """
   require Logger
 
@@ -20,7 +24,7 @@ defmodule Nebulith.DataMigration.WaterBendTile do
   def run do
     %{num_rows: count} =
       Repo.query!("""
-      INSERT INTO tiles (tileset_id, label, title, category, glyph, emoji, image_url, height, occupies,
+      INSERT INTO tiles (tileset_id, label, title, category, glyph, emoji, image_url, height,
                          settings, inserted_at, updated_at)
       SELECT t.tileset_id,
              'water_bend',
@@ -30,7 +34,6 @@ defmodule Nebulith.DataMigration.WaterBendTile do
              t.emoji,
              replace(t.image_url, 'water.png', 'water_bend.png'),
              t.height,
-             t.occupies,
              t.settings,
              NOW(),
              NOW()
