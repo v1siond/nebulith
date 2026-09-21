@@ -117,15 +117,23 @@ jobs:
       - run: mix deps.get
       - run: npm ci --prefix assets
 
-      # The installer has to BE the playwright the tests import. `npx` resolves a binary by walking up
-      # from the working directory, and there is no node_modules at the repo root, so `npx --prefix assets`
-      # fell through to fetching playwright from the registry: it installed browser revision 1243 while
-      # assets/node_modules/playwright launches 1223. Exit code 0, then "Executable doesn't exist".
-      # Calling the local binary from inside assets removes the resolution entirely.
+      # THE INSTALLER HAS TO BE THE PLAYWRIGHT THE TESTS IMPORT, and this proves it rather than
+      # assuming it. Every Playwright version hard-codes the browser revision it will launch, so an
+      # installer that is a different build installs one browser and the tests launch another, which
+      # surfaces three steps later as "Executable doesn't exist" and says nothing about why.
+      #
+      # It has gone wrong twice, two different ways. First `npx --prefix assets` resolved nothing
+      # locally and fetched playwright from the registry. Then @playwright/test, which nothing
+      # imports, shipped a SECOND binary of the same name at a different version and the runner
+      # picked that one. The dead package is gone and the version is pinned exactly; the check is
+      # here so a third way fails on this line instead of in the gates.
       - name: Install the browser the tests launch
         working-directory: assets
         run: |
-          ./node_modules/.bin/playwright --version
+          installer=$(./node_modules/.bin/playwright --version)
+          imported="Version $(node -p "require('playwright/package.json').version")"
+          echo "installer: $installer / imported by the tests: $imported"
+          test "$installer" = "$imported"
           ./node_modules/.bin/playwright install --with-deps chromium
 
       # The browser drives the DEV server against a seeded database, because that is what a person uses.

@@ -29,8 +29,11 @@ jobs:
       - name: Install the Railway CLI
         run: npm install -g @railway/cli
 
+      # ONE TOKEN PER ENVIRONMENT. A Railway PROJECT token is scoped to a single environment, so a
+      # shared secret cannot address both, and `--environment` is stated as well so the target is
+      # readable here rather than implied by whichever token happens to be in the secret.
       - name: Deploy
-        run: railway up --service "$RAILWAY_SERVICE" --detach
+        run: railway up --service "$RAILWAY_SERVICE" --environment "staging" --detach
         env:
-          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN_STAGING }}
           RAILWAY_SERVICE: ${{ vars.RAILWAY_SERVICE_STAGING }}

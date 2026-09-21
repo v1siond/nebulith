@@ -101,6 +101,7 @@ defmodule Nebulith.World do
 
     tiles_by_cell = tiles_by_cell(Enum.map(cells, & &1.id))
     views_by_tile = views_by_tile(tiles_by_cell)
+    texture_labels = labels_by_tile_id(Enum.map(cells, & &1.texture_tile_id))
 
     Enum.map(cells, fn cell ->
       cell
@@ -114,6 +115,7 @@ defmodule Nebulith.World do
         :texture_tile_id,
         :region_id
       ])
+      |> Elixir.Map.put("texture_label", texture_labels[cell.texture_tile_id])
       |> Elixir.Map.put("tiles", tile_payloads(tiles_by_cell[cell.id] || [], views_by_tile))
     end)
   end
@@ -145,11 +147,35 @@ defmodule Nebulith.World do
   end
 
   defp tile_payloads(tiles, views_by_tile) do
+    labels = labels_by_tile_id(Enum.map(tiles, & &1.tile_id))
+
     Enum.map(tiles, fn tile ->
       tile
       |> take([:id | CellTile.settable_fields()])
+      |> Elixir.Map.put("label", labels[tile.tile_id])
       |> Elixir.Map.put("views", view_payloads(views_by_tile[tile.id] || []))
     end)
+  end
+
+  # THE LABEL TRAVELS WITH THE TILE, both ways.
+  #
+  # A style is only a different picture for the same label, and a label owns everything but the
+  # picture, so the engine resolves what to draw BY LABEL and has no use for a row id. Serving the id
+  # alone would make the client hold a table of ids to labels, which is a second vocabulary whose only
+  # job is to be translated back.
+  defp labels_by_tile_id(ids) do
+    ids
+    |> Enum.reject(&is_nil/1)
+    |> Enum.uniq()
+    |> lookup_labels()
+  end
+
+  defp lookup_labels([]), do: %{}
+
+  defp lookup_labels(ids) do
+    from(t in "tiles", where: t.id in ^ids, select: {t.id, t.label})
+    |> Repo.all()
+    |> Elixir.Map.new()
   end
 
   defp view_payloads(views) do
@@ -244,6 +270,8 @@ defmodule Nebulith.World do
   defp at(cell), do: "#{cell["col"]},#{cell["row"]}"
 
   defp write(map, payload) do
+    payload = resolve_labels(map, payload)
+
     Multi.new()
     |> Multi.update(:map, Nebulith.World.Map.changeset(map, Elixir.Map.get(payload, "map", %{})))
     |> Multi.update(:grid, Grid.changeset(map.grid, Elixir.Map.get(payload, "grid", %{})))
@@ -260,6 +288,79 @@ defmodule Nebulith.World do
 
   defp saved({:ok, _changes}, id), do: load_map(id)
   defp saved({:error, _step, reason, _changes}, _id), do: {:error, reason}
+
+  # A CALLER SENDS LABELS, because that is what the engine speaks. Resolved here, once, against the
+  # map's own art style, so nothing upstream has to know a row id and a map that changes style keeps
+  # pointing at the right rows.
+  #
+  # A label the catalogue does not carry resolves to nothing rather than to something near it: a tile
+  # drawn as a neighbour is worse than a tile that is visibly missing.
+  defp resolve_labels(map, payload) do
+    cells = Elixir.Map.get(payload, "cells", [])
+    labels = stated_labels(cells)
+
+    resolve_with(payload, cells, tile_ids_for(map, labels))
+  end
+
+  defp resolve_with(payload, _cells, ids) when map_size(ids) == 0, do: payload
+
+  defp resolve_with(payload, cells, ids) do
+    Elixir.Map.put(payload, "cells", Enum.map(cells, &resolve_cell(&1, ids)))
+  end
+
+  defp resolve_cell(cell, ids) do
+    cell
+    |> put_resolved("texture_label", "texture_tile_id", ids)
+    |> Elixir.Map.put(
+      "tiles",
+      Enum.map(cell["tiles"] || [], &put_resolved(&1, "label", "tile_id", ids))
+    )
+  end
+
+  # An explicit id wins, so a caller that already has one is never second-guessed.
+  defp put_resolved(row, label_key, id_key, ids) do
+    case {row[label_key], row[id_key]} do
+      {nil, _} -> row
+      {_label, id} when not is_nil(id) -> row
+      {label, nil} -> Elixir.Map.put(row, id_key, ids[label])
+    end
+  end
+
+  defp stated_labels(cells) do
+    Enum.flat_map(cells, fn cell ->
+      tile_labels = Enum.map(cell["tiles"] || [], & &1["label"])
+
+      [cell["texture_label"] | tile_labels]
+    end)
+    |> Enum.reject(&is_nil/1)
+    |> Enum.uniq()
+  end
+
+  defp tile_ids_for(_map, []), do: %{}
+
+  defp tile_ids_for(map, labels) do
+    # The map's own style first; anything it does not carry falls to whatever style does, because a
+    # label owns the tile and the style owns only its picture.
+    preferred = tile_ids_in(labels, map.tileset_id)
+    everywhere = tile_ids_in(labels, nil)
+
+    Elixir.Map.merge(everywhere, preferred)
+  end
+
+  defp tile_ids_in(labels, nil) do
+    from(t in "tiles", where: t.label in ^labels, select: {t.label, t.id})
+    |> Repo.all()
+    |> Elixir.Map.new()
+  end
+
+  defp tile_ids_in(labels, tileset_id) do
+    from(t in "tiles",
+      where: t.label in ^labels and t.tileset_id == ^tileset_id,
+      select: {t.label, t.id}
+    )
+    |> Repo.all()
+    |> Elixir.Map.new()
+  end
 
   # Cells first, in bulk, keeping the id we minted so the tiles can point at it without a second read.
   defp insert_cells(repo, grid, cells) do

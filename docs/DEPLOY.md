@@ -129,9 +129,13 @@ by hand, on an environment that is new.
 
 **Settings → Secrets and variables → Actions.**
 
+**The deploy will not run until these exist.** It fails with "Invalid RAILWAY_TOKEN", which is what an
+empty secret looks like from the Railway CLI.
+
 | Kind | Name | Value |
 |---|---|---|
-| Secret | `RAILWAY_TOKEN` | a Railway project token with access to both services |
+| Secret | `RAILWAY_TOKEN_STAGING` | a Railway PROJECT token scoped to the **staging** environment |
+| Secret | `RAILWAY_TOKEN_PRODUCTION` | a Railway PROJECT token scoped to the **production** environment |
 | Variable | `RAILWAY_SERVICE_STAGING` | the staging service's name |
 | Variable | `RAILWAY_SERVICE_PRODUCTION` | the production service's name |
 
@@ -186,3 +190,15 @@ re-seed.
 
 If `/docs` is up but `/api/tilesets` is empty, the schema migrated and the seed has not run yet. See
 section 5.
+
+
+### Making the tokens
+
+Railway's API refuses to mint a project token from a CLI session, so this is a dashboard step:
+
+1. Railway → the **nebulith** project → Settings → Tokens → New Token.
+2. Scope it to **staging**, name it something like `github-actions-staging`, copy it.
+3. `gh secret set RAILWAY_TOKEN_STAGING` and paste it.
+4. Repeat for **production** into `RAILWAY_TOKEN_PRODUCTION`.
+
+The two variables are already set to `nebulith`. Check with `gh variable list` and `gh secret list`.
