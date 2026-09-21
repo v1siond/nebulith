@@ -1,60 +1,77 @@
 defmodule Nebulith.Accounts do
   @moduledoc """
-  Backend admin accounts.
+  PEOPLE. One table, `users`, and `is_admin` is the difference between a player and an admin.
 
-  These are nebulith-owned credentials for the `/admin` area and are kept
-  separate from the Prisma-owned `User` table in the shared database.
+  There used to be a separate `admin_users` table for the `/admin` area. Two tables answering "who is this
+  person" is the one-fact-two-owners problem, so it was folded into this one, hashes and all, and dropped.
+
+  The admin-shaped function names are kept because the `/admin` plug calls them and an admin is still a real
+  thing; they now read and write `users` with `is_admin` set.
   """
 
   import Ecto.Query, warn: false
   alias Nebulith.Repo
-  alias Nebulith.Accounts.{AdminUser, Password}
+  alias Nebulith.Accounts.{Password, User}
 
   # A valid-looking but unmatchable hash, used to keep authenticate/2 timing
   # roughly constant whether or not the email exists.
   @absent_hash "pbkdf2$sha256$100000$#{Base.encode64(:binary.copy(<<0>>, 16))}$#{Base.encode64(:binary.copy(<<0>>, 32))}"
 
-  @doc "Returns every admin user."
-  def list_admin_users, do: Repo.all(AdminUser)
+  @doc "Every user."
+  def list_users, do: Repo.all(User)
 
-  @doc "Fetches an admin user by email, or nil."
-  def get_admin_user_by_email(email) when is_binary(email) do
-    Repo.get_by(AdminUser, email: email)
+  @doc "Every user who can reach the admin."
+  def list_admin_users, do: Repo.all(from u in User, where: u.is_admin)
+
+  @doc "Fetches a user by email, case-insensitively, or nil."
+  def get_user_by_email(email) when is_binary(email) do
+    wanted = String.downcase(String.trim(email))
+    Repo.one(from u in User, where: fragment("lower(?)", u.email) == ^wanted)
   end
 
-  @doc "Creates an admin user from the given attrs."
-  def create_admin_user(attrs) do
-    %AdminUser{}
-    |> AdminUser.changeset(attrs)
+  @doc "Fetches an admin by email, or nil. A user without `is_admin` does not count."
+  def get_admin_user_by_email(email) when is_binary(email) do
+    case get_user_by_email(email) do
+      %User{is_admin: true} = user -> user
+      _ -> nil
+    end
+  end
+
+  @doc "Creates a user from the given attrs."
+  def create_user(attrs) do
+    %User{}
+    |> User.changeset(attrs)
     |> Repo.insert()
   end
 
+  @doc "Creates an admin user from the given attrs."
+  def create_admin_user(attrs), do: attrs |> Map.new() |> Map.put(:is_admin, true) |> create_user()
+
   @doc "Creates the admin identified by `email`, or updates it if it already exists (for seeding)."
   def upsert_admin_user(email, attrs) do
-    attrs = Map.put(attrs, :email, email)
+    attrs = attrs |> Map.new() |> Map.merge(%{email: email, is_admin: true})
 
-    case get_admin_user_by_email(email) do
-      nil -> create_admin_user(attrs)
-      admin_user -> admin_user |> AdminUser.changeset(attrs) |> Repo.update()
+    case get_user_by_email(email) do
+      nil -> create_user(attrs)
+      user -> user |> User.changeset(attrs) |> Repo.update()
     end
   end
 
   @doc """
-  Authenticates an admin by email + password.
+  Authenticates by email + password.
 
-  Returns `{:ok, admin_user}` on success and `:error` otherwise. Runs a hash
-  verification even when the email is unknown to avoid leaking existence by timing.
+  Returns `{:ok, user}` on success and `:error` otherwise. Runs a hash verification even when the email is
+  unknown, so a wrong email and a wrong password take the same time and neither leaks which it was.
   """
   def authenticate(email, password) when is_binary(email) and is_binary(password) do
-    admin_user = get_admin_user_by_email(email)
+    user = get_user_by_email(email)
 
     cond do
-      admin_user && Password.valid?(password, admin_user.hashed_password) ->
-        {:ok, admin_user}
+      user && Password.valid?(password, user.hashed_password) ->
+        {:ok, user}
 
       true ->
-        # Keep timing roughly constant when the email is unknown.
-        unless admin_user, do: Password.valid?(password, @absent_hash)
+        unless user, do: Password.valid?(password, @absent_hash)
         :error
     end
   end

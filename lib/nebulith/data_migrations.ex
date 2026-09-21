@@ -150,7 +150,8 @@ defmodule Nebulith.DataMigrations do
     Nebulith.DataMigration.APuddleLetsYouSeeTheGround,
     Nebulith.DataMigration.ATrunkIsAQuarterOfItsCrown,
     Nebulith.DataMigration.YouCannotWalkIntoWater,
-    Nebulith.DataMigration.AStreetLineIsDrawnNotPainted
+    Nebulith.DataMigration.AStreetLineIsDrawnNotPainted,
+    Nebulith.DataMigration.EveryGameHasAnOwnerAndAStyle
   ]
 
   @doc "Every registered data migration module, in run order."

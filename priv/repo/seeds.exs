@@ -12,7 +12,9 @@
 # Backend admin account for the /admin area. Idempotent (upsert by email). This is an ACCOUNT, not catalog
 # data, and it reads its credentials from the environment, so it stays here rather than in the ledger.
 admin_email = System.get_env("NEBULITH_ADMIN_EMAIL") || "admin@nebulith.local"
-admin_password = System.get_env("NEBULITH_ADMIN_PASSWORD") || "nebulith-admin"
+# The dev default is deliberately trivial and the changeset's 8-character minimum is the only reason it is
+# eight digits. Any real deployment sets NEBULITH_ADMIN_PASSWORD.
+admin_password = System.get_env("NEBULITH_ADMIN_PASSWORD") || "12345678"
 
 {:ok, admin} =
   Nebulith.Accounts.upsert_admin_user(admin_email, %{password: admin_password, role: "admin"})
