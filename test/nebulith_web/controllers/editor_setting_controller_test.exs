@@ -1,6 +1,8 @@
 defmodule NebulithWeb.EditorSettingControllerTest do
   @moduledoc "Round-trips the editor-settings key→value store: GET the whole map, PUT one key (upsert)."
   use NebulithWeb.ConnCase
+  # /api is closed, so these all have to be somebody first. See docs/AUTH.md §5.
+  setup :log_in_api_user
 
   @geo %{"x" => 120, "y" => 80, "w" => 340, "h" => 440}
 

@@ -1,5 +1,7 @@
 defmodule NebulithWeb.EntityControllerTest do
   use NebulithWeb.ConnCase
+  # /api is closed, so these all have to be somebody first. See docs/AUTH.md §5.
+  setup :log_in_api_user
 
   setup %{conn: conn} do
     {:ok, conn: put_req_header(conn, "accept", "application/json")}

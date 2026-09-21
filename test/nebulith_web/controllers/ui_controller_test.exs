@@ -7,6 +7,8 @@ defmodule NebulithWeb.UiControllerTest do
   Mobile layout in the same profile.
   """
   use NebulithWeb.ConnCase
+  # /api is closed, so these all have to be somebody first. See docs/AUTH.md §5.
+  setup :log_in_api_user
 
   alias Nebulith.Catalog.UiSource
   alias Nebulith.Games

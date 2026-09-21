@@ -57,7 +57,8 @@ it is not base64 in the database, because encoding is a transport concern.
 | `/` , `/docs` , `/health` | anyone | no gate. A reference you need a login to read is not a reference |
 | `/games`, `/games/:id`, `/templates`, `/sprite-generator`, `/sprites-test` | any logged-in user | session cookie |
 | `/admin` and everything under it | a logged-in user **with `is_admin`** | session cookie, or HTTP Basic |
-| `/api/*` | see §5 | currently open |
+| `/api/*` | any logged-in user, or any API token | session cookie, or `Authorization: Bearer` |
+| `/health` | anyone | no gate, and it must stay that way |
 
 `/admin` accepts two credentials on purpose. A browser session is what a person uses; HTTP Basic is what
 a script uses, and the end-to-end gate is a script. Both resolve to the same row in `users`, and both
@@ -102,14 +103,51 @@ freezes whatever was on the page when the module first loaded.
 
 ---
 
-## 5. What is still open
+## 5. The API
 
-`/api/*` has no gate. A person cannot use the app without logging in, but the catalogue behind it is
-readable by anyone who requests it directly.
+`/api/*` is closed. Two credentials open it, because two kinds of caller ask.
 
-Closing it is one line in the router. It is not closed yet because it has consequences that need a
-decision first: the probe harness in `game-website/.probe` and any external consumer would all need to
-authenticate.
+**A browser on this origin** sends the session cookie. The bundle's `fetch` defaults to
+`credentials: "same-origin"`, so the engine's own calls carry it with no code at all. Nothing in the
+frontend holds a credential, which is the point.
+
+**A script** sends a token:
+
+```
+Authorization: Bearer <token>
+```
+
+Mint one for an existing account:
+
+```bash
+bin/nebulith eval 'Nebulith.Release.api_token("admin@nebulith.local")'
+mix run -e 'Nebulith.Release.api_token("admin@nebulith.local")'
+```
+
+It is printed once. Only the raw bytes are stored, so a lost token is replaced, not recovered.
+`Nebulith.Accounts.delete_user_api_token/1` revokes one.
+
+An API token is context `"api"`, not `"session"`, and the two do not substitute for each other. That
+separation is what lets "sign out everywhere" clear a person's browsers without killing the script that
+runs their backups. It also has no expiry, deliberately: a machine credential that stops working on a
+date nobody wrote down fails in the middle of the night.
+
+### Why this pipeline has no CSRF check
+
+The session cookie is `same_site: "Lax"`, so a cross-site `POST` does not carry it. That is what
+protects the writing endpoints, and it is why adding `protect_from_forgery` here would only break the
+engine's own calls without buying anything.
+
+### What refusal looks like
+
+`401` with `{"errors":{"detail":"Unauthorized"}}` and a `WWW-Authenticate` header. Never a redirect: a
+`302` to an HTML login form is the worst possible answer to a `fetch`, because the caller gets a `200`
+full of markup and parses it as data.
+
+### The one exception
+
+`/health` is NOT behind this, and must not be. A liveness probe that needs a credential reports the app
+is down whenever the credential is wrong.
 
 ---
 
@@ -124,4 +162,6 @@ Run this before calling any auth change done.
 5. `/admin` still accepts HTTP Basic, because the end-to-end gate uses it.
 6. Logging out ends the session, and the browser back button does not restore it.
 7. `/docs`, `/health` and `/` still answer with no session.
-8. Both layers ran: `mix test` for the modules, and a real browser clicking the real form.
+8. `/api/*` refuses a caller with no credential, and answers the same to a session and to a token.
+9. `/health` still answers with no credential.
+10. Both layers ran: `mix test` for the modules, and a real browser clicking the real form.

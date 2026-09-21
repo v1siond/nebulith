@@ -80,11 +80,41 @@ if (!page.url().endsWith('/login')) {
   await fail('the engine was still open after logging out')
 }
 
-// 6. The documentation is not behind any of this.
+// 6. The API is closed to a caller with no cookie, and open to the page that just logged in.
+//    The node-side request carries no session at all, which is what an outsider is.
+const outsider = await fetch(`${BASE}/api/tilesets`)
+if (outsider.status !== 401) {
+  await fail(`/api/tilesets answered a request with no session: ${outsider.status}`)
+}
+
+await page.goto(`${BASE}/games`, { waitUntil: 'networkidle' })
+await logIn(page, BASE)
+await page.waitForSelector('#game', { timeout: 15000 })
+
+const insider = await page.evaluate(async (base) => {
+  const res = await fetch(`${base}/api/tilesets`)
+  const body = res.ok ? await res.json() : null
+  return { status: res.status, tilesets: body?.data?.length ?? 0 }
+}, BASE)
+
+if (insider.status !== 200) {
+  await fail(`the signed-in page could not read its own api: ${insider.status}`)
+}
+if (insider.tilesets < 1) {
+  await fail(`the api answered 200 with nothing in it: ${JSON.stringify(insider)}`)
+}
+
+// The liveness probe must never need a credential.
+const health = await fetch(`${BASE}/health`)
+if (health.status !== 200) {
+  await fail(`/health asked for a credential: ${health.status}`)
+}
+
+// 7. The documentation is not behind any of this.
 await page.goto(`${BASE}/docs`, { waitUntil: 'networkidle' })
 if (!page.url().endsWith('/docs')) {
   await fail('/docs asked for a login')
 }
 
 await browser.close()
-console.log('PASS  login: the engine is shut to strangers, opens on the real form, and shuts again on log out')
+console.log('PASS  login: the engine and the api are shut to strangers, open on the real form, and shut again on log out')

@@ -1,5 +1,7 @@
 defmodule NebulithWeb.TilesetControllerTest do
   use NebulithWeb.ConnCase
+  # /api is closed, so these all have to be somebody first. See docs/AUTH.md §5.
+  setup :log_in_api_user
 
   import Nebulith.CatalogFixtures
   alias Nebulith.Catalog.Tileset

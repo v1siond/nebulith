@@ -10,6 +10,11 @@ const PASSWORD = process.env.ADMIN_PASSWORD || '12345678'
 
 export async function logIn(page, base, { email = EMAIL, password = PASSWORD } = {}) {
   await page.goto(`${base}/login`, { waitUntil: 'networkidle' })
+
+  // Already signed in: /login bounces you off the form, so there is nothing to fill. Calling this
+  // twice in one run has to be harmless, or a gate that loops has to remember whether it logged in.
+  if (!page.url().includes('/login')) return
+
   await page.fill('#user_email', email)
   await page.fill('#user_password', password)
   await Promise.all([page.waitForNavigation({ waitUntil: 'networkidle' }), page.click('button[type="submit"]')])

@@ -14,6 +14,7 @@
  *     cd assets && node ../test/e2e/waterBorders.mjs
  */
 import { chromium } from 'playwright'
+import { logIn } from './logIn.mjs'
 
 const BASE = process.env.NEB_URL ?? 'http://localhost:6328'
 
@@ -70,6 +71,9 @@ const browser = await chromium.launch()
 const page = await browser.newPage({ viewport: { width: 1600, height: 1000 } })
 const failures = []
 let runs = 0
+
+// The editor is behind a login, and the /api reads inside the loop ride the session cookie.
+await logIn(page, BASE)
 
 for (const course of COURSES) {
   for (const liquid of LIQUIDS) {

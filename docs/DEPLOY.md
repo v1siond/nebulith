@@ -111,6 +111,14 @@ railway ssh --project nebulith --environment <production|staging> --service nebu
 It reads `NEBULITH_ADMIN_EMAIL` and `NEBULITH_ADMIN_PASSWORD`, so set those first or it creates the
 development default.
 
+`/api/*` needs a credential too. Anything that is not a browser on this origin carries a token:
+
+```bash
+/app/bin/nebulith eval 'Nebulith.Release.api_token("admin@nebulith.local")'
+```
+
+Printed once, then sent as `Authorization: Bearer <token>`. See docs/AUTH.md §5.
+
 **This is not a pre-deploy step and must not be added to one.** The seeders write whole columns from
 their own literals, so running it over a database somebody has edited discards those edits. Run it once,
 by hand, on an environment that is new.

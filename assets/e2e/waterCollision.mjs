@@ -14,6 +14,7 @@
  * blocks it, so the assertion is about the thing the hero actually walks into rather than about pixels.
  */
 import { chromium } from 'playwright'
+import { logIn } from './logIn.mjs'
 
 const RIVER = process.argv[2] ?? 'Winds through (easy to cross)'
 const LABEL = process.argv[3] ?? 'Woodland city'
@@ -26,6 +27,8 @@ const fail = []
 // ITS OWN ROW, ALWAYS. The editor's Save updates the template it currently has open, and on a database with
 // one saved map that means the test overwrites the user's work. It happened once. So the run makes a blank
 // template of its own first and drives the editor on that, and deletes it afterwards.
+// The editor is behind a login, and the /api reads below ride the session cookie.
+await logIn(page, BASE)
 await page.goto('http://localhost:6328/templates', { waitUntil: 'networkidle' })
 await page.waitForTimeout(2500)
 const scratchId = await page.evaluate(async (dims) => {

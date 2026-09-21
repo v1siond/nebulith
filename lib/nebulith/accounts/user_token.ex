@@ -45,6 +45,29 @@ defmodule Nebulith.Accounts.UserToken do
       select: user
   end
 
+  @doc """
+  A new API token and its row.
+
+  Separate from a session on purpose. A session belongs to a browser and dies when someone signs out;
+  an API token belongs to a script and has to survive that, so "sign out everywhere" must not take it.
+  """
+  def build_api_token(user) do
+    token = :crypto.strong_rand_bytes(@rand_size)
+    {token, %UserToken{token: token, context: "api", user_id: user.id}}
+  end
+
+  @doc """
+  The query that turns an API token back into the person who holds it.
+
+  No expiry clause, deliberately: a machine credential that stops working on a date nobody wrote down
+  fails in the middle of the night. An API token lives until the row is deleted.
+  """
+  def verify_api_token_query(token) do
+    from token in by_token_and_context_query(token, "api"),
+      join: user in assoc(token, :user),
+      select: user
+  end
+
   @doc "One token, by its bytes and what it is for."
   def by_token_and_context_query(token, context) do
     from UserToken, where: [token: ^token, context: ^context]

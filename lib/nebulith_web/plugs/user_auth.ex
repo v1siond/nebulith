@@ -71,6 +71,47 @@ defmodule NebulithWeb.UserAuth do
 
   def require_authenticated_user(conn, _opts), do: conn
 
+  @doc """
+  Refuses an API caller who is nobody.
+
+  Two credentials, because two kinds of caller ask: a browser on this origin sends the session cookie
+  with its fetches, and a script sends `Authorization: Bearer <token>`. Both resolve to a row in
+  `users`, so what a caller may do never depends on how they arrived.
+
+  It answers JSON and never redirects. A 302 to an HTML login form is the worst possible answer to a
+  fetch: the caller gets a 200 full of markup and parses it as data.
+  """
+  def require_api_user(conn, _opts), do: admit_api(conn, conn.assigns[:current_user])
+
+  defp admit_api(conn, nil), do: admit_api_token(conn, bearer_token(conn))
+  defp admit_api(conn, _user), do: conn
+
+  defp admit_api_token(conn, nil), do: refuse_api(conn)
+
+  defp admit_api_token(conn, token) do
+    case Accounts.get_user_by_api_token(token) do
+      nil -> refuse_api(conn)
+      user -> assign(conn, :current_user, user)
+    end
+  end
+
+  defp refuse_api(conn) do
+    conn
+    |> put_status(:unauthorized)
+    |> put_resp_header("www-authenticate", ~s(Bearer realm="Nebulith API"))
+    |> json(%{errors: %{detail: "Unauthorized"}})
+    |> halt()
+  end
+
+  defp bearer_token(conn) do
+    with ["Bearer " <> token] <- get_req_header(conn, "authorization"),
+         trimmed when trimmed != "" <- String.trim(token) do
+      trimmed
+    else
+      _ -> nil
+    end
+  end
+
   @doc "Keeps someone who is already signed in off the login form."
   def redirect_if_user_is_authenticated(%{assigns: %{current_user: nil}} = conn, _opts), do: conn
 

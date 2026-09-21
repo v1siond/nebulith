@@ -106,9 +106,47 @@ defmodule Nebulith.Accounts do
 
   def delete_user_session_token(_token), do: :ok
 
-  @doc "Ends every session `user` has open, anywhere."
+  @doc "Ends every session `user` has open, anywhere. API tokens are a different context and survive."
   def delete_all_user_session_tokens(%User{} = user) do
     Repo.delete_all(UserToken.by_user_and_contexts_query(user, ["session"]))
+    :ok
+  end
+
+  ## API TOKENS
+  ##
+  ## What a script carries instead of a cookie. The raw bytes never leave this module as bytes: callers
+  ## get the base64url spelling, which is what goes in an Authorization header.
+
+  @doc "Mints an API token for `user` and returns it in the spelling a caller puts in a header."
+  def create_user_api_token(%User{} = user) do
+    {token, user_token} = UserToken.build_api_token(user)
+    Repo.insert!(user_token)
+    Base.url_encode64(token, padding: false)
+  end
+
+  @doc "The person holding this API token, or nil. Takes the encoded spelling, not the raw bytes."
+  def get_user_by_api_token(encoded) when is_binary(encoded) do
+    case Base.url_decode64(encoded, padding: false) do
+      {:ok, token} -> Repo.one(UserToken.verify_api_token_query(token))
+      :error -> nil
+    end
+  end
+
+  def get_user_by_api_token(_encoded), do: nil
+
+  @doc "Revokes one API token."
+  def delete_user_api_token(encoded) when is_binary(encoded) do
+    case Base.url_decode64(encoded, padding: false) do
+      {:ok, token} -> Repo.delete_all(UserToken.by_token_and_context_query(token, "api"))
+      :error -> {0, nil}
+    end
+
+    :ok
+  end
+
+  @doc "Revokes every API token `user` holds."
+  def delete_all_user_api_tokens(%User{} = user) do
+    Repo.delete_all(UserToken.by_user_and_contexts_query(user, ["api"]))
     :ok
   end
 end

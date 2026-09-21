@@ -9,6 +9,8 @@ defmodule NebulithWeb.TemplateControllerTest do
   Every field the editor SENDS has to come back, so this asserts the shape rather than one column.
   """
   use NebulithWeb.ConnCase
+  # /api is closed, so these all have to be somebody first. See docs/AUTH.md §5.
+  setup :log_in_api_user
 
   setup %{conn: conn}, do: {:ok, conn: put_req_header(conn, "accept", "application/json")}
 

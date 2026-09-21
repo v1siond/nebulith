@@ -17,6 +17,20 @@ defmodule NebulithWeb.Router do
     plug :accepts, ["json"]
   end
 
+  # THE API, for a caller who has to be somebody. The session is fetched because the engine's own
+  # fetches are same-origin and carry the cookie; the bearer token is for everything that is not a
+  # browser. `same_site: "Lax"` on the cookie is what keeps a cross-site POST from riding it, which is
+  # why this pipeline needs no CSRF check of its own.
+  #
+  # /health is NOT here. A liveness probe that needs a credential is a liveness probe that reports the
+  # app is down whenever the credential is wrong.
+  pipeline :api_signed_in do
+    plug :accepts, ["json"]
+    plug :fetch_session
+    plug :fetch_current_user
+    plug :require_api_user
+  end
+
   # The ENGINE. It carries a session now, because the pages behind it require a login.
   #
   # That ends the cross-origin iframe embed: a third-party cookie is blocked or partitioned by every
@@ -127,7 +141,7 @@ defmodule NebulithWeb.Router do
   end
 
   scope "/api", NebulithWeb do
-    pipe_through :api
+    pipe_through :api_signed_in
 
     resources "/tilesets", TilesetController, except: [:new, :edit]
     # Entity → baked-tile resolution DATA (enemyType/variant → slug). Read-only; the

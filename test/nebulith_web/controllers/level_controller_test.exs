@@ -6,6 +6,8 @@ defmodule NebulithWeb.LevelControllerTest do
   answer with a list of games.
   """
   use NebulithWeb.ConnCase
+  # /api is closed, so these all have to be somebody first. See docs/AUTH.md §5.
+  setup :log_in_api_user
 
   alias Nebulith.{Games, Levels}
 

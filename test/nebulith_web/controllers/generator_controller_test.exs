@@ -1,6 +1,8 @@
 defmodule NebulithWeb.GeneratorControllerTest do
   @moduledoc "GET /api/generators: the whole map-generator catalog the editor loads at mount."
   use NebulithWeb.ConnCase
+  # /api is closed, so these all have to be somebody first. See docs/AUTH.md §5.
+  setup :log_in_api_user
 
   alias Nebulith.Catalog.GeneratorSource
 

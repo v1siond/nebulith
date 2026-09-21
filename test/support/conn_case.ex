@@ -35,4 +35,28 @@ defmodule NebulithWeb.ConnCase do
     Nebulith.DataCase.setup_sandbox(tags)
     {:ok, conn: Phoenix.ConnTest.build_conn()}
   end
+
+  @doc """
+  Gives the test conn an API credential, for the suites that exercise what `/api` SERVES.
+
+  `/api` is closed (docs/AUTH.md §5), so a test that drives an endpoint has to be somebody first. It
+  uses a bearer token rather than a session on purpose: the token is one header and carries across
+  `recycle/1`, so these suites stay about the endpoint rather than about logging in. Whether the door
+  itself works is `NebulithWeb.ApiAuthTest`, and that suite builds its own conn.
+  """
+  def log_in_api_user(%{conn: conn}) do
+    {:ok, user} =
+      Nebulith.Accounts.create_user(%{
+        email: "api-#{System.unique_integer([:positive])}@nebulith.test",
+        password: "12345678"
+      })
+
+    token = Nebulith.Accounts.create_user_api_token(user)
+
+    %{
+      conn: Plug.Conn.put_req_header(conn, "authorization", "Bearer " <> token),
+      user: user,
+      api_token: token
+    }
+  end
 end

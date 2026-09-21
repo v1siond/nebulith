@@ -1,5 +1,6 @@
 /** One build through the UI, saved, with the unbordered cells and their neighbourhood printed. */
 import { chromium } from 'playwright'
+import { logIn } from './logIn.mjs'
 const BASE = 'http://localhost:6328'
 const isWater = l => !!l && /water|oasis|koi_pond/.test(l)
 const sfx = l => (/_(tl|t|tr|l|c|r|bl|b|br)$/.exec(String(l).replace(/_f\d$/, '')) ?? [, ''])[1]
@@ -8,6 +9,8 @@ const SIDES = [['N', 0, -1], ['E', 1, 0], ['S', 0, 1], ['W', -1, 0]]
 
 const b = await chromium.launch()
 const page = await b.newPage({ viewport: { width: 1600, height: 1000 } })
+// The editor is behind a login, and the /api reads below ride the session cookie.
+await logIn(page, BASE)
 await page.goto(`${BASE}/templates`, { waitUntil: 'networkidle' })
 await page.waitForTimeout(2500)
 await page.getByRole('button', { name: /^Woodland/ }).first().click()

@@ -37,6 +37,41 @@ defmodule Nebulith.Release do
     end
   end
 
+  @doc """
+  Mints an API token for an existing account and prints it.
+
+      bin/nebulith eval 'Nebulith.Release.api_token("admin@nebulith.local")'
+      mix run -e 'Nebulith.Release.api_token("admin@nebulith.local")'
+
+  Printed once and never again: only the raw bytes are stored, so a lost token is replaced, not
+  recovered. Revoke with `Nebulith.Accounts.delete_user_api_token/1`.
+  """
+  def api_token(email) when is_binary(email) do
+    load_app()
+
+    [repo | _] = repos()
+
+    {:ok, result, _} =
+      Ecto.Migrator.with_repo(repo, fn _repo ->
+        case Nebulith.Accounts.get_user_by_email(email) do
+          nil -> {:error, :no_such_user}
+          user -> {:ok, Nebulith.Accounts.create_user_api_token(user)}
+        end
+      end)
+
+    print_token(email, result)
+  end
+
+  defp print_token(email, {:error, :no_such_user}) do
+    IO.puts("no account with email #{email}")
+    :error
+  end
+
+  defp print_token(email, {:ok, token}) do
+    IO.puts("API token for #{email}:\n\n  #{token}\n\nSend it as: Authorization: Bearer #{token}")
+    :ok
+  end
+
   defp run_seeds do
     path = Application.app_dir(@app, "priv/repo/seeds.exs")
 
