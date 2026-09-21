@@ -11,7 +11,7 @@ defmodule Nebulith.Accounts do
 
   import Ecto.Query, warn: false
   alias Nebulith.Repo
-  alias Nebulith.Accounts.{Password, User}
+  alias Nebulith.Accounts.{Password, User, UserToken}
 
   # A valid-looking but unmatchable hash, used to keep authenticate/2 timing
   # roughly constant whether or not the email exists.
@@ -78,4 +78,37 @@ defmodule Nebulith.Accounts do
   end
 
   def authenticate(_email, _password), do: :error
+
+  ## SESSIONS
+  ##
+  ## A session is a row in `users_tokens`, not a user id in a cookie. See docs/AUTH.md §1 for why:
+  ## a row can be deleted, which is what makes signing out and revocation possible at all.
+
+  @doc "Opens a session for `user` and returns the token the cookie will carry."
+  def generate_user_session_token(user) do
+    {token, user_token} = UserToken.build_session_token(user)
+    Repo.insert!(user_token)
+    token
+  end
+
+  @doc "The person holding this session token, or nil if it is unknown, expired or signed out."
+  def get_user_by_session_token(token) when is_binary(token) do
+    Repo.one(UserToken.verify_session_token_query(token))
+  end
+
+  def get_user_by_session_token(_token), do: nil
+
+  @doc "Ends one session. The token stops meaning anything the moment the row is gone."
+  def delete_user_session_token(token) when is_binary(token) do
+    Repo.delete_all(UserToken.by_token_and_context_query(token, "session"))
+    :ok
+  end
+
+  def delete_user_session_token(_token), do: :ok
+
+  @doc "Ends every session `user` has open, anywhere."
+  def delete_all_user_session_tokens(%User{} = user) do
+    Repo.delete_all(UserToken.by_user_and_contexts_query(user, ["session"]))
+    :ok
+  end
 end

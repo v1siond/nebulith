@@ -1,2 +1,11 @@
-<%!-- The engine mounts here. `data-cv-url` is read by the bundle so neither origin is compiled in. --%>
-<div id="game" data-cv-url={@cv_url}></div>
+<%!-- The engine mounts here. Everything the bundle needs from this environment arrives as a data
+      attribute rather than compiled in: the CV's origin, who is signed in, and the CSRF token the
+      header's Log out button posts with. An attribute that is nil is not rendered at all, so the
+      bundle reads "absent" rather than a value nobody chose. --%>
+<div
+  id="game"
+  data-cv-url={@cv_url}
+  data-user-email={@current_user && @current_user.email}
+  data-csrf-token={Plug.CSRFProtection.get_csrf_token()}
+>
+</div>

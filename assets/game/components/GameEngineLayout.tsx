@@ -1,6 +1,6 @@
 import Head from '@/lib/router'
 import { Link } from '@/lib/router'
-import { ROUTES, cvUrl } from '@/lib/routes'
+import { ROUTES, cvUrl, csrfToken, userEmail } from '@/lib/routes'
 import type { ReactNode } from 'react'
 
 /**
@@ -17,6 +17,10 @@ export function GameEngineLayout({
   title?: string
   children: ReactNode
 }) {
+  const cv = cvUrl()
+  const email = userEmail()
+  const csrf = csrfToken()
+
   const tab = (href: string, label: string, key: 'games') => (
     <Link
       href={href}
@@ -44,14 +48,33 @@ export function GameEngineLayout({
             <div className="flex items-center gap-2">
               {tab(ROUTES.games, '🎮 Games', 'games')}
               {/* The CV is a different origin, and this may be running inside its iframe, so the
-                  link leaves the frame rather than loading the CV inside itself. */}
-              <a
-                href={cvUrl()}
-                target="_top"
-                className="px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded text-sm"
-              >
-                Back to CV
-              </a>
+                  link leaves the frame rather than loading the CV inside itself. An environment with
+                  no CV configured has nowhere to go back to, so it draws no button. */}
+              {cv && (
+                <a
+                  href={cv}
+                  target="_top"
+                  className="px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded text-sm"
+                >
+                  Back to CV
+                </a>
+              )}
+              {/* Who is signed in, and the way out. A POST rather than a link: a plain GET means any
+                  other page can sign you out just by linking to it. */}
+              {email && (
+                <form method="post" action="/logout" className="flex items-center gap-2">
+                  <input type="hidden" name="_csrf_token" value={csrf ?? ''} />
+                  <span className="text-xs text-gray-400" title={email}>
+                    {email}
+                  </span>
+                  <button
+                    type="submit"
+                    className="px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded text-sm"
+                  >
+                    Log out
+                  </button>
+                </form>
+              )}
             </div>
           </div>
 

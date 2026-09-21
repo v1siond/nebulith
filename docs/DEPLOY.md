@@ -34,6 +34,25 @@ react-dom out of `assets/node_modules`. Nothing runs node at runtime.
 
 ## 2. Railway, once per environment
 
+> **`railway.json` IS NOT READ. Set these on the SERVICE.**
+>
+> The repo ships a `railway.json` naming the builder, the start command, the pre-deploy command and the
+> health check. Measured on the live project: the service reported `builder: RAILPACK` and `null` for
+> every one of them, so Railway auto-detected the app and **the migrations never ran**. The first deploy
+> booted, answered `/health`, and then returned 500 on every page that touches a table, with
+> `relation "tilesets" does not exist`.
+>
+> Config-as-code is deprecated (Railway's own CLI says so, and it stops working 2026-12-01). The settings
+> that actually apply live on the service instance, per environment, under **Settings → Deploy**:
+>
+> | Setting | Value |
+> |---|---|
+> | Pre-deploy command | `/app/bin/migrate` |
+> | Custom start command | `/app/bin/server` |
+> | Healthcheck path | `/health` |
+>
+> A green deploy is not a working app. Check a page that reads the database, not just `/health`.
+
 Do this twice, once for staging and once for production, so the two never share a database.
 
 1. **New Project** → **Deploy from GitHub repo** → `v1siond/nebulith`.
@@ -60,9 +79,41 @@ Do this twice, once for staging and once for production, so the two never share 
 | `NEBULITH_ADMIN_EMAIL` | recommended | the seeded admin account | `admin@nebulith.local` |
 | `NEBULITH_ADMIN_PASSWORD` | yes in production | that account's password | a real one, not the dev default |
 | `POOL_SIZE` | optional | database pool | `10` |
+| `ECTO_IPV6` | **yes on Railway** | Railway's private network is IPv6 ONLY, so `postgres.railway.internal` never resolves without it | `true` |
+| `CV_URL` | optional | the CV site's public origin, for the engine's "Back to CV" link. Unset, no link is drawn | `https://your-cv.example` |
+| `PIXELLAB_API_KEY` | optional | the sprite generator's pixellab.ai key. Unset, `/api/pixellab` answers 500 and the generator cannot draw | |
+| `DNS_CLUSTER_QUERY` | optional | clustering | |
 
 `NEBULITH_ADMIN_PASSWORD` has a development default of `12345678` so a fresh clone can sign in. **Set it
-in production.** `/admin` can write to any table in the database.
+in production.** That account can reach `/admin`, which can write to any table in the database.
+
+Every variable this app reads is read in `config/runtime.exs`, which is evaluated at boot. There are no
+`System.get_env` calls in `lib/`, so nothing is frozen at build time and one image runs in any environment.
+
+**A default belongs to an environment, never to `config/config.exs`.** That file is compile-time and a
+release inherits whatever it holds. `CV_URL` is why this is written down: its dev default sat there, so
+deployed staging served `data-cv-url="http://localhost:3000"` to every visitor and the "Back to CV" button
+pointed at their own machine. Defaults now live in `config/dev.exs`, and a deployed environment that is
+told nothing renders nothing.
+
+---
+
+## 2b. Seeding a fresh environment
+
+Migrations create the tables. They do not create the catalogue or the admin account, so a brand new
+environment answers `/api/tilesets` with nothing and has nobody who can log in.
+
+```bash
+railway ssh --project nebulith --environment <production|staging> --service nebulith
+/app/bin/nebulith eval "Nebulith.Release.seed"
+```
+
+It reads `NEBULITH_ADMIN_EMAIL` and `NEBULITH_ADMIN_PASSWORD`, so set those first or it creates the
+development default.
+
+**This is not a pre-deploy step and must not be added to one.** The seeders write whole columns from
+their own literals, so running it over a database somebody has edited discards those edits. Run it once,
+by hand, on an environment that is new.
 
 ---
 

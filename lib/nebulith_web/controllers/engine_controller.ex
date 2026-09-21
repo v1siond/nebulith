@@ -8,12 +8,24 @@ defmodule NebulithWeb.EngineController do
   """
   use NebulithWeb, :controller
 
-  @doc "The shell. `cv_url` is handed to the bundle as runtime configuration, not baked at build time."
+  @doc """
+  The shell. Everything environment-specific is handed to the bundle as runtime configuration rather
+  than baked in at build time: the CV origin and the signed-in person.
+  """
   def app(conn, _params) do
     conn
-    |> assign(:cv_url, Application.get_env(:nebulith, :cv_url))
+    |> assign(:cv_url, cv_url())
     |> render(:app)
   end
+
+  # An environment with no CV deployed has no link to render, so the attribute is left off the mount node
+  # entirely and the engine draws no button. A blank string is the same as nothing: an empty env var is
+  # how a platform spells "unset", and rendering it would put an empty href on the page.
+  defp cv_url, do: present(Application.get_env(:nebulith, :cv_url))
+
+  defp present(nil), do: nil
+  defp present(""), do: nil
+  defp present(url), do: url
 
   @doc """
   The paths the engine answered while it lived inside the CV site. Kept as redirects so existing

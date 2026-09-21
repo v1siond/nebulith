@@ -17,10 +17,29 @@ export const ROUTES = {
  *
  * Read through a function on purpose: a module-level const evaluates when this module first loads
  * and would freeze whatever was there, which is the same trap as reading a served catalog at module
- * scope. The fallback is the CV's dev server, so a checkout with nothing configured still links.
+ * scope.
+ *
+ * No fallback. This used to default to the CV's dev server, and a deployed build then offered every
+ * visitor a link to their own machine on port 3000. The server knows whether a CV exists in this
+ * environment and says so by rendering the attribute or leaving it off; null means draw no link.
  */
-export const cvUrl = (): string =>
-  document.getElementById('game')?.dataset.cvUrl ?? 'http://localhost:3000'
+export const cvUrl = (): string | null =>
+  document.getElementById('game')?.dataset.cvUrl || null
+
+/**
+ * Who is signed in, as Phoenix rendered it onto the mount node, or null. Same contract as `cvUrl`: the
+ * server knows and says so, the bundle never guesses. The engine pages are behind a login, so in
+ * practice this is set whenever the app is running at all.
+ */
+export const userEmail = (): string | null =>
+  document.getElementById('game')?.dataset.userEmail || null
+
+/**
+ * The CSRF token for posting back to Phoenix, which the Log out form needs. Read at call time, because
+ * the session is renewed on login and the token with it.
+ */
+export const csrfToken = (): string | null =>
+  document.getElementById('game')?.dataset.csrfToken || null
 
 export type RouteName = 'games' | 'game' | 'templates' | 'spriteGenerator' | 'spritesTest'
 

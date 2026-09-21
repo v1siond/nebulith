@@ -14,6 +14,7 @@
  * So this types past the end and then NUDGES, which is the move that used to destroy the value.
  */
 import { chromium } from 'playwright'
+import { logIn } from './logIn.mjs'
 
 const BASE = process.env.BASE || 'http://localhost:6328'
 const failures = []
@@ -26,6 +27,8 @@ function check(ok, label, detail = '') {
 const browser = await chromium.launch()
 const page = await browser.newPage({ viewport: { width: 1700, height: 1000 } })
 
+// The editor is behind a login now, so the gate walks through the real form before it can drive it.
+await logIn(page, BASE)
 await page.goto(`${BASE}/templates`, { waitUntil: 'networkidle' })
 await page.waitForTimeout(3000)
 

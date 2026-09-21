@@ -27,10 +27,6 @@ config :phoenix_live_view,
   # the attribute set on all root tags. Used for Phoenix.LiveView.ColocatedCSS.
   root_tag_attribute: "phx-r"
 
-# Where the CV site lives. The engine's "Back to CV" link is rendered from this, so neither origin is
-# compiled into the bundle. config/runtime.exs reads CV_URL in production; this is the dev default.
-config :nebulith, :cv_url, "http://localhost:3000"
-
 # Configure esbuild (the version is required)
 config :esbuild,
   version: "0.25.4",

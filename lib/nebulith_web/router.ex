@@ -1,6 +1,8 @@
 defmodule NebulithWeb.Router do
   use NebulithWeb, :router
 
+  import NebulithWeb.UserAuth
+
   pipeline :browser do
     plug :accepts, ["html"]
     plug :fetch_session
@@ -8,37 +10,69 @@ defmodule NebulithWeb.Router do
     plug :put_root_layout, html: {NebulithWeb.Layouts, :root}
     plug :protect_from_forgery
     plug :put_secure_browser_headers
+    plug :fetch_current_user
   end
 
   pipeline :api do
     plug :accepts, ["json"]
   end
 
-  # The ENGINE. No session and no CSRF: the shell is a plain GET and the application talks to /api,
-  # which carries neither. That also means nothing here depends on a cookie, which is what lets the
-  # engine work inside a cross-origin iframe at all (a third-party cookie is blocked or partitioned).
+  # The ENGINE. It carries a session now, because the pages behind it require a login.
   #
-  # `frame-ancestors *` replaces Phoenix's default `frame-ancestors 'self'`, which is the ONLY thing
-  # that stops another site from embedding this. Deliberately open: embedding the engine is the point.
-  # See docs/DEPLOYMENT-AND-BOUNDARIES.md §7 for what that costs. Every other browser route keeps the
-  # default, so /admin stays un-embeddable.
+  # That ends the cross-origin iframe embed: a third-party cookie is blocked or partitioned by every
+  # current browser, so an embedded engine arrives with no session, sees the login page, and cannot log
+  # in from inside the frame either. `frame-ancestors *` is left as it was, so the CSP still permits
+  # the embed, but the login is what actually decides it. docs/AUTH.md §3 has the trade and the exact
+  # `same_site` change that would buy the embed back.
+  #
+  # CSRF is on because the header's Log out button posts. It only checks non-GET requests, so the shell
+  # itself is unaffected, and /api keeps its own pipeline.
   pipeline :engine do
     plug :accepts, ["html"]
+    plug :fetch_session
+    plug :fetch_live_flash
     plug :put_root_layout, html: {NebulithWeb.Layouts, :engine}
+    plug :protect_from_forgery
 
     plug :put_secure_browser_headers, %{
       "content-security-policy" => "base-uri 'self'; frame-ancestors *;"
     }
+
+    plug :fetch_current_user
   end
 
   pipeline :admin do
     plug NebulithWeb.AdminAuth
   end
 
+  pipeline :signed_in do
+    plug :require_authenticated_user
+  end
+
+  pipeline :signed_out_only do
+    plug :redirect_if_user_is_authenticated
+  end
+
   scope "/", NebulithWeb do
     pipe_through :browser
 
     get "/", PageController, :home
+  end
+
+  # THE DOOR. Someone already signed in is bounced off the form rather than shown it again.
+  scope "/", NebulithWeb do
+    pipe_through [:browser, :signed_out_only]
+
+    get "/login", SessionController, :new
+    post "/login", SessionController, :create
+  end
+
+  # Logging out is a POST, so a link on another site cannot sign a person out by being visited.
+  scope "/", NebulithWeb do
+    pipe_through :browser
+
+    post "/logout", SessionController, :delete
+    delete "/logout", SessionController, :delete
   end
 
   # The platform's liveness check. Its own pipeline: no session, no layout, no secure headers to
@@ -52,7 +86,7 @@ defmodule NebulithWeb.Router do
   # Every engine path serves the same shell; the client router reads the path. Listing them rather than
   # globbing keeps an unknown path a 404 instead of a silently empty gallery.
   scope "/", NebulithWeb do
-    pipe_through :engine
+    pipe_through [:engine, :signed_in]
 
     get "/games", EngineController, :app
     get "/games/:id", EngineController, :app

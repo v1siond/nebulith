@@ -1,0 +1,60 @@
+<Layouts.app flash={@flash}>
+  <div class="mx-auto flex min-h-[70vh] w-full max-w-sm flex-col justify-center">
+    <div class="mb-8">
+      <p class="mb-2 font-mono text-[11.5px] font-bold uppercase tracking-[0.2em] text-primary">
+        Nebulith
+      </p>
+      <h1 class="text-2xl font-bold tracking-tight">Log in</h1>
+      <p class="mt-1.5 text-sm text-base-content/60">
+        The engine is not open to the public.
+      </p>
+    </div>
+
+    <%!-- One message for both halves on purpose: naming which one was wrong turns this form into a
+          directory of who has an account. --%>
+    <div
+      :if={@error_message}
+      id="login-error"
+      role="alert"
+      class="mb-5 rounded-box border border-error bg-error/10 px-4 py-3 text-sm text-error"
+    >
+      {@error_message}
+    </div>
+
+    <.form :let={f} for={%{}} as={:user} action={~p"/login"} class="flex flex-col gap-4">
+      <label class="flex flex-col gap-1.5">
+        <span class="text-xs font-semibold uppercase tracking-wider text-base-content/60">Email</span>
+        <input
+          type="email"
+          name={f[:email].name}
+          id="user_email"
+          required
+          autocomplete="username"
+          autofocus
+          class="w-full rounded-box border border-base-300 bg-base-100 px-3 py-2 text-[15px] focus:border-primary focus:outline-2 focus:outline-primary"
+        />
+      </label>
+
+      <label class="flex flex-col gap-1.5">
+        <span class="text-xs font-semibold uppercase tracking-wider text-base-content/60">
+          Password
+        </span>
+        <input
+          type="password"
+          name={f[:password].name}
+          id="user_password"
+          required
+          autocomplete="current-password"
+          class="w-full rounded-box border border-base-300 bg-base-100 px-3 py-2 text-[15px] focus:border-primary focus:outline-2 focus:outline-primary"
+        />
+      </label>
+
+      <button
+        type="submit"
+        class="mt-2 w-full rounded-box bg-primary px-4 py-2.5 text-sm font-semibold text-primary-content hover:opacity-90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+      >
+        Log in
+      </button>
+    </.form>
+  </div>
+</Layouts.app>

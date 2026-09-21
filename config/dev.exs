@@ -11,6 +11,11 @@ config :nebulith, Nebulith.Repo,
   show_sensitive_data_on_connection_error: true,
   pool_size: 10
 
+# Where the CV site lives, for the engine's "Back to CV" link. Only dev knows this address: a deployed
+# environment is told by CV_URL (config/runtime.exs) and, told nothing, renders no link at all rather
+# than pointing a visitor at their own machine.
+config :nebulith, :cv_url, "http://localhost:3000"
+
 # For development, we disable any cache and enable
 # debugging and code reloading.
 #
