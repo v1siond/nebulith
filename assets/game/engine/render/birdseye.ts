@@ -139,13 +139,13 @@ export function renderTopView(params: RenderTopViewParams) {
     // the overhead view paints its tile across the whole footprint span, not just the anchor cell (which would
     // leave the rest of the roof reading as bare ground). A plain asset covers only its own (col,row). The
     // zIndex tie-break is unchanged (a higher/last-placed asset still wins each cell).
-    const cells = asset.spanAxis && (asset.spanForward ?? 1) > 1
+    const cells = asset.spanAxis && (asset.spanForward) > 1
       ? depthCells(asset.col, asset.row, asset.spanForward!, asset.spanAxis)
       : [{ col: asset.col, row: asset.row }]
     for (const { col, row } of cells) {
       const key = `${col},${row}`
       const cur = assetMap[key]
-      if (!cur || (asset.zIndex ?? 0) >= (cur.zIndex ?? 0)) assetMap[key] = asset
+      if (!cur || (asset.zIndex) >= (cur.zIndex)) assetMap[key] = asset
     }
   }
 

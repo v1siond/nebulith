@@ -220,7 +220,7 @@ function tallestStack(grid: IsometricGrid, anchor: { col: number; row: number },
   for (let r = anchor.row; r < anchor.row + span.rows; r++) {
     for (let c = anchor.col; c < anchor.col + span.cols; c++) {
       for (const asset of grid.getAssetsAtCell(c, r)) {
-        top = Math.max(top, (asset.heightLevel ?? 0) + Math.max(1, resolveTileHeight(asset)))
+        top = Math.max(top, (asset.heightLevel) + Math.max(1, resolveTileHeight(asset)))
       }
     }
   }

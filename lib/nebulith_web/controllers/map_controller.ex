@@ -64,16 +64,23 @@ defmodule NebulithWeb.MapController do
   defect phase 3 names: a hand-written field list silently drops what it has not been told about, so a
   setting is authored, saved, and simply gone. A list that is served from the schema cannot fall behind.
   """
-  def schema(conn, _params) do
-    json(conn, %{
-      data: %{
-        "fields" => Enum.map(World.CellTile.settable_fields(), &Atom.to_string/1),
-        "defaults" => defaults(),
-        "vocabularies" => World.CellTile.vocabularies(),
-        "views" => World.CellTileView.views(),
-        "cell_surfaces" => World.Cell.surfaces()
-      }
-    })
+  def schema(conn, _params), do: json(conn, %{data: schema_payload()})
+
+  @doc """
+  What `/api/maps/schema` serves, as data.
+
+  Lifted out of the action so a test can ask for the payload without going through HTTP, and get the
+  same thing the browser gets. The end-to-end layer builds its stubbed responses from this, so a stub
+  cannot describe a schema the app does not serve: there is no captured copy to fall behind.
+  """
+  def schema_payload do
+    %{
+      "fields" => Enum.map(World.CellTile.settable_fields(), &Atom.to_string/1),
+      "defaults" => defaults(),
+      "vocabularies" => World.CellTile.vocabularies(),
+      "views" => World.CellTileView.views(),
+      "cell_surfaces" => World.Cell.surfaces()
+    }
   end
 
   # Every default, from the column, so the engine has no reason to hold one of its own.

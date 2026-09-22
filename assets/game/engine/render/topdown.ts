@@ -193,7 +193,7 @@ export function draw2DLabeledCell(
   // water column) grows in place exactly like the iso block does, NOT centered and NOT levitating.
   //
   // No per-tile zoom here. `zoom` in this file is the CAMERA's, and the axes are the only size.
-  const drawW = tileW * (asset.width ?? 1)
+  const drawW = tileW * (asset.width)
   // HEIGHT, the SAME reading iso uses: the tile's OWN DB block-height (partialBlockScale) × the per-instance
   // Height multiplier (scaleY). A sub-block (flat 0.1) cell is a thin slab, a standing cell a full box, // identically in 2D and iso because both read the tile's real height DATA. Nothing invented.
   const drawH = tileH * resolveTileHeight(asset)
@@ -527,7 +527,7 @@ export function render2D(params: Render2DParams) {
     if (asset.type === FLOOR_TYPE) continue // floors are the ground plane, painted as filled tiles above, not facades
     if (fe.hidden.has(asset)) continue // occluded behind a front-elevation face, depth collapsed away
     const anchorRow = fe.draw.get(asset)?.anchorRow ?? asset.row
-    drawables.push({ row: asset.row, col: asset.col, type: 'asset', asset, sortRow: anchorRow, level: asset.heightLevel ?? 0, zIndex: asset.zIndex ?? 0 })
+    drawables.push({ row: asset.row, col: asset.col, type: 'asset', asset, sortRow: anchorRow, level: asset.heightLevel, zIndex: asset.zIndex })
   }
 
   // Add player
@@ -697,7 +697,7 @@ export function render2D(params: Render2DParams) {
       const levelStep = feCell ? tileH : tileH * 0.9
       // "z position" is NOT a vertical lift, it's an iso-diagonal ground slide, already folded into `p` above
       // (the ground-plane cell delta), so baseY only carries elevation + the height-level stack, like before.
-      const baseY = p.y + tileH * 0.5 - elevOffset - (asset.heightLevel ?? 0) * levelStep
+      const baseY = p.y + tileH * 0.5 - elevOffset - (asset.heightLevel) * levelStep
       // The tile's rendered 2D silhouette (rect), recorded below per branch so the inverted picker + highlight
       // hit-test the TILE the user sees (its scaleY/heightLevel-lift/zOffset-slide/pose extent), not the cell.
       let hit2D: TileGeom | null = null
@@ -750,7 +750,7 @@ export function render2D(params: Render2DParams) {
       if (decorImg) {
         drawStyledImage(ctx, decorImg, p.x, baseY - tileH * 0.5, tileW, false, asset.color, tileH)
         hit2D = billboardGeom(tileW, tileH, poseMapper({ x: p.x, y: baseY - tileH * 0.5 }, undefined, tileH))
-      } else if (asset.label && (asset.height ?? 0) >= 1) {
+      } else if (asset.label && (asset.height) >= 1) {
         // COMPOSITION CELL (tree trunk/canopy, wall, roof, fountain jet, lamp bulb …), draw its OWN per-label
         // tile, mirroring iso's label-FIRST seam (iso.ts drawIsoAssetAscii). A composition cell carries a
         // `label` and `height >= 1` (stampComposition/stampRun); without this branch it resolves the generic
@@ -759,7 +759,7 @@ export function render2D(params: Render2DParams) {
         // "tree on tree" doubling. Keyed on the cell's DATA (label + height), NOT on the tile type, so ANY
         // composition (tree/building/fountain/lamp) translates into the 2D front elevation exactly like iso, // each cell drawn at its own heightLevel-lifted baseY, composing into one coherent object.
         draw2DLabeledCell(ctx, p.x, baseY, tileW, tileH, asset, style)
-        const dw = tileW * (asset.width ?? 1), dh = tileH * resolveTileHeight(asset)
+        const dw = tileW * (asset.width), dh = tileH * resolveTileHeight(asset)
         hit2D = billboardGeom(dw, dh, poseMapper({ x: p.x, y: baseY - dh / 2 }, undefined, tileH))
       } else if ((adv.image || adv.char) && resolveTileHeight(asset) < 1) {
         // FLAT tile (its OWN DB height is 0: a flower, a fallen leaf, floor decor) → a flat front-elevation CELL
@@ -769,7 +769,7 @@ export function render2D(params: Render2DParams) {
         // keeps its upright front-elevation sprite in the branches below.
         draw2DLabeledCell(ctx, p.x, baseY, tileW, tileH, asset, style, adv)
         // Pick box matches the drawn slab, the tile's own DB height (partialBlockScale), not a full-height rect.
-        const dw = tileW * (asset.width ?? 1)
+        const dw = tileW * (asset.width)
         const dh = tileH * resolveTileHeight(asset)
         hit2D = billboardGeom(dw, dh, poseMapper({ x: p.x, y: baseY - dh / 2 }, undefined, tileH))
       } else if (adv.image) {
@@ -812,7 +812,7 @@ export function render2D(params: Render2DParams) {
         // IS the tile), matching the iso + top views. No green multi-tile overdraw.
         draw2DLabeledCell(ctx, p.x, baseY, tileW, tileH, asset, style)
         // Match draw2DLabeledCell's rect: Width/Height/Zoom stretch the cell, grown UP from baseY.
-        const dw = tileW * (asset.width ?? 1), dh = tileH * resolveTileHeight(asset)
+        const dw = tileW * (asset.width), dh = tileH * resolveTileHeight(asset)
         hit2D = billboardGeom(dw, dh, poseMapper({ x: p.x, y: baseY - dh / 2 }, undefined, tileH))
       } else {
         // LAST RESORT, no label, and this asset's KIND has no tile in the ACTIVE tileset, so there is
@@ -823,7 +823,7 @@ export function render2D(params: Render2DParams) {
       if (ct2d) ctx.restore() // pop the cell-animation transform
       if (animWrap) ctx.restore() // pop the tile-animation shift/opacity wrap
       // Record this tile's 2D silhouette so the inverted picker + highlight hit-test IT, not the flat cell.
-      if (hit2D) twoDTileHits.push({ col: obj.asset.col, row: obj.asset.row, level: obj.asset.heightLevel ?? 0, stackIndex: stackIndexOf(obj.asset), source: 'asset', geom: hit2D })
+      if (hit2D) twoDTileHits.push({ col: obj.asset.col, row: obj.asset.row, level: obj.asset.heightLevel, stackIndex: stackIndexOf(obj.asset), source: 'asset', geom: hit2D })
     }
   }
 
@@ -959,7 +959,7 @@ export function render2D(params: Render2DParams) {
     // Anchor each pool on the BULB (its own recorded 2D silhouette centroid, the tall lamp's lifted bulb), not
     // the ground cell + a fixed `tileH*2.2` lift, so the pool sits ON the glowing bulb. Not drawn → old anchor.
     const bulbAnchor = (a: GridAsset) => {
-      const g = twoDRecordedGeom(a.col, a.row, a.heightLevel ?? 0)
+      const g = twoDRecordedGeom(a.col, a.row, a.heightLevel)
       return g ? tileGeomCentroid(g) : null
     }
     const lamps = collectLampGlows(grid, (c, r) => toScreen(c + 0.5, r + 0.5), tileW, tileH * 2.2, w, h, { time, style, view: '2d' }, bulbAnchor, entities)

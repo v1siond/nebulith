@@ -45,7 +45,7 @@ export interface FrontElevation {
 }
 
 const key = (col: number, row: number): string => `${col},${row}`
-const lvl = (a: GridAsset): number => a.heightLevel ?? 0
+const lvl = (a: GridAsset): number => a.heightLevel
 
 /** A cell participates in the front-elevation collapse only if it is a placed COMPOSITION cell (a wall,
  *  roof, door, window, tree leaf …), those carry a `label`. Flat props (crates, lamps, npcs) and the

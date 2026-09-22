@@ -57,7 +57,7 @@ export function fillSelectionWithComposite(
       settings: tile.settings,
       color: tile.color,
       bgColor: tile.bgColor,
-      height: tile.height ?? 0,
+      height: tile.height,
       tileKey: tile.tile,
     })
   }
@@ -99,7 +99,7 @@ export function scaleCompositeToRegion(
         settings: tile.settings,
         color: tile.color,
         bgColor: tile.bgColor,
-        height: tile.height ?? 0,
+        height: tile.height,
         tileKey: tile.tile,
       })
     }

@@ -184,7 +184,7 @@ function withAnimatedFields(asset: GridAsset, values: AnimatedSettingsDetailed):
   if (!hasColor && !hasWidth && !hasHeight) return asset
   const out: GridAsset = { ...asset }
   if (hasColor) out.color = color!.value as string
-  if (hasWidth) out.width = composeAnimatedSetting('width', asset.width ?? 1, width!.value as number, Number(width!.from))
+  if (hasWidth) out.width = composeAnimatedSetting('width', asset.width, width!.value as number, Number(width!.from))
   if (hasHeight) out.height = composeAnimatedSetting('height', resolveTileHeight(asset), height!.value as number, Number(height!.from))
   return out
 }

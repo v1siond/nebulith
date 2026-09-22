@@ -8,7 +8,7 @@
  * aren't re-allocated per render and stay unit-testable.
  */
 import type { Entity, EntityKind, Quest } from '@/game/types'
-import type { GridAsset } from '@/engine/IsometricGrid'
+import { newPlacement, type GridAsset } from '@/engine/IsometricGrid'
 import type { Trigger } from '@/game/runtime/trigger'
 
 /** Glyph drawn for each entity kind, over a dark backing (spec §1). */
@@ -83,10 +83,7 @@ export const ENTITY_ASSET_TYPE = 'nebulith:entity'
 const entityCodec = makeAssetCodec<Entity>(
   ENTITY_ASSET_TYPE,
   entity => ({
-    art: [entityGlyph(entity)],
-    col: entity.col,
-    row: entity.row,
-    type: ENTITY_ASSET_TYPE,
+    ...newPlacement([entityGlyph(entity)], entity.col, entity.row, { type: ENTITY_ASSET_TYPE }),
     color: ENTITY_COLOR[entity.kind],
     label: JSON.stringify(entity), // the round-trip payload
   }),
@@ -106,10 +103,8 @@ export const QUEST_ASSET_TYPE = 'nebulith:quest'
 const questCodec = makeAssetCodec<Quest>(
   QUEST_ASSET_TYPE,
   quest => ({
-    art: [' '],
-    col: -1, // off-grid: never drawn by the tile/asset renderers
-    row: -1,
-    type: QUEST_ASSET_TYPE,
+    // off-grid: never drawn by the tile/asset renderers
+    ...newPlacement([' '], -1, -1, { type: QUEST_ASSET_TYPE }),
     color: '#000000',
     label: JSON.stringify(quest), // the round-trip payload
   }),
@@ -142,10 +137,8 @@ export const TRIGGER_ASSET_TYPE = 'nebulith:trigger'
 const triggerCodec = makeAssetCodec<CellTriggerGroup>(
   TRIGGER_ASSET_TYPE,
   group => ({
-    art: [' '],
-    col: -1, // off-grid: never drawn by the tile/asset renderers
-    row: -1,
-    type: TRIGGER_ASSET_TYPE,
+    // off-grid: never drawn by the tile/asset renderers
+    ...newPlacement([' '], -1, -1, { type: TRIGGER_ASSET_TYPE }),
     color: '#000000',
     label: JSON.stringify(group), // the round-trip payload (cell + its triggers)
   }),
@@ -171,7 +164,7 @@ export const STYLE_ASSET_TYPE = 'nebulith:style'
 /** One off-grid marker carrying the active style id (empty when ASCII/default → no marker). */
 export function styleToAssets(styleId: string | null | undefined): GridAsset[] {
   if (!styleId || styleId === 'ascii') return []
-  return [{ art: [' '], col: -1, row: -1, type: STYLE_ASSET_TYPE, color: '#000000', label: styleId }]
+  return [{ ...newPlacement([' '], -1, -1, { type: STYLE_ASSET_TYPE }), color: '#000000', label: styleId }]
 }
 
 /** The saved active style id (or null when none was persisted). */

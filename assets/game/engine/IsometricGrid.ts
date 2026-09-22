@@ -60,10 +60,10 @@ export interface GridAsset {
    * its cell's heading and every river on every map drifted the same way. Absent = still.
    */
   flow?: number
-  width?: number        // WIDTH: how wide the tile draws, in every view. The column is `width`, and so
+  width: number        // WIDTH: how wide the tile draws, in every view. The column is `width`, and so
                         // is this: an engine that spells a setting differently from the column is a
                         // second vocabulary whose whole job is to be translated back.
-  depth?: number        // DEPTH: how far the tile reaches INTO THE SCREEN, as a share of its own cell.
+  depth: number        // DEPTH: how far the tile reaches INTO THE SCREEN, as a share of its own cell.
                         // A SIZE, and the same size in every view: the into-screen axis of the iso box, and
                         // the vertical axis of the overhead view, which is that same axis seen from above.
                         //
@@ -77,20 +77,20 @@ export interface GridAsset {
    * toward ITS wall when the camera rotates and when the BUILDING is rotated ("the front of the
    *  house", not "MY front"). Absent = the legacy screen-axis `scaleZ` squash. */
   thickness?: ThicknessReach
-  spanForward?: number  // How many WHOLE CELLS this tile covers along `spanAxis`, anchored at its base cell.
+  spanForward: number  // How many WHOLE CELLS this tile covers along `spanAxis`, anchored at its base cell.
                         // Default 1, which is the anchor and nothing more. ISO view.
                         //
                         // This was called `depth`, and so is the SIZE a tile draws at, which is a fraction of
                         // ONE cell. Two controls under one word, and the type definition flagged the clash in
                         // its own comment. Span counts cells; depth measures within a cell.
   spanAxis?: IsoDiagonal   // Which iso diagonal the depth extrudes along: right-up/left-up/left-down/right-down.
-  spanBack?: number    // BIDIRECTIONAL z-width: EXTRA blocks the box extends the OPPOSITE way
+  spanBack: number    // BIDIRECTIONAL z-width: EXTRA blocks the box extends the OPPOSITE way
                         // from `spanAxis` (backward from the anchor). Default 0 = today's one-way span. So one
                         // tile z-widths BOTH pathways (`spanBack` behind + `depth` ahead), a 4-cell roof → 1 tile.
                         // Normalized to a one-way span (anchor − spanBack·step, total depth spanBack+depth) so
                         // every depth fn (depthCells/isoDepthBox/spanBackmost/the sort) keeps working. ISO view.
-  spanPerp?: number    // 2-AXIS z-width: cells the box ALSO spans along
-  spanPerpBack?: number // the PERPENDICULAR axis (rotateDepthDir(spanAxis,1)), forward (`spanPerp`) + back
+  spanPerp: number    // 2-AXIS z-width: cells the box ALSO spans along
+  spanPerpBack: number // the PERPENDICULAR axis (rotateDepthDir(spanAxis,1)), forward (`spanPerp`) + back
                         // (`spanPerpBack`) beyond the anchor. With the col-axis depth this makes the tile a small
                         // RECTANGLE (a 2×2 roof → 1 tile), sliders independent per direction. Both absent/0 =
                         // today's 1-wide line. The render draws the rectangle as adjacent depth-box lines. ISO view.
@@ -102,7 +102,7 @@ export interface GridAsset {
                         // shows the ground-plane slide (iso/2D/top). Default 0. (Field name kept for round-trip.)
   zDir?: IsoDiagonal       // Which iso diagonal the "z position" slides along (right-up/left-up/left-down/right-down).
                         // Default right-up → +z = up-right (toward the back), −z = down-left. Same 4 dirs as spanAxis.
-  zIndex?: number       // DRAW-PRIORITY (CSS z-index style): the depth sort draws a HIGHER zIndex LATER (on top /
+  zIndex: number       // DRAW-PRIORITY (CSS z-index style): the depth sort draws a HIGHER zIndex LATER (on top /
                         // in front), overriding the positional iso/2D/top key, e.g. a cell authored with a higher
                         // zIndex renders in front of one behind it. A capability for composition optimization;
                         // every cell defaults to 0 → sorts positionally, exactly as before.
@@ -111,20 +111,20 @@ export interface GridAsset {
    *  picked at placement from the ground's own colour; the render reads it and draws nothing without it. */
   sideColor?: string
   bgColor?: string
-  height?: number       // HEIGHT: how tall the tile draws, in BLOCKS. THE ONE HEIGHT.
+  height: number       // HEIGHT: how tall the tile draws, in BLOCKS. THE ONE HEIGHT.
                         //
                         // There used to be two: this, and a `scaleY` that stretched it. One height,
                         // measured in blocks, reachable by raising the ground, by making the tile
                         // taller, or by stacking (D6). The schema gives it one spelling; the engine
                         // had six, and a tile three blocks tall could be written as 3, or as 1
                         // stretched by 3, and nothing said which a reader would get.
-  heightLevel?: number  // Which height level this asset sits on (for stacked tiles)
+  heightLevel: number  // Which height level this asset sits on (for stacked tiles)
   tileKey?: string      // Reference to tile definition key
   tileOverride?: string // Art-style override: a style-agnostic Tile Library id pinning THIS cell's
                         // visual regardless of the active global style. Absent → follows the style.
   label?: string        // Cell-part label for generated multi-cell assets (tree_leaf_top, roof_top, door, …)
-  opacity?: number      // 0-1 render opacity (default 1), play with contrast / depth
-  brightness?: number   // render brightness multiplier (default 1), dim or pop an element
+  opacity: number      // 0-1 render opacity (default 1), play with contrast / depth
+  brightness: number   // render brightness multiplier (default 1), dim or pop an element
   cycles?: AnimationCycle[]  // authored glyph-swap cycles, driven by animationCycles
   cellAnim?: CellAnimation   // authored FRAME-BASED transform animation (sway/wind), driven by cellAnimation
   animations?: Animation[]   // authored TILE ANIMATIONS (settings tweens), a LIST so they chain; the render
@@ -159,6 +159,90 @@ export interface GridAsset {
 export const DEFAULT_SLAB_BLOCKS = 1
 
 export const FLOOR_TYPE = 'floor'
+
+/**
+ * A PLACEMENT, COMPLETE.
+ *
+ * The one place a `GridAsset` is built. Every settable field is stated here, from the catalogue where
+ * the catalogue knows and from the served column default otherwise, which is what makes the type's
+ * required fields honest rather than a promise each caller has to remember.
+ *
+ * It exists because they did not remember. Seven writers built a literal by hand and each one left out
+ * a different subset, so a placement's shape depended on which door it came through: the same tile
+ * stamped by the generator and read back off the wire were different objects, and the renderers grew
+ * fallbacks to paper over the difference. Making the fields required turned that into seven compile
+ * errors, which is the point of stating them.
+ *
+ * Two fields are deliberately absent rather than stated, and both for the same reason: a tile's own
+ * POSE and THICKNESS are per-view facts the catalogue owns, so an identity value here would not mean
+ * "no opinion", it would cancel what the tile authored.
+ */
+export function newPlacement(art: string[], col: number, row: number, options: Partial<GridAsset> = {}): GridAsset {
+  const asset: GridAsset = {
+    ...options,
+    art,
+    col,
+    row,
+    type: options.type ?? 'decoration',
+    // THE TILE'S OWN COLOUR, or none. Not a white invented here: `color` is nullable with no column
+    // default, so nothing said is a real answer, and the renderer draws the tile's art untinted rather
+    // than washing it out. A hardcoded `#ffffff` in this position tinted every uncoloured tile white.
+    color: placementColor(placementLabel(options), options.color),
+    // EVERY PLACEMENT LEAVES HERE WITH A HEIGHT, taken from the catalogue when the caller had nothing
+    // more specific to say.
+    //
+    // The renderer reads the placement and nothing else. It used to read the placement, then the tile,
+    // then a literal, and several writers were built around that chain: `generatedPropRender` says in
+    // as many words that it withholds a height "where the backend states one", meaning it expected the
+    // tile to be consulted next. With the chain gone that silence stopped meaning "ask the tile" and
+    // started meaning the column's default of one whole block, so flat ground decor, road markings and
+    // puddles all came up as cubes, and the frame filled with faces nothing needed.
+    //
+    // Discharged here rather than in each caller: this is the one door every placement comes through.
+    height: options.height ?? tileCatalogHeight(styleTile('ascii', placementLabel(options))),
+    // …AND THE BEHAVIOUR THE CATALOGUE STATES FOR IT. Same reasoning as the height directly above: a
+    // placement that leaves `display` unsaid is not deferring to the tile, it is one reader's habit
+    // away from meaning the column's default. It reached a map that way, where an ornament drew as a
+    // billboard when it was generated and as a cube after a reload, because the two paths disagreed
+    // about whether silence was an answer.
+    settings: placementSettings(placementLabel(options), options.settings),
+    // …and the last three that a reader could otherwise mistake for silence. All have column defaults,
+    // so none of them is ever really absent; saying so is what makes a stamped tile and the same tile
+    // read back off the wire the same object.
+    // POSE IS NOT STATED, and it is the one field here that must not be.
+    //
+    // A tile's own pose is PER VIEW (`resolveTilePose`): a road marking sits centred in iso and
+    // somewhere else from above. A placement has one pose slot, so a stated identity pose is not "no
+    // opinion", it is an override that cancels whatever the tile authored, in every view at once. It
+    // read as the street markings sliding off the middle of the road.
+    //
+    // So absence keeps meaning "ask the tile", exactly as it does for thickness, and the save/load
+    // pair below agrees with that: a pose that moves nothing is written as identity and comes back
+    // absent.
+    opacity: options.opacity ?? numericDefault('opacity'),
+    brightness: options.brightness ?? numericDefault('brightness'),
+    zIndex: options.zIndex ?? numericDefault('draw_order'),
+    heightLevel: options.heightLevel ?? numericDefault('stack_level'),
+    // …AND ITS SIZE AND ITS REACH, for the same reason. These all have column defaults, so an absent
+    // one is not "no opinion", it is that default said quietly. Saying it out loud is what lets a
+    // stamped tile and the same tile read back off the wire compare equal.
+    // EVERY ONE OF THESE COMES FROM ITS COLUMN. Not one of them is a number chosen here: the backend
+    // decides values and the frontend renders them, so a literal in this position is a second opinion
+    // about what the database already states, and it is the opinion that wins on the screen.
+    width: options.width ?? numericDefault('width'),
+    depth: options.depth ?? numericDefault('depth'),
+    spanForward: options.spanForward ?? numericDefault('span_forward'),
+    // The counts the editor holds are cells BEYOND the anchor and the columns count inclusively, so
+    // the column's 1 is this side's 0. Converted here rather than restated.
+    spanBack: options.spanBack ?? numericDefault('span_back') - 1,
+    spanPerp: options.spanPerp ?? numericDefault('span_perp') - 1,
+    spanPerpBack: options.spanPerpBack ?? numericDefault('span_perp_back') - 1,
+  }
+
+  return asset
+}
+
+
 
 /**
  * The default terrain slug a fresh grid / a repaint with no explicit type uses.
@@ -274,7 +358,7 @@ export class IsometricGrid {
   /** The grid cells a floor covers. A plain floor is its one cell; a Z-WIDTH RUN floor (depth>1 + spanAxis, *  the "same as roofs" merge) covers `depth` cells stepping along its diagonal, so every covered cell maps
    *  back to the ONE run tile (groundAt / 2D / stack still resolve per-cell). */
   floorCoveredCells(f: GridAsset): { col: number; row: number }[] {
-    const n = Math.max(1, Math.floor(f.spanForward ?? 1))
+    const n = Math.max(1, Math.floor(f.spanForward))
     if (n <= 1 || !f.spanAxis) return [{ col: f.col, row: f.row }]
     const S = { 'right-up': { dc: 0, dr: -1 }, 'left-up': { dc: -1, dr: 0 }, 'left-down': { dc: 0, dr: 1 }, 'right-down': { dc: 1, dr: 0 } }[f.spanAxis]
     const out: { col: number; row: number }[] = []
@@ -318,13 +402,13 @@ export class IsometricGrid {
     // side of a dug channel's lip are the same tile in the same colour, so they would collapse into one
     // z-width block spanning both levels and the step would disappear from the map.
     const joins = (g: GridAsset | undefined, seed: GridAsset): g is GridAsset =>
-      !!g && !used.has(g) && (g.spanForward ?? 1) <= 1 && g.tileKey === seed.tileKey && (g.color ?? '') === (seed.color ?? '')
+      !!g && !used.has(g) && (g.spanForward) <= 1 && g.tileKey === seed.tileKey && (g.color ?? '') === (seed.color ?? '')
       && (this.height[g.row]?.[g.col] ?? 0) === (this.height[seed.row]?.[seed.col] ?? 0)
     for (let r = 0; r < this.rows; r++) {
       let c = 0
       while (c < this.cols) {
         const f = this.floorAt(c, r)
-        if (!f || (f.spanForward ?? 1) > 1 || used.has(f)) { c++; continue } // no floor, already a run, or claimed
+        if (!f || (f.spanForward) > 1 || used.has(f)) { c++; continue } // no floor, already a run, or claimed
         // How far the same floor runs RIGHT (along the row, +col) vs DOWN (along the column, +row) from here.
         let hEnd = c; while (hEnd + 1 < this.cols && joins(this.floorAt(hEnd + 1, r), f)) hEnd++
         let vEnd = r; while (vEnd + 1 < this.rows && joins(this.floorAt(c, vEnd + 1), f)) vEnd++
@@ -351,7 +435,7 @@ export class IsometricGrid {
    *  change just this cell ("cut it to put another tile"). No-op for a plain floor / bare cell. */
   private decompressGroundAt(col: number, row: number): void {
     const run = this.floorAt(col, row)
-    if (!run || (run.spanForward ?? 1) <= 1) return
+    if (!run || (run.spanForward) <= 1) return
     const cells = this.floorCoveredCells(run)
     this.assets = this.assets.filter(a => a !== run)
     for (const { col: cc, row: rr } of cells) {
@@ -372,7 +456,7 @@ export class IsometricGrid {
       // A Z-WIDTH run FLOOR belongs to EVERY cell it covers (so a prop's stack + a per-cell pick see the ground
       // beneath); a 2-axis z-width STANDING tile (a rectangular deck) likewise belongs to its whole footprint so a
       // tile dropped on its MIDDLE stacks ON TOP; every other tile is its single cell.
-      const cells = (a.type === FLOOR_TYPE && (a.spanForward ?? 1) > 1) ? this.floorCoveredCells(a)
+      const cells = (a.type === FLOOR_TYPE && (a.spanForward) > 1) ? this.floorCoveredCells(a)
         : (a.type !== FLOOR_TYPE && a.spanAxis) ? this.rectCoveredCells(a)
         : [{ col: a.col, row: a.row }]
       for (const { col, row } of cells) {
@@ -383,7 +467,7 @@ export class IsometricGrid {
       }
     }
     for (const arr of idx.values()) {
-      arr.sort((a, b) => (a.heightLevel ?? 0) - (b.heightLevel ?? 0) || (a.type === FLOOR_TYPE ? -1 : 0) - (b.type === FLOOR_TYPE ? -1 : 0))
+      arr.sort((a, b) => (a.heightLevel) - (b.heightLevel) || (a.type === FLOOR_TYPE ? -1 : 0) - (b.type === FLOOR_TYPE ? -1 : 0))
     }
     this.cellIndex = idx
   }
@@ -594,65 +678,7 @@ export class IsometricGrid {
    * A spread cannot fall behind. Adding a field to GridAsset carries it here with no edit at all.
    */
   placeAsset(art: string[], col: number, row: number, options: Partial<GridAsset> = {}): GridAsset {
-    const asset: GridAsset = {
-      ...options,
-      art,
-      col,
-      row,
-      type: options.type ?? 'decoration',
-      // THE TILE'S OWN COLOUR, or none. Not a white invented here: `color` is nullable with no column
-      // default, so nothing said is a real answer, and the renderer draws the tile's art untinted rather
-      // than washing it out. A hardcoded `#ffffff` in this position tinted every uncoloured tile white.
-      color: placementColor(placementLabel(options), options.color),
-      // EVERY PLACEMENT LEAVES HERE WITH A HEIGHT, taken from the catalogue when the caller had nothing
-      // more specific to say.
-      //
-      // The renderer reads the placement and nothing else. It used to read the placement, then the tile,
-      // then a literal, and several writers were built around that chain: `generatedPropRender` says in
-      // as many words that it withholds a height "where the backend states one", meaning it expected the
-      // tile to be consulted next. With the chain gone that silence stopped meaning "ask the tile" and
-      // started meaning the column's default of one whole block, so flat ground decor, road markings and
-      // puddles all came up as cubes, and the frame filled with faces nothing needed.
-      //
-      // Discharged here rather than in each caller: this is the one door every placement comes through.
-      height: options.height ?? tileCatalogHeight(styleTile('ascii', placementLabel(options))),
-      // …AND THE BEHAVIOUR THE CATALOGUE STATES FOR IT. Same reasoning as the height directly above: a
-      // placement that leaves `display` unsaid is not deferring to the tile, it is one reader's habit
-      // away from meaning the column's default. It reached a map that way, where an ornament drew as a
-      // billboard when it was generated and as a cube after a reload, because the two paths disagreed
-      // about whether silence was an answer.
-      settings: placementSettings(placementLabel(options), options.settings),
-      // …and the last three that a reader could otherwise mistake for silence. All have column defaults,
-      // so none of them is ever really absent; saying so is what makes a stamped tile and the same tile
-      // read back off the wire the same object.
-      // POSE IS NOT STATED, and it is the one field here that must not be.
-      //
-      // A tile's own pose is PER VIEW (`resolveTilePose`): a road marking sits centred in iso and
-      // somewhere else from above. A placement has one pose slot, so a stated identity pose is not "no
-      // opinion", it is an override that cancels whatever the tile authored, in every view at once. It
-      // read as the street markings sliding off the middle of the road.
-      //
-      // So absence keeps meaning "ask the tile", exactly as it does for thickness, and the save/load
-      // pair below agrees with that: a pose that moves nothing is written as identity and comes back
-      // absent.
-      opacity: options.opacity ?? numericDefault('opacity'),
-      brightness: options.brightness ?? numericDefault('brightness'),
-      zIndex: options.zIndex ?? numericDefault('draw_order'),
-      // …AND ITS SIZE AND ITS REACH, for the same reason. These all have column defaults, so an absent
-      // one is not "no opinion", it is that default said quietly. Saying it out loud is what lets a
-      // stamped tile and the same tile read back off the wire compare equal.
-      // EVERY ONE OF THESE COMES FROM ITS COLUMN. Not one of them is a number chosen here: the backend
-      // decides values and the frontend renders them, so a literal in this position is a second opinion
-      // about what the database already states, and it is the opinion that wins on the screen.
-      width: options.width ?? numericDefault('width'),
-      depth: options.depth ?? numericDefault('depth'),
-      spanForward: options.spanForward ?? numericDefault('span_forward'),
-      // The counts the editor holds are cells BEYOND the anchor and the columns count inclusively, so
-      // the column's 1 is this side's 0. Converted here rather than restated.
-      spanBack: options.spanBack ?? numericDefault('span_back') - 1,
-      spanPerp: options.spanPerp ?? numericDefault('span_perp') - 1,
-      spanPerpBack: options.spanPerpBack ?? numericDefault('span_perp_back') - 1,
-    }
+    const asset = newPlacement(art, col, row, options)
     this.assets.push(asset)
     this.cellIndex = null
 
@@ -728,10 +754,8 @@ export class IsometricGrid {
   ) {
     if (col < 0 || col >= this.cols || row < 0 || row >= this.rows) return
 
-    const placed: GridAsset = {
-      art: [char],
-      col,
-      row,
+    const placed: GridAsset = newPlacement([char], col, row, {
+      ...options,
       type: options.type ?? 'tile',
       settings: options.settings,
       // THE TILE'S OWN COLOUR, or none. Not a white invented here: `color` is nullable with no column
@@ -741,7 +765,7 @@ export class IsometricGrid {
       bgColor: options.bgColor,
       heightLevel,
       tileKey,
-    }
+    })
     this.assets.push(placed)
     this.cellIndex = null
 

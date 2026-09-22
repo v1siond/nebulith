@@ -106,15 +106,15 @@ function assetEntry(a: GridAsset): TileEntry {
     source: 'asset',
     tileId: a.tileOverride,
     slug: a.type === FLOOR_TYPE ? (a.tileKey ?? DEFAULT_FLOOR_SLUG) : (a.label ?? a.type),
-    w: a.width ?? 1,
-    d: a.depth ?? 1,
+    w: a.width,
+    d: a.depth,
     h: resolveTileHeight(a),
     color: a.color ?? null,
     opacity: a.opacity,
     // WHAT IT OCCUPIES, asked once. `assetIsSolid` reads the tile's collision boxes (per-instance, else its
     // catalog row), which is the only statement about walking through a tile since the flag was removed.
     collision: assetIsSolid(a),
-    heightLevel: a.heightLevel ?? 0,
+    heightLevel: a.heightLevel,
     art: a.art,
     type: a.type,
     label: a.label,
@@ -174,7 +174,7 @@ export function cellStackTop(grid: IsometricGrid, col: number, row: number): num
   // occupant of AT LEAST ONE block for stacking, so content stacks ON TOP of it EVEN WHEN IT IS FLAT (a
   // height-0 road you WALK OVER lifts the walker to level 1 without being raised). Default false → a flat tile
   // still lets content land at its own level. A height-≥1 tile is already ≥1, so this never changes the legos.
-  return grid.getAssetsAtCell(col, row).reduce((top, a) => Math.max(top, (a.heightLevel ?? 0) + stackContribution(a)), 0)
+  return grid.getAssetsAtCell(col, row).reduce((top, a) => Math.max(top, (a.heightLevel) + stackContribution(a)), 0)
 }
 
 /** The level a tile the USER just painted lands at: the top of the VOLUME the cell already holds.
@@ -196,7 +196,7 @@ export function cellStackTop(grid: IsometricGrid, col: number, row: number): num
  * So this reads `occupiedHeight` alone. A flat floor still occupies nothing and the first paint lands at 0; a
  * walk-over road acts as a tile and occupies 1, so a paint lands on top of it. 0 on an empty cell. */
 export function cellPaintTop(grid: IsometricGrid, col: number, row: number): number {
-  return grid.getAssetsAtCell(col, row).reduce((top, a) => Math.max(top, (a.heightLevel ?? 0) + occupiedHeight(a)), 0)
+  return grid.getAssetsAtCell(col, row).reduce((top, a) => Math.max(top, (a.heightLevel) + occupiedHeight(a)), 0)
 }
 
 /** The level a UNIT (hero / npc / enemy) STANDS AT in a cell, the top of the cell's GROUND, NOT the top of
@@ -222,7 +222,7 @@ export function unitStandLevel(grid: IsometricGrid, col: number, row: number): n
     // roof are things a unit passes through or is blocked by, never lifted onto, and none of them claims to
     // act as a tile. So the doorway case it was written for is untouched.
     if (a.type !== FLOOR_TYPE && !assetActsAsTile(a)) return top
-    return Math.max(top, (a.heightLevel ?? 0) + stackContribution(a))
+    return Math.max(top, (a.heightLevel) + stackContribution(a))
   }, 0)
 }
 
@@ -351,7 +351,7 @@ export function pushTile(grid: IsometricGrid, col: number, row: number, entry: T
 /** The cell's tiles in the order the INSPECTOR indexes them (ascending heightLevel), the order a per-tile
  *  edit's `stackIndex` addresses, so slot N here is the tile the user actually selected. */
 function orderedStack(grid: IsometricGrid, col: number, row: number): GridAsset[] {
-  return [...grid.getAssetsAtCell(col, row)].sort((a, b) => (a.heightLevel ?? 0) - (b.heightLevel ?? 0))
+  return [...grid.getAssetsAtCell(col, row)].sort((a, b) => (a.heightLevel) - (b.heightLevel))
 }
 
 /** Set a stacked tile's own BLOCK height and LIFT everything above it in the cell by the change, "ALL TILES
@@ -385,13 +385,13 @@ export function setTileHeight(grid: IsometricGrid, col: number, row: number, sta
   // Everything standing ON the tile rises: any OTHER tile that shares a block with it and starts at or above
   // where its top USED to be. Both halves matter, see occupiedBlocks.
   const footprint = new Set(occupiedBlocks(target).map(blockKey))
-  const wasTop = (target.heightLevel ?? 0) + before // same measure as the delta, so the two can never disagree
+  const wasTop = (target.heightLevel) + before // same measure as the delta, so the two can never disagree
   const targetOrder = grid.assets.indexOf(target)
 
   for (let i = 0; i < grid.assets.length; i++) {
     const other = grid.assets[i]
     if (other === target) continue
-    const level = other.heightLevel ?? 0
+    const level = other.heightLevel
     // ON TOP = starts at or above where this tile's top USED to be. A tile of 0 blocks makes everything share
     // its level, so ties are broken by the cell's stack ORDER: a tile added later rests on one added earlier.
     // That is what keeps the GROUND out of it, the floor is the first thing in a cell, so a block standing on
@@ -417,12 +417,12 @@ export function setCellActAsTile(grid: IsometricGrid, col: number, row: number, 
   const delta = stackContribution(target) - before
   if (delta === 0) return
   const footprint = new Set(occupiedBlocks(target).map(blockKey))
-  const wasTop = (target.heightLevel ?? 0) + before
+  const wasTop = (target.heightLevel) + before
   const targetOrder = grid.assets.indexOf(target)
   for (let i = 0; i < grid.assets.length; i++) {
     const other = grid.assets[i]
     if (other === target) continue
-    const level = other.heightLevel ?? 0
+    const level = other.heightLevel
     if (level < wasTop || (level === wasTop && i < targetOrder)) continue
     if (occupiedBlocks(other).some(b => footprint.has(blockKey(b)))) other.heightLevel = level + delta
   }
@@ -440,7 +440,7 @@ const blockKey = (b: { col: number; row: number }): string => `${b.col},${b.row}
   * elsewhere.
  *  A tile with no z-width simply occupies its own block, so the ordinary case is unchanged. */
 function occupiedBlocks(a: GridAsset): { col: number; row: number }[] {
-  const depth = a.spanForward ?? 1
+  const depth = a.spanForward
   if (depth > 1 && a.spanAxis) return depthCells(a.col, a.row, depth, a.spanAxis)
   return [{ col: a.col, row: a.row }]
 }

@@ -314,7 +314,7 @@ export function serializeGrid(grid: IsometricGrid): {
 export function rebuildCollisionFromAssets(grid: IsometricGrid): void {
   for (const asset of grid.assets) {
     if (!assetIsSolid(asset)) continue
-    if ((asset.heightLevel ?? 0) > unitStandLevel(grid, asset.col, asset.row)) continue // an upper storey
+    if ((asset.heightLevel) > unitStandLevel(grid, asset.col, asset.row)) continue // an upper storey
     grid.setCollision(asset.col, asset.row, true)
   }
 }

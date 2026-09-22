@@ -233,16 +233,16 @@ export function payloadToTile(tile: Record<string, unknown>, col: number, row: n
     width: fromDec(tile.width, columnNumber('width')),
     depth: fromDec(tile.depth, columnNumber('depth')),
     spanForward: Math.round(fromDec(tile.span_forward, columnNumber('span_forward'))),
+    // Counts come back as counts: the editor holds cells BEYOND the anchor and the column counts
+    // inclusively. Stated in the literal rather than assigned after it, so the type can see them.
+    spanBack: Math.max(0, Math.round(fromDec(tile.span_back, columnNumber('span_back'))) - 1),
+    spanPerp: Math.max(0, Math.round(fromDec(tile.span_perp, columnNumber('span_perp'))) - 1),
+    spanPerpBack: Math.max(0, Math.round(fromDec(tile.span_perp_back, columnNumber('span_perp_back'))) - 1),
     zIndex: Math.round(fromDec(tile.draw_order, columnNumber('draw_order'))),
     opacity: fromDec(tile.opacity, columnNumber('opacity')),
     brightness: fromDec(tile.brightness, columnNumber('brightness')),
     shape: tile.shape === 'circle' || tile.shape === 'cone' ? tile.shape : undefined,
   }
-
-  // Counts come back as counts: the editor holds cells BEYOND the anchor. Stated, not omitted.
-  asset.spanBack = Math.max(0, Math.round(fromDec(tile.span_back, columnNumber('span_back'))) - 1)
-  asset.spanPerp = Math.max(0, Math.round(fromDec(tile.span_perp, columnNumber('span_perp'))) - 1)
-  asset.spanPerpBack = Math.max(0, Math.round(fromDec(tile.span_perp_back, columnNumber('span_perp_back'))) - 1)
 
   if (tile.span_axis) asset.spanAxis = tile.span_axis as IsoDiagonal
   if (tile.slide_direction) asset.zDir = tile.slide_direction as IsoDiagonal

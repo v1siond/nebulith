@@ -16,6 +16,7 @@
  * overall collision from the whole stack (deriveCellCollision), the SAME mutation shape selectionEdit uses.
  * Pure: no React, no grid globals, a grid in, a serializable clip out (and back).
  */
+import { numericDefault } from '@/lib/tileDefaults'
 import { DEFAULT_FLOOR_SLUG, FLOOR_TYPE, type GridAsset, type IsometricGrid } from '@/engine/IsometricGrid'
 import type { TilePose } from '@/engine/tileset/pose'
 import { deriveCellCollision, getStack } from '@/engine/cellStack'
@@ -91,7 +92,7 @@ export function copyTiles(grid: IsometricGrid, keys: Iterable<string>): TileClip
       })
       continue
     }
-    tiles.push({ kind: 'asset', relCol, relRow, level: target.heightLevel ?? 0, asset: cloneAsset(target) })
+    tiles.push({ kind: 'asset', relCol, relRow, level: target.heightLevel, asset: cloneAsset(target) })
   }
   return { tiles }
 }
@@ -113,8 +114,9 @@ export function pasteTiles(grid: IsometricGrid, clip: TileClip, anchorCol: numbe
       if (floor) {
         // Re-apply the captured floor asset's own fields, the SAME GridAsset props any tile round-trips.
         floor.color = t.color ?? undefined
-        floor.width = t.scaleX
-        floor.depth = t.depth
+        // A capture that stated no size gets the column's, not a number chosen here.
+        floor.width = t.scaleX ?? numericDefault('width')
+        floor.depth = t.depth ?? numericDefault('depth')
         floor.pose = t.pose
       }
       count++
@@ -123,7 +125,7 @@ export function pasteTiles(grid: IsometricGrid, clip: TileClip, anchorCol: numbe
 
     const level = t.level
     // Replace-anything: drop whatever already sits at this cell+level, then stamp the clip's tile there.
-    grid.removeAssetsWhere((a) => a.col === col && a.row === row && (a.heightLevel ?? 0) === level)
+    grid.removeAssetsWhere((a) => a.col === col && a.row === row && (a.heightLevel) === level)
     placeClipAsset(grid, t.asset, col, row, level)
     // Collision from the tile's blocking, re-derived across the whole stack (unblock / stay-blocked correctly).
     grid.setCollision(col, row, deriveCellCollision(getStack(grid, col, row)))

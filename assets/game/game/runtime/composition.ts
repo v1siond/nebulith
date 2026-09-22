@@ -222,8 +222,8 @@ export function compositionCellRender(comp: Composition, cell: CompositionCell, 
     // BOTH GROUND AXES ARE STATED, because a setting is stated rather than implied by its own absence.
     // They were left undefined whenever the cell had no Zoom, which reads the same on screen (the
     // column's default is 1) and reads as "no opinion" everywhere a value is inspected or saved.
-    width: zoomed(cs?.scaleX ?? numericDefault('width'), zoom),
-    depth: zoomed(numericDefault('depth'), zoom),
+    width: zoomed(cs?.scaleX ?? numericDefault('width'), zoom) ?? numericDefault('width'),
+    depth: zoomed(numericDefault('depth'), zoom) ?? numericDefault('depth'),
     // The thickness AXIS is authored south-facing, exactly like `spanAxis`, ROTATE it by the building's
     // rotation so a house turned a quarter-turn has its doors thin toward ITS front, not the map's.
     thickness: rotateThickness(
