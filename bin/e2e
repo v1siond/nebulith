@@ -1,66 +1,69 @@
 #!/usr/bin/env bash
 #
-# THE BROWSER LAYER, AGAINST ITS OWN DATABASE.
+# THE END-TO-END LAYER: Playwright, driven from Elixir, inside `mix test`.
 #
-# `mix test` gets nebulith_test and the Ecto sandbox. The browser gates cannot: they drive a real
-# server over real HTTP from another process, so there is no sandbox to join. They pointed at the DEV
-# server, which meant they ran against real working data, and a gate that clicks Save then writes over
-# whatever map is open. That is not a hazard to remember, it is a database to provide.
+#   bin/e2e                              every scenario
+#   bin/e2e test/e2e/phase_03_maps_test.exs   just that file
+#   bin/e2e --only phase3                just the scenarios tagged phase3
 #
-# So this builds nebulith_e2e, serves it on its own port, runs the gates against that, and stops.
-# CI runs this same script, so what happens here is what happens there.
+# It runs against the TEST endpoint on the TEST database with the Ecto sandbox holding the
+# transaction, so nothing a scenario clicks can reach a real saved map. See docs/TESTING.md.
 #
-#   bin/e2e                 every gate
-#   bin/e2e login mapRoundTrip    just those
+# ── why a container ─────────────────────────────────────────────────────────────────────────────
+# Playwright stopped shipping a chromium for Ubuntu 20.04 (focal) at 1.63, and the Elixir driver
+# wants 1.63 or newer, so the local driver cannot start here. The documented route for exactly this
+# is a Playwright SERVER reached over a websocket, which is what this starts.
+#
+# ── why the address is computed ─────────────────────────────────────────────────────────────────
+# The browser runs in the container and has to reach the app on THIS machine. Under Docker Desktop
+# `host.docker.internal` resolves to the Windows host rather than to this WSL distro, so it is
+# refused; the distro's own address is the one that answers. Measured, not assumed: the container
+# gets 200 from the distro address and a connection refusal from host.docker.internal.
 set -euo pipefail
 
 cd "$(dirname "$0")/.."
 
-export MIX_ENV=dev
-export NEBULITH_DATABASE_URL="${E2E_DATABASE_URL:-ecto://postgres:postgres@localhost/nebulith_e2e}"
-export PORT="${E2E_PORT:-6329}"
-export BASE="http://localhost:${PORT}"
-export ADMIN_EMAIL="${ADMIN_EMAIL:-admin@nebulith.local}"
-export ADMIN_PASSWORD="${ADMIN_PASSWORD:-12345678}"
+IMAGE="mcr.microsoft.com/playwright:v1.63.0-noble"
+CONTAINER="nebulith-pw"
+WS_PORT="${E2E_WS_PORT:-3111}"
+APP_PORT="${E2E_APP_PORT:-4002}"
 
-# One gate with arguments, or a list of gates, or the default set.
-GATE_ARGS=()
+# This machine, as the container can see it. `hostname -I` gives the distro's own address.
+HOST_IP="$(hostname -I | awk '{print $1}')"
+[ -n "$HOST_IP" ] || { echo "could not work out this machine's address for the browser to call back on"; exit 1; }
+
+start_browser() {
+  echo "e2e: starting the playwright server on :${WS_PORT}"
+  docker rm -f "$CONTAINER" >/dev/null 2>&1 || true
+  docker run -d --name "$CONTAINER" \
+    -p "127.0.0.1:${WS_PORT}:3000" \
+    --add-host "wsl.host:${HOST_IP}" \
+    --init --workdir /home/pwuser --user pwuser "$IMAGE" \
+    /bin/sh -c "npx -y playwright@1.63.0 run-server --port 3000 --host 0.0.0.0" >/dev/null
+
+  # Ready when it says so, not after a fixed sleep.
+  for _ in $(seq 1 60); do
+    docker logs "$CONTAINER" 2>&1 | grep -q "Listening on ws://" && return 0
+    docker inspect -f '{{.State.Running}}' "$CONTAINER" 2>/dev/null | grep -q true || break
+    sleep 1
+  done
+  echo "the playwright server did not come up:"
+  docker logs "$CONTAINER" 2>&1 | tail -20
+  exit 1
+}
+
+docker image inspect "$IMAGE" >/dev/null 2>&1 || docker pull "$IMAGE"
+
+RUNNING="$(docker inspect -f '{{.State.Running}}' "$CONTAINER" 2>/dev/null || echo false)"
+[ "$RUNNING" = "true" ] || start_browser
+
+export PLAYWRIGHT_WS_ENDPOINT="ws://127.0.0.1:${WS_PORT}/"
+export PHOENIX_TEST_BASE_URL="http://${HOST_IP}:${APP_PORT}"
+
+echo "e2e: browser on ${PLAYWRIGHT_WS_ENDPOINT}, app at ${PHOENIX_TEST_BASE_URL}"
+
+# A file or a flag runs exactly that. No arguments runs every scenario in test/e2e.
 if [ $# -eq 0 ]; then
-  GATES=(login servedDefaults specCompliance mapRoundTrip loadKeepsShape tileShapes docsNav sliderLimits adminCrud)
-elif [ $# -eq 1 ]; then
-  GATES=("$1")
-else
-  GATES=("$1")
-  shift
-  GATE_ARGS=("$@")
+  exec mix test test/e2e --only e2e
 fi
-
-echo "e2e: ${NEBULITH_DATABASE_URL} on :${PORT}"
-
-# A FRESH DATABASE EVERY RUN. A gate that leaves rows behind is a gate that passes for the wrong
-# reason the next time, and these gates author maps on purpose.
-mix ecto.drop --quiet >/dev/null 2>&1 || true
-mix ecto.create --quiet
-mix ecto.migrate --quiet
-mix run priv/repo/seeds.exs >/dev/null
-mix assets.build >/dev/null
-
-mix phx.server >/tmp/nebulith-e2e-server.log 2>&1 &
-SERVER=$!
-trap 'kill "$SERVER" 2>/dev/null || true' EXIT
-
-until curl -sf "${BASE}/health" >/dev/null; do
-  kill -0 "$SERVER" 2>/dev/null || { echo "the e2e server died:"; tail -20 /tmp/nebulith-e2e-server.log; exit 1; }
-  sleep 2
-done
-echo "e2e: up"
-
-cd assets
-failed=0
-for gate in "${GATES[@]}"; do
-  echo
-  echo "── ${gate} ──"
-  node "e2e/${gate}.mjs" ${GATE_ARGS[@]+"${GATE_ARGS[@]}"} || failed=1
-done
-
-exit "$failed"
+exec mix test "$@" --only e2e
