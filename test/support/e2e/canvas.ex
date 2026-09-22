@@ -58,29 +58,108 @@ defmodule Nebulith.E2E.Canvas do
       )
 
   @doc """
-  Presses the pointer on the cell at `col`,`row`, the way a person does.
+  Clicks the cell at `col`,`row`, the way a person does.
 
-  Real mouse events at real coordinates, not a synthetic DOM event: a canvas reads pointer position,
-  and a dispatched event with no position tells it nothing.
+  A real click at a real place on the canvas. A canvas reads pointer position, so a dispatched event
+  with no position tells it nothing, and a bare mouse down and up at the same point is not a click:
+  the driver's own click is what carries the click count the page listens for.
   """
   def click_cell(session, col, row) do
     point = cell_point(session, col, row)
-    {:ok, _} = PlaywrightEx.Page.mouse_move(session.page_id, x: point["x"], y: point["y"])
-    {:ok, _} = PlaywrightEx.Page.mouse_down(session.page_id)
-    {:ok, _} = PlaywrightEx.Page.mouse_up(session.page_id)
-    session
+    click_at(session, point["x"], point["y"])
   end
 
-  @doc "Where cell `col`,`row` is on screen right now, in page pixels."
+  @doc """
+  Clicks the middle of the canvas, which selects whatever is drawn there.
+
+  For a scenario that needs SOMETHING selected and does not care what. Naming a cell would be a better
+  sentence, but on a generated world which cell holds a tile worth selecting is up to the generator
+  that day.
+  """
+  def click_middle(session) do
+    %{"width" => w, "height" => h} =
+      Browser.js(session, """
+      (() => {
+        const c = document.querySelector('#{@canvas}')
+        if (!c) return null
+        const r = c.getBoundingClientRect()
+        return { width: r.width, height: r.height }
+      })()
+      """) || flunk("there is no canvas to click")
+
+    click_at(session, w / 2, h / 2)
+  end
+
+  @doc """
+  A tile that is actually ON SCREEN right now, with its cell, or nil when none is.
+
+  The camera does not show the whole map, so most of a world's cells project to a point outside the
+  canvas. Clicking one of those is not a click on nothing, it is a click somewhere else entirely, and
+  what comes back is a ten thousand character Playwright timeout about intercepted pointer events.
+  A scenario that wants to select "a tile" asks for one it can reach.
+  """
+  def a_visible_tile(session, pick \\ fn _ -> true end) do
+    %{"width" => w, "height" => h} = canvas_size(session)
+
+    session
+    |> tiles()
+    |> Enum.filter(pick)
+    |> Enum.find(fn tile ->
+      case cell_point(session, tile["col"], tile["row"]) do
+        %{"x" => x, "y" => y} -> x > 8 and y > 8 and x < w - 8 and y < h - 8
+        _ -> false
+      end
+    end)
+  end
+
+  defp canvas_size(session) do
+    Browser.js(session, """
+    (() => {
+      const c = document.querySelector('#{@canvas}')
+      if (!c) return null
+      const r = c.getBoundingClientRect()
+      return { width: r.width, height: r.height }
+    })()
+    """) || flunk("there is no canvas on this page")
+  end
+
+  # Coordinates are relative to the canvas itself, which is also what the projection seam speaks, so
+  # there is no page offset to carry around and nothing to go wrong when the layout moves.
+  defp click_at(session, x, y) do
+    %{"width" => w, "height" => h} = canvas_size(session)
+
+    # SAY IT PLAINLY. A click outside the canvas comes back as a wall of driver log about the document
+    # intercepting pointer events, which reads as a defect in the page rather than as a coordinate
+    # that was never on it.
+    if x < 0 or y < 0 or x > w or y > h do
+      flunk(
+        "#{round(x)},#{round(y)} is outside the #{round(w)}x#{round(h)} canvas, so that cell is not on screen"
+      )
+    end
+
+    do_click_at(session, x, y)
+  end
+
+  defp do_click_at(session, x, y) do
+    session.frame_id
+    |> PlaywrightEx.Frame.click(
+      selector: @canvas,
+      position: %{x: x, y: y},
+      timeout: 10_000
+    )
+    |> case do
+      {:ok, _} -> session
+      other -> flunk("clicking the canvas at #{round(x)},#{round(y)} failed: #{inspect(other)}")
+    end
+  end
+
+  @doc "Where cell `col`,`row` is on the canvas right now, in canvas pixels."
   def cell_point(session, col, row) do
     case Browser.js(session, """
          (() => {
            const p = window.__nebulithProject
-           const c = document.querySelector('#{@canvas}')
-           if (!p || !c) return null
-           const r = c.getBoundingClientRect()
-           const s = p.toScreen(#{col}, #{row})
-           return { x: r.left + s.x, y: r.top + s.y }
+           if (!p) return null
+           return p.toScreen(#{col}, #{row})
          })()
          """) do
       %{"x" => _, "y" => _} = point ->
@@ -115,7 +194,6 @@ defmodule Nebulith.E2E.Canvas do
   @doc "The colour drawn at the middle of a cell. The visual question, asked about a place on the map."
   def pixel_at_cell(session, col, row) do
     point = cell_point(session, col, row)
-    canvas = Browser.js(session, "document.querySelector('#{@canvas}').getBoundingClientRect()")
-    pixel(session, round(point["x"] - canvas["x"]), round(point["y"] - canvas["y"]))
+    pixel(session, round(point["x"]), round(point["y"]))
   end
 end

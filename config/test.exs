@@ -35,6 +35,14 @@ config :nebulith, NebulithWeb.Endpoint,
 
 config :phoenix_test, otp_app: :nebulith
 
+# A DESKTOP WINDOW, because the editor is a desktop application. The driver's default is 1280x720,
+# and at that width the generate panel lies over the middle of the canvas: a click meant for a tile
+# lands on the panel, selects nothing, and the scenario then fails looking for a settings control
+# that was never going to appear. Measured: `elementFromPoint` at the canvas centre returned the
+# panel, not the canvas.
+config :phoenix_test,
+  playwright: [browser_context_opts: [viewport: %{width: 1700, height: 1000}]]
+
 # THE BROWSER LIVES OUTSIDE THIS MACHINE'S PLAYWRIGHT. Ubuntu 20.04 (focal) stopped being a supported target
 # for Playwright's chromium download at 1.63, and the Elixir driver requires 1.63 or newer, so the local
 # driver cannot start here. It connects to a Playwright SERVER over a websocket instead, which is the route

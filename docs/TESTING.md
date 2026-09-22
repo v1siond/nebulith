@@ -207,6 +207,10 @@ assert built.water > 0, "the built map has no water, so it proves nothing about 
 * The editor holds a full-screen overlay until the tileset installs. A click before it lifts lands on the overlay, which Playwright reports as an element intercepting pointer events rather than as a missing button. `Editor.ready/1` waits it out.
 * The generator catalog arrives by fetch and re-renders the panel, which detaches whatever input was being typed into.
 * Preset buttons carry their description inside them, so matching on the words alone resolves to the divs nested in the button. Category options are rendered as a name plus a count, so the label changes whenever a generator is added. `GeneratePanel` reads both off the page.
+* **Match on RENDERED text, not on `textContent`.** The inspector's section header reads `SIZE & POSITION` on screen and `Size & position` in the DOM: the capitals come from a CSS text-transform. A selector written from what you can see finds nothing, and reads exactly like a section that is not there.
+* **A cell has to be ON SCREEN to be clicked.** The camera shows a window onto the map, so most cells project outside the canvas. Clicking one of those is not a click on nothing, it is a click somewhere else, and it comes back as a wall of driver log about the document intercepting pointer events. `Canvas.a_visible_tile/2` picks one you can reach.
+* **The editor needs a desktop window.** The driver's default viewport is 1280x720, and at that width the generate panel lies over the middle of the canvas, so a click meant for a tile lands on the panel. `config/test.exs` sets 1700x1000.
+* **A mouse down and up at a point is not a click.** Use the driver's own click with a `position`, which carries the click count the page listens for.
 * A category or option that is not found must FAIL. The node version swallowed a miss with a catch that did nothing, so a run where the river button had been renamed built a dry map and then asserted about water on it.
 
 ## The checklist
