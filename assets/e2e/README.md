@@ -1,12 +1,17 @@
-# End to end, in a real browser
+# The probes
 
-`TESTING.md` is the framework. These drive the actual page with Playwright and assert on what the app did,
-because a node test supplies its own inputs and therefore tests the app you imagined rather than the one that
-runs.
+**These are instruments, not tests.** They PRINT numbers and never fail. The tests are Elixir, in
+`test/e2e`, and `bin/e2e` runs them: see `docs/TESTING.md`, which is the framework.
 
-Needs the dev server up (`mix phx.server`, port 6328).
+Keeping the two apart matters. A script that cannot fail sitting in a list of gates makes the list look
+longer than it is, and a question you are holding ("how many frames does a city draw") is a different job
+from a rule you are guarding ("a reloaded map stops you where the built one did").
 
-    node e2e/fps.mjs "Woodland town" town 5
+    bin/probe fps            how many frames a big map draws
+    bin/probe treeSheet      stamp every tree species and measure the silhouettes
+    bin/probe groundCensus   what the ground of a generated world is made of
+
+`waterBorders` is the exception: it still asserts, so it is still a gate, and it is waiting to be ported.
 
 ## fps.mjs
 
