@@ -19,12 +19,5 @@
     }
   },
   "include": ["game/**/*", "js/game.tsx"],
-  "exclude": [
-    "node_modules",
-    "js/app.js",
-    "vendor",
-    "game/__tests__/**",
-    "**/*.test.ts",
-    "**/*.test.tsx"
-  ]
+  "exclude": ["node_modules", "js/app.js", "vendor"]
 }

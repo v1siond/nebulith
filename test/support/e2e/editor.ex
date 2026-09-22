@@ -38,23 +38,42 @@ defmodule Nebulith.E2E.Editor do
   end
 
   @doc """
-  Saves the open map and waits for the row to land, then gives back the saved id.
+  Saves the open map and waits for the row it belongs to to actually change.
 
-  Reads the id out of the database rather than out of the page: what a save is FOR is the row, so the
-  row is the thing worth waiting on.
+  Waiting for "a saved template to exist" is not a wait at all: the scenario opened one, so the answer
+  is yes before the button is pressed, and the next step reads a row that has not been written yet.
+  What a save changes is `updatedAt` on THIS map, so that is what is waited on.
   """
-  def save(session) do
+  def save(session, map_id) do
+    was = updated_at(map_id) || flunk("there is no map #{map_id} to save")
+
     click_button(session, "Save")
-    Browser.wait_until(session, fn _ -> last_saved_id() != nil end, "the save to reach the database")
-    last_saved_id() || flunk("the save never reached the database")
+
+    Browser.wait_until(
+      session,
+      fn _ -> updated_at(map_id) != was end,
+      "the save to reach the row for map #{map_id}"
+    )
+
+    session
   end
 
-  @doc "Saves, then opens what was saved. The round trip, as a person performs it."
-  def save_and_reopen(session), do: open(session, save(session))
+  @doc """
+  Saves, reopens, and waits for the tiles to come back.
 
-  defp last_saved_id do
-    case Nebulith.Repo.query!(~s{select id from "Template" order by "updatedAt" desc limit 1}) do
-      %Postgrex.Result{rows: [[id]]} -> id
+  The round trip, as a person performs it. Waiting for the canvas is not enough: the canvas is there
+  before the map is, so an assertion made on it is an assertion about an empty grid.
+  """
+  def save_and_reopen(session, map_id) do
+    session
+    |> save(map_id)
+    |> open(map_id)
+    |> Nebulith.E2E.Canvas.wait_for_tiles(1, timeout: 60_000)
+  end
+
+  defp updated_at(map_id) do
+    case Nebulith.Repo.query!(~s{select "updatedAt" from "Template" where id = $1}, [map_id]) do
+      %Postgrex.Result{rows: [[at]]} -> at
       _ -> nil
     end
   end

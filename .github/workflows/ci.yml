@@ -83,7 +83,7 @@ jobs:
         env:
           POSTGRES_USER: postgres
           POSTGRES_PASSWORD: postgres
-          POSTGRES_DB: nebulith_e2e
+          POSTGRES_DB: nebulith_test
         ports: ["5432:5432"]
         options: >-
           --health-cmd pg_isready
@@ -151,16 +151,21 @@ jobs:
 
       - run: mix assets.setup
 
-      # THE SAME SCRIPT A PERSON RUNS. It builds nebulith_e2e, serves it on its own port and drives
-      # the gates against that.
+      # THE SAME SCRIPT A PERSON RUNS, and the same browser. `bin/e2e` starts a Playwright server in a
+      # container and runs the Elixir scenarios against it.
       #
-      # It used to be spelled out here against the DEV server instead, and that difference hid a real
-      # defect for as long as it existed: on a runner the dev database is empty and thrown away, so
-      # nothing was ever harmed, while the identical command on a developer machine ran against their
-      # actual work. A gate that clicks Save writes over whatever map is open.
-      #
-      # Each of these fails on the code that shipped before it, which is the only kind worth having.
+      # A runner could skip the container, because ubuntu-latest can run Playwright's own driver and
+      # this machine cannot. It does not, on purpose. A difference between how CI runs something and
+      # how a person runs it hides a defect for exactly as long as it exists, which this repo has
+      # already paid for twice: once when CI drove an empty dev database while a person's run drove
+      # their real work, and once when a whole browser layer was skipped here and nobody noticed that
+      # neither of its tests could ever have passed.
       - name: Drive the pages
         run: bin/e2e
+
+      # THE NODE GATES, while they are still being ported to Elixir. They have their own database
+      # because they drive a separately booted server rather than the test endpoint.
+      - name: The gates not yet ported
+        run: bin/e2e-node
         env:
           E2E_DATABASE_URL: ecto://postgres:postgres@localhost/nebulith_e2e
