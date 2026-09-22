@@ -17,6 +17,7 @@ item by item and state the evidence for each. Say plainly which items could not 
 | The whole system: laws, schema, phases | [SPEC.md](SPEC.md) | The 12 laws, every table and column, the 15 phases and their gates. This drives development; a change that contradicts it is a defect |
 | Testing | [TESTING.md](TESTING.md) | The two layers, the browser scenario framework in Elixir, what to assert on a canvas, the mocked backend, the checklist |
 | Sign in, sessions, API tokens | [AUTH.md](AUTH.md) | Who can reach what, and how |
+| Rendering and performance | [RENDERING.md](RENDERING.md) | What a frame costs, the techniques ranked, why depth sorting is not a sort, and the honest ceiling of canvas 2D |
 | Shipping it | [DEPLOY.md](DEPLOY.md) | How it gets to a server |
 
 The spec absorbed the material that would otherwise sit in separate documents for the cell and block
@@ -33,7 +34,6 @@ the work that needs it, not a follow-up.
 | Tile art | `TILE-DESIGN.md` | How a tile is drawn, at what luminance, how a colour setting moves the hue and never the tone, how the pieces of an autotile family relate. Tiles keep being authored from memory and the family keeps coming out inconsistent |
 | Objects and compositions | `OBJECT-CONSTRUCTION.md` | An object is a user-built asset made of tiles. Every value on it is its own. There is no formula, and inventing one flattened twenty-one authored tree silhouettes into a single shape |
 | Water | `WATER.md` | Surface height, banks, flow direction, what stops you, and why the three tone bands read as three materials when they are meant to read as one |
-| Rendering and performance | `RENDERING.md` | What the draw does per frame, what the budget is, and which measurements mean anything. Performance is a stated constraint and it is currently argued about from guesses |
 
 ## The rules that apply to all of them
 
