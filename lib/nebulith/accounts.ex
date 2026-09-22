@@ -44,6 +44,18 @@ defmodule Nebulith.Accounts do
     |> Repo.insert()
   end
 
+  @doc """
+  Registers a person from a signup form.
+
+  Goes through `registration_changeset/2` rather than `changeset/2` on purpose: the public door does
+  not cast `is_admin`, so no amount of crafted form data makes an administrator.
+  """
+  def register_user(attrs) do
+    %User{}
+    |> User.registration_changeset(attrs)
+    |> Repo.insert()
+  end
+
   @doc "Creates an admin user from the given attrs."
   def create_admin_user(attrs),
     do: attrs |> Map.new() |> Map.put(:is_admin, true) |> create_user()

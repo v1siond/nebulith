@@ -44,7 +44,7 @@ defmodule Nebulith.E2E.PerformanceTest do
 
   setup %{conn: conn} do
     World.seed_catalog()
-    %{conn: count_frames(conn), user: Account.an_admin()}
+    %{conn: count_frames(conn)}
   end
 
   for {what, size, category, preset} <- @worlds do
@@ -53,13 +53,15 @@ defmodule Nebulith.E2E.PerformanceTest do
     @category category
     @preset preset
 
-    test "#{what} at #{size.cols}x#{size.rows} draws near 120 frames a second",
-         %{conn: conn, user: user} do
+    test "#{what} at #{size.cols}x#{size.rows} draws near 120 frames a second", %{conn: conn} do
+      # THE WHOLE JOURNEY, from a stranger. A new person signs up, which logs them in, and then builds
+      # a world. Measuring from a seeded admin would skip the two doors a real first session goes
+      # through, and those are where a page load stalls if anything is wrong with them.
+      {session, _email} = Account.sign_up(conn)
       map = World.scratch_map(@size)
 
       session =
-        conn
-        |> Account.sign_in(user)
+        session
         |> Editor.open(map.id)
         |> GeneratePanel.build_world(@category, @preset)
 

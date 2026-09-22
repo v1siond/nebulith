@@ -79,6 +79,9 @@ defmodule NebulithWeb.Router do
 
     get "/login", SessionController, :new
     post "/login", SessionController, :create
+
+    get "/signup", RegistrationController, :new
+    post "/signup", RegistrationController, :create
   end
 
   # Logging out is a POST, so a link on another site cannot sign a person out by being visited.

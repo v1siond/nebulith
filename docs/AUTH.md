@@ -55,6 +55,7 @@ it is not base64 in the database, because encoding is a transport concern.
 | Area | Who gets in | How |
 |---|---|---|
 | `/` , `/docs` , `/health` | anyone | no gate. A reference you need a login to read is not a reference |
+| `/login` , `/signup` | anyone NOT already signed in | `:signed_out_only`. Both bounce a signed-in person out |
 | `/games`, `/games/:id`, `/templates`, `/sprite-generator`, `/sprites-test` | any logged-in user | session cookie |
 | `/admin` and everything under it | a logged-in user **with `is_admin`** | session cookie, or HTTP Basic |
 | `/api/*` | any logged-in user, or any API token | session cookie, or `Authorization: Bearer` |
@@ -67,6 +68,34 @@ require `is_admin`.
 > `is_admin` was NOT checked before this document existed. `AdminAuth` called `Accounts.authenticate/2`,
 > which returns any user whose password matches, so every account reached `/admin`. The fix is
 > `get_admin_user_by_email/1`, which was already written and simply was not being called.
+
+### Signing up
+
+The door is open. Anyone can create an account at `/signup`, and doing so logs them straight in
+through the same `log_in_user/2` the login form uses, so a session is a row there exactly as it is
+here and one place decides where a person lands.
+
+**A new account is a PLAYER, and the public door cannot make anything else.** `User.changeset/2`
+casts `is_admin`, because seeding and the admin screens need to set it. Registration does NOT use it:
+`User.registration_changeset/2` casts email, password and display name, and there is no fourth field.
+
+That distinction is the whole security of this page. Had registration reused the general changeset, a
+form post carrying `user[is_admin]=true` would mint an administrator, and `is_admin` is what opens
+`/admin`, which can write to any table in the database. It is gated in
+`RegistrationControllerTest` and checked again through the browser in `phase_01_accounts_test.exs`,
+and both were confirmed to FAIL when registration is pointed at the permissive changeset.
+
+**The two forms report errors differently, on purpose.**
+
+| | Login | Signup |
+|---|---|---|
+| Wrong password | one message for both halves, so the page is not a directory of who has an account | n/a |
+| Email already registered | n/a | "That email cannot be used. Try logging in instead." Never "taken" or "already exists" |
+| Password too short | n/a | says so plainly. Somebody choosing a password needs to know |
+
+The asymmetry is not an inconsistency. Login must not confirm whether an address has an account;
+signup must help a person fix their own input, while still refusing to confirm an address exists. The
+"cannot be used" wording is true either way and tells an outsider nothing.
 
 ---
 

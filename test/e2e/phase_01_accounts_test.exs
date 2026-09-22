@@ -63,6 +63,59 @@ defmodule Nebulith.E2E.Phase01AccountsTest do
     end
   end
 
+  describe "signing up" do
+    test "a new person creates an account and is inside the application", %{conn: conn} do
+      {session, email} = Account.sign_up(conn)
+
+      assert_has(session, "#game", timeout: 20_000)
+      assert_has(session, "body", text: email)
+
+      # A NEW ACCOUNT IS A PLAYER. is_admin is the whole difference between somebody who plays and
+      # somebody who can write to every table in the database, so the public door must never open it.
+      user = Nebulith.Accounts.get_user_by_email(email)
+      assert user, "the signup form did not write a row"
+      refute user.is_admin, "a person who signed up came out as an administrator"
+
+      assert Browser.js(session, "fetch('/admin').then(r => r.status)") in [401, 403],
+             "a player reached the admin"
+    end
+
+    test "the two doors point at each other", %{conn: conn} do
+      login = visit(conn, "/login")
+
+      assert Browser.true?(login, "!!document.querySelector('a[href=\\'/signup\\']')"),
+             "the login page offers no way to create an account"
+
+      signup = visit(conn, "/signup")
+
+      assert Browser.true?(signup, "!!document.querySelector('a[href=\\'/login\\']')"),
+             "the signup page offers no way back to logging in"
+    end
+
+    test "a password that is too short never becomes an account", %{conn: conn} do
+      email = "e2e-short-#{System.unique_integer([:positive])}@nebulith.test"
+
+      session =
+        conn
+        |> visit("/signup")
+        |> Browser.fill("#user_email", email)
+        |> Browser.fill("#user_password", "short")
+        |> click_button("Create account")
+
+      # THE BROWSER REFUSES IT FIRST. The field carries minlength, so the form never submits and the
+      # page never moves, which is the better experience and is what a person actually meets. The
+      # server's own refusal is gated in RegistrationControllerTest, because a caller that ignores the
+      # markup has to be refused too and no browser will demonstrate that.
+      Process.sleep(1_000)
+
+      assert Browser.js(session, "window.location.pathname") == "/signup",
+             "a seven character password submitted the form"
+
+      refute Nebulith.Accounts.get_user_by_email(email),
+             "a password under the minimum created an account"
+    end
+  end
+
   describe "the right password" do
     test "opens the engine, says who is signed in, and shuts again on log out", %{
       conn: conn,

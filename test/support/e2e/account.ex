@@ -37,6 +37,31 @@ defmodule Nebulith.E2E.Account do
   def password, do: @password
 
   @doc """
+  Creates an account by filling the signup form, the way a new person arrives.
+
+  Gives back `{session, email}`: the caller usually wants to know who it just became, and the email is
+  unique per call so two scenarios never fight over one account.
+  """
+  def sign_up(session, opts \\ []) do
+    email =
+      Keyword.get(opts, :email, "e2e-new-#{System.unique_integer([:positive])}@nebulith.test")
+
+    session =
+      session
+      |> visit("/signup")
+      |> fill_in("#user_email", "Email", with: email)
+      |> fill_in("#user_password", "Password", with: Keyword.get(opts, :password, @password))
+      |> click_button("Create account")
+      |> Browser.wait_for_js(
+        "!window.location.pathname.startsWith('/signup')",
+        "the signup form to let #{email} through",
+        timeout: 15_000
+      )
+
+    {session, email}
+  end
+
+  @doc """
   Signs in as `user` by filling the login form and pressing Log in.
 
   Waits for the form to be gone rather than for a fixed moment: the submit is a real navigation, and
