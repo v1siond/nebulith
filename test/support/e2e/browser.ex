@@ -60,15 +60,25 @@ defmodule Nebulith.E2E.Browser do
 
   @doc "The current value of a field."
   def value_of(session, selector),
-    do: js(session, "document.querySelector('#{selector}')?.value")
+    do: js(session, "document.querySelector(#{quoted(selector)})?.value")
 
-  @doc "How many nodes match a CSS selector. Zero when the page cannot be asked."
+  @doc """
+  How many nodes match a CSS selector. Zero when the page cannot be asked.
+
+  Zero also means zero, which is the trap this had: the selector was pasted into a single-quoted
+  JavaScript string, so `select[aria-label='Kind of place']` closed the string early and the
+  expression threw. A throw comes back as nil and reads here as "no such element", which is
+  indistinguishable from the honest answer and sent me looking at the page instead of at this.
+  """
   def count(session, selector) do
-    case js(session, "document.querySelectorAll('#{selector}').length") do
+    case js(session, "document.querySelectorAll(#{quoted(selector)}).length") do
       n when is_integer(n) -> n
       _ -> 0
     end
   end
+
+  # A JavaScript string literal for a selector, escaped by the JSON encoder rather than by hand.
+  defp quoted(selector), do: Jason.encode!(selector)
 
   @doc """
   Polls `check` until it returns a truthy value, then gives back the session so it can be piped.

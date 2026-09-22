@@ -36,11 +36,41 @@ defmodule Nebulith.E2E.GeneratePanel do
       """)
 
     label || flunk("the panel has no category called #{key}")
-    select(session, "Kind of place", option: label)
+
+    # WAIT FOR IT TO SETTLE FIRST. The generator catalog arrives by fetch and re-renders the panel, so
+    # the select can be in the document and not yet interactive, and the driver's two second patience
+    # runs out mid re-render. What comes back then is "waiting for element to be visible and enabled",
+    # which reads like the control is missing rather than like it is being rebuilt.
+    Browser.wait_until(
+      session,
+      &Browser.true?(&1, """
+      (() => {
+        const s = document.querySelector('select[aria-label="Kind of place"]')
+        if (!s) return false
+        const r = s.getBoundingClientRect()
+        return r.width > 0 && r.height > 0 && !s.disabled
+      })()
+      """),
+      "the kind of place control to be ready"
+    )
+
+    # THE DRIVER'S OWN SELECT GIVES UP AFTER TWO SECONDS, and changing the category re-renders the
+    # panel, so the element it resolved is detached before the action lands and it retries until the
+    # patience runs out. Reported as "waiting for element to be visible and enabled", which reads like
+    # the control is missing. Going through the binding directly is the same real select action with a
+    # timeout that matches how long the panel actually takes.
+    case PlaywrightEx.Frame.select_option(session.frame_id,
+           selector: ~s|select[aria-label="Kind of place"]|,
+           options: [%{label: label}],
+           timeout: 20_000
+         ) do
+      {:ok, _} -> session
+      other -> flunk("could not choose #{label} in the kind of place control: #{inspect(other)}")
+    end
   end
 
   @doc "Picks a preset by the words a person would read on it."
-  def choose_preset(session, words), do: click_button(session, nil, words, exact: false)
+  def choose_preset(session, words), do: press_panel_button(session, words)
 
   @doc """
   Picks one of the preset's options, such as which shape of river a city gets.
@@ -50,7 +80,21 @@ defmodule Nebulith.E2E.GeneratePanel do
   did nothing, so a run where the river button had been renamed built a dry map and then asserted
   about water on it. A step that is allowed to not happen is not a step.
   """
-  def choose_option(session, words), do: click_button(session, nil, words, exact: false)
+  def choose_option(session, words), do: press_panel_button(session, words)
+
+  # THE PANEL REBUILDS ITSELF UNDER THE POINTER. Choosing anything re-renders the card list, so the
+  # button the driver resolved is detached before the click lands, and its own two second patience runs
+  # out. Reported as "could not find element" even though the log shows it resolved one, which reads
+  # like the button is missing rather than like the panel is busy.
+  defp press_panel_button(session, words) do
+    case PlaywrightEx.Frame.click(session.frame_id,
+           selector: ~s|button:has-text(#{Jason.encode!(words)})|,
+           timeout: 20_000
+         ) do
+      {:ok, _} -> session
+      other -> flunk("could not press the panel button reading #{words}: #{inspect(other)}")
+    end
+  end
 
   @doc """
   Presses Build and waits for the world to CHANGE and then settle.
@@ -66,7 +110,7 @@ defmodule Nebulith.E2E.GeneratePanel do
     before = length(Canvas.tiles(session))
 
     session
-    |> click_button(nil, "Build this world", exact: false)
+    |> press_panel_button("Build this world")
     |> Browser.wait_until(&(length(Canvas.tiles(&1)) != before), "the world to start building",
       timeout: 120_000
     )

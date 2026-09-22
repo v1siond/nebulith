@@ -692,6 +692,7 @@ export function render(params: IsoRenderParams) {
       return pt.y - rise <= h + tileH && pt.y >= -marginTop
     })
   }
+  resetBlockCounts()
   const __isoTCull = perfNow()
   const onScreenAssets = rectAssets.filter(onScreen)
   const visibleAssets = rangeOn ? onScreenAssets.filter(tileInRange).map(clipToRange) : onScreenAssets
@@ -1149,6 +1150,7 @@ export function render(params: IsoRenderParams) {
       draw: ease(phases.draw, perfNow() - __isoTDraw),
       objects: allObjects.length,
     }
+    ;(window as unknown as { __isoBlocks?: unknown }).__isoBlocks = blockCounts()
   }
   if (typeof window !== 'undefined') (window as unknown as { __isoRenderMs?: number }).__isoRenderMs = isoRenderMsEMA
 }
@@ -2267,6 +2269,36 @@ function drawIsoRectBlock(
 // sprite cache, instead of re-drawing 3 faces (each a fillQuad + a save/transform/drawImage) per cell/frame.
 const _cubeSpriteCache = new Map<string, { canvas: HTMLCanvasElement; ox: number; oy: number } | null>()
 
+// WHICH PATH EACH BLOCK TOOK, counted per frame and published with the phase split.
+//
+// The frame is 85% draw, and a draw is one of two completely different things: a single blit of a
+// baked sprite, or three filled quads plus a per-face image, re-tessellated every frame. Knowing the
+// ratio is what says whether the answer is to widen the cache or to draw fewer things, and those are
+// different weeks of work. Counting is cheaper than guessing.
+let _blitCount = 0
+let _liveCount = 0
+let _liveReasons: Record<string, number> = {}
+
+export function resetBlockCounts(): void {
+  _blitCount = 0
+  _liveCount = 0
+  _liveReasons = {}
+}
+
+export function blockCounts(): { blits: number; live: number; reasons: Record<string, number> } {
+  return { blits: _blitCount, live: _liveCount, reasons: _liveReasons }
+}
+
+// WHY a block could not use the cache, so the widening is aimed rather than guessed at.
+function liveReason(height: number, alpha: number, dv: DrawVisual, isDepthBox: boolean, thickness?: ThicknessReach): string {
+  if (isDepthBox) return 'depth box'
+  if (thickness) return 'thickness'
+  if (Math.floor(height) !== 1) return 'stacked'
+  if (alpha !== 1) return 'faded'
+  if (!dv.image) return 'glyph'
+  return 'sprite unavailable'
+}
+
 function cubeBlockSprite(dv: DrawVisual, tileW: number, tileH: number, blockH: number, tint?: string, topDv?: DrawVisual) {
   if (typeof document === 'undefined') return null
   // Don't bake until the image raster(s) decoded, else the sprite would freeze the glyph fallback.
@@ -2321,10 +2353,14 @@ export function drawIsoTileBlock(
   if (!isDepthBox && !thickness && Math.floor(height) === 1 && ctx.globalAlpha === 1 && dv.image) {
     const spr = cubeBlockSprite(dv, tileW, tileH, blockH, tint, topDv)
     if (spr) {
+      _blitCount++
       ctx.drawImage(spr.canvas, center.x - spr.ox, center.y - spr.oy)
       return
     }
   }
+  _liveCount++
+  const why = liveReason(height, ctx.globalAlpha, dv, isDepthBox, thickness)
+  _liveReasons[why] = (_liveReasons[why] ?? 0) + 1
   drawIsoTileBlockLive(ctx, center, tileW, tileH, blockH, height, dv, tint, topDv, depth, spanAxis, thickness)
 }
 
