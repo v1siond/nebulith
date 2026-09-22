@@ -15,6 +15,7 @@ defmodule Nebulith.E2E.GeneratePanel do
   """
 
   import PhoenixTest
+
   # The 4-arity form, which takes a selector AND the text, lives on the Playwright driver rather than
   # on PhoenixTest itself. A preset button needs both: the words alone match the divs nested in it.
   import PhoenixTest.Playwright, only: [click_button: 4]
@@ -66,7 +67,9 @@ defmodule Nebulith.E2E.GeneratePanel do
 
     session
     |> click_button(nil, "Build this world", exact: false)
-    |> Browser.wait_until(&(length(Canvas.tiles(&1)) != before), "the world to start building", timeout: 120_000)
+    |> Browser.wait_until(&(length(Canvas.tiles(&1)) != before), "the world to start building",
+      timeout: 120_000
+    )
     |> settle()
   end
 

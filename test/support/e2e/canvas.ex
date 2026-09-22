@@ -49,7 +49,13 @@ defmodule Nebulith.E2E.Canvas do
 
   @doc "Waits until the map has tiles in it, so a scenario never asserts against a half-built world."
   def wait_for_tiles(session, at_least \\ 1, opts \\ []),
-    do: Browser.wait_until(session, &(length(tiles(&1)) >= at_least), "at least #{at_least} tile(s) on the map", opts)
+    do:
+      Browser.wait_until(
+        session,
+        &(length(tiles(&1)) >= at_least),
+        "at least #{at_least} tile(s) on the map",
+        opts
+      )
 
   @doc """
   Presses the pointer on the cell at `col`,`row`, the way a person does.
@@ -77,8 +83,13 @@ defmodule Nebulith.E2E.Canvas do
            return { x: r.left + s.x, y: r.top + s.y }
          })()
          """) do
-      %{"x" => _, "y" => _} = point -> point
-      _ -> flunk("the render has not published a projection, so cell #{col},#{row} has no place on screen yet")
+      %{"x" => _, "y" => _} = point ->
+        point
+
+      _ ->
+        flunk(
+          "the render has not published a projection, so cell #{col},#{row} has no place on screen yet"
+        )
     end
   end
 

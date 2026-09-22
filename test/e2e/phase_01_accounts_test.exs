@@ -64,7 +64,10 @@ defmodule Nebulith.E2E.Phase01AccountsTest do
   end
 
   describe "the right password" do
-    test "opens the engine, says who is signed in, and shuts again on log out", %{conn: conn, user: user} do
+    test "opens the engine, says who is signed in, and shuts again on log out", %{
+      conn: conn,
+      user: user
+    } do
       session = Account.sign_in(conn, user)
 
       assert_has(session, "#game", timeout: 20_000)

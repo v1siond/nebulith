@@ -26,7 +26,10 @@ defmodule Nebulith.E2E.Account do
   @doc "An admin in the test database, with a known password, unique per call."
   def an_admin(attrs \\ %{}) do
     email = Map.get(attrs, :email, "e2e-#{System.unique_integer([:positive])}@nebulith.test")
-    {:ok, user} = Accounts.create_admin_user(Map.merge(%{email: email, password: @password}, attrs))
+
+    {:ok, user} =
+      Accounts.create_admin_user(Map.merge(%{email: email, password: @password}, attrs))
+
     user
   end
 

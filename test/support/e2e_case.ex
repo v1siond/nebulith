@@ -51,7 +51,10 @@ defmodule Nebulith.E2ECase do
       use PhoenixTest.Playwright.Case, unquote(opts)
 
       import PhoenixTest
-      import Nebulith.E2E.Browser, only: [js: 2, true?: 2, wait_until: 3, wait_until: 4, wait_for_js: 3, wait_for_js: 4]
+
+      import Nebulith.E2E.Browser,
+        only: [js: 2, true?: 2, wait_until: 3, wait_until: 4, wait_for_js: 3, wait_for_js: 4]
+
       import Nebulith.E2ECase
 
       alias Nebulith.E2E.{Account, Browser, Canvas, Editor, StubApi, World}

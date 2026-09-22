@@ -22,12 +22,17 @@ defmodule Nebulith.E2E.Phase04CollisionsTest do
     # A river, chosen on purpose, because the preset on its own builds a dry map and then the whole
     # scenario asserts about water that was never there.
     session =
-      GeneratePanel.build_world(session, "city", "Woodland city", ["Winds through (easy to cross)"])
+      GeneratePanel.build_world(session, "city", "Woodland city", [
+        "Winds through (easy to cross)"
+      ])
+
     built = audit(session)
 
     # Three guards that say out loud when a run proved nothing, rather than passing on an empty world.
     assert built.total > 0, "no world was built, so this run proves nothing"
-    assert built.water > 0, "the built map has no water, so it proves nothing about walking into water"
+
+    assert built.water > 0,
+           "the built map has no water, so it proves nothing about walking into water"
 
     assert built.water_blocked > 0,
            "no water cell is solid on the map as built, you can walk straight into the river"
