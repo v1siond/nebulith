@@ -49,41 +49,31 @@ defmodule Nebulith.DataMigration.ABeachHasASea do
 
   defp offer_everywhere do
     for %{key: key, options: options} <- with_river(), reduce: 0 do
-      acc ->
-        updated =
-          for option <- options do
-            case option do
-              %{"key" => "river", "choices" => choices} = o ->
-                if Enum.any?(choices, &(&1["key"] == "shore")),
-                  do: o,
-                  else: Map.put(o, "choices", choices ++ [@choice])
-
-              other ->
-                other
-            end
-          end
-
-        acc + write(key, updated, options)
+      acc -> acc + write(key, Enum.map(options, &offer_shore/1), options)
     end
   end
+
+  # A river option that already offers the shore keeps what it has; one that does not gains it.
+  defp offer_shore(%{"key" => "river", "choices" => choices} = option) do
+    case Enum.any?(choices, &(&1["key"] == "shore")) do
+      true -> option
+      false -> Map.put(option, "choices", choices ++ [@choice])
+    end
+  end
+
+  defp offer_shore(option), do: option
 
   # A BEACH STARTS WITH ITS SEA. Every other template keeps whatever default it had.
   defp default_on_beaches do
     for %{key: key, options: options} <- with_river(),
         String.ends_with?(key, "_beach"),
         reduce: 0 do
-      acc ->
-        updated =
-          for option <- options do
-            case option do
-              %{"key" => "river"} = o -> Map.put(o, "default", "shore")
-              other -> other
-            end
-          end
-
-        acc + write(key, updated, options)
+      acc -> acc + write(key, Enum.map(options, &default_to_shore/1), options)
     end
   end
+
+  defp default_to_shore(%{"key" => "river"} = option), do: Map.put(option, "default", "shore")
+  defp default_to_shore(option), do: option
 
   defp with_river do
     %{rows: rows} =

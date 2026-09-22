@@ -43,42 +43,62 @@ defmodule Nebulith.Games.SeedFromFlows do
     {adj, indeg} = build_graph(templates, ids)
 
     {_seen, flows} =
-      Enum.reduce(templates, {MapSet.new(), []}, fn t, {seen, flows} ->
-        if MapSet.member?(seen, t.id) do
-          {seen, flows}
-        else
-          {comp, seen} = bfs([t.id], adj, MapSet.put(seen, t.id), [])
-
-          if length(comp) < 2 do
-            {seen, flows}
-          else
-            entry = entry_of(comp, indeg)
-            {ordered, _} = bfs([entry], adj, MapSet.new([entry]), [])
-            name = get_in(by_id, [entry, :name]) || "Flow"
-            {seen, [%{name: name, template_ids: ordered, entry: entry} | flows]}
-          end
-        end
-      end)
+      Enum.reduce(templates, {MapSet.new(), []}, &collect_flow(&1, &2, adj, indeg, by_id))
 
     Enum.reverse(flows)
+  end
+
+  # One template's component, if it has not already been walked as part of somebody else's.
+  defp collect_flow(template, {seen, flows}, adj, indeg, by_id) do
+    case MapSet.member?(seen, template.id) do
+      true -> {seen, flows}
+      false -> walk_component(template, seen, flows, adj, indeg, by_id)
+    end
+  end
+
+  defp walk_component(template, seen, flows, adj, indeg, by_id) do
+    {component, seen} = bfs([template.id], adj, MapSet.put(seen, template.id), [])
+    {seen, flow_from(component, flows, adj, indeg, by_id)}
+  end
+
+  # A FLOW IS TWO TEMPLATES OR MORE. One map connected to nothing is a map, not a journey through maps.
+  defp flow_from([_only], flows, _adj, _indeg, _by_id), do: flows
+  defp flow_from([], flows, _adj, _indeg, _by_id), do: flows
+
+  defp flow_from(component, flows, adj, indeg, by_id) do
+    entry = entry_of(component, indeg)
+    {ordered, _} = bfs([entry], adj, MapSet.new([entry]), [])
+    name = get_in(by_id, [entry, :name]) || "Flow"
+    [%{name: name, template_ids: ordered, entry: entry} | flows]
   end
 
   defp build_graph(templates, ids) do
     base_adj = Map.new(templates, &{&1.id, MapSet.new()})
     base_indeg = Map.new(templates, &{&1.id, 0})
 
-    Enum.reduce(templates, {base_adj, base_indeg}, fn t, acc ->
-      Enum.reduce(t.connectors || [], acc, fn c, {adj, indeg} ->
-        tgt = conn_target(c)
+    Enum.reduce(templates, {base_adj, base_indeg}, &link_connectors(&1, &2, ids))
+  end
 
-        if tgt && MapSet.member?(ids, tgt) && tgt != t.id do
-          adj = adj |> put_edge(t.id, tgt) |> put_edge(tgt, t.id)
-          {adj, Map.update(indeg, tgt, 1, &(&1 + 1))}
-        else
-          {adj, indeg}
-        end
-      end)
+  defp link_connectors(template, acc, ids) do
+    Enum.reduce(template.connectors || [], acc, fn connector, graph ->
+      add_edge(conn_target(connector), template.id, ids, graph)
     end)
+  end
+
+  # A connector that names nothing, names itself, or names a template this game does not hold is not
+  # an edge. Each of those is its own clause rather than three conditions joined by ands.
+  defp add_edge(nil, _from, _ids, graph), do: graph
+  defp add_edge(target, from, _ids, graph) when target == from, do: graph
+
+  defp add_edge(target, from, ids, {adj, indeg} = graph) do
+    case MapSet.member?(ids, target) do
+      false ->
+        graph
+
+      true ->
+        {adj |> put_edge(from, target) |> put_edge(target, from),
+         Map.update(indeg, target, 1, &(&1 + 1))}
+    end
   end
 
   defp conn_target(c) when is_map(c), do: c["targetTemplateId"] || c[:targetTemplateId]

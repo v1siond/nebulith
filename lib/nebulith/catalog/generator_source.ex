@@ -3062,13 +3062,17 @@ defmodule Nebulith.Catalog.GeneratorSource do
     {house_lo, house_hi} = demanded_houses
 
     ([{"store", 1, 1}, {"hospital", 1, 1} | entries] ++ [{"house", house_lo, house_hi}])
-    |> Enum.reduce([], fn {type, lo, hi}, acc ->
-      case Enum.find_index(acc, fn {t, _, _} -> t == type end) do
-        nil -> acc ++ [{type, lo, hi}]
-        at -> List.update_at(acc, at, fn {t, l, h} -> {t, l + lo, h + hi} end)
-      end
-    end)
+    |> Enum.reduce([], &merge_demand/2)
     |> Enum.map(fn {type, lo, hi} -> %{"type" => type, "count" => [lo, hi]} end)
+  end
+
+  # Two demands for the same building type are one demand for the sum, kept at the position the type
+  # first appeared: a later type shifting an earlier one moves every generated map after it.
+  defp merge_demand({type, lo, hi}, acc) do
+    case Enum.find_index(acc, fn {t, _, _} -> t == type end) do
+      nil -> acc ++ [{type, lo, hi}]
+      at -> List.update_at(acc, at, fn {t, l, h} -> {t, l + lo, h + hi} end)
+    end
   end
 
   defp townsfolk(count), do: %{"townsfolk" => count, "enemies" => 0, "enemyTypes" => []}

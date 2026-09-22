@@ -68,7 +68,7 @@ defmodule Nebulith.Catalog.AnOrnamentIsOneObjectTest do
             label not in ~w(rock boulder wood-log),
             do: {style, label, tile}
 
-      assert length(walkover) > 0, "no walk-over ornaments, so this run proves nothing"
+      assert walkover != [], "no walk-over ornaments, so this run proves nothing"
 
       for {style, label, tile} <- walkover do
         assert tile.settings["collision"] == [],

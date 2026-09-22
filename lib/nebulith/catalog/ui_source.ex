@@ -587,6 +587,36 @@ defmodule Nebulith.Catalog.UiSource do
     end
   end
 
+  # A bar and the slots that ride with it. A slot has no meaning without its bar, so they are copied
+  # together rather than in two passes that could disagree.
+  defp copy_bar(bar, profile_id) do
+    copy =
+      %Bar{}
+      |> Bar.changeset(%{
+        profile_id: profile_id,
+        name: bar.name,
+        position: bar.position,
+        rows: bar.rows,
+        cols: bar.cols,
+        settings: bar.settings,
+        condition: bar.condition
+      })
+      |> Repo.insert!()
+
+    for slot <- bar.slots, do: copy_slot(slot, copy.id)
+  end
+
+  defp copy_slot(slot, bar_id) do
+    %BarSlot{}
+    |> BarSlot.changeset(%{
+      bar_id: bar_id,
+      slot: slot.slot,
+      ref_kind: slot.ref_kind,
+      ref_key: slot.ref_key
+    })
+    |> Repo.insert!()
+  end
+
   defp fork_default(game_id) do
     source = default_profile() |> load()
 
@@ -625,31 +655,7 @@ defmodule Nebulith.Catalog.UiSource do
         |> Repo.insert!()
       end
 
-      for bar <- source.bars do
-        copy =
-          %Bar{}
-          |> Bar.changeset(%{
-            profile_id: mine.id,
-            name: bar.name,
-            position: bar.position,
-            rows: bar.rows,
-            cols: bar.cols,
-            settings: bar.settings,
-            condition: bar.condition
-          })
-          |> Repo.insert!()
-
-        for slot <- bar.slots do
-          %BarSlot{}
-          |> BarSlot.changeset(%{
-            bar_id: copy.id,
-            slot: slot.slot,
-            ref_kind: slot.ref_kind,
-            ref_key: slot.ref_key
-          })
-          |> Repo.insert!()
-        end
-      end
+      for bar <- source.bars, do: copy_bar(bar, mine.id)
     end
 
     mine

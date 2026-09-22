@@ -41,7 +41,7 @@ defmodule Nebulith.Catalog.AbilitySource do
       name: "Guard",
       category: "defensive",
       animation: "guard-flash",
-      cooldown_ms: 12000,
+      cooldown_ms: 12_000,
       position: 3,
       description: "Raise a flash-guard for a few seconds, cutting the damage you take.",
       effect: %{"shieldMs" => 4000}
@@ -86,7 +86,7 @@ defmodule Nebulith.Catalog.AbilitySource do
       name: "Nova Burst",
       category: "offensive",
       animation: "nova",
-      cooldown_ms: 14000,
+      cooldown_ms: 14_000,
       position: 7,
       description: "A violet nova that detonates around you \u2014 slow to charge, hits hard.",
       effect: %{"damage" => 30}
@@ -96,7 +96,7 @@ defmodule Nebulith.Catalog.AbilitySource do
       name: "Chain Lightning",
       category: "offensive",
       animation: "lightning",
-      cooldown_ms: 11000,
+      cooldown_ms: 11_000,
       position: 8,
       description:
         "A forked bolt of lightning that arcs into the target for strong shock damage.",
@@ -107,7 +107,7 @@ defmodule Nebulith.Catalog.AbilitySource do
       name: "Bulwark",
       category: "protection",
       animation: "guard-flash",
-      cooldown_ms: 16000,
+      cooldown_ms: 16_000,
       position: 9,
       description:
         "Brace behind a heavy bulwark \u2014 a long window that soaks most incoming damage.",
@@ -132,7 +132,7 @@ defmodule Nebulith.Catalog.AbilitySource do
       name: "Enfeeble",
       category: "debuff",
       animation: "nova",
-      cooldown_ms: 10000,
+      cooldown_ms: 10_000,
       position: 11,
       description:
         "A draining pulse that weakens the target \u2014 its blows land softer for a while.",
@@ -143,7 +143,7 @@ defmodule Nebulith.Catalog.AbilitySource do
       name: "Mend",
       category: "healing",
       animation: "heal-glow",
-      cooldown_ms: 10000,
+      cooldown_ms: 10_000,
       position: 12,
       description: "A burst of restorative light \u2014 mends a solid chunk of your health.",
       effect: %{"healing" => 25}

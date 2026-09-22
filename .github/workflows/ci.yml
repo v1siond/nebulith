@@ -64,7 +64,13 @@ jobs:
 
       - run: mix format --check-formatted
 
-      - run: mix compile
+      # THE STATIC ANALYSIS, which reads for what neither the formatter nor the compiler can see. Run
+      # here so it stays at zero rather than drifting until somebody looks and finds seventy.
+      - run: mix credo
+
+      # WARNINGS ARE ERRORS. A warning nobody fails on is a warning everybody scrolls past, and one of
+      # them was a module attribute read before it was set, which silently made a list empty.
+      - run: mix compile --warnings-as-errors
 
       # The port matters: the endpoint starts during tests, and the dev server may hold the default.
       - name: mix test

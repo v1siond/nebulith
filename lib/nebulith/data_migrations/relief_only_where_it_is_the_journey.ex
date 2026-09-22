@@ -53,13 +53,19 @@ defmodule Nebulith.DataMigration.ReliefOnlyWhereItIsTheJourney do
 
     case rows do
       [[zones]] when is_list(zones) ->
-        write(
-          key,
-          Enum.map(zones, fn z -> if z["key"] in regions, do: Map.delete(z, "level"), else: z end)
-        )
+        write(key, Enum.map(zones, &drop_level(&1, regions)))
 
       _ ->
         0
+    end
+  end
+
+  # A region on the list loses its authored level and takes the terrain's; every other one keeps what
+  # it had.
+  defp drop_level(zone, regions) do
+    case zone["key"] in regions do
+      true -> Map.delete(zone, "level")
+      false -> zone
     end
   end
 

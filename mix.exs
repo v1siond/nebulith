@@ -74,6 +74,9 @@ defmodule Nebulith.MixProject do
       {:cors_plug, "~> 3.0"},
       # Talking OUT to pixellab.ai for the sprite generator. The only outbound HTTP this app makes.
       {:req, "~> 0.5"},
+      # The static analysis. Not a formatter and not a compiler: it reads for the things neither of them
+      # can see, a function doing too much, a name that says nothing, a nesting level nobody needs.
+      {:credo, "~> 1.7", only: [:dev, :test], runtime: false},
       # Renders the repo's markdown docs into the /docs pages. The documentation is many markdown files
       # behind one index, a page per section of the system and the api, so the reference lives with the
       # code rather than beside it.

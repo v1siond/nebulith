@@ -442,9 +442,12 @@ defmodule Nebulith.Admin do
         nil
 
       [key | _] ->
-        columns |> Enum.zip(row) |> Enum.find_value(fn {c, v} -> if c == key, do: display(v) end)
+        columns |> Enum.zip(row) |> Enum.find_value(&value_of(&1, key))
     end
   end
+
+  defp value_of({column, value}, key) when column == key, do: display(value)
+  defp value_of(_pair, _key), do: nil
 
   # jsonb bound directly encodes a string as a JSON string scalar, so the write succeeds and stores the
   # wrong thing. Going through text makes Postgres parse it as JSON, which is what was meant.

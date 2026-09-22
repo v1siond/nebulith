@@ -24,6 +24,7 @@ defmodule Nebulith.Catalog.TileSource do
 
   import Ecto.Query, only: [from: 2]
 
+  alias Nebulith.Catalog.Autotile
   alias Nebulith.Catalog
   alias Nebulith.Catalog.BuildingCompositions
 
@@ -922,25 +923,6 @@ defmodule Nebulith.Catalog.TileSource do
   @path_piece_color "#80a65c"
 
   @doc """
-  Seeds the `path_edge` autotile FAMILY: four edges, four corners, three cuts of each.
-
-  A piece is the tongue of FIELD that reaches into the way from one side, not the way itself. Measured on a
-  built woodland the other way round: laying the dirt as art over a field-coloured floor left 334 way cells
-  wearing six colours, only 144 of them the way's own tone, because every boundary cell kept the grass
-  underneath. More than half of a path was painted the colour of the grass, which is the patchwork it read as.
-
-  So the way wears ONE tone across all of its cells and the field comes over the top. The boundary still lives
-  inside the art, which is the point: measured on the forest reference it wanders about 0.17 of a CELL, so it
-  can never be the cell edge. Each corner piece is cut on the diagonal, so a lane that climbs a cell per row
-  reads as a ribbon rather than a stair.
-
-  Three cuts of each piece so a long edge does not repeat visibly; the generator picks one from the cell's own
-  position, and tints it with the colour of the field cell beside it. Near-white art, so one family serves
-  every environment's grass, sand and ash.
-
-  Safe and idempotent (upsert by [tileset_id, label]), so it runs on the shared dev DB without a full reseed.
-  """
-  @doc """
   THE ROAD MARKING, as two pieces of ART rather than a painted cell.
 
   *"the 'lines' are big squares instead of actual street lines"*. The marking was a COLOUR the generator
@@ -984,6 +966,25 @@ defmodule Nebulith.Catalog.TileSource do
     :ok
   end
 
+  @doc """
+  Seeds the `path_edge` autotile FAMILY: four edges, four corners, three cuts of each.
+
+  A piece is the tongue of FIELD that reaches into the way from one side, not the way itself. Measured on a
+  built woodland the other way round: laying the dirt as art over a field-coloured floor left 334 way cells
+  wearing six colours, only 144 of them the way's own tone, because every boundary cell kept the grass
+  underneath. More than half of a path was painted the colour of the grass, which is the patchwork it read as.
+
+  So the way wears ONE tone across all of its cells and the field comes over the top. The boundary still lives
+  inside the art, which is the point: measured on the forest reference it wanders about 0.17 of a CELL, so it
+  can never be the cell edge. Each corner piece is cut on the diagonal, so a lane that climbs a cell per row
+  reads as a ribbon rather than a stair.
+
+  Three cuts of each piece so a long edge does not repeat visibly; the generator picks one from the cell's own
+  position, and tints it with the colour of the field cell beside it. Near-white art, so one family serves
+  every environment's grass, sand and ash.
+
+  Safe and idempotent (upsert by [tileset_id, label]), so it runs on the shared dev DB without a full reseed.
+  """
   def seed_path_pieces do
     ascii_id = ensure_tileset("ascii", "ASCII").id
     emoji_id = ensure_tileset("emoji", "Emoji").id
@@ -1892,34 +1893,6 @@ defmodule Nebulith.Catalog.TileSource do
   end
 
   @doc """
-  Upserts the color-only WATER ground tile in BOTH styles, a flat blue floor built the SAME way as `meadow`
-  (a flat baked square TINTED by the per-cell floor colour), so the meadow_river layout paints its river +
-  lake with COLOUR instead of a tiled 🌊 texture. Height 1.0 so the water reads as a raised block like the land it
-  sits beside.
-
-  The emoji image is the same flat white square `/tiles/emoji/baked/water.png` (overwritten to a flat square
-  in the tile pipeline) that the floor colour tints; the ascii twin carries @water_color as its terrain `bg`
-  so `groundTileColor("water")` resolves the river blue for any non-generator paint / a reloaded save. The
-  ascii twin is IMAGE-BACKED too (`/tiles/ascii/water.png`, baked from its `~` glyph), MAP-MODEL §8 forbids
-  `image_url: nil` + a raw glyph, and an image-less tile misses the renderer's cube-sprite cache entirely.
-  Idempotent upsert by [tileset_id, label]. Runnable standalone.
-
-  ## Why the height is 0.5 and not 1.0
-
-  It was 1.0, and the doc here used to justify that as "a raised block like the land it sits beside". That was
-  the bug. The iso render lifts one ELEVATION level by `cellSize * isoScale * 0.4` but draws one BLOCK of tile
-  height as `cellSize * isoScale * 0.639` (`tileW * ISO_BLOCK_H_FRAC`). They are different units. So a channel
-  cut one level down (−0.4) carrying a height-1.0 surface (+0.639) put the water 0.239 ABOVE the walking floor:
-  the river stood proud of its own bank, which is what his screenshot shows.
-
-  The surface sits below the rim only while `0.639 * height < 0.4`, i.e. height < 0.626. 0.5 rises 0.32 and
-  leaves the water 0.08 below the bank, keeping a visible side face, which his Image #52 needs, since the rule
-  there is and a height-0 tile has no bottom to colour.
-
-  This is the ONE place the number lives: `@height_authority` is emoji, so `normalize_tile_heights/0` copies
-  the emoji row's height onto ascii, and a single value keeps both styles honest.
-  """
-  @doc """
   ONE WATER SURFACE, and a PUDDLE that is not part of it.
 
   Two things were wrong and both were data.
@@ -1997,6 +1970,34 @@ defmodule Nebulith.Catalog.TileSource do
     :ok
   end
 
+  @doc """
+  Upserts the color-only WATER ground tile in BOTH styles, a flat blue floor built the SAME way as `meadow`
+  (a flat baked square TINTED by the per-cell floor colour), so the meadow_river layout paints its river +
+  lake with COLOUR instead of a tiled 🌊 texture. Height 1.0 so the water reads as a raised block like the land it
+  sits beside.
+
+  The emoji image is the same flat white square `/tiles/emoji/baked/water.png` (overwritten to a flat square
+  in the tile pipeline) that the floor colour tints; the ascii twin carries @water_color as its terrain `bg`
+  so `groundTileColor("water")` resolves the river blue for any non-generator paint / a reloaded save. The
+  ascii twin is IMAGE-BACKED too (`/tiles/ascii/water.png`, baked from its `~` glyph), MAP-MODEL §8 forbids
+  `image_url: nil` + a raw glyph, and an image-less tile misses the renderer's cube-sprite cache entirely.
+  Idempotent upsert by [tileset_id, label]. Runnable standalone.
+
+  ## Why the height is 0.5 and not 1.0
+
+  It was 1.0, and the doc here used to justify that as "a raised block like the land it sits beside". That was
+  the bug. The iso render lifts one ELEVATION level by `cellSize * isoScale * 0.4` but draws one BLOCK of tile
+  height as `cellSize * isoScale * 0.639` (`tileW * ISO_BLOCK_H_FRAC`). They are different units. So a channel
+  cut one level down (−0.4) carrying a height-1.0 surface (+0.639) put the water 0.239 ABOVE the walking floor:
+  the river stood proud of its own bank, which is what his screenshot shows.
+
+  The surface sits below the rim only while `0.639 * height < 0.4`, i.e. height < 0.626. 0.5 rises 0.32 and
+  leaves the water 0.08 below the bank, keeping a visible side face, which his Image #52 needs, since the rule
+  there is and a height-0 tile has no bottom to colour.
+
+  This is the ONE place the number lives: `@height_authority` is emoji, so `normalize_tile_heights/0` copies
+  the emoji row's height onto ascii, and a single value keeps both styles honest.
+  """
   def seed_water_color do
     ascii_id = ensure_tileset("ascii", "ASCII").id
     emoji_id = ensure_tileset("emoji", "Emoji").id
@@ -2048,32 +2049,6 @@ defmodule Nebulith.Catalog.TileSource do
     IO.puts("seeded color-only water ground tile (ascii + emoji)")
     :ok
   end
-
-  @doc """
-  THE WATER LOOK: frame pictures for the three bands, and a foam SHORELINE family.
-
-  Two halves, both data:
-
-    * ANIMATION. Each band carries `frames` (`<label>.png`, `_f1`, `_f2`) and `frameMs`, the same shape the 67
-      animated unit tiles already use, built by `frame_images/4` so a frame with no baked picture is dropped
-      rather than served as a broken path. The frontend plays it through `spriteFrame`, the playback that used
-      to be stubbed.
-    * BORDER. `shore_*`, the 8 edge and corner pieces, named the way `canopy_*` and `wall_stone_*` already are.
-      NOT `water_*`: `water_c` is the fountain's water and colliding with it would silently repoint a live
-      tile. There is no `_c` piece because the centre of water is the water tile itself.
-
-  Height 0 and non-occupies: a shore piece is a flat overlay on the LAND side of the bank, and what blocks is
-  decided by collision, never by a picture.
-  """
-  @water_frame_ms 1200
-  # ONLY `water`. This was `~w(water water_shallow water_deep)`, which baked and seeded frame pictures for all
-  # three bands, and a generated floor never draws two of them. A floor resolves its art through `groundKind`,
-  # which collapses every water label to the kind `water`, so `water_shallow`/`water_deep` rows supply the
-  # LABEL and the walkability and nothing visual at all. Animating them was art nobody could ever see.
-  @water_bands ~w(water)
-  # THE SPLASH a unit leaves standing in floor-level water. It rides the same frame rails as the bands: the
-  # renderer derives it from where a unit IS, so nothing about it is stamped into a saved map.
-  @water_effects ~w(decor_ripple)
 
   @doc """
   THE TWO WATER SETS, authored from scratch against `docs/WATER.md` and `docs/TILE-DESIGN.md`.
@@ -2152,26 +2127,7 @@ defmodule Nebulith.Catalog.TileSource do
 
         frames = frame_images(style, label, List.duplicate(nil, @water_set_frames), static)
 
-        if length(frames) > 1 do
-          seed_frame_rows(tileset_id, style, label, length(frames))
-
-          labels =
-            Enum.map(0..(length(frames) - 1), fn
-              0 -> label
-              i -> "#{label}_f#{i}"
-            end)
-
-          Catalog.put_tile_setting(tileset_id, label, "frames", frames)
-          Catalog.put_tile_setting(tileset_id, label, "frameMs", @water_frame_ms)
-
-          # Two envelopes for the same reason the old bands needed two: the sprite loop swaps the pictures,
-          # and the translucence is a settings track because `resolveAssetAnimation` returns null when only a
-          # sprite is in scope. A plain `settings.opacity` is read by nothing.
-          Catalog.put_tile_setting(tileset_id, label, "animations", [
-            water_ripple(style, labels),
-            water_translucence()
-          ])
-        end
+        animate_water(tileset_id, style, label, frames)
 
         label
       end
@@ -2196,6 +2152,32 @@ defmodule Nebulith.Catalog.TileSource do
   defp piece_name("bl"), do: "(bottom-left corner)"
   defp piece_name("br"), do: "(bottom-right corner)"
 
+  @doc """
+  THE WATER LOOK: frame pictures for the three bands, and a foam SHORELINE family.
+
+  Two halves, both data:
+
+    * ANIMATION. Each band carries `frames` (`<label>.png`, `_f1`, `_f2`) and `frameMs`, the same shape the 67
+      animated unit tiles already use, built by `frame_images/4` so a frame with no baked picture is dropped
+      rather than served as a broken path. The frontend plays it through `spriteFrame`, the playback that used
+      to be stubbed.
+    * BORDER. `shore_*`, the 8 edge and corner pieces, named the way `canopy_*` and `wall_stone_*` already are.
+      NOT `water_*`: `water_c` is the fountain's water and colliding with it would silently repoint a live
+      tile. There is no `_c` piece because the centre of water is the water tile itself.
+
+  Height 0 and non-occupies: a shore piece is a flat overlay on the LAND side of the bank, and what blocks is
+  decided by collision, never by a picture.
+  """
+  @water_frame_ms 1200
+  # ONLY `water`. This was `~w(water water_shallow water_deep)`, which baked and seeded frame pictures for all
+  # three bands, and a generated floor never draws two of them. A floor resolves its art through `groundKind`,
+  # which collapses every water label to the kind `water`, so `water_shallow`/`water_deep` rows supply the
+  # LABEL and the walkability and nothing visual at all. Animating them was art nobody could ever see.
+  @water_bands ~w(water)
+  # THE SPLASH a unit leaves standing in floor-level water. It rides the same frame rails as the bands: the
+  # renderer derives it from where a unit IS, so nothing about it is stamped into a saved map.
+  @water_effects ~w(decor_ripple)
+
   def seed_water_look do
     static = Path.join(:code.priv_dir(:nebulith), "static")
     ascii_id = ensure_tileset("ascii", "ASCII").id
@@ -2214,32 +2196,9 @@ defmodule Nebulith.Catalog.TileSource do
 
         # Only when there is more than one picture to swap between: a single frame is a still, and writing one
         # would claim an animation that cannot play.
-        if length(frames) > 1 do
-          # EVERY FRAME IS A TILE. `frames` carries picture PATHS, but the animation's `tileId` is resolved by
-          # looking the LABEL up in that style's catalog, so a frame label with no row resolves to nothing and
-          # the loop silently plays its base picture forever. Seeding the rows is what makes the animation real.
-          seed_frame_rows(tileset_id, key, label, length(frames))
-
-          # The frame LABELS, in the same order as the pictures: frame 0 is the label itself, then _f1, _f2.
-          labels =
-            Enum.map(0..(length(frames) - 1), fn
-              0 -> label
-              i -> "#{label}_f#{i}"
-            end)
-
-          Catalog.put_tile_setting(tileset_id, label, "frames", frames)
-          Catalog.put_tile_setting(tileset_id, label, "frameMs", @water_frame_ms)
-
-          # TWO envelopes, because the engine resolves the two kinds through different paths and one cannot
-          # carry the other: the SPRITE loop swaps the frame pictures (the current), while the SETTINGS track
-          # holds the surface translucent. `resolveAssetAnimation` returns null when only a sprite is in scope
-          # (its own comment says so), so the opacity has to be its own settings-kind animation.
-          Catalog.put_tile_setting(tileset_id, label, "animations", [
-            water_ripple(key, labels),
-            water_translucence()
-          ])
-
-          {key, label, length(frames)}
+        case animate_water(tileset_id, key, label, frames) do
+          :animated -> {key, label, length(frames)}
+          :still -> nil
         end
       end
       |> Enum.reject(&is_nil/1)
@@ -2295,6 +2254,38 @@ defmodule Nebulith.Catalog.TileSource do
   #
   # 0.8 is a starting point for his :3000 verdict, not a derived number. It asked for "semi transparent" and
   # did not say how much, so this is the one value here that is a proposal rather than a measurement.
+  # ONE PICTURE IS A STILL. Writing an animation for it would claim a loop that cannot play, so the
+  # frame count decides and both water seeders ask the same question in the same place.
+  defp animate_water(_tileset_id, _key, _label, []), do: :still
+  defp animate_water(_tileset_id, _key, _label, [_one]), do: :still
+
+  defp animate_water(tileset_id, key, label, frames) do
+    # EVERY FRAME IS A TILE. `frames` carries picture PATHS, but the animation's `tileId` is resolved by
+    # looking the LABEL up in that style's catalog, so a frame label with no row resolves to nothing and the
+    # loop silently plays its base picture forever. Seeding the rows is what makes the animation real.
+    seed_frame_rows(tileset_id, key, label, length(frames))
+
+    # The frame LABELS, in the same order as the pictures: frame 0 is the label itself, then _f1, _f2.
+    labels = Enum.map(0..(length(frames) - 1), &frame_label(label, &1))
+
+    Catalog.put_tile_setting(tileset_id, label, "frames", frames)
+    Catalog.put_tile_setting(tileset_id, label, "frameMs", @water_frame_ms)
+
+    # TWO envelopes, because the engine resolves the two kinds through different paths and one cannot carry
+    # the other: the SPRITE loop swaps the frame pictures, while the SETTINGS track holds the surface
+    # translucent. `resolveAssetAnimation` returns null when only a sprite is in scope, so the opacity has to
+    # be its own settings-kind animation.
+    Catalog.put_tile_setting(tileset_id, label, "animations", [
+      water_ripple(key, labels),
+      water_translucence()
+    ])
+
+    :animated
+  end
+
+  defp frame_label(label, 0), do: label
+  defp frame_label(label, index), do: "#{label}_f#{index}"
+
   defp water_translucence(id \\ "water_translucence", opacity \\ 0.8) do
     %{
       "id" => id,
@@ -3319,7 +3310,7 @@ defmodule Nebulith.Catalog.TileSource do
 
   # DOES THIS ROW OCCUPY ITS CELL, read off the box list, which is where the fact lives now that the
   # `blocking` column is gone. A seeder that copies one tile's solidity onto another asks this.
-  defp solid?(%{settings: settings}), do: length(Map.get(settings || %{}, "collision", [])) > 0
+  defp solid?(%{settings: settings}), do: Map.get(settings || %{}, "collision", []) != []
   defp solid?(_), do: false
 
   @doc "Does this label stand at ground level, so nothing stacks on top of it? The rule `ensure_ground_plants/0` writes."
@@ -3488,26 +3479,6 @@ defmodule Nebulith.Catalog.TileSource do
     Enum.find(@glyph_family_prefixes, label, &String.starts_with?(label, &1))
   end
 
-  @doc """
-  Reconciles the `height` COLUMN of every paintable emoji ASSET tile (the standing categories, walls/windows/doors/roofs/props + nature; `buildings` kept for pre-split DBs) to the tile's OWN height
-  from emoji.json, the per-tile DATA, read uniformly.
-
-  The user's model (MAP-MODEL / EDITOR-INTERACTION-SPEC): height is per-tile DATA read through ONE uniform path,
-  with NO type/category/art-style code branch. A tile carries its own height and every consumer reads it the
-  same way, the mechanism is identical for every tile, only the DATA differs:
-
-    * a GROUND/FLAT tile (terrain, flower, fallen leaf, floor decor, facade piece) has height 0/min → it shows
-      on the floor face only in iso and is WALKABLE;
-    * a STANDING tile (tree, rock, mushroom, cactus, crate, lamp, building, prop) has height ≥ 1 → an extruded
-      block that BLOCKS movement.
-
-  `t["height"] || 0` writes exactly the tile's authored height: a tile with no explicit height in emoji.json is
-  a ground/flat tile (0). This is NOT a category rule, the same line runs for every asset tile; it just reads a
-  different value per tile (collision then DERIVES from that height on the client, no per-type list). Touches
-  ONLY the height column (set_tile_height), so editor-tuned poses in `settings` survive (a full
-  `seed_emoji_tiles` would `replace_all` them, which is why `seed_sample` never calls it). Terrain is the floor
-  primitive (painted onto the ground, height 0 by definition) and is intentionally left untouched. Idempotent.
-  """
   # THE GROUND IS FLAT, and until now nothing enforced it.
   #
   # It is right that I never looked. When I did, through Playwright, the bridge was a
@@ -3552,6 +3523,26 @@ defmodule Nebulith.Catalog.TileSource do
     :ok
   end
 
+  @doc """
+  Reconciles the `height` COLUMN of every paintable emoji ASSET tile (the standing categories, walls/windows/doors/roofs/props + nature; `buildings` kept for pre-split DBs) to the tile's OWN height
+  from emoji.json, the per-tile DATA, read uniformly.
+
+  The user's model (MAP-MODEL / EDITOR-INTERACTION-SPEC): height is per-tile DATA read through ONE uniform path,
+  with NO type/category/art-style code branch. A tile carries its own height and every consumer reads it the
+  same way, the mechanism is identical for every tile, only the DATA differs:
+
+    * a GROUND/FLAT tile (terrain, flower, fallen leaf, floor decor, facade piece) has height 0/min → it shows
+      on the floor face only in iso and is WALKABLE;
+    * a STANDING tile (tree, rock, mushroom, cactus, crate, lamp, building, prop) has height ≥ 1 → an extruded
+      block that BLOCKS movement.
+
+  `t["height"] || 0` writes exactly the tile's authored height: a tile with no explicit height in emoji.json is
+  a ground/flat tile (0). This is NOT a category rule, the same line runs for every asset tile; it just reads a
+  different value per tile (collision then DERIVES from that height on the client, no per-type list). Touches
+  ONLY the height column (set_tile_height), so editor-tuned poses in `settings` survive (a full
+  `seed_emoji_tiles` would `replace_all` them, which is why `seed_sample` never calls it). Terrain is the floor
+  primitive (painted onto the ground, height 0 by definition) and is intentionally left untouched. Idempotent.
+  """
   def reconcile_tile_heights do
     emoji_id = ensure_tileset("emoji", "Emoji").id
     emoji = read_tileset("emoji.json")
@@ -4846,7 +4837,10 @@ defmodule Nebulith.Catalog.TileSource do
     round(@deck_rise * (1 - u * u))
   end
 
-  defp column_offset(_dx, 0.0), do: 0.0
+  # A GUARD, NOT A LITERAL. Matching `0.0` matches positive zero only, so a centre of -0.0 fell through to
+  # the divide. `== 0` is true of both zeroes and of the integer, which is what "there is no centre to be
+  # offset from" actually means.
+  defp column_offset(_dx, centre) when centre == 0, do: 0.0
   defp column_offset(dx, centre), do: abs(dx - centre) / centre
 
   # ONE SIDE, TWO MATERIALS.
@@ -4970,23 +4964,8 @@ defmodule Nebulith.Catalog.TileSource do
   # The `<base>_<edge>` autotile piece for a perimeter cell: corners where two sides face out, edges where
   # one does. Used by the fountain rim (a rectangle in the footprint plane); the stone building's front
   # face uses the same 9-piece scheme, authored in Nebulith.Catalog.BuildingCompositions.
-  defp edge_piece(base, dx, dy, w, h) do
-    left = dx == 0
-    right = dx == w - 1
-    top = dy == 0
-    bottom = dy == h - 1
-
-    cond do
-      top and left -> "#{base}_tl"
-      top and right -> "#{base}_tr"
-      bottom and left -> "#{base}_bl"
-      bottom and right -> "#{base}_br"
-      top -> "#{base}_t"
-      bottom -> "#{base}_b"
-      left -> "#{base}_l"
-      true -> "#{base}_r"
-    end
-  end
+  defp edge_piece(base, dx, dy, w, h),
+    do: Autotile.piece(base, dy == 0, dy == h - 1, dx == 0, dx == w - 1)
 
   # ── Palette resolution ────────────────────────────────────────────────────
   # A tile's `colorRole` is a (possibly dotted) path into each zone's palette:

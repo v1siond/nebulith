@@ -46,6 +46,8 @@ defmodule Nebulith.Catalog.BuildingCompositions do
   9-slice `scaleY` piers (#30).
   """
 
+  alias Nebulith.Catalog.Autotile
+
   # THE SOLID BLOCK a coloured wall is painted on. `wall` is height 1 and carries a per-zone colour, exactly
   # like the floor tile the meadow paints its ground with, so a facade built from it is colour and nothing else.
   @plain_wall "wall"
@@ -396,50 +398,86 @@ defmodule Nebulith.Catalog.BuildingCompositions do
   # A cell's walkability is the composition's, not the tile's, so a colonnade still blocks: only the doorway
   # is walkable, exactly as before.
   defp facade_fun(spec, w, h, top_at, mat, win_levels, doors) do
+    forms = %{
+      posts?: Map.get(spec, :front_posts, false),
+      portico?: Map.get(spec, :portico, false),
+      porch?: Map.get(spec, :porch, false),
+      aisles?: Map.get(spec, :aisles, false)
+    }
+
     storefront? = Map.get(spec, :storefront, false)
-    front_only? = Map.get(spec, :window_faces) == :front
-    unglazed? = Map.get(spec, :window_faces) == :none
-    posts? = Map.get(spec, :front_posts, false)
-    portico? = Map.get(spec, :portico, false)
-    porch? = Map.get(spec, :porch, false)
-    aisles? = Map.get(spec, :aisles, false)
+    faces = Map.get(spec, :window_faces)
     walls = Map.get(spec, :walls, :tiled)
     door_col = div(w, 2)
 
+    shop = %{storefront?: storefront?, door_col: door_col}
+
     fn dx, dy, level ->
       front = dy == h - 1
-      flank = (dx == 0 or dx == w - 1) and not front and dy != 0
 
-      glazed_face =
-        cond do
-          unglazed? -> false
-          front_only? -> front
-          true -> dy == 0 or dy == h - 1
-        end
-
-      shop = storefront? and front and abs(dx - door_col) <= 1
-
+      # ORDERED, and the order is the rule: an opening beats a form, a form beats a window, and a
+      # window beats plain wall. Each group is its own question so this reads as four, not as twelve.
       cond do
-        front and dx in doors and level in [0, 1] -> "door"
-        shop and level == 0 -> "display_window"
-        shop and level == 1 -> "awning"
-        # THE FORMS. Each replaces a stretch of wall with something that is not wall, which is the whole point.
-        front and posts? -> "post"
-        front and portico? -> "pillar"
-        front and porch? and abs(dx - door_col) == 1 -> "pillar"
-        flank and aisles? and rem(dy, 2) == 1 -> "pillar"
-        glazed_face and window?(dx, w) and level in win_levels -> "window"
-        front -> wall_piece(walls, mat, dx, level, w, top_at.(dx))
-        walls == :tiled -> "#{mat}_c"
-        # A DRESSED building is dressed all the way round: a plinth on the ground course and a cornice at the
-        # top, on the back and the sides too. In iso you see a front AND a side, so dressing only the front
-        # left half of every civic building in bare colour. The temple showed it plainly: its portico takes the
-        # front, so nothing else was ever dressed at all.
-        walls == :ornament and (level == 0 or level == top_at.(dx)) -> "#{mat}_c"
-        true -> @plain_wall
+        piece = opening(front, shop, dx, level, doors) ->
+          piece
+
+        piece = form(forms, front, {dx, dy, w, door_col}) ->
+          piece
+
+        glazed?(faces, front, dy, h) and window?(dx, w) and level in win_levels ->
+          "window"
+
+        front ->
+          wall_piece(walls, mat, dx, level, w, top_at.(dx))
+
+        true ->
+          back_wall(walls, mat, level, top_at.(dx))
       end
     end
   end
+
+  # THE OPENINGS: a way in, and a shopfront around it. Only the front wall has either.
+  defp opening(false, _shop, _dx, _level, _doors), do: nil
+
+  defp opening(true, shop, dx, level, doors) do
+    cond do
+      level in [0, 1] and dx in doors -> "door"
+      shopfront?(shop, dx) and level == 0 -> "display_window"
+      shopfront?(shop, dx) and level == 1 -> "awning"
+      true -> nil
+    end
+  end
+
+  defp shopfront?(%{storefront?: true, door_col: door_col}, dx), do: abs(dx - door_col) <= 1
+  defp shopfront?(_shop, _dx), do: false
+
+  # THE FORMS. Each replaces a stretch of wall with something that is not wall, which is the whole point.
+  defp form(%{posts?: true}, true, _cell), do: "post"
+  defp form(%{portico?: true}, true, _cell), do: "pillar"
+
+  defp form(%{porch?: true}, true, {dx, _dy, _w, door_col}) when abs(dx - door_col) == 1,
+    do: "pillar"
+
+  # An aisle runs down the FLANK: a side wall, and neither the front nor the back row.
+  defp form(%{aisles?: true}, false, {dx, dy, w, _door_col})
+       when (dx == 0 or dx == w - 1) and dy != 0 and rem(dy, 2) == 1,
+       do: "pillar"
+
+  defp form(_forms, _front, _cell), do: nil
+
+  # WHICH FACES TAKE GLASS: none, the front only, or the two ends.
+  defp glazed?(:none, _front, _dy, _h), do: false
+  defp glazed?(:front, front, _dy, _h), do: front
+  defp glazed?(_faces, _front, dy, h), do: dy == 0 or dy == h - 1
+
+  # A DRESSED building is dressed all the way round: a plinth on the ground course and a cornice at the
+  # top, on the back and the sides too. In iso you see a front AND a side, so dressing only the front
+  # left half of every civic building in bare colour. The temple showed it plainly: its portico takes
+  # the front, so nothing else was ever dressed at all.
+  defp back_wall(:tiled, mat, _level, _top), do: "#{mat}_c"
+  defp back_wall(:ornament, mat, 0, _top), do: "#{mat}_c"
+  defp back_wall(:ornament, mat, level, top) when level == top, do: "#{mat}_c"
+  defp back_wall(_walls, _mat, _level, _top), do: @plain_wall
 
   defp roof_for(%{roof: :gable} = _spec, w, h, wall_top, top_at, opts) do
     gable_roof(
@@ -696,27 +734,8 @@ defmodule Nebulith.Catalog.BuildingCompositions do
   # wall, the SAME 9-piece scheme the fountain rim uses, applied to the front-elevation rectangle (corners at
   # its four corners, edges along each side, `<base>_c` inside). `base` is the material (`wall_stone`,
   # `wall_brick`, `wall_wood`), so one function autotiles every material facade.
-  defp material_piece(base, dx, level, w, wall_top) do
-    left = dx == 0
-    right = dx == w - 1
-    bottom = level == 0
-    top = level == wall_top
-
-    suffix =
-      cond do
-        top and left -> "tl"
-        top and right -> "tr"
-        bottom and left -> "bl"
-        bottom and right -> "br"
-        top -> "t"
-        bottom -> "b"
-        left -> "l"
-        right -> "r"
-        true -> "c"
-      end
-
-    "#{base}_#{suffix}"
-  end
+  defp material_piece(base, dx, level, w, wall_top),
+    do: Autotile.piece(base, level == wall_top, level == 0, dx == 0, dx == w - 1)
 
   defp definitions do
     %{

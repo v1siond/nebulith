@@ -84,15 +84,18 @@ defmodule Nebulith.BuildingCompositionsTest do
         nil
 
       _ ->
-        {_, _, _, label} =
-          Enum.reduce(at, fn {_, dy, _, _} = a, {_, bdy, _, _} = b ->
-            keep = if face == :front, do: dy > bdy, else: dy < bdy
-            if keep, do: a, else: b
-          end)
-
+        {_, _, _, label} = Enum.reduce(at, &nearer_face(&1, &2, face))
         label
     end
   end
+
+  # The front face is the greatest dy, the back face the least.
+  defp nearer_face({_, ady, _, _} = a, {_, bdy, _, _} = b, :front) when ady > bdy, do: a
+
+  defp nearer_face({_, ady, _, _} = a, {_, bdy, _, _} = b, face)
+       when face != :front and ady < bdy, do: a
+
+  defp nearer_face(_a, b, _face), do: b
 
   defp window?(label), do: is_binary(label) and String.starts_with?(label, "window")
   defp wall?(label), do: is_binary(label) and String.starts_with?(label, "wall")

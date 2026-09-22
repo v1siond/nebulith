@@ -65,19 +65,25 @@ defmodule Nebulith.Accounts do
   unknown, so a wrong email and a wrong password take the same time and neither leaks which it was.
   """
   def authenticate(email, password) when is_binary(email) and is_binary(password) do
-    user = get_user_by_email(email)
-
-    cond do
-      user && Password.valid?(password, user.hashed_password) ->
-        {:ok, user}
-
-      true ->
-        unless user, do: Password.valid?(password, @absent_hash)
-        :error
-    end
+    admit(get_user_by_email(email), password)
   end
 
   def authenticate(_email, _password), do: :error
+
+  defp admit(%User{} = user, password) do
+    case Password.valid?(password, user.hashed_password) do
+      true -> {:ok, user}
+      false -> :error
+    end
+  end
+
+  # NOBODY BY THAT NAME, and it costs the same as somebody. Hashing the given password against a fixed
+  # absent hash keeps a wrong email and a wrong password taking the same time, so a caller cannot tell
+  # the two apart by watching the clock and read the user list out of the difference.
+  defp admit(nil, password) do
+    Password.valid?(password, @absent_hash)
+    :error
+  end
 
   ## SESSIONS
   ##
