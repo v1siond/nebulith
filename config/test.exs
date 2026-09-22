@@ -11,7 +11,15 @@ config :nebulith, Nebulith.Repo,
   hostname: "localhost",
   database: "nebulith_test#{System.get_env("MIX_TEST_PARTITION")}",
   pool: Ecto.Adapters.SQL.Sandbox,
-  pool_size: System.schedulers_online() * 2
+  pool_size: System.schedulers_online() * 2,
+  # THE BROWSER AND THE TEST SHARE ONE CONNECTION. A scenario runs the sandbox in shared mode so the
+  # browser's requests join the test's transaction, which means both are queueing for the same
+  # connection: the page saves a map while the test polls the row to see the save land. The default
+  # 50ms target drops that poll as "connection not available" and reports it as a failure of the
+  # thing under test. These are the waits of a browser, not of a unit test.
+  queue_target: 5_000,
+  queue_interval: 10_000,
+  ownership_timeout: 120_000
 
 # THE SERVER RUNS IN TEST, because the end-to-end layer drives a real browser at it (PhoenixTest.Playwright,
 # see docs/TESTING.md). On port 4002 against `nebulith_test`, so a click-through can never reach the dev

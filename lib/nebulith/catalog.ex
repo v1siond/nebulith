@@ -420,7 +420,9 @@ defmodule Nebulith.Catalog do
         {:ok, _} =
           %CompositionCell{}
           |> CompositionCell.changeset(
-            attrs |> occupied_instead_of_walkable() |> Map.put(:composition_id, comp.id)
+            attrs
+            |> occupied_instead_of_walkable()
+            |> Map.put(:composition_id, comp.id)
           )
           |> Repo.insert()
       end

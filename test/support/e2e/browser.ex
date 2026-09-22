@@ -39,6 +39,14 @@ defmodule Nebulith.E2E.Browser do
   @doc "True only when the expression evaluates to boolean true. A truthy string or number is not true."
   def true?(session, expression), do: js(session, expression) == true
 
+  @doc "How many nodes match a CSS selector. Zero when the page cannot be asked."
+  def count(session, selector) do
+    case js(session, "document.querySelectorAll('#{selector}').length") do
+      n when is_integer(n) -> n
+      _ -> 0
+    end
+  end
+
   @doc """
   Polls `check` until it returns a truthy value, then gives back the session so it can be piped.
 
@@ -47,24 +55,24 @@ defmodule Nebulith.E2E.Browser do
   """
   def wait_until(session, check, what, opts \\ []) do
     deadline = System.monotonic_time(:millisecond) + Keyword.get(opts, :timeout, @default_wait_ms)
-    poll(session, check, what, deadline)
+    poll(session, check, what, deadline, Keyword.get(opts, :every, @poll_ms))
   end
 
   @doc "Polls until a JavaScript expression is true. The same wait, for the common case."
   def wait_for_js(session, expression, what, opts \\ []),
     do: wait_until(session, &true?(&1, expression), what, opts)
 
-  defp poll(session, check, what, deadline) do
+  defp poll(session, check, what, deadline, every) do
     cond do
       check.(session) -> session
       System.monotonic_time(:millisecond) >= deadline -> never_happened(session, what)
-      true -> sleep_then_poll(session, check, what, deadline)
+      true -> sleep_then_poll(session, check, what, deadline, every)
     end
   end
 
-  defp sleep_then_poll(session, check, what, deadline) do
-    Process.sleep(@poll_ms)
-    poll(session, check, what, deadline)
+  defp sleep_then_poll(session, check, what, deadline, every) do
+    Process.sleep(every)
+    poll(session, check, what, deadline, every)
   end
 
   # The URL and the page's own error, because "waited for the canvas" is a much shorter story than

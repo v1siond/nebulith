@@ -29,6 +29,7 @@ defmodule NebulithWeb.MapControllerTest do
       # column fails this test for the wrong reason and teaches whoever is looking to edit the number.
       assert length(data["fields"]) == length(Nebulith.World.CellTile.settable_fields()),
              "the endpoint serves every settable column, and only those"
+
       assert "stack_at" in data["fields"]
       assert "thickness_lu" in data["fields"]
       assert "water_heading" in data["fields"]

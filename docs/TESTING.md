@@ -163,6 +163,27 @@ Two rules for a stub:
 1. **Build the payload in Elixir from the app's own code**, never by typing JSON. `MapController.schema_payload/0` serialises from `World.CellTile` itself. A hand-written stub is a second copy of the schema, and the moment a column is added the scenario is testing an app that no longer exists while staying green.
 2. **Assert the stub was used.** `StubApi.assert_served/2` fails when a path a scenario declared was never asked for. A stub that never fires lets the page talk to the real backend while the scenario passes, proving something else entirely.
 
+## Gates written ahead of their phase
+
+The spec gives every phase a gate and says plainly which of them cannot pass yet. Writing that gate
+FIRST is the point: a gate added after the fix has never been seen to fail, so it proves nothing.
+
+But a suite that is red on purpose stops being read. So a gate for a phase that has not been built
+carries `@moduletag :awaiting_phase`, is left out of a normal run, and is asked for by name:
+
+```bash
+bin/e2e --include awaiting_phase
+```
+
+Waiting, and on what:
+
+| Gate | Waiting on | What it reports today |
+|---|---|---|
+| `phase_04_collisions_test.exs` | Phase 4, `collision_boxes` | On a freshly generated city a brick wall is WALKABLE until the map is reloaded, and a tree's canopy BLOCKS until the map is reloaded and then stops. The same defect from both sides: what a cell occupies is decided twice, once by the generator in memory and once by the loader from the rows, and the two do not agree |
+
+A gate here is never weakened to make it pass, and never deleted because it is red. When its phase
+lands, the tag comes off.
+
 ## Writing one
 
 **A new test must be run against the code BEFORE the fix, and must fail there.** A gate that cannot

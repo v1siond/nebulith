@@ -22,17 +22,22 @@ defmodule Nebulith.E2E.World do
   alias Nebulith.Catalog
 
   @doc """
-  The tile, generator and zone catalogs, in the test database.
+  The catalog, built the way the app builds it.
 
-  Slow, and unavoidable: an empty catalog means an empty editor. Call it from `setup` in any scenario
-  that opens the editor.
+  There is exactly one way to seed this app, and `priv/repo/seeds.exs` is it: `run_pending/0`, whose
+  first ledger entry IS the catalog seed. Calling the individual seeders instead is a second spelling
+  of that, kept by hand, and it is already wrong. `seed_road_markings/0` is reached only through a data
+  migration, so a scenario that called the seeders directly built a world with no street markings in
+  the catalog, watched the generator place them by label anyway, and then found them coming back as
+  plain decoration after a reload. That looks exactly like a round-trip defect and is not one.
+
+  A scenario has to be handed the catalog the app ships, or what it proves is about a different app.
+
+  Slow, and unavoidable: an empty catalog means an empty editor. It runs inside the sandbox
+  transaction, so it costs one scenario and vanishes with it.
   """
   def seed_catalog do
-    # Each seeder reports its own tally in its own shape, so what comes back is deliberately ignored.
-    # Matching on it turns a seeder that starts counting something into a failure in every scenario.
-    Catalog.TileSource.seed()
-    Catalog.GeneratorSource.seed()
-    Catalog.ZoneSource.seed()
+    Nebulith.DataMigrations.run_pending()
     :ok
   end
 

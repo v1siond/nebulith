@@ -129,6 +129,7 @@ defmodule Nebulith.World.CellTile do
     # `water_c` cells and three of them rise and fade, so animating is a fact about this PLACEMENT and
     # not about the tile. Leaving it off the table is why a fountain stopped moving after a reload.
     field :animations, {:array, :map}
+
     # The clock origin the loop is measured from. A composition's defaults anchor at 0 so every fountain
     # on a map stays in step.
     #

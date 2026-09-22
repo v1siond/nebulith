@@ -3795,7 +3795,6 @@ defmodule Nebulith.Catalog.TileSource do
   # commonest of all, 0.44.
   #
 
-
   defp tree_comp(opts) do
     # AN OBJECT IS TILES SOMEBODY PUT TOGETHER, and its numbers are its own.
     #

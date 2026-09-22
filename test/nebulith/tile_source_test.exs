@@ -362,6 +362,7 @@ defmodule Nebulith.TileSourceTest do
 
     post = Enum.find(cells, &(&1.label == "post"))
     lamp = Enum.find(cells, &(&1.label == "lamp"))
+
     # WHAT IT OCCUPIES IS THE ONLY STATEMENT about walking through a cell. `walkable` was a flag the
     # stamp turned into this very box list, so the box list is what the composition stores now.
     stops? = fn cell ->

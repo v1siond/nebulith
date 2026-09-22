@@ -92,4 +92,69 @@ defmodule Nebulith.E2E.GeneratePanel do
     |> then(fn s -> Enum.reduce(options, s, &choose_option(&2, &1)) end)
     |> build()
   end
+
+  @doc "Opens a preset and waits for its options to render."
+  def open_preset(session, name) do
+    session
+    |> click_button(nil, name, exact: false)
+    |> Browser.wait_until(
+      &(Browser.count(&1, ".ctl .swatches") > 0),
+      "#{name}'s options to render"
+    )
+  end
+
+  @doc """
+  Walks every card through the middle of the screen so its thumbnail draws.
+
+  The thumbnails are lazy, behind one shared IntersectionObserver, so a card that never reaches the
+  viewport never draws and reads here as a card with no picture. This is what a person scrolling the
+  panel does, only faster.
+  """
+  def warm_thumbnails(session) do
+    cards = Browser.count(session, ".swatches .sw")
+
+    Enum.each(0..(cards - 1)//1, fn index ->
+      Browser.js(
+        session,
+        "document.querySelectorAll('.swatches .sw')[#{index}]?.scrollIntoView({block:'center'})"
+      )
+
+      Process.sleep(250)
+    end)
+
+    Browser.wait_until(session, &settled?/1, "every previewed card to draw", timeout: 120_000)
+  end
+
+  # Drawn, and STILL drawn a beat later. A card caught mid-render would otherwise read as one that
+  # draws nothing at all.
+  defp settled?(session) do
+    drawn = Browser.count(session, ".swatches .sw img")
+    Process.sleep(1_000)
+    drawn > 0 and Browser.count(session, ".swatches .sw img") == drawn
+  end
+
+  @doc """
+  What the panel is showing: each control's label, how many cards it has, whether it fell back to a
+  dropdown, and a HASH of each card's picture.
+
+  The pictures are data URLs of several kilobytes. They travel as hashes because the question is
+  whether two cards drew the SAME map, never what is in the picture.
+  """
+  def read(session) do
+    Browser.js(session, """
+    (() => {
+      const hash = s => { let h = 5381; for (let i = 0; i < s.length; i++) h = ((h * 33) ^ s.charCodeAt(i)) >>> 0; return h.toString(16) }
+      const rows = [...document.querySelectorAll('.ctl')].map(ctl => {
+        const cards = [...ctl.querySelectorAll('.swatches .sw')]
+        return {
+          label: (ctl.querySelector('.l')?.textContent || '').trim(),
+          cards: cards.length,
+          select: !!ctl.querySelector('select'),
+          pictures: cards.map(c => c.querySelector('img')?.getAttribute('src') || '').filter(Boolean).map(hash),
+        }
+      })
+      return { rows, headings: [...document.querySelectorAll('.sub')].map(h => (h.textContent || '').trim()) }
+    })()
+    """) || %{}
+  end
 end

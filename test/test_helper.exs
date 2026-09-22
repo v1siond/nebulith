@@ -9,7 +9,16 @@ Ecto.Adapters.SQL.Sandbox.mode(Nebulith.Repo, :manual)
 # thing that cannot run, rather than the whole suite failing to boot.
 browser? = System.get_env("PLAYWRIGHT_WS_ENDPOINT") not in [nil, ""]
 if browser?, do: {:ok, _} = PhoenixTest.Playwright.Supervisor.start_link()
-ExUnit.configure(exclude: if(browser?, do: [], else: [:e2e]))
+# GATES WRITTEN AHEAD OF THEIR PHASE are left out of a normal run.
+#
+# The spec gives every phase a gate and says plainly which of them cannot pass yet. Writing that gate
+# first is the point: a gate added after the fix has never been seen to fail. But a suite that is red
+# on purpose stops being read, so those carry `:awaiting_phase` and are asked for by name:
+#
+#     bin/e2e --include awaiting_phase
+#
+# docs/TESTING.md lists which gates are waiting and on what.
+ExUnit.configure(exclude: [:awaiting_phase] ++ if(browser?, do: [], else: [:e2e]))
 
 # WHERE THE BROWSER THINKS THE APP IS. Normally that is the endpoint's own URL. When the browser runs in a
 # container (this machine's Ubuntu 20.04 has no supported Playwright chromium, see config/test.exs), the app

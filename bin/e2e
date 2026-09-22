@@ -62,8 +62,12 @@ export PHOENIX_TEST_BASE_URL="http://${HOST_IP}:${APP_PORT}"
 
 echo "e2e: browser on ${PLAYWRIGHT_WS_ENDPOINT}, app at ${PHOENIX_TEST_BASE_URL}"
 
-# A file or a flag runs exactly that. No arguments runs every scenario in test/e2e.
+# NOT `--only e2e`. `--only` overrides every exclusion, which would drag in the gates written ahead of
+# their phase, and those fail on purpose. With a browser configured the suite already includes `:e2e`
+# and already leaves `:awaiting_phase` out, so plain `mix test` runs exactly the right set.
+#
+#   bin/e2e --include awaiting_phase     to see the gates for phases not yet built
 if [ $# -eq 0 ]; then
-  exec mix test test/e2e --only e2e
+  exec mix test test/e2e
 fi
-exec mix test "$@" --only e2e
+exec mix test "$@"

@@ -52,7 +52,11 @@ defmodule Nebulith.E2E.Editor do
     Browser.wait_until(
       session,
       fn _ -> updated_at(map_id) != was end,
-      "the save to reach the row for map #{map_id}"
+      "the save to reach the row for map #{map_id}",
+      # SLOWER THAN A PAGE POLL, on purpose. The browser joins this test's sandbox transaction, so
+      # every query here queues behind the request the page is making, and a save is exactly when the
+      # page is busiest.
+      every: 1_000
     )
 
     session

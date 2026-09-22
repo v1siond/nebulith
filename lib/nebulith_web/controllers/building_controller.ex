@@ -90,7 +90,7 @@ defmodule NebulithWeb.BuildingController do
             dx: cell.dx,
             dy: cell.dy,
             level: cell.level,
-            label: cell.label,
+            label: cell.label
           }
           |> maybe_put(:settings, Map.get(cell, :settings))
         end)

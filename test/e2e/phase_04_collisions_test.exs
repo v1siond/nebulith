@@ -8,11 +8,31 @@ defmodule Nebulith.E2E.Phase04CollisionsTest do
 
   The map is a canvas, so the assertion is not on the DOM. `window.__collisionAudit` reports each
   cell's ground and whether the grid blocks it, which is the thing the hero actually walks into.
+
+  ## THIS GATE FAILS, AND IT IS SUPPOSED TO
+
+  The spec writes phase 4 down as `collision_boxes`, with the gate "an authored blocked cell survives
+  a reload", and says of it: **it cannot today**. So this is the gate for a phase that has not been
+  built, written before the work rather than after it, which is the only order in which a gate proves
+  anything.
+
+  What it currently reports, on a freshly generated city:
+
+  * A brick wall is WALKABLE until the map is reloaded. You can walk through a building you just built.
+  * A tree's canopy BLOCKS until the map is reloaded, and then stops.
+
+  Both are the same defect from opposite sides: what a cell occupies is decided twice, once by the
+  generator in memory and once by the loader from the rows, and the two do not agree. That is what
+  phase 4 is for.
+
+  Run it with `bin/e2e --include awaiting_phase`.
   """
   use Nebulith.E2ECase, async: false
 
   @moduletag :e2e
   @moduletag :phase4
+  # A gate for a phase the spec has not reached. Left out of the default run, never weakened.
+  @moduletag :awaiting_phase
 
   alias Nebulith.E2E.GeneratePanel
 
@@ -45,7 +65,9 @@ defmodule Nebulith.E2E.Phase04CollisionsTest do
            "the reloaded map is not the same map.\n  built:    #{describe(built)}\n  reloaded: #{describe(back)}"
 
     assert back.water_blocked == built.water_blocked,
-           "the river became walkable across the save.\n  built:    #{describe(built)}\n  reloaded: #{describe(back)}"
+           "what the water lets you do changed across the save.\n" <>
+             "  built:    #{describe(built)}\n  reloaded: #{describe(back)}\n" <>
+             "  cells that changed:\n#{changed(built, back)}"
 
     assert back.solid == built.solid,
            "the set of solid cells changed across the save: " <>
@@ -55,6 +77,26 @@ defmodule Nebulith.E2E.Phase04CollisionsTest do
 
   defp describe(a),
     do: "#{a.total} cells, #{a.blocked} solid, #{a.water} water, #{a.water_blocked} of it solid"
+
+  # NAME THE CELLS, and say what is standing on them. "twelve cells changed" sends you looking at the
+  # whole river; "twelve cells that all carry a bridge deck" is the answer.
+  defp changed(built, back) do
+    opened = MapSet.difference(built.solid, back.solid)
+    closed = MapSet.difference(back.solid, built.solid)
+
+    Enum.map_join(
+      Enum.take(MapSet.to_list(opened), 6) ++ Enum.take(MapSet.to_list(closed), 6),
+      "\n",
+      fn key ->
+        side =
+          if MapSet.member?(opened, key),
+            do: "was solid, now walkable",
+            else: "was walkable, now solid"
+
+        "    #{key}  #{side}  ground=#{built.ground[key] || "?"}  on it: #{built.on[key] || "nothing"}"
+      end
+    )
+  end
 
   defp audit(session) do
     raw =
@@ -68,6 +110,13 @@ defmodule Nebulith.E2E.Phase04CollisionsTest do
           water: water.length,
           waterBlocked: water.filter(c => c.blocked).length,
           solid: cells.filter(c => c.blocked).map(c => c.col + ',' + c.row),
+          ground: Object.fromEntries(cells.map(c => [c.col + ',' + c.row, c.ground || '?'])),
+          on: Object.fromEntries(cells.map(c => [
+            c.col + ',' + c.row,
+            (window.__nebulithGrid?.assets ?? [])
+              .filter(a => a.col === c.col && a.row === c.row)
+              .map(a => a.label ?? a.tileKey ?? a.type).join('+') || 'nothing',
+          ])),
         }
       })()
       """) || %{}
@@ -77,7 +126,9 @@ defmodule Nebulith.E2E.Phase04CollisionsTest do
       blocked: raw["blocked"] || 0,
       water: raw["water"] || 0,
       water_blocked: raw["waterBlocked"] || 0,
-      solid: MapSet.new(raw["solid"] || [])
+      solid: MapSet.new(raw["solid"] || []),
+      ground: raw["ground"] || %{},
+      on: raw["on"] || %{}
     }
   end
 end
