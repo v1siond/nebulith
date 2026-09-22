@@ -1,5 +1,5 @@
 import { resolveTileHeight } from '@/engine/tileset/tileHeight'
-import { numericDefault } from '@/lib/tileDefaults'
+import { carriedColumns, defaultOf, numericDefault } from '@/lib/tileDefaults'
 import { FLOOR_TYPE, type GridAsset, IsometricGrid } from '@/engine/IsometricGrid'
 import type { IsoDiagonal, ThicknessReach } from '@/engine/render/isoBlock'
 import { poseDeviates, type TilePose } from '@/engine/tileset/pose'
@@ -100,6 +100,11 @@ export function tileToPayload(asset: GridAsset): Record<string, unknown> {
   const settings = asset.settings ?? {}
 
   const out: Record<string, unknown> = {
+    // THE COLUMNS THIS FILE DOES NOT RESHAPE, exactly as they came in. First in the literal on purpose:
+    // anything named below overrides one, so there is never a question about which of two spellings is
+    // the value.
+    ...asset.columns,
+
     label: labelOf(asset),
     stack_level: Math.round(num(asset.heightLevel, 0)),
 
@@ -218,10 +223,16 @@ export function payloadToTile(tile: Record<string, unknown>, col: number, row: n
     settings.badge = { text: String(tile.sign_text), color: tile.sign_color ? String(tile.sign_color) : '' }
   }
 
+  const columns: Record<string, unknown> = {}
+  for (const column of carriedColumns()) {
+    columns[column] = tile[column] !== undefined ? tile[column] : defaultOf(column)
+  }
+
   const asset: GridAsset = {
     art: [''],
     col,
     row,
+    columns,
     // The ground course of the square it sits in is the floor. A tile of the same label standing at a
     // higher level is a tile, not the ground.
     type: label && label === groundLabel && Math.round(fromDec(tile.stack_level, 0)) === 0 ? FLOOR_TYPE : (label ?? 'decoration'),

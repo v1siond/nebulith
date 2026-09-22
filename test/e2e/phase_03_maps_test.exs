@@ -82,6 +82,42 @@ defmodule Nebulith.E2E.Phase03MapsTest do
              "the grid's own size did not travel: #{saved.cols}x#{saved.rows}"
     end
 
+    test "a setting the engine does not model still survives a save",
+         %{session: session, map: template} do
+      # THE DEFECT THIS CLOSES. The payload named its fields one at a time, so seven columns a
+      # placement can state never reached the wire: a person authors one, the save writes the column's
+      # default over it, and the value is simply gone. Nothing in the engine reads these, which is
+      # exactly why it went unnoticed and exactly why it had to be gated.
+      session = GeneratePanel.build_world(session, "city", "Woodland city")
+      session = Editor.save(session, template.id)
+      map_id = resolved_map_id(session, template.id)
+
+      # Values no default would produce, written straight onto the rows the save just made.
+      {:ok, _} =
+        Nebulith.Repo.query(
+          """
+          update cell_tiles set surface = 'tiled', pinned = true, foliage = true, stack_at = 3
+          where cell_id in (select c.id from cells c join grids g on g.id = c.grid_id where g.map_id = $1)
+          """,
+          [Ecto.UUID.dump!(map_id)]
+        )
+
+      before = column_census(map_id)
+      assert before.tiled > 0, "the update touched no rows, so this run proves nothing"
+
+      # Open what is on disk, then save it straight back. If the codec drops a column, this is where
+      # the value dies: the editor writes what it is holding, and it is not holding what it never read.
+      session = Editor.open(session, template.id)
+      Canvas.wait_for_tiles(session, 1, timeout: 60_000)
+      Editor.save(session, template.id)
+
+      after_save = column_census(map_id)
+
+      assert after_save == before,
+             "a save wrote over settings the engine does not model.\n" <>
+               "  before: #{inspect(before)}\n  after:  #{inspect(after_save)}"
+    end
+
     test "every tile comes back the shape it went in", %{session: session, map: template} do
       session = GeneratePanel.build_world(session, "city", "Woodland city")
       plant_a_fountain(session)
@@ -143,6 +179,11 @@ defmodule Nebulith.E2E.Phase03MapsTest do
       a.shape ?? '-', a.zIndex ?? '-', a.opacity ?? '-', a.brightness ?? '-',
       a.animations ? JSON.stringify(a.animations) : '-', a.placedAt ?? '-',
       a.color ?? '-', a.sideColor ?? '-',
+      // AND EVERY COLUMN THE ENGINE DOES NOT MODEL. Sorted by name, because what is compared is the
+      // set of values and not the order a loop happened to build them in. Without this the round trip
+      // reported success on a map that had quietly lost seven settings, because it only ever compared
+      // the fields somebody had remembered to list.
+      Object.keys(a.columns ?? {}).sort().map(k => k + '=' + JSON.stringify(a.columns[k])).join(','),
     ].join('|')
     return {
       total: grid.assets.length,
@@ -221,6 +262,25 @@ defmodule Nebulith.E2E.Phase03MapsTest do
       cols: raw["cols"],
       rows: raw["rows"]
     }
+  end
+
+  # How many rows hold each non-default value. Counting rather than comparing row by row, because the
+  # save rewrites the rows and their ids change with them.
+  defp column_census(map_id) do
+    %Postgrex.Result{rows: [[tiled, pinned, foliage, stacked]]} =
+      Nebulith.Repo.query!(
+        """
+        select
+          count(*) filter (where surface = 'tiled'),
+          count(*) filter (where pinned),
+          count(*) filter (where foliage),
+          count(*) filter (where stack_at = 3)
+        from cell_tiles where cell_id in (select c.id from cells c join grids g on g.id = c.grid_id where g.map_id = $1)
+        """,
+        [Ecto.UUID.dump!(map_id)]
+      )
+
+    %{tiled: tiled, pinned: pinned, foliage: foliage, stacked: stacked}
   end
 
   defp diff(before, later) do

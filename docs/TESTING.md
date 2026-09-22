@@ -194,7 +194,6 @@ Waiting, and on what:
 | Gate | Waiting on | What it reports today |
 |---|---|---|
 | `phase_04_collisions_test.exs` | Phase 4, `collision_boxes` | On a freshly generated city a brick wall is WALKABLE until the map is reloaded, and a tree's canopy BLOCKS until the map is reloaded and then stops. The same defect from both sides: what a cell occupies is decided twice, once by the generator in memory and once by the loader from the rows, and the two do not agree |
-| `spec_compliance_test.exs`, "every column a placement can state is carried across the wire" | The rest of phase 3: the payload's field list becoming a copy generated from the schema | Seven columns a placement can state never reach the wire, because `mapPayload.ts` names its 42 fields one at a time: `thickness_axis`, `stack_at`, `color_role`, `leaf_color`, `foliage`, `surface`, `pinned`. Nothing authors them today, so nothing is being lost yet, and a hand-written list is exactly the thing that falls behind without anyone noticing |
 
 A gate here is never weakened to make it pass, and never deleted because it is red. When its phase
 lands, the tag comes off.

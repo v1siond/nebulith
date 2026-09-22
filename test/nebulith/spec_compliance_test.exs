@@ -70,7 +70,10 @@ defmodule Nebulith.SpecComplianceTest do
     "buildingType" => "building_templates.key, phase 8",
     "edge" => "tiles.autotile_slot, phase 7",
     "cellPart" => "tiles.autotile_slot, phase 7. Debug labels only, it touches no renderer",
-    "footprint" => "compositions, phase 7"
+    "footprint" => "compositions, phase 7",
+    "columns" =>
+      "every served column the engine does not model, kept under the column's own name so " <>
+        "nothing is dropped. Not a second vocabulary: the keys ARE the columns"
   }
 
   @deleted ~w(walkable blocking blocked blocks_movement is_solid occupies)
@@ -153,30 +156,45 @@ defmodule Nebulith.SpecComplianceTest do
   end
 
   describe "the payload carries the schema, rather than a list somebody maintains" do
-    # A GATE FOR WORK NOT YET DONE. Phase 3 says the hand-written field list becomes "a copy generated
-    # from the schema", and today it is still hand-written: 42 columns named one at a time in
-    # `mapPayload.ts`. What a hand-written list does is fall behind, silently, and a setting that is
-    # authored, saved and simply gone is the defect the phase exists to delete.
-    #
-    # It is written now rather than after the fix, because a gate added afterwards has never been seen
-    # to fail. Run it with `mix test --include awaiting_phase`.
-    @tag :awaiting_phase
-    test "every column a placement can state is carried across the wire" do
-      # The columns that are NOT settings, each with the reason. A foreign key and an ordering are the
-      # storage's own business, and the engine addresses a tile by label rather than by id.
-      backend_only = ~w(cell_id composition_id tile_id composition_instance_id stack_index)
+    test "every column a placement can state is either reshaped or carried as it is" do
+      # THE SPEC'S OWN ACCOUNTING (section 9): `cell_tiles` has seven structural columns that are not
+      # settings at all, and `id` never leaves the server, so six of them are named on the wire's
+      # structural list. Everything else is a setting and has to survive a save.
+      structural = ~w(cell_id composition_id tile_id level stack_index composition_instance_id)
+
+      # The engine splits the settings in two. What it reshapes it names; what it does not model it
+      # carries verbatim under the column's own name, and WHICH those are is derived from the served
+      # field list rather than written down, so this cannot fall behind by being forgotten.
+      schema = read_asset("game/lib/tileDefaults.ts")
+      reshaped = quoted_names_in(schema, "RESHAPED")
+      on_wire_structural = quoted_names_in(schema, "STRUCTURAL")
+
+      assert Enum.sort(on_wire_structural) == Enum.sort(structural),
+             "the engine's idea of which columns are structural has drifted from the spec's: " <>
+               "#{inspect(on_wire_structural)} against #{inspect(structural)}"
+
+      settings =
+        Nebulith.World.CellTile.settable_fields()
+        |> Enum.map(&Atom.to_string/1)
+        |> Enum.reject(&(&1 in structural))
+
+      # A setting the codec reshapes is named in the codec. One it does not is carried by name. Neither
+      # list may claim a column that is not a setting, or one spelling would silently beat the other.
+      not_settings = Enum.reject(reshaped, &(&1 in settings))
+
+      assert not_settings == [],
+             "the codec reshapes #{inspect(not_settings)}, which the schema does not serve as a setting"
 
       codec = read_asset("game/lib/mapPayload.ts")
 
-      dropped =
-        Nebulith.World.CellTile.settable_fields()
-        |> Enum.map(&Atom.to_string/1)
-        |> Enum.reject(&(&1 in backend_only))
-        |> Enum.reject(&(String.contains?(codec, &1) or String.contains?(codec, camel(&1))))
+      missing =
+        Enum.reject(
+          reshaped,
+          &(String.contains?(codec, &1) or String.contains?(codec, camel(&1)))
+        )
 
-      assert dropped == [],
-             "#{length(dropped)} columns a placement can state never reach the wire, so authoring one " <>
-               "saves nothing and loading one restores nothing: #{Enum.join(dropped, ", ")}"
+      assert missing == [],
+             "these columns are listed as reshaped but the codec never names them: #{inspect(missing)}"
     end
   end
 
@@ -281,6 +299,21 @@ defmodule Nebulith.SpecComplianceTest do
     do: Map.has_key?(@engine_only, field) or field in columns() or snake(field) in columns()
 
   defp columns, do: Enum.map(Nebulith.World.CellTile.settable_fields(), &Atom.to_string/1)
+
+  # The quoted names inside a named `const X: ReadonlySet<string> = new Set([...])` in a TypeScript file.
+  defp quoted_names_in(source, name) do
+    case String.split(source, "const #{name}: ReadonlySet<string> = new Set([", parts: 2) do
+      [_, rest] ->
+        rest
+        |> String.split("])", parts: 2)
+        |> hd()
+        |> then(&Regex.scan(~r/'([^']+)'/, &1))
+        |> Enum.map(&Enum.at(&1, 1))
+
+      _ ->
+        []
+    end
+  end
 
   defp camel(name) do
     [first | rest] = String.split(name, "_")

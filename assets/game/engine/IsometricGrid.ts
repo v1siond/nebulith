@@ -18,7 +18,7 @@ import { groundSideColor, groundTileColor, groundTileHeight } from './tileset/gr
 import { styleTile } from './tileset/styleTiles'
 import { tileCatalogHeight } from './tileset/tileHeight'
 import { placementColor, placementSettings } from './tileset/placementSettings'
-import { numericDefault } from '@/lib/tileDefaults'
+import { numericDefault, servedColumnDefaults } from '@/lib/tileDefaults'
 
 /** WHICH CATALOGUE ROW A PLACEMENT IS, in the order the save path resolves it, so a placement and its saved
  *  row can never disagree about which tile they are. */
@@ -60,6 +60,19 @@ export interface GridAsset {
    * its cell's heading and every river on every map drifted the same way. Absent = still.
    */
   flow?: number
+  /**
+   * EVERY SERVED COLUMN THIS ENGINE DOES NOT MODEL, kept exactly as it arrived.
+   *
+   * The renderer understands a placement's size, pose, thickness and colour. It has no idea what
+   * `foliage` or `surface` mean, and it does not need one: what it must not do is LOSE them. A copy
+   * function that names its fields by hand drops whatever nobody remembered to add, and a setting that
+   * is authored, saved and simply gone looks exactly like a rendering bug.
+   *
+   * So the columns the codec reshapes are named there, and these are the rest, worked out from the
+   * served field list. A column added to `cell_tiles` round-trips the day it is added, with no change
+   * here. When a renderer learns to draw one, it moves out of this bag and into its own field.
+   */
+  columns: Record<string, unknown>
   width: number        // WIDTH: how wide the tile draws, in every view. The column is `width`, and so
                         // is this: an engine that spells a setting differently from the column is a
                         // second vocabulary whose whole job is to be translated back.
@@ -219,6 +232,10 @@ export function newPlacement(art: string[], col: number, row: number, options: P
     // So absence keeps meaning "ask the tile", exactly as it does for thickness, and the save/load
     // pair below agrees with that: a pose that moves nothing is written as identity and comes back
     // absent.
+    // AND THE COLUMNS THE ENGINE DOES NOT MODEL, at the values the database states for them. Stated for
+    // the same reason as everything else here: a stamped tile and the same tile read back off the wire
+    // have to be the same object, and a bag that is empty on one path and full on the other is not.
+    columns: options.columns ?? servedColumnDefaults(),
     opacity: options.opacity ?? numericDefault('opacity'),
     brightness: options.brightness ?? numericDefault('brightness'),
     zIndex: options.zIndex ?? numericDefault('draw_order'),
@@ -537,6 +554,10 @@ export class IsometricGrid {
   private makeFloorAsset(col: number, row: number, slug: string, color?: string): GridAsset {
     return {
       art: [''], col, row, type: FLOOR_TYPE, tileKey: slug, heightLevel: 0,
+      // …AND THE COLUMNS THE ENGINE DOES NOT MODEL, at what the database states. A floor is a regular
+      // tile, so it carries them like any other placement, or the ground compares unequal to itself
+      // across a save for a setting nobody here has ever read.
+      columns: servedColumnDefaults(),
       // THE HEIGHT IS STATED, because every placement states its own. Terrain is 0 in the catalogue, so a
       // floor lies flat; leaving it unsaid is not "let the tile decide", it is the column's default of one
       // whole block, which is a field of cubes where the ground should be. The renderer reads the

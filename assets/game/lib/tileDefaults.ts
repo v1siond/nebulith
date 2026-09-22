@@ -114,3 +114,57 @@ export function booleanDefault(field: string): boolean {
 export function stringDefault(field: string): string {
   return String(defaultOf(field))
 }
+
+
+/**
+ * THE COLUMNS THE CODEC RESHAPES, each named because the engine holds it under a different shape: five
+ * of them as a pose, four as thickness reaches, five as a settings bundle, three counted from the
+ * other end, one as a quarter turn.
+ */
+const RESHAPED: ReadonlySet<string> = new Set([
+  'stack_level',
+  'width', 'height', 'depth',
+  'thickness_lu', 'thickness_ru', 'thickness_ld', 'thickness_rd',
+  'span_forward', 'span_back', 'span_perp', 'span_perp_back', 'span_axis',
+  'nudge_x', 'nudge_y', 'rotation', 'mirror', 'art_scale', 'muzzle',
+  'slide_amount', 'slide_direction', 'draw_order',
+  'act_as_tile', 'display', 'transparent', 'fade_near', 'cutaway_near', 'min_alpha',
+  'shape', 'opacity', 'brightness',
+  'color', 'side_color', 'bg_color',
+  'sign_text', 'sign_color',
+  'water_heading',
+  'animations', 'placed_at',
+])
+
+/**
+ * The columns the BACKEND owns: identity and ordering, never a setting. The spec counts seven of them
+ * (section 9) and `id` never leaves the server at all, so six are named here. A placement speaks by
+ * label and the backend resolves the label to a row, which is why `tile_id` is on this list.
+ */
+const STRUCTURAL: ReadonlySet<string> = new Set([
+  'cell_id', 'composition_id', 'tile_id', 'level', 'stack_index', 'composition_instance_id',
+])
+
+/**
+ * Every served column the codec does not reshape, so every one of them is carried as it is.
+ *
+ * This is what the plan means by a copy generated from the schema. A hand-written list of what to copy
+ * drops whatever nobody remembered to add to it, and a placement whose setting is silently gone looks
+ * exactly like a rendering bug. A list derived from the served fields cannot fall behind them, so a
+ * column added to `cell_tiles` round-trips the day it is added.
+ *
+ * Empty until the schema has landed, which is the honest answer: with nothing served there is nothing
+ * to carry, and a list invented here would be the engine holding a second opinion about what the
+ * database has.
+ */
+export function carriedColumns(): string[] {
+  return (tileSchema()?.fields ?? []).filter((f) => !RESHAPED.has(f) && !STRUCTURAL.has(f))
+}
+
+/** Those same columns at the values the database states for them, for a placement stating them fresh. */
+export function servedColumnDefaults(): Record<string, unknown> {
+  const out: Record<string, unknown> = {}
+  for (const column of carriedColumns()) out[column] = defaultOf(column)
+
+  return out
+}
