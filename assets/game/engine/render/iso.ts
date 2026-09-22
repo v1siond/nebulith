@@ -692,6 +692,7 @@ export function render(params: IsoRenderParams) {
       return pt.y - rise <= h + tileH && pt.y >= -marginTop
     })
   }
+  const __isoTCull = perfNow()
   const onScreenAssets = rectAssets.filter(onScreen)
   const visibleAssets = rangeOn ? onScreenAssets.filter(tileInRange).map(clipToRange) : onScreenAssets
   // WHAT EACH CULL THREW AWAY, published like `__isoRenderMs`.
@@ -773,7 +774,9 @@ export function render(params: IsoRenderParams) {
   ]
   // back-to-front, then bottom-up within a stacked cell (higher blocks over lower), keyed on the ORIENTED
   // coord so occlusion stays correct from whichever corner the camera looks. Turn 0 → isoDepthCompare itself.
+  const __isoTSort = perfNow()
   allObjects.sort(isoDepthComparatorFor(allObjects, grid.cols, grid.rows, turn))
+  const __isoTDraw = perfNow()
 
   // Render each object with ASCII art style
   const playerIsTarget = !!targetId && entities.some(e => e.kind === 'player' && e.id === targetId)
@@ -1133,6 +1136,20 @@ export function render(params: IsoRenderParams) {
 
   const __isoMs = perfNow() - __isoT0
   isoRenderMsEMA = isoRenderMsEMA === 0 ? __isoMs : isoRenderMsEMA * 0.9 + __isoMs * 0.1
+  // WHERE THE FRAME WENT, beside the total. "Rendering is slow" is three different problems: deciding
+  // what is visible, ordering it, and actually painting it, and they have nothing in common. Published
+  // as a rolling average like the total, so a probe reads a settled number rather than one frame's noise.
+  if (typeof window !== 'undefined') {
+    const phases = (window as unknown as { __isoPhases?: Record<string, number> }).__isoPhases ?? {}
+    const ease = (was: number | undefined, now: number): number => (was === undefined ? now : was * 0.9 + now * 0.1)
+    ;(window as unknown as { __isoPhases?: Record<string, number> }).__isoPhases = {
+      setup: ease(phases.setup, __isoTCull - __isoT0),
+      cull: ease(phases.cull, __isoTSort - __isoTCull),
+      sort: ease(phases.sort, __isoTDraw - __isoTSort),
+      draw: ease(phases.draw, perfNow() - __isoTDraw),
+      objects: allObjects.length,
+    }
+  }
   if (typeof window !== 'undefined') (window as unknown as { __isoRenderMs?: number }).__isoRenderMs = isoRenderMsEMA
 }
 

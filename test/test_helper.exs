@@ -18,7 +18,11 @@ if browser?, do: {:ok, _} = PhoenixTest.Playwright.Supervisor.start_link()
 #     bin/e2e --include awaiting_phase
 #
 # docs/TESTING.md lists which gates are waiting and on what.
-ExUnit.configure(exclude: [:awaiting_phase] ++ if(browser?, do: [], else: [:e2e]))
+# AND THE PERFORMANCE MEASUREMENTS, which are minutes each: three whole world generations and nine
+# timed samples. They are asked for by name:
+#
+#     bin/e2e test/e2e/performance_test.exs --include perf
+ExUnit.configure(exclude: [:awaiting_phase, :perf] ++ if(browser?, do: [], else: [:e2e]))
 
 # WHERE THE BROWSER THINKS THE APP IS. Normally that is the endpoint's own URL. When the browser runs in a
 # container (this machine's Ubuntu 20.04 has no supported Playwright chromium, see config/test.exs), the app
