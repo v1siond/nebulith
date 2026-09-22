@@ -17,6 +17,8 @@
  *    does NOT substitute a glyph, an emoji or another style's art, that is how 15 pictureless items came
  *    to look finished in the old inventory panel.
  */
+import { occupiesItsCell } from '@/engine/tileset/tilesetLoader'
+import { cellStopsYou } from '@/game/runtime/composition'
 import { styleCatalog, styleTile } from './tileset/styleTiles'
 import type { Composition, CompositionCell } from './tileset/tileset'
 
@@ -74,7 +76,8 @@ export function tileFacts(styleId: string, label: string): TileFacts | undefined
     frameMs: setting(tile, 'frameMs', isNumber),
     artRows: artFrames?.[0]?.length ?? 0,
     category: tile.category,
-    blocks: !tile.walkable,
+    // WHAT IT OCCUPIES, asked of the boxes rather than of a flag derived from them.
+    blocks: occupiesItsCell(tile),
     height: tile.height,
     scaleY: setting(tile, 'scaleY', isNumber),
     stacks: tile.settings?.actAsTile === true,
@@ -143,7 +146,8 @@ function planOf(cells: readonly CompositionCell[]): PlanCell[] {
   for (const cell of cells) {
     const key = `${cell.dx},${cell.dy}`
     const existing = byKey.get(key)
-    const walkable = cell.walkable === true
+    // What it OCCUPIES answers this now; `walkable` was the flag that used to be translated into it.
+    const walkable = !cellStopsYou(cell)
     if (!existing) byKey.set(key, { dx: cell.dx, dy: cell.dy, walkable })
     else existing.walkable = existing.walkable && walkable
   }

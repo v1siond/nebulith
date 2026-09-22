@@ -7,7 +7,6 @@ defmodule Nebulith.Catalog.CompositionCell do
     field :dy, :integer
     field :level, :integer
     field :label, :string
-    field :walkable, :boolean, default: false
 
     # Uniform draw ZOOM for this cell's tile, the render multiplies every axis by it (iso.ts `zoom =
     # asset.scale`), so a cell can hold a tile bigger than one block. The tree's canopy is ONE leaf cell
@@ -48,7 +47,6 @@ defmodule Nebulith.Catalog.CompositionCell do
       :dy,
       :level,
       :label,
-      :walkable,
       :scale,
       :z_index,
       :animations,

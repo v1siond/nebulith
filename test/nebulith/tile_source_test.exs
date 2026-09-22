@@ -362,8 +362,17 @@ defmodule Nebulith.TileSourceTest do
 
     post = Enum.find(cells, &(&1.label == "post"))
     lamp = Enum.find(cells, &(&1.label == "lamp"))
-    refute post.walkable, "the post base blocks movement"
-    assert lamp.walkable, "the lamp sits overhead (walkable)"
+    # WHAT IT OCCUPIES IS THE ONLY STATEMENT about walking through a cell. `walkable` was a flag the
+    # stamp turned into this very box list, so the box list is what the composition stores now.
+    stops? = fn cell ->
+      case get_in(cell.settings, ["collision"]) do
+        nil -> true
+        boxes -> boxes != []
+      end
+    end
+
+    assert stops?.(post), "the post base blocks movement"
+    refute stops?.(lamp), "the lamp sits overhead, you walk under it"
   end
 
   test "the lamp_post cells carry the tuned tile settings, a tall thin post + a single bulb lifted on top" do

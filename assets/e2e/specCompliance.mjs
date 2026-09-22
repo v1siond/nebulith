@@ -15,6 +15,12 @@
  *        literal standing in for one is the engine holding a second opinion about a value the database
  *        already states, and it is the opinion that reaches the screen.
  *
+ * PHASE 3'S DELETE LIST, which is the other half of law 1. `walkable`, `blocking`, `blocked`,
+ *        `blocks_movement`, `is_solid` and `occupies` are gone as STORED and SERVED words: what a tile
+ *        occupies is the only statement about walking through it. The words survive as local names
+ *        inside a planner and inside movement, which is what a variable is for; what may not survive is
+ *        a column, a served field, or a type the engine carries between them.
+ *
  * LAW 12 The frontend sets no limits. No minimum, no maximum, no step invented in React.
  *
  * Both are read from the source and from /api/maps/schema, never from a copy.
@@ -169,6 +175,37 @@ for (const file of WRITERS) {
     `${file.split('/').pop()} states no served value as a literal`,
     hits.length ? `\n    ${hits.join('\n    ')}` : '',
   )
+}
+
+// ── PHASE 3'S DELETE LIST ────────────────────────────────────────────────────────────────────────
+const DELETED = ['walkable', 'blocking', 'blocked', 'blocks_movement', 'is_solid', 'occupies']
+
+// Nothing in the DELETE list may be SERVED. The composition cell carried `walkable` and the stamp
+// turned it into a box list three lines after reading it, which is a second vocabulary whose whole job
+// was to be translated back.
+const servedTilesets = await page.evaluate(async (base) => {
+  const res = await fetch(`${base}/api/tilesets`)
+  return JSON.stringify((await res.json()).data ?? [])
+}, BASE)
+
+for (const word of DELETED) {
+  check(
+    !new RegExp(`"${word}"\\s*:`).test(servedTilesets),
+    `the tileset payload serves no ${word}`,
+  )
+}
+
+// …and the engine's own types may not carry them between the wire and a draw.
+for (const [file, typeName] of [
+  ['../game/engine/tileset/styleTiles.ts', 'StyleTile'],
+  ['../game/engine/tileset/tileset.ts', 'CompositionCell'],
+  ['../game/engine/tileset/tileset.ts', 'ResolvedTile'],
+]) {
+  const src = readFileSync(new URL(file, import.meta.url), 'utf8')
+  const start = src.indexOf(`export interface ${typeName} {`)
+  const body = start < 0 ? '' : src.slice(start, src.indexOf('\n}', start))
+  const carried = DELETED.filter((w) => new RegExp(`^\\s{2}${w}\\??:`, 'm').test(body))
+  check(carried.length === 0, `${typeName} carries none of the deleted words`, carried.join(', '))
 }
 
 const inspector = readFileSync(new URL('../game/components/editorInspector.tsx', import.meta.url), 'utf8')

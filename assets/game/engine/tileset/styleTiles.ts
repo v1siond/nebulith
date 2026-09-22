@@ -34,8 +34,9 @@ export interface StyleTile {
   category?: string
   /** Iso BLOCK height: 0 = a flat ground square, 1 = one cube, N = N tall. A LABEL fact. */
   height?: number
-  /** Does it block movement? A LABEL fact. */
-  walkable: boolean
+  // WHAT IT OCCUPIES IS THE ONLY STATEMENT about walking through a tile, and it lives in
+  // `settings.collision`. `walkable` sat here derived from exactly those boxes, which is one fact with
+  // two owners: ask `occupiesItsCell`.
   /**
    * THE PER-STYLE FIELD, the baked PNG this style draws for this label. This is the whole difference
    * between `grass` in ascii and `grass` in emoji.
@@ -152,10 +153,10 @@ export function setSharedComposition(kind: string, comp: StyleCatalog['compositi
 /**
  * A tile with the required fields filled in, for callers that only care about a couple of them.
  *
- * `walkable` defaults true and `char` to empty, so a caller states only what it is testing or authoring.
+ * `char` defaults to empty, so a caller states only what it is testing or authoring.
  */
 export function makeStyleTile(label: string, over: Partial<StyleTile> = {}): StyleTile {
-  return { label, char: '', walkable: true, ...over }
+  return { label, char: '', ...over }
 }
 
 /** Install a whole style from sparse rows, the label is filled in from the key. */

@@ -88,8 +88,11 @@ export interface CompositionCell {
   level?: number
   /** The tile placed in this cell, a swap-key label resolved via resolveTile against the active tileset. */
   label: string
-  /** Cell collision, false (blocking) by default; a walkable cell (an open doorway) sets true. */
-  walkable?: boolean
+  // WHAT IT OCCUPIES IS THE ONLY STATEMENT about walking through this cell, and it is in
+  // `settings.collision`. `walkable` used to sit here, was stored as a flag, and was turned into a box
+  // list by the stamp a few lines after it was read: a second vocabulary whose whole job was to be
+  // translated back. The backend converts it at the one door into storage now, so what arrives is the
+  // box list and nothing else.
   /** Uniform draw ZOOM for this cell's tile (backend `composition_cells.scale`), the render multiplies every
    *  axis by it (iso `zoom = asset.scale`), so a cell can hold a tile bigger than one block. The tree's canopy
    *  is ONE leaf cell at scale 2 (a 2×2 crown). Absent/1 → the tile draws at one block, unchanged. */
@@ -265,11 +268,10 @@ export interface ResolvedTile {
    * `makeThicket` hardcoded that same `true` in the frontend rather than asking. Absent for an unknown
    * label, and an unknown label must not become an invisible wall, so the fallback below states `true`.
    */
-  walkable?: boolean
 }
 
 // Unknown label → the same visible-but-neutral fallback the hardcoded path used (never blank/throw).
-export const FALLBACK_RESOLVED: ResolvedTile = { char: '?', color: '#cccccc', walkable: true }
+export const FALLBACK_RESOLVED: ResolvedTile = { char: '?', color: '#cccccc' }
 
 /** The GENERIC render-behavior keys (`fadeNear`/`cutawayRoof`/`display`) a stamp copies from a resolved
  *  tile's `settings` onto the placed asset. Returns undefined when the tile carries none (the common case),
@@ -468,7 +470,7 @@ export interface TileSource {
 export function resolveTile(tileset: TileSource, zone: string, label: string, variant = 0): ResolvedTile {
   const tile = tileset.tiles[label]
   if (!tile) return FALLBACK_RESOLVED
-  return { char: tile.char, color: resolveTileColor(tile, zone, variant), height: tile.height, settings: tile.settings, walkable: tile.walkable }
+  return { char: tile.char, color: resolveTileColor(tile, zone, variant), height: tile.height, settings: tile.settings }
 }
 
 /** The multi-cell COMPOSITION for an asset kind from a LOADED tileset (null if none). Pure, the caller

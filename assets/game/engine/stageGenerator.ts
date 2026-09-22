@@ -57,7 +57,7 @@ function groundBlockHeight(slug: string): number {
 }
 // The ONE per-cell mapping the live composition stamp uses, the save path expands its anchors through it too,
 // so a generated stage RELOADS exactly as it was stamped (height / z-width / scale / pose / animations).
-import { compositionCellRender } from '@/game/runtime/composition'
+import { cellStopsYou, compositionCellRender } from '@/game/runtime/composition'
 import { flood, forEachCell, inBounds, isEdge, toCell, ORTHO, type Cell } from './grid'
 import { darkenColor, varyIntensity } from './colors'
 import { groundTileColor } from './tileset/groundColor'
@@ -7679,7 +7679,7 @@ function anchorAssets(stage: StageData, kind: string, anchorCol: number, anchorR
       col,
       row,
       type: kind,
-      occupies: !c.walkable,
+      occupies: cellStopsYou(c),
       color: tile.color,
       label: c.label,
       footprint: undefined,

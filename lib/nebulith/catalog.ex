@@ -419,12 +419,39 @@ defmodule Nebulith.Catalog do
       for attrs <- cell_attrs_list do
         {:ok, _} =
           %CompositionCell{}
-          |> CompositionCell.changeset(Map.put(attrs, :composition_id, comp.id))
+          |> CompositionCell.changeset(
+            attrs |> occupied_instead_of_walkable() |> Map.put(:composition_id, comp.id)
+          )
           |> Repo.insert()
       end
 
       Repo.preload(comp, :cells)
     end)
+  end
+
+  @full_cell [%{"x" => 0, "y" => 0, "w" => 1, "h" => 1}]
+
+  @doc false
+  # WHAT A CELL OCCUPIES IS THE ONLY STATEMENT about walking through it.
+  #
+  # `walkable` is authoring sugar and it stops here. The compositions are written by hand and "this
+  # doorway is walkable" reads better at the author's end than a box list, but a flag that is STORED and
+  # then turned into a box at read time is a second vocabulary whose whole job is to be translated back.
+  # The stamp used to do exactly that, a few lines after reading it.
+  #
+  # So the word is allowed in the authoring map and nowhere else: it is converted at the one door into
+  # storage, the way `trunk_settings` converts a species' authoring words into the ones a cell speaks.
+  # A cell that states its own collision keeps it, because an authored box list is finer than the flag.
+  defp occupied_instead_of_walkable(attrs) do
+    {walkable, rest} = Map.pop(attrs, :walkable)
+    settings = rest[:settings] || rest["settings"] || %{}
+
+    case {walkable, Map.has_key?(settings, "collision")} do
+      {nil, _} -> rest
+      {_, true} -> rest
+      {true, false} -> Map.put(rest, :settings, Map.put(settings, "collision", []))
+      {false, false} -> Map.put(rest, :settings, Map.put(settings, "collision", @full_cell))
+    end
   end
 
   @doc """

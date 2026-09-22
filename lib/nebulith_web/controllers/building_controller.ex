@@ -91,7 +91,6 @@ defmodule NebulithWeb.BuildingController do
             dy: cell.dy,
             level: cell.level,
             label: cell.label,
-            walkable: cell.walkable
           }
           |> maybe_put(:settings, Map.get(cell, :settings))
         end)

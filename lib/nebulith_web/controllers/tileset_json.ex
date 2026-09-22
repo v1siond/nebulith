@@ -80,7 +80,6 @@ defmodule NebulithWeb.TilesetJSON do
       dy: cell.dy,
       level: cell.level,
       label: cell.label,
-      walkable: cell.walkable,
       scale: cell.scale,
       zIndex: cell.z_index
     }

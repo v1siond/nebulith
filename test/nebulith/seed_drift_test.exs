@@ -14,7 +14,7 @@ defmodule Nebulith.SeedDriftTest do
   GENERATION-SPEC §5.4 a building's APPEARANCE (materials / roof / wall colour) is legitimately
   re-rolled AT LOAD via a salt, so a colour comparison would false-positive on every fountain and
   house. Composition cells carry no colour at all (colour is a per-TILE setting); the `@anchor_keys`
-  list below is the contract, dx/dy/level/label/walkable + the structural settings that shape the
+  list below is the contract, dx/dy/level/label + the structural settings that shape the
   block (scaleY / depth / scale / z_index / animations), and nothing that a load-time salt can move.
 
   ## CI / fixture note
@@ -31,7 +31,10 @@ defmodule Nebulith.SeedDriftTest do
   alias Nebulith.Catalog.BuildingCompositions
 
   # The stable identity of a composition cell, geometry + anchor. NOT colour/material (salted at load).
-  @anchor_keys [:dx, :dy, :level, :label, :walkable]
+  # WHAT A CELL OCCUPIES rides in `settings.collision` now, with the rest of the structural settings,
+  # so the anchor is where a cell IS and what it is. `walkable` sat here until phase 3 deleted it: it was
+  # stored as a flag and turned into that very box list by the stamp, a few lines after being read.
+  @anchor_keys [:dx, :dy, :level, :label]
 
   setup do
     # FRESH SEED = the served catalog under test. (Prints a summary line; harmless in tests.)
@@ -60,7 +63,6 @@ defmodule Nebulith.SeedDriftTest do
       dy: c.dy,
       level: c.level,
       label: c.label,
-      walkable: c.walkable,
       scale: c.scale,
       z_index: c.z_index,
       settings: c.settings,
@@ -71,19 +73,37 @@ defmodule Nebulith.SeedDriftTest do
   defp anchor(cell), do: Map.take(cell, @anchor_keys)
 
   # A source cell (BuildingCompositions) → the comparable shape. Source cells omit defaulted columns,
-  # so a missing scale = the DB default 1.0, a missing z_index = 0, missing walkable = false.
+  # so a missing scale = the DB default 1.0 and a missing z_index = 0.
+  #
+  # AND `walkable` IS CONVERTED, exactly as the insert converts it. The word is authoring sugar that
+  # stops at the one door into storage (`Catalog.upsert_composition_with_cells`), where it becomes the
+  # box list that is the only statement about walking through a cell. Comparing the raw authoring map
+  # against the stored row would assert that the conversion never happens, which is the opposite of what
+  # phase 3 asks for; comparing it after the same conversion is what "no drift" means here.
   defp source_cell(c) do
     %{
       dx: c.dx,
       dy: c.dy,
       level: c.level,
       label: c.label,
-      walkable: Map.get(c, :walkable, false),
       scale: Map.get(c, :scale, 1.0),
       z_index: Map.get(c, :z_index, 0),
-      settings: Map.get(c, :settings),
+      settings: source_settings(c),
       animated: is_list(Map.get(c, :animations)) and Map.get(c, :animations) != []
     }
+  end
+
+  @full_cell [%{"x" => 0, "y" => 0, "w" => 1, "h" => 1}]
+
+  defp source_settings(c) do
+    settings = Map.get(c, :settings) || %{}
+
+    case {Map.get(c, :walkable), Map.has_key?(settings, "collision")} do
+      {nil, _} -> Map.get(c, :settings)
+      {_, true} -> settings
+      {true, false} -> Map.put(settings, "collision", [])
+      {false, false} -> Map.put(settings, "collision", @full_cell)
+    end
   end
 
   # ── the checks ───────────────────────────────────────────────────────────────

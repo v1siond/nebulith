@@ -143,6 +143,29 @@ export type CompositionCellRender = Pick<
 // at level 0). Added to the cell's OWN authored level so the whole composition rises as one, the live callers
 // pass the cell's shared stack top (`cellStackTop`), so a composition just lands ON TOP of the floor tile like
 // any stacked tile; there is no floor-special lift.
+/** WHAT A COMPOSITION CELL OCCUPIES, as the box list it is authored and stored as. */
+function cellCollision(cell: CompositionCell): Array<{ x: number; y: number; w: number; h: number }> | undefined {
+  const boxes = (cell.settings as { collision?: unknown } | undefined)?.collision
+  return Array.isArray(boxes) ? (boxes as Array<{ x: number; y: number; w: number; h: number }>) : undefined
+}
+
+/**
+ * DOES THIS CELL STOP YOU? The one question, asked of the one thing that answers it.
+ *
+ * A cell with no boxes stops you: a composition cell that says nothing about what it occupies is a
+ * solid piece of the object, which is what `walkable` defaulting to false used to mean. An empty box
+ * list is the explicit "you may walk here" an open doorway states.
+ */
+export function cellStopsYou(cell: CompositionCell): boolean {
+  const boxes = cellCollision(cell)
+  return !boxes || boxes.length > 0
+}
+
+/** Do two cells stop you in the same way? The run-collapse may only merge cells that agree. */
+function sameCollision(a: CompositionCell, b: CompositionCell): boolean {
+  return JSON.stringify(cellCollision(a) ?? null) === JSON.stringify(cellCollision(b) ?? null)
+}
+
 /** Turn a thickness reach map by the building's quarter-turns. Undefined stays undefined, a tile with no
  *  thickness must not acquire one from a rotation. */
 function rotateThickness(reach: ThicknessReach | undefined, rotation: number): ThicknessReach | undefined {
@@ -343,7 +366,7 @@ export function stampComposition(grid: IsometricGrid, kind: string, anchorCol: n
         j + 1 < cells.length &&
         (cells[j + 1].level ?? 0) === (cells[j].level ?? 0) + 1 &&
         cells[j + 1].label === cells[i].label &&
-        cells[j + 1].walkable === cells[i].walkable
+        sameCollision(cells[j + 1], cells[i])
       )
         j++
       if (stampRun(grid, comp, kind, cells[i], j - i + 1, anchorCol, anchorRow, w, h, rotation, zone, variant, over, baseLevel)) placed += j - i + 1
@@ -414,18 +437,22 @@ function stampRun(
   // pose/shape/light, behavior settings + apex signage, animations, through the ONE shared mapping the SAVE
   // path uses too, so the live stamp and a reloaded save can never diverge.
   Object.assign(asset, compositionCellRender(comp, c, tile, span, rotation, baseLevel))
-  // A CELL MAY OVERRIDE WHAT IT OCCUPIES, an open doorway in a wall is the case this exists for. It used to
-  // say so with `walkable`, a flag beside the tile; it says so with a box list now, which is the only
-  // statement about walking through a tile. Written AFTER the render mapping so it cannot be clobbered by it,
-  // and only at the GROUND course, for the reason in the note above: the collision map is 2D, so a roof five
-  // levels up must not seal the floor beneath it.
-  if (grounded) asset.settings = { ...asset.settings, collision: c.walkable ? [] : [{ x: 0, y: 0, w: 1, h: 1 }] }
-  if (grounded && !c.walkable) grid.setCollision(col, row, true)
+  // A CELL MAY OVERRIDE WHAT IT OCCUPIES, an open doorway in a wall is the case this exists for, and it
+  // says so with a box list, which is the only statement about walking through a tile. It arrives that
+  // way now: the flag it used to arrive as was translated into this very shape three lines later, so
+  // the translation moved to the one door into storage and the word stopped being stored at all.
+  //
+  // Written AFTER the render mapping so it cannot be clobbered by it, and only at the GROUND course,
+  // for the reason in the note above: the collision map is 2D, so a roof five levels up must not seal
+  // the floor beneath it.
+  const boxes = cellCollision(c)
+  if (grounded && boxes) asset.settings = { ...asset.settings, collision: boxes }
+  if (grounded && boxes?.length) grid.setCollision(col, row, true)
   if (flatten) {
     asset.height = 1
     asset.heightLevel = (comp.cells.reduce((lowest, x) => (isRoofLabel(x.label) ? Math.min(lowest, x.level ?? 0) : lowest), Infinity) || 0) + baseLevel
   }
-  if (!c.walkable && grounded) grid.setCollision(col, row, true) // ground course only, see the note above
+  if (boxes?.length && grounded) grid.setCollision(col, row, true) // ground course only, see the note above
   return true
 }
 

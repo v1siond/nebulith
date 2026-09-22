@@ -97,7 +97,7 @@ function absoluteFrames(settings: Record<string, unknown> | undefined): Record<s
 /** Does this tile occupy any part of its cell? A tile is solid where its boxes are, and one with no boxes is
  *  not solid at all: an empty list SAYS "nothing here", which is why the backend writes it rather than
  *  leaving the key off. See `collisionBoxes.ts` for the box model itself. */
-function occupiesItsCell(tile: ApiTile): boolean {
+export function occupiesItsCell(tile: { settings?: { collision?: unknown } }): boolean {
   const boxes = tile.settings?.collision
   return Array.isArray(boxes) && boxes.length > 0
 }
@@ -108,12 +108,6 @@ function toStyleTile(label: string, tile: ApiTile): StyleTile {
     title: tile.title ?? undefined,
     category: tile.category,
     height: tile.height,
-    // WALKABILITY IS THE BOX LIST, and this one line is the whole frontend's notion of it.
-    // 2026-09-13: It read
-    // `!tile.blocking`, so every one of the ~86 `walkable` checks downstream was really asking the flag.
-    // The backend writes `settings.collision` on every row now (`ensure_collisions/0`), so they ask the
-    // boxes instead, and the flag has no readers left.
-    walkable: !occupiesItsCell(tile),
     image: abs(tile.image_url),
     // NO CHAR. A tile is an image; `image` above is it. This used to build a character from the served
     // glyph or emoji as a last resort for a missing png, and the renderers fell through to it. The backend
