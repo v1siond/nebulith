@@ -40,7 +40,10 @@ defmodule Nebulith.E2E.StubApi do
   """
   def stub(session, answers) when is_map(answers) do
     {:ok, _} =
-      PlaywrightEx.BrowserContext.add_init_script(session.context_id, source: script(answers))
+      PlaywrightEx.BrowserContext.add_init_script(session.context_id,
+        source: script(answers),
+        timeout: 10_000
+      )
 
     session
   end

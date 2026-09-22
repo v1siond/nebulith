@@ -57,6 +57,25 @@ docker image inspect "$IMAGE" >/dev/null 2>&1 || docker pull "$IMAGE"
 RUNNING="$(docker inspect -f '{{.State.Running}}' "$CONTAINER" 2>/dev/null || echo false)"
 [ "$RUNNING" = "true" ] || start_browser
 
+# THE ASSETS THE BROWSER WILL ACTUALLY LOAD, built by the toolchain that can build them.
+#
+# The endpoint serves whatever is in priv/static, so without this a scenario drives the javascript and
+# the css that happened to be built last, by whatever command built them. That is the same class of
+# mistake as testing against the dev database: it passes here and means nothing anywhere else.
+#
+# IN THE DEV ENVIRONMENT, because tailwind and esbuild are dev-only dependencies. Run under MIX_ENV
+# test they are not there, `mix assets.build` quietly produces a 43 rule stylesheet, and the page
+# renders with almost no styling at all. Measured: the documentation's contents rail then laid itself
+# out 4848px wide in a 1700px window, which reads exactly like a layout defect and is a missing build.
+# AND DIGESTED, because the test endpoint serves static files the way production does.
+#
+# `Plug.Static` is configured `gzip: not code_reloading?`, so dev serves app.css and test serves
+# app.css.gz. Building without digesting leaves a stale .gz beside a fresh .css, and the browser is
+# handed the old one: measured, a three day old stylesheet with 43 rules in it, which is why the
+# documentation page laid its contents rail out 4848px wide in a 1700px window. The scenario layer
+# drives the app the way it ships, so it builds it the way it ships.
+MIX_ENV=dev mix assets.deploy >/dev/null
+
 export PLAYWRIGHT_WS_ENDPOINT="ws://127.0.0.1:${WS_PORT}/"
 export PHOENIX_TEST_BASE_URL="http://${HOST_IP}:${APP_PORT}"
 

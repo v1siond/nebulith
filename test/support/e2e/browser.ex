@@ -58,6 +58,36 @@ defmodule Nebulith.E2E.Browser do
     poll(session, check, what, deadline, Keyword.get(opts, :every, @poll_ms))
   end
 
+  @doc """
+  Polls an expression until it returns something other than nil, and gives back THAT value.
+
+  For a fact that arrives rather than a condition that becomes true: the answer is the thing being
+  waited for, so waiting and then reading it again in a second call is two chances for it to change.
+  """
+  def wait_value(session, expression, opts \\ []) do
+    deadline = System.monotonic_time(:millisecond) + Keyword.get(opts, :timeout, 15_000)
+    poll_value(session, expression, deadline)
+  end
+
+  defp poll_value(session, expression, deadline) do
+    case js(session, expression) do
+      nil -> retry_value(session, expression, deadline)
+      value -> value
+    end
+  end
+
+  defp retry_value(session, expression, deadline) do
+    case System.monotonic_time(:millisecond) >= deadline do
+      true -> nil
+      false -> sleep_then_value(session, expression, deadline)
+    end
+  end
+
+  defp sleep_then_value(session, expression, deadline) do
+    Process.sleep(@poll_ms)
+    poll_value(session, expression, deadline)
+  end
+
   @doc "Polls until a JavaScript expression is true. The same wait, for the common case."
   def wait_for_js(session, expression, what, opts \\ []),
     do: wait_until(session, &true?(&1, expression), what, opts)
