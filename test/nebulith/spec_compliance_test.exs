@@ -120,6 +120,66 @@ defmodule Nebulith.SpecComplianceTest do
     end
   end
 
+  describe "law 7: a renderer reads a served value, it does not fall back to one" do
+    test "no renderer reads a REQUIRED field of a placement through a literal" do
+      # The writers check catches a literal being STORED. This catches one being READ, which is the
+      # half the spec's own gate names: "No renderer reads a served value through a fallback."
+      #
+      # Only the REQUIRED fields, and that is not a softening. A field the type guarantees is present
+      # cannot be absent at runtime unless something upstream is already broken, so `?? 1` on one is
+      # provably dead code whose only effect is to look like a safety net and to hide the day the
+      # value really does go missing. An optional field is a different question: `color` is absent on
+      # purpose, and "no colour, no shell" is the behaviour, not a gap.
+      required = required_grid_asset_fields()
+
+      assert length(required) > 5,
+             "the GridAsset interface parsed #{length(required)} required fields"
+
+      hits =
+        for file <- Path.wildcard(Path.join(@assets, "game/engine/render/*.ts")),
+            {line, n} <- numbered(File.read!(file)),
+            not Regex.match?(@served, line),
+            # NOT through an optional chain. In `a.asset?.zIndex ?? 0` the fallback covers a missing
+            # ASSET, which is a real possibility and a different question from a missing field.
+            [_, field, _] <-
+              Regex.scan(~r/(?<!\?)\.(\w+)\s*\?\?\s*(-?\d+(?:\.\d+)?|'[^']*'|"[^"]*")/, line),
+            field in required,
+            do: "#{Path.basename(file)}:#{n}  #{String.trim(line)}"
+
+      assert hits == [],
+             "a renderer invents a value the placement already carries:\n  " <>
+               Enum.join(hits, "\n  ")
+    end
+  end
+
+  describe "the payload carries the schema, rather than a list somebody maintains" do
+    # A GATE FOR WORK NOT YET DONE. Phase 3 says the hand-written field list becomes "a copy generated
+    # from the schema", and today it is still hand-written: 42 columns named one at a time in
+    # `mapPayload.ts`. What a hand-written list does is fall behind, silently, and a setting that is
+    # authored, saved and simply gone is the defect the phase exists to delete.
+    #
+    # It is written now rather than after the fix, because a gate added afterwards has never been seen
+    # to fail. Run it with `mix test --include awaiting_phase`.
+    @tag :awaiting_phase
+    test "every column a placement can state is carried across the wire" do
+      # The columns that are NOT settings, each with the reason. A foreign key and an ordering are the
+      # storage's own business, and the engine addresses a tile by label rather than by id.
+      backend_only = ~w(cell_id composition_id tile_id composition_instance_id stack_index)
+
+      codec = read_asset("game/lib/mapPayload.ts")
+
+      dropped =
+        Nebulith.World.CellTile.settable_fields()
+        |> Enum.map(&Atom.to_string/1)
+        |> Enum.reject(&(&1 in backend_only))
+        |> Enum.reject(&(String.contains?(codec, &1) or String.contains?(codec, camel(&1))))
+
+      assert dropped == [],
+             "#{length(dropped)} columns a placement can state never reach the wire, so authoring one " <>
+               "saves nothing and loading one restores nothing: #{Enum.join(dropped, ", ")}"
+    end
+  end
+
   describe "law 12: the frontend sets no limits" do
     test "every slider takes its bounds from dragRange, which grows rather than caps" do
       inspector = read_asset("game/components/editorInspector.tsx")
@@ -185,6 +245,23 @@ defmodule Nebulith.SpecComplianceTest do
 
   defp read_asset(path), do: @assets |> Path.join(path) |> File.read!()
 
+  # The fields GridAsset declares WITHOUT a question mark, which are the ones every placement carries.
+  defp required_grid_asset_fields do
+    "game/engine/IsometricGrid.ts"
+    |> read_asset()
+    |> interface_body("GridAsset")
+    |> then(&Regex.scan(~r/^\s{2}(\w+):/m, &1))
+    |> Enum.map(&Enum.at(&1, 1))
+  end
+
+  defp numbered(source) do
+    source
+    |> String.split("\n")
+    |> Enum.with_index(1)
+    |> Enum.map(fn {line, n} -> {strip_comments(line), n} end)
+    |> Enum.filter(fn {line, _n} -> String.contains?(line, "??") end)
+  end
+
   defp grid_asset_fields do
     "game/engine/IsometricGrid.ts"
     |> read_asset()
@@ -204,6 +281,11 @@ defmodule Nebulith.SpecComplianceTest do
     do: Map.has_key?(@engine_only, field) or field in columns() or snake(field) in columns()
 
   defp columns, do: Enum.map(Nebulith.World.CellTile.settable_fields(), &Atom.to_string/1)
+
+  defp camel(name) do
+    [first | rest] = String.split(name, "_")
+    Enum.join([first | Enum.map(rest, &String.capitalize/1)])
+  end
 
   defp snake(name), do: Regex.replace(~r/[A-Z]/, name, fn c -> "_" <> String.downcase(c) end)
 

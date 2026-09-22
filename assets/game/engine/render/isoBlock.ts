@@ -322,8 +322,8 @@ export function depthCells(col: number, row: number, depth: number, dir: IsoDiag
  * yes for every tile on the map and the depth-box path ran for all of them. One cell forward is exactly
  * what a tile that spans nothing occupies, so the question is whether it reaches past that.
  */
-export function spansCells(a: { spanForward?: number; spanBack?: number; spanPerp?: number; spanPerpBack?: number }): boolean {
-  return (a.spanForward ?? 1) > 1 || (a.spanBack ?? 0) > 0 || (a.spanPerp ?? 0) > 0 || (a.spanPerpBack ?? 0) > 0
+export function spansCells(a: { spanForward: number; spanBack: number; spanPerp: number; spanPerpBack: number }): boolean {
+  return a.spanForward > 1 || a.spanBack > 0 || a.spanPerp > 0 || a.spanPerpBack > 0
 }
 
 export function normalizeSpan(col: number, row: number, spanForward: number | undefined, spanBack: number | undefined, dir: IsoDiagonal): { col: number; row: number; span: number } {
@@ -338,7 +338,7 @@ export function normalizeSpan(col: number, row: number, spanForward: number | un
  *  Folds the model (spanAxis + depth/spanBack on the primary axis, spanPerp/spanPerpBack on the perpendicular)
  *  into a plain rectangle cols [col−colMinus, col+colPlus] × rows [row−rowMinus, row+rowPlus]. `depth` INCLUDES the
  *  anchor (depth−1 cells forward); the other three are cells BEYOND the anchor. spanAxis absent → all 0 (1 cell). */
-export function assetRectExtents(a: { spanAxis?: IsoDiagonal; spanForward?: number; spanBack?: number; spanPerp?: number; spanPerpBack?: number }): { colMinus: number; colPlus: number; rowMinus: number; rowPlus: number } {
+export function assetRectExtents(a: { spanAxis?: IsoDiagonal; spanForward: number; spanBack: number; spanPerp: number; spanPerpBack: number }): { colMinus: number; colPlus: number; rowMinus: number; rowPlus: number } {
   const ext = { colMinus: 0, colPlus: 0, rowMinus: 0, rowPlus: 0 }
   const dir = a.spanAxis
   if (!dir) return ext
@@ -350,11 +350,11 @@ export function assetRectExtents(a: { spanAxis?: IsoDiagonal; spanForward?: numb
     if (dr > 0) ext.rowPlus += cells
     else if (dr < 0) ext.rowMinus += cells
   }
-  add(dir, Math.max(0, Math.floor(a.spanForward ?? 1) - 1)) // primary FORWARD (the span includes the anchor)
-  add(rotateDepthDir(dir, 2), Math.max(0, Math.floor(a.spanBack ?? 0))) // primary BACK (opposite)
+  add(dir, Math.max(0, Math.floor(a.spanForward) - 1)) // primary FORWARD (the span includes the anchor)
+  add(rotateDepthDir(dir, 2), Math.max(0, Math.floor(a.spanBack))) // primary BACK (opposite)
   const perp = rotateDepthDir(dir, 1)
-  add(perp, Math.max(0, Math.floor(a.spanPerp ?? 0))) // perpendicular FORWARD
-  add(rotateDepthDir(perp, 2), Math.max(0, Math.floor(a.spanPerpBack ?? 0))) // perpendicular BACK
+  add(perp, Math.max(0, Math.floor(a.spanPerp))) // perpendicular FORWARD
+  add(rotateDepthDir(perp, 2), Math.max(0, Math.floor(a.spanPerpBack))) // perpendicular BACK
   return ext
 }
 
