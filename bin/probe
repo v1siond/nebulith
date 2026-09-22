@@ -1,23 +1,25 @@
 #!/usr/bin/env bash
 #
-# THE BROWSER LAYER, AGAINST ITS OWN DATABASE.
+# THE PROBES. Instruments, not gates.
 #
-# `mix test` gets nebulith_test and the Ecto sandbox. The browser gates cannot: they drive a real
-# server over real HTTP from another process, so there is no sandbox to join. They pointed at the DEV
-# server, which meant they ran against real working data, and a gate that clicks Save then writes over
-# whatever map is open. That is not a hazard to remember, it is a database to provide.
+#   bin/probe fps                 how many frames a big map draws
+#   bin/probe treeSheet           stamp every tree species and measure the silhouettes
+#   bin/probe groundCensus        what the ground of a generated world is made of
 #
-# So this builds nebulith_e2e, serves it on its own port, runs the gates against that, and stops.
-# CI runs this same script, so what happens here is what happens there.
+# These PRINT numbers. They do not assert, and they do not fail: their job is to answer a question
+# you are holding, which is a different job from guarding a rule. Every gate that guards a rule is an
+# Elixir scenario now, in test/e2e, and `bin/e2e` runs those. See docs/TESTING.md.
 #
-#   bin/e2e                 every gate
-#   bin/e2e login mapRoundTrip    just those
+# `waterBorders` is the exception, still a gate and still here, waiting to be ported.
+#
+# They drive a separately booted server against nebulith_probe rather than the test endpoint, because
+# a probe is something you run while looking at it, for as long as you like.
 set -euo pipefail
 
 cd "$(dirname "$0")/.."
 
 export MIX_ENV=dev
-export NEBULITH_DATABASE_URL="${E2E_DATABASE_URL:-ecto://postgres:postgres@localhost/nebulith_e2e}"
+export NEBULITH_DATABASE_URL="${E2E_DATABASE_URL:-ecto://postgres:postgres@localhost/nebulith_probe}"
 export PORT="${E2E_PORT:-6329}"
 export BASE="http://localhost:${PORT}"
 export ADMIN_EMAIL="${ADMIN_EMAIL:-admin@nebulith.local}"
@@ -26,7 +28,7 @@ export ADMIN_PASSWORD="${ADMIN_PASSWORD:-12345678}"
 # One gate with arguments, or a list of gates, or the default set.
 GATE_ARGS=()
 if [ $# -eq 0 ]; then
-  GATES=(login servedDefaults specCompliance mapRoundTrip loadKeepsShape tileShapes docsNav sliderLimits adminCrud)
+  GATES=(waterBorders)
 elif [ $# -eq 1 ]; then
   GATES=("$1")
 else
@@ -35,7 +37,7 @@ else
   GATE_ARGS=("$@")
 fi
 
-echo "e2e: ${NEBULITH_DATABASE_URL} on :${PORT}"
+echo "probe: ${NEBULITH_DATABASE_URL} on :${PORT}"
 
 # A FRESH DATABASE EVERY RUN. A gate that leaves rows behind is a gate that passes for the wrong
 # reason the next time, and these gates author maps on purpose.
@@ -50,10 +52,10 @@ SERVER=$!
 trap 'kill "$SERVER" 2>/dev/null || true' EXIT
 
 until curl -sf "${BASE}/health" >/dev/null; do
-  kill -0 "$SERVER" 2>/dev/null || { echo "the e2e server died:"; tail -20 /tmp/nebulith-e2e-server.log; exit 1; }
+  kill -0 "$SERVER" 2>/dev/null || { echo "the probe server died:"; tail -20 /tmp/nebulith-e2e-server.log; exit 1; }
   sleep 2
 done
-echo "e2e: up"
+echo "probe: up"
 
 cd assets
 failed=0

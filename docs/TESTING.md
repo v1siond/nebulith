@@ -14,6 +14,19 @@ bin/e2e test/e2e/phase_03_maps_test.exs      one file
 bin/e2e --only phase3                        one phase
 ```
 
+There is a third command, and it is not a test layer:
+
+```bash
+bin/probe fps            how many frames a big map draws
+bin/probe treeSheet      stamp every tree species and measure the silhouettes
+bin/probe groundCensus   what the ground of a generated world is made of
+```
+
+Probes are instruments. They PRINT numbers and never fail, because their job is to answer a question
+you are holding rather than to guard a rule. Keeping them apart from the gates matters: a script that
+cannot fail sitting in a list of gates makes the list look longer than it is. `waterBorders` is the
+exception, still a gate and still there, waiting to be ported.
+
 `mix test` on its own SKIPS the scenario layer, because a machine with no browser still has to be able
 to run the unit suite. That skip is also how a whole layer can rot unseen, so CI runs `bin/e2e` too.
 

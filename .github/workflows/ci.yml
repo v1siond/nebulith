@@ -163,9 +163,9 @@ jobs:
       - name: Drive the pages
         run: bin/e2e
 
-      # THE NODE GATES, while they are still being ported to Elixir. They have their own database
-      # because they drive a separately booted server rather than the test endpoint.
-      - name: The gates not yet ported
-        run: bin/e2e-node
+      # THE ONE GATE NOT YET PORTED. `bin/probe` otherwise holds instruments, which print numbers and
+      # never fail, so they are not run here. waterBorders still asserts, so it is.
+      - name: The gate not yet ported
+        run: bin/probe waterBorders
         env:
-          E2E_DATABASE_URL: ecto://postgres:postgres@localhost/nebulith_e2e
+          E2E_DATABASE_URL: ecto://postgres:postgres@localhost/nebulith_probe

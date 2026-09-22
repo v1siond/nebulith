@@ -39,6 +39,29 @@ defmodule Nebulith.E2E.Browser do
   @doc "True only when the expression evaluates to boolean true. A truthy string or number is not true."
   def true?(session, expression), do: js(session, expression) == true
 
+  @doc """
+  Types `value` into the field matching `selector`, replacing whatever was in it.
+
+  `PhoenixTest`'s `fill_in` wants a LABEL as well as a selector, which is the right default: a field a
+  person cannot identify is a field they cannot fill. Some of this app's own screens have inputs with
+  no label at all, and a scenario that cannot reach them cannot cover them. Use `fill_in` wherever
+  there is a label, and this where there is not.
+  """
+  def fill(session, selector, value) do
+    {:ok, _} =
+      PlaywrightEx.Frame.fill(session.frame_id,
+        selector: selector,
+        value: to_string(value),
+        timeout: 10_000
+      )
+
+    session
+  end
+
+  @doc "The current value of a field."
+  def value_of(session, selector),
+    do: js(session, "document.querySelector('#{selector}')?.value")
+
   @doc "How many nodes match a CSS selector. Zero when the page cannot be asked."
   def count(session, selector) do
     case js(session, "document.querySelectorAll('#{selector}').length") do
