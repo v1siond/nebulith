@@ -185,6 +185,47 @@ Four things make it safe rather than clever:
 to 6 to 8ms a frame against a budget of 2ms, before anything is drawn, and that was equally true before the
 substrate. It is the next target, not this one.
 
+### Step 4 started, 2026-09-25: the sort
+
+The javascript budget is the open one, and `## The order of work` puts the javascript cleanup at step 4.
+Measured on a wide city before: setup 2.3ms, cull 1.7ms, sort 1.7ms, against 2.0ms for all three together.
+
+**The sort asked every object where it sat once per COMPARISON.** A sort makes about n log n of them, so
+2,500 objects cost roughly 56,000 calls to answer 2,500 questions, each one branching, folding a span and
+allocating an object on the way. At a turned camera the comparator first built a Map of every object to an
+oriented copy, then paid two Map lookups per comparison on top.
+
+`sortByIsoDepth` works the keys out once into scratch arrays that are reused frame to frame, and sorts
+indices. **Sort 1.7ms to 0.7ms.** The order is deliberately identical, and that was proved by pixels rather
+than by reading: two identical runs of the render sheet differ by 4 to 6 pixels of hero badge, and the run
+with the new sort differs from the run without it by 7.
+
+**And the extents a tile covers stopped allocating.** `assetRectExtents` returned a fresh object of four
+zeroes for every tile that spans nothing, which is nearly all of them, and it is asked once per asset per
+frame by the visible filter, again by the range test and again by the screen test. Over forty thousand
+identical throwaway objects a frame on a large city. They all read one frozen copy now.
+
+**Where it stands after that**, on a machine with no GPU and plenty of noise, so read the direction:
+
+| World | javascript a frame | budget |
+|---|---|---|
+| a small wilderness 40x40 | 2.71ms | 2.0ms |
+| a wide city 100x60 | 3.51ms | 2.0ms |
+| a large city 100x100 | 6.6ms | 2.0ms |
+
+**The next target is the CULL, and it is `getVisibleAssets`.** It filters EVERY asset on the map every
+frame: 13,618 of them on a large city, to keep the few hundred on screen. The grid already maintains a
+`cellIndex` keyed by cell, which registers a spanning asset under every cell it covers, so a cull could walk
+the visible cell range instead of the whole map.
+
+Two things to deal with before doing it, both found by reading rather than measured yet:
+
+* **The index is invalidated by every placement**, so during generation it would rebuild per frame, which is
+  worse than the filter. Use it only when it is already built, and never build it from the render path.
+* **The order would change.** The filter returns assets in placement order and the depth sort uses that order
+  as its final tie-break, so collecting by cell instead would reorder tied objects. That is exactly the class
+  of silent change the pixel comparison above exists to catch, so whatever is done has to preserve it.
+
 ## The techniques, ranked for this engine
 
 **1. Close the sprite cache holes, so every object is one `drawImage`.** The cache is skipped for
