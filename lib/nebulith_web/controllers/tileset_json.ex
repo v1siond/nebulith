@@ -15,14 +15,23 @@ defmodule NebulithWeb.TilesetJSON do
     %{data: data(tileset)}
   end
 
+  @doc """
+  THE ART STYLES, and nothing else: what a picker needs to offer a choice.
+
+  `index/1` answers every tile of every style, which is what the editor loads and is megabytes of it. A
+  screen that only has to draw one button per style should not pull the catalog to do it.
+  """
+  def styles(%{tilesets: tilesets}) do
+    %{data: for(ts <- tilesets, do: data(ts))}
+  end
+
   defp data(%Tileset{} = tileset) do
     %{
       id: tileset.id,
       key: tileset.key,
       name: tileset.name,
       icon: tileset.icon,
-      position: tileset.position,
-      data: tileset.data
+      position: tileset.position
     }
   end
 
@@ -33,7 +42,6 @@ defmodule NebulithWeb.TilesetJSON do
       name: ts.name,
       icon: ts.icon,
       position: ts.position,
-      data: ts.data,
       tiles: Map.new(tiles, fn t -> {t.label, tile_data(t)} end),
       compositions: Map.new(comps, fn c -> {c.name, comp_data(c)} end)
     }

@@ -7,7 +7,7 @@ defmodule Nebulith.DataMigration.AgreeLabelColors do
   existing precedent across 238 labels rather than inventing a palette, and a style that authored its own
   colours keeps them: the pass only fills a blank.
 
-  Runs the same `normalize_label_colors/0` the catalog seed runs, which merges one settings key per row and
+  Runs the same `normalize_label_facts/0` the catalog seed runs, which agrees every per-label fact and
   touches nothing else.
   """
   require Logger
@@ -15,7 +15,7 @@ defmodule Nebulith.DataMigration.AgreeLabelColors do
   alias Nebulith.Catalog.TileSource
 
   def run do
-    TileSource.normalize_label_colors()
+    TileSource.normalize_label_facts()
 
     Logger.info("[data_migrate] per-label colours agreed across styles")
     :ok

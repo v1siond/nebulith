@@ -11,8 +11,18 @@ defmodule NebulithWeb.GameJSON do
       name: game.name,
       description: game.description,
       lastTemplateId: game.last_template_id,
-      templateIds: for(gt <- members(game), do: gt.template_id)
+      defaultTilesetId: game.default_tileset_id,
+      templateIds: for(gt <- members(game), do: gt.template_id),
+      # EVERY SETTING, ASKED OF THE SCHEMA. Typing the five out here is the hand-written field list law 10
+      # names, and it is how a column added to the table would be served by nothing and quietly unreachable.
+      settings: settings(game)
     }
+  end
+
+  defp settings(%Game{} = game) do
+    game
+    |> Nebulith.Games.settings()
+    |> Elixir.Map.take(Nebulith.Games.GameSettings.served_fields())
   end
 
   # game_templates is preloaded (ordered) by the context; guard against a not-loaded assoc just in case.

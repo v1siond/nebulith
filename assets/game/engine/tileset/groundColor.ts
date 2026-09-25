@@ -4,9 +4,10 @@
   * from the
  * ground tile's OWN DB colour; every view then READS `floor.color` instead of deriving it per-frame.
  */
-import { styleCatalog, styleTile } from './styleTiles'
+import { labelGround, labelTile, styleCatalog, styleTile } from './styleTiles'
 import { varyIntensity } from '@/engine/colors'
 import { resolveGroundTile } from '@/engine/tileset/tileset'
+import type { GroundTile } from '@/engine/tileset/tileset'
 import { darkenColor } from '@/engine/colors'
 import { tileCatalogHeight } from './tileHeight'
 
@@ -27,7 +28,25 @@ export function grassShade(baseBg: string, col: number, row: number): string {
  *  floor assets and the frame rate collapses. One tile → one colour keeps the runs, and the map fast.
  *  No terrain loaded → resolveGroundTile returns an empty colour, so nothing is invented. */
 export function groundTileColor(tileType: string, col: number, row: number): string {
-  return resolveGroundTile(styleCatalog('ascii'), tileType, col, row).bg
+  return resolveGroundForLabel(tileType, col, row).bg
+}
+
+/** A ground label's resolved tones, asked of the LABEL rather than of a style. Every reader of a ground
+ *  colour comes through here, so there is one place that knows where the tones live. */
+export function resolveGroundForLabel(tileType: string, col: number, row: number) {
+  return resolveGroundTile({ terrain: groundOf(tileType), tiles: tilesOf(tileType) }, tileType, col, row)
+}
+
+/** The label's own tones and the label's own tile, gathered without naming a style. Both are facts the
+ *  label owns, so asking "which style" would be asking the wrong question. */
+function groundOf(tileType: string): Record<string, GroundTile> {
+  const ground = labelGround(tileType)
+  return ground ? { [tileType]: ground } : {}
+}
+
+function tilesOf(tileType: string): Record<string, { color?: string }> {
+  const tile = labelTile(tileType)
+  return tile ? { [tileType]: tile } : {}
 }
 
 /**
@@ -43,7 +62,7 @@ export function groundTileColor(tileType: string, col: number, row: number): str
  * is a column.
  */
 export function groundTileHeight(tileType: string): number {
-  return tileCatalogHeight(styleTile('ascii', tileType))
+  return tileCatalogHeight(labelTile(tileType))
 }
 
 /** The colour of the map BODY beneath a ground tile, the earth under grass, the bed under a river.

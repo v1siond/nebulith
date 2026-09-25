@@ -10,7 +10,7 @@
  * `getStack` projects a cell's assets onto `TileEntry[]`; the mutators (pushTile/popTile) translate stack
  * ops back onto the grid. Pure + unit-tested.
  */
-import { styleCatalog, styleTile, styleTiles } from '@/engine/tileset/styleTiles'
+import { labelTile, styleCatalog, styleTile, styleTiles } from '@/engine/tileset/styleTiles'
 import { FLOOR_TYPE, DEFAULT_FLOOR_SLUG, type IsometricGrid, type GridAsset } from './IsometricGrid'
 import type { TilePose } from './tileset/pose'
 import { resolveTileHeight } from './tileset/tileHeight'
@@ -258,7 +258,7 @@ function stackContribution(a: GridAsset): number {
 function assetStackAt(a: GridAsset): number {
   const perInstance = (a.settings as { stackAt?: number } | undefined)?.stackAt
   const slug = a.type === FLOOR_TYPE ? (a.tileKey ?? DEFAULT_FLOOR_SLUG) : (a.label ?? a.type)
-  const tile = styleTile('ascii', slug) ?? styleTile('emoji', slug)
+  const tile = labelTile(slug)
   const served = (tile?.settings as { stackAt?: number } | undefined)?.stackAt
   const value = perInstance ?? served
   return typeof value === 'number' && value >= 0 && value <= 1 ? value : 1
@@ -295,7 +295,7 @@ export function assetSetting<T>(a: GridAsset, key: string): T | undefined {
   const perInstance = (a.settings as Record<string, unknown> | undefined)?.[key]
   if (perInstance !== undefined) return perInstance as T
   const slug = a.type === FLOOR_TYPE ? (a.tileKey ?? DEFAULT_FLOOR_SLUG) : (a.label ?? a.type)
-  const tile = styleTile('ascii', slug) ?? styleTile('emoji', slug)
+  const tile = labelTile(slug)
   return (tile?.settings as Record<string, unknown> | undefined)?.[key] as T | undefined
 }
 
@@ -304,6 +304,25 @@ export const assetDrawsSingle = (a: GridAsset): boolean => assetSetting<string>(
 
 /** Does this asset skip the coloured block shell entirely, leaving only its own picture (a flower, a rock)? */
 export const assetIsTransparent = (a: GridAsset): boolean => assetSetting<boolean>(a, 'transparent') === true
+
+/**
+ * THE THREE FADE FACTS, through the SAME lookup every other setting uses: the placement first, then the
+ * tile the placement is OF.
+ *
+ * They used to be read straight off `asset.settings`, which is the placement alone, while the panel beside
+ * them reported `assetSetting`. So a tile whose CATALOG says it fades, placed before that was true of it,
+ * showed a fade in the inspector and drew solid on the map. Display and Transparent never had that gap
+ * because they always went through here.
+ */
+export const assetFadesNear = (a: GridAsset): boolean => assetSetting<boolean>(a, 'fadeNear') === true
+
+export const assetCutsAwayRoof = (a: GridAsset): boolean => assetSetting<boolean>(a, 'cutawayRoof') === true
+
+export function assetMinAlpha(a: GridAsset): number | undefined {
+  const floor = assetSetting<number>(a, 'minAlpha')
+
+  return typeof floor === 'number' ? floor : undefined
+}
 
 function assetActsAsTile(a: GridAsset): boolean {
   return assetSetting<boolean>(a, 'actAsTile') === true

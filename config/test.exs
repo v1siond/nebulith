@@ -19,7 +19,16 @@ config :nebulith, Nebulith.Repo,
   # thing under test. These are the waits of a browser, not of a unit test.
   queue_target: 5_000,
   queue_interval: 10_000,
-  ownership_timeout: 120_000
+  # …AND A SCENARIO OWNS THAT CONNECTION FOR AS LONG AS IT RUNS. At 120 seconds this fired in the
+  # middle of live scenarios, which generate several worlds: the owner lost the connection, every
+  # later query and every page request on it failed, and the scenario reported whatever it was
+  # measuring as broken. Measured: a four-city street scenario runs 168 seconds and logged
+  # "owner timed out because it owned the connection for longer than 120000ms" while passing, so the
+  # same shape was silently failing runs that took a little longer.
+  #
+  # Matched to the LONGEST `@moduletag timeout` in the suite rather than to a guess: a scenario should
+  # be stopped by its own timeout, saying what it was waiting for, not by its database vanishing.
+  ownership_timeout: 900_000
 
 # THE SERVER RUNS IN TEST, because the end-to-end layer drives a real browser at it (PhoenixTest.Playwright,
 # see docs/TESTING.md). On port 4002 against `nebulith_test`, so a click-through can never reach the dev
@@ -40,8 +49,27 @@ config :phoenix_test, otp_app: :nebulith
 # lands on the panel, selects nothing, and the scenario then fails looking for a settings control
 # that was never going to appear. Measured: `elementFromPoint` at the canvas centre returned the
 # panel, not the canvas.
+# …AND THE FAMILY PORTRAITS LAND BESIDE THE REFERENCE RENDERS. `docs/renders/` already holds the
+# pictures an object was judged against, so the sheet that renders a whole family belongs there too.
+# `screenshot_dir` is read from INSIDE the `:playwright` keyword (`Config.global/0` validates that one
+# list against its schema), so setting it as a sibling of `:playwright` is silently ignored and the
+# files go to the default `screenshots/`. See `test/e2e/the_render_sheet_test.exs`.
+#
+# AND THE DRIVER WAITS AS LONG AS THIS APP ACTUALLY TAKES. Its default per-action timeout is TWO SECONDS,
+# which covers a form on a static page and not an editor that boots a whole tileset before it paints. Left
+# at the default it produced a failure a run, always in a different scenario, always the same shape: a
+# navigation or a select giving up at 2000ms and the harness reporting it as whatever the scenario happened
+# to be measuring. Measured over three full suite runs: phase 3's own round-trip gate, the settings gate and
+# the city street gate each failed once and passed alone.
+#
+# 15 seconds is not a guess, it is what `Browser.wait_until` in this same suite already waits for this same
+# app, so the driver and the scenarios now give it the same amount of rope.
 config :phoenix_test,
-  playwright: [browser_context_opts: [viewport: %{width: 1700, height: 1000}]]
+  playwright: [
+    browser_context_opts: [viewport: %{width: 1700, height: 1000}],
+    screenshot_dir: "docs/renders",
+    timeout: 15_000
+  ]
 
 # THE BROWSER LIVES OUTSIDE THIS MACHINE'S PLAYWRIGHT. Ubuntu 20.04 (focal) stopped being a supported target
 # for Playwright's chromium download at 1.63, and the Elixir driver requires 1.63 or newer, so the local

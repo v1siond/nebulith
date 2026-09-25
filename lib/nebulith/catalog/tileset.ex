@@ -11,7 +11,6 @@ defmodule Nebulith.Catalog.Tileset do
     # which is what §3.14a's BUILT_IN_STYLES was.
     field :icon, :string
     field :position, :integer, default: 0
-    field :data, :map
 
     timestamps(type: :utc_datetime)
   end
@@ -19,7 +18,7 @@ defmodule Nebulith.Catalog.Tileset do
   @doc false
   def changeset(tileset, attrs) do
     tileset
-    |> cast(attrs, [:key, :name, :icon, :position, :data])
+    |> cast(attrs, [:key, :name, :icon, :position])
     |> validate_required([:key, :name])
     |> unique_constraint(:key)
   end

@@ -98,9 +98,14 @@ defmodule Nebulith.AsciiGlyphUniquenessTest do
   end
 end
 
-defmodule Nebulith.OneEngineManyStylesTest do
+defmodule Nebulith.ALabelOwnsEverythingButThePictureTest do
   @moduledoc """
   A LABEL owns everything but the picture.
+
+  NAMED FOR WHAT IT ASKS, because it shared `Nebulith.OneEngineManyStylesTest` with the source gate in
+  `one_engine_many_styles_test.exs` and a module name defined twice is one module: whichever file loaded
+  second replaced the first, and the replaced file's tests came back as "undefined or private" in a full run
+  while passing on their own. Two files, two questions, two names.
 
   `grass` is called "Grass", is `terrain`, is walkable and is a flat slab, in EVERY style, because those
   are facts about grass, not about which pictures you are looking at. Only the image differs.

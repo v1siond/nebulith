@@ -185,69 +185,69 @@ export const SWORD_GLYPH = 'Ɨ'
 export const BOW_GLYPH = '}'
 export const GUN_GLYPH = '¬'
 
-/** Emoji held-weapon glyph for the reskin styles, a real ⚔️/🏹/🪄 in hand instead of the ASCII `Ɨ`/`}`.
- *  Bare hands draw nothing. Used when the active style isn't ASCII (see the player loadout sync). */
-export function weaponEmoji(weapon?: { kind?: string; range?: string } | null): string {
+/**
+ * THE WEAPON IN HAND, in whatever style is on.
+ *
+ * `docs/SPEC.md` law 4: a tileset is a set of pictures for the same labels, so the weapon a hero holds is
+ * the tile for its kind, looked up in the ACTIVE style. There is no branch on which style that is.
+ *
+ * There were three of them, and they all read `activeStyleId !== 'ascii'`, which is the two-style world
+ * written into the engine: every style that was not ascii got emoji's art, so a third style would have
+ * silently drawn emoji weapons while claiming to be itself.
+ *
+ * The per-style CHARACTER fallbacks below are the last resort and nothing else. A weapon is a tile and a
+ * tile is an image; the catalog serves no character for one today, so without these the hand would be
+ * empty. Serving the weapon's picture is phase 10, where units get their tables, and these go then.
+ */
+export function weaponArt(
+  weapon: { kind?: string; range?: string } | null | undefined,
+  styleId: string,
+): string {
   if (!weapon || weapon.kind === 'unarmed') return ''
-  // Prefer the loaded tileset's glyph so the weapon char is data-driven (backend/DB); fall back to the
-  // switch when the tileset hasn't loaded yet (SSR / backend down) so the hand is never empty.
-  const fromTileset = weapon.kind ? styleTile('emoji', weapon.kind)?.char : undefined
-  if (fromTileset) return fromTileset
-  switch (weapon.kind) {
-    case 'bow': return '🏹'
-    case 'gun': return '🔫'
-    case 'staff': return '🪄'
-    case 'axe': return '🪓'
-    case 'shield': return '🛡️'
-    case 'sword': return '🗡️'
-    default: return weapon.range === 'ranged' ? '🏹' : '🗡️'
-  }
+
+  const served = weapon.kind ? styleTile(styleId, weapon.kind)?.char : undefined
+  if (served) return served
+
+  return lastResortChar(weapon, styleId)
 }
 
-/** The equipped weapon's POSE (orientation/size/flip/offset/muzzle) from the loaded tileset, the
- *  data that used to be the hardcoded WEAPON_ORIENT/emojiWeaponSize. Emoji reads its tileset entry;
- *  ascii returns undefined for now (the ascii weapon path keeps its own drawing). Absent → the render
- *  falls back to identity (no rotation/scale), so keep the backend tileset seeded with the weapon poses. */
-/** The uniform ASCII held-weapon pose, the orientation the ascii weapon branch used to HARDCODE: rotate
- *  π (a vertical blade points down out of the fist and reads as a blade both pathways), MIRROR on the facing
- *  (`flip` XOR left-facing → the glyph points OUTWARD in both facings, #54), and grow to the old weaponSize
- *  (fontSize×1.7) offset half a weapon-length down the hand (dy = 1.7×0.45). Every ascii weapon shared this
- *  one look. Used as the fallback when the loaded ascii tileset carries no per-weapon pose (bundled default
- *  / backend down), mirroring how `weaponEmoji` falls back to a switch, so the ascii look never regresses. */
-export const ASCII_WEAPON_POSE: TilePose = { rot: Math.PI, flip: true, scale: 1.7, dy: 0.765 }
+/** The one held-weapon orientation, used by any style whose tile states no pose of its own: rotate half a
+ *  turn so a vertical blade points out of the fist, mirror on the facing so it points outward both ways,
+ *  and grow it to hand size. Every style shared this before it was data, and it stays as the floor. */
+export const HELD_WEAPON_POSE: TilePose = { rot: Math.PI, flip: true, scale: 1.7, dy: 0.765 }
 
-export function weaponPose(kind: string | undefined, style: 'emoji' | 'ascii'): TilePose | undefined {
+/** The equipped weapon's POSE, from the tile for its kind in the style being drawn. */
+export function weaponPose(kind: string | undefined, styleId: string): TilePose | undefined {
   if (!kind) return undefined
-  // ASCII is just another tileset: read the weapon's pose from the loaded ascii tiles, falling back to the
-  // shared ASCII_WEAPON_POSE when the tileset hasn't loaded a per-weapon pose (so the look never regresses).
-  if (style === 'ascii') return styleTile('ascii', kind)?.pose ?? ASCII_WEAPON_POSE
-  return styleTile('emoji', kind)?.pose
+
+  // A style whose tile states no pose falls to the one shared orientation rather than to identity: a
+  // weapon drawn flat reads as a dropped item rather than a held one.
+  return styleTile(styleId, kind)?.pose ?? HELD_WEAPON_POSE
 }
 
-/** The bare-handed PUNCH tile (glyph + pose) for the reskin styles, a real 👊 swung at the hand when the
- *  hero fights unarmed, instead of the ASCII swing. Data-driven: reads the loaded tileset's `fist` entry
- *  like the weapons read theirs. ASCII bare hands stay as they were (no glyph → the fist is emoji art). */
-export function punchTile(style: 'emoji' | 'ascii'): { glyph: string; pose?: TilePose } {
-  if (style !== 'emoji') return { glyph: '' }
-  const t = styleTile('emoji', 'fist')
+/** The bare-handed PUNCH, the same lookup under the label every style uses for a fist. */
+export function punchTile(styleId: string): { glyph: string; pose?: TilePose } {
+  const t = styleTile(styleId, 'fist')
   return { glyph: t?.char ?? '', pose: t?.pose }
 }
 
-export function weaponGlyph(weapon?: { kind?: string; range?: string } | null): string {
-  if (!weapon) return ''
-  if (weapon.kind === 'unarmed') return '' // bare hands, the fist swings, no blade is drawn
-  // Ranged reads by silhouette: a gun is a pistol, everything else ranged is a drawn bow.
-  if (weapon.range === 'ranged') return weapon.kind === 'gun' ? GUN_GLYPH : BOW_GLYPH
-  switch (weapon.kind) {
-    case 'staff':
-      return 'i' // a focus rod
-    case 'axe':
-      return 'T' // broad head
-    case 'shield':
-      return 'O' // boss
-    case 'sword':
-      return SWORD_GLYPH
-    default:
-      return SWORD_GLYPH
-  }
+/**
+ * THE LAST RESORT, per style, and the only art this file still holds.
+ *
+ * It is a table rather than a branch: a style is a key, and a style that is not in it gets nothing, which
+ * is the honest answer for a style nobody has drawn weapons for. Nothing here decides anything when the
+ * catalog serves a character, which is what it should be doing.
+ */
+const LAST_RESORT: Readonly<Record<string, Readonly<Record<string, string>>>> = {
+  ascii: { staff: 'i', axe: 'T', shield: 'O', sword: SWORD_GLYPH, bow: BOW_GLYPH, gun: GUN_GLYPH },
+  emoji: { bow: '🏹', gun: '🔫', staff: '🪄', axe: '🪓', shield: '🛡️', sword: '🗡️' },
+}
+
+function lastResortChar(weapon: { kind?: string; range?: string }, styleId: string): string {
+  const table = LAST_RESORT[styleId]
+  if (!table) return ''
+
+  const ranged = weapon.range === 'ranged'
+  const key = ranged && weapon.kind !== 'gun' ? 'bow' : weapon.kind
+  return table[key ?? ''] ?? table[ranged ? 'bow' : 'sword'] ?? ''
 }

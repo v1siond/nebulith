@@ -14,27 +14,26 @@ import {
   type SpriteAnimation,
   type AnimationTrack,
   type SettingKey,
-  EASES,
-  TRIGGER_EVENTS,
-  TILE_STYLES,
-  TILE_VIEWS,
   type Ease as AnimEase,
   type TriggerEvent as AnimTriggerEvent,
   type TileStyle,
   type TileView,
 } from '@/engine/animation/tileAnimation'
 import { SELECT_CLS, INPUT_CLS } from './editorConfig'
+import { engineList } from '@/lib/engineLists'
+import { loadedStyleIds } from '@/engine/tileset/styleTiles'
 
-/** The trigger events an animation can fire on (dropdown order). */
-const ANIM_TRIGGERS: ReadonlyArray<{ id: AnimTrigger['on']; label: string }> = [
-  { id: 'idle', label: 'idle' },
-  { id: 'move', label: 'move' },
-  { id: 'attack', label: 'attack' },
-  { id: 'interact', label: 'interact' },
-  { id: 'key', label: 'key' },
-]
+/* EVERY LIST BELOW IS SERVED. `docs/SPEC.md` phase 0 REWIRE: the engine's own lists come from the backend
+ * so a picker cannot be missing a value the engine accepts. Each is a FUNCTION, never a module constant:
+ * a constant is evaluated at import, which is before the lists have loaded, and it would freeze the empty
+ * list for the life of the page. */
 
-const ANIM_DIRECTIONS: readonly AnimDirection[] = ['up', 'down', 'left', 'right', 'any']
+/** What a UNIT's animation fires on. */
+const unitTriggers = (): ReadonlyArray<AnimTrigger['on']> =>
+  engineList('unit_triggers') as ReadonlyArray<AnimTrigger['on']>
+
+/** The facings an animation can be pinned to. */
+const animDirections = (): readonly AnimDirection[] => engineList('directions') as readonly AnimDirection[]
 
 /** The VISUAL a frame slot renders, resolved the SAME way the canvas resolves a tile (label→baked image via
  *  `visualForTileId`), so the preview matches play: a `char` frame is a glyph gendered to the entity's variant;
@@ -180,11 +179,11 @@ function AnimationRow({
       <div className="flex flex-wrap items-center gap-1">
         <span className="text-[10px] font-bold text-cyan-300">When</span>
         <select value={anim.trigger.on} onChange={e => patchTrigger({ on: e.target.value as AnimTrigger['on'] })} aria-label="Animation trigger" className={SELECT_CLS}>
-          {ANIM_TRIGGERS.map(t => <option key={t.id} value={t.id}>{t.label}</option>)}
+          {unitTriggers().map(t => <option key={t} value={t}>{t}</option>)}
         </select>
         <span aria-hidden className="text-gray-500">·</span>
         <select value={anim.direction} onChange={e => patch({ direction: e.target.value as AnimDirection })} aria-label="Animation direction" className={SELECT_CLS}>
-          {ANIM_DIRECTIONS.map(d => <option key={d} value={d}>{d}</option>)}
+          {animDirections().map(d => <option key={d} value={d}>{d}</option>)}
         </select>
       </div>
 
@@ -288,7 +287,7 @@ const ANIM_SETTING_KEYS: ReadonlyArray<{ key: SettingKey; label: string }> = [
  * was a second copy of an engine union and the two drifted: `flicker` and `night` were fully implemented
  * and unreachable from the panel. The lists below are the engine's own, so a value it accepts is always
  * offered, and a label missing here falls back to the value itself rather than hiding the option. */
-const ANIM_EASES: readonly AnimEase[] = EASES
+const animEases = (): readonly AnimEase[] => engineList('eases') as readonly AnimEase[]
 
 const TRIGGER_LABELS: Partial<Record<AnimTriggerEvent, string>> = {
   load: 'on load (ambient)',
@@ -297,11 +296,18 @@ const TRIGGER_LABELS: Partial<Record<AnimTriggerEvent, string>> = {
   interact: 'on interact',
   night: 'only at night',
 }
-const ANIM_TILE_TRIGGERS: ReadonlyArray<{ id: AnimTriggerEvent; label: string }> =
-  TRIGGER_EVENTS.map(id => ({ id, label: TRIGGER_LABELS[id] ?? id }))
 
-const ANIM_STYLES: readonly TileStyle[] = TILE_STYLES
-const ANIM_VIEWS: readonly TileView[] = TILE_VIEWS
+const animTileTriggers = (): ReadonlyArray<{ id: AnimTriggerEvent; label: string }> =>
+  engineList('trigger_events').map(id => ({
+    id: id as AnimTriggerEvent,
+    label: TRIGGER_LABELS[id as AnimTriggerEvent] ?? id,
+  }))
+
+/** THE ART STYLES, from the tilesets that loaded. A style is a row, so a second list of them here would
+ *  go out of date the moment somebody adds one. */
+const animStyles = (): readonly TileStyle[] => loadedStyleIds() as readonly TileStyle[]
+
+const animViews = (): readonly TileView[] => engineList('views') as readonly TileView[]
 
 /** Parse a number field, falling back to `fb` on empty/invalid so the input never writes NaN. */
 const numOr = (raw: string, fb: number): number => { const n = parseFloat(raw); return Number.isNaN(n) ? fb : n }
@@ -448,7 +454,7 @@ function TileAnimationRow({ anim, onAnim, onRemove }: { anim: SettingsAnimation;
         <label className="flex items-center gap-1" title="Ping-pong: play from→to then auto-reverse to→from each loop (e.g. grow then shrink)"><input type="checkbox" checked={!!anim.yoyo} onChange={e => patch({ yoyo: e.target.checked })} aria-label="yoyo" className="accent-fuchsia-500" />yoyo</label>
         <label className="flex items-center gap-1">ease
           <select value={anim.ease ?? 'linear'} onChange={e => patch({ ease: e.target.value as AnimEase })} aria-label="ease" className="rounded bg-gray-800 p-1 text-xs text-gray-100">
-            {ANIM_EASES.map(e => <option key={e} value={e}>{e}</option>)}
+            {animEases().map(e => <option key={e} value={e}>{e}</option>)}
           </select>
         </label>
         <label className="flex items-center gap-1">priority<input type="number" step={1} value={anim.priority ?? 0} onChange={e => patch({ priority: Math.round(numOr(e.target.value, 0)) })} aria-label="priority" className="w-12 rounded bg-gray-800 p-1 text-xs text-gray-100" /></label>
@@ -458,7 +464,7 @@ function TileAnimationRow({ anim, onAnim, onRemove }: { anim: SettingsAnimation;
       <div className="flex flex-wrap items-center gap-2 text-[10px] text-gray-300">
         <span className="font-bold text-cyan-300">When</span>
         <select value={trigOn} onChange={e => patchTrigger({ on: e.target.value as AnimTriggerEvent })} aria-label="trigger" className={SELECT_CLS}>
-          {ANIM_TILE_TRIGGERS.map(t => <option key={t.id} value={t.id}>{t.label}</option>)}
+          {animTileTriggers().map(t => <option key={t.id} value={t.id}>{t.label}</option>)}
         </select>
         {trigOn === 'proximity' && (
           <label className="flex items-center gap-1">radius<input type="number" min={0} value={anim.trigger?.radiusCells ?? 3} onChange={e => patchTrigger({ radiusCells: numOr(e.target.value, 0) })} aria-label="proximity radius" className="w-14 rounded bg-gray-800 p-1 text-xs text-gray-100" />cells</label>
@@ -468,9 +474,9 @@ function TileAnimationRow({ anim, onAnim, onRemove }: { anim: SettingsAnimation;
       {/* Scope, which styles/views this plays in (none lit = all). */}
       <div className="flex flex-wrap items-center gap-2 text-[10px] text-gray-400">
         <span className="font-bold text-gray-500">Style</span>
-        {ANIM_STYLES.map(s => <Chip key={s} label={s} on={!!anim.scope?.styles?.includes(s)} onToggle={() => toggleScope('styles', s)} />)}
+        {animStyles().map(s => <Chip key={s} label={s} on={!!anim.scope?.styles?.includes(s)} onToggle={() => toggleScope('styles', s)} />)}
         <span className="ml-1 font-bold text-gray-500">View</span>
-        {ANIM_VIEWS.map(v => <Chip key={v} label={v} on={!!anim.scope?.views?.includes(v)} onToggle={() => toggleScope('views', v)} />)}
+        {animViews().map(v => <Chip key={v} label={v} on={!!anim.scope?.views?.includes(v)} onToggle={() => toggleScope('views', v)} />)}
       </div>
     </div>
   )

@@ -43,18 +43,6 @@ defmodule Nebulith.DataMigration.UndergrowthBelongsToItsBiome do
 
   alias Nebulith.Repo
 
-  @undergrowth %{
-    "Woodland" => "#496635",
-    "Meadow" => "#50662b",
-    "Mountain" => "#61663d",
-    "Jungle" => "#526625",
-    "Swamp" => "#5f6633",
-    "Ruins" => "#52663b",
-    "Beach" => "#66632b",
-    "Desert" => "#665833",
-    "Volcanic" => "#665a50"
-  }
-
   # The plants the generator actually places, plus the tree's own leaf and canopy families so one rule covers
   # every green thing rather than a prefix covering half of them.
   @foliage ~w(
@@ -64,28 +52,14 @@ defmodule Nebulith.DataMigration.UndergrowthBelongsToItsBiome do
   )
 
   def run do
-    tints = Enum.sum(for {name, hex} <- @undergrowth, do: tint_biome(name, hex))
+    # THE TINT IS THE SEEDER'S. Each biome's undergrowth colour is part of the palette
+    # `GeneratorSource.seed/0` writes whole, so setting it here made it a second owner. The tile half is
+    # this pass's own and stays.
     tagged = tag_foliage()
 
-    Logger.info(
-      "[data_migrate] #{tints} generators carry their own undergrowth tint, #{tagged} tiles say they are foliage"
-    )
+    Logger.info("[data_migrate] #{tagged} tiles say they are foliage")
 
     :ok
-  end
-
-  defp tint_biome(name, hex) do
-    %{num_rows: rows} =
-      Repo.query!(
-        """
-        UPDATE generators
-        SET config = jsonb_set(config, '{palette,undergrowth}', $2::text::jsonb)
-        WHERE (name = $1 OR name LIKE $1 || ' %') AND config->'palette' IS NOT NULL
-        """,
-        [name, Jason.encode!(hex)]
-      )
-
-    rows
   end
 
   # BOTH tilesets. A style is only a different picture for the same label, so what a tile IS cannot differ

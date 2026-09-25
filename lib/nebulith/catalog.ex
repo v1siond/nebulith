@@ -13,6 +13,7 @@ defmodule Nebulith.Catalog do
   alias Nebulith.Catalog.Tileset
   alias Nebulith.Catalog.Template
   alias Nebulith.Catalog.{Tile, Composition, CompositionCell}
+  alias Nebulith.Catalog.{TileCategory, TileImage}
   alias Nebulith.Catalog.{Generator, GeneratorCategory}
   alias Nebulith.Catalog.GenerationLayer
 
@@ -166,9 +167,22 @@ defmodule Nebulith.Catalog do
 
   # ── Tiles + Compositions (backend-owned tile catalog) ─────────────────────
 
-  @doc "Lists tiles belonging to the tileset identified by its `key`."
+  @doc """
+  Lists tiles belonging to the tileset identified by its `key`, each carrying THAT STYLE's picture.
+
+  The picture comes from `tile_images`, which is the only thing an art style owns (`docs/SPEC.md` §3.1).
+  `image_url` is the name a reader already uses for it, so the join fills that field and nothing
+  downstream has to learn a new word for the same thing.
+  """
   def list_tiles_for(tileset_key) do
-    from(t in Tile, join: ts in Tileset, on: ts.id == t.tileset_id, where: ts.key == ^tileset_key)
+    from(t in Tile,
+      join: ts in Tileset,
+      on: ts.id == t.tileset_id,
+      left_join: i in TileImage,
+      on: i.tile_id == t.id and i.tileset_id == t.tileset_id,
+      where: ts.key == ^tileset_key,
+      select: %{t | image_url: i.image_path}
+    )
     |> Repo.all()
   end
 
@@ -230,29 +244,31 @@ defmodule Nebulith.Catalog do
   end
 
   @doc """
-  Sets ONLY the `image_url` column. Pose-safe, like `set_tile_height`.
+  Points one tile at its picture, and nothing else. Pose-safe, like `set_tile_height`.
   """
   def set_tile_image(tileset_id, label, image_url) do
     from(t in Tile, where: t.tileset_id == ^tileset_id and t.label == ^label)
-    |> Repo.update_all(
-      set: [image_url: image_url, updated_at: DateTime.truncate(DateTime.utc_now(), :second)]
-    )
+    |> Repo.one()
+    |> put_tile_image(image_url)
   end
 
   @doc """
-  Sets the PER-LABEL facts (title + category) of one tile, leaving glyph/height/settings untouched.
+  Writes any set of COLUMNS onto one tile row, named by the caller rather than by this function.
 
-  Same pose-safe path as `set_tile_height`: a label owns its name and bucket in every style, and a full
-  upsert would `replace_all` the editor-tuned settings alongside them.
+  `set_tile_label_facts/4` named `title` and `category` by hand, which is a hand-written field list and
+  therefore law 10: *"Anything that copies a record field by field must be generated from the schema,
+  never typed out."* Three parity passes existed, each one declaring it closed "the remaining columns",
+  and each one missing more: `color_role` was still nil on every emoji row long after all three ran.
+
+  Pose safe, like `set_tile_height`: it writes the named columns and leaves `settings` alone, where a full
+  upsert would `replace_all` over settings tuned by hand in the editor.
   """
-  def set_tile_label_facts(tileset_id, label, title, category) do
+  def set_tile_fields(_tileset_id, _label, []), do: {0, nil}
+
+  def set_tile_fields(tileset_id, label, fields) when is_list(fields) do
     from(t in Tile, where: t.tileset_id == ^tileset_id and t.label == ^label)
     |> Repo.update_all(
-      set: [
-        title: title,
-        category: category,
-        updated_at: DateTime.truncate(DateTime.utc_now(), :second)
-      ]
+      set: fields ++ [updated_at: DateTime.truncate(DateTime.utc_now(), :second)]
     )
   end
 
@@ -312,12 +328,125 @@ defmodule Nebulith.Catalog do
   """
   def upsert_tile(attrs) do
     %Tile{}
-    |> Tile.changeset(attrs |> solidity_as_boxes() |> keep_stored_settings())
+    |> Tile.changeset(
+      attrs
+      |> solidity_as_boxes()
+      |> keep_stored_settings()
+      |> category_as_a_row()
+      |> autotile_slot_from_position()
+    )
     |> Repo.insert(
       on_conflict: {:replace_all_except, [:id, :inserted_at]},
-      conflict_target: [:tileset_id, :label]
+      # THE INDEX IS ON `lower(label)`, because a label is one label however it is typed
+      # (`docs/SPEC.md` §3.1 declares it citext). A column list cannot name an expression index, so the
+      # target is written the way the index is.
+      conflict_target: {:unsafe_fragment, "(tileset_id, lower(label))"}
+    )
+    |> store_the_picture()
+  end
+
+  # THE PICTURE GOES WHERE THE PICTURE LIVES.
+  #
+  # `docs/SPEC.md` §3.1: a label owns every fact, a tileset owns only the picture. A caller still says
+  # `image_url` because that is what a person calls it, and it lands in `tile_images` keyed by the style,
+  # which is what makes parity a count instead of a pass.
+  defp store_the_picture({:ok, tile} = result) do
+    put_tile_image(tile, tile.image_url)
+    result
+  end
+
+  defp store_the_picture(result), do: result
+
+  defp put_tile_image(nil, _path), do: :ok
+
+  defp put_tile_image(_tile, path) when path in [nil, ""], do: :ok
+
+  defp put_tile_image(tile, path) do
+    %TileImage{}
+    |> TileImage.changeset(%{tileset_id: tile.tileset_id, tile_id: tile.id, image_path: path})
+    |> Repo.insert(
+      on_conflict: {:replace, [:image_path, :updated_at]},
+      conflict_target: [:tileset_id, :tile_id]
+    )
+
+    :ok
+  end
+
+  # The category a caller names as a word becomes the row that owns the word. Created on demand, because
+  # the catalog is what says which categories exist: a fixed list here would be a second owner of that.
+  defp category_as_a_row(attrs) do
+    case get_attr(attrs, :category) do
+      blank when blank in [nil, ""] -> attrs
+      key -> put_attr(attrs, :category_id, category_id_for(key))
+    end
+  end
+
+  defp category_id_for(key) do
+    case Repo.one(
+           from(c in TileCategory,
+             where: fragment("lower(?)", c.key) == ^String.downcase(key),
+             select: c.id
+           )
+         ) do
+      nil -> create_category(key)
+      id -> id
+    end
+  end
+
+  # Insert, then ask. `on_conflict: :nothing` makes two callers racing for the same category harmless,
+  # and it returns no id when it did nothing, so the id comes from the read either way.
+  defp create_category(key) do
+    %TileCategory{}
+    |> TileCategory.changeset(%{
+      key: key,
+      name: key |> String.replace("_", " ") |> String.capitalize(),
+      position: 99
+    })
+    |> Repo.insert(on_conflict: :nothing, conflict_target: {:unsafe_fragment, "(lower(key))"})
+
+    Repo.one(
+      from(c in TileCategory,
+        where: fragment("lower(?)", c.key) == ^String.downcase(key),
+        select: c.id
+      )
     )
   end
+
+  # `settings.position` is the autotile slot under an older name, on rows no control can write
+  # (`docs/SPEC.md` §3.1). `single` is not a slot, it says the tile is not autotiled, and that is an
+  # absent slot rather than a value. The family is the label with its slot suffix off, derived from the
+  # LABEL so a new piece joins its family by being named like one.
+  @autotile_suffixes ~w(c t b l r tl tr bl br)
+
+  defp autotile_slot_from_position(attrs) do
+    case get_in(get_attr(attrs, :settings) || %{}, ["position"]) do
+      slot when slot in [nil, "", "single"] ->
+        attrs
+
+      slot ->
+        attrs
+        |> put_attr(:autotile_slot, slot)
+        |> put_attr(:family, family_of(get_attr(attrs, :label)))
+    end
+  end
+
+  defp family_of(nil), do: nil
+
+  defp family_of(label) do
+    case String.split(label, "_") do
+      parts when length(parts) > 1 ->
+        {suffix, rest} = List.pop_at(parts, -1)
+        if suffix in @autotile_suffixes, do: Enum.join(rest, "_"), else: label
+
+      _ ->
+        label
+    end
+  end
+
+  defp put_attr(attrs, key, value) when is_map_key(attrs, "label"),
+    do: Elixir.Map.put(attrs, to_string(key), value)
+
+  defp put_attr(attrs, key, value), do: Elixir.Map.put(attrs, key, value)
 
   # WHAT A TILE OCCUPIES, said once, in the place the fact lives.
   #

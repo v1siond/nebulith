@@ -42,6 +42,24 @@ defmodule Nebulith.DataMigrations do
   live database carries that effect, but it was taken out of the runner when the ground went flat. Registering
   it now would raise heights the ground pass then has to lower again. The module is kept because
   `GroundTilesAreFlat` documents itself against it.
+
+  ## The 41 passes that wrote `generators.config`, and why they are gone
+
+  A data migration can never be needed for a column the seeder writes WHOLE, and `GeneratorSource.seed/0`
+  writes `generators.config` whole. Re-seeding is the fix for an existing database, so a migration that
+  `jsonb_set`s into that column is not a migration at all: it is a SECOND OWNER of the fact, and the next
+  seed discards it silently. That mechanism, not any one bug, is what was behind the biome regressions:
+  region work landed in a migration, the seeder ran, and the work vanished with nothing to see in a diff.
+
+  So the content of all 41 was folded into `GeneratorSource`. 32 of them wrote nothing else and were
+  deleted outright; the other 9 also seeded tiles or compositions, so they keep that half and lost only
+  the write to this column. Measured rather
+  than assumed: `Nebulith.OneOwnerPerFactTest` seeds, runs every remaining pass and asserts that not one
+  generator config moves. It is the gate that keeps this from happening again, and it fails loudly the
+  moment somebody writes to that column from here.
+
+  The ledger rows for the deleted names stay behind, which is harmless: a recorded pass that is no longer
+  registered is simply never run again.
   """
   import Ecto.Query
 
@@ -62,6 +80,8 @@ defmodule Nebulith.DataMigrations do
     Nebulith.DataMigration.BackfillLevelsFromGameTemplates,
     Nebulith.DataMigration.AddFlatFloorTile,
     Nebulith.DataMigration.FadeTreesAndExteriorNearHero,
+    Nebulith.DataMigration.AGrowingThingKeepsItsOpacity,
+    Nebulith.DataMigration.AThingIsOneObjectAPieceIsNot,
     Nebulith.DataMigration.AddGrowthTiles,
     Nebulith.DataMigration.DeleteBigHouseComposition,
     Nebulith.DataMigration.AgreeLabelColors,
@@ -70,11 +90,15 @@ defmodule Nebulith.DataMigrations do
     Nebulith.DataMigration.OneWaterColour,
     Nebulith.DataMigration.WaterBendTile,
     Nebulith.DataMigration.BridgeDeckAndPostsByZWidth,
+    Nebulith.DataMigration.ABuildingIsNotATile,
+    Nebulith.DataMigration.CharactersAreNotContent,
     Nebulith.DataMigration.SeedGenerationLayers,
     Nebulith.DataMigration.SeedEntrances,
     Nebulith.DataMigration.GeneratorsNameTheirEntrance,
     Nebulith.DataMigration.ApprovedEntrancesNamedForWhatTheyAre,
     Nebulith.DataMigration.AJungleYouCanWalkAcross,
+    Nebulith.DataMigration.RockIsGreyNotViolet,
+    Nebulith.DataMigration.OnlyACanopyBlossoms,
     Nebulith.DataMigration.TheSeedersThatNeverRan,
     Nebulith.DataMigration.APathwayIsAMaterialNotATint,
     Nebulith.DataMigration.TheLayersAreTheModel,
@@ -98,65 +122,37 @@ defmodule Nebulith.DataMigrations do
     Nebulith.DataMigration.ABloomIsNotGroundCover,
     Nebulith.DataMigration.FlatDecorStacksAtTheBottomFace,
     Nebulith.DataMigration.GroundCoverNeedsRealArt,
-    Nebulith.DataMigration.NothingIsStrewnAcrossTheWay,
     Nebulith.DataMigration.ABridgeIsAssembledNotStretched,
     Nebulith.DataMigration.ASolidBlockAndAStoneThatReadsAsStone,
-    Nebulith.DataMigration.NoBridgeIsAChoice,
     Nebulith.DataMigration.TwoSetsOfWaterAndThreeCorrections,
-    Nebulith.DataMigration.AWaterSetIsAChoice,
     Nebulith.DataMigration.YouWalkOverABridgeNotUnderIt,
     Nebulith.DataMigration.ATempleHasItsOwnMouth,
     Nebulith.DataMigration.AnOptionBelongsToAGroup,
     Nebulith.DataMigration.AnElementShowsWhatItDoes,
     Nebulith.DataMigration.AnOrnamentIsASingleTileAndARockStopsYou,
-    Nebulith.DataMigration.ATownBuildsTheCrossingYouPicked,
-    Nebulith.DataMigration.LiquidsLavaAndAMountainThatErupted,
     Nebulith.DataMigration.TreesGoBackToWhatWorked,
-    Nebulith.DataMigration.AForestWearsItsOwnRegion,
     Nebulith.DataMigration.UndergrowthBelongsToItsBiome,
     Nebulith.DataMigration.FourSpeciesHeAskedFor,
     Nebulith.DataMigration.UndoTheDesertTiles,
-    Nebulith.DataMigration.ADesertGrowsDesertTrees,
-    Nebulith.DataMigration.HowMuchGrowsThere,
     Nebulith.DataMigration.ACactusIsAnObject,
-    Nebulith.DataMigration.ATownGrowsWhatSurroundsIt,
-    Nebulith.DataMigration.TheGroundBelongsToItsBiome,
     Nebulith.DataMigration.NoTwoCactiAlike,
     Nebulith.DataMigration.GrassIsASingleTileToo,
-    Nebulith.DataMigration.ARegionFloorComesFromItsBiome,
-    Nebulith.DataMigration.TheGroundAPlaceIsMadeOf,
-    Nebulith.DataMigration.TwoBiomesOutOfOrder,
-    Nebulith.DataMigration.AVolcanoBurnsInBands,
     Nebulith.DataMigration.ABeachGrowsDuneGrass,
     Nebulith.DataMigration.AVolcanoYouCanSee,
-    Nebulith.DataMigration.EveryBiomeItsOwnRegions,
     Nebulith.DataMigration.AnOakIsNotAnEncina,
-    Nebulith.DataMigration.TheRegionPickerOffersRealRegions,
-    Nebulith.DataMigration.ABeachHasASea,
-    Nebulith.DataMigration.EveryRegionIsAPlace,
-    Nebulith.DataMigration.ARegionsWaterIsTheMapsWater,
-    Nebulith.DataMigration.EachRegionIsItsOwnPlace,
-    Nebulith.DataMigration.ReliefOnlyWhereItIsTheJourney,
-    Nebulith.DataMigration.TheBloomsARegionLost,
-    Nebulith.DataMigration.TheSpeciesARegionLost,
-    Nebulith.DataMigration.AStreetIsTheOnlyPaintOnATown,
-    Nebulith.DataMigration.ARegionGrowsItsOwnTrees,
-    Nebulith.DataMigration.TheDesertKeepsItsCacti,
     Nebulith.DataMigration.ASettingIsStatedNotGuessed,
     # Re-runs two seeders, so it comes before the height pass below, which settles what they land.
     Nebulith.DataMigration.ATrunkIsThinByThickness,
     Nebulith.DataMigration.ADoorIsTwoBlocksTall,
     Nebulith.DataMigration.ARockFaceIsNotGround,
-    Nebulith.DataMigration.TheHeartAloneStandsOnItsPlatform,
-    Nebulith.DataMigration.TheRejectedEntrancesAreGone,
-    Nebulith.DataMigration.ABodyOfWaterIsLevel,
     Nebulith.DataMigration.WaterLiesFlat,
-    Nebulith.DataMigration.NoMoreBulbs,
     Nebulith.DataMigration.TheCaveAndTheTempleGo,
     Nebulith.DataMigration.APuddleLetsYouSeeTheGround,
     Nebulith.DataMigration.ATrunkIsAQuarterOfItsCrown,
     Nebulith.DataMigration.YouCannotWalkIntoWater,
     Nebulith.DataMigration.AStreetLineIsDrawnNotPainted,
+    # After every other composition pass, because it re-seeds them and must be the last word on the cactus.
+    Nebulith.DataMigration.ACactusIsThinTheWayATrunkIs,
     Nebulith.DataMigration.EveryGameHasAnOwnerAndAStyle
   ]
 
@@ -179,6 +175,18 @@ defmodule Nebulith.DataMigrations do
   Runs every pending data migration in order and records each one. Returns the names it ran.
   """
   def run_pending, do: Enum.map(pending(), &apply_migration/1)
+
+  @doc """
+  Runs EVERY registered pass in order, whether or not the ledger says it has run. Returns the names.
+
+  This is what a re-seed needs, and not having it is why re-seeding has been the dangerous operation.
+  A seeder re-run lands what its source says today and knows nothing about the passes that edited the
+  rows afterwards; the ledger then stops those passes ever running again, so their work is simply gone.
+  Seed, then this, and the database is the seeders plus every pass, which is the state that was approved.
+
+  Every `run/0` is idempotent, which is what makes running the whole list again safe.
+  """
+  def run_all, do: Enum.map(@migrations, &apply_migration/1)
 
   @doc """
   Runs ONE data migration by short name, whether or not it has run before, and records it.

@@ -162,6 +162,15 @@ export interface ElementDims {
  *  transform. NO separate FLOOR / POSE / colour
  *  sections. The page pre-computes each shared value across a multi-cell selection (`null` = the tiles
  *  differ → "mixed") and each callback writes the edit to THIS stack level across the whole selection. */
+/** One of the four numbers a game's fade is made of, by the column that owns it. */
+export type FadeBandKey = 'fade_radius' | 'fade_full_radius' | 'fade_alpha' | 'interior_alpha'
+
+/** The game-wide fade, as the panel needs it: what the row says, and where a change goes. */
+export interface GameFadeModel {
+  bands: Readonly<Record<FadeBandKey, number>>
+  onBand: (band: FadeBandKey, value: number) => void
+}
+
 export interface TileControlModel {
   /** stable identity for the react key. */
   key: string
@@ -228,6 +237,19 @@ export interface TileControlModel {
    *  DEFAULT true (every cell); null = mixed. Asset tiles only. */
   actAsTile?: boolean | null
   onActAsTile?: (on: boolean) => void
+  /** OPACITY, how opaque this tile draws before anything else touches it (GridAsset.opacity; null = mixed).
+   *  `cell_tiles.opacity` in the spec's ledger. This is the one that makes a tree more opaque. */
+  opacity?: number | null
+  onOpacity?: (value: number) => void
+  /** FADE NEAR THE HERO, does this tile ease translucent as the hero comes close (settings.fadeNear →
+   *  `cell_tiles.fade_near`; null = mixed). Off draws solid at every distance. */
+  fadeNear?: boolean | null
+  onFadeNear?: (on: boolean) => void
+  /** MINIMUM ALPHA, how opaque this tile stays at its most faded (settings.minAlpha → `cell_tiles.min_alpha`;
+   *  null = mixed). It only ever makes a tile MORE opaque than the game's bands, never less, which is how a
+   *  door stays readable while its wall fades. */
+  minAlpha?: number | null
+  onMinAlpha?: (value: number) => void
   /** LIGHT, the warm night ground GLOW POOL this tile casts (GridAsset.light): intensity (strength), distance
    *  (radius in cells), colour, and an on/off toggle. Reads the first selected tile's light (undefined = none).
    *  Asset tiles only. `onLight(undefined)` clears the setting. */
@@ -287,6 +309,9 @@ export interface PropertiesPanelProps {
   onToggleSection: (id: InspectorSectionId) => void
   /** Where an open section's controls go. Absent → inline. See {@link SectionPresenter}. */
   present?: SectionPresenter
+  /** The GAME-WIDE fade, shown in Appearance beside the per-tile half. Absent when the map belongs to no
+   *  game, because then there is no `game_settings` row for a change to be written to. */
+  gameFade?: GameFadeModel
   /** CLEAR every tile off the selected cell(s), drops the stacked assets AND the floor, like an erase over
    *  the selection (Image #67). It shows even when the selected tile is the floor, and for a UNIT too (the
    *  page targets the cell the unit stands on). Wired to the existing erase path, captured by undo/redo. */
@@ -576,6 +601,116 @@ function LightControls({ light, onLight }: { light: AssetLight | undefined; onLi
   )
 }
 
+/**
+ * HOW OPAQUE, AND HOW FAR IT MAY FADE, the three settings behind what a person sees as range transparency.
+ *
+ * *"we have like a range transparency on the units/elements but I don't see any place to manage or edit it,
+ * and It'd like to make the tree more opaque"*. There was no place because the fade was four numbers in the
+ * renderer and these three had no row in the panel, so the only readable half of the behaviour was the half
+ * nobody could change.
+ *
+ * **Opacity** is what the tile draws at before anything else touches it. **Fade near the hero** is whether
+ * it answers to the hero at all. **Minimum alpha** is the floor it may never fade past, so a door, or a
+ * tree, stays readable while a wall goes see-through. The game's own distance bands live on `game_settings`
+ * and are edited where a game's other numbers are.
+ *
+ * 0 to 1 is not a limit invented here: it is what an alpha is, and `cell_tiles.opacity` and `min_alpha`
+ * carry the same bound as a check on the column.
+ */
+function FadeControls({ tile }: { tile: TileControlModel }) {
+  const opacity = tile.opacity ?? 1
+  const minAlpha = tile.minAlpha ?? 0
+  return (
+    <div className="space-y-1 rounded border border-gray-700 p-1.5">
+      <label className="flex items-center gap-2" title="Opacity, how solid this tile draws before anything else touches it">
+        <span className="w-14 shrink-0 text-[10px] text-gray-400">Opacity</span>
+        <input type="range" {...dragRange(opacity, 0, 1)} step={0.05} value={opacity} onChange={e => parseNum(e.target.value, v => tile.onOpacity!(v))} aria-label={`${tile.label} opacity`} className="flex-1 accent-cyan-500" />
+        <NumberField value={opacity} onCommit={v => tile.onOpacity!(v)} ariaLabel={`${tile.label} opacity value`} className="w-14 rounded bg-gray-800 p-1 text-[10px] tabular-nums text-cyan-300" />
+        {tile.opacity === null && mixedBadge}
+      </label>
+      {tile.onFadeNear && (
+        <label className="flex items-center gap-2" title="Fade near the hero, ease see-through as the hero comes close so you can see past it">
+          <span className="w-14 shrink-0 text-[10px] text-gray-400">Fade near the hero</span>
+          <button onClick={() => tile.onFadeNear!(true)} aria-pressed={tile.fadeNear === true} className={`rounded px-2 py-0.5 text-[10px] font-bold ${tile.fadeNear === true ? 'bg-cyan-600 text-white' : 'bg-gray-700 hover:bg-gray-600'}`}>Yes</button>
+          <button onClick={() => tile.onFadeNear!(false)} aria-pressed={tile.fadeNear === false} className={`rounded px-2 py-0.5 text-[10px] font-bold ${tile.fadeNear === false ? 'bg-cyan-600 text-white' : 'bg-gray-700 hover:bg-gray-600'}`}>No</button>
+          {tile.fadeNear === null && mixedBadge}
+        </label>
+      )}
+      {tile.onMinAlpha && (
+        <label className="flex items-center gap-2" title="Minimum alpha, the most see-through this tile is ever allowed to get. Raise it to keep a tree readable while a wall fades">
+          <span className="w-14 shrink-0 text-[10px] text-gray-400">Minimum alpha</span>
+          <input type="range" {...dragRange(minAlpha, 0, 1)} step={0.05} value={minAlpha} onChange={e => parseNum(e.target.value, v => tile.onMinAlpha!(v))} aria-label={`${tile.label} minimum alpha`} className="flex-1 accent-cyan-500" />
+          <NumberField value={minAlpha} onCommit={v => tile.onMinAlpha!(v)} ariaLabel={`${tile.label} minimum alpha value`} className="w-14 rounded bg-gray-800 p-1 text-[10px] tabular-nums text-cyan-300" />
+          {tile.minAlpha === null && mixedBadge}
+        </label>
+      )}
+    </div>
+  )
+}
+
+/**
+ * WHAT THE FADE ITSELF IS, for this whole game, the other half of the same report.
+ *
+ * The tile above says how far IT may fade. This says what fading means: how far out it starts, how close
+ * it takes to reach its most transparent, how transparent that is, and how transparent a shell goes once
+ * the hero is inside it. All four were `export const` in the renderer, so the behaviour was visible and
+ * unreachable. They are columns on `game_settings` now, and this is the control for them.
+ *
+ * It says "this whole game" on it because it IS game-wide, sitting beside a per-tile group. A control that
+ * looks per-tile and is not would be worse than no control.
+ *
+ * Absent when the map belongs to no game, for the same reason every other absent control is: the model
+ * wired no writer, because there is no row to write. Never a gate on the kind of tile.
+ */
+function GameFadeControls({ game }: { game: GameFadeModel }) {
+  return (
+    <div className="space-y-1 rounded border border-gray-700 p-1.5">
+      <p className="text-[9px] font-bold uppercase tracking-wider text-gray-500">Fade, for this whole game</p>
+      {FADE_BANDS.map(band => (
+        <label key={band.key} className="flex items-center gap-2" title={band.title}>
+          <span className="w-14 shrink-0 text-[10px] text-gray-400">{band.label}</span>
+          <input
+            type="range"
+            {...dragRange(game.bands[band.key], band.min, band.max)}
+            step={band.step}
+            value={game.bands[band.key]}
+            onChange={e => parseNum(e.target.value, v => game.onBand(band.key, v))}
+            aria-label={band.label}
+            className="flex-1 accent-cyan-500"
+          />
+          <NumberField
+            value={game.bands[band.key]}
+            onCommit={v => game.onBand(band.key, v)}
+            ariaLabel={`${band.label} value`}
+            className="w-14 rounded bg-gray-800 p-1 text-[10px] tabular-nums text-cyan-300"
+          />
+        </label>
+      ))}
+    </div>
+  )
+}
+
+/**
+ * THE FOUR ROWS, from a model, so adding a fifth band is a row here and not a branch in the component.
+ *
+ * The slider ranges are the SHAPE of a drag, not a limit: the number field beside each one takes whatever
+ * a person types, and the column is what refuses an impossible value (`fade_alpha > 0 AND <= 1`, and a
+ * radius further out than the distance the fade holds flat). An alpha's 0 to 1 is what an alpha IS.
+ */
+const FADE_BANDS: ReadonlyArray<{
+  key: FadeBandKey
+  label: string
+  title: string
+  min: number
+  max: number
+  step: number
+}> = [
+  { key: 'fade_radius', label: 'Starts at', title: 'Beyond this many cells from the hero, a thing is fully solid', min: 0, max: 40, step: 1 },
+  { key: 'fade_full_radius', label: 'Fully faded', title: 'Within this many cells it holds flat at its most transparent', min: 0, max: 40, step: 1 },
+  { key: 'fade_alpha', label: 'Faded to', title: 'How opaque a thing draws in the close band, so a door on the far face still reads', min: 0, max: 1, step: 0.05 },
+  { key: 'interior_alpha', label: 'Inside', title: 'How opaque a building shell draws while the hero is standing inside it', min: 0, max: 1, step: 0.05 },
+]
+
 /** Z POSITION, SLIDE the tile along an iso DIAGONAL (NOT a vertical lift): a magnitude (± cells) plus WHICH
  *  diagonal it slides along, reusing the same 4 dirs + labels as Z Width. +z slides TOWARD the picked dir,
  *  −z toward its opposite; default 'right-up' ("right top") → +z = up-right toward the back. The direction
@@ -605,7 +740,7 @@ function ZPosRow({ zPos, zDir, onZPos, onZDir }: { zPos: number | null; zDir: Is
  * art is painted onto its block. Every one applies to EVERY tile through the same path; a control absent
  * here means the model wired no writer for it (the floor has no block shell), never a gate on tile kind.
  */
-export function LooksControls({ tile }: { tile: TileControlModel }) {
+export function LooksControls({ tile, game }: { tile: TileControlModel; game?: GameFadeModel }) {
   return (
     <div className="space-y-1.5">
       {/* ONE colour for the tile (floor→groundColor, asset→asset.color), no separate pose colour */}
@@ -621,6 +756,10 @@ export function LooksControls({ tile }: { tile: TileControlModel }) {
       {tile.onTransparent && <TransparentRow transparent={tile.transparent} onTransparent={tile.onTransparent} />}
       {/* Shape: render the tile's block as a cube (square) or a ball (circle). Asset tiles only. */}
       {tile.onShape && <ShapeModeRow shape={tile.shape} onShape={tile.onShape} />}
+      {/* How opaque, and how far it may fade as the hero closes in. Asset tiles only. */}
+      {tile.onOpacity && <FadeControls tile={tile} />}
+      {/* …and what fading MEANS, for the whole game. Absent when the map belongs to no game. */}
+      {game && <GameFadeControls game={game} />}
       {/* Light: cast a warm ground glow pool at night, with intensity/distance/colour + on-off. Asset tiles only. */}
       {tile.onLight && <LightControls light={tile.light} onLight={tile.onLight} />}
     </div>
@@ -875,7 +1014,7 @@ export function PropertiesPanel(p: PropertiesPanelProps) {
         )
         : t && (
           <>
-            {section('looks', undefined, <LooksControls tile={t} />)}
+            {section('looks', undefined, <LooksControls tile={t} game={p.gameFade} />)}
             {section('size', undefined, <SizeAndPositionControls tile={t} />)}
           </>
         )}

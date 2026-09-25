@@ -2,9 +2,10 @@ import { useEffect, useState } from 'react'
 import { useRouter } from '@/lib/router'
 import { ROUTES } from '@/lib/routes'
 import { GameEngineLayout } from '@/components/GameEngineLayout'
-import { listGames, createGame, deleteGame, type Game } from '@/lib/api'
+import { listGames, createGame, deleteGame, listArtStyles, type ArtStyle, type Game } from '@/lib/api'
 import { nextGameName } from '@/game/autoNaming'
 import { useConfirm } from '@/components/useConfirm'
+import { Modal } from '@/components/modals'
 
 /**
  * GAMES gallery, the app is scoped to games now (templates are a reusable resource). Games are PERSISTED
@@ -16,6 +17,10 @@ export default function GamesPage() {
   const [games, setGames] = useState<Game[]>([])
   const [loading, setLoading] = useState(true)
   const { confirm, dialog: confirmDialog } = useConfirm()
+  // THE ART STYLES, from the backend. A style is a `tilesets` row, so the picker is served rather than
+  // written here: a list of two names in this file would be wrong the day a third style is added.
+  const [styles, setStyles] = useState<ArtStyle[]>([])
+  const [picking, setPicking] = useState(false)
 
   const load = () => {
     listGames()
@@ -23,14 +28,29 @@ export default function GamesPage() {
       .catch(() => setLoading(false))
   }
   useEffect(() => { load() }, [])
+  useEffect(() => { listArtStyles().then(setStyles).catch(() => setStyles([])) }, [])
 
   // The /games/[id] route resolves the start template (last-watched, else first) itself, just pass the id.
   const openGame = (g: Game) => router.push(ROUTES.game(g.id))
   const playGame = (g: Game) => router.push(`${ROUTES.game(g.id)}?play=1`)
-  // Creating a game asks nothing, The gallery names it from what is
-  // already there and the editor opens; renaming is a normal edit once you are in it.
+  // CREATING A GAME ASKS ONE THING: which art style it is made in.
+  //
+  // `docs/SPEC.md` phase 1 REWIRE: *"Creating a game asks for its name and its art style."* The NAME is
+  // not asked, deliberately and on his instruction: *"that's the worst UX ever … just assign a random
+  // name … and redirect user to the editor right away"* (see `components/useConfirm.tsx`). That was about
+  // the name. The style is the other half and it is a real choice, because it is what the whole game is
+  // drawn in, and a map may still override it later.
+  //
+  // With one style served there is nothing to choose, so it does not ask: a dialogue with one button is
+  // a worse version of no dialogue.
   const handleNew = async () => {
-    const g = await createGame({ name: nextGameName(games) })
+    if (styles.length < 2) return createWith(styles[0]?.id)
+    setPicking(true)
+  }
+
+  const createWith = async (defaultTilesetId?: number) => {
+    setPicking(false)
+    const g = await createGame({ name: nextGameName(games), defaultTilesetId })
     router.push(ROUTES.game(g.id))
   }
   const handleDelete = async (g: Game) => {
@@ -47,6 +67,27 @@ export default function GamesPage() {
   return (
     <GameEngineLayout active="games">
       {confirmDialog}
+      {picking && (
+        <Modal title="What is this game drawn in?" accent="cyan" onClose={() => setPicking(false)}>
+          <div className="grid grid-cols-2 gap-2">
+            {styles.map(style => (
+              <button
+                key={style.id}
+                onClick={() => createWith(style.id)}
+                aria-label={`Art style ${style.key}`}
+                data-art-style={style.key}
+                className="flex items-center gap-2 rounded-lg bg-gray-800 px-4 py-3 text-left font-bold hover:bg-gray-700 hover:ring-2 hover:ring-green-500"
+              >
+                <span aria-hidden className="text-2xl">{style.icon}</span>
+                <span>{style.name}</span>
+              </button>
+            ))}
+          </div>
+          <p className="mt-3 text-[11px] text-gray-400">
+            Every map in the game starts in this style. A map can be switched to another one at any time.
+          </p>
+        </Modal>
+      )}
       <div className="bg-gray-800 rounded-lg p-4 mb-6 flex items-center justify-between">
         <div>
           <span className="text-gray-400 text-sm">Games:</span>

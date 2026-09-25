@@ -9,6 +9,11 @@
  * | axis | owns | where it comes from |
  * |---|---|---|
  * | SEASON | the TONE and the per-tree VARIANCE | `leaf_center.settings.colors[zone]`, four shades, the tree's `variant` picks one |
+ *
+ * A SEASON MAY ALSO BLOSSOM, and only spring does. Its array is three greens and a pink, and
+ * `settings.leafShades[zone]` says how many of the entries are LEAF. A crown reads the whole array
+ * (`canopyShade`); anything growing under it reads the leaves alone (`leafShade`). Both go through the
+ * arithmetic below unchanged: where the shades end is a fact about the palette, not about the colour maths.
  * | BIOME | the HUE and SATURATION identity, and how much the season moves it at all | the generator's `palette.leaf` + `leafSeasonality` |
  * | REGION | a small local shift, light and damp | the sub-zone's own `leafHue` / `leafValue` |
  *

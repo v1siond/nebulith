@@ -252,6 +252,14 @@ export interface GeneratorSubZone {
   undergrowth?: number
   /** this region's own floor tone */
   floor?: string
+  /**
+   * The GROUND TILE this region stands on, by label: `sand`, `sand_dune`, `volcanic_rock`.
+   *
+   * Separate from `floor`, which is only a TONE. A colour moves the hue and never the material, so a beach
+   * whose regions stated a sand colour over the season's meadow grass was grass in a sand colour, measured at
+   * 1238 of 1600 cells. Absent means the season's ground, which is what every region did before this existed.
+   */
+  ground?: string
   /** this region's hue shift, in degrees: how much light reaches it (a glade takes the most). */
   leafHue?: number
   /** this region's brightness offset on the leaf, added after the biome's scale. */
@@ -965,7 +973,15 @@ function parseSubZones(v: unknown): readonly GeneratorSubZone[] | undefined {
     for (const [field, value] of Object.entries(raw)) {
       if (SUBZONE_NAMED.has(field)) continue
       const n = num(value)
-      if (n !== undefined) (row as Record<string, unknown>)[field] = n
+      if (n !== undefined) {
+        ;(row as Record<string, unknown>)[field] = n
+        continue
+      }
+      // …AND EVERY WORD, not only every number. It carried numbers alone, so the first STRING the backend
+      // served for a region was dropped here in silence, which is the very failure the note above records
+      // happening twice already. A region's ground tile is a label, and a label is a word.
+      const word = str(value)
+      if (word) (row as Record<string, unknown>)[field] = word
     }
     const floor = str(raw.floor)
     if (floor) row.floor = floor

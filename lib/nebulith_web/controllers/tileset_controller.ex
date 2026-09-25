@@ -15,6 +15,18 @@ defmodule NebulithWeb.TilesetController do
     render(conn, :index, tilesets: tilesets, compositions: Catalog.list_compositions())
   end
 
+  @doc """
+  THE ART STYLES a game can be made in, for a picker.
+
+  `docs/SPEC.md` phase 1 REWIRE: a game carries its art style, *"I like the versatility of having one art
+  style per map, but I do want to be able to set the default at the game table level instead of hardcoding
+  ascii."* A style is a `tilesets` row, so the list comes from here rather than from two names typed into
+  a component (law 4, law 7).
+  """
+  def styles(conn, _params) do
+    render(conn, :styles, tilesets: Catalog.list_tilesets())
+  end
+
   def create(conn, %{"tileset" => tileset_params}) do
     with {:ok, %Tileset{} = tileset} <- Catalog.create_tileset(tileset_params) do
       conn

@@ -53,7 +53,8 @@ defmodule Nebulith.LabelParityTest do
       SELECT ts.key, t.label
       FROM tiles t
       JOIN tilesets ts ON ts.id = t.tileset_id
-      WHERE t.image_url IS NULL OR t.image_url = ''
+      LEFT JOIN tile_images i ON i.tile_id = t.id AND i.tileset_id = t.tileset_id
+      WHERE i.id IS NULL
       ORDER BY ts.key, t.label
       LIMIT 40
       """)
@@ -75,14 +76,15 @@ defmodule Nebulith.LabelParityTest do
     # question is open.
     %{rows: rows} =
       Repo.query!("""
-      SELECT ts.key, t.label, t.image_url
+      SELECT ts.key, t.label, i.image_path
       FROM tiles t
       JOIN tilesets ts ON ts.id = t.tileset_id
+      JOIN tile_images i ON i.tile_id = t.id AND i.tileset_id = t.tileset_id
       WHERE EXISTS (
         SELECT 1 FROM tiles o
         WHERE o.tileset_id = t.tileset_id
           AND o.label <> t.label
-          AND t.image_url LIKE '%/' || o.label || '.png'
+          AND i.image_path LIKE '%/' || o.label || '.png'
       )
       ORDER BY ts.key, t.label
       """)

@@ -7,16 +7,14 @@ defmodule NebulithWeb.TilesetControllerTest do
   alias Nebulith.Catalog.Tileset
 
   @create_attrs %{
-    data: %{},
     name: "some name",
     key: "some key"
   }
   @update_attrs %{
-    data: %{},
     name: "some updated name",
     key: "some updated key"
   }
-  @invalid_attrs %{data: nil, name: nil, key: nil}
+  @invalid_attrs %{name: nil, key: nil}
 
   setup %{conn: conn} do
     {:ok, conn: put_req_header(conn, "accept", "application/json")}
@@ -38,7 +36,6 @@ defmodule NebulithWeb.TilesetControllerTest do
 
       assert %{
                "id" => ^id,
-               "data" => %{},
                "key" => "some key",
                "name" => "some name"
              } = json_response(conn, 200)["data"]
@@ -61,7 +58,6 @@ defmodule NebulithWeb.TilesetControllerTest do
 
       assert %{
                "id" => ^id,
-               "data" => %{},
                "key" => "some updated key",
                "name" => "some updated name"
              } = json_response(conn, 200)["data"]
@@ -88,7 +84,7 @@ defmodule NebulithWeb.TilesetControllerTest do
 
   describe "index serves tiles + compositions" do
     test "each tileset carries its tiles (with image_url) + compositions", %{conn: conn} do
-      {:ok, ts} = Nebulith.Catalog.create_tileset(%{key: "ascii", name: "ASCII", data: %{}})
+      {:ok, ts} = Nebulith.Catalog.create_tileset(%{key: "ascii", name: "ASCII"})
 
       {:ok, _} =
         Nebulith.Catalog.upsert_tile(%{
@@ -109,8 +105,8 @@ defmodule NebulithWeb.TilesetControllerTest do
       conn = get(conn, ~p"/api/tilesets")
       [t] = json_response(conn, 200)["data"]
       assert t["key"] == "ascii"
-      # existing field preserved
-      assert t["data"] == %{}
+      # NO BLOB. A tileset is a name and a set of pictures, so there is nothing else on the wire.
+      refute Map.has_key?(t, "data")
       assert t["tiles"]["trunk"]["image_url"] == "/tiles/ascii/trunk.png"
       assert t["tiles"]["trunk"]["settings"]["colors"]["spring"] == "#7a5a3a"
       assert t["compositions"]["tree_small"]["footprint"] == %{"w" => 5, "h" => 3}
@@ -123,7 +119,7 @@ defmodule NebulithWeb.TilesetControllerTest do
       conn: conn
     } do
       # a tileset must exist so the index returns a `data` entry to hang the (style-agnostic) compositions on.
-      {:ok, _ts} = Nebulith.Catalog.create_tileset(%{key: "ascii", name: "ASCII", data: %{}})
+      {:ok, _ts} = Nebulith.Catalog.create_tileset(%{key: "ascii", name: "ASCII"})
 
       {:ok, _} =
         Nebulith.Catalog.upsert_composition_with_cells(
@@ -149,7 +145,7 @@ defmodule NebulithWeb.TilesetControllerTest do
 
     test "a cell's z_index is served as `zIndex` (draw priority) in the API", %{conn: conn} do
       # a tileset must exist so the index returns a `data` entry to hang the (style-agnostic) compositions on.
-      {:ok, _ts} = Nebulith.Catalog.create_tileset(%{key: "ascii", name: "ASCII", data: %{}})
+      {:ok, _ts} = Nebulith.Catalog.create_tileset(%{key: "ascii", name: "ASCII"})
 
       {:ok, _} =
         Nebulith.Catalog.upsert_composition_with_cells(

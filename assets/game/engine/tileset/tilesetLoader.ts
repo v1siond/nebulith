@@ -31,7 +31,7 @@ interface ApiTile {
   settings?: {
     position?: TilePosition
     colors?: Record<string, unknown>
-    /** Terrain tiles carry their char/fg/bg variants here (the data form of the old GROUND_COLORS row), *  read into the tileset's `terrain` map so ground colour comes from the tile, not a `data.terrain` blob. */
+    /** Terrain tiles carry their fg/bg tones here (the data form of the old GROUND_COLORS row), *  read into the tileset's `terrain` map so ground colour comes from the tile, not a `data.terrain` blob. */
     variants?: GroundTile
     color?: string
     pose?: TilePose
@@ -53,8 +53,6 @@ interface ApiTileset {
   /** The style picker's affordance + order, a tileset row IS an art style (§3.14a `BUILT_IN_STYLES`). */
   icon?: string | null
   position?: number | null
-  /** The OLD blob, still holds `palettes` + `terrain` for ascii (out of scope to migrate this task). */
-  data: { palettes?: Record<string, ZonePalette>; terrain?: Record<string, GroundTile> }
   tiles?: Record<string, ApiTile>
   compositions?: Record<string, Composition>
 }
@@ -133,7 +131,7 @@ function toStyleTile(label: string, tile: ApiTile): StyleTile {
 // render path. All three build the ground map so ground rendering stays byte-identical after recategorizing.
 const GROUND_CATEGORIES = new Set(['terrain', 'roads', 'floors'])
 
-/** Build the ground/terrain map from the GROUND TILE ROWS (category terrain/roads/floors, with char/fg/bg in
+/** Build the ground/terrain map from the GROUND TILE ROWS (category terrain/roads/floors, with fg/bg in
  *  settings.variants), "terrain is just another tile", so ground colour comes from each tile's own
  *  settings, never a `data.terrain` blob. Tiles without variants are skipped (resolveGroundTile then
  *  falls back to grass). */
@@ -141,7 +139,7 @@ function buildTerrain(apiTiles: Record<string, ApiTile>): Record<string, GroundT
   const terrain: Record<string, GroundTile> = {}
   for (const [label, tile] of Object.entries(apiTiles)) {
     const v = tile.settings?.variants
-    if (tile.category && GROUND_CATEGORIES.has(tile.category) && v?.char?.length && v?.fg?.length && v?.bg?.length) terrain[label] = v
+    if (tile.category && GROUND_CATEGORIES.has(tile.category) && v?.fg?.length && v?.bg?.length) terrain[label] = v
   }
   return terrain
 }
@@ -223,6 +221,27 @@ export async function loadTilesetsFromBackend(): Promise<string[]> {
     console.warn(`[nebulith] tileset load from ${NEBULITH_API} failed, the editor stays on the loader/error state (no bundled fallback). (${(e as Error).message})`)
     return []
   }
+}
+
+/**
+ * THE ROW ID OF A STYLE, and the style of a row id. The two halves of the same fact.
+ *
+ * A map states its art style as `maps.tileset_id`, a row id, while the editor speaks in style KEYS
+ * ("ascii", "emoji"). This is the only place that knows both, filled at load from the served catalog so
+ * nothing has to be written down twice.
+ *
+ * `docs/SPEC.md` phase 1 REWIRE is why these exist: the style used to ride the saved map as a fake tile
+ * placed at cell (-1, -1), because there was no id to write. There is.
+ */
+export function tilesetIdForStyle(key: string): number | string | undefined {
+  return tilesetIdByKey.get(key)
+}
+
+/** The style key a served `tileset_id` belongs to, or undefined when the catalog does not know it. */
+export function styleForTilesetId(id: number | string | null | undefined): string | undefined {
+  if (id == null) return undefined
+  for (const [key, rowId] of tilesetIdByKey) if (String(rowId) === String(id)) return key
+  return undefined
 }
 
 /** Persist the CURRENT in-memory tileset for `key` back to the backend (the pose editor's Save). PUTs the

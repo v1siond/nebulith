@@ -5,7 +5,6 @@
 import { useEffect, useState } from 'react'
 import { abilityRegistry, ABILITY_SLOTS, type AbilityBinding, type AbilityDef, type AbilitySlot, assignAbility, bindingForSlot, rebindAbility, removeAbility } from '@/game/abilities'
 import { abilityTint } from '@/game/abilityArt'
-import { weaponEmoji } from '@/engine/entityArt'
 import { gearCatalog } from '@/game/gear'
 import { addToBag, allowedSlots, equip as equipToSlot, loadoutBonuses, setShortcut, setSpecial, unequip as unequipSlot } from '@/game/loadout'
 import { progress } from '@/game/quests'

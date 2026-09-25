@@ -18,7 +18,7 @@
  * READ WITH A FUNCTION, NEVER AT MODULE SCOPE. A `const` built at import time freezes the EMPTY catalogue and
  * every caller then sees "no category" for the life of the tab.
  */
-import { styleCatalog } from './styleTiles'
+import { labelTile } from './styleTiles'
 
 /** The categories the backend uses, as constants so a caller never spells one wrong. */
 export const TILE_CATEGORY = {
@@ -30,20 +30,18 @@ export const TILE_CATEGORY = {
 
 export type TileCategory = (typeof TILE_CATEGORY)[keyof typeof TILE_CATEGORY]
 
-/** The category the backend gives this label, or undefined when it serves none (or is not loaded yet). */
-export function tileCategory(label: string | undefined, styleId = 'ascii'): string | undefined {
+/** The category the backend gives this label, or undefined when it serves none (or is not loaded yet).
+ *
+ *  NO STYLE ARGUMENT. A category belongs to the LABEL (law 4), so there is no style for a caller to pass
+ *  and no style for this to default to. It used to default to `'ascii'`, which phase 1's DELETE line
+ *  names, and which answered from a catalog the user may not be looking at. */
+export function tileCategory(label: string | undefined): string | undefined {
   if (!label) return undefined
-  return styleCatalog(styleId).tiles[label]?.category
+  return labelTile(label)?.category
 }
 
 /** Is this label one the backend files under `category`? Absent data answers false: a tile the catalogue has
  *  not classified is not silently promoted into a group it was never put in. */
-export function isTileCategory(label: string | undefined, category: TileCategory, styleId = 'ascii'): boolean {
-  return tileCategory(label, styleId) === category
-}
-
-/** Every label the backend files under `category`, in catalogue order. The one way to enumerate a group. */
-export function tilesInCategory(category: TileCategory, styleId = 'ascii'): string[] {
-  const tiles = styleCatalog(styleId).tiles
-  return Object.keys(tiles).filter(label => tiles[label]?.category === category)
+export function isTileCategory(label: string | undefined, category: TileCategory): boolean {
+  return tileCategory(label) === category
 }

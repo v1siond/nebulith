@@ -6,22 +6,27 @@ defmodule NebulithWeb.LevelControllerTest do
   answer with a list of games.
   """
   use NebulithWeb.ConnCase
+
   # /api is closed, so these all have to be somebody first. See docs/AUTH.md §5.
   setup :log_in_api_user
 
   alias Nebulith.{Games, Levels}
 
-  setup %{conn: conn} do
-    {:ok, game} = Games.create_game(%{"name" => "Mario"})
-    {:ok, conn: put_req_header(conn, "accept", "application/json"), game: game}
+  setup %{conn: conn, user: owner} do
+    {:ok, game} = Games.create_game(owner, %{"name" => "Mario"})
+    {:ok, conn: put_req_header(conn, "accept", "application/json"), game: game, owner: owner}
   end
 
   test "a game with no levels yet answers an empty list, not an error", %{conn: conn, game: game} do
     assert json_response(get(conn, ~p"/api/games/#{game.id}/levels"), 200) == %{"data" => []}
   end
 
-  test "serves THIS GAME's levels, in play order, and nobody else's", %{conn: conn, game: game} do
-    {:ok, other} = Games.create_game(%{"name" => "Sonic"})
+  test "serves THIS GAME's levels, in play order, and nobody else's", %{
+    conn: conn,
+    game: game,
+    owner: owner
+  } do
+    {:ok, other} = Games.create_game(owner, %{"name" => "Sonic"})
     {:ok, _} = Levels.create_level(other.id, %{"name" => "Green Hill"})
 
     for name <- ["1-1", "1-2", "1-3"],

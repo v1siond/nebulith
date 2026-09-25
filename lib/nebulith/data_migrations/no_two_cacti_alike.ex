@@ -35,103 +35,15 @@ defmodule Nebulith.DataMigration.NoTwoCactiAlike do
   require Logger
 
   alias Nebulith.Catalog.TileSource
-  alias Nebulith.Repo
-
-  @environment [
-    %{"kind" => "cactus_saguaro_young", "weight" => 18},
-    %{"kind" => "tree_gnarled", "weight" => 16},
-    %{"kind" => "cactus_prickly", "weight" => 14},
-    %{"kind" => "tree_stub", "weight" => 14},
-    %{"kind" => "cactus_saguaro", "weight" => 12},
-    %{"kind" => "cactus_barrel", "weight" => 12},
-    %{"kind" => "tree_encina", "weight" => 10},
-    %{"kind" => "cactus_saguaro_one", "weight" => 10},
-    %{"kind" => "tree_dead", "weight" => 8},
-    %{"kind" => "cactus_saguaro_old", "weight" => 6}
-  ]
-
-  @regions %{
-    # the harshest ground: the old giants stand here, and so does the dead wood
-    "deep" => [
-      %{"kind" => "cactus_saguaro", "weight" => 22},
-      %{"kind" => "cactus_saguaro_young", "weight" => 20},
-      %{"kind" => "tree_dead", "weight" => 18},
-      %{"kind" => "cactus_saguaro_old", "weight" => 14},
-      %{"kind" => "cactus_barrel", "weight" => 14},
-      %{"kind" => "cactus_saguaro_one", "weight" => 12}
-    ],
-    "edge" => [
-      %{"kind" => "tree_encina", "weight" => 22},
-      %{"kind" => "tree_gnarled", "weight" => 20},
-      %{"kind" => "cactus_prickly_tall", "weight" => 16},
-      %{"kind" => "cactus_saguaro_young", "weight" => 16},
-      %{"kind" => "bush_round", "weight" => 12},
-      %{"kind" => "cactus_barrel_pair", "weight" => 10}
-    ],
-    "glade" => [
-      %{"kind" => "cactus_barrel", "weight" => 24},
-      %{"kind" => "cactus_barrel_pair", "weight" => 20},
-      %{"kind" => "cactus_prickly", "weight" => 20},
-      %{"kind" => "tree_stub", "weight" => 18},
-      %{"kind" => "cactus_saguaro_young", "weight" => 14}
-    ],
-    "thicket" => [
-      %{"kind" => "cactus_prickly", "weight" => 28},
-      %{"kind" => "cactus_prickly_tall", "weight" => 22},
-      %{"kind" => "bush_round", "weight" => 20},
-      %{"kind" => "cactus_barrel_pair", "weight" => 16},
-      %{"kind" => "bush", "weight" => 12}
-    ],
-    "lakeside" => [
-      %{"kind" => "tree_palm", "weight" => 38},
-      %{"kind" => "tree_coconut", "weight" => 26},
-      %{"kind" => "tree_encina", "weight" => 18},
-      %{"kind" => "cactus_prickly", "weight" => 12},
-      %{"kind" => "bush_round", "weight" => 10}
-    ]
-  }
 
   def run do
     TileSource.seed_compositions()
-    env = set(@environment, nil)
-    reg = set_regions()
 
-    Logger.info(
-      "[data_migrate] #{env} desert generators and #{reg} with regions grow seven cactus forms"
-    )
+    # THE MIXES ARE NOT WRITTEN FROM HERE ANY MORE. `GeneratorSource.seed/0` writes `generators.config`
+    # WHOLE, so a desert mix set by this pass was a second owner and the next seed decided it. The seven
+    # cactus forms are stated in the seeder; what is left here is composing them.
+    Logger.info("[data_migrate] seven cactus forms composed")
 
     :ok
-  end
-
-  defp set(mix, _) do
-    %{num_rows: rows} =
-      Repo.query!(
-        """
-        UPDATE generators SET config = jsonb_set(config, '{trees}', $1::text::jsonb)
-        WHERE (name = 'Desert' OR name LIKE 'Desert %') AND config->'trees' IS NOT NULL
-        """,
-        [Jason.encode!(mix)]
-      )
-
-    rows
-  end
-
-  defp set_regions do
-    %{num_rows: rows} =
-      Repo.query!(
-        """
-        UPDATE generators SET config = jsonb_set(config, '{subZones}', (
-          SELECT jsonb_agg(
-            CASE WHEN $1::text::jsonb ? (z->>'key') THEN jsonb_set(z, '{trees}', $1::text::jsonb -> (z->>'key')) ELSE z END
-            ORDER BY ord
-          )
-          FROM jsonb_array_elements(config->'subZones') WITH ORDINALITY AS t(z, ord)
-        ))
-        WHERE (name = 'Desert' OR name LIKE 'Desert %') AND config->'subZones' IS NOT NULL
-        """,
-        [Jason.encode!(@regions)]
-      )
-
-    rows
   end
 end

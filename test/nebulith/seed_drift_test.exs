@@ -28,7 +28,7 @@ defmodule Nebulith.SeedDriftTest do
   use Nebulith.DataCase, async: false
 
   alias Nebulith.Catalog
-  alias Nebulith.Catalog.BuildingCompositions
+  alias Nebulith.Catalog.TileSource
 
   # The stable identity of a composition cell, geometry + anchor. NOT colour/material (salted at load).
   # WHAT A CELL OCCUPIES rides in `settings.collision` now, with the rest of the structural settings,
@@ -72,7 +72,7 @@ defmodule Nebulith.SeedDriftTest do
 
   defp anchor(cell), do: Map.take(cell, @anchor_keys)
 
-  # A source cell (BuildingCompositions) → the comparable shape. Source cells omit defaulted columns,
+  # A source cell (the seeder's own building set) → the comparable shape. Source cells omit defaulted columns,
   # so a missing scale = the DB default 1.0 and a missing z_index = 0.
   #
   # AND `walkable` IS CONVERTED, exactly as the insert converts it. The word is authoring sugar that
@@ -109,11 +109,15 @@ defmodule Nebulith.SeedDriftTest do
   # ── the checks ───────────────────────────────────────────────────────────────
 
   describe "compositions: fresh seed geometry survives into the served catalog (no dropped/moved cell)" do
-    test "every BuildingCompositions.all() building is served with matching footprint + cell ANCHORS" do
+    # AGAINST WHAT THE SEEDER INTENDS TO WRITE, which is the authored set with its columns built
+    # (`TileSource.building_compositions/0`). Comparing against the authored set alone forbids any rule
+    # standing between a person's authoring and the catalogue, and one stands there on purpose: a column
+    # written as one stretched tile becomes its courses.
+    test "every building the seeder means to write is served with matching footprint + cell ANCHORS" do
       served = served_compositions()
 
       drift =
-        for {name, comp} <- BuildingCompositions.all(), reduce: [] do
+        for {name, comp} <- TileSource.building_compositions(), reduce: [] do
           acc ->
             case Map.get(served, name) do
               nil ->
@@ -152,7 +156,7 @@ defmodule Nebulith.SeedDriftTest do
       served = served_compositions()
 
       drift =
-        for {name, comp} <- BuildingCompositions.all(),
+        for {name, comp} <- TileSource.building_compositions(),
             got = Map.get(served, name),
             got != nil,
             src <- Enum.map(comp.cells, &source_cell/1),

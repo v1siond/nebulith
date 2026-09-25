@@ -146,11 +146,19 @@ defmodule NebulithWeb.Router do
   scope "/api", NebulithWeb do
     pipe_through :api_signed_in
 
+    # THE ART STYLES, named and ordered, without the catalog behind them. A picker offering a choice needs
+    # the list; it does not need every tile of every style to draw four buttons.
+    get "/art_styles", TilesetController, :styles
+
     resources "/tilesets", TilesetController, except: [:new, :edit]
     # Entity → baked-tile resolution DATA (enemyType/variant → slug). Read-only; the
     # frontend fetches it at load time (it holds no bundled entity data).
     get "/entities", EntityController, :index
     get "/combat", CombatController, :index
+
+    # EVERY LIST A PICKER OFFERS, the engine's own and the ones a person may extend (law 11, D17). A list
+    # typed out beside its `<select>` cannot learn a value the engine accepts, and nothing says so.
+    get "/enums", EnumController, :index
     get "/zones", ZoneController, :index
 
     # THE GENERATION LAYERS, as data. The engine binds a pass to each key and the editor builds its re-roll
@@ -168,6 +176,10 @@ defmodule NebulithWeb.Router do
     get "/ui", UiController, :index
     put "/ui", UiController, :update
     resources "/templates", TemplateController, except: [:new, :edit]
+
+    # THE NUMBERS A GAME IS PLAYED BY. The map ceiling is a column a person raises, not a constant the
+    # engine holds (law 12, D18), so there has to be a door to change it.
+    put "/games/:game_id/settings", GameController, :update_settings
 
     resources "/games", GameController, except: [:new, :edit] do
       # A game's LEVELS, nested so the route itself carries whose levels these are., the layer that was missing, and

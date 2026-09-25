@@ -7,9 +7,16 @@
  * Modal, so the dialogue reads like the rest of the editor and the destructive button says what it
  * destroys.
  *
- * Only for DESTRUCTIVE actions. Creating things must not ask at all: on the new-game
- * prompt, "that's the worst UX ever … just assign a random name … and redirect user to the editor
- * right away." See `game/autoNaming.ts`.
+ * Only for DESTRUCTIVE actions.
+ *
+ * Creating things must not ask for what it can decide: on the new-game prompt, "that's the worst UX
+ * ever … just assign a random name … and redirect user to the editor right away." See
+ * `game/autoNaming.ts`. That was about the NAME, which the gallery assigns.
+ *
+ * It is not a rule against asking at all, and reading it that way left a real choice unasked for
+ * months: a game also carries the ART STYLE it is drawn in, which nothing can decide for you, and
+ * `routes/games.tsx` asks for that one with a Modal. A question whose answer the app already knows is
+ * the bad UX; a question only the person can answer is the app doing its job.
  */
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { Modal } from './modals'

@@ -73,7 +73,10 @@ defmodule NebulithWeb.GeneratorControllerTest do
       # what it decided. A river that cuts a path always gets a crossing now, so there was nothing left for it
       # to decide. `bridge` stays, because WHICH crossing is a real choice.
       # No `depth`: there is no channel to cut, so the option that said how deep is gone (ABodyOfWaterIsLevel).
-      assert Enum.map(woodland["options"], & &1["key"]) == ~w(exits pathways region river bridge)
+      # …AND `water`, the liquid its channels carry. The engine has read it (`liquidFor`) since the water
+      # sets were built and no generator offered one, so every map ran on the default and a volcano's channel
+      # was ordinary water.
+      assert Enum.map(woodland["options"], & &1["key"]) == ~w(exits pathways region river bridge water)
 
       assert Enum.drop(woodland["options"], 3) == [
                %{
@@ -90,7 +93,11 @@ defmodule NebulithWeb.GeneratorControllerTest do
                    %{"key" => "random", "label" => "Random"},
                    %{"key" => "through", "label" => "Winds through (easy to cross)"},
                    %{"key" => "divides", "label" => "Divides the map in two"},
-                   %{"key" => "around", "label" => "Around the edge"}
+                   %{"key" => "around", "label" => "Around the edge"},
+                   # THE TWO SHAPES THAT WERE BUILT AND UNREACHABLE. `carveShore` and `carveBody` have
+                   # painted a coast and a standing body all along, and no menu offered either.
+                   %{"key" => "shore", "label" => "A coast along one edge"},
+                   %{"key" => "lake", "label" => "A lake in the middle"}
                  ]
                },
                %{
@@ -114,6 +121,21 @@ defmodule NebulithWeb.GeneratorControllerTest do
                    # anybody could picture. Removed on request, along with its crossing entry and its five
                    # compositions, which were byte-identical to the wooden ones anyway.
                    %{"key" => "stone", "label" => "Stone bridge"}
+                 ]
+               },
+               # WHAT RUNS IN THE CHANNELS. `liquidFor` has read this off the map's options and
+               # `setForLiquid` has picked the piece family from it since the water sets were built, and no
+               # generator offered one, so every map ran on the default and a volcano's channel was water.
+               %{
+                 "key" => "water",
+                 "label" => "What the water is",
+                 "type" => "choice",
+                 "group" => "water",
+                 "default" => "smooth",
+                 "choices" => [
+                   %{"key" => "smooth", "label" => "Water"},
+                   %{"key" => "lined", "label" => "Water, with a lined bed"},
+                   %{"key" => "lava", "label" => "Lava"}
                  ]
                }
              ]

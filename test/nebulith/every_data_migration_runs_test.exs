@@ -15,6 +15,11 @@ defmodule Nebulith.EveryDataMigrationRunsTest do
   """
   use Nebulith.DataCase, async: false
 
+  # It runs EVERY registered pass over the whole catalog, which is minutes of real work, not ExUnit's
+  # default minute. The number is a ceiling on the wait, not a budget being asserted: what this checks is
+  # that each pass runs at all.
+  @moduletag timeout: 900_000
+
   alias Nebulith.DataMigrations
 
   test "every registered data migration executes without raising" do

@@ -18,7 +18,7 @@ import { ASCII_FONT, COMBAT_RANGE, type DayNight, type DrawVisual, ENEMY_MOVE_MS
 import { drawWeather, type WeatherId } from './weather'
 import { resolveAssetDrawSize } from './assetDimensions'
 import { resolveAssetAnimation, spriteFrame } from './assetAnimation'
-import { assetDrawsSingle, assetIsTransparent, getStack, assetStackIndexer, unitStandLevel, type TileSource } from '@/engine/cellStack'
+import { assetDrawsSingle, assetIsTransparent, assetFadesNear, assetCutsAwayRoof, assetMinAlpha, getStack, assetStackIndexer, unitStandLevel, type TileSource } from '@/engine/cellStack'
 import { DEPTH_CELL_STEP, isoBlockFaces, isoDepthBox, depthCells, depthFrontExtent, isoZOffset, rotateDepthDir, spanBackmost, normalizeSpan, assetRectExtents, reachGroundQuad, rotateThicknessReach, spansCells, thicknessThins, turnFaceTexture, textureTurnForHeading, type BlockFace, type IsoDiagonal, type ThicknessReach } from './isoBlock'
 import { type Orientation } from './isoOrientation'
 import { cellOrienterFor, orientCellTurn, deorientCellTurn, orientedDimsForTurn, facingForTurn, wrapTurn } from './isoTurn'
@@ -27,6 +27,8 @@ import { applyPose, poseDeviates } from '@/engine/tileset/pose'
 import { isWaterSetLabel } from '../waterBody'
 import { cubeGeom, depthBoxGeom, rectBoxGeom, billboardGeom, diamondGeom, pointInTileGeom, outlineSegments, poseMapper, tileGeomCentroid, tilesInScreenRect, type TileGeom } from './tileHit'
 import { revealedRoofs, revealedShell, revealAlpha } from './roofReveal'
+import { blitSubstrate, clearSubstrate, substrateSize } from './groundSubstrate'
+import { fadeBands } from '@/lib/fadeBands'
 import { resolveTileSize, resolveTilePose } from '@/engine/tileset/tileViewSettings'
 import { ASCII_STYLE, assetKind, entityKind, entityStyleOverride, genderize, groundKind, personVariantTileId, styleTileArt, type ElementKind, type ImageVisual, type Style } from '@/game/artStyle'
 import { DEFAULT_CHARACTER_ANIMATIONS, activeFrame } from '@/game/runtime/entityAnimation'
@@ -68,6 +70,9 @@ export interface TileHit {
 // The tiles drawn by the LAST render(), in draw order. The RAF loop refreshes this every frame, so a pick on
 // mousemove/mousedown reads current geometry. Reset at the top of the asset loop.
 let isoTileHits: TileHit[] = []
+
+/** The grid the substrate's chunks were built from. A different one drops them all. */
+let lastGrid: unknown = null
 
 /** EVERY recorded tile whose silhouette contains (x,y), TOPMOST (last-drawn) FIRST, the frontmost is the
  *  pick; the rest are occluded behind it (click-to-cycle reaches them). Canvas-internal pixels. */
@@ -506,6 +511,10 @@ export function render(params: IsoRenderParams) {
   // the renderer is ACTUALLY holding (a cell's flow, a tile's height) instead of inferring it from a
   // screenshot., this is what makes the analysis conclusive.
   ;(globalThis as unknown as { __nebulithGrid?: unknown }).__nebulithGrid = grid
+  // A NEW MAP KEEPS NONE OF THE OLD ONE'S GROUND. Every chunk carries a signature over its own cells, so a
+  // stale one cannot survive an edit; this is the coarser half, for a map replaced wholesale, and it costs a
+  // reference comparison per frame.
+  if (lastGrid !== grid) { clearSubstrate(); lastGrid = grid }
   // Clear
   ctx.fillStyle = '#1a1a2e'
   ctx.fillRect(0, 0, w, h)
@@ -631,22 +640,32 @@ export function render(params: IsoRenderParams) {
   // This used to expand a tile with `depth` + `spanAxis` only, which is ONE of the four pathways a tile spans: it
   // ignored `spanBack` (cells behind the anchor), `spanPerp` and `spanPerpBack` (the perpendicular axis). So
   // a 2-axis tile was range-tested on a line through the middle of itself and vanished whenever that line fell
-  // outside while the rest of it did not. His words: *"my guess is that the range is cutting at the cell level
+  // outside while the rest of it did not. The report: *"my guess is that the range is cutting at the cell level
   // only not at the tile level, and some cell have tiles that spand multiple cells"*.
   //
   // `assetRectExtents` already folds all four into one rectangle and is unit-tested, so this asks it rather
   // than growing a second model of the same thing.
-  const coveredCells = (a: GridAsset): { col: number; row: number }[] => {
+  /**
+   * "Does ANY cell this tile covers satisfy `ask`", answered without building the list to ask it.
+   *
+   * This used to be `coveredCells(a).some(...)`, which allocated an array and a `{col,row}` object per
+   * cell, per tile, TWICE a frame (the screen cull, then the player range). Measured at 100x60: `cull`
+   * alone was 3.6ms against a whole-javascript budget of 2.0ms, and this is the loop it spent it in.
+   * The overwhelmingly common tile covers ONE cell, so that case now answers before any loop at all.
+   */
+  const anyCoveredCell = (a: GridAsset, ask: (col: number, row: number) => boolean): boolean => {
     const { colMinus, colPlus, rowMinus, rowPlus } = assetRectExtents(a)
-    if (colMinus === 0 && colPlus === 0 && rowMinus === 0 && rowPlus === 0) return [{ col: a.col, row: a.row }]
-    const out: { col: number; row: number }[] = []
+    if (colMinus === 0 && colPlus === 0 && rowMinus === 0 && rowPlus === 0) return ask(a.col, a.row)
     for (let c = a.col - colMinus; c <= a.col + colPlus; c++) {
-      for (let r = a.row - rowMinus; r <= a.row + rowPlus; r++) out.push({ col: c, row: r })
+      for (let r = a.row - rowMinus; r <= a.row + rowPlus; r++) {
+        if (ask(c, r)) return true
+      }
     }
-    return out
+    return false
   }
+
   const tileInRange = (a: GridAsset): boolean =>
-    coveredCells(a).some(c => withinPlayerRange(c.col, c.row, pcol, prow, playerViewRange!))
+    anyCoveredCell(a, (col, row) => withinPlayerRange(col, row, pcol, prow, playerViewRange!))
 
   /**
    * THE RANGE DECIDES THE GRID, so a tile that only PARTLY reaches into it is CUT DOWN to the part that does.
@@ -686,8 +705,8 @@ export function render(params: IsoRenderParams) {
     // A tile draws UPWARD from its cell, so one below the bottom edge is visible when it is tall enough to
     // reach back into view, its own rise is the exact margin, no guessing at a worst case.
     const rise = isoStackLift(tileW, a.heightLevel) + assetBlockRise(a) * tileW * ISO_BLOCK_H_FRAC
-    return coveredCells(a).some(c => {
-      const pt = toScreen(c.col, c.row)
+    return anyCoveredCell(a, (col, row) => {
+      const pt = toScreen(col, row)
       if (pt.x < -marginX || pt.x > w + marginX) return false
       return pt.y - rise <= h + tileH && pt.y >= -marginTop
     })
@@ -702,16 +721,29 @@ export function render(params: IsoRenderParams) {
   // either never fetched, culled, or drawn as nothing, and those are four different bugs that look identical on
   // screen. Counting them separately is what names it, the same way instrumenting the DRAW found the navy hole
   // after five pixel detectors had each been wrong differently.
-  ;(globalThis as unknown as { __isoCull?: Record<string, number> }).__isoCull = {
+  //
+  // THE COUNTS ARE FREE; THE FLOOR TALLIES ARE ASKED FOR.
+  //
+  // This published nine numbers a frame and four of them were `reduce` passes, two over the WHOLE grid.
+  // On the measured city that is 8,467 assets walked twice plus the three culled arrays walked once, every
+  // frame, about 20,000 iterations, to produce numbers nobody reads while playing. `docs/RENDERING.md`:
+  // *"A diagnostic that costs measurable time skews the measurement it exists to take."*
+  //
+  // The lengths stay, because they are already computed and cost nothing. The floor tallies become a
+  // function, so the four passes happen when a probe asks its question and never during play. Same
+  // numbers, same names, same answer to *"was it never fetched, culled, or drawn as nothing"*.
+  ;(globalThis as unknown as { __isoCull?: Record<string, unknown> }).__isoCull = {
     halfSpan,
     inGrid: grid.assets.length,
-    inGridFloors: grid.assets.reduce((n, a) => n + (a.type === FLOOR_TYPE ? 1 : 0), 0),
     inRect: rectAssets.length,
-    inRectFloors: rectAssets.reduce((n, a) => n + (a.type === FLOOR_TYPE ? 1 : 0), 0),
     onScreen: onScreenAssets.length,
-    onScreenFloors: onScreenAssets.reduce((n, a) => n + (a.type === FLOOR_TYPE ? 1 : 0), 0),
     visible: visibleAssets.length,
-    visibleFloors: visibleAssets.reduce((n, a) => n + (a.type === FLOOR_TYPE ? 1 : 0), 0),
+    floors: () => ({
+      inGrid: countFloors(grid.assets),
+      inRect: countFloors(rectAssets),
+      onScreen: countFloors(onScreenAssets),
+      visible: countFloors(visibleAssets),
+    }),
   }
   // Ground shadow goes ONLY on a tree's bottom (ground-contact) cell, see isGroundContact. The
   // tree-cell Set is memoized (treeCellSet) so we don't rescan every asset + realloc each frame.
@@ -794,7 +826,7 @@ export function render(params: IsoRenderParams) {
   // walls/windows/doors of that same shell (`fadeNear`) ease translucent so the interior actually reads.
   // OUTSIDE a building nothing fades: the old distance ease ghosted every wall the hero walked past while the
   // roof stayed solid.
-  const roofTiles = visibleAssets.filter(a => a.settings?.cutawayRoof)
+  const roofTiles = visibleAssets.filter(assetCutsAwayRoof)
   const roofFootprints = roofTiles.map(a => grid.rectCoveredCells(a).map(c => `${c.col},${c.row}`))
   // NO HERO, NO REVEAL. The Diablo-style cutaway exists because the player walked INSIDE a building; a
   // preview has no player, only a camera parked on the subject, and treating that as "standing inside"
@@ -802,6 +834,9 @@ export function render(params: IsoRenderParams) {
   const liftedRoofs = showPlayer ? revealedRoofs(Math.floor(pCol), Math.floor(pRow), roofFootprints) : new Set<number>()
   const roofsOff = new Set<GridAsset>(Array.from(liftedRoofs, i => roofTiles[i]))
   const shellCells = revealedShell(roofFootprints, liftedRoofs)
+  // THE GAME'S OWN FADE NUMBERS, read once for the frame. They came with the map; a lookup per drawn object
+  // would ask the same question a few thousand times to get the same four numbers.
+  const bands = fadeBands()
   // The player is drawn from PlayerState (no id); its selectable id lives on the player ENTITY in `entities`.
   const playerEntityId = entities.find(e => e.kind === 'player')?.id
   // A UNIT is just a tile the picker returns: record the figure's billboard silhouette so a click ANYWHERE on
@@ -846,7 +881,51 @@ export function render(params: IsoRenderParams) {
   // hides what stands behind IT. (Units used to draw in a separate later pass, which painted them over every
   // tile, the hero standing on a roof it was actually behind.) A unit that wants to sit above its
   // surroundings does it the same way any tile does: with a higher z-index, not with a privileged pass.
+  let __floorsDrawn = 0
+  let __substrateDrawn = 0
+  // THE GROUND, AS ONE IMAGE PER CHUNK. Everything `bakeableGround` admits is flat, level 0, unanimated and
+  // fully opaque, which is exactly what can be drawn once and blitted: measured on a wide city, 58% of the
+  // frame. The chunks are laid before the sorted loop because nothing can sort into the middle of them, and
+  // the loop then skips what they absorbed and pushes the silhouettes they recorded, so the picker sees the
+  // same list it always did.
+  // THE SAME ANCHOR THE LOOP WOULD USE, and for a bakeable asset it is the whole of it: `bakeableGround`
+  // admits nothing animated, nothing lifted and nothing faded, so the anchor is the cell's screen point less
+  // its ground height, plus the slide if it states one.
+  const groundAnchor = (a: GridAsset): { x: number; y: number } => {
+    const p = toScreen(a.col, a.row)
+    const rise = grid.getHeight(Math.floor(a.col), Math.floor(a.row)) * heightStep
+    const slide = a.zDir ? isoZOffset(a.zOffset ?? 0, viewDepthDir(a.zDir, facing), tileW, tileH) : { dx: 0, dy: 0 }
+
+    return { x: p.x + slide.dx, y: p.y - rise - isoStackLift(tileW, a.heightLevel) + slide.dy }
+  }
+  // A CHUNK IS ONLY BUILT ONCE ITS PICTURES ARE DECODED, or it bakes a blank and keeps it. A label the
+  // active style has no image for draws as itself and has nothing to wait on.
+  const groundReady = (a: GridAsset): boolean => {
+    const key = a.type === FLOOR_TYPE ? (a.tileKey ?? a.label) : (a.label ?? a.tileKey)
+    if (!key) return false
+    const visual = styleTileImage(key, style)
+
+    return visual ? !!tileImage(visual.src) : true
+  }
+  const bakeable = visibleAssets.filter(bakeableGround)
+  const substrate = blitSubstrate(ctx, bakeable, {
+    toScreen,
+    anchorOf: a => groundAnchor(a),
+    ready: groundReady,
+    // WHAT CHANGES THE PICTURE. The camera's turn and zoom, the art style, and the time of day, which tints
+    // what is drawn. A chunk's own cells are covered by its signature.
+    key: `${facing}|${tileW}|${tileH}|${style.id}|${dayNight}`,
+    drawOne: (into, ax, ay, a) =>
+      drawIsoAssetAscii(into, ax, ay, orientAssetForView(a, facing), tileW, tileH, time, false, dayNight, style),
+  })
+  for (const hit of substrate.hits) {
+    isoTileHits.push({ col: hit.asset.col, row: hit.asset.row, level: hit.asset.heightLevel, stackIndex: stackIndexOf(hit.asset), source: 'asset', geom: hit.geom })
+  }
   for (const obj of allObjects) {
+    // ALREADY ON SCREEN, drawn and recorded by its chunk.
+    if (obj.asset && substrate.absorbed.has(obj.asset)) { __floorsDrawn++; __substrateDrawn++; continue }
+    if (obj.asset?.type === FLOOR_TYPE) __floorsDrawn++
+    if (obj.asset && bakeableGround(obj.asset)) __substrateDrawn++
     const p = toScreen(obj.col, obj.row)
     const cellHeight = grid.getHeight(Math.floor(obj.col), Math.floor(obj.row))
     const heightOffset = cellHeight * heightStep
@@ -877,18 +956,21 @@ export function render(params: IsoRenderParams) {
       // GENERIC reveal behavior: ANY asset whose tile opted into cutawayRoof/fadeNear answers to the hero's
       // POSITION, not their distance. Inside the building: its roof is skipped entirely and its shell eases to
       // INTERIOR_SHELL_ALPHA. Outside: both draw at full opacity.
-      const fx = obj.asset.settings
+      // THROUGH THE SHARED LOOKUP (`assetSetting`): the placement first, then the tile it is OF. Reading
+      // `asset.settings` alone answered for the placement only, so a tile the catalog says fades, placed
+      // before that was true of it, drew solid while the panel beside it reported a fade.
+      const cutsAway = assetCutsAwayRoof(obj.asset)
       // …and ONLY when there is a hero to be near. Both behaviours answer to the hero's position, so with
       // no hero they have no question to answer: a preview parks a camera on the subject, and reading that
       // as "the hero is standing right here" faded every wall the preview existed to show.
-      if (showPlayer && (fx?.cutawayRoof || fx?.fadeNear)) {
+      if (showPlayer && (cutsAway || assetFadesNear(obj.asset))) {
         // INSIDE = the hero is under this roof, or this shell tile belongs to the revealed building. A revealed
         // ROOF is skipped outright; everything else eases by `revealAlpha`, solid far away, translucent as the
         // hero closes in (so the facade and its door read), and dropped right back once inside.
-        const inside = fx.cutawayRoof ? roofsOff.has(obj.asset) : shellCells.has(`${obj.asset.col},${obj.asset.row}`)
-        if (fx.cutawayRoof && inside) continue
+        const inside = cutsAway ? roofsOff.has(obj.asset) : shellCells.has(`${obj.asset.col},${obj.asset.row}`)
+        if (cutsAway && inside) continue
         const dist = Math.hypot(pCol - obj.asset.col, pRow - obj.asset.row)
-        op = Math.min(op, revealAlpha({ dist, inside, minAlpha: fx.minAlpha }))
+        op = Math.min(op, revealAlpha(bands, { dist, inside, minAlpha: assetMinAlpha(obj.asset) }))
       }
       if (anim) op *= anim.opacity // animated opacity fades the drawn tile (multiplies base + proximity alpha)
       if (op < 1) ctx.globalAlpha = op
@@ -1149,6 +1231,17 @@ export function render(params: IsoRenderParams) {
       sort: ease(phases.sort, __isoTDraw - __isoTSort),
       draw: ease(phases.draw, perfNow() - __isoTDraw),
       objects: allObjects.length,
+      // HOW MUCH OF THE FRAME IS GROUND. The ground is static: it does not move, fade or animate, so it
+      // is the part that can be baked into big chunks and blitted a few times instead of a thousand.
+      // Whether that is worth doing is entirely this number.
+      floors: __floorsDrawn,
+      // …AND HOW MUCH OF THAT GROUND IS ACTUALLY BAKEABLE, which is the number the work is sized from.
+      // `floors` counts every floor, including the animated water and the raised curbs that have to keep
+      // their place in the depth order. This counts only the ones a substrate could absorb. Planning off
+      // `floors` would size the change from a figure a third of which cannot move.
+      substrate: __substrateDrawn,
+      substrateChunks: substrate.blitted,
+      substrateHeld: substrateSize(),
     }
     ;(window as unknown as { __isoBlocks?: unknown }).__isoBlocks = blockCounts()
   }
@@ -1490,14 +1583,6 @@ export function drawIsoEntity(
   const nameSize = Math.max(9, tileH * 0.95)
   return drawFigureVitals(ctx, x, figureTop, barWidth, 7, nameSize, frac, label)
 }
-
-
-// Interior reveal (Diablo / Path of Exile), a GENERIC per-tile behavior driven by settings.cutawayRoof /
-// settings.fadeNear, not building-only. The bands and the alpha maths live in ./roofReveal (`revealAlpha`):
-// solid far away, easing translucent as the hero approaches so the facade and its door read, and the roof off
-// with the shell dropped right back once the hero is inside. Re-exported here because this is the render seam
-// the tests and the page read.
-export { INTERIOR_SHELL_ALPHA, APPROACH_ALPHA, APPROACH_RADIUS } from './roofReveal'
 
 
 // ISO facing. Each building stands inside its plot RECT, cols [col, col+L] × the clear headroom
@@ -1847,6 +1932,49 @@ function assetBlockRise(a: GridAsset): number {
   // there is nothing style-dependent to look up here, and the per-asset tileset probe this used to do ran
   // on every item of the depth sort, every frame, for a value the resolver discards.
   return resolveTileHeight(a)
+}
+
+/**
+ * COULD THIS TILE BE BAKED INTO A STATIC SUBSTRATE, and left out of the per-frame draw list?
+ *
+ * The frame is mostly ground, and MDN's tilemap guidance is to pre-render the static map into large
+ * off-screen sections and blit each as one tile (`docs/RENDERING.md` technique 2, the only one on the
+ * list with an order of magnitude in it). That only works for tiles which are BOTH unchanging frame to
+ * frame AND safely behind everything else, because a substrate is drawn first, as one image, and
+ * nothing can sort into the middle of it.
+ *
+ * Each clause is one of those two questions:
+ *
+ * * FLOOR at level 0, rising less than a block. A flat floor never occludes what stands on it, so it
+ *   is genuinely behind the whole scene. A raised curb is not: it takes the depth sort's front extent
+ *   precisely so it can draw over things, and baking it would put it behind them.
+ * * Nothing that changes with time. An animation, a cell transform or a per-asset opacity below 1 all
+ *   make the tile a different picture next frame, and a substrate is only worth baking once.
+ * * Nothing that answers to the hero. `fadeNear` and `cutawayRoof` redraw as the hero approaches.
+ *
+ * Field reads first and `assetBlockRise` last, because this runs per object per frame and the rise is
+ * the only clause that is a call rather than a comparison. A diagnostic that costs measurable time
+ * skews the measurement it exists to take.
+ *
+ * Measured before it is used: `__isoPhases.substrate` publishes the count, so how much a substrate
+ * would remove is a number rather than a hope. `floors` is the wrong number to plan from, since it
+ * includes the animated water and the raised curbs that have to keep their place.
+ */
+/** How many of these are floors. Called by the cull probe when something asks, never per frame. */
+function countFloors(assets: readonly GridAsset[]): number {
+  let n = 0
+  for (const a of assets) if (a.type === FLOOR_TYPE) n++
+  return n
+}
+
+function bakeableGround(a: GridAsset): boolean {
+  if (a.type !== FLOOR_TYPE) return false
+  if (a.heightLevel !== 0) return false
+  if (a.opacity < 1) return false
+  if (a.cellAnim) return false
+  if (a.animations?.length) return false
+  if (assetFadesNear(a) || assetCutsAwayRoof(a)) return false
+  return assetBlockRise(a) < 1
 }
 
 /** Depth order for the merged iso draw list: back-to-front by the iso key (col + row), then, for two
@@ -2299,23 +2427,40 @@ function liveReason(height: number, alpha: number, dv: DrawVisual, isDepthBox: b
   return 'sprite unavailable'
 }
 
-function cubeBlockSprite(dv: DrawVisual, tileW: number, tileH: number, blockH: number, tint?: string, topDv?: DrawVisual) {
+// A THINNED footprint's four reaches, as a key fragment. Absent reaches are "all the way", so the
+// same object spelled two ways has to come out as one string or the cache stores two of it.
+/** A cache key for the four thickness reaches.
+ *
+ *  NO `?? 1`. This wrote `1` for a reach the placement does not state, which is law 7: a hardcoded
+ *  fallback for served data. It is only a key, so the value never reached a pixel, but it made two
+ *  placements that differ (one stating 1, one stating nothing) share a cached sprite, and it stated an
+ *  opinion about a default that belongs to the column. `undefined` is its own distinct key. */
+function thicknessKey(thickness?: ThicknessReach): string {
+  if (!thickness) return ''
+  const reach = (side: keyof ThicknessReach) => String(thickness[side])
+  return `${reach('left-up')},${reach('right-down')},${reach('right-up')},${reach('left-down')}`
+}
+
+function cubeBlockSprite(dv: DrawVisual, tileW: number, tileH: number, blockH: number, height: number, tint?: string, topDv?: DrawVisual, thickness?: ThicknessReach) {
   if (typeof document === 'undefined') return null
   // Don't bake until the image raster(s) decoded, else the sprite would freeze the glyph fallback.
   if (dv.image && !tileImage(dv.image.src)) return null
   if (topDv?.image && !tileImage(topDv.image.src)) return null
   const faceColor = tint ?? dv.tint ?? dv.color
-  const key = `${dv.image?.src ?? dv.char}|${faceColor}|${tint ?? ''}|${topDv?.image?.src ?? ''}|${topDv?.tint ?? topDv?.color ?? ''}|${Math.round(tileW)}|${Math.round(tileH)}|${Math.round(blockH)}`
+  const key = `${dv.image?.src ?? dv.char}|${faceColor}|${tint ?? ''}|${topDv?.image?.src ?? ''}|${topDv?.tint ?? topDv?.color ?? ''}|${Math.round(tileW)}|${Math.round(tileH)}|${Math.round(blockH)}|${height}|${thicknessKey(thickness)}`
   const hit = _cubeSpriteCache.get(key)
   if (hit !== undefined) return hit
   const m = 1 // 1px margin so edge anti-aliasing never clips
+  // THE WHOLE COLUMN, not one block. `blockLayers` is what the live builder stacks, so the sprite has to
+  // reserve the same rise or a tall tile would be baked with its head cut off.
+  const rise = blockLayers(height) * blockH
   // WHOLE PIXELS, for the same reason the lattice is (see tileW): the blit lands at `centre - anchor`, so a
   // fractional anchor puts an on-lattice cell back onto a fractional destination and costs the resample.
   const ox = Math.round(tileW) + m // local centre-x
-  const oy = Math.round(blockH) + Math.round(tileH) + m // local centre-y: room above for the block top diamond, below for the base
+  const oy = Math.round(rise) + Math.round(tileH) + m // local centre-y: room above for the top diamond, below for the base
   const cv = document.createElement('canvas')
   cv.width = Math.ceil(2 * tileW + 2 * m)
-  cv.height = Math.ceil(blockH + 2 * tileH + 2 * m)
+  cv.height = Math.ceil(rise + 2 * tileH + 2 * m)
   const c = cv.getContext('2d')
   // A real browser ctx supports the full path API; jsdom's stub canvas (jest) does not, fall through to the
   // LIVE draw there instead of throwing in fillQuad.
@@ -2323,8 +2468,14 @@ function cubeBlockSprite(dv: DrawVisual, tileW: number, tileH: number, blockH: n
     _cubeSpriteCache.set(key, null)
     return null
   }
-  drawIsoTileBlockLive(c, { x: ox, y: oy }, tileW, tileH, blockH, 1, dv, tint, topDv)
+  // BAKED AT FULL OPACITY, ALWAYS. A faded block is the SAME picture at a lower alpha, so the fade belongs
+  // to the blit (`ctx.globalAlpha` is already set by the caller) and not to the bake. Baking one sprite per
+  // alpha would be a new sprite every frame of a fade, which is why this used to refuse them outright.
+  drawIsoTileBlockLive(c, { x: ox, y: oy }, tileW, tileH, blockH, height, dv, tint, topDv, 1, undefined, thickness)
   const sprite = { canvas: cv, ox, oy }
+  // A CAP, because the key now carries height and four reaches and a map with no bound is a leak. Dropping
+  // the oldest is enough: the working set is whatever is on screen, and a re-bake is one frame's cost.
+  if (_cubeSpriteCache.size >= 4096) _cubeSpriteCache.delete(_cubeSpriteCache.keys().next().value as string)
   _cubeSpriteCache.set(key, sprite)
   return sprite
 }
@@ -2348,10 +2499,18 @@ export function drawIsoTileBlock(
   thickness?: ThicknessReach,
 ): void {
   const isDepthBox = !!spanAxis && Math.floor(depth) > 1
-  // The cube-sprite cache bakes a UNIT cube, never a directional box, and never a THINNED one; skip it for
-  // both so the live builder draws the real footprint.
-  if (!isDepthBox && !thickness && Math.floor(height) === 1 && ctx.globalAlpha === 1 && dv.image) {
-    const spr = cubeBlockSprite(dv, tileW, tileH, blockH, tint, topDv)
+  // A DIRECTIONAL BOX IS THE ONE SHAPE THE SPRITE CANNOT BE. It spans `depth` cells along a diagonal, so its
+  // size is a property of the placement rather than of the tile, and baking one per span is baking one per
+  // instance. Everything else is now cached:
+  //
+  //   · STACKED, because the key carries `height` and the canvas reserves the column's whole rise. 434 of
+  //     the city's 734 live draws were this, each one three filled quads plus a per-face image, per layer.
+  //   · THINNED, because the key carries the four reaches and the bake passes them to the same builder.
+  //   · FADED, because a fade is the same picture at a lower alpha: the sprite bakes opaque and the BLIT
+  //     carries `ctx.globalAlpha`, which is already set. Refusing these meant every proximity fade and every
+  //     cutaway wall went the slow way for as long as the hero stood near it.
+  if (!isDepthBox && dv.image) {
+    const spr = cubeBlockSprite(dv, tileW, tileH, blockH, height, tint, topDv, thickness)
     if (spr) {
       _blitCount++
       ctx.drawImage(spr.canvas, center.x - spr.ox, center.y - spr.oy)

@@ -10,6 +10,7 @@ import { type CombatState, type Entity, type Quest } from '@/game/types'
 import { Connector } from '@/lib/api'
 import { ASCII_FONT, type CompositionGhost, type DayNight, applyCellTransform, clampCameraAxis, collectLampGlows, drawCompositionGhostFlat, debugCellCaptions, debugLabelColors, drawConnectorMarker, drawHitMarker, drawHpBar, drawNightLighting, drawQuestMarker, drawStyledImage, drawFlatTileForShape, SINGLE_TILE_FRAC, fillTintedGlyph, grassShade, cellFill, isDeadEnemy, isDebugMode, isShowCollisions, resolveDraw, resolveAssetDraw, resolveEntityDraw, assetOverride, assetTileImage, styleTileImage, labelTileRecolor, tileImage } from './shared'
 import { nearFadeAlpha } from './roofReveal'
+import { fadeBands } from '@/lib/fadeBands'
 import { drawWeather, type WeatherId } from './weather'
 import { resolveAssetDrawSize } from './assetDimensions'
 import { resolveAssetAnimation } from './assetAnimation'
@@ -232,7 +233,7 @@ export function renderTopView(params: RenderTopViewParams) {
       const animShiftX = assetAnim ? assetAnim.x * tileSize : 0
       const animShiftY = assetAnim ? assetAnim.y * tileSize : 0
       // NEAR THE HERO a tall thing eases see-through, the rule the iso view applies (roofReveal.nearFadeAlpha).
-      const nearFade = asset ? nearFadeAlpha(asset.settings, asset.col, asset.row, heroCell) : 1
+      const nearFade = nearFadeAlpha(fadeBands(), asset, heroCell)
       const animWrap = nearFade < 1 || (!!assetAnim && (animShiftX !== 0 || animShiftY !== 0 || assetAnim.opacity < 1))
       if (animWrap) {
         ctx.save()

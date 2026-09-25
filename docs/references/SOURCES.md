@@ -187,3 +187,43 @@ What the plate actually shows, form by form, because "a cactus" is not one shape
    mirror into a herringbone and the shape reads as a leaf. This is a general TILE-DESIGN fact and it is why
    the leaf tiles use a non-directional clump pattern rather than stripes. Ribbing on a cactus has to be
    carried by DOTS (areoles) and subtle shading, not by strong vertical lines.
+
+### MEASURED against the plate, 2026-09-24
+
+`a-reference-is-a-contract` says the comparison is measured, never eyeballed, so here it is. Vegetation
+pixels off `cactus-variants-expected.png` at full size, plate item 3 (the saguaro), read row by row against
+the cream paper ground.
+
+| What | Reference plate | What that is, in cells |
+|---|---|---|
+| Trunk thickness | 25px | of a 295px plant, **0.085 of its height** |
+| Plant height | 295px | our saguaro is 3.4 cells tall |
+| Arm thickness | 11px | **0.44 of the trunk** |
+| Arm centre, off the trunk's | 19px | **0.76 trunk widths**, so the arm just touches |
+| Full span with arms | 66px | 2.6 trunk widths, 0.22 of the plant's height |
+
+The arm ratios are used directly: an arm is `scaleX` 0.44 and stands 0.72 of a cell off the trunk, which is
+where a full-width trunk's face and a 0.44 arm's face meet.
+
+**An arm's HEIGHT is not in this table on purpose.** It cannot be read off this plate: over the band where
+the arms rise they overlap the trunk, and the neighbouring plant's ink enters the same columns, so every
+figure that comes out is contaminated. The arms keep the heights they were authored with rather than take an
+invented number, and how far up they should reach is his to judge on the render.
+
+**The trunk ratio is deliberately NOT used.** 0.085 of 3.4 cells is 0.29, which is what the bars already held
+when he said *"looks too skynny"*. A botanical proportion drawn 3 cells tall on a 30-cell map reads as a line,
+and his correction names the mechanism rather than the number: width is the axis you look at and stays full,
+thickness is the axis into the screen and is what gets pulled in. So the plate sets the arms' proportions and
+the trunk is full width, thinned into the screen by a directed reach.
+
+### What the object is built of
+
+| Object | Built against | Recorded |
+|---|---|---|
+| The saguaro's bars | `by-subject/cactus/cactus-variants-expected.png` plus his sketch, *"a saguaro is a TALL NARROW BAR, a WIDE SHORT BAR crossing it, and two SHORT BARS rising from that bar's ends"* | the table above |
+| The pillar composition | No reference art. Built from the rule that a standing structure is a composition of course pieces, the same base/shaft/capital the bridge uprights and the built columns already use | `../OBJECT-CONSTRUCTION.md` |
+
+The pillar is the honest gap: it was modelled on the catalog's own column construction rather than on
+isometric art of a pillar, and step 1 of `../OBJECT-CONSTRUCTION.md` asks for the art. It is a composition of
+existing approved pieces rather than a new shape, which is why it was built at all, but the reference is
+still owed.

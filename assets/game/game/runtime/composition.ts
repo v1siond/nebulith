@@ -166,6 +166,26 @@ function sameCollision(a: CompositionCell, b: CompositionCell): boolean {
   return JSON.stringify(cellCollision(a) ?? null) === JSON.stringify(cellCollision(b) ?? null)
 }
 
+/** A cell that STATES ITS OWN SHAPE: any size, pose, thinning or silhouette of its own.
+ *
+ *  `compositionCellRender` already says the rule ("An authored cell is never part of a run, so the two never
+ *  collide") and nothing enforced it, so a run swallowed one. A saguaro is four bars at one footprint cell:
+ *  a tall narrow upright, a WIDE SHORT bar crossing it, and two short bars rising from that bar's ends. The
+ *  upright and the crossing bar share a label at consecutive levels, so the run-collapse merged them and
+ *  stamped the FIRST one sized `scaleY = 2`. The crossing bar, which is the whole reason the object reads as
+ *  a saguaro rather than a post, was authored and never drawn.
+ *
+ *  A run is a PERF rewrite that must render identically, and it only does when the cells are interchangeable
+ *  unit cubes: a wall column of 4. The moment a cell carries a size or an offset of its own, one block sized
+ *  `scaleY = run length` is a different object, not a cheaper drawing of the same one. */
+function authorsOwnShape(c: CompositionCell): boolean {
+  const s = c.settings
+  if (!s) return false
+  if (tileThicknessReach(s as unknown as Record<string, unknown>)) return true
+  return s.scaleX !== undefined || s.scaleY !== undefined || s.scaleZ !== undefined ||
+    s.pose !== undefined || s.shape !== undefined
+}
+
 /** Turn a thickness reach map by the building's quarter-turns. Undefined stays undefined, a tile with no
  *  thickness must not acquire one from a rotation. */
 function rotateThickness(reach: ThicknessReach | undefined, rotation: number): ThicknessReach | undefined {
@@ -223,6 +243,17 @@ export function compositionCellRender(comp: Composition, cell: CompositionCell, 
     // They were left undefined whenever the cell had no Zoom, which reads the same on screen (the
     // column's default is 1) and reads as "no opinion" everywhere a value is inspected or saved.
     width: zoomed(cs?.scaleX ?? numericDefault('width'), zoom) ?? numericDefault('width'),
+    // DEPTH IS THE COLUMN'S, AND `scaleZ` IS NOT IT.
+    //
+    // This line read `cs?.scaleZ`, on the reading that a cell authored a depth and the placement dropped it.
+    // It does not: `tileThicknessReach` has read `scaleZ` as the THICKNESS shorthand all along, and a
+    // `scaleZ` with no `thicknessDir` thins the block toward EVERY face. Feeding the same number to `depth`
+    // as well made one value do two jobs at once, a size AND a thinning, one composing on top of the other.
+    //
+    // Measured on the saguaro, whose bars are the only cells in the catalogue carrying a `scaleZ`: at 0.3
+    // the block's span inverts (it runs 0.7 back to 0.3 on both ground axes), bottoms out on the renderer's
+    // 1px floor and draws a 2px line 85px tall. *"cactus look horrible ... looks too skynny"*, and that is
+    // it in pixels. A bar is made thin by a DIRECTED thickness reach, which is the one owner of thinning.
     depth: zoomed(numericDefault('depth'), zoom) ?? numericDefault('depth'),
     // The thickness AXIS is authored south-facing, exactly like `spanAxis`, ROTATE it by the building's
     // rotation so a house turned a quarter-turn has its doors thin toward ITS front, not the map's.
@@ -366,6 +397,8 @@ export function stampComposition(grid: IsometricGrid, kind: string, anchorCol: n
         j + 1 < cells.length &&
         (cells[j + 1].level ?? 0) === (cells[j].level ?? 0) + 1 &&
         cells[j + 1].label === cells[i].label &&
+        !authorsOwnShape(cells[j + 1]) &&
+        !authorsOwnShape(cells[i]) &&
         sameCollision(cells[j + 1], cells[i])
       )
         j++

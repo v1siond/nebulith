@@ -299,6 +299,14 @@ export function gridToMapPayload(
    * tile standing on the map.
    */
   isMarker: (asset: GridAsset) => boolean = () => false,
+  /**
+   * The art style this map is saved in, as the tileset ROW ID.
+   *
+   * `docs/SPEC.md` phase 1 REWIRE: the style stops being "a marker asset hidden at cell (-1, -1)" and
+   * becomes a column. Passed in rather than read here, because this module turns a grid into a payload
+   * and knows nothing about which style is on.
+   */
+  tilesetId?: number | string,
 ): MapPayload {
   const ground = grid.groundSlugs()
   const byCell = new Map<string, GridAsset[]>()
@@ -334,6 +342,7 @@ export function gridToMapPayload(
   }
 
   return {
+    map: tilesetId == null ? {} : { tileset_id: tilesetId },
     grid: {
       cols: grid.cols,
       rows: grid.rows,

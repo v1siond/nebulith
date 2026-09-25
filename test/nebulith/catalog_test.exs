@@ -8,7 +8,7 @@ defmodule Nebulith.CatalogTest do
 
     import Nebulith.CatalogFixtures
 
-    @invalid_attrs %{data: nil, name: nil, key: nil}
+    @invalid_attrs %{name: nil, key: nil}
 
     test "list_tilesets/0 returns all tilesets" do
       tileset = tileset_fixture()
@@ -21,10 +21,9 @@ defmodule Nebulith.CatalogTest do
     end
 
     test "create_tileset/1 with valid data creates a tileset" do
-      valid_attrs = %{data: %{}, name: "some name", key: "some key"}
+      valid_attrs = %{name: "some name", key: "some key"}
 
       assert {:ok, %Tileset{} = tileset} = Catalog.create_tileset(valid_attrs)
-      assert tileset.data == %{}
       assert tileset.name == "some name"
       assert tileset.key == "some key"
     end
@@ -35,10 +34,9 @@ defmodule Nebulith.CatalogTest do
 
     test "update_tileset/2 with valid data updates the tileset" do
       tileset = tileset_fixture()
-      update_attrs = %{data: %{}, name: "some updated name", key: "some updated key"}
+      update_attrs = %{name: "some updated name", key: "some updated key"}
 
       assert {:ok, %Tileset{} = tileset} = Catalog.update_tileset(tileset, update_attrs)
-      assert tileset.data == %{}
       assert tileset.name == "some updated name"
       assert tileset.key == "some updated key"
     end

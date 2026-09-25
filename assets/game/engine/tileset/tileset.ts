@@ -60,20 +60,18 @@ export interface ZonePalette {
   feature: { mountain: string; peak: string; spill: string }
 }
 
-/** A GROUND/terrain tile, a different family from the cell-label tiles: keyed by ground TYPE
- *  (grass, water_deep, path_stone…), with per-variant glyph + foreground + fill. `char`/`fg`/`bg`
- *  are the stored colour properties; the TYPE is the swap key. (This is the current GROUND_COLORS
- *  shape, now carried as tileset data.) */
+/** A GROUND/terrain tile's two TONES, keyed by ground TYPE (grass, water_deep, path_stone…): `fg` is the
+ *  tile's own colour and `bg` is the fill a floor cell is born with. There were characters here too, and
+ *  they are gone: `docs/SPEC.md` §9.2, *"Terrain characters. DELETED. Characters are not content."* The
+ *  ground draws its baked picture like everything else, and these say what colour it draws in. */
 export interface GroundTile {
-  char: readonly string[]
   fg: readonly string[]
   bg: readonly string[]
 }
 
 export interface ResolvedGround {
-  /** The chosen glyph, its foreground colour, and the BASE fill (grass per-cell shading is applied
-   *  render-side, exactly as before, kept out of here so this stays a pure data resolver). */
-  char: string
+  /** The tile's own colour, and the BASE fill (grass per-cell shading is applied render-side, exactly as
+   *  before, kept out of here so this stays a pure data resolver). */
   fg: string
   bg: string
 }
@@ -221,13 +219,13 @@ export interface Tileset {
 
 /** Ground drawn before the backend tileset loads, nothing. The app is backend-required (no bundled ground
  *  colour), so an unresolved ground paints an empty, transparent cell rather than a stand-in colour. */
-const EMPTY_GROUND: ResolvedGround = { char: ' ', fg: 'transparent', bg: 'transparent' }
+const EMPTY_GROUND: ResolvedGround = { fg: 'transparent', bg: 'transparent' }
 
-/** Resolve a GROUND tile's glyph + fg + base fill from a LOADED tileset, the data-driven twin of the
- *  inline `GROUND_COLORS[type]` + noise-variant selection in drawIsoGroundLayer. Pure; deterministic
- *  per (type, col, row). Grass's per-cell shade is applied by the caller (unchanged), so bg is the base. */
+/** Resolve a GROUND tile's two tones from a LOADED tileset, the data-driven twin of the inline
+ *  `GROUND_COLORS[type]` + noise-variant selection in drawIsoGroundLayer. Pure; deterministic per
+ *  (type, col, row). Grass's per-cell shade is applied by the caller (unchanged), so bg is the base. */
 export function resolveGroundTile(
-  tileset: { terrain: Record<string, GroundTile>; tiles?: Record<string, { color?: string; char?: string }> },
+  tileset: { terrain: Record<string, GroundTile>; tiles?: Record<string, { color?: string }> },
   tileType: string,
   col: number,
   row: number,
@@ -242,12 +240,11 @@ export function resolveGroundTile(
     // A label with no terrain VARIANT still has a TILE, and that tile owns a colour. Use it. Only a label the
     // catalog does not know at all comes back empty, which is the honest answer and draws nothing.
     const tile = tileset.tiles?.[tileType]
-    return tile?.color ? { char: tile.char ?? '', fg: tile.color, bg: tile.color } : EMPTY_GROUND
+    return tile?.color ? { fg: tile.color, bg: tile.color } : EMPTY_GROUND
   }
   const noiseVal = Math.sin(col * 0.3 + row * 0.5) * Math.cos(col * 0.7 - row * 0.2)
   const colorIdx = noiseVal > 0 ? 0 : 1
   return {
-    char: g.char[colorIdx % g.char.length],
     fg: g.fg[colorIdx % g.fg.length],
     bg: g.bg[0],
   }
@@ -410,15 +407,20 @@ function resolveTileColor(tile: StyleTile, zone: string, variant: number): strin
   return FALLBACK_RESOLVED.color
 }
 
-/** How many canopy tonal shades a zone has, read from the loaded tileset's `leaf_center` (fallback
- *  `leaf_top`) tile's `settings.colors[zone]` array, the data-driven replacement for the deleted
- *  frontend `TREE_CANOPY_SHADES[zone].length`. The generator picks a tree's canopy variant in
- *  `[0, count)`. Safe: returns >= 1 even before the tileset loads (empty) or for an unknown zone, so
- *  tree generation never divides by zero. */
+/**
+ * How many canopy tonal shades a zone has, from the served `leaf_center` tile's `settings.colors[zone]`.
+ *
+ * ZERO WHEN NOTHING IS SERVED, and that is the whole point. This returned `1` for an unloaded tileset or
+ * an unknown zone and called it "safe", which is law 7 word for word: *"A hardcoded fallback for served
+ * data is a defect, not a safety net."* It also substituted `leaf_top` when `leaf_center` was missing,
+ * quietly answering from a different tile.
+ *
+ * A caller picking a variant clamps its own range; a caller with no shades leaves the tree its
+ * composition's own colour, which is what `canopyShade` already does by answering undefined.
+ */
 export function canopyCount(tileset: TileSource, zone: string): number {
-  const leaf = tileset.tiles['leaf_center'] ?? tileset.tiles['leaf_top']
-  const shades = tileColors(leaf)?.[zone]
-  return Array.isArray(shades) && shades.length > 0 ? shades.length : 1
+  const shades = tileColors(tileset.tiles['leaf_center'])?.[zone]
+  return Array.isArray(shades) ? shades.length : 0
 }
 
 /** WHICH of a zone's canopy shades this tree wears, the value behind the count above.
@@ -428,11 +430,44 @@ export function canopyCount(tileset: TileSource, zone: string): number {
  *  than re-derived. Undefined when the tileset has not loaded or the zone serves no shades, and the caller
  *  then leaves the tree its composition's own colour. */
 export function canopyShade(tileset: TileSource, zone: string, variant: number): string | undefined {
-  const leaf = tileset.tiles['leaf_center'] ?? tileset.tiles['leaf_top']
-  const shades = tileColors(leaf)?.[zone]
-  if (!Array.isArray(shades) || shades.length === 0) return undefined
-  const shade = shades[((variant % shades.length) + shades.length) % shades.length]
-  return typeof shade === 'string' ? shade : undefined
+  return shadeFrom(canopyShades(tileset, zone), variant)
+}
+
+/**
+ * The canopy's LEAF shades, without whatever it blossoms into.
+ *
+ * A canopy may blossom and the things underneath it do not. Spring's shades are three greens and a
+ * pink, and the array is what a per-cell variant picks from, so the undergrowth picking from all four
+ * gave one bush in four a pink one and did the same to the tall grass.
+ *
+ * WHERE THE LEAVES END IS SERVED, not worked out here. `leafShades` says how many of the shades are
+ * leaf, the rest being blossom. Deciding it in this file would mean the renderer looking at the
+ * database's colours and judging which of them are flowers.
+ */
+export function leafShade(tileset: TileSource, zone: string, variant: number): string | undefined {
+  const shades = canopyShades(tileset, zone)
+  const leaves = (leafTile(tileset)?.settings?.leafShades as Record<string, number> | undefined)?.[zone]
+  return shadeFrom(typeof leaves === 'number' ? shades.slice(0, leaves) : shades, variant)
+}
+
+/** THE served leaf tile, and only it.
+ *
+ *  Every reader here used to write `tiles['leaf_center'] ?? tiles['leaf_top']`, answering from a
+ *  DIFFERENT tile when the one it asked for was absent. That is law 7, and law 4 makes it unnecessary:
+ *  a label exists in every style or in none, which `a_label_owns_its_facts_test` now enforces. A missing
+ *  `leaf_center` means no shades are served, and the tree keeps its composition's own colour. */
+function leafTile(tileset: TileSource) {
+  return tileset.tiles['leaf_center']
+}
+
+function canopyShades(tileset: TileSource, zone: string): string[] {
+  const shades = tileColors(leafTile(tileset))?.[zone]
+  return Array.isArray(shades) ? shades.filter((s): s is string => typeof s === 'string') : []
+}
+
+function shadeFrom(shades: readonly string[], variant: number): string | undefined {
+  if (shades.length === 0) return undefined
+  return shades[((variant % shades.length) + shades.length) % shades.length]
 }
 
 /** The DECOR tiles that belong to a zone, a decor tile "belongs" to a zone when its own

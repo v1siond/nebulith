@@ -565,9 +565,9 @@ export type { MapSize }
  * , a clearing, a street grid, a river, is still legible at ~90px. */
 const PRESET_THUMB_CELLS = { cols: 26, rows: 20 } as const
 
-/** The size the BIG preview draws a world at: exactly the size it will be built at. Maps are capped at
- *  MAP_SIZE_MAX a side, so that is never more than the map itself costs. A size that cannot be built yet (typed
- *  past the cap, or half-typed) keeps the card size; the size inputs already say what is wrong with it. */
+/** The size the BIG preview draws a world at: exactly the size it will be built at, so the preview never
+ *  costs more than the build it is previewing. A half-typed size keeps the card size; the size inputs
+ *  already say what is wrong with it. There is no cap to type past: law 12, the frontend sets no limits. */
 function previewCells(size: MapSize | undefined): { cols: number; rows: number } {
   return size && mapSizeValid(size) ? { cols: size.cols, rows: size.rows } : PRESET_THUMB_CELLS
 }
@@ -575,9 +575,10 @@ function previewCells(size: MapSize | undefined): { cols: number; rows: number }
 /**
  * What a build will produce, said next to the numbers that decide it.
  *
- * The promise has to stay TRUE. Building goes through clampMapSize, which holds a size inside the cap, so at
- * 400 columns the map comes back 100 wide while a line like this would still claim 400. That silent rewrite
- * is a bug that was hit twice, so the panel says what is wrong instead of promising a size it will not build.
+ * The promise has to stay TRUE. When a ceiling existed, building went through clampMapSize and 400 columns
+ * came back 100 wide while a line like this still claimed 400. That silent rewrite was hit twice. The
+ * ceiling is gone now, so the promise is simply kept, and the panel still says what is wrong with a size
+ * it cannot build rather than promising one it will not.
  */
 function sizePromise(draft: MapSize | undefined): string {
   if (!draft) return 'The generator picks the size.'

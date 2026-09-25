@@ -47,7 +47,10 @@ defmodule Nebulith.E2E.Editor do
   def save(session, map_id) do
     was = updated_at(map_id) || flunk("there is no map #{map_id} to save")
 
-    click_button(session, "Save")
+    # BY ITS OWN NAME, not by the word on it. With the inspector open the page holds two buttons whose
+    # visible text starts "Save": the chrome's, and the "Save map" inside the panel. Playwright resolves
+    # "Save" to both and refuses, which reads like the editor has no save button at all.
+    click_button(session, "Save template")
 
     Browser.wait_until(
       session,
@@ -73,6 +76,51 @@ defmodule Nebulith.E2E.Editor do
     |> save(map_id)
     |> open(map_id)
     |> Nebulith.E2E.Canvas.wait_for_tiles(1, timeout: 60_000)
+  end
+
+  @doc """
+  Opens one of the left rail's sections by the word on it: "Tiles", "Objects", "Characters", "Rules".
+
+  The rail is a TABLIST, so its rows are `role="tab"` and not buttons, which is right (one is selected
+  at a time and it decides what the next column shows) and means `click_button/2` cannot see them:
+  it resolves `role=button` and reports "could not find element", which reads like the rail is
+  missing rather than like it is a different role.
+
+  Waits for the section to actually render, because picking a rail row swaps the whole panel beside it
+  and a scenario that carries straight on clicks into the panel that is on its way out.
+  """
+  def open_rail(session, label, opts \\ []) do
+    selector = ~s|[role="tab"]:has-text(#{Jason.encode!(label)})|
+
+    case PlaywrightEx.Frame.click(session.frame_id, selector: selector, timeout: 20_000) do
+      {:ok, _} -> wait_for_rail(session, label, opts)
+      other -> flunk("could not open the #{label} rail: #{inspect(other)}, #{rails(session)}")
+    end
+  end
+
+  defp wait_for_rail(session, label, opts) do
+    case Keyword.get(opts, :holding) do
+      nil ->
+        session
+
+      selector ->
+        Browser.wait_until(
+          session,
+          &(Browser.count(&1, selector) > 0),
+          "the #{label} rail's controls",
+          opts
+        )
+    end
+  end
+
+  # What the rail IS offering, for a failure that names the gap rather than only the miss.
+  defp rails(session) do
+    "it offers " <>
+      inspect(
+        Browser.js(session, """
+        [...document.querySelectorAll('[role="tab"]')].map(t => t.innerText.trim())
+        """)
+      )
   end
 
   defp updated_at(map_id) do

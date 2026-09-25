@@ -32,8 +32,12 @@ defmodule Nebulith.E2E.Phase01AccountsTest do
     test "is refused by the api, while the liveness probe stays open", %{conn: conn} do
       session = visit(conn, "/login")
 
-      assert Browser.js(session, "fetch('/api/tilesets').then(r => r.status)") == 401,
-             "/api/tilesets answered a request with no session"
+      # EVERY DOOR, not one of them. Each of these was added at a different time and each one is a way
+      # into the catalog: a scope is only closed if the routes actually inside it are.
+      for path <- ~w(/api/tilesets /api/art_styles /api/enums /api/maps/schema) do
+        assert Browser.js(session, "fetch('#{path}').then(r => r.status)") == 401,
+               "#{path} answered a request with no session"
+      end
 
       assert Browser.js(session, "fetch('/health').then(r => r.status)") == 200,
              "/health asked for a credential"

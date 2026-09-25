@@ -43,7 +43,7 @@ import {
 // Re-exported so the generator keeps its public tree-shape type (backend palette data now owns it).
 export type { LivingTreeKind } from './zones'
 import { autotileLabel, autotilePosition, type CellLabel, type MassFamily } from './cellLabels'
-import { resolveTile, resolveComposition, canopyCount, canopyShade, pickGroundDecor, type TileDisplay } from './tileset/tileset'
+import { resolveTile, resolveComposition, canopyCount, canopyShade, leafShade, pickGroundDecor, type TileDisplay } from './tileset/tileset'
 import { foliageColor } from './foliageColor'
 import { groundKind } from '@/game/artStyle'
 import { resolveTileHeight } from './tileset/tileHeight'
@@ -68,7 +68,7 @@ import { generationLayerKeys } from '@/engine/generate/generationLayers'
 import { isTileCategory, TILE_CATEGORY } from '@/engine/tileset/tileCategory'
 import { planRoutes, resolvePathways, type Gate, type RouteCell, type RoutePlan, type Side, type Pathways } from '@/engine/pathNetwork'
 import {
-  carveBody, carveChannel, carveShore, crossingRefused, crossingStyle, deckRoutes, levelTheWater, flowField, isWaterGround, layDeck, recordBridgeSpan, wadeCrossing, WATER_BANDS,
+  carveBody, carveChannel, carveShore, lakeCells, crossingRefused, crossingStyle, deckRoutes, levelTheWater, flowField, isWaterGround, layDeck, recordBridgeSpan, wadeCrossing, WATER_BANDS,
   narrowestLine, narrowPathwaysToCrossings, resolveRiverCourse, CROSSING_ROWS, settleWaterDepth, strewRiverRocks, wadeableShallows, waterBand, waterReach,
   FLOW_STEPS, type RiverCourse,
 } from '@/engine/riverNetwork'
@@ -324,6 +324,19 @@ export interface StageData {
    * READS.
    */
   decks?: ReadonlySet<string>
+
+  /**
+   * THE CELLS THE BORDER SEAL SHUT WITH NOTHING BUT HEIGHT.
+   *
+   * Carried for the same reason as `decks`: state the generator PICKS and everything after it READS. The seal
+   * used to stand a rock cube in each of these, and the cube was doing two jobs. It faked the elevation, which
+   * is what the report was about, and it was also the ASSET that kept the cell solid: `applyStage` clears a
+   * cell that is solid with nothing in it, because the assets are the collision data and an empty solid cannot
+   * survive a save. Measured when the cubes came out, edge cells a walk could reach: the mountain went from 6
+   * to 52 of 156, the desert from 31 to 103. So the generator says which cells it shut, and the stamp writes
+   * that onto their floors, where it survives.
+   */
+  sealed?: ReadonlySet<string>
   /**
    * EVERY CELL WHERE THE RIVER IS WADEABLE: a ford, not a built crossing.
    *
@@ -607,8 +620,10 @@ function undergrowthTone(ctx: ArchetypeContext, col: number, row: number, tile: 
   if (tile.settings?.foliage !== true) return undefined
   const pal = ctx.palette
   if (!pal?.undergrowth) return undefined
-  const count = canopyCount(styleCatalog('ascii'), ctx.zone)
-  const shade = canopyShade(styleCatalog('ascii'), ctx.zone, massVariant(col, row) % count)
+  // LEAVES, NOT BLOSSOM. What grows under a tree does not flower because the tree does. The variant goes
+  // in RAW: `leafShade` wraps it over the leaves alone, where folding it over `canopyCount` first would
+  // wrap spring's four into three and hand the first green twice the share of the thicket.
+  const shade = leafShade(styleCatalog('ascii'), ctx.zone, massVariant(col, row))
   const region = ctx.zoneAt?.[row]?.[col]
   return foliageColor(
     shade,
@@ -1050,6 +1065,8 @@ interface ArchetypeContext {
   /** Every cell laid as a crossing deck. The depth pass has to tell a deck from a bank, and the tile no longer
    *  says which (a dirt-path crossing is the flat floor). */
   decks: Set<string>
+  /** Cells the border seal shut with height alone. See `StageData.sealed`. */
+  sealed: Set<string>
   /** Every cell laid as a ford: river shallow enough to walk through, raised back to the level of its banks.
    *  The depth pass, the dry-area walk and the wading rule each need to tell one from a deck. */
   fords: Set<string>
@@ -1249,17 +1266,30 @@ const ARENA_STONE = 'ancient_stone'
 const openGround = (ctx: ArchetypeContext): string | undefined =>
   ctx.palette?.groundTile ?? zonePalette(ctx.zone)?.groundTypes[0]
 
+/**
+ * The SEASON's own open ground, which is the thing flattening is for.
+ *
+ * NOT `openGround`. That answers what a place is MADE of, its own where it states one, and a place's own
+ * ground is a material rather than a texture to be swapped for a tint: flattening a desert's dunes leaves a
+ * flat neutral tile in a sand colour, which is the whole of *"Desert completely lost it's style"*. Measured
+ * when the palettes began serving a ground: a desert village came out as 1512 cells of `floor`.
+ *
+ * The season's ground is what a place lays where it has said nothing, and swapping THAT for the flat tile
+ * wearing its colour is the trade this pass was written to make.
+ */
+const seasonGround = (ctx: ArchetypeContext): string | undefined => zonePalette(ctx.zone)?.groundTypes[0]
+
 /** The OPEN-GROUND labels of each kind of place, read from the served palettes where they come from there. */
 const FLOOR_MATERIALS: Readonly<Record<VariantId, (ctx: ArchetypeContext) => ReadonlyArray<string | undefined>>> = {
-  town: ctx => [openGround(ctx), PLAZA_STONE],
-  city: ctx => [openGround(ctx), PLAZA_STONE],
-  forest: ctx => [openGround(ctx), zonePalette(ctx.zone)?.trail],
+  town: ctx => [seasonGround(ctx), PLAZA_STONE],
+  city: ctx => [seasonGround(ctx), PLAZA_STONE],
+  forest: ctx => [seasonGround(ctx), zonePalette(ctx.zone)?.trail],
   cave: ctx => [(cavePalette(ctx.zone) ?? cavePalette('summer'))?.floor],
   temple: ctx => {
     const pal = templePalette(ctx.zone) ?? templePalette('summer')
     return [pal?.floor, pal?.accent]
   },
-  'boss-stage': ctx => [openGround(ctx), ARENA_STONE],
+  'boss-stage': ctx => [seasonGround(ctx), ARENA_STONE],
 }
 
 /** Swap every open-ground material for the flat floor, keeping the colour it wore. */
@@ -1480,7 +1510,7 @@ export function generateStage(opts: GenerateOptions): StageData {
   for (const key of generationLayerKeys()) rngs[key] = layerRng(opts.seeds, key)
   for (const key of ENGINE_PASS_RNGS) rngs[key] ??= layerRng(opts.seeds, key)
   // Single-pass archetypes (forest/cave/temple/boss) read `ctx.rand`; the layout rng is their source.
-  const ctx: ArchetypeContext = { variant, zone, ground, collision, floorColors, elevation, buildings, props, trees, compositions, cols, rows, layout, options: opts.options, nature: opts.nature, settlement: opts.settlement, palette: opts.palette, subZones: opts.subZones, regionLayout: opts.regionLayout, terrain: opts.terrain, formation: opts.formation, pathway: opts.pathway, treeMix: opts.treeMix, crossings: opts.crossings, pathwayCells: new Set<string>(), exitCells: new Set<string>(), water: new Set<string>(), pools: new Set<string>(), still: new Set<string>(), banks: new Set<string>(), claimed: new Set<string>(), decks: new Set<string>(), fords: new Set<string>(), wet: new Set<string>(), flow: new Map<string, number>(), waterDepth: new Map<string, number>(), molten: isMolten(liquidFor(opts)), buildingSizes: opts.buildingSizes, rand: rngs.layout }
+  const ctx: ArchetypeContext = { variant, zone, ground, collision, floorColors, elevation, buildings, props, trees, compositions, cols, rows, layout, options: opts.options, nature: opts.nature, settlement: opts.settlement, palette: opts.palette, subZones: opts.subZones, regionLayout: opts.regionLayout, terrain: opts.terrain, formation: opts.formation, pathway: opts.pathway, treeMix: opts.treeMix, crossings: opts.crossings, pathwayCells: new Set<string>(), exitCells: new Set<string>(), water: new Set<string>(), pools: new Set<string>(), still: new Set<string>(), banks: new Set<string>(), claimed: new Set<string>(), decks: new Set<string>(), sealed: new Set<string>(), fords: new Set<string>(), wet: new Set<string>(), flow: new Map<string, number>(), waterDepth: new Map<string, number>(), molten: isMolten(liquidFor(opts)), buildingSizes: opts.buildingSizes, rand: rngs.layout }
   runLayers(STAGE_LAYERS, ctx, rngs, opts.upTo)
 
   return {
@@ -1516,6 +1546,7 @@ export function generateStage(opts: GenerateOptions): StageData {
     // anything downstream that needed to ask "is this a bridge" had to guess from tile NAMES. Undefined when
     // the map has no crossing, so nothing changes for a map without one.
     decks: ctx.decks.size === 0 ? undefined : ctx.decks,
+    sealed: ctx.sealed.size === 0 ? undefined : ctx.sealed,
     waterDepth: ctx.waterDepth.size === 0 ? undefined : ctx.waterDepth,
     fords: ctx.fords.size === 0 ? undefined : ctx.fords,
     standing: ctx.still.size === 0 ? undefined : ctx.still,
@@ -1552,8 +1583,11 @@ const NATURE_MULT: Record<Settlement, number> = { town: 1.15, city: 0.4 }
  */
 function settlementPhases(settlement: Settlement): VariantPhases {
   return {
-    // The ground a settlement stands on is the season's, laid before any layer runs. Its own terrain work is
-    // the plaza and the street surfacing, which belong to the structure below.
+    // THE GROUND A SETTLEMENT STANDS ON IS ITS COUNTRY'S. It was the season's, laid in the initial grid fill
+    // before any layer runs, and a settlement served no palette at all, so a desert village and a volcanic
+    // town were both laid out on meadow grass: measured at 1433 and 1020 cells of 1600. The engine has read
+    // `palette.groundTile` since the open-ground pass was written, for this exact reason, and nothing served
+    // one. Its own terrain work after this is the plaza and the street surfacing, which pave over it.
     //
     // ITS NEIGHBOURHOODS, THOUGH, ARE REGIONS, and no settlement ever partitioned them. `partitionSubZones`
     // had three callers and all three were forests, so a city's `upper` / `middle` / `lower` were served on
@@ -1562,6 +1596,9 @@ function settlementPhases(settlement: Settlement): VariantPhases {
     //
     // A village and a town serve none, so they take the same single call and are unmoved.
     terrain: ctx => {
+      const floor = openGround(ctx)
+      if (floor) forEachCell(ctx.cols, ctx.rows, (col, row) => { ctx.ground[row][col] = floor })
+      paintFloor(ctx, { floor: ctx.palette?.floor, floorAlt: ctx.palette?.floorAlt, litter: ctx.palette?.litter })
       shapeRegions(ctx)
     },
 
@@ -2234,7 +2271,7 @@ function placeBuilding(
 //    trail with glades, then blue-noise trees dotting the clearings ──────────
 function placeForest(ctx: ArchetypeContext): void {
   const { ground, zone, cols, rows } = ctx
-  const floor = zonePalette(zone)?.groundTypes[0] ?? '' // zone floor: grass / snow / ash; none served → bare
+  const floor = openGround(ctx) ?? '' // the place's own ground, else the season's
   forEachCell(cols, rows, (col, row) => {
     ground[row][col] = floor
   })
@@ -2320,6 +2357,18 @@ function carveRiver(ctx: ArchetypeContext, course: RiverCourse, pal: GeneratorPa
   // THE SEA, which is a shape and not a subsystem: `classifyBody` reads it as a beach on its own because it
   // runs along the map edge, so the border pass picks the beach pieces with no branch anywhere.
   if (course === 'shore') return carveShore(ctx, pal)
+  // A LAKE, the same water in a closed shape. `carveBody` is what a region's pool already uses, so a lake
+  // asked for by name and a lake asked for by a region are the same body through the same pass.
+  //
+  // AND IT IS STILL, which is the half that decides what it looks like. `classifyBody` reads a body with any
+  // flow in it as a river, so a lake the flow pass had touched came out wearing river pieces: measured on a
+  // woodland asked for a lake, nine river pieces and no lake piece. `floodRegionPools` marks its pools still
+  // for exactly this reason, one line down from its own `carveBody` call.
+  if (course === 'lake') {
+    const still = carveBody(ctx, pal, lakeCells(ctx))
+    for (const key of still) ctx.still.add(key)
+    return still
+  }
   // `divides` is wide and nearly straight across the middle, so it reads as a barrier; `through` meanders.
   const water = course === 'divides'
     ? carveChannel(ctx, pal, { half: 2.3, swing: 0.05, horizontal: true })
@@ -2681,6 +2730,20 @@ function barelyGrows(ctx: ArchetypeContext, col: number, row: number): boolean {
   return canopy < bare
 }
 
+/**
+ * ONE STEP ABOVE THE REACH THIS CELL ALREADY STANDS AT, so a bare border reads as a rim of high ground.
+ *
+ * `raiseRegions` has already put every region at the `level` it states, so this is relative and never
+ * absolute: a summit rim stands above the summit and a desert rim above the sand, with no per-biome number.
+ * `drawGridSkirt` keys on two cells differing in elevation, so the step draws itself as a cliff face, which
+ * is the picture the cubes were imitating.
+ */
+function raiseBorder(ctx: ArchetypeContext, col: number, row: number): void {
+  const row_ = ctx.elevation?.[row]
+  if (!row_) return
+  row_[col] = (row_[col] ?? 0) + 1
+}
+
 function sealMapEdge(ctx: ArchetypeContext): void {
   const plan = ctx.routes
   if (!plan) return
@@ -2726,7 +2789,7 @@ function sealMapEdge(ctx: ArchetypeContext): void {
     // The band closes over it, which is what a wooded bank looks like anyway.
     const wet = isWaterGround(ctx.ground[row][col]) || ctx.wet.has(`${col},${row}`)
     if (collision[row][col] && !wet) return          // something already stands here, and it is not the river
-    // A BARE PLACE IS WALLED WITH ROCK, not with a wood.
+    // A BARE PLACE IS SHUT BY STANDING ITS GROUND UP.
     //
     // The border is shut with whatever grows there, which is right in a wood and absurd at the top of a
     // mountain: on an ordered region set the map's edge IS the first and last region, so a summit served
@@ -2734,12 +2797,14 @@ function sealMapEdge(ctx: ArchetypeContext): void {
     // per 100 cells against the foot's 14.5. That is the exact inverse of the rule its own reference states,
     // *"the higher you get to the mountain the less vegetation there is"*.
     //
-    // A place with almost nothing growing in it still needs its border shut, so it is shut with what is
-    // actually there. No new art: `rock` has been in the catalog all along.
+    // The first answer to that was a `cliff_face` cube per cell, and it was the wrong KIND of answer:
+    // *"if you want to do elevation, just increase height on terrain sections"*. Measured on a 48 x 48
+    // mountain, 92 of those cubes, in five mossy greys, standing on ground that was already raised to the
+    // summit's own level. `docs/SPEC.md` A2 settles which one is right: *"there's height and height can be
+    // achieved by increasing it on a tile or stacking"*, and the ground is the tile here.
     if (barelyGrows(ctx, col, row)) {
-      // SHUT, not scattered. This closes the border of a place with almost nothing growing in it, which is a
-      // WALL of stone. `makeRock` drew it as a line of loose boulders along a mountain edge.
-      placeProp(ctx, makeRockFace(col, row, rockShades()))
+      raiseBorder(ctx, col, row)
+      ctx.sealed.add(`${col},${row}`)
       collision[row][col] = true
       ctx.pathwayCells.delete(`${col},${row}`)
       return
@@ -3341,13 +3406,25 @@ function lineTheLane(ctx: ArchetypeContext, lane: ReadonlySet<string>, way: Gene
  * tile is a prop. Nothing here lists which is which, so a composition added in the backend simply works.
  */
 function placeLining(ctx: ArchetypeContext, col: number, row: number, name: string): void {
-  if (resolveComposition(styleCatalog('ascii'), name)) {
-    if (!isLandCell(ctx, col, row)) return
-    ctx.compositions.push({ kind: name, col, row })
-    ctx.collision[row][col] = true
-    return
-  }
+  if (stampIfComposed(ctx, col, row, name)) return
   placeProp(ctx, makePlant(ctx, col, row, name))
+}
+
+/**
+ * STAMPS `name` AS A COMPOSITION IF THE CATALOGUE HAS ONE, and says whether it did.
+ *
+ * The same question `placeLining` has always asked, lifted out so every placer can ask it. A thing that is
+ * BUILT is stamped as its cells; only a thing that is one object is a prop. Nothing here lists which is
+ * which, so authoring a composition in the backend is all it takes for a generator to start building it.
+ */
+function stampIfComposed(ctx: ArchetypeContext, col: number, row: number, name: string): boolean {
+  if (!resolveComposition(styleCatalog('ascii'), name)) return false
+  if (!isLandCell(ctx, col, row)) return true
+
+  ctx.compositions.push({ kind: name, col, row })
+  ctx.collision[row][col] = true
+
+  return true
 }
 
 /**
@@ -3494,7 +3571,10 @@ const woodlandPhases: VariantPhases = {
       console.warn('[generate] this generator serves no `nature.canopy`, so a woodland has no tree density to build from, nothing planted')
       return
     }
-    const floor = zonePalette(zone)?.groundTypes[0] ?? ''
+    // THE GROUND THIS PLACE IS MADE OF, its own where it states one and the season's otherwise. `openGround`
+    // is the same question the settlement builder has always asked, and the wilderness asked the season
+    // directly, which is why every biome came out standing on meadow.
+    const floor = openGround(ctx) ?? ''
     forEachCell(cols, rows, (col, row) => { ground[row][col] = floor })
     // AND ITS SERVED COLOUR, which nothing applied before. All five woodland templates serve
     // `palette.floor` and only the jungle's painter ever read one, so a wood's field rendered as the season's
@@ -3741,7 +3821,7 @@ const junglePhases: VariantPhases = {
     }
     // THE FLOOR, in permanent shade. Mottled over coarse patches rather than one flat fill, because a jungle
     // floor is litter and roots and standing shade, not lawn. Absent palette means the tile's own colour.
-    const floor = zonePalette(ctx.zone)?.groundTypes[0] ?? ''
+    const floor = openGround(ctx) ?? ''
     forEachCell(cols, rows, (col, row) => { ground[row][col] = floor })
     paintFloor(ctx, { floor: ctx.palette?.floor, floorAlt: ctx.palette?.floorAlt, litter: ctx.palette?.litter })
 
@@ -4659,8 +4739,19 @@ function strewRegionRuins(ctx: ArchetypeContext): void {
  *  above. A region that states no floor colour keeps whatever the base floor pass gave it. */
 function paintSubZoneFloors(ctx: ArchetypeContext, zoneAt: (GeneratorSubZone | undefined)[][]): void {
   forEachCell(ctx.cols, ctx.rows, (col, row) => {
-    const tone = zoneAt[row][col]?.floor
-    if (tone) ctx.floorColors[row][col] = tone
+    const zone = zoneAt[row][col]
+    if (!zone) return
+    if (zone.floor) ctx.floorColors[row][col] = zone.floor
+    // AND THE GROUND ITSELF, where the region names one.
+    //
+    // A colour moves the hue and never the material (`docs/TILE-DESIGN.md`), so a region stating a sand TONE
+    // over the season's meadow grass is grass in a sand colour. Measured on 40 x 40 builds of all nine
+    // wildernesses: every one painted `meadow` as its dominant ground, 1192 to 1567 cells of 1600, because the
+    // floor came from `zonePalette(zone).groundTypes[0]`, which is the SEASON's first ground and not the
+    // biome's. That is the whole of *"the beach forest no longer looks like beach forest"*.
+    //
+    // A region that names no ground keeps the season's, so nothing changes for one that never stated it.
+    if (typeof zone.ground === 'string' && zone.ground) ctx.ground[row][col] = zone.ground
   })
 }
 
@@ -5054,6 +5145,10 @@ function stampColonnade(ctx: ArchetypeContext, body: ReadonlySet<string>, keepOu
     if (col !== minCol && col !== maxCol) continue
     if (row % step !== 0) continue
     if (ctx.rand() < fallen) { placeProp(ctx, makeRock(col, row)); continue } // this one came down
+    // A COLUMN IS BUILT, so it is stamped rather than placed. It used to drop the bare `pillar` TILE, which
+    // draws as a cube with a column printed on each of its four faces: measured on a 40 x 40 ruins build, 22
+    // of them. The catalogue carries `pillar` as a plinth, three drums and a capital.
+    if (stampIfComposed(ctx, col, row, 'pillar')) continue
     placeProp(ctx, makePillar(col, row))
   }
   strewRubble(ctx, body, keepOut)
@@ -5926,7 +6021,7 @@ function stampMeadowTree(ctx: ArchetypeContext, col: number, row: number, tall: 
   const { zone, trees, collision } = ctx
   if (!isLandCell(ctx, col, row)) return // land-only: no tree in water
   if (standsOnPathway(ctx, col, row)) return // and no tree in a road
-  const variant = randIntWith(ctx.rand, 0, canopyCount(styleCatalog('ascii'), zone) - 1)
+  const variant = randIntWith(ctx.rand, 0, Math.max(0, canopyCount(styleCatalog('ascii'), zone) - 1))
   // The green/verdant reference meadows show NO bare snags, only a HARSH season sprinkles a little dead wood.
   const dead = HARSH_ZONES.has(zone) && ctx.rand() < DEAD_TREE_CHANCE[zone] * 0.4
   const kind: LivingTreeKind | 'tree_dead' | null = dead ? 'tree_dead' : tall ? 'tree_tall' : pickLivingTree(ctx.rand(), speciesAt(ctx, col, row))
@@ -6511,7 +6606,7 @@ export function plantTree(ctx: ArchetypeContext, tree: TreeAnchor): boolean {
   // pushed `massVariant(col, row)` raw, an unbounded hash, and one of them remembered to take it modulo the
   // zone's canopy count; an anchor carrying 104 where the zone has 4 shades is not a variant, it is a hash
   // nobody reduced. One place decides, and it is this one.
-  const shades = Math.max(1, canopyCount(styleCatalog('ascii'), ctx.zone))
+  const shades = Math.max(1, canopyCount(styleCatalog('ascii'), ctx.zone)) // a divisor, so never zero here
   ctx.trees.push({ ...tree, variant: ((tree.variant % shades) + shades) % shades, leafColor: tree.leafColor ?? leafToneAt(ctx, tree) })
   return true
 }
@@ -6557,7 +6652,7 @@ function stampTree(ctx: ArchetypeContext, baseCol: number, baseRow: number, dead
   const { collision, zone, trees, cols, rows } = ctx
   if (!isLandCell(ctx, baseCol, baseRow)) return // land-only: no tree in water
   if (standsOnPathway(ctx, baseCol, baseRow)) return // and no tree in a road
-  const variant = randIntWith(ctx.rand, 0, canopyCount(styleCatalog('ascii'), zone) - 1) // this tree's canopy tone (green…pink)
+  const variant = randIntWith(ctx.rand, 0, Math.max(0, canopyCount(styleCatalog('ascii'), zone) - 1)) // this tree's canopy tone (green…pink)
   const kind = dead ? 'tree_dead' : pickLivingTree(ctx.rand(), speciesAt(ctx, baseCol, baseRow)) // random shape variant (standard/tall/small/round/bush)
   if (!kind) return // no species served yet, so there is nothing to plant here
   // ONLY A TREE THAT WAS ACTUALLY PLANTED BLOCKS. The commit refuses a cell for several reasons (water, a

@@ -914,142 +914,6 @@
     "image": "/tiles/emoji/catalog/dog.png",
     "height": 1
   },
-  "house": {
-    "height": 1,
-    "char": "🏠",
-    "color": "#c8443c",
-    "category": "props",
-    "title": "House",
-    "image": "/tiles/emoji/catalog/house.png"
-  },
-  "house-garden": {
-    "height": 1,
-    "char": "🏡",
-    "color": "#b5793a",
-    "category": "props",
-    "title": "House with Garden",
-    "image": "/tiles/emoji/catalog/house-garden.png"
-  },
-  "houses": {
-    "height": 1,
-    "char": "🏘️",
-    "color": "#c86b4d",
-    "category": "props",
-    "title": "Houses",
-    "image": "/tiles/emoji/catalog/houses.png"
-  },
-  "derelict-house": {
-    "height": 1,
-    "char": "🏚️",
-    "color": "#8a7a5f",
-    "category": "props",
-    "title": "Derelict House",
-    "image": "/tiles/emoji/catalog/derelict-house.png"
-  },
-  "office-building": {
-    "height": 1,
-    "char": "🏢",
-    "color": "#7f8c9a",
-    "category": "props",
-    "title": "Office Building",
-    "image": "/tiles/emoji/catalog/office-building.png"
-  },
-  "department-store": {
-    "height": 1,
-    "char": "🏬",
-    "color": "#b05a8a",
-    "category": "props",
-    "title": "Department Store",
-    "image": "/tiles/emoji/catalog/department-store.png"
-  },
-  "convenience-store": {
-    "height": 1,
-    "char": "🏪",
-    "color": "#4a9ac8",
-    "category": "props",
-    "title": "Convenience Store",
-    "image": "/tiles/emoji/catalog/convenience-store.png"
-  },
-  "hospital": {
-    "height": 1,
-    "char": "🏥",
-    "color": "#e05a5a",
-    "category": "props",
-    "title": "Hospital",
-    "image": "/tiles/emoji/catalog/hospital.png"
-  },
-  "bank": {
-    "height": 1,
-    "char": "🏦",
-    "color": "#6a8f5a",
-    "category": "props",
-    "title": "Bank",
-    "image": "/tiles/emoji/catalog/bank.png"
-  },
-  "hotel": {
-    "height": 1,
-    "char": "🏨",
-    "color": "#c89a4a",
-    "category": "props",
-    "title": "Hotel",
-    "image": "/tiles/emoji/catalog/hotel.png"
-  },
-  "school": {
-    "height": 1,
-    "char": "🏫",
-    "color": "#d0a83a",
-    "category": "props",
-    "title": "School",
-    "image": "/tiles/emoji/catalog/school.png"
-  },
-  "classical-building": {
-    "height": 1,
-    "char": "🏛️",
-    "color": "#cbb68c",
-    "category": "props",
-    "title": "Classical Building",
-    "image": "/tiles/emoji/catalog/classical-building.png"
-  },
-  "castle": {
-    "height": 1,
-    "char": "🏰",
-    "color": "#9a8a7a",
-    "category": "props",
-    "title": "Castle",
-    "image": "/tiles/emoji/catalog/castle.png"
-  },
-  "japanese-castle": {
-    "height": 1,
-    "char": "🏯",
-    "color": "#d9c8a8",
-    "category": "props",
-    "title": "Japanese Castle",
-    "image": "/tiles/emoji/catalog/japanese-castle.png"
-  },
-  "church": {
-    "height": 1,
-    "char": "⛪",
-    "color": "#b0a89a",
-    "category": "props",
-    "title": "Church",
-    "image": "/tiles/emoji/catalog/church.png"
-  },
-  "mosque": {
-    "height": 1,
-    "char": "🕌",
-    "color": "#8aa88a",
-    "category": "props",
-    "title": "Mosque",
-    "image": "/tiles/emoji/catalog/mosque.png"
-  },
-  "tower": {
-    "height": 1,
-    "char": "🗼",
-    "color": "#d0553a",
-    "category": "props",
-    "title": "Tower",
-    "image": "/tiles/emoji/catalog/tower.png"
-  },
   "torii-gate": {
     "height": 1,
     "char": "⛩️",
@@ -1065,14 +929,6 @@
     "category": "props",
     "title": "Tent",
     "image": "/tiles/emoji/catalog/tent.png"
-  },
-  "factory": {
-    "height": 1,
-    "char": "🏭",
-    "color": "#8a8a8a",
-    "category": "props",
-    "title": "Factory",
-    "image": "/tiles/emoji/catalog/factory.png"
   },
   "brick": {
     "char": "🧱",
@@ -1096,14 +952,6 @@
     "category": "windows",
     "title": "Glass Window",
     "image": "/tiles/emoji/catalog/glass-window.png"
-  },
-  "stadium": {
-    "height": 1,
-    "char": "🏟️",
-    "color": "#9a9a8a",
-    "category": "props",
-    "title": "Stadium",
-    "image": "/tiles/emoji/catalog/stadium.png"
   },
   "person": {
     "char": "🧍",

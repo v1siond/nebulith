@@ -6,6 +6,7 @@ defmodule Mix.Tasks.Nebulith.DataMigrate do
       mix nebulith.data_migrate --list               # what is registered, what is pending
       mix nebulith.data_migrate --only SeedEntrances # one pass by name, run or not
       mix nebulith.data_migrate --baseline           # record pending as run WITHOUT running it
+      mix nebulith.data_migrate --redo               # EVERY pass again, which is what a re-seed needs
 
   Migrations are for schema. Data is these modules, in `lib/nebulith/data_migrations/`, and they are run
   explicitly here so a pass over eight hundred tiles can never slow down a boot or time out a deploy.
@@ -25,10 +26,10 @@ defmodule Mix.Tasks.Nebulith.DataMigrate do
 
   @requirements ["app.config"]
 
-  @switches [list: :boolean, only: :string, baseline: :boolean]
+  @switches [list: :boolean, only: :string, baseline: :boolean, redo: :boolean]
 
   # Flag to mode, in precedence order. A dispatch table beats a chain of ifs, and it keeps the modes visible.
-  @modes [list: :list, baseline: :baseline, only: :only]
+  @modes [list: :list, baseline: :baseline, only: :only, redo: :redo]
 
   @impl Mix.Task
   def run(args) do
@@ -65,6 +66,11 @@ defmodule Mix.Tasks.Nebulith.DataMigrate do
     do: report("recorded as already applied", DataMigrations.baseline())
 
   defp execute(:only, opts), do: report("ran", [DataMigrations.run_one(opts[:only])])
+
+  # EVERY pass again, which is the other half of a re-seed. A seeder re-run lands what its source says
+  # today and knows nothing about the passes that edited those rows afterwards, and the ledger then stops
+  # those passes ever running again. Seed, then `--redo`, or the seeder silently undoes them.
+  defp execute(:redo, _opts), do: report("ran", DataMigrations.run_all())
 
   defp execute(:pending, _opts), do: report("ran", DataMigrations.run_pending())
 

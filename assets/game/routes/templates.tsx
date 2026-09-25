@@ -14,7 +14,7 @@
 import { loadTileSchema } from '@/lib/tileDefaults'
 import { applyMapPayload, gridToMapPayload } from '@/lib/mapPayload'
 import { assetIsSolid } from '@/engine/collisionBoxes'
-import { setTilePose, styleCatalog, styleTile, styleTiles } from '@/engine/tileset/styleTiles'
+import { labelTile, setTilePose, styleCatalog, styleTile, styleTiles } from '@/engine/tileset/styleTiles'
 import Head from '@/lib/router'
 import { Link } from '@/lib/router'
 import { useToast } from '@/components/Toast'
@@ -28,7 +28,7 @@ import { type BuildingType } from '@/engine/buildingTypes'
 import { buildingCompositionKind, buildingPlaceLength, planComposition } from '@/engine/buildingCatalog'
 import { buildCompositionPalette, type CompositionPaletteGroup } from '@/engine/compositionCatalog'
 import { findTriggeredConnector, normalizeConnector } from '@/engine/connectors'
-import { entityPalette, punchTile, weaponEmoji, weaponGlyph, weaponPose } from '@/engine/entityArt'
+import { entityPalette, punchTile, weaponArt, weaponPose } from '@/engine/entityArt'
 import { StageData, VariantId, type LayerId, type ForestLayout, blankStage, generateStage, stagePaint, generatedPropRender } from '@/engine/stageGenerator'
 import { type Action as TriggerAction, resolveAction } from '@/engine/triggers'
 import { stagePropTileOverride, ZoneId, rockShades, mushroomTones, zoneFlowers, defaultFlowers } from '@/engine/zones'
@@ -53,11 +53,11 @@ import { ENEMY_TYPES, scatterEntities } from '@/game/spawner'
 import { type CombatState, type Entity, type EntityKind, type Inventory, type Loadout, type MovementPattern, type Quest, type Reward, type Stats, type TalentPath, type Weapon } from '@/game/types'
 import { weaponReach } from '@/game/weapons'
 import { VILLAGE_CONFIG } from '@/levels/village'
-import { Connector, TemplateListItem, createTemplate, deleteTemplate, getTemplate, loadMapForTemplate, saveMap, listTemplates, rebuildCollisionFromAssets, serializeGrid, updateTemplate, updateGame } from '@/lib/api'
+import { Connector, TemplateListItem, createTemplate, deleteTemplate, getTemplate, loadMapForTemplate, saveMap, listTemplates, rebuildCollisionFromAssets, serializeGrid, updateTemplate, updateGame, updateGameSettings } from '@/lib/api'
 import { foldUnitData, splitUnitData } from '@/lib/unitDataPersistence'
-import { type CellTriggerGroup, ENTITY_GLYPH, cellTriggersFromAssets, cellTriggersToAssets, entitiesFromAssets, entitiesToAssets, isEntityAsset, isQuestAsset, isStyleAsset, isTriggerAsset, questsFromAssets, questsToAssets, styleFromAssets, styleToAssets, triggersAtCell } from '@/lib/gridCodec'
+import { type CellTriggerGroup, ENTITY_GLYPH, cellTriggersFromAssets, cellTriggersToAssets, entitiesFromAssets, entitiesToAssets, isEntityAsset, isQuestAsset, isTriggerAsset, questsFromAssets, questsToAssets, triggersAtCell } from '@/lib/gridCodec'
 import { type Trigger, type TriggerEffect, fireTriggers } from '@/game/runtime/trigger'
-import { ASCII_STYLE, assetKind, entityKind, entityStyleOverride, genderize, groundKind, resolveVisual, styleById, TILE_CATEGORIES, tilesForStyle, type Style, type TileCategory, type TileDef, type Visual, visualForTileId } from '@/game/artStyle'
+import { ASCII_STYLE, assetKind, availableStyles, entityKind, entityStyleOverride, genderize, groundKind, resolveVisual, styleById, TILE_CATEGORIES, tilesForStyle, type Style, type TileCategory, type TileDef, type Visual, visualForTileId } from '@/game/artStyle'
 import { assetSetting, cellStackTop } from '@/engine/cellStack'
 import { useRouter } from '@/lib/router'
 import { ROUTES } from '@/lib/routes'
@@ -65,9 +65,10 @@ import { readStored, writeStored } from '@/lib/storage'
 import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from 'react'
 import { render, render2D, renderTopView, clampCameraAxis, entityMotion, ENEMY_MOVE_MS, isDebugMode, setDebugMode, isShowCollisions, setShowCollisions as setCollisionsFlag, cellCaptionMap, pickIsoTilesAt, pickTwoDTilesAt, renderedTilesInRect, renderedTwoDTilesInRect, isoRecordedGeom, twoDRecordedGeom, nextPickIndex, ISO_BLOCK_H_FRAC, depthCells, tileGeomPolygon, tileGeomCentroid, tileHandlePoints, handleAtPoint, dragOutwardPx, scaleFromDrag, depthFromDrag, drawTileHandles, polyBBox, HANDLE_HIT_RADIUS, type TileHandle, type HandleId, type CompositionGhost, type IsoDiagonal } from '@/engine/render'
 import { isoWorldCellToScreen, setIsoCameraFacing, setIsoCameraTurn, isoCameraTurn } from '@/engine/render/iso'
+import { installFadeBands, bandsFrom, type FadeBands } from '@/lib/fadeBands'
 import { type Orientation } from '@/engine/render/isoOrientation'
 import { isoEditorCamera, isoEditorCellAt, isoEditorCellAnchor, type IsoEditorView } from '@/game/editor/isoEditorCamera'
-import { loadTilesetsFromBackend, saveTilesetToBackend } from '@/engine/tileset/tilesetLoader'
+import { loadTilesetsFromBackend, saveTilesetToBackend, styleForTilesetId, tilesetIdForStyle } from '@/engine/tileset/tilesetLoader'
 import { loadItemCatalog } from '@/game/itemCatalog'
 import { loadEntitiesFromBackend } from '@/engine/entity/entityLoader'
 import { resolveTileHeight } from '@/engine/tileset/tileHeight'
@@ -113,7 +114,7 @@ import { LevelMapPane } from '@/components/shell/LevelMapPane'
 import { GuidesPanel } from '@/components/shell/GuidesPanel'
 import { MapPreview } from '@/components/shell/MapPreview'
 import { type PreviewContext } from '@/components/shell/PreviewThumb'
-import { type SectionPresenter } from '@/components/editorInspector'
+import { type SectionPresenter, type FadeBandKey } from '@/components/editorInspector'
 import { type InspectorSectionId } from '@/game/editor/inspectorSections'
 import { subjectFor } from '@/engine/preview/previewScene'
 import { loadZones, zones } from '@/engine/zoneCatalog'
@@ -309,6 +310,10 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
   // When editing inside a game, the templates linked to it (the many-to-many). Kept in sync as
   // connections are made so the game always contains the flow it opens.
   const [gameTemplateIds, setGameTemplateIds] = useState<string[]>(gameContext?.templateIds ?? [])
+  // THE GAME'S FADE, as the PANEL shows it. `fadeBands()` is the copy the renderer reads at draw time; this
+  // is the same four numbers held as state, because a slider that moves has to re-render. One parser feeds
+  // both (`bandsFrom`), so the panel and the frame cannot read one row differently.
+  const [gameFadeBands, setGameFadeBands] = useState<FadeBands | null>(null)
   const [currentTemplateId, setCurrentTemplateId] = useState<string | null>(null)
   // THE MAP behind that template. Phase 3 made a map's contents rows, and the editor still addresses
   // it by the template id while both tables exist, so the map's own id is resolved on load.
@@ -318,7 +323,7 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
   // array as marked records because they had no field of their own. They get tables in phases 8, 10
   // and 11; until then they keep riding the template, and they must never be written as cells.
   const isMarkerAsset = (a: GridAsset): boolean =>
-    isEntityAsset(a) || isQuestAsset(a) || isStyleAsset(a) || isTriggerAsset(a)
+    isEntityAsset(a) || isQuestAsset(a) || isTriggerAsset(a)
   const [templateName, setTemplateName] = useState('')
   const [isSaving, setIsSaving] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
@@ -734,7 +739,15 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
   const [tilesetReady, setTilesetReady] = useState(false)
   const [tilesetError, setTilesetError] = useState(false)
   const tilesetReadyRef = useRef(false) // live flag the gameLoop reads each frame (mirrors tilesetReady)
+  // THE STYLE THE OPEN MAP STATES, as a tileset row id, held until there are tilesets to resolve it with.
+  const servedTilesetIdRef = useRef<number | string | undefined>(undefined)
   useEffect(() => { tilesetReadyRef.current = tilesetReady }, [tilesetReady])
+  // …AND APPLIED THE MOMENT THEY ARRIVE. A map that states its style must get it whichever finishes first.
+  useEffect(() => {
+    if (!tilesetReady) return
+    const stated = styleForTilesetId(servedTilesetIdRef.current)
+    if (stated) setActiveStyleId(stated)
+  }, [tilesetReady])
   // WHAT IS SOLID CANNOT BE KNOWN BEFORE THE CATALOG IS. An asset that pins no collision boxes of its own
   // takes its tile's, so deriving the collision map while the tileset is still in flight answers "nothing is
   // solid" for most of the map. Loading a saved map does exactly that derivation, and the two are not ordered,
@@ -1324,11 +1337,12 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
     // Make the equipped gear VISIBLE on the player: a held-weapon glyph beside the
     // figure (changes when you equip a different weapon) + an armored tint.
     const armored = (['helmet', 'chest', 'gloves', 'boots'] as const).some(s => !!pl.equipped[s])
-    // Under a reskin style, the hero holds a real ⚔️/🏹/🪄/🛡️ emoji; ASCII keeps the drawn glyph.
-    const emojiHands = activeStyleId !== 'ascii'
+    // THE HAND HOLDS THE ACTIVE STYLE'S WEAPON, whichever style that is. This read `activeStyleId !==
+    // 'ascii'` and handed everything that was not ascii to emoji's art, which is the two-style world
+    // written into the engine and the thing law 4 forbids.
     const heldWeapon = mainWeapon ?? playerWeaponRef.current
-    playerRef.current.weaponGlyph = emojiHands ? weaponEmoji(heldWeapon) : weaponGlyph(heldWeapon)
-    playerRef.current.shieldGlyph = shield ? (emojiHands ? weaponEmoji(shield) : weaponGlyph(shield)) : ''
+    playerRef.current.weaponGlyph = weaponArt(heldWeapon, activeStyleId)
+    playerRef.current.shieldGlyph = shield ? weaponArt(shield, activeStyleId) : ''
     // The weapon/shield POSE is re-read from the tileset each frame in the render loop (so the live Pose
     // editor retunes the equipped weapon in-scene), not cached here.
     playerRef.current.armored = armored
@@ -1496,6 +1510,33 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
     return flat ? { col: flat.col, row: flat.row } : null // a bare-cell pick, no tile slot, no tile source
   }
 
+  /**
+   * THE UNIT UNDER THE POINTER, or null. The two resolutions the unarmed path already uses, in its order.
+   *
+   * The drawn record first: a unit is a billboard drawn ABOVE its foot cell, so in iso and 2D the figure is
+   * picked where you can see it (`source: 'entity'`). Then the footprint, which is the only resolution TOP
+   * view has, since it keeps no per-tile record.
+   *
+   * Both are existing answers. A third hit-test written here would disagree with the highlight, and that
+   * disagreement is what "it selected the wrong thing" looks like (EDITOR-INTERACTION-SPEC §1).
+   */
+  /**
+   * Does this entity tool ADD a character, as opposed to acting on one that is already there?
+   *
+   * `erase` clicks a unit to delete it and `collision` paints a cell's own blocking flag; neither is
+   * placing a character, and `erase` in particular would have no gesture left if a click on a unit
+   * selected it instead. Written as a question about the tool so a fourth one has to answer it.
+   */
+  const placesAUnit = (tool: EntityTool): boolean => tool !== null && tool !== 'erase' && tool !== 'collision'
+
+  const unitIdUnderPointer = (clientX: number, clientY: number): string | null => {
+    const pick = pickIsoBlockAt(clientX, clientY)
+    if (pick?.source === 'entity' && pick.entityId) return pick.entityId
+    const cell = screenToCell(clientX, clientY)
+    if (!cell) return null
+    return entityAtFootprint(withPlayerCell(entitiesRef.current, livePlayerCell()), cell.col, cell.row)?.id ?? null
+  }
+
   // Click-to-cycle: repeated clicks on the SAME spot walk front→back through the OVERLAPPING tiles there, so an
   // OCCLUDED tile is reachable without moving the camera (the pick correctly returns the visible top tile, not
   // a geometry bug). ONLY call this from a discrete mousedown; hover must keep using pickCellForSelect (the
@@ -1644,6 +1685,30 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
     if (e.button === 0 && !entityTool && !buildingTool && !connectorMode && tryStartHandleDrag(e.clientX, e.clientY)) {
       e.preventDefault()
       return
+    }
+
+    // A UNIT IS SELECTED BY CLICKING IT, WHATEVER THE SIDEBAR HAS ARMED (EDITOR-INTERACTION-SPEC §2).
+    //
+    // Each placement branch below acts on the CELL and returns before anything hit-tests a unit, so with a
+    // brush or the entity tool in hand a click on a unit painted the ground under it. Editing the unit you
+    // had just placed meant leaving the tool, clicking the unit, and arming the tool again.
+    //
+    // ⌥Alt IS THE OVERRIDE (§3), the SAME modifier the unarmed path already uses to edit the floor beneath a
+    // unit, so painting under a standing figure stays one modifier away rather than impossible. SHIFT is left
+    // alone because it belongs to the selection gesture.
+    //
+    // ONLY THE TOOLS THAT PLACE (§4). A tool whose whole subject is ALREADY the thing under the pointer has
+    // to keep the click, or it loses its only gesture:
+    //   · "Remove a character" (`entityTool === 'erase'`) exists to delete the unit you click on, so
+    //     selecting it instead would leave no way to delete one at all;
+    //   · CONNECTOR MODE marks a set of CELLS, and unit-first would make a unit's cell impossible to put
+    //     into a connector.
+    if (e.button === 0 && !e.altKey && !e.shiftKey && (armedTile || placesAUnit(entityTool) || buildingTool)) {
+      const unitId = unitIdUnderPointer(e.clientX, e.clientY)
+      if (unitId) {
+        setSelectedEntityId(unitId)
+        return
+      }
     }
 
     // ARMED BRUSH (Paint mode): a palette tile is picked → LEFT-click PLACES it (⌥Alt-click removes the
@@ -2469,6 +2534,50 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
     applyToSelectedTiles(i, (a) => {
       a.shape = shape
     })
+  // PER-ASSET OPACITY, how solid this placed tile draws before the hero's proximity touches it. The column
+  // (`cell_tiles.opacity`) already round-tripped and the renderer already read it; the panel had no row for
+  // it, which is why "make the tree more opaque" had nowhere to be done.
+  const setAssetOpacity = (i: number, value: number) =>
+    applyToSelectedTiles(i, (a) => {
+      a.opacity = value
+    })
+  // PER-ASSET "fade near the hero", whether this tile answers to the hero's distance at all. Written to the
+  // placed tile's settings like display/transparent, so a tile the catalog opted in can be opted back out on
+  // one map without changing every other map that uses it.
+  const setAssetFadeNear = (i: number, on: boolean) =>
+    applyToSelectedTiles(i, (a) => {
+      a.settings = { ...(a.settings ?? {}), fadeNear: on }
+    })
+  // PER-ASSET MINIMUM ALPHA, the floor a fade may never go past. It only ever makes a tile MORE opaque, so
+  // raising it on a tree keeps the tree readable while the wall beside it still goes see-through.
+  const setAssetMinAlpha = (i: number, value: number) =>
+    applyToSelectedTiles(i, (a) => {
+      a.settings = { ...(a.settings ?? {}), minAlpha: value }
+    })
+  // THE GAME'S OWN FADE, the four numbers that decide what fading MEANS. Not per tile and not per map: a
+  // `game_settings` row, so this writes through the game's own door. The frame is updated straight away and
+  // then reconciled with what the row actually accepted, because the column refuses an impossible band
+  // (an alpha at zero, a radius no further out than the distance the fade holds flat) and the panel should
+  // show what is true rather than what was asked for.
+  const setGameFadeBand = async (band: FadeBandKey, value: number) => {
+    if (!gameContext || !gameFadeBands) return
+    const was = gameFadeBands
+    const asked = { ...was, [band]: value }
+
+    setGameFadeBands(asked)
+    installFadeBands(asked)
+
+    await updateGameSettings(gameContext.gameId, { [band]: value })
+      .then(row => {
+        setGameFadeBands(bandsFrom(row))
+        installFadeBands(row)
+      })
+      .catch((err: unknown) => {
+        setGameFadeBands(was)
+        installFadeBands(was)
+        toast(`That fade was refused: ${String(err)}`, 'error')
+      })
+  }
   // PER-ASSET LIGHT setting (intensity/distance/colour/on), the warm night ground GLOW POOL this tile casts,
   // written to THIS placed tile (persists with the map via the full-asset serialize, like shape). Fans out to
   // the i-th stacked tile of every selected cell. Passing `undefined` clears the setting (back to no pool).
@@ -2597,6 +2706,13 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
   useEffect(() => {
     const win = window as unknown as {
       __setArtStyle?: (id: string) => void
+      /** The style that is ON, and the styles offered: read by the phase 1 art style scenario. */
+      __activeArtStyle?: () => string
+      __artStyles?: () => readonly string[]
+      /** What the hero is holding, as it is drawn, and what a given weapon WOULD draw as. Both are
+       *  FUNCTIONS, read after a style change. */
+      __heldWeapon?: () => string
+      __weaponArt?: (kind: string) => string
       __selectFirstTreeCell?: () => { col: number; row: number } | null
       __setView?: (v: 'iso' | '2d' | 'top') => void
       __gridKinds?: () => unknown
@@ -3039,7 +3155,7 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
     // here and a walkable cell there are the same fact arriving twice: the tileset was not loaded when
     // somebody asked. Without this seam the two are indistinguishable from outside.
     win.__tileBoxes = (label: string) => {
-      const tile = styleTile('ascii', label) ?? styleTile('emoji', label)
+      const tile = labelTile(label)
       const boxes = (tile?.settings as { collision?: unknown[] } | undefined)?.collision
       return { known: !!tile, boxes: Array.isArray(boxes) ? boxes.length : null }
     }
@@ -3122,6 +3238,18 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
       }
     }
     win.__setArtStyle = (id: string) => setActiveStyleId(id)
+    // WHICH STYLE IS ON, and which are offered. FUNCTIONS, not values: this effect runs once, so a value
+    // would freeze `activeStyleId` at mount and freeze the style list at EMPTY, because the catalog
+    // arrives by fetch afterwards. That is the same defect as reading a backend catalog at module scope.
+    win.__activeArtStyle = () => activeStyleRef.current.id
+    win.__artStyles = () => availableStyles().map(s => s.id)
+    // WHAT THE HAND IS DRAWING. The weapon is resolved from the ACTIVE style's tile for its kind, so this
+    // is what the style change scenario watches move.
+    win.__heldWeapon = () => playerRef.current?.weaponGlyph ?? ''
+    // WHAT A WEAPON DRAWS AS, through the same call the hand makes, in whichever style is on. A blank map
+    // starts the hero bare-handed, so the hand itself draws nothing until gear is equipped; this asks the
+    // same question without needing an inventory to exist first.
+    win.__weaponArt = (kind: string) => weaponArt({ kind }, activeStyleRef.current.id)
     // Flip the active VIEW without the toolbar, for validation screenshots across iso/2d/top.
     win.__setView = (v: 'iso' | '2d' | 'top') => {
       if (v === 'top') return selectTopView()
@@ -4814,7 +4942,7 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
       }
       // Re-read the held weapon/shield pose from the tileset EVERY frame, so the Pose editor's sliders
       // retune the equipped weapon live in-scene, the pose is DATA in the tileset, not a cached snapshot.
-      const poseStyleNow = activeStyleRef.current.id === 'ascii' ? 'ascii' : 'emoji'
+      const poseStyleNow = activeStyleRef.current.id
       player.weaponPose = weaponPose(playerWeaponRef.current?.kind, poseStyleNow)
       player.shieldPose = weaponPose(playerShieldRef.current?.kind, poseStyleNow)
       // Bare-handed swing → a 👊 fist at the hand (emoji styles only), read from the same tileset each
@@ -5035,7 +5163,6 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
       const assetsWithEntities = [
         ...entitiesToAssets(entitiesToSave),
         ...questsToAssets(quests),
-        ...styleToAssets(activeStyleId), // active art style rides as one off-grid marker (ASCII → none)
         ...cellTriggersToAssets(cellTriggers), // cell triggers (enter/interact) ride as off-grid markers
         // Floor colour + dims now ride the FLOOR ASSET itself (it's in assetsData), so no separate markers.
       ]
@@ -5043,30 +5170,38 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
       // THE MAP FIRST. If this fails the template is left exactly as it was, rather than being
       // rewritten to point at cells that were never stored.
       if (currentMapId) {
-        await saveMap(currentMapId, gridToMapPayload(grid, isMarkerAsset))
+        await saveMap(currentMapId, gridToMapPayload(grid, isMarkerAsset, tilesetIdForStyle(activeStyleId)))
       }
 
       let savedTemplateId = currentTemplateId
       if (currentTemplateId) {
-        // Update existing
+        // WHAT THE TEMPLATE STILL OWNS, and nothing else.
+        //
+        // The cells went to `cells` and `cell_tiles` and the grid's own shape went to `grids`, both
+        // written by `saveMap` above. Sending them here as well would be a second copy of a fact that
+        // already has an owner, which is law 2, and a second copy does not stay a copy: whichever write
+        // lands last wins and the two silently diverge.
+        //
+        // `groundData` and `heightData` are the clearest case. Nothing reads them after the map exists:
+        // `World.map_for_template/1` reads them exactly ONCE, to build the map the first time a template
+        // is opened, and every load after that reads the rows. They were still being written on every
+        // save, so the blob quietly tracked a map it no longer described.
+        //
+        // What is left is what phase 3 does not own: the name, and the markers (entities, quests, cell
+        // triggers) that get their own tables in phases 5, 10 and 11.
         await updateTemplate(currentTemplateId, {
           name: nameToSave,
-          groundData,
-          heightData,
           assetsData: assetsWithEntities,
           connectors,
           entities: entitiesToSave,
           quests: questsRef.current,
-          cols: grid.cols,
-          rows: grid.rows,
-          cellSize: grid.cellSize,
-          isoScale: grid.isoScale,
-          slabBlocks: grid.slabBlocks, // the map's own body thickness travels with it
           spawnCol: Math.floor(playerRef.current.x / grid.cellSize),
           spawnRow: Math.floor(playerRef.current.z / grid.cellSize),
         })
       } else {
-        // Create new
+        // CREATE still carries the blobs, and only create. A brand new template has no map yet, and
+        // `World.Import.import_template/1` reads `groundData`/`heightData`/`assetsData` to build the
+        // first one. After that the rows are the map and this shape is never read again.
         const created = await createTemplate({
           name: nameToSave,
           groundData,
@@ -5124,9 +5259,6 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
       }
 
       // Resize grid if needed
-      if (template.cols !== grid.cols || template.rows !== grid.rows) {
-        resizeGrid(template.cols, template.rows)
-      }
 
       // THE CELLS COME FROM THE MAP, the markers from the template.
       //
@@ -5138,6 +5270,17 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
       // So the map is applied first and the markers are appended after it, which leaves every line
       // below untouched: they still read the markers off `grid.assets` exactly as they did.
       const served = await loadMapForTemplate(id)
+
+      // THE SHAPE COMES FROM THE GRID ROW. `grids` owns cols and rows (`docs/SPEC.md` §3.2), and
+      // `World.map_for_template/1` builds a map for any template that has none, so there is always one to
+      // read. It used to be resized from `template.cols`/`template.rows`, a second copy of the same two
+      // numbers that the save was still writing, and two owners of one fact is law 2.
+      const shape = served.grid as { cols?: number; rows?: number } | undefined
+
+      if (shape?.cols && shape?.rows && (shape.cols !== grid.cols || shape.rows !== grid.rows)) {
+        resizeGrid(shape.cols, shape.rows)
+      }
+
       applyMapPayload(served, gridRef.current!)
       setCurrentMapId(typeof served.map?.id === 'string' ? served.map.id : null)
 
@@ -5156,14 +5299,37 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
       // animation list follows the UNIT consistently and persists on the next save.
       const loadedEntities = withSeededPersonAnimations(entitiesFromAssets(gridRef.current!.assets))
       const loadedQuests = questsFromAssets(gridRef.current!.assets)
-      const loadedStyle = styleFromAssets(gridRef.current!.assets) // active art style marker (null → ASCII)
+      // THE MAP'S OWN COLUMN, and the GAME'S DEFAULT behind it. Phase 1 REWIRE is one sentence with two
+      // halves: `games.default_tileset_id` WITH a per-map override. Undefined when neither states one, in
+      // which case the editor keeps the style it is already showing rather than inventing one.
+      const mapRow = served.map as
+        | {
+            tileset_id?: number | string
+            game_default_tileset_id?: number | string
+            settings?: Record<string, unknown>
+          }
+        | undefined
+
+      // THE GAME'S OWN NUMBERS, installed the moment the map lands. The four a thing near the hero fades by
+      // used to be constants in the renderer, which is why there was nowhere to edit them.
+      installFadeBands(mapRow?.settings)
+      setGameFadeBands(bandsFrom(mapRow?.settings))
+
+      // KEPT, not just read. Resolving a tileset ROW ID to a style needs the tilesets, and those load on
+      // their own schedule: when a load beat them to it, `styleForTilesetId` answered undefined and the
+      // map's own style was silently dropped for the one the editor happened to be showing. Measured as a
+      // browser gate that passed alone and failed inside the full suite, which is what a race looks like
+      // from the outside. The served id is held here and applied again when the tilesets arrive.
+      servedTilesetIdRef.current = mapRow?.tileset_id ?? mapRow?.game_default_tileset_id
+      const loadedStyle =
+        styleForTilesetId(mapRow?.tileset_id) ?? styleForTilesetId(mapRow?.game_default_tileset_id)
       const loadedCellTriggers = cellTriggersFromAssets(gridRef.current!.assets) // cell triggers (enter/interact)
       // Floor colour + dims ride the FLOOR ASSET now (restored by applyMapPayload → setAssets), so there is
       // nothing to reapply here, the floor is a plain level-0 asset that round-trips like every tile.
       gridRef.current!.removeAssetsWhere(
-        a => isEntityAsset(a) || isQuestAsset(a) || isStyleAsset(a) || isTriggerAsset(a),
+        a => isEntityAsset(a) || isQuestAsset(a) || isTriggerAsset(a),
       )
-      setActiveStyleId(styleById(loadedStyle).id) // restore the saved global skin (defaults to ASCII)
+      if (loadedStyle) setActiveStyleId(loadedStyle) // the style this map was saved in
       setCellTriggers(loadedCellTriggers) // restore the authored cell triggers
       // Buildings are just their stamped per-cell tiles now (regular assets, like trees), so they
       // deserialize with the rest of grid.assets, no grouped-building marker to restore.
@@ -6243,7 +6409,9 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
                 // it prefers the loadout's weapon over inventory.equippedWeapon), so selecting the hero always
                 // surfaces the pose card for whatever weapon is really equipped. Bare hands → no card.
                 const heldWeapon = playerWeaponRef.current
-                const heldWeaponKind = isPlayer && activeStyleId !== 'ascii' && heldWeapon && heldWeapon.kind !== 'unarmed' ? heldWeapon.kind : undefined
+                // The pose card is offered for whatever the hero really holds, in whatever style is on.
+                // It used to be withheld under ascii, so an ascii weapon's pose could not be tuned at all.
+                const heldWeaponKind = isPlayer && heldWeapon && heldWeapon.kind !== 'unarmed' ? heldWeapon.kind : undefined
                 // The entity's OWN resolved figure (gendered), the animation editor previews an empty
                 // "base" frame AS this, and gendered char frames, so the preview matches what renders.
                 const selFigVisual = resolveVisual(entityKind(selEntity.kind), activeStyle, selEntity.tileOverride)
@@ -6378,9 +6546,6 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
                                   {savingPoses ? 'Saving…' : '⭳ Save poses to backend'}
                                 </button>
                               </div>
-                            )}
-                            {isPlayer && activeStyleId === 'ascii' && playerWeaponRef.current?.kind && playerWeaponRef.current.kind !== 'unarmed' && (
-                              <p className="text-[10px] text-gray-500">Weapon pose tuning lives in the Emoji style, ASCII weapons draw their own glyph and aren&apos;t pose-driven yet.</p>
                             )}
                           </div>
                         }
@@ -6590,6 +6755,21 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
                               return (a?.shape ?? (a ? assetSetting<TileShape>(a, 'shape') : undefined)) as TileShape
                             })),
                             onShape: posable ? (shape => setAssetShape(i, shape)) : undefined,
+                            // HOW OPAQUE, AND HOW FAR IT MAY FADE. Read the same way Display is: the placed
+                            // tile first, then the served tile's own settings, so the panel reports the value
+                            // that is actually drawn rather than only the part this map overrode.
+                            opacity: adim(i, a => a.opacity),
+                            onOpacity: posable ? (v => setAssetOpacity(i, v)) : undefined,
+                            fadeNear: commonValue(cells.map(({ col, row }) => {
+                              const a = stackedAssetsAt(grid, col, row)[i]
+                              return a ? assetSetting<boolean>(a, 'fadeNear') === true : undefined
+                            })),
+                            onFadeNear: posable ? (on => setAssetFadeNear(i, on)) : undefined,
+                            minAlpha: commonValue(cells.map(({ col, row }) => {
+                              const a = stackedAssetsAt(grid, col, row)[i]
+                              return a ? Number(assetSetting<number>(a, 'minAlpha') ?? 0) : undefined
+                            })),
+                            onMinAlpha: posable ? (v => setAssetMinAlpha(i, v)) : undefined,
                             actAsTile: commonValue(cells.map(({ col, row }) => {
                               const a = stackedAssetsAt(grid, col, row)[i]
                               return a ? assetSetting<boolean>(a, 'actAsTile') : undefined
@@ -6651,6 +6831,11 @@ function TemplateEditor({ gameContext }: { gameContext?: EditorGameContext } = {
                             <PropertiesPanel
                               collision={commonBool(cells.map(({ col, row }) => grid.isBlocked(col, row)))}
                               onCollision={setCellCollision}
+                              // WHAT FADING MEANS, for this whole game, shown in Appearance beside the tile's
+                              // own half. Absent without a game: there is then no row to write a change to.
+                              gameFade={gameContext && gameFadeBands
+                                ? { bands: gameFadeBands, onBand: (band, value) => void setGameFadeBand(band, value) }
+                                : undefined}
                               tile={tile}
                               level={lvl + 1}
                               levelCount={levelCount}

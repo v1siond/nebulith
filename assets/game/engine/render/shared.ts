@@ -155,8 +155,15 @@ export function resolveEntityDraw(
  *  (they intentionally win over the active style, even ASCII). Resolved at RENDER time so a Style toggle
  *  updates the decor without regenerating the stage. */
 export function assetOverride(asset: GridAsset, style: Style): string | null | undefined {
-  if (asset.type === 'ground_decor' && style.id === 'ascii') return undefined // drop the auto emoji litter under ASCII
-  return asset.tileOverride
+  const pinned = asset.tileOverride
+  if (!pinned || asset.type !== 'ground_decor') return pinned
+
+  // ASK THE CATALOG, not the style's name. This read `style.id === 'ascii'` and dropped the override
+  // outright, from the days when it was an emoji character that would have leaked into ascii. It is a
+  // served LABEL now (`stagePropTileOverride` reads the zone catalog), so the question is whether the
+  // style being drawn has a picture for that label: if it does, that is the decor; if it does not, the
+  // asset falls through to its own kind, which is what a style with no art for a label should do.
+  return styleTile(style.id, pinned) ? pinned : undefined
 }
 
 /** The ACTIVE style's baked tile IMAGE for a tile KEY, a composition cell's LABEL (a tree/building/feature

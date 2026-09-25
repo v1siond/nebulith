@@ -30,25 +30,28 @@ defmodule Nebulith.DataMigration.TreesGoBackToWhatWorked do
   """
   require Logger
 
-  alias Nebulith.Catalog.GeneratorSource
   alias Nebulith.Catalog.TileSource
   alias Nebulith.Repo
 
-  @burned ~w(tree_burned_pine tree_burned_oak tree_burned_birch tree_burned_encina)
-
   def run do
-    volcanic = restore_the_volcanic_mix()
-    burned = drop_the_burned_compositions()
     crowns = drop_the_crown_tiles()
 
-    # AFTER the deletes, not before: it rewrites the tree compositions to name `leaf_center` again, and
+    # AFTER the delete, not before: it rewrites the tree compositions to name `leaf_center` again, and
     # running it first would leave the cells correct and then delete tiles out from under nothing.
     TileSource.seed_compositions()
 
-    Logger.info(
-      "[data_migrate] #{crowns} crown tiles and #{burned} burned compositions removed, " <>
-        "#{volcanic} volcanic generators back on their authored tree mix, tree compositions rebuilt"
-    )
+    # TWO THINGS THIS USED TO DO ARE GONE.
+    #
+    # It deleted the four `tree_burned_*` compositions, on the grounds that they were crowns wearing a
+    # scorched texture and could not outlive the crowns. It said at the time that a burned volcanic wood
+    # was worth having and would be rebuilt on whatever the species model turned out to be. It has been:
+    # `TileSource` `@burned_species` builds them from charred parts of their own, so deleting them here
+    # would now be deleting the rebuild.
+    #
+    # It also restored the volcanic tree mix. `GeneratorSource.seed/0` writes `generators.config` WHOLE,
+    # so a mix written from a migration is a second owner and the next seed decides it. The volcanic mix
+    # is stated in the seeder, and its burnt region grows burned wood again.
+    Logger.info("[data_migrate] #{crowns} crown tiles removed, tree compositions rebuilt")
 
     :ok
   end
@@ -58,84 +61,10 @@ defmodule Nebulith.DataMigration.TreesGoBackToWhatWorked do
     rows
   end
 
-  defp drop_the_burned_compositions do
-    # Cells first: nothing cascades, so deleting the parent would orphan them.
-    Repo.query!(
-      "DELETE FROM composition_cells WHERE composition_id IN (SELECT id FROM compositions WHERE name = ANY($1))",
-      [@burned]
-    )
-
-    %{num_rows: rows} = Repo.query!("DELETE FROM compositions WHERE name = ANY($1)", [@burned])
-    rows
-  end
-
   # The authored config is the source for what a volcanic wood grows. Reading it here rather than copying
   # the list in means a later change to the environment reaches this too, and there is nothing to keep in
   # sync by hand.
-  defp restore_the_volcanic_mix do
-    GeneratorSource.generators()
-    |> Enum.filter(&volcanic?/1)
-    |> Enum.map(&restore_one/1)
-    |> Enum.sum()
-  end
-
-  defp volcanic?(%{name: name}) when is_binary(name),
-    do: String.contains?(String.downcase(name), "volcanic")
-
-  defp volcanic?(_), do: false
-
-  defp restore_one(%{name: name, config: config}) do
-    zones = config["subZones"] || []
-
-    %{num_rows: rows} =
-      Repo.query!(
-        "UPDATE generators SET config = jsonb_set(config, '{trees}', $2::text::jsonb) WHERE name = $1",
-        [name, Jason.encode!(config["trees"])]
-      )
-
-    # Two halves, because the liquids migration wrote a tree mix into EVERY sub-zone. A wild region authors
-    # one and gets its own back. A city neighbourhood authors none, so the key it grew has to come off
-    # rather than be filled with something else.
-    restore_zone_mixes(name, for(z <- zones, z["trees"], into: %{}, do: {z["key"], z["trees"]}))
-    strip_zone_mixes(name, for(z <- zones, is_nil(z["trees"]), do: z["key"]))
-    rows
-  end
-
-  defp restore_zone_mixes(_name, zones) when map_size(zones) == 0, do: :ok
-
-  defp restore_zone_mixes(name, zones) do
-    # `$2::text::jsonb`, NOT `$2::jsonb`. Postgrex types the parameter as jsonb and encodes the string as a
-    # JSON string SCALAR, so a has-key test answers false for a key that is plainly in the map and the UPDATE
-    # reports rows while changing nothing. Every migration in this directory uses the double cast.
-    rewrite_zones(
-      name,
-      "jsonb_set(z, '{trees}', $2::text::jsonb -> (z->>'key'))",
-      Jason.encode!(zones)
-    )
-  end
-
-  defp strip_zone_mixes(_name, []), do: :ok
-
-  defp strip_zone_mixes(name, keys),
-    do: rewrite_zones(name, "z - 'trees'", Jason.encode!(Map.new(keys, &{&1, true})))
 
   # One rewrite for both halves: walk the sub-zones in order, apply `change` to the ones the map names, leave
   # the rest untouched. ORDINALITY keeps the order, which a bare jsonb_agg does not promise.
-  defp rewrite_zones(name, change, keys_json) do
-    Repo.query!(
-      """
-      UPDATE generators SET config = jsonb_set(config, '{subZones}', (
-        SELECT jsonb_agg(
-          CASE WHEN $2::text::jsonb ? (z->>'key') THEN #{change} ELSE z END
-          ORDER BY ord
-        )
-        FROM jsonb_array_elements(config->'subZones') WITH ORDINALITY AS t(z, ord)
-      ))
-      WHERE name = $1 AND config->'subZones' IS NOT NULL
-      """,
-      [name, keys_json]
-    )
-
-    :ok
-  end
 end

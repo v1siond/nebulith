@@ -34,7 +34,6 @@ defmodule Nebulith.DataMigration.ACactusIsAnObject do
 
   alias Nebulith.Catalog
   alias Nebulith.Catalog.TileSource
-  alias Nebulith.Repo
 
   # {label, ascii glyph, emoji, title}
   @segments [
@@ -52,45 +51,13 @@ defmodule Nebulith.DataMigration.ACactusIsAnObject do
   @zones ~w(spring summer autumn winter desert beach lava)
   @green "#5f9e4a"
 
-  # The regions a cactus belongs in, and what each grows after this.
-  @regions %{
-    "deep" => [
-      %{"kind" => "cactus_saguaro", "weight" => 30},
-      %{"kind" => "tree_dead", "weight" => 26},
-      %{"kind" => "cactus_barrel", "weight" => 22},
-      %{"kind" => "tree_stub", "weight" => 22}
-    ],
-    "glade" => [
-      %{"kind" => "cactus_barrel", "weight" => 28},
-      %{"kind" => "cactus_prickly", "weight" => 26},
-      %{"kind" => "tree_stub", "weight" => 24},
-      %{"kind" => "tree_sapling", "weight" => 22}
-    ],
-    "thicket" => [
-      %{"kind" => "cactus_prickly", "weight" => 34},
-      %{"kind" => "bush_round", "weight" => 30},
-      %{"kind" => "bush", "weight" => 20},
-      %{"kind" => "tree_stub", "weight" => 16}
-    ]
-  }
-
-  @environment [
-    %{"kind" => "tree_gnarled", "weight" => 20},
-    %{"kind" => "cactus_saguaro", "weight" => 20},
-    %{"kind" => "tree_stub", "weight" => 18},
-    %{"kind" => "cactus_prickly", "weight" => 16},
-    %{"kind" => "tree_encina", "weight" => 14},
-    %{"kind" => "tree_dead", "weight" => 12}
-  ]
-
   def run do
     rows = seed_segments()
     TileSource.seed_compositions()
-    set_mixes()
 
-    Logger.info(
-      "[data_migrate] #{rows} cactus segment tiles, three cactus compositions, desert mixes grow them"
-    )
+    # The desert mixes that grow these are stated by `GeneratorSource`, which writes `generators.config`
+    # whole. Setting them from here made the fact a second owner and the next seed discarded it.
+    Logger.info("[data_migrate] #{rows} cactus segment tiles, three cactus compositions")
 
     :ok
   end
@@ -125,34 +92,5 @@ defmodule Nebulith.DataMigration.ACactusIsAnObject do
 
         acc + 1
     end
-  end
-
-  defp set_mixes do
-    Repo.query!(
-      """
-      UPDATE generators SET config = jsonb_set(config, '{trees}', $1::text::jsonb)
-      WHERE (name = 'Desert' OR name LIKE 'Desert %') AND config->'trees' IS NOT NULL
-      """,
-      [Jason.encode!(@environment)]
-    )
-
-    Repo.query!(
-      """
-      UPDATE generators SET config = jsonb_set(config, '{subZones}', (
-        SELECT jsonb_agg(
-          CASE
-            WHEN $1::text::jsonb ? (z->>'key') THEN jsonb_set(z, '{trees}', $1::text::jsonb -> (z->>'key'))
-            ELSE z
-          END
-          ORDER BY ord
-        )
-        FROM jsonb_array_elements(config->'subZones') WITH ORDINALITY AS t(z, ord)
-      ))
-      WHERE (name = 'Desert' OR name LIKE 'Desert %') AND config->'subZones' IS NOT NULL
-      """,
-      [Jason.encode!(@regions)]
-    )
-
-    :ok
   end
 end

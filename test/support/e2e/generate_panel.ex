@@ -14,58 +14,85 @@ defmodule Nebulith.E2E.GeneratePanel do
   that fails the next time somebody adds a generator, which teaches everyone to ignore it.
   """
 
-  import PhoenixTest
-
   # The 4-arity form, which takes a selector AND the text, lives on the Playwright driver rather than
   # on PhoenixTest itself. A preset button needs both: the words alone match the divs nested in it.
-  import PhoenixTest.Playwright, only: [click_button: 4]
   import ExUnit.Assertions, only: [flunk: 1]
 
   alias Nebulith.E2E.{Browser, Canvas}
 
   @doc "Chooses the kind of place by its stable key, clicking the label the page is showing for it."
-  def choose_category(session, key) do
-    label =
-      Browser.js(session, """
-      (() => {
-        const sel = document.querySelector('select[aria-label="Kind of place"]')
-        if (!sel) return null
-        const opt = [...sel.options].find(o => o.value === '#{key}')
-        return opt ? opt.text : null
-      })()
-      """)
+  def choose_category(session, key), do: choose_in_select(session, "Kind of place", key)
 
-    label || flunk("the panel has no category called #{key}")
+  @doc """
+  Chooses the season, which is what decides a world's palette.
 
-    # WAIT FOR IT TO SETTLE FIRST. The generator catalog arrives by fetch and re-renders the panel, so
-    # the select can be in the document and not yet interactive, and the driver's two second patience
-    # runs out mid re-render. What comes back then is "waiting for element to be visible and enabled",
-    # which reads like the control is missing rather than like it is being rebuilt.
+  Named for what the page calls it. The data calls it a zone and the control says Season, and a
+  scenario should say the word the person reading the screen would say.
+  """
+  def choose_season(session, zone), do: choose_in_select(session, "Season", zone)
+
+  # ONE SELECT, DRIVEN PROPERLY, for both of the panel's dropdowns. They fail the same two ways and
+  # they used to carry the same two workarounds in two copies.
+  defp choose_in_select(session, aria_label, value) do
+    selector = ~s|select[aria-label=#{Jason.encode!(aria_label)}]|
+
+    # WAIT FOR IT TO SETTLE FIRST, BEFORE READING ITS OPTIONS. The generator catalog arrives by fetch and
+    # re-renders the panel, so the select can be in the document and not yet interactive, and the
+    # driver's two second patience runs out mid re-render. What comes back then is "waiting for element
+    # to be visible and enabled", which reads like the control is missing rather than like it is being
+    # rebuilt. Reading the options ahead of this wait asks a control that has not mounted what it
+    # offers, and gets the same empty answer a genuinely missing control gives.
     Browser.wait_until(
       session,
       &Browser.true?(&1, """
       (() => {
-        const s = document.querySelector('select[aria-label="Kind of place"]')
+        const s = document.querySelector(#{Jason.encode!(selector)})
         if (!s) return false
         const r = s.getBoundingClientRect()
-        return r.width > 0 && r.height > 0 && !s.disabled
+        return r.width > 0 && r.height > 0 && !s.disabled && s.options.length > 0
       })()
       """),
-      "the kind of place control to be ready"
+      "the #{aria_label} control to be ready"
     )
 
-    # THE DRIVER'S OWN SELECT GIVES UP AFTER TWO SECONDS, and changing the category re-renders the
-    # panel, so the element it resolved is detached before the action lands and it retries until the
-    # patience runs out. Reported as "waiting for element to be visible and enabled", which reads like
-    # the control is missing. Going through the binding directly is the same real select action with a
-    # timeout that matches how long the panel actually takes.
+    label =
+      Browser.js(session, """
+      (() => {
+        const sel = document.querySelector(#{Jason.encode!(selector)})
+        if (!sel) return null
+        const opt = [...sel.options].find(o => o.value === #{Jason.encode!(value)})
+        return opt ? opt.text : null
+      })()
+      """)
+
+    # SAY WHAT IT DOES OFFER. "offers nothing called spring" is true of a control that is missing and of
+    # one that spells its options differently, and those are two different problems with two different
+    # fixes.
+    label ||
+      flunk(
+        "the #{aria_label} control offers nothing called #{value}, it offers " <>
+          inspect(
+            Browser.js(session, """
+            (() => {
+              const sel = document.querySelector(#{Jason.encode!(selector)})
+              return sel ? [...sel.options].map(o => o.value) : null
+            })()
+            """)
+          )
+      )
+
+    # THE DRIVER'S OWN SELECT GIVES UP AFTER TWO SECONDS, and choosing re-renders the panel, so the
+    # element it resolved is detached before the action lands and it retries until the patience runs
+    # out. Reported as "waiting for element to be visible and enabled", which reads like the control is
+    # missing. Going through the binding directly is the same real select action with a timeout that
+    # matches how long the panel actually takes.
     case PlaywrightEx.Frame.select_option(session.frame_id,
-           selector: ~s|select[aria-label="Kind of place"]|,
+           selector: selector,
            options: [%{label: label}],
            timeout: 20_000
          ) do
       {:ok, _} -> session
-      other -> flunk("could not choose #{label} in the kind of place control: #{inspect(other)}")
+      other -> flunk("could not choose #{label} in the #{aria_label} control: #{inspect(other)}")
     end
   end
 
@@ -107,25 +134,54 @@ defmodule Nebulith.E2E.GeneratePanel do
   Generation streams tiles in, so a count that moved once is not a world that is finished.
   """
   def build(session) do
-    before = length(Canvas.tiles(session))
+    before = Canvas.tile_count(session)
 
     session
     |> press_panel_button("Build this world")
-    |> Browser.wait_until(&(length(Canvas.tiles(&1)) != before), "the world to start building",
+    |> Browser.wait_until(&(Canvas.tile_count(&1) != before), "the world to start building",
       timeout: 120_000
     )
     |> settle()
   end
 
   # Two reads a beat apart that agree. A generator that is still placing tiles disagrees with itself.
+  #
+  # COUNTED IN THE PAGE, never by shipping the assets here to be counted: a 100x100 city holds 13,618 of
+  # them, a read that big comes back empty now and then, and an empty read settles against the next empty
+  # one and reports a finished build as a map with nothing on it.
   defp settle(session, last \\ -1) do
-    now = length(Canvas.tiles(session))
+    now = Canvas.tile_count(session)
     if now == last, do: session, else: settle_again(session, now)
   end
 
   defp settle_again(session, now) do
     Process.sleep(1_000)
     settle(session, now)
+  end
+
+  @doc """
+  Closes the preview a finished build puts on screen, so the map underneath can be clicked again.
+
+  It is a real modal over the canvas, and Playwright reports it as the Close button intercepting pointer
+  events, which reads like the canvas is missing rather than like something is in front of it. A scenario
+  that only reads `window.__nebulithGrid` never notices; one that clicks a cell fails on its first click.
+  """
+  def close_preview(session) do
+    Browser.js(session, """
+    (() => {
+      const dialog = document.querySelector('[role="dialog"][aria-label="Preview"]')
+      const close = dialog?.querySelector('[aria-label="Close"]')
+      if (close) close.click()
+      return true
+    })()
+    """)
+
+    Browser.wait_until(
+      session,
+      &(Browser.count(&1, ~s|[role="dialog"][aria-label="Preview"]|) == 0),
+      "the preview to close",
+      timeout: 15_000
+    )
   end
 
   @doc "The whole thing: a category, a preset, any options it needs, and a built world."
@@ -140,7 +196,7 @@ defmodule Nebulith.E2E.GeneratePanel do
   @doc "Opens a preset and waits for its options to render."
   def open_preset(session, name) do
     session
-    |> click_button(nil, name, exact: false)
+    |> press_panel_button(name)
     |> Browser.wait_until(
       &(Browser.count(&1, ".ctl .swatches") > 0),
       "#{name}'s options to render"

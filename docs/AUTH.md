@@ -180,6 +180,54 @@ is down whenever the credential is wrong.
 
 ---
 
+## 5b. Who owns what, and who may change it
+
+Sections 1 to 5 answer WHO IS SIGNED IN. This answers WHAT THEY MAY DO, which is a different question and
+was not written down anywhere until it was found missing.
+
+### The rule
+
+A game has one owner. `games.owner_id` names them and `games.visibility` says who else may see it,
+defaulting to `private`.
+
+| Actor | May read | May change |
+|---|---|---|
+| The owner | their own games | their own games |
+| Another signed-in person | a game whose `visibility` is not `private` | nothing |
+| An admin | every game | every game |
+| Nobody (signed out) | nothing under `/api` | nothing |
+
+`docs/SPEC.md` phase 1 states the gate in one line: *"two accounts exist, one owns a game, the other can
+open it and cannot edit it."*
+
+### What was measured, and why this section exists
+
+`games.owner_id` and `games.visibility` both existed as columns. Neither was declared on the `Game`
+schema, and `owner_id` appeared nowhere in `lib/nebulith_web` or `lib/nebulith/games`. `GameController`
+listed every game to every caller, and `update` and `delete` accepted any id from any signed-in person.
+
+So authentication was enforced and authorisation was not, which is the failure mode that looks safest
+from the outside: every request has a valid session, and every request is allowed to do anything.
+
+### How it is enforced
+
+In the CONTEXT, not the controller. `Games.list_games/1`, `get_game!/2`, `update_game/3` and
+`delete_game/2` all take the acting user and filter or refuse on it, so a new caller cannot forget the
+check by forgetting to write it. A controller that has to remember is a controller that will not.
+
+A refusal is `404`, not `403`, for a game the caller may not see. Telling a stranger that a game exists
+but is not theirs is itself a disclosure.
+
+### The checklist for an authorisation change
+
+1. The context function takes the acting user. Not the controller.
+2. A read a person may not do answers as if the row did not exist.
+3. A write a person may not do changes nothing and says so.
+4. An admin is still able to do it.
+5. Both layers: `mix test` on the context, and a browser scenario with TWO accounts.
+
+---
+
 ## 6. The checklist
 
 Run this before calling any auth change done.

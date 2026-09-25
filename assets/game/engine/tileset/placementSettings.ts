@@ -22,7 +22,7 @@
  * the catalogue says rather than from a literal. The tile fallback in `assetSetting` stops being load
  * bearing, which is the point: one question, one place that answers it.
  */
-import { styleCatalog, styleTile } from './styleTiles'
+import { labelTile, loadedStyleIds, styleCatalog } from './styleTiles'
 import { booleanDefault, stringDefault } from '@/lib/tileDefaults'
 import { tileColorByLabel, tileRenderBehavior, type TileDisplay } from './tileset'
 
@@ -55,7 +55,7 @@ export interface PlacementSettings {
  * own settings still come through.
  */
 export function placementSettings(label: string | undefined, stated?: PlacementSettings): PlacementSettings {
-  const tile = label ? styleTile('ascii', label) ?? styleTile('emoji', label) : undefined
+  const tile = label ? labelTile(label) : undefined
   const own = tile?.settings as Record<string, unknown> | undefined
   // `tileRenderBehavior` emits a field only when the catalogue turns it ON, which is the right shape for
   // asking "what does this tile opt into". It is the wrong shape for being the placement's whole answer,
@@ -93,5 +93,12 @@ export function placementColor(label: string | undefined, stated?: string, zone?
   if (stated) return stated
   if (!label) return undefined
 
-  return tileColorByLabel(styleCatalog('ascii'), label, zone) ?? tileColorByLabel(styleCatalog('emoji'), label, zone)
+  // A COLOUR IS THE LABEL'S, not a style's. Naming a style here made the ascii catalog the authority on
+  // what colour an emoji tile is, and left the answer depending on which style happened to load first.
+  for (const style of loadedStyleIds()) {
+    const color = tileColorByLabel(styleCatalog(style), label, zone)
+    if (color) return color
+  }
+
+  return undefined
 }

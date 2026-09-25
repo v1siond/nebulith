@@ -548,7 +548,18 @@ defmodule Nebulith.Catalog.ZoneSource do
         ]
       },
       "props" => %{
-        "rockShades" => ["#3a3340", "#332e3a", "#443b50", "#2c2832", "#3d3543"],
+        # ROCK IS GREY, and this was purple.
+        #
+        # It sits in the props block beside caveDecor and mushroomTones, which is where it came from: it
+        # was authored as a CAVE's rock and then used outdoors. A cave does not use it (the cave and its
+        # entrance seal with `pal.wall`, which is grey brown and always was); what uses it is the border
+        # of a bare place on an open map and an arena's wall. So every outdoor cliff face on every map
+        # was five shades of dark violet, standing in a wood.
+        #
+        # `makeRockFace` says what these should be in its own comment: pale ice rock in winter, warm
+        # sandstone in desert, charred basalt in lava, and MOSSY GREY otherwise. Only the otherwise is
+        # here, so that is what this is. Per season is a bigger change and is not pretended at.
+        "rockShades" => ["#5a5f55", "#4e5349", "#646a5e", "#454a42", "#585d52"],
         "caveDecor" => ["ʌ", "∧", "∴", "·"],
         "mushroomTones" => ["#d24a4a", "#c98a52", "#e0a0c0"],
         "propArt" => %{

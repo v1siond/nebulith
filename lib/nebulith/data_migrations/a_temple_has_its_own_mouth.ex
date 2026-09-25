@@ -32,15 +32,6 @@ defmodule Nebulith.DataMigration.ATempleHasItsOwnMouth do
   )
 
   def run do
-    %{num_rows: temples} =
-      Repo.query!("""
-      UPDATE generators
-      SET config = jsonb_set(config, '{entrance}', '"temple_entrance"')
-      WHERE config->>'entrance' = 'cave_entrance'
-        AND (config->'settlement' IS NULL)
-        AND name ILIKE '%temple%'
-      """)
-
     %{num_rows: cells} =
       Repo.query!(
         """
@@ -52,10 +43,10 @@ defmodule Nebulith.DataMigration.ATempleHasItsOwnMouth do
 
     %{num_rows: comps} = Repo.query!("DELETE FROM compositions WHERE name = ANY($1)", [@rejected])
 
-    Logger.info(
-      "[data_migrate] #{temples} temple generators wear their own mouth, " <>
-        "#{comps} rejected entrance compositions deleted (#{cells} cells)"
-    )
+    # NO LONGER TOUCHES `generators`. A temple naming its own entrance is stated by `GeneratorSource`,
+    # which writes `config` WHOLE, so setting it from here made the fact a second owner and the next seed
+    # decided it. What is left is the half the seeder does not own: the rejected compositions.
+    Logger.info("[data_migrate] #{comps} rejected entrance compositions deleted (#{cells} cells)")
 
     :ok
   end

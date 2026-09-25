@@ -80,7 +80,10 @@ defmodule Nebulith.TileSourceTest do
     assert length(bush.cells) == 1, "the bush is a single leaf mound (no trunk)"
 
     trunk = Enum.find(tree.cells, &(&1.label == "trunk_mid"))
-    leaf = Enum.find(tree.cells, &(&1.label == "leaf_center"))
+
+    # A CROWN IS FOUND BY BEING A LEAF, not by one label. Each family draws its own leaf now, so naming
+    # `leaf_center` here would be asking for a shape no species uses.
+    leaf = Enum.find(tree.cells, &String.starts_with?(&1.label, "leaf"))
 
     # The hand-tuned trunk is a thin tall post: 3.15 blocks at 60%, which is 1.89 blocks drawn.
     #
@@ -101,7 +104,7 @@ defmodule Nebulith.TileSourceTest do
     assert trunk_face < leaf.scale
 
     # the bush's one cell is a leaf on the ground, no trunk anywhere.
-    assert hd(bush.cells).label == "leaf_center" and hd(bush.cells).level == 0
+    assert String.starts_with?(hd(bush.cells).label, "leaf") and hd(bush.cells).level == 0
     refute Enum.any?(bush.cells, &(&1.label in ["trunk", "trunk_mid", "trunk_base"]))
 
     refute Enum.any?(comps, &(&1.name in ["big_tree_a", "big_tree_b", "bush_a", "bush_b"]))
@@ -111,7 +114,8 @@ defmodule Nebulith.TileSourceTest do
     comps = Catalog.list_compositions()
 
     crown = fn name ->
-      Enum.find(comps, &(&1.name == name)).cells |> Enum.find(&(&1.label == "leaf_center"))
+      Enum.find(comps, &(&1.name == name)).cells
+      |> Enum.find(&String.starts_with?(&1.label, "leaf"))
     end
 
     # THIS USED TO SAY THE PLAIN `tree` CARRIED NO SHAPE, and that was overtaken. A crown's outline comes from

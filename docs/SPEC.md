@@ -1337,6 +1337,10 @@ erDiagram
         int discovery_radius
         bool discovery_remembers
         enum default_view
+        int fade_radius "beyond this, solid"
+        int fade_full_radius "within this, flat at its most transparent"
+        numeric fade_alpha "how opaque the close band draws"
+        numeric interior_alpha "how opaque a shell draws from inside"
     }
     LEVELS {
         uuid id PK
@@ -1455,6 +1459,15 @@ visible is what you can see now. It belongs to the save and not the map for the 
 does. `discovery_on`, `discovery_radius` and `discovery_remembers` are per game, so a game can turn the
 whole system off.
 
+**Four columns on `game_settings` are NEW and not in the original set**, because a ticket asked for them and
+no property existed to carry them: `fade_radius`, `fade_full_radius`, `fade_alpha` and `interior_alpha`. They
+are the four numbers a thing near the hero fades by, and they were `export const` in
+`engine/render/roofReveal.ts`. *"we have like a range transparency on the units/elements but I don't see any
+place to manage or edit it, and It'd like to make the tree more opaque"*. There was nowhere to manage it
+because a value invented in React has no row for a control to write to, which is law 7 and law 12 predicting
+the same missing panel. A tile's own `fade_near`, `min_alpha` and `opacity` say how far THAT tile takes part;
+these four say what taking part means, once per game.
+
 **`save_flags` is the escape hatch, deliberately.** A rule's action can set a flag and a rule's condition
 can read one, which is how one-off narrative state exists without a table per story beat. It is key and
 value, per save, and nothing else may read it.
@@ -1510,8 +1523,177 @@ BLOCK is a 3D unit, TILE is what goes in. Never interchange. Grid dimensions are
 there's height and height can be achieved by increasing it on a tile or stacking."* Negative is legal and
 means dug out. `CHECK (height >= 0)` on the tile's own height.
 **Gate** A channel at -1 beside a reach at -2 renders a cascade, and a ramp cell can be entered from both ends.
-Today per-cell elevation exists, persists, and is **all zeros on every map**, because the generator zeroes
-it. The gate is a non-zero elevation surviving generation.
+Per-cell elevation used to be **all zeros on every map**, because the stamp wrote 0 unconditionally. It is
+written now: `raiseRegions` stands every region at the `level` it states, and the step between two of them is
+drawn as a cliff by `drawGridSkirt`. Measured on 40 x 40 builds of all nine wildernesses: the mountain reaches
+5 blocks, the volcanic 3, the desert 2, and a flat wood 1.
+
+**A border a person cannot cross is made of what is THERE, and where nothing grows that is the ground itself.**
+*"if you want to do elevation, just increase height on terrain sections"*. The border seal used to stand one
+grey-green `cliff_face` cube per bare cell, 92 of them on a 48 x 48 mountain, on top of ground that was
+already raised. It raises the ground instead. The cube was also the ASSET that kept the cell solid, since the
+stamp clears a cell that is solid with nothing in it, so the generator now publishes `sealed` and the stamp
+writes that onto the cell's floor as a per-instance collision box, which survives a save the way a ford's
+waived box does.
+
+#### What every wilderness actually builds, measured 2026-09-23
+
+40 x 40, one build each, read off the live grid (`test/e2e/what_every_wilderness_is_made_of_test.exs`).
+"walked" is a flood from the nearest walkable cell to the middle; "out" is how many of the 156 edge cells that
+walk arrives at.
+
+**"Out" is a reading, not the rule, and it was the rule for a while.** The sweep asserted that fewer than a
+quarter of the ring could be walked to, and a gate is `pathWidth` cells across, so one honest opening counted
+three times. Volcanic, which has the most gates, measured 20 to 40 reachable cells across seeds against a
+ceiling of 39: it failed on some builds and passed on others with nothing changed, and every one of those
+cells resolved to a paved gate lane or a river mouth. A threshold a legal map crosses on half its seeds is a
+coin toss, and the same count would have passed a map with a single bare cell open in its border, which is
+the defect the rule is for.
+
+So the sweep asks the rule directly, in two halves, and neither needs a threshold:
+
+1. **Every cell the walk gets out at is a GATE or water.** Which cells are gates is asked of the map
+   (`window.__gateCells`, the generator's own list, published by `applyStage`), never inferred from labels: a
+   meadow's gate lanes are bare grass, and a paved-prefix guess called six of them holes in a border that was
+   working. A map that publishes no gate list fails outright rather than passing blind.
+2. **There are a handful of OPENINGS**, counted as contiguous runs around the ring rather than as cells.
+   Measured across the nine: 1 to 6 openings each, against a ceiling of 8.
+
+Falsified by disabling `sealMapEdge`: all nine then fail, each naming the bare cells it leaks at.
+
+| Wilderness | tiles | ground reaches | walked | out | water | the ground it painted most |
+|---|---|---|---|---|---|---|
+| Woodland | 2532 | 1 | 1206 | 3 | 0 | meadow 1567 |
+| Jungle | 3326 | 0 | 1193 | 28 | 157 | meadow 1556 |
+| Meadow | 2623 | 1 | 1158 | 3 | 60 | meadow 1540 |
+| Swamp | 2292 | 1 | 972 | 8 | 424 | meadow 1192 |
+| Mountain | 2513 | 5 | 1250 | 9 | 0 | meadow 1501 |
+| Beach | 2677 | 1 | 1058 | 8 | 292 | meadow 1238 |
+| Ruins | 2940 | 1 | 1084 | 9 | 0 | meadow 1255 |
+| Desert | 2553 | 2 | 1298 | 24 | 43 | meadow 1512 |
+| Volcanic | 2611 | 3 | 1132 | 26 | 81 | meadow 1455 |
+
+**Every one of the nine paints `meadow` as its dominant ground, between 1192 and 1567 cells of 1600.** That
+is one line in `woodlandPhases.terrain`: the floor is `zonePalette(zone).groundTypes[0]`, which is the SEASON's
+first ground type, not the biome's. A biome's own `palette.floor` is applied as a COLOUR only. So a desert is
+meadow tinted sand, a volcanic field is meadow tinted dark, and the reports say exactly that: *"Desert
+completely lost it's style"*, *"Volcanic also lost it's style entirely"*, *"the beach forest no longer looks
+like beach forest"*. The ground a biome stands on is the biome's, not the season's.
+
+#### A thing is one object, a piece is part of something built
+
+**A label that appears in no composition's cells is ONE OBJECT and draws as one.** *"ruins forest is still
+doing ornaments with multi face instead of single"*. The rule was eleven label names, and the ruins map
+strews `pillar`, which was not among them, so a column came out as a cube with a column printed on each of
+its four faces. Counting the catalog: 36 of the 64 nature and decor tiles drew on every face, among them
+`crate`, `crystal`, `lamp`, `torch`, `key`, `hazard`, `coral` and eight whole-tree billboards.
+
+A thing that is BUILT is built from pieces, and a piece is a cell of some composition: the trunk and leaf of
+a tree, the stem of a cactus, the centre and jets of a fountain. Asking the compositions is a rule nobody has
+to remember to extend. `Nebulith.OneObjectOrAPieceTest` holds it, and only nature and decor are asked, since
+a wall, a roof, a door, a road and the ground are structure by definition.
+
+#### A column is built, and so is everything else
+
+**A column is a plinth, drums and a capital.** *"ruins forest still uses tiles that it shouldn't, like... a
+'pilar' tile, when in reality it should be a composition/object"*. The ruins generator dropped the bare
+`pillar` tile, 22 of them on a 40 x 40 build, and the tile draws on every face, so each column was a cube
+with a column printed on all four sides. Inside `temple_8` and `cathedral_7` a column was ONE `pillar` cell
+carrying `scaleY: 6`, which is the tile bent with scale that `docs/OBJECT-CONSTRUCTION.md` forbids.
+
+The catalogue carries `pillar` and `pillar_broken` now, and one rule turns any stretched column in any
+composition into its courses, so no building has to remember. `Nebulith.AColumnIsBuiltTest` holds both
+halves. The generator asks the catalogue (`stampIfComposed`) rather than assuming a name is a tile, which is
+the same question `placeLining` has always asked.
+
+**The render still collapses a run, and that is not the same thing.** `stampComposition` folds a vertical run
+of one tile into a single block sized by the run, for the draw count, and it renders identically. Authoring a
+column AS one stretched tile and letting the renderer collapse authored courses are opposite acts.
+
+**Three column sites are still dropping the tile, and they are named rather than forgotten:**
+`placePillaredHall`, `placeAltarChamber` and the arena dais, all in the DUNGEON generator. They pass a
+per-season tint (`pal.pillar`) that `StampOverrides` has no field for, so routing them needs that override
+first. The reported defect was the ruins forest, and that is what moved.
+
+#### A biome stands on its own ground
+
+**A region names the GROUND TILE it stands on, not only a tone.** Measured on 40 x 40 builds of all nine
+wildernesses: every one painted `meadow` as its dominant ground, 1192 to 1567 cells of 1600, because the
+floor came from `zonePalette(zone).groundTypes[0]`, the SEASON's first ground. A region's own `floor` was a
+COLOUR, and a colour moves the hue and never the material, so a beach was grass in a sand colour and a
+desert was grass in a tan one. That is the whole of *"the beach forest no longer looks like beach forest"*
+and *"Desert completely lost it's style"*.
+
+| Biome | before | after |
+|---|---|---|
+| Beach | meadow 1238 | sand 788, sand dune 275, savanna 185 |
+| Desert | meadow 1534 | sand dune 618, sandstone 458, sand 320 |
+| Volcanic | meadow 1469 | ash 643, volcanic rock 333, basalt 247, obsidian 209 |
+
+A region that names no ground still takes the season's, so nothing changed for one that never stated it.
+`Nebulith.E2E.WhatEveryWildernessIsMadeOfTest` checks every biome against whatever its own regions name, so
+authoring a ground is all it takes.
+
+**The volcanic environment was a placeholder and its own comment said so**: *"Nothing volcanic exists in
+this file, so it runs on the MOUNTAIN's numbers... What it is missing is exactly what would make it volcanic,
+ash floors, black rock, lava water and a canopy that gives up near the vents."* All four are authored now.
+Its burned trees were never missing either: 29 charred trunks against 312 living ones, on ground that was
+green, so the burnt stands could not read as stands of anything.
+
+**A SETTLEMENT BELONGS TO ITS COUNTRY.** *"all these issues apply to their settlements counterpart... it
+also applies to towns and villages"*. `settlement_config` carried no `palette` at all, so a desert village
+and a volcanic town were laid out on the season's meadow in the season's green: 1433 and 1020 cells of 1600.
+The engine had read `palette.groundTile` since the open-ground pass was written, for this exact reason, and
+nothing ever served one. Measured after: desert village sand dune 1402, volcanic town ash 837, beach city
+sand 785, and no meadow in any of them.
+
+**A place's own ground is a material and is never flattened away.** `flattenFloors` swaps an open-ground
+material for the flat tile wearing its colour, which is the right trade for the season's textured ground and
+the wrong one for a desert's dunes: a flat neutral tile in a sand colour is the "lost its style" defect
+stated as a feature. Measured the moment the palettes began serving a ground: a desert village came out as
+1512 cells of `floor`. It flattens the SEASON's ground now, never the place's own.
+
+**What runs in a map's channels is a choice, and only the volcano says lava.** `liquidFor` has read
+`options.water` and `setForLiquid` has picked the piece family from it since the water sets were built, and
+no generator offered the option, so every map ran on the default: a volcano's channel was ordinary water.
+It is served as `liquids` and offered as "What the water is". The blue-water rule keeps its shape and names
+its one exception rather than carrying a colour nobody could explain.
+
+**The desert had the beach's palette, tree list and species map**, which its own blurb admitted: *"Running on
+the beach's numbers until it gets its own."* It has its own now. Its cactuses were never missing, they were
+sparse and thin: 75 pieces on a 40 x 40 build, which is what a stated canopy of 0.04 and 0.08 comes to.
+
+#### An upright is narrowed by its THICKNESS, never by its width
+
+*"cactus look horrible, we used width instead of thickness to make it, and looks too skynny, before it looked
+way better."* Every upright ran 0.24 to 0.34 on both ground axes: the main trunk was 0.3 wide, 3.4 tall and
+0.3 deep, a post a third of a cell square. Width is the axis you look at, and it stays full; thickness is the
+one going into the screen, the one a door uses to be a panel in a wall.
+
+**`scaleZ` IS THAT THICKNESS, and it is not a third size.** The first pass read it as a depth, widened `scaleX`
+beside it and left it alone. `tileThicknessReach` reads a bare `scaleZ` as "thin toward EVERY face", so at 0.3
+each ground axis asks `reachGroundQuad` for `hi = 0.3` against `lo = 1 - 0.3 = 0.7`, the two sides cross, and
+the guard that stops a block vanishing mid-drag leaves a `MIN_SPAN` sliver of 0.05 of the cell on BOTH axes.
+
+**Measured, and this is the part a catalogue gate could not see:** `docs/renders/family-cactus_saguaro.png`
+drew every saguaro bar 2px across and 85px tall, beside `family-cactus_barrel.png` at 40px across, whose
+cells carry `scaleX 0.72` and no `scaleZ` at all. The presence of a bare `scaleZ` is the whole difference
+between the two pictures, so the widened width could never have reached the screen.
+
+A bar is thin by a DIRECTED reach, the same construction `trunk_settings` already uses: full width across,
+the +row pair pulled in. The arms take the reference plate's proportions rather than picked ones
+(`docs/references/SOURCES.md`): 0.44 of the trunk, standing 0.72 of a cell off it.
+
+**And an authored cell is never part of a RUN.** All four bars sit at one footprint cell, so the upright and
+the wide crossing bar shared a label at consecutive levels and the stamp's run-collapse merged them, stamping
+the first and dropping the second. The crossing bar is what makes the object read as a saguaro rather than a
+post. Measured across the catalogue: the guard keeps 47 pairs apart, all of them cactus bars and bridge decks,
+and blocks 0 of the 28 collapsible pairs in the building compositions the pass exists for.
+
+`Nebulith.ACactusIsNotAStickTest` holds the catalogue,
+`Nebulith.E2E.ACactusDrawsAsWideAsItIsBuiltTest` holds the DRAW's own geometry, and
+`Nebulith.E2E.ADesertIsADesertTest` holds what reaches the map. The middle one is the gate this needed and
+did not have: the catalogue gate was green throughout.
 
 #### A3 · Terrain
 **Owns** `zones`, `regions`, `seasons`, `region_species`, `cells.region_id`, `cells.texture_tile_id`.
@@ -1529,6 +1711,20 @@ A way never paves over water.
 **Gate** A `through` river is crossable in every place the course promises, not one. Measured before: **60
 to 79 channel cells paved over per town** at 50x50.
 
+**A river, a lake and a beach are one thing in five shapes, and all five are offered.** `through`, `divides`,
+`around`, `shore` and `lake`. Two of them were built and unreachable: *"we alos lost the beach and laken water
+options from the generators"*. `carveShore` painted a sea along one edge and `carveBody` a standing body, and
+the only route to either was picking a biome whose regions happened to ask for pools. The shapes are served as
+`river_courses` and `Nebulith.APickerCannotMissAValueTest` counts the catalog's choices against them.
+
+**A lake is STILL, and that is what makes it look like one.** `classifyBody` reads any flow in a body as a
+river, so a lake the flow pass had touched wore river pieces: measured on a woodland asked for a lake, nine
+river pieces and no lake piece. Both lake paths mark their cells still.
+
+**The beach map asked for the wrong shape.** It served `river: "around"`, the perimeter river, which runs a
+ring one cell in from the edge, covers no edge, and classifies as a river. Measured on a 40 x 40 build: 91
+`water_smooth_river_c` cells and not one beach piece, on the one map whose whole point is the beach.
+
 #### A5 · Pathways
 **Owns** `pathways`.
 **Rules** A pathway is a STRETCH with one or two exits, so six pathways is up to twelve exits. The entrance
@@ -1537,6 +1733,13 @@ is always south. A way is a colour on the ground block, never a tile laid on top
 
 #### A6 · Collisions
 **Owns** `collision_boxes`.
+
+**A GENERATED BORDER DOES NOT SURVIVE A SAVE, and this table is why.** A saved map carries no collision
+column, so what is solid is rebuilt on load by asking each ASSET, and anything the generator marked solid
+without placing something there is gone. Measured on a 48 x 48 mountain, edge cells a walk can reach: live
+it is 10 to 12 of the ring, after a save and a reload it is the WHOLE ring. True with the old rock cubes and
+true with the raised ground that replaced them, so it is this table's absence and not either seal.
+`test/e2e/a_mountain_is_high_ground_test.exs` carries it as an `awaiting_phase` gate.
 **Rules** A box is in BLOCKS, relative to the anchor. Array order is the priority stack. Boxes present =
 solid; an explicit empty set = explicitly not solid; no row = unstated. Six roles, because one box answers
 many questions. Per view is the model; iso and top are authored (D16).
@@ -2175,6 +2378,23 @@ is itself the argument for rewriting the docs.
 
 ### 8.0 What this plan is for
 
+**WE ARE ON PHASE 3.**
+
+Stated here because it has to be stated in exactly one place. Every compliance check reads this line:
+`test/support/spec_schema.ex` scopes the schema diff to the tables phases 0 to 3 declare, and
+`bin/hooks/load-docs.sh` loads phases 0 to 3 and hides the rest.
+
+Why the scope matters. The first version of that check compared the database against all 74 tables in
+section 3 and reported "54 missing". That number is noise: most of those tables belong to phases 9 to 14,
+which are not due, and counting unstarted work as a defect buries the real violations. A later phase's
+table is not a violation. It is not started.
+
+What binds a change today is therefore: every GLOBAL rule always (section 1 the laws, section 2 the
+architecture, section 3 the schema, section 6 the invariants, plus every other document in `docs/`), and
+the phases up to and including this one. A law is not something a phase turns on.
+
+Move this number only when the phase's four halves are all answered, per 8.0 below.
+
 Stated at the start of the thread that produced this document, and it has not changed:
 
 > *"yes, all that is a shitty architecture, no wonder is failing, you didn't follow my instructions when we
@@ -2280,14 +2500,45 @@ an untyped blob and becomes a column with a default.
 | the Zoom control, which multiplies the three size axes rather than replacing them | OPEN, see 3.2 |
 
 **DELETE** `walkable`, `blocking`, `blocked`, `blocks_movement`, `is_solid`, `occupies`.
-**GATE** three, and all three fail today:
+**GATE** three:
 
 1. A map round-trips: save, reload, every cell and every setting identical.
 2. No renderer reads a served value through a fallback.
 3. ~~The Depth control does the same thing in every view.~~ **Withdrawn.** It asked about iso against top
    and 2D, and only isometric is being built: top view is for the map. What the gate was really guarding,
    that Depth is a SIZE and never a thickness, is covered by the thickness reaches being their own four
-   columns, and `bin/e2e specCompliance` fails if `scaleZ` reappears on a placed tile.
+   columns, and by the compliance gate below.
+
+#### Where phase 3 stands, checked 2026-09-24
+
+Each half asked of the running system rather than of memory.
+
+| Half | State | How it was checked |
+|---|---|---|
+| TABLES | done | `maps` 10 columns, `grids` 13, `cells` 11, `cell_tiles` 57, `cell_tile_views` 11, read off `information_schema` |
+| REWIRE, the 116 invented values | done | gate 2 below |
+| REWIRE, the hand-written field list | done | `newPlacement` spreads its options and `GridAsset.columns` keeps every served column the engine does not model, so nothing is dropped by omission |
+| REWIRE, cell size / iso scale / body thickness | done | `grids.cell_size`, `grids.iso_scale`, `grids.slab_blocks` |
+| REWIRE, the Zoom control, was OPEN | **closed** | the control is gone from the panel and the three axes are the primitive. `zoom` survives ONLY as an animation setting, where multiplying is what an animation means, and it has its own picker in the animation editor. It is a column on no table |
+| DELETE | done | none of the six is a column anywhere, and no Ecto schema declares one. `occupies` survives as an AUTHORING word that `Catalog` translates into collision boxes at the one door, which is a vocabulary rather than a stored fact |
+| GATE 1 | passes | `test/e2e/phase_03_maps_test.exs`, 3 scenarios |
+| GATE 2 | passes | `test/e2e/phase_03_served_values_test.exs`, 2 scenarios |
+| GATE 3's replacement | **written, it did not exist** | `test/e2e/spec_compliance_test.exs` and `test/nebulith/a_thin_tile_says_which_way_test.exs` |
+
+**The compliance gate this plan promised was never written**, and the line above said it was. The saguaro
+carried a bare `scaleZ` for its whole life, drew as a 2 pixel line, and what caught it in the end was
+measuring a screenshot by hand.
+
+**And the wording it was promised in would not have caught it.** "Fails if `scaleZ` reappears on a placed
+tile" cannot fail: a cell's `scaleZ` is READ on the way through and written out as a thickness reach, so the
+number never travels under that name. Measured with the bare `scaleZ` put back on every cactus bar and all
+66 compositions stamped, the literal check swept 2,000 placements and found none.
+
+What travels is the REACH, and the defect is that reach crossing itself. `reachGroundQuad` takes `hi` from
+one face and `lo = 1 - reach(opposite)`, and a bare `scaleZ` under a half puts `lo` above `hi` on both ground
+axes, leaving a block with no span. The gate asks that, and on the same broken catalogue it answers
+*"cactus_stem spans 0.70 to 0.30 on 12 placements"*. The literal `scaleZ` check is kept beside it as a guard
+on a path that does not exist yet, and is declared in the test as one that cannot fail today.
 
 ### Phase 4 · collisions
 
@@ -2295,6 +2546,45 @@ an untyped blob and becomes a column with a default.
 **REWIRE** the one loader line that is currently the whole frontend's idea of walkability is deleted. The
 "Blocks the player" control stops writing to a grid the save never sends.
 **GATE** an authored blocked cell survives a reload. It cannot today.
+
+#### 4a · the pointer selects what you point at
+
+    if I click on a given unit I should select it, regardless of the sidebar option I'm in
+
+**DONE.** A unit under the pointer is selected in every placement mode, `Alt` still reaches the cell
+beneath it, connector mode still takes the cell. `docs/EDITOR-INTERACTION-SPEC.md` §2 to §4 is the
+rule; `test/e2e/phase_04_pointer_test.exs` is the gate.
+
+#### 4b · select what you just added
+
+    It'd expect to autoselect the unit I just added to the map too, in most cases I'd want to edit
+    right away, edit it's stats and what not
+
+**REWIRE** placing a unit selects it, so the inspector is already on it. The same question applies to a
+stamped composition and a painted tile, and the answer should be one rule, not three.
+**OPEN** whether an explicit **add / select toggle** is wanted as well: *"maybe we have a toggle 'add -
+select'? but even then it's just weird"*. 4a removes most of the need for one, so this stays a
+question rather than a task.
+**GATE** place a unit, change a stat, with no click in between.
+
+#### 4c · bulk add
+
+    maybe I want to add many selected units and the same time
+
+**REWIRE** an armed unit places into the WHOLE current selection, the way the tile brush already paints
+a multi-cell selection, instead of one cell per click.
+**GATE** select nine cells, place once, nine units exist and each is its own row.
+
+#### 4d · bulk edit
+
+    select a few and assign the same stats and same abilities
+
+**TABLES** none. The selection model already carries a set; what is missing is an inspector whose
+subject is a SET OF UNITS rather than one.
+**REWIRE** `selectedEntityId` becomes a set. Every writer that patches "the selected entity" patches
+each member. A field the members disagree on shows as mixed and writing it sets all of them.
+**GATE** select three units of different kinds, set one stat and one ability, and all three carry both
+after a reload. Assert on the rows, not on the panel.
 
 ### Phase 5 · rules, on cells and on tiles
 

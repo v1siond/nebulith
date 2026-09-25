@@ -427,19 +427,24 @@ export interface RiverCarve extends RiverCut {
 }
 
 /** The three courses a river can take across a map. */
-export type RiverCourse = 'through' | 'divides' | 'around' | 'shore'
+export type RiverCourse = 'through' | 'divides' | 'around' | 'shore' | 'lake'
 
 /**
  * THE SHAPES WATER CAN BE PAINTED IN. `WATER.md` §1: *"a river, a lake and a beach are the same thing, a set
  * of cells painted with a water tile ... They differ in the SHAPE that is painted, nothing else."*
  *
- * `shore` is the one that was missing, and it is why a beach had no beach. His words:
+ * `shore` is the one that was missing, and it is why a beach had no beach. The report:
  * *"WE ALREADY HAVE WATER AND WE SHOULD HAVE LAKE, RIVER AND OTHER TYPES, SO WHY IT'S HARD TO ADD A BEACH
  * WHICH IS BASICALLY A LAKE WITH CURRENT???"*. Everything else was already here: `WaterKind` carries `beach`,
  * both piece families are baked for it, and `classifyBody` already answers "beach" for a body that runs along
  * a map edge. Nothing painted that body.
+ *
+ * `lake` is the same story one step later: *"we alos lost the beach and laken water options from the
+ * generators"*. `carveBody` has painted a standing body since the region pools were built, and a map could
+ * only get one by belonging to a biome whose regions happened to ask. A shape you can ask for directly is
+ * one entry here and one shape below, which is what §1 means by all of them being the same thing.
  */
-export const RIVER_COURSES: readonly RiverCourse[] = ['through', 'divides', 'around', 'shore']
+export const RIVER_COURSES: readonly RiverCourse[] = ['through', 'divides', 'around', 'shore', 'lake']
 
 /** The pure half of `riverCourse`, exported so "random" can be tested as a DISTRIBUTION rather than guessed
  *  from what a map happens to look like. */
@@ -531,6 +536,36 @@ export function carveBody(ctx: RiverCarve, pal: GeneratorPalette | undefined, ce
   }
   levelTheWater(ctx, water)
   return water
+}
+
+/**
+ * A LAKE IN THE MIDDLE OF THE MAP, as a set of cells for `carveBody` to paint.
+ *
+ * The shape is `carveShore`'s, closed: a radius wobbled by two sine terms so it has inlets and points rather
+ * than being a circle, and the same two terms so a coast and a lake read as the same hand. It carries no flow
+ * and touches no edge, which is exactly what `classifyBody` reads as a lake, so nothing downstream needs to
+ * be told.
+ */
+export function lakeCells(ctx: RiverCarve, share = 0.3): Set<string> {
+  const { cols, rows } = ctx
+  const midCol = (cols - 1) / 2
+  const midRow = (rows - 1) / 2
+  const mean = Math.max(2, Math.round(Math.min(cols, rows) * share) / 2)
+  const phase = ctx.rand() * Math.PI * 2
+  const phase2 = ctx.rand() * Math.PI * 2
+  const cells = new Set<string>()
+
+  for (let row = 0; row < rows; row++) {
+    for (let col = 0; col < cols; col++) {
+      const dc = (col - midCol) / (cols / rows)
+      const dr = row - midRow
+      const angle = Math.atan2(dr, dc)
+      const reach = mean + Math.sin(angle * 3 + phase) * (mean * 0.3) + Math.sin(angle * 5 + phase2) * (mean * 0.14)
+      if (Math.hypot(dc, dr) <= reach) cells.add(`${col},${row}`)
+    }
+  }
+
+  return cells
 }
 
 /** A watercourse running edge to edge through the map, the jungle's creek, and the `through` and `divides`

@@ -1,6 +1,7 @@
 import { Suspense, lazy } from 'react'
 import { createRoot } from 'react-dom/client'
 import { loadTileSchema } from '@/lib/tileDefaults'
+import { loadEngineLists } from '@/lib/engineLists'
 import { ToastProvider } from '@/components/Toast'
 import { useRouter } from '@/lib/router'
 import { matchRoute } from '@/lib/routes'
@@ -57,15 +58,17 @@ const mount = document.getElementById('game')
 if (mount) {
   const root = createRoot(mount)
 
-  loadTileSchema()
+  // THE LISTS COME WITH THE SCHEMA, for the same reason and in the same breath. A picker whose list has
+  // not arrived offers nothing, and a component that loads its own would be choosing when to know.
+  Promise.all([loadTileSchema(), loadEngineLists()])
     .then(() => root.render(<ToastProvider><App /></ToastProvider>))
     .catch((err: unknown) => {
       root.render(
         <div className="p-8 font-mono text-sm text-red-300">
           <p className="mb-2 font-bold">The editor could not load what a tile setting means.</p>
           <p className="mb-2 text-gray-400">
-            /api/maps/schema did not answer, so every setting would have to be guessed at. Reload once it
-            is back.
+            /api/maps/schema or /api/enums did not answer, so every setting would have to be guessed at
+            and every picker would be empty. Reload once they are back.
           </p>
           <p className="text-gray-500">{String(err)}</p>
         </div>,

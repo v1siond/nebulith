@@ -11,6 +11,7 @@ defmodule NebulithWeb.MapController do
   """
   use NebulithWeb, :controller
 
+
   alias Nebulith.World
 
   action_fallback NebulithWeb.FallbackController
@@ -105,6 +106,10 @@ defmodule NebulithWeb.MapController do
       "zone_id" => map.zone_id,
       "lock_version" => map.lock_version
     }
+    # …AND WHAT THE GAME DECIDES: the default art style behind the map's own, and the four numbers a thing
+    # near the hero fades by. `World.game_facts/1` is the one place that reads them, so the list and the
+    # show payload cannot disagree about a game.
+    |> Elixir.Map.merge(World.game_facts(map))
   end
 
   defp not_found(conn) do

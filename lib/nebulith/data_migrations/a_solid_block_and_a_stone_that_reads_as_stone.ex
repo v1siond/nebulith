@@ -41,13 +41,6 @@ defmodule Nebulith.DataMigration.ASolidBlockAndAStoneThatReadsAsStone do
     TileSource.seed_bridge_tiles()
     TileSource.seed_compositions()
 
-    %{num_rows: kinds} =
-      Repo.query!("""
-      UPDATE generators
-      SET config = jsonb_set(config, '{crossings}', (config->'crossings') - 'planks')
-      WHERE config->'crossings' ? 'planks'
-      """)
-
     # A composition is identified by `name`, not by a `key` column. Getting that wrong is why the first run of
     # this pass left five plank compositions standing while reporting nothing amiss.
     %{num_rows: cells} =
@@ -58,27 +51,14 @@ defmodule Nebulith.DataMigration.ASolidBlockAndAStoneThatReadsAsStone do
 
     %{num_rows: comps} = Repo.query!("DELETE FROM compositions WHERE name LIKE 'bridge_plank_%'")
 
-    # AND THE CHOICE ITSELF. The crossings map says what a kind IS; `options` is the list a person picks from,
-    # and they are separate columns. Dropping one and not the other leaves "Plank walkway" in the panel
-    # selecting a kind that no longer exists.
-    %{num_rows: choices} =
-      Repo.query!("""
-      UPDATE generators SET options = (
-        SELECT jsonb_agg(
-          CASE WHEN opt->>'key' = 'bridge'
-            THEN jsonb_set(opt, '{choices}', (
-              SELECT jsonb_agg(c) FROM jsonb_array_elements(opt->'choices') c WHERE c->>'key' <> 'planks'
-            ))
-            ELSE opt END
-        )
-        FROM jsonb_array_elements(options) opt
-      )
-      WHERE options @> '[{"key": "bridge"}]'
-      """)
+    # THE CROSSINGS MAP AND THE OPTION LIST BOTH CAME OUT OF HERE. `GeneratorSource.seed/0` writes
+    # `config` and `options` WHOLE, so editing either from a migration made the fact a second owner and
+    # the next seed decided it. The seeder states the crossings a generator offers, and it no longer
+    # offers planks, so the panel and the map agree without anything being patched afterwards.
 
     Logger.info(
       "[data_migrate] solid squares re-baked, stone greyed, plank walkway gone " <>
-        "(#{kinds} generators, #{choices} option lists, #{comps} compositions, #{cells} cells)"
+        "(#{comps} compositions, #{cells} cells)"
     )
 
     :ok

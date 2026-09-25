@@ -10,7 +10,6 @@ import { nextEnemyAttack } from '@/game/patterns'
 import { abilityReady, type AbilityBinding, type AbilityAnimation } from '@/game/abilities'
 import { abilityTint } from '@/game/abilityArt'
 import { weaponAnimKind, ATTACK_ANIM_MS, type AttackAnim, type AttackAnimKind } from '@/engine/attackAnimations'
-import { weaponPose } from '@/engine/entityArt'
 import { aimDelta, type PlayerState } from './player'
 import { findTarget, isLivingEnemy, isAdjacentToPlayer, RANGED_RANGE, type EnemyRuntime } from './targeting'
 import { isAttackable, isHostile } from './capabilities'
@@ -364,7 +363,12 @@ function spawnProjectile(input: CombatStepInput, aimCol: number, aimRow: number,
   const fromRow = Math.floor(player.z / cellSize)
   const dist = Math.max(1, Math.max(Math.abs(aimCol - fromCol), Math.abs(aimRow - fromRow)))
   // The shot leaves the weapon's muzzle (pose.muzzle), absent in the seeds → the shooter cell, unchanged.
-  const o = muzzleOrigin(fromCol, fromRow, aimCol, aimRow, weaponPose(playerWeapon.kind, 'emoji')?.muzzle)
+  //
+  // READ OFF THE PLAYER, not looked up again. This asked the tileset for the pose under the literal
+  // 'emoji', so a shot fired in any other style measured its muzzle against emoji's weapon. The pose the
+  // hero is actually drawn with is already on the player, put there each frame by the active style, and
+  // one owner for a fact beats two lookups that can disagree.
+  const o = muzzleOrigin(fromCol, fromRow, aimCol, aimRow, player.weaponPose?.muzzle)
   const id = `proj-${now}-${projectileSeq++}`
   list.push({
     id,

@@ -6,11 +6,14 @@ defmodule Nebulith.LevelsTest do
   """
   use Nebulith.DataCase
 
+  import Nebulith.AccountsFixtures
+
   alias Nebulith.{Games, Levels}
 
   setup do
-    {:ok, game} = Games.create_game(%{"name" => "Mario"})
-    %{game: game}
+    owner = user_fixture()
+    {:ok, game} = Games.create_game(owner, %{"name" => "Mario"})
+    %{game: game, owner: owner}
   end
 
   describe "a game has many levels, in play order" do
@@ -32,8 +35,8 @@ defmodule Nebulith.LevelsTest do
       assert [first.position, second.position, third.position] == [0, 1, 2]
     end
 
-    test "two games can each have their own 1-1", %{game: game} do
-      {:ok, other} = Games.create_game(%{"name" => "Sonic"})
+    test "two games can each have their own 1-1", %{game: game, owner: owner} do
+      {:ok, other} = Games.create_game(owner, %{"name" => "Sonic"})
       assert {:ok, _} = Levels.create_level(game.id, %{"name" => "1-1", "position" => 0})
       assert {:ok, _} = Levels.create_level(other.id, %{"name" => "1-1", "position" => 0})
     end
@@ -139,10 +142,10 @@ defmodule Nebulith.LevelsTest do
       assert Repo.aggregate(Nebulith.Games.LevelTemplate, :count) == 0
     end
 
-    test "deleting a GAME takes its levels with it", %{game: game} do
+    test "deleting a GAME takes its levels with it", %{game: game, owner: owner} do
       {:ok, _} = Levels.create_level(game.id, %{"name" => "1-1", "templateIds" => ["a"]})
 
-      {:ok, _} = Games.delete_game(game)
+      {:ok, _} = Games.delete_game(owner, game.id)
 
       assert Levels.list_levels(game.id) == []
       assert Repo.aggregate(Nebulith.Games.LevelTemplate, :count) == 0

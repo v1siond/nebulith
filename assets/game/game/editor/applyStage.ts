@@ -159,11 +159,18 @@ export function applyStageToGrid(
   // It is cleared rather than persisted because an empty solid cell is an invisible wall, and the map edge
   // already stops you anyway (`isBlocked` reports true out of bounds). So this makes the built map agree with
   // the loaded one by construction, in the direction that removes a barrier nobody can see.
+  //
+  // …EXCEPT WHERE THE GENERATOR SAYS IT SHUT THE CELL ITSELF. `stage.sealed` is the border seal's own list of
+  // cells it closed with height and nothing else, and those are not invisible: the ground stands up and
+  // `drawGridSkirt` draws its side. That statement is written onto the cell's FLOOR as a per-instance box, so
+  // it lands on an asset and survives the save, which is the same mechanism the pass below uses in the other
+  // direction to OPEN a ford. Without it the seal reads as a cliff and lets you walk straight through.
   for (let r = 0; r < grid.rows; r++) {
     for (let c = 0; c < grid.cols; c++) {
       if (!grid.isBlocked(c, r)) continue
-      const held = grid.getAssetsAtCell(c, r).some(a => assetIsSolid(a))
-      if (!held) grid.setCollision(c, r, false)
+      if (grid.getAssetsAtCell(c, r).some(a => assetIsSolid(a))) continue
+      if (stage.sealed?.has(`${c},${r}`) && shutTheFloor(grid, c, r)) continue
+      grid.setCollision(c, r, false)
     }
   }
   // A BUILDING is just TILES: stamp each GENERATED building as its backend COMPOSITION's per-cell tiles by
@@ -293,4 +300,20 @@ export function clearExitsOfPlants(stage: StageData, grid: IsometricGrid): void 
   ;(globalThis as unknown as { __gateCells?: string[] }).__gateCells = [...exits]
   if (exits.size === 0) return
   grid.removeAssetsWhere(a => exits.has(`${a.col},${a.row}`) && PLANT_TILE.test(a.label ?? ''))
+}
+
+/**
+ * States "you do not walk on this" on the cell's own floor, as a whole-cell box. False when there is no floor
+ * to write it on, which leaves the caller to drop the collision the way it drops any other empty solid.
+ *
+ * Per-instance, because it is true of THIS placement and not of that ground everywhere. `declaredBoxes`
+ * prefers a per-instance list over the tile's own, and a placed tile's settings travel with the save.
+ */
+function shutTheFloor(grid: IsometricGrid, col: number, row: number): boolean {
+  const floor = grid.floorAt(col, row)
+  if (!floor) return false
+
+  floor.settings = { ...(floor.settings ?? {}), collision: [{ x: 0, y: 0, w: 1, h: 1 }] }
+
+  return true
 }

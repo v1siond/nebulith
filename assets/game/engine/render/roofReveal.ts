@@ -15,18 +15,16 @@
 
 // ── how transparent a reveal tile draws ───────────────────────────────────────────────────────────────────
 // Three bands. FAR is solid, a building you are nowhere near is a building, not a ghost. APPROACH eases it
-// translucent so you can read the facade and find its door. INSIDE is the deep reveal, the roof comes off (handled
-// by revealedRoofs) and
-// the shell drops back so the room reads.
-// Widened 2026-09-08: At 6 / 2.5 the fade only BEGAN six cells out and did not reach its most transparent until
-// 2.5, so walking up to a door you were still climbing the ramp, and the roof was ~0.6 opaque right where
-// you needed to see through it. The bands are the same shape; the range they act over is roughly doubled,
-// so by the time the door is in reach the roof is already at its clearest.
-export const APPROACH_RADIUS = 12       // beyond this the building is fully solid
-export const APPROACH_NEAR = 5          // within this it holds FLAT at its most transparent, being near a
-                                        // building has to be an unmistakable change, not a few percent
-export const APPROACH_ALPHA = 0.35      // the close band: clearly see-through, so a door on the FAR face reads
-export const INTERIOR_SHELL_ALPHA = 0.15 // standing INSIDE: the shell all but disappears so the interior reads
+// translucent so you can read the facade and find its door. INSIDE is the deep reveal, the roof comes off
+// (handled by revealedRoofs) and the shell drops back so the room reads.
+//
+// The four numbers the bands are made of used to be `export const` right here, and that is why the report
+// was "I don't see any place to manage or edit it": a value invented in React has no row for a control to
+// write to. They are columns on `game_settings` now, they travel with the map, and this module takes them
+// as an argument so the maths above stays pure and the values stay the backend's.
+import type { FadeBands } from '@/lib/fadeBands'
+import { assetFadesNear, assetMinAlpha } from '@/engine/cellStack'
+import type { GridAsset } from '@/engine/IsometricGrid'
 
 const smoothstep = (t: number): number => {
   const c = Math.max(0, Math.min(1, t))
@@ -34,38 +32,58 @@ const smoothstep = (t: number): number => {
 }
 
 /**
- * The opacity a reveal tile draws at. `minAlpha` is the tile's OWN floor, a per-tile backend SETTING, so the
- * DOOR stays opaque and obvious while the wall around it fades (no tile-name conditional in the renderer).
- * It only ever makes a tile MORE opaque, never less.
+ * The opacity a reveal tile draws at, given the game's bands.
+ *
+ * `minAlpha` is the tile's OWN floor, a per-tile backend SETTING, so the DOOR stays opaque and obvious
+ * while the wall around it fades, and a TREE stays readable while a wall does not (no tile-name conditional
+ * in the renderer). It only ever makes a tile MORE opaque, never less.
+ *
+ * NO BANDS MEANS NOTHING FADES. A map that has not landed yet has stated no rule, and drawing solid is the
+ * honest reading of that. The alternative is a number picked here, which is the defect this signature
+ * exists to remove.
  */
-export function revealAlpha({ dist, inside, minAlpha = 0 }: { dist: number; inside: boolean; minAlpha?: number }): number {
-  // A PLATEAU then an ease-out, not one long ramp. The old single smoothstep over the whole radius meant a hero
-  // four cells from a wall got ~0.96 alpha, no visible change at all, which is why the reveal "didn't trigger"
-  // . Inside APPROACH_NEAR it sits flat at its most transparent; from there it climbs back
-  // to solid by APPROACH_RADIUS.
-  const band = inside
-    ? INTERIOR_SHELL_ALPHA
-    : dist >= APPROACH_RADIUS
-      ? 1
-      : dist <= APPROACH_NEAR
-        ? APPROACH_ALPHA
-        : APPROACH_ALPHA + (1 - APPROACH_ALPHA) * smoothstep((dist - APPROACH_NEAR) / (APPROACH_RADIUS - APPROACH_NEAR))
+export function revealAlpha(
+  bands: FadeBands | null,
+  { dist, inside, minAlpha = 0 }: { dist: number; inside: boolean; minAlpha?: number },
+): number {
+  if (!bands) return 1
+
+  // A PLATEAU then an ease-out, not one long ramp. A single smoothstep over the whole radius meant a hero
+  // four cells from a wall got ~0.96 alpha, no visible change at all, which is why the reveal "didn't
+  // trigger". Inside `fade_full_radius` it sits flat at its most transparent; from there it climbs back to
+  // solid by `fade_radius`.
+  const band = bandAlpha(bands, dist, inside)
+
   return Math.max(band, Math.min(1, minAlpha))
+}
+
+function bandAlpha(bands: FadeBands, dist: number, inside: boolean): number {
+  if (inside) return bands.interior_alpha
+  if (dist >= bands.fade_radius) return 1
+  if (dist <= bands.fade_full_radius) return bands.fade_alpha
+
+  const across = (dist - bands.fade_full_radius) / (bands.fade_radius - bands.fade_full_radius)
+
+  return bands.fade_alpha + (1 - bands.fade_alpha) * smoothstep(across)
 }
 
 /**
  * The near-hero fade for ONE tile in a view with no building shell to reason about (2D and top): the same
- * `revealAlpha` distance rule the iso view uses, for any tile that opted into `fadeNear`. No hero, or a tile that
- * did not opt in, draws solid.
+ * `revealAlpha` distance rule the iso view uses, for any tile that opted into `fadeNear`. No hero, or a tile
+ * that did not opt in, draws solid.
  */
 export function nearFadeAlpha(
-  settings: { fadeNear?: boolean; minAlpha?: number } | undefined,
-  col: number,
-  row: number,
+  bands: FadeBands | null,
+  asset: GridAsset | undefined,
   hero: { col: number; row: number } | null,
 ): number {
-  if (!hero || !settings?.fadeNear) return 1
-  return revealAlpha({ dist: Math.hypot(hero.col - col, hero.row - row), inside: false, minAlpha: settings.minAlpha })
+  if (!hero || !asset || !assetFadesNear(asset)) return 1
+
+  return revealAlpha(bands, {
+    dist: Math.hypot(hero.col - asset.col, hero.row - asset.row),
+    inside: false,
+    minAlpha: assetMinAlpha(asset),
+  })
 }
 
 /** The 8-neighbourhood of a `col,row` key, plus the cell itself, "touches" for roof grouping. */

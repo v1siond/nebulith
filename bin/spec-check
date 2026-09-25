@@ -1,0 +1,107 @@
+#!/usr/bin/env bash
+#
+# THE SPEC, AS A COMMAND. Run before calling anything done.
+#
+#   bin/spec-check          the schema gate, plus the clauses binding whatever you changed
+#   bin/spec-check --quiet  exit status only, for a hook
+#
+# ── why this exists ─────────────────────────────────────────────────────────────────────────────
+# `docs/SPEC.md` drove development for weeks as a document somebody reads. Measured on 2026-09-22:
+# the database had 20 of the 74 tables it declares, four of Phase 2's six were never built, and jsonb
+# had grown from the 19 the spec calls "how the schema became invisible" to 25. Phase 3 was being
+# closed on top of that, while the spec says its three gates all fail.
+#
+# Every rule that could be run as a command held: no `walkable` column anywhere, format, credo, tsc.
+# Every rule that was only written down drifted. The difference is not discipline. It is that one kind
+# fails a build and the other does not.
+#
+# ── the two halves ──────────────────────────────────────────────────────────────────────────────
+# 1. THE GATE. `test/nebulith/spec_compliance_test.exs` parses SPEC.md itself and diffs it against the
+#    live schema. The document IS the fixture, so there is no second copy to drift.
+# 2. THE CLAUSES. A map from the FILE you touched to the sections that bind it. Routing by topic is
+#    what failed: "I am working on trees" leads to the tree doc, and the tree doc does not mention
+#    law 8, so jsonb gets written while the docs are being followed. Routing by PATH cannot make that
+#    mistake, because the path does not care what you thought you were doing.
+set -uo pipefail
+
+cd "$(dirname "$0")/.."
+
+QUIET=0
+[ "${1:-}" = "--quiet" ] && QUIET=1
+
+say() { [ "$QUIET" = "1" ] || echo "$@"; }
+
+# WHICH SECTIONS BIND WHICH PATHS. Extend this as the spec grows: a path with no row is a gap in this
+# table, not permission to skip the spec.
+clauses_for() {
+  case "$1" in
+    *lib/nebulith/catalog/*|*priv/repo/migrations/*|*lib/nebulith/data_migrations/*)
+      echo "§1 law 2 (one fact one owner), law 8 (jsonb only if heterogeneous AND never queried), §3 schema, §6 invariant 3 (no new jsonb)" ;;
+    *lib/nebulith/*schema*|*lib/nebulith/catalog/tile.ex|*lib/nebulith/catalog/generator.ex)
+      echo "§3 schema (the declared columns), §1 law 8, §6 invariant 7 (every column is read by something)" ;;
+    *assets/game/engine/render/*|*assets/game/engine/*.ts)
+      echo "§1 law 7 (backend decides, frontend renders), §6 invariant 4 (no hardcoded served values), §8 phase 3 REWIRE" ;;
+    *assets/game/routes/*|*assets/game/ui/*)
+      echo "§1 law 12 (the frontend sets no limits), §6 invariant 6 (every served enum reaches its picker)" ;;
+    *priv/repo/tilesets/*.json|*priv/tilegen/tiles.json)
+      echo "§1 law 4 (a tileset is a set of PNGs, all rules global, only pictures differ), docs/TILE-DESIGN.md (tiles.json is the only place a glyph lives)" ;;
+    *assets/game/game/*)
+      echo "§1 law 4 (never branch on a style id), law 7 (the engine reads served facts, it invents none)" ;;
+    *assets/game/components/*|*assets/game/lib/*|*assets/js/*)
+      echo "§1 law 7 (a control reads a served value and writes a row, it invents neither), law 12 (the frontend sets no limits), §9 (a setting is named by its CONTROL)" ;;
+    *lib/nebulith/*.ex|*lib/nebulith_web/*)
+      echo "§1 law 2 (one fact one owner), law 10 (no hand-written field list, generate from the schema), §6 invariant 7 (every column is read by something)" ;;
+    *docs/*.md)
+      echo "docs/FRAMEWORKS.md (knowledge goes in the document in the same turn, with its source; a document's checklist is the gate)" ;;
+    *test/*)
+      echo "§8 (a phase's GATE), docs/TESTING.md (both layers, and a new gate must fail first)" ;;
+    *docs/SPEC.md)
+      echo "you are editing the spec itself: every ratchet in test/nebulith/spec_compliance_test.exs is measured against it" ;;
+    # TOOLING AND PRODUCTS carry no spec clause, and saying so is the point: the unmapped list below is then
+    # a real gap rather than a pile of scripts nobody meant to map.
+    *bin/*|*config/*|*lib/tasks/*|*docs/generated/*|*mix.exs|*mix.lock|*package*.json)
+      echo "" ;;
+    *) echo "" ;;
+  esac
+}
+
+say "SPEC GATE  (docs/SPEC.md read at run time, diffed against the live schema)"
+say
+
+OUT="$(mix test test/nebulith/spec_compliance_test.exs 2>&1)"
+STATUS=$?
+
+echo "$OUT" | grep -E "^spec: " | while read -r line; do say "  $line"; done
+
+if [ "$STATUS" -ne 0 ]; then
+  echo "SPEC GATE FAILED. The schema moved away from docs/SPEC.md:" >&2
+  echo "$OUT" | grep -vE "^(\.|Compiling|Generated|Running ExUnit|Excluding|$)" | tail -40 >&2
+  exit 1
+fi
+
+# WHAT YOU TOUCHED, AND WHAT GOVERNS IT. Printed whether or not the gate passed, because the gate only
+# covers the schema and most of the spec is not schema.
+# Generated output carries no clauses: a baked png and a render sheet are products of a change, not
+# the change. Listing them buries the paths that do bind something.
+CHANGED="$(git status --porcelain 2>/dev/null | awk '{print $NF}' \
+  | grep -vE '\.(png|jpg|jpeg|gif|webp|ico|woff2?)$' | grep -vE '^docs/renders/' || true)"
+
+if [ -n "$CHANGED" ]; then
+  say
+  say "CLAUSES BINDING WHAT YOU CHANGED. Compare your work to each before saying done:"
+  printed=""
+  for f in $CHANGED; do
+    c="$(clauses_for "$f")"
+    [ -z "$c" ] && continue
+    case "$printed" in *"$c"*) continue ;; esac
+    printed="$printed|$c"
+    say "  $c"
+  done
+  say
+  say "  unmapped paths (no row in clauses_for, which is a gap in this table, not an exemption):"
+  for f in $CHANGED; do
+    [ -z "$(clauses_for "$f")" ] && say "    $f"
+  done
+fi
+
+exit 0

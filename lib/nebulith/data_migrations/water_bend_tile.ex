@@ -22,15 +22,17 @@ defmodule Nebulith.DataMigration.WaterBendTile do
   alias Nebulith.Repo
 
   def run do
+    # The row first, copying the label's facts from `water`. Its PICTURE is a separate statement now, in
+    # the table that owns pictures, so this insert names no image at all.
     %{num_rows: count} =
       Repo.query!("""
-      INSERT INTO tiles (tileset_id, label, title, category, image_url, height,
+      INSERT INTO tiles (tileset_id, label, title, category, category_id, height,
                          settings, inserted_at, updated_at)
       SELECT t.tileset_id,
              'water_bend',
              'Water (bend)',
              t.category,
-             replace(t.image_url, 'water.png', 'water_bend.png'),
+             t.category_id,
              t.height,
              t.settings,
              NOW(),
@@ -40,6 +42,21 @@ defmodule Nebulith.DataMigration.WaterBendTile do
        WHERE t.label = 'water'
          AND NOT EXISTS (SELECT 1 FROM tiles x WHERE x.tileset_id = t.tileset_id AND x.label = 'water_bend')
       """)
+
+    # The bend's own picture in each style, beside the straight water it bends from.
+    Repo.query!("""
+    INSERT INTO tile_images (tileset_id, tile_id, image_path, inserted_at, updated_at)
+    SELECT bend.tileset_id,
+           bend.id,
+           replace(i.image_path, 'water.png', 'water_bend.png'),
+           NOW(),
+           NOW()
+      FROM tiles bend
+      JOIN tiles straight ON straight.tileset_id = bend.tileset_id AND straight.label = 'water'
+      JOIN tile_images i ON i.tile_id = straight.id AND i.tileset_id = straight.tileset_id
+     WHERE bend.label = 'water_bend'
+       AND NOT EXISTS (SELECT 1 FROM tile_images x WHERE x.tile_id = bend.id AND x.tileset_id = bend.tileset_id)
+    """)
 
     Logger.info("[data_migrate] water bend tile (#{count} rows inserted)")
     :ok

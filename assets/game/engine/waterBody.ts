@@ -47,7 +47,7 @@ export const setForLiquid = (liquid: Liquid): WaterSet => (liquid === 'lava' ? '
 export const isMolten = (liquid: Liquid): boolean => liquid === 'lava'
 
 /**
- * WHAT KIND OF BODY this is, which decides what its EDGE looks like. His words:
+ * WHAT KIND OF BODY this is, which decides what its EDGE looks like. The design:
  *
  *   "is not the same a lake or a river than a beach, a [river] should have white borders due to the current,
  *    lake should be more darker because it doesn't have current, and beach should be a mix, to simulate the

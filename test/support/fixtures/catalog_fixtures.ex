@@ -16,7 +16,6 @@ defmodule Nebulith.CatalogFixtures do
     {:ok, tileset} =
       attrs
       |> Enum.into(%{
-        data: %{},
         key: unique_tileset_key(),
         name: "some name"
       })

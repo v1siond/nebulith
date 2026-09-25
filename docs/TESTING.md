@@ -221,12 +221,59 @@ assert built.water > 0, "the built map has no water, so it proves nothing about 
 * The editor holds a full-screen overlay until the tileset installs. A click before it lifts lands on the overlay, which Playwright reports as an element intercepting pointer events rather than as a missing button. `Editor.ready/1` waits it out.
 * The generator catalog arrives by fetch and re-renders the panel, which detaches whatever input was being typed into.
 * Preset buttons carry their description inside them, so matching on the words alone resolves to the divs nested in the button. Category options are rendered as a name plus a count, so the label changes whenever a generator is added. `GeneratePanel` reads both off the page.
+* **A scenario that runs past `ownership_timeout` loses its DATABASE, not its patience.** The browser joins the test's sandbox transaction, so one connection serves both, and the owner is released when that timeout fires. Every later query and every page request then fails, and the scenario reports whatever it was measuring as broken. Measured: a four-city street scenario runs 168 seconds and logged `owner timed out because it owned the connection for longer than 120000ms` while passing, which means the same shape was silently failing runs that took slightly longer. It is now 900 seconds, matched to the longest `@moduletag timeout` in the suite: a scenario should be stopped by its own timeout, which says what it was waiting for, not by its database vanishing underneath it.
+* **A slow read inside a POLL blows its own budget.** `Browser.wait_value/3` re-evaluates the expression until it answers, so anything expensive in there is paid every attempt. One read fetched the whole tileset catalog per poll and then walked 8,000 assets; it never completed, and the scenario reported "the page never answered" about a world that was sitting there intact. Fetch once, cache it on `window`, and reduce the payload to what the check needs.
+* **`Browser.count/2` takes CSS, not a Playwright selector.** It goes through `document.querySelectorAll`, so a Playwright-only pseudo-class (`:has-text()`, `:visible`, `internal:role=`) throws inside the page, the read comes back nil, and the count is ZERO. Which is indistinguishable from an element that is not there, and reads as a defect in the thing under test. Use `document.body.innerText.includes(...)` for text, `Browser.count` for real CSS, and the driver's own click/`PlaywrightEx.Frame` for the Playwright selector engine.
+* **The rail is a TABLIST.** Its rows are `role="tab"`, so `click_button/2` cannot find them: it resolves `role=button` and reports "could not find element", which reads like the rail is missing rather than like it is a different role. `Editor.open_rail/3` clicks them and waits for the panel beside it to render.
+* **`a_visible_tile/2` looks through the tiles the map HOLDS.** A scratch map keeps its ground in `groundData` with an empty asset list, so it finds nothing there and the scenario reads "no cell is on screen" while the whole map is. `Canvas.a_visible_cell/1` asks the projection instead and answers on a bare map.
 * **Match on RENDERED text, not on `textContent`.** The inspector's section header reads `SIZE & POSITION` on screen and `Size & position` in the DOM: the capitals come from a CSS text-transform. A selector written from what you can see finds nothing, and reads exactly like a section that is not there.
 * **A cell has to be ON SCREEN to be clicked.** The camera shows a window onto the map, so most cells project outside the canvas. Clicking one of those is not a click on nothing, it is a click somewhere else, and it comes back as a wall of driver log about the document intercepting pointer events. `Canvas.a_visible_tile/2` picks one you can reach.
 * **The app has to be BUILT the way it is served.** `Plug.Static` is configured `gzip: not code_reloading?`, so dev serves `app.css` and test serves `app.css.gz`. Building without digesting leaves a stale `.gz` beside a fresh `.css` and the browser is handed the old one. Measured: a three day old stylesheet with 43 rules in it, which rendered the documentation's contents rail 4848px wide in a 1700px window and read exactly like a layout defect. `bin/e2e` runs `MIX_ENV=dev mix assets.deploy`, in the dev environment because tailwind and esbuild are dev-only dependencies and produce a stub without them.
 * **The editor needs a desktop window.** The driver's default viewport is 1280x720, and at that width the generate panel lies over the middle of the canvas, so a click meant for a tile lands on the panel. `config/test.exs` sets 1700x1000.
 * **A mouse down and up at a point is not a click.** Use the driver's own click with a `position`, which carries the click count the page listens for.
 * A category or option that is not found must FAIL. The node version swallowed a miss with a catch that did nothing, so a run where the river button had been renamed built a dry map and then asserted about water on it.
+* **THE DRIVER'S DEFAULT TIMEOUT IS TWO SECONDS, and this app does not boot in two seconds.** `phoenix_test_playwright` defaults `timeout:` to `to_timeout(second: 2)`, and that one number covers every navigation, click and select. On an editor that loads a whole tileset before it paints, it produced roughly one failure per full suite run, always in a different scenario and never twice the same: measured over three runs, phase 3's own round-trip gate, the settings gate and the city street gate each failed once and each passed alone. Worse, the driver returns `{:error, %{message: "Timeout 2000ms exceeded"}}` and a harness `case` with no clause for it raises `CaseClauseError` with no message, so the report says nothing about what stalled. `config/test.exs` sets it to 15 seconds, which is what `Browser.wait_until` in this same suite already waits for this same app.
+* **A RUN DOES NOT HAVE TO WAIT FOR ANOTHER RUN.** A second `mix test` beside a browser suite dies on `:eaddrinuse`, and the reflex is to sit and wait. `config/runtime.exs` is the single owner of the port and reads `PORT`, and the database name takes `MIX_TEST_PARTITION`, so the second run gets its own of both: `PORT=4012 MIX_TEST_PARTITION=u1 mix test test/nebulith/...`. Setting the port anywhere else is a lie, `runtime.exs` is evaluated last and deep-merges over `test.exs`.
+  **It buys wall-clock, not a free lunch:** both suites then share one Postgres and one machine, and the tests that seed the whole catalogue run past their 60 second default. Measured running the two together, three unit tests timed out that pass alone, all of them seeders. Use it to get an answer while something else is running, and run the suite ALONE for the answer you are going to quote.
+* **COUNT IN THE PAGE. A read that ships the whole grid comes back EMPTY now and then, and `|| []` makes that look like a map with nothing on it.** `Canvas.tiles/1` serialises every placed asset, each with its settings and its untyped column bag, and a 100x100 city holds 13,618 of them. Measured by polling one such build every six seconds: 13,618 on most reads and 0 on roughly one in six, no console error either time. `GeneratePanel.build/1` settles on two agreeing reads, so two zeros in a row reported a finished city as a build that placed nothing, and the scenario then blamed the generator. Anything that wants a COUNT asks `Canvas.tile_count/1`, which is one number whatever the map holds, and which FLUNKS on a nil instead of defaulting: "the page could not answer" and "the map is empty" are different facts, and treating them as one is the whole of this defect. It is the same shape as `Browser.count/2` above and as a degenerate oracle generally, the failure value being equal to the "nothing there" value.
+
+## A data migration needs its own gate, and a fresh seed is not one
+
+A defect in the DATA is usually fixed twice: the seeder is corrected so a new database is right, and a
+data migration is written so an existing one is too. Only the second one reaches the database anybody
+is actually using, and it is the one no ordinary test touches.
+
+The trap is that a test which seeds and then reads is green either way. It reseeds from the corrected
+source, so the row it reads is correct because the SOURCE is correct. The migration could be doing
+nothing at all.
+
+Measured, twice in one batch. `AMarkedStreetHasAMiddle` read `config -> 'pathways'`, plural, and a
+generator carries `config -> 'pathway'`, singular. `WHERE config ? 'pathways'` was false on every row,
+so the UPDATE touched nothing and logged a success, because an UPDATE matching no rows is not an
+error. Three source-level checks passed the whole time, a fresh seed built the odd street correctly,
+and the streets on his machine stayed four cells across.
+
+**So gate the migration by putting a row BACK into the state the old database is in**, running the
+migration at it, and asserting it moved:
+
+```elixir
+test "the migration widens a street that is already four cells across" do
+  narrowed = put_in(marked.config, ["pathway", "width"], 4)
+  {:ok, _} = marked |> Ecto.Changeset.change(config: narrowed) |> Repo.update()
+
+  Nebulith.DataMigration.AMarkedStreetHasAMiddle.run()
+
+  assert Repo.get!(Generator, marked.id).config["pathway"]["width"] == 5
+end
+```
+
+And gate that it is safe to run twice, because that is what makes a corrected migration re-runnable
+under a new ledger entry instead of needing the old one to be untangled.
+
+When a migration has already claimed its ledger entry and then turns out to have done nothing, fixing
+its SQL alone changes nothing on any machine that ran it. Add a new entry that delegates to the
+corrected rule, named for what happened, and say in its moduledoc why the first one matched no rows.
+`TheStreetPatchLookedAtTheWrongKey` is the worked example.
 
 ## The checklist
 
@@ -239,8 +286,10 @@ item. "I followed the framework" without per-item evidence is the failure this e
 4. Can the scenario fail at all? Check it for the three shapes above.
 5. Does the scenario assert on the data the app holds, and on the row after a save, not only on a picture?
 6. For anything visual applying to a FAMILY of things (tiles, species, variants), does the evidence cover EVERY member? Build the sheet that renders all of them and look at it.
-7. Does `bin/e2e` pass, and `mix test` pass?
-8. Which items could you NOT verify? Say which, rather than leaving them to be found.
+7. If the fix includes a DATA MIGRATION, is there a test that puts a row back into the old state and
+   runs the migration at it? A test that seeds and reads passes whether the migration works or not.
+8. Does `bin/e2e` pass, and `mix test` pass?
+9. Which items could you NOT verify? Say which, rather than leaving them to be found.
 
 The user's own look at the running app is the only "done" for anything visual. A green suite is not a
 verdict on how it looks.

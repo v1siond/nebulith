@@ -39,115 +39,20 @@ defmodule Nebulith.DataMigration.FourSpeciesHeAskedFor do
   require Logger
 
   alias Nebulith.Catalog.TileSource
-  alias Nebulith.Repo
-
-  # {generator name match, species, weight}
-  @environment [
-    {"Woodland", "tree_oak", 22},
-    {"Woodland", "tree_cherry", 10},
-    {"Ruins", "tree_oak", 18},
-    {"Meadow", "tree_cherry", 16},
-    {"Meadow", "tree_oak", 14},
-    {"Swamp", "tree_willow", 18},
-    {"Desert", "tree_encina", 20},
-    {"Beach", "tree_encina", 14}
-  ]
-
-  # {sub-zone key, species, weight, the environments whose lakeside grows it}
-  #
-  # SCOPED BY BIOME, not applied to every lakeside there is. The first run put a weeping willow on the
-  # waterline of the desert, the jungle and the volcano, which is the exact "one species everywhere" failure
-  # this work exists to end. A willow is temperate and wet.
-  #
-  # AND THE REGION MIX IS THE ONE THAT ACTUALLY RUNS on a partitioned map. The engine reads
-  # `zoneAt[row][col].trees ?? ctx.treeMix`, so on any environment with sub-zones the region SHADOWS the
-  # environment list entirely. Measured after the first run: woodland grew the willow its lakeside names and
-  # neither the oak nor the cherry added to its environment mix, and desert and beach grew no encina at all.
-  # An environment entry alone is dead data on every generator that partitions itself.
-  @regional [
-    {"lakeside", "tree_willow", 26, ~w(Woodland Meadow Ruins Swamp Mountain)},
-    # oak in the body of the wood, where a broadleaf stands
-    {"deep", "tree_oak", 20, ~w(Woodland Ruins)},
-    {"edge", "tree_oak", 16, ~w(Woodland Ruins)},
-    # cherry where the light is: a glade and the open edge, never the closed canopy
-    {"glade", "tree_cherry", 18, ~w(Woodland Meadow)},
-    {"edge", "tree_cherry", 12, ~w(Woodland Meadow)},
-    # encina in the open dry country, which is the whole of where a holm oak grows
-    {"edge", "tree_encina", 24, ~w(Desert Beach)},
-    {"glade", "tree_encina", 20, ~w(Desert Beach)},
-    {"thicket", "tree_encina", 14, ~w(Desert Beach)}
-  ]
 
   def run do
     # The four compositions themselves. `seed_compositions/0` is the one that writes the tree species; the
     # crowns migration proved the hard way that `seed_tree_pieces/0` writes the leaf TILES and not these.
     TileSource.seed_compositions()
 
-    env =
-      Enum.sum(
-        for {name, kind, weight} <- @environment, do: add_to_environment(name, kind, weight)
-      )
-
-    reg =
-      Enum.sum(
-        for {zone, kind, weight, envs} <- @regional, do: add_to_region(zone, kind, weight, envs)
-      )
-
-    Logger.info(
-      "[data_migrate] 4 species composed, #{env} environment mixes and #{reg} region mixes grow them"
-    )
+    # WHICH MIXES GROW THEM IS THE SEEDER'S TO SAY. `GeneratorSource.seed/0` writes `generators.config`
+    # whole, so appending a species to a mix from here made the mix a second owner and the next seed
+    # dropped the addition. The four species are in the authored mixes; this composes them.
+    Logger.info("[data_migrate] 4 species composed")
 
     :ok
   end
 
   # Appended to the mix rather than replacing it: the existing species and their weights are what a woodland
   # already is, and this adds to it.
-  defp add_to_environment(name, kind, weight) do
-    %{num_rows: rows} =
-      Repo.query!(
-        """
-        UPDATE generators
-        SET config = jsonb_set(config, '{trees}', (config->'trees') || $3::text::jsonb)
-        WHERE (name = $1 OR name LIKE $1 || ' %')
-          AND config->'trees' IS NOT NULL
-          AND NOT config->'trees' @> $2::text::jsonb
-        """,
-        [
-          name,
-          Jason.encode!([%{"kind" => kind}]),
-          Jason.encode!([%{"kind" => kind, "weight" => weight}])
-        ]
-      )
-
-    rows
-  end
-
-  defp add_to_region(zone_key, kind, weight, envs) do
-    %{num_rows: rows} =
-      Repo.query!(
-        """
-        UPDATE generators SET config = jsonb_set(config, '{subZones}', (
-          SELECT jsonb_agg(
-            CASE
-              WHEN z->>'key' = $1 AND z->'trees' IS NOT NULL AND NOT z->'trees' @> $2::text::jsonb
-                THEN jsonb_set(z, '{trees}', (z->'trees') || $3::text::jsonb)
-              ELSE z
-            END
-            ORDER BY ord
-          )
-          FROM jsonb_array_elements(config->'subZones') WITH ORDINALITY AS t(z, ord)
-        ))
-        WHERE config->'subZones' IS NOT NULL
-          AND EXISTS (SELECT 1 FROM unnest($4::text[]) env WHERE generators.name = env OR generators.name LIKE env || ' %')
-        """,
-        [
-          zone_key,
-          Jason.encode!([%{"kind" => kind}]),
-          Jason.encode!([%{"kind" => kind, "weight" => weight}]),
-          envs
-        ]
-      )
-
-    rows
-  end
 end

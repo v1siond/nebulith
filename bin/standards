@@ -1,0 +1,147 @@
+#!/usr/bin/env bash
+#
+# EVERY STANDARD THAT A MACHINE CAN CHECK, CHECKED BY A MACHINE.
+#
+# The rules in docs/CODING-STANDARDS.md and docs/FRAMEWORKS.md were being enforced by judgement, and
+# judgement forgets. Anything mechanically checkable is checked here and fails the build; what is left
+# is printed as a checklist that has to be answered with evidence, because it cannot be automated.
+#
+#   bin/standards          check everything
+#   bin/standards --quick  skip the slow ones (compile, credo, tsc)
+#
+set -uo pipefail
+cd "$(dirname "$0")/.." || exit 1
+
+fails=0
+note() { printf '  %s\n' "$1"; }
+ok()   { printf '\033[32m  ok\033[0m   %s\n' "$1"; }
+bad()  { printf '\033[31m  FAIL\033[0m %s\n' "$1"; fails=$((fails + 1)); }
+
+# A check that must find NOTHING. Prints what it found, so a failure names the lines rather than the rule.
+none() {
+  local what="$1" count found
+  shift
+  found="$("$@" 2>/dev/null)"
+  count="$(printf '%s' "$found" | grep -c . || true)"
+  if [ "$count" -eq 0 ]; then ok "$what"; return; fi
+  bad "$what ($count)"
+  printf '%s\n' "$found" | head -8 | sed 's/^/       /'
+}
+
+# CODE LINES ONLY. A law that is written down in a moduledoc reads identically to a breach of it, so a
+# check that cannot tell them apart reports the documentation as the defect.
+seeds_a_nil_image() {
+  grep -rn --include=*.ex 'image_url: nil' lib/nebulith/catalog/ \
+    | grep -vE ':\s*#' \
+    | grep -v '`'
+}
+
+echo
+echo "WRITING STYLE"
+# The em dash is the single clearest tell that a document was not written in his voice. The en dash as
+# a stand-in is the same tell. Hyphens inside compound words are spelling and are fine.
+none "no em dash or en dash in source or docs" \
+  grep -rn '—\|–' lib/ docs/ assets/game/ test/ --include=*.ex --include=*.exs --include=*.md --include=*.ts --include=*.tsx
+
+echo
+echo "ATTRIBUTION AND CONTEXT"
+# Claude's attribution and context stay OUT of the repository. Real documentation belongs in it.
+none "no AI attribution in code" \
+  grep -rniE 'co-authored-by|claude' lib/ assets/game/ test/ --include=*.ex --include=*.exs --include=*.ts --include=*.tsx
+none "no user's name in code or comments" \
+  grep -rniE 'alexander|visiond' lib/ assets/game/ test/ --include=*.ex --include=*.exs --include=*.ts --include=*.tsx
+# `node_modules` carries other people's dotfiles and is not ours to police.
+none "no repo CLAUDE.md or .claude folder" \
+  find . \( -name CLAUDE.md -o -name .claude \) -not -path './deps/*' -not -path './_build/*' -not -path '*/node_modules/*'
+
+echo
+echo "TEST FRAMEWORK"
+# Jest is not a frontend test tool. Checked where it would actually LIVE, a dependency or a spec file,
+# rather than anywhere the word appears: the renderer names it in a comment about jsdom's stub canvas,
+# and a check that trips on prose describing the rule is a check nobody keeps.
+none "jest is not a dependency" grep -n '"jest' assets/package.json
+none "no jest spec files" \
+  find assets/game test -name '*.test.ts' -o -name '*.test.tsx' -o -name '*.spec.ts' -o -name '*.spec.tsx'
+# A scenario that is not tagged never runs in bin/e2e, so it rots green while reading as covered.
+untagged="$(grep -L '@moduletag :e2e' test/e2e/*.exs 2>/dev/null || true)"
+if [ -z "$untagged" ]; then ok "every test/e2e scenario is tagged :e2e"; else bad "untagged e2e scenarios"; printf '%s\n' "$untagged" | sed 's/^/       /'; fi
+
+echo
+echo "TILE AND DATA LAWS"
+# A tile is an IMAGE resolved by label. `image_url: nil` plus a raw character renders the missing-glyph
+# box on any machine whose fonts differ. Comment lines are excluded: the law is WRITTEN DOWN in two
+# moduledocs, and a check that cannot tell the rule from a breach of it is noise.
+none "no tile seeded with image_url: nil" seeds_a_nil_image
+# ONE OWNER PER FACT. `GeneratorSource.seed/0` writes `generators.config` WHOLE, so a migration that
+# edits any part of it is a second owner and the next seed discards its work, silently.
+#
+# WIDENED FROM `subZones` TO THE WHOLE COLUMN, and the reason is worth keeping. The narrow grep answered
+# "23 violations" while the measurement answered 36 facts across a different set of passes, because a
+# grep can only say a migration MIGHT be a second owner. Most of those 23 wrote a fact the seeder had
+# since been taught, and the real offenders included passes the grep never matched.
+#
+# So this is the cheap smoke check and `test/nebulith/one_owner_per_fact_test.exs` is the real gate: it
+# seeds, runs every registered pass, and asserts that not one generator config moves. Run that before
+# trusting a green line here.
+none "no data migration writes generators.config" \
+  grep -rln "jsonb_set(config" lib/nebulith/data_migrations/
+
+# PHASE 1 DELETE, and law 7. `docs/SPEC.md` phase 1: "DELETE the hardcoded `ascii` default". A style id
+# written into the frontend as a DEFAULT answers a question the backend owns: which style is active comes
+# from `games.default_tileset_id` with a per-map override. A default parameter of 'ascii' means a caller
+# that forgets to pass the style silently gets one particular style's answer, and in the other style the
+# same call returns undefined.
+#
+# Narrowed to DEFAULTS (`= 'ascii'`). Comparing against the active style id is a different thing and is
+# caught by law 4, not here.
+none "no hardcoded ascii default in the frontend" \
+  grep -rn "styleId = 'ascii'\|style = 'ascii'\|styleId: string = 'ascii'" assets/game
+
+echo
+echo "FRAMEWORKS"
+# Every framework the index says EXISTS has to exist, or the index is lying to the next reader.
+missing_docs=""
+for doc in $(grep -oE '\]\([A-Z][A-Z0-9-]*\.md\)' docs/FRAMEWORKS.md | tr -d '](' | tr -d ')' | sort -u); do
+  [ -f "docs/$doc" ] || missing_docs="$missing_docs docs/$doc"
+done
+if [ -z "$missing_docs" ]; then ok "every framework the index lists exists"; else bad "index lists missing frameworks:$missing_docs"; fi
+
+if [ "${1:-}" != "--quick" ]; then
+  echo
+  echo "BUILD"
+  mix format --check-formatted >/dev/null 2>&1 && ok "mix format" || bad "mix format --check-formatted"
+  mix compile --warnings-as-errors >/dev/null 2>&1 && ok "mix compile --warnings-as-errors" || bad "mix compile --warnings-as-errors"
+  mix credo --strict >/dev/null 2>&1 && ok "mix credo --strict" || { mix credo >/dev/null 2>&1 && ok "mix credo (not strict)" || bad "mix credo"; }
+  # A MODERN NODE, EXPLICITLY. `nvm` leaves v10.22 first on the PATH of a plain shell, and typescript
+  # parses as far as the first `?.` and dies with a bare "Unexpected token ?". That reads exactly like a
+  # type error in the codebase and is not one: measured, tsc exits 0 under v24 at the same commit. A check
+  # that fails for a reason outside the code it checks is worse than no check, because it gets ignored.
+  node_bin="$(ls -d "$HOME"/.nvm/versions/node/v2*/bin 2>/dev/null | sort -V | tail -1)"
+  (cd assets && PATH="${node_bin:+$node_bin:}$PATH" npx tsc --noEmit >/dev/null 2>&1) &&
+    ok "tsc --noEmit" || bad "tsc --noEmit"
+
+  # THE REAL ONE-OWNER GATE, which no grep can stand in for. It seeds, runs every registered data
+  # migration and asserts that not one generator config moves.
+  mix test test/nebulith/one_owner_per_fact_test.exs --include slow >/dev/null 2>&1 &&
+    ok "one owner per generator fact" || bad "a data migration owns a fact the seeder writes"
+fi
+
+echo
+echo "WHAT A MACHINE CANNOT CHECK, answer each with evidence before saying done:"
+note "SOLID: one reason to change per unit; extension without modification; narrow interfaces; injected dependencies"
+note "guard clauses as separate function clauses with when-guards, no else"
+note "dispatch maps instead of conditional chains; no dead code; names reveal intent"
+note "framework first: which doc governs this change, and its checklist walked item by item"
+note "BOTH test layers: a mix test gate AND a browser scenario driving the real page"
+note "the mocked backend (StubApi) where the scenario is about served data"
+note "the new gate was run BEFORE the fix and FAILED there, and that failure is shown"
+note "for a FAMILY: the render sheet covers EVERY member, not the one you looked at"
+note "the visual verdict is his, at :3000. A green suite is not done"
+
+echo
+if [ "$fails" -eq 0 ]; then
+  printf '\033[32mevery mechanical standard holds\033[0m\n\n'
+  exit 0
+fi
+printf '\033[31m%d mechanical standard(s) broken\033[0m\n\n' "$fails"
+exit 1

@@ -215,6 +215,10 @@ export interface Game {
   lastTemplateId: string | null
   /** Ordered member templates, index 0 = level 1. */
   templateIds: string[]
+  /** The art style the game defaults to, as the `tilesets` row id. A map may override it. */
+  defaultTilesetId: number | null
+  /** The numbers this game is played and drawn by, one row per game. */
+  settings: GameSettings
 }
 
 const GAMES_BASE = `${NEBULITH_API}/games`
@@ -237,6 +241,8 @@ export async function createGame(input: {
   description?: string
   templateIds?: string[]
   lastTemplateId?: string
+  /** The art style the game is made in, as the `tilesets` row id. A map may override it per map. */
+  defaultTilesetId?: number
 }): Promise<Game> {
   const res = await fetch(GAMES_BASE, {
     method: 'POST',
@@ -258,6 +264,44 @@ export async function updateGame(
   })
   if (!res.ok) throw await apiFailure(res, 'This game could not be saved')
   return res.json()
+}
+
+/**
+ * THE NUMBERS A GAME IS PLAYED AND DRAWN BY, as the `game_settings` row states them.
+ *
+ * Every key is a column, spelled the way the column is spelled, because a second vocabulary whose only
+ * job is to be translated back is not a concept. Decimals arrive as strings: Postgres numeric is exact
+ * and a float would not be.
+ */
+export interface GameSettings {
+  map_size_max: number
+  discovery_on: boolean
+  discovery_radius: number
+  discovery_remembers: boolean
+  default_view: string
+  /** Beyond this many cells a thing near the hero is fully solid. */
+  fade_radius: number
+  /** Within this many it holds flat at its most transparent. */
+  fade_full_radius: number
+  /** How opaque the close band draws. */
+  fade_alpha: string | number
+  /** How opaque a shell draws while the hero stands inside it. */
+  interior_alpha: string | number
+}
+
+/** Writes the numbers a person changed, and answers with the whole row as it now stands. */
+export async function updateGameSettings(
+  gameId: string,
+  patch: Partial<Record<keyof GameSettings, unknown>>,
+): Promise<GameSettings> {
+  const res = await fetch(`${GAMES_BASE}/${gameId}/settings`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(patch),
+  })
+  if (!res.ok) throw await apiFailure(res, "This game's settings could not be saved")
+
+  return (await res.json()).data as GameSettings
 }
 
 export async function deleteGame(id: string): Promise<void> {
@@ -404,4 +448,29 @@ export async function saveMap(mapId: string, payload: MapPayload): Promise<void>
     body: JSON.stringify(payload),
   })
   if (!res.ok) throw new Error(`saving map ${mapId}: ${res.status} ${(await res.text()).slice(0, 200)}`)
+}
+
+// ── Art styles ──────────────────────────────────────────────────────────────
+
+/** One art style, as the backend states it. A style is a `tilesets` row (docs/SPEC.md §3.1). */
+export interface ArtStyle {
+  id: number
+  key: string
+  name: string
+  icon?: string | null
+  position: number
+}
+
+/**
+ * THE ART STYLES a game can be made in, in the backend's own order.
+ *
+ * `/api/art_styles` answers the list without the catalog behind it, because a picker draws one button per
+ * style and has no use for every tile of every style. Two names typed into a component would be a second
+ * copy of a table (law 4, law 7), and it would be wrong the day a third style is added.
+ */
+export async function listArtStyles(): Promise<ArtStyle[]> {
+  const res = await fetch('/api/art_styles', { headers: { accept: 'application/json' } })
+  if (!res.ok) throw await apiFailure(res, 'The art styles could not be loaded')
+  const body = (await res.json()) as { data: ArtStyle[] }
+  return body.data
 }

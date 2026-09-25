@@ -22,12 +22,12 @@ defmodule NebulithWeb.UiControllerTest do
   end
 
   describe "seeded" do
-    setup do
+    setup %{user: owner} do
       UiSource.seed()
 
       # A profile hangs off a REAL game, the foreign key says so, and a test that invents a uuid is
       # testing something the database would never allow.
-      {:ok, game} = Games.create_game(%{"name" => "Test game"})
+      {:ok, game} = Games.create_game(owner, %{"name" => "Test game"})
       {:ok, game_id: game.id}
     end
 

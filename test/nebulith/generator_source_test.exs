@@ -23,6 +23,16 @@ defmodule Nebulith.GeneratorSourceTest do
 
   defp by_key(categories), do: Map.new(categories, &{&1.key, &1})
 
+  # WHAT THIS GENERATOR SAYS RUNS IN ITS CHANNELS, read off the option the engine reads.
+  defp liquid_of(g) do
+    g.options
+    |> Enum.find(&(&1["key"] == "water"))
+    |> case do
+      nil -> nil
+      option -> option["default"]
+    end
+  end
+
   defp rgb("#" <> hex) do
     [r, g, b] = for i <- [0, 2, 4], do: elem(Integer.parse(String.slice(hex, i, 2), 16), 0)
     {r, g, b}
@@ -153,14 +163,18 @@ defmodule Nebulith.GeneratorSourceTest do
       for g <- cats["wilderness"].generators do
         # Every wild environment offers the same region picker now, so every one of them offers the same
         # list: the ways, the region to lead with, and the river.
-        assert Enum.map(g.options, & &1["key"]) == ~w(exits pathways region river bridge),
+        # …AND WHAT RUNS IN THEM. `water` is the liquid the channels carry, which the engine reads and
+        # nothing used to offer, so every map ran on the default and a volcano's channel was water.
+        assert Enum.map(g.options, & &1["key"]) == ~w(exits pathways region river bridge water),
                "#{g.key} offers #{inspect(Enum.map(g.options, & &1["key"]))}"
 
         [river, kind] = Enum.filter(g.options, &(&1["key"] in ~w(river bridge)))
         assert kind["requires"] == "river"
 
-        # A beach starts ringed by water; nothing else runs a river unless it is asked for.
-        expected = if g.key == "forest_beach", do: "around", else: "none"
+        # A BEACH STARTS WITH ITS COAST; nothing else runs water unless it is asked for. It used to start
+        # with `around`, the perimeter river, which covers no edge and classifies as a river, so the one map
+        # whose point is a beach wore river pieces.
+        expected = if g.key == "forest_beach", do: "shore", else: "none"
         assert river["default"] == expected, "#{g.key} starts with river #{river["default"]}"
 
         # NO DEPTH OPTION. There is no channel to cut: a body of water sits at the level of the ground it
@@ -193,7 +207,12 @@ defmodule Nebulith.GeneratorSourceTest do
         |> Map.fetch!(:options)
         |> Enum.find(&(&1["key"] == "river"))
 
-      assert Enum.map(river["choices"], & &1["key"]) == ~w(none random through divides around)
+      # THE SHAPES THE ENGINE PAINTS, asked of the served list, plus the two that are not shapes: no water at
+      # all, and let the builder pick. A copy typed out here is how `shore` and `lake` stayed unreachable
+      # while being fully built, and it is what this assertion used to be.
+      expected = ~w(none random) ++ Nebulith.EngineLists.engine()["river_courses"]
+
+      assert Enum.map(river["choices"], & &1["key"]) == expected
       assert river["default"] in Enum.map(river["choices"], & &1["key"])
     end
 
@@ -311,12 +330,35 @@ defmodule Nebulith.GeneratorSourceTest do
       end
     end
 
+    test "a map says what runs in its channels, and only the volcano says lava" do
+      GeneratorSource.seed()
+      cats = Catalog.list_generator_categories() |> by_key()
+
+      molten = for g <- cats["wilderness"].generators, liquid_of(g) == "lava", do: g.key
+
+      assert molten == ["forest_volcanic"],
+             "the maps running lava are #{inspect(molten)}, and only a volcano should be one of them"
+
+      # AND EVERY MAP SAYS SOMETHING. A liquid nobody states is a liquid the engine defaults for you, which
+      # is how a volcano ran water in the first place.
+      silent = for g <- cats["wilderness"].generators, liquid_of(g) == nil, do: g.key
+
+      assert silent == [], "#{inspect(silent)} state no liquid at all"
+    end
+
     test "water reads as WATER: blue that darkens with depth, and only swamp leans green" do
       # Asserted as RELATIONSHIPS so the hexes stay free to tune.
       GeneratorSource.seed()
       cats = Catalog.list_generator_categories() |> by_key()
 
-      for g <- cats["wilderness"].generators, pal = g.config["palette"], pal != nil do
+      # …WHERE THE LIQUID IS WATER. A map states what runs in its channels (`liquid`, served as the `water`
+      # option and read by `liquidFor`), and on a volcano it is lava, which is orange because it is molten
+      # rock. Exempting it is the rule, not a hole in it: it says so outright rather than being a colour
+      # nobody could explain.
+      for g <- cats["wilderness"].generators,
+          pal = g.config["palette"],
+          pal != nil,
+          liquid_of(g) != "lava" do
         {r, gr, b} = rgb(pal["water"])
         assert b > r and b > gr, "#{g.key} water is not blue: #{pal["water"]}"
 
@@ -573,10 +615,21 @@ defmodule Nebulith.GeneratorSourceTest do
             z["level"] not in [nil, 0],
             do: g.key
 
-      # A mountain is built at different heights and the step between two regions is a cliff. Its volcanic
-      # placeholder runs on the same numbers, so it climbs too. Nothing else does, and a settlement does
-      # not: a city divides itself by money, not by altitude.
-      assert Enum.uniq(levelled) |> Enum.sort() == ~w(forest_mountain forest_volcanic)
+      # FIVE TEMPLATES, not two, and a settlement is still none of them: a city divides itself by money,
+      # not by altitude. Relief is kept exactly where the CLIMB is the point of the region set.
+      #
+      #   mountain   foot 0 to summit 4, which is the whole template
+      #   volcanic   sheltered 0 up to the crater at 3, the approach to the cone
+      #   ruins      the heart and its courts on their platform
+      #   beach      the dune ridge and the ground inland standing over the shore
+      #   desert     the erg's dunes standing over the hardpan
+      #
+      # This asserted two because it was written before relief was narrowed to these five. The three it
+      # left out are not a regression: a step in the middle of flat ground is, which is why a woodland's
+      # glade, a meadow's pasture and orchard, and a city's upper tier were the ones taken away. Each of
+      # those broke the contract that the ground beside a channel stands above it.
+      assert Enum.uniq(levelled) |> Enum.sort() ==
+               ~w(forest_beach forest_desert forest_mountain forest_ruins forest_volcanic)
 
       levels =
         Map.new(
@@ -791,9 +844,16 @@ defmodule Nebulith.GeneratorSourceTest do
                "#{g.key}: #{thickest["key"]} and #{thinnest["key"]} are the same ground in two colours"
 
         # never 1: claiming only the four orthogonal neighbours leaves a checkerboard, passable diagonally
-        # and not orthogonally, so the floor measures as hundreds of regions the repair has to cut through
-        for z <- zones,
-            do: refute(z["formation"]["spacing"] == 1, "#{g.key}/#{z["key"]} spaces trees at 1")
+        # and not orthogonally, so the floor measures as hundreds of regions the repair has to cut through.
+        #
+        # EVERY offender at once, not a `refute` per region. A refute inside the loop aborts on the first,
+        # so five bad regions took five runs to find, each one looking like the last fix had not worked.
+        # A closed canopy states 0, which is what every other region at lattice 10 and above does.
+        checkerboards = for z <- zones, z["formation"]["spacing"] == 1, do: "#{g.key}/#{z["key"]}"
+
+        assert checkerboards == [],
+               "spaces trees at 1, which leaves a checkerboard: " <>
+                 Enum.join(checkerboards, ", ")
       end
     end
 

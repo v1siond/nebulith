@@ -40,6 +40,45 @@ defmodule Nebulith.E2E.Canvas do
   @doc "Every placed tile in the open map."
   def tiles(session), do: Browser.js(session, "(window.__nebulithGrid?.assets ?? [])") || []
 
+  @doc """
+  THE LABEL OF EVERY PLACED TILE, read in the page.
+
+  Almost every sweep in this suite wants the labels and nothing else, and reaching them through `tiles/1`
+  ships the whole asset array to get there: on a 60x60 woodland that is around 2,500 objects, each with its
+  settings and its untyped column bag, for 2,500 short strings. That read is the one that intermittently
+  comes back empty, and `|| []` then says the map is empty, which is how a built woodland was reported as
+  "built an EMPTY map".
+
+  So the page does the projection and sends the strings. Same reasoning as `tile_count/1`, and a nil is
+  raised on for the same reason: "the page could not answer" is not "the map has nothing on it".
+  """
+  def tile_labels(session) do
+    case Browser.js(session, "((window.__nebulithGrid?.assets) ?? []).map(a => a.label ?? a.tileKey ?? null).filter(Boolean)") do
+      labels when is_list(labels) -> labels
+      other -> flunk("the page could not say what it holds, it answered #{inspect(other)}")
+    end
+  end
+
+  @doc """
+  HOW MANY placed tiles, counted in the page.
+
+  `tiles/1` ships every asset over the wire, each with its settings and its untyped column bag, and on a
+  100x100 city that is 13,618 of them on EVERY read. A read that big intermittently comes back empty, and
+  `|| []` then turns it into zero tiles, which is the same answer as a map that built nothing: measured on
+  the big-map scenario, 13,618 on most reads and 0 on roughly one in six, which failed a build that had
+  worked perfectly.
+
+  So anything that only wants the COUNT asks for the count, which is one number whatever the map holds. A
+  nil is raised on rather than defaulted, because "the page could not answer" and "the map is empty" are
+  different facts and the whole defect above was a `||` that treated them as one.
+  """
+  def tile_count(session) do
+    case Browser.js(session, "(window.__nebulithGrid?.assets?.length ?? 0)") do
+      n when is_integer(n) -> n
+      other -> flunk("the page could not say how many tiles it holds, it answered #{inspect(other)}")
+    end
+  end
+
   @doc "Placed tiles carrying `label`."
   def tiles_labelled(session, label),
     do: Enum.filter(tiles(session), &(&1["label"] == label or &1["tileKey"] == label))
@@ -52,7 +91,7 @@ defmodule Nebulith.E2E.Canvas do
     do:
       Browser.wait_until(
         session,
-        &(length(tiles(&1)) >= at_least),
+        &(tile_count(&1) >= at_least),
         "at least #{at_least} tile(s) on the map",
         opts
       )
@@ -67,6 +106,18 @@ defmodule Nebulith.E2E.Canvas do
   def click_cell(session, col, row) do
     point = cell_point(session, col, row)
     click_at(session, point["x"], point["y"])
+  end
+
+  @doc """
+  ⌥Alt-clicks the cell at `col`,`row`: "act on the CELL, not on whatever is standing on it".
+
+  One modifier with one meaning across the editor (EDITOR-INTERACTION-SPEC §3), so it is worth being
+  able to press it from a scenario. Same projection and the same real click as `click_cell/3`, with
+  the modifier held, rather than a second way of reaching a cell.
+  """
+  def alt_click_cell(session, col, row) do
+    point = cell_point(session, col, row)
+    click_at(session, point["x"], point["y"], modifiers: ["Alt"])
   end
 
   @doc """
@@ -112,6 +163,43 @@ defmodule Nebulith.E2E.Canvas do
     end)
   end
 
+  @doc """
+  A CELL that is on screen, as `%{"col" => c, "row" => r}`, searching outward from the middle.
+
+  `a_visible_tile/2` answers a different question: it looks through the tiles the map HOLDS, so on a
+  scratch map, which carries its ground as `groundData` and an empty asset list, it finds nothing and
+  a scenario reads "no cell is on screen" when the whole map is. This asks the projection instead, so
+  it answers on a bare map as readily as on a generated one.
+
+  From the middle outward because the camera starts there, so the first candidate is usually the
+  answer and the scan costs one round trip.
+  """
+  def a_visible_cell(session) do
+    Browser.js(session, """
+    (() => {
+      const p = window.__nebulithProject
+      const g = window.__nebulithGrid
+      const c = document.querySelector('#{@canvas}')
+      if (!p || !g || !c) return null
+      const r = c.getBoundingClientRect()
+      const midCol = Math.floor(g.cols / 2), midRow = Math.floor(g.rows / 2)
+      for (let ring = 0; ring < Math.max(g.cols, g.rows); ring++) {
+        for (let dc = -ring; dc <= ring; dc++) {
+          for (let dr = -ring; dr <= ring; dr++) {
+            if (Math.max(Math.abs(dc), Math.abs(dr)) !== ring) continue
+            const col = midCol + dc, row = midRow + dr
+            if (col < 0 || row < 0 || col >= g.cols || row >= g.rows) continue
+            const pt = p.toScreen(col, row)
+            if (!pt) continue
+            if (pt.x > 8 && pt.y > 8 && pt.x < r.width - 8 && pt.y < r.height - 8) return { col, row }
+          }
+        }
+      }
+      return null
+    })()
+    """)
+  end
+
   defp canvas_size(session) do
     Browser.js(session, """
     (() => {
@@ -125,7 +213,7 @@ defmodule Nebulith.E2E.Canvas do
 
   # Coordinates are relative to the canvas itself, which is also what the projection seam speaks, so
   # there is no page offset to carry around and nothing to go wrong when the layout moves.
-  defp click_at(session, x, y) do
+  defp click_at(session, x, y, opts \\ []) do
     %{"width" => w, "height" => h} = canvas_size(session)
 
     # SAY IT PLAINLY. A click outside the canvas comes back as a wall of driver log about the document
@@ -137,20 +225,84 @@ defmodule Nebulith.E2E.Canvas do
       )
     end
 
-    do_click_at(session, x, y)
+    do_click_at(session, x, y, opts)
   end
 
-  defp do_click_at(session, x, y) do
+  defp do_click_at(session, x, y, opts) do
     session.frame_id
     |> PlaywrightEx.Frame.click(
-      selector: @canvas,
-      position: %{x: x, y: y},
-      timeout: 10_000
+      [selector: @canvas, position: %{x: x, y: y}, timeout: 10_000] ++ opts
     )
     |> case do
       {:ok, _} -> session
       other -> flunk("clicking the canvas at #{round(x)},#{round(y)} failed: #{inspect(other)}")
     end
+  end
+
+  @doc """
+  Turns the wheel down until the camera stops zooming out, and says where it stopped.
+
+  MAX ZOOM OUT IS THE WORST CASE, and measuring at the default is measuring the easy one. The camera
+  shows a window onto the map, so at 100% a big map has most of itself off screen and the drawn count
+  stays flat however large the map gets. Zoomed all the way out that stops being true and the frame has
+  to deal with everything at once.
+
+  Real wheel events on the canvas, which is what the handler listens for, rather than reaching for the
+  ref behind it.
+  """
+  def zoom_out_fully(session) do
+    Browser.js(session, """
+    (() => {
+      const c = document.querySelector('#{@canvas}')
+      if (!c) return false
+      const r = c.getBoundingClientRect()
+      for (let i = 0; i < 40; i++) {
+        c.dispatchEvent(new WheelEvent('wheel', {
+          deltaY: 120, bubbles: true, cancelable: true,
+          clientX: r.left + r.width / 2, clientY: r.top + r.height / 2,
+        }))
+      }
+      return true
+    })()
+    """)
+
+    Browser.wait_until(session, &(zoom_percent(&1) != nil), "the zoom readout", timeout: 10_000)
+    session
+  end
+
+  @doc "What the zoom readout says, as a number, or nil when it is not on screen."
+  def zoom_percent(session) do
+    # BY ITS TITLE, not by the magnifying glass it wears. Matching the emoji means matching an emoji
+    # through two layers of string escaping, and the readout already identifies itself.
+    read =
+      Browser.js(session, """
+      (() => {
+        const el = document.querySelector('[title="Camera zoom (mouse wheel)"]')
+        if (!el) return null
+        const m = (el.textContent || '').match(/(\\d+)\\s*%/)
+        return m ? Number(m[1]) : null
+      })()
+      """)
+
+    case read do
+      n when is_number(n) -> round(n)
+      _ -> nil
+    end
+  end
+
+  @doc """
+  The frame rate the EDITOR ITSELF is showing, read off the readout a person reads.
+
+  Counting `requestAnimationFrame` is the independent measure; this is the number on screen, and the
+  two disagreeing is worth knowing about.
+  """
+  def readout_fps(session) do
+    Browser.js(session, """
+    (() => {
+      const m = document.body.innerText.match(/FPS\\s*([\\d.]+)/)
+      return m ? Number(m[1]) : null
+    })()
+    """)
   end
 
   @doc "Where cell `col`,`row` is on the canvas right now, in canvas pixels."

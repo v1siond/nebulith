@@ -123,7 +123,7 @@ defmodule Nebulith.TilesetParityTest do
     Catalog.put_tile_setting(emoji_id, "wall", "colors", own)
     Catalog.put_tile_setting(ascii_id, "door", "colors", %{})
 
-    :ok = TileSource.normalize_label_colors()
+    :ok = TileSource.normalize_label_facts()
 
     emoji_wall = Map.new(Catalog.list_tiles_for("emoji"), &{&1.label, &1})["wall"]
     ascii_door = Map.new(Catalog.list_tiles_for("ascii"), &{&1.label, &1})["door"]

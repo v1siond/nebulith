@@ -67,7 +67,16 @@ defmodule Nebulith.Catalog.GeneratorSource do
         %{"key" => "random", "label" => "Random"},
         %{"key" => "through", "label" => "Winds through (easy to cross)"},
         %{"key" => "divides", "label" => "Divides the map in two"},
-        %{"key" => "around", "label" => "Around the edge"}
+        %{"key" => "around", "label" => "Around the edge"},
+        # THE TWO SHAPES THE ENGINE COULD ALREADY PAINT AND NOBODY COULD ASK FOR.
+        #
+        # *"we alos lost the beach and laken water options from the generators"*. `carveShore` has painted a
+        # sea along one edge and `carveBody` a standing body since the region pools were built, and the only
+        # way to a map with either was to pick a biome whose regions happened to ask. A value the engine
+        # accepts and no menu offers is §6 invariant 6, and `Nebulith.APickerCannotMissAValueTest` now counts
+        # these against `EngineLists` so a sixth shape cannot arrive unreachable.
+        %{"key" => "shore", "label" => "A coast along one edge"},
+        %{"key" => "lake", "label" => "A lake in the middle"}
       ]
     },
 
@@ -591,7 +600,11 @@ defmodule Nebulith.Catalog.GeneratorSource do
     "city_street" => %{
       "surface" => "road",
       "tone" => "#3d3d44",
-      "width" => 4,
+      # ODD, BECAUSE THE LINE GOES DOWN THE MIDDLE. A street four cells across has no middle cell, so
+      # the marking below can only sit off centre, and it looked exactly like that. Five keeps a main
+      # road wide (two cells of carriageway either side of the line) where three would have narrowed it
+      # to a lane.
+      "width" => 5,
       "edge" => 0.0,
       "marking" => %{"color" => "#eae7db", "every" => 3},
       "scatter" => [],
@@ -707,109 +720,227 @@ defmodule Nebulith.Catalog.GeneratorSource do
   #
   # Each entry is `{arrangement, regions}`: §2 for what rings and bands mean, §3 for what a region may state.
   @biome_regions %{
-    # THE PARTS OF A WORKING WOOD, not four descriptions of density plus one that names water and has none.
-    # REGIONS.md §4. `streamside` carries the wood's water, so the one region named for it has it.
-    "woodland" =>
-      {"scatter",
+    "beach" =>
+      {"bands",
        [
          %{
-           "key" => "high_forest",
-           "name" => "High forest",
-           "weight" => 3,
-           "canopy" => 1.15,
-           "undergrowth" => 0.35,
-           "leafHue" => -3,
-           "leafValue" => -0.06,
+           "canopy" => 0.05,
+           "floor" => "#e8dcc0",
+           "ground" => "sand",
            "formation" => %{
-             "lattice" => 13,
-             "spacing" => 0,
-             "understory" => 0.30,
-             "understoryTile" => "clover"
+             "lattice" => 3,
+             "spacing" => 8,
+             "understory" => 0.18,
+             "understoryTile" => "dune_grass_seed"
            },
+           "key" => "shore",
+           "leafHue" => 6,
+           "leafValue" => 0.1,
+           "name" => "Shore",
            "trees" => [
-             %{"kind" => "tree_column", "weight" => 40},
-             %{"kind" => "tree_tall", "weight" => 35},
-             %{"kind" => "tree", "weight" => 25}
-           ]
+             %{"kind" => "tree_mangrove", "weight" => 60},
+             %{"kind" => "tree_palm", "weight" => 25},
+             %{"kind" => "bush_round", "weight" => 15}
+           ],
+           "undergrowth" => 0.18,
+           "weight" => 3
          },
          %{
-           "key" => "coppice",
-           "name" => "Coppice",
-           "weight" => 3,
-           "canopy" => 0.30,
-           "undergrowth" => 1.60,
-           "leafHue" => 0,
-           "leafValue" => 0.00,
+           "canopy" => 0.15,
+           "floor" => "#dfd0a8",
+           "ground" => "sand_dune",
+           "formation" => %{
+             "lattice" => 6,
+             "spacing" => 5,
+             "understory" => 0.9,
+             "understoryTile" => "dune_grass"
+           },
+           "key" => "dunes",
+           "leafHue" => 4,
+           "leafValue" => 0.08,
+           "level" => 1,
+           "name" => "Dunes",
+           "trees" => [
+             %{"kind" => "bush_round", "weight" => 55},
+             %{"kind" => "tree_palm", "weight" => 25},
+             %{"kind" => "bush", "weight" => 20}
+           ],
+           "undergrowth" => 0.9,
+           "weight" => 3
+         },
+         %{
+           "canopy" => 0.6,
+           "floor" => "#cdbf95",
+           "ground" => "sand",
+           "formation" => %{
+             "lattice" => 7,
+             "spacing" => 4,
+             "understory" => 0.2,
+             "understoryTile" => "dune_grass_young"
+           },
+           "key" => "palms",
+           "leafHue" => 1,
+           "leafValue" => 0.03,
+           "name" => "Palm line",
+           "trees" => [
+             %{"kind" => "tree_coconut", "weight" => 40},
+             %{"kind" => "tree_palm", "weight" => 35},
+             %{"kind" => "tree_banana", "weight" => 25}
+           ],
+           "undergrowth" => 0.2,
+           "weight" => 3
+         },
+         %{
+           "canopy" => 0.9,
+           "floor" => "#b9ad86",
+           "ground" => "sand",
+           "formation" => %{
+             "lattice" => 9,
+             "spacing" => 2,
+             "understory" => 1.1,
+             "understoryTile" => "shrub"
+           },
+           "key" => "backshore",
+           "leafHue" => -2,
+           "leafValue" => -0.04,
+           "name" => "Backshore",
+           "trees" => [
+             %{"kind" => "tree_banana", "weight" => 30},
+             %{"kind" => "tree_coconut", "weight" => 25},
+             %{"kind" => "tree_mangrove", "weight" => 25},
+             %{"kind" => "bush", "weight" => 20}
+           ],
+           "undergrowth" => 1.1,
+           "weight" => 3
+         },
+         %{
+           "canopy" => 1.2,
+           "floor" => "#93a06a",
+           "ground" => "savanna",
+           "formation" => %{
+             "lattice" => 12,
+             "spacing" => 2,
+             "understory" => 0.9,
+             "understoryTile" => "shrub"
+           },
+           "key" => "inland",
+           "leafHue" => -4,
+           "leafValue" => -0.08,
+           "level" => 1,
+           "name" => "Inland jungle",
+           "trees" => [
+             %{"kind" => "tree_coconut", "weight" => 35},
+             %{"kind" => "tree_palm", "weight" => 25},
+             %{"kind" => "tree_banana", "weight" => 25},
+             %{"kind" => "bush_round", "weight" => 15}
+           ],
+           "undergrowth" => 0.9,
+           "weight" => 2
+         }
+       ]},
+    "desert" =>
+      {"bands",
+       [
+         %{
+           "canopy" => 0.04,
+           "floor" => "#d9b98a",
+           "ground" => "sand_dune",
+           "formation" => %{
+             "lattice" => 3,
+             "spacing" => 9,
+             "understory" => 0.16,
+             "understoryTile" => "dune_grass_seed"
+           },
+           "key" => "erg",
+           "leafHue" => 4,
+           "leafValue" => 0.1,
+           "level" => 1,
+           "name" => "Dune sea",
+           "trees" => [
+             %{"kind" => "cactus_saguaro", "weight" => 22},
+             %{"kind" => "cactus_saguaro_young", "weight" => 20},
+             %{"kind" => "tree_dead", "weight" => 18},
+             %{"kind" => "cactus_saguaro_old", "weight" => 14},
+             %{"kind" => "cactus_barrel", "weight" => 14},
+             %{"kind" => "cactus_saguaro_one", "weight" => 12}
+           ],
+           "undergrowth" => 0.16,
+           "weight" => 4
+         },
+         %{
+           "canopy" => 0.08,
+           "floor" => "#b39469",
+           "ground" => "sandstone",
+           "formation" => %{
+             "lattice" => 4,
+             "spacing" => 7,
+             "understory" => 0.22,
+             "understoryTile" => "shrub"
+           },
+           "key" => "hardpan",
+           "leafHue" => 2,
+           "leafValue" => 0.07,
+           "name" => "Hardpan",
+           "trees" => [
+             %{"kind" => "cactus_barrel", "weight" => 24},
+             %{"kind" => "cactus_prickly", "weight" => 22},
+             %{"kind" => "cactus_barrel_pair", "weight" => 18},
+             %{"kind" => "cactus_prickly_tall", "weight" => 16},
+             %{"kind" => "tree_stub", "weight" => 12},
+             %{"kind" => "bush_round", "weight" => 8}
+           ],
+           "undergrowth" => 0.22,
+           "weight" => 3
+         },
+         %{
+           "canopy" => 0.25,
+           "floor" => "#a08a63",
+           "ground" => "sand",
+           "formation" => %{
+             "lattice" => 7,
+             "spacing" => 3,
+             "understory" => 0.7,
+             "understoryTile" => "tall_grass"
+           },
+           "key" => "wadi",
+           "leafHue" => -1,
+           "leafValue" => 0.0,
+           "name" => "Wadi",
+           "trees" => [
+             %{"kind" => "tree_encina", "weight" => 22},
+             %{"kind" => "tree_gnarled", "weight" => 20},
+             %{"kind" => "cactus_prickly_tall", "weight" => 16},
+             %{"kind" => "cactus_saguaro_young", "weight" => 16},
+             %{"kind" => "bush_round", "weight" => 14},
+             %{"kind" => "cactus_barrel_pair", "weight" => 12}
+           ],
+           "undergrowth" => 0.7,
+           "weight" => 2
+         },
+         %{
+           "canopy" => 0.8,
+           "floor" => "#6f7a4a",
+           "ground" => "oasis",
            "formation" => %{
              "lattice" => 6,
              "spacing" => 2,
-             "understory" => 1.55,
-             "understoryTile" => "shrub"
-           },
-           "trees" => [
-             %{"kind" => "tree_sapling", "weight" => 55},
-             %{"kind" => "bush", "weight" => 30},
-             %{"kind" => "bush_round", "weight" => 15}
-           ]
-         },
-         %{
-           "key" => "ride",
-           "name" => "The ride",
-           "weight" => 2,
-           "canopy" => 0.06,
-           "undergrowth" => 0.45,
-           "leafHue" => 4,
-           "leafValue" => 0.10,
-           "formation" => %{
-             "lattice" => 3,
-             "spacing" => 6,
-             "understory" => 0.45,
+             "understory" => 0.5,
              "understoryTile" => "tall_grass"
            },
-           "trees" => [
-             %{"kind" => "tree_round", "weight" => 60},
-             %{"kind" => "bush_round", "weight" => 40}
-           ]
-         },
-         %{
-           "key" => "windthrow",
-           "name" => "Windthrow",
-           "weight" => 2,
-           "canopy" => 0.22,
-           "undergrowth" => 0.95,
-           "leafHue" => 2,
-           "leafValue" => 0.05,
-           "formation" => %{
-             "lattice" => 5,
-             "spacing" => 4,
-             "understory" => 0.90,
-             "understoryTile" => "shrub"
-           },
-           "trees" => [
-             %{"kind" => "tree_stub", "weight" => 55},
-             %{"kind" => "tree_sapling", "weight" => 45}
-           ]
-         },
-         %{
-           "key" => "streamside",
-           "name" => "Streamside",
-           "weight" => 2,
-           "canopy" => 0.80,
-           "undergrowth" => 1.05,
+           "key" => "oasis",
            "leafHue" => -5,
-           "leafValue" => 0.02,
-           "pools" => 0.08,
-           "formation" => %{
-             "lattice" => 6,
-             "spacing" => 3,
-             "understory" => 1.00,
-             "understoryTile" => "tall_grass"
-           },
+           "leafValue" => -0.05,
+           "name" => "Oasis",
+           "pools" => 0.22,
            "trees" => [
-             %{"kind" => "tree_willow", "weight" => 45},
-             %{"kind" => "tree_broadleaf", "weight" => 35},
-             %{"kind" => "bush_round", "weight" => 20}
-           ]
+             %{"kind" => "tree_palm", "weight" => 38},
+             %{"kind" => "tree_coconut", "weight" => 26},
+             %{"kind" => "tree_encina", "weight" => 18},
+             %{"kind" => "cactus_prickly", "weight" => 12},
+             %{"kind" => "bush_round", "weight" => 10}
+           ],
+           "undergrowth" => 0.5,
+           "weight" => 1
          }
        ]},
     # THE STRATA OF A RAINFOREST, told apart by what happens at knee height (§3.5). `thicket` is the jungle's
@@ -818,100 +949,550 @@ defmodule Nebulith.Catalog.GeneratorSource do
       {"scatter",
        [
          %{
-           "key" => "emergent",
-           "name" => "Emergents",
-           "weight" => 3,
-           "canopy" => 1.30,
-           "undergrowth" => 0.20,
-           "leafHue" => -4,
-           "leafValue" => -0.10,
+           "canopy" => 1.3,
            "formation" => %{
              "lattice" => 14,
              "spacing" => 0,
-             "understory" => 0.20,
+             "understory" => 0.2,
              "understoryTile" => "clover"
            },
+           "key" => "emergent",
+           "leafHue" => -4,
+           "leafValue" => -0.1,
+           "name" => "Emergents",
            "trees" => [
              %{"kind" => "tree_giant", "weight" => 45},
              %{"kind" => "tree_big", "weight" => 35},
              %{"kind" => "tree_round", "weight" => 20}
-           ]
+           ],
+           "undergrowth" => 0.2,
+           "weight" => 3
          },
          %{
-           "key" => "understory",
-           "name" => "Understory",
-           "weight" => 3,
            "canopy" => 0.15,
-           "undergrowth" => 2.00,
-           "leafHue" => -2,
-           "leafValue" => -0.04,
            "formation" => %{
              "lattice" => 7,
              "spacing" => 2,
-             "understory" => 2.00,
+             "understory" => 2.0,
              "understoryTile" => "thicket"
            },
+           "key" => "understory",
+           "leafHue" => -2,
+           "leafValue" => -0.04,
+           "name" => "Understory",
            "trees" => [
              %{"kind" => "bush", "weight" => 60},
              %{"kind" => "bush_round", "weight" => 40}
-           ]
+           ],
+           "undergrowth" => 2.0,
+           "weight" => 3
          },
          %{
-           "key" => "light_gap",
-           "name" => "Light gap",
-           "weight" => 2,
-           "canopy" => 0.10,
-           "undergrowth" => 1.30,
-           "leafHue" => 5,
-           "leafValue" => 0.12,
+           "canopy" => 0.1,
            "formation" => %{
              "lattice" => 4,
              "spacing" => 4,
              "understory" => 1.25,
              "understoryTile" => "tall_grass"
            },
+           "key" => "light_gap",
+           "leafHue" => 5,
+           "leafValue" => 0.12,
+           "name" => "Light gap",
            "trees" => [
              %{"kind" => "tree_sapling", "weight" => 50},
              %{"kind" => "bush_round", "weight" => 30},
              %{"kind" => "tree_palm", "weight" => 20}
-           ]
+           ],
+           "undergrowth" => 1.3,
+           "weight" => 2
          },
          %{
-           "key" => "varzea",
-           "name" => "Flooded forest",
-           "weight" => 2,
-           "canopy" => 0.90,
-           "undergrowth" => 0.80,
-           "leafHue" => -6,
-           "leafValue" => 0.00,
-           "pools" => 0.34,
+           "canopy" => 0.9,
            "formation" => %{
              "lattice" => 6,
              "spacing" => 4,
              "understory" => 0.75,
              "understoryTile" => "thicket"
            },
+           "key" => "varzea",
+           "leafHue" => -6,
+           "leafValue" => 0.0,
+           "name" => "Flooded forest",
+           "pools" => 0.34,
            "trees" => [
              %{"kind" => "tree_big", "weight" => 45},
              %{"kind" => "tree_round", "weight" => 35},
              %{"kind" => "bush_round", "weight" => 20}
-           ]
+           ],
+           "undergrowth" => 0.8,
+           "weight" => 2
          },
          %{
-           "key" => "bamboo",
-           "name" => "Bamboo stand",
-           "weight" => 2,
            "canopy" => 0.55,
-           "undergrowth" => 0.50,
-           "leafHue" => 3,
-           "leafValue" => 0.06,
            "formation" => %{
              "lattice" => 10,
              "spacing" => 0,
              "understory" => 0.45,
              "understoryTile" => "clover"
            },
-           "trees" => [%{"kind" => "tree_column", "weight" => 100}]
+           "key" => "bamboo",
+           "leafHue" => 3,
+           "leafValue" => 0.06,
+           "name" => "Bamboo stand",
+           "trees" => [%{"kind" => "tree_column", "weight" => 100}],
+           "undergrowth" => 0.5,
+           "weight" => 2
+         }
+       ]},
+    "meadow" =>
+      {"scatter",
+       [
+         %{
+           "canopy" => 0.1,
+           "formation" => %{
+             "lattice" => 4,
+             "spacing" => 6,
+             "understory" => 0.95,
+             "understoryTile" => "tall_grass"
+           },
+           "key" => "pasture",
+           "leafHue" => 2,
+           "leafValue" => 0.05,
+           "name" => "Pasture",
+           "trees" => [
+             %{"kind" => "tree_big", "weight" => 45},
+             %{"kind" => "bush_round", "weight" => 35},
+             %{"kind" => "tree_round", "weight" => 20}
+           ],
+           "undergrowth" => 0.95,
+           "weight" => 4
+         },
+         %{
+           "canopy" => 0.6,
+           # SPACING 2, NOT THE 1 THIS REGION WAS TUNED TO. A spacing of 1 claims only the four
+           # orthogonal neighbours, which leaves a checkerboard that is passable diagonally and not
+           # orthogonally, and the floor then measures as hundreds of regions the repair has to cut
+           # through. The rest of the tuning (a denser lattice, more understory, shrub rather than
+           # thicket) stands; only the illegal value does not.
+           "formation" => %{
+             "lattice" => 11,
+             "spacing" => 0,
+             "understory" => 1.6,
+             "understoryTile" => "shrub"
+           },
+           "key" => "hedgerow",
+           "leafHue" => -3,
+           "leafValue" => -0.05,
+           "name" => "Hedgerow",
+           "trees" => [
+             %{"kind" => "tree_gnarled", "weight" => 40},
+             %{"kind" => "bush_round", "weight" => 35},
+             %{"kind" => "bush", "weight" => 25}
+           ],
+           "undergrowth" => 1.6,
+           "weight" => 3
+         },
+         %{
+           "canopy" => 0.9,
+           "formation" => %{
+             "lattice" => 7,
+             "spacing" => 4,
+             "understory" => 0.2,
+             "understoryTile" => "clover"
+           },
+           "key" => "orchard",
+           "leafHue" => 1,
+           "leafValue" => 0.02,
+           "name" => "Orchard",
+           "trees" => [
+             %{"kind" => "tree_cherry", "weight" => 60},
+             %{"kind" => "tree_round", "weight" => 25},
+             %{"kind" => "tree_big", "weight" => 15}
+           ],
+           "undergrowth" => 0.2,
+           "weight" => 2
+         },
+         %{
+           "canopy" => 0.5,
+           "formation" => %{
+             "lattice" => 6,
+             "spacing" => 2,
+             "understory" => 1.0,
+             "understoryTile" => "tall_grass"
+           },
+           "key" => "bank",
+           "leafHue" => -5,
+           "leafValue" => -0.02,
+           "name" => "River bank",
+           "pools" => 0.22,
+           "trees" => [
+             %{"kind" => "tree_willow", "weight" => 55},
+             %{"kind" => "tree_broadleaf", "weight" => 30},
+             %{"kind" => "bush", "weight" => 15}
+           ],
+           "undergrowth" => 1.0,
+           "weight" => 2
+         },
+         %{
+           "canopy" => 0.03,
+           "formation" => %{
+             "lattice" => 3,
+             "spacing" => 7,
+             "understory" => 0.15,
+             "understoryTile" => "clover"
+           },
+           "key" => "common",
+           "leafHue" => 3,
+           "leafValue" => 0.08,
+           "name" => "Open common",
+           "trees" => [
+             %{"kind" => "bush_round", "weight" => 60},
+             %{"kind" => "tree_sapling", "weight" => 40}
+           ],
+           "undergrowth" => 0.15,
+           "weight" => 3
+         }
+       ]},
+    "mountain" =>
+      {"bands",
+       [
+         %{
+           "canopy" => 1.1,
+           "floor" => "#5f6b4a",
+           "formation" => %{
+             "lattice" => 12,
+             "spacing" => 0,
+             "understory" => 1.0,
+             "understoryTile" => "shrub"
+           },
+           "key" => "foot",
+           "leafHue" => -3,
+           "leafValue" => -0.06,
+           "level" => 0,
+           "name" => "Mountain foot",
+           "trees" => [
+             %{"kind" => "tree_conifer", "weight" => 55},
+             %{"kind" => "tree_broadleaf", "weight" => 25},
+             %{"kind" => "tree_stub", "weight" => 20}
+           ],
+           "undergrowth" => 1.0,
+           "weight" => 4
+         },
+         %{
+           "canopy" => 0.85,
+           "floor" => "#6b6f55",
+           "formation" => %{
+             "lattice" => 9,
+             "spacing" => 2,
+             "understory" => 0.6,
+             "understoryTile" => "shrub"
+           },
+           "key" => "slope",
+           "leafHue" => -1,
+           "leafValue" => -0.02,
+           "level" => 1,
+           "name" => "Wooded slope",
+           "trees" => [
+             %{"kind" => "tree_conifer", "weight" => 70},
+             %{"kind" => "tree_tall", "weight" => 20},
+             %{"kind" => "tree_stub", "weight" => 10}
+           ],
+           "undergrowth" => 0.6,
+           "weight" => 3
+         },
+         %{
+           "canopy" => 0.45,
+           "floor" => "#7a7a68",
+           "ground" => "rock",
+           "formation" => %{
+             "lattice" => 6,
+             "spacing" => 5,
+             "understory" => 0.3,
+             "understoryTile" => "shrub"
+           },
+           "key" => "treeline",
+           "leafHue" => 1,
+           "leafValue" => 0.04,
+           "level" => 2,
+           "name" => "Treeline",
+           "trees" => [
+             %{"kind" => "tree_conifer", "weight" => 55},
+             %{"kind" => "tree_stub", "weight" => 45}
+           ],
+           "undergrowth" => 0.3,
+           "weight" => 3
+         },
+         %{
+           "canopy" => 0.1,
+           "floor" => "#8b8b84",
+           "ground" => "cliff",
+           "formation" => %{
+             "lattice" => 4,
+             "spacing" => 7,
+             "understory" => 0.2,
+             "understoryTile" => "clover"
+           },
+           "key" => "crag",
+           "leafHue" => 3,
+           "leafValue" => 0.08,
+           "level" => 3,
+           "name" => "Crag",
+           "trees" => [
+             %{"kind" => "tree_stub", "weight" => 60},
+             %{"kind" => "tree_sapling", "weight" => 40}
+           ],
+           "undergrowth" => 0.2,
+           "weight" => 2
+         },
+         %{
+           "canopy" => 0.05,
+           "floor" => "#b9bcc2",
+           "ground" => "snow",
+           "formation" => %{
+             "lattice" => 3,
+             "spacing" => 8,
+             "understory" => 0.16,
+             "understoryTile" => "clover"
+           },
+           "key" => "summit",
+           "leafHue" => 5,
+           "leafValue" => 0.1,
+           "level" => 4,
+           "name" => "Summit",
+           "trees" => [%{"kind" => "tree_sapling", "weight" => 100}],
+           "undergrowth" => 0.16,
+           "weight" => 1
+         }
+       ]},
+    "ruins" =>
+      {"rings",
+       [
+         %{
+           "canopy" => 0.08,
+           "floor" => "#7a7a6a",
+           "formation" => %{
+             "lattice" => 4,
+             "spacing" => 7,
+             "understory" => 0.2,
+             "understoryTile" => "clover"
+           },
+           "key" => "heart",
+           "leafHue" => 3,
+           "leafValue" => 0.09,
+           "level" => 1,
+           "name" => "The ruin itself",
+           "stone" => 0.62,
+           "trees" => [
+             %{"kind" => "tree_stub", "weight" => 60},
+             %{"kind" => "tree_sapling", "weight" => 40}
+           ],
+           "undergrowth" => 0.2,
+           "weight" => 1
+         },
+         %{
+           "canopy" => 0.2,
+           "floor" => "#6f7360",
+           "formation" => %{
+             "lattice" => 6,
+             "spacing" => 5,
+             "understory" => 0.5,
+             "understoryTile" => "clover"
+           },
+           "key" => "courts",
+           "leafHue" => 2,
+           "leafValue" => 0.06,
+           "name" => "Fallen courts",
+           "stone" => 0.26,
+           "trees" => [
+             %{"kind" => "tree_stub", "weight" => 40},
+             %{"kind" => "tree_round", "weight" => 30},
+             %{"kind" => "bush_round", "weight" => 30}
+           ],
+           "undergrowth" => 0.5,
+           "weight" => 2
+         },
+         %{
+           "canopy" => 0.5,
+           "floor" => "#666d52",
+           "formation" => %{
+             "lattice" => 8,
+             "spacing" => 3,
+             "understory" => 0.8,
+             "understoryTile" => "tall_grass"
+           },
+           "key" => "terraces",
+           "leafHue" => 0,
+           "leafValue" => 0.01,
+           "name" => "Terraces",
+           "stone" => 0.24,
+           "trees" => [
+             %{"kind" => "tree_round", "weight" => 40},
+             %{"kind" => "bush", "weight" => 35},
+             %{"kind" => "tree_sapling", "weight" => 25}
+           ],
+           "undergrowth" => 0.8,
+           "weight" => 3
+         },
+         %{
+           "canopy" => 1.0,
+           "floor" => "#5c6746",
+           "formation" => %{
+             "lattice" => 11,
+             "spacing" => 0,
+             "understory" => 1.4,
+             "understoryTile" => "shrub"
+           },
+           "key" => "overgrown",
+           "leafHue" => -3,
+           "leafValue" => -0.05,
+           "name" => "Overgrown walls",
+           "stone" => 0.1,
+           "trees" => [
+             %{"kind" => "tree_round", "weight" => 30},
+             %{"kind" => "bush", "weight" => 30},
+             %{"kind" => "tree_stub", "weight" => 20},
+             %{"kind" => "tree_sapling", "weight" => 20}
+           ],
+           "undergrowth" => 1.4,
+           "weight" => 3
+         },
+         %{
+           "canopy" => 1.2,
+           "floor" => "#4f5c3c",
+           "formation" => %{
+             "lattice" => 12,
+             "spacing" => 0,
+             "understory" => 0.9,
+             "understoryTile" => "shrub"
+           },
+           "key" => "forest",
+           "leafHue" => -4,
+           "leafValue" => -0.08,
+           "name" => "Forest around it",
+           "stone" => 0.16,
+           "trees" => [
+             %{"kind" => "tree_stub", "weight" => 40},
+             %{"kind" => "tree_round", "weight" => 30},
+             %{"kind" => "bush_round", "weight" => 30}
+           ],
+           "undergrowth" => 0.9,
+           "weight" => 3
+         }
+       ]},
+    "swamp" =>
+      {"bands",
+       [
+         %{
+           "canopy" => 0.9,
+           "floor" => "#4a5638",
+           "formation" => %{
+             "lattice" => 8,
+             "spacing" => 3,
+             "understory" => 0.9,
+             "understoryTile" => "shrub"
+           },
+           "key" => "margin",
+           "leafHue" => 2,
+           "leafValue" => 0.04,
+           "name" => "Drying margin",
+           "pools" => 0.02,
+           "trees" => [
+             %{"kind" => "tree_cypress", "weight" => 40},
+             %{"kind" => "tree_mangrove", "weight" => 30},
+             %{"kind" => "bush_round", "weight" => 30}
+           ],
+           "undergrowth" => 0.9,
+           "weight" => 3
+         },
+         %{
+           "canopy" => 0.85,
+           "floor" => "#414d33",
+           "formation" => %{
+             "lattice" => 7,
+             "spacing" => 2,
+             "understory" => 1.3,
+             "understoryTile" => "tall_grass"
+           },
+           "key" => "mire",
+           "leafHue" => -1,
+           "leafValue" => -0.01,
+           "name" => "Mire",
+           "pools" => 0.14,
+           "trees" => [
+             %{"kind" => "tree_cypress", "weight" => 35},
+             %{"kind" => "tree_giant", "weight" => 25},
+             %{"kind" => "bush", "weight" => 25},
+             %{"kind" => "tree_round", "weight" => 15}
+           ],
+           "undergrowth" => 1.3,
+           "weight" => 3
+         },
+         %{
+           "canopy" => 0.7,
+           "floor" => "#39442c",
+           "formation" => %{
+             "lattice" => 6,
+             "spacing" => 2,
+             "understory" => 0.8,
+             "understoryTile" => "tall_grass"
+           },
+           "key" => "bog",
+           "leafHue" => -4,
+           "leafValue" => -0.06,
+           "name" => "Bog",
+           "pools" => 0.3,
+           "trees" => [
+             %{"kind" => "tree_cypress", "weight" => 55},
+             %{"kind" => "tree_mangrove", "weight" => 25},
+             %{"kind" => "bush_round", "weight" => 20}
+           ],
+           "undergrowth" => 0.8,
+           "weight" => 3
+         },
+         %{
+           "canopy" => 0.35,
+           "floor" => "#333d28",
+           "formation" => %{
+             "lattice" => 5,
+             "spacing" => 4,
+             "understory" => 0.3,
+             "understoryTile" => "tall_grass"
+           },
+           "key" => "sink",
+           "leafHue" => -6,
+           "leafValue" => -0.09,
+           "name" => "Sink",
+           "pools" => 0.5,
+           "trees" => [
+             %{"kind" => "tree_cypress", "weight" => 60},
+             %{"kind" => "tree_mangrove", "weight" => 25},
+             %{"kind" => "bush_round", "weight" => 15}
+           ],
+           "undergrowth" => 0.3,
+           "weight" => 2
+         },
+         %{
+           "canopy" => 0.08,
+           "floor" => "#2d3624",
+           "formation" => %{
+             "lattice" => 4,
+             "spacing" => 6,
+             "understory" => 0.2,
+             "understoryTile" => "tall_grass"
+           },
+           "key" => "open_water",
+           "leafHue" => -8,
+           "leafValue" => -0.1,
+           "name" => "Open water",
+           "pools" => 0.78,
+           "trees" => [
+             %{"kind" => "tree_cypress", "weight" => 70},
+             %{"kind" => "tree_mangrove", "weight" => 20},
+             %{"kind" => "bush_round", "weight" => 10}
+           ],
+           "undergrowth" => 0.2,
+           "weight" => 1
          }
        ]},
     # THE CONE, AND HOW FAR THE BURN REACHED. Authored in REGIONS.md §4 on 2026-09-17 and never served: this
@@ -920,715 +1501,233 @@ defmodule Nebulith.Catalog.GeneratorSource do
       {"rings",
        [
          %{
-           "key" => "crater",
-           "name" => "Crater",
-           "weight" => 2,
-           "canopy" => 0.02,
-           "undergrowth" => 0.06,
-           "leafHue" => 0,
-           "leafValue" => -0.10,
-           "level" => 3,
-           "stone" => 0.18,
+           "canopy" => 0.06,
            "formation" => %{
              "lattice" => 3,
              "spacing" => 8,
-             "understory" => 0.05,
+             "understory" => 0.18,
              "understoryTile" => "clover"
            },
-           "trees" => [%{"kind" => "tree_stub", "weight" => 100}]
-         },
-         %{
-           "key" => "burnt",
-           "name" => "Burnt ground",
-           "weight" => 3,
-           "canopy" => 0.30,
-           "undergrowth" => 0.12,
-           "leafHue" => -2,
-           "leafValue" => -0.08,
-           "level" => 2,
-           "formation" => %{
-             "lattice" => 6,
-             "spacing" => 5,
-             "understory" => 0.10,
-             "understoryTile" => "shrub"
-           },
-           "trees" => [
-             %{"kind" => "tree_stub", "weight" => 80},
-             %{"kind" => "tree_sapling", "weight" => 20}
-           ]
-         },
-         %{
-           "key" => "ashfall",
-           "name" => "Ashfall",
-           "weight" => 3,
-           "canopy" => 0.60,
-           "undergrowth" => 0.45,
-           "leafHue" => -1,
-           "leafValue" => -0.04,
-           "level" => 1,
-           "formation" => %{
-             "lattice" => 8,
-             "spacing" => 3,
-             "understory" => 0.45,
-             "understoryTile" => "shrub"
-           },
-           "trees" => [
-             %{"kind" => "tree_conifer", "weight" => 55},
-             %{"kind" => "tree_stub", "weight" => 45}
-           ]
-         },
-         %{
-           "key" => "sheltered",
-           "name" => "Sheltered wood",
-           "weight" => 3,
-           "canopy" => 1.05,
-           "undergrowth" => 0.85,
-           "leafHue" => 2,
-           "leafValue" => 0.04,
-           "formation" => %{
-             "lattice" => 11,
-             "spacing" => 0,
-             "understory" => 0.85,
-             "understoryTile" => "shrub"
-           },
-           "trees" => [
-             %{"kind" => "tree_conifer", "weight" => 60},
-             %{"kind" => "tree_tall", "weight" => 40}
-           ]
-         },
-         %{
-           "key" => "lavaside",
-           "name" => "Lava side",
-           "weight" => 2,
-           "canopy" => 0.20,
-           "undergrowth" => 0.20,
-           "leafHue" => 4,
-           "leafValue" => 0.08,
-           "pools" => 0.24,
-           "formation" => %{
-             "lattice" => 4,
-             "spacing" => 6,
-             "understory" => 0.20,
-             "understoryTile" => "shrub"
-           },
+           "key" => "crater",
+           "ground" => "obsidian",
+           "leafHue" => 0,
+           "leafValue" => -0.1,
+           "level" => 3,
+           "name" => "Crater",
+           "stone" => 0.22,
+           # THE CONE IS BARE, and what still stands on it is dead. A snag and one charred pine, because
+           # the reference shows the upper cone stripped rather than wooded.
            "trees" => [
              %{"kind" => "tree_stub", "weight" => 70},
-             %{"kind" => "tree_sapling", "weight" => 30}
-           ]
-         }
-       ]},
-    "mountain" =>
-      {"bands",
-       [
-         %{
-           "key" => "foot",
-           "name" => "Mountain foot",
-           "weight" => 4,
-           "canopy" => 1.10,
-           "undergrowth" => 1.00,
-           "leafHue" => -3,
-           "leafValue" => -0.06,
-           "level" => 0,
-           "formation" => %{
-             "lattice" => 11,
-             "spacing" => 0,
-             "understory" => 1.00,
-             "understoryTile" => "thicket"
-           },
-           "trees" => [
-             %{"kind" => "tree_conifer", "weight" => 55},
-             %{"kind" => "tree_broadleaf", "weight" => 25},
-             %{"kind" => "tree_stub", "weight" => 20}
-           ]
+             %{"kind" => "tree_burned_pine", "weight" => 30}
+           ],
+           "undergrowth" => 0.18,
+           "weight" => 2
          },
          %{
-           "key" => "slope",
-           "name" => "Wooded slope",
-           "weight" => 3,
-           "canopy" => 0.85,
-           "undergrowth" => 0.70,
-           "leafHue" => -1,
-           "leafValue" => -0.02,
-           "level" => 1,
-           "formation" => %{
-             "lattice" => 9,
-             "spacing" => 2,
-             "understory" => 0.70,
-             "understoryTile" => "shrub"
-           },
-           "trees" => [
-             %{"kind" => "tree_conifer", "weight" => 70},
-             %{"kind" => "tree_tall", "weight" => 20},
-             %{"kind" => "tree_stub", "weight" => 10}
-           ]
-         },
-         %{
-           "key" => "treeline",
-           "name" => "Treeline",
-           "weight" => 3,
-           "canopy" => 0.45,
-           "undergrowth" => 0.35,
-           "leafHue" => 1,
-           "leafValue" => 0.04,
-           "level" => 2,
-           "formation" => %{
-             "lattice" => 7,
-             "spacing" => 3,
-             "understory" => 0.35,
-             "understoryTile" => "shrub"
-           },
-           "trees" => [
-             %{"kind" => "tree_conifer", "weight" => 55},
-             %{"kind" => "tree_stub", "weight" => 45}
-           ]
-         },
-         %{
-           "key" => "crag",
-           "name" => "Crag",
-           "weight" => 2,
-           "canopy" => 0.12,
-           "undergrowth" => 0.10,
-           "leafHue" => 3,
-           "leafValue" => 0.08,
-           "level" => 3,
-           "formation" => %{
-             "lattice" => 4,
-             "spacing" => 5,
-             "understory" => 0.12,
-             "understoryTile" => "shrub"
-           },
-           "trees" => [
-             %{"kind" => "tree_stub", "weight" => 60},
-             %{"kind" => "tree_sapling", "weight" => 40}
-           ]
-         },
-         %{
-           "key" => "summit",
-           "name" => "Summit",
-           "weight" => 1,
-           "canopy" => 0.02,
-           "undergrowth" => 0.04,
-           "leafHue" => 5,
-           "leafValue" => 0.10,
-           "level" => 4,
-           "formation" => %{
-             "lattice" => 3,
-             "spacing" => 6,
-             "understory" => 0.05,
-             "understoryTile" => "shrub"
-           },
-           "trees" => [%{"kind" => "tree_sapling", "weight" => 100}]
-         }
-       ]},
-    "beach" =>
-      {"bands",
-       [
-         %{
-           "key" => "shore",
-           "name" => "Shore",
-           "weight" => 3,
-           "canopy" => 0.05,
-           "undergrowth" => 0.50,
-           "leafHue" => 6,
-           "leafValue" => 0.10,
-           "formation" => %{
-             "lattice" => 4,
-             "spacing" => 5,
-             "understory" => 0.50,
-             "understoryTile" => "dune_grass_young"
-           },
-           "trees" => [
-             %{"kind" => "tree_mangrove", "weight" => 55},
-             %{"kind" => "bush_round", "weight" => 45}
-           ]
-         },
-         %{
-           "key" => "dunes",
-           "name" => "Dunes",
-           "weight" => 3,
-           "canopy" => 0.18,
-           "undergrowth" => 0.90,
-           "leafHue" => 4,
-           "leafValue" => 0.08,
+           "canopy" => 0.4,
            "formation" => %{
              "lattice" => 6,
              "spacing" => 4,
-             "understory" => 0.90,
-             "understoryTile" => "dune_grass"
-           },
-           "trees" => [
-             %{"kind" => "tree_palm", "weight" => 40},
-             %{"kind" => "tree_coconut", "weight" => 30},
-             %{"kind" => "bush_round", "weight" => 30}
-           ]
-         },
-         %{
-           "key" => "palms",
-           "name" => "Palm line",
-           "weight" => 3,
-           "canopy" => 0.60,
-           "undergrowth" => 0.70,
-           "leafHue" => 1,
-           "leafValue" => 0.03,
-           "formation" => %{
-             "lattice" => 9,
-             "spacing" => 2,
-             "understory" => 0.70,
-             "understoryTile" => "dune_grass_seed"
-           },
-           "trees" => [
-             %{"kind" => "tree_coconut", "weight" => 40},
-             %{"kind" => "tree_palm", "weight" => 35},
-             %{"kind" => "tree_banana", "weight" => 25}
-           ]
-         },
-         %{
-           "key" => "backshore",
-           "name" => "Backshore",
-           "weight" => 3,
-           "canopy" => 0.95,
-           "undergrowth" => 1.00,
-           "leafHue" => -2,
-           "leafValue" => -0.04,
-           "formation" => %{
-             "lattice" => 12,
-             "spacing" => 0,
-             "understory" => 1.00,
-             "understoryTile" => "thicket"
-           },
-           "trees" => [
-             %{"kind" => "tree_banana", "weight" => 35},
-             %{"kind" => "tree_mangrove", "weight" => 30},
-             %{"kind" => "tree_coconut", "weight" => 20},
-             %{"kind" => "tree_palm", "weight" => 15}
-           ]
-         },
-         %{
-           "key" => "inland",
-           "name" => "Inland jungle",
-           "weight" => 2,
-           "canopy" => 1.20,
-           "undergrowth" => 1.20,
-           "leafHue" => -4,
-           "leafValue" => -0.08,
-           "formation" => %{
-             "lattice" => 13,
-             "spacing" => 0,
-             "understory" => 1.20,
-             "understoryTile" => "thicket"
-           },
-           "trees" => [
-             %{"kind" => "tree_mangrove", "weight" => 35},
-             %{"kind" => "tree_banana", "weight" => 30},
-             %{"kind" => "tree_mangrove", "weight" => 20},
-             %{"kind" => "bush", "weight" => 15}
-           ]
-         }
-       ]},
-    "swamp" =>
-      {"bands",
-       [
-         %{
-           "key" => "margin",
-           "name" => "Drying margin",
-           "weight" => 3,
-           "canopy" => 0.90,
-           "undergrowth" => 0.90,
-           "leafHue" => 2,
-           "leafValue" => 0.04,
-           "pools" => 0.02,
-           "formation" => %{
-             "lattice" => 10,
-             "spacing" => 2,
-             "understory" => 0.90,
-             "understoryTile" => "dead_grass"
-           },
-           "trees" => [
-             %{"kind" => "tree_willow", "weight" => 40},
-             %{"kind" => "tree_cypress", "weight" => 25},
-             %{"kind" => "tree_broadleaf", "weight" => 20},
-             %{"kind" => "tree_stub", "weight" => 15}
-           ]
-         },
-         %{
-           "key" => "mire",
-           "name" => "Mire",
-           "weight" => 3,
-           "canopy" => 0.85,
-           "undergrowth" => 1.10,
-           "leafHue" => -1,
-           "leafValue" => -0.01,
-           "pools" => 0.14,
-           "formation" => %{
-             "lattice" => 11,
-             "spacing" => 0,
-             "understory" => 1.10,
-             "understoryTile" => "thicket"
-           },
-           "trees" => [
-             %{"kind" => "tree_willow", "weight" => 45},
-             %{"kind" => "tree_cypress", "weight" => 30},
-             %{"kind" => "bush", "weight" => 25}
-           ]
-         },
-         %{
-           "key" => "bog",
-           "name" => "Bog",
-           "weight" => 3,
-           "canopy" => 0.70,
-           "undergrowth" => 1.20,
-           "leafHue" => -4,
-           "leafValue" => -0.06,
-           "pools" => 0.30,
-           "formation" => %{
-             "lattice" => 12,
-             "spacing" => 2,
-             "understory" => 1.20,
-             "understoryTile" => "tall_grass"
-           },
-           "trees" => [
-             %{"kind" => "tree_cypress", "weight" => 50},
-             %{"kind" => "tree_willow", "weight" => 30},
-             %{"kind" => "tree_mangrove", "weight" => 20}
-           ]
-         },
-         %{
-           "key" => "sink",
-           "name" => "Sink",
-           "weight" => 2,
-           "canopy" => 0.50,
-           "undergrowth" => 0.80,
-           "leafHue" => -6,
-           "leafValue" => -0.09,
-           "pools" => 0.50,
-           "formation" => %{
-             "lattice" => 9,
-             "spacing" => 3,
-             "understory" => 0.80,
-             "understoryTile" => "moss"
-           },
-           "trees" => [
-             %{"kind" => "tree_cypress", "weight" => 45},
-             %{"kind" => "tree_mangrove", "weight" => 45},
-             %{"kind" => "tree_sapling", "weight" => 10}
-           ]
-         },
-         %{
-           "key" => "open_water",
-           "name" => "Open water",
-           "weight" => 1,
-           "canopy" => 0.15,
-           "undergrowth" => 0.25,
-           "leafHue" => -8,
-           "leafValue" => -0.10,
-           "pools" => 0.78,
-           "formation" => %{
-             "lattice" => 5,
-             "spacing" => 5,
-             "understory" => 0.25,
-             "understoryTile" => "seaweed"
-           },
-           "trees" => [
-             %{"kind" => "tree_mangrove", "weight" => 70},
-             %{"kind" => "tree_cypress", "weight" => 30}
-           ]
-         }
-       ]},
-    "ruins" =>
-      {"rings",
-       [
-         %{
-           "key" => "heart",
-           "name" => "The ruin itself",
-           "weight" => 1,
-           "canopy" => 0.08,
-           "undergrowth" => 0.15,
-           "leafHue" => 3,
-           "leafValue" => 0.09,
-           "stone" => 0.60,
-           "formation" => %{
-             "lattice" => 3,
-             "spacing" => 6,
              "understory" => 0.15,
              "understoryTile" => "shrub"
            },
-           "trees" => [%{"kind" => "tree_sapling", "weight" => 100}]
-         },
-         %{
-           "key" => "courts",
-           "name" => "Fallen courts",
-           "weight" => 2,
-           "canopy" => 0.25,
-           "undergrowth" => 0.35,
-           "leafHue" => 2,
-           "leafValue" => 0.06,
-           "stone" => 0.42,
-           "formation" => %{
-             "lattice" => 5,
-             "spacing" => 4,
-             "understory" => 0.35,
-             "understoryTile" => "shrub"
-           },
+           "key" => "burnt",
+           "ground" => "ash",
+           "leafHue" => -2,
+           "leafValue" => -0.08,
+           "level" => 2,
+           "name" => "Burnt ground",
+           # THE REGION IS CALLED BURNT AND IT GROWS BURNED WOOD. It stood at snags and saplings because
+           # the four `tree_burned_*` species it wants were named by a data migration and built by nobody:
+           # measured, the string appeared twice in `lib/nebulith/data_migrations` and zero times in the
+           # catalog, so the mix asked for species that resolve to nothing and placed nothing. They exist
+           # now (`TileSource` `@burned_species`), so the burn gets its own wood back.
+           #
+           # The proportions are the ones the volcanic mix was authored with: pine, then birch, then oak,
+           # then encina. The sapling stays: something is always coming back after a burn.
            "trees" => [
-             %{"kind" => "tree_stub", "weight" => 50},
-             %{"kind" => "tree_sapling", "weight" => 30},
-             %{"kind" => "bush", "weight" => 20}
-           ]
+             %{"kind" => "tree_burned_pine", "weight" => 30},
+             %{"kind" => "tree_burned_birch", "weight" => 22},
+             %{"kind" => "tree_burned_oak", "weight" => 20},
+             %{"kind" => "tree_burned_encina", "weight" => 13},
+             %{"kind" => "tree_stub", "weight" => 10},
+             %{"kind" => "tree_sapling", "weight" => 5}
+           ],
+           "undergrowth" => 0.15,
+           "weight" => 3
          },
          %{
-           "key" => "terraces",
-           "name" => "Terraces",
-           "weight" => 3,
-           "canopy" => 0.55,
-           "undergrowth" => 0.60,
-           "leafHue" => 0,
-           "leafValue" => 0.01,
-           "stone" => 0.24,
+           "canopy" => 0.7,
            "formation" => %{
              "lattice" => 8,
-             "spacing" => 2,
-             "understory" => 0.60,
-             "understoryTile" => "thicket"
-           },
-           "trees" => [
-             %{"kind" => "tree_oak", "weight" => 35},
-             %{"kind" => "tree_stub", "weight" => 30},
-             %{"kind" => "tree_broadleaf", "weight" => 20},
-             %{"kind" => "bush", "weight" => 15}
-           ]
-         },
-         %{
-           "key" => "overgrown",
-           "name" => "Overgrown walls",
-           "weight" => 3,
-           "canopy" => 0.95,
-           "undergrowth" => 1.15,
-           "leafHue" => -3,
-           "leafValue" => -0.05,
-           "stone" => 0.10,
-           "formation" => %{
-             "lattice" => 11,
-             "spacing" => 0,
-             "understory" => 1.15,
-             "understoryTile" => "thicket"
-           },
-           "trees" => [
-             %{"kind" => "tree_oak", "weight" => 30},
-             %{"kind" => "tree_broadleaf", "weight" => 25},
-             %{"kind" => "tree_gnarled", "weight" => 20},
-             %{"kind" => "bush", "weight" => 25}
-           ]
-         },
-         %{
-           "key" => "forest",
-           "name" => "Forest around it",
-           "weight" => 3,
-           "canopy" => 1.15,
-           "undergrowth" => 1.00,
-           "leafHue" => -4,
-           "leafValue" => -0.08,
-           "formation" => %{
-             "lattice" => 13,
-             "spacing" => 0,
-             "understory" => 1.00,
-             "understoryTile" => "thicket"
-           },
-           "trees" => [
-             %{"kind" => "tree_oak", "weight" => 30},
-             %{"kind" => "tree_tall", "weight" => 25},
-             %{"kind" => "tree_broadleaf", "weight" => 25},
-             %{"kind" => "tree_column", "weight" => 20}
-           ]
-         }
-       ]},
-    "desert" =>
-      {"bands",
-       [
-         %{
-           "key" => "erg",
-           "name" => "Dune sea",
-           "weight" => 4,
-           "canopy" => 0.02,
-           "undergrowth" => 0.06,
-           "leafHue" => 4,
-           "leafValue" => 0.10,
-           "formation" => %{
-             "lattice" => 3,
-             "spacing" => 7,
-             "understory" => 0.06,
-             "understoryTile" => "shrub"
-           },
-           "trees" => [
-             %{"kind" => "cactus_barrel", "weight" => 50},
-             %{"kind" => "cactus_saguaro_young", "weight" => 50}
-           ]
-         },
-         %{
-           "key" => "hardpan",
-           "name" => "Hardpan",
-           "weight" => 3,
-           "canopy" => 0.06,
-           "undergrowth" => 0.12,
-           "leafHue" => 2,
-           "leafValue" => 0.07,
-           "formation" => %{
-             "lattice" => 5,
-             "spacing" => 5,
-             "understory" => 0.12,
-             "understoryTile" => "shrub"
-           },
-           "trees" => [
-             %{"kind" => "cactus_saguaro_young", "weight" => 30},
-             %{"kind" => "cactus_prickly", "weight" => 30},
-             %{"kind" => "tree_gnarled", "weight" => 20},
-             %{"kind" => "tree_stub", "weight" => 20}
-           ]
-         },
-         %{
-           "key" => "wadi",
-           "name" => "Wadi",
-           "weight" => 2,
-           "canopy" => 0.20,
-           "undergrowth" => 0.40,
-           "leafHue" => -1,
-           "leafValue" => 0.00,
-           "formation" => %{
-             "lattice" => 7,
              "spacing" => 3,
-             "understory" => 0.40,
+             "understory" => 0.5,
              "understoryTile" => "shrub"
            },
+           "key" => "ashfall",
+           "ground" => "ash",
+           "leafHue" => -1,
+           "leafValue" => -0.04,
+           "level" => 1,
+           "name" => "Ashfall",
+           # THE EDGE OF THE BURN, so it is mixed: living conifers that survived, and charred ones that
+           # did not. A hard line between a burned wood and a living one is what a ring of ash does not
+           # look like.
            "trees" => [
-             %{"kind" => "tree_gnarled", "weight" => 35},
-             %{"kind" => "tree_encina", "weight" => 25},
-             %{"kind" => "cactus_saguaro", "weight" => 20},
-             %{"kind" => "tree_stub", "weight" => 20}
-           ]
+             %{"kind" => "tree_conifer", "weight" => 45},
+             %{"kind" => "tree_stub", "weight" => 25},
+             %{"kind" => "tree_burned_pine", "weight" => 20},
+             %{"kind" => "tree_burned_birch", "weight" => 10}
+           ],
+           "undergrowth" => 0.5,
+           "weight" => 3
          },
          %{
-           "key" => "oasis",
-           "name" => "Oasis",
-           "weight" => 1,
-           "canopy" => 0.75,
-           "undergrowth" => 0.80,
-           "leafHue" => -5,
-           "leafValue" => -0.05,
-           "pools" => 0.18,
+           "canopy" => 1.2,
            "formation" => %{
-             "lattice" => 10,
-             "spacing" => 2,
-             "understory" => 0.80,
-             "understoryTile" => "thicket"
+             "lattice" => 12,
+             "spacing" => 0,
+             "understory" => 1.0,
+             "understoryTile" => "shrub"
            },
+           "key" => "sheltered",
+           "ground" => "volcanic_rock",
+           "leafHue" => 2,
+           "leafValue" => 0.04,
+           "name" => "Sheltered wood",
            "trees" => [
-             %{"kind" => "tree_palm", "weight" => 60},
-             %{"kind" => "tree_encina", "weight" => 25},
-             %{"kind" => "bush", "weight" => 15}
-           ]
+             %{"kind" => "tree_conifer", "weight" => 60},
+             %{"kind" => "tree_tall", "weight" => 40}
+           ],
+           "undergrowth" => 1.0,
+           "weight" => 3
+         },
+         %{
+           "canopy" => 0.5,
+           "formation" => %{
+             "lattice" => 6,
+             "spacing" => 4,
+             "understory" => 0.3,
+             "understoryTile" => "shrub"
+           },
+           "key" => "lavaside",
+           "ground" => "basalt",
+           "leafHue" => 4,
+           "leafValue" => 0.08,
+           "name" => "Lava side",
+           "pools" => 0.21,
+           "trees" => [
+             %{"kind" => "tree_stub", "weight" => 70},
+             %{"kind" => "tree_sapling", "weight" => 30}
+           ],
+           "undergrowth" => 0.3,
+           "weight" => 2
          }
        ]},
-    "meadow" =>
+    # THE PARTS OF A WORKING WOOD, not four descriptions of density plus one that names water and has none.
+    # REGIONS.md §4. `streamside` carries the wood's water, so the one region named for it has it.
+    "woodland" =>
       {"scatter",
        [
          %{
-           "key" => "pasture",
-           "name" => "Pasture",
-           "weight" => 4,
-           "canopy" => 0.12,
-           "undergrowth" => 0.30,
-           "leafHue" => 2,
-           "leafValue" => 0.05,
+           "canopy" => 1.15,
            "formation" => %{
-             "lattice" => 4,
-             "spacing" => 5,
-             "understory" => 0.30,
-             "understoryTile" => "tall_grass"
-           },
-           "trees" => [
-             %{"kind" => "tree_round", "weight" => 40},
-             %{"kind" => "tree_big", "weight" => 30},
-             %{"kind" => "bush_round", "weight" => 30}
-           ]
-         },
-         %{
-           "key" => "hedgerow",
-           "name" => "Hedgerow",
-           "weight" => 3,
-           "canopy" => 0.70,
-           "undergrowth" => 1.20,
-           "leafHue" => -3,
-           "leafValue" => -0.05,
-           "formation" => %{
-             "lattice" => 9,
-             "spacing" => 2,
-             "understory" => 1.20,
-             "understoryTile" => "thicket"
-           },
-           "trees" => [
-             %{"kind" => "tree_gnarled", "weight" => 40},
-             %{"kind" => "bush_round", "weight" => 35},
-             %{"kind" => "bush", "weight" => 25}
-           ]
-         },
-         %{
-           "key" => "orchard",
-           "name" => "Orchard",
-           "weight" => 2,
-           "canopy" => 0.85,
-           "undergrowth" => 0.40,
-           "leafHue" => 1,
-           "leafValue" => 0.02,
-           "formation" => %{
-             "lattice" => 7,
-             "spacing" => 3,
-             "understory" => 0.40,
+             "lattice" => 13,
+             "spacing" => 0,
+             "understory" => 0.3,
              "understoryTile" => "clover"
            },
+           "key" => "high_forest",
+           "leafHue" => -3,
+           "leafValue" => -0.06,
+           "name" => "High forest",
            "trees" => [
-             %{"kind" => "tree_cherry", "weight" => 45},
-             %{"kind" => "tree_round", "weight" => 35},
-             %{"kind" => "tree_big", "weight" => 20}
-           ]
+             %{"kind" => "tree_column", "weight" => 40},
+             %{"kind" => "tree_tall", "weight" => 35},
+             %{"kind" => "tree", "weight" => 25}
+           ],
+           "undergrowth" => 0.35,
+           "weight" => 3
          },
          %{
-           "key" => "bank",
-           "name" => "River bank",
-           "weight" => 2,
-           "canopy" => 0.50,
-           "undergrowth" => 0.90,
-           "leafHue" => -5,
-           "leafValue" => -0.02,
-           "pools" => 0.12,
+           "canopy" => 0.3,
            "formation" => %{
-             "lattice" => 8,
+             "lattice" => 6,
              "spacing" => 2,
-             "understory" => 0.90,
-             "understoryTile" => "tall_grass"
+             "understory" => 1.55,
+             "understoryTile" => "shrub"
            },
+           "key" => "coppice",
+           "leafHue" => 0,
+           "leafValue" => 0.0,
+           "name" => "Coppice",
            "trees" => [
-             %{"kind" => "tree_willow", "weight" => 55},
-             %{"kind" => "tree_broadleaf", "weight" => 30},
-             %{"kind" => "bush", "weight" => 15}
-           ]
+             %{"kind" => "tree_sapling", "weight" => 55},
+             %{"kind" => "bush", "weight" => 30},
+             %{"kind" => "bush_round", "weight" => 15}
+           ],
+           "undergrowth" => 1.6,
+           "weight" => 3
          },
          %{
-           "key" => "common",
-           "name" => "Open common",
-           "weight" => 3,
-           "canopy" => 0.05,
-           "undergrowth" => 0.20,
-           "leafHue" => 3,
-           "leafValue" => 0.08,
+           "canopy" => 0.06,
            "formation" => %{
              "lattice" => 3,
              "spacing" => 6,
-             "understory" => 0.20,
-             "understoryTile" => "clover"
+             "understory" => 0.45,
+             "understoryTile" => "tall_grass"
            },
+           "key" => "ride",
+           "leafHue" => 4,
+           "leafValue" => 0.1,
+           "name" => "The ride",
            "trees" => [
-             %{"kind" => "bush_round", "weight" => 60},
-             %{"kind" => "tree_sapling", "weight" => 40}
-           ]
+             %{"kind" => "tree_round", "weight" => 60},
+             %{"kind" => "bush_round", "weight" => 40}
+           ],
+           "undergrowth" => 0.45,
+           "weight" => 2
+         },
+         %{
+           "canopy" => 0.22,
+           "formation" => %{
+             "lattice" => 5,
+             "spacing" => 4,
+             "understory" => 0.9,
+             "understoryTile" => "shrub"
+           },
+           "key" => "windthrow",
+           "leafHue" => 2,
+           "leafValue" => 0.05,
+           "name" => "Windthrow",
+           "trees" => [
+             %{"kind" => "tree_stub", "weight" => 55},
+             %{"kind" => "tree_sapling", "weight" => 45}
+           ],
+           "undergrowth" => 0.95,
+           "weight" => 2
+         },
+         %{
+           "canopy" => 0.8,
+           "formation" => %{
+             "lattice" => 6,
+             "spacing" => 3,
+             "understory" => 1.0,
+             "understoryTile" => "tall_grass"
+           },
+           "key" => "streamside",
+           "leafHue" => -5,
+           "leafValue" => 0.02,
+           "name" => "Streamside",
+           "pools" => 0.08,
+           "trees" => [
+             %{"kind" => "tree_willow", "weight" => 45},
+             %{"kind" => "tree_broadleaf", "weight" => 35},
+             %{"kind" => "bush_round", "weight" => 20}
+           ],
+           "undergrowth" => 1.05,
+           "weight" => 2
          }
        ]}
   }
@@ -1736,13 +1835,49 @@ defmodule Nebulith.Catalog.GeneratorSource do
   # THESE LIVE HERE FOR THE SAME REASON THE BIOME SETS DO: the seeder writes the whole `config` column, so a
   # set authored in a migration on top of it is gone at the next seed. Measured against the captured API,
   # every town and every village had lost its regions exactly that way.
+  # NO `floor`. A region's floor colours every cell of it, and in a settlement that collides with the one
+  # thing a floor colour already meant: a street. The street count is read as the rows and columns carrying
+  # a colour all the way across, which was exact while the street was the only thing colouring a floor.
+  # Measured after the neighbourhoods got tones: a town asked for ONE street and painted two. A
+  # neighbourhood is told apart by how much of it is BUILT, by how green it is, and by what grows at knee
+  # height, and it states all three. The wilderness keeps its floors, because nothing counts streets there.
   @city_zone_ground %{
     # No LEVEL on the upper tier, though a terrace is a tempting way to say "money". A settlement divides
     # itself by what it builds, not by altitude: relief belongs to a mountain and a volcano, where the step
     # between two regions is a cliff the builder knows how to cut.
-    "upper" => %{"built" => 1.0, "floor" => "#b9b6a8", "canopy" => 0.3},
-    "middle" => %{"built" => 1.0, "floor" => "#a8a89c", "canopy" => 0.4},
-    "lower" => %{"built" => 1.0, "floor" => "#94907f", "canopy" => 0.5}
+    "upper" => %{
+      "built" => 1.0,
+      "canopy" => 1.0,
+      "undergrowth" => 0.4,
+      "formation" => %{
+        "lattice" => 6,
+        "spacing" => 3,
+        "understory" => 0.4,
+        "understoryTile" => "clover"
+      }
+    },
+    "middle" => %{
+      "built" => 1.0,
+      "canopy" => 0.75,
+      "undergrowth" => 0.3,
+      "formation" => %{
+        "lattice" => 6,
+        "spacing" => 3,
+        "understory" => 0.3,
+        "understoryTile" => "clover"
+      }
+    },
+    "lower" => %{
+      "built" => 1.0,
+      "canopy" => 0.5,
+      "undergrowth" => 0.2,
+      "formation" => %{
+        "lattice" => 6,
+        "spacing" => 3,
+        "understory" => 0.2,
+        "understoryTile" => "shrub"
+      }
+    }
   }
 
   # …and the parts of a city that are NOT somebody's neighbourhood.
@@ -1753,7 +1888,13 @@ defmodule Nebulith.Catalog.GeneratorSource do
       "weight" => 1,
       "built" => 0.0,
       "canopy" => 1.4,
-      "floor" => "#6f7a4a"
+      "undergrowth" => 0.9,
+      "formation" => %{
+        "lattice" => 8,
+        "spacing" => 2,
+        "understory" => 0.9,
+        "understoryTile" => "tall_grass"
+      }
     },
     %{
       "key" => "market",
@@ -1761,7 +1902,13 @@ defmodule Nebulith.Catalog.GeneratorSource do
       "weight" => 1,
       "built" => 0.12,
       "canopy" => 0.1,
-      "floor" => "#a89880"
+      "undergrowth" => 0.18,
+      "formation" => %{
+        "lattice" => 3,
+        "spacing" => 6,
+        "understory" => 0.18,
+        "understoryTile" => "clover"
+      }
     },
     %{
       "key" => "graveyard",
@@ -1773,7 +1920,13 @@ defmodule Nebulith.Catalog.GeneratorSource do
       # that reads it is the ruin builder, which lays a paved platform with a colonnade of pillars around it.
       # Serving it here put a temple in the middle of eleven cities. A graveyard wants its own furniture, and
       # borrowing the ruin's is not it.
-      "floor" => "#6b6f5c"
+      "undergrowth" => 0.4,
+      "formation" => %{
+        "lattice" => 5,
+        "spacing" => 4,
+        "understory" => 0.4,
+        "understoryTile" => "tall_grass"
+      }
     }
   ]
 
@@ -1786,86 +1939,143 @@ defmodule Nebulith.Catalog.GeneratorSource do
 
   @town_zones [
     %{
+      "built" => 1.0,
+      "canopy" => 0.25,
+      "formation" => %{
+        "lattice" => 5,
+        "spacing" => 4,
+        "understory" => 0.5,
+        "understoryTile" => "shrub"
+      },
       "key" => "centre",
       "name" => "Centre",
-      "weight" => 2,
-      "built" => 1.0,
-      "canopy" => 0.4,
-      "floor" => "#a8a394"
+      "undergrowth" => 0.5,
+      "weight" => 2
     },
     %{
-      "key" => "lanes",
-      "name" => "Lanes",
-      "weight" => 3,
       "built" => 0.9,
       "canopy" => 0.7,
-      "floor" => "#9c9888"
+      "formation" => %{
+        "lattice" => 6,
+        "spacing" => 3,
+        "understory" => 0.4,
+        "understoryTile" => "shrub"
+      },
+      "key" => "lanes",
+      "name" => "Lanes",
+      "undergrowth" => 0.4,
+      "weight" => 3
     },
     %{
-      "key" => "green",
-      "name" => "Green",
-      "weight" => 2,
       "built" => 0.0,
       "canopy" => 1.3,
-      "floor" => "#6f7a4a"
+      "formation" => %{
+        "lattice" => 8,
+        "spacing" => 2,
+        "understory" => 0.9,
+        "understoryTile" => "tall_grass"
+      },
+      "key" => "green",
+      "name" => "Green",
+      "undergrowth" => 0.9,
+      "weight" => 2
     },
     %{
-      "key" => "market",
-      "name" => "Market",
-      "weight" => 1,
       "built" => 0.15,
       "canopy" => 0.1,
-      "floor" => "#a89880"
+      "formation" => %{
+        "lattice" => 3,
+        "spacing" => 6,
+        "understory" => 0.18,
+        "understoryTile" => "clover"
+      },
+      "key" => "market",
+      "name" => "Market",
+      "undergrowth" => 0.18,
+      "weight" => 1
     },
     %{
-      "key" => "outskirts",
-      "name" => "Outskirts",
-      "weight" => 2,
       "built" => 0.5,
       "canopy" => 1.1,
-      "floor" => "#8a8f6e"
+      "formation" => %{
+        "lattice" => 9,
+        "spacing" => 2,
+        "understory" => 0.8,
+        "understoryTile" => "shrub"
+      },
+      "key" => "outskirts",
+      "name" => "Outskirts",
+      "undergrowth" => 0.8,
+      "weight" => 2
     }
   ]
-
   @village_zones [
     %{
-      "key" => "huts",
-      "name" => "Huts",
-      "weight" => 4,
       "built" => 1.0,
       "canopy" => 0.5,
-      "floor" => "#9a8f72"
+      "formation" => %{
+        "lattice" => 6,
+        "spacing" => 3,
+        "understory" => 0.3,
+        "understoryTile" => "shrub"
+      },
+      "key" => "huts",
+      "name" => "Huts",
+      "undergrowth" => 0.3,
+      "weight" => 4
     },
     %{
-      "key" => "commons",
-      "name" => "Commons",
-      "weight" => 2,
       "built" => 0.0,
       "canopy" => 0.9,
-      "floor" => "#7a8452"
+      "formation" => %{
+        "lattice" => 7,
+        "spacing" => 3,
+        "understory" => 0.7,
+        "understoryTile" => "tall_grass"
+      },
+      "key" => "commons",
+      "name" => "Commons",
+      "undergrowth" => 0.7,
+      "weight" => 2
     },
     %{
-      "key" => "plots",
-      "name" => "Garden plots",
-      "weight" => 2,
       "built" => 0.25,
       "canopy" => 0.3,
-      "floor" => "#8c8a5e"
+      "formation" => %{
+        "lattice" => 5,
+        "spacing" => 4,
+        "understory" => 0.9,
+        "understoryTile" => "clover"
+      },
+      "key" => "plots",
+      "name" => "Garden plots",
+      "undergrowth" => 0.9,
+      "weight" => 2
     },
     %{
-      "key" => "edge",
-      "name" => "Edge",
-      "weight" => 2,
       "built" => 0.45,
       "canopy" => 1.2,
-      "floor" => "#6f7a4a"
+      "formation" => %{
+        "lattice" => 10,
+        "spacing" => 2,
+        "understory" => 1.0,
+        "understoryTile" => "shrub"
+      },
+      "key" => "edge",
+      "name" => "Edge",
+      "undergrowth" => 1.0,
+      "weight" => 2
     }
   ]
-
   # A BEACH IS A COAST, not the Amazon: sand where a jungle has peat, turquoise where it has blue-brown,
   # and a canopy that is yellow-green rather than near-black. Everything it does not restate is the
   # rainforest's, because the water depths and the swamp tone read the same in both.
+  # `groundTile` IS THE GROUND A PLACE IS MADE OF, and the frontend has read it since the open-ground pass
+  # was written: *"a desert city was paved in spring meadow grass: the ground a place is made of is a fact
+  # about the PLACE, and the season is what colour it happens to be today."* Nothing ever served one, so
+  # every map, town and city took the season's first ground.
   @beach_palette Map.merge(@jungle_palette, %{
+                   "groundTile" => "sand",
                    "floor" => "#7c8a4e",
                    "floorAlt" => "#8c9a5b",
                    "litter" => "#9a8d5a",
@@ -1877,6 +2087,41 @@ defmodule Nebulith.Catalog.GeneratorSource do
                    "waterDeep" => "#1a7891",
                    "bank" => "#e8d6a6"
                  })
+
+  # A DESERT'S OWN TONES. It ran on the beach's, which is why its light read as a coast: the beach's floor is
+  # an olive scrub (#7c8a4e) and its canopy a wet tropical green. Sand takes the sun and throws it back, so
+  # the floor is pale and warm, what little grows on it is grey green rather than lush, and the only water is
+  # an oasis pool, which is still and dark rather than turquoise.
+  @desert_palette Map.merge(@jungle_palette, %{
+                    "groundTile" => "sand_dune",
+                    "floor" => "#d9b98a",
+                    "floorAlt" => "#c9a877",
+                    "litter" => "#b39469",
+                    "canopy" => "#7d8f5c",
+                    "canopyAlt" => "#8fa06a",
+                    "undergrowth" => "#8a8f63",
+                    "water" => "#3f7f86",
+                    "waterShallow" => "#7bbec0",
+                    "waterDeep" => "#2c5d66",
+                    "bank" => "#c9a877"
+                  })
+
+  # A VOLCANO'S OWN TONES. It ran on the woodland's, which is a lit olive field under a green canopy, and that
+  # is why a volcanic map read as a wood on a hill. Ash and cooled lava are near black and take the light
+  # badly, what grows in them is scorched rather than green, and the only water is a hot pool.
+  @volcanic_palette Map.merge(@woodland_palette, %{
+                      "groundTile" => "ash",
+                      "floor" => "#3a332f",
+                      "floorAlt" => "#463d38",
+                      "litter" => "#2c2725",
+                      "canopy" => "#4f5a3c",
+                      "canopyAlt" => "#5e6a46",
+                      "undergrowth" => "#494b38",
+                      "water" => "#7a3a22",
+                      "waterShallow" => "#c06a3a",
+                      "waterDeep" => "#52220f",
+                      "bank" => "#3f3733"
+                    })
 
   # ── THE ENVIRONMENTS ────────────────────────────────────────────────────────────────────────────
   #
@@ -1898,6 +2143,8 @@ defmodule Nebulith.Catalog.GeneratorSource do
     wild: true,
     kinds: ~w(village town city),
     blooms: nil,
+    # WHAT RUNS IN ITS CHANNELS. Water everywhere except where an environment says otherwise.
+    liquid: "smooth",
     levels: %{},
     region_extra: %{},
     river: "none",
@@ -2205,10 +2452,14 @@ defmodule Nebulith.Catalog.GeneratorSource do
       palette: @woodland_palette,
       nature: %{"groundCover" => 0.2, "flowers" => 0.04, "canopy" => 0.28, "tallGrass" => 0.12},
       formation: @formations["clumped"],
+      # WHAT GROWS WHERE A REGION NAMES NOTHING, and on a volcano most of it is dead. It listed the
+      # mountain's conifers, which is what "running on the mountain's numbers" meant.
       trees: [
-        %{"kind" => "tree_conifer", "weight" => 70},
-        %{"kind" => "tree_tall", "weight" => 15},
-        %{"kind" => "tree_stub", "weight" => 15}
+        %{"kind" => "tree_burned_pine", "weight" => 34},
+        %{"kind" => "tree_stub", "weight" => 22},
+        %{"kind" => "tree_burned_birch", "weight" => 20},
+        %{"kind" => "tree_conifer", "weight" => 14},
+        %{"kind" => "tree_tall", "weight" => 10}
       ],
       ways: %{
         "wild" => "rocky_track",
@@ -2224,10 +2475,11 @@ defmodule Nebulith.Catalog.GeneratorSource do
         "lakeside" => "#52664a"
       },
       # WHAT MAKES IT A MOUNTAIN rather than a colour change: the cells of a region stand at that level and
-      # the step down to the next is drawn as a cliff. The glade is the exposed ridge at the top, where
-      # almost nothing grows, and the deep wood is the vale at the bottom, where the water and the soil end
-      # up. Nothing else in the catalog states a level except its volcanic placeholder.
-      levels: %{"glade" => 3, "edge" => 2, "thicket" => 2, "deep" => 0, "lakeside" => 0},
+      # the step down to the next is drawn as a cliff. Its own bands state those levels (`@biome_regions`
+      # "mountain", foot 0 up to summit 4), which is why there is no `levels:` map here. There was one, keyed
+      # by the GENERIC wood's region names (glade / edge / thicket / deep / lakeside), and `wild_regions/1`
+      # looks a level up by the region's own key: an authored band set shares none of those names, so not one
+      # of its five entries ever matched anything.
       species: %{
         "canopy" => [
           %{"kind" => "tree_conifer", "weight" => 65},
@@ -2276,8 +2528,11 @@ defmodule Nebulith.Catalog.GeneratorSource do
         %{"kind" => "bush_round", "weight" => 10}
       ],
       blooms: @island_blooms,
-      # a coast starts ringed by water
-      river: "around",
+      # A COAST IS A COAST, not a moat. It asked for `around`, the perimeter river, so a beach map's water ran
+      # as a ring one cell in from the edge, covered no edge at all, and `classifyBody` read it as a river:
+      # measured on a 40 x 40 build, 91 `water_smooth_river_c` cells and not one beach piece, on the one map
+      # whose whole point is the beach. `shore` is the shape that was built for this.
+      river: "shore",
       ways: %{
         "wild" => "coast_path",
         "village" => "coast_path",
@@ -2285,18 +2540,18 @@ defmodule Nebulith.Catalog.GeneratorSource do
         "city" => "city_street"
       },
       floors: %{
-        "edge" => "#8c9a5b",
-        "deep" => "#6b7a45",
-        "glade" => "#9aa768",
-        "thicket" => "#7c8a4e",
-        "lakeside" => "#b8a978"
+        "edge" => "#c9a877",
+        "deep" => "#a08a63",
+        "glade" => "#d9b98a",
+        "thicket" => "#b39469",
+        "lakeside" => "#6f7a4a"
       },
       species: %{
         "canopy" => [
-          %{"kind" => "tree_banana", "weight" => 30},
-          %{"kind" => "tree_coconut", "weight" => 25},
-          %{"kind" => "tree_mangrove", "weight" => 25},
-          %{"kind" => "bush", "weight" => 20}
+          %{"kind" => "cactus_saguaro", "weight" => 30},
+          %{"kind" => "cactus_saguaro_old", "weight" => 25},
+          %{"kind" => "tree_dead", "weight" => 25},
+          %{"kind" => "cactus_barrel", "weight" => 20}
         ],
         "open" => [
           %{"kind" => "tree_coconut", "weight" => 35},
@@ -2398,18 +2653,21 @@ defmodule Nebulith.Catalog.GeneratorSource do
     %{
       key: "desert",
       name: "Desert",
-      wild_blurb:
-        "Open sand and sparse growth. Running on the beach's numbers until it gets its own.",
+      wild_blurb: "Dune sea, baked hardpan and a dry bed, with one green oasis in it.",
       place_blurb: "out on the open sand.",
       layout: "jungle",
-      palette: @beach_palette,
+      palette: @desert_palette,
       nature: @jungle_nature,
       formation: @formations["closed"],
+      # WHAT GROWS HERE WHERE A REGION NAMES NOTHING. It listed palms and coconuts, the beach's, which is
+      # what "running on the beach's numbers" meant. All four of its own regions name their own species, so
+      # this list only ever decides a cell no region claimed, and it should still be a desert when it does.
       trees: [
-        %{"kind" => "tree_palm", "weight" => 40},
-        %{"kind" => "tree_coconut", "weight" => 25},
-        %{"kind" => "tree_stub", "weight" => 20},
-        %{"kind" => "bush_round", "weight" => 15}
+        %{"kind" => "cactus_saguaro", "weight" => 30},
+        %{"kind" => "cactus_barrel", "weight" => 25},
+        %{"kind" => "cactus_prickly", "weight" => 20},
+        %{"kind" => "tree_dead", "weight" => 15},
+        %{"kind" => "bush_round", "weight" => 10}
       ],
       folk: 2,
       blooms: @island_blooms,
@@ -2421,18 +2679,18 @@ defmodule Nebulith.Catalog.GeneratorSource do
         "city" => "sand_track"
       },
       floors: %{
-        "edge" => "#8c9a5b",
-        "deep" => "#6b7a45",
-        "glade" => "#9aa768",
-        "thicket" => "#7c8a4e",
-        "lakeside" => "#b8a978"
+        "edge" => "#c9a877",
+        "deep" => "#a08a63",
+        "glade" => "#d9b98a",
+        "thicket" => "#b39469",
+        "lakeside" => "#6f7a4a"
       },
       species: %{
         "canopy" => [
-          %{"kind" => "tree_banana", "weight" => 30},
-          %{"kind" => "tree_coconut", "weight" => 25},
-          %{"kind" => "tree_mangrove", "weight" => 25},
-          %{"kind" => "bush", "weight" => 20}
+          %{"kind" => "cactus_saguaro", "weight" => 30},
+          %{"kind" => "cactus_saguaro_old", "weight" => 25},
+          %{"kind" => "tree_dead", "weight" => 25},
+          %{"kind" => "cactus_barrel", "weight" => 20}
         ],
         "open" => [
           %{"kind" => "tree_coconut", "weight" => 35},
@@ -2460,24 +2718,29 @@ defmodule Nebulith.Catalog.GeneratorSource do
       },
       mix_adds: [{"store", 1, 2}]
     },
-    # PLACEHOLDER, awaiting its own flavour. Nothing volcanic exists in this file, so it runs on the
-    # MOUNTAIN's numbers: the same relief, the same conifers, the same stone under slate. What it is
-    # missing is exactly what would make it volcanic, ash floors, black rock, lava water and a canopy that
-    # gives up near the vents. Author those here and nothing else has to move.
+    # ITS OWN FLAVOUR, authored where the placeholder said to author it: ash floors, black rock, hot water
+    # and a canopy that gives up near the vents. The relief is still the mountain's, which is right, a
+    # volcano climbs; everything that made it read as a wood on a hill is gone.
     %{
       key: "volcanic",
       name: "Volcanic",
-      wild_blurb:
-        "Rock that climbs in steps. Running on the mountain's numbers until it gets its own.",
+      wild_blurb: "Ash and cooled lava climbing in steps, burnt stands, and a sheltered wood below them.",
       place_blurb: "on the black rock under the mountain.",
       layout: "woodland",
-      palette: @woodland_palette,
+      palette: @volcanic_palette,
+      # THE ONE ENVIRONMENT WHOSE CHANNELS ARE NOT WATER. The placeholder comment named "lava water" as one
+      # of the four things missing, and `setForLiquid` has had the lava piece family all along.
+      liquid: "lava",
       nature: %{"groundCover" => 0.2, "flowers" => 0.04, "canopy" => 0.28, "tallGrass" => 0.12},
       formation: @formations["clumped"],
+      # WHAT GROWS WHERE A REGION NAMES NOTHING, and on a volcano most of it is dead. It listed the
+      # mountain's conifers, which is what "running on the mountain's numbers" meant.
       trees: [
-        %{"kind" => "tree_conifer", "weight" => 70},
-        %{"kind" => "tree_tall", "weight" => 15},
-        %{"kind" => "tree_stub", "weight" => 15}
+        %{"kind" => "tree_burned_pine", "weight" => 34},
+        %{"kind" => "tree_stub", "weight" => 22},
+        %{"kind" => "tree_burned_birch", "weight" => 20},
+        %{"kind" => "tree_conifer", "weight" => 14},
+        %{"kind" => "tree_tall", "weight" => 10}
       ],
       folk: 2,
       ways: %{
@@ -2493,7 +2756,8 @@ defmodule Nebulith.Catalog.GeneratorSource do
         "thicket" => "#5f7047",
         "lakeside" => "#52664a"
       },
-      levels: %{"glade" => 3, "edge" => 2, "thicket" => 2, "deep" => 0, "lakeside" => 0},
+      # NO `levels:` HERE EITHER, and for the same reason as the mountain: this biome states its own bands and
+      # they carry their own levels, so a map keyed by the generic wood's region names matched nothing.
       species: %{
         "canopy" => [
           %{"kind" => "tree_conifer", "weight" => 65},
@@ -2710,9 +2974,28 @@ defmodule Nebulith.Catalog.GeneratorSource do
   end
 
   # The water options with a different starting river: a coast starts ringed by water.
-  defp water_options(river_default) do
+  defp water_options(river_default, liquid_default) do
     [river | rest] = @water_options
-    [Map.put(river, "default", river_default) | rest]
+
+    [Map.put(river, "default", river_default) | rest] ++ [liquid_option(liquid_default)]
+  end
+
+  # WHAT THE MAP'S LIQUID IS. The engine already switches on it (`liquidFor` reads `options.water`,
+  # `setForLiquid` picks the piece family from it) and nothing offered it, so every map ran on the default
+  # and a volcano's channel was ordinary water. Served rather than typed, so a fourth liquid is one row.
+  defp liquid_option(default) do
+    %{
+      "key" => "water",
+      "label" => "What the water is",
+      "type" => "choice",
+      "group" => "water",
+      "default" => default,
+      "choices" => [
+        %{"key" => "smooth", "label" => "Water"},
+        %{"key" => "lined", "label" => "Water, with a lined bed"},
+        %{"key" => "lava", "label" => "Lava"}
+      ]
+    }
   end
 
   # THIS BIOME'S OWN REGIONS. The set comes from `@biome_regions` and states its own shapes, species and
@@ -2822,7 +3105,8 @@ defmodule Nebulith.Catalog.GeneratorSource do
       # …AND THE PICKER OFFERS THIS BIOME'S OWN REGIONS. It was built from `@wild_regions`, the generic
       # wood's five, so a volcano offered you a "Glade" and a swamp a "Deep wood" whatever its map was
       # actually made of.
-      options: @way_options ++ region_options(wild_regions(env)) ++ water_options(env.river)
+      options:
+        @way_options ++ region_options(wild_regions(env)) ++ water_options(env.river, env.liquid)
     }
   end
 
@@ -2837,7 +3121,9 @@ defmodule Nebulith.Catalog.GeneratorSource do
       zones: env.seasons,
       description: "#{kind.blurb} #{env.place_blurb}",
       config: settlement_config(kind, env),
-      options: @settlement_way_options ++ region_options(kind.sub_zones) ++ @water_options
+      options:
+        @settlement_way_options ++
+          region_options(kind.sub_zones) ++ water_options("none", env.liquid)
     }
   end
 
@@ -2861,11 +3147,19 @@ defmodule Nebulith.Catalog.GeneratorSource do
       "settlement" => Map.merge(tuning, env.settlement_overrides),
       "nature" => env.settlement_nature,
       "units" => townsfolk(settlement_folk(env, kind)),
+      # THE PLACE'S OWN TONES AND ITS OWN GROUND. A settlement carried no palette at all, so a desert village
+      # and a volcanic town were both laid out on the season's meadow in the season's green: measured at 1433
+      # and 1020 cells of 1600. That is *"all these issues apply to their settlements counterpart"* exactly.
       "terrain" => terrain_for(env),
       "buildings" => Map.merge(@building_palette, Map.merge(kind.buildings, env.buildings))
     }
+    |> with_palette(Elixir.Map.get(env, :palette))
     |> with_sub_zones(kind.sub_zones)
   end
+
+  # An environment that states no palette adds no key, rather than a nil one for the frontend to unwrap.
+  defp with_palette(config, nil), do: config
+  defp with_palette(config, palette), do: Elixir.Map.put(config, "palette", palette)
 
   defp with_sub_zones(config, []), do: config
   defp with_sub_zones(config, zones), do: Map.put(config, "subZones", zones)

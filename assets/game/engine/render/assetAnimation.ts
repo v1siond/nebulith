@@ -99,9 +99,12 @@ export function spriteFrame(
   return resolveFrame(frame, { char: asset.art?.[0] })
 }
 
-/** Map a render `Style` to the pure engine's scope token, only ascii/emoji exist as tile styles. */
+/** THE STYLE'S OWN ID, which is what an animation's scope is matched against.
+ *
+ *  This read `style.id === 'emoji' ? 'emoji' : 'ascii'`, which is a two-style world with a default: any
+ *  third style would have been told it was ascii, and an animation scoped to it would never have fired. */
 function styleToken(style: Style): TileStyle {
-  return style.id === 'emoji' ? 'emoji' : 'ascii'
+  return style.id as TileStyle
 }
 
 /**

@@ -53,7 +53,6 @@ defmodule Nebulith.DataMigration.ABeachGrowsDuneGrass do
   require Logger
 
   alias Nebulith.Catalog
-  alias Nebulith.Repo
 
   @zones ~w(spring summer autumn winter desert)
 
@@ -66,30 +65,13 @@ defmodule Nebulith.DataMigration.ABeachGrowsDuneGrass do
     {"dune_grass_seed", "ψ", "🌾", "Dune grass in seed"}
   ]
 
-  # Which form each beach region grows. `thicket` keeps its scrub: it is the one region that is scrub.
-  # EVERY region is stated, `thicket` included, and it gets grass rather than keeping its scrub.
-  #
-  # Leaving it out was tried and measured: the thicket region carries the highest undergrowth density on the
-  # map (1.45 against 0.4 in a glade), so on a real build it put 324 woodland `thicket` plants against 195
-  # dune grass. The densest thing underfoot on a beach was a wood, which is the whole of what he is asking to
-  # be rid of. The mature clump at that density is a back-dune marram stand, which is what the dune reference
-  # actually shows. Scrub still reaches a beach through `bush_round` and `shrub` in the tree mix.
-  @by_region %{
-    "edge" => "dune_grass_young",
-    "deep" => "dune_grass",
-    "glade" => "dune_grass_young",
-    "thicket" => "dune_grass",
-    "lakeside" => "dune_grass_seed"
-  }
-
   def run do
     tiles = seed_tiles()
-    maps = set_default()
-    zones = set_regions()
 
-    Logger.info(
-      "[data_migrate] #{tiles} dune grass tiles, #{maps} beach formations, #{zones} beach region sets"
-    )
+    # The beach formation and its region sets are stated by `GeneratorSource`, which writes
+    # `generators.config` whole, so writing them here made them a second owner and the next seed decided
+    # them. The tiles are this pass's own.
+    Logger.info("[data_migrate] #{tiles} dune grass tiles")
 
     :ok
   end
@@ -125,34 +107,4 @@ defmodule Nebulith.DataMigration.ABeachGrowsDuneGrass do
   end
 
   # The map-wide default, for anywhere that states no region of its own.
-  defp set_default do
-    %{num_rows: rows} =
-      Repo.query!("""
-      UPDATE generators
-      SET config = jsonb_set(config, '{formation,understoryTile}', '"dune_grass"')
-      WHERE key LIKE '%\\_beach' AND config->'formation' IS NOT NULL
-      """)
-
-    rows
-  end
-
-  defp set_regions do
-    %{num_rows: rows} =
-      Repo.query!(
-        """
-        UPDATE generators SET config = jsonb_set(config, '{subZones}', (
-          SELECT jsonb_agg(
-            CASE WHEN $1::text::jsonb ? (z->>'key')
-              THEN jsonb_set(z, '{formation,understoryTile}', $1::text::jsonb -> (z->>'key'))
-              ELSE z END
-            ORDER BY ord)
-          FROM jsonb_array_elements(config->'subZones') WITH ORDINALITY AS t(z, ord)
-        ))
-        WHERE key LIKE '%\\_beach' AND config->'subZones' IS NOT NULL
-        """,
-        [Jason.encode!(@by_region)]
-      )
-
-    rows
-  end
 end

@@ -30,59 +30,16 @@ defmodule Nebulith.DataMigration.UndoTheDesertTiles do
   @gone ~w(cactus_column cactus_barrel cactus_prickly tree_acacia)
   @tiles_gone ~w(cactus_barrel cactus_pad)
 
-  # Measured off the live rows before the change, not reconstructed from memory.
-  @desert [
-    %{"kind" => "tree_palm", "weight" => 40},
-    %{"kind" => "tree_coconut", "weight" => 25},
-    %{"kind" => "tree_stub", "weight" => 20},
-    %{"kind" => "bush_round", "weight" => 15},
-    %{"kind" => "tree_encina", "weight" => 20}
-  ]
-
-  @desert_regions %{
-    "edge" => [
-      %{"kind" => "tree_coconut", "weight" => 35},
-      %{"kind" => "tree_palm", "weight" => 25},
-      %{"kind" => "tree_banana", "weight" => 25},
-      %{"kind" => "bush_round", "weight" => 15},
-      %{"kind" => "tree_encina", "weight" => 24}
-    ],
-    "deep" => [
-      %{"kind" => "tree_banana", "weight" => 30},
-      %{"kind" => "tree_coconut", "weight" => 25},
-      %{"kind" => "tree_mangrove", "weight" => 25},
-      %{"kind" => "bush", "weight" => 20}
-    ],
-    "glade" => [
-      %{"kind" => "tree_coconut", "weight" => 35},
-      %{"kind" => "tree_palm", "weight" => 25},
-      %{"kind" => "tree_banana", "weight" => 25},
-      %{"kind" => "bush_round", "weight" => 15},
-      %{"kind" => "tree_encina", "weight" => 20}
-    ],
-    "thicket" => [
-      %{"kind" => "bush_round", "weight" => 50},
-      %{"kind" => "bush", "weight" => 30},
-      %{"kind" => "tree_sapling", "weight" => 20},
-      %{"kind" => "tree_encina", "weight" => 14}
-    ],
-    "lakeside" => [
-      %{"kind" => "tree_mangrove", "weight" => 60},
-      %{"kind" => "tree_palm", "weight" => 25},
-      %{"kind" => "bush_round", "weight" => 15}
-    ]
-  }
-
   def run do
     comps = drop_compositions()
     tiles = drop_tiles()
     strip_cactus_settings()
-    restore_desert()
     TileSource.seed_compositions()
 
-    Logger.info(
-      "[data_migrate] #{comps} compositions and #{tiles} tiles removed, desert mixes restored"
-    )
+    # THE DESERT MIX IS NOT RESTORED FROM HERE ANY MORE. `GeneratorSource.seed/0` writes
+    # `generators.config` WHOLE, so a mix written by this pass was a second owner and the next seed
+    # decided it. What the desert grows is stated in the seeder, which is the only place it is stated.
+    Logger.info("[data_migrate] #{comps} compositions and #{tiles} tiles removed")
 
     :ok
   end
@@ -118,34 +75,5 @@ defmodule Nebulith.DataMigration.UndoTheDesertTiles do
     Repo.query!("UPDATE tiles SET settings = $1::text::jsonb WHERE label = 'cactus'", [
       Jason.encode!(settings)
     ])
-  end
-
-  defp restore_desert do
-    Repo.query!(
-      """
-      UPDATE generators SET config = jsonb_set(config, '{trees}', $1::text::jsonb)
-      WHERE (name = 'Desert' OR name LIKE 'Desert %') AND config->'trees' IS NOT NULL
-      """,
-      [Jason.encode!(@desert)]
-    )
-
-    Repo.query!(
-      """
-      UPDATE generators SET config = jsonb_set(config, '{subZones}', (
-        SELECT jsonb_agg(
-          CASE
-            WHEN $1::text::jsonb ? (z->>'key') THEN jsonb_set(z, '{trees}', $1::text::jsonb -> (z->>'key'))
-            ELSE z
-          END
-          ORDER BY ord
-        )
-        FROM jsonb_array_elements(config->'subZones') WITH ORDINALITY AS t(z, ord)
-      ))
-      WHERE (name = 'Desert' OR name LIKE 'Desert %') AND config->'subZones' IS NOT NULL
-      """,
-      [Jason.encode!(@desert_regions)]
-    )
-
-    :ok
   end
 end

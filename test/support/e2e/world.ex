@@ -71,5 +71,40 @@ defmodule Nebulith.E2E.World do
     template
   end
 
+  @doc """
+  A game with one level, one map on it, and the template the editor addresses that map by.
+
+  The editor takes its game from the URL (`/games/:id`), and it opens a TEMPLATE, so a scenario about
+  anything a GAME decides needs the whole chain hooked up: a game, a level under it, a map pointed at that
+  level, and the game's template list carrying the template that map came from. Any link missing and the
+  editor opens as a loose map, where every game-scoped control is correctly absent and a scenario reads
+  that as the control being broken.
+
+  Gives back `%{game: game, template: template, map: map}`.
+  """
+  def a_game_map(user, attrs \\ %{}) do
+    {:ok, game} =
+      Nebulith.Games.create_game(user, %{
+        "name" => Map.get(attrs, :game_name, "e2e game #{System.unique_integer([:positive])}")
+      })
+
+    {:ok, level} = Nebulith.Levels.create_level(game.id, %{"name" => "1-1"})
+    template = scratch_map(attrs)
+    {:ok, map} = Nebulith.World.map_for_template(template.id)
+
+    {:ok, map} =
+      map
+      |> Ecto.Changeset.change(level_id: level.id)
+      |> Nebulith.Repo.update()
+
+    {:ok, game} =
+      Nebulith.Games.update_game(user, game.id, %{
+        "templateIds" => [template.id],
+        "lastTemplateId" => template.id
+      })
+
+    %{game: game, template: template, map: map}
+  end
+
   defp filled(cols, rows, value), do: List.duplicate(List.duplicate(value, cols), rows)
 end

@@ -1,4 +1,3 @@
-import { styleCatalog } from '@/engine/tileset/styleTiles'
 import { assetDrawsSingle } from '@/engine/cellStack'
 import { player as playerSprite } from '@/assets/ascii'
 import { GridAsset, IsometricGrid, FLOOR_TYPE, DEFAULT_FLOOR_SLUG } from '@/engine/IsometricGrid'
@@ -11,13 +10,14 @@ import { type Projectile, projectileCellAt } from '@/game/projectiles'
 import { type HitMarker } from '@/game/runtime/combat'
 import { type PlayerState, barFraction, hpFraction, playerDisplayName } from '@/game/runtime/player'
 import { type CombatState, type Entity, type Quest } from '@/game/types'
-import { resolveGroundTile } from '@/engine/tileset/tileset'
+import { resolveGroundForLabel } from '@/engine/tileset/groundColor'
 import { applyPose } from '@/engine/tileset/pose'
 import { resolveTileSize, resolveTilePose } from '@/engine/tileset/tileViewSettings'
 import { resolveTileHeight } from '@/engine/tileset/tileHeight'
 import { Connector } from '@/lib/api'
 import { ASCII_FONT, COMBAT_RANGE, type DayNight, ENEMY_MOVE_MS, applyCellTransform, clampCameraAxis, assetCaptionByCell, terrainLabelAt, collectLampGlows, drawCellLabel, debugLabelColors, drawFacingGlyph, drawFigureVitals, drawGroundShadow, drawHitMarker, drawHoverRing, drawNightLighting, drawPlayerArm, drawProjectileGlyph, drawConnectorMarker, drawAttackAnimFrame, drawQuestMarker, drawRangeRing, drawSelectionRing, drawStyledImage, drawFlatTileForShape, SINGLE_TILE_FRAC, enemyInAttackReach, entityAnimFrame, entityMotion, entityRenderCell, frameImage, getPlayerArt, fillTintedGlyph, idleNow, isDeadEnemy, isDebugMode, isShowCollisions, resolveDraw, resolveAssetDraw, resolveEntityDraw, assetOverride, assetTileImage, styleTileImage, labelTileRecolor, groundDecorImage, type DrawVisual } from './shared'
 import { nearFadeAlpha } from './roofReveal'
+import { fadeBands } from '@/lib/fadeBands'
 import { drawWeather, type WeatherId } from './weather'
 import { resolveAssetDrawSize } from './assetDimensions'
 import { resolveAssetAnimation } from './assetAnimation'
@@ -462,9 +462,11 @@ export function render2D(params: Render2DParams) {
       const p = toScreen(col + 0.5, row + 0.5)
       if (p.x < -tileW || p.x > w + tileW || p.y < -tileH || p.y > h + tileH) continue
       const tileType = floor.tileKey || DEFAULT_FLOOR_SLUG
-      const gt = resolveGroundTile(styleCatalog('ascii'), tileType, col, row)
+      const gt = resolveGroundForLabel(tileType, col, row)
       const gk = groundKind(tileType)
-      const gdv = resolveDraw(gk, style, undefined, gt.char, gt.fg)
+      // NO DEFAULT CHARACTER. A ground tile draws its baked picture, and the character that used to sit
+      // here was the fallback for a tile with no picture, which the catalog forbids.
+      const gdv = resolveDraw(gk, style, undefined, '', gt.fg)
       // COLOUR IS STATE: read floor.color, NEVER derive it per-frame (was `?? cellFill(...)`). A floor is born
       // with its colour (IsometricGrid.makeFloorAsset → groundTileColor), so this just reads it (MAP-MODEL §8).
       const fillBg = floor.color
@@ -707,7 +709,7 @@ export function render2D(params: Render2DParams) {
       const animShiftX = assetAnim ? assetAnim.x * tileW : 0
       const animShiftY = assetAnim ? assetAnim.y * tileH : 0
       // NEAR THE HERO a tall thing eases see-through, the rule the iso view applies (roofReveal.nearFadeAlpha).
-      const nearFade = nearFadeAlpha(asset.settings, asset.col, asset.row, heroCell)
+      const nearFade = nearFadeAlpha(fadeBands(), asset, heroCell)
       const animWrap = nearFade < 1 || (!!assetAnim && (animShiftX !== 0 || animShiftY !== 0 || assetAnim.opacity < 1))
       if (animWrap) {
         ctx.save()

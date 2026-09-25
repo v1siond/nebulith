@@ -96,7 +96,9 @@ defmodule Nebulith.World do
 
     %{
       "map" =>
-        take(map, [:id, :name, :description, :level_id, :tileset_id, :zone_id, :lock_version]),
+        map
+        |> take([:id, :name, :description, :level_id, :tileset_id, :zone_id, :lock_version])
+        |> Elixir.Map.merge(game_facts(map)),
       "grid" => grid_payload(grid),
       "cells" => cells_payload(grid)
     }
@@ -210,6 +212,51 @@ defmodule Nebulith.World do
 
   # The key is the column name, spelled the way the column is spelled. Decimals go out as strings so a
   # value survives the trip without a float rounding it, which is what makes an exact round-trip possible.
+  @doc """
+  WHAT THE GAME THIS MAP BELONGS TO DECIDES, travelling with the map that opens in the editor.
+
+  Two facts here are not the map's own. The art style a game DEFAULTS to, which phase 1 states as
+  `games.default_tileset_id` with a per-map override, and the whole `game_settings` row, which carries the
+  map ceiling, the discovery rules and the four numbers a thing near the hero fades by. The row is taken
+  from the SCHEMA rather than named field by field, so a column added to it travels the day it is added.
+
+  Both are here rather than in a controller because the editor reads `load_map/1` and the map list reads
+  the controller's summary, so a fact written in only one of those two places is a fact half the app
+  cannot see. Measured: `game_default_tileset_id` was built in the controller's summary and the show
+  payload never carried it, so a game's default art style reached the map list and never reached the
+  editor that needed it.
+
+  A map belonging to no game answers with the COLUMN's own defaults, because a scratch map where the reveal
+  silently stops working is worse than one that draws by the same rules as any other.
+  There is no default art style to offer, so that stays nil and the editor keeps the style it is showing.
+  """
+  def game_facts(%{level_id: nil}), do: facts(nil, nil)
+
+  def game_facts(%{level_id: level_id}) do
+    Repo.one(
+      from(l in Nebulith.Games.Level,
+        join: g in assoc(l, :game),
+        left_join: s in Nebulith.Games.GameSettings,
+        on: s.game_id == g.id,
+        where: l.id == ^level_id,
+        select: {g.default_tileset_id, s}
+      )
+    )
+    |> then(fn
+      nil -> facts(nil, nil)
+      {tileset_id, settings} -> facts(tileset_id, settings)
+    end)
+  end
+
+  defp facts(tileset_id, nil), do: facts(tileset_id, %Nebulith.Games.GameSettings{})
+
+  defp facts(tileset_id, settings) do
+    %{
+      "game_default_tileset_id" => tileset_id,
+      "settings" => take(settings, Nebulith.Games.GameSettings.served_fields())
+    }
+  end
+
   defp take(struct, fields) do
     Elixir.Map.new(fields, fn field ->
       {Atom.to_string(field), wire(Elixir.Map.get(struct, field))}
@@ -249,8 +296,49 @@ defmodule Nebulith.World do
   def save_map(id, payload) do
     case get_map(id) do
       nil -> :error
-      map -> validated(map, payload, offences(payload))
+      map -> validated(map, payload, offences(payload) ++ too_big(map, payload))
     end
+  end
+
+  # HOW BIG A MAP MAY BE IS THE GAME'S NUMBER, never the engine's.
+  #
+  # `docs/SPEC.md` §3.1 declares `game_settings.map_size_max` as *"100 for now. a NUMBER, not a constant"*,
+  # and law 12 says the frontend sets no limits. Both are satisfied by the limit living HERE: React types
+  # whatever you type, and the answer comes from a column a person can raise.
+  #
+  # A map that belongs to no game has no ceiling, because there is nothing stating one. That is not a
+  # loophole, it is the same rule: the number comes from the game or it does not exist.
+  defp too_big(map, payload) do
+    grid = Elixir.Map.get(payload, "grid") || %{}
+    cols = grid["cols"] || grid[:cols]
+    rows = grid["rows"] || grid[:rows]
+
+    case {ceiling(map), cols, rows} do
+      {nil, _, _} -> []
+      {max, c, r} when is_integer(c) and c > max -> [over("columns", c, max) | over_rows(r, max)]
+      {max, _, r} -> over_rows(r, max)
+    end
+  end
+
+  defp over_rows(rows, max) when is_integer(rows) and rows > max, do: [over("rows", rows, max)]
+  defp over_rows(_rows, _max), do: []
+
+  defp over(what, asked, max),
+    do:
+      "#{what}: #{asked} is past this game's limit of #{max}. Raise the game's maximum map size."
+
+  # `maps.level_id` is a plain column rather than an association, so the two hops are written out.
+  defp ceiling(map) do
+    Repo.one(
+      from(m in Nebulith.World.Map,
+        join: l in Nebulith.Games.Level,
+        on: l.id == m.level_id,
+        join: s in Nebulith.Games.GameSettings,
+        on: s.game_id == l.game_id,
+        where: m.id == ^map.id,
+        select: s.map_size_max
+      )
+    )
   end
 
   defp validated(map, payload, []), do: write(map, payload)

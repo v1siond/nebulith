@@ -99,6 +99,41 @@ export function styleTiles(styleId: string): StyleTileMap {
   return styleCatalog(styleId).tiles
 }
 
+/**
+ * A tile by label, from WHICHEVER style has it, for reading a fact that is not a style's to disagree on.
+ *
+ * `docs/SPEC.md` law 4: *"A tileset is a set of PNGs. All rules are global; the only difference between
+ * art styles is which pictures they provide."* So `category`, `height` and the rest belong to the LABEL,
+ * and the backend enforces it: the seeder's parity pass agrees 500 per-label facts across styles before
+ * serving them.
+ *
+ * This exists because asking those questions needed a style id, and callers that had none wrote
+ * `'ascii'`. That is phase 1's DELETE line, and it is wrong in both directions: in emoji the same call
+ * answered from a catalog the user is not looking at, and had ascii not been loaded it would have
+ * answered `undefined` for a label that plainly exists.
+ */
+export function labelTile(label: string): StyleTile | undefined {
+  for (const catalog of Object.values(CATALOGS)) {
+    const tile = catalog.tiles[label]
+    if (tile) return tile
+  }
+  return undefined
+}
+
+/** A LABEL'S GROUND TONES, from whichever style has them.
+ *
+ *  The two tones are a fact about the label, not about the art: `adobe` is the same sandy brown whichever
+ *  style draws it. They used to live only in the ascii catalog, so every style's ground colour was read
+ *  out of `styleCatalog('ascii')` by name, which is a style id decided in the frontend for a fact the
+ *  backend owns. Both styles carry them now and they agree, so the question is simply which label. */
+export function labelGround(label: string): GroundTile | undefined {
+  for (const catalog of Object.values(CATALOGS)) {
+    const ground = catalog.terrain[label]
+    if (ground) return ground
+  }
+  return undefined
+}
+
 /** One tile, or undefined when this style has no such label. */
 export function styleTile(styleId: string, label: string): StyleTile | undefined {
   return CATALOGS[styleId]?.tiles[label]

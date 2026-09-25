@@ -70,7 +70,7 @@ defmodule Nebulith.E2E.PerformanceTest do
 
   setup %{conn: conn} do
     World.seed_catalog()
-    %{conn: count_frames(conn)}
+    %{conn: conn |> watch_for_errors() |> count_frames()}
   end
 
   for {what, size, category, preset} <- @worlds do
@@ -91,16 +91,23 @@ defmodule Nebulith.E2E.PerformanceTest do
         |> Editor.open(map.id)
         |> GeneratePanel.build_world(@category, @preset)
 
-      tiles = length(Canvas.tiles(session))
+      tiles = Canvas.tile_count(session)
 
       assert tiles >= 500,
-             "refusing to measure an empty scene: #{@what} built #{tiles} tiles, so it never generated"
+             "refusing to measure an empty scene: #{@what} built #{tiles} tiles, so it never " <>
+               "generated. " <> why_empty(session)
+
+      # ZOOMED ALL THE WAY OUT, which is the case worth measuring. At the default the camera shows a
+      # window, so the drawn count stays flat however large the map is and a big map measures the same
+      # as a small one. Zoomed out the frame has to deal with the whole thing at once.
+      session = Canvas.zoom_out_fully(session)
+      zoom = Canvas.zoom_percent(session)
 
       idle = sample(session, [])
       walking = sample(session, ["w", "d"])
       gpu = renderer(session)
 
-      report(@what, @size, tiles, idle, walking, gpu)
+      report(@what, @size, tiles, idle, walking, gpu, zoom, Canvas.readout_fps(session))
 
       # THE TWO THAT HOLD ANYWHERE, gated on every machine.
       draws = walking.blits + walking.live
@@ -132,6 +139,52 @@ defmodule Nebulith.E2E.PerformanceTest do
                    "#{@floor_fps}. One render costs #{Float.round(walking.render_avg, 2)}ms."
       end
     end
+  end
+
+  # WHY THE SCENE IS EMPTY, said by the page rather than guessed at from here.
+  #
+  # The 100x100 case has come back with zero tiles on every run of this file while the same world
+  # builds correctly in `ABigMapStillBuildsTest`. Four explanations were proposed from the outside and
+  # all four were wrong: the test's position in the file, the container running out of room, a rebuild
+  # emptying the grid, and the sandbox's 120 second ownership timeout. Each was plausible and none
+  # survived a measurement, so this asks the page instead.
+  defp why_empty(session) do
+    state =
+      Browser.js(session, """
+      (() => {
+        const g = window.__nebulithGrid
+        return JSON.stringify({
+          grid: !!g,
+          cols: g?.cols ?? null,
+          rows: g?.rows ?? null,
+          assets: (g?.assets ?? []).length,
+          errors: (window.__errors ?? []).slice(0, 4),
+        })
+      })()
+      """)
+
+    "The page holds: #{state || "nothing it could report"}"
+  end
+
+  # EVERYTHING THE PAGE COMPLAINED ABOUT, from before it loaded. A build that throws and a build that
+  # quietly places nothing look identical from a tile count, and they are different faults.
+  defp watch_for_errors(conn) do
+    {:ok, _} =
+      PlaywrightEx.BrowserContext.add_init_script(conn.context_id,
+        source: """
+        (() => {
+          const w = window
+          w.__errors = []
+          w.addEventListener('error', e => w.__errors.push(String(e.message || e.error)))
+          w.addEventListener('unhandledrejection', e => w.__errors.push('unhandled: ' + String(e.reason)))
+          const err = console.error.bind(console)
+          console.error = (...args) => { w.__errors.push(args.map(String).join(' ')); err(...args) }
+        })()
+        """,
+        timeout: 10_000
+      )
+
+    conn
   end
 
   # COUNT THE APP'S OWN FRAMES. The loop is one rAF chain, so counting its callbacks counts its frames.
@@ -180,6 +233,8 @@ defmodule Nebulith.E2E.PerformanceTest do
           samples: iso.length,
           setup: p.setup ?? 0, cull: p.cull ?? 0, sort: p.sort ?? 0, draw: p.draw ?? 0,
           objects: p.objects ?? 0,
+          floors: p.floors ?? 0,
+          substrate: p.substrate ?? 0,
           blits: (window.__isoBlocks ?? {}).blits ?? 0,
           live: (window.__isoBlocks ?? {}).live ?? 0,
           reasons: JSON.stringify((window.__isoBlocks ?? {}).reasons ?? {}),
@@ -199,6 +254,8 @@ defmodule Nebulith.E2E.PerformanceTest do
       sort: number(raw, "sort"),
       draw: number(raw, "draw"),
       objects: number(raw, "objects"),
+      floors: number(raw, "floors"),
+      substrate: number(raw, "substrate"),
       blits: number(raw, "blits"),
       live: number(raw, "live"),
       reasons: Elixir.Map.get(raw, "reasons", "{}")
@@ -258,10 +315,11 @@ defmodule Nebulith.E2E.PerformanceTest do
       String.contains?(renderer, "no webgl") or renderer == "unknown"
   end
 
-  defp report(what, size, tiles, idle, walking, gpu) do
+  defp report(what, size, tiles, idle, walking, gpu, zoom, on_screen) do
     IO.puts("""
 
-    #{what}  #{size.cols}x#{size.rows}  #{tiles} tiles   rasteriser: #{gpu}
+    #{what}  #{size.cols}x#{size.rows}  #{tiles} tiles   zoom #{zoom}%   the editor's own readout says #{on_screen} fps
+    rasteriser: #{gpu}
       idle     #{pad(idle.fps)} fps   render #{pad(idle.render_avg)}ms avg  #{pad(idle.render_p95)}ms p95
       walking  #{pad(walking.fps)} fps   render #{pad(walking.render_avg)}ms avg  #{pad(walking.render_p95)}ms p95
 
@@ -270,6 +328,7 @@ defmodule Nebulith.E2E.PerformanceTest do
 
       how the blocks were drawn
         #{round(walking.blits)} cached blits, #{round(walking.live)} drawn live
+        #{round(walking.floors)} of #{round(walking.objects)} objects are GROUND, #{round(walking.substrate)} of those could be BAKED
         why live: #{walking.reasons}
     """)
   end
