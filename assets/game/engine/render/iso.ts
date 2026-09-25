@@ -2645,13 +2645,18 @@ export function drawIsoRoundedBlock(
   height: number,
   dv: DrawVisual,
   tint?: string,
+  /** THICKNESS reaches, the same ones a square block honours. A round tile is a cuboid with a clip on it, so
+   *  there was never a reason for it to ignore them, and it did: the panel's Thickness control moved a number
+   *  that reached this function and stopped. 26 of the catalogue's 31 round objects are TREES, so that was
+   *  every tree crown in the game with a control that did nothing. */
+  thickness?: ThicknessReach,
 ): void {
   const { cx, cy, rx, ry } = roundedBlockEllipse(center, tileW, tileH, blockH, height)
   ctx.save()
   // The rounded silhouette: the block's INSCRIBED ellipse, so every corner bends away and proportions are kept.
   clipToBall(ctx, cx, cy, rx, ry)
   // The SAME cuboid, three shaded faces + painted art, drawn normally; only the clip above rounds it.
-  drawIsoTileBlock(ctx, center, tileW, tileH, blockH, blockLayers(height), dv, tint)
+  drawIsoTileBlock(ctx, center, tileW, tileH, blockH, blockLayers(height), dv, tint, undefined, 1, undefined, thickness)
   // Bevel the one corner the silhouette clip can't reach, the top face's interior front vertex (Image #61).
   const bevel = tint ?? dv.tint ?? dv.color
   if (bevel) roundIsoTopFrontCorner(ctx, center, tileW, tileH, blockH, height, bevel)
@@ -2674,11 +2679,13 @@ export function drawIsoConeBlock(
   height: number,
   dv: DrawVisual,
   tint?: string,
+  /** THICKNESS reaches, for the same reason the rounded block above honours them. */
+  thickness?: ThicknessReach,
 ): void {
   const { cx, cy, rx, ry } = roundedBlockEllipse(center, tileW, tileH, blockH, height)
   ctx.save()
   clipToCone(ctx, cx, cy, rx, ry)
-  drawIsoTileBlock(ctx, center, tileW, tileH, blockH, blockLayers(height), dv, tint)
+  drawIsoTileBlock(ctx, center, tileW, tileH, blockH, blockLayers(height), dv, tint, undefined, 1, undefined, thickness)
   ctx.restore()
 }
 
@@ -2718,13 +2725,17 @@ const ISO_SHAPE_DRAWERS: Record<TileShape, IsoShapeDrawer> = {
     else if (isRect) drawIsoRectBlock(ctx, center, bw, bd, bh, blocks, dv, tint, ext, undefined, assetThickness(asset))
     else drawIsoTileBlock(ctx, center, bw, bd, bh, blocks, dv, tint, undefined, asset.spanForward, asset.spanAxis, assetThickness(asset))
   },
+  // A ROUND TILE IS A CUBOID WITH A CLIP ON IT, so every setting a square block honours reaches it too.
+  // These two dropped `assetThickness` on the floor, which is a setting the panel offers on every tile and
+  // that did nothing on any of them (`docs/SPEC.md` law 4, and the standing rule that a setting gated by a
+  // tile's type is a bug, not a design).
   circle: (ctx, center, bw, bd, bh, blocks, dv, tint, asset) => {
     if (assetIsTransparent(asset)) return // transparent applies to circles too, see-through, no coloured ball
-    drawIsoRoundedBlock(ctx, center, bw, bd, bh, blocks, dv, tint)
+    drawIsoRoundedBlock(ctx, center, bw, bd, bh, blocks, dv, tint, assetThickness(asset))
   },
   cone: (ctx, center, bw, bd, bh, blocks, dv, tint, asset) => {
     if (assetIsTransparent(asset)) return // and to cones, for the same reason
-    drawIsoConeBlock(ctx, center, bw, bd, bh, blocks, dv, tint)
+    drawIsoConeBlock(ctx, center, bw, bd, bh, blocks, dv, tint, assetThickness(asset))
   },
 }
 
