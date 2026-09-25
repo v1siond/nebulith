@@ -73,9 +73,26 @@ defmodule Nebulith.E2E.Canvas do
   different facts and the whole defect above was a `||` that treated them as one.
   """
   def tile_count(session) do
+    case tile_count_or_busy(session) do
+      n when is_integer(n) -> n
+      :busy -> flunk("the page could not say how many tiles it holds, it did not answer at all")
+    end
+  end
+
+  @doc """
+  THE SAME COUNT, for a POLL, where "the page did not answer" means keep asking.
+
+  Generating a 100x100 city blocks the browser's main thread, so an evaluate sent while it runs does not come
+  back inside its budget and the read is nil. For a one-shot read that is a failure and `tile_count/1` says
+  so. For a poll waiting for that very generation to finish, it is the most ordinary thing in the world, and
+  treating it as a failure aborts the wait at the exact moment the app is doing the work being waited for.
+
+  So the two callers get two answers to the same question, and neither of them gets a zero.
+  """
+  def tile_count_or_busy(session) do
     case Browser.js(session, "(window.__nebulithGrid?.assets?.length ?? 0)") do
       n when is_integer(n) -> n
-      other -> flunk("the page could not say how many tiles it holds, it answered #{inspect(other)}")
+      _ -> :busy
     end
   end
 

@@ -113,9 +113,21 @@ defmodule Nebulith.E2E.GeneratePanel do
   # button the driver resolved is detached before the click lands, and its own two second patience runs
   # out. Reported as "could not find element" even though the log shows it resolved one, which reads
   # like the button is missing rather than like the panel is busy.
+  # NO PANEL BUTTON NAVIGATES, so the driver is told not to wait for one.
+  #
+  # Step 5 of the driver's click is "wait for any initiated navigations to complete", and on the button that
+  # builds a 100x100 city the click itself lands and then that wait sits there while the page is busy
+  # generating, until the 20 second budget runs out. The log says so in as many words: "click action done",
+  # then "waiting for scheduled navigations to finish". Measured: the build itself reaches 13,618 tiles in
+  # about six seconds, so nothing was slow except the waiting.
+  #
+  # These are in-page controls that run javascript where they stand. There is no navigation to wait for, and
+  # `build/1` below does the real waiting afterwards, on the tile count, which is the thing that actually
+  # says whether a world arrived.
   defp press_panel_button(session, words) do
     case PlaywrightEx.Frame.click(session.frame_id,
            selector: ~s|button:has-text(#{Jason.encode!(words)})|,
+           noWaitAfter: true,
            timeout: 20_000
          ) do
       {:ok, _} -> session
@@ -138,10 +150,16 @@ defmodule Nebulith.E2E.GeneratePanel do
 
     session
     |> press_panel_button("Build this world")
-    |> Browser.wait_until(&(Canvas.tile_count(&1) != before), "the world to start building",
-      timeout: 120_000
-    )
+    |> Browser.wait_until(&moved_from(&1, before), "the world to start building", timeout: 120_000)
     |> settle()
+  end
+
+  # A PAGE TOO BUSY TO ANSWER HAS NOT FINISHED, so the wait carries on rather than giving up on it.
+  defp moved_from(session, before) do
+    case Canvas.tile_count_or_busy(session) do
+      :busy -> false
+      now -> now != before
+    end
   end
 
   # Two reads a beat apart that agree. A generator that is still placing tiles disagrees with itself.
@@ -150,8 +168,12 @@ defmodule Nebulith.E2E.GeneratePanel do
   # them, a read that big comes back empty now and then, and an empty read settles against the next empty
   # one and reports a finished build as a map with nothing on it.
   defp settle(session, last \\ -1) do
-    now = Canvas.tile_count(session)
-    if now == last, do: session, else: settle_again(session, now)
+    case Canvas.tile_count_or_busy(session) do
+      # Still generating, and busy is not settled: ask again rather than call an unanswered read a result.
+      :busy -> settle_again(session, last)
+      ^last -> session
+      now -> settle_again(session, now)
+    end
   end
 
   defp settle_again(session, now) do
