@@ -78,14 +78,16 @@ defmodule Nebulith.ACactusIsNotAStickTest do
   end
 
   test "a bar that was built thin is still thin INTO THE SCREEN, so widening it did not make it a cube" do
-    # A BARREL IS NOT A BAR. It is a squat round thing whose depth SHOULD be full, and it was never the
-    # complaint, so what this asks of is the cells built by `bar/6`: the saguaro's uprights and crossing bars,
-    # and the prickly pear's pads, every one of which is a flat thing seen edge on. They are exactly the cells
-    # that carried the bare `scaleZ`, so this is the same set, asked for the thing that replaced it.
+    # A BARREL IS NOT A BAR, and neither is a PAD. Both are ROUND, and a round tile ignored thinning entirely
+    # until the shape drawers were fixed; once they obeyed it, the prickly pear's pads came out as thin
+    # angular plates where they had been rounded blobs. The authored thinning had never reached the screen,
+    # so the pads were tuned without it and it is gone.
+    #
+    # What is left is what the complaint was actually about: the saguaro's bars, which are square and stand up.
     slabs =
       for comp <- cactuses(),
           cell <- comp.cells,
-          cell.label in ~w(cactus_stem cactus_pad),
+          cell.label == "cactus_stem",
           s = cell.settings || %{},
           is_number(s["scaleY"]),
           do: {comp.name, cell.label, s["thickness"]}

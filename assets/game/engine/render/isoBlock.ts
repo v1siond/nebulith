@@ -338,10 +338,21 @@ export function normalizeSpan(col: number, row: number, spanForward: number | un
  *  Folds the model (spanAxis + depth/spanBack on the primary axis, spanPerp/spanPerpBack on the perpendicular)
  *  into a plain rectangle cols [col−colMinus, col+colPlus] × rows [row−rowMinus, row+rowPlus]. `depth` INCLUDES the
  *  anchor (depth−1 cells forward); the other three are cells BEYOND the anchor. spanAxis absent → all 0 (1 cell). */
+/** THE ANSWER FOR A TILE THAT SPANS NOTHING, which is almost every tile on a map.
+ *
+ *  This function allocated a fresh `{0,0,0,0}` for each of them, and it is asked once per asset per frame by
+ *  the visible-asset filter, again by the range test and again by the screen test. On a 100x100 city that is
+ *  over forty thousand objects a frame whose every field is zero. Every caller destructures the result
+ *  immediately and none writes to it, so they can all read the same frozen one.
+ *
+ *  Frozen rather than merely shared: a future caller that tries to write to it fails loudly in development
+ *  instead of quietly changing what every other caller sees. */
+const NO_SPAN_EXTENTS = Object.freeze({ colMinus: 0, colPlus: 0, rowMinus: 0, rowPlus: 0 })
+
 export function assetRectExtents(a: { spanAxis?: IsoDiagonal; spanForward: number; spanBack: number; spanPerp: number; spanPerpBack: number }): { colMinus: number; colPlus: number; rowMinus: number; rowPlus: number } {
-  const ext = { colMinus: 0, colPlus: 0, rowMinus: 0, rowPlus: 0 }
   const dir = a.spanAxis
-  if (!dir) return ext
+  if (!dir) return NO_SPAN_EXTENTS
+  const ext = { colMinus: 0, colPlus: 0, rowMinus: 0, rowPlus: 0 }
   const add = (d: IsoDiagonal, cells: number): void => {
     if (cells <= 0) return
     const { dc, dr } = DEPTH_CELL_STEP[d]

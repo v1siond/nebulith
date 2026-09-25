@@ -808,7 +808,7 @@ export function render(params: IsoRenderParams) {
   // back-to-front, then bottom-up within a stacked cell (higher blocks over lower), keyed on the ORIENTED
   // coord so occlusion stays correct from whichever corner the camera looks. Turn 0 → isoDepthCompare itself.
   const __isoTSort = perfNow()
-  allObjects.sort(isoDepthComparatorFor(allObjects, grid.cols, grid.rows, turn))
+  sortByIsoDepth(allObjects, grid.cols, grid.rows, turn)
   const __isoTDraw = perfNow()
 
   // Render each object with ASCII art style
@@ -1995,7 +1995,23 @@ export function isoDepthCompare(
   // A directional-depth box reaches `depthFrontExtent` cells toward the camera past its anchor, so it sorts by
   // its FRONTMOST covered cell, a box extending toward the camera draws in front of what it overlaps. A
   // depth-less asset (every existing tile) adds 0, so the no-depth case is byte-identical to (col+row).
-  const key = (o: { col: number; row: number; blockRise?: number; asset?: { spanForward: number; spanAxis?: IsoDiagonal; spanBack: number; spanPerp: number; spanPerpBack: number; heightLevel: number; height: number } }): number => {
+  const d = isoDepthKey(a) - isoDepthKey(b)
+  if (d !== 0) return d
+  if (a.asset && b.asset) return a.asset.heightLevel - b.asset.heightLevel
+  return 0
+}
+
+/**
+ * WHERE ONE OBJECT SITS IN THE BACK-TO-FRONT ORDER, as a single number.
+ *
+ * Lifted out of `isoDepthCompare`, where it was a closure and therefore ran TWICE PER COMPARISON. A sort
+ * makes about n log n of them, so on a city of 2,500 objects this ran roughly 56,000 times a frame to
+ * answer 2,500 questions. `sortByIsoDepth` calls it once each instead.
+ */
+export function isoDepthKey(
+  o: { col: number; row: number; blockRise?: number; asset?: { spanForward: number; spanAxis?: IsoDiagonal; spanBack: number; spanPerp: number; spanPerpBack: number; heightLevel: number; height: number } },
+): number {
+  {
     const dir = o.asset?.spanAxis
     // A SPAN OF ONE IS NOT A SPAN. This read `!o.asset?.spanForward`, which was a fair question while a
     // tile that spanned nothing said nothing; once every placement states its span, 1 is truthy and the
@@ -2013,10 +2029,6 @@ export function isoDepthCompare(
     const extend = Math.floor(box.span) > 1 && (o.asset?.heightLevel ?? 0) >= 1
     return box.col + box.row + (extend ? depthFrontExtent(box.span, dir) : 0)
   }
-  const d = key(a) - key(b)
-  if (d !== 0) return d
-  if (a.asset && b.asset) return a.asset.heightLevel - b.asset.heightLevel
-  return 0
 }
 
 /**
@@ -2095,6 +2107,80 @@ function orientDepthItem(
   const norm = normalizeSpan(col, row, item.asset.spanForward, item.asset.spanBack, dir)
   const back = spanBackmost(norm.col, norm.row, norm.span, dir)
   return { col: back.col, row: back.row, blockRise: item.blockRise, asset: { ...item.asset, spanForward: norm.span, spanBack: 0, spanAxis: back.dir } }
+}
+
+/**
+ * BACK TO FRONT, WITH EACH OBJECT'S KEY WORKED OUT ONCE.
+ *
+ * `allObjects.sort(comparator)` asked every object where it sat in the order once per COMPARISON, and a sort
+ * makes about n log n of them. On a wide city that was roughly 56,000 calls to answer 2,500 questions, and
+ * each call branched, folded a span and allocated an object on the way. Measured before this: sort 1.7ms of
+ * a 2.0ms budget that setup and cull also have to fit inside.
+ *
+ * At a turned camera it was worse. The comparator built a Map of every object to an ORIENTED copy, one
+ * allocation each, and then paid two Map lookups per comparison on top.
+ *
+ * So the keys are computed once, into scratch arrays that are reused frame to frame, and the sort moves
+ * indices. The order is unchanged, deliberately: the same z-index first, the same positional key, the same
+ * height tie-break between two assets on one cell, and a final index tie-break that gives back the stability
+ * the array sort provided for free.
+ */
+let dsKey = new Float64Array(0)
+let dsZ = new Float64Array(0)
+let dsLevel = new Float64Array(0)
+let dsIsAsset = new Uint8Array(0)
+let dsOrder = new Int32Array(0)
+let dsOut: unknown[] = []
+
+function growDepthScratch(n: number): void {
+  if (dsKey.length >= n) return
+  // Grow to a power of two so a map that gains a few objects does not reallocate every frame.
+  let cap = 64
+  while (cap < n) cap *= 2
+  dsKey = new Float64Array(cap)
+  dsZ = new Float64Array(cap)
+  dsLevel = new Float64Array(cap)
+  dsIsAsset = new Uint8Array(cap)
+  dsOrder = new Int32Array(cap)
+  dsOut = new Array(cap)
+}
+
+export function sortByIsoDepth<T extends IsoDepthItem>(items: T[], cols: number, rows: number, turn: number): void {
+  const n = items.length
+  if (n < 2) return
+  growDepthScratch(n)
+
+  // ONE orientation per object at a turned camera, where there used to be one per comparison.
+  const orient = turn === 0 ? null : cellOrienterFor(cols, rows, turn)
+  const facing = orient ? facingForTurn(turn) : null
+
+  for (let i = 0; i < n; i++) {
+    const raw = items[i]
+    const o = orient && facing !== null ? orientDepthItem(raw, orient, facing) : raw
+    dsKey[i] = isoDepthKey(o)
+    dsZ[i] = o.asset?.zIndex ?? 0
+    dsLevel[i] = o.asset?.heightLevel ?? 0
+    dsIsAsset[i] = o.asset ? 1 : 0
+    dsOrder[i] = i
+  }
+
+  const order = dsOrder.subarray(0, n)
+  order.sort((i, j) => {
+    const dz = dsZ[i] - dsZ[j]
+    if (dz !== 0) return dz
+    const dk = dsKey[i] - dsKey[j]
+    if (dk !== 0) return dk
+    // The height tie-break applies only between two ASSETS, exactly as the comparator had it: a non-asset
+    // tie fell through to insertion order, and the index below is that order.
+    if (dsIsAsset[i] === 1 && dsIsAsset[j] === 1) {
+      const dl = dsLevel[i] - dsLevel[j]
+      if (dl !== 0) return dl
+    }
+    return i - j
+  })
+
+  for (let i = 0; i < n; i++) dsOut[i] = items[order[i]]
+  for (let i = 0; i < n; i++) items[i] = dsOut[i] as T
 }
 
 /** The back-to-front comparator for a camera at `turn`: isoDepthCompare's key is (col + row), which is a

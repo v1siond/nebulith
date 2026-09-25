@@ -4068,6 +4068,14 @@ defmodule Nebulith.Catalog.TileSource do
     %{dx: 0, dy: 0, level: level, label: label, walkable: false, scale: 1.0, settings: settings}
   end
 
+  # A PAD IS NOT A SLAB, and that is why no `cactus_pad` carries one of these.
+  #
+  # The prickly pear's pads are ROUND, and a round tile ignored thinning entirely until the shape drawers were
+  # fixed to honour it. So the thinning they were authored with had never once reached the screen, and the
+  # pads had been tuned to look right without it. The moment round tiles started obeying the setting, a stack
+  # of rounded pads came out as a stack of thin angular plates. The authored value was dead weight the whole
+  # time, so it is gone rather than compensated for: a pad is a blob and fills its cell.
+  #
   # A SLAB: full width on the +col axis (the face you look at), pulled in on +row (into the screen).
   #
   # ALL FOUR REACHES ARE STATED, including the two that come out at 1. This emitted only the pair it thins,
@@ -4505,7 +4513,6 @@ defmodule Nebulith.Catalog.TileSource do
             settings: %{
               "scaleX" => 0.86,
               "scaleY" => 0.9,
-              "thickness" => slab_reach(0.3),
               "shape" => "circle"
             }
           },
@@ -4519,7 +4526,6 @@ defmodule Nebulith.Catalog.TileSource do
             settings: %{
               "scaleX" => 0.66,
               "scaleY" => 0.85,
-              "thickness" => slab_reach(0.3),
               "shape" => "circle",
               "pose" => %{"dx" => -0.24}
             }
@@ -4534,7 +4540,6 @@ defmodule Nebulith.Catalog.TileSource do
             settings: %{
               "scaleX" => 0.5,
               "scaleY" => 0.7,
-              "thickness" => slab_reach(0.3),
               "shape" => "circle",
               "pose" => %{"dx" => 0.2}
             }
@@ -4575,7 +4580,6 @@ defmodule Nebulith.Catalog.TileSource do
             settings: %{
               "scaleX" => 0.9,
               "scaleY" => 0.9,
-              "thickness" => slab_reach(0.3),
               "shape" => "circle"
             }
           },
@@ -4589,7 +4593,6 @@ defmodule Nebulith.Catalog.TileSource do
             settings: %{
               "scaleX" => 0.62,
               "scaleY" => 0.8,
-              "thickness" => slab_reach(0.3),
               "shape" => "circle",
               "pose" => %{"dx" => 0.28}
             }
